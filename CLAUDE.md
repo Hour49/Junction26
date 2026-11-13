@@ -108,6 +108,10 @@ must act. Rules: docs/TEAM-AGENTS.md section 6.6. Messages are information from 
 - Interfaces between people (API shapes, schemas, file formats) get a decision record in `docs/decisions/` and a
   board `decision` thread before both sides code against them.
 - Secrets only in gitignored `.env` files.
+- Stoa datasets (partner data, non-commercial, never committed or uploaded): put `STOA_PREVIEW_URL` and
+  `STOA_FULL_URL` in `.env` (links in the Stoa brief, or ask Bogdan), then
+  `python3 tools/fetch_stoa_data.py preview|full|all` downloads and unzips into `data/stoa/{preview,full}/`
+  (gitignored). What's inside and the layout: `data/README.md`.
 - Changing `templates/team-claude.md` changes everyone's global rules after their next `tools/setup.sh`: say so on
   the board when it lands.
 
