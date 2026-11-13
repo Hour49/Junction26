@@ -32,6 +32,7 @@ days"; used on "more than twenty Nordic sites, from data halls to rail"; claims 
 a track; Data is the closest (assumed).
 
 Full partner profile with their product, examples and claims: [stoa-legacy-files/partner.md](stoa-legacy-files/partner.md).
+What we can build without architecture expertise (sheet register, gap and conflict finder, renovation 3D): [stoa-legacy-files/ideas.md](stoa-legacy-files/ideas.md).
 
 **What this changes:** the cited question answering is **their product**. Don't rebuild it. Our build is the layer in
 front of it: turning messy legacy and multimodal files into a standard, up-to-date format their kind of system can
