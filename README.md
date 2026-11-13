@@ -29,10 +29,11 @@ our system ──► answers.jsonl (one line per question) ──► stoa_eval s
    found it reliable. Ambiguous or likely-wrong items get tagged and are kept out of the headline score.
 3. Splits. 20% of all questions form a sealed eval split, chosen by drawing, building or model, so translations
    of a question and the floors of one building stay on one side. Build and tune only on the 80% dev split. Score
-   eval at milestones, to catch overfitting. (Decided 2026-11-13; the `split` command is in progress.)
+   eval at milestones, to catch overfitting. Today: 101,651 dev and 25,393 eval questions (decided 2026-11-13).
 4. The golden set. A small fixed sample that covers every source, question type and language, plus the known
    traps (rotated plans, sheets with several plans, 1:200 scale, rooms with cut-outs, ...). It is small because
-   vision and LLM answers cost money per question. Free parsers are scored on all questions. v0 has 152 questions.
+   vision and LLM answers cost money per question. Free parsers are scored on all questions. v1 has 152 questions
+   (107 dev, 45 holdout from the eval split).
 5. What our system writes. One answer_v1 line per question ([decision 0002](docs/decisions/0002-answer-format.md)):
    ```json
    {"id": 89501, "answer": 212.41, "unit": "m2",
@@ -42,18 +43,23 @@ our system ──► answers.jsonl (one line per question) ──► stoa_eval s
    `answer` is graded for accuracy. `evidence` boxes (page fractions) show where on the drawing the answer came from.
    `cost_usd` and `latency_s` cover the cost criterion.
 6. Scoring (Stoa's rules). Counts must be exact. Areas, lengths and volumes pass within 2%, and only m↔ft and
-   m²↔ft² are converted. A missing answer is wrong. Free text needs an exact match for now. The report breaks
-   accuracy down by source and type and by dev against holdout, and adds evidence coverage, cost and latency.
+   m²↔ft² are converted. On the golden set a missing answer is wrong; against all, dev or eval questions the report
+   gives coverage and accuracy on the answered ones. Free text needs an exact match for now. The report breaks
+   accuracy down by source, type and template, and adds evidence coverage, cost and latency.
 7. Baselines. `oracle` (Stoa's own answers) must score 100%, which proves the plumbing. `constant` (the most
-   common answer per question template) scores 15.8% on golden v0, and any real method has to beat it.
-8. Results history. Every graded run will add one summary row (time, commit, method, split, accuracy per source,
-   cost, latency; no questions or answers) to a tracked file, so we can show how we improved. (In progress.)
+   common answer per question template, learnt from dev) scores 15.8% on golden v1, and any real method has to beat
+   it.
+8. Results history. `score --record --name <method>` adds one summary row (time, commit, method, split, accuracy
+   per source and type, coverage, cost, latency; no questions or answers) to [eval/results/runs.jsonl](eval/results/runs.jsonl),
+   so we can show how we improved. `stoa_eval history` prints it, `--csv` exports it for a chart.
 
 ```bash
 cd eval
+uv run python -m stoa_eval split                  # sealed 80/20 split into data/stoa/split/ (same hashes everywhere)
 uv run python -m stoa_eval select                 # build the golden set into data/stoa/golden/
 uv run python -m stoa_eval baseline oracle        # or: constant
-uv run python -m stoa_eval score <answers.jsonl>  # grade a run
+uv run python -m stoa_eval score <answers.jsonl> --against dev --record --name <method>   # grade and keep it
+uv run python -m stoa_eval history                # every recorded run, oldest first
 ```
 
 More in [eval/README.md](eval/README.md). First real methods: [prototypes/pdf-extract/](prototypes/pdf-extract/README.md)
