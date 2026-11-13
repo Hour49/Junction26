@@ -1,5 +1,7 @@
 """Golden v2 by plan: picking, the two-part layout, and scoring both parts, on made-up data."""
 
+import functools
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Literal
@@ -220,7 +222,23 @@ def test_select_plans_adds_the_conflict_slice_and_merges_extras(
             "why": "no year on a plan",
         }
     )
-    (out / "part2_answering/extras.jsonl").write_text(f"{unanswerable}\n{review7}\n")
+    estimate = json.dumps(
+        {
+            **origin,
+            "id": 1000003,
+            "question": "living room area in m2?",
+            "answer": 16.7,
+            "unit": "m2",
+            "type": "area",
+            "template": "estimate/scale",
+            "kind": "estimate",
+            "origin_id": None,
+            "expect": {"answer": 16.7, "tolerance": 0.2, "estimate": True},
+            "why": "room r8; gold scale estimated",
+            "style": "scale",
+        }
+    )
+    (out / "part2_answering/extras.jsonl").write_text(f"{unanswerable}\n{estimate}\n{review7}\n")
     review10 = {
         **origin,
         "path": lonely,
@@ -248,7 +266,7 @@ def test_select_plans_adds_the_conflict_slice_and_merges_extras(
     copy = read_json(out / "part1_extraction/gold/cubicasa5k/plan-99.json")
     assert copy["conflicts"] == [counted]
     merged = (out / "part2_answering/extras.jsonl").read_text().splitlines()
-    assert merged == [review7, unanswerable, json.dumps(review10)]  # by id, review-7's verbatim
+    assert merged == [review7, unanswerable, estimate, json.dumps(review10)]  # by id, verbatim
     first = (out / "part2_answering/extras.jsonl").read_bytes()
     assert select(dataset, out) == 0  # again: review-10's lines replace their earlier merge
     assert (out / "part2_answering/extras.jsonl").read_bytes() == first
@@ -266,10 +284,13 @@ def test_select_plans_adds_the_conflict_slice_and_merges_extras(
     capsys.readouterr()
     assert run("score", answers, "--golden", golden, "--results", results, "--name", "oracle",
                "--reads", "gold-extraction") == 0  # fmt: skip
-    assert "unanswerable     1/1 100.0% abstained" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "unanswerable     1/1 100.0% abstained" in printed
+    assert "estimate         1/1 100.0% pass" in printed
     [row] = read_history(results)
     assert row.overall.accuracy == 1.0 and row.extras is not None
     assert row.extras.paraphrase.rate == 1.0 and row.extras.conflict_pass.rate == 1.0
+    assert row.extras.estimate_pass is not None and row.extras.estimate_pass.rate == 1.0
     assert row.answer_v1_1 is not None and row.answer_v1_1.abstained == 0
 
 
@@ -408,3 +429,80 @@ def test_select_plans_stops_on_unscaled_gold(
     assert "1 picked gold files lack a scale value" in capsys.readouterr().err
     assert select(dataset, out, "--allow-unscaled") == 0
     assert read_json(out / "manifest.json")["unscaled"] == [first["file"]]
+
+
+NOT_TO_SCALE = {
+    "status": "not_to_scale",
+    "m_per_unit": 0.01,
+    "uncertainty": 0.2,
+    "source": "door widths",
+    "evidence": ["not_to_scale_note"],
+}
+
+
+def test_keep_freezes_the_file_set_when_the_gold_changes(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Orchestrator, 2026-11-13 23:48: a rebuilt v2 keeps its files, so every recorded run compares
+    against one set. A gold change (a not-to-scale sheet gets an estimated scale, like every
+    CubiCasa image did; another sheet becomes not-to-scale) drops one file from a fresh pick and
+    adds another; --keep holds the set, with scale cases recomputed and Part 2 unchanged."""
+    monkeypatch.setattr(plans, "QUOTAS", {**plans.QUOTAS, "cubicasa5k": (2, 1)})
+    monkeypatch.setattr(cli, "PlansParams", functools.partial(PlansParams, scale_quota=(1, 0)))
+    out = dataset / "v2"
+    assert select(dataset, out, "--allow-missing-gold") == 0
+    files = [json.loads(line) for line in (out / "part1_extraction/files.jsonl").open()]
+    write_gold(dataset, files)
+    dev = [json.loads(line) for line in (dataset / "split/dev.jsonl").open()]
+    sheet, other = sorted(
+        {
+            row["path"]
+            for row in dev
+            if row["path"].startswith("data/cubicasa5k/")
+            and row["path"] not in {f["file"] for f in files}
+        }
+    )[:2]
+
+    def gold_for(file: str, scale: dict[str, Any]) -> None:
+        gold = extraction(file=file, scale=scale)
+        name = file.replace("/", "__") + ".json"
+        (dataset / "gold/cubicasa5k" / name).write_text(gold.model_dump_json(by_alias=True))
+
+    gold_for(sheet, NOT_TO_SCALE)
+    assert select(dataset, out) == 0
+    listed = (out / "part1_extraction/files.jsonl").read_bytes()
+    questions = (out / "part2_answering/questions.jsonl").read_bytes()
+    before = {row["file"]: row for row in map(json.loads, listed.splitlines())}
+    assert before[sheet]["stratum"] == "scale" and before[sheet]["scale_case"] == "not_to_scale"
+    assert sheet.encode() in questions
+
+    gold_for(sheet, ESTIMATED)  # plan picks already fill the "nothing" case
+    gold_for(other, NOT_TO_SCALE)
+    fresh = dataset / "v2-fresh"
+    assert select(dataset, fresh) == 0
+    picked = (fresh / "part1_extraction/files.jsonl").read_text()
+    assert sheet not in picked and other in picked
+
+    assert select(dataset, out, "--keep", out / "manifest.json") == 0
+    after = [json.loads(line) for line in (out / "part1_extraction/files.jsonl").open()]
+    assert [row["file"] for row in after] == list(before)
+    kept = {row["file"]: row for row in after}
+    assert kept[sheet]["stratum"] == "scale" and kept[sheet]["scale_case"] == "nothing"
+    assert (out / "part2_answering/questions.jsonl").read_bytes() == questions
+    manifest = read_json(out / "manifest.json")
+    assert manifest["kept"] == hashlib.sha256(listed).hexdigest()
+    assert manifest["scale_cases"]["nothing"]["picked"][0] == sum(
+        row["scale_case"] == "nothing" and row["split"] == "dev" for row in after
+    )
+    assert manifest["scale_cases"]["not_to_scale"] == {  # the new not-to-scale sheet: not kept
+        "wanted": [1, 0], "picked": [0, 0], "available": [1, 0]
+    }  # fmt: skip
+    assert manifest["by_source"] == read_json(fresh / "manifest.json")["by_source"]
+    again = (out / "part1_extraction/files.jsonl").read_bytes()
+    assert select(dataset, out, "--keep", out / "manifest.json") == 0  # a kept set keeps itself
+    assert (out / "part1_extraction/files.jsonl").read_bytes() == again
+
+    (out / "part1_extraction/files.jsonl").write_bytes(again[: again.rindex(b"\n", 0, -1) + 1])
+    capsys.readouterr()
+    assert select(dataset, out, "--keep", out / "manifest.json") == 1
+    assert "is not the files list its manifest describes" in capsys.readouterr().err

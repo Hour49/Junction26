@@ -1,7 +1,8 @@
 """Two baselines that call no API.
 
 - oracle: the golden answers themselves, with confidence 1, and the expected behaviour on every
-  extras line (abstain on unanswerable ones, both values on conflict ones). It must score 100% on
+  extras line (abstain on unanswerable ones, both values on conflict ones, `estimate: true` on
+  estimate ones). It must score 100% on
   the headline and on every slice; anything less is a scorer bug.
 - constant: per question template, the typical answer among dev questions that are not in the golden
   set (median for area/length/volume, most common value otherwise). A template with no such question
@@ -44,6 +45,7 @@ def oracle(golden: Sequence[GoldenItem], extras: Sequence[ExtraItem] = ()) -> li
                 cost_usd=0.0,
                 latency_s=0.0,
                 abstain=line.kind == "unanswerable",
+                estimate=True if line.kind == "estimate" else None,
                 conflicts=(
                     None
                     if values is None

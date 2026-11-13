@@ -143,6 +143,8 @@ def test_a_good_file_parses_and_counts_itself() -> None:
             },
         ),
         ("elements.0.attrs", {"multiplicity": 2}),
+        ("read", ["door", "window", "room"]),  # golden-7f: what the extraction looked for
+        ("read", []),  # looked for nothing
     ],
 )
 def test_widened_fields_parse(path: str, value: Any) -> None:
@@ -251,6 +253,9 @@ def test_widened_fields_parse(path: str, value: Any) -> None:
         ("scale", {"status": "scaled", "m_per_unit": 0.02, "evidence": ["ruler"]}, "scale_text"),
         ("elements.0.attrs", {"multiplicity": 0}, "multiplicity"),
         ("elements.0.attrs", {"multiplicity": True}, "multiplicity"),
+        ("read", ["door", "doors"], "Input should be 'door'"),
+        ("read", ["rooms"], "Input should be 'room'"),
+        ("read", ["door", "room", "door"], "read lists"),
     ],
 )
 def test_a_bad_file_is_refused(path: str, value: Any, message: str) -> None:

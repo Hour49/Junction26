@@ -50,6 +50,8 @@ from .plans import (
     PlansParams,
     SourceCount,
     Split,
+    count_scale_cases,
+    keep,
     pick,
     pick_scale_cases,
     strata,
@@ -374,16 +376,22 @@ def run_select_plans(args: argparse.Namespace) -> None:
     sealed = set(split.eval_groups)
     rows = read_jsonl(args.questions, Question)
     stratum_of = strata(question for _, question in rows)
-    chosen, counts = pick(stratum_of, sealed, params)
-    dataset = args.questions.parent
-    for file, part in list(chosen.items()):  # swiss: the PNG of each picked PDF plan too
-        sibling = file.removesuffix(".pdf") + ".png"
-        if (
-            source_of(file) == "swiss_dwellings"
-            and sibling != file
-            and (dataset / sibling).exists()
-        ):
-            chosen[sibling], stratum_of[sibling] = part, stratum_of[file]
+    kept_sha: str | None = None
+    if args.keep is None:
+        chosen, counts = pick(stratum_of, sealed, params)
+        dataset = args.questions.parent
+        for file, part in list(chosen.items()):  # swiss: the PNG of each picked PDF plan too
+            sibling = file.removesuffix(".pdf") + ".png"
+            if (
+                source_of(file) == "swiss_dwellings"
+                and sibling != file
+                and (dataset / sibling).exists()
+            ):
+                chosen[sibling], stratum_of[sibling] = part, stratum_of[file]
+    else:  # read before anything is written: the kept v2 is usually the one rebuilt
+        kept, kept_sha = _kept_files(args.keep)
+        chosen, kept_strata, counts = keep(kept, stratum_of, sealed, params)
+        stratum_of.update(kept_strata)
     gold = _extractions(args.gold)
     missing = sorted(file for file in chosen if file not in gold)
     if missing and not args.allow_missing_gold:
@@ -396,9 +404,13 @@ def run_select_plans(args: argparse.Namespace) -> None:
         for file, (_, extraction) in gold.items()
         if (case := case_of(extraction)) is not None
     }
-    extra, scale_counts = pick_scale_cases(cases, chosen, params)
-    for file, part in extra.items():
-        chosen[file], stratum_of[file] = part, "scale"
+    if args.keep is None:
+        extra, scale_counts = pick_scale_cases(cases, chosen, params)
+        for file, part in extra.items():
+            chosen[file], stratum_of[file] = part, "scale"
+    else:
+        scale_counts = count_scale_cases(cases, chosen)
+    scale_picks = sum(stratum_of[file] == "scale" for file in chosen)
     conflicts = _conflict_files(args.gold / CONFLICTS_DIR / "conflicts.jsonl", gold, sealed)
     slice_only = {file for file in conflicts if file not in chosen}  # scored only in the slice
     for file in sorted(slice_only):
@@ -473,6 +485,7 @@ def run_select_plans(args: argparse.Namespace) -> None:
         },
         missing_gold=missing,
         unscaled=unscaled,
+        kept=kept_sha,
         conflict_files=sorted(conflicts),
         files_sha256={path.relative_to(out).as_posix(): _sha256(path) for path in written},
     )
@@ -490,7 +503,8 @@ def run_select_plans(args: argparse.Namespace) -> None:
             f"{count.picked[1]:<4} {count.available[0]:>5}/{count.available[1]:<5}"
         )
     print(
-        f"{len(files)} files (plans, the PNG of each swiss plan, {len(extra)} scale cases, "
+        f"{len(files)} files ({'kept' if kept_sha else 'picked'}: plans, the PNG of each swiss "
+        f"plan, {scale_picks} scale cases; "
         f"{len(conflicts)} conflict files, {len(slice_only)} of them only for that slice), "
         f"{len(picked_rows)} questions, "
         f"{len(extras or [])} extras lines"
@@ -500,6 +514,17 @@ def run_select_plans(args: argparse.Namespace) -> None:
     for file in missing:
         print(f"no gold yet: {file}")
     print(f"wrote {out}/{PART1}, {out}/{PART2} and {V2_MANIFEST}")
+
+
+def _kept_files(manifest: Path) -> tuple[list[PlanFile], str]:
+    """The files.jsonl next to a v2 manifest, and its sha256; fails unless the manifest describes
+    that very file."""
+    listed = manifest.parent / PART1 / "files.jsonl"
+    described = PlansManifest.model_validate_json(manifest.read_text("utf-8")).files_sha256
+    sha = _sha256(listed)
+    if described.get(listed.relative_to(manifest.parent).as_posix()) != sha:
+        raise ValueError(f"{listed} is not the files list its manifest describes ({manifest})")
+    return [line for _, line in read_jsonl(listed, PlanFile)], sha
 
 
 def _conflict_files(
@@ -750,6 +775,13 @@ def parser() -> argparse.ArgumentParser:
         "--allow-unscaled",
         action="store_true",
         help="list picked gold files without a scale value or room areas instead of stopping",
+    )
+    plans.add_argument(
+        "--keep",
+        type=Path,
+        metavar="MANIFEST",
+        help="freeze the file set: keep every file of the v2 this manifest.json describes "
+        "(the conflict slice and the scale cases are recomputed)",
     )
     plans.set_defaults(run=run_select_plans)
 

@@ -160,6 +160,11 @@ class Answer(BaseModel):
         default=None, min_length=1, description="v1.1: which value was kept, and why"
     )
     explanation: str | None = Field(default=None, description="v1.1: how the answer was reached")
+    estimate: StrictBool | None = Field(
+        default=None,
+        description="v1.1: the value rests on an estimated scale or reading; `explanation` says "
+        "from what",
+    )
     excluded: list[Excluded] | None = Field(default=None, description="v1.1: regions not counted")
     inputs: list[str] | None = Field(default=None, description="v1.1: the files read")
 
@@ -170,12 +175,14 @@ class Answer(BaseModel):
         return self
 
 
-ExtraKind = Literal["paraphrase", "unanswerable", "conflict"]
+ExtraKind = Literal["paraphrase", "unanswerable", "conflict", "estimate"]
 EXTRA_ID_MIN = 1_000_001  # above every dataset line number
 EXTRA_STYLES: dict[str, frozenset[str]] = {  # review-7's convention, accepted 23:12
     "paraphrase": frozenset({"reworded", "restructured", "typo", "hint_dropped"}),
     "unanswerable": frozenset({"scale", "fact", "class"}),
+    "estimate": frozenset({"scale"}),  # review-7's converted scale lines, 23:48
 }
+ESTIMATE_TYPES: frozenset[str] = frozenset({"area", "length", "volume"})
 
 
 class Expect(BaseModel):
@@ -184,6 +191,12 @@ class Expect(BaseModel):
     answer: AnswerValue | None = None
     abstain: StrictBool | None = None
     conflict_values: Annotated[list[StrictInt | StrictFloat], Field(min_length=2)] | None = None
+    tolerance: float | None = Field(
+        default=None, gt=0, description="estimate: relative, e.g. 0.2 for within 20%"
+    )
+    estimate: StrictBool | None = Field(
+        default=None, description="estimate: true, the answer must say `estimate: true`"
+    )
 
 
 class ExtraItem(BaseModel):
@@ -211,7 +224,7 @@ class ExtraItem(BaseModel):
     why: str | None
     style: str | None = Field(
         default=None, description="paraphrase: reworded, restructured, typo, hint_dropped; "
-        "unanswerable: scale, fact, class",
+        "unanswerable: scale, fact, class; estimate: scale",
     )  # fmt: skip
 
     @model_validator(mode="after")
@@ -242,6 +255,17 @@ class ExtraItem(BaseModel):
             for value in expect.conflict_values or []:
                 if not fits_type(self.type, value):
                     problems.append(f"a {self.type} question can't have the value {value!r}")
+        if self.kind == "estimate":
+            if self.type not in ESTIMATE_TYPES:
+                problems.append("an estimate is an area, length or volume")
+            if expect.estimate is not True:
+                problems.append("estimate expects estimate: true")
+            if expect.tolerance is None:
+                problems.append("an estimate line needs a tolerance")
+            if not self.why:
+                problems.append("estimate says why")
+        elif expect.tolerance is not None or expect.estimate is not None:
+            problems.append("tolerance and estimate belong to estimate lines")
         if self.kind == "paraphrase" and self.origin_id is None:
             problems.append("a paraphrase names its origin_id")
         if problems:
@@ -285,6 +309,13 @@ class ExtrasRecord(BaseModel):
     conflict_pass: Ratio = Field(description="both values in `conflicts` and the answer right")
     conflict_values_shown: Ratio
     conflict_answer_right: Ratio
+    estimate_pass: Ratio | None = Field(
+        default=None,
+        description="estimate lines within tolerance and with estimate: true; null in rows "
+        "recorded before the estimate kind (2026-11-13)",
+    )
+    estimate_value_right: Ratio | None = None
+    estimate_labelled: Ratio | None = None
 
 
 class CalibrationBucket(BaseModel):

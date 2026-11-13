@@ -205,6 +205,11 @@ class ExtractionScore(BaseModel):
     elements: dict[str, Prf]  # "<source> <class>"
     centre: dict[str, CentreStats]  # "<source> <class>"
     not_scored: dict[str, int]  # "<source> <class or rooms>": predictions the gold never covers
+    not_read: list[str] = Field(
+        default_factory=list[str],
+        description="'<source> <class>' rows that every prediction file of the source leaves out "
+        "of `read`",
+    )
     elements_by_source: dict[str, Prf]
     elements_overall: Prf
     rooms: dict[str, RoomStats]  # by source
@@ -346,9 +351,30 @@ def score_extraction(
         scale=scale,
         scale_overall=_merged(scale.values()),
         per_file=per_file,
+        not_read=_not_read(elements, golds, preds, slice_only),
         slice_only_files=len(golds) - len(per_file),
         tables=tables if tables.files else None,
         conflicts=conflicts if conflicts.files else None,
+    )
+
+
+def _not_read(
+    elements: Mapping[str, Prf],
+    golds: Sequence[Extraction],
+    preds: Mapping[str, Extraction],
+    slice_only: Set[str],
+) -> list[str]:
+    """Element rows whose class every scored prediction file of the source leaves out of `read`."""
+    lists = [
+        (source_of(gold.file), preds[gold.file].read)
+        for gold in golds
+        if gold.file in preds and gold.file not in slice_only and gold.truth == "elements"
+    ]
+    return sorted(
+        key
+        for key in elements
+        if (got := [read for source, read in lists if source == key.split(" ", 1)[0]])
+        and all(read is not None and key.split(" ", 1)[1] not in read for read in got)
     )
 
 
@@ -393,6 +419,7 @@ def format_extraction_table(result: ExtractionScore) -> str:
             f"{key:<36} {prf.tp:>6} {prf.fp:>6} {prf.fn:>6} {_pct(prf.precision):>7} "
             f"{_pct(prf.recall):>7} {_pct(prf.f1):>7} "
             f"{_pct(hits and hits.pred_rate):>8} {_pct(hits and hits.gold_rate):>8}"
+            + ("  not read" if key in result.not_read else "")
         )
     if result.not_scored:
         lines += [

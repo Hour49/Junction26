@@ -1,5 +1,5 @@
-"""Part 2 slices outside the headline: extras (paraphrase, unanswerable, conflict lines) and the
-answer_v1.1 fields (abstain, confidence calibration), on made-up lines."""
+"""Part 2 slices outside the headline: extras (paraphrase, unanswerable, conflict, estimate lines)
+and the answer_v1.1 fields (abstain, confidence calibration, estimate), on made-up lines."""
 
 from typing import Any
 
@@ -35,6 +35,10 @@ def extra(kind: str, id_: int, **change: Any) -> ExtraItem:
         expect = {"answer": 12.5, "conflict_values": [12.5, 13.4]}
         base |= {"answer": 12.5, "unit": "m2", "type": "area", "expect": expect,
                  "path": "data/swiss_dwellings/x.pdf", "source": "swiss_dwellings"}  # fmt: skip
+    if kind == "estimate":  # review-7's converted lines (brief gold-extras-c)
+        base |= {"answer": 10.0, "unit": "m2", "type": "area", "template": "estimate/scale",
+                 "expect": {"answer": 10.0, "tolerance": 0.2, "estimate": True},
+                 "why": "room r8; gold scale estimated", "style": "scale"}  # fmt: skip
     return ExtraItem.model_validate(base | change)
 
 
@@ -62,6 +66,7 @@ EXTRAS = [
     extra("paraphrase", 1_000_002, origin_id=3, answer=3, expect={"answer": 3}, style="typo"),
     extra("unanswerable", 1_000_003),
     extra("unanswerable", 1_000_004),
+    extra("estimate", 1_000_005),
     extra("conflict", 1_001_001),
     extra("conflict", 1_001_002),
 ]
@@ -116,11 +121,38 @@ def test_the_oracle_passes_every_slice() -> None:
     extras = result.extras
     assert result.overall.accuracy == 1.0
     for tally in (extras.paraphrase, extras.paraphrase_origin, extras.unanswerable,
-                  extras.conflict):  # fmt: skip
+                  extras.conflict, extras.estimate):  # fmt: skip
         assert tally.accuracy == 1.0
     v11 = result.answer_v1_1
     assert v11.abstained == 0 and v11.not_abstained.accuracy == 1.0
     assert v11.calibration[-1].n == 3 and v11.calibration[-1].accuracy == 1.0
+
+
+def test_an_estimate_passes_within_its_tolerance_and_only_when_labelled() -> None:
+    """Bogdan, 2026-11-13 22:33: "we should say that it's an estimation with computed from best
+    effort". An area on a sheet with only an estimated scale is answerable as a labelled estimate:
+    within the line's tolerance (20%) of the gold value, and `estimate: true` on the answer."""
+    lines = [extra("estimate", 1_000_001 + n) for n in range(6)]
+    answers = [
+        answer(1_000_001, 12.0, "m2", estimate=True),  # exactly 20% off: passes
+        answer(1_000_002, 12.1, "m2", estimate=True),  # 21% off
+        answer(1_000_003, 10.0, "m2"),  # right value, not labelled an estimate
+        answer(1_000_004, 10.0, "m2", estimate=False),
+        answer(1_000_005, 8.5 / 0.3048**2, "ft2", estimate=True),  # 8.5 m2 in ft2: passes
+    ]  # 1_000_006 has no answer line
+    extras = scored(answers, lines).extras
+    assert (extras.estimate.correct, extras.estimate.n) == (2, 6)
+    assert (extras.estimate_value_right.correct, extras.estimate_labelled.correct) == (4, 3)
+    assert [item.detail for item in extras.items] == [
+        "ok, labelled", "wrong_value, labelled", "ok, not labelled", "ok, not labelled",
+        "ok, labelled", "missing, not labelled",
+    ]  # fmt: skip
+    assert extras.by_kind_source["estimate/cubicasa5k"].correct == 2
+    assert "estimate         2/6 33.3% pass" in format_slices(scored(answers, lines))
+    # the dataset's 2% rule would pass only the exact value
+    strict = extra("estimate", 1_000_001, expect={"answer": 10.0, "tolerance": 0.02,
+                                                  "estimate": True})  # fmt: skip
+    assert scored(answers[:1], [strict]).extras.estimate.correct == 0
 
 
 def test_extras_refuse_clashes_repeats_and_orphans() -> None:
@@ -185,6 +217,19 @@ def test_review7_and_review10_lines_parse() -> None:
         ("conflict", {"expect": {"answer": 12.5}}, "need them"),
         ("conflict", {"expect": {"answer": 12.5, "conflict_values": [12.5]}}, "at least 2"),
         ("conflict", {"group": None}, "valid string"),
+        ("conflict", {"expect": {"answer": 12.5, "conflict_values": [12.5, 13.4],
+                                 "tolerance": 0.2}}, "estimate lines"),
+        ("estimate", {"expect": {"answer": 10.0, "tolerance": 0.2}}, "estimate: true"),
+        ("estimate", {"expect": {"answer": 10.0, "estimate": True}}, "a tolerance"),
+        ("estimate", {"expect": {"answer": 10.0, "tolerance": 0, "estimate": True}}, "greater"),
+        ("estimate", {"expect": {"answer": 11.0, "tolerance": 0.2, "estimate": True}},
+         "its own answer"),
+        ("estimate", {"answer": 3, "unit": "count", "type": "count",
+                      "expect": {"answer": 3, "tolerance": 0.2, "estimate": True}},
+         "area, length or volume"),
+        ("estimate", {"why": None}, "says why"),
+        ("estimate", {"style": "fact"}, "style 'fact'"),
+        ("paraphrase", {"expect": {"answer": 7, "estimate": True}}, "estimate lines"),
     ],
 )  # fmt: skip
 def test_a_bad_extras_line_is_refused(kind: str, change: dict[str, Any], message: str) -> None:
@@ -203,6 +248,7 @@ V11: dict[str, Any] = {
                    "box": [0.1, 0.2, 0.3, 0.4]},
                   {"value": 13.4, "unit": "m2", "method": "ifc_model", "file": "f.ifc"}],
     "resolution": "the printed label wins", "explanation": "label 12.5 m2; outline 13.4 m2",
+    "estimate": False,
     "excluded": [{"file": "f", "page": 1, "box": [0.5, 0.5, 0.6, 0.6], "reason": "a shaft"}],
     "inputs": ["f", "f.ifc"],
 }  # fmt: skip
@@ -219,6 +265,7 @@ def test_an_answer_v11_line_parses() -> None:
     [
         {"confidence": 1.2},
         {"abstain": "yes"},
+        {"estimate": "yes"},
         {"conflicts": V11["conflicts"][:1]},
         {"conflicts": None},  # a resolution without conflicts
         {"excluded": [{"file": "f", "page": 1, "box": [0.5, 0.5, 0.6, 0.6], "reason": ""}]},

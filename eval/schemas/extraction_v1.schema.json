@@ -1118,6 +1118,46 @@
       "description": "quantities measured by two methods, agreeing or not",
       "title": "Conflicts"
     },
+    "read": {
+      "anyOf": [
+        {
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "door",
+                  "window",
+                  "toilet",
+                  "sink",
+                  "shower",
+                  "bathtub",
+                  "sauna_stove",
+                  "stair",
+                  "wall",
+                  "column",
+                  "beam",
+                  "slab",
+                  "railing",
+                  "furniture"
+                ],
+                "type": "string"
+              },
+              {
+                "const": "room",
+                "type": "string"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the element classes, and room, this extraction looked for; null: everything its truth covers. A class left out was not read: its count is unknown, not 0",
+      "title": "Read"
+    },
     "notes": {
       "items": {
         "type": "string"

@@ -1,7 +1,8 @@
 """extraction_v1: what the pipeline writes for each drawing file, and the shape of the extraction
 gold (`data/stoa/extraction_gold/<source>/<file stem>.json`). Decision record:
 docs/decisions/0004-extraction-format.md (amended 2026-11-13: optional `tables` for schedule sheets,
-`truth: "tables"`, and optional `conflicts` from ingestion stage 8; formats-v1-1 brief).
+`truth: "tables"`, and optional `conflicts` from ingestion stage 8; formats-v1-1 brief; estimated
+scales and room areas; optional `read`, golden-7f brief).
 
 Coordinates are fractions of the page as rendered (after any PDF /Rotate), origin top left, the same
 frame as answer_v1 evidence. Extra keys are refused everywhere, so a typo fails loudly.
@@ -307,6 +308,11 @@ class Extraction(_Strict):
     conflicts: list[Conflict] | None = Field(
         default=None, description="quantities measured by two methods, agreeing or not"
     )
+    read: list[ElementClass | Literal["room"]] | None = Field(
+        default=None,
+        description="the element classes, and room, this extraction looked for; null: everything "
+        "its truth covers. A class left out was not read: its count is unknown, not 0",
+    )
     notes: list[str] = Field(default_factory=list[str])
 
     @model_validator(mode="after")
@@ -353,6 +359,9 @@ class Extraction(_Strict):
             for value in conflict.values:
                 if value.page is not None and value.page not in pages:
                     problems.append(f"conflict {conflict.id} has a value on page {value.page}")
+        twice = sorted({name for name in self.read or [] if (self.read or []).count(name) > 1})
+        if twice:
+            problems.append(f"read lists {twice} twice")
         bad_keys = sorted(key for key in self.counts or {} if not _count_key_ok(key))
         if bad_keys:
             problems.append(f"counts keys {bad_keys} are not a class, room:<type> or plan")

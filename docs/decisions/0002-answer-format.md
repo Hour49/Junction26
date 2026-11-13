@@ -59,3 +59,16 @@ answers, and a calibration table (confidence buckets of 0.2) on the golden quest
 extras (`extras_v1.schema.json`: paraphrases, unanswerable and conflict questions) as separate slices; an
 unanswerable question passes only with `abstain: true`. Rules: [eval/README.md](../../eval/README.md), spec:
 [docs/GOLDEN.md](../GOLDEN.md).
+
+## Amendment, 2026-11-13 23:48: `estimate`
+
+- Decided by: the orchestrator (golden-7e brief), from Bogdan's rules of 22:33 ("we should say that it's an
+  estimation with computed from best effort") and 23:31 ("ON ALL IMAGES THE SCALE TO GET THE AREA, BY APROXIMATING
+  IT ... IF NOT GOOD SCALE"); written by agent golden (worker).
+
+answer_v1.1 gets one more optional field, `estimate` (bool): the value rests on an estimated scale or reading, and
+`explanation` says from what. An area on a sheet whose only scale is estimated is therefore answerable, as a
+labelled estimate, instead of a question to abstain on. The extras get a matching kind, `estimate`, with
+`expect: {"answer": <gold value>, "tolerance": 0.2, "estimate": true}`; it passes when the value is within the
+relative tolerance (units converted as for any answer) and the answer says `estimate: true`. It is its own slice,
+outside the headline.

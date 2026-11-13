@@ -55,6 +55,33 @@
           ],
           "default": null,
           "title": "Conflict Values"
+        },
+        "tolerance": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "estimate: relative, e.g. 0.2 for within 20%",
+          "title": "Tolerance"
+        },
+        "estimate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "estimate: true, the answer must say `estimate: true`",
+          "title": "Estimate"
         }
       },
       "title": "Expect",
@@ -162,7 +189,8 @@
       "enum": [
         "paraphrase",
         "unanswerable",
-        "conflict"
+        "conflict",
+        "estimate"
       ],
       "title": "Kind",
       "type": "string"
@@ -203,7 +231,7 @@
         }
       ],
       "default": null,
-      "description": "paraphrase: reworded, restructured, typo, hint_dropped; unanswerable: scale, fact, class",
+      "description": "paraphrase: reworded, restructured, typo, hint_dropped; unanswerable: scale, fact, class; estimate: scale",
       "title": "Style"
     }
   },
