@@ -5,13 +5,17 @@ description = "Team Hour49's Junction 2026 backend (FastAPI)."
 requires-python = "==3.13.*"
 dependencies = [
     "fastapi>=0.162.6",
+    "pillow>=13.0.0",
+    "pydantic>=2.14.3",
     "pydantic-settings>=2.16.3",
+    "pypdfium2>=5.15.2",
     "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
     "httpx2>=2.16.0",
+    "jsonschema>=4.25",
     "pyright==1.1.414",
     "pytest>=9.2.0",
     "pytest-timeout>=2.4.0",

@@ -127,6 +127,12 @@ dated where it can go stale.
 - **Commands that work** (in `backend/`, checked 2026-11-13): setup `uv sync --locked`; run
   `uv run uvicorn app.main:create_app --factory --reload`; check `./check.sh` (`./check.sh quick` before a commit);
   one test file `uv run pytest -q tests/test_health.py`. Offline mode: `<with the first adapter>`.
+- **Pipeline** (in `backend/`, checked 2026-11-13; record `docs/decisions/0005-pipeline-core.md`, guide
+  `backend/README.md`): ports and adapters; `app/core` declares ports as Protocols and imports no adapter, settings
+  or PDF/image library (`tests/test_architecture.py`); only `app/composition.py` picks adapters, by setting
+  (`EXTRACTOR_VECTOR=...`). Golden run: `uv run python -m app.cli golden --golden-dir ../data/stoa/golden/v2
+  --dataset ../data/stoa/full/junction-dataset --drawings pipeline|gold --out ../data/stoa/runs/<name>`, then score
+  `<out>/extraction` and `<out>/answers.jsonl` in `eval/`. A feature = one adapter or one stage function.
 - **Eval** (in `eval/`, checked 2026-11-13; guide `eval/README.md`): `uv run python -m stoa_eval split` first (sealed
   80/20 dev/eval split into gitignored `data/stoa/split/`), then `... select` (golden set), `... baseline oracle|constant`,
   `... score <answers.jsonl> --name <method> [--against golden|dev]` (`--against eval` only at milestones),

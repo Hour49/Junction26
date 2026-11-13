@@ -10,6 +10,8 @@ FORBIDDEN_IN_CORE = (
     "app.adapters",
     "app.settings",
     "app.main",
+    "app.composition",
+    "app.cli",
     "fastapi",
     "starlette",
     "uvicorn",
@@ -20,6 +22,8 @@ FORBIDDEN_IN_CORE = (
     "anthropic",
     "openai",
     "google.genai",
+    "pypdfium2",
+    "PIL",
 )
 
 
@@ -58,6 +62,9 @@ def test_scanner_flags_outer_layer_imports() -> None:
             "from app import settings",
             "import openai.types",
             "from httpx2 import Client",
+            "from app.composition import build_pipeline",
+            "import pypdfium2",
+            "from PIL import Image",
         ]
     )
     assert forbidden_imports(source, "app.core.rules") == [
@@ -66,6 +73,9 @@ def test_scanner_flags_outer_layer_imports() -> None:
         "app.settings",
         "openai.types",
         "httpx2.Client",
+        "app.composition.build_pipeline",
+        "pypdfium2",
+        "PIL.Image",
     ]
 
 
