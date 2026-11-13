@@ -3,8 +3,10 @@ runs on these."""
 
 import json
 from pathlib import Path
+from typing import Any
 
-from stoa_eval.models import AnswerValue, GoldenItem, Question, QuestionType, Split, Unit
+from stoa_eval.models import Answer, AnswerValue, GoldenItem, Question, QuestionType, Split, Unit
+from stoa_eval.split import DEFAULT_EVAL_SHARE, DEFAULT_SEED, eval_groups, group_sizes
 
 
 def _question(
@@ -115,5 +117,24 @@ def golden_item(
     )
 
 
-def read_json(path: Path) -> dict[str, object]:
+def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def oracle_answer(id_: int, question: Question, *, value: AnswerValue | None = None) -> Answer:
+    """The golden answer for `question`, or `value` instead when given."""
+    return Answer(
+        id=id_,
+        answer=question.answer if value is None else value,
+        unit=question.unit,
+        evidence=[],
+        method="test",
+        cost_usd=0.01,
+        latency_s=1.0,
+    )
+
+
+def sealed_groups(rows: list[tuple[int, Question]]) -> set[str]:
+    """The eval groups the default split gives `rows`."""
+    sizes = group_sizes(question for _, question in rows)
+    return eval_groups(sizes, DEFAULT_EVAL_SHARE, DEFAULT_SEED)

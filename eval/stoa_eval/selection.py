@@ -1,27 +1,25 @@
-"""Seeded, stratified selection of the golden set and its dev/holdout split.
+"""Seeded, stratified selection of the golden set.
 
-v0 is provisional: the golden-set spec is written after the reviewers report, so every choice that
-spec may change is a parameter (`SelectionParams`). The same questions and params always give the
-same selection, on any machine (ranks are sha256 hashes, not `random`).
+The selection is provisional until the golden-set spec, so every choice that spec may change is a
+parameter (`SelectionParams`). The same questions, split and params always give the same selection,
+on any machine (ranks are sha256 hashes, not `random`).
 
-Splits are made per drawing group (`families.group_of`), stratified by source, before any question
-is picked: every question in the dataset belongs to dev or holdout, so tuning on more dev questions
-than the golden ones never touches a holdout drawing. Then each cell (by default source x type x
-language) gets `per_cell` questions (or all it has), split by `holdout_ratio` where both splits
-have questions in the cell, spread round robin over the cell's templates and, while possible, over
-different drawings.
+`holdout` items come only from the sealed eval split's groups (`split.eval_groups`), `dev` items
+only from the other 80%. Each cell (by default source x type x language) gets `per_cell` questions
+(or all it has), split by `holdout_ratio` where both splits have questions in the cell, spread round
+robin over the cell's templates and, while possible, over different drawings.
 """
 
-import hashlib
 import math
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Sequence, Set
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from .families import group_of, language_of, source_of, template_of
 from .models import GoldenItem, Question, Split
+from .split import DEFAULT_EVAL_SHARE, DEFAULT_SEED, rank
 
 CellKey = Literal["source", "type", "language", "template"]
 SPLITS: tuple[Split, ...] = ("dev", "holdout")
@@ -30,11 +28,11 @@ SPLITS: tuple[Split, ...] = ("dev", "holdout")
 class SelectionParams(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    version: str = Field(default="v0", pattern=r"^v\d+$")
+    version: str = Field(default="v1", pattern=r"^v\d+$")
     cell_keys: tuple[CellKey, ...] = Field(default=("source", "type", "language"), min_length=1)
     per_cell: int = Field(default=4, ge=1)
-    holdout_ratio: float = Field(default=0.5, ge=0.0, le=1.0)
-    seed: int = 20261113
+    holdout_ratio: float = Field(default=DEFAULT_EVAL_SHARE, ge=0.0, le=1.0)
+    seed: int = DEFAULT_SEED
 
 
 class CellCount(BaseModel):
@@ -45,62 +43,44 @@ class CellCount(BaseModel):
 
 
 class Manifest(BaseModel):
-    """Written next to the golden file: how it was made, and which groups are holdout."""
+    """Written next to the golden file: how it was made, and from which split."""
 
     params: SelectionParams
     questions_sha256: str
+    split_manifest_sha256: str = Field(description="the split whose eval groups gave holdout")
     cells: list[CellCount]
-    holdout_groups: list[str] = Field(description="never tune on questions about these")
 
 
 class Selection(BaseModel):
     items: list[GoldenItem]
     cells: list[CellCount]
-    holdout_groups: list[str]
-
-
-def _rank(seed: int, kind: str, value: object) -> str:
-    return hashlib.sha256(f"{seed}:{kind}:{value}".encode()).hexdigest()
 
 
 def _round_half_up(value: float) -> int:
     return math.floor(value + 0.5)
 
 
-def holdout_groups(
-    groups_by_source: Mapping[str, Iterable[str]], ratio: float, seed: int
-) -> set[str]:
-    """`ratio` of each source's groups, by seeded rank; at least one group per split when the
-    source has two or more and the ratio isn't 0 or 1."""
-    chosen: set[str] = set()
-    for groups in groups_by_source.values():
-        ranked = sorted(set(groups), key=lambda group: _rank(seed, "group", group))
-        count = _round_half_up(len(ranked) * ratio)
-        if len(ranked) >= 2 and 0.0 < ratio < 1.0:
-            count = min(max(count, 1), len(ranked) - 1)
-        chosen.update(ranked[:count])
-    return chosen
-
-
-def annotate(rows: Sequence[tuple[int, Question]], params: SelectionParams) -> list[GoldenItem]:
-    """Every question with its id, source, language, template, group and split."""
+def annotate(rows: Sequence[tuple[int, Question]], holdout: Set[str]) -> list[GoldenItem]:
+    """Every question with its id, source, language, template, group and split (holdout when its
+    group is in `holdout`, the sealed split's eval groups)."""
     templates: dict[str, str] = {}
     languages: dict[str, str] = {}
-    groups_by_source: dict[str, set[str]] = defaultdict(set)
     for _, question in rows:
         if question.question not in templates:
             template = template_of(question.question)
             templates[question.question] = template
             languages.setdefault(template, language_of(template))
-        groups_by_source[source_of(question.path)].add(group_of(question.path))
-    holdout = holdout_groups(groups_by_source, params.holdout_ratio, params.seed)
     items: list[GoldenItem] = []
     for line, question in rows:
         template = templates[question.question]
         group = group_of(question.path)
         items.append(
             GoldenItem(
-                **question.model_dump(),
+                path=question.path,
+                question=question.question,
+                answer=question.answer,
+                unit=question.unit,
+                type=question.type,
                 id=line,
                 source=source_of(question.path),
                 language=languages[template],
@@ -116,9 +96,9 @@ def _pick(candidates: Sequence[GoldenItem], count: int, seed: int) -> list[Golde
     """`count` items, round robin over templates; a drawing group repeats only when no unused one
     is left."""
     by_template: dict[str, list[GoldenItem]] = defaultdict(list)
-    for item in sorted(candidates, key=lambda item: _rank(seed, "item", item.id)):
+    for item in sorted(candidates, key=lambda item: rank(seed, "item", item.id)):
         by_template[item.template].append(item)
-    order = sorted(by_template, key=lambda template: _rank(seed, "template", template))
+    order = sorted(by_template, key=lambda template: rank(seed, "template", template))
     picked: list[GoldenItem] = []
     taken: set[int] = set()
     used_groups: set[str] = set()
@@ -145,8 +125,10 @@ def _pick(candidates: Sequence[GoldenItem], count: int, seed: int) -> list[Golde
     return picked
 
 
-def select(rows: Sequence[tuple[int, Question]], params: SelectionParams) -> Selection:
-    pool = annotate(rows, params)
+def select(
+    rows: Sequence[tuple[int, Question]], params: SelectionParams, holdout: Set[str]
+) -> Selection:
+    pool = annotate(rows, holdout)
     cells: dict[tuple[str, ...], list[GoldenItem]] = defaultdict(list)
     for item in pool:
         cells[tuple(str(getattr(item, key)) for key in params.cell_keys)].append(item)
@@ -172,8 +154,4 @@ def select(rows: Sequence[tuple[int, Question]], params: SelectionParams) -> Sel
                 holdout=len(picked["holdout"]),
             )
         )
-    return Selection(
-        items=sorted(chosen, key=lambda item: item.id),
-        cells=counts,
-        holdout_groups=sorted({item.group for item in pool if item.split == "holdout"}),
-    )
+    return Selection(items=sorted(chosen, key=lambda item: item.id), cells=counts)

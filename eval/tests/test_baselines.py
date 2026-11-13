@@ -2,7 +2,7 @@ from stoa_eval.baselines import constant, oracle
 from stoa_eval.models import AnswerValue, GoldenItem, QuestionType, Split, Unit
 from stoa_eval.scoring import score
 from stoa_eval.selection import SelectionParams, annotate, select
-from tests.factories import make_questions
+from tests.factories import make_questions, sealed_groups
 
 
 def row(
@@ -32,7 +32,7 @@ def row(
 
 def test_oracle_scores_everything() -> None:
     rows = list(enumerate(make_questions(), 1))
-    golden = select(rows, SelectionParams()).items
+    golden = select(rows, SelectionParams(), sealed_groups(rows)).items
     result = score(golden, oracle(golden))
     assert result.overall.accuracy == 1.0
     assert result.overall.n == len(golden) > 0
@@ -72,8 +72,8 @@ def test_constant_falls_back_to_source_and_type_then_gives_up() -> None:
 
 def test_constant_runs_on_a_selection() -> None:
     rows = list(enumerate(make_questions(), 1))
-    params = SelectionParams()
-    golden = select(rows, params).items
-    answers = constant(golden, annotate(rows, params))
+    sealed = sealed_groups(rows)
+    golden = select(rows, SelectionParams(), sealed).items
+    answers = constant(golden, annotate(rows, sealed))
     assert [answer.id for answer in answers] == [item.id for item in golden]
     assert score(golden, answers).overall.accuracy is not None

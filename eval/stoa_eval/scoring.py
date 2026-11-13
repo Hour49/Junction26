@@ -8,14 +8,15 @@
 - No answer, or `answer: null`, is wrong.
 """
 
+import math
 import unicodedata
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
-from typing import Literal
+from typing import Literal, Protocol
 
 from pydantic import BaseModel
 
-from .models import FREE_TEXT_TYPES, Answer, AnswerValue, GoldenItem, Question
+from .models import FREE_TEXT_TYPES, Answer, AnswerValue, GoldenItem, Question, Unit
 
 REL_TOL = 0.02
 # answer unit -> golden unit: multiply the answer by the factor. 1 ft = 0.3048 m exactly.
@@ -28,12 +29,29 @@ CONVERSIONS: dict[tuple[str, str], float] = {
 Reason = Literal["ok", "missing", "wrong_type", "unit_mismatch", "wrong_value"]
 
 
+def p95(values: Sequence[float]) -> float | None:
+    """95th percentile by nearest rank: the smallest value with 95% of values at or below it."""
+    if not values:
+        return None
+    return sorted(values)[math.ceil(0.95 * len(values)) - 1]
+
+
 def normalise_text(text: str) -> str:
     """NFKC, case-folded, whitespace collapsed, trailing full stops dropped."""
     return " ".join(unicodedata.normalize("NFKC", text).casefold().split()).rstrip(" .")
 
 
-def judge(gold: Question, answer: Answer | None) -> Reason:
+class Reply(Protocol):
+    """What `judge` reads from an answer: an `Answer`, or a compact copy of one."""
+
+    @property
+    def answer(self) -> AnswerValue | None: ...
+
+    @property
+    def unit(self) -> Unit | None: ...
+
+
+def judge(gold: Question, answer: Reply | None) -> Reason:
     if answer is None or answer.answer is None:
         return "missing"
     value = answer.answer
@@ -94,6 +112,7 @@ class Score(BaseModel):
     cost_total_usd: float
     cost_mean_usd: float | None
     latency_mean_s: float | None
+    latency_p95_s: float | None
     needs_review: list[TextReview]
     items: list[ItemResult]
 
@@ -168,6 +187,7 @@ def score(golden: Sequence[GoldenItem], answers: Sequence[Answer]) -> Score:
         latency_mean_s=(
             sum(answer.latency_s for answer in answered) / len(answered) if answered else None
         ),
+        latency_p95_s=p95([answer.latency_s for answer in answered]),
         needs_review=review,
         items=results,
     )
@@ -197,6 +217,7 @@ def format_table(result: Score) -> str:
         f"evidence  {_optional(result.evidence_coverage, '.1%')} of questions have a box",
         f"cost      total ${result.cost_total_usd:.4f}, "
         f"mean ${_optional(result.cost_mean_usd, '.4f')} per answer",
-        f"latency   mean {_optional(result.latency_mean_s, '.2f')} s",
+        f"latency   mean {_optional(result.latency_mean_s, '.2f')} s, "
+        f"p95 {_optional(result.latency_p95_s, '.2f')} s",
     ]
     return "\n".join(lines)

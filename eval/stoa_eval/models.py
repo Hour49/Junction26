@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Annotated, Literal, Self
 
 from pydantic import (
+    AwareDatetime,
     BaseModel,
     ConfigDict,
     Field,
@@ -50,10 +51,15 @@ class Question(BaseModel):
         return self
 
 
-class GoldenItem(Question):
-    """A selected question with what the selection knows about it (golden_v0.jsonl)."""
+class NumberedQuestion(Question):
+    """A dataset line with its id (data/stoa/split/dev.jsonl and eval.jsonl)."""
 
     id: int = Field(ge=1, description="1-based line number in questions.jsonl")
+
+
+class GoldenItem(NumberedQuestion):
+    """A selected question with what the selection knows about it (golden_<version>.jsonl)."""
+
     source: str = Field(description="dataset folder, e.g. swiss_dwellings")
     language: str = Field(description="language code from the question text, e.g. en, de")
     template: str = Field(description="question with quoted names and numbers masked")
@@ -94,10 +100,58 @@ class Answer(BaseModel):
     latency_s: float = Field(ge=0.0)
 
 
+Against = Literal["golden", "all", "dev", "eval"]
+
+
+class Stats(BaseModel):
+    """Aggregate numbers for a group of questions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    n: int = Field(ge=0)
+    correct: int = Field(ge=0)
+    accuracy: float | None
+    answered: int | None = Field(description="all/dev/eval runs only")
+    coverage: float | None = Field(description="answered / n; all/dev/eval runs only")
+
+
+class RunRecord(BaseModel):
+    """One recorded score run in eval/results/runs.jsonl (run_record_v1). The repo is public, so
+    a row holds aggregates only: no question text, answers, templates or file names."""
+
+    model_config = ConfigDict(extra="forbid", title="RunRecord_v1")
+
+    recorded_at: AwareDatetime = Field(description="from the clock, Europe/Helsinki")
+    commit: str = Field(pattern=r"^[0-9a-f]{7,40}$", description="short git sha of HEAD")
+    dirty: bool = Field(description="tracked files had uncommitted changes")
+    name: str = Field(min_length=1, description="the method's name")
+    note: str | None
+    against: Against
+    golden_version: str | None = Field(description="the golden set's version; golden runs only")
+    milestone: bool
+    questions_sha256: str
+    score_sha256: str = Field(description="sha256 of the full score JSON (gitignored runs folder)")
+    overall: Stats
+    numeric: Stats
+    by_source_type: dict[str, Stats]
+    evidence_coverage: float | None
+    cost_total_usd: float
+    cost_mean_usd: float | None
+    latency_mean_s: float | None
+    latency_p95_s: float | None
+
+    @model_validator(mode="after")
+    def _eval_only_at_milestones(self) -> Self:
+        if self.against == "eval" and not self.milestone:
+            raise ValueError("a run against the sealed eval split is recorded only as a milestone")
+        return self
+
+
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas"
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "answer_v1.schema.json": Answer,
     "golden_v0.schema.json": GoldenItem,
+    "run_record_v1.schema.json": RunRecord,
 }
 
 
