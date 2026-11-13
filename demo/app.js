@@ -364,11 +364,10 @@ const CONFLICTS = [
     v: [{ label: 'Window', src: 'Layer A-GLAZ, where windows live' }, { label: 'Door', src: 'Block has a door leaf and a swing arc' }],
     rules: ['Glazed doors count as doors.', 'An opening with a leaf and a swing is a door, whatever its layer.'],
     why: 'The block has a leaf and a swing arc, so it is a door. The layer name is overruled.' },
-  { id: 'c5', file: 'scans/flat-b12-scan.png', title: 'Windows: is the balcony glazing a window?', ai: null,
-    v: [{ label: '6 windows', src: 'Detector: glazing is not a window in a wall' }, { label: '7 windows', src: 'Vision count: glazing counted as a window' }],
-    rules: ['One window per opening in a wall, whatever the number of panes.', 'Balcony glazing on an outdoor railing is not a wall.'],
-    why: 'The scan does not show whether the glazing sits in a wall or on the railing. Both readings follow the rules.',
-    apply: (i) => { PLANS.B.q.windows.marks.find((m) => m.id === 'w7').state = i === null ? 'contested' : i === 0 ? 'rejected' : 'counted'; } },
+  { id: 'c6', file: 'scans/flat-c03-photo.jpg', title: 'Label of the second room', ai: null,
+    v: [{ label: 'MH (bedroom)', src: 'OCR, 54% confidence' }, { label: 'KH (bathroom)', src: 'OCR second reading, 41% confidence' }],
+    rules: ['A room label is only used when OCR is over 80% sure.', 'A room without a label is never guessed.'],
+    why: 'Both readings are under 80%. The photo is 320×240, too small to settle it.' },
 ];
 // The AI's decisions are approved by default; the user only steps in to modify one.
 CONFLICTS.forEach((c) => { if (c.ai !== null) c.verdict = 'approved'; });
@@ -610,7 +609,7 @@ function renderWork() {
   let q = p.q[state.focus];
   if (survey && !q) { state.focus = 'doors'; q = p.q.doors; }
   $('#app').innerHTML = survey ? `<div class="work">${sideHTML()}${viewerHTML(p, q, survey)}${surveyorHTML(p)}</div>`
-    : `<div class="work chat-mode">${sideHTML()}${engineerHTML(p)}</div>`;
+    : `<div class="work chat-mode">${engineerHTML(p)}</div>`;
 }
 
 function ask(text) {
@@ -732,10 +731,19 @@ function conflictSummaryHTML() {
 }
 
 // Evidence image for a conflict the rules could not settle: where on the drawing the two readings disagree.
-function evidenceSVG(c) {
-  // only c5 is unsolved in this mock
-  return [planSVG(PLANS.B, PLANS.B.q.windows, false),
-    'The amber "?" is the balcony glazing. The detector reads it as glazing on the railing; the vision count reads it as a window in a wall.'];
+function evidenceSVG() {
+  // only c6 is unsolved in this mock: a 320×240 photo, drawn coarse on purpose; the second room's label is too blurred to read surely.
+  return [`<svg viewBox="0 0 320 240" role="img" aria-label="Low-resolution photo of flat C03">
+    <defs><filter id="blur6"><feGaussianBlur stdDeviation="1.6"/></filter></defs>
+    <rect width="320" height="240" fill="#d9d4c7"/>
+    <g filter="url(#blur6)" stroke="#3a3a3a" stroke-width="6" fill="#ece7da">
+      <rect x="20" y="20" width="150" height="200"/><rect x="170" y="20" width="130" height="110"/><rect x="170" y="130" width="130" height="90"/></g>
+    <g filter="url(#blur6)" font-family="sans-serif" font-weight="700" fill="#333"><text x="80" y="125" font-size="22">OH</text>
+      <text x="215" y="82" font-size="20">MH</text><text x="218" y="182" font-size="20">KH</text></g>
+    <rect x="198" y="52" width="76" height="44" fill="none" stroke="#e0a21b" stroke-width="3" stroke-dasharray="6 4"/>
+    <g font-family="sans-serif" font-size="11" font-weight="600"><rect x="182" y="100" width="108" height="34" rx="4" fill="#fff" opacity=".92"/>
+      <text x="188" y="114" fill="#3b4452">OCR: MH · 54%</text><text x="188" y="128" fill="#3b4452">2nd read: KH · 41%</text></g></svg>`,
+    'The dashed box is the second room. The photo is 320×240, so its label blurs: both readings are under the 80% the rule needs.'];
 }
 
 function conflictHTML(c) {

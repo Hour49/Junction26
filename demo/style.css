@@ -350,7 +350,7 @@ pre.json { margin: 10px 0 0; padding: 10px; background: #1b2230; color: #dfe5ee;
 @media (max-width: 640px) { .cstats { grid-template-columns: repeat(2, 1fr); } .ctop h3 { font-size: 18px; } }
 
 /* engineer: chat page (drawings bar on the left, conversation on the right, composer at the bottom) */
-.work.chat-mode { grid-template-columns: 230px minmax(0, 1fr); }
+.work.chat-mode { grid-template-columns: minmax(0, 1fr); }
 .chat-mode .side { background: #fff; border: 0; border-radius: 14px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); overflow: hidden; }
 
 .chat { max-width: 860px; width: 100%; margin: 0 auto; display: flex; flex-direction: column;
