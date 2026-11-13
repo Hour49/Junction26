@@ -209,15 +209,75 @@
       "type": "string"
     },
     "commit": {
-      "description": "short git sha of HEAD",
+      "description": "short git sha of the code that made the predictions: HEAD, or the clean export named with --commit",
       "pattern": "^[0-9a-f]{7,40}$",
       "title": "Commit",
       "type": "string"
     },
     "dirty": {
-      "description": "tracked files had uncommitted changes",
+      "description": "that code had uncommitted changes (false for an export)",
       "title": "Dirty",
       "type": "boolean"
+    },
+    "committed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "when `commit` was made (committer time, Europe/Helsinki)",
+      "title": "Committed At"
+    },
+    "eval_commit": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{7,40}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the scorer's own HEAD, when `commit` names an export",
+      "title": "Eval Commit"
+    },
+    "eval_dirty": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the scorer had uncommitted changes; set with eval_commit",
+      "title": "Eval Dirty"
+    },
+    "settings": {
+      "anyOf": [
+        {
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,63}$": {
+              "pattern": "^[A-Za-z0-9_.:+-]{1,64}$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the settings the run used (--setting), name lowercased",
+      "title": "Settings"
     },
     "name": {
       "description": "the method's name",

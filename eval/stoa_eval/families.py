@@ -47,6 +47,11 @@ def source_of(path: str) -> str:
     return parts[1]
 
 
+def quoted_names(question: str) -> list[str]:
+    """The quoted names in a question, in order, without their quote marks."""
+    return [match[1:-1] for match in _QUOTED.findall(question)]
+
+
 def template_of(question: str) -> str:
     """The question with quoted names, apartment letters and numbers masked."""
     masked = _QUOTED.sub("<Q>", question)

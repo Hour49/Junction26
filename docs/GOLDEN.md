@@ -116,6 +116,23 @@ Bogdan, 2026-11-13 23:03, accepted. `part2_answering/extras.jsonl` holds hand-ma
 Review-7 writes the paraphrase, unanswerable and estimate lines into the file directly (ids 1000001-1000999). Review-10 writes its conflict
 lines to `_conflicts/extras.jsonl` (ids 1001001-1001999), and `select-plans` merges them in by id.
 
+### Text claims
+
+D52 (review-7's proposal, accepted 2026-11-13; built in golden-8): `part2_answering/text_claims.jsonl` says, per
+golden free-text question, what a right answer states. One line per question id, schema
+`eval/schemas/text_claims_v1.schema.json`:
+
+`{"id": 1234, "numbers": [{"value": 2, "unit": "count", "what": "rooms"}, {"value": 980, "unit": "ft2"}], "names": [{"name": "F9", "aliases": ["sealed concrete"]}], "by": "review-8", "note": null}`
+
+`numbers` are quantities in any of count, m, cm, mm, ft, in, m2, ft2, min, h; `names` are names, codes or phrases,
+each with optional aliases. A line needs at least one claim, and `by` says who curated it. A number that only
+identifies something (a hardware group, a room number) is a name, not a number. The file sits next to
+`questions.jsonl`, like `extras.jsonl`; the curator writes it directly and `select-plans` leaves it alone. On
+2026-11-14 it holds drafts for the 13 dev text questions, made from their gold answers only (`by: "golden (draft
+from the gold answer)"`); review-8 checks them against the sheets and adds the 3 holdout ones.
+Record 0002 has the format as an amendment (2026-11-14 00:31): gold makers write the file, holdout lines
+included, and builders never read it.
+
 ## Scoring
 
 ### Part 1
@@ -143,6 +160,28 @@ converted). Text answers match after normalising and are also listed for a perso
 them free-form. A missing answer is wrong. The headline is the accuracy over the Part 2 questions, with numbers per
 source and type, per split, evidence coverage (share of questions with a box), cost and latency.
 
+Two more lines follow the headline without changing it (golden-8).
+
+Text by claims: a text question with a claims line passes when the answer states every claimed number and contains
+every claimed name. Numbers are read with their units (6'-2 1/2", 8 ft 3 in, 41 1/2", 2318 SF, 2.35 m, 45 MIN.,
+bare whole numbers and number words as counts); a number glued to letters or a hyphen is a code (D7, ST-4, 204.C).
+They are converted to metres, square metres or minutes and matched one to one, counts exactly and measures within
+2%. Names match as whole words after casefolding and replacing punctuation with spaces. Extra numbers in the answer
+are reported, not penalised. The report gives the pass rate (dev and holdout), the share of number and name claims
+met, and how many text questions have no claims yet.
+
+Evidence hit rate: for each numeric question on a file whose gold has truth `elements`, the question's wording
+gives its subject (an element class, a room type, the rooms with a label, number or name, an apartment's indoor
+rooms, the numbered indoor rooms, all rooms, the plans; a sauna question means the sauna stoves, which is what the
+dataset counts), and the subject picks the gold items. On v2 the picked items number the answer of every count
+question and sum to the answer of every room-area question. An evidence box hits an item when it is on the same file
+and page and its centre lies in the item's gold box. Precision is the share of evidence boxes that hit, recall the
+share of items some box hits, both pooled per source and per source and subject. The centre rule, not IoU: thin
+items (walls, windows) fail IoU on sub-percent offsets, one box can only point at what its centre lies on, and IFC
+gold polygons are single drawn fragments, so boxes are compared on both sides. Not scored, and counted by reason:
+text questions, files with truth `counts` or `tables`, apartment counts (an apartment has no box), questions about a
+whole IFC model, and wordings the rules don't know (none on v2 or on the dev gold).
+
 The extras and the answer_v1.1 fields are scored as separate slices. A paraphrase is judged like any question, and
 the report gives the gap to its origin questions. An unanswerable question passes only with `abstain: true`. A
 conflict question passes when both values appear in the answer's `conflicts` and the answer is right. An estimate
@@ -161,8 +200,9 @@ answer.
 
 ### Baselines
 
-`oracle` gives the gold back: the gold extractions for Part 1, the golden answers for Part 2 with confidence 1, an
-abstention on every unanswerable extra and both values on every conflict extra. It must score 100% everywhere;
+`oracle` gives the gold back: the gold extractions for Part 1, the golden answers for Part 2 with confidence 1 and
+one evidence box per gold item the question is about, an abstention on every unanswerable extra and both values on
+every conflict extra. It must score 100% everywhere;
 anything less is a scorer bug. `empty` (Part 1: nothing found, no scale) and `constant` (Part 2: the typical answer
 per template from dev questions outside the golden set) are the floors a real method has to beat.
 
@@ -175,6 +215,29 @@ the commit, the method name, what was scored, and aggregate numbers only (includ
 calibration sections), never question text, answers or file names, because the repo is public. The full score
 stays in the gitignored `data/stoa/golden/runs/`. `history --progress` shows each method's first, latest and best
 numbers.
+
+### The pipeline series
+
+`pipeline` is the product end to end on golden v2: Part 1 read from the drawings, Part 2 answered from that
+extraction, every real adapter of the commit turned on. Each point runs from a clean export of a merge commit, not
+the shared tree, by `eval/pipeline-run.sh <commit> [NAME=VALUE ...]` and scored by the same eval on the frozen
+set, so the numbers compare. Its records say `dirty: false` with that commit, the settings it ran with, and the
+scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41):
+
+| commit | code time | settings that change | P1 element F1 cubi | P1 element F1 ifc | P1 element F1 open | P1 element F1 swiss | P2 accuracy | P2 dev | P2 holdout | abstained |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0f9120f | 2026-11-13 23:24 | extractor_vector=hello question_parser=hello second_counter=hello | 0.0% | 0.0% | 0.0% | 0.0% | 0/2948 (0.0%) | 0.0% | 0.0% | n/a |
+| 85d3470 | 2026-11-13 23:55 | extractor_vector=pdf question_parser=templates second_counter=hello | 0.0% | 80.4% | 0.0% | 100.0% | 1262/2948 (42.8%) | 39.9% | 55.4% | 14.3% |
+| 6e9a2df | 2026-11-14 00:39 | answer_prior=dev extractor_vector=pdf question_parser=templates second_counter=pdf | 0.0% | 80.4% | 0.0% | 100.0% | 2109/2948 (71.5%) | 71.1% † | 73.2% | 50.8% |
+
+Code time is the commit time (Europe/Helsinki); `*` marks a run recorded with uncommitted changes, timed when recorded. Abstained: share of golden answers marked `abstain` (n/a: no answer_v1.1 fields).
+
+† In-sample: with answer_prior=dev an abstained answer carries the dev prior's value, and the prior is fit on dev.jsonl, which holds the golden dev questions. The holdout column is the honest number for the prior.
+
+Settings the same at every point: extractor_bim=hello, extractor_cad=hello, extractor_raster=hello, log_level=INFO.
+
+At 6e9a2df the answers the pipeline read itself are 1436 of 1450 right (99.0%); the other 1498 abstain and carry the
+dev prior, 673 of them right (44.9%). Part 1 is the same at 85d3470 and 6e9a2df (same extractor).
 
 ## What the answer should show
 
@@ -192,12 +255,9 @@ What a verifier should see, per kind of answer:
 
 ## Not built yet
 
-- An evidence hit rate: the share of evidence boxes that overlap a true element of the asked class (IoU 0.3 or
-  more) and the share of true elements boxed, where true positions are known (swiss DXF, IFC SVG tags, CubiCasa5K
-  polygons). Elements drawn twice at the same place count once there. This would turn "verifiable" into a number.
-- Free-text scoring without an LLM for ifc_bench and the opening_design text questions: each golden text item keeps
-  a list of the quantities it asks for, and an answer passes when every one is matched (counts exact, measures
-  within 2%) and enough of the key names appear. Review-7 has a prototype. v2 has no ifc_bench files.
+- Evidence for apartment counts and for whole-model IFC questions, and evidence on the dev split outside golden v2
+  (the dev extraction gold would allow it).
+- Text claims for ifc_bench, which v2 has no files of.
 - Per-item labels (`trust`: verified, rule, suspect, unverified; `profile`: answerable from the file itself or
   needing a sibling file; trap tags), and a dataset-weighted headline next to macro accuracy over families.
 - A hand-made set for building-code checks, which the dataset has no questions for.

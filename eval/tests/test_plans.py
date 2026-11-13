@@ -10,7 +10,7 @@ import pytest
 
 from stoa_eval import cli, plans
 from stoa_eval.cli import main
-from stoa_eval.history import read_history
+from stoa_eval.history import read_extraction_history, read_history
 from stoa_eval.plans import PlansParams, pick, pick_scale_cases
 from stoa_eval.scale_scoring import ScaleCase
 from tests.factories import make_questions, read_json, write_questions
@@ -58,10 +58,14 @@ def dataset(tmp_path: Path) -> Path:
     """questions.jsonl with floors questions, the PNG of every swiss PDF, and a sealed split."""
     rows = make_questions()
     floors = "How many floors (storeys) does this floor plan show?"
+    largest = "Which room on this floor plan is the largest, and how large is it?"
     for n in range(1, 7):
         answer = 2 if n in (2, 5) else 1
         path = f"data/cubicasa5k/plan-{n}.png"
         rows.append(rows[0].model_copy(update={"path": path, "question": floors, "answer": answer}))
+        text = {"path": path, "question": largest, "answer": "Living room, 20.5 m²", "unit": None,
+                "type": "text"}  # fmt: skip
+        rows.append(rows[0].model_copy(update=text))
     questions = write_questions(tmp_path / "questions.jsonl", rows)
     for row in rows:
         if row.path.startswith("data/swiss_dwellings/"):
@@ -146,10 +150,48 @@ def test_select_plans_writes_both_parts_and_both_parts_score(
     score = ("score", answers, "--golden", golden, "--results", results, "--name", "oracle")
     assert run(*score) == 1
     assert "a recorded golden v2 Part 2 run needs --reads" in capsys.readouterr().err
+    texts = [question["id"] for question in questions if question["type"] == "text"]
+    assert texts
+    claims = [{"id": id_, "names": [{"name": "living room"}], "by": "test",
+               "numbers": [{"value": 20.5, "unit": "m2"}]} for id_ in texts]  # fmt: skip
+    (golden.parent / "text_claims.jsonl").write_text(
+        "".join(json.dumps(line) + "\n" for line in claims), "utf-8"
+    )
     assert run(*score, "--reads", "gold-extraction") == 0
+    printed = capsys.readouterr().out
+    assert "evidence hit rate" in printed and "text by claims" in printed
     [row] = read_history(results)
     assert row.golden_version == "v2" and row.reads == "gold-extraction"
     assert row.overall.accuracy == 1.0
+    # the oracle cites each gold plan for the floors questions; its text meets every claim
+    assert row.evidence_hits is not None and row.text_claims is not None
+    hits = row.evidence_hits.by_source_family["cubicasa5k/plan"]
+    assert hits.precision.rate == hits.recall.rate == 1.0 and hits.recall.n > 0
+    assert row.evidence_hits.overall.recall.rate == 1.0
+    assert row.text_claims.passed.correct == row.text_claims.passed.n == len(texts)
+    assert row.text_claims.without_claims == 0
+
+    # the pipeline series: both parts recorded from an export of HEAD, paired by `series`
+    head = cli._git("rev-parse", "HEAD")  # pyright: ignore[reportPrivateUsage]
+    export = ("--name", "pipeline", "--results", results, "--commit", head,
+              "--setting", "EXTRACTOR_VECTOR=pdf")  # fmt: skip
+    assert run("score-extraction", out / "part1_extraction/gold", "--golden-dir", out,
+               *export) == 0  # fmt: skip
+    assert run("score", answers, "--golden", golden, "--reads", "pipeline-extraction",
+               *export) == 0  # fmt: skip
+    [part1] = read_extraction_history(results)
+    short = cli._git("rev-parse", "--short", "HEAD")  # pyright: ignore[reportPrivateUsage]
+    assert (part1.commit, part1.dirty, part1.settings) == (
+        short,
+        False,
+        {"extractor_vector": "pdf"},
+    )
+    assert part1.eval_commit == short and part1.committed_at is not None
+    capsys.readouterr()
+    assert run("series", "--results", results) == 0
+    table = capsys.readouterr().out
+    [line] = [line for line in table.splitlines() if line.startswith(f"| {short} |")]
+    assert "100.0%" in line and f"{row.overall.n}/{row.overall.n} (100.0%)" in line
 
 
 def test_select_plans_refuses_gold_from_the_other_split(

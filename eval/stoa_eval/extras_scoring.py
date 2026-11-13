@@ -1,5 +1,6 @@
 """Part 2 slices outside the headline: the extras (questions Stoa didn't write) and the answer_v1.1
-fields (formats-v1-1 brief §3 and §4; Bogdan 2026-11-13 23:03).
+fields (formats-v1-1 brief §3 and §4; Bogdan 2026-11-13 23:03), plus the evidence hit rate
+(evidence_scoring.py) and text by claims (text_scoring.py) of the golden-8 brief.
 
 Extras (part2_answering/extras.jsonl), per kind:
 - paraphrase: right by the dataset rules (scoring.judge). Its origin question is judged on the same
@@ -25,8 +26,11 @@ from typing import NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .models import Answer, AnswerValue, ExtraItem, GoldenItem, Question, Unit
+from .evidence_scoring import EvidenceScore, format_evidence, score_evidence
+from .extraction import Extraction
+from .models import Answer, AnswerValue, ExtraItem, GoldenItem, Question, TextClaims, Unit
 from .scoring import Score, Tally, judge
+from .text_scoring import TextClaimsScore, format_text_claims, score_text_claims
 
 BUCKETS = 5  # confidence buckets of 0.2
 
@@ -94,6 +98,8 @@ class GoldenScore(Score):
 
     extras: ExtrasScore | None = None
     answer_v1_1: AnswerV11Score | None = None
+    evidence_hits: EvidenceScore | None = None
+    text_claims: TextClaimsScore | None = None
 
 
 def _tally(marks: Sequence[bool]) -> Tally:
@@ -285,8 +291,13 @@ def score_golden(
     answers: Sequence[Answer],
     extras: Sequence[ExtraItem] = (),
     extras_sha256: str | None = None,
+    part1_gold: Mapping[str, Extraction] | None = None,
+    claims: Sequence[TextClaims] = (),
+    claims_sha256: str | None = None,
 ) -> GoldenScore:
-    """`base` (scoring.score on the golden questions) plus the slices outside the headline."""
+    """`base` (scoring.score on the golden questions) plus the slices outside the headline: the
+    extras when `extras_sha256` is given, the evidence hit rate when `part1_gold` (file ->
+    extraction gold) is, and text by claims when `claims_sha256` is."""
     by_id = {answer.id: answer for answer in answers}
     return GoldenScore(
         **dict(base),
@@ -296,6 +307,14 @@ def score_golden(
             else None
         ),
         answer_v1_1=score_answer_v11(golden, by_id),
+        evidence_hits=(
+            score_evidence(golden, by_id, part1_gold) if part1_gold is not None else None
+        ),
+        text_claims=(
+            score_text_claims(golden, by_id, claims, claims_sha256)
+            if claims_sha256 is not None
+            else None
+        ),
     )
 
 
@@ -343,4 +362,10 @@ def format_slices(result: GoldenScore) -> str:
             upper = "]" if bucket.high >= 1 else ")"
             name = f"[{bucket.low:.1f}, {bucket.high:.1f}{upper}"
             lines.append(f"  {name:<16} {bucket.n:>6} {mean:>6} {accuracy:>9}")
+    for section in (
+        format_evidence(result.evidence_hits) if result.evidence_hits else None,
+        format_text_claims(result.text_claims) if result.text_claims else None,
+    ):
+        if section is not None:
+            lines += [*([""] if lines else []), section]
     return "\n".join(lines)

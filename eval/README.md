@@ -25,6 +25,8 @@ uv run python -m stoa_eval score answers.jsonl --no-record   # a scratch check, 
 uv run python -m stoa_eval history              # both parts, oldest first, per source
 uv run python -m stoa_eval history --progress   # per method: first vs latest vs best
 uv run python -m stoa_eval history --csv ../data/stoa/charts   # answering.csv, extraction.csv
+uv run python -m stoa_eval series               # the `pipeline` series as a markdown table
+./pipeline-run.sh <commit> [NAME=VALUE ...]     # record one point of the series (below)
 uv run python -m stoa_eval schema               # rewrite schemas/ after changing a model
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
 ```
@@ -226,6 +228,28 @@ abstain rate, the accuracy of abstained and of other answers (the best estimate 
 calibration table: confidence buckets 0.2 wide against accuracy. `baseline oracle` answers the
 extras too, so it must score 100% on every slice.
 
+Two more sections follow the headline without changing it:
+
+- Evidence hit rate (`stoa_eval/evidence_scoring.py`). For a numeric question on a file whose
+  part1 gold has truth `elements`, the wording gives the subject (an element class, a room type,
+  the rooms with a label, number or name, an apartment's indoor rooms, the numbered indoor rooms,
+  all rooms, the plans; saunas mean the sauna stoves) and the subject picks gold items. A box hits
+  an item when it is on the question's file and the item's page and its centre lies in the item's
+  gold box. Precision: hit boxes / boxes. Recall: items some box hits / items. Both are pooled,
+  per source and per source/subject. A question without an answer line or without boxes adds its
+  items to recall. Text questions, files with truth `counts` or `tables`, apartment counts and
+  whole-model IFC questions are not scored, and the report counts them by reason. The module
+  docstring says why the centre and not IoU. `baseline oracle` cites one box per item, so it must
+  score 100%/100%.
+- Text by claims (`stoa_eval/text_scoring.py`, D52). When `part2_answering/text_claims.jsonl`
+  exists (schema `schemas/text_claims_v1.schema.json`, one line per golden text question id with
+  `numbers` and `names`), a text answer passes when every number claim is met one to one (counts
+  exactly, measures within 2% after converting length, area and time units) and every name, or one
+  of its aliases, appears as whole words. The report gives the pass rate for dev and holdout, the
+  share of number and name claims met, and the text questions without claims. The headline's text
+  line stays exact match. Claims for an id that is not a golden text question, or a repeated id,
+  stop the run.
+
 Review-7 writes its lines (ids up to 1000999) straight into `part2_answering/extras.jsonl`.
 Review-10 writes its conflict lines (1001001-1001999) to
 `data/stoa/extraction_gold/_conflicts/extras.jsonl`, and `select-plans` merges them by id. Lines
@@ -278,16 +302,50 @@ evidence coverage, cost and latency. Part 1 files (`schemas/extraction_record_v1
 element and room F1, plan and count exact rates, scale status and `m_per_unit` pass rates and the
 median estimate error, overall and per source, and the estimated room areas per source. A Part 1
 file also holds the tables and conflict
-sections when the gold has them, and a Part 2 file the extras and answer_v1.1 sections (aggregates
-and the extras file's sha256). Records written before these sections still load. No file holds
+sections when the gold has them, and a Part 2 file the extras, answer_v1.1, evidence hit rate
+(`evidence_hits`: overall, per source, per source/subject) and text claims (`text_claims`)
+sections (aggregates and the extras and claims files' sha256). Records written before these sections still load. No file holds
 question text, answers, templates or file names, because the repo is public; the schemas refuse
 any other key.
+
+Since 2026-11-14 a record also says which code made the predictions and how it was set up.
+`commit` and `dirty` describe that code, and `committed_at` is its commit time. By default that is
+this tree's HEAD. With `--commit <sha>` the predictions came from a clean export (`git archive`) of
+that commit: the record says `dirty: false`, and `eval_commit` / `eval_dirty` name the scorer that
+scored them. `--setting NAME=VALUE` (repeatable) keeps the settings the run used, names lowercased,
+values plain words (no paths). Part 2 records also keep accuracy per split (`by_split`: dev and
+holdout for the golden set).
 
 `history` prints Part 1 and Part 2 as separate tables, oldest first, with per-source columns (Part 1:
 element F1, counts exact, scale status ok; Part 2: accuracy). `--part` shows one part, `--against`
 one target, and `--csv <folder>` writes `answering.csv` and `extraction.csv` for a chart.
 `history --progress` gives, per method name and target, the first, latest and best value of each
-headline number and the change from first to latest.
+headline number and the change from first to latest. Runs go in code order: a clean run counts at
+its commit time and a run with uncommitted changes at the time it was recorded, so a run backfilled
+from an old commit counts as early. The CSVs carry that `code_time`, the settings, and for Part 2
+the accuracy per split and the abstain rate.
+
+### The `pipeline` series
+
+`pipeline` is the method name for the product end to end on golden v2: Part 1 read from the
+drawings (`--drawings pipeline`), Part 2 answered from that extraction (`--reads
+pipeline-extraction`), with every real adapter of the commit turned on. Each commit gives one
+point, run from a clean export rather than the shared tree:
+
+```bash
+systemd-run --user --scope -p MemoryMax=6G nice -n 15 \
+  ./pipeline-run.sh 85d3470 EXTRACTOR_VECTOR=pdf QUESTION_PARSER=templates
+```
+
+The script exports `backend/` of that commit into `data/stoa/runs/pipeline-<sha>-<time>/export/`
+(delete it when done), builds the dev prior there when `ANSWER_PRIOR=dev`, reads back the
+settings the export runs with, runs `app.cli golden`, and records both parts with `--commit` and
+every setting. `series` prints the points as a markdown table: commit, commit time, the settings
+that change, Part 1 element F1 per source, Part 2 accuracy overall, dev and holdout, and the share
+of answers marked `abstain`. A dev cell marked † is in-sample: with `answer_prior=dev` an abstained
+answer carries the dev prior's value, and the prior is fit on `dev.jsonl`, which holds the golden
+dev questions. The holdout column is the honest number for the prior. docs/GOLDEN.md has the
+current table.
 
 Compare methods on holdout or eval. Near-duplicate questions inside dev (one building shipped as two
 models, identical typical floors) lift the constant baseline's dev score.

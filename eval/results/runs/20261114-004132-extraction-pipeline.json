@@ -1,0 +1,212 @@
+{
+  "recorded_at": "2026-11-14T00:41:32.532167+02:00",
+  "commit": "6e9a2df",
+  "dirty": false,
+  "committed_at": "2026-11-14T00:39:00+02:00",
+  "eval_commit": "6e9a2df",
+  "eval_dirty": true,
+  "settings": {
+    "log_level": "INFO",
+    "extractor_bim": "hello",
+    "extractor_cad": "hello",
+    "extractor_vector": "pdf",
+    "extractor_raster": "hello",
+    "second_counter": "pdf",
+    "question_parser": "templates",
+    "answer_prior": "dev"
+  },
+  "name": "pipeline",
+  "note": null,
+  "part": "extraction",
+  "against": "golden",
+  "golden_version": "v2",
+  "milestone": false,
+  "gold_sha256": "0720a04d5fd9f41ff567a6bc75d673661059450a34f0c296e56073db144a8bf1",
+  "score_sha256": "98a65611c19420d0c321e2d9427d2f760e69128ab3d40e97291b36913ff273f3",
+  "files": 155,
+  "predicted": 155,
+  "multiplicity": false,
+  "elements_f1": 0.7962948902892719,
+  "elements_f1_by_source": {
+    "cubicasa5k": 0.0,
+    "ifc_models": 0.8037602820211516,
+    "opening_design": 0.0,
+    "swiss_dwellings": 1.0
+  },
+  "room_f1": 0.8057005218787635,
+  "room_type_accuracy": 1.0,
+  "room_area_accuracy": 1.0,
+  "room_area_estimates": {},
+  "plans_exact": {
+    "n": 143,
+    "correct": 75,
+    "rate": 0.5244755244755245
+  },
+  "counts_exact": {
+    "n": 2649,
+    "correct": 1574,
+    "rate": 0.5941864854662137
+  },
+  "counts_exact_by_source": {
+    "cubicasa5k": {
+      "n": 1355,
+      "correct": 316,
+      "rate": 0.23321033210332104
+    },
+    "ifc_models": {
+      "n": 270,
+      "correct": 238,
+      "rate": 0.8814814814814815
+    },
+    "opening_design": {
+      "n": 4,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "swiss_dwellings": {
+      "n": 1020,
+      "correct": 1020,
+      "rate": 1.0
+    }
+  },
+  "scale_status": {
+    "n": 153,
+    "correct": 75,
+    "rate": 0.49019607843137253
+  },
+  "scale_status_by_source": {
+    "cubicasa5k": {
+      "n": 77,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "ifc_models": {
+      "n": 15,
+      "correct": 15,
+      "rate": 1.0
+    },
+    "opening_design": {
+      "n": 1,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "swiss_dwellings": {
+      "n": 60,
+      "correct": 60,
+      "rate": 1.0
+    }
+  },
+  "scale_m_per_unit": {
+    "n": 105,
+    "correct": 75,
+    "rate": 0.7142857142857143
+  },
+  "scale_m_per_unit_by_case": {
+    "nothing": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "not_to_scale": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "dimension_lines": {
+      "n": 14,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "printed_areas": {
+      "n": 15,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "scale_text_or_bar": {
+      "n": 76,
+      "correct": 75,
+      "rate": 0.9868421052631579
+    }
+  },
+  "scale_estimate_median_error": null,
+  "scale_estimate_within_20": null,
+  "tables": {
+    "files": 2,
+    "tables_found": {
+      "n": 7,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "tables_extra": 0,
+    "row_recall": {
+      "n": 170,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "row_precision": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "cell_accuracy": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    }
+  },
+  "conflicts": {
+    "files": 62,
+    "overall": {
+      "found": {
+        "n": 14,
+        "correct": 0,
+        "rate": 0.0
+      },
+      "agree": 102,
+      "false_alarms": 0,
+      "unlisted": 0
+    },
+    "by_quantity": {
+      "element_count": {
+        "found": {
+          "n": 10,
+          "correct": 0,
+          "rate": 0.0
+        },
+        "agree": 48,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "room_area": {
+        "found": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "agree": 30,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "room_count": {
+        "found": {
+          "n": 4,
+          "correct": 0,
+          "rate": 0.0
+        },
+        "agree": 20,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "scale": {
+        "found": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "agree": 4,
+        "false_alarms": 0,
+        "unlisted": 0
+      }
+    }
+  }
+}

@@ -113,6 +113,75 @@
       "title": "CalibrationBucket",
       "type": "object"
     },
+    "EvidenceHitsGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "questions": {
+          "minimum": 0,
+          "title": "Questions",
+          "type": "integer"
+        },
+        "with_boxes": {
+          "description": "questions whose answer has an evidence box",
+          "minimum": 0,
+          "title": "With Boxes",
+          "type": "integer"
+        },
+        "precision": {
+          "$ref": "#/$defs/Ratio",
+          "description": "boxes; correct = boxes that hit a gold target"
+        },
+        "recall": {
+          "$ref": "#/$defs/Ratio",
+          "description": "gold targets; correct = targets some box hits"
+        }
+      },
+      "required": [
+        "questions",
+        "with_boxes",
+        "precision",
+        "recall"
+      ],
+      "title": "EvidenceHitsGroup",
+      "type": "object"
+    },
+    "EvidenceHitsRecord": {
+      "additionalProperties": false,
+      "description": "Evidence hit rate on golden v2 (numeric questions on files with gold item boxes); not\nheadline.",
+      "properties": {
+        "rule": {
+          "description": "the hit test, in words",
+          "title": "Rule",
+          "type": "string"
+        },
+        "overall": {
+          "$ref": "#/$defs/EvidenceHitsGroup"
+        },
+        "by_source": {
+          "additionalProperties": {
+            "$ref": "#/$defs/EvidenceHitsGroup"
+          },
+          "title": "By Source",
+          "type": "object"
+        },
+        "by_source_family": {
+          "additionalProperties": {
+            "$ref": "#/$defs/EvidenceHitsGroup"
+          },
+          "description": "source/what the question counts, e.g. swiss_dwellings/door",
+          "title": "By Source Family",
+          "type": "object"
+        }
+      },
+      "required": [
+        "rule",
+        "overall",
+        "by_source",
+        "by_source_family"
+      ],
+      "title": "EvidenceHitsRecord",
+      "type": "object"
+    },
     "ExtrasRecord": {
       "additionalProperties": false,
       "description": "Part 2 extras, per kind (formats-v1-1 §3).",
@@ -295,6 +364,43 @@
       ],
       "title": "Stats",
       "type": "object"
+    },
+    "TextClaimsRecord": {
+      "additionalProperties": false,
+      "description": "Free-text golden questions scored by curated claims (D52); not headline.",
+      "properties": {
+        "claims_sha256": {
+          "title": "Claims Sha256",
+          "type": "string"
+        },
+        "passed": {
+          "$ref": "#/$defs/Ratio",
+          "description": "text questions with claims; correct = every claim met"
+        },
+        "numbers": {
+          "$ref": "#/$defs/Ratio",
+          "description": "number claims matched one to one"
+        },
+        "names": {
+          "$ref": "#/$defs/Ratio",
+          "description": "name claims found"
+        },
+        "without_claims": {
+          "description": "golden text questions with no claims line",
+          "minimum": 0,
+          "title": "Without Claims",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "claims_sha256",
+        "passed",
+        "numbers",
+        "names",
+        "without_claims"
+      ],
+      "title": "TextClaimsRecord",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -307,15 +413,75 @@
       "type": "string"
     },
     "commit": {
-      "description": "short git sha of HEAD",
+      "description": "short git sha of the code that made the predictions: HEAD, or the clean export named with --commit",
       "pattern": "^[0-9a-f]{7,40}$",
       "title": "Commit",
       "type": "string"
     },
     "dirty": {
-      "description": "tracked files had uncommitted changes",
+      "description": "that code had uncommitted changes (false for an export)",
       "title": "Dirty",
       "type": "boolean"
+    },
+    "committed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "when `commit` was made (committer time, Europe/Helsinki)",
+      "title": "Committed At"
+    },
+    "eval_commit": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{7,40}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the scorer's own HEAD, when `commit` names an export",
+      "title": "Eval Commit"
+    },
+    "eval_dirty": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the scorer had uncommitted changes; set with eval_commit",
+      "title": "Eval Dirty"
+    },
+    "settings": {
+      "anyOf": [
+        {
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,63}$": {
+              "pattern": "^[A-Za-z0-9_.:+-]{1,64}$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the settings the run used (--setting), name lowercased",
+      "title": "Settings"
     },
     "name": {
       "description": "the method's name",
@@ -399,6 +565,22 @@
     "numeric": {
       "$ref": "#/$defs/Stats"
     },
+    "by_split": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/Stats"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "per split (golden: dev, holdout); rows before 2026-11-14 lack it",
+      "title": "By Split"
+    },
     "by_source_type": {
       "additionalProperties": {
         "$ref": "#/$defs/Stats"
@@ -477,6 +659,30 @@
       ],
       "default": null,
       "description": "abstain and calibration, when answers carry v1.1 fields"
+    },
+    "evidence_hits": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EvidenceHitsRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "evidence precision and recall against Part 1 gold boxes"
+    },
+    "text_claims": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TextClaimsRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "free-text questions scored by curated claims"
     }
   },
   "required": [
