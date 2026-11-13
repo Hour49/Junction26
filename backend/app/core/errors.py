@@ -7,3 +7,7 @@ class DomainError(Exception):
 
 class NotFoundError(DomainError):
     """The thing asked for doesn't exist."""
+
+
+class InvalidInputError(DomainError):
+    """Input the product refuses: a path that leaves its folder, a file that is not what it says."""
