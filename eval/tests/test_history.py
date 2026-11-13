@@ -110,7 +110,8 @@ def test_migration_keeps_every_row(tmp_path: Path) -> None:
     rows = [json.loads(line) for line in old.read_text(encoding="utf-8").splitlines()]
     assert len(written) == len(rows) == 5
     migrated = read_records(tmp_path / "runs")
-    assert [r.model_dump(mode="json", exclude={"part", "reads"}) for r in migrated] == rows
+    defaults = {"part", "reads", "extras", "answer_v1_1"}  # fields added after these rows
+    assert [r.model_dump(mode="json", exclude=defaults) for r in migrated] == rows
     assert {path.name for path in written} >= {"20261113-204152-answering-oracle.json"}
 
 

@@ -1,6 +1,8 @@
 """Two baselines that call no API.
 
-- oracle: the golden answers themselves. It must score 100%; anything less is a scorer bug.
+- oracle: the golden answers themselves, with confidence 1, and the expected behaviour on every
+  extras line (abstain on unanswerable ones, both values on conflict ones). It must score 100% on
+  the headline and on every slice; anything less is a scorer bug.
 - constant: per question template, the typical answer among dev questions that are not in the golden
   set (median for area/length/volume, most common value otherwise). A template with no such question
   falls back to its source and type. This is the floor any real method has to beat.
@@ -10,13 +12,13 @@ from collections import Counter, defaultdict
 from collections.abc import Sequence
 
 from .extraction import Extraction
-from .models import Answer, AnswerValue, GoldenItem, Unit
+from .models import Answer, AnswerValue, ConflictValue, ExtraItem, GoldenItem, Unit
 
 CONTINUOUS_TYPES = frozenset({"area", "length", "volume"})
 
 
-def oracle(golden: Sequence[GoldenItem]) -> list[Answer]:
-    return [
+def oracle(golden: Sequence[GoldenItem], extras: Sequence[ExtraItem] = ()) -> list[Answer]:
+    answers = [
         Answer(
             id=item.id,
             answer=item.answer,
@@ -25,9 +27,35 @@ def oracle(golden: Sequence[GoldenItem]) -> list[Answer]:
             method="oracle",
             cost_usd=0.0,
             latency_s=0.0,
+            confidence=1.0,
+            abstain=False,
         )
         for item in golden
     ]
+    for line in extras:
+        values = line.expect.conflict_values
+        answers.append(
+            Answer(
+                id=line.id,
+                answer=line.expect.answer,
+                unit=line.unit,
+                evidence=[],
+                method="oracle",
+                cost_usd=0.0,
+                latency_s=0.0,
+                abstain=line.kind == "unanswerable",
+                conflicts=(
+                    None
+                    if values is None
+                    else [
+                        ConflictValue(value=v, unit=line.unit, method="oracle", file=line.path)
+                        for v in values
+                    ]
+                ),
+                resolution=None if values is None else "the expected answer",
+            )
+        )
+    return answers
 
 
 def _most_common[T](values: Sequence[T]) -> T:

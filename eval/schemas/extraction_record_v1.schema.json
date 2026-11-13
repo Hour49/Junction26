@@ -1,5 +1,128 @@
 {
   "$defs": {
+    "AreaEstimates": {
+      "additionalProperties": false,
+      "description": "Estimated gold room areas of one source against the predicted areas.",
+      "properties": {
+        "rooms": {
+          "description": "matched rooms with an estimated gold area",
+          "minimum": 0,
+          "title": "Rooms",
+          "type": "integer"
+        },
+        "missing": {
+          "description": "of those, without a predicted area",
+          "minimum": 0,
+          "title": "Missing",
+          "type": "integer"
+        },
+        "median_error": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Median Error"
+        },
+        "within_10": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Within 10"
+        },
+        "within_20": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Within 20"
+        }
+      },
+      "required": [
+        "rooms",
+        "missing",
+        "median_error",
+        "within_10",
+        "within_20"
+      ],
+      "title": "AreaEstimates",
+      "type": "object"
+    },
+    "ConflictCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "found": {
+          "$ref": "#/$defs/Ratio",
+          "description": "gold conflict entries the prediction calls a conflict"
+        },
+        "agree": {
+          "description": "gold agree entries",
+          "minimum": 0,
+          "title": "Agree",
+          "type": "integer"
+        },
+        "false_alarms": {
+          "description": "gold agree entries called a conflict",
+          "minimum": 0,
+          "title": "False Alarms",
+          "type": "integer"
+        },
+        "unlisted": {
+          "description": "predicted conflicts gold has no entry for",
+          "minimum": 0,
+          "title": "Unlisted",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "found",
+        "agree",
+        "false_alarms",
+        "unlisted"
+      ],
+      "title": "ConflictCounts",
+      "type": "object"
+    },
+    "ConflictsRecord": {
+      "additionalProperties": false,
+      "description": "Part 1 conflict slice (ingestion stage 8): recall and false alarms; not headline.",
+      "properties": {
+        "files": {
+          "minimum": 0,
+          "title": "Files",
+          "type": "integer"
+        },
+        "overall": {
+          "$ref": "#/$defs/ConflictCounts"
+        },
+        "by_quantity": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ConflictCounts"
+          },
+          "title": "By Quantity",
+          "type": "object"
+        }
+      },
+      "required": [
+        "files",
+        "overall",
+        "by_quantity"
+      ],
+      "title": "ConflictsRecord",
+      "type": "object"
+    },
     "Ratio": {
       "additionalProperties": false,
       "properties": {
@@ -31,6 +154,48 @@
         "rate"
       ],
       "title": "Ratio",
+      "type": "object"
+    },
+    "TablesRecord": {
+      "additionalProperties": false,
+      "description": "Part 1 schedules (truth tables, or tables next to elements); not headline.",
+      "properties": {
+        "files": {
+          "minimum": 0,
+          "title": "Files",
+          "type": "integer"
+        },
+        "tables_found": {
+          "$ref": "#/$defs/Ratio",
+          "description": "gold tables matched by title or box IoU >= 0.3"
+        },
+        "tables_extra": {
+          "description": "predicted tables matching no gold table",
+          "minimum": 0,
+          "title": "Tables Extra",
+          "type": "integer"
+        },
+        "row_recall": {
+          "$ref": "#/$defs/Ratio"
+        },
+        "row_precision": {
+          "$ref": "#/$defs/Ratio",
+          "description": "rows of found tables only"
+        },
+        "cell_accuracy": {
+          "$ref": "#/$defs/Ratio",
+          "description": "non-key cells of matched rows"
+        }
+      },
+      "required": [
+        "files",
+        "tables_found",
+        "tables_extra",
+        "row_recall",
+        "row_precision",
+        "cell_accuracy"
+      ],
+      "title": "TablesRecord",
       "type": "object"
     }
   },
@@ -183,7 +348,16 @@
           "type": "null"
         }
       ],
+      "description": "exact gold areas within 2%",
       "title": "Room Area Accuracy"
+    },
+    "room_area_estimates": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AreaEstimates"
+      },
+      "description": "per source; estimated gold areas",
+      "title": "Room Area Estimates",
+      "type": "object"
     },
     "plans_exact": {
       "$ref": "#/$defs/Ratio"
@@ -242,6 +416,30 @@
         }
       ],
       "title": "Scale Estimate Within 20"
+    },
+    "tables": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TablesRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "when the gold has tables"
+    },
+    "conflicts": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ConflictsRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "when the gold has a conflict slice"
     }
   },
   "required": [

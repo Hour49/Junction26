@@ -10,6 +10,7 @@ from stoa_eval.cli import main
 from stoa_eval.extraction import Extraction
 from stoa_eval.extraction_scoring import iou, match, score_extraction
 from stoa_eval.history import read_extraction_history, read_history
+from stoa_eval.scale_scoring import case_of
 
 PLAN = "data/cubicasa5k/plan-1.png"
 
@@ -249,8 +250,7 @@ def test_scale_case_kinds_estimates_and_exclusions() -> None:
     assert score.estimates.median_error == pytest.approx(0.15)
     assert score.estimates.within_10 == pytest.approx(1 / 3)
     assert score.estimates.within_20 == pytest.approx(2 / 3)
-    with pytest.raises(ValueError, match="cannot be estimated"):
-        score_extraction([gold(PLAN, estimate(0.01))], {})
+    assert case_of(gold(PLAN, estimate(0.01))) == "nothing"  # gold may be estimated (23:33)
 
 
 def write(folder: Path, name: str, item: Extraction) -> None:

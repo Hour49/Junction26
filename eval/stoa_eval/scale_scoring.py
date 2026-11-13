@@ -6,12 +6,21 @@ gold case -> expected prediction -> scored:
 - scale text or bar -> scaled -> status, m_per_unit within 2%
 - printed areas (no text or bar) -> scaled -> same
 - dimension lines only -> scaled -> same
-- nothing (no_scale) -> estimated or no_scale -> status; estimates against reference_m_per_unit
+- nothing usable printed: gold estimated -> estimated (a `scaled` claim is wrong: the sheet doesn't
+  support a measured scale); legacy gold no_scale -> estimated or no_scale
 - a not-to-scale note -> not_to_scale -> status
+
+Bogdan, 23:33: "We should have ON ALL IMAGES THE SCALE TO GET THE AREA, BY APROXIMATING IT IN
+DIFFERENT WAYS IF NOT GOOD SCALE ETC." So gold may be `estimated`, and `not_to_scale` may carry an
+approximate value. A predicted value whose status is estimated or not_to_scale, on gold that is not
+scaled, is an estimate: its relative error against the gold's value (estimated, valued
+not_to_scale) or else its reference_m_per_unit is reported as a median and the shares within 10%
+and 20%, not as pass/fail.
 
 Scales compare as metres across the first page (m_per_unit x page width), so a prediction rendered
 at another resolution or unit still compares. A gold file whose notes start "scale not reviewed"
-or "scale dropped" (two checks disagreed) is not a scale case.
+or "scale dropped" (two checks disagreed) is not a scale case, nor is a schedule sheet
+(`truth: tables`: only its tables are scored).
 """
 
 from statistics import median
@@ -25,7 +34,13 @@ ScaleCase = Literal[
     "scale_text_or_bar", "printed_areas", "dimension_lines", "nothing", "not_to_scale"
 ]
 SCALE_CASES: tuple[ScaleCase, ...] = ScaleCase.__args__
-GOLD_STATUSES = ("scaled", "no_scale", "not_to_scale")
+GOLD_STATUSES = ("scaled", "estimated", "no_scale", "not_to_scale")
+EXPECTED: dict[str, tuple[str, ...]] = {
+    "scaled": ("scaled",),
+    "estimated": ("estimated",),
+    "no_scale": ("estimated", "no_scale"),
+    "not_to_scale": ("not_to_scale",),
+}
 PRED_COLUMNS = ("scaled", "estimated", "no_scale", "not_to_scale", "missing")
 EXCLUDED_NOTES = ("scale not reviewed", "scale dropped")
 SCALE_TOLERANCE = 0.02
@@ -33,21 +48,32 @@ _SLACK = 1e-9
 
 
 def case_of(gold: Extraction) -> ScaleCase | None:
-    """The gold file's scale case, or None when it is not one (excluded by a note)."""
-    if any(note.lower().startswith(EXCLUDED_NOTES) for note in gold.notes):
+    """The gold file's scale case, or None when it is not one (excluded by a note, or a schedule
+    sheet)."""
+    excluded = any(note.lower().startswith(EXCLUDED_NOTES) for note in gold.notes)
+    if excluded or gold.truth == "tables":
         return None
     scale = gold.scale
-    if scale.status == "estimated":
-        raise ValueError(f"{gold.file}: gold scale cannot be estimated")
     if scale.status == "not_to_scale":
         return "not_to_scale"
-    if scale.status == "no_scale":
+    if scale.status in ("no_scale", "estimated"):
         return "nothing"
     if "scale_text" in scale.evidence or "scale_bar" in scale.evidence:
         return "scale_text_or_bar"
     if "printed_areas" in scale.evidence:
         return "printed_areas"
     return "dimension_lines"
+
+
+def gold_estimate(gold: Extraction) -> float | None:
+    """What an estimate on this gold is measured against: its own approximate value (estimated,
+    valued not_to_scale), else its reference_m_per_unit; None on scaled gold."""
+    scale = gold.scale
+    if scale.status == "scaled":
+        return None
+    if scale.status in ("estimated", "not_to_scale") and scale.m_per_unit is not None:
+        return scale.m_per_unit
+    return scale.reference_m_per_unit
 
 
 def page_metres(m_per_unit: float, extraction: Extraction) -> float:
@@ -133,20 +159,15 @@ class ScaleScore(BaseModel):
         column = "missing" if pred is None else pred.scale.status
         self.confusion[gold.scale.status][column] += 1
         stats = self.by_case.setdefault(case, CaseStats())
-        expected = {
-            "scaled": ("scaled",),
-            "no_scale": ("estimated", "no_scale"),
-            "not_to_scale": ("not_to_scale",),
-        }[gold.scale.status]
-        stats.status.add(column in expected)
+        stats.status.add(column in EXPECTED[gold.scale.status])
         if gold.scale.status == "scaled" and gold.scale.m_per_unit is not None:
             error = relative_error(pred, gold, gold.scale.m_per_unit) if pred else None
             passed = column == "scaled" and error is not None and error <= SCALE_TOLERANCE + _SLACK
             stats.m_per_unit.add(passed)
             for kind in gold.scale.evidence:
                 self.by_evidence.setdefault(kind, Rate()).add(passed)
-        reference = gold.scale.reference_m_per_unit
-        if column == "estimated" and pred is not None and reference is not None:
+        reference = gold_estimate(gold)
+        if column in ("estimated", "not_to_scale") and pred is not None and reference is not None:
             error = relative_error(pred, gold, reference)
             if error is not None:
                 self.estimates.errors.append(error)

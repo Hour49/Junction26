@@ -3,6 +3,7 @@ baseline, baseline-extraction, score, score-extraction, history, validate-extrac
 
 import argparse
 import hashlib
+import json
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,7 @@ from . import baselines
 from .coverage import format_coverage_table, load_answers, score_all
 from .extraction import Extraction
 from .extraction_scoring import format_extraction_table, score_extraction
+from .extras_scoring import format_slices, score_golden
 from .families import group_of, source_of
 from .history import (
     format_extraction_history,
@@ -31,8 +33,18 @@ from .history import (
     write_history_csv,
 )
 from .jsonl import iter_jsonl, read_jsonl, write_jsonl
-from .models import SCHEMA_DIR, Answer, GoldenItem, NumberedQuestion, Question, render_schemas
+from .models import (
+    SCHEMA_DIR,
+    Answer,
+    ExtraItem,
+    GoldenItem,
+    NumberedQuestion,
+    Question,
+    render_schemas,
+)
 from .plans import (
+    CONFLICT_EXTRA_IDS,
+    ConflictFile,
     PlanFile,
     PlansManifest,
     PlansParams,
@@ -62,6 +74,8 @@ SPLIT_DIR = REPO / "data/stoa/split"  # gitignored, like everything derived from
 GOLDEN_DIR = REPO / "data/stoa/golden"
 GOLDEN_V2 = GOLDEN_DIR / "v2"  # two parts: extraction (part1) and answering (part2)
 PART1, PART2, V2_MANIFEST = "part1_extraction", "part2_answering", "manifest.json"
+EXTRAS = "extras.jsonl"  # part2_answering/extras.jsonl: questions Stoa didn't write
+CONFLICTS_DIR = "_conflicts"  # under the extraction gold: conflicts.jsonl and extras.jsonl
 DEFAULT_GOLDEN = GOLDEN_V2 / PART2 / "questions.jsonl"
 EXTRACTION_GOLD = REPO / "data/stoa/extraction_gold"
 RUNS_DIR = GOLDEN_DIR / "runs"
@@ -83,6 +97,16 @@ def _golden_meta(golden: Path) -> tuple[str, str, str]:
         return v2.params.version, v2.questions_sha256, v2.split_manifest_sha256
     v1 = Manifest.model_validate_json(manifest_path(golden).read_text("utf-8"))
     return v1.params.version, v1.questions_sha256, v1.split_manifest_sha256
+
+
+def _extras_for(golden: Path) -> Path | None:
+    """part2_answering/extras.jsonl next to a v2 questions file, when it exists."""
+    path = golden.with_name(EXTRAS)
+    return path if golden.parent.name == PART2 and path.exists() else None
+
+
+def _read_extras(path: Path | None) -> list[ExtraItem]:
+    return [line for _, line in read_jsonl(path, ExtraItem)] if path else []
 
 
 def _extractions(folder: Path) -> dict[str, tuple[Path, Extraction]]:
@@ -229,7 +253,7 @@ def run_select(args: argparse.Namespace) -> None:
 def run_baseline(args: argparse.Namespace) -> None:
     golden = [item for _, item in read_jsonl(args.golden, GoldenItem)]
     if args.name == "oracle":
-        answers = baselines.oracle(golden)
+        answers = baselines.oracle(golden, _read_extras(_extras_for(args.golden)))
     else:
         _, _, split_sha256 = _golden_meta(args.golden)
         _split_manifest(args.split_dir)
@@ -296,8 +320,17 @@ def run_score(args: argparse.Namespace) -> None:
                 "a recorded golden v2 Part 2 run needs --reads gold-extraction (the answerer read "
                 "part1 gold) or --reads pipeline-extraction (it read the pipeline's own JSON)"
             )
-        result = score(golden, [answer for _, answer in read_jsonl(args.answers, Answer)])
+        answers = [answer for _, answer in read_jsonl(args.answers, Answer)]
+        extras_path = _extras_for(args.golden)
+        extras = _read_extras(extras_path)
+        extra_ids = {line.id for line in extras}
+        base = score(golden, [answer for answer in answers if answer.id not in extra_ids])
+        extras_sha256 = _sha256(extras_path) if extras_path else None
+        result = score_golden(base, golden, answers, extras, extras_sha256)
         print(format_table(result))
+        slices = format_slices(result)
+        if slices:
+            print(f"\n{slices}")
         out, stem = _detail_path(args, "answering", args.answers.with_suffix(".score.json"))
     else:
         questions_sha256 = _split_manifest(args.split_dir).questions_sha256
@@ -366,10 +399,33 @@ def run_select_plans(args: argparse.Namespace) -> None:
     extra, scale_counts = pick_scale_cases(cases, chosen, params)
     for file, part in extra.items():
         chosen[file], stratum_of[file] = part, "scale"
+    conflicts = _conflict_files(args.gold / CONFLICTS_DIR / "conflicts.jsonl", gold, sealed)
+    slice_only = {file for file in conflicts if file not in chosen}  # scored only in the slice
+    for file in sorted(slice_only):
+        chosen[file], stratum_of[file] = conflicts[file][0].split, "conflict"
     wrong_split = [f for f in chosen if f in gold and gold[f][1].split != chosen[f]]
     if wrong_split:
         raise ValueError(f"gold split differs from the sealed split for {sorted(wrong_split)[:5]}")
+    unscaled = sorted(f for f in chosen if f in gold and gold[f][1].strict_v2_problems())
+    if unscaled and not args.allow_unscaled:
+        first = gold[unscaled[0]][1]
+        raise ValueError(
+            f"{len(unscaled)} picked gold files lack a scale value or room areas (first: "
+            f"{first.file}: {'; '.join(first.strict_v2_problems())}); `validate-extraction "
+            "--strict-v2` lists them, --allow-unscaled builds anyway and lists them"
+        )
     out: Path = args.out_dir
+    picked_rows = [  # a file in v2 only for the conflict slice brings no questions
+        (line, question)
+        for line, question in rows
+        if question.path in chosen and stratum_of[question.path] != "conflict"
+    ]
+    extras = _merged_extras(
+        out / PART2 / EXTRAS,
+        args.gold / CONFLICTS_DIR / EXTRAS,
+        {path for path, split in chosen.items() if split == "dev"},
+        {line for line, _ in picked_rows},
+    )
     gold_out = out / PART1 / "gold"
     copies: dict[str, Path] = {}
     for file in sorted(chosen):
@@ -383,7 +439,10 @@ def run_select_plans(args: argparse.Namespace) -> None:
             stale.unlink()  # a copy from an earlier select-plans run
     for file, target in copies.items():
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(gold[file][0], target)
+        if file in conflicts:
+            target.write_text(_with_conflicts(gold[file][0], conflicts[file][1]), "utf-8")
+        else:
+            shutil.copyfile(gold[file][0], target)
     files = [
         PlanFile(
             file=file,
@@ -391,13 +450,14 @@ def run_select_plans(args: argparse.Namespace) -> None:
             split=chosen[file],
             truth=gold[file][1].truth if file in gold else None,
             stratum=stratum_of[file],
-            scale_case=cases[file][0] if file in cases else None,
+            scale_case=cases[file][0] if file in cases and file not in slice_only else None,
         )
         for file in sorted(chosen)
     ]
     write_jsonl(out / PART1 / "files.jsonl", files)
-    picked_rows = [(line, question) for line, question in rows if question.path in chosen]
     write_jsonl(out / PART2 / "questions.jsonl", annotate(picked_rows, sealed))
+    if extras is not None:
+        (out / PART2 / EXTRAS).write_text("".join(f"{text}\n" for text in extras), "utf-8")
     written = sorted(path for path in out.rglob("*") if path.is_file() and path.name != V2_MANIFEST)
     manifest = PlansManifest(
         params=params,
@@ -412,6 +472,8 @@ def run_select_plans(args: argparse.Namespace) -> None:
             for case, (got, available) in scale_counts.items()
         },
         missing_gold=missing,
+        unscaled=unscaled,
+        conflict_files=sorted(conflicts),
         files_sha256={path.relative_to(out).as_posix(): _sha256(path) for path in written},
     )
     (out / V2_MANIFEST).write_text(manifest.model_dump_json(indent=2) + "\n", encoding="utf-8")
@@ -428,12 +490,88 @@ def run_select_plans(args: argparse.Namespace) -> None:
             f"{count.picked[1]:<4} {count.available[0]:>5}/{count.available[1]:<5}"
         )
     print(
-        f"{len(files)} files (plans, the PNG of each swiss plan, {len(extra)} scale cases), "
-        f"{len(picked_rows)} questions"
+        f"{len(files)} files (plans, the PNG of each swiss plan, {len(extra)} scale cases, "
+        f"{len(conflicts)} conflict files, {len(slice_only)} of them only for that slice), "
+        f"{len(picked_rows)} questions, "
+        f"{len(extras or [])} extras lines"
     )
+    for file in unscaled:
+        print(f"no scale value or room areas yet: {file}")
     for file in missing:
         print(f"no gold yet: {file}")
     print(f"wrote {out}/{PART1}, {out}/{PART2} and {V2_MANIFEST}")
+
+
+def _conflict_files(
+    path: Path, gold: dict[str, tuple[Path, Extraction]], sealed: set[str]
+) -> dict[str, tuple[ConflictFile, list[object]]]:
+    """file -> its conflicts.jsonl line, parsed and as written; each file has gold and lies in its
+    sealed split."""
+    found: dict[str, tuple[ConflictFile, list[object]]] = {}
+    texts = path.read_text("utf-8").splitlines() if path.exists() else []
+    for lineno, text in enumerate(texts, 1):
+        if not text.strip():
+            continue
+        where = f"{path}:{lineno}"
+        try:
+            line = ConflictFile.model_validate_json(text)
+        except ValidationError as error:
+            raise ValueError(f"{where}: {error}") from error
+        if line.file in found:
+            raise ValueError(f"{where}: {line.file} is listed twice")
+        if line.file not in gold:
+            raise ValueError(f"{where}: {line.file} has no gold JSON")
+        if line.split != ("eval" if group_of(line.file) in sealed else "dev"):
+            raise ValueError(f"{where}: {line.file} is not in the {line.split} split")
+        found[line.file] = line, json.loads(text)["conflicts"]
+    return found
+
+
+def _with_conflicts(source: Path, conflicts: list[object]) -> str:
+    """The gold file's text with `conflicts` (as written) added to its own; checked by the model."""
+    data = json.loads(source.read_text("utf-8"))
+    data["conflicts"] = [*(data.get("conflicts") or []), *conflicts]
+    try:
+        Extraction.model_validate(data)
+    except ValidationError as error:
+        raise ValueError(f"{source} with its conflicts.jsonl entries: {error}") from error
+    return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+
+
+def _merged_extras(
+    current: Path, conflict_lines: Path, dev_files: set[str], question_ids: set[int]
+) -> list[str] | None:
+    """The lines of v2's extras.jsonl, by id: review-7's lines as they are (every line outside
+    review-10's id range: those came from an earlier merge) and review-10's conflict lines. None
+    when neither file exists. Every line is checked first: its file is a dev file of v2, a
+    paraphrase's origin is a v2 question (another kind's origin_id is information only: the
+    questions of a file in v2 only for the conflict slice are not in v2)."""
+    if not current.exists() and not conflict_lines.exists():
+        return None
+    kept: dict[int, str] = {}
+    for path, own in ((current, False), (conflict_lines, True)):
+        if not path.exists():
+            continue
+        for lineno, text in enumerate(path.read_text("utf-8").splitlines(), 1):
+            if not text.strip():
+                continue
+            where = f"{path}:{lineno}"
+            try:
+                line = ExtraItem.model_validate_json(text)
+            except ValidationError as error:
+                raise ValueError(f"{where}: {error}") from error
+            if own and line.id not in CONFLICT_EXTRA_IDS:
+                raise ValueError(f"{where}: id {line.id} is outside {CONFLICT_EXTRA_IDS}")
+            if not own and line.id in CONFLICT_EXTRA_IDS:
+                continue  # merged by an earlier run: replaced by the current conflict lines
+            if line.id in kept:
+                raise ValueError(f"{where}: id {line.id} is used twice")
+            if line.path not in dev_files:
+                raise ValueError(f"{where}: {line.path} is not a dev file of v2")
+            if line.kind == "paraphrase" and line.origin_id not in question_ids:
+                raise ValueError(f"{where}: origin_id {line.origin_id} is not a v2 question")
+            kept[line.id] = text.strip()
+    return [kept[key] for key in sorted(kept)]
 
 
 def run_score_extraction(args: argparse.Namespace) -> None:
@@ -447,17 +585,18 @@ def run_score_extraction(args: argparse.Namespace) -> None:
             key = path.relative_to(args.golden_dir).as_posix()
             if manifest.files_sha256.get(key) != _sha256(path):
                 raise ValueError(f"{path} is not the file select-plans wrote: run it again")
-        listed = [
-            row.file for _, row in read_jsonl(args.golden_dir / PART1 / "files.jsonl", PlanFile)
-        ]
-        chosen = [gold[file] for file in listed if file in gold]
+        listed = [row for _, row in read_jsonl(args.golden_dir / PART1 / "files.jsonl", PlanFile)]
+        chosen = [gold[row.file] for row in listed if row.file in gold]
+        slice_only = {row.file for row in listed if row.stratum == "conflict"}
     else:
         gold = _extractions(args.gold)
         chosen = [entry for entry in gold.values() if entry[1].split == args.against]
+        slice_only = set[str]()
     if not chosen:
         raise ValueError("no gold files to score against")
     preds = {file: extraction for file, (_, extraction) in _extractions(args.pred_dir).items()}
-    result = score_extraction([extraction for _, extraction in chosen], preds, args.multiplicity)
+    golds = [extraction for _, extraction in chosen]
+    result = score_extraction(golds, preds, args.multiplicity, slice_only)
     print(format_extraction_table(result))
     default = args.runs_dir / f"{args.pred_dir.name}.extraction-{args.against}.json"
     out, stem = _detail_path(args, "extraction", default)
@@ -525,18 +664,26 @@ def run_baseline_extraction(args: argparse.Namespace) -> None:
 
 
 def run_validate_extraction(args: argparse.Namespace) -> None:
-    """Check extraction_v1 files (or every *.json under given folders); fail if any is invalid."""
+    """Check extraction_v1 files (or every *.json under given folders); fail if any is invalid.
+    With --strict-v2 a file also needs what golden v2 gold needs: a scale value on every image and
+    an area on every room with a polygon (Bogdan, 2026-11-13 23:33)."""
     files = sorted(
         file for path in args.paths for file in ([path] if path.is_file() else path.rglob("*.json"))
     )
     bad = 0
     for file in files:
         try:
-            Extraction.model_validate_json(file.read_text("utf-8"))
+            extraction = Extraction.model_validate_json(file.read_text("utf-8"))
         except ValidationError as error:
             bad += 1
             print(f"{file}: {error}")
-    print(f"{len(files) - bad} of {len(files)} files are valid extraction_v1")
+            continue
+        problems = extraction.strict_v2_problems() if args.strict_v2 else []
+        if problems:
+            bad += 1
+            print(f"{file}: not golden v2 gold: {'; '.join(problems)}")
+    kind = "golden v2 gold" if args.strict_v2 else "extraction_v1"
+    print(f"{len(files) - bad} of {len(files)} files are valid {kind}")
     if bad or not files:
         raise ValueError(f"{bad} invalid file(s)" if files else "no .json files found")
 
@@ -598,6 +745,11 @@ def parser() -> argparse.ArgumentParser:
     plans.add_argument("--seed", type=int, default=PlansParams().seed)
     plans.add_argument(
         "--allow-missing-gold", action="store_true", help="list picked files without gold JSON"
+    )
+    plans.add_argument(
+        "--allow-unscaled",
+        action="store_true",
+        help="list picked gold files without a scale value or room areas instead of stopping",
     )
     plans.set_defaults(run=run_select_plans)
 
@@ -663,6 +815,11 @@ def parser() -> argparse.ArgumentParser:
 
     check = commands.add_parser("validate-extraction", help="check extraction_v1 JSON files")
     check.add_argument("paths", type=Path, nargs="+", help="files, or folders searched for *.json")
+    check.add_argument(
+        "--strict-v2",
+        action="store_true",
+        help="also need a scale value on every image and an area on every room with a polygon",
+    )
     check.set_defaults(run=run_validate_extraction)
 
     schema = commands.add_parser("schema", help="write the JSON Schemas into eval/schemas/")
