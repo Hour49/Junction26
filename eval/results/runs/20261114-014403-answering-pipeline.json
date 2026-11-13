@@ -1,0 +1,785 @@
+{
+  "recorded_at": "2026-11-14T01:44:03.507996+02:00",
+  "commit": "bdfae08",
+  "dirty": false,
+  "committed_at": "2026-11-14T01:43:30+02:00",
+  "eval_commit": "bdfae08",
+  "eval_dirty": false,
+  "settings": {
+    "log_level": "INFO",
+    "extractor_bim": "ifc",
+    "extractor_cad": "hello",
+    "extractor_vector": "pdf",
+    "extractor_raster": "hello",
+    "second_counter": "ifc",
+    "question_parser": "templates",
+    "answer_prior": "dev"
+  },
+  "name": "pipeline",
+  "note": null,
+  "against": "golden",
+  "golden_version": "v2",
+  "milestone": false,
+  "part": "answering",
+  "reads": "pipeline-extraction",
+  "questions_sha256": "0e6322c74561a63f42bac35f5c1be8a2c6a37516b14a81e66ab88b74950a6d1f",
+  "score_sha256": "efcb1498d9d927c5262a15f3a4797663b7cfeee48392d4e83cdcbb09df72b000",
+  "overall": {
+    "n": 2948,
+    "correct": 2201,
+    "accuracy": 0.7466078697421981,
+    "answered": null,
+    "coverage": null
+  },
+  "numeric": {
+    "n": 2932,
+    "correct": 2201,
+    "accuracy": 0.7506821282401092,
+    "answered": null,
+    "coverage": null
+  },
+  "by_split": {
+    "dev": {
+      "n": 2388,
+      "correct": 1753,
+      "accuracy": 0.7340871021775545,
+      "answered": null,
+      "coverage": null
+    },
+    "holdout": {
+      "n": 560,
+      "correct": 448,
+      "accuracy": 0.8,
+      "answered": null,
+      "coverage": null
+    }
+  },
+  "by_source_type": {
+    "cubicasa5k/count": {
+      "n": 1342,
+      "correct": 656,
+      "accuracy": 0.488822652757079,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/area": {
+      "n": 322,
+      "correct": 322,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/count": {
+      "n": 104,
+      "correct": 104,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/length": {
+      "n": 14,
+      "correct": 14,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/volume": {
+      "n": 26,
+      "correct": 26,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/area": {
+      "n": 9,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/count": {
+      "n": 39,
+      "correct": 3,
+      "accuracy": 0.07692307692307693,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/text": {
+      "n": 16,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "swiss_dwellings/area": {
+      "n": 350,
+      "correct": 350,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "swiss_dwellings/count": {
+      "n": 726,
+      "correct": 726,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    }
+  },
+  "evidence_coverage": 0.49525101763907736,
+  "cost_total_usd": 0.0,
+  "cost_mean_usd": 0.0,
+  "latency_mean_s": 0.00009546473860957696,
+  "latency_p95_s": 0.00014524400467053056,
+  "extras": {
+    "extras_sha256": "69ae9df80cf1ec93374284c7aa1521b506b8b71f47067e6cfe3ae08931bc55ac",
+    "paraphrase": {
+      "n": 60,
+      "correct": 41,
+      "rate": 0.6833333333333333
+    },
+    "paraphrase_origin": {
+      "n": 60,
+      "correct": 41,
+      "rate": 0.6833333333333333
+    },
+    "paraphrase_gap": 0.0,
+    "unanswerable_abstained": {
+      "n": 25,
+      "correct": 25,
+      "rate": 1.0
+    },
+    "conflict_pass": {
+      "n": 12,
+      "correct": 12,
+      "rate": 1.0
+    },
+    "conflict_values_shown": {
+      "n": 12,
+      "correct": 12,
+      "rate": 1.0
+    },
+    "conflict_answer_right": {
+      "n": 12,
+      "correct": 12,
+      "rate": 1.0
+    },
+    "estimate_pass": {
+      "n": 13,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "estimate_value_right": {
+      "n": 13,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "estimate_labelled": {
+      "n": 13,
+      "correct": 0,
+      "rate": 0.0
+    }
+  },
+  "answer_v1_1": {
+    "answers": 2948,
+    "abstained": 1406,
+    "abstain_rate": 0.4769335142469471,
+    "not_abstained_accuracy": {
+      "n": 1542,
+      "correct": 1542,
+      "rate": 1.0
+    },
+    "abstained_accuracy": {
+      "n": 1406,
+      "correct": 659,
+      "rate": 0.46870554765291605
+    },
+    "with_confidence": 1369,
+    "calibration": [
+      {
+        "low": 0.0,
+        "high": 0.2,
+        "n": 285,
+        "correct": 19,
+        "accuracy": 0.06666666666666667,
+        "mean_confidence": 0.12574842105263143
+      },
+      {
+        "low": 0.2,
+        "high": 0.4,
+        "n": 84,
+        "correct": 22,
+        "accuracy": 0.2619047619047619,
+        "mean_confidence": 0.3128999999999999
+      },
+      {
+        "low": 0.4,
+        "high": 0.6,
+        "n": 368,
+        "correct": 184,
+        "accuracy": 0.5,
+        "mean_confidence": 0.5337461956521729
+      },
+      {
+        "low": 0.6,
+        "high": 0.8,
+        "n": 450,
+        "correct": 266,
+        "accuracy": 0.5911111111111111,
+        "mean_confidence": 0.7216715555555544
+      },
+      {
+        "low": 0.8,
+        "high": 1.0,
+        "n": 182,
+        "correct": 168,
+        "accuracy": 0.9230769230769231,
+        "mean_confidence": 0.9244934065934056
+      }
+    ]
+  },
+  "evidence_hits": {
+    "rule": "box centre inside the gold item's box, same file and page",
+    "overall": {
+      "questions": 2650,
+      "with_boxes": 1450,
+      "precision": {
+        "n": 11474,
+        "correct": 11474,
+        "rate": 1.0
+      },
+      "recall": {
+        "n": 15292,
+        "correct": 11474,
+        "rate": 0.7503269683494638
+      }
+    },
+    "by_source": {
+      "cubicasa5k": {
+        "questions": 1178,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 3812,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "ifc_models": {
+        "questions": 454,
+        "with_boxes": 442,
+        "precision": {
+          "n": 3158,
+          "correct": 3158,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 3160,
+          "correct": 3158,
+          "rate": 0.9993670886075949
+        }
+      },
+      "opening_design": {
+        "questions": 2,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 4,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "swiss_dwellings": {
+        "questions": 1016,
+        "with_boxes": 1008,
+        "precision": {
+          "n": 8316,
+          "correct": 8316,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 8316,
+          "correct": 8316,
+          "rate": 1.0
+        }
+      }
+    },
+    "by_source_family": {
+      "cubicasa5k/bathtub+shower": {
+        "questions": 124,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 162,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/door": {
+        "questions": 92,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 924,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/plan": {
+        "questions": 134,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 188,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/room:balcony": {
+        "questions": 44,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 20,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/room:bathroom": {
+        "questions": 74,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 72,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/room:bedroom": {
+        "questions": 72,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 138,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/room:kitchen": {
+        "questions": 90,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 92,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/room:wc": {
+        "questions": 68,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 48,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/sauna (stove)": {
+        "questions": 82,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 62,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/sink": {
+        "questions": 130,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 374,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/toilet": {
+        "questions": 134,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 210,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "cubicasa5k/window": {
+        "questions": 134,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 1522,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "ifc_models/all rooms": {
+        "questions": 32,
+        "with_boxes": 32,
+        "precision": {
+          "n": 640,
+          "correct": 640,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 640,
+          "correct": 640,
+          "rate": 1.0
+        }
+      },
+      "ifc_models/column": {
+        "questions": 8,
+        "with_boxes": 8,
+        "precision": {
+          "n": 312,
+          "correct": 312,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 312,
+          "correct": 312,
+          "rate": 1.0
+        }
+      },
+      "ifc_models/door": {
+        "questions": 18,
+        "with_boxes": 18,
+        "precision": {
+          "n": 304,
+          "correct": 304,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 304,
+          "correct": 304,
+          "rate": 1.0
+        }
+      },
+      "ifc_models/room by name": {
+        "questions": 294,
+        "with_boxes": 294,
+        "precision": {
+          "n": 294,
+          "correct": 294,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 294,
+          "correct": 294,
+          "rate": 1.0
+        }
+      },
+      "ifc_models/slab": {
+        "questions": 12,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 2,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "ifc_models/stair": {
+        "questions": 16,
+        "with_boxes": 16,
+        "precision": {
+          "n": 22,
+          "correct": 22,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 22,
+          "correct": 22,
+          "rate": 1.0
+        }
+      },
+      "ifc_models/wall": {
+        "questions": 60,
+        "with_boxes": 60,
+        "precision": {
+          "n": 1318,
+          "correct": 1318,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 1318,
+          "correct": 1318,
+          "rate": 1.0
+        }
+      },
+      "ifc_models/window": {
+        "questions": 14,
+        "with_boxes": 14,
+        "precision": {
+          "n": 268,
+          "correct": 268,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 268,
+          "correct": 268,
+          "rate": 1.0
+        }
+      },
+      "opening_design/sink": {
+        "questions": 1,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 2,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "opening_design/toilet": {
+        "questions": 1,
+        "with_boxes": 0,
+        "precision": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "recall": {
+          "n": 2,
+          "correct": 0,
+          "rate": 0.0
+        }
+      },
+      "swiss_dwellings/apartment rooms": {
+        "questions": 112,
+        "with_boxes": 112,
+        "precision": {
+          "n": 752,
+          "correct": 752,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 752,
+          "correct": 752,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/bathtub": {
+        "questions": 52,
+        "with_boxes": 52,
+        "precision": {
+          "n": 192,
+          "correct": 192,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 192,
+          "correct": 192,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/door": {
+        "questions": 60,
+        "with_boxes": 60,
+        "precision": {
+          "n": 2026,
+          "correct": 2026,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 2026,
+          "correct": 2026,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/numbered indoor rooms": {
+        "questions": 60,
+        "with_boxes": 60,
+        "precision": {
+          "n": 1522,
+          "correct": 1522,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 1522,
+          "correct": 1522,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/room by number": {
+        "questions": 120,
+        "with_boxes": 120,
+        "precision": {
+          "n": 120,
+          "correct": 120,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 120,
+          "correct": 120,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/rooms labelled": {
+        "questions": 418,
+        "with_boxes": 418,
+        "precision": {
+          "n": 2046,
+          "correct": 2046,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 2046,
+          "correct": 2046,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/shower": {
+        "questions": 14,
+        "with_boxes": 14,
+        "precision": {
+          "n": 32,
+          "correct": 32,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 32,
+          "correct": 32,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/sink": {
+        "questions": 60,
+        "with_boxes": 56,
+        "precision": {
+          "n": 274,
+          "correct": 274,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 274,
+          "correct": 274,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/toilet": {
+        "questions": 60,
+        "with_boxes": 56,
+        "precision": {
+          "n": 254,
+          "correct": 254,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 254,
+          "correct": 254,
+          "rate": 1.0
+        }
+      },
+      "swiss_dwellings/window": {
+        "questions": 60,
+        "with_boxes": 60,
+        "precision": {
+          "n": 1098,
+          "correct": 1098,
+          "rate": 1.0
+        },
+        "recall": {
+          "n": 1098,
+          "correct": 1098,
+          "rate": 1.0
+        }
+      }
+    }
+  },
+  "text_claims": {
+    "claims_sha256": "63aae8b9d362c1ad8b1c3bb1bae4bbb7943799317598f052dcde1fd78f6be59a",
+    "passed": {
+      "n": 16,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "numbers": {
+      "n": 13,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "names": {
+      "n": 22,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "without_claims": 0
+  }
+}
