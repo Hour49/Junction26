@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# claude-acc N [args...]: run Claude Code as account N.
+# Account 1 is the default ~/.claude. Account N>1 lives in ~/.claude-N, which holds only its own login
+# (.credentials.json, .claude.json) and symlinks everything else to ~/.claude, so sessions, /resume,
+# history, memory, settings, skills and plugins are shared between accounts.
+set -euo pipefail
+n="${1:?usage: claude-acc N [args...]}"
+shift
+if [ "$n" = 1 ]; then
+  exec claude --dangerously-skip-permissions "$@"
+fi
+main="$HOME/.claude"
+alt="$HOME/.claude-$n"
+mkdir -p "$alt"
+shopt -s nullglob dotglob
+for f in "$main"/*; do
+  name="$(basename "$f")"
+  case "$name" in
+    # per-account state: login, running-session registry, background daemon/jobs, caches
+    .credentials.json | .claude.json | backups | cache | daemon | daemon.* | jobs | sessions | \
+      stats-cache.json | telemetry | .last-*) continue ;;
+  esac
+  [ -e "$alt/$name" ] || [ -L "$alt/$name" ] || ln -s "$f" "$alt/$name"
+done
+# First run: seed the global config (onboarding, trusted projects) without the first account's login.
+if [ ! -e "$alt/.claude.json" ] && [ -f "$HOME/.claude.json" ]; then
+  python3 - "$HOME/.claude.json" "$alt/.claude.json" <<'PY'
+import json, sys
+src = json.load(open(sys.argv[1]))
+keep = ("installMethod", "autoUpdates", "autoUpdatesProtectedForNative", "hasCompletedOnboarding",
+        "lastOnboardingVersion", "projects", "githubRepoPaths", "theme", "mcpServers")
+json.dump({k: src[k] for k in keep if k in src}, open(sys.argv[2], "w"), indent=2)
+PY
+  chmod 600 "$alt/.claude.json"
+fi
+CLAUDE_CONFIG_DIR="$alt" exec claude --dangerously-skip-permissions "$@"
