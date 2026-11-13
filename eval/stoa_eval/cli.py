@@ -1,5 +1,5 @@
 """Command line: `python -m stoa_eval <command>` (from eval/): split, select, select-plans,
-baseline, score, score-extraction, history, validate-extraction, schema."""
+baseline, baseline-extraction, score, score-extraction, history, validate-extraction, schema."""
 
 import argparse
 import hashlib
@@ -20,13 +20,14 @@ from .extraction import Extraction
 from .extraction_scoring import format_extraction_table, score_extraction
 from .families import group_of, source_of
 from .history import (
-    append_record,
     format_extraction_history,
     format_history,
+    format_progress,
     make_extraction_record,
     make_record,
     read_extraction_history,
     read_history,
+    write_extraction_csv,
     write_history_csv,
 )
 from .jsonl import iter_jsonl, read_jsonl, write_jsonl
@@ -41,6 +42,7 @@ from .plans import (
     pick_scale_cases,
     strata,
 )
+from .run_store import Part, Record, run_stem, write_record
 from .scale_scoring import ScaleCase, case_of
 from .scoring import format_table, score
 from .selection import CellKey, Manifest, SelectionParams, annotate, select
@@ -65,7 +67,7 @@ EXTRACTION_GOLD = REPO / "data/stoa/extraction_gold"
 RUNS_DIR = GOLDEN_DIR / "runs"
 SPLIT_MANIFEST = "manifest.json"
 EVAL_WARNING = "warning: sealed split: score at milestones only"
-RESULTS = Path(__file__).resolve().parents[1] / "results/runs.jsonl"  # tracked: aggregates only
+RESULTS = Path(__file__).resolve().parents[1] / "results/runs"  # tracked: one file per run
 HELSINKI = ZoneInfo("Europe/Helsinki")
 
 
@@ -244,29 +246,61 @@ def run_baseline(args: argparse.Namespace) -> None:
     print(f"wrote {len(answers)} answers to {out}")
 
 
-def run_score(args: argparse.Namespace) -> None:
-    if args.record and not args.name:
-        raise ValueError("--record needs --name <method name>")
-    if args.record and args.against == "eval" and not args.milestone:
+def _recorded(args: argparse.Namespace) -> bool:
+    """Whether this run is kept in the history (every golden and dev run, unless --no-record).
+    Refuses a sealed-split run that is neither a --milestone nor --no-record, and a kept run
+    without --name."""
+    if args.against in ("eval", "all"):
+        print(EVAL_WARNING, file=sys.stderr)
+        if not args.milestone and not args.no_record:
+            raise ValueError(
+                "refused: the sealed eval split is scored as a recorded run with --milestone, or "
+                "with --no-record for a look that is not kept"
+            )
+    if args.no_record:
+        return False
+    if not args.name:
         raise ValueError(
-            "refused: a run against the sealed eval split is recorded only with --milestone"
+            "every scored run is recorded: give --name <method> (or --no-record for a scratch "
+            "check that is not kept)"
         )
+    if args.out:
+        raise ValueError(
+            "--out is for --no-record; a recorded run's detail goes to --runs-dir/<stem>.json"
+        )
+    return True
+
+
+def _detail_path(args: argparse.Namespace, part: Part, default: Path) -> tuple[Path, str | None]:
+    """Where the full score JSON goes, and the run's stem when it is recorded."""
+    if not args.recorded:
+        return args.out or default, None
+    stem = run_stem(datetime.now(HELSINKI), part, args.name, [args.results, args.runs_dir])
+    return args.runs_dir / f"{stem}.json", stem
+
+
+def _keep(args: argparse.Namespace, stem: str, record: Record) -> None:
+    path = args.results / f"{stem}.json"
+    write_record(path, record)
+    print(f"recorded {args.name!r} in {path} (commit it with your PR)")
+
+
+def run_score(args: argparse.Namespace) -> None:
+    args.recorded = _recorded(args)
     golden_version: str | None = None
     if args.against == "golden":
         golden = [item for _, item in read_jsonl(args.golden, GoldenItem)]
         golden_version, questions_sha256, _ = _golden_meta(args.golden)
-        if args.record and golden_version != "v1" and args.reads is None:
+        if args.recorded and golden_version != "v1" and args.reads is None:
             raise ValueError(
-                "--record on golden v2 Part 2 needs --reads gold-extraction (the answerer read "
+                "a recorded golden v2 Part 2 run needs --reads gold-extraction (the answerer read "
                 "part1 gold) or --reads pipeline-extraction (it read the pipeline's own JSON)"
             )
         result = score(golden, [answer for _, answer in read_jsonl(args.answers, Answer)])
         print(format_table(result))
-        out = args.out or args.answers.with_suffix(".score.json")
+        out, stem = _detail_path(args, "answering", args.answers.with_suffix(".score.json"))
     else:
         questions_sha256 = _split_manifest(args.split_dir).questions_sha256
-        if args.against == "eval":
-            print(EVAL_WARNING, file=sys.stderr)
         names = SPLIT_NAMES if args.against == "all" else (args.against,)
         answers = load_answers(iter_jsonl(args.answers, Answer))
         questions = (
@@ -276,10 +310,12 @@ def run_score(args: argparse.Namespace) -> None:
         )
         result = score_all(questions, answers)
         print(format_coverage_table(result, args.top))
-        out = args.out or args.answers.with_suffix(f".score-{args.against}.json")
+        default = args.answers.with_suffix(f".score-{args.against}.json")
+        out, stem = _detail_path(args, "answering", default)
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     print(f"wrote {out}")
-    if args.record:
+    if stem is not None:
         commit, dirty = _git_commit()
         record = make_record(
             result,
@@ -295,8 +331,7 @@ def run_score(args: argparse.Namespace) -> None:
             now=datetime.now(HELSINKI),
             reads=args.reads if args.against == "golden" else None,
         )
-        append_record(args.results, record)
-        print(f"recorded {args.name!r} in {args.results}")
+        _keep(args, stem, record)
 
 
 def run_select_plans(args: argparse.Namespace) -> None:
@@ -402,12 +437,7 @@ def run_select_plans(args: argparse.Namespace) -> None:
 
 
 def run_score_extraction(args: argparse.Namespace) -> None:
-    if args.record and not args.name:
-        raise ValueError("--record needs --name <method name>")
-    if args.record and args.against == "eval" and not args.milestone:
-        raise ValueError(
-            "refused: a run against the sealed eval split is recorded only with --milestone"
-        )
+    args.recorded = _recorded(args)
     golden_version: str | None = None
     if args.against == "golden":
         manifest = PlansManifest.model_validate_json((args.golden_dir / V2_MANIFEST).read_text())
@@ -422,8 +452,6 @@ def run_score_extraction(args: argparse.Namespace) -> None:
         ]
         chosen = [gold[file] for file in listed if file in gold]
     else:
-        if args.against == "eval":
-            print(EVAL_WARNING, file=sys.stderr)
         gold = _extractions(args.gold)
         chosen = [entry for entry in gold.values() if entry[1].split == args.against]
     if not chosen:
@@ -431,11 +459,12 @@ def run_score_extraction(args: argparse.Namespace) -> None:
     preds = {file: extraction for file, (_, extraction) in _extractions(args.pred_dir).items()}
     result = score_extraction([extraction for _, extraction in chosen], preds, args.multiplicity)
     print(format_extraction_table(result))
-    out = args.out or RUNS_DIR / f"{args.pred_dir.name}.extraction-{args.against}.json"
+    default = args.runs_dir / f"{args.pred_dir.name}.extraction-{args.against}.json"
+    out, stem = _detail_path(args, "extraction", default)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     print(f"wrote {out}")
-    if args.record:
+    if stem is not None:
         digest = hashlib.sha256()
         for path, extraction in sorted(chosen, key=lambda entry: entry[1].file):
             digest.update(f"{extraction.file}\n{_sha256(path)}\n".encode())
@@ -453,22 +482,46 @@ def run_score_extraction(args: argparse.Namespace) -> None:
             dirty=dirty,
             now=datetime.now(HELSINKI),
         )
-        append_record(args.results, record)
-        print(f"recorded {args.name!r} (Part 1, extraction) in {args.results}")
+        _keep(args, stem, record)
 
 
 def run_history(args: argparse.Namespace) -> None:
+    extraction = read_extraction_history(args.results, args.against)
+    answering = read_history(args.results, args.against)
+    if args.part == "answering":
+        extraction = []
     if args.part == "extraction":
-        extraction_rows = read_extraction_history(args.results, args.against)
-        print(format_extraction_history(extraction_rows))
-        if args.csv:
-            raise ValueError("--csv is for answer runs (--part answering) only")
-        return
-    records = read_history(args.results, args.against)
-    print(format_history(records))
+        answering = []
+    if args.progress:
+        print(format_progress(answering, extraction))
+    else:
+        tables = [
+            *([format_extraction_history(extraction)] if args.part != "answering" else []),
+            *([format_history(answering)] if args.part != "extraction" else []),
+        ]
+        print("\n\n".join(tables))
     if args.csv:
-        write_history_csv(args.csv, records)
-        print(f"wrote {args.csv}")
+        if args.part != "extraction":
+            write_history_csv(args.csv / "answering.csv", answering)
+            print(f"wrote {args.csv / 'answering.csv'}")
+        if args.part != "answering":
+            write_extraction_csv(args.csv / "extraction.csv", extraction)
+            print(f"wrote {args.csv / 'extraction.csv'}")
+
+
+def run_baseline_extraction(args: argparse.Namespace) -> None:
+    """Part 1 baselines: oracle (the gold itself) and empty (nothing found, no scale)."""
+    folder = args.golden_dir / PART1 / "gold"
+    gold = _extractions(folder)
+    if not gold:
+        raise ValueError(f"no gold files in {folder}: run select-plans first")
+    out: Path = args.out or RUNS_DIR / f"extraction-{args.name}"
+    for path, extraction in gold.values():
+        target = out / path.relative_to(folder)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        made = extraction if args.name == "oracle" else baselines.empty_extraction(extraction)
+        target.write_text(made.model_dump_json(by_alias=True, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {len(gold)} {args.name} extraction files to {out}")
 
 
 def run_validate_extraction(args: argparse.Namespace) -> None:
@@ -497,6 +550,21 @@ def run_schema(args: argparse.Namespace) -> None:
         else:
             path.write_text(text, encoding="utf-8")
             print(f"wrote {path}")
+
+
+def _recording_args(command: argparse.ArgumentParser) -> None:
+    command.add_argument("--name", help="the method's name; every recorded run needs one")
+    command.add_argument("--note", help="a short note kept with the run")
+    command.add_argument(
+        "--no-record", action="store_true", help="a scratch check: keep nothing in the history"
+    )
+    command.add_argument("--milestone", action="store_true", help="needed to score the eval split")
+    command.add_argument(
+        "--results", type=Path, default=RESULTS, help="history folder, one file per run"
+    )
+    command.add_argument(
+        "--runs-dir", type=Path, default=RUNS_DIR, help="where a recorded run's full score goes"
+    )
 
 
 def parser() -> argparse.ArgumentParser:
@@ -553,13 +621,9 @@ def parser() -> argparse.ArgumentParser:
     scored.add_argument("--split-dir", type=Path, default=SPLIT_DIR)
     scored.add_argument("--top", type=int, default=20, help="templates printed for all/dev/eval")
     scored.add_argument(
-        "--out", type=Path, help="default: <answers>.score.json, or .score-<against>.json"
+        "--out", type=Path, help="--no-record only; default <answers>.score[-<against>].json"
     )
-    scored.add_argument("--record", action="store_true", help="append a summary row to --results")
-    scored.add_argument("--name", help="the method's name, for --record")
-    scored.add_argument("--note", help="a short note for --record")
-    scored.add_argument("--milestone", action="store_true", help="needed to record an eval run")
-    scored.add_argument("--results", type=Path, default=RESULTS)
+    _recording_args(scored)
     scored.add_argument(
         "--reads",
         choices=["gold-extraction", "pipeline-extraction"],
@@ -572,23 +636,28 @@ def parser() -> argparse.ArgumentParser:
     part1.add_argument("--against", choices=["golden", "dev", "eval"], default="golden")
     part1.add_argument("--golden-dir", type=Path, default=GOLDEN_V2, help="for --against golden")
     part1.add_argument("--gold", type=Path, default=EXTRACTION_GOLD, help="for dev/eval")
-    part1.add_argument("--out", type=Path, help="default: data/stoa/golden/runs/<pred_dir>...json")
+    part1.add_argument("--out", type=Path, help="--no-record only")
     part1.add_argument(
         "--multiplicity", action="store_true", help="counts weigh elements by attrs.multiplicity"
     )
-    part1.add_argument("--record", action="store_true", help="append a summary row to --results")
-    part1.add_argument("--name", help="the method's name, for --record")
-    part1.add_argument("--note", help="a short note for --record")
-    part1.add_argument("--milestone", action="store_true", help="needed to record an eval run")
-    part1.add_argument("--results", type=Path, default=RESULTS)
+    _recording_args(part1)
     part1.set_defaults(run=run_score_extraction)
+
+    floor = commands.add_parser("baseline-extraction", help="write Part 1 baseline extractions")
+    floor.add_argument("name", choices=["oracle", "empty"])
+    floor.add_argument("--golden-dir", type=Path, default=GOLDEN_V2)
+    floor.add_argument("--out", type=Path, help="default: data/stoa/golden/runs/extraction-<name>/")
+    floor.set_defaults(run=run_baseline_extraction)
 
     history = commands.add_parser("history", help="print the recorded runs, oldest first")
     history.add_argument("--against", choices=["golden", "all", "dev", "eval"])
     history.add_argument("--results", type=Path, default=RESULTS)
-    history.add_argument("--csv", type=Path, help="also write the table as CSV, for a chart")
     history.add_argument(
-        "--part", choices=["answering", "extraction"], default="answering", help="golden part"
+        "--csv", type=Path, help="folder: write answering.csv and extraction.csv, for a chart"
+    )
+    history.add_argument("--part", choices=["answering", "extraction"], help="default: both")
+    history.add_argument(
+        "--progress", action="store_true", help="per method: first vs latest vs best"
     )
     history.set_defaults(run=run_history)
 

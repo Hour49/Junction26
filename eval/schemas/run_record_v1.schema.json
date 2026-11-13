@@ -62,7 +62,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One recorded score run in eval/results/runs.jsonl (run_record_v1). The repo is public, so\na row holds aggregates only: no question text, answers, templates or file names.",
+  "description": "One recorded score run, a file in eval/results/runs/ (run_record_v1). The repo is public, so\na row holds aggregates only: no question text, answers, templates or file names.",
   "properties": {
     "recorded_at": {
       "description": "from the clock, Europe/Helsinki",

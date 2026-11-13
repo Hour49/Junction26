@@ -122,18 +122,23 @@ def test_select_plans_writes_both_parts_and_both_parts_score(
 
     # Part 1: the gold scored against itself
     assert run("score-extraction", out / "part1_extraction/gold", "--golden-dir", out,
-               "--out", dataset / "p1.json") == 0  # fmt: skip
+               "--out", dataset / "p1.json", "--no-record") == 0  # fmt: skip
     assert read_json(dataset / "p1.json")["counts_overall"]["rate"] == 1.0
+    empty = dataset / "empty"
+    assert run("baseline-extraction", "empty", "--golden-dir", out, "--out", empty) == 0
+    assert run("score-extraction", empty, "--golden-dir", out, "--out", dataset / "floor.json",
+               "--no-record") == 0  # fmt: skip
+    floor = read_json(dataset / "floor.json")
+    assert floor["predicted"] == floor["files"] and floor["counts_overall"]["rate"] == 0.0
 
     # Part 2: answers to the part2 questions; recording needs --reads
     golden = out / "part2_answering/questions.jsonl"
     answers = dataset / "oracle.jsonl"
     assert run("baseline", "oracle", "--golden", golden, "--out", answers) == 0
-    results = dataset / "runs.jsonl"
-    score = ("score", answers, "--golden", golden, "--results", results, "--record",
-             "--name", "oracle")  # fmt: skip
+    results = dataset / "results"
+    score = ("score", answers, "--golden", golden, "--results", results, "--name", "oracle")
     assert run(*score) == 1
-    assert "--reads" in capsys.readouterr().err
+    assert "a recorded golden v2 Part 2 run needs --reads" in capsys.readouterr().err
     assert run(*score, "--reads", "gold-extraction") == 0
     [row] = read_history(results)
     assert row.golden_version == "v2" and row.reads == "gold-extraction"

@@ -35,7 +35,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One recorded Part 1 run (extraction vs gold) in eval/results/runs.jsonl, next to the answer\nrows; aggregates only (extraction_record_v1).",
+  "description": "One recorded Part 1 run (extraction vs gold), a file in eval/results/runs/ next to the\nanswer runs; aggregates only (extraction_record_v1).",
   "properties": {
     "recorded_at": {
       "description": "from the clock, Europe/Helsinki",
@@ -201,6 +201,13 @@
     "scale_status": {
       "$ref": "#/$defs/Ratio",
       "description": "scale cases whose predicted status is as expected"
+    },
+    "scale_status_by_source": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Ratio"
+      },
+      "title": "Scale Status By Source",
+      "type": "object"
     },
     "scale_m_per_unit": {
       "$ref": "#/$defs/Ratio",

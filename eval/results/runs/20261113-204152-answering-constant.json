@@ -1,0 +1,112 @@
+{
+  "recorded_at": "2026-11-13T20:41:52.941197+02:00",
+  "commit": "b8dea85",
+  "dirty": false,
+  "name": "constant",
+  "note": "typical answer per template from dev; the floor",
+  "against": "golden",
+  "golden_version": "v1",
+  "milestone": false,
+  "part": "answering",
+  "reads": null,
+  "questions_sha256": "0e6322c74561a63f42bac35f5c1be8a2c6a37516b14a81e66ab88b74950a6d1f",
+  "score_sha256": "f919a2b32ada64c9d04b194b787a7c291ba1d21b4ac4221db9e433fdb0d67ad4",
+  "overall": {
+    "n": 152,
+    "correct": 24,
+    "accuracy": 0.15789473684210525,
+    "answered": null,
+    "coverage": null
+  },
+  "numeric": {
+    "n": 144,
+    "correct": 24,
+    "accuracy": 0.16666666666666666,
+    "answered": null,
+    "coverage": null
+  },
+  "by_source_type": {
+    "cubicasa5k/count": {
+      "n": 8,
+      "correct": 4,
+      "accuracy": 0.5,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_bench/text": {
+      "n": 4,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/area": {
+      "n": 28,
+      "correct": 4,
+      "accuracy": 0.14285714285714285,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/count": {
+      "n": 36,
+      "correct": 6,
+      "accuracy": 0.16666666666666666,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/length": {
+      "n": 16,
+      "correct": 4,
+      "accuracy": 0.25,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/volume": {
+      "n": 16,
+      "correct": 2,
+      "accuracy": 0.125,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/area": {
+      "n": 4,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/count": {
+      "n": 4,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/text": {
+      "n": 4,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "swiss_dwellings/area": {
+      "n": 16,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "swiss_dwellings/count": {
+      "n": 16,
+      "correct": 4,
+      "accuracy": 0.25,
+      "answered": null,
+      "coverage": null
+    }
+  },
+  "evidence_coverage": 0.0,
+  "cost_total_usd": 0.0,
+  "cost_mean_usd": 0.0,
+  "latency_mean_s": 0.0,
+  "latency_p95_s": 0.0
+}

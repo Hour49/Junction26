@@ -12,14 +12,17 @@ uv sync --locked
 uv run python -m stoa_eval split                # split/dev.jsonl, split/eval.jsonl, split/manifest.json
 uv run python -m stoa_eval select               # golden/golden_v1.jsonl and its manifest
 uv run python -m stoa_eval select-plans         # golden/v2: part1 files and gold, part2 questions
-uv run python -m stoa_eval score-extraction <pred_dir>     # Part 1: the pipeline's JSON vs v2 gold
+uv run python -m stoa_eval score-extraction <pred_dir> --name <method>   # Part 1, recorded
 uv run python -m stoa_eval validate-extraction ../data/stoa/extraction_gold   # check gold files
 uv run python -m stoa_eval baseline oracle      # golden/runs/oracle.jsonl, must score 100%
 uv run python -m stoa_eval baseline constant    # golden/runs/constant.jsonl, the floor to beat
-uv run python -m stoa_eval score ../data/stoa/golden/runs/oracle.jsonl   # table and oracle.score.json
-uv run python -m stoa_eval score answers.jsonl --against dev   # every dev question
-uv run python -m stoa_eval score answers.jsonl --against dev --record --name "swiss counts v2"
-uv run python -m stoa_eval history --csv ../data/stoa/history.csv   # all recorded runs, oldest first
+uv run python -m stoa_eval baseline-extraction oracle|empty   # Part 1 baselines (gold, nothing)
+uv run python -m stoa_eval score answers.jsonl --name "swiss counts v2" --reads gold-extraction
+uv run python -m stoa_eval score answers.jsonl --against dev --name "swiss counts v2"
+uv run python -m stoa_eval score answers.jsonl --no-record   # a scratch check, nothing kept
+uv run python -m stoa_eval history              # both parts, oldest first, per source
+uv run python -m stoa_eval history --progress   # per method: first vs latest vs best
+uv run python -m stoa_eval history --csv ../data/stoa/charts   # answering.csv, extraction.csv
 uv run python -m stoa_eval schema               # rewrite schemas/ after changing a model
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
 ```
@@ -151,23 +154,32 @@ wrong on gold: check the gold file and the dataset answer.
 
 ## Results history
 
-`score --record --name <method> [--note "..."]` appends one row to `results/runs.jsonl`, which is
-tracked so that at the end we can show how the methods improved (owner, 2026-11-13). A row holds
-the time (Europe/Helsinki), the git commit with a dirty flag, the method name and note, what was
-scored (golden set version, dev, eval or all), the sha256 of `questions.jsonl` and of the full score
-file, and aggregates: overall, numeric and per source/type counts and accuracy (plus coverage for
-dev, eval and all), evidence coverage, cost, and mean and p95 latency. It never holds question
-text, answers, templates or file names, because the repo is public; the schema
-(`schemas/run_record_v1.schema.json`) refuses any other key. Recording a run against eval needs
-`--milestone`. `history [--against ...] [--csv file]` prints the rows oldest first and can write a
-CSV for a chart. Rows are only ever appended.
+Every scored run is kept, so that at the end we can show how the methods improved (owner,
+2026-11-13: "also make sure all the runs of the golden dataset, will be saved somewhere so at the end
+we will be able to show the improvement"). `score` and `score-extraction` record each run against
+`golden` or `dev` and need `--name <method>` for it (`--note "..."` is optional). `--no-record`
+keeps nothing, for scratch checks and tests. The eval split, and `--against all` which contains it,
+is scored only as a recorded `--milestone` run or with `--no-record`.
 
-Rows say which part they belong to. Answer rows have `part: "answering"` (rows written before v2
-have no `part` field and load as answering) and, for v2, `reads`. `score-extraction --record`
-appends a Part 1 row (`schemas/extraction_record_v1.schema.json`, `part: "extraction"`) with element
-and room F1, count and plan exact rates, scale status and `m_per_unit` pass rates, and the median
-estimate error. `history --part extraction` prints
-those rows.
+Each run is one file in `results/runs/`, named `<YYYYMMDD-HHMMSS>-<part>-<name>.json` (`-2`, `-3`
+when two runs share a second), so PRs from different people never touch the same file. Commit the
+files your runs wrote with your PR. The full score (per question or per file) goes to the gitignored
+`data/stoa/golden/runs/` under the same name, and the history file keeps its sha256.
+
+A history file holds the time (Europe/Helsinki), the git commit with a dirty flag, the method name
+and note, the part and what was scored (golden version, dev, eval or all; for v2 Part 2 also what
+the answerer read), and aggregates only. Part 2 files (`schemas/run_record_v1.schema.json`) hold
+overall, numeric and per source/type counts and accuracy (plus coverage for dev, eval and all),
+evidence coverage, cost and latency. Part 1 files (`schemas/extraction_record_v1.schema.json`) hold
+element and room F1, plan and count exact rates, scale status and `m_per_unit` pass rates and the
+median estimate error, overall and per source. No file holds question text, answers, templates or
+file names, because the repo is public; both schemas refuse any other key.
+
+`history` prints Part 1 and Part 2 as separate tables, oldest first, with per-source columns (Part 1:
+element F1, counts exact, scale status ok; Part 2: accuracy). `--part` shows one part, `--against`
+one target, and `--csv <folder>` writes `answering.csv` and `extraction.csv` for a chart.
+`history --progress` gives, per method name and target, the first, latest and best value of each
+headline number and the change from first to latest.
 
 Compare methods on holdout or eval. Near-duplicate questions inside dev (one building shipped as two
 models, identical typical floors) lift the constant baseline's dev score.
