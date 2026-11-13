@@ -6,6 +6,22 @@ Team Hour49's project repo for Junction 2026. Project not picked yet. MIT licens
 - Project code: engineering standard [docs/ENGINEERING.md](docs/ENGINEERING.md), QA plan [docs/QA.md](docs/QA.md).
 - Orchestrator board: issues labelled `board` in this repo, used through `tools/board`.
 
+## Key values
+
+The product has to respect these six values, in this order (team notes, 2026-11-13). Every feature, answer and
+demo screen gets checked against them.
+
+1. Transparency. Each answer highlights the file it came from and the place in that file where it was found
+   (page and box), so a person can check it.
+2. Confidence. Each answer says how sure the system is.
+3. Conflicts. When sources disagree, the system shows the conflict and does not quietly pick one side.
+4. Rules. Answers are checked against the building code of the country the project is in.
+5. Abstention. When the evidence is too weak, the system says it does not know instead of guessing.
+6. UX. The screens make all of the above easy to see and act on.
+
+The flow these values imply: ingest → AI decision (a decision model) → the conflicts it found (for example
+"5 conflicts") → how each one was resolved.
+
 ## Stoa: golden set and eval
 
 Stoa's challenge is to answer questions about construction drawings and BIM models, and to show where each answer
