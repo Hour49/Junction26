@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 from pdf_sheets import BLACK, WHITE, Point, SheetPdf, rect, ring
 
 from app.adapters.extraction_v1 import ExtractionV1Writer
+from app.adapters.ifc_model import IfcModels, IfcSecondCounter
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor, ifc_render, swiss
 from app.adapters.vector_pdf.objects import FILL_EVEN_ODD, FILL_NONE, FILL_WINDING, read_page
 from app.adapters.vector_pdf.scale import M_PER_PT_ON_PAPER, read_scale
@@ -589,6 +590,25 @@ def test_the_second_counter_measures_nothing_on_a_sheet_that_is_not_the_pdf() ->
     source = DrawingFile(path="data/demo/plan.svg", size=1, sha256="0" * 64, kind="svg")
     own = Sheet(file=source, pages=(Page(page=1, width=600, height=400, unit="pt"),))
     assert PdfSecondCounter(Files({})).measure(source, own) == []  # reading would raise KeyError
+
+
+@pytest.mark.parametrize("page", [None, Page(page=1, width=1200, height=800, unit="px")])
+def test_the_ifc_second_counter_gives_a_sheet_without_a_model_every_reading_of_the_pdf_one(
+    page: Page | None,
+) -> None:
+    """`SECOND_COUNTER=ifc`, the default, on a swiss sheet and on its PNG: the scale as printed
+    and as the bar measures it, and the area printed in each room, exactly as `pdf` gives them."""
+    sheet = swiss_sheet()
+    bar(sheet, 100, 5 / M_PER_PT / 3 * 2)
+    pdf = sheet.pdf()
+    source, on = source_and_sheet(pdf, page)
+    files = Files({source.path: pdf})
+    readings = IfcSecondCounter(files, IfcModels(files), PdfSecondCounter(files)).measure(
+        source, on
+    )
+    assert readings == measure_again(pdf, page)
+    assert Counter(one.quantity for one in readings) == {"scale": 2, "room_area": 4}
+    assert {one.value.method for one in readings} == {"scale_text", "scale_bar", "printed_label"}
 
 
 def test_an_ifc_sheet_prints_no_room_area_to_compare() -> None:

@@ -10,6 +10,10 @@ Everything is computed for the whole sheet and again for each storey the items n
 the drawing can't give (a room without an area, a wall without its length, a name two rooms
 share) has no key, so the answer is a refusal rather than a wrong number.
 
+A drawing with a building model behind it (`Drawing.model_objects`) also answers what the model
+holds, drawn or not: counts in the model, and each storey's wall and slab sums and space areas,
+which replace the sheet's own. What the sheet shows (a count "on the plan") stays the sheet's.
+
 A quantity that the drawing's stage-8 entry says two methods measured differently carries both
 values (`Quantity.conflict`), and its value is the one the entry's rule picked. Which stage made
 the entry does not matter.
@@ -17,16 +21,18 @@ the entry does not matter.
 
 import math
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 
 from app.core.drawing.model import (
     COUNT_KEYS,
+    ELEMENT_CLASSES,
     PLAN,
     Attr,
     Conflict,
     Drawing,
     Element,
     Mark,
+    ModelObject,
     Page,
     Resolution,
     Room,
@@ -49,6 +55,10 @@ from app.core.pipeline.rules import (
     INDOOR_TOTAL,
     LARGEST_ROOM,
     MEASURED,
+    MODEL_COUNT,
+    MODEL_MEASURED,
+    MODEL_QUANTITY,
+    MODEL_SPACES,
     ROOM_AREA,
     ROOM_NAMES,
     ROOM_NUMBERS,
@@ -65,6 +75,9 @@ SCALED_MEASURES: tuple[Measure, ...] = ("area", "length")
 # Two sums of the same rooms: equal up to float rounding. A room set's areas differ by whole rooms,
 # not by measurement noise, so the 2% tolerance of two measurements does not apply to them.
 SAME = 1e-9
+SPACE = "space"  # a building model's room (ModelObject.class_)
+# Per count of a room set: each room's area (None: unknown) and whether it is outdoor.
+RoomSets = dict[int, list[tuple[float | None, bool]]]
 UNITS: Mapping[Measure, QuantityUnit] = {
     "count": "count",
     "area": "m2",
@@ -123,6 +136,18 @@ def take_off(drawing: Drawing, counted: Mapping[str, Counted]) -> dict[str, Quan
         }
         return _read_only(_with_conflicts(totals, drawing), drawing.read)
     found: dict[str, Quantity] = {}
+    if drawing.pages:
+        _add_sheet(found, drawing, counted)
+    if drawing.model_objects is not None:
+        _add_model(found, drawing)
+    return _read_only(_with_conflicts(found, drawing), drawing.read)
+
+
+def _add_sheet(
+    found: dict[str, Quantity], drawing: Drawing, counted: Mapping[str, Counted]
+) -> None:
+    """What the sheet draws, for the whole sheet and each storey. With a building model, the
+    storeys' sums and space areas are the model's (`_add_model`), not the sheet's."""
     scale = scale_estimate(drawing.scale)
     _add_scope(found, counted, drawing.elements, drawing.rooms, storey=None, scale=scale)
     _add_apartments(found, drawing, scale)
@@ -139,8 +164,96 @@ def take_off(drawing: Drawing, counted: Mapping[str, Counted]) -> dict[str, Quan
     for storey in sorted({*elements_by, *rooms_by}):
         elements, rooms = elements_by[storey], rooms_by[storey]
         on_storey = apply_rules(_listed(elements, rooms))
-        _add_scope(found, on_storey, elements, rooms, storey=storey, scale=scale)
-    return _read_only(_with_conflicts(found, drawing), drawing.read)
+        sums = drawing.model_objects is None
+        _add_scope(found, on_storey, elements, rooms, storey=storey, scale=scale, sums=sums)
+
+
+def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
+    """What the building model behind the drawing gives (`Drawing.model_objects`), over every
+    object whether the sheet draws it or not: counts in the model (all of it and per storey),
+    and per storey the sums of MODEL_MEASURED and the spaces' areas, total and by name. A
+    drawing without a page (a question on the model file itself) shows nothing, so its
+    storeys' plain counts are the model's too. Only drawn objects have a mark."""
+    objects = drawing.model_objects or ()
+    drawn = {item.id: _mark(item) for item in (*drawing.elements, *drawing.rooms)}
+    rooms = {room.id: room for room in drawing.rooms}
+    scale = scale_estimate(drawing.scale)
+
+    def marks(items: Iterable[ModelObject]) -> list[Mark]:
+        return [drawn[item.element] for item in items if item.element in drawn]
+
+    by_storey: dict[str, list[ModelObject]] = defaultdict(list)
+    for item in objects:
+        if item.storey is not None:
+            by_storey[item.storey].append(item)
+    scopes: list[tuple[str | None, Sequence[ModelObject]]] = [(None, objects)]
+    scopes += sorted(by_storey.items())
+    for storey, items in scopes:
+        for cls in (*ELEMENT_CLASSES, SPACE):
+            same = [item for item in items if item.class_ == cls]
+            subject = "room" if cls == SPACE else cls
+            for model in (True, False) if storey is not None and not drawing.pages else (True,):
+                key = quantity_key("count", subject, storey=storey, model=model)
+                _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
+    for storey, items in sorted(by_storey.items()):
+        for (cls, measure), quantity in MODEL_MEASURED.items():
+            same = [item for item in items if item.class_ == cls]
+            values = [item.quantities.get(quantity) for item in same]
+            if same and all(value is not None for value in values):
+                total = sum(value for value in values if value is not None)
+                key = quantity_key(measure, cls, storey=storey)
+                _put(found, key, measure, total, marks(same), MODEL_QUANTITY)
+        spaces = [item for item in items if item.class_ == SPACE]
+        _add_model_spaces(found, storey, spaces, rooms, marks, scale)
+
+
+def _add_model_spaces(
+    found: dict[str, Quantity],
+    storey: str,
+    spaces: Sequence[ModelObject],
+    rooms: Mapping[str, Room],
+    marks: Callable[[Iterable[ModelObject]], list[Mark]],
+    scale: str | None,
+) -> None:
+    """A storey's space areas: the total and each space by name. A space's area is the one the
+    model states, else that of the room the sheet draws it as (measured at the sheet's scale);
+    a space with neither leaves the total unknown."""
+
+    def put(key: str, chosen: Sequence[ModelObject]) -> None:
+        found_areas = [_space_area(space, rooms) for space in chosen]
+        if chosen and all(value is not None for value, _ in found_areas):
+            total = sum(value for value, _ in found_areas if value is not None)
+            measured = [room for _, room in found_areas if room is not None]
+            estimate = rooms_estimate(measured, scale) if measured else None
+            _put(found, key, "area", total, marks(chosen), MODEL_SPACES, estimate)
+
+    put(quantity_key("area", "room", storey=storey), spaces)
+    named: dict[str, list[ModelObject]] = defaultdict(list)
+    for space in spaces:
+        for name in _space_names(space):
+            named[name].append(space)
+    for name, same in named.items():
+        if len(same) == 1:  # a name two spaces share names neither
+            put(quantity_key("area", "room", name=name, storey=storey), same)
+
+
+def _space_area(space: ModelObject, rooms: Mapping[str, Room]) -> tuple[float | None, Room | None]:
+    """A model space's net floor area: the one the model states, else that of the room the sheet
+    draws it as (returned too, for what its measurement rests on); None when it has neither."""
+    if (stated := space.quantities.get("area_m2")) is not None:
+        return stated, None
+    room = rooms.get(space.element) if space.element is not None else None
+    return (None, None) if room is None else (room.area_m2, room)
+
+
+def _space_names(space: ModelObject) -> set[str]:
+    """What a model's space is known by, as `_room_names` knows a drawn IFC space: its Name (the
+    number), its LongName, and "<LongName> (<Name>)"."""
+    number, long_name = space.name or None, space.long_name or None
+    found = {value for value in (number, long_name) if value is not None}
+    if number is not None and long_name is not None and number != long_name:
+        found.add(f"{long_name} ({number})")
+    return {normalised(value) for value in found}
 
 
 def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Quantity]:
@@ -162,7 +275,7 @@ def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Q
         for key in _conflict_keys(entry, drawing, storey, plans):
             _attach(out, key, disputed, entry.tolerance)
         if storey is not None:
-            for key, derived in _room_set_areas(entry, drawing.rooms, storey, plans):
+            for key, derived in _room_set_areas(entry, drawing, storey, plans):
                 _attach(out, key, derived, SAME)
     return out
 
@@ -193,47 +306,82 @@ def _conflict_keys(
 
 
 def _room_set_areas(
-    entry: Conflict, rooms: Sequence[Room], storey: str, plans: Mapping[str, object]
+    entry: Conflict, drawing: Drawing, storey: str, plans: Mapping[str, object]
 ) -> list[tuple[str, QuantityConflict]]:
     """A sheet's room count disputed between the rooms it draws and the rooms of its storey (the
     two values are those two numbers) disputes the storey's area totals the same way: each
     method's value becomes the area of its set of rooms, and the rule that picked a count picks
-    that count's area. Any difference counts: it is whole rooms, not measurement noise."""
+    that count's area. Any difference counts: it is whole rooms, not measurement noise.
+
+    Each total is summed the way its key is: the drawn rooms' own areas, except the storey's
+    total when the drawing has a building model (`_add_model_spaces`). Then the storey's set is
+    the model's spaces of the storey with the model's areas; the drawn set keeps the areas the
+    sheet draws (a room of another storey shows only in part)."""
     if entry.quantity != "room_count" or entry.subject.kind != "sheet" or len(entry.values) != 2:
         return []
-    drawn = list(rooms)
+    drawn = list(drawing.rooms)
     own = [room for room in drawn if _storey(room.attrs, room.plan, plans) == storey]
-    sets = {len(drawn): drawn, len(own): own}
-    if len(sets) != 2 or {value.value for value in entry.values} != set(sets):
-        return []
+    as_drawn: RoomSets = {
+        len(drawn): [(room.area_m2, room.outdoor) for room in drawn],
+        len(own): [(room.area_m2, room.outdoor) for room in own],
+    }
     how = (
         f"values from the room count's two sets of rooms ({len(drawn)} drawn on the sheet, "
         f"{len(own)} on storey {storey}), each one's net areas summed"
     )
+    variants: list[tuple[str | None, bool, RoomSets, str]] = [
+        (None, False, as_drawn, how),
+        (None, True, as_drawn, how),
+    ]
+    variants.append((storey, True, as_drawn, how))
+    if drawing.model_objects is None:
+        variants.append((storey, False, as_drawn, how))
+    else:
+        rooms = {room.id: room for room in drawn}
+        of_storey = [
+            space
+            for space in drawing.model_objects
+            if space.class_ == SPACE and normalised(space.storey or "") == normalised(storey)
+        ]
+        in_model: RoomSets = {
+            len(drawn): as_drawn[len(drawn)],
+            len(of_storey): [(_space_area(space, rooms)[0], False) for space in of_storey],
+        }
+        in_model_how = (
+            f"values from the room count's two sets of rooms ({len(drawn)} drawn on the sheet, "
+            f"their areas as drawn; {len(of_storey)} spaces of storey {storey} in the model, "
+            "their areas as the model states them), each set's areas summed"
+        )
+        variants.append((storey, False, in_model, in_model_how))
     found: list[tuple[str, QuantityConflict]] = []
-    for indoor in (False, True):
-        totals: dict[float, float] = {}
-        for count, chosen in sets.items():
-            areas = [room.area_m2 for room in chosen if not (indoor and room.outdoor)]
-            if any(area is None for area in areas):
-                return found
-            totals[count] = round(sum(area for area in areas if area is not None), 3)
-        if not differ(min(totals.values()), max(totals.values()), SAME):
-            continue  # the rooms only one set has add no area here
-        values = tuple(
-            value.model_copy(update={"value": totals[value.value], "unit": "m2"})
-            for value in entry.values
-        )
-        resolution = None
-        if entry.resolution is not None and entry.resolution.value in totals:
-            picked = totals[entry.resolution.value]
-            resolution = Resolution(rule=entry.resolution.rule, value=picked)
-        disputed = QuantityConflict(
-            values=values, resolution=resolution, note=entry.note, derived=how
-        )
-        for scope in (None, storey):
+    for scope, indoor, sets, said in variants:
+        if (disputed := _set_areas(entry, sets, indoor, said)) is not None:
             found.append((quantity_key("area", "room", storey=scope, indoor=indoor), disputed))
     return found
+
+
+def _set_areas(entry: Conflict, sets: RoomSets, indoor: bool, how: str) -> QuantityConflict | None:
+    """The room count entry carried over to the total areas of its two room sets; None when the
+    sets are not the entry's two counts, an area is unknown or the totals are equal."""
+    if len(sets) != 2 or {value.value for value in entry.values} != set(sets):
+        return None
+    totals: dict[float, float] = {}
+    for count, chosen in sets.items():
+        areas = [area for area, outdoor in chosen if not (indoor and outdoor)]
+        if any(area is None for area in areas):
+            return None
+        totals[count] = round(sum(area for area in areas if area is not None), 3)
+    if not differ(min(totals.values()), max(totals.values()), SAME):
+        return None  # the rooms only one set has add no area here
+    values = tuple(
+        value.model_copy(update={"value": totals[value.value], "unit": "m2"})
+        for value in entry.values
+    )
+    resolution = None
+    if entry.resolution is not None and entry.resolution.value in totals:
+        picked = totals[entry.resolution.value]
+        resolution = Resolution(rule=entry.resolution.rule, value=picked)
+    return QuantityConflict(values=values, resolution=resolution, note=entry.note, derived=how)
 
 
 def _attach(
@@ -399,9 +547,12 @@ def _add_scope(
     rooms: Sequence[Room],
     storey: str | None,
     scale: str | None,
+    sums: bool = True,
 ) -> None:
     """Every quantity of one set of items: the whole sheet (`storey` None) or one storey.
-    `scale`: what the sheet's scale makes an estimate of (scale_estimate)."""
+    `scale`: what the sheet's scale makes an estimate of (scale_estimate). `sums` False: the
+    element sums, the rooms' area total and each named room's area are left to a building
+    model (`_add_model`)."""
     for key, chosen in counted.items():
         _put(
             found,
@@ -419,7 +570,8 @@ def _add_scope(
         [_mark(room) for room in rooms],
         EACH_ONCE,
     )
-    _area_sum(found, quantity_key("area", "room", storey=storey), rooms, ROOMS_TOTAL, scale)
+    if sums:
+        _area_sum(found, quantity_key("area", "room", storey=storey), rooms, ROOMS_TOTAL, scale)
     indoor = [room for room in rooms if not room.outdoor]
     key = quantity_key("area", "room", storey=storey, indoor=True)
     _area_sum(found, key, indoor, INDOOR_TOTAL, scale)
@@ -445,13 +597,13 @@ def _add_scope(
             found, quantity_key("area", f"room:{kind}", storey=storey, largest=True), same, scale
         )
     for name, same in named.items():
-        if len(same) == 1:  # a name two rooms share names neither
+        if sums and len(same) == 1:  # a name two rooms share names neither
             key = quantity_key("area", "room", name=name, storey=storey)
             _area_sum(found, key, same, ROOM_AREA, scale)
     for (cls, measure), attr in MEASURED.items():
         of_class = [element for element in elements if element.class_ == cls]
         values = [element.attrs.get(attr) for element in of_class]
-        if of_class and all(isinstance(v, int | float) and v is not True for v in values):
+        if sums and of_class and all(isinstance(v, int | float) and v is not True for v in values):
             total = sum(float(v) for v in values if isinstance(v, int | float))
             key = quantity_key(measure, cls, storey=storey)
             marks = [_mark(e) for e in of_class]

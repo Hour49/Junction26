@@ -13,6 +13,7 @@ from app.core.drawing.model import (
     MeasuredValue,
     MeasureMethod,
     Page,
+    Plan,
     Resolution,
     Room,
     Scale,
@@ -43,6 +44,7 @@ from app.core.pipeline.second_count import (
     element_counts,
     measured,
     resolved_rooms,
+    room_count,
     second_count,
 )
 from app.core.pipeline.takeoff import known_quantities, take_off
@@ -125,12 +127,35 @@ def test_group_puts_same_named_files_of_a_folder_together() -> None:
         a_file("data/swiss/plan1.png", "png"),
         a_file("data/swiss/plan2.v2.png", "png"),
     ]
-    groups = group(files)
+    groups = group(files, {})
     assert [(found.key, [file.path for file in found.files]) for found in groups] == [
         ("data/swiss/plan1", ["data/swiss/plan1.pdf", "data/swiss/plan1.png"]),
         ("data/cubi/plan1", ["data/cubi/plan1.png"]),
         ("data/swiss/plan2.v2", ["data/swiss/plan2.v2.png"]),
     ]
+
+
+def test_group_adds_the_sources_found_for_a_file_to_that_files_group() -> None:
+    """One model is in the group of each of its sheets, once, after the group's own files."""
+    model = a_file("data/ifc/tower.ifc", "ifc")
+    files = [
+        a_file("data/ifc/tower_plan-01.pdf", "pdf"),
+        a_file("data/ifc/tower_plan-01.png", "png"),
+        a_file("data/ifc/tower_plan-02.pdf", "pdf"),
+        a_file("data/ifc/other.pdf", "pdf"),
+    ]
+    found = {
+        "data/ifc/tower_plan-01.pdf": [model],
+        "data/ifc/tower_plan-01.png": [model],
+        "data/ifc/tower_plan-02.pdf": [model],
+    }
+    groups = group(files, found)
+    assert [[file.path for file in one.files] for one in groups] == [
+        ["data/ifc/tower_plan-01.pdf", "data/ifc/tower_plan-01.png", "data/ifc/tower.ifc"],
+        ["data/ifc/tower_plan-02.pdf", "data/ifc/tower.ifc"],
+        ["data/ifc/other.pdf"],
+    ]
+    assert route(groups[0]) == Routed(route="bim", source=model)
 
 
 # Stage 5: route
@@ -206,6 +231,46 @@ def test_element_counts_gives_every_class_with_the_extractors_method() -> None:
     assert {one.quantity for one in first} == {"element_count"}
 
 
+def on_a_storey(storey_of_the_plan: int | str | None, *storeys: str | None) -> Extracted:
+    """Doors on plan p1, each naming the storey the model puts it on (None: it names none)."""
+    doors = tuple(
+        Element(
+            id=f"e{n}",
+            class_="door",
+            page=1,
+            plan="p1",
+            box=BOX,
+            attrs={} if storey is None else {"storey": storey},
+        )
+        for n, storey in enumerate(storeys)
+    )
+    plan = Plan(id="p1", page=1, box=BOX, storey=storey_of_the_plan)
+    return Extracted(method="plan_drawing", scale=NO_SCALE, plans=(plan,), elements=doors)
+
+
+def doors_counted(found: Extracted) -> float:
+    return next(one.value.value for one in element_counts(found) if one.subject.ref == "door")
+
+
+def test_element_counts_leave_out_an_element_that_names_another_storey_than_its_plans() -> None:
+    """A sheet of the ground floor that also draws a basement door through the cut: the count a
+    second method is compared with is the ground floor's."""
+    assert doors_counted(on_a_storey("EG", "EG", "EG", "UG")) == 2
+    # An element that names no storey is its plan's; a plan that names none keeps everything.
+    assert doors_counted(on_a_storey("EG", "EG", None)) == 2
+    assert doors_counted(on_a_storey(None, "EG", "UG")) == 2
+    assert doors_counted(on_a_storey(1, "1", "2")) == 1  # a storey number is its name
+
+
+def test_the_extraction_counts_every_room_it_lists_whatever_storey_it_names() -> None:
+    rooms = (a_room("r1", 12.5), a_room("r2", None).model_copy(update={"attrs": {"storey": "UG"}}))
+    found = Extracted(method="plan_drawing", scale=NO_SCALE, rooms=rooms)
+    count = room_count(found)
+    assert (count.quantity, count.subject) == ("room_count", Subject(kind="sheet", ref=None))
+    assert count.value == MeasuredValue(value=2, unit="rooms", method="plan_drawing")
+    assert count in measured(found)
+
+
 def test_second_count_keeps_both_values_and_says_whether_they_agree() -> None:
     again = [counted("door", 3, "detector"), counted("window", 0, "detector")]
     door, window = second_count(element_counts(two_doors()), again)
@@ -271,7 +336,7 @@ def test_the_extraction_measures_each_room_area_as_its_outline_at_the_scale() ->
         (Subject(kind="room", ref="r1"), 12.5, "polygon_x_scale")
     ]
     assert (areas[0].value.unit, areas[0].value.page, areas[0].value.box) == ("m2", 1, BOX)
-    assert len(measured(found)) == len(element_counts(found)) + 1
+    assert len(measured(found)) == len(element_counts(found)) + 2  # the room count, one area
 
 
 def test_two_readings_of_the_second_method_are_compared_with_each_other() -> None:
@@ -308,6 +373,9 @@ def test_the_extractions_value_comes_first_then_the_second_methods() -> None:
         ("room_area", (13.4, "polygon_x_scale"), (12.5, "printed_label"), 12.5),
         ("room_area", (12.5, "printed_label"), (13.4, "polygon_x_scale"), 12.5),
         ("scale", (0.0353, "scale_text"), (0.0176, "scale_bar"), 0.0176),
+        # A plan against its building model: the sheet's elements, the model's rooms.
+        ("element_count", (4, "plan_drawing"), (8, "ifc_model"), 4),
+        ("room_count", (9, "plan_drawing"), (5, "ifc_model"), 5),
     ],
 )
 def test_a_conflict_resolves_to_the_method_the_pipeline_doc_prefers(
@@ -316,7 +384,7 @@ def test_a_conflict_resolves_to_the_method_the_pipeline_doc_prefers(
     second: tuple[float, MeasureMethod],
     reported: float,
 ) -> None:
-    ref = None if quantity == "scale" else "r1"
+    ref = None if quantity in ("scale", "room_count") else "r1"
     (entry,) = second_count(
         [measure_of(quantity, ref, *first)], [measure_of(quantity, ref, *second)]
     )

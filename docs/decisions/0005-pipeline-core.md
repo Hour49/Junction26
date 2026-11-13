@@ -22,10 +22,12 @@ scored run.
 composition root. Every stage exists today with a do-nothing ("hello world") implementation.
 
 ```text
-app/core/drawing/model.py     the drawing model (Drawing, Page, Scale, Plan, Element, Room, Table, Conflict)
+app/core/drawing/model.py     the drawing model (Drawing, Page, Scale, Plan, Element, Room, Table, Conflict,
+                              ModelObject)
 app/core/pipeline/            ingest: one module per stage, ingest.py runs them, ports.py, model.py
 app/core/answering/           question -> query -> lookup in the takeoff: answer.py, ports.py, model.py
-app/adapters/                 dataset_files, page_sizes, hello, extraction_v1, answer_v1, golden_dir, vector_pdf/
+app/adapters/                 dataset_files, page_sizes, hello, extraction_v1, answer_v1, golden_dir, vector_pdf/,
+                              ifc_model/
 app/composition.py            build_pipeline(settings, dataset) -> Pipeline, the only place adapters are chosen
 app/cli.py                    python -m app.cli golden ...   (API routes come later and use the same Pipeline)
 ```
@@ -34,11 +36,11 @@ app/cli.py                    python -m app.cli golden ...   (API routes come la
 | --- | --- | --- |
 | 1-2 `inventory` | size and sha256 per file | a store of drawings by hash; unpacking archives |
 | 3 `identify` | format from the first bytes; unknown content is set aside | telling non-drawings apart |
-| 4 `group` | same folder and name, any extension | IFC model with its sheets |
+| 4 `group` | same folder and name, any extension; the sources a `SourceFinder` names for a file join its group, which is how a plan sheet gets its IFC model (2026-11-14) | other pairings |
 | 5 `route` | richest format in the group: bim, cad, vector, raster | telling a scanned PDF from a drawn one |
 | 6 `normalise` | pages as the file gives them | rotation; rendering |
-| 7 `extract` | calls the route's `Extractor`; `hello` reads nothing, scale `no_scale`. Vector route: `pdf` reads drawn PDFs (2026-11-13) | one adapter per route |
-| 8 `second_count` | pairs two methods' values into `conflicts` and applies the resolution rules of PIPELINE.md §2; `pdf` brings the scale bar, the scale text and the printed room areas of a drawn PDF (2026-11-14); `hello` measures nothing | room, storey and element counts from a second source (the IFC model) |
+| 7 `extract` | calls the route's `Extractor`; `hello` reads nothing, scale `no_scale`. Vector route: `pdf` reads drawn PDFs (2026-11-13). Model route: `ifc` reads a plan sheet through its IFC model, and a model file on its own (2026-11-14) | the cad and raster routes |
+| 8 `second_count` | pairs two methods' values into `conflicts` and applies the resolution rules of PIPELINE.md §2; `pdf` brings the scale bar, the scale text and the printed room areas of a drawn PDF (2026-11-14); `ifc` adds what a sheet's IFC model lists on the sheet's storey, per element class and for rooms (2026-11-14); `hello` measures nothing | storey counts; a room-area second count from the model |
 | 9 `rules` | one rule: every listed item counts once | the dataset's conventions as `CountingRule`s |
 | 10 `takeoff` | a count per element class, room type and plan, with marks | areas, lengths, volumes |
 
@@ -47,9 +49,10 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
 | Port | What core asks of it | Adapter today |
 | --- | --- | --- |
 | `DrawingFiles` | bytes of a file by its dataset path | `DatasetFiles` (folder on disk, refuses paths that leave it) |
+| `SourceFinder` | the richer sources the store holds for a sheet beyond the files a run was given | `DatasetSheetModels` (a plan sheet's IFC model, wired when `EXTRACTOR_BIM=ifc`); `HelloSourceFinder` |
 | `PageReader` | page sizes of a sheet, as rendered | `PageSizes` (pypdfium2, Pillow) |
-| `Extractor`, one per route | what it read from the group's richest source, as page fractions of the sheet | `HelloExtractor`; vector: `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`) |
-| `SecondCounter` | an independent second measurement | `PdfSecondCounter` (`SECOND_COUNTER=pdf`); `HelloSecondCounter` |
+| `Extractor`, one per route | what it read from the group's richest source, as page fractions of the sheet | `HelloExtractor`; vector: `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`); bim: `IfcModelExtractor` (`EXTRACTOR_BIM=ifc`) |
+| `SecondCounter` | an independent second measurement | `PdfSecondCounter` (`SECOND_COUNTER=pdf`); `IfcSecondCounter` (`SECOND_COUNTER=ifc`, wraps the PDF one); `HelloSecondCounter` |
 | `DrawingSink` / `DrawingSource` | store and load a drawing model | `ExtractionV1Writer` / `ExtractionV1Reader` |
 | `QuestionParser` | question text to a `Query`, or `Unsupported` | `HelloParser` |
 | `AnswerSink` | take an answer | `AnswerV1Writer` |
@@ -59,8 +62,10 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
   port's `Literal` in `app/settings.py` (and `.env.example`), add a `case` in `app/composition.py`. Core and the
   entry points don't change. The setting then picks it (a vector reader named `pdf` would be `EXTRACTOR_VECTOR=pdf`).
 - Each sheet file (PDF, PNG, JPEG) gets its own drawing model, as 0004 requires. A group has one route and one source: the
-  PDF and the PNG of a swiss plan are both extracted from the PDF, each into its own page frame. An IFC or DXF file
-  is a source to read from and never gets a drawing model of its own.
+  PDF and the PNG of a swiss plan are both extracted from the PDF, each into its own page frame. A DXF file is a
+  source to read from and never gets a drawing model of its own. An IFC model that is asked about gets one without a
+  page when the model route's extractor lists its objects (`model_objects`, formats v1.2 of 2026-11-14); otherwise
+  it is set aside. A source that the finder added to a group gets its drawing model only in its own group.
 - The drawing model is a set of pydantic models that serialise as extraction_v1, so the adapter only adds
   `schema`, `split` and `truth`. It also carries `tables` and `conflicts` in the shapes pinned on 2026-11-13 (0004's
   amendment); the writer leaves out the one that is not set. `backend/tests/test_formats.py` validates what the
@@ -93,8 +98,7 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
 - Differences from PIPELINE.md as drawn: the scale and the plans on a sheet come from the route's extractor
   (stage 7), not from stage 6, because the prototype reads the scale in the same pass as the rooms
   (`prototypes/pdf-extract/swiss_areas.py`).
-- Not built yet: unpacking, reuse by hash, spotting non-drawings, IFC grouping, rendering, and a drawing model for
-  a model file with no sheet.
+- Not built yet: unpacking, reuse by hash, spotting non-drawings and rendering.
 - The vector route (`EXTRACTOR_VECTOR=pdf`, `app/adapters/vector_pdf/`, 2026-11-13) reads page 1 of a drawn PDF
   and nothing else: the scale from the sheet's text and scale bar, then the rules of the sheet style it recognises
   (swiss_dwellings plans; sheets IfcConvert rendered from an IFC model). A PNG of the same sheet gets the same
@@ -113,6 +117,24 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
   scales compared, all agree (largest gaps 0.58% and 0.09%), so both conflict paths are held by synthetic tests
   only. Cost: each PDF is parsed a second time (ingest of those sheets 15.2 s to 25.9 s); a parsed-page cache by
   content hash would remove it and is not built.
+- The model route (`EXTRACTOR_BIM=ifc` with `SECOND_COUNTER=ifc`, `app/adapters/ifc_model/`, 2026-11-14; both
+  the default since then, decided by Bogdan's orchestrator). The model says what each object is, the sheet's SVG
+  twin (shapes tagged with GlobalIds) says where it is drawn, and the sheet PDF gives scale and title. Elements
+  are the objects the sheet draws; the
+  drawing's `model_objects` lists all of them, drawn or not, with the file's own wall and slab quantities and each
+  space's floor area. That area is the footprint of the space's solid: it equals 266 of 266 dev answers asked on a
+  model file, and the drawn outline on the sheets, where the area a file states for a space is often missing or
+  follows other rules. A sheet's storey is the one its title names when the model has objects on it, else the
+  storey with the most drawn doors, windows, walls and spaces. Stage 8 compares, per class, the drawn elements of
+  the sheet's storey with the model's objects of that storey, and every room drawn with the storey's spaces.
+  Scratch runs of 2026-11-14 (not recorded): golden v2 Part 1 ifc_models 1,630 elements right, none wrong or
+  missed (was F1 80.4% from the PDF alone), conflict slice 14 of 14 found with 0 of 102 false alarms; Part 2
+  ifc_models 466 of 466; dev split ifc_models area 1,918 of 1,918, count 415 of 426, length 40 of 40, volume 86 of
+  86. Limits: without the SVG twin a sheet stays on the vector route; sanitary and light fixtures in a model are
+  not listed (the format has no class for them); 123 more conflicts on the slice's files that the gold did not
+  judge, each the model listing more on the storey than the sheet draws; ifcopenshell 0.9.0.post1 keeps the memory of
+  every model it parsed, so the reader opens models lazily from disk (the dev split with its 28 model files
+  peaks at 1.6 GB).
 - `read` (2026-11-14): every extractor says which element classes, and `room`, it looked for; the drawing and the
   extraction_v1 file carry it. `hello` and a PDF in no known style say `[]`, so none of their counts is a zero.
 - Open with the formats: a count per room type has no `subject` kind in `conflicts`, so stage 8 compares element

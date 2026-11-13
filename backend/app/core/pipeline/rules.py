@@ -9,7 +9,7 @@ wording, the text says so.
 
 from collections.abc import Mapping
 
-from app.core.drawing.model import ElementClass, Mark
+from app.core.drawing.model import ElementClass, Mark, QuantityKey
 from app.core.model import Frozen
 from app.core.pipeline.model import Counted, CountingRule, Measure
 
@@ -56,6 +56,21 @@ LARGEST_ROOM = CountingRule(
     id="largest-room",
     text="the largest net floor area among the rooms; unknown when one of them has no area",
 )
+MODEL_COUNT = CountingRule(
+    id="model-objects",
+    text="every object of the building model counts once, whether this sheet draws it or not",
+)
+MODEL_QUANTITY = CountingRule(
+    id="model-quantities",
+    text="the sum of the model's own quantities (its Qto values) over every object of the "
+    "storey, drawn on this sheet or not; unknown when one of them has none",
+)
+MODEL_SPACES = CountingRule(
+    id="model-spaces",
+    text="the net floor area the model states for each of the storey's spaces, drawn on this "
+    "sheet or not, else the area of the room the sheet draws it as; unknown when a space has "
+    "neither",
+)
 ROOM_SIDE = CountingRule(
     id="room-longer-side",
     text="the longer side of a rectangular room's outline at the sheet's scale; other shapes "
@@ -94,6 +109,14 @@ MEASURED: Mapping[tuple[ElementClass, Measure], str] = {
     ("wall", "area"): "net_side_area_m2",  # the net side area of the walls
     ("wall", "volume"): "net_volume_m3",
     ("slab", "volume"): "net_volume_m3",
+}
+
+# The same sums over a building model's objects: (class, measure) -> the object's quantity key.
+MODEL_MEASURED: Mapping[tuple[ElementClass, Measure], QuantityKey] = {
+    ("wall", "length"): "length_m",
+    ("wall", "area"): "side_area_m2",
+    ("wall", "volume"): "volume_m3",
+    ("slab", "volume"): "volume_m3",
 }
 
 # A room is known by its label and by these attrs, alone or as "<name> (<number>)" (IFC spaces:

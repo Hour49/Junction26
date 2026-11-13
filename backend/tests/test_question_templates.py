@@ -129,11 +129,9 @@ def test_wall_and_slab_quantities_on_a_storey() -> None:
 
 def test_a_question_about_the_whole_model_is_marked_as_such() -> None:
     assert PARSE("How many beams are there in the model 'House'?") == Query(
-        subject="beam", storey="House", model=True
+        subject="beam", model=True
     )
-    assert PARSE("Wie viele Türen enthält das Modell „House“?") == Query(
-        subject="door", storey="House", model=True
-    )
+    assert PARSE("Wie viele Türen enthält das Modell „House“?") == Query(subject="door", model=True)
 
 
 @pytest.mark.parametrize(
@@ -179,6 +177,8 @@ def test_danish_romanian_and_italian_questions_parse() -> None:
         "How many rooms have access to outdoor space?",
         "What door types are present, and how many of each type?",
         "What is the total volume of concrete in slabs, columns and beams?",
+        "What are the key building metrics including total elements, number of spaces, and "
+        "building levels with their elevations?",
     ],
 )
 def test_a_subset_breakdown_or_unquoted_place_is_unsupported_not_the_whole_count(

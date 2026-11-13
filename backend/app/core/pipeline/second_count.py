@@ -5,10 +5,16 @@ or `conflict`, with every value kept for a person to see. Where docs/PIPELINE.md
 rule for the pair of methods, the entry names the value that rule reports, and the drawing carries
 that value. Where it has none, a disagreement stays unresolved: nothing is settled silently.
 
-The extraction's own side is the element count per class and each room's area, which an extractor
-measures as the room's outline at the sheet's scale. The second counter (the `SecondCounter` port)
-brings the other readings. It may bring two of its own for one quantity: the scale as the sheet
-prints it and as its scale bar measures it.
+The extraction's own side is the element count per class, the number of rooms and each room's
+area, which an extractor measures as the room's outline at the sheet's scale. The second counter
+(the `SecondCounter` port) brings the other readings. It may bring two of its own for one
+quantity: the scale as the sheet prints it and as its scale bar measures it.
+
+A sheet read with its building model has the model as second counter: what the model lists on
+the sheet's storey. The two counts are set up to catch what goes wrong between a plan and its
+model. Elements: the sheet's side is what it draws of its own storey, so the model having more
+means objects the cut does not show (a window above it). Rooms: the sheet's side is every room
+it draws, so the sheet having more means rooms of another storey showing through.
 """
 
 from collections import Counter
@@ -19,6 +25,7 @@ from app.core.drawing.model import (
     ELEMENT_CLASSES,
     Conflict,
     ConflictQuantity,
+    Element,
     MeasuredValue,
     MeasureMethod,
     Resolution,
@@ -47,6 +54,12 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
     ("scale", frozenset({"scale_text", "scale_bar"})): Rule(
         "scale_bar", "the measured scale bar over the scale text"
     ),
+    ("element_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
+        "plan_drawing", "count what the sheet draws (our rule, not Stoa's)"
+    ),
+    ("room_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
+        "ifc_model", "keep the spaces of the sheet's storey"
+    ),
 }
 
 
@@ -57,8 +70,12 @@ def differ(a: float, b: float, tolerance: float) -> bool:
 
 
 def element_counts(found: Extracted) -> list[Measurement]:
-    """What the extraction counted, per element class (0 for a class it lists nothing of)."""
-    numbers = Counter(element.class_ for element in found.elements)
+    """What the extraction counted on the storey its plan shows, per element class (0 for a
+    class it lists nothing of). An element that names another storey than its plan's is drawn
+    on the sheet without being that storey's (an object of the floor below, seen through the
+    cut), and a second count of the storey does not have it either."""
+    shown = {plan.id: plan.storey for plan in found.plans}
+    numbers = Counter(e.class_ for e in found.elements if _of_its_plans_storey(e, shown))
     return [
         Measurement(
             quantity="element_count",
@@ -67,6 +84,21 @@ def element_counts(found: Extracted) -> list[Measurement]:
         )
         for name in ELEMENT_CLASSES
     ]
+
+
+def _of_its_plans_storey(element: Element, shown: Mapping[str, int | str | None]) -> bool:
+    own = element.attrs.get("storey")
+    plans = shown.get(element.plan) if element.plan is not None else None
+    return own is None or plans is None or str(own) == str(plans)
+
+
+def room_count(found: Extracted) -> Measurement:
+    """How many rooms the sheet draws, whichever storey each one is on."""
+    return Measurement(
+        quantity="room_count",
+        subject=Subject(kind="sheet", ref=None),
+        value=MeasuredValue(value=len(found.rooms), unit="rooms", method=found.method),
+    )
 
 
 def room_areas(found: Extracted) -> list[Measurement]:
@@ -90,7 +122,7 @@ def room_areas(found: Extracted) -> list[Measurement]:
 
 def measured(found: Extracted) -> list[Measurement]:
     """Everything the extraction measured that a second method can be compared with."""
-    return [*element_counts(found), *room_areas(found)]
+    return [*element_counts(found), room_count(found), *room_areas(found)]
 
 
 def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) -> list[Conflict]:
