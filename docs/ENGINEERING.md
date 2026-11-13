@@ -146,7 +146,8 @@ force-push.
 - **Validate input at the boundary.** Request bodies, uploaded files and partner API responses are parsed into typed
   models at the edge (pydantic, zod), with size limits on uploads. Code behind the edge trusts the types.
 - **Dependencies.** Name each new dependency in the PR with one line on why it is worth adding. Pin it through the
-  lockfile. Its licence must allow shipping under MIT: MIT, BSD, Apache-2.0 and ISC are fine; GPL, AGPL and
+  lockfile. Its licence must allow shipping under MIT: MIT, BSD, Apache-2.0 and ISC are fine; LGPL is fine as an
+  unmodified PyPI dependency, never vendored or patched ([0006](decisions/0006-lgpl-dependencies.md)); GPL, AGPL and
   non-commercial licences are not. It must be maintained (a release in the last year, no open high advisory). CI's
   dependency audit fails on high or critical findings for Node and on any known vulnerability for Python (`uv audit`
   has no severity filter). To accept a Python finding, add `--ignore <id>` to the `uv audit` line in
