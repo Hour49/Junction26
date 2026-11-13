@@ -43,9 +43,9 @@ class DoorParser:
     def parse(self, text: str) -> Query | Unsupported:
         self.asked.append(text)
         if text == "How many doors?":
-            return Query(quantity="door")
+            return Query(subject="door")
         if text == "How many saunas?":
-            return Query(quantity="room:sauna")
+            return Query(subject="room:sauna")
         return Unsupported(reason="not a question this parser knows")
 
 
@@ -88,6 +88,18 @@ def test_an_unsupported_question_is_refused() -> None:
     answer = ask("What is the fire rating of door 101A?", drawing())
     assert (answer.answer, answer.unit, answer.evidence) == (None, None, ())
     assert answer.method == UNSUPPORTED_QUESTION
+    assert (answer.abstain, answer.explanation) == (True, "not a question this parser knows")
+
+
+def test_every_refusal_abstains_and_an_answer_does_not() -> None:
+    assert ask("How many doors?", None).abstain is True
+    missing = ask("How many saunas?", drawing(counts={"door": 9}))
+    assert (missing.abstain, missing.explanation) == (
+        True,
+        "the drawing model does not give room:sauna",
+    )
+    answered = ask("How many doors?", drawing())
+    assert (answered.abstain, answered.explanation) == (None, None)
 
 
 def test_a_file_without_a_drawing_model_is_refused_before_the_parser_is_asked() -> None:

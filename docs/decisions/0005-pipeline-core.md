@@ -25,7 +25,7 @@ composition root. Every stage exists today with a do-nothing ("hello world") imp
 app/core/drawing/model.py     the drawing model (Drawing, Page, Scale, Plan, Element, Room, Table, Conflict)
 app/core/pipeline/            ingest: one module per stage, ingest.py runs them, ports.py, model.py
 app/core/answering/           question -> query -> lookup in the takeoff: answer.py, ports.py, model.py
-app/adapters/                 dataset_files, page_sizes, hello, extraction_v1, answer_v1, golden_dir
+app/adapters/                 dataset_files, page_sizes, hello, extraction_v1, answer_v1, golden_dir, vector_pdf/
 app/composition.py            build_pipeline(settings, dataset) -> Pipeline, the only place adapters are chosen
 app/cli.py                    python -m app.cli golden ...   (API routes come later and use the same Pipeline)
 ```
@@ -37,7 +37,7 @@ app/cli.py                    python -m app.cli golden ...   (API routes come la
 | 4 `group` | same folder and name, any extension | IFC model with its sheets |
 | 5 `route` | richest format in the group: bim, cad, vector, raster | telling a scanned PDF from a drawn one |
 | 6 `normalise` | pages as the file gives them | rotation; rendering |
-| 7 `extract` | calls the route's `Extractor`; `hello` reads nothing, scale `no_scale` | one adapter per route |
+| 7 `extract` | calls the route's `Extractor`; `hello` reads nothing, scale `no_scale`. Vector route: `pdf` reads drawn PDFs (2026-11-13) | one adapter per route |
 | 8 `second_count` | pairs two methods' values into `conflicts`; `hello` measures nothing | a `SecondCounter` adapter; room and storey counts, printed labels against geometry |
 | 9 `rules` | one rule: every listed item counts once | the dataset's conventions as `CountingRule`s |
 | 10 `takeoff` | a count per element class, room type and plan, with marks | areas, lengths, volumes |
@@ -48,7 +48,7 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
 | --- | --- | --- |
 | `DrawingFiles` | bytes of a file by its dataset path | `DatasetFiles` (folder on disk, refuses paths that leave it) |
 | `PageReader` | page sizes of a sheet, as rendered | `PageSizes` (pypdfium2, Pillow) |
-| `Extractor`, one per route | what it read from the group's richest source, as page fractions of the sheet | `HelloExtractor` |
+| `Extractor`, one per route | what it read from the group's richest source, as page fractions of the sheet | `HelloExtractor`; vector: `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`) |
 | `SecondCounter` | an independent second measurement | `HelloSecondCounter` |
 | `DrawingSink` / `DrawingSource` | store and load a drawing model | `ExtractionV1Writer` / `ExtractionV1Reader` |
 | `QuestionParser` | question text to a `Query`, or `Unsupported` | `HelloParser` |
@@ -95,6 +95,14 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
   (`prototypes/pdf-extract/swiss_areas.py`).
 - Not built yet: unpacking, reuse by hash, spotting non-drawings, IFC grouping, rendering, and a drawing model for
   a model file with no sheet.
+- The vector route (`EXTRACTOR_VECTOR=pdf`, `app/adapters/vector_pdf/`, 2026-11-13) reads page 1 of a drawn PDF
+  and nothing else: the scale from the sheet's text and scale bar, then the rules of the sheet style it recognises
+  (swiss_dwellings plans; sheets IfcConvert rendered from an IFC model). A PNG of the same sheet gets the same
+  fractions and its own metres per pixel. Recorded as `vector-pdf-v1`: swiss element F1 100%, rooms and areas 100%;
+  ifc_models rooms and areas 100%, element F1 80.4%. Not built in it: columns, stairs, railings, slabs and beams
+  on IFC-rendered sheets (the sheet draws columns like walls, so they are listed as walls, and the rest in one
+  shared style), sheets in any other style (only their scale is read), pages after the first, SVG sources, and
+  telling a scanned PDF from a drawn one (stage 5).
 - Open with the formats: a count per room type has no `subject` kind in `conflicts`, so stage 8 compares element
   classes only. When answer_v1.1 lands, a refusal should set `abstain: true` with the reason in `explanation`, and
   the golden run should also answer `part2_answering/extras.jsonl`.

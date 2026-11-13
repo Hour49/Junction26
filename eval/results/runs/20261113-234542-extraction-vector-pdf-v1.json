@@ -1,0 +1,111 @@
+{
+  "recorded_at": "2026-11-13T23:45:42.695936+02:00",
+  "commit": "e3610e6",
+  "dirty": true,
+  "name": "vector-pdf-v1",
+  "note": "EXTRACTOR_VECTOR=pdf: swiss plans (PDF and PNG) and ifc_models sheets read from the PDF alone; raster route still hello (cubicasa5k unread); opening_design: scale only",
+  "part": "extraction",
+  "against": "golden",
+  "golden_version": "v2",
+  "milestone": false,
+  "gold_sha256": "5656eeda6d40b703e3404226397423ab5db1ced4d550b56301f0c72d0137d01f",
+  "score_sha256": "01a22aa716ab7f90cbe62d9a4e95e178e362baca9a2eb966d1c51c1b06af2b03",
+  "files": 152,
+  "predicted": 152,
+  "multiplicity": false,
+  "elements_f1": 0.7968393861115332,
+  "elements_f1_by_source": {
+    "cubicasa5k": 0.0,
+    "ifc_models": 0.8037602820211516,
+    "swiss_dwellings": 1.0
+  },
+  "room_f1": 0.8057005218787635,
+  "room_type_accuracy": 1.0,
+  "room_area_accuracy": 1.0,
+  "room_area_estimates": {},
+  "plans_exact": {
+    "n": 142,
+    "correct": 75,
+    "rate": 0.528169014084507
+  },
+  "counts_exact": {
+    "n": 2645,
+    "correct": 1574,
+    "rate": 0.5950850661625708
+  },
+  "counts_exact_by_source": {
+    "cubicasa5k": {
+      "n": 1355,
+      "correct": 316,
+      "rate": 0.23321033210332104
+    },
+    "ifc_models": {
+      "n": 270,
+      "correct": 238,
+      "rate": 0.8814814814814815
+    },
+    "swiss_dwellings": {
+      "n": 1020,
+      "correct": 1020,
+      "rate": 1.0
+    }
+  },
+  "scale_status": {
+    "n": 112,
+    "correct": 85,
+    "rate": 0.7589285714285714
+  },
+  "scale_status_by_source": {
+    "cubicasa5k": {
+      "n": 37,
+      "correct": 10,
+      "rate": 0.2702702702702703
+    },
+    "ifc_models": {
+      "n": 15,
+      "correct": 15,
+      "rate": 1.0
+    },
+    "swiss_dwellings": {
+      "n": 60,
+      "correct": 60,
+      "rate": 1.0
+    }
+  },
+  "scale_m_per_unit": {
+    "n": 92,
+    "correct": 75,
+    "rate": 0.8152173913043478
+  },
+  "scale_m_per_unit_by_case": {
+    "nothing": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "not_to_scale": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "dimension_lines": {
+      "n": 10,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "printed_areas": {
+      "n": 7,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "scale_text_or_bar": {
+      "n": 75,
+      "correct": 75,
+      "rate": 1.0
+    }
+  },
+  "scale_estimate_median_error": null,
+  "scale_estimate_within_20": null,
+  "tables": null,
+  "conflicts": null
+}

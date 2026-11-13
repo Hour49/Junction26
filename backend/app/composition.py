@@ -14,6 +14,8 @@ from pathlib import Path
 from app.adapters.dataset_files import DatasetFiles
 from app.adapters.hello import HelloExtractor, HelloParser, HelloSecondCounter
 from app.adapters.page_sizes import PageSizes
+from app.adapters.question_templates import TemplateParser
+from app.adapters.vector_pdf import PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
 from app.core.answering.ports import AnswerSink, Clock, DrawingSource, QuestionParser
@@ -59,10 +61,10 @@ def build_pipeline(settings: Settings, dataset: Path) -> Pipeline:
         files=files,
         pages=PageSizes(files),
         extractors={
-            "bim": _extractor(settings.extractor_bim),
-            "cad": _extractor(settings.extractor_cad),
-            "vector": _extractor(settings.extractor_vector),
-            "raster": _extractor(settings.extractor_raster),
+            "bim": _extractor(settings.extractor_bim, files),
+            "cad": _extractor(settings.extractor_cad, files),
+            "vector": _extractor(settings.extractor_vector, files),
+            "raster": _extractor(settings.extractor_raster, files),
         },
         second_counter=_second_counter(settings.second_counter),
         parser=_parser(settings.question_parser),
@@ -70,10 +72,12 @@ def build_pipeline(settings: Settings, dataset: Path) -> Pipeline:
     )
 
 
-def _extractor(name: ExtractorName) -> Extractor:
+def _extractor(name: ExtractorName, files: DrawingFiles) -> Extractor:
     match name:
         case "hello":
             return HelloExtractor()
+        case "pdf":
+            return PdfVectorExtractor(files)
 
 
 def _second_counter(name: SecondCounterName) -> SecondCounter:
@@ -86,3 +90,5 @@ def _parser(name: QuestionParserName) -> QuestionParser:
     match name:
         case "hello":
             return HelloParser()
+        case "templates":
+            return TemplateParser()
