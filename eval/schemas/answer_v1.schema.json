@@ -1,0 +1,140 @@
+{
+  "$defs": {
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "Where on a drawing the answer came from.",
+      "properties": {
+        "file": {
+          "description": "dataset path, e.g. data/swiss_dwellings/site1_bldg2_floor3.pdf",
+          "title": "File",
+          "type": "string"
+        },
+        "page": {
+          "description": "1-based page; 1 for a single image",
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "box": {
+          "description": "[x0, y0, x1, y1] as fractions of the page width and height, origin top left",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Box",
+          "type": "array"
+        }
+      },
+      "required": [
+        "file",
+        "page",
+        "box"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One line our system writes per question (answer_v1).",
+  "properties": {
+    "id": {
+      "description": "the question's 1-based line number in questions.jsonl",
+      "minimum": 1,
+      "title": "Id",
+      "type": "integer"
+    },
+    "answer": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null means no answer, scored as wrong",
+      "title": "Answer"
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "enum": [
+            "count",
+            "m",
+            "m2",
+            "m3",
+            "ft",
+            "ft2"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "count, m, m2, m3, ft or ft2; null for text",
+      "title": "Unit"
+    },
+    "evidence": {
+      "description": "may be empty",
+      "items": {
+        "$ref": "#/$defs/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "method": {
+      "description": "how it was answered, e.g. ifc, dxf, vision",
+      "minLength": 1,
+      "title": "Method",
+      "type": "string"
+    },
+    "cost_usd": {
+      "minimum": 0.0,
+      "title": "Cost Usd",
+      "type": "number"
+    },
+    "latency_s": {
+      "minimum": 0.0,
+      "title": "Latency S",
+      "type": "number"
+    }
+  },
+  "required": [
+    "id",
+    "answer",
+    "unit",
+    "evidence",
+    "method",
+    "cost_usd",
+    "latency_s"
+  ],
+  "title": "Answer_v1",
+  "type": "object"
+}

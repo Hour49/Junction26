@@ -1,0 +1,108 @@
+{
+  "additionalProperties": false,
+  "description": "A selected question with what the selection knows about it (golden_v0.jsonl).",
+  "properties": {
+    "path": {
+      "title": "Path",
+      "type": "string"
+    },
+    "question": {
+      "title": "Question",
+      "type": "string"
+    },
+    "answer": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Answer"
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "enum": [
+            "count",
+            "m",
+            "m2",
+            "m3",
+            "ft",
+            "ft2"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Unit"
+    },
+    "type": {
+      "enum": [
+        "count",
+        "area",
+        "length",
+        "volume",
+        "text",
+        "other"
+      ],
+      "title": "Type",
+      "type": "string"
+    },
+    "id": {
+      "description": "1-based line number in questions.jsonl",
+      "minimum": 1,
+      "title": "Id",
+      "type": "integer"
+    },
+    "source": {
+      "description": "dataset folder, e.g. swiss_dwellings",
+      "title": "Source",
+      "type": "string"
+    },
+    "language": {
+      "description": "language code from the question text, e.g. en, de",
+      "title": "Language",
+      "type": "string"
+    },
+    "template": {
+      "description": "question with quoted names and numbers masked",
+      "title": "Template",
+      "type": "string"
+    },
+    "group": {
+      "description": "drawing or building; a group's questions share one split",
+      "title": "Group",
+      "type": "string"
+    },
+    "split": {
+      "enum": [
+        "dev",
+        "holdout"
+      ],
+      "title": "Split",
+      "type": "string"
+    }
+  },
+  "required": [
+    "path",
+    "question",
+    "answer",
+    "unit",
+    "type",
+    "id",
+    "source",
+    "language",
+    "template",
+    "group",
+    "split"
+  ],
+  "title": "GoldenItem",
+  "type": "object"
+}

@@ -1,0 +1,41 @@
+[project]
+name = "stoa-eval"
+version = "0.1.0"
+description = "Golden set selection, baselines and scoring for the Stoa drawing Q&A challenge."
+requires-python = "==3.13.*"
+dependencies = [
+    "pydantic>=2.14.3",
+]
+
+[dependency-groups]
+dev = [
+    "pyright==1.1.414",
+    "pytest>=9.2.0",
+    "pytest-timeout>=2.4.0",
+    "ruff==0.16.5",
+]
+
+[tool.uv]
+package = false # a tool run with `python -m stoa_eval`, nothing gets built
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "RUF", "N"]
+
+[tool.pyright]
+include = ["stoa_eval", "tests"]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+strict = ["stoa_eval"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-markers", "-rs"]
+testpaths = ["tests"]
+pythonpath = ["."]
+timeout = 300
+timeout_method = "thread"
