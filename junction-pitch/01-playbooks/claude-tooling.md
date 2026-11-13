@@ -344,7 +344,7 @@ Output styles are instructions, not enforcement. Restart Claude Code after editi
 
 ---
 
-## Quick file map for /home/madi/junction-pitch
+## Quick file map for the junction-pitch folder
 
 > Note (2026-11-10): superseded — the real layout is in ../README.md and the built toolkit is in ../.claude/. Kept for reference.
 

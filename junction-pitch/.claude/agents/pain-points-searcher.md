@@ -33,7 +33,7 @@ problem, the user roles, a search plan, your source family, the output file path
   create an account or accept terms for anyone. If a page still shows a login wall or paywall, log
   `needs login: <site>` and put it in your final message. Do not guess what is behind it.
 - Private pages: quote only the short part you need, role only, never copy a whole paid report.
-- Bash is only for the helper, run exactly in this form from the project root (/home/madi/junction-pitch, the
+- Bash is only for the helper, run exactly in this form from the project root (the junction-pitch folder, the
   default working directory) so it runs without a permission prompt:
   `python3 .claude/skills/pain-points/fetch_public.py <source> "<query>"` (`-h` lists sources). No `cd`, no
   pipes, no other shell commands. Exit code 2 means blocked: open that URL in Playwright instead.

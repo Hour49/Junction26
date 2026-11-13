@@ -1,12 +1,12 @@
 # Junction 2026 pitch kit: team Hour49
 
-Start here. This folder holds everything for the business, research and pitch side of Junction 2026 (Espoo, Fri 13 – Sun 15 Nov 2026). It is not a git repo. The code lives elsewhere.
+Start here. This folder holds everything for the business, research and pitch side of Junction 2026 (Espoo, Fri 13 – Sun 15 Nov 2026). It is a folder in the project repo `Hour49/Junction26` (`junction-pitch/`); the project code goes in the same repo.
 
 Last updated: 2026-11-10.
 
 **Quick manual of all 12 skills and how to type them: [MANUAL.md](MANUAL.md).**
 
-## Your toolkit (slash commands) — open Claude Code in this folder: `cd ~/junction-pitch && claude`
+## Your toolkit (slash commands) — open Claude Code in this folder: `cd <your clone>/junction-pitch && claude`
 
 Every skill reads `04-pitch/core.md` (the current idea) and writes files; nothing is ever overwritten (`-v2`, `-v3`).
 
@@ -83,7 +83,7 @@ Transcript files in `02-reference/pitch-transcripts/`:
 ## Conventions
 
 - **File names:** kebab-case, lower case. Folders are numbered in reading and workflow order.
-- **Paths:** paths in backticks are relative to this folder (`/home/madi/junction-pitch`), e.g. `03-research/sources.md`. Markdown links are relative to the file they are in.
+- **Paths:** paths in backticks are relative to this folder (the `junction-pitch` folder), e.g. `03-research/sources.md`. Markdown links are relative to the file they are in.
 - **Sources and labels:** every claim has a source. Tags used across the files: **[2026]** confirmed this year; **[2025]/[2024]** earlier editions; **UNVERIFIED** single-source or inferred; numbers are **measured/reported/assumed**.
 - **Times:** Europe/Helsinki (UTC+2).
 - **Section references** such as "junction-info §2C" mean the numbered heading in that file.

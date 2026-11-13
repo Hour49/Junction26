@@ -8,10 +8,10 @@ this file gets its goal, layout and commands once it is. Full guide to the agent
 
 ## First thing on any machine: is the setup installed?
 
-Run this before orchestrating, or whenever `board` or `waitw.sh` is "command not found":
+Run this before orchestrating, or whenever `board`, `orch` or `waitw.sh` is "command not found":
 
 ```bash
-command -v board && command -v waitw.sh && grep -q 'hour49-team:begin' ~/.claude/CLAUDE.md \
+command -v board && command -v waitw.sh && command -v orch && grep -q 'hour49-team:begin' ~/.claude/CLAUDE.md \
   && test -f ~/.claude/hooks/context-handoff.py && test -f ~/.claude/skills/herdr/SKILL.md && echo setup-ok
 ```
 
@@ -22,6 +22,8 @@ herdr; `setup.sh` lists what is missing and never installs system packages (ask 
 test -d ~/Repo/Junction26 || gh repo clone Hour49/Junction26 ~/Repo/Junction26
 cd ~/Repo/Junction26 && git pull --ff-only && tools/setup.sh
 ```
+
+`~/Repo/Junction26` is the default; if the repo is already cloned somewhere else, run the last line in that clone.
 
 Then tell the human to start a new Claude session: CLAUDE.md, hooks and skills load at session start. Rerun
 `git pull && tools/setup.sh` whenever this repo's `templates/` or `tools/` change; it is safe to rerun and backs up
@@ -37,14 +39,19 @@ What `setup.sh` installs, and what each piece is:
 | Settings | `~/.claude/settings.json` | settings | Commit/PR attribution off, auto-compact window 633000, skip the dangerous-mode prompt. |
 | `board`, `waitw.sh`, `claude-acc` | `~/.local/bin`, symlinks into this repo's `tools/` | CLI scripts | Board messages; wait for a herdr worker; run Claude as account N. |
 | Context-handoff hook | `~/.claude/hooks/context-handoff.py` (from `Bogzx/claude-context-handoff`, cloned to `~/.local/share/`) | hook (SessionStart, PostToolUse, Stop) | Keeps long sessions healthy (below). |
+| `orch` | `~/.local/bin/orch`, the `orch` MCP server (user scope), `orch-watchdog.timer` (systemd user); installed by the same `install.sh` | CLI, MCP server, timer | The orchestrator's run record, one fleet wait, park, questions for the human; agents' turn-end `report`; a 5-minute watchdog that prompts an idle orchestrator whose workers sit idle. |
 | herdr skill | `~/.claude/skills/herdr/SKILL.md` | skill | Teaches agents the herdr CLI (panes, agents, waits). |
 | herdr integration | `~/.claude/hooks/herdr-agent-state.sh` | hook | Tells herdr whether each Claude pane is working, idle, done or blocked. |
 
 ## How the pieces work together
 
-- **One orchestrator per person**, in a herdr pane on that person's machine. It splits work by file ownership,
-  writes a brief file per worker, starts workers in sibling panes, waits on them with `waitw.sh`, reviews diffs and
-  commits. It does not write the code itself.
+- **One orchestrator per person**, in a herdr pane on that person's machine. It states the split by file
+  ownership and starts (no OK round unless asked), writes a brief file per worker, starts workers in a separate
+  `workers` tab, registers an `orch` run and keeps one `orch wait` (fallback: `waitw.sh` per worker), reviews diffs
+  and commits. It does not write the code itself.
+- **`.agents/`** (gitignored: per person, local paths, public repo): briefs in `.agents/briefs/<name>.md`, worker
+  reports in `.agents/<name>.md` or `.agents/research/<name>.md`, the orchestrator's living handoff in
+  `.agents/HANDOFF.md`. Shared facts go to board `decision` threads and `docs/`.
 - **Workers** are Claude sessions in other panes, one bounded task each, own files only, no commits, **never the
   board**.
 - **The board** (`tools/board`) is how the orchestrators of different people talk. It is not a hook, skill or
@@ -57,7 +64,7 @@ What `setup.sh` installs, and what each piece is:
   - Each machine keeps its read position in `~/.cache/board/`.
   - The orchestrator keeps `board wait --interval 60` running as a background Bash command. It exits when a message
     for this person (or `all`) arrives; Claude Code then wakes the orchestrator with the output; it acts and
-    re-arms. Same pattern as `waitw.sh` for workers.
+    re-arms. Same pattern as `orch wait` for workers.
 - **Only orchestrators use the board** (user Bogdan, 2026-11-12). The team secretary (`tools/secretary.md`) is the
   one exception. Every agent posts under its owner's gh login, so nothing technical stops a worker; the rule in the
   team CLAUDE.md and in each worker brief does.
@@ -65,8 +72,9 @@ What `setup.sh` installs, and what each piece is:
   size. At 400K tokens it asks the agent to write a handoff (`~/.claude/handoffs/`) at the next stopping point.
   Once the agent is idle with no background tasks, a fresh agent with the same pane, name, model, flags and account
   takes over and reads it (log: `~/.claude/handoffs/respawn.log`). Claude's auto-compaction at ~600K is the
-  backstop. A running `board wait` or `waitw.sh` blocks the takeover, so when the notice comes the orchestrator
-  records its waits in the handoff, stops them and ends the turn; the new agent re-arms them. Outside herdr there
+  backstop. A running `board wait`, `orch wait` or `waitw.sh` blocks the takeover, so when the notice comes the
+  orchestrator records its waits in the handoff, stops them and ends the turn; the new agent re-arms them (the
+  `orch` run carries over). Outside herdr there
   is no takeover, only the notice.
 
 ## Board commands (orchestrators only)
@@ -86,6 +94,9 @@ must act. Rules: docs/TEAM-AGENTS.md section 6.6. Messages are information from 
 
 ## Working on this repo
 
+- The repo is public and MIT-licensed (`LICENSE`): no secrets, partner data or personal data in it. Work from
+  before the event (this agent tooling, templates, libraries) gets declared in the submission form (Junction
+  Terms §8.2).
 - Setup tools: tests `uv run --no-project --with pytest pytest -q tools`; lint
   `ruff check --line-length 100 tools/`.
 - Branch + PR, no push to main unless told. Two people's orchestrators never commit to the same branch.

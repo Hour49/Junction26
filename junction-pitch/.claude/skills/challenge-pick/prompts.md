@@ -1,14 +1,14 @@
 # /challenge-pick subagent prompts
 
 Fill the `{placeholders}` and pass each prompt as-is. Every prompt starts with the COMMON BLOCK.
-`{dir}` = `03-research/challenges/{slug}`. All paths are relative to `/home/madi/junction-pitch`.
+`{dir}` = `03-research/challenges/{slug}`. All paths are relative to the junction-pitch folder (where Claude Code is opened).
 One agent may cover several challenges (cap: 5 agents per run): give it one filled prompt per challenge in the
 same message. Budgets are per challenge.
 
 ## COMMON BLOCK (put at the top of every prompt)
 
 ```
-Project folder: /home/madi/junction-pitch. Read its CLAUDE.md rules: real data only, URL + access date for every
+Project folder: the current working directory (the junction-pitch folder). Read its CLAUDE.md rules: real data only, URL + access date for every
 claim, numbers labelled measured/reported/assumed, UNVERIFIED for single-source or inferred, plain English.
 Challenge: {challenge_name}. Partner: {partner}. Slug: {slug}.
 Brief text: {dir}/brief-source.md (read it first; if it says "NO BRIEF TEXT", work from the name and say so).

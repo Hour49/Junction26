@@ -7,3 +7,5 @@ __pycache__/
 node_modules/
 .venv/
 junction-pitch/05-team/
+# per-person agent briefs, reports and handoffs (local paths; this repo is public)
+.agents/

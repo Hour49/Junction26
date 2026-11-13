@@ -7,9 +7,9 @@
       "Read",
       "mcp__arxiv",
       "mcp__playwright",
-      "Edit(/home/madi/junction-pitch/**)",
+      "Edit(/**)",
       "Bash(python3 .claude/skills/:*)",
-      "Bash(/home/madi/.cache/deck-venv/bin/python .claude/skills/:*)"
+      "Bash(~/.cache/deck-venv/bin/python .claude/skills/:*)"
     ]
   }
 }
