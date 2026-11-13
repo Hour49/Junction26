@@ -487,3 +487,6 @@ body.theme { --pri: #6b4fd8; --pri-dark: #2f2170; --pri-soft: #efeafd; --ok: #6b
 .cfimg svg { width: 100%; height: 100%; }
 .cfcap { font-size: 12.5px; color: var(--mute); max-width: 520px; }
 .cfev [data-ev] { font-size: 16px; padding: 10px 22px; border-radius: 10px; }
+.theme .cf.solved, .theme .cf.solved.done { box-shadow: 0 0 0 2px #2c9a5b, 0 6px 18px rgba(47, 33, 112, 0.06); }
+.approved { display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 8px; background: #dcf3e4; color: #1f7a45;
+  font-weight: 700; border: 1px solid #9fd8b4; }

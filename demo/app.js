@@ -382,6 +382,8 @@ const CONFLICTS = [
     rules: ['A room label is only used when OCR is over 80% sure.', 'A room without a label is never guessed.'],
     why: 'Both readings are under 80%. The photo is 320×240, too small to settle it.' },
 ];
+// The AI's decisions are approved by default; the user only steps in to modify one.
+CONFLICTS.forEach((c) => { if (c.ai !== null) c.verdict = 'approved'; });
 const finalPick = (c) => (c.verdict === 'approved' ? c.ai : c.pick ?? null);
 const resolved = (c) => finalPick(c) !== null;
 const cfList = (mode) => CONFLICTS.filter((c) => (mode === 'solved') === (c.ai !== null));
@@ -737,7 +739,7 @@ function conflictSummaryHTML() {
   const tile = (l, mode, title, sub, btn) => `<div class="cftile${n(l) === l.length ? ' ok' : ''}"><span class="lbl">${title}</span>
     <b>${n(l)} / ${l.length}</b><span>${sub}</span><button class="btn${n(l) === l.length ? '' : ' primary'}" data-cf="${mode}">${btn}</button></div>`;
   return `<div class="cfsum"><h2>${CONFLICTS.length} conflicts found <small>two readings of the same thing disagree</small></h2>
-    <div class="cftiles">${tile(sol, 'solved', 'Solved by the AI', 'checked by you', 'Approve solved conflicts')}${tile(uns, 'unsolved', 'Unsolved', 'variant chosen by you', 'See unsolved conflicts')}</div>
+    <div class="cftiles">${tile(sol, 'solved', 'Solved by the AI', 'approved by default', 'Review solved conflicts')}${tile(uns, 'unsolved', 'Unsolved', 'variant chosen by you', 'See unsolved conflicts')}</div>
     <p class="cfgate">${all ? 'Every conflict is settled. The workspace answers from your decisions.' : 'The workspace opens when every conflict is approved or settled by you.'}</p>
     <div class="run-actions"><button class="btn" id="again">New archive</button><button class="btn primary" id="open" ${all ? '' : 'disabled'}>Open the workspace</button></div></div>`;
 }
@@ -767,11 +769,11 @@ function conflictHTML(c) {
   const vars = c.v.map((x, i) => `<div class="cfvar${fin === i ? ' chosen' : ''}${c.ai === i ? ' ai' : ''}"><span class="lbl">Variant ${i + 1}${c.ai === i ? ' · AI decision' : ''}</span><b>${esc(x.label)}</b><span>${esc(x.src)}</span></div>`).join('');
   const pickBtns = c.v.map((x, i) => `<button class="btn" data-pick="${c.id}:${i}">Use variant ${i + 1}: ${esc(x.label)}</button>`).join('');
   let act;
-  if (fin !== null) act = `<p class="signed">${c.verdict === 'approved' ? `Approved by you: variant ${c.ai + 1}.` : `You chose variant ${fin + 1}${denied ? ', over the AI decision' : ''}.`}</p><button class="btn small" data-reset="${c.id}">Change</button>`;
+  if (c.verdict === 'approved') act = `<span class="approved">✓ Approved: variant ${c.ai + 1}</span><button class="btn" data-verdict="${c.id}:denied">Modify</button>`;
+  else if (fin !== null) act = `<p class="signed">You chose variant ${fin + 1}${denied ? ', over the AI decision' : ''}.</p><button class="btn small" data-reset="${c.id}">Change</button>`;
   else if (c.ai === null) act = `<p class="cfask">Choose the variant that is right:</p>${pickBtns}`;
-  else if (denied) act = `<p class="cfask">You denied the AI decision. Pick the right variant yourself:</p>${pickBtns}<button class="btn small" data-reset="${c.id}">Cancel</button>`;
-  else act = `<button class="btn ok" data-verdict="${c.id}:approved">Approve</button><button class="btn no" data-verdict="${c.id}:denied">Deny</button>`;
-  return `<article class="card cf${fin !== null ? ' done' : ''}${c.ai === null ? ' unsolved' : ''}"><header><div><h3>${esc(c.title)}</h3><span class="nm">${esc(c.file)}</span></div>
+  else act = `<p class="cfask">Pick the right variant yourself:</p>${pickBtns}<button class="btn small" data-reset="${c.id}">Cancel</button>`;
+  return `<article class="card cf${fin !== null ? ' done' : ''}${c.ai === null ? ' unsolved' : ' solved'}"><header><div><h3>${esc(c.title)}</h3><span class="nm">${esc(c.file)}</span></div>
     <span class="chip ${fin !== null ? 'ok' : c.ai === null ? 'warn' : 'info'}">${fin !== null ? 'settled' : c.ai === null ? 'needs you' : 'to approve'}</span></header>
     ${c.ai === null ? `<div class="cfev">${c.showEv ? `<div class="cfimg">${evidenceSVG(c)[0]}</div><p class="cfcap">${esc(evidenceSVG(c)[1])}</p>` : ''}
       <button class="btn small" data-ev="${c.id}">${c.showEv ? 'Hide evidence' : 'Show evidence'}</button></div>` : `<div class="cfvars">${vars}</div>`}
@@ -796,7 +798,7 @@ function conflictsClick(ev) {
   if ((el = t('[data-ev]'))) { c = get(el.dataset.ev); c.showEv = !c.showEv; return renderConflicts(); }
   if ((el = t('[data-verdict]'))) { const [id, v] = el.dataset.verdict.split(':'); c = get(id); c.verdict = v; c.pick = null; }
   else if ((el = t('[data-pick]'))) { const [id, i] = el.dataset.pick.split(':'); c = get(id); c.pick = +i; }
-  else if ((el = t('[data-reset]'))) { c = get(el.dataset.reset); c.verdict = null; c.pick = null; }
+  else if ((el = t('[data-reset]'))) { c = get(el.dataset.reset); c.verdict = c.ai === null ? null : 'approved'; c.pick = null; }
   else return;
   if (c.apply) c.apply(finalPick(c));
   renderConflicts();
