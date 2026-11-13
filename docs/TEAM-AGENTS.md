@@ -1,6 +1,6 @@
 # Team agent setup: herdr, orchestrators, context handoff, and the GitHub board
 
-Written 2026-11-03 by Bogdan's Claude Code session, from his working setup on dev1 (herdr 0.9.5, Claude Code running
+Written 2026-11-03 by Bogdan's Claude Code session, from his working setup on his desktop (herdr 0.9.5, Claude Code running
 the Claude Opus 5.5 model, gh 2.102). Revised the same day after a review by a separate Claude (Fable 5.1) agent;
 the fixes are listed in section 8. The audience is the Hour49 team (Bogzx, Cucuteanu-Tudor-912, bbeatricecretu, madabotos)
 preparing for Junction 2026. Follow it top to bottom once; after that, sections 4 to 6 are the daily reference.
@@ -52,8 +52,8 @@ Everyone runs the same stack on their own machine:
   `idle`, `done` or `blocked`. It has a CLI, so one agent can split panes, start other agents, prompt them and
   wait for them.
 - **The orchestrator** is a normal interactive Claude Code session in a herdr pane that you have told it is the
-  orchestrator. It uses the herdr CLI to run workers in sibling panes. You can watch every worker live and type
-  into any of them.
+  orchestrator. It uses the herdr CLI to run workers in a separate `workers` tab, and the `orch` CLI to track
+  them. You can watch every worker live and type into any of them.
 - **Workers** are more Claude Code sessions, each with one brief file, a list of files it owns, and a report to write.
 - **The context-handoff hook** (public repo `Bogzx/claude-context-handoff`) stops long sessions from degrading. At
   400K tokens it asks the agent to write a handoff, then replaces it with a fresh agent that continues from it.
@@ -74,6 +74,9 @@ git clone https://github.com/Hour49/Junction26.git ~/Repo/Junction26
 ~/Repo/Junction26/tools/setup.sh
 ```
 
+`~/Repo/Junction26` is the default; any path works, and setup links the tools from wherever the clone is. Later
+commands in this guide use the default path, so substitute yours.
+
 `tools/setup.sh` does 2.3 to 2.8 for you. It is safe to rerun, it only touches files under `$HOME`, and it backs up
 every file before changing it (`<file>.bak-<time>`):
 
@@ -81,7 +84,8 @@ every file before changing it (`<file>.bak-<time>`):
   (details in [10.1](#101-claudeclaude-md-installed-by-toolssetupsh)). On a machine with no CLAUDE.md yet, it also
   adds a "Who and where" stub for you to fill in;
 - sets attribution off and `skipDangerousModePermissionPrompt` in `~/.claude/settings.json`;
-- installs the context-handoff hook and the herdr skill, and runs `herdr integration install claude`;
+- installs the context-handoff hook with `orch` (CLI, MCP server, watchdog timer; see 2.4) and the herdr skill, and
+  runs `herdr integration install claude`;
 - links `board`, `claude-acc` and `waitw.sh` into `~/.local/bin`;
 - lists any missing programs instead of installing system packages.
 
@@ -144,14 +148,25 @@ cd ~/src/claude-context-handoff && ./install.sh
 jq '.env, (.hooks | keys)' ~/.claude/settings.json
 ```
 
-`install.sh` copies two Python files to `~/.claude/hooks/` and merges into `~/.claude/settings.json`, keeping a
-backup (`settings.json.bak-<time>`) whenever it changes anything:
+`install.sh` copies the hook and `orch` (Python, standard library only) to `~/.claude/hooks/` and merges into
+`~/.claude/settings.json`, keeping a backup (`settings.json.bak-<time>`) whenever it changes anything:
 
 - `env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = "633000"` (auto-compaction at about 600K instead of the default)
 - `env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS = "400000"`
 - `python3 ~/.claude/hooks/context-handoff.py` on `SessionStart` (startup/clear/compact), `PostToolUse` and `Stop`.
 
-Section 5 explains what it does. Running sessions pick it up the next time they start.
+It also installs the orchestration tools that 4.5 uses:
+
+- the `orch` CLI (`~/.local/bin/orch` links to `~/.claude/hooks/orch.py`): runs, the fleet wait, park, questions
+  for the human, accounts (`orch --help`);
+- the `orch` MCP server at user scope, in every account (`claude mcp add --scope user orch ...`), with the tools
+  `report` (an agent's state at the end of a working turn) and `ask_owner` (the same as `orch ask`);
+- the `orch-watchdog.timer` systemd user timer: every 5 minutes it prompts an orchestrator with a registered run
+  whose workers sit idle. Without a systemd user manager (macOS, WSL2 without systemd) install.sh says so, and the
+  watchdog doesn't run.
+
+Section 5 explains the hook. Running sessions pick it up the next time they start. The repo's README
+(`Bogzx/claude-context-handoff`, section "Orchestration runs (orch)") is the full `orch` reference.
 
 ### 2.5 Global Claude settings
 
@@ -188,21 +203,34 @@ to `~/.claude`:
 ```bash
 claude-acc 1 ...   # = claude --dangerously-skip-permissions ...
 claude-acc 2 ...   # same, with CLAUDE_CONFIG_DIR=~/.claude-2
-# aliases Bogdan uses: alias pibo='claude-acc 1' pibo2='claude-acc 2'
 ```
 
-Install it from this repo: `ln -s ~/Repo/Junction26/tools/claude-acc ~/.local/bin/claude-acc`. The first run
-of `claude-acc 2` creates `~/.claude-2`; log in there once with `/login`. The handoff
-takeover keeps the account, because it re-applies `CLAUDE_CONFIG_DIR`. A common split: orchestrator on account 1,
-workers on account 2, so a busy worker pool can't lock the orchestrator out.
+`tools/setup.sh` links it into `~/.local/bin`. The first run of `claude-acc 2` creates `~/.claude-2`; log in there
+once with `/login`. The handoff takeover keeps the account, because it re-applies `CLAUDE_CONFIG_DIR`. A common
+split: orchestrator on account 1, workers on account 2, so a busy worker pool can't lock the orchestrator out.
+
+**Workers on account 2.** `herdr agent start` runs Claude with the pane's environment, so the account is chosen
+when the pane is created:
+
+```bash
+herdr pane split <worker pane> --direction down --cwd "$PWD" --no-focus --env CLAUDE_CONFIG_DIR=$HOME/.claude-2
+herdr agent start fe --kind claude --pane <NEW_PANE> -- --dangerously-skip-permissions --model opus
+```
+
+`herdr tab create` takes `--env` too. The other way is to type the command into a plain pane and name it:
+`herdr pane run <PANE> "claude-acc 2 --model opus"`, then `herdr agent rename <PANE> fe`.
+
+**At a usage limit.** Let the worker finish the item it is on, then move it: `orch account <pane> 2 --when-idle`
+switches it at its next turn end (a large context first writes a handoff, and the fresh agent starts on account 2).
+`orch account <pane> 2 --now` is for an idle agent with no background tasks. The first time an account opens a
+folder, Claude asks whether to trust it; answer that in the pane.
 
 ### 2.8 The board tool
 
 It is in this repo: `tools/board` (Python 3 stdlib only, calls `gh`). Put it on your PATH:
 
 ```bash
-git clone https://github.com/Hour49/Junction26.git ~/Repo/Junction26
-ln -s ~/Repo/Junction26/tools/board ~/.local/bin/board
+ln -s ~/Repo/Junction26/tools/board ~/.local/bin/board   # setup.sh does this; use your clone's path
 board threads                       # lists open board threads
 ```
 
@@ -225,6 +253,9 @@ herdr integration status                               # claude: current (v11)
 ls ~/.claude/skills/herdr/SKILL.md                     # exists
 ls ~/.claude/hooks/context-handoff.py                  # exists
 jq -r .env.CLAUDE_CODE_AUTO_COMPACT_WINDOW ~/.claude/settings.json   # 633000
+orch --help | head -1                                  # usage: orch [-h] [--orch ORCH]
+claude mcp get orch | grep Status                      # Status: ✔ Connected
+systemctl --user is-active orch-watchdog.timer         # active (Linux with systemd only)
 gh auth status 2>&1 | grep -o "'repo'"                 # 'repo'
 board read                                             # (no unread board messages); the first run
                                                        # also says how many old messages it skipped
@@ -245,12 +276,16 @@ herdr pane close <PANE_ID>                                                      
 ### 4.1 Start the orchestrator
 
 1. `cd` into the repo, run `herdr`, and start Claude in the first pane: `claude --dangerously-skip-permissions`
-   (or `pibo`). Opus, effort medium or high.
-2. Tell it its role and the goal, e.g.:
+   (or `claude-acc 1`). Opus, effort high or xhigh.
+2. Tell it its role and the goal (full template in [10.2](#102-orchestrator-kickoff-prompt)), e.g.:
 
    > You are the orchestrator for <goal>. Read docs/TEAM-AGENTS.md and the repo's CLAUDE.md. Split the work by file
-   > ownership into N workers, write a brief per worker under ops/briefs/, start them in herdr panes, and keep the
-   > handoff doc ops/HANDOFF.md current. Watch the board for messages addressed to me.
+   > ownership into N workers, state the split in one message, then write a brief per worker under .agents/briefs/
+   > and start them in a herdr `workers` tab. Register the run with `orch run start` and keep .agents/HANDOFF.md
+   > current. Watch the board for messages addressed to me.
+
+The orchestrator states the split and starts; it doesn't wait for an OK unless your prompt asks for one. In a
+48-hour event an OK round costs more than correcting a split afterwards.
 
 The orchestrator supervises, assigns and reviews. It does not implement. That keeps its context small enough to
 review the workers' diffs properly, and it is the main reason this setup produces better code than one agent
@@ -260,7 +295,7 @@ doing everything.
 
 Each worker owns a set of files or directories, and no two workers own the same file. A worker that needs a change in
 someone else's file asks the orchestrator, which routes the change to the owner. Several workers can share one
-working tree that way. Worktrees (one per worker) are only needed when workers commit independently.
+working tree that way. Worktrees (one per worker) are only needed when workers commit independently (4.6).
 
 Because they share a tree, workers never run `git stash`, `checkout --`, `restore`, `reset`, `clean`, switch
 branches, or format the whole repo. Any of those destroys another worker's uncommitted work. The template rules in
@@ -272,21 +307,38 @@ Shell quoting has garbled long inline prompts before. The orchestrator writes ea
 [10.3](#103-worker-brief)) and sends a one-liner:
 
 ```bash
-herdr agent prompt fe "Read ops/briefs/fe.md and do it. Report in ops/logs/fe.md, then reply short."
+herdr agent prompt <PANE> "You are worker fe (pane <PANE>). Read .agents/briefs/fe.md and do it."
 ```
 
 A brief covers: mission, files owned, files not to touch, rules (or a pointer to a common-rules file, see
 [10.4](#104-common-rules-for-every-worker)), how to verify, where to report.
 
+Where the files go:
+
+- briefs: `.agents/briefs/<name>.md`, plus `.agents/briefs/common.md` for the rules every worker shares;
+- worker reports: `.agents/<name>.md`, or `.agents/research/<name>.md` for research;
+- the orchestrator's living handoff: `.agents/HANDOFF.md` (4.7).
+
+`.agents/` is gitignored in this repo: it is per person, it holds local paths, and the repo is public. Facts the
+team shares go to a board `decision` thread and to `docs/`.
+
 ### 4.4 Start workers
 
+Workers run in a tab of their own, never in the orchestrator's pane or tab (user Bogdan, 2026-11-13), so the
+orchestrator's pane stays readable:
+
 ```bash
-# 1. a pane next to the orchestrator; read the new pane id from .result.pane.pane_id
-herdr pane split --current --direction right --cwd "$PWD" --no-focus
-# 2. a named Claude in it (names: [a-z][a-z0-9_-]{0,31}, unique among live agents)
-herdr agent start fe --kind claude --pane <PANE_ID> -- --dangerously-skip-permissions --model opus
-# second account instead: start a shell pane with --env CLAUDE_CONFIG_DIR=$HOME/.claude-2,
-# or type the command:  herdr pane run <PANE_ID> "pibo2 --model sonnet"  then  herdr agent rename <PANE_ID> fe
+# once per run: a tab for the workers; .result.root_pane.pane_id is its first pane, .result.tab.tab_id the tab
+herdr tab create --label workers --cwd "$PWD" --no-focus
+# a named Claude in that pane (names: [a-z][a-z0-9_-]{0,31}, unique among live agents)
+herdr agent start fe --kind claude --pane <ROOT_PANE> -- --dangerously-skip-permissions --model opus
+# more workers: split inside the workers tab; the new pane id is .result.pane.pane_id
+herdr pane split <ROOT_PANE> --direction down --cwd "$PWD" --no-focus
+herdr agent start be --kind claude --pane <NEW_PANE> -- --dangerously-skip-permissions --model sonnet
+# a worker that ended up beside the orchestrator: move it into the workers tab
+herdr pane move <PANE> --tab <WORKERS_TAB> --target-pane <ROOT_PANE> --split right
+#   (or into a new tab: herdr pane move <PANE> --new-tab --tab-label workers)
+# second account: add --env CLAUDE_CONFIG_DIR=$HOME/.claude-2 to the split or the tab create (2.7)
 ```
 
 Rules of thumb from Bogdan's runs:
@@ -294,17 +346,44 @@ Rules of thumb from Bogdan's runs:
 - Target workers by **pane ID** (`w18:p4`) in scripts. Names are not unique over time.
 - Opus for anything that needs judgement; Sonnet for simple, mechanical or read-only work. Pick the model per
   worker on purpose and don't swap it silently.
-- Keep the worker count proportionate. Each worker burns usage, and usage is limited. Three or four busy workers
-  usually beat eight half-idle ones.
+- Effort (`--effort` after the `--`): high or xhigh for hard work, medium for the rest, never max.
+- Keep the worker count proportionate. Each worker burns usage, and usage is limited. Start with two or three;
+  park the idle ones (4.5). Three or four busy workers usually beat eight half-idle ones.
 - Check RAM before heavy jobs (`free -g`). Run test suites and builds one at a time, capped:
   `nice -n 15 systemd-run --user --scope -p MemoryMax=4G <cmd>`. An OOM inside herdr once killed every agent.
 
 ### 4.5 Get notified when a worker finishes
 
-The orchestrator runs one background Bash per worker. Claude Code wakes the orchestrator when it exits:
+The orchestrator registers its run once, then keeps **one** `orch wait` running as a background Bash. Claude Code
+wakes the orchestrator when the wait exits:
 
 ```bash
-tools/waitw.sh <PANE_ID>      # arm it first, then: herdr agent prompt <PANE_ID> "Read ops/briefs/... and do it"
+orch run start --until 18:00 --goal "<the human's words>" --workers w18:p4=fe,w18:p5=be
+orch wait                    # background; returns on the first event, one line per worker
+orch last w18:p4             # that worker's last message and background tasks
+orch run set --add w18:p6=qa # or --remove w18:p5; orch run stop when the work is done
+```
+
+`--until` takes `HH:MM`, `YYYY-MM-DD HH:MM` or `+4h`. `orch wait` returns when a worker's turn ended with nothing
+left running, a worker is blocked at a dialog, a pane lost its agent, a worker has waited 90 minutes on its own job,
+a `--check '<cmd>'` exits 0 (CI, a deploy), or after a 30-minute heartbeat. Each event is reported once. Re-arm the
+wait after every exit, and don't write your own wait loops. The run survives the orchestrator's handoff, and the
+watchdog timer (2.4) prompts an idle orchestrator whose workers sit idle.
+
+Also from `orch`:
+
+- `orch park <pane> --reason "..." [--until HH:MM]`: a worker stands by on purpose, so the watchdog doesn't flag
+  it. It ends at the worker's next task.
+- `orch ask "<question>"`: a question for the orchestrator's human, logged in the run and shown as a herdr
+  notification. Batch decisions into one question and keep the rest of the fleet working. Workers never use it
+  (nor the `ask_owner` MCP tool); their questions go to the orchestrator.
+- The `report` MCP tool: the orchestrator and every worker of an active run call it at the end of each working
+  turn. If a turn used tools and didn't call it, the Stop hook blocks the turn's end once and asks for it.
+
+No `orch` on the machine (setup ran with `--offline`, or the install failed): one background `waitw.sh` per worker.
+
+```bash
+waitw.sh <PANE_ID>      # arm it first, then: herdr agent prompt <PANE_ID> "Read .agents/briefs/... and do it"
 # = herdr agent wait <pane> --until working --timeout 60000
 #   herdr agent wait <pane> --until idle --until done --until blocked --timeout 7200000
 ```
@@ -313,11 +392,15 @@ It waits up to 60 s for the worker to start working, then up to 2 h for it to st
 the worker was already in. Arm it **before** sending the prompt. If the worker finishes a tiny task before the wait
 starts, the first step times out after 60 s and the second returns at once, so you hear about it a minute late at
 most. It prints `<pane> finished <time> (<status>)`, or `<pane> WAIT FAILED ...` with exit 1 (pane gone, agent
-exited); treat a failure as "go look". On each finish the orchestrator:
+exited); treat a failure as "go look".
 
-1. reads the worker's report (and `herdr agent read <pane> --source recent-unwrapped --lines 120` if needed),
-2. reviews the diff against the code, critically: tests that fail without the fix, no band-aids, files only the
-   worker owns,
+On each finish the orchestrator:
+
+1. reads the worker's report (`orch last <pane>`, the report file, and
+   `herdr agent read <pane> --source recent-unwrapped --lines 120` if needed). A finished wait is not a check.
+2. reviews the diff against the code, critically: a test that fails without the fix, the root cause and not a
+   band-aid, the fix checked against the original repro, files only the worker owns. A label in the report ("copy",
+   "notes") can hide what the diff really changes. A different worker verifies fixes the demo depends on.
 3. sends corrections or the next task straight away, and re-arms the wait. No worker sits idle without guidance.
 
 `blocked` means a question or approval dialog is on screen. The orchestrator reads it and asks you if it is your call.
@@ -328,16 +411,21 @@ If a prompt seems lost (`agent_prompt_stalled`) or a worker's output can't be re
 ### 4.6 Tests and commits
 
 - Workers test offline and run only the test files they touched.
-- The orchestrator runs the full suite once per batch, commits the integrated work (staging files by name), and
-  sends failures back as one batch per owner.
+- The orchestrator runs the full suite once per batch, commits a checkpoint on the branch after each verified round
+  (staging files by name), and sends failures back as one batch per owner. It pushes once per round, not after
+  every commit: each push can start CI or a deploy.
+- Workers that must commit independently each get a worktree beside the main clone, one branch each:
+  `git worktree add ../<repo>-<topic> -b <area>/<topic>`. After the merge, `git worktree remove ../<repo>-<topic>`
+  (check `git worktree list`; remove only the ones you created).
 - `/clear` a worker before giving it an unrelated task. Don't `/clear` to manage context; the handoff hook does that.
 
 ### 4.7 The orchestrator's own handoff doc
 
-The orchestrator keeps a living doc in the repo (e.g. `ops/HANDOFF.md`) that is always true: goal, how the work is
-organised, who owns what (pane ID, name, model, files), current state, next steps, decisions with dates. Chat
-history doesn't travel. If your machine dies, a teammate's orchestrator can pick up your part from that file and the
-board thread.
+The orchestrator keeps a living doc, `.agents/HANDOFF.md`, that is always true: goal (the human's words), how the
+work is organised, who owns what (pane ID, name, model, files), current state, next steps, decisions with who and
+when (the human's words verbatim). Stale lines get replaced, not appended to, so it stays short; a fresh orchestrator
+reads it whole. Chat history doesn't travel. `.agents/` isn't pushed, so anything a teammate needs if your machine
+dies goes into the board thread and `docs/`.
 
 ### 4.8 Words the orchestrator uses with workers
 
@@ -349,7 +437,7 @@ board thread.
 ## 5. Context handoff: how long sessions survive
 
 Source: `~/.claude/hooks/context-handoff.py`, repo `Bogzx/claude-context-handoff` (public; its README is the full
-spec). Installed on Bogdan's three machines since 2026-10-24. `~/.claude/handoffs/respawn.log` on dev1 logs 29 live takeovers on 2026-10-30/31 alone, across six parallel
+spec). Installed on Bogdan's three machines since 2026-10-24. `~/.claude/handoffs/respawn.log` on his desktop logs 29 live takeovers on 2026-10-30/31 alone, across six parallel
 workers and the orchestrator.
 
 ### 5.1 Stages
@@ -375,7 +463,8 @@ When the agent ends the turn after writing the handoff, a detached process:
 4. restores the agent's herdr name and prompts it to read the decision log, then the handoff, and continue.
 
 From the outside the worker keeps its pane ID and name and carries on. The orchestrator doesn't need to do anything.
-A worker restart shows up in `~/.claude/handoffs/respawn.log`. When it does, re-arm `waitw.sh` on that pane.
+A worker restart shows up in `~/.claude/handoffs/respawn.log`. `orch wait` follows the pane; a `waitw.sh` on that
+pane has to be re-armed.
 
 ### 5.3 The decision log
 
@@ -389,8 +478,9 @@ the numbers).
 ### 5.4 Background tasks block the takeover
 
 `/exit` would kill background tasks, so the takeover waits until none are running. That includes the
-orchestrator's `waitw.sh` loops and its `board wait`. When its own handoff notice comes, the orchestrator writes
-each running wait into the handoff (exact command), stops them, then ends the turn. The new orchestrator re-arms them.
+orchestrator's `orch wait` (or `waitw.sh` loops) and its `board wait`. When its own handoff notice comes, the orchestrator writes
+each running wait into the handoff (exact command), stops them, then ends the turn. The new orchestrator re-arms them;
+the `orch` run carries over by itself.
 
 ### 5.5 Outside herdr
 
@@ -473,7 +563,7 @@ body and URL. Your own messages and messages addressed only to others are skippe
 ### 6.5 How an orchestrator uses it
 
 - Keep one `board wait --interval 60` running as a background Bash. When it exits, Claude Code wakes the
-  orchestrator with the messages. It acts on them, then re-arms the wait. This is the same pattern as `waitw.sh`.
+  orchestrator with the messages. It acts on them, then re-arms the wait. This is the same pattern as `orch wait`.
   Worst-case latency is the interval plus a few seconds of GitHub API delay (16 s with a 10 s interval in the test).
 - **Re-arm on every exit, whatever the exit code.** GitHub errors (504s, rate limits, network) are retried inside
   `wait` with backoff; it exits 2 only after 30 minutes of nothing but errors, and then the orchestrator tells its
@@ -579,7 +669,7 @@ vars. It keeps its "already flagged" list in `~/.cache/board/secretary-notes.md`
 
 ## 8. Board test results, 2026-11-03
 
-Run on dev1 against `Hour49/junction-26-prep`, as gh user Bogzx, simulating two orchestrators with
+Run on Bogdan's desktop against `Hour49/junction-26-prep`, as gh user Bogzx, simulating two orchestrators with
 `BOARD_ME=bogdan` and `BOARD_ME=sim-tudor` and separate state files. Test thread:
 https://github.com/Hour49/junction-26-prep/issues/1 (closed).
 
@@ -637,7 +727,7 @@ end to end. Do that in the first team rehearsal (section 9).
 - **Usage limits**: four people × (orchestrator + 3 or 4 workers) for 48 hours is heavy. Each person should check
   `/usage` early and decide on Sonnet for simple workers. Measure the burn rate in the rehearsal.
 - **Busy-agent prompts**: whether `herdr agent prompt` to a worker in the middle of a turn queues cleanly has not
-  been checked carefully. The orchestrator prompts workers only when they are idle (that is what `waitw.sh` is for).
+  been checked carefully. The orchestrator prompts workers only when they are idle (that is what `orch wait` is for).
 - **Secretary judgement**: conflict detection depends on how much the orchestrators say in their messages. Ask them
   to name files, endpoints and branches in requests and statuses.
 - **`board wait` blocks the handoff takeover** while it runs (5.4). The orchestrator has to stop and record it. A
@@ -656,12 +746,16 @@ end to end. Do that in the first team rehearsal (section 9).
 
 The global instructions every Claude session on your machine loads. `tools/setup.sh` writes them in two parts:
 
-- `templates/personal-claude.md`: who you are and your machine. Copied only when you have no `~/.claude/CLAUDE.md`
-  yet; fill in the `<...>` placeholders afterwards.
-- `templates/team-claude.md`: the team rules (agents, orchestrator, workers, board, code, git, ask first). Kept
-  between `<!-- hour49-team:begin -->` and `<!-- hour49-team:end -->` markers. A rerun of setup replaces only that
-  block, so your own instructions around it stay, and a rule change is a commit to the template plus
-  `git pull && tools/setup.sh` on each machine.
+- `templates/personal-claude.md`: who you are, your machine and your Claude accounts. Copied only when you have no
+  `~/.claude/CLAUDE.md` yet; fill in the `<...>` placeholders afterwards.
+- `templates/team-claude.md`: the team rules (agents, orchestrator, workers, board, hackathon, code, machine
+  resources, git, ask first, writing). Kept between `<!-- hour49-team:begin -->` and `<!-- hour49-team:end -->`
+  markers. A rerun of setup replaces only that block, so your own instructions around it stay, and a rule change is
+  a commit to the template plus `git pull && tools/setup.sh` on each machine.
+
+Your own text outside the block wins where it is more specific (your wait tool, models, machines, production
+systems); where both cover the same thing, the stricter rule wins. Most team rules apply in every project; the
+board and hackathon sections say "Junction26 only".
 
 ### 10.2 Orchestrator kickoff prompt
 
@@ -669,19 +763,22 @@ The global instructions every Claude session on your machine loads. `tools/setup
 You are the orchestrator for <goal, one paragraph, including what done means and the deadline>.
 Repo: <path>, branch <branch>. Read docs/TEAM-AGENTS.md sections 4-6 and the repo CLAUDE.md first.
 Budget: at most <N> workers; Opus for <...>, Sonnet for <...>.
-1. Propose the split by file ownership (worker name, model, owned paths, first task) and wait for my OK.
-2. Then write ops/briefs/<name>.md per worker plus ops/briefs/common.md, start the workers, arm the waits.
-3. Keep ops/HANDOFF.md true at all times.
+1. State the split by file ownership (worker name, model, owned paths, first task) in one message, then start.
+2. Write .agents/briefs/<name>.md per worker plus .agents/briefs/common.md, start the workers in a `workers` tab,
+   register the run (orch run start --until <deadline> --goal "<this goal>" --workers ...), arm one orch wait.
+3. Keep .agents/HANDOFF.md true at all times.
 4. Board: arm `board wait --interval 60`. My teammates' orchestrators are on the board as <logins>.
    Post a status in the thread "status: <me>" at each milestone. Anything outside this brief comes to me.
 ```
+
+Add "Propose the split and wait for my OK" to step 1 if you want to approve it first.
 
 ### 10.3 Worker brief
 
 ```markdown
 # <name>: <task title> — <date>, orchestrator pane <pane id>
 
-Read ops/briefs/common.md first (rules for every worker).
+Read .agents/briefs/common.md first (rules for every worker).
 
 ## Mission
 <what and why, self-contained; what done means>
@@ -697,9 +794,37 @@ Read ops/briefs/common.md first (rules for every worker).
 <exact commands and expected results; tests that fail without the change>
 
 ## Report
-Append to ops/logs/<name>.md: what changed (file:line), how verified (command + result), open issues for other
-owners. Then reply in 3 lines and stop.
+Write .agents/<name>.md: what changed (file:line), how verified (command + result), what needs a live test, open
+issues for other owners. Then reply in 3 lines and stop.
 ```
+
+### 10.3a QA brief and fix brief
+
+For a demo, one QA round on the real build before the pitch is worth more than many small ones. QA workers are
+read-only and write repro scripts; fix workers get their reports.
+
+```markdown
+# qa-<area>: test <what> — <date>, orchestrator pane <pane id>
+Read .agents/briefs/common.md first. Read-only: you edit no app code.
+## Test
+<flows, pages, endpoints>. Production build at <url or command>; phone width (390x844) and desktop; empty,
+loading and error states. Take screenshots and look at each one.
+## Output
+- .agents/qa/<area>.md: one entry per bug: id, severity (blocker / major / minor), steps, expected vs actual,
+  evidence (screenshot path, log line).
+- .agents/qa/<id>.<ext>: a repro script per bug that exits non-zero while the bug is there and 0 once it is fixed.
+Then reply in 3 lines and stop.
+```
+
+```markdown
+# fix-<area>: fix <bug ids> — <date>, orchestrator pane <pane id>
+Read .agents/briefs/common.md first. Bugs: .agents/qa/<area>.md (<ids>). You own <paths>.
+Fix the root cause, not the symptom. Each fix gets a test that fails without it; the repro script must pass.
+Before reporting, check your own fix for band-aids and for new failure modes it creates.
+Report in .agents/fix-<area>.md (per bug: cause, fix at file:line, test, repro result), then reply in 3 lines.
+```
+
+The orchestrator then has a different worker (usually the QA one) rerun the repro scripts against the fixed code.
 
 ### 10.4 Common rules for every worker
 
@@ -708,10 +833,13 @@ owners. Then reply in 3 lines and stop.
 - Work only in the files your brief gives you. Need a change elsewhere: say so in your report.
 - Shared working tree: no stash/reset/clean/restore/checkout --/branch switching; format only your own files.
 - No commits or pushes unless your brief says so. Never spawn agents.
-- Never use the team board (`board`). Need something from another person's side: put it in your report.
+- Never use the team board (`board`), and never ask the human (no `orch ask`): questions go in your report.
+- Bug fixes start with a repro or a failing test.
 - Tests: deterministic (no sleeps, no network); run only the files you touched, capped:
   `nice -n 15 systemd-run --user --scope -q -p MemoryMax=2G <cmd>`.
+- Report only what you ran ("ran `<cmd>`: N passed", or "not run"), never "passes" for code you only read.
 - Secrets only in .env; never print them. No paid API calls unless the brief says so.
 - Never `rm -rf` a variable or glob; delete explicit files only.
-- Report: ops/logs/<name>.md + a short reply (file:line, exact verify command + result, issues for others).
+- Report: .agents/<name>.md + a short reply (file:line, exact verify command + result, what needs a live test,
+  issues for others). In an `orch` run, also call the orch MCP `report` tool at the end of the turn.
 ```
