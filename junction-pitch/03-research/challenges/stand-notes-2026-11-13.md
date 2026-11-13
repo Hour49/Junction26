@@ -147,6 +147,7 @@ year's winner do that others didn't? Would you pilot a good demo?
 - **Verda** (formerly DataCrunch, Helsinki GPU cloud, owns the AI Infrastructure track, workshop Fri 20:45): GPU credits
   and how to claim them? Serverless inference endpoints? What does the track reward (cost, latency, open models,
   fine-tuning)?
+  What Verda offers, prices and how it fits: [verda-infra.md](verda-infra.md).
 - **MariaDB** (Data track, inferred): a challenge or only credits? Vector search and RAG inside MariaDB, or their
   cloud? An MCP server? Could stack on Stoa or Valio Aimo.
 - **AstraZeneca** (Healthcare track, inferred): which data, synthetic? R&D, clinical trials, patients? Regulatory
