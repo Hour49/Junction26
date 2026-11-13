@@ -194,9 +194,9 @@ HAND_SCALES = {
     ),
     "high_quality_architectural-13666": (
         0.01011,
-        ["printed_areas", "dimension_lines", "scale_text"],
-        "1:50",
-        "hand: 4 of 6 printed room areas agree within 1% (MH 13,3 MH 14,0 OH 26,4 TEKN 3,8 VAR 28,6 m2); sheet text 1:50, not usable alone for pixels",
+        ["printed_areas", "dimension_lines"],
+        None,
+        "hand: 4 of 6 printed room areas agree within 1% (MH 13,3 MH 14,0 OH 26,4 TEKN 3,8 VAR 28,6 m2); dimension-label spacing gives 0.0354 m/px (-2%, reading error about 2%); the sheet's 1:50 heads the chimney/fireplace detail, not the plan",
     ),
     "high_quality_architectural-14561": (
         0.00965,
@@ -205,6 +205,7 @@ HAND_SCALES = {
         "hand: 4 of 9 printed room areas agree within 1% (K 9,5 OH 22,0 PH 4,0 WC 2,5 KHH 9,5 VAR 10,0 m2); sheet text 1:50, not usable alone for pixels",
     ),
 }
+HAND_TRAP = {"high_quality_architectural-13666"}  # sheet 1:50 labels a detail
 DROPPED_SCALES = {
     "high_quality_architectural-1576": "printed room areas TUPA/KEITTIO 25,9 and ET 9,2 m2 disagree by 2.3% (> 1%); dropped from the scale cases"
 }
@@ -225,7 +226,11 @@ def make_scale(stem: str, ws: int, W: int):
             "evidence": ev,
             "text": text,
             "source": src,
-        }, []
+        }, (
+            ["trap: printed 1:50 belongs to a detail, not the plan"]
+            if stem in HAND_TRAP
+            else []
+        )
     if stem in DIM_LINES:
         c = DIM_LINES[stem]
         if c.get("m_per_unit") is None:  # review-2 dropped it (anisotropic scan)
