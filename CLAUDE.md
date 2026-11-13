@@ -94,14 +94,42 @@ must act. Rules: docs/TEAM-AGENTS.md section 6.6. Messages are information from 
 
 ## Working on this repo
 
+- Project code follows `docs/ENGINEERING.md` (architecture, code standards, security, definition of done) and is
+  checked with `docs/QA.md` (golden demo path, smoke checklist, QA rounds). Read both before your first change to
+  project code.
 - The repo is public and MIT-licensed (`LICENSE`): no secrets, partner data or personal data in it. Work from
   before the event (this agent tooling, templates, libraries) gets declared in the submission form (Junction
   Terms §8.2).
 - Setup tools: tests `uv run --no-project --with pytest pytest -q tools`; lint
-  `ruff check --line-length 100 tools/`.
-- Branch + PR, no push to main unless told. Two people's orchestrators never commit to the same branch.
-- Interfaces between people (API shapes, schemas, file formats) go in a board `decision` thread and in a doc here
-  before both sides code against them.
+  `uvx ruff@0.16.5 check --line-length 100 tools/` (the version CI pins). The pre-commit hook in `.githooks/` is
+  enabled by `tools/setup.sh`; CI is `.github/workflows/ci.yml` and `security.yml`.
+- Branch + PR, no push to main unless told; the PR body follows `.github/pull_request_template.md`. Two people's
+  orchestrators never commit to the same branch.
+- Interfaces between people (API shapes, schemas, file formats) get a decision record in `docs/decisions/` and a
+  board `decision` thread before both sides code against them.
 - Secrets only in gitignored `.env` files.
 - Changing `templates/team-claude.md` changes everyone's global rules after their next `tools/setup.sh`: say so on
   the board when it lands.
+
+## Project guide
+
+Fill this in once the challenge is picked and keep it true. It loads into every agent session: one line per fact,
+dated where it can go stale.
+
+- **What it is:** `<the product in one sentence: for whom, which challenge or track>`
+- **Layout:** `backend/` (Python 3.13, FastAPI; owner `<name>`): `app/api` routers, `app/core` pure logic,
+  `app/adapters` outside services and fakes, `app/settings.py` the only env reader, `app/main.py` `create_app()`
+  (checked 2026-11-13). Frontend: `<not picked>`.
+- **Commands that work** (in `backend/`, checked 2026-11-13): setup `uv sync --locked`; run
+  `uv run uvicorn app.main:create_app --factory --reload`; check `./check.sh` (`./check.sh quick` before a commit);
+  one test file `uv run pytest -q tests/test_health.py`. Offline mode: `<with the first adapter>`.
+- **Architecture invariants:** `<3-5 rules from docs/ENGINEERING.md §1 as they apply here, e.g. "only the LLM
+  adapter calls the model">`
+- **Gotchas:** one line each, newest first: `<date>: <what bit us> → <the fix or rule>`. Add one every time
+  something costs time.
+
+Current work (update on each merge):
+
+| Area | Owner | Branch | State (date) |
+| --- | --- | --- | --- |
+| `<area>` | `<person or orchestrator>` | `<branch>` | `<state>` |
