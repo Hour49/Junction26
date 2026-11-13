@@ -8,3 +8,63 @@
 - Entry template: `.claude/skills/feedback/templates.md` ("Log entry"). Follow-up files go in `followups/`.
 
 <!-- entries: newest first -->
+
+## F-003 · 2026-11-13 17:50 · Partner rep, Stoa · OPEN
+- Based on core.md: template, not filled yet
+- Setting: booth chat (Bogdan)
+- Notes as typed: "You get architectural files, multimodal etc., written legacy, and you standardise these to make sure they are up to date, make them in a standard format, then to be able to be fed into an AI for easier access, with potential 3D drawings"
+- Signal: compliments only (no data offered yet)
+
+**Liked** — · **Concerns** — · **Similar products named** — · **Questions they asked** —
+
+**Research requests**
+- Who Stoa is; existing tools (Make a BIM found): [../challenges/stand-notes-2026-11-13.md](../challenges/stand-notes-2026-11-13.md) §2
+
+**Suggested idea changes** —
+
+**Actions**
+- [ ] F-003.1 Ask the Stoa rep: "Can we get a sample folder of your files tonight?" and the other §2 questions (Bogdan or Madalina)
+- [ ] F-003.2 `/challenge-pick` on the official brief after 18:00
+
+**Status log**
+- 2026-11-13 17:50 OPEN
+
+## F-002 · 2026-11-13 17:45 · Partner rep, Hostinger · OPEN
+- Based on core.md: template, not filled yet
+- Setting: booth chat (Bogdan)
+- Notes as typed: "Hostinger want an app built on their setup which detects propaganda"
+- Signal: compliments only
+
+**Liked** — · **Concerns** — · **Similar products named** — · **Questions they asked** —
+
+**Research requests**
+- What "their setup" is (Horizons, API/MCP, hosting): [../challenges/stand-notes-2026-11-13.md](../challenges/stand-notes-2026-11-13.md) §4
+
+**Suggested idea changes** —
+
+**Actions**
+- [ ] F-002.1 Ask the Hostinger rep: "Built with Horizons, or hosted on Hostinger with our own backend?" and the other §4 questions
+- [ ] F-002.2 `/challenge-pick` on the official brief after 18:00
+
+**Status log**
+- 2026-11-13 17:45 OPEN
+
+## F-001 · 2026-11-13 17:45 · Partner rep, Cala · OPEN
+- Based on core.md: template, not filled yet
+- Setting: booth chat (Bogdan)
+- Notes as typed: "Cala wants a way to find unicorn companies, like an algorithm"
+- Signal: compliments only
+
+**Liked** — · **Concerns** — · **Similar products named** — · **Questions they asked** —
+
+**Research requests**
+- Does Cala's data carry dates for a backtest: [../challenges/stand-notes-2026-11-13.md](../challenges/stand-notes-2026-11-13.md) §3
+
+**Suggested idea changes** —
+
+**Actions**
+- [ ] F-001.1 Ask the Cala rep: "Do your facts carry dates, so we can backtest which companies became unicorns?" and the other §3 questions
+- [ ] F-001.2 `/challenge-pick` on the official brief after 18:00
+
+**Status log**
+- 2026-11-13 17:45 OPEN

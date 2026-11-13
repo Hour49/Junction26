@@ -317,6 +317,9 @@ Source: [2026 site #judges](https://2026.hackjunction.com/).
 | Partner | Challenge title | Problem | Data/APIs/HW | Criteria | Prize | Source |
 |---|---|---|---|---|---|---|
 | *All 2026 partners* | **Not published** | — | — | — | — | Platform `challenges: []`; llms.txt |
+| Stoa | (verbal, UNVERIFIED) Standardise legacy architectural files | Multimodal legacy files (drawings, written docs) to an up-to-date standard format an AI can query; 3D drawings optional | Their files (ask for a sample) | — | — | Partner stand, Bogdan, 2026-11-13 17:50; [notes](../03-research/challenges/stand-notes-2026-11-13.md) |
+| Cala | (verbal, UNVERIFIED) Find future unicorns | "A way to find unicorn companies, like an algorithm" | Cala knowledge API / MCP | — | — | Partner stand, Bogdan, 2026-11-13 17:45; [notes](../03-research/challenges/stand-notes-2026-11-13.md) |
+| Hostinger | (verbal, UNVERIFIED) Propaganda detection app | An app built on Hostinger's setup that detects propaganda | Hostinger (Horizons / API / hosting: ask) | — | — | Partner stand, Bogdan, 2026-11-13 17:45; [notes](../03-research/challenges/stand-notes-2026-11-13.md) |
 
 **Action:** take the briefs from the Junction Platform "Challenges" tab, or from the opening-ceremony videos, as soon as they appear. The DeepMind workshop and keynote and the Verda workshop come first (Fri 20:15–20:45), so they will reveal those tracks first.
 
