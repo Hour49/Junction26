@@ -124,6 +124,30 @@
       "title": "Milestone",
       "type": "boolean"
     },
+    "part": {
+      "const": "answering",
+      "default": "answering",
+      "description": "golden Part 2 (answers); rows before v2 have no field",
+      "title": "Part",
+      "type": "string"
+    },
+    "reads": {
+      "anyOf": [
+        {
+          "enum": [
+            "gold-extraction",
+            "pipeline-extraction"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "what the answerer read as input; golden v2 runs only",
+      "title": "Reads"
+    },
     "questions_sha256": {
       "title": "Questions Sha256",
       "type": "string"

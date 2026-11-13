@@ -1,0 +1,271 @@
+{
+  "$defs": {
+    "Ratio": {
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "minimum": 0,
+          "title": "N",
+          "type": "integer"
+        },
+        "correct": {
+          "minimum": 0,
+          "title": "Correct",
+          "type": "integer"
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rate"
+        }
+      },
+      "required": [
+        "n",
+        "correct",
+        "rate"
+      ],
+      "title": "Ratio",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One recorded Part 1 run (extraction vs gold) in eval/results/runs.jsonl, next to the answer\nrows; aggregates only (extraction_record_v1).",
+  "properties": {
+    "recorded_at": {
+      "description": "from the clock, Europe/Helsinki",
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "commit": {
+      "description": "short git sha of HEAD",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "title": "Commit",
+      "type": "string"
+    },
+    "dirty": {
+      "description": "tracked files had uncommitted changes",
+      "title": "Dirty",
+      "type": "boolean"
+    },
+    "name": {
+      "description": "the method's name",
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Note"
+    },
+    "part": {
+      "const": "extraction",
+      "description": "golden Part 1",
+      "title": "Part",
+      "type": "string"
+    },
+    "against": {
+      "enum": [
+        "golden",
+        "dev",
+        "eval"
+      ],
+      "title": "Against",
+      "type": "string"
+    },
+    "golden_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "the golden set's version; golden runs only",
+      "title": "Golden Version"
+    },
+    "milestone": {
+      "title": "Milestone",
+      "type": "boolean"
+    },
+    "gold_sha256": {
+      "description": "sha256 over the gold files' names and contents",
+      "title": "Gold Sha256",
+      "type": "string"
+    },
+    "score_sha256": {
+      "description": "sha256 of the full score JSON (gitignored runs folder)",
+      "title": "Score Sha256",
+      "type": "string"
+    },
+    "files": {
+      "minimum": 0,
+      "title": "Files",
+      "type": "integer"
+    },
+    "predicted": {
+      "minimum": 0,
+      "title": "Predicted",
+      "type": "integer"
+    },
+    "multiplicity": {
+      "description": "counts weighed elements by attrs.multiplicity",
+      "title": "Multiplicity",
+      "type": "boolean"
+    },
+    "elements_f1": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Elements F1"
+    },
+    "elements_f1_by_source": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Elements F1 By Source",
+      "type": "object"
+    },
+    "room_f1": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Room F1"
+    },
+    "room_type_accuracy": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Room Type Accuracy"
+    },
+    "room_area_accuracy": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Room Area Accuracy"
+    },
+    "plans_exact": {
+      "$ref": "#/$defs/Ratio"
+    },
+    "counts_exact": {
+      "$ref": "#/$defs/Ratio"
+    },
+    "counts_exact_by_source": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Ratio"
+      },
+      "title": "Counts Exact By Source",
+      "type": "object"
+    },
+    "scale_status": {
+      "$ref": "#/$defs/Ratio",
+      "description": "scale cases whose predicted status is as expected"
+    },
+    "scale_m_per_unit": {
+      "$ref": "#/$defs/Ratio",
+      "description": "scaled gold cases predicted scaled within 2%"
+    },
+    "scale_m_per_unit_by_case": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Ratio"
+      },
+      "title": "Scale M Per Unit By Case",
+      "type": "object"
+    },
+    "scale_estimate_median_error": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "estimates vs reference",
+      "title": "Scale Estimate Median Error"
+    },
+    "scale_estimate_within_20": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Scale Estimate Within 20"
+    }
+  },
+  "required": [
+    "recorded_at",
+    "commit",
+    "dirty",
+    "name",
+    "note",
+    "part",
+    "against",
+    "golden_version",
+    "milestone",
+    "gold_sha256",
+    "score_sha256",
+    "files",
+    "predicted",
+    "multiplicity",
+    "elements_f1",
+    "elements_f1_by_source",
+    "room_f1",
+    "room_type_accuracy",
+    "room_area_accuracy",
+    "plans_exact",
+    "counts_exact",
+    "counts_exact_by_source",
+    "scale_status",
+    "scale_m_per_unit",
+    "scale_m_per_unit_by_case",
+    "scale_estimate_median_error",
+    "scale_estimate_within_20"
+  ],
+  "title": "ExtractionRecord_v1",
+  "type": "object"
+}

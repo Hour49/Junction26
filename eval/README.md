@@ -11,6 +11,9 @@ because they are derived from partner data.
 uv sync --locked
 uv run python -m stoa_eval split                # split/dev.jsonl, split/eval.jsonl, split/manifest.json
 uv run python -m stoa_eval select               # golden/golden_v1.jsonl and its manifest
+uv run python -m stoa_eval select-plans         # golden/v2: part1 files and gold, part2 questions
+uv run python -m stoa_eval score-extraction <pred_dir>     # Part 1: the pipeline's JSON vs v2 gold
+uv run python -m stoa_eval validate-extraction ../data/stoa/extraction_gold   # check gold files
 uv run python -m stoa_eval baseline oracle      # golden/runs/oracle.jsonl, must score 100%
 uv run python -m stoa_eval baseline constant    # golden/runs/constant.jsonl, the floor to beat
 uv run python -m stoa_eval score ../data/stoa/golden/runs/oracle.jsonl   # table and oracle.score.json
@@ -56,6 +59,81 @@ source and per source/type, and the eval groups. Score against eval at milestone
   the cell's question templates and prefer different drawings.
 - `--cell-keys`, `--per-cell`, `--holdout-ratio`, `--seed` and `--version` change all of this.
 
+## Golden set v2: two parts
+
+Bogdan, 2026-11-13: "MAke sure the golden is split into 2 parts then. THe extraction, with the
+json." `select-plans` picks drawing files and writes both parts to `data/stoa/golden/v2/`:
+
+```
+manifest.json                     selection params, split manifest sha256, sha256 of every file
+part1_extraction/files.jsonl      one line per file: file, source, split, truth, stratum, scale_case
+part1_extraction/gold/<source>/   the extraction_v1 gold of exactly those files
+part2_answering/questions.jsonl   every question on those files, all languages, fields as in v1
+```
+
+It picks 40 CubiCasa sheets (30 dev, 10 eval), 30 swiss plans (22/8) as both PDF and PNG, 15
+ifc_models sheets (11/4) and up to 10 opening_design sheets (8/2, but only 3 have questions). dev
+and eval follow the sealed split. Within a source, files are dealt round-robin over strata in
+seeded order: CubiCasa sheets with one plan and with several (from the "How many floors" answer),
+and each IFC model or opening_design project once before any twice. IFC model files are not
+drawings, so their questions are left out. `select-plans` stops if a picked file has no gold JSON
+yet; `--allow-missing-gold` lists those files instead.
+
+It also builds a scale case list. Every gold file is a scale case except those whose notes start
+"scale not reviewed" or "scale dropped", and the case comes from its scale: `scale_text_or_bar`,
+`printed_areas` (no text or bar), `dimension_lines` (only), `nothing` (`no_scale`) or
+`not_to_scale`. Plan picks count first; then more files join, round-robin over sources in seeded
+order, until each case has 10 dev and 3 eval files where the gold has them. Their questions go into
+part2 as well.
+
+### Part 1: extraction
+
+`score-extraction <pred_dir>` pairs the pipeline's extraction_v1 files
+(`schemas/extraction_v1.schema.json`, decision record 0004) with the part1 gold by `file`, and
+scores only what the gold's `truth` covers:
+
+- Elements, per class: one-to-one matching on the same page at IoU >= 0.5, greedy from the highest
+  IoU. The IoU is of the polygons when both sides have one, else of the boxes. The report gives
+  precision, recall and F1, plus two centre-hit rates: predictions whose box centre falls inside a
+  gold polygon (or box), and gold items that contain such a centre.
+- Rooms are matched the same way, then scored on type and on area within 2%. Plans: exact count.
+- Counts per class per file, derived from the lists (or the `counts` object of a `truth: counts`
+  file): the exact-match rate, which is what the count questions need. `--multiplicity` counts an
+  element `attrs.multiplicity` times.
+- Scale, on every scale case (Bogdan, 2026-11-13: "print rooms with areas, calculate it from
+  dimension lines, from the scale, and those with nothing say no scale and those who say no scale
+  the rsult should be not to scale"). The report has a confusion table of gold status (`scaled`,
+  `no_scale`, `not_to_scale`) against predicted status (also `estimated`, or a missing file). It also
+  gives, per case, whether the status is as expected, and for `scaled` gold the share predicted
+  `scaled` with `m_per_unit` within 2%, also per evidence kind. Gold `no_scale` expects `estimated`
+  or `no_scale`; there `scaled` is wrong. An `estimated` value is compared with the gold's
+  `reference_m_per_unit` and reported as the median error and the share within 10% and 20%, not as
+  pass/fail. Scales compare as metres across the first page, so a prediction rendered at another
+  resolution still compares.
+- A missing prediction file misses everything on it. A class that no gold file of a source lists
+  (no walls in the CubiCasa gold, no stairs in the swiss gold) is not scored for that source, and
+  predictions of it are reported as not scored.
+
+`--against dev` or `eval` scores against every gold file of that split in
+`data/stoa/extraction_gold/` instead of v2.
+
+### Part 2: answering
+
+The answerer reads the part1 gold files instead of the drawings and answers
+`part2_answering/questions.jsonl`. `score <answers> --against golden` reads part2 by default and
+scores with the rules below (`--golden ../data/stoa/golden/golden_v1.jsonl` scores v1). Reading
+errors are taken out, so a Part 2 miss is an answering error. Recording a v2 run needs `--reads
+gold-extraction`, or `--reads pipeline-extraction` for the same answerer run on the pipeline's own
+extraction.
+
+### Where a wrong answer comes from
+
+Run the answerer on the same questions twice, once on the gold
+extraction and once on the pipeline's. Wrong both times: the answering is wrong. Right on gold but
+wrong on the pipeline's: the extraction is wrong, and the file's `per_file` entry in the Part 1
+score JSON shows which counts were off and what happened to the scale. Right on the pipeline's but
+wrong on gold: check the gold file and the dataset answer.
+
 ## Scoring
 
 - Counts must be exact. Areas, lengths and volumes must be within 2% of the golden value, in the
@@ -83,6 +161,13 @@ text, answers, templates or file names, because the repo is public; the schema
 (`schemas/run_record_v1.schema.json`) refuses any other key. Recording a run against eval needs
 `--milestone`. `history [--against ...] [--csv file]` prints the rows oldest first and can write a
 CSV for a chart. Rows are only ever appended.
+
+Rows say which part they belong to. Answer rows have `part: "answering"` (rows written before v2
+have no `part` field and load as answering) and, for v2, `reads`. `score-extraction --record`
+appends a Part 1 row (`schemas/extraction_record_v1.schema.json`, `part: "extraction"`) with element
+and room F1, count and plan exact rates, scale status and `m_per_unit` pass rates, and the median
+estimate error. `history --part extraction` prints
+those rows.
 
 Compare methods on holdout or eval. Near-duplicate questions inside dev (one building shipped as two
 models, identical typical floors) lift the constant baseline's dev score.

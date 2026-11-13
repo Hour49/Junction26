@@ -7,13 +7,18 @@ folder, and the row keeps its sha256 so the two can be matched.
 """
 
 import csv
+import json
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
+
+from pydantic import BaseModel, ValidationError
 
 from .coverage import CoverageScore, Row
-from .jsonl import read_jsonl
-from .models import Against, RunRecord, Stats
+from .extraction_scoring import ExtractionScore
+from .models import Against, ExtractionRecord, Ratio, RunRecord, Stats
+from .scale_scoring import Rate
 from .scoring import Score, Tally
 
 
@@ -48,6 +53,7 @@ def make_record(
     commit: str,
     dirty: bool,
     now: datetime,
+    reads: Literal["gold-extraction", "pipeline-extraction"] | None = None,
 ) -> RunRecord:
     overall = result.overall if isinstance(result, Score) else result.questions
     return RunRecord(
@@ -59,6 +65,7 @@ def make_record(
         against=against,
         golden_version=golden_version,
         milestone=milestone,
+        reads=reads,
         questions_sha256=questions_sha256,
         score_sha256=score_sha256,
         overall=_stats(overall),
@@ -72,23 +79,123 @@ def make_record(
     )
 
 
-def append_record(path: Path, record: RunRecord) -> None:
+def _ratio(rate: Rate) -> Ratio:
+    return Ratio(n=rate.n, correct=rate.correct, rate=rate.rate)
+
+
+def make_extraction_record(
+    result: ExtractionScore,
+    *,
+    against: Literal["golden", "dev", "eval"],
+    name: str,
+    note: str | None,
+    milestone: bool,
+    golden_version: str | None,
+    gold_sha256: str,
+    score_sha256: str,
+    commit: str,
+    dirty: bool,
+    now: datetime,
+) -> ExtractionRecord:
+    rooms = Rate(), Rate(), Rate()  # boxes matched, type right, area right: summed over sources
+    room_tp = room_fp = room_fn = 0
+    for stats in result.rooms.values():
+        room_tp, room_fp, room_fn = (
+            room_tp + stats.boxes.tp,
+            room_fp + stats.boxes.fp,
+            room_fn + stats.boxes.fn,
+        )
+        for total, part in zip(rooms[1:], (stats.type, stats.area), strict=True):
+            total.n, total.correct = total.n + part.n, total.correct + part.correct
+    room_denominator = 2 * room_tp + room_fp + room_fn
+    plans = Rate(
+        n=sum(rate.n for rate in result.plans.values()),
+        correct=sum(rate.correct for rate in result.plans.values()),
+    )
+    scale = result.scale_overall
+    status, passed = Rate(), Rate()
+    for stats in scale.by_case.values():
+        status.n, status.correct = status.n + stats.status.n, status.correct + stats.status.correct
+        passed.n += stats.m_per_unit.n
+        passed.correct += stats.m_per_unit.correct
+    return ExtractionRecord(
+        recorded_at=now,
+        commit=commit,
+        dirty=dirty,
+        name=name,
+        note=note,
+        part="extraction",
+        against=against,
+        golden_version=golden_version,
+        milestone=milestone,
+        gold_sha256=gold_sha256,
+        score_sha256=score_sha256,
+        files=result.files,
+        predicted=result.predicted,
+        multiplicity=result.multiplicity,
+        elements_f1=result.elements_overall.f1,
+        elements_f1_by_source={key: prf.f1 for key, prf in result.elements_by_source.items()},
+        room_f1=2 * room_tp / room_denominator if room_denominator else None,
+        room_type_accuracy=rooms[1].rate,
+        room_area_accuracy=rooms[2].rate,
+        plans_exact=_ratio(plans),
+        counts_exact=_ratio(result.counts_overall),
+        counts_exact_by_source={key: _ratio(rate) for key, rate in result.counts_by_source.items()},
+        scale_status=_ratio(status),
+        scale_m_per_unit=_ratio(passed),
+        scale_m_per_unit_by_case={
+            case: _ratio(stats.m_per_unit) for case, stats in scale.by_case.items()
+        },
+        scale_estimate_median_error=scale.estimates.median_error,
+        scale_estimate_within_20=scale.estimates.within_20,
+    )
+
+
+def append_record(path: Path, record: BaseModel) -> None:
     """Add one line at the end; earlier lines are never rewritten."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as results:
         results.write(record.model_dump_json() + "\n")
 
 
-def read_history(path: Path, against: Against | None = None) -> list[RunRecord]:
-    """Recorded runs, oldest first, optionally only those against one target."""
+def _records(path: Path) -> list[RunRecord | ExtractionRecord]:
+    """Every row: answer rows (Part 2, and all rows from before v2) and extraction rows (Part 1)."""
     if not path.exists():
         return []
-    records = [record for _, record in read_jsonl(path, RunRecord)]
-    chosen = [record for record in records if against is None or record.against == against]
+    rows: list[RunRecord | ExtractionRecord] = []
+    with path.open(encoding="utf-8") as lines:
+        for lineno, line in enumerate(lines, 1):
+            if not line.strip():
+                continue
+            model = ExtractionRecord if json.loads(line).get("part") == "extraction" else RunRecord
+            try:
+                rows.append(model.model_validate_json(line))
+            except ValidationError as error:
+                raise ValueError(f"{path}:{lineno}: {error}") from error
+    return rows
+
+
+def read_history(path: Path, against: Against | None = None) -> list[RunRecord]:
+    """Recorded answer runs (Part 2), oldest first, optionally only those against one target."""
+    chosen = [
+        record
+        for record in _records(path)
+        if isinstance(record, RunRecord) and (against is None or record.against == against)
+    ]
     return sorted(chosen, key=lambda record: record.recorded_at)
 
 
-def _target(record: RunRecord) -> str:
+def read_extraction_history(path: Path, against: Against | None = None) -> list[ExtractionRecord]:
+    """Recorded extraction runs (Part 1), oldest first."""
+    chosen = [
+        record
+        for record in _records(path)
+        if isinstance(record, ExtractionRecord) and (against is None or record.against == against)
+    ]
+    return sorted(chosen, key=lambda record: record.recorded_at)
+
+
+def _target(record: RunRecord | ExtractionRecord) -> str:
     if record.against == "golden":
         return f"golden {record.golden_version}"
     return record.against + (" (milestone)" if record.milestone else "")
@@ -114,6 +221,26 @@ def format_history(records: Sequence[RunRecord]) -> str:
             f"{_pct(record.overall.coverage):>6}  {_pct(record.overall.accuracy):>6}  "
             f"{_pct(record.numeric.accuracy):>7}  {_pct(record.evidence_coverage):>6}  "
             f"{cost:>9}  {p95:>6}  {record.note or ''}"
+        )
+    lines.append("* = recorded with uncommitted changes")
+    return "\n".join(lines)
+
+
+def format_extraction_history(records: Sequence[ExtractionRecord]) -> str:
+    header = (
+        f"{'recorded':<16}  {'commit':<9}  {'name':<26}  {'against':<12}  {'files':>5}  "
+        f"{'pred':>5}  {'elem f1':>7}  {'room f1':>7}  {'counts':>6}  {'plans':>6}  "
+        f"{'scale':>6}  note"
+    )
+    lines = ["Part 1, extraction", header]
+    for record in records:
+        commit = record.commit + ("*" if record.dirty else "")
+        lines.append(
+            f"{record.recorded_at:%Y-%m-%d %H:%M}  {commit:<9}  {record.name[:26]:<26}  "
+            f"{_target(record):<12}  {record.files:>5}  {record.predicted:>5}  "
+            f"{_pct(record.elements_f1):>7}  {_pct(record.room_f1):>7}  "
+            f"{_pct(record.counts_exact.rate):>6}  {_pct(record.plans_exact.rate):>6}  "
+            f"{_pct(record.scale_m_per_unit.rate):>6}  {record.note or ''}"
         )
     lines.append("* = recorded with uncommitted changes")
     return "\n".join(lines)
