@@ -10,7 +10,7 @@ gitignored `data/stoa/extraction_gold/<source>/`; nothing from the dataset is co
 | --- | --- | --- | --- |
 | `cubicasa_gold.py` | public CubiCasa5K `model.svg`, dev images only; eval images get `truth: counts` from their question answers (decision 0003) | 4,787 (3,828 dev, 959 eval) | 11 count families 100%; saunas 2,648 / 2,655 |
 | `swiss_gold.py` | the dataset's DXF, fitted to the PDF page (residual 0.00 pt), written for the PDF and the PNG of each plan | 2,080 (831 + 209 per format) | counts 25,562 / 25,568, areas 12,012 / 12,016 |
-| `ifc_gold.py` | the IFC model (classes, storeys, quantities) placed by the plan SVG, which shares the PDF sheet's frame | 69 (46 dev, 23 eval) | every family except 2 column counts (87905, 88001: the model has columns the 1.20 m cut doesn't draw); 88 model-level questions out of scope |
+| `ifc_gold.py` | the IFC model (classes, storeys, quantities) placed by the plan SVG, which shares the PDF sheet's frame | 69 (46 dev, 23 eval) | every count, area, length and volume family 100% (columns 22 / 22); 88 model-level questions out of scope |
 
 `ifc_gold.py` needs ifcopenshell (LGPL-3.0-or-later), allowed as an unmodified dependency by
 [decision 0006](../../docs/decisions/0006-lgpl-dependencies.md).
