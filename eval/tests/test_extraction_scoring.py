@@ -267,21 +267,27 @@ def test_score_extraction_command_records_a_part1_row(
     (tmp_path / "gold/_reports").mkdir()
     (tmp_path / "gold/_reports/rulecheck.json").write_text("{}", encoding="utf-8")  # skipped
     write(tmp_path / "pred", "plan-1.json", gold)
-    results = tmp_path / "runs.jsonl"
+    results, runs = tmp_path / "results", tmp_path / "runs"
     old_row = (Path(__file__).parent / "data/old_run_row.json").read_text("utf-8")
-    results.write_text(old_row.strip() + "\n", encoding="utf-8")
+    results.mkdir()
+    (results / "20261113-204152-answering-oracle.json").write_text(old_row, encoding="utf-8")
     argv = ["score-extraction", str(tmp_path / "pred"), "--against", "dev",
-            "--gold", str(tmp_path / "gold"), "--out", str(tmp_path / "score.json"),
-            "--results", str(results), "--record", "--name", "copy-of-gold"]  # fmt: skip
+            "--gold", str(tmp_path / "gold"), "--results", str(results),
+            "--runs-dir", str(runs), "--name", "copy-of-gold"]  # fmt: skip
     assert main(argv) == 0
     assert "1 of 1 gold files have a prediction" in capsys.readouterr().out
-    score = json.loads((tmp_path / "score.json").read_text("utf-8"))
+    [kept] = list(results.glob("*-extraction-copy-of-gold.json"))
+    score = json.loads((runs / kept.name).read_text("utf-8"))
     assert score["elements"]["cubicasa5k door"]["f1"] == 1.0
     [part1] = read_extraction_history(results)
     assert part1.part == "extraction" and part1.elements_f1 == 1.0
+    assert part1.scale_status_by_source["cubicasa5k"].rate == 1.0  # no_scale -> no_scale
     [old] = read_history(results)
     assert old.part == "answering" and old.reads is None  # a row from before v2 still loads
     assert main(["history", "--part", "extraction", "--results", str(results)]) == 0
-    assert "copy-of-gold" in capsys.readouterr().out
-    assert main([*argv[:-3], "--against", "eval", "--record", "--name", "x"]) == 1
-    assert "only with --milestone" in capsys.readouterr().err
+    printed = capsys.readouterr().out
+    assert "copy-of-gold" in printed and "Part 2" not in printed
+    assert main([*argv[:-2], "--against", "eval", "--name", "x"]) == 1
+    assert "refused" in capsys.readouterr().err
+    assert main([*argv[:-2], "--no-record", "--out", str(tmp_path / "s.json")]) == 0
+    assert len(list(results.glob("*.json"))) == 2  # --no-record kept nothing

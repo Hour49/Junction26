@@ -1,25 +1,29 @@
-"""Results history: one aggregate row per recorded score run, appended to eval/results/runs.jsonl.
+"""Results history: one aggregate record per scored run, one file each in eval/results/runs/
+(run_store.py), and the tables that show how the methods improved.
 
 Owner, 2026-11-13: "also I am thining overall we should save all the results of the golden datasset
-so we can share that at the end of how we improved". The file is tracked and the repo is public, so
-a row (`models.RunRecord`) holds aggregates only. The full score JSON stays in the gitignored runs
-folder, and the row keeps its sha256 so the two can be matched.
+so we can share that at the end of how we improved", and ~22:48: "also make sure all the runs of the
+golden dataset, will be saved somewhere so at the end we will be able to show the improvement".
+The files are tracked and the repo is public, so a record (`models.RunRecord`,
+`models.ExtractionRecord`) holds aggregates only. The full score JSON stays in the gitignored runs
+folder under the same stem, and the record keeps its sha256 so the two can be matched.
 """
 
 import csv
-import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ValidationError
-
 from .coverage import CoverageScore, Row
 from .extraction_scoring import ExtractionScore
 from .models import Against, ExtractionRecord, Ratio, RunRecord, Stats
-from .scale_scoring import Rate
+from .run_store import read_records
+from .scale_scoring import Rate, ScaleScore
 from .scoring import Score, Tally
+
+SHORT = {"cubicasa5k": "cubi", "swiss_dwellings": "swiss", "ifc_models": "ifc",
+         "ifc_bench": "bench", "opening_design": "open"}  # fmt: skip
 
 
 def _stats(numbers: Tally | Row) -> Stats:
@@ -113,9 +117,15 @@ def make_extraction_record(
         correct=sum(rate.correct for rate in result.plans.values()),
     )
     scale = result.scale_overall
-    status, passed = Rate(), Rate()
+
+    def statuses(score: ScaleScore) -> Rate:
+        total = Rate()
+        for stats in score.by_case.values():
+            total.n, total.correct = total.n + stats.status.n, total.correct + stats.status.correct
+        return total
+
+    passed = Rate()
     for stats in scale.by_case.values():
-        status.n, status.correct = status.n + stats.status.n, status.correct + stats.status.correct
         passed.n += stats.m_per_unit.n
         passed.correct += stats.m_per_unit.correct
     return ExtractionRecord(
@@ -141,7 +151,10 @@ def make_extraction_record(
         plans_exact=_ratio(plans),
         counts_exact=_ratio(result.counts_overall),
         counts_exact_by_source={key: _ratio(rate) for key, rate in result.counts_by_source.items()},
-        scale_status=_ratio(status),
+        scale_status=_ratio(statuses(scale)),
+        scale_status_by_source={
+            source: _ratio(statuses(score)) for source, score in result.scale.items()
+        },
         scale_m_per_unit=_ratio(passed),
         scale_m_per_unit_by_case={
             case: _ratio(stats.m_per_unit) for case, stats in scale.by_case.items()
@@ -151,48 +164,33 @@ def make_extraction_record(
     )
 
 
-def append_record(path: Path, record: BaseModel) -> None:
-    """Add one line at the end; earlier lines are never rewritten."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as results:
-        results.write(record.model_dump_json() + "\n")
-
-
-def _records(path: Path) -> list[RunRecord | ExtractionRecord]:
-    """Every row: answer rows (Part 2, and all rows from before v2) and extraction rows (Part 1)."""
-    if not path.exists():
-        return []
-    rows: list[RunRecord | ExtractionRecord] = []
-    with path.open(encoding="utf-8") as lines:
-        for lineno, line in enumerate(lines, 1):
-            if not line.strip():
-                continue
-            model = ExtractionRecord if json.loads(line).get("part") == "extraction" else RunRecord
-            try:
-                rows.append(model.model_validate_json(line))
-            except ValidationError as error:
-                raise ValueError(f"{path}:{lineno}: {error}") from error
-    return rows
-
-
-def read_history(path: Path, against: Against | None = None) -> list[RunRecord]:
+def read_history(folder: Path, against: Against | None = None) -> list[RunRecord]:
     """Recorded answer runs (Part 2), oldest first, optionally only those against one target."""
-    chosen = [
+    return [
         record
-        for record in _records(path)
+        for record in read_records(folder)
         if isinstance(record, RunRecord) and (against is None or record.against == against)
     ]
-    return sorted(chosen, key=lambda record: record.recorded_at)
 
 
-def read_extraction_history(path: Path, against: Against | None = None) -> list[ExtractionRecord]:
+def read_extraction_history(folder: Path, against: Against | None = None) -> list[ExtractionRecord]:
     """Recorded extraction runs (Part 1), oldest first."""
-    chosen = [
+    return [
         record
-        for record in _records(path)
+        for record in read_records(folder)
         if isinstance(record, ExtractionRecord) and (against is None or record.against == against)
     ]
-    return sorted(chosen, key=lambda record: record.recorded_at)
+
+
+def source_accuracy(record: RunRecord) -> dict[str, float | None]:
+    """Accuracy per source, from the per source/type numbers: correct over questions (golden)
+    or over answered questions (all, dev, eval)."""
+    totals: dict[str, list[int]] = {}
+    for key, stats in record.by_source_type.items():
+        total = totals.setdefault(key.split("/", 1)[0], [0, 0])
+        total[0] += stats.correct
+        total[1] += stats.n if stats.answered is None else stats.answered
+    return {source: (c / n if n else None) for source, (c, n) in sorted(totals.items())}
 
 
 def _target(record: RunRecord | ExtractionRecord) -> str:
@@ -205,44 +203,122 @@ def _pct(value: float | None) -> str:
     return "n/a" if value is None else f"{value:.1%}"
 
 
+def _short(source: str) -> str:
+    return SHORT.get(source, source[:6])
+
+
+def _sources(groups: Iterable[Iterable[str]]) -> list[str]:
+    return sorted({source for group in groups for source in group})
+
+
 def format_history(records: Sequence[RunRecord]) -> str:
+    """Part 2 runs, oldest first, with accuracy per source."""
+    sources = _sources(source_accuracy(record) for record in records)
     header = (
-        f"{'recorded':<16}  {'commit':<9}  {'name':<26}  {'against':<12}  {'n':>7}  {'cover':>6}  "
-        f"{'acc':>6}  {'numeric':>7}  {'evid':>6}  {'cost/ans':>9}  {'p95 s':>6}  note"
+        f"{'recorded':<16}  {'commit':<9}  {'name':<26}  {'against':<12}  {'n':>6}  {'cover':>6}  "
+        f"{'acc':>6}  " + "".join(f"{_short(s):>7}  " for s in sources) + f"{'cost/ans':>9}  note"
     )
-    lines = [header]
+    lines = ["Part 2, answering (accuracy overall and per source)", header]
     for record in records:
         cost = "n/a" if record.cost_mean_usd is None else f"${record.cost_mean_usd:.4f}"
-        p95 = "n/a" if record.latency_p95_s is None else f"{record.latency_p95_s:.2f}"
         commit = record.commit + ("*" if record.dirty else "")
+        per_source = source_accuracy(record)
         lines.append(
             f"{record.recorded_at:%Y-%m-%d %H:%M}  {commit:<9}  "
-            f"{record.name[:26]:<26}  {_target(record):<12}  {record.overall.n:>7}  "
+            f"{record.name[:26]:<26}  {_target(record):<12}  {record.overall.n:>6}  "
             f"{_pct(record.overall.coverage):>6}  {_pct(record.overall.accuracy):>6}  "
-            f"{_pct(record.numeric.accuracy):>7}  {_pct(record.evidence_coverage):>6}  "
-            f"{cost:>9}  {p95:>6}  {record.note or ''}"
+            + "".join(f"{_pct(per_source.get(s)):>7}  " for s in sources)
+            + f"{cost:>9}  {record.note or ''}"
         )
     lines.append("* = recorded with uncommitted changes")
     return "\n".join(lines)
 
 
 def format_extraction_history(records: Sequence[ExtractionRecord]) -> str:
+    """Part 1 runs, oldest first: element F1, counts exact and scale status ok, overall and per
+    source."""
+    sources = _sources(
+        [*record.elements_f1_by_source, *record.counts_exact_by_source,
+         *record.scale_status_by_source]
+        for record in records
+    )  # fmt: skip
+    per_source = "".join(
+        f"{_short(s) + ' f1':>10}  {_short(s) + ' cnt':>10}  {_short(s) + ' scl':>10}  "
+        for s in sources
+    )
     header = (
         f"{'recorded':<16}  {'commit':<9}  {'name':<26}  {'against':<12}  {'files':>5}  "
-        f"{'pred':>5}  {'elem f1':>7}  {'room f1':>7}  {'counts':>6}  {'plans':>6}  "
-        f"{'scale':>6}  note"
+        f"{'elem f1':>7}  {'counts':>6}  {'scale':>6}  " + per_source + "note"
     )
-    lines = ["Part 1, extraction", header]
+    lines = ["Part 1, extraction (element F1, counts exact, scale status ok)", header]
     for record in records:
         commit = record.commit + ("*" if record.dirty else "")
+        cells = "".join(
+            f"{_pct(record.elements_f1_by_source.get(s)):>10}  "
+            f"{_pct(_rate(record.counts_exact_by_source.get(s))):>10}  "
+            f"{_pct(_rate(record.scale_status_by_source.get(s))):>10}  "
+            for s in sources
+        )
         lines.append(
             f"{record.recorded_at:%Y-%m-%d %H:%M}  {commit:<9}  {record.name[:26]:<26}  "
-            f"{_target(record):<12}  {record.files:>5}  {record.predicted:>5}  "
-            f"{_pct(record.elements_f1):>7}  {_pct(record.room_f1):>7}  "
-            f"{_pct(record.counts_exact.rate):>6}  {_pct(record.plans_exact.rate):>6}  "
-            f"{_pct(record.scale_m_per_unit.rate):>6}  {record.note or ''}"
+            f"{_target(record):<12}  {record.files:>5}  {_pct(record.elements_f1):>7}  "
+            f"{_pct(record.counts_exact.rate):>6}  {_pct(record.scale_status.rate):>6}  "
+            + cells
+            + (record.note or "")
         )
     lines.append("* = recorded with uncommitted changes")
+    return "\n".join(lines)
+
+
+def _rate(ratio: Ratio | None) -> float | None:
+    return None if ratio is None else ratio.rate
+
+
+Metric = tuple[str, Callable[[RunRecord], float | None]]
+ExtractionMetric = tuple[str, Callable[[ExtractionRecord], float | None]]
+ANSWERING_METRICS: list[Metric] = [("accuracy", lambda r: r.overall.accuracy)]
+EXTRACTION_METRICS: list[ExtractionMetric] = [
+    ("element F1", lambda r: r.elements_f1),
+    ("counts exact", lambda r: r.counts_exact.rate),
+    ("scale status", lambda r: r.scale_status.rate),
+]
+
+
+def _progress_rows[R: (RunRecord, ExtractionRecord)](
+    part: str, records: Sequence[R], metrics: Sequence[tuple[str, Callable[[R], float | None]]]
+) -> list[str]:
+    groups: dict[tuple[str, str], list[R]] = {}
+    for record in records:
+        groups.setdefault((record.name, _target(record)), []).append(record)
+    lines: list[str] = []
+    for (name, target), runs in sorted(groups.items()):
+        for metric, value_of in metrics:
+            values = [(r.recorded_at, v) for r in runs if (v := value_of(r)) is not None]
+            if not values:
+                continue
+            first, latest = values[0], values[-1]
+            best = max(values, key=lambda pair: pair[1])  # the earliest of equal bests
+            change = (latest[1] - first[1]) * 100
+            lines.append(
+                f"{part:<10}  {name[:26]:<26}  {target:<12}  {metric:<12}  {len(values):>4}  "
+                f"{_pct(first[1]):>6} {first[0]:%d %H:%M}  {_pct(latest[1]):>6} "
+                f"{latest[0]:%d %H:%M}  {_pct(best[1]):>6} {best[0]:%d %H:%M}  {change:>+7.1f}"
+            )
+    return lines
+
+
+def format_progress(answering: Sequence[RunRecord], extraction: Sequence[ExtractionRecord]) -> str:
+    """Per method and target: the first, latest and best value of each headline number."""
+    header = (
+        f"{'part':<10}  {'name':<26}  {'against':<12}  {'metric':<12}  {'runs':>4}  "
+        f"{'first':>15}  {'latest':>15}  {'best':>15}  {'pts':>7}"
+    )
+    lines = [
+        "How we improved: first vs latest vs best per method (day hh:mm; pts = latest - first)"
+    ]
+    lines.append(header)
+    lines += _progress_rows("extraction", extraction, EXTRACTION_METRICS)
+    lines += _progress_rows("answering", answering, ANSWERING_METRICS)
     return "\n".join(lines)
 
 
@@ -251,10 +327,12 @@ def write_history_csv(path: Path, records: Iterable[RunRecord]) -> None:
     source/type, for a chart."""
     rows = list(records)
     groups = sorted({key for record in rows for key in record.by_source_type})
+    sources = _sources(source_accuracy(record) for record in rows)
     fields = [
         "recorded_at", "commit", "dirty", "name", "note", "against", "golden_version", "milestone",
         "n", "correct", "accuracy", "answered", "coverage", "numeric_accuracy",
         "evidence_coverage", "cost_total_usd", "cost_mean_usd", "latency_mean_s", "latency_p95_s",
+        "reads", *(f"accuracy {source}" for source in sources),
         *(f"accuracy {group}" for group in groups),
         *(f"coverage {group}" for group in groups),
     ]  # fmt: skip
@@ -283,9 +361,63 @@ def write_history_csv(path: Path, records: Iterable[RunRecord]) -> None:
                 "cost_mean_usd": record.cost_mean_usd,
                 "latency_mean_s": record.latency_mean_s,
                 "latency_p95_s": record.latency_p95_s,
+                "reads": record.reads or "",
             }
+            for source, accuracy in source_accuracy(record).items():
+                row[f"accuracy {source}"] = accuracy
             for group in groups:
                 stats = record.by_source_type.get(group)
                 row[f"accuracy {group}"] = stats.accuracy if stats else None
                 row[f"coverage {group}"] = stats.coverage if stats else None
+            writer.writerow(row)
+
+
+def write_extraction_csv(path: Path, records: Iterable[ExtractionRecord]) -> None:
+    """One row per Part 1 run with the headline numbers, overall and per source."""
+    rows = list(records)
+    sources = _sources(
+        [*record.elements_f1_by_source, *record.counts_exact_by_source,
+         *record.scale_status_by_source]
+        for record in rows
+    )  # fmt: skip
+    fields = [
+        "recorded_at", "commit", "dirty", "name", "note", "against", "golden_version", "milestone",
+        "files", "predicted", "multiplicity", "elements_f1", "room_f1", "room_type_accuracy",
+        "room_area_accuracy", "plans_exact", "counts_exact", "scale_status", "scale_m_per_unit",
+        "scale_estimate_median_error", "scale_estimate_within_20",
+        *(f"{kind} {source}" for source in sources
+          for kind in ("elements_f1", "counts_exact", "scale_status")),
+    ]  # fmt: skip
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as out:
+        writer = csv.DictWriter(out, fieldnames=fields)
+        writer.writeheader()
+        for record in rows:
+            row: dict[str, object] = {
+                "recorded_at": record.recorded_at.isoformat(),
+                "commit": record.commit,
+                "dirty": record.dirty,
+                "name": record.name,
+                "note": record.note or "",
+                "against": record.against,
+                "golden_version": record.golden_version or "",
+                "milestone": record.milestone,
+                "files": record.files,
+                "predicted": record.predicted,
+                "multiplicity": record.multiplicity,
+                "elements_f1": record.elements_f1,
+                "room_f1": record.room_f1,
+                "room_type_accuracy": record.room_type_accuracy,
+                "room_area_accuracy": record.room_area_accuracy,
+                "plans_exact": record.plans_exact.rate,
+                "counts_exact": record.counts_exact.rate,
+                "scale_status": record.scale_status.rate,
+                "scale_m_per_unit": record.scale_m_per_unit.rate,
+                "scale_estimate_median_error": record.scale_estimate_median_error,
+                "scale_estimate_within_20": record.scale_estimate_within_20,
+            }
+            for source in sources:
+                row[f"elements_f1 {source}"] = record.elements_f1_by_source.get(source)
+                row[f"counts_exact {source}"] = _rate(record.counts_exact_by_source.get(source))
+                row[f"scale_status {source}"] = _rate(record.scale_status_by_source.get(source))
             writer.writerow(row)

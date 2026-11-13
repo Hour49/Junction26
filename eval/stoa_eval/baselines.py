@@ -9,6 +9,7 @@
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 
+from .extraction import Extraction
 from .models import Answer, AnswerValue, GoldenItem, Unit
 
 CONTINUOUS_TYPES = frozenset({"area", "length", "volume"})
@@ -78,3 +79,20 @@ def constant(golden: Sequence[GoldenItem], pool: Sequence[GoldenItem]) -> list[A
             )
         )
     return answers
+
+
+def empty_extraction(gold: Extraction) -> Extraction:
+    """The Part 1 floor: the gold file's pages with nothing found on them and no scale."""
+    return Extraction.model_validate(
+        {
+            "schema": "extraction_v1",
+            "file": gold.file,
+            "split": gold.split,
+            "truth": "elements",
+            "pages": [page.model_dump() for page in gold.pages],
+            "scale": {"status": "no_scale"},
+            "plans": [],
+            "elements": [],
+            "rooms": [],
+        }
+    )

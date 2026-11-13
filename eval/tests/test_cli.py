@@ -65,7 +65,7 @@ def test_select_baselines_and_score(
 
     oracle = tmp_path / "runs/oracle.jsonl"
     assert run("baseline", "oracle", "--golden", golden, "--out", oracle) == 0
-    assert run("score", oracle, "--golden", golden) == 0
+    assert run("score", oracle, "--golden", golden, "--no-record") == 0
     n = len(lines(golden))
     assert read_json(tmp_path / "runs/oracle.score.json")["overall"] == {
         "n": n,
@@ -75,19 +75,22 @@ def test_select_baselines_and_score(
     floor = tmp_path / "runs/constant.jsonl"
     baseline = ("baseline", "constant", "--golden", golden, "--split-dir", split)
     assert run(*baseline, "--out", floor) == 0
-    assert run("score", floor, "--golden", golden, "--out", tmp_path / "floor.json") == 0
+    assert (
+        run("score", floor, "--golden", golden, "--out", tmp_path / "floor.json", "--no-record")
+        == 0
+    )
 
     capsys.readouterr()
-    assert run("score", oracle, "--against", "all", "--split-dir", split) == 0
+    assert run("score", oracle, "--against", "all", "--split-dir", split, "--no-record") == 0
     result = read_json(tmp_path / "runs/oracle.score-all.json")
     assert set(result["by_split"]) == {"dev", "eval"}
     assert result["questions"]["answered"] == n
-    assert "sealed split" not in capsys.readouterr().err
-    assert run("score", oracle, "--against", "eval", "--split-dir", split) == 0
+    assert "sealed split" in capsys.readouterr().err  # all holds the eval questions too
+    assert run("score", oracle, "--against", "eval", "--split-dir", split, "--no-record") == 0
     assert "warning: sealed split: score at milestones only" in capsys.readouterr().err
     held = read_json(tmp_path / "runs/oracle.score-eval.json")
     assert set(held["by_split"]) == {"eval"}
-    assert run("score", oracle, "--against", "dev", "--split-dir", split) == 0
+    assert run("score", oracle, "--against", "dev", "--split-dir", split, "--no-record") == 0
 
 
 def test_refusals(questions_file: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -100,7 +103,8 @@ def test_refusals(questions_file: Path, tmp_path: Path, capsys: pytest.CaptureFi
 
     answers = tmp_path / "answers.jsonl"
     answers.write_text("")
-    assert run("score", answers, "--against", "all", "--split-dir", tmp_path / "none") == 1
+    none = tmp_path / "none"
+    assert run("score", answers, "--against", "all", "--split-dir", none, "--no-record") == 1
     assert "run `python -m stoa_eval split` first" in capsys.readouterr().err
 
     golden = out / "golden_v1.jsonl"
@@ -112,7 +116,7 @@ def test_refusals(questions_file: Path, tmp_path: Path, capsys: pytest.CaptureFi
 
     with (split / "dev.jsonl").open("a", encoding="utf-8") as dev:
         dev.write("\n")
-    assert run("score", answers, "--against", "dev", "--split-dir", split) == 1
+    assert run("score", answers, "--against", "dev", "--split-dir", split, "--no-record") == 1
     assert "changed after the split" in capsys.readouterr().err
 
 

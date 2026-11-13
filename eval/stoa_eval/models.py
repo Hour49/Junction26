@@ -118,7 +118,7 @@ class Stats(BaseModel):
 
 
 class RunRecord(BaseModel):
-    """One recorded score run in eval/results/runs.jsonl (run_record_v1). The repo is public, so
+    """One recorded score run, a file in eval/results/runs/ (run_record_v1). The repo is public, so
     a row holds aggregates only: no question text, answers, templates or file names."""
 
     model_config = ConfigDict(extra="forbid", title="RunRecord_v1")
@@ -150,7 +150,7 @@ class RunRecord(BaseModel):
 
     @model_validator(mode="after")
     def _eval_only_at_milestones(self) -> Self:
-        if self.against == "eval" and not self.milestone:
+        if self.against in ("eval", "all") and not self.milestone:
             raise ValueError("a run against the sealed eval split is recorded only as a milestone")
         return self
 
@@ -164,8 +164,8 @@ class Ratio(BaseModel):
 
 
 class ExtractionRecord(BaseModel):
-    """One recorded Part 1 run (extraction vs gold) in eval/results/runs.jsonl, next to the answer
-    rows; aggregates only (extraction_record_v1)."""
+    """One recorded Part 1 run (extraction vs gold), a file in eval/results/runs/ next to the
+    answer runs; aggregates only (extraction_record_v1)."""
 
     model_config = ConfigDict(extra="forbid", title="ExtractionRecord_v1")
 
@@ -192,6 +192,7 @@ class ExtractionRecord(BaseModel):
     counts_exact: Ratio
     counts_exact_by_source: dict[str, Ratio]
     scale_status: Ratio = Field(description="scale cases whose predicted status is as expected")
+    scale_status_by_source: dict[str, Ratio] = Field(default_factory=dict[str, Ratio])
     scale_m_per_unit: Ratio = Field(description="scaled gold cases predicted scaled within 2%")
     scale_m_per_unit_by_case: dict[str, Ratio]
     scale_estimate_median_error: float | None = Field(description="estimates vs reference")

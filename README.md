@@ -65,16 +65,17 @@ our system ──► answers.jsonl (one line per question) ──► stoa_eval s
 7. Baselines. `oracle` (Stoa's own answers) must score 100%, which proves the plumbing. `constant` (the most
    common answer per question template, learnt from dev) scores 15.8% on golden v1, and any real method has to beat
    it.
-8. Results history. `score --record --name <method>` adds one summary row (time, commit, method, split, accuracy
-   per source and type, coverage, cost, latency; no questions or answers) to [eval/results/runs.jsonl](eval/results/runs.jsonl),
-   so we can show how we improved. `stoa_eval history` prints it, `--csv` exports it for a chart.
+8. Results history. Every scored run is recorded by default as one summary file (time, commit, method, split,
+   accuracy per source and type, coverage, cost, latency; no questions or answers) in [eval/results/runs/](eval/results/runs/),
+   so we can show how we improved; `--no-record` is for scratch checks. `stoa_eval history` prints the runs,
+   `--progress` shows first vs latest vs best per method, `--csv` exports them for a chart.
 
 ```bash
 cd eval
 uv run python -m stoa_eval split                  # sealed 80/20 split into data/stoa/split/ (same hashes everywhere)
 uv run python -m stoa_eval select                 # build the golden set into data/stoa/golden/
 uv run python -m stoa_eval baseline oracle        # or: constant
-uv run python -m stoa_eval score <answers.jsonl> --against dev --record --name <method>   # grade and keep it
+uv run python -m stoa_eval score <answers.jsonl> --against dev --name <method>   # grade it; the run is kept
 uv run python -m stoa_eval history                # every recorded run, oldest first
 ```
 
