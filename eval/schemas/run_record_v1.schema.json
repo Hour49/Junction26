@@ -1,0 +1,220 @@
+{
+  "$defs": {
+    "Stats": {
+      "additionalProperties": false,
+      "description": "Aggregate numbers for a group of questions.",
+      "properties": {
+        "n": {
+          "minimum": 0,
+          "title": "N",
+          "type": "integer"
+        },
+        "correct": {
+          "minimum": 0,
+          "title": "Correct",
+          "type": "integer"
+        },
+        "accuracy": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Accuracy"
+        },
+        "answered": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "all/dev/eval runs only",
+          "title": "Answered"
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "answered / n; all/dev/eval runs only",
+          "title": "Coverage"
+        }
+      },
+      "required": [
+        "n",
+        "correct",
+        "accuracy",
+        "answered",
+        "coverage"
+      ],
+      "title": "Stats",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One recorded score run in eval/results/runs.jsonl (run_record_v1). The repo is public, so\na row holds aggregates only: no question text, answers, templates or file names.",
+  "properties": {
+    "recorded_at": {
+      "description": "from the clock, Europe/Helsinki",
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "commit": {
+      "description": "short git sha of HEAD",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "title": "Commit",
+      "type": "string"
+    },
+    "dirty": {
+      "description": "tracked files had uncommitted changes",
+      "title": "Dirty",
+      "type": "boolean"
+    },
+    "name": {
+      "description": "the method's name",
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Note"
+    },
+    "against": {
+      "enum": [
+        "golden",
+        "all",
+        "dev",
+        "eval"
+      ],
+      "title": "Against",
+      "type": "string"
+    },
+    "golden_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "the golden set's version; golden runs only",
+      "title": "Golden Version"
+    },
+    "milestone": {
+      "title": "Milestone",
+      "type": "boolean"
+    },
+    "questions_sha256": {
+      "title": "Questions Sha256",
+      "type": "string"
+    },
+    "score_sha256": {
+      "description": "sha256 of the full score JSON (gitignored runs folder)",
+      "title": "Score Sha256",
+      "type": "string"
+    },
+    "overall": {
+      "$ref": "#/$defs/Stats"
+    },
+    "numeric": {
+      "$ref": "#/$defs/Stats"
+    },
+    "by_source_type": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Stats"
+      },
+      "title": "By Source Type",
+      "type": "object"
+    },
+    "evidence_coverage": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Evidence Coverage"
+    },
+    "cost_total_usd": {
+      "title": "Cost Total Usd",
+      "type": "number"
+    },
+    "cost_mean_usd": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cost Mean Usd"
+    },
+    "latency_mean_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Latency Mean S"
+    },
+    "latency_p95_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Latency P95 S"
+    }
+  },
+  "required": [
+    "recorded_at",
+    "commit",
+    "dirty",
+    "name",
+    "note",
+    "against",
+    "golden_version",
+    "milestone",
+    "questions_sha256",
+    "score_sha256",
+    "overall",
+    "numeric",
+    "by_source_type",
+    "evidence_coverage",
+    "cost_total_usd",
+    "cost_mean_usd",
+    "latency_mean_s",
+    "latency_p95_s"
+  ],
+  "title": "RunRecord_v1",
+  "type": "object"
+}

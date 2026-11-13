@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "A selected question with what the selection knows about it (golden_v0.jsonl).",
+  "description": "A selected question with what the selection knows about it (golden_<version>.jsonl).",
   "properties": {
     "path": {
       "title": "Path",
