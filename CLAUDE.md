@@ -52,7 +52,8 @@ What `setup.sh` installs, and what each piece is:
   - A thread is a GitHub issue labelled `board`; a message is a comment whose first line is a hidden header
     `<!-- board:v1 {"from", "to", "type", "ref"} -->`.
   - Board issues live in `BOARD_REPO`, default `Hour49/Junction26` (this repo, since 2026-11-13, user Bogdan).
-    The earlier threads stay in Hour49/junction-26-prep (#1-#7, closed).
+    The earlier threads stay in Hour49/junction-26-prep (#1-#7, closed); the two open ones from Hour49/junction-26
+    were transferred here as #1 and #2.
   - Each machine keeps its read position in `~/.cache/board/`.
   - The orchestrator keeps `board wait --interval 60` running as a background Bash command. It exits when a message
     for this person (or `all`) arrives; Claude Code then wakes the orchestrator with the output; it acts and
