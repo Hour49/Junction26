@@ -1,6 +1,6 @@
 # Skills manual (short)
 
-Open Claude Code in this folder first: `cd ~/junction-pitch && claude`. Type a command, then words after it.
+Open Claude Code in this folder first: `cd <your clone>/junction-pitch && claude`. Type a command, then words after it.
 Messy words are fine ("partner valio", "tech for the verda guy"). Every skill reads `04-pitch/core.md` (the idea).
 Most skills never overwrite: you get `-v2`, `-v3` files. Max 5 agents per run.
 

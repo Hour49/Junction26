@@ -56,11 +56,11 @@ Search plan (phrasings, Finnish phrasings, synonyms, competitor names, "not this
 <paste the lists from 03-research/pain-points/<slug>/search-plan.md>
 
 Your source family: <name>. Search only there.
-Write your results to: /home/madi/junction-pitch/03-research/pain-points/<slug>/<file>.md
-Use the "Source file" template in /home/madi/junction-pitch/.claude/skills/pain-points/templates.md.
+Write your results to: 03-research/pain-points/<slug>/<file>.md
+Use the "Source file" template in .claude/skills/pain-points/templates.md.
 Sources: the table "Tested sources" in
-/home/madi/junction-pitch/.claude/skills/pain-points/source-prompts.md. Helper (run from
-/home/madi/junction-pitch): python3 .claude/skills/pain-points/fetch_public.py -h
+.claude/skills/pain-points/source-prompts.md. Helper (run from
+the junction-pitch folder): python3 .claude/skills/pain-points/fetch_public.py -h
 Use WebSearch only to find links. Open web pages in Playwright; use the helper for its JSON APIs and the
 arxiv MCP for papers. Public AND private sources (mark each). Login wall in Playwright: log "needs login: <site>",
 never type a password. Anything else still blocked: log "blocked: <url>".
