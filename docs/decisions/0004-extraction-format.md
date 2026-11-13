@@ -101,3 +101,27 @@ no duplicates). Left out, as in every gold file, it means everything the file's 
 was not read: its count is unknown, not 0, so an answerer must not turn it into "0 windows". Scoring doesn't change
 (not reading a class counts its misses); the Part 1 table marks `not read` on a class that every prediction file of
 the source leaves out.
+
+## Amendment, 2026-11-14 00:56: `model_objects`
+
+- Decided by: the orchestrator (formats-v1-2 brief, 00:51), on core's recommendation from its task 4; written by
+  agent golden (worker).
+
+`Element.box` is required, so extraction_v1 had no place for an object the sheet doesn't draw. Storey sums of
+walls and slabs and counts "in the model" need every object of the model, and a question on an `.ifc` path has no
+page at all. An extraction may now carry the optional `model_objects`: every object of the BIM model the file comes
+from, drawn on this sheet or not. Each sheet's file lists all storeys, so it stands on its own. Each object has `id`
+(unique in the file, and not an element or room id), `class` (an element class or `space`), `storey` (the
+IfcBuildingStorey name as the model has it), `global_id`, `name` and `long_name` (raw), `quantities` (`length_m`,
+`height_m`, `width_m`, `area_m2`, `side_area_m2`, `volume_m3`; finite and >= 0; on a space `area_m2` is the net
+floor area as the dataset defines it, `side_area_m2` is one face of a wall), `element` (the drawn element on this
+sheet, or the room for a space; null when not drawn here) and `attrs`. A null `model_objects` (left out) means the
+source has no model: every non-BIM file, and all gold today.
+
+The model checks that every `element` names a listed element of the same class (a listed room for a space) and
+that no element or room is named twice. An `.ifc` file with a non-empty `model_objects` may have `pages: []`, and
+then has empty `plans`, `elements` and `rooms`; every other file still needs at least one page. `--strict-v2` asks
+no scale of such a file, since it has no image. Part 1 scoring doesn't change: elements are what is drawn.
+
+Alternative rejected: a nullable `Element.box`. It would change the Part 1 scorer and every consumer that assumes a
+box, and it would mix "drawn on this sheet" with "in the model".

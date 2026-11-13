@@ -36,9 +36,36 @@ GOOD: dict[str, Any] = {
 }  # fmt: skip
 
 
-def changed(path: str, value: Any) -> dict[str, Any]:
-    """GOOD with one value replaced; `path` like "elements.0.box"."""
-    data = copy.deepcopy(GOOD)
+# formats v1.2: a sheet of a BIM model lists every object of the model, drawn here or not
+MODEL: dict[str, Any] = {
+    **GOOD,
+    "model_objects": [
+        {"id": "m1", "class": "door", "storey": "Level 1", "global_id": "g-1", "name": "D1",
+         "quantities": {"width_m": 0.9, "height_m": 2.1}, "element": "e1",
+         "attrs": {"source_class": "IfcDoor"}},
+        {"id": "m2", "class": "space", "storey": "Level 1", "name": "101",
+         "long_name": "Bedroom", "quantities": {"area_m2": 11.8}, "element": "r1"},
+        {"id": "m3", "class": "wall", "storey": "Level 2",
+         "quantities": {"length_m": 4.0, "side_area_m2": 10.4, "volume_m3": 1.0}},
+        {"id": "m4", "class": "slab", "storey": None, "quantities": {}},
+    ],
+}  # fmt: skip
+# a question on the .ifc path itself: no rendered page, only the model
+PAGELESS: dict[str, Any] = {
+    **MODEL,
+    "file": "data/ifc_models/b1.ifc",
+    "pages": [],
+    "plans": [],
+    "elements": [],
+    "rooms": [],
+    "apartments": [],
+    "model_objects": [{**item, "element": None} for item in MODEL["model_objects"]],
+}
+
+
+def changed(path: str, value: Any, base: dict[str, Any] = GOOD) -> dict[str, Any]:
+    """`base` with one value replaced; `path` like "elements.0.box"."""
+    data = copy.deepcopy(base)
     *parents, last = path.split(".")
     target: Any = data
     for key in parents:
@@ -274,3 +301,77 @@ def test_validate_extraction_command(tmp_path: Path, capsys: pytest.CaptureFixtu
     assert main(["validate-extraction", str(tmp_path / "gold")]) == 1
     printed = capsys.readouterr()
     assert "plan-2.json" in printed.out and "1 of 2 files are valid" in printed.out
+
+
+def test_model_objects_parse_and_leave_the_drawn_lists_alone() -> None:
+    extraction = Extraction.model_validate(MODEL)
+    objects = extraction.model_objects or []
+    assert [item.class_ for item in objects] == ["door", "space", "wall", "slab"]
+    assert objects[0].quantities == {"width_m": 0.9, "height_m": 2.1}
+    assert objects[2].element is None and objects[3].storey is None
+    assert extraction.derived_counts() == Extraction.model_validate(GOOD).derived_counts()
+    dumped = json.loads(extraction.model_dump_json(by_alias=True))
+    assert dumped["model_objects"][1]["class"] == "space"
+    assert Extraction.model_validate(GOOD).model_objects is None  # every file without a model
+    assert Extraction.model_validate({**MODEL, "model_objects": []}).model_objects == []
+
+
+def test_an_ifc_file_without_pages_carries_only_the_model() -> None:
+    extraction = Extraction.model_validate(PAGELESS)
+    assert extraction.pages == [] and len(extraction.model_objects or []) == 4
+    assert extraction.strict_v2_problems() == []  # no image, so no scale to ask for
+
+
+def test_an_element_and_a_room_with_one_id_can_each_be_named_once() -> None:
+    data = changed("rooms.0.id", "e1", MODEL)
+    data["model_objects"][1]["element"] = "e1"  # the space names room e1, the door element e1
+    Extraction.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    ("path", "value", "message"),
+    [
+        ("model_objects.0.class", "doors", "Input should be 'door'"),
+        ("model_objects.0.class", "room", "'space'"),
+        ("model_objects.0.colour", "red", "Extra inputs"),
+        ("model_objects.0.id", "", "at least 1 character"),
+        ("model_objects.0.quantities", {"perimeter_m": 3.0}, "'length_m'"),
+        ("model_objects.0.quantities", {"width_m": -0.1}, "greater than or equal to 0"),
+        ("model_objects.0.quantities", {"width_m": True}, "valid number"),
+        ("model_objects.0.quantities", {"width_m": float("inf")}, "finite number"),
+        ("model_objects.0.quantities", {"width_m": float("nan")}, "finite number"),
+        ("model_objects.0.attrs", {"layers": ["a"]}, "attrs"),
+        ("model_objects.1.id", "m1", "repeated model object ids"),
+        ("model_objects.2.id", "e2", r"model object ids \['e2'\] are also element or room ids"),
+        ("model_objects.2.id", "r1", r"model object ids \['r1'\] are also element or room ids"),
+        ("model_objects.0.element", "e9", "names element 'e9', not listed"),
+        ("model_objects.0.element", "r1", "names element 'r1', not listed"),
+        ("model_objects.1.element", "e1", "names room 'e1', not listed"),
+        ("model_objects.0.class", "window", "m1 is a window, element e1 a door"),
+        ("model_objects.2.element", "e1", "element e1 is named twice"),
+        ("model_objects.2",
+         {"id": "m3", "class": "space", "element": "r1"}, "room r1 is named twice"),
+        ("pages", [], "at least 1 page, unless an .ifc file has model_objects"),
+    ],
+)  # fmt: skip
+def test_bad_model_objects_are_refused(path: str, value: Any, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        Extraction.model_validate(changed(path, value, MODEL))
+
+
+@pytest.mark.parametrize(
+    ("path", "value", "message"),
+    [
+        ("model_objects", None, "unless an .ifc file has model_objects"),
+        ("model_objects", [], "unless an .ifc file has model_objects"),
+        ("file", "data/ifc_models/b1.pdf", "unless an .ifc file has model_objects"),
+        ("plans", [{"id": "p1", "page": 1, "box": [0, 0, 1, 1]}], "empty plans, elements"),
+        ("elements", [{"id": "e1", "class": "door", "page": 1, "box": [0, 0, 0.1, 0.1]}],
+         "empty plans, elements"),
+        ("rooms", [{"id": "r1", "type": "other", "page": 1, "box": [0, 0, 0.1, 0.1]}],
+         "empty plans, elements"),
+    ],
+)  # fmt: skip
+def test_only_an_ifc_model_file_goes_without_pages(path: str, value: Any, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        Extraction.model_validate(changed(path, value, PAGELESS))
