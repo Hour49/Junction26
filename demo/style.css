@@ -479,3 +479,11 @@ body.theme { --pri: #6b4fd8; --pri-dark: #2f2170; --pri-soft: #efeafd; --ok: #6b
 .theme .cftile { border-radius: 12px; }
 .theme .cfvar { border-radius: 10px; border-color: #e2ddf3; }
 .theme .cfvar.ai { border-color: var(--pri); }
+.theme .cf.unsolved { box-shadow: 0 0 0 2px #e0a21b, 0 6px 18px rgba(47, 33, 112, 0.06); }
+.theme .cf.unsolved.done { box-shadow: 0 0 0 2px var(--pri), 0 6px 18px rgba(47, 33, 112, 0.06); }
+.cfev { margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.cfimg { width: 100%; max-width: 520px; aspect-ratio: 4 / 3; background: #fff; border: 1px solid #f0e2b8; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; padding: 10px; overflow: hidden; }
+.cfimg svg { width: 100%; height: 100%; }
+.cfcap { font-size: 12.5px; color: var(--mute); max-width: 520px; }
+.cfev [data-ev] { font-size: 16px; padding: 10px 22px; border-radius: 10px; }

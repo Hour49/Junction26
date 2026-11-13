@@ -594,7 +594,7 @@ function engineerHTML(p) {
 function surveyorHTML(p) {
   const qs = Object.values(p.q), done = qs.filter((q) => q.signed).length, q = p.q[state.focus] || qs[0];
   const st = status(q), blocked = contested(q);
-  return `<section class="card panel"><h2 style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center">Takeoff: ${esc(p.file)} <button class="btn small" id="csv">Export CSV</button></h2>
+  return `<section class="card panel"><h2 style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center"><span><button class="btn small" id="tochat">← Back to the chat</button> Takeoff: ${esc(p.file)}</span> <button class="btn small" id="csv">Export CSV</button></h2>
     <div class="body" style="padding-bottom:6px"><span class="lbl">${done} of ${qs.length} quantities signed off</span><div class="progress"><i style="width:${100 * done / qs.length}%"></i></div></div>
     <div class="tablewrap"><table class="takeoff"><thead><tr><th>Quantity</th><th class="num">Value</th><th>State</th></tr></thead><tbody>
     ${qs.map((x) => { const s = status(x), ch = value(x) !== x.origValue; return `<tr class="click${x.key === q.key ? ' sel' : ''}" data-q="${x.key}"><td>${esc(x.label)}</td><td class="v">${ch ? `<s>${fmt(x, x.origValue)}</s>` : ''}${fmt(x)}${x.kind === 'area' ? ' m²' : ''}</td><td><span class="chip ${s[0]}">${s[1]}</span></td></tr>`; }).join('')}
@@ -656,6 +656,7 @@ function workClick(ev) {
   if (!survey) return;
   if ((el = t('[data-q]'))) { state.focus = el.dataset.q; state.addMode = false; return renderWork(); }
   if (t('#csv')) return exportCSV(p);
+  if (t('#tochat')) { state.role = 'engineer'; state.addMode = false; return renderWork(); }
   if (t('#add')) { state.addMode = !state.addMode; return renderWork(); }
   if (t('#sign')) { q.signed = now(); return renderWork(); }
   if (t('#unsign')) { q.signed = null; return renderWork(); }
@@ -741,6 +742,26 @@ function conflictSummaryHTML() {
     <div class="run-actions"><button class="btn" id="again">New archive</button><button class="btn primary" id="open" ${all ? '' : 'disabled'}>Open the workspace</button></div></div>`;
 }
 
+// Evidence image for a conflict the rules could not settle: where on the drawing the two readings disagree.
+function evidenceSVG(c) {
+  if (c.id === 'c5') {
+    return [planSVG(PLANS.B, PLANS.B.q.windows, false),
+      'The amber "?" is the balcony glazing. The detector reads it as glazing on the railing; the vision count reads it as a window in a wall.'];
+  }
+  // c6: a 320×240 photo, drawn coarse on purpose; the label in the second room is too blurred to read surely.
+  return [`<svg viewBox="0 0 320 240" role="img" aria-label="Low-resolution photo of flat C03">
+    <defs><filter id="blur6"><feGaussianBlur stdDeviation="1.6"/></filter></defs>
+    <rect width="320" height="240" fill="#d9d4c7"/>
+    <g filter="url(#blur6)" stroke="#3a3a3a" stroke-width="6" fill="#ece7da">
+      <rect x="20" y="20" width="150" height="200"/><rect x="170" y="20" width="130" height="110"/><rect x="170" y="130" width="130" height="90"/></g>
+    <g filter="url(#blur6)" font-family="sans-serif" font-weight="700" fill="#333"><text x="80" y="125" font-size="22">OH</text>
+      <text x="215" y="82" font-size="20">MH</text><text x="218" y="182" font-size="20">KH</text></g>
+    <rect x="198" y="52" width="76" height="44" fill="none" stroke="#e0a21b" stroke-width="3" stroke-dasharray="6 4"/>
+    <g font-family="sans-serif" font-size="11" font-weight="600"><rect x="182" y="100" width="108" height="34" rx="4" fill="#fff" opacity=".92"/>
+      <text x="188" y="114" fill="#3b4452">OCR: MH · 54%</text><text x="188" y="128" fill="#3b4452">2nd read: KH · 41%</text></g></svg>`,
+    'The dashed box is the second room. The photo is 320×240, so its label blurs: both readings are under the 80% the rule needs.'];
+}
+
 function conflictHTML(c) {
   const fin = finalPick(c), denied = c.verdict === 'denied';
   const vars = c.v.map((x, i) => `<div class="cfvar${fin === i ? ' chosen' : ''}${c.ai === i ? ' ai' : ''}"><span class="lbl">Variant ${i + 1}${c.ai === i ? ' · AI decision' : ''}</span><b>${esc(x.label)}</b><span>${esc(x.src)}</span></div>`).join('');
@@ -750,9 +771,10 @@ function conflictHTML(c) {
   else if (c.ai === null) act = `<p class="cfask">Choose the variant that is right:</p>${pickBtns}`;
   else if (denied) act = `<p class="cfask">You denied the AI decision. Pick the right variant yourself:</p>${pickBtns}<button class="btn small" data-reset="${c.id}">Cancel</button>`;
   else act = `<button class="btn ok" data-verdict="${c.id}:approved">Approve</button><button class="btn no" data-verdict="${c.id}:denied">Deny</button>`;
-  return `<article class="card cf${fin !== null ? ' done' : ''}"><header><div><h3>${esc(c.title)}</h3><span class="nm">${esc(c.file)}</span></div>
+  return `<article class="card cf${fin !== null ? ' done' : ''}${c.ai === null ? ' unsolved' : ''}"><header><div><h3>${esc(c.title)}</h3><span class="nm">${esc(c.file)}</span></div>
     <span class="chip ${fin !== null ? 'ok' : c.ai === null ? 'warn' : 'info'}">${fin !== null ? 'settled' : c.ai === null ? 'needs you' : 'to approve'}</span></header>
-    <div class="cfvars">${vars}</div>
+    ${c.ai === null ? `<div class="cfev">${c.showEv ? `<div class="cfimg">${evidenceSVG(c)[0]}</div><p class="cfcap">${esc(evidenceSVG(c)[1])}</p>` : ''}
+      <button class="btn small" data-ev="${c.id}">${c.showEv ? 'Hide evidence' : 'Show evidence'}</button></div>` : `<div class="cfvars">${vars}</div>`}
     <div class="cfrules"><span class="lbl">Rules applied</span><ol>${c.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ol>
       <p><b>${c.ai === null ? 'AI could not decide.' : `AI decision: variant ${c.ai + 1}.`}</b> ${esc(c.why)}</p></div>
     <div class="cfact">${act}</div></article>`;
@@ -771,6 +793,7 @@ function conflictsClick(ev) {
   const t = (sel) => ev.target.closest(sel), get = (id) => CONFLICTS.find((c) => c.id === id);
   let el, c;
   if (t('#cfback')) { state.view = 'ingest'; return render(); }
+  if ((el = t('[data-ev]'))) { c = get(el.dataset.ev); c.showEv = !c.showEv; return renderConflicts(); }
   if ((el = t('[data-verdict]'))) { const [id, v] = el.dataset.verdict.split(':'); c = get(id); c.verdict = v; c.pick = null; }
   else if ((el = t('[data-pick]'))) { const [id, i] = el.dataset.pick.split(':'); c = get(id); c.pick = +i; }
   else if ((el = t('[data-reset]'))) { c = get(el.dataset.reset); c.verdict = null; c.pick = null; }
@@ -841,8 +864,6 @@ function ingestClick(ev) {
 /* ------------------------------------------------------------------- shell */
 
 function render() {
-  document.querySelectorAll('#roleSwitch button').forEach((b) => b.classList.toggle('on', b.dataset.role === state.role));
-  $('#roleSwitch').hidden = state.view !== 'work';
   if (state.view === 'ingest') renderIngest(); else if (state.view === 'conflicts') renderConflicts(); else renderWork();
 }
 
@@ -860,12 +881,6 @@ app.addEventListener('drop', (ev) => {
   ev.preventDefault();
   const f = ev.dataTransfer.files[0];
   startIngest(f ? f.name : 'harbour-block-archive.zip', f ? 'This mock does not read your file. It plays the sample archive under your file\'s name.' : '');
-});
-$('#roleSwitch').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-role]'); if (!b) return;
-  state.role = b.dataset.role; state.addMode = false;
-  if (!PLANS[state.plan].q[state.focus]) state.focus = 'doors';
-  render();
 });
 
 // deep links for screenshots and for sending someone to one screen: #work/surveyor/B, #ingest/done
