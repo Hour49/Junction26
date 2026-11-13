@@ -299,6 +299,10 @@ def room_type(label: str) -> str:
 
 
 # ---------------------------------------------------------------- one sheet
+def slug(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
 def build_sheet(dataset, pdf_rel, objs, split, idx):
     pdf_path = dataset / pdf_rel
     svg_path = pdf_path.with_suffix(".svg")
@@ -316,6 +320,15 @@ def build_sheet(dataset, pdf_rel, objs, split, idx):
         ):
             vote[o["storey"]] += 1
     sheet_storey = vote.most_common(1)[0][0] if vote else None
+    # The sheet's title (file name: plan-NN-<storey>) wins when it names exactly one storey of the
+    # model: Warmond's "basement" and "intermediate-level-1" sheets draw objects the IFC contains
+    # in other storeys (cut plane above the storey), so the vote picks the wrong one there.
+    stem = re.sub(r"^.*_plan-\d+-", "", pdf_path.stem)
+    named = {
+        o["storey"] for o in objs.values() if o["storey"] and slug(o["storey"]) == stem
+    }
+    if len(named) == 1:
+        sheet_storey = named.pop()
     ne = 0
     for o in sorted(objs.values(), key=lambda o: o["guid"]):
         if o["cls"] == "space":
