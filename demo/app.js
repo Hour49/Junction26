@@ -353,6 +353,27 @@ const FILES = [
   { path: 'misc/Thumbs.db', size: '22 kB', kind: 'system file', route: 'skip', stop: 1, speed: 1, cost: 0, res: ['mute', 'ignored'],
     t: [['path ok, 22 kB'], ['Windows thumbnail cache: ignored']] },
 ];
+// Conflicts the ingest found between two readings of the same thing. ai = index of the variant the rules picked,
+// null when the rules could not decide. verdict/pick are what the user did.
+const CONFLICTS = [
+  { id: 'c1', file: 'model/harbour-block.ifc ↔ plans/floor-01.dxf', title: 'Doors on storey 1', ai: 0,
+    v: [{ label: '13 doors', src: 'IFC model, IfcDoor on storey 1' }, { label: '12 doors', src: 'DXF, DOOR layer of floor-01' }],
+    rules: ['A BIM model outranks CAD when both carry the same revision.', 'Both files carry revision C, dated 2026-09-14.'],
+    why: 'Same revision, so the model wins. The extra door (D-1.14, storage) is drawn in the model and missing from the DXF.' },
+  { id: 'c2', file: 'plans/floor-03.dwg', title: 'Glazed door on layer A-GLAZ', ai: 1,
+    v: [{ label: 'Window', src: 'Layer A-GLAZ, where windows live' }, { label: 'Door', src: 'Block has a door leaf and a swing arc' }],
+    rules: ['Glazed doors count as doors.', 'An opening with a leaf and a swing is a door, whatever its layer.'],
+    why: 'The block has a leaf and a swing arc, so it is a door. The layer name is overruled.' },
+  { id: 'c6', file: 'scans/flat-c03-photo.jpg', title: 'Label of the second room', ai: null,
+    v: [{ label: 'MH (bedroom)', src: 'OCR, 54% confidence' }, { label: 'KH (bathroom)', src: 'OCR second reading, 41% confidence' }],
+    rules: ['A room label is only used when OCR is over 80% sure.', 'A room without a label is never guessed.'],
+    why: 'Both readings are under 80%. The photo is 320×240, too small to settle it.' },
+];
+// The AI's decisions are approved by default; the user only steps in to modify one.
+CONFLICTS.forEach((c) => { if (c.ai !== null) c.verdict = 'approved'; });
+const finalPick = (c) => (c.verdict === 'approved' ? c.ai : c.pick ?? null);
+const resolved = (c) => finalPick(c) !== null;
+
 FILES.forEach((f, i) => { f.start = i * 2; f.end = f.start + (f.stop + 1) * f.speed; });
 const MAX_T = Math.max(...FILES.map((f) => f.end));
 const ROUTE_CHIP = { vector: ['info', 'vector'], model: ['info', 'model'], raster: ['warn', 'raster'], text: ['mute', 'text'], copy: ['mute', 'copy'], skip: ['mute', 'none'] };
@@ -367,7 +388,7 @@ function at(f, t) {
 
 const state = {
   view: 'ingest', role: 'engineer', plan: 'A', focus: 'doors', addMode: false,
-  thread: [], asked: 0, spent: 0, focusIdx: 0,
+  thread: [],
   ing: { t: -1, timer: null, zip: null },
 };
 
@@ -491,42 +512,77 @@ function evidenceHTML(q, survey) {
   <p class="sum">${inc.map((p) => p.area.toFixed(2)).join(' + ') || '0'} = <b>${value(q).toFixed(2)} m²</b></p>`;
 }
 
+// Where an answer's facts came from, per drawing (mock file names, same as the ingest list).
+const SOURCES = {
+  A: [['plans/floor-02.dxf', 'CAD', 'Read: rooms, doors, windows and fixtures from the CAD layers'],
+    ['plans/floor-02.pdf', 'PDF', 'Shown: the rendering the marks are drawn on'],
+    ['plans/floor-02.png', 'PNG', 'Checked: a second, independent count by a small vision model']],
+  B: [['scans/flat-b12-scan.png', 'SCAN', 'Read: symbol detector and OCR on the scanned sheet'],
+    ['scans/flat-b12-scan.png', 'SCAN', 'Checked: a second, independent count by a small vision model']],
+};
+
+// Confidence = how much independent information backs the number (mock rule, shown to the user).
+function confidence(p, q) {
+  if (q.signed) return [99, 'high', 'Signed off by a surveyor.'];
+  if (contested(q)) return [55, 'low', `The two methods disagree (${fmt(q)} or ${q.altValue}). A surveyor has to settle it.`];
+  if (q.flag) return [76, 'medium', q.flag];
+  if (p.route === 'vector') return [97, 'high', 'Exact CAD geometry, and the second count agrees.'];
+  return [88, 'medium', 'Read from a scan, but the second count agrees.'];
+}
+
+function suggestHTML(p) {
+  const asked = new Set(state.thread.map((e) => e.text));
+  const left = SUGGEST[p.id].filter((t) => !asked.has(t));
+  return left.length ? `<div class="try">${left.map((t) => `<button data-ask="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : '';
+}
+
 function answerHTML(e, i) {
-  const p = PLANS[e.plan], focus = i === state.thread.length - 1 - state.focusIdx;
-  const head = `<div class="q" data-focus="${i}">${esc(e.text)}<small>${esc(p.file)}</small></div>`;
+  const p = PLANS[e.plan], last = i === state.thread.length - 1;
+  const user = `<div class="u-row"><div class="bubble">${esc(e.text)}</div><span class="avatar">YOU</span></div>`;
+  const bot = (inner) => `<div class="a-row"><span class="bot" aria-hidden="true"></span><div class="a-body">${inner}</div></div>`;
+  if (e.pending) return `<article class="turn">${user}${bot(`<div class="steps-done"><span class="spin"></span> Reading ${esc(p.file)}…</div>`)}</article>`;
   if (!e.key) {
-    return `<article class="ans${focus ? ' focus' : ''}">${head}<div class="a"><p class="refuse" style="margin:0"><b>Not answered.</b> ${esc(e.reason)}</p>
-      <dl class="how"><dt>Cost</dt><dd>${eur(PARSE_COST)} to read the question. No drawing work, no guess.</dd></dl></div></article>`;
+    return `<article class="turn">${user}${bot(`<p><b>I can't answer that from this drawing.</b> ${esc(e.reason)}</p><p class="mute">No answer is better than a guess, so the confidence is 0%.</p>
+      ${last ? suggestHTML(p) : ''}`)}</article>`;
   }
-  const q = p.q[e.key], st = status(q), both = contested(q);
-  return `<article class="ans${focus ? ' focus' : ''}">${head}<div class="a">
-    <div class="val"><b>${fmt(q)}</b><span class="u">${esc(q.unit)}</span><span class="chip ${st[0]}">${st[1]}</span></div>
-    ${both ? `<p class="refuse">Two methods disagree: ${fmt(q)} or ${q.altValue}. The mark in question is amber on the drawing. A surveyor has to settle it.</p>` : ''}
-    ${q.flag && !q.signed ? `<p class="refuse">${esc(q.flag)}</p>` : ''}
-    <p><span class="lbl">Counting rule</span><br>${esc(q.rule)}</p>
-    <p><span class="lbl">Evidence on the drawing</span></p>${evidenceHTML(q, false)}
-    <dl class="how">
-      <dt>Query</dt><dd><code>${esc(q.query)}</code></dd>
-      <dt>Answered by</dt><dd>Lookup in the drawing model built at ingest. ${esc(q.method)}.</dd>
-      <dt>Checked by</dt><dd>${esc(q.alt)}: ${q.kind === 'count' ? q.altValue : 'within 0.1%'}${q.signed ? `. Signed off by the surveyor at ${q.signed}` : ''}.</dd>
-      <dt>Cost</dt><dd>${eur(e.cost)}${e.cached ? ' (same question as before, served from cache)' : ' to turn the question into the query'}, 0 model calls on the drawing, about 40 ms.</dd>
-    </dl></div></article>`;
+  const q = p.q[e.key], [pct, lvl, why] = confidence(p, q);
+  const card = `<div class="rcard${e.hidden ? ' closed' : ''}">
+    <div class="rhead"><span class="ricon">⌗</span><b>${esc(q.label)}</b><span class="rsub">${esc(p.file)} · ${p.route === 'vector' ? 'CAD' : 'scan'}</span>
+      <button class="hide" data-hide="${i}">${e.hidden ? 'Show ⌄' : 'Hide ⌃'}</button></div>
+    <div class="rbody">
+      <div class="shot">${planSVG(p, q, false)}</div>
+      <div class="rside">
+        <span class="k">The answer</span>
+        <dl><dt>Value</dt><dd><b>${fmt(q)}</b> ${esc(q.unit)}</dd><dt>Rule</dt><dd>${esc(q.rule)}</dd><dt>Method</dt><dd>${esc(q.method)}</dd><dt>Check</dt><dd>${esc(q.alt)}: ${q.kind === 'count' ? q.altValue : 'agrees'}</dd></dl>
+        <span class="k">Confidence</span>
+        <div class="confrow"><div class="conf ${lvl}"><i style="width:${pct}%"></i></div><b>${pct}%</b></div>
+        <small>${esc(why)}</small>
+        <span class="k">Where this came from</span>
+        <ul class="srcs">${SOURCES[p.id].map(([f, k, w]) => `<li><span class="tag">${k}</span><span><b>${esc(f)}</b><small>${esc(w)}</small></span></li>`).join('')}</ul>
+      </div>
+    </div>
+    <div class="rfoot"><span class="fld"><small>Drawing</small> ${esc(p.file)}</span><span class="fld"><small>Cost</small> ${eur(e.cost)}</span><span class="fld"><small>Time</small> ~40 ms</span>
+      <span style="flex:1"></span><button class="btn primary" data-survey="${e.key}">▸ Send to surveyor</button></div>
+  </div>`;
+  const text = q.kind === 'area' ? `The ${esc(q.label.toLowerCase())} is <b>${fmt(q)} m²</b>. ${esc(q.rule)}`
+    : `There ${fmt(q) === '1' ? 'is' : 'are'} <b>${fmt(q)} ${esc(q.unit)}</b> on this drawing. ${esc(q.rule)}`;
+  const note = lvl === 'high' ? '' : `<p>One thing before you use it: ${esc(why)}</p>`;
+  return `<article class="turn">${user}${bot(`<p>${text}</p>${card}${note}${last ? suggestHTML(p) : ''}`)}</article>`;
 }
 
 function engineerHTML(p) {
-  return `<section class="card panel"><h2 style="padding:9px 12px;border-bottom:1px solid var(--line-soft)">Ask about ${esc(p.file)}</h2><div class="body">
-    <form class="askform" id="ask"><input name="q" placeholder="Ask a quantity question, in any language" autocomplete="off"><button class="btn primary">Ask</button></form>
-    <div class="suggest">${SUGGEST[p.id].map((t) => `<button data-ask="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-    <div class="thread">${state.thread.length ? state.thread.map((e, i) => answerHTML(e, i)).reverse().join('') : '<p style="color:var(--mute)">Pick a question. The answer comes with the marks that prove it, the rule that was applied and what it cost.</p>'}</div>
-    <p class="meter">This session: <b>${state.asked}</b> questions, <b>${eur(state.spent)}</b> spent, <b>0</b> model calls on drawings.
-      For scale: sending the sheet image to a large vision model costs about €0.01 to €0.03 per question (illustrative).</p>
-  </div></section>`;
+  return `<section class="chat">
+    ${state.thread.length ? '' : `<header class="hero"><h1>${esc(p.title)}</h1></header>${suggestHTML(p)}`}
+    <div class="convo" id="convo">${state.thread.map(answerHTML).join('')}</div>
+    <form class="composer" id="ask"><span class="plus">+</span><input name="q" placeholder="Ask a question about this drawing…" autocomplete="off">
+      <span class="meta">${state.thread.length} asked</span><button aria-label="Ask">➤</button></form>
+  </section>`;
 }
 
 function surveyorHTML(p) {
   const qs = Object.values(p.q), done = qs.filter((q) => q.signed).length, q = p.q[state.focus] || qs[0];
   const st = status(q), blocked = contested(q);
-  return `<section class="card panel"><h2 style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center">Takeoff: ${esc(p.file)} <button class="btn small" id="csv">Export CSV</button></h2>
+  return `<section class="card panel"><h2 style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center"><span><button class="btn small" id="tochat">← Back to the chat</button> Takeoff: ${esc(p.file)}</span> <button class="btn small" id="csv">Export CSV</button></h2>
     <div class="body" style="padding-bottom:6px"><span class="lbl">${done} of ${qs.length} quantities signed off</span><div class="progress"><i style="width:${100 * done / qs.length}%"></i></div></div>
     <div class="tablewrap"><table class="takeoff"><thead><tr><th>Quantity</th><th class="num">Value</th><th>State</th></tr></thead><tbody>
     ${qs.map((x) => { const s = status(x), ch = value(x) !== x.origValue; return `<tr class="click${x.key === q.key ? ' sel' : ''}" data-q="${x.key}"><td>${esc(x.label)}</td><td class="v">${ch ? `<s>${fmt(x, x.origValue)}</s>` : ''}${fmt(x)}${x.kind === 'area' ? ' m²' : ''}</td><td><span class="chip ${s[0]}">${s[1]}</span></td></tr>`; }).join('')}
@@ -551,11 +607,9 @@ function surveyorHTML(p) {
 function renderWork() {
   const p = PLANS[state.plan], survey = state.role === 'surveyor';
   let q = p.q[state.focus];
-  if (!survey) {
-    const e = state.thread[state.thread.length - 1 - state.focusIdx];
-    q = e && e.plan === p.id && e.key ? p.q[e.key] : null;
-  } else if (!q) { state.focus = 'doors'; q = p.q.doors; }
-  $('#app').innerHTML = `<div class="work">${sideHTML()}${viewerHTML(p, q, survey)}${survey ? surveyorHTML(p) : engineerHTML(p)}</div>`;
+  if (survey && !q) { state.focus = 'doors'; q = p.q.doors; }
+  $('#app').innerHTML = survey ? `<div class="work">${sideHTML()}${viewerHTML(p, q, survey)}${surveyorHTML(p)}</div>`
+    : `<div class="work chat-mode">${engineerHTML(p)}</div>`;
 }
 
 function ask(text) {
@@ -570,8 +624,11 @@ function ask(text) {
   else e.key = hit[1];
   e.cached = state.thread.some((x) => x.plan === e.plan && x.text.toLowerCase() === text.toLowerCase());
   if (e.cached) e.cost = 0;
-  state.thread.push(e); state.asked++; state.spent += e.cost; state.focusIdx = 0;
+  e.pending = true;
+  state.thread.push(e);
   renderWork();
+  $('#convo').lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => { e.pending = false; if (state.view === 'work' && state.role === 'engineer') renderWork(); }, 900);
 }
 
 function now() { return new Date().toTimeString().slice(0, 5); }
@@ -580,12 +637,14 @@ function workClick(ev) {
   const p = PLANS[state.plan], survey = state.role === 'surveyor', q = p.q[state.focus];
   const t = (sel) => ev.target.closest(sel);
   let el;
-  if ((el = t('[data-plan]'))) { state.plan = el.dataset.plan; state.focus = 'doors'; state.addMode = false; state.focusIdx = -1; return renderWork(); }
+  if ((el = t('[data-plan]'))) { state.plan = el.dataset.plan; state.focus = 'doors'; state.addMode = false; return renderWork(); }
   if ((el = t('[data-ask]'))) return ask(el.dataset.ask);
-  if ((el = t('[data-focus]'))) { const e = state.thread[+el.dataset.focus]; state.focusIdx = state.thread.length - 1 - +el.dataset.focus; state.plan = e.plan; return renderWork(); }
+  if ((el = t('[data-hide]'))) { const e = state.thread[+el.dataset.hide]; e.hidden = !e.hidden; return renderWork(); }
+  if ((el = t('[data-survey]'))) { openWork('surveyor'); state.focus = el.dataset.survey; return renderWork(); }
   if (!survey) return;
   if ((el = t('[data-q]'))) { state.focus = el.dataset.q; state.addMode = false; return renderWork(); }
   if (t('#csv')) return exportCSV(p);
+  if (t('#tochat')) { state.role = 'engineer'; state.addMode = false; return renderWork(); }
   if (t('#add')) { state.addMode = !state.addMode; return renderWork(); }
   if (t('#sign')) { q.signed = now(); return renderWork(); }
   if (t('#unsign')) { q.signed = null; return renderWork(); }
@@ -650,12 +709,71 @@ function renderIngest() {
       <div class="actions"><button class="btn primary" id="sample">Use the sample archive (14 files)</button><label class="btn">Choose a zip<input type="file" id="pick" accept=".zip" hidden></label></div></div></div>`;
     return;
   }
-  $('#app').innerHTML = `<div class="run"><div class="run-head"><span class="eyebrow"><i class="live"></i> Analysing now</span>
+  const done = g.t >= MAX_T;
+  $('#app').innerHTML = `<div class="run"><div class="run-head"><span class="eyebrow"><i class="live"></i> ${done ? 'Analysis done' : 'Analysing now'}</span>
     <h1>${esc(g.zip)}</h1><p>Reading every drawing once, so later questions are answered from the result, not from the files.</p></div>
     <div class="console" id="console"></div>
     ${g.note ? `<p class="run-note">${esc(g.note)}</p>` : ''}
-    <div class="run-actions"><button class="btn" id="again">${g.t >= MAX_T ? 'New archive' : 'Stop'}</button><button class="btn${g.t >= MAX_T ? ' primary' : ''}" id="skip">${g.t >= MAX_T ? 'Open the workspace' : 'Skip to the end'}</button></div></div>`;
+    ${done ? conflictSummaryHTML() : '<div class="run-actions"><button class="btn" id="again">Stop</button><button class="btn" id="skip">Skip to the end</button></div>'}</div>`;
   updateIngest();
+}
+
+/* -------------------------------------------------------------- conflicts */
+
+function conflictSummaryHTML() {
+  const list = [...CONFLICTS].sort((a, b) => (a.ai === null) - (b.ai === null)), n = list.filter(resolved).length, all = n === list.length;
+  return `<div class="cfsum"><h2>${list.length} conflicts found <small>two readings of the same thing disagree</small></h2>
+    <p class="cfintro">The AI's decisions are already approved; press Modify to use your own variant. Where the AI could not decide, choose a variant.</p>
+    <span class="lbl">${n} of ${list.length} settled</span><div class="progress"><i style="width:${100 * n / list.length}%"></i></div>
+    <div class="cflist">${list.map(conflictHTML).join('')}</div>
+    <p class="cfgate">${all ? 'Every conflict is settled. The workspace answers from your decisions.' : 'The workspace opens when every conflict is settled.'}</p>
+    <div class="run-actions"><button class="btn" id="again">New archive</button><button class="btn primary" id="open" ${all ? '' : 'disabled'}>Open the workspace</button></div></div>`;
+}
+
+// Evidence image for a conflict the rules could not settle: where on the drawing the two readings disagree.
+function evidenceSVG() {
+  // only c6 is unsolved in this mock: a 320×240 photo, drawn coarse on purpose; the second room's label is too blurred to read surely.
+  return [`<svg viewBox="0 0 320 240" role="img" aria-label="Low-resolution photo of flat C03">
+    <defs><filter id="blur6"><feGaussianBlur stdDeviation="1.6"/></filter></defs>
+    <rect width="320" height="240" fill="#d9d4c7"/>
+    <g filter="url(#blur6)" stroke="#3a3a3a" stroke-width="6" fill="#ece7da">
+      <rect x="20" y="20" width="150" height="200"/><rect x="170" y="20" width="130" height="110"/><rect x="170" y="130" width="130" height="90"/></g>
+    <g filter="url(#blur6)" font-family="sans-serif" font-weight="700" fill="#333"><text x="80" y="125" font-size="22">OH</text>
+      <text x="215" y="82" font-size="20">MH</text><text x="218" y="182" font-size="20">KH</text></g>
+    <rect x="198" y="52" width="76" height="44" fill="none" stroke="#e0a21b" stroke-width="3" stroke-dasharray="6 4"/>
+    <g font-family="sans-serif" font-size="11" font-weight="600"><rect x="182" y="100" width="108" height="34" rx="4" fill="#fff" opacity=".92"/>
+      <text x="188" y="114" fill="#3b4452">OCR: MH · 54%</text><text x="188" y="128" fill="#3b4452">2nd read: KH · 41%</text></g></svg>`,
+    'The dashed box is the second room. The photo is 320×240, so its label blurs: both readings are under the 80% the rule needs.'];
+}
+
+function conflictHTML(c) {
+  const fin = finalPick(c), denied = c.verdict === 'denied';
+  const vars = c.v.map((x, i) => `<div class="cfvar${fin === i ? ' chosen' : ''}${c.ai === i ? ' ai' : ''}"><span class="lbl">Variant ${i + 1}${c.ai === i ? ' · AI decision' : ''}</span><b>${esc(x.label)}</b><span>${esc(x.src)}</span></div>`).join('');
+  const pickBtns = c.v.map((x, i) => `<button class="btn" data-pick="${c.id}:${i}">Use variant ${i + 1}: ${esc(x.label)}</button>`).join('');
+  let act;
+  if (c.verdict === 'approved') act = `<span class="approved">✓ Approved: variant ${c.ai + 1}</span><button class="btn" data-verdict="${c.id}:denied">Modify</button>`;
+  else if (fin !== null) act = `<p class="signed">You chose variant ${fin + 1}${denied ? ', over the AI decision' : ''}.</p><button class="btn small" data-reset="${c.id}">${c.ai === null ? 'Change' : 'Undo, use the AI decision'}</button>`;
+  else if (c.ai === null) act = `<p class="cfask">Choose the variant that is right:</p>${pickBtns}`;
+  else act = `<p class="cfask">Pick the right variant yourself:</p>${pickBtns}<button class="btn small" data-reset="${c.id}">Cancel</button>`;
+  return `<article class="card cf${fin !== null ? ' done' : ''}${c.ai === null ? ' unsolved' : ' solved'}"><header><div><h3>${esc(c.title)}</h3><span class="nm">${esc(c.file)}</span></div>
+    <span class="chip ${fin !== null ? 'ok' : c.ai === null ? 'warn' : 'info'}">${fin !== null ? 'settled' : c.ai === null ? 'needs you' : 'to approve'}</span></header>
+    ${c.ai === null ? `<div class="cfev">${c.showEv ? `<div class="cfimg">${evidenceSVG(c)[0]}</div><p class="cfcap">${esc(evidenceSVG(c)[1])}</p>` : ''}
+      <button class="btn small" data-ev="${c.id}">${c.showEv ? 'Hide evidence' : 'Show evidence'}</button></div>` : `<div class="cfvars">${vars}</div>`}
+    <div class="cfrules"><span class="lbl">Rules applied</span><ol>${c.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ol>
+      <p><b>${c.ai === null ? 'AI could not decide.' : `AI decision: variant ${c.ai + 1}.`}</b> ${esc(c.why)}</p></div>
+    <div class="cfact">${act}</div></article>`;
+}
+
+function conflictsClick(ev) {
+  const t = (sel) => ev.target.closest(sel), get = (id) => CONFLICTS.find((c) => c.id === id);
+  let el, c;
+  if ((el = t('[data-ev]'))) { c = get(el.dataset.ev); c.showEv = !c.showEv; return renderIngest(); }
+  if ((el = t('[data-verdict]'))) { const [id, v] = el.dataset.verdict.split(':'); c = get(id); c.verdict = v; c.pick = null; }
+  else if ((el = t('[data-pick]'))) { const [id, i] = el.dataset.pick.split(':'); c = get(id); c.pick = +i; }
+  else if ((el = t('[data-reset]'))) { c = get(el.dataset.reset); c.verdict = c.ai === null ? null : 'approved'; c.pick = null; }
+  else return;
+  if (c.apply) c.apply(finalPick(c));
+  renderIngest();
 }
 
 function setHTML(node, html) { if (node.dataset.h !== html) { node.innerHTML = html; node.dataset.h = html; } }
@@ -694,36 +812,37 @@ function startIngest(name, note) {
 function tick() {
   const g = state.ing;
   g.t++;
-  if (g.t >= MAX_T) { clearInterval(g.timer); g.timer = null; setTimeout(() => { if (state.view === 'ingest' && g.t >= MAX_T) openWork('engineer'); }, 900); }
-  if (state.view === 'ingest') updateIngest();
+  if (g.t >= MAX_T) { clearInterval(g.timer); g.timer = null; }
+  if (state.view === 'ingest') (g.t >= MAX_T ? renderIngest : updateIngest)();
 }
 
 function openWork(role, plan) {
   state.view = 'work'; state.role = role; if (plan) state.plan = plan;
   state.focus = PLANS[state.plan].id === 'B' && role === 'surveyor' ? 'windows' : 'doors';
-  state.focusIdx = 0; state.addMode = false;
+  state.addMode = false;
   render();
 }
 
 function ingestClick(ev) {
   const g = state.ing, t = (sel) => ev.target.closest(sel);
   if (t('#sample')) return startIngest('harbour-block-archive.zip');
-  if (t('#skip')) { clearInterval(g.timer); g.timer = null; return openWork('engineer'); }
+  if (t('#skip')) { clearInterval(g.timer); g.timer = null; g.t = MAX_T; return renderIngest(); }
   if (t('#again')) { clearInterval(g.timer); g.timer = null; g.t = -1; return updateIngest(); }
+  if (t('#open')) return openWork('engineer');
+  conflictsClick(ev);
+
 }
 
 /* ------------------------------------------------------------------- shell */
 
 function render() {
-  document.querySelectorAll('#roleSwitch button').forEach((b) => b.classList.toggle('on', b.dataset.role === state.role));
-  $('#roleSwitch').hidden = state.view !== 'work';
   if (state.view === 'ingest') renderIngest(); else renderWork();
 }
 
 const app = $('#app');
 app.addEventListener('click', (ev) => (state.view === 'ingest' ? ingestClick(ev) : workClick(ev)));
 app.addEventListener('mouseover', (ev) => { if (state.view === 'work') workHover(ev); });
-app.addEventListener('submit', (ev) => { ev.preventDefault(); if (ev.target.id === 'ask') ask(ev.target.q.value); });
+app.addEventListener('submit', (ev) => { ev.preventDefault(); if (ev.target.id === 'ask') ask(ev.target.elements.q.value); });
 app.addEventListener('change', (ev) => {
   if (ev.target.id === 'pick' && ev.target.files[0]) startIngest(ev.target.files[0].name, 'This mock does not read your file. It plays the sample archive under your file\'s name.');
 });
@@ -735,17 +854,11 @@ app.addEventListener('drop', (ev) => {
   const f = ev.dataTransfer.files[0];
   startIngest(f ? f.name : 'harbour-block-archive.zip', f ? 'This mock does not read your file. It plays the sample archive under your file\'s name.' : '');
 });
-$('#roleSwitch').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-role]'); if (!b) return;
-  state.role = b.dataset.role; state.addMode = false;
-  if (!PLANS[state.plan].q[state.focus]) state.focus = 'doors';
-  render();
-});
 
 // deep links for screenshots and for sending someone to one screen: #work/surveyor/B, #ingest/done
 (function boot() {
   const [v, a, b] = location.hash.slice(1).split('/');
-  if (v === 'work') { state.view = 'work'; state.role = a === 'surveyor' ? 'surveyor' : 'engineer'; if (PLANS[b]) state.plan = b; state.focusIdx = 0;
+  if (v === 'work') { state.view = 'work'; state.role = a === 'surveyor' ? 'surveyor' : 'engineer'; if (PLANS[b]) state.plan = b;
     if (state.role === 'engineer') { render(); return ask(SUGGEST[state.plan][0]); }
     if (state.plan === 'B') state.focus = 'windows'; }
   if (v === 'ingest' && a === 'done') { state.ing.zip = 'harbour-block-archive.zip'; state.ing.t = MAX_T; }
