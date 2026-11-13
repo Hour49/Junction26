@@ -1,0 +1,9 @@
+// Static-assets-only Cloudflare Worker for junction.hour49.com, the Hour49 page for Junction 2026 (public/ is the site).
+// Deploy from this folder: set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in the env, then
+// `npx wrangler@4.161.0 deploy`. No account id here: the repo is public.
+{
+  "name": "hour49-junction",
+  "compatibility_date": "2026-11-10",
+  "assets": { "directory": "./public" },
+  "routes": [{ "pattern": "junction.hour49.com", "custom_domain": true }]
+}
