@@ -31,6 +31,8 @@ days"; used on "more than twenty Nordic sites, from data halls to rail"; claims 
 "2–8 h shorter from problem raised to decision made" (their claims, reported). Track: the site does not assign Stoa to
 a track; Data is the closest (assumed).
 
+Full partner profile with their product, examples and claims: [stoa-legacy-files/partner.md](stoa-legacy-files/partner.md).
+
 **What this changes:** the cited question answering is **their product**. Don't rebuild it. Our build is the layer in
 front of it: turning messy legacy and multimodal files into a standard, up-to-date format their kind of system can
 ingest (and the 3D view). Ask what format their pipeline takes in. EU hosting matters to them, so expect EU-only data
