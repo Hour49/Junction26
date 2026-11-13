@@ -353,6 +353,39 @@ const FILES = [
   { path: 'misc/Thumbs.db', size: '22 kB', kind: 'system file', route: 'skip', stop: 1, speed: 1, cost: 0, res: ['mute', 'ignored'],
     t: [['path ok, 22 kB'], ['Windows thumbnail cache: ignored']] },
 ];
+// Conflicts the ingest found between two readings of the same thing. ai = index of the variant the rules picked,
+// null when the rules could not decide. verdict/pick are what the user did.
+const CONFLICTS = [
+  { id: 'c1', file: 'model/harbour-block.ifc ↔ plans/floor-01.dxf', title: 'Doors on storey 1', ai: 0,
+    v: [{ label: '13 doors', src: 'IFC model, IfcDoor on storey 1' }, { label: '12 doors', src: 'DXF, DOOR layer of floor-01' }],
+    rules: ['A BIM model outranks CAD when both carry the same revision.', 'Both files carry revision C, dated 2026-09-14.'],
+    why: 'Same revision, so the model wins. The extra door (D-1.14, storage) is drawn in the model and missing from the DXF.' },
+  { id: 'c2', file: 'plans/floor-03.dwg', title: 'Glazed door on layer A-GLAZ', ai: 1,
+    v: [{ label: 'Window', src: 'Layer A-GLAZ, where windows live' }, { label: 'Door', src: 'Block has a door leaf and a swing arc' }],
+    rules: ['Glazed doors count as doors.', 'An opening with a leaf and a swing is a door, whatever its layer.'],
+    why: 'The block has a leaf and a swing arc, so it is a door. The layer name is overruled.' },
+  { id: 'c3', file: 'sheets/A-201-plan-sections.pdf', title: 'Scale of the plan view', ai: 0,
+    v: [{ label: '1:100', src: 'Written scale in the title block' }, { label: '1:98', src: 'Measured from the drawn scale bar' }],
+    rules: ['Scale, in order of trust: CAD units, a written scale, a drawn scale bar, dimension strings.'],
+    why: 'A written scale is trusted over a scale bar. The 2% gap is within what a scan stretches.' },
+  { id: 'c4', file: 'specs/window-schedule.pdf ↔ plans/floor-02', title: 'Size of window type W4', ai: 0,
+    v: [{ label: '1200 × 1400', src: 'Window schedule, row W4' }, { label: '1200 × 1500', src: 'Tag next to the window on floor-02' }],
+    rules: ['A schedule outranks a tag on the plan.', 'The newer document wins when the dates differ.'],
+    why: 'Both are dated 2026-08-02, so the schedule wins.' },
+  { id: 'c5', file: 'scans/flat-b12-scan.png', title: 'Windows: is the balcony glazing a window?', ai: null,
+    v: [{ label: '6 windows', src: 'Detector: glazing is not a window in a wall' }, { label: '7 windows', src: 'Vision count: glazing counted as a window' }],
+    rules: ['One window per opening in a wall, whatever the number of panes.', 'Balcony glazing on an outdoor railing is not a wall.'],
+    why: 'The scan does not show whether the glazing sits in a wall or on the railing. Both readings follow the rules.',
+    apply: (i) => { PLANS.B.q.windows.marks.find((m) => m.id === 'w7').state = i === null ? 'contested' : i === 0 ? 'rejected' : 'counted'; } },
+  { id: 'c6', file: 'scans/flat-c03-photo.jpg', title: 'Label of the second room', ai: null,
+    v: [{ label: 'MH (bedroom)', src: 'OCR, 54% confidence' }, { label: 'KH (bathroom)', src: 'OCR second reading, 41% confidence' }],
+    rules: ['A room label is only used when OCR is over 80% sure.', 'A room without a label is never guessed.'],
+    why: 'Both readings are under 80%. The photo is 320×240, too small to settle it.' },
+];
+const finalPick = (c) => (c.verdict === 'approved' ? c.ai : c.pick ?? null);
+const resolved = (c) => finalPick(c) !== null;
+const cfList = (mode) => CONFLICTS.filter((c) => (mode === 'solved') === (c.ai !== null));
+
 FILES.forEach((f, i) => { f.start = i * 2; f.end = f.start + (f.stop + 1) * f.speed; });
 const MAX_T = Math.max(...FILES.map((f) => f.end));
 const ROUTE_CHIP = { vector: ['info', 'vector'], model: ['info', 'model'], raster: ['warn', 'raster'], text: ['mute', 'text'], copy: ['mute', 'copy'], skip: ['mute', 'none'] };
@@ -687,12 +720,65 @@ function renderIngest() {
       <div class="actions"><button class="btn primary" id="sample">Use the sample archive (14 files)</button><label class="btn">Choose a zip<input type="file" id="pick" accept=".zip" hidden></label></div></div></div>`;
     return;
   }
-  $('#app').innerHTML = `<div class="run"><div class="run-head"><span class="eyebrow"><i class="live"></i> Analysing now</span>
+  const done = g.t >= MAX_T;
+  $('#app').innerHTML = `<div class="run"><div class="run-head"><span class="eyebrow"><i class="live"></i> ${done ? 'Analysis done' : 'Analysing now'}</span>
     <h1>${esc(g.zip)}</h1><p>Reading every drawing once, so later questions are answered from the result, not from the files.</p></div>
     <div class="console" id="console"></div>
     ${g.note ? `<p class="run-note">${esc(g.note)}</p>` : ''}
-    <div class="run-actions"><button class="btn" id="again">${g.t >= MAX_T ? 'New archive' : 'Stop'}</button><button class="btn${g.t >= MAX_T ? ' primary' : ''}" id="skip">${g.t >= MAX_T ? 'Open the workspace' : 'Skip to the end'}</button></div></div>`;
+    ${done ? conflictSummaryHTML() : '<div class="run-actions"><button class="btn" id="again">Stop</button><button class="btn" id="skip">Skip to the end</button></div>'}</div>`;
   updateIngest();
+}
+
+/* -------------------------------------------------------------- conflicts */
+
+function conflictSummaryHTML() {
+  const sol = cfList('solved'), uns = cfList('unsolved'), n = (l) => l.filter(resolved).length, all = CONFLICTS.every(resolved);
+  const tile = (l, mode, title, sub, btn) => `<div class="cftile${n(l) === l.length ? ' ok' : ''}"><span class="lbl">${title}</span>
+    <b>${n(l)} / ${l.length}</b><span>${sub}</span><button class="btn${n(l) === l.length ? '' : ' primary'}" data-cf="${mode}">${btn}</button></div>`;
+  return `<div class="cfsum"><h2>${CONFLICTS.length} conflicts found <small>two readings of the same thing disagree</small></h2>
+    <div class="cftiles">${tile(sol, 'solved', 'Solved by the AI', 'checked by you', 'Approve solved conflicts')}${tile(uns, 'unsolved', 'Unsolved', 'variant chosen by you', 'See unsolved conflicts')}</div>
+    <p class="cfgate">${all ? 'Every conflict is settled. The workspace answers from your decisions.' : 'The workspace opens when every conflict is approved or settled by you.'}</p>
+    <div class="run-actions"><button class="btn" id="again">New archive</button><button class="btn primary" id="open" ${all ? '' : 'disabled'}>Open the workspace</button></div></div>`;
+}
+
+function conflictHTML(c) {
+  const fin = finalPick(c), denied = c.verdict === 'denied';
+  const vars = c.v.map((x, i) => `<div class="cfvar${fin === i ? ' chosen' : ''}${c.ai === i ? ' ai' : ''}"><span class="lbl">Variant ${i + 1}${c.ai === i ? ' · AI decision' : ''}</span><b>${esc(x.label)}</b><span>${esc(x.src)}</span></div>`).join('');
+  const pickBtns = c.v.map((x, i) => `<button class="btn" data-pick="${c.id}:${i}">Use variant ${i + 1}: ${esc(x.label)}</button>`).join('');
+  let act;
+  if (fin !== null) act = `<p class="signed">${c.verdict === 'approved' ? `Approved by you: variant ${c.ai + 1}.` : `You chose variant ${fin + 1}${denied ? ', over the AI decision' : ''}.`}</p><button class="btn small" data-reset="${c.id}">Change</button>`;
+  else if (c.ai === null) act = `<p class="cfask">Choose the variant that is right:</p>${pickBtns}`;
+  else if (denied) act = `<p class="cfask">You denied the AI decision. Pick the right variant yourself:</p>${pickBtns}<button class="btn small" data-reset="${c.id}">Cancel</button>`;
+  else act = `<button class="btn ok" data-verdict="${c.id}:approved">Approve</button><button class="btn no" data-verdict="${c.id}:denied">Deny</button>`;
+  return `<article class="card cf${fin !== null ? ' done' : ''}"><header><div><h3>${esc(c.title)}</h3><span class="nm">${esc(c.file)}</span></div>
+    <span class="chip ${fin !== null ? 'ok' : c.ai === null ? 'warn' : 'info'}">${fin !== null ? 'settled' : c.ai === null ? 'needs you' : 'to approve'}</span></header>
+    <div class="cfvars">${vars}</div>
+    <div class="cfrules"><span class="lbl">Rules applied</span><ol>${c.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ol>
+      <p><b>${c.ai === null ? 'AI could not decide.' : `AI decision: variant ${c.ai + 1}.`}</b> ${esc(c.why)}</p></div>
+    <div class="cfact">${act}</div></article>`;
+}
+
+function renderConflicts() {
+  const mode = state.cmode, list = cfList(mode), n = list.filter(resolved).length;
+  $('#app').innerHTML = `<div class="run cfpage"><div class="run-head"><button class="btn small" id="cfback">← Back to the summary</button>
+    <h1>${mode === 'solved' ? 'Conflicts the AI solved' : 'Unsolved conflicts'}</h1>
+    <p>${mode === 'solved' ? 'Approve each decision, or deny it and pick the variant yourself.' : 'The rules could not pick a variant. Choose one for each conflict.'}</p>
+    <span class="lbl">${n} of ${list.length} settled</span><div class="progress"><i style="width:${100 * n / list.length}%"></i></div></div>
+    <div class="cflist">${list.map(conflictHTML).join('')}</div></div>`;
+}
+
+function conflictsClick(ev) {
+  const t = (sel) => ev.target.closest(sel), get = (id) => CONFLICTS.find((c) => c.id === id);
+  let el, c;
+  if (t('#cfback')) { state.view = 'ingest'; return render(); }
+  if ((el = t('[data-verdict]'))) { const [id, v] = el.dataset.verdict.split(':'); c = get(id); c.verdict = v; c.pick = null; }
+  else if ((el = t('[data-pick]'))) { const [id, i] = el.dataset.pick.split(':'); c = get(id); c.pick = +i; }
+  else if ((el = t('[data-reset]'))) { c = get(el.dataset.reset); c.verdict = null; c.pick = null; }
+  else return;
+  if (c.apply) c.apply(finalPick(c));
+  renderConflicts();
+  // last one settled: back to the summary, like the ingest hands over when it finishes
+  if (resolved(c) && cfList(state.cmode).every(resolved)) setTimeout(() => { if (state.view === 'conflicts') { state.view = 'ingest'; render(); } }, 900);
 }
 
 function setHTML(node, html) { if (node.dataset.h !== html) { node.innerHTML = html; node.dataset.h = html; } }
@@ -731,8 +817,8 @@ function startIngest(name, note) {
 function tick() {
   const g = state.ing;
   g.t++;
-  if (g.t >= MAX_T) { clearInterval(g.timer); g.timer = null; setTimeout(() => { if (state.view === 'ingest' && g.t >= MAX_T) openWork('engineer'); }, 900); }
-  if (state.view === 'ingest') updateIngest();
+  if (g.t >= MAX_T) { clearInterval(g.timer); g.timer = null; }
+  if (state.view === 'ingest') (g.t >= MAX_T ? renderIngest : updateIngest)();
 }
 
 function openWork(role, plan) {
@@ -745,8 +831,11 @@ function openWork(role, plan) {
 function ingestClick(ev) {
   const g = state.ing, t = (sel) => ev.target.closest(sel);
   if (t('#sample')) return startIngest('harbour-block-archive.zip');
-  if (t('#skip')) { clearInterval(g.timer); g.timer = null; return openWork('engineer'); }
+  if (t('#skip')) { clearInterval(g.timer); g.timer = null; g.t = MAX_T; return renderIngest(); }
   if (t('#again')) { clearInterval(g.timer); g.timer = null; g.t = -1; return updateIngest(); }
+  if (t('#open')) return openWork('engineer');
+  const cf = t('[data-cf]');
+  if (cf) { state.view = 'conflicts'; state.cmode = cf.dataset.cf; return render(); }
 }
 
 /* ------------------------------------------------------------------- shell */
@@ -754,11 +843,11 @@ function ingestClick(ev) {
 function render() {
   document.querySelectorAll('#roleSwitch button').forEach((b) => b.classList.toggle('on', b.dataset.role === state.role));
   $('#roleSwitch').hidden = state.view !== 'work';
-  if (state.view === 'ingest') renderIngest(); else renderWork();
+  if (state.view === 'ingest') renderIngest(); else if (state.view === 'conflicts') renderConflicts(); else renderWork();
 }
 
 const app = $('#app');
-app.addEventListener('click', (ev) => (state.view === 'ingest' ? ingestClick(ev) : workClick(ev)));
+app.addEventListener('click', (ev) => ({ ingest: ingestClick, conflicts: conflictsClick, work: workClick }[state.view](ev)));
 app.addEventListener('mouseover', (ev) => { if (state.view === 'work') workHover(ev); });
 app.addEventListener('submit', (ev) => { ev.preventDefault(); if (ev.target.id === 'ask') ask(ev.target.elements.q.value); });
 app.addEventListener('change', (ev) => {
