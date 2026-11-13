@@ -40,7 +40,10 @@ by the worker that merged its scope.
 - **Second counter.** Template matching with a symbol cut from the same plan (the detector's most confident boxes):
   F1 0.87 on 34 drawings, against 0.38 with a library symbol and 0.10 to 0.23 for trained exemplar counters (arXiv
   2610.09313). In the same paper, a vision-language model accepting or rejecting each candidate scored 0.83 to
-  0.91, not significantly different from template matching alone.
+  0.91, not significantly different from template matching alone. Those are legend drawings. On the paper's
+  floor-plan blocks (339 test items, 21 classes; Table 20, checked) template matching gets 0.58 and the two trained
+  exemplar counters 0.19 and 0.34, so expect the lower figure on plans (correction from Tudor's orchestrator's
+  review).
 - **Confidence.** No paper ranks a confidence signal against exact per-image count correctness, so dev decides.
   Candidates in order of cost: the plain score of the two or three most confident detections (averaging all scores
   misranks); the probability of the modal count from calibrated box scores (Poisson-binomial); agreement of two
