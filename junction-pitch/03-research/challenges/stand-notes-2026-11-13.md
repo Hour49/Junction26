@@ -15,7 +15,7 @@ the official briefs, its `ranking.md` supersedes the ranking here.
 
 | Partner | What they want (Bogdan's notes) | Track (from `00-event/junction-info.md` §2A, inferred) |
 |---|---|---|
-| **Stoa** | "You get architectural files, multimodal etc., written legacy, and you standardise these to make sure they are up to date, make them in a standard format, then to be able to be fed into an AI for easier access, with potential 3D drawings." | not listed |
+| **Stoa** | "You get architectural files, multimodal etc., written legacy, and you standardise these to make sure they are up to date, make them in a standard format, then to be able to be fed into an AI for easier access, with potential 3D drawings." | not assigned on the site; most likely **Data** (assumed): ask the rep or check the platform Challenges tab |
 | **Cala** | "A way to find unicorn companies, like an algorithm." | FinTech (with S-Pankki), UNVERIFIED |
 | **Hostinger** | "An app built on their setup which detects propaganda." | Agentic AI, UNVERIFIED |
 
@@ -23,10 +23,18 @@ Not yet asked: Valio Aimo, Google DeepMind, AstraZeneca, MariaDB, Verda (questio
 
 ## 2. Stoa: legacy architectural files to a standard, AI-ready format (3D optional)
 
-**Who they are:** not found. A search for "Stoa" + architecture/AI/Finland returns the City of Helsinki's Stoa culture
-centre competition and the archived Aalto Stoa, not a company
-([hel.fi](https://www.hel.fi/en/news/finalists-for-the-stoa-architecture-competition-selected-four-proposals-proceed-to-the-second-stage),
-accessed 2026-11-13). Ask them. UNVERIFIED.
+**Who they are (reported):** Stoa, [stoabuild.com](https://stoabuild.com/) (linked from the Junction 2026 partner wall
+as a major partner, [2026.hackjunction.com](https://2026.hackjunction.com/), accessed 2026-11-13 18:05): "AI for
+construction projects, answered from your own documents". It reads a project's drawings, specifications, contracts,
+schedule and site records and answers with the document and page behind every answer; hosted in the EU; "live in two
+days"; used on "more than twenty Nordic sites, from data halls to rail"; claims "a week back per project engineer" and
+"2–8 h shorter from problem raised to decision made" (their claims, reported). Track: the site does not assign Stoa to
+a track; Data is the closest (assumed).
+
+**What this changes:** the cited question answering is **their product**. Don't rebuild it. Our build is the layer in
+front of it: turning messy legacy and multimodal files into a standard, up-to-date format their kind of system can
+ingest (and the 3D view). Ask what format their pipeline takes in. EU hosting matters to them, so expect EU-only data
+rules (Verda's EU GPUs then beat a US cloud LLM).
 
 **Existing product to know:** Make a BIM, a Helsinki startup (founded 2023), turns 2D architectural drawings into BIM
 models with AI and has modelled about a thousand buildings (reported)
@@ -155,6 +163,6 @@ Stack on any of them: DeepMind (Gemini), Verda credits; MariaDB if the data fits
 ## Open questions / UNVERIFIED
 
 - All three partner asks are verbal; the official briefs come at 18:00.
-- Who Stoa is.
+- Stoa's track (site lists none; Data assumed) and the input format their pipeline takes.
 - Cala's FinTech track and Hostinger's Agentic AI track are inferred from the partner list.
 - The SemEval propaganda-technique dataset: check it exists and its licence before using it.
