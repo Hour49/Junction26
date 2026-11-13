@@ -72,12 +72,39 @@ Also GB300, V100 and confidential-computing variants of B300, B200 and RTX PRO 6
   on our golden set. No GPU instances to babysit.
 - Set a spend cap in our adapter (docs/ENGINEERING.md §2.6): the balance is prepaid and resources stop at zero.
 
+## Training or fine-tuning on Verda (Bogdan's question, 2026-11-13 20:05)
+
+Compute is cheap and not the limit: a LoRA fine-tune of a ~7B open vision model on a few hundred examples, or a few
+epochs of a pretrained detector, is roughly 1-3 GPU-hours on an H100 or A100 (estimate, not measured), so $5-15 on
+demand and half on spot. The limits are labelled data and the team's hours.
+
+Where training could beat a prompted model for Stoa (assumed until the golden set says so):
+1. **Locating things on a floor plan** (walls, doors, rooms, symbols as coordinates). Stoa's app opens the floor plan
+   at an issue's location, so findings need positions; general vision LLMs are weaker at exact positions on dense
+   drawings than a trained detector. Public data: CubiCasa5K (5,000 annotated, mostly Finnish floor plans, 80+
+   classes, [repo](https://github.com/CubiCasa/CubiCasa5k)) and FloorPlanCAD (15,663 CAD drawings, 30 symbol
+   classes, [site](https://floorplancad.github.io)). **Both are CC BY-NC 4.0** (checked 2026-11-13): fine for a
+   hackathon demo, not for a commercial Stoa pilot; never commit the data; declare it in the submission (Terms §8.2).
+2. **Distilling a big model into a small one for title blocks:** Kimi or Gemini labels a few hundred sheets, we
+   hand-check a sample, LoRA a small open vision model on Verda and serve it from a serverless container. The claim
+   to prove: same accuracy on held-out sheets at a fraction of the cost, all in Finland. Needs Stoa's sheets first.
+
+Not worth training: the gap and conflict checks (deterministic rules are cheaper and explainable), anything from
+scratch, a general LLM fine-tune.
+
+How (if we do it): baseline first (prompted model + 20-sheet golden set, Fri night); one person, time-boxed to the
+first end-to-end run (Sat ~14:00); the model ships only if it beats the baseline on held-out sheets, behind the same
+adapter so dropping it costs nothing. Spot GPUs with frequent checkpoints (spot can stop any second); stop instances
+when done. Training script, config, seed and eval go in the repo; weights and data do not (the pre-commit hook
+refuses files over 5 MB anyway).
+
 ## Questions for the Verda workshop (Fri 20:45, Loft)
 
 - How much credit per team, how do we claim it, and does it cover Inference as well as GPUs?
 - What does the AI Infrastructure track reward: cost, latency, open models, fine-tuning, use of serverless?
 - Rate limits on Inference for hackathon accounts? Any model or OCR model coming this weekend?
 - Cold start for serverless containers on L40S, roughly?
+- Do the credits cover a few H100 or A100 hours for fine-tuning, and does the track reward training or fine-tuning?
 
 ## Open questions / UNVERIFIED
 
