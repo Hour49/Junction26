@@ -42,7 +42,7 @@ Held items and later work: [TODO.md](TODO.md). Project rules for agents: [CLAUDE
 | `02-reference/` | Evidence from past editions: video catalogue, channel index, pitch transcripts, pitch analysis and its data | Done |
 | `03-research/` | Our weekend research output, by topic | Empty, with READMEs and a file template |
 | `04-pitch/` | Our scripts, deck, video and submission text | Empty, with READMEs |
-| `05-team/` | Team Hour49: people, roles, track record, prep tooling | Done |
+| `05-team/` | Team Hour49: people, roles, track record, prep tooling | Private: not in this public repo (gitignored). Copy it from Hour49/junction-26-prep `junction-pitch/05-team/`; the team skills read `05-team/hour49.md` |
 
 ## Files
 
@@ -64,7 +64,7 @@ Held items and later work: [TODO.md](TODO.md). Project rules for agents: [CLAUDE
 | `03-research/{challenges,competitors,users,market}/README.md` | What goes in each research subfolder |
 | [04-pitch/README.md](04-pitch/README.md) | Pitch folder guide; `core.md` is the single source for the message |
 | `04-pitch/{scripts,deck,video,submission}/README.md` | What goes in each pitch subfolder, with the matching playbook section |
-| [05-team/hour49.md](05-team/hour49.md) | Team and roles, track record, prep repo and agent workflow, board CLI, team website, decisions and open tasks |
+| `05-team/hour49.md` (private, see Folders) | Team and roles, track record, prep repo and agent workflow, board CLI, team website, decisions and open tasks |
 
 Transcript files in `02-reference/pitch-transcripts/`:
 

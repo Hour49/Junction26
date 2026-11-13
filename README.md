@@ -24,4 +24,5 @@ text stays) and installs the rest. Safe to rerun after every pull.
 ## Pitch kit and research
 
 [junction-pitch/](junction-pitch/README.md): event facts and rules, playbooks, reference pitches, research folders,
-pitch drafts, team profiles, and the pitch skills (`.claude/`; open Claude Code in that folder to use them).
+pitch drafts, and the pitch skills (`.claude/`; open Claude Code in that folder to use them). The team folder
+`junction-pitch/05-team/` is private and gitignored here: copy it from Hour49/junction-26-prep for the team skills.
