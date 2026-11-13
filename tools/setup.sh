@@ -2,10 +2,12 @@
 # setup.sh: install the Hour49 agent setup for this user (docs/TEAM-AGENTS.md section 2). Safe to rerun.
 #   tools/setup.sh            do everything
 #   tools/setup.sh --offline  skip the steps that download (handoff hook, herdr skill)
-# It changes only files under $HOME, and backs up each file before changing it (<file>.bak-<time>):
+# It changes files under $HOME, backing up each file before changing it (<file>.bak-<time>), and this clone's
+# git config:
 #   ~/.claude/CLAUDE.md       team rules between hour49-team markers; the rest of the file is kept
 #   ~/.claude/settings.json   attribution off, skipDangerousModePermissionPrompt (other keys kept)
 #   ~/.local/bin              symlinks: board, claude-acc, waitw.sh
+#   core.hooksPath=.githooks  in this clone: the pre-commit hook refuses .env files, keys and files over 5 MB
 #   ~/.claude/hooks           context-handoff hook (Bogzx/claude-context-handoff install.sh)
 #   ~/.claude/skills/herdr    herdr skill (only if missing)
 #   herdr's claude integration (herdr integration install claude), if herdr is installed
@@ -87,6 +89,16 @@ for tool in board claude-acc waitw.sh; do
     say "  $tool -> $repo/tools/$tool"
   fi
 done
+
+say "== git hooks (this clone)"
+if [ ! -e "$repo/.git" ]; then
+  say "  skipped: $repo is not a git clone"
+elif [ "$(git -C "$repo" config --get core.hooksPath || true)" = ".githooks" ]; then
+  say "  core.hooksPath already .githooks"
+else
+  git -C "$repo" config core.hooksPath .githooks
+  say "  core.hooksPath = .githooks (pre-commit refuses .env files, keys and files over 5 MB)"
+fi
 
 if [ "$offline" = 1 ]; then
   say "== offline: skipped the handoff hook and the herdr skill"
