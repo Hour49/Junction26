@@ -40,6 +40,7 @@ Writes <out>/<sheet stem>.json and <out>/../_reports/<out name>_rulecheck.json (
 import argparse
 import collections
 import json
+import math
 import re
 import sys
 import time
@@ -108,6 +109,18 @@ def parse_svg(path: Path):
                     pts += list(zip(n[0::2], n[1::2]))
                 if len(pts) >= 2:
                     rings.append(pts)
+        # columns are drawn as <circle r cx cy> (Institute EG, Smiley-West EG): a 16-gon ring
+        for tag in re.findall(r"<circle\b[^>]*>", body):
+            v = {k: float(x) for k, x in re.findall(r'\b(r|cx|cy)="([-\d.]+)"', tag)}
+            rings.append(
+                [
+                    (
+                        v["cx"] + v["r"] * math.cos(i * math.pi / 8),
+                        v["cy"] + v["r"] * math.sin(i * math.pi / 8),
+                    )
+                    for i in range(16)
+                ]
+            )
         if not rings:
             continue
         nm = re.search(r'data-name="([^"]*)"', attrs)
