@@ -1,0 +1,676 @@
+{
+  "$defs": {
+    "Apartment": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "area_m2": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area M2"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Apartment",
+      "type": "object"
+    },
+    "Element": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "class": {
+          "enum": [
+            "door",
+            "window",
+            "toilet",
+            "sink",
+            "shower",
+            "bathtub",
+            "sauna_stove",
+            "stair",
+            "wall",
+            "column",
+            "beam",
+            "slab",
+            "railing",
+            "furniture"
+          ],
+          "title": "Class",
+          "type": "string"
+        },
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plan"
+        },
+        "box": {
+          "description": "[x0, y0, x1, y1] as page fractions, origin top left",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Box",
+          "type": "array"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "minItems": 3,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "attrs": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "source_class; IFC also global_id, storey; multiplicity (int >= 1) when the source draws this element several times at identical geometry",
+          "title": "Attrs",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "class",
+        "page",
+        "box"
+      ],
+      "title": "Element",
+      "type": "object"
+    },
+    "Page": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "number"
+        },
+        "unit": {
+          "enum": [
+            "px",
+            "pt"
+          ],
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "page",
+        "width",
+        "height",
+        "unit"
+      ],
+      "title": "Page",
+      "type": "object"
+    },
+    "Plan": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "box": {
+          "description": "[x0, y0, x1, y1] as page fractions, origin top left",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Box",
+          "type": "array"
+        },
+        "storey": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "storey number or name, when known",
+          "title": "Storey"
+        }
+      },
+      "required": [
+        "id",
+        "page",
+        "box"
+      ],
+      "title": "Plan",
+      "type": "object"
+    },
+    "Room": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "bedroom",
+            "kitchen",
+            "bathroom",
+            "wc",
+            "sauna",
+            "balcony",
+            "living",
+            "hall",
+            "storage",
+            "outdoor",
+            "shaft",
+            "other"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the text written in the room, raw",
+          "title": "Label"
+        },
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plan"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "minItems": 3,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "box": {
+          "description": "[x0, y0, x1, y1] as page fractions, origin top left",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Box",
+          "type": "array"
+        },
+        "area_m2": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area M2"
+        },
+        "apartment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Apartment"
+        },
+        "outdoor": {
+          "default": false,
+          "title": "Outdoor",
+          "type": "boolean"
+        },
+        "attrs": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attrs",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "page",
+        "box"
+      ],
+      "title": "Room",
+      "type": "object"
+    },
+    "Scale": {
+      "additionalProperties": false,
+      "description": "The sheet's scale and every kind of scale evidence it shows (Bogdan, 2026-11-13 22:31).",
+      "properties": {
+        "status": {
+          "description": "scaled; no_scale (no scale evidence at all); not_to_scale (the sheet says so); estimated (predictions only: a best-effort scale without printed evidence)",
+          "enum": [
+            "scaled",
+            "no_scale",
+            "not_to_scale",
+            "estimated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "m_per_unit": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "metres per page unit (px or pt); scaled and estimated",
+          "title": "M Per Unit"
+        },
+        "evidence": {
+          "description": "every kind visible on the sheet",
+          "items": {
+            "enum": [
+              "scale_text",
+              "scale_bar",
+              "printed_areas",
+              "dimension_lines",
+              "not_to_scale_note"
+            ],
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the printed scale, e.g. 1:100",
+          "title": "Text"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "how the value was derived, in words",
+          "title": "Source"
+        },
+        "uncertainty": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "estimated only: relative, e.g. 0.10",
+          "title": "Uncertainty"
+        },
+        "reference_m_per_unit": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "gold without a scale: a reference for estimates, not truth",
+          "title": "Reference M Per Unit"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "Scale",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One drawing file: its pages, plans, elements, rooms and apartments (extraction_v1).",
+  "properties": {
+    "schema": {
+      "const": "extraction_v1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "file": {
+      "description": "the path as in questions.jsonl",
+      "pattern": "^data/[^/]+/.+",
+      "title": "File",
+      "type": "string"
+    },
+    "split": {
+      "enum": [
+        "dev",
+        "eval"
+      ],
+      "title": "Split",
+      "type": "string"
+    },
+    "truth": {
+      "description": "elements: full element and room lists; counts: only `counts` is scored",
+      "enum": [
+        "elements",
+        "counts"
+      ],
+      "title": "Truth",
+      "type": "string"
+    },
+    "pages": {
+      "items": {
+        "$ref": "#/$defs/Page"
+      },
+      "minItems": 1,
+      "title": "Pages",
+      "type": "array"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "plans": {
+      "items": {
+        "$ref": "#/$defs/Plan"
+      },
+      "title": "Plans",
+      "type": "array"
+    },
+    "elements": {
+      "items": {
+        "$ref": "#/$defs/Element"
+      },
+      "title": "Elements",
+      "type": "array"
+    },
+    "rooms": {
+      "items": {
+        "$ref": "#/$defs/Room"
+      },
+      "title": "Rooms",
+      "type": "array"
+    },
+    "apartments": {
+      "items": {
+        "$ref": "#/$defs/Apartment"
+      },
+      "title": "Apartments",
+      "type": "array"
+    },
+    "counts": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "keys: an element class, room:<type>, or plan",
+      "title": "Counts"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "file",
+    "split",
+    "truth",
+    "pages",
+    "scale",
+    "plans",
+    "elements",
+    "rooms"
+  ],
+  "title": "Extraction_v1",
+  "type": "object"
+}

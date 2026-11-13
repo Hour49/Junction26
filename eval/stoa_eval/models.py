@@ -19,6 +19,8 @@ from pydantic import (
     model_validator,
 )
 
+from .extraction import Extraction
+
 Unit = Literal["count", "m", "m2", "m3", "ft", "ft2"]
 QuestionType = Literal["count", "area", "length", "volume", "text", "other"]
 Split = Literal["dev", "holdout"]
@@ -129,6 +131,12 @@ class RunRecord(BaseModel):
     against: Against
     golden_version: str | None = Field(description="the golden set's version; golden runs only")
     milestone: bool
+    part: Literal["answering"] = Field(
+        default="answering", description="golden Part 2 (answers); rows before v2 have no field"
+    )
+    reads: Literal["gold-extraction", "pipeline-extraction"] | None = Field(
+        default=None, description="what the answerer read as input; golden v2 runs only"
+    )
     questions_sha256: str
     score_sha256: str = Field(description="sha256 of the full score JSON (gitignored runs folder)")
     overall: Stats
@@ -147,11 +155,62 @@ class RunRecord(BaseModel):
         return self
 
 
+class Ratio(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    n: int = Field(ge=0)
+    correct: int = Field(ge=0)
+    rate: float | None
+
+
+class ExtractionRecord(BaseModel):
+    """One recorded Part 1 run (extraction vs gold) in eval/results/runs.jsonl, next to the answer
+    rows; aggregates only (extraction_record_v1)."""
+
+    model_config = ConfigDict(extra="forbid", title="ExtractionRecord_v1")
+
+    recorded_at: AwareDatetime = Field(description="from the clock, Europe/Helsinki")
+    commit: str = Field(pattern=r"^[0-9a-f]{7,40}$", description="short git sha of HEAD")
+    dirty: bool = Field(description="tracked files had uncommitted changes")
+    name: str = Field(min_length=1, description="the method's name")
+    note: str | None
+    part: Literal["extraction"] = Field(description="golden Part 1")
+    against: Literal["golden", "dev", "eval"]
+    golden_version: str | None = Field(description="the golden set's version; golden runs only")
+    milestone: bool
+    gold_sha256: str = Field(description="sha256 over the gold files' names and contents")
+    score_sha256: str = Field(description="sha256 of the full score JSON (gitignored runs folder)")
+    files: int = Field(ge=0)
+    predicted: int = Field(ge=0)
+    multiplicity: bool = Field(description="counts weighed elements by attrs.multiplicity")
+    elements_f1: float | None
+    elements_f1_by_source: dict[str, float | None]
+    room_f1: float | None
+    room_type_accuracy: float | None
+    room_area_accuracy: float | None
+    plans_exact: Ratio
+    counts_exact: Ratio
+    counts_exact_by_source: dict[str, Ratio]
+    scale_status: Ratio = Field(description="scale cases whose predicted status is as expected")
+    scale_m_per_unit: Ratio = Field(description="scaled gold cases predicted scaled within 2%")
+    scale_m_per_unit_by_case: dict[str, Ratio]
+    scale_estimate_median_error: float | None = Field(description="estimates vs reference")
+    scale_estimate_within_20: float | None
+
+    @model_validator(mode="after")
+    def _eval_only_at_milestones(self) -> Self:
+        if self.against == "eval" and not self.milestone:
+            raise ValueError("a run against the sealed eval split is recorded only as a milestone")
+        return self
+
+
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas"
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "answer_v1.schema.json": Answer,
     "golden_v0.schema.json": GoldenItem,
     "run_record_v1.schema.json": RunRecord,
+    "extraction_record_v1.schema.json": ExtractionRecord,
+    "extraction_v1.schema.json": Extraction,
 }
 
 
