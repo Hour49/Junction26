@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# pre-commit: keep secrets and big files out of this public repo. A pushed key stays readable in the history even
+# after a fix commit, so the check runs before the commit exists. tools/setup.sh enables it
+# (git config core.hooksPath .githooks); tools/test_pre_commit.py tests it; the gitleaks job in
+# .github/workflows/security.yml is the backstop for commits made without it.
+# It reads the staged content (what will be committed), not the working tree, and never prints a matched value.
+set -euo pipefail
+
+max_bytes=$((5 * 1024 * 1024)) # every clone downloads every version of every file, forever
+kinds=(
+  "Google API key"
+  "OpenAI or Anthropic key"
+  "GitHub token"
+  "Cloudflare token"
+  "AWS access key"
+  "private key"
+)
+patterns=(
+  'AIza[0-9A-Za-z_-]{35}'
+  '(^|[^0-9A-Za-z_-])sk-[0-9A-Za-z_-]{32,}'
+  'gh[pousr]_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{22,}'
+  'cfat_[0-9A-Za-z_-]{20,}'
+  'AKIA[0-9A-Z]{16}'
+  '-----BEGIN [A-Z ]*PRIVATE KEY( BLOCK)?-----'
+)
+
+blob="$(mktemp)"
+trap 'rm -f "$blob"' EXIT
+problems=()
+
+while IFS= read -r -d '' path; do
+  case "${path##*/}" in
+    .env.example) ;;
+    .env | .env.*)
+      problems+=("$path: .env files hold real secrets; commit .env.example with placeholders instead")
+      continue
+      ;;
+  esac
+  size="$(git cat-file -s ":$path")"
+  if [ "$size" -gt "$max_bytes" ]; then
+    tenths=$(((size * 10 + 1048575) / 1048576))
+    problems+=("$path: $((tenths / 10)).$((tenths % 10)) MB, over the 5 MB limit; link to it instead")
+    continue
+  fi
+  git cat-file blob ":$path" >"$blob"
+  for i in "${!patterns[@]}"; do
+    lines="$(grep -nIE -e "${patterns[$i]}" "$blob" | cut -d: -f1 | paste -sd, - || true)"
+    if [ -n "$lines" ]; then
+      problems+=("$path line $lines: ${kinds[$i]} pattern; keep keys in the gitignored .env")
+    fi
+  done
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+if [ ${#problems[@]} -gt 0 ]; then
+  {
+    echo "pre-commit: commit refused (this repo is public):"
+    printf '  %s\n' "${problems[@]}"
+    echo "Unstage a file with: git restore --staged <file>"
+    echo "A false positive: fix the pattern in .githooks/pre-commit and its test in tools/test_pre_commit.py."
+  } >&2
+  exit 1
+fi

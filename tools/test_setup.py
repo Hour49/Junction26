@@ -1,18 +1,32 @@
-"""Offline tests for tools/setup.sh in a throwaway HOME (no network: --offline, herdr hidden)."""
+"""Offline tests for tools/setup.sh in a throwaway HOME (no network: --offline, herdr hidden).
+
+setup.sh runs from a copy at <HOME>/repo, so a test never changes the real clone's git config."""
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
 SETUP = Path(__file__).with_name("setup.sh")
 BEGIN, END = "<!-- hour49-team:begin -->", "<!-- hour49-team:end -->"
+ENV = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "GIT_CONFIG_NOSYSTEM": "1"}
 
 
 def run(home):
-    env = {"HOME": str(home), "PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
-    out = subprocess.run(["bash", str(SETUP), "--offline"], env=env, capture_output=True, text=True,
-                         check=True)
+    repo = home / "repo"
+    if not (repo / "tools").exists():
+        (repo / "tools").mkdir(parents=True)
+        shutil.copy2(SETUP, repo / "tools")
+        shutil.copytree(SETUP.parent.parent / "templates", repo / "templates")
+    out = subprocess.run(["bash", str(repo / "tools" / "setup.sh"), "--offline"],
+                         env={**ENV, "HOME": str(home)}, capture_output=True, text=True, check=True)
     return out.stdout
+
+
+def hooks_path(home):
+    return subprocess.run(["git", "-C", str(home / "repo"), "config", "--get", "core.hooksPath"],
+                          env={**ENV, "HOME": str(home)}, capture_output=True, text=True,
+                          check=False).stdout.strip()
 
 
 def test_fresh_home_gets_personal_and_team_block(tmp_path):
@@ -56,3 +70,15 @@ def test_file_without_markers_gets_block_appended(tmp_path):
     out = run(tmp_path)
     md = (claude / "CLAUDE.md").read_text()
     assert md.startswith("# My own rules\n") and BEGIN in md and "appended" in out
+
+
+def test_clone_gets_the_repo_hooks_once(tmp_path):
+    subprocess.run(["git", "init", "-q", str(tmp_path / "repo")],
+                   env={**ENV, "HOME": str(tmp_path)}, check=True)
+    assert "core.hooksPath = .githooks" in run(tmp_path)
+    assert hooks_path(tmp_path) == ".githooks"
+    assert "core.hooksPath already .githooks" in run(tmp_path)
+
+
+def test_copy_that_is_not_a_clone_is_skipped(tmp_path):
+    assert "is not a git clone" in run(tmp_path)

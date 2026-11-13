@@ -1,0 +1,125 @@
+# CI for the whole repo. `tools` always runs. `python` and `node` run once per project directory found (a
+# pyproject.toml or package.json outside tools/ and node_modules/), so this file needs no edit when the stack lands.
+# Actions are pinned to commit SHAs (a tag can be moved); the comment names the version.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to a PR cancels its older run; main keeps one result per commit, so a break can be traced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.13.6" # `uv audit` is still experimental: a pinned uv keeps its behaviour fixed
+
+jobs:
+  tools:
+    name: tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: no home paths or tailnet hostnames in tracked files (public repo)
+        run: python3 tools/scrub.py
+      - run: uv run --no-project --with pytest pytest -q tools
+      # ruff pinned: a new release adds default rules (0.17 flags 4 lines in tools/test_board.py).
+      - run: uvx ruff@0.16.5 check --line-length 100 tools/
+
+  detect:
+    name: detect stacks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      python: ${{ steps.find.outputs.python }}
+      node: ${{ steps.find.outputs.node }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: find
+        # Each output is a JSON list of project directories, e.g. ["."] or ["api","web"], or [] when none.
+        run: |
+          dirs() {
+            find . -name "$1" -not -path './tools/*' -not -path '*/node_modules/*' -not -path '*/.venv/*' \
+              -printf '%h\n' | sed 's|^\./||' | sort | jq -Rsc 'split("\n") | map(select(. != ""))'
+          }
+          echo "python=$(dirs pyproject.toml)" | tee -a "$GITHUB_OUTPUT"
+          echo "node=$(dirs package.json)" | tee -a "$GITHUB_OUTPUT"
+
+  python:
+    name: python (${{ matrix.dir }})
+    needs: detect
+    if: needs.detect.outputs.python != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJSON(needs.detect.outputs.python) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          cache-dependency-glob: ${{ matrix.dir }}/uv.lock
+      - run: uv sync --locked # fails if uv.lock is missing or stale
+      # The project's one check command (lint, format, types, tests, dependency audit), the same one run
+      # locally (docs/ENGINEERING.md section 6). Accepted audit findings are ignored in check.sh, with a reason.
+      - name: check.sh
+        env:
+          DIR: ${{ matrix.dir }}
+        run: |
+          if [ ! -x check.sh ]; then
+            echo "::error::$DIR/check.sh is missing or not executable: add one that runs every check (docs/ENGINEERING.md section 6)"
+            exit 1
+          fi
+          ./check.sh
+
+  node:
+    name: node (${{ matrix.dir }})
+    needs: detect
+    if: needs.detect.outputs.node != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJSON(needs.detect.outputs.node) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24 # the team machines' Node; change it if the deploy target differs
+          cache: npm
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+      - run: npm ci
+      - name: typecheck
+        run: if [ -f tsconfig.json ]; then npx --no-install tsc --noEmit; else echo "no tsconfig.json"; fi
+      - run: npm run lint --if-present
+      - run: npm test --if-present
+      - run: npm run build --if-present # a PR that breaks the production build fails here, not at deploy
+      - name: dependency audit (fails on high or critical)
+        run: npm audit --audit-level=high

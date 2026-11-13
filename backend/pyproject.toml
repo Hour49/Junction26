@@ -1,0 +1,45 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Team Hour49's Junction 2026 backend (FastAPI)."
+requires-python = "==3.13.*"
+dependencies = [
+    "fastapi>=0.162.6",
+    "pydantic-settings>=2.16.3",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.0",
+    "pyright==1.1.414",
+    "pytest>=9.2.0",
+    "pytest-timeout>=2.4.0",
+    "ruff==0.16.5",
+]
+
+[tool.uv]
+package = false # an app, not a library: uv installs the dependencies, nothing gets built
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "RUF", "N"]
+
+[tool.pyright]
+include = ["app", "tests"]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+strict = ["app/core"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-markers", "-rs", "-p", "pytester"]
+markers = ["live: calls a real outside service; skipped unless RUN_LIVE_TESTS=1 (tests/conftest.py)"]
+testpaths = ["tests"]
+pythonpath = ["."]
+timeout = 300
+timeout_method = "thread"
