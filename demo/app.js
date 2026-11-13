@@ -367,7 +367,7 @@ function at(f, t) {
 
 const state = {
   view: 'ingest', role: 'engineer', plan: 'A', focus: 'doors', addMode: false,
-  thread: [], asked: 0, spent: 0, focusIdx: 0,
+  thread: [],
   ing: { t: -1, timer: null, zip: null },
 };
 
@@ -491,36 +491,71 @@ function evidenceHTML(q, survey) {
   <p class="sum">${inc.map((p) => p.area.toFixed(2)).join(' + ') || '0'} = <b>${value(q).toFixed(2)} m²</b></p>`;
 }
 
+// Where an answer's facts came from, per drawing (mock file names, same as the ingest list).
+const SOURCES = {
+  A: [['plans/floor-02.dxf', 'CAD', 'Read: rooms, doors, windows and fixtures from the CAD layers'],
+    ['plans/floor-02.pdf', 'PDF', 'Shown: the rendering the marks are drawn on'],
+    ['plans/floor-02.png', 'PNG', 'Checked: a second, independent count by a small vision model']],
+  B: [['scans/flat-b12-scan.png', 'SCAN', 'Read: symbol detector and OCR on the scanned sheet'],
+    ['scans/flat-b12-scan.png', 'SCAN', 'Checked: a second, independent count by a small vision model']],
+};
+
+// Confidence = how much independent information backs the number (mock rule, shown to the user).
+function confidence(p, q) {
+  if (q.signed) return [99, 'high', 'Signed off by a surveyor.'];
+  if (contested(q)) return [55, 'low', `The two methods disagree (${fmt(q)} or ${q.altValue}). A surveyor has to settle it.`];
+  if (q.flag) return [76, 'medium', q.flag];
+  if (p.route === 'vector') return [97, 'high', 'Exact CAD geometry, and the second count agrees.'];
+  return [88, 'medium', 'Read from a scan, but the second count agrees.'];
+}
+
+function suggestHTML(p) {
+  const asked = new Set(state.thread.map((e) => e.text));
+  const left = SUGGEST[p.id].filter((t) => !asked.has(t));
+  return left.length ? `<div class="try">${left.map((t) => `<button data-ask="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : '';
+}
+
 function answerHTML(e, i) {
-  const p = PLANS[e.plan], focus = i === state.thread.length - 1 - state.focusIdx;
-  const head = `<div class="q" data-focus="${i}">${esc(e.text)}<small>${esc(p.file)}</small></div>`;
+  const p = PLANS[e.plan], last = i === state.thread.length - 1;
+  const user = `<div class="u-row"><div class="bubble">${esc(e.text)}</div><span class="avatar">YOU</span></div>`;
+  const bot = (inner) => `<div class="a-row"><span class="bot" aria-hidden="true"></span><div class="a-body">${inner}</div></div>`;
+  if (e.pending) return `<article class="turn">${user}${bot(`<div class="steps-done"><span class="spin"></span> Reading ${esc(p.file)}…</div>`)}</article>`;
   if (!e.key) {
-    return `<article class="ans${focus ? ' focus' : ''}">${head}<div class="a"><p class="refuse" style="margin:0"><b>Not answered.</b> ${esc(e.reason)}</p>
-      <dl class="how"><dt>Cost</dt><dd>${eur(PARSE_COST)} to read the question. No drawing work, no guess.</dd></dl></div></article>`;
+    return `<article class="turn">${user}${bot(`<p><b>I can't answer that from this drawing.</b> ${esc(e.reason)}</p><p class="mute">No answer is better than a guess, so the confidence is 0%.</p>
+      ${last ? suggestHTML(p) : ''}`)}</article>`;
   }
-  const q = p.q[e.key], st = status(q), both = contested(q);
-  return `<article class="ans${focus ? ' focus' : ''}">${head}<div class="a">
-    <div class="val"><b>${fmt(q)}</b><span class="u">${esc(q.unit)}</span><span class="chip ${st[0]}">${st[1]}</span></div>
-    ${both ? `<p class="refuse">Two methods disagree: ${fmt(q)} or ${q.altValue}. The mark in question is amber on the drawing. A surveyor has to settle it.</p>` : ''}
-    ${q.flag && !q.signed ? `<p class="refuse">${esc(q.flag)}</p>` : ''}
-    <p><span class="lbl">Counting rule</span><br>${esc(q.rule)}</p>
-    <p><span class="lbl">Evidence on the drawing</span></p>${evidenceHTML(q, false)}
-    <dl class="how">
-      <dt>Query</dt><dd><code>${esc(q.query)}</code></dd>
-      <dt>Answered by</dt><dd>Lookup in the drawing model built at ingest. ${esc(q.method)}.</dd>
-      <dt>Checked by</dt><dd>${esc(q.alt)}: ${q.kind === 'count' ? q.altValue : 'within 0.1%'}${q.signed ? `. Signed off by the surveyor at ${q.signed}` : ''}.</dd>
-      <dt>Cost</dt><dd>${eur(e.cost)}${e.cached ? ' (same question as before, served from cache)' : ' to turn the question into the query'}, 0 model calls on the drawing, about 40 ms.</dd>
-    </dl></div></article>`;
+  const q = p.q[e.key], [pct, lvl, why] = confidence(p, q);
+  const card = `<div class="rcard${e.hidden ? ' closed' : ''}">
+    <div class="rhead"><span class="ricon">⌗</span><b>${esc(q.label)}</b><span class="rsub">${esc(p.file)} · ${p.route === 'vector' ? 'CAD' : 'scan'}</span>
+      <button class="hide" data-hide="${i}">${e.hidden ? 'Show ⌄' : 'Hide ⌃'}</button></div>
+    <div class="rbody">
+      <div class="shot">${planSVG(p, q, false)}</div>
+      <div class="rside">
+        <span class="k">The answer</span>
+        <dl><dt>Value</dt><dd><b>${fmt(q)}</b> ${esc(q.unit)}</dd><dt>Rule</dt><dd>${esc(q.rule)}</dd><dt>Method</dt><dd>${esc(q.method)}</dd><dt>Check</dt><dd>${esc(q.alt)}: ${q.kind === 'count' ? q.altValue : 'agrees'}</dd></dl>
+        <span class="k">Confidence</span>
+        <div class="confrow"><div class="conf ${lvl}"><i style="width:${pct}%"></i></div><b>${pct}%</b></div>
+        <small>${esc(why)}</small>
+        <span class="k">Where this came from</span>
+        <ul class="srcs">${SOURCES[p.id].map(([f, k, w]) => `<li><span class="tag">${k}</span><span><b>${esc(f)}</b><small>${esc(w)}</small></span></li>`).join('')}</ul>
+      </div>
+    </div>
+    <div class="rfoot"><span class="fld"><small>Drawing</small> ${esc(p.file)}</span><span class="fld"><small>Cost</small> ${eur(e.cost)}</span><span class="fld"><small>Time</small> ~40 ms</span>
+      <span style="flex:1"></span><button class="btn primary" data-survey="${e.key}">▸ Send to surveyor</button></div>
+  </div>`;
+  const text = q.kind === 'area' ? `The ${esc(q.label.toLowerCase())} is <b>${fmt(q)} m²</b>. ${esc(q.rule)}`
+    : `There ${fmt(q) === '1' ? 'is' : 'are'} <b>${fmt(q)} ${esc(q.unit)}</b> on this drawing. ${esc(q.rule)}`;
+  const note = lvl === 'high' ? '' : `<p>One thing before you use it: ${esc(why)}</p>`;
+  return `<article class="turn">${user}${bot(`<p>${text}</p>${card}${note}${last ? suggestHTML(p) : ''}`)}</article>`;
 }
 
 function engineerHTML(p) {
-  return `<section class="card panel"><h2 style="padding:9px 12px;border-bottom:1px solid var(--line-soft)">Ask about ${esc(p.file)}</h2><div class="body">
-    <form class="askform" id="ask"><input name="q" placeholder="Ask a quantity question, in any language" autocomplete="off"><button class="btn primary">Ask</button></form>
-    <div class="suggest">${SUGGEST[p.id].map((t) => `<button data-ask="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-    <div class="thread">${state.thread.length ? state.thread.map((e, i) => answerHTML(e, i)).reverse().join('') : '<p style="color:var(--mute)">Pick a question. The answer comes with the marks that prove it, the rule that was applied and what it cost.</p>'}</div>
-    <p class="meter">This session: <b>${state.asked}</b> questions, <b>${eur(state.spent)}</b> spent, <b>0</b> model calls on drawings.
-      For scale: sending the sheet image to a large vision model costs about €0.01 to €0.03 per question (illustrative).</p>
-  </div></section>`;
+  return `<section class="chat">
+    ${state.thread.length ? '' : `<header class="hero"><h1>${esc(p.title)}</h1></header>${suggestHTML(p)}`}
+    <div class="convo" id="convo">${state.thread.map(answerHTML).join('')}</div>
+    <form class="composer" id="ask"><span class="plus">+</span><input name="q" placeholder="Ask a question about this drawing…" autocomplete="off">
+      <span class="meta">${state.thread.length} asked</span><button aria-label="Ask">➤</button></form>
+  </section>`;
 }
 
 function surveyorHTML(p) {
@@ -551,11 +586,9 @@ function surveyorHTML(p) {
 function renderWork() {
   const p = PLANS[state.plan], survey = state.role === 'surveyor';
   let q = p.q[state.focus];
-  if (!survey) {
-    const e = state.thread[state.thread.length - 1 - state.focusIdx];
-    q = e && e.plan === p.id && e.key ? p.q[e.key] : null;
-  } else if (!q) { state.focus = 'doors'; q = p.q.doors; }
-  $('#app').innerHTML = `<div class="work">${sideHTML()}${viewerHTML(p, q, survey)}${survey ? surveyorHTML(p) : engineerHTML(p)}</div>`;
+  if (survey && !q) { state.focus = 'doors'; q = p.q.doors; }
+  $('#app').innerHTML = survey ? `<div class="work">${sideHTML()}${viewerHTML(p, q, survey)}${surveyorHTML(p)}</div>`
+    : `<div class="work chat-mode">${sideHTML()}${engineerHTML(p)}</div>`;
 }
 
 function ask(text) {
@@ -570,8 +603,11 @@ function ask(text) {
   else e.key = hit[1];
   e.cached = state.thread.some((x) => x.plan === e.plan && x.text.toLowerCase() === text.toLowerCase());
   if (e.cached) e.cost = 0;
-  state.thread.push(e); state.asked++; state.spent += e.cost; state.focusIdx = 0;
+  e.pending = true;
+  state.thread.push(e);
   renderWork();
+  $('#convo').lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => { e.pending = false; if (state.view === 'work' && state.role === 'engineer') renderWork(); }, 900);
 }
 
 function now() { return new Date().toTimeString().slice(0, 5); }
@@ -580,9 +616,10 @@ function workClick(ev) {
   const p = PLANS[state.plan], survey = state.role === 'surveyor', q = p.q[state.focus];
   const t = (sel) => ev.target.closest(sel);
   let el;
-  if ((el = t('[data-plan]'))) { state.plan = el.dataset.plan; state.focus = 'doors'; state.addMode = false; state.focusIdx = -1; return renderWork(); }
+  if ((el = t('[data-plan]'))) { state.plan = el.dataset.plan; state.focus = 'doors'; state.addMode = false; return renderWork(); }
   if ((el = t('[data-ask]'))) return ask(el.dataset.ask);
-  if ((el = t('[data-focus]'))) { const e = state.thread[+el.dataset.focus]; state.focusIdx = state.thread.length - 1 - +el.dataset.focus; state.plan = e.plan; return renderWork(); }
+  if ((el = t('[data-hide]'))) { const e = state.thread[+el.dataset.hide]; e.hidden = !e.hidden; return renderWork(); }
+  if ((el = t('[data-survey]'))) { openWork('surveyor'); state.focus = el.dataset.survey; return renderWork(); }
   if (!survey) return;
   if ((el = t('[data-q]'))) { state.focus = el.dataset.q; state.addMode = false; return renderWork(); }
   if (t('#csv')) return exportCSV(p);
@@ -701,7 +738,7 @@ function tick() {
 function openWork(role, plan) {
   state.view = 'work'; state.role = role; if (plan) state.plan = plan;
   state.focus = PLANS[state.plan].id === 'B' && role === 'surveyor' ? 'windows' : 'doors';
-  state.focusIdx = 0; state.addMode = false;
+  state.addMode = false;
   render();
 }
 
@@ -723,7 +760,7 @@ function render() {
 const app = $('#app');
 app.addEventListener('click', (ev) => (state.view === 'ingest' ? ingestClick(ev) : workClick(ev)));
 app.addEventListener('mouseover', (ev) => { if (state.view === 'work') workHover(ev); });
-app.addEventListener('submit', (ev) => { ev.preventDefault(); if (ev.target.id === 'ask') ask(ev.target.q.value); });
+app.addEventListener('submit', (ev) => { ev.preventDefault(); if (ev.target.id === 'ask') ask(ev.target.elements.q.value); });
 app.addEventListener('change', (ev) => {
   if (ev.target.id === 'pick' && ev.target.files[0]) startIngest(ev.target.files[0].name, 'This mock does not read your file. It plays the sample archive under your file\'s name.');
 });
@@ -745,7 +782,7 @@ $('#roleSwitch').addEventListener('click', (ev) => {
 // deep links for screenshots and for sending someone to one screen: #work/surveyor/B, #ingest/done
 (function boot() {
   const [v, a, b] = location.hash.slice(1).split('/');
-  if (v === 'work') { state.view = 'work'; state.role = a === 'surveyor' ? 'surveyor' : 'engineer'; if (PLANS[b]) state.plan = b; state.focusIdx = 0;
+  if (v === 'work') { state.view = 'work'; state.role = a === 'surveyor' ? 'surveyor' : 'engineer'; if (PLANS[b]) state.plan = b;
     if (state.role === 'engineer') { render(); return ask(SUGGEST[state.plan][0]); }
     if (state.plan === 'B') state.focus = 'windows'; }
   if (v === 'ingest' && a === 'done') { state.ing.zip = 'harbour-block-archive.zip'; state.ing.t = MAX_T; }
