@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Countersign: drawing takeoff with proof (mock)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">7</span>
+    <div>
+      <strong>Countersign</strong>
+      <span class="brand-sub">working name · team Hour49 · Junction 2026</span>
+    </div>
+  </div>
+  <nav class="steps" aria-label="Sections">
+    <button data-view="ingest" class="on"><span class="n">1</span> Ingest</button>
+    <button data-view="work"><span class="n">2</span> Workspace</button>
+  </nav>
+  <div class="role" id="roleSwitch" hidden>
+    <span class="lbl">I am the</span>
+    <div class="seg" role="tablist">
+      <button data-role="engineer" class="on" role="tab">Engineer <small>ask a question</small></button>
+      <button data-role="surveyor" role="tab">Surveyor <small>check the takeoff</small></button>
+    </div>
+  </div>
+</header>
+<p class="mock-note">
+  Mock-up. The drawings are synthetic and drawn by this page; file names, timings and costs are illustrative, not
+  measured. Nothing from the Stoa dataset is in this page.
+</p>
+<main id="app"></main>
+<script src="app.js"></script>
+</body>
+</html>
