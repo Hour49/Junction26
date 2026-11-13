@@ -715,7 +715,6 @@ function ingestClick(ev) {
 /* ------------------------------------------------------------------- shell */
 
 function render() {
-  document.querySelectorAll('.steps button').forEach((b) => b.classList.toggle('on', b.dataset.view === state.view));
   document.querySelectorAll('#roleSwitch button').forEach((b) => b.classList.toggle('on', b.dataset.role === state.role));
   $('#roleSwitch').hidden = state.view !== 'work';
   if (state.view === 'ingest') renderIngest(); else renderWork();
@@ -735,11 +734,6 @@ app.addEventListener('drop', (ev) => {
   ev.preventDefault();
   const f = ev.dataTransfer.files[0];
   startIngest(f ? f.name : 'harbour-block-archive.zip', f ? 'This mock does not read your file. It plays the sample archive under your file\'s name.' : '');
-});
-document.querySelector('.steps').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-view]'); if (!b) return;
-  if (b.dataset.view === 'work') { state.view = 'work'; if (state.focusIdx === undefined) state.focusIdx = 0; } else state.view = 'ingest';
-  render();
 });
 $('#roleSwitch').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-role]'); if (!b) return;
