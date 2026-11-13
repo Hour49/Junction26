@@ -1,0 +1,104 @@
+# lit-vector-c reading log (URL, date read 2026-11-14, what it gave)
+- https://arxiv.org/html/2506.09369v1 | ScaleLSD CVPR 2025: ViT-B+DPT 512 px, SA-1B 10M imgs, Rep/Loc only, no drawings, no FPS/GPU mem [web-fetch]
+- https://github.com/ant-research/scalelsd + LICENSE | code MIT; README no training/finetune section; pushed 2025-09-25 (gh api) [web-fetch, gh]
+- https://huggingface.co/cherubicxn/scalelsd (raw README) | weights card header `license: apache-2.0`, v1/v2 ckpts, v2 recommended, no numbers [curl]
+- https://github.com/cherubicXN/hawp + LICENSE + docs/HAWPv3.md | MIT code, weights (Wireframe, ImageNet-100k) licence unstated; torch 1.12 stack; last push 2024-02 [web-fetch]
+- https://github.com/cherubicXN/hawp/issues (#37, #42, #50) | custom data: poor transfer from Wireframe "annotation bias", must write dataset class, no GPU numbers
+- https://github.com/navervision/mlsd + https://arxiv.org/html/2106.00186v3 | Apache-2.0 code; 320/512 input; 0.6M/1.5M params; V100 115-200 FPS; weights licence unstated
+- https://github.com/cvg/DeepLSD | MIT code and MIT weights (README); wireframe + MegaDepth ckpts; py3.7/CUDA11 build with Ceres
+- https://arxiv.org/html/2407.01928v1 (SymPoint-V2) | PQ 90.1 FloorPlanCAD, needs per-primitive layer ids, 35M params, 95 ms
+- https://arxiv.org/html/2401.10556v1 (SymPoint) | PQ 83.3, 35M params, 66 ms, primitive-point input, no raster
+- https://arxiv.org/html/2412.07377 (CADSpotting) | PQ 87.4 coordinate-only dense points; code licence not stated
+- https://arxiv.org/html/2505.23395 + github WesKwong/VecFormer | NeurIPS 2025, PQ 91.1/88.4; Apache-2.0 code; no weights listed
+- https://github.com/nicehuster/SymPoint LICENSE.txt | non-commercial research only
+- https://github.com/nicehuster/SymPointV2 + issues #6 #8 #14 | no LICENSE file; commercial-use question unanswered; no raster path
+- https://github.com/nicehuster/SymPoint/issues #5 #8 | no inference tutorial; SVG from DWG via AutoCAD only
+- https://github.com/yangfy2023/CADspotting + project page | no licence named; public ckpt
+- https://floorplancad.github.io/ | CC BY-NC 4.0 annotations; project shut down 2022
+- https://arxiv.org/html/2512.02413 (MitUNet, 2025-26) | wall seg only, 512 px, doors/windows only as training masks; github aliasstudio/mitunet MIT (gh api)
+- https://arxiv.org/html/2602.06507v1 (FloorplanVLM) | Qwen2.5-VL-3B JSON; Opening-F1 0.7333 FPBench-2K; no code
+- https://arxiv.org/html/2602.09016v3 (Raster2Seq) | direct door/window polygons, F1 77.8 CubiCasa5K vs RoomFormer 78.5; 256 px
+- https://arxiv.org/html/2303.03851v1 (GLSP, GNN on HAWP) | own 268k-plan set, 512 px; msAP8 90.28 vs HAWP-M* 71.12; no code; no scans
+- https://arxiv.org/html/2505.16264 (LINEA, 2025) | Wireframe sAP10 67.9, 2.5-5.8 ms TensorRT; photos only; code unverified
+- https://arxiv.org/html/2305.00264v2 (LSD review) | natural images only; EDLines 357 FPS, LSD 141 CPU
+- https://arxiv.org/abs/2003.05471 + html v3 | DLD 81 real scans IoU 79-82 vs CHD 47; 4 days V100 training
+- https://github.com/Vahe1994/Deep-Vectorization-of-Technical-Drawings | MPL-2.0 (not on our allowed list), archived, cleaning model not included, pretrained line/curve ckpts on Drive
+- https://arxiv.org/html/2109.03794v1 (Digitize-PID) | symbols found first, lines by morphology after; CC BY-NC-ND paper, no code
+- https://scholar.google.com/... via pwfetch | captcha wall ("unusual traffic"), not read
+- https://api.semanticscholar.org/... curl + pwfetch | HTTP 429 both times
+- https://arxiv.org/search/?query=ScaleLSD via pwfetch | only the paper itself; no forward citers listed
+- https://api.openalex.org (forward citations of 2506.09369, 2407.01928, 2401.10556, 2003.05471, 1905.03246, 2106.00186, 2212.07766) | 2026-11-14 | titles of 2024-2026 citers; abstracts of WSCG 2026 raster-to-vector, IEEE Access 2026, IEEE YAC 2026 (abstract only)
+- https://arxiv.org/html/2404.10985 (pixel-wise symbol spotting) | raster CAD images, own telecom drawings, F1 0.76-0.97, no doors/windows [web-fetch]
+- https://arxiv.org/html/2607.12678 (TextCAD, 2026) | vector+text, CubiCasa5K PQ 96.53; leak yes; no code
+- https://www.techscience.com/cmc/v82n2/59490/html (tower drawings, CMC 2025) | L-CNN variant beats HAWP/DeepLSD on private data; tables are images
+- https://arxiv.org/html/2504.03241v1 (Zernike) | Table 1 verbatim: scans window F1 7.2, door 2.1 vs clean 98.3/93.2
+- http://art-programmer.github.io/floorplan-transformation/paper.pdf (R2V, read with pypdf in scratch dir) | Table 1: opening P/R 91.9/90.2 with IP vs 67.9/91.4 without; 256 px; Titan GPU
+- https://github.com/art-programmer/FloorplanTransformation | MIT; rasters not shared; py2.7
+- https://github.com/Vahe1994/Deep-Vectorization-of-Technical-Drawings | MPL-2.0, archived, cleaning model not included
+- gh api ant-research/scalelsd requirements.txt + code search | pytlsd pinned, imported only in line_matching/wireframe.py
+- gh api iago-suarez/pytlsd contents src/lsd.h | AGPL text in header (repo LICENSE says MIT)
+- gh api cvg/DeepLSD tree | third_party/pytlsd present
+- gh api cherubicXN/hawp docs/HAWPv3.train.md | recipe, 40 GB at batch 16 for pseudo-labels on A6000
+- gh api opencv/opencv modules/imgproc/src/lsd.cpp + opencv_contrib fast_line_detector.cpp | BSD-style OpenCV headers, no AGPL; repo Apache-2.0
+- own run: OpenCV 5.0.0 FLD/LSD/Hough on 30 dev PNGs, one CPU core | 6.8/17.4/11.7 ms median, ~1000 segs, 57-64% < 20 px
+- own run: GBR on FLD segment-length histograms, 500 dev plans, 5-fold | 2026-11-14 | windows corr 0.54 MAE 3.39 vs const 4.16; doors corr 0.49 MAE 2.89 vs 3.51; exact below constant
+- https://storage.googleapis.com/jnl-up-j-tismir-files/journals/1/articles/157/659fe8d9f3c49.pdf (TISMIR 2024 OMR, CC BY 4.0), read with pypdf in scratch dir | 2026-11-14 | multi-step staff removal designs "obsolete"; ScoreAug AP@0.25 36.0->73.3; UDA 48.9
+- OpenAlex abstract: doi 10.1016/j.autcon.2026.107193 (scan robustness, CubiCasa5k paired, RT-DETR) | 2026-11-14 | abstract only; sciencedirect refused pwfetch (Reference page)
+- OpenAlex abstract: doi 10.3390/buildings16051043 (hybrid DL+rules CAD) | 2026-11-14 | abstract only; mdpi pdf Access Denied via pwfetch
+- gh api raember/s2anet | no licence field, pushed 2023-10-01
+- OpenAlex search sweeps ("floor plan door window symbol detection scanned raster" 2025-06+, "staff line removal ... music", "historical map vectorization") | 2026-11-14 | titles for 2025-26 sweep: FloorYOLO, DoorDet 2026, LGS-FPP, MEP metrics 2608.14317 (L2 pointers only)
+- own run: same probe split by drawing style | 2026-11-14 | window corr 0.53/0.41/0.48, door 0.52/0.45/0.25
+- huggingface.co/api/models/cherubicxn/scalelsd (+tree) and github cherubicXN/hawp-torchhub releases | 2026-11-14 | ckpt sizes 493 MB / 47 MB, card metadata license apache-2.0, last modified 2025-06-13, 0 downloads
+- https://arxiv.org/abs/2210.12971 + html (HAWPv3, TPAMI 2023) | 2026-11-14 | 24 GPU hours training; Rep-5 0.751 Wireframe / 0.711 York at 512; OOD only qualitative
+- https://arxiv.org/abs/2212.07766 + html (DeepLSD, CVPR 2023) | 2026-11-14 | default pipeline uses LSD for line extraction; HPatches 271 ms vs LSD 104 ms; refinement via Ceres
+- OpenAlex abstracts TempFit (ACM 2026), keypoint rectangle symbol spotting (Multimedia Systems 2026), PICASSO (WACV 2025) | 2026-11-14 | abstract only; vector or CAD-sketch input
+- https://arxiv.org/html/2407.01928v1 re-read in full via pwfetch (scratch) | 2026-11-14 | Table 5 per-class verbatim; Table 2 raster detectors AP50 60-64 vs SPv2 71.3; 8 A100 batch 16 250 epochs
+- gh api WesKwong/VecFormer (README, requirements.txt, issue #8) + yangfy2023/CADspotting (README, issues) | 2026-11-14 | 3080 needs 16 days to PQ~87 (reported by a user); deps permissive; CADSpotting licence heading empty
+- https://arxiv.org/html/2606.24935 (SEMIR, 2026) read via pwfetch | 2026-11-14 | thin-structure topology: Dice .894/.911; T4 16 GB; no drawings; limitation text
+- gh api jocpae/clDice, MIC-DKFZ/Skeleton-Recall | MIT, Apache-2.0
+- OpenAlex titles/abstracts road network extraction sweep | 2026-11-14 | SAM-Road, DOGE, LineGraph2Road, DeH4R (abstract only)
+- https://arxiv.org/html/2408.01526 (multi-unit floor plan, CAB1/CAB2) via pwfetch | 2026-11-14 | Table III/IV: CVC-FP mean F1 0.86/0.90, doors 0.82, windows 0.90 on CubiCasa subset; pixel metrics; 2xA5000
+- gh api SebastianJanampa/LINEA (license, README model zoo, requirements.txt, issues #3 #4) | 2026-11-14 | Apache-2.0; weights released; NaN at 1280 px issue open; multi-class needs code change
+- gh api cherubicXN/hawp-torchhub, hawp LEGAL.md, navervision/mlsd tree | 2026-11-14 | weights licence still unstated; torchhub repo has no licence
+- OpenAlex abstract doi 10.3390/buildings15071178 (CPN-Floor) | 2026-11-14 | keypoints + axial rules, P>87 R>88 reported, own 5000 plans; abstract only
+- own run: probe + parallel-pair features, 500 dev plans | 2026-11-14 | window corr 0.53 MAE 3.41, door corr 0.50 MAE 2.85: no gain over 4b
+- gh api iago-suarez/ELSED, CihanTopal/ED_Lib | 2026-11-14 | Apache-2.0 / MIT; own pip build of pyelsed failed (no CMake), not measured
+- gh api Vahe1994/Deep-Vectorization issues #10 #18 #33 | 2026-11-14 | cleaning weights never released; line checkpoint link dead, author has no copy (2026-10-12)
+- gh api art-programmer/FloorplanTransformation issues #22 #42 #45, aliasstudio/mitunet README | 2026-11-14 | R2V weights access dead-ish, port worse than Lua; MitUNet checkpoint named, CubiCasa pretrain
+- https://arxiv.org/html/2604.06770v1 (FlowExtract, 2026) via pwfetch | 2026-11-14 | nodes F1 98.8, edges P85.5/R54.6/F1 66.7; VLMs 34.0/10.7; YOLOv8 AGPL
+- WebSearch snippets PCB netlist extraction | 2026-11-14 | no 2025-26 paper found; Electronics 2024 synthetic-trained U-Net (snippet only, not read)
+- OpenAlex API returned 429 (shared daily budget) from here on
+- gh api ant-research/scalelsd predictor/predict.py; hawp issues #39 #40 | 2026-11-14 | forced 512x512 resize, no tiling, cpu device supported
+- WebSearch retries (raster FloorPlanCAD image detectors; wireframe fine-tune on drawings) | 2026-11-14 | nothing new beyond SymPoint-V2 Table 2 and GLSP
+- own run: FLD short-segment survival at 512 px long side, 30 dev plans | 2026-11-14 | 6-12 px bin 0.34, 12-20 0.70, 20-40 0.85, 40+ 0.84
+- https://arxiv.org/html/2508.19742v3 (ADLA, 2025) via pwfetch | 2026-11-14 | Table 3 YorkUrban-LineSegment: LSD F .813, ScaleLSD .673 (AR .539), HAWPv2 .753, LINEA .805; code on acceptance
+- WebSearch UniVector 2510.13234 (snippet only) + gh api yyyyll0ss/UniVector | 2026-11-14 | aerial vectors; repo NOASSERTION licence
+- own run: FLD/LSD segment stability under blur/noise/JPEG30/half-res, 30 dev plans | 2026-11-14 | kept share FLD 0.48-0.64, LSD 0.65-0.79; count ratio 0.88-1.01
+- https://arxiv.org/html/2412.07377v5 (CADSpotting) full re-read via pwfetch | 2026-11-14 | robust = scale/overlap; no noise or raster test; SWA with Sparse-NMS
+- gh api lh9171338/Line-Segment-Detection-Papers README | 2026-11-14 | venue list: LINEA ICIP 2025, DT-LSD WACV 2025, RANK-LETR AAAI 2025, Co-PLNet 2026, AAGLSD PRCV 2025, ADLA retitled POEv2
+- https://arxiv.org/html/2601.18252 (Co-PLNet, 2026) via pwfetch; gh api DT-LSD, Co-PLNet licences | 2026-11-14 | photos/SLAM only; Apache-2.0 / MIT
+- https://www.frontiersin.org/journals/artificial-intelligence/articles/10.3389/frai.2026.1911589/full (FloorYOLO) via pwfetch | 2026-11-14 | SESYD saturated mAP50 0.995, small recall 0.998; YOLOv8 AGPL; pointer L2
+- QA pass over report (top-5 item 3 rewritten) | 2026-11-14 | no new source
+- gh api navervision/mlsd issues #29 #30 #31 | 2026-11-14 | FPS numbers are V100 GPU; tflite CPU 300-500 ms/frame; no training docs
+- https://arxiv.org/html/2303.03851v1 re-read via pwfetch | 2026-11-14 | Table 7 verbatim door sAP8 97.50 GLSP vs 56.66 HAWP-M
+- https://arxiv.org/html/2607.12678v1 (TextCAD) re-read via pwfetch | 2026-11-14 | Table 1 verbatim; PanCADNet image-based PQ 57.6/60.8 vs vector 83-96
+- https://arxiv.org/html/2608.22086v1 (SweepLSD, 2026) via pwfetch | 2026-11-14 | MIT C++17 zero deps; 11.3 ms vs LSD 277.8 / ELSED 51.4 / EDLines 58.4 on 1080p; in-distribution tuning
+- api.semanticscholar.org citations of 2506.09369 and 2505.16264 (worked again) | 2026-11-14 | new 2026 hits: SweepLSD, BT-LSD (Optics & Laser Technology, abstract not retrieved), Vision Pretraining for Dense Spatial Perception, MiLSD
+- own run: SweepLSD built with g++ -O2 from github yosh-shimizu/sweeplsd (scratch dir), 30 dev plans | 2026-11-14 | 15.2 ms, 429 segs, 32% <20px, kept 0.46-0.72
+- https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0298217 (Chen et al. 2024, historical map vectorisation) via pwfetch | 2026-11-14 | edge U-Net + watershed; PQ 51.1 best augmentation; mini U-Net 45.1 vs 47.1
+- https://arxiv.org/html/2603.19830 (BEV structural detection, Hough/LSD/RANSAC vs YOLO-OBB, 2026) via pwfetch | 2026-11-14 | LSD fragmentation; Hough P~0.4 F1 0.53; YOLO-OBB F1 0.62; CPU 10 Hz
+- https://arxiv.org/html/2608.11793 (PolarSym) read via pwfetch; gh api SymPointV2 issues #5 #7 | 2026-11-14 | 50 epochs on 2xV100-32GB; single-GPU training doesn't reproduce; pointops crash unresolved
+- gh api ant-research/scalelsd git tree | 2026-11-14 | no train.py: dataset, transforms, eval configs only
+- https://arxiv.org/html/2610.17776 (TempFit) via pwfetch | 2026-11-14 | line-segment tokens from VecFormer; vector only
+- api.semanticscholar.org citations of arXiv 2505.23395 + DOI lookups of two hits | 2026-11-14 | 7 citing papers; one new raster keypoint-spotting paper (abstract only)
+- researchsquare preprint rs-8516223 (full PDF, read) | 2026-11-14 | rectangle keypoint spotting; telecom cabinet layouts, not floor plans: skip
+- arxiv.org/abs/2601.04819 + 2 WebSearch retries (CVC-FP per-class, exact-match counting) | 2026-11-14 | AECV-Bench abstract: LLM door/window counts 0.40-0.55 exact match; no new CVC-FP table
+- gh api repos/aliasstudio/mitunet (contents, readme) | 2026-11-14 | checkpoint .pth is in-repo under experiments/models, MIT repo; no HF card
+- WebSearch x2 (door arc Hough raster; 2026 line segment detection drawings) | 2026-11-14 | no accuracy numbers; thick/thin stroke split as classical cue (DFKI), snippets only
+- own probe: stroke-width histogram regressor on 300 dev plans | 2026-11-14 | corr 0.28 windows / 0.30 doors, exact below constant
+- own probe: per-segment width x length bins, 300 dev plans | 2026-11-14 | corr 0.30/0.27, exact below constant; 2608.25608 already read by worker a (ink gate pointer)
+- WebSearch P&ID classical vs deep small symbols | 2026-11-14 | snippets: Hough line detection 65.2% on noisy scans (2019); lines weakest element; nothing transferable as a number
+- gh api repos/SebastianJanampa/LINEA/readme (batch/size sections) | 2026-11-14 | single-GPU amp batch-4 recipe documented, square input only, no memory figure
+- WebSearch x2 (YOLO per-class AP CubiCasa5K; classical verifier of openings) | 2026-11-14 | nothing new; gap stays open
+- arxiv.org/pdf/2305.16968 (full PDF, Table 2 verbatim) | 2026-11-14 | line detectors on document pages: ELSED 87.0 F, EDLines 87.4, Hough 64.8, LSD 12.5, tracking 90.1; fragmentation of thick lines; easy long-line target
+- arxiv.org/pdf/2002.12428 (full text, tables are images) | 2026-11-14 | TGGLines: qualitative only; double-line fragmentation of LSD/EDLines on thick strokes
