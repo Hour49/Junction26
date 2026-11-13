@@ -130,6 +130,10 @@ def test_score_per_class_rooms_plans_counts_and_centres() -> None:
     assert result.counts["cubicasa5k door"].rate == 1.0
     assert result.counts["cubicasa5k room:kitchen"].rate == 0.0
     assert result.per_file[0].counts_wrong == {"room:kitchen": (1, 0)}
+    by_source = result.elements_by_source["cubicasa5k"]
+    assert (by_source.tp, by_source.fp, by_source.fn) == (2, 1, 1)
+    counts = result.counts_by_source["cubicasa5k"]
+    assert (counts.n, counts.correct) == (5, 4)  # plan, door, window, bedroom right; kitchen wrong
 
 
 def test_a_missing_prediction_file_misses_everything() -> None:

@@ -326,8 +326,9 @@ def _merged(parts: Iterable[ScaleScore]) -> ScaleScore:
 
 
 def _total[T: Prf | Rate](parts: Iterable[T], kind: type[T]) -> T:
+    items = list(parts)  # summed once per field, so a generator must not run dry after the first
     fields = list(kind.model_fields)
-    return kind(**{field: sum(getattr(part, field) for part in parts) for field in fields})
+    return kind(**{field: sum(getattr(item, field) for item in items) for field in fields})
 
 
 def _rollup[T: Prf | Rate](groups: Mapping[str, T], kind: type[T]) -> dict[str, T]:
