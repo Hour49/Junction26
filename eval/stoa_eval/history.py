@@ -119,6 +119,9 @@ def _extras(score: ExtrasScore | None) -> ExtrasRecord | None:
         conflict_pass=_ratio(score.conflict),
         conflict_values_shown=_ratio(score.conflict_values_shown),
         conflict_answer_right=_ratio(score.conflict_answer_right),
+        estimate_pass=_ratio(score.estimate),
+        estimate_value_right=_ratio(score.estimate_value_right),
+        estimate_labelled=_ratio(score.estimate_labelled),
     )
 
 

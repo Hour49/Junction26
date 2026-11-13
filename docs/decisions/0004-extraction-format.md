@@ -91,3 +91,13 @@ value on every image, no "scale not reviewed" note and an area on every room wit
 exempt): `validate-extraction --strict-v2` checks it and `select-plans` refuses such files unless `--allow-unscaled`.
 Exact areas are scored within 2% (the headline); estimated areas and estimated scales report the median relative
 error and the shares within 10% and 20%; a `scaled` prediction on `estimated` gold is a wrong status.
+
+## Amendment, 2026-11-13 23:53: `read`
+
+- Decided by: the orchestrator (golden-7f brief); written by agent golden (worker).
+
+An extraction may list in the optional `read` the element classes, plus `"room"`, that it looked for (known names,
+no duplicates). Left out, as in every gold file, it means everything the file's `truth` covers. A class not listed
+was not read: its count is unknown, not 0, so an answerer must not turn it into "0 windows". Scoring doesn't change
+(not reading a class counts its misses); the Part 1 table marks `not read` on a class that every prediction file of
+the source leaves out.

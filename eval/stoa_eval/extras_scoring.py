@@ -9,6 +9,10 @@ Extras (part2_answering/extras.jsonl), per kind:
 - conflict: passes when every expected `conflict_values` entry is matched one-to-one by a value in
   the answer's `conflicts` (by the same rules as an answer, in the line's unit) and the answer
   itself is right.
+- estimate: an area or length on a sheet with only an estimated scale (Bogdan, 22:33: "we should
+  say that it's an estimation with computed from best effort"). Passes when the value is within the
+  line's relative `tolerance` of the gold value (units converted as for an answer) and the answer
+  says `estimate: true`.
 
 answer_v1.1, on the golden questions (extras excluded): abstain rate over the answered questions,
 accuracy of the best estimate on abstained and on the other answers, and a calibration table of
@@ -55,6 +59,9 @@ class ExtrasScore(BaseModel):
     conflict: Tally = Field(description="correct = values shown and answer right")
     conflict_values_shown: Tally
     conflict_answer_right: Tally
+    estimate: Tally = Field(description="correct = within tolerance and labelled an estimate")
+    estimate_value_right: Tally
+    estimate_labelled: Tally
     by_kind_source: dict[str, Tally]
     items: list[ExtraResult]
 
@@ -152,6 +159,9 @@ def score_extras(
     conflict: list[bool] = []
     shown: list[bool] = []
     right: list[bool] = []
+    estimate: list[bool] = []
+    estimate_right: list[bool] = []
+    labelled: list[bool] = []
     by_kind_source: dict[str, list[bool]] = {}
     for line in sorted(extras, key=lambda line: line.id):
         answer = answers.get(line.id)
@@ -159,6 +169,15 @@ def score_extras(
             passed = answer is not None and answer.abstain is True
             detail = "abstained" if passed else ("missing" if answer is None else "answered")
             abstained.append(passed)
+        elif line.kind == "estimate":
+            assert line.expect.tolerance is not None  # the model requires it on estimates
+            reason = judge(as_question(line), answer, line.expect.tolerance)
+            marked = answer is not None and answer.estimate is True
+            passed = reason == "ok" and marked
+            detail = f"{reason}, {'labelled' if marked else 'not labelled'}"
+            estimate.append(passed)
+            estimate_right.append(reason == "ok")
+            labelled.append(marked)
         else:
             reason = judge(as_question(line), answer)
             if line.kind == "paraphrase":
@@ -198,6 +217,9 @@ def score_extras(
         conflict=_tally(conflict),
         conflict_values_shown=_tally(shown),
         conflict_answer_right=_tally(right),
+        estimate=_tally(estimate),
+        estimate_value_right=_tally(estimate_right),
+        estimate_labelled=_tally(labelled),
         by_kind_source={key: _tally(marks) for key, marks in sorted(by_kind_source.items())},
         items=items,
     )
@@ -298,6 +320,8 @@ def format_slices(result: GoldenScore) -> str:
             f"  conflict         {_cell(extras.conflict)} pass (values shown "
             f"{_cell(extras.conflict_values_shown)}, answer right "
             f"{_cell(extras.conflict_answer_right)})",
+            f"  estimate         {_cell(extras.estimate)} pass (value right "
+            f"{_cell(extras.estimate_value_right)}, labelled {_cell(extras.estimate_labelled)})",
             "  by kind/source   "
             + ", ".join(f"{key} {_cell(tally)}" for key, tally in extras.by_kind_source.items()),
         ]

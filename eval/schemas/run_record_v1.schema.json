@@ -154,6 +154,40 @@
         },
         "conflict_answer_right": {
           "$ref": "#/$defs/Ratio"
+        },
+        "estimate_pass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ratio"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "estimate lines within tolerance and with estimate: true; null in rows recorded before the estimate kind (2026-11-13)"
+        },
+        "estimate_value_right": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ratio"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "estimate_labelled": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ratio"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [

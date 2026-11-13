@@ -14,9 +14,13 @@ the plan and scale picks, so adding conflicts never changes which other files ar
 conflicts are merged into the copied gold file. A file that joins only for the slice (stratum
 `conflict`) is scored only there: no scale case, no Part 1 headline, and its questions stay out of
 Part 2 (orchestrator, 2026-11-13 23:29).
+
+A frozen set (`select-plans --keep <v2 manifest>`): every file of an earlier v2 stays with its split
+and stratum, and only the conflict slice and the scale-case labels are recomputed, so better gold
+never reshuffles the set the recorded runs compare against (orchestrator, 2026-11-13 23:48).
 """
 
-from collections.abc import Iterable, Mapping, Set
+from collections.abc import Iterable, Mapping, Sequence, Set
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -102,6 +106,11 @@ class PlansManifest(BaseModel):
         default_factory=list[str],
         description="--allow-unscaled: gold without a scale value or room areas, built anyway",
     )
+    kept: str | None = Field(
+        default=None,
+        description="--keep: sha256 of the earlier files.jsonl whose files were kept; null when "
+        "the files were picked",
+    )
     files_sha256: dict[str, str] = Field(description="path under v2/ -> sha256, both parts")
 
 
@@ -176,3 +185,38 @@ def pick_scale_cases(
             available.append(len(files))
         counts[case] = ((got[0], got[1]), (available[0], available[1]))
     return extra, counts
+
+
+def keep(
+    kept: Sequence[PlanFile],
+    stratum_of: Mapping[str, str],
+    eval_groups: Set[str],
+    params: PlansParams,
+) -> tuple[dict[str, Split], dict[str, str], dict[str, tuple[Quota, Quota]]]:
+    """A frozen set: file -> split and file -> stratum for every kept file but the conflict-only
+    ones (the slice is recomputed), and per source ((plan picks dev, eval), (available dev, eval))
+    counted as `pick` counts them."""
+    files = {line.file: line for line in kept if line.stratum != "conflict"}
+    counts: dict[str, tuple[Quota, Quota]] = {}
+    for source in sorted(params.quotas):
+        available = [file for file in stratum_of if source_of(file) == source]
+        held = sum(group_of(file) in eval_groups for file in available)
+        plan = [files[f] for f in available if f in files and files[f].stratum != "scale"]
+        dev = sum(line.split == "dev" for line in plan)
+        counts[source] = ((dev, len(plan) - dev), (len(available) - held, held))
+    chosen: dict[str, Split] = {file: line.split for file, line in files.items()}
+    return chosen, {file: line.stratum for file, line in files.items()}, counts
+
+
+def count_scale_cases(
+    cases: Mapping[str, tuple[ScaleCase, Split]], chosen: Mapping[str, Split]
+) -> dict[str, tuple[Quota, Quota]]:
+    """Per scale case ((files dev, eval) in `chosen`, (available dev, eval)): a frozen set's cases,
+    recomputed from the current gold."""
+    counts: dict[str, tuple[Quota, Quota]] = {}
+    for case in sorted({case for case, _ in cases.values()}):
+        files = [(file, split) for file, (c, split) in cases.items() if c == case]
+        got = [sum(f in chosen for f, s in files if s == split) for split in ("dev", "eval")]
+        available = [sum(s == split for _, s in files) for split in ("dev", "eval")]
+        counts[case] = ((got[0], got[1]), (available[0], available[1]))
+    return counts

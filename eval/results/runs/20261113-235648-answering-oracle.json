@@ -1,0 +1,212 @@
+{
+  "recorded_at": "2026-11-13T23:56:48.802795+02:00",
+  "commit": "85d3470",
+  "dirty": true,
+  "name": "oracle",
+  "note": "dataset answers and each extras line's expected behaviour; reads nothing; v2 rebuilt with --keep: frozen 155 files + 49 conflict-only (task 7e)",
+  "against": "golden",
+  "golden_version": "v2",
+  "milestone": false,
+  "part": "answering",
+  "reads": "gold-extraction",
+  "questions_sha256": "0e6322c74561a63f42bac35f5c1be8a2c6a37516b14a81e66ab88b74950a6d1f",
+  "score_sha256": "8c40c5a4cc57452f8a7dae0ec1253512e1ebe98a4f3ddace166ec8b920373178",
+  "overall": {
+    "n": 2948,
+    "correct": 2948,
+    "accuracy": 1.0,
+    "answered": null,
+    "coverage": null
+  },
+  "numeric": {
+    "n": 2932,
+    "correct": 2932,
+    "accuracy": 1.0,
+    "answered": null,
+    "coverage": null
+  },
+  "by_source_type": {
+    "cubicasa5k/count": {
+      "n": 1342,
+      "correct": 1342,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/area": {
+      "n": 322,
+      "correct": 322,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/count": {
+      "n": 104,
+      "correct": 104,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/length": {
+      "n": 14,
+      "correct": 14,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/volume": {
+      "n": 26,
+      "correct": 26,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/area": {
+      "n": 9,
+      "correct": 9,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/count": {
+      "n": 39,
+      "correct": 39,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/text": {
+      "n": 16,
+      "correct": 16,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "swiss_dwellings/area": {
+      "n": 350,
+      "correct": 350,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    },
+    "swiss_dwellings/count": {
+      "n": 726,
+      "correct": 726,
+      "accuracy": 1.0,
+      "answered": null,
+      "coverage": null
+    }
+  },
+  "evidence_coverage": 0.0,
+  "cost_total_usd": 0.0,
+  "cost_mean_usd": 0.0,
+  "latency_mean_s": 0.0,
+  "latency_p95_s": 0.0,
+  "extras": {
+    "extras_sha256": "69ae9df80cf1ec93374284c7aa1521b506b8b71f47067e6cfe3ae08931bc55ac",
+    "paraphrase": {
+      "n": 60,
+      "correct": 60,
+      "rate": 1.0
+    },
+    "paraphrase_origin": {
+      "n": 60,
+      "correct": 60,
+      "rate": 1.0
+    },
+    "paraphrase_gap": 0.0,
+    "unanswerable_abstained": {
+      "n": 25,
+      "correct": 25,
+      "rate": 1.0
+    },
+    "conflict_pass": {
+      "n": 12,
+      "correct": 12,
+      "rate": 1.0
+    },
+    "conflict_values_shown": {
+      "n": 12,
+      "correct": 12,
+      "rate": 1.0
+    },
+    "conflict_answer_right": {
+      "n": 12,
+      "correct": 12,
+      "rate": 1.0
+    },
+    "estimate_pass": {
+      "n": 13,
+      "correct": 13,
+      "rate": 1.0
+    },
+    "estimate_value_right": {
+      "n": 13,
+      "correct": 13,
+      "rate": 1.0
+    },
+    "estimate_labelled": {
+      "n": 13,
+      "correct": 13,
+      "rate": 1.0
+    }
+  },
+  "answer_v1_1": {
+    "answers": 2948,
+    "abstained": 0,
+    "abstain_rate": 0.0,
+    "not_abstained_accuracy": {
+      "n": 2948,
+      "correct": 2948,
+      "rate": 1.0
+    },
+    "abstained_accuracy": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "with_confidence": 2948,
+    "calibration": [
+      {
+        "low": 0.0,
+        "high": 0.2,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      },
+      {
+        "low": 0.2,
+        "high": 0.4,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      },
+      {
+        "low": 0.4,
+        "high": 0.6,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      },
+      {
+        "low": 0.6,
+        "high": 0.8,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      },
+      {
+        "low": 0.8,
+        "high": 1.0,
+        "n": 2948,
+        "correct": 2948,
+        "accuracy": 1.0,
+        "mean_confidence": 1.0
+      }
+    ]
+  }
+}

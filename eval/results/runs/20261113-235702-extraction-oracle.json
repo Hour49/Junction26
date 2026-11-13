@@ -1,0 +1,207 @@
+{
+  "recorded_at": "2026-11-13T23:57:02.477172+02:00",
+  "commit": "85d3470",
+  "dirty": true,
+  "name": "oracle",
+  "note": "gold vs gold: proves the Part 1 scorer (expect 100%); v2 rebuilt with --keep: frozen 155 files + 49 conflict-only (task 7e)",
+  "part": "extraction",
+  "against": "golden",
+  "golden_version": "v2",
+  "milestone": false,
+  "gold_sha256": "0720a04d5fd9f41ff567a6bc75d673661059450a34f0c296e56073db144a8bf1",
+  "score_sha256": "52236437786ab89357644087e000db8b39ddb56f8c400e9a9bc90859c2b508cf",
+  "files": 155,
+  "predicted": 155,
+  "multiplicity": false,
+  "elements_f1": 1.0,
+  "elements_f1_by_source": {
+    "cubicasa5k": 1.0,
+    "ifc_models": 1.0,
+    "opening_design": 1.0,
+    "swiss_dwellings": 1.0
+  },
+  "room_f1": 1.0,
+  "room_type_accuracy": 1.0,
+  "room_area_accuracy": 1.0,
+  "room_area_estimates": {
+    "cubicasa5k": {
+      "rooms": 864,
+      "missing": 0,
+      "median_error": 0.0,
+      "within_10": 1.0,
+      "within_20": 1.0
+    }
+  },
+  "plans_exact": {
+    "n": 143,
+    "correct": 143,
+    "rate": 1.0
+  },
+  "counts_exact": {
+    "n": 2649,
+    "correct": 2649,
+    "rate": 1.0
+  },
+  "counts_exact_by_source": {
+    "cubicasa5k": {
+      "n": 1355,
+      "correct": 1355,
+      "rate": 1.0
+    },
+    "ifc_models": {
+      "n": 270,
+      "correct": 270,
+      "rate": 1.0
+    },
+    "opening_design": {
+      "n": 4,
+      "correct": 4,
+      "rate": 1.0
+    },
+    "swiss_dwellings": {
+      "n": 1020,
+      "correct": 1020,
+      "rate": 1.0
+    }
+  },
+  "scale_status": {
+    "n": 153,
+    "correct": 153,
+    "rate": 1.0
+  },
+  "scale_status_by_source": {
+    "cubicasa5k": {
+      "n": 77,
+      "correct": 77,
+      "rate": 1.0
+    },
+    "ifc_models": {
+      "n": 15,
+      "correct": 15,
+      "rate": 1.0
+    },
+    "opening_design": {
+      "n": 1,
+      "correct": 1,
+      "rate": 1.0
+    },
+    "swiss_dwellings": {
+      "n": 60,
+      "correct": 60,
+      "rate": 1.0
+    }
+  },
+  "scale_m_per_unit": {
+    "n": 105,
+    "correct": 105,
+    "rate": 1.0
+  },
+  "scale_m_per_unit_by_case": {
+    "nothing": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "not_to_scale": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "dimension_lines": {
+      "n": 14,
+      "correct": 14,
+      "rate": 1.0
+    },
+    "printed_areas": {
+      "n": 15,
+      "correct": 15,
+      "rate": 1.0
+    },
+    "scale_text_or_bar": {
+      "n": 76,
+      "correct": 76,
+      "rate": 1.0
+    }
+  },
+  "scale_estimate_median_error": 0.0,
+  "scale_estimate_within_20": 1.0,
+  "tables": {
+    "files": 2,
+    "tables_found": {
+      "n": 7,
+      "correct": 7,
+      "rate": 1.0
+    },
+    "tables_extra": 0,
+    "row_recall": {
+      "n": 170,
+      "correct": 170,
+      "rate": 1.0
+    },
+    "row_precision": {
+      "n": 170,
+      "correct": 170,
+      "rate": 1.0
+    },
+    "cell_accuracy": {
+      "n": 1686,
+      "correct": 1686,
+      "rate": 1.0
+    }
+  },
+  "conflicts": {
+    "files": 62,
+    "overall": {
+      "found": {
+        "n": 14,
+        "correct": 14,
+        "rate": 1.0
+      },
+      "agree": 102,
+      "false_alarms": 0,
+      "unlisted": 0
+    },
+    "by_quantity": {
+      "element_count": {
+        "found": {
+          "n": 10,
+          "correct": 10,
+          "rate": 1.0
+        },
+        "agree": 48,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "room_area": {
+        "found": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "agree": 30,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "room_count": {
+        "found": {
+          "n": 4,
+          "correct": 4,
+          "rate": 1.0
+        },
+        "agree": 20,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "scale": {
+        "found": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "agree": 4,
+        "false_alarms": 0,
+        "unlisted": 0
+      }
+    }
+  }
+}

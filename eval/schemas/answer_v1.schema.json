@@ -404,6 +404,19 @@
       "description": "v1.1: how the answer was reached",
       "title": "Explanation"
     },
+    "estimate": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: the value rests on an estimated scale or reading; `explanation` says from what",
+      "title": "Estimate"
+    },
     "excluded": {
       "anyOf": [
         {

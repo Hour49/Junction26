@@ -8,7 +8,7 @@ import pytest
 
 from stoa_eval.cli import main
 from stoa_eval.extraction import Extraction
-from stoa_eval.extraction_scoring import iou, match, score_extraction
+from stoa_eval.extraction_scoring import format_extraction_table, iou, match, score_extraction
 from stoa_eval.history import read_extraction_history, read_history
 from stoa_eval.scale_scoring import case_of
 
@@ -145,6 +145,29 @@ def test_a_missing_prediction_file_misses_everything() -> None:
     assert (doors.tp, doors.fp, doors.fn) == (0, 0, 1)
     assert result.counts_overall.correct == 0 and result.counts_overall.n == 2  # plan, door
     assert result.plans["cubicasa5k"].rate == 0.0
+
+
+def test_read_changes_no_score_and_marks_a_class_nobody_read() -> None:
+    """golden-7f: `read` lists what an extraction looked for. The score is unchanged (a class not
+    read still counts its misses); the table marks a class no prediction file of the source read."""
+    door, window = (
+        element("d1", [0.1, 0.1, 0.2, 0.2]),
+        element("w1", [0.0, 0.3, 0.1, 0.4], "window"),
+    )
+    gold = extraction(elements=[door, window])
+    plain = extraction(elements=[element("a", [0.1, 0.1, 0.2, 0.2])])
+    told = extraction(elements=[element("a", [0.1, 0.1, 0.2, 0.2])], read=["door", "room"])
+    without, with_read = (score_extraction([gold], {PLAN: pred}) for pred in (plain, told))
+    assert with_read.model_dump(exclude={"not_read"}) == without.model_dump(exclude={"not_read"})
+    windows = with_read.elements["cubicasa5k window"]
+    assert (windows.tp, windows.fn) == (0, 1)  # not reading is a miss
+    assert (without.not_read, with_read.not_read) == ([], ["cubicasa5k window"])
+    marked = [row for row in format_extraction_table(with_read).splitlines() if "not read" in row]
+    assert len(marked) == 1 and marked[0].startswith("cubicasa5k window")
+    assert "not read" not in format_extraction_table(without)
+    other = "data/cubicasa5k/plan-2.png"  # a file of the source that read everything clears it
+    mixed = score_extraction([gold, extraction(file=other)], {PLAN: told, other: extraction(other)})
+    assert mixed.not_read == []
 
 
 def test_truth_counts_scores_only_the_gold_counts() -> None:

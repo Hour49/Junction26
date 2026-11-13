@@ -12,6 +12,7 @@ uv sync --locked
 uv run python -m stoa_eval split                # split/dev.jsonl, split/eval.jsonl, split/manifest.json
 uv run python -m stoa_eval select               # golden/golden_v1.jsonl and its manifest
 uv run python -m stoa_eval select-plans         # golden/v2: part1 files and gold, part2 questions
+uv run python -m stoa_eval select-plans --keep ../data/stoa/golden/v2/manifest.json   # rebuild v2
 uv run python -m stoa_eval score-extraction <pred_dir> --name <method>   # Part 1, recorded
 uv run python -m stoa_eval validate-extraction ../data/stoa/extraction_gold   # check gold files
 uv run python -m stoa_eval validate-extraction --strict-v2 <folder>   # + a scale and room areas
@@ -58,6 +59,8 @@ and none of them changes the headline score:
 - `explanation`: how the answer was reached. `excluded`: `{file, page, box, reason}` for regions
   deliberately not counted. `inputs`: the files read.
 - An evidence item may also carry `polygon` (page fractions) and `global_id` (an IFC GlobalId).
+- `estimate`: `true` when the value rests on an estimated scale or reading (say from what in
+  `explanation`); 2026-11-13 23:48.
 
 ## Sealed split
 
@@ -95,6 +98,12 @@ seeded order: CubiCasa sheets with one plan and with several (from the "How many
 and each IFC model or opening_design project once before any twice. IFC model files are not
 drawings, so their questions are left out. `select-plans` stops if a picked file has no gold JSON
 yet; `--allow-missing-gold` lists those files instead.
+
+The v2 file set is frozen (orchestrator, 2026-11-13 23:48): rebuild it with `--keep
+../data/stoa/golden/v2/manifest.json`. That keeps every file of the earlier build (its
+part1_extraction/files.jsonl, checked against the manifest's sha256) with its split and stratum,
+skips the plan and scale picks, and recomputes the conflict slice and every file's scale case from
+the current gold. The manifest's `kept` is the sha256 of the kept list.
 
 Every image in golden v2 has a scale value and every room an area (Bogdan, 2026-11-13 23:33: "We
 should have ON ALL IMAGES THE SCALE TO GET THE AREA, BY APROXIMATING IT IN DIFFERENT WAYS IF NOT
@@ -155,6 +164,11 @@ scores only what the gold's `truth` covers:
 - A missing prediction file misses everything on it. A class that no gold file of a source lists
   (no walls in the CubiCasa gold, no stairs in the swiss gold) is not scored for that source, and
   predictions of it are reported as not scored.
+- `read` (optional, 2026-11-13, golden-7f): the element classes, and `room`, that the extraction
+  looked for; left out (as in all gold) it means everything the file's `truth` covers. A class not
+  listed was not read, so its count is unknown rather than 0. Scoring is the same either way: not
+  reading a class counts its misses. The element table marks `not read` on a class that every
+  prediction file of the source leaves out.
 
 Two more sections follow the headline, which they don't change, both in the printed table and in
 the run record:
@@ -197,8 +211,12 @@ its own slice, never part of the headline:
 - `paraphrase`: the same question in other words, with the same answer. The report gives
   paraphrase accuracy, the accuracy on their origin questions in the same answers file, and the
   gap between the two. A negative gap means the answering depends on the template's wording.
-- `unanswerable`: the drawing can't tell (no scale for an area, a fact no plan shows). It passes
-  only with `abstain: true`.
+- `unanswerable`: the drawing can't tell (a fact no plan shows). It passes only with `abstain:
+  true`.
+- `estimate`: an area or length on a sheet whose only scale is estimated. It passes when the
+  value is within `expect.tolerance` (relative, 0.2) of `expect.answer`, in the line's unit or
+  one converted as for answers, and the answer says `estimate: true`. The report also gives how
+  many values were right and how many were labelled.
 - `conflict`: a question about a quantity in the conflict slice. It passes when both
   `expect.conflict_values` appear in the answer's `conflicts` (matched by the answer rules, in the
   line's unit) and the answer is right.

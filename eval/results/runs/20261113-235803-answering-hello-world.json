@@ -1,0 +1,212 @@
+{
+  "recorded_at": "2026-11-13T23:58:03.761232+02:00",
+  "commit": "85d3470",
+  "dirty": true,
+  "name": "hello-world",
+  "note": "pipeline skeleton (decision 0005): hello-world parser refuses every question; drawings from the pipeline; v2 rebuilt with --keep (task 7e); backend main 85d3470, EXTRACTOR_VECTOR=hello QUESTION_PARSER=hello pinned",
+  "against": "golden",
+  "golden_version": "v2",
+  "milestone": false,
+  "part": "answering",
+  "reads": "pipeline-extraction",
+  "questions_sha256": "0e6322c74561a63f42bac35f5c1be8a2c6a37516b14a81e66ab88b74950a6d1f",
+  "score_sha256": "e70cff4a7e951e0260b1adfccaec36b2b98aab120dfd6decc142fd00a7a7a8d8",
+  "overall": {
+    "n": 2948,
+    "correct": 0,
+    "accuracy": 0.0,
+    "answered": null,
+    "coverage": null
+  },
+  "numeric": {
+    "n": 2932,
+    "correct": 0,
+    "accuracy": 0.0,
+    "answered": null,
+    "coverage": null
+  },
+  "by_source_type": {
+    "cubicasa5k/count": {
+      "n": 1342,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/area": {
+      "n": 322,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/count": {
+      "n": 104,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/length": {
+      "n": 14,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "ifc_models/volume": {
+      "n": 26,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/area": {
+      "n": 9,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/count": {
+      "n": 39,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "opening_design/text": {
+      "n": 16,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "swiss_dwellings/area": {
+      "n": 350,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    },
+    "swiss_dwellings/count": {
+      "n": 726,
+      "correct": 0,
+      "accuracy": 0.0,
+      "answered": null,
+      "coverage": null
+    }
+  },
+  "evidence_coverage": 0.0,
+  "cost_total_usd": 0.0,
+  "cost_mean_usd": 0.0,
+  "latency_mean_s": 5.793299696887142e-7,
+  "latency_p95_s": 6.610061973333359e-7,
+  "extras": {
+    "extras_sha256": "69ae9df80cf1ec93374284c7aa1521b506b8b71f47067e6cfe3ae08931bc55ac",
+    "paraphrase": {
+      "n": 60,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "paraphrase_origin": {
+      "n": 60,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "paraphrase_gap": 0.0,
+    "unanswerable_abstained": {
+      "n": 25,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "conflict_pass": {
+      "n": 12,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "conflict_values_shown": {
+      "n": 12,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "conflict_answer_right": {
+      "n": 12,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "estimate_pass": {
+      "n": 13,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "estimate_value_right": {
+      "n": 13,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "estimate_labelled": {
+      "n": 13,
+      "correct": 0,
+      "rate": 0.0
+    }
+  },
+  "answer_v1_1": {
+    "answers": 2948,
+    "abstained": 2948,
+    "abstain_rate": 1.0,
+    "not_abstained_accuracy": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "abstained_accuracy": {
+      "n": 2948,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "with_confidence": 0,
+    "calibration": [
+      {
+        "low": 0.0,
+        "high": 0.2,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      },
+      {
+        "low": 0.2,
+        "high": 0.4,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      },
+      {
+        "low": 0.4,
+        "high": 0.6,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      },
+      {
+        "low": 0.6,
+        "high": 0.8,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      },
+      {
+        "low": 0.8,
+        "high": 1.0,
+        "n": 0,
+        "correct": 0,
+        "accuracy": null,
+        "mean_confidence": null
+      }
+    ]
+  }
+}

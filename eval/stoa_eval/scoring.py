@@ -51,7 +51,8 @@ class Reply(Protocol):
     def unit(self) -> Unit | None: ...
 
 
-def judge(gold: Question, answer: Reply | None) -> Reason:
+def judge(gold: Question, answer: Reply | None, rel_tol: float = REL_TOL) -> Reason:
+    """`rel_tol` is the relative tolerance for area, length and volume (an estimate line's own)."""
     if answer is None or answer.answer is None:
         return "missing"
     value = answer.answer
@@ -68,7 +69,7 @@ def judge(gold: Question, answer: Reply | None) -> Reason:
         value *= factor
     if gold.type == "count":
         return "ok" if value == gold.answer else "wrong_value"
-    tolerance = REL_TOL * abs(gold.answer) * (1 + 1e-9)  # the 1e-9 absorbs float rounding at 2%
+    tolerance = rel_tol * abs(gold.answer) * (1 + 1e-9)  # the 1e-9 absorbs float rounding
     return "ok" if abs(value - gold.answer) <= tolerance else "wrong_value"
 
 

@@ -46,6 +46,12 @@ parameters, the split it came from and the sha256 of every file. The picks are s
   questions stay out.
 - Up to 10 opening_design sheets (8/2). Only 3 have questions, and all 3 are in.
 
+The file set is frozen (orchestrator, 2026-11-13 23:48): every recorded run compares against the same files, so
+better gold must not reshuffle them. v2 is rebuilt with `select-plans --keep data/stoa/golden/v2/manifest.json`,
+which keeps every file of that build with its split and stratum and recomputes only the conflict slice and the
+scale-case labels. Without `--keep`, the estimated scales of 2026-11-13 would have dropped the 16 sheets that joined
+as scale cases (286 questions).
+
 The v1 golden set (source x type x language cells, 4 questions each) still exists and can be scored with
 `--golden`, but v2 is the one we report.
 
@@ -64,7 +70,9 @@ GOOD SCALE ETC." So every image in golden v2 has a scale value. A sheet with no 
 against 0.80 m, a person's measurement), with its uncertainty and the methods named. A sheet that says it is not to
 scale keeps that status and still carries an approximate value. Every room with an outline gets an area: `exact`
 when the sheet prints it, otherwise `estimated` (outline times scale, with an uncertainty). `select-plans` refuses
-gold that falls short of this, apart from schedule sheets, which have no plan to measure.
+gold that falls short of this, apart from schedule sheets, which have no plan to measure. On the frozen set the
+labels come from the current gold, so the sheets with nothing usable printed are now cases where the estimated
+scale is what gets scored (the case is still called `nothing`).
 
 ### The conflict slice
 
@@ -96,12 +104,16 @@ Bogdan, 2026-11-13 23:03, accepted. `part2_answering/extras.jsonl` holds hand-ma
 
 - Paraphrases of dataset questions (reworded, restructured, with a typo, a hint dropped), with the same answer.
   They test that the answering doesn't depend on the template's exact wording.
-- Unanswerable questions: an area on a plan without any scale, a fact no plan shows (ceiling height, year, owner),
-  an element the drawing type can't show. The right behaviour is to abstain.
+- Unanswerable questions: a fact no plan shows (ceiling height, year, owner), an element the drawing type can't
+  show. The right behaviour is to abstain.
+- Estimate questions: an area or length on a sheet whose only scale is estimated (until 23:48 these were
+  unanswerable; Bogdan, 22:33: "we should say that it's an estimation with computed from best effort"). The right
+  answer is the gold value within 20%, labelled `estimate: true`. On a not-to-scale sheet the same, and the line's
+  `why` quotes the sheet's note.
 - Conflict questions about a quantity in the conflict slice. The right answer gives the resolved value and shows
   both measured values.
 
-Review-7 writes the first two kinds into the file directly (ids 1000001-1000999). Review-10 writes its conflict
+Review-7 writes the paraphrase, unanswerable and estimate lines into the file directly (ids 1000001-1000999). Review-10 writes its conflict
 lines to `_conflicts/extras.jsonl` (ids 1001001-1001999), and `select-plans` merges them in by id.
 
 ## Scoring
@@ -116,7 +128,8 @@ match, which is what the count questions need. Scale gets a confusion table of g
 per case and `m_per_unit` within 2% for scaled gold. On a sheet whose gold scale is estimated, the prediction must
 say `estimated` too: claiming a measured scale there is wrong. These are the headline numbers of Part 1. Estimated
 gold values are not pass/fail: an estimated scale or room area is reported as the median relative error of the
-prediction and the shares within 10% and 20%, per source.
+prediction and the shares within 10% and 20%, per source. A prediction may list in `read` the classes it looked
+for (golden-7f); a class it left out is still scored as misses, and the table marks it `not read`.
 
 Two sections follow the headline without changing it. Tables: a table is found by title or box overlap, rows pair
 by the key column, columns pair by position, and the report gives tables found, row recall, row precision and
@@ -132,7 +145,8 @@ source and type, per split, evidence coverage (share of questions with a box), c
 
 The extras and the answer_v1.1 fields are scored as separate slices. A paraphrase is judged like any question, and
 the report gives the gap to its origin questions. An unanswerable question passes only with `abstain: true`. A
-conflict question passes when both values appear in the answer's `conflicts` and the answer is right. When answers
+conflict question passes when both values appear in the answer's `conflicts` and the answer is right. An estimate
+question passes when the value is within the line's tolerance (20%) and the answer says `estimate: true`. When answers
 carry `confidence` or `abstain`, the report adds the abstain rate, the accuracy of abstained and other answers
 (judging the best estimate, which `answer` still carries), and a calibration table of confidence buckets 0.2 wide
 against accuracy.

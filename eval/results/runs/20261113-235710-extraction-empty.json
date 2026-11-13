@@ -1,0 +1,199 @@
+{
+  "recorded_at": "2026-11-13T23:57:10.734152+02:00",
+  "commit": "85d3470",
+  "dirty": true,
+  "name": "empty",
+  "note": "no elements, rooms, plans or scale: the Part 1 floor; v2 rebuilt with --keep: frozen 155 files + 49 conflict-only (task 7e)",
+  "part": "extraction",
+  "against": "golden",
+  "golden_version": "v2",
+  "milestone": false,
+  "gold_sha256": "0720a04d5fd9f41ff567a6bc75d673661059450a34f0c296e56073db144a8bf1",
+  "score_sha256": "973910119a73f632c12448e8b59b3af1c7471696275f98a846937ae1bf0570e8",
+  "files": 155,
+  "predicted": 155,
+  "multiplicity": false,
+  "elements_f1": 0.0,
+  "elements_f1_by_source": {
+    "cubicasa5k": 0.0,
+    "ifc_models": 0.0,
+    "opening_design": 0.0,
+    "swiss_dwellings": 0.0
+  },
+  "room_f1": 0.0,
+  "room_type_accuracy": null,
+  "room_area_accuracy": null,
+  "room_area_estimates": {},
+  "plans_exact": {
+    "n": 143,
+    "correct": 0,
+    "rate": 0.0
+  },
+  "counts_exact": {
+    "n": 2649,
+    "correct": 733,
+    "rate": 0.27670819177047945
+  },
+  "counts_exact_by_source": {
+    "cubicasa5k": {
+      "n": 1355,
+      "correct": 316,
+      "rate": 0.23321033210332104
+    },
+    "ifc_models": {
+      "n": 270,
+      "correct": 157,
+      "rate": 0.5814814814814815
+    },
+    "opening_design": {
+      "n": 4,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "swiss_dwellings": {
+      "n": 1020,
+      "correct": 260,
+      "rate": 0.2549019607843137
+    }
+  },
+  "scale_status": {
+    "n": 153,
+    "correct": 0,
+    "rate": 0.0
+  },
+  "scale_status_by_source": {
+    "cubicasa5k": {
+      "n": 77,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "ifc_models": {
+      "n": 15,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "opening_design": {
+      "n": 1,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "swiss_dwellings": {
+      "n": 60,
+      "correct": 0,
+      "rate": 0.0
+    }
+  },
+  "scale_m_per_unit": {
+    "n": 105,
+    "correct": 0,
+    "rate": 0.0
+  },
+  "scale_m_per_unit_by_case": {
+    "nothing": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "not_to_scale": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "dimension_lines": {
+      "n": 14,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "printed_areas": {
+      "n": 15,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "scale_text_or_bar": {
+      "n": 76,
+      "correct": 0,
+      "rate": 0.0
+    }
+  },
+  "scale_estimate_median_error": null,
+  "scale_estimate_within_20": null,
+  "tables": {
+    "files": 2,
+    "tables_found": {
+      "n": 7,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "tables_extra": 0,
+    "row_recall": {
+      "n": 170,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "row_precision": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "cell_accuracy": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    }
+  },
+  "conflicts": {
+    "files": 62,
+    "overall": {
+      "found": {
+        "n": 14,
+        "correct": 0,
+        "rate": 0.0
+      },
+      "agree": 102,
+      "false_alarms": 0,
+      "unlisted": 0
+    },
+    "by_quantity": {
+      "element_count": {
+        "found": {
+          "n": 10,
+          "correct": 0,
+          "rate": 0.0
+        },
+        "agree": 48,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "room_area": {
+        "found": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "agree": 30,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "room_count": {
+        "found": {
+          "n": 4,
+          "correct": 0,
+          "rate": 0.0
+        },
+        "agree": 20,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "scale": {
+        "found": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "agree": 4,
+        "false_alarms": 0,
+        "unlisted": 0
+      }
+    }
+  }
+}
