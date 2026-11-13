@@ -15,12 +15,28 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+from .conflict_scoring import ConflictScore, QuantityCounts
 from .coverage import CoverageScore, Row
 from .extraction_scoring import ExtractionScore
-from .models import Against, ExtractionRecord, Ratio, RunRecord, Stats
+from .extras_scoring import AnswerV11Score, ExtrasScore, GoldenScore
+from .models import (
+    Against,
+    AnswerV11Record,
+    AreaEstimates,
+    CalibrationBucket,
+    ConflictCounts,
+    ConflictsRecord,
+    ExtractionRecord,
+    ExtrasRecord,
+    Ratio,
+    RunRecord,
+    Stats,
+    TablesRecord,
+)
 from .run_store import read_records
 from .scale_scoring import Rate, ScaleScore
 from .scoring import Score, Tally
+from .table_scoring import TableScore
 
 SHORT = {"cubicasa5k": "cubi", "swiss_dwellings": "swiss", "ifc_models": "ifc",
          "ifc_bench": "bench", "opening_design": "open"}  # fmt: skip
@@ -80,11 +96,76 @@ def make_record(
         cost_mean_usd=result.cost_mean_usd,
         latency_mean_s=result.latency_mean_s,
         latency_p95_s=result.latency_p95_s,
+        extras=_extras(result.extras) if isinstance(result, GoldenScore) else None,
+        answer_v1_1=_answer_v11(result.answer_v1_1) if isinstance(result, GoldenScore) else None,
     )
 
 
-def _ratio(rate: Rate) -> Ratio:
+def _ratio(rate: Rate | Tally) -> Ratio:
+    if isinstance(rate, Tally):
+        return Ratio(n=rate.n, correct=rate.correct, rate=rate.accuracy)
     return Ratio(n=rate.n, correct=rate.correct, rate=rate.rate)
+
+
+def _extras(score: ExtrasScore | None) -> ExtrasRecord | None:
+    if score is None:
+        return None
+    return ExtrasRecord(
+        extras_sha256=score.extras_sha256,
+        paraphrase=_ratio(score.paraphrase),
+        paraphrase_origin=_ratio(score.paraphrase_origin),
+        paraphrase_gap=score.paraphrase_gap,
+        unanswerable_abstained=_ratio(score.unanswerable),
+        conflict_pass=_ratio(score.conflict),
+        conflict_values_shown=_ratio(score.conflict_values_shown),
+        conflict_answer_right=_ratio(score.conflict_answer_right),
+    )
+
+
+def _answer_v11(score: AnswerV11Score | None) -> AnswerV11Record | None:
+    if score is None:
+        return None
+    return AnswerV11Record(
+        answers=score.answers,
+        abstained=score.abstained,
+        abstain_rate=score.abstain_rate,
+        not_abstained_accuracy=_ratio(score.not_abstained),
+        abstained_accuracy=_ratio(score.abstained_tally),
+        with_confidence=score.with_confidence,
+        calibration=[CalibrationBucket(**bucket.model_dump()) for bucket in score.calibration],
+    )
+
+
+def _tables(score: TableScore | None) -> TablesRecord | None:
+    if score is None:
+        return None
+    return TablesRecord(
+        files=score.files,
+        tables_found=_ratio(score.tables_found),
+        tables_extra=score.tables_extra,
+        row_recall=_ratio(score.row_recall),
+        row_precision=_ratio(score.row_precision),
+        cell_accuracy=_ratio(score.cell_accuracy),
+    )
+
+
+def _conflict_counts(counts: QuantityCounts) -> ConflictCounts:
+    return ConflictCounts(
+        found=Ratio(n=counts.conflicts, correct=counts.found, rate=counts.recall),
+        agree=counts.agree,
+        false_alarms=counts.false_alarms,
+        unlisted=counts.unlisted,
+    )
+
+
+def _conflicts(score: ConflictScore | None) -> ConflictsRecord | None:
+    if score is None:
+        return None
+    return ConflictsRecord(
+        files=score.files,
+        overall=_conflict_counts(score.overall),
+        by_quantity={key: _conflict_counts(c) for key, c in sorted(score.by_quantity.items())},
+    )
 
 
 def make_extraction_record(
@@ -148,6 +229,17 @@ def make_extraction_record(
         room_f1=2 * room_tp / room_denominator if room_denominator else None,
         room_type_accuracy=rooms[1].rate,
         room_area_accuracy=rooms[2].rate,
+        room_area_estimates={
+            source: AreaEstimates(
+                rooms=len(stats.area_estimated.errors) + stats.area_estimated_missing,
+                missing=stats.area_estimated_missing,
+                median_error=stats.area_estimated.median_error,
+                within_10=stats.area_estimated.within_10,
+                within_20=stats.area_estimated.within_20,
+            )
+            for source, stats in sorted(result.rooms.items())
+            if stats.area_estimated.errors or stats.area_estimated_missing
+        },
         plans_exact=_ratio(plans),
         counts_exact=_ratio(result.counts_overall),
         counts_exact_by_source={key: _ratio(rate) for key, rate in result.counts_by_source.items()},
@@ -161,6 +253,8 @@ def make_extraction_record(
         },
         scale_estimate_median_error=scale.estimates.median_error,
         scale_estimate_within_20=scale.estimates.within_20,
+        tables=_tables(result.tables),
+        conflicts=_conflicts(result.conflicts),
     )
 
 

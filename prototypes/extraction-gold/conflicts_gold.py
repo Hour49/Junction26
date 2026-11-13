@@ -26,12 +26,16 @@ import collections
 import ctypes
 import json
 import re
+import sys
 from pathlib import Path
 
+# eval/ holds the one definition of the group (stdlib-only module)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "eval"))
 import pypdfium2 as pdfium
 from PIL import Image, ImageDraw
 from pypdfium2 import raw
 from shapely.geometry import Point, Polygon
+from stoa_eval.families import group_of
 
 GOLD = "data/stoa/extraction_gold"
 IFC = "ifc_models"
@@ -483,7 +487,7 @@ def extras(dataset_rows):
             "path": gold["file"], "question": question, "answer": answer, "unit": unit,
             "type": "area" if kind == "area" else "count", "id": 1001001 + n,
             "source": "ifc_models", "language": "en", "template": f"conflict_{cls}_{kind}",
-            "group": None, "split": "dev", "kind": "conflict", "origin_id": dataset_id,
+            "group": group_of(gold["file"]), "split": "dev", "kind": "conflict", "origin_id": dataset_id,
             "expect": {"answer": answer, "conflict_values": values}, "why": why,
         })  # fmt: skip
     return lines

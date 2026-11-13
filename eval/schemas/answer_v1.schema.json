@@ -1,5 +1,111 @@
 {
   "$defs": {
+    "ConflictValue": {
+      "additionalProperties": false,
+      "description": "v1.1: one of the disagreeing values behind an answer.",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "enum": [
+                "count",
+                "m",
+                "m2",
+                "m3",
+                "ft",
+                "ft2"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Unit"
+        },
+        "method": {
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "null for a value from an IFC model",
+          "title": "Page"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "method",
+        "file"
+      ],
+      "title": "ConflictValue",
+      "type": "object"
+    },
     "Evidence": {
       "additionalProperties": false,
       "description": "Where on a drawing the answer came from.",
@@ -43,6 +149,51 @@
           ],
           "title": "Box",
           "type": "array"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "minItems": 3,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "v1.1: the outline as page fractions",
+          "title": "Polygon"
+        },
+        "global_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "v1.1: IFC GlobalId",
+          "title": "Global Id"
         }
       },
       "required": [
@@ -52,10 +203,66 @@
       ],
       "title": "Evidence",
       "type": "object"
+    },
+    "Excluded": {
+      "additionalProperties": false,
+      "description": "v1.1: a region deliberately not counted, and why.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "box": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Box",
+          "type": "array"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "page",
+        "box",
+        "reason"
+      ],
+      "title": "Excluded",
+      "type": "object"
     }
   },
   "additionalProperties": false,
-  "description": "One line our system writes per question (answer_v1).",
+  "description": "One line our system writes per question (answer_v1; the fields after latency_s are the\noptional answer_v1.1 additions).",
   "properties": {
     "id": {
       "description": "the question's 1-based line number in questions.jsonl",
@@ -124,6 +331,110 @@
       "minimum": 0.0,
       "title": "Latency S",
       "type": "number"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: 0..1",
+      "title": "Confidence"
+    },
+    "abstain": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: too unsure to answer; `answer` still holds the estimate",
+      "title": "Abstain"
+    },
+    "conflicts": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ConflictValue"
+          },
+          "minItems": 2,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: the values that disagree",
+      "title": "Conflicts"
+    },
+    "resolution": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: which value was kept, and why",
+      "title": "Resolution"
+    },
+    "explanation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: how the answer was reached",
+      "title": "Explanation"
+    },
+    "excluded": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Excluded"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: regions not counted",
+      "title": "Excluded"
+    },
+    "inputs": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: the files read",
+      "title": "Inputs"
     }
   },
   "required": [
@@ -135,6 +446,6 @@
     "cost_usd",
     "latency_s"
   ],
-  "title": "Answer_v1",
+  "title": "Answer_v1.1",
   "type": "object"
 }

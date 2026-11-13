@@ -8,6 +8,12 @@ picked once before any is picked twice.
 
 The scale case list adds files until each scale case (scale_scoring.ScaleCase) has SCALE_QUOTA files
 in dev and in eval where the gold has them, dealt round-robin over sources; plan picks count first.
+
+The conflict slice: every file in the gold's `_conflicts/conflicts.jsonl` (review-10) joins v2 after
+the plan and scale picks, so adding conflicts never changes which other files are picked; its
+conflicts are merged into the copied gold file. A file that joins only for the slice (stratum
+`conflict`) is scored only there: no scale case, no Part 1 headline, and its questions stay out of
+Part 2 (orchestrator, 2026-11-13 23:29).
 """
 
 from collections.abc import Iterable, Mapping, Set
@@ -15,6 +21,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .extraction import Conflict
 from .families import group_of, source_of
 from .models import Question
 from .scale_scoring import ScaleCase
@@ -30,6 +37,17 @@ QUOTAS: dict[str, Quota] = {
 SCALE_QUOTA: Quota = (10, 3)  # per scale case
 FLOORS_QUESTION = "How many floors"
 Split = Literal["dev", "eval"]
+CONFLICT_EXTRA_IDS = range(1_001_001, 1_002_000)  # review-10's extras ids (formats-v1-1 §3)
+
+
+class ConflictFile(BaseModel):
+    """One line of extraction_gold/_conflicts/conflicts.jsonl: a file's checked conflicts."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    file: str
+    split: Split
+    conflicts: list[Conflict] = Field(min_length=1)
 
 
 class PlansParams(BaseModel):
@@ -49,8 +67,12 @@ class PlanFile(BaseModel):
     file: str
     source: str
     split: Literal["dev", "eval"]
-    truth: Literal["elements", "counts"] | None = Field(description="from the gold; null if none")
-    stratum: str = Field(description="the plan stratum, or scale for a file picked as a scale case")
+    truth: Literal["elements", "counts", "tables"] | None = Field(
+        description="from the gold; null if none"
+    )
+    stratum: str = Field(
+        description="the plan stratum; scale or conflict for a file picked for that slice"
+    )
     scale_case: ScaleCase | None = Field(description="its scale case, if the gold makes it one")
 
 
@@ -73,6 +95,13 @@ class PlansManifest(BaseModel):
     by_source: dict[str, SourceCount]
     scale_cases: dict[str, SourceCount] = Field(description="scale case -> files (dev, eval)")
     missing_gold: list[str]
+    conflict_files: list[str] = Field(
+        default_factory=list[str], description="files whose gold lists conflicts (the slice)"
+    )
+    unscaled: list[str] = Field(
+        default_factory=list[str],
+        description="--allow-unscaled: gold without a scale value or room areas, built anyway",
+    )
     files_sha256: dict[str, str] = Field(description="path under v2/ -> sha256, both parts")
 
 

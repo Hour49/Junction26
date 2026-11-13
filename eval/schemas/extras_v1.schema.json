@@ -1,0 +1,229 @@
+{
+  "$defs": {
+    "Expect": {
+      "additionalProperties": false,
+      "properties": {
+        "answer": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Answer"
+        },
+        "abstain": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Abstain"
+        },
+        "conflict_values": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conflict Values"
+        }
+      },
+      "title": "Expect",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One line of part2_answering/extras.jsonl: a question Stoa didn't write (formats-v1-1 §3).\nScored as its own slice, never in the headline.",
+  "properties": {
+    "path": {
+      "title": "Path",
+      "type": "string"
+    },
+    "question": {
+      "title": "Question",
+      "type": "string"
+    },
+    "answer": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null for unanswerable lines",
+      "title": "Answer"
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "enum": [
+            "count",
+            "m",
+            "m2",
+            "m3",
+            "ft",
+            "ft2"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Unit"
+    },
+    "type": {
+      "anyOf": [
+        {
+          "enum": [
+            "count",
+            "area",
+            "length",
+            "volume",
+            "text",
+            "other"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unanswerable",
+          "type": "string"
+        }
+      ],
+      "description": "the origin's type; unanswerable for unanswerable lines",
+      "title": "Type"
+    },
+    "id": {
+      "description": "from 1000001 up, never a dataset line",
+      "minimum": 1000001,
+      "title": "Id",
+      "type": "integer"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    },
+    "language": {
+      "title": "Language",
+      "type": "string"
+    },
+    "template": {
+      "title": "Template",
+      "type": "string"
+    },
+    "group": {
+      "title": "Group",
+      "type": "string"
+    },
+    "split": {
+      "const": "dev",
+      "description": "extras are made from dev files only",
+      "title": "Split",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "paraphrase",
+        "unanswerable",
+        "conflict"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "origin_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "paraphrase: the dataset question it rewords",
+      "title": "Origin Id"
+    },
+    "expect": {
+      "$ref": "#/$defs/Expect"
+    },
+    "why": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Why"
+    },
+    "style": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "paraphrase: reworded, restructured, typo, hint_dropped; unanswerable: scale, fact, class",
+      "title": "Style"
+    }
+  },
+  "required": [
+    "path",
+    "question",
+    "answer",
+    "unit",
+    "type",
+    "id",
+    "source",
+    "language",
+    "template",
+    "group",
+    "split",
+    "kind",
+    "origin_id",
+    "expect",
+    "why"
+  ],
+  "title": "ExtraItem",
+  "type": "object"
+}

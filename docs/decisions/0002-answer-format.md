@@ -40,3 +40,22 @@ The scorer refuses a file with an invalid line (it names the file and line), an 
 - Open until the golden-set spec decides: an optional `explanation` for the human; `excluded` regions with reasons
   (what was left out of a count and why); `polygon` evidence besides boxes; `inputs` (the files read); IFC GlobalIds
   as evidence, because an answer read from an IFC model has no page or box to cite.
+
+## Amendment, 2026-11-13 23:30: answer_v1.1
+
+- Decided by: Bogdan, 2026-11-13 23:03 ("1yes 2 yes 3 yes 4 yes", accepting decision 4 of the golden-set spec draft
+  and board #26); the shapes pinned by his orchestrator (formats-v1-1 brief); written by agent golden (worker).
+
+answer_v1.1 adds optional fields to the same schema file (`answer_v1.schema.json`, now titled `Answer_v1.1`). Every
+answer_v1 line stays valid, so this is an amendment, not a new version: `confidence` (0 to 1), `abstain` (the
+system is too unsure; `answer` still holds the best estimate, because Stoa scores `null` as wrong), `conflicts`
+(two or more `{value, unit, method, file, page, box}`, with `page` and `box` null for a value read from an IFC
+model) with `resolution` (text, only next to `conflicts`), `explanation`, `excluded` (`{file, page, box, reason}`)
+and `inputs`. Evidence items may carry `polygon` (page fractions) and `global_id` (IFC). This settles the open list
+in Consequences above, except evidence without a page or box: an evidence item still needs both.
+
+None of the new fields changes the headline score. The scorer adds an abstain rate, accuracy on abstained and other
+answers, and a calibration table (confidence buckets of 0.2) on the golden questions. It also scores the Part 2
+extras (`extras_v1.schema.json`: paraphrases, unanswerable and conflict questions) as separate slices; an
+unanswerable question passes only with `abstain: true`. Rules: [eval/README.md](../../eval/README.md), spec:
+[docs/GOLDEN.md](../GOLDEN.md).

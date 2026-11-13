@@ -6,42 +6,42 @@ Files pair by `file`. A gold file is scored only on what its `truth` covers:
   (the boxes of diagonal walls on a rotated plan are large and overlap), else of the boxes. Also a
   centre-hit rate per class: predictions whose box centre lies in a gold polygon (or box, without
   one), and gold items holding at least one such centre. Rooms match like elements (any type), then
-  type accuracy and `area_m2` within 2%. Plans: count exact. Counts per key per file: exact-match
+  type accuracy and `area_m2` within 2% where the gold area is exact (`area_status` exact or unset).
+  An estimated gold area (CubiCasa: polygon x an approximate scale) is scored like a scale estimate:
+  the relative error of the predicted area, as a median and the shares within 10% and 20%, per
+  source. Plans: count exact. Counts per key per file: exact-match
   rate (an element with `attrs.multiplicity` counts that many times only with `multiplicity`).
 - `counts`: only the counts in the gold's `counts` object.
+- `tables`: only the schedules (table_scoring.py); a gold file with `tables` and truth `elements`
+  is scored on both.
 Scale is scored per case of evidence (scale_scoring.py): a status confusion table, the m_per_unit
-pass rate per case and per evidence kind, and estimates against a reference.
+pass rate per case and per evidence kind, and estimates against a reference. Gold files that list
+`conflicts` form the conflict slice (conflict_scoring.py). Tables and conflicts are reported in
+their own sections and never change the headline numbers. A file in `slice_only` (it joined golden
+v2 only for the conflict slice) is scored in that slice and nowhere else (orchestrator,
+2026-11-13 23:29: the headline stays comparable with the runs recorded before the slice).
 
 A missing prediction file means every gold item on it is missed and every count is wrong. A class
 (or rooms at all) that no gold file of a source lists is not scored for that source: the swiss gold
 has no stairs, the CubiCasa gold no walls. Predictions of such classes are counted as not scored.
 """
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence, Set
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from shapely.geometry import Point
 from shapely.geometry import Polygon as Shape
 
+from .conflict_scoring import ConflictScore, format_conflict_section
 from .extraction import Element, Extraction, Room
 from .families import source_of
-from .scale_scoring import Rate, ScaleScore, case_of, format_scale_table
+from .geometry import Box, iou
+from .scale_scoring import Estimates, Rate, ScaleScore, case_of, format_scale_table
+from .table_scoring import TableScore, format_table_section
 
 IOU_MIN = 0.5
 AREA_TOLERANCE = 0.02
 _SLACK = 1e-9  # a value exactly at a threshold passes despite float rounding
-Box = tuple[float, float, float, float]
-
-
-def iou(a: Box, b: Box) -> float:
-    """IoU of two [x0, y0, x1, y1] boxes; identical boxes give 1 even when flat."""
-    if a == b:
-        return 1.0
-    width = min(a[2], b[2]) - max(a[0], b[0])
-    height = min(a[3], b[3]) - max(a[1], b[1])
-    inter = max(width, 0.0) * max(height, 0.0)
-    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
-    return inter / union if union > 0 else 0.0
 
 
 def _shape(item: Element | Room) -> Shape | None:
@@ -173,7 +173,13 @@ class RoomStats(BaseModel):
 
     boxes: Prf = Prf()
     type: Rate = Rate()
-    area: Rate = Rate()
+    area: Rate = Field(default_factory=Rate, description="exact gold areas within 2%")
+    area_estimated: Estimates = Field(
+        default_factory=Estimates, description="estimated gold areas: relative errors"
+    )
+    area_estimated_missing: int = Field(
+        default=0, description="matched rooms with an estimated gold area and no predicted area"
+    )
 
 
 class FileResult(BaseModel):
@@ -209,6 +215,11 @@ class ExtractionScore(BaseModel):
     scale: dict[str, ScaleScore]  # by source
     scale_overall: ScaleScore
     per_file: list[FileResult]
+    slice_only_files: int = Field(default=0, description="scored only in the conflict slice")
+    tables: TableScore | None = Field(default=None, description="when a gold file has tables")
+    conflicts: ConflictScore | None = Field(
+        default=None, description="when a gold file lists conflicts (the conflict slice)"
+    )
 
 
 def _covered(golds: Iterable[Extraction]) -> dict[str, set[str]]:
@@ -222,9 +233,12 @@ def _covered(golds: Iterable[Extraction]) -> dict[str, set[str]]:
 
 
 def score_extraction(
-    golds: Sequence[Extraction], preds: Mapping[str, Extraction], multiplicity: bool = False
+    golds: Sequence[Extraction],
+    preds: Mapping[str, Extraction],
+    multiplicity: bool = False,
+    slice_only: Set[str] = frozenset(),
 ) -> ExtractionScore:
-    covered = _covered(golds)
+    covered = _covered(gold for gold in golds if gold.file not in slice_only)
     elements: dict[str, Prf] = {}
     centre: dict[str, CentreStats] = {}
     not_scored: dict[str, int] = {}
@@ -233,9 +247,20 @@ def score_extraction(
     counts: dict[str, Rate] = {}
     scale: dict[str, ScaleScore] = {}
     per_file: list[FileResult] = []
+    tables, conflicts = TableScore(), ConflictScore()
     for gold in sorted(golds, key=lambda extraction: extraction.file):
         source = source_of(gold.file)
         pred = preds.get(gold.file)
+        if gold.conflicts:
+            rooms_of = match(gold.rooms, pred.rooms) if pred else []
+            room_map = {pred.rooms[p].id: gold.rooms[g].id for g, p in rooms_of} if pred else {}
+            conflicts.add(gold, pred, room_map)
+        elif pred is not None:
+            conflicts.not_scored += sum(item.status == "conflict" for item in pred.conflicts or [])
+        if gold.file in slice_only:
+            continue
+        if gold.tables:
+            tables.add(gold, pred)
         if gold.truth == "elements":
             keys = covered[source]
             for cls in sorted(key for key in keys if key != "plan" and ":" not in key):
@@ -266,9 +291,15 @@ def score_extraction(
             )
             for g, p in pairs:
                 stats.type.add(gold.rooms[g].type == pred_rooms[p].type)
-                want = gold.rooms[g].area_m2
-                if want is not None:
-                    stats.area.add(within(pred_rooms[p].area_m2, want, AREA_TOLERANCE))
+                want, got = gold.rooms[g].area_m2, pred_rooms[p].area_m2
+                if want is None:
+                    continue
+                if gold.rooms[g].area_status != "estimated":
+                    stats.area.add(within(got, want, AREA_TOLERANCE))
+                elif got is None:
+                    stats.area_estimated_missing += 1
+                elif want > 0:
+                    stats.area_estimated.errors.append(abs(got - want) / want)
             plans.setdefault(source, Rate()).add(
                 pred is not None and len(pred.plans) == len(gold.plans)
             )
@@ -299,7 +330,7 @@ def score_extraction(
             )
         )
     return ExtractionScore(
-        files=len(golds),
+        files=len(per_file),
         predicted=sum(result.predicted for result in per_file),
         multiplicity=multiplicity,
         elements=elements,
@@ -315,6 +346,9 @@ def score_extraction(
         scale=scale,
         scale_overall=_merged(scale.values()),
         per_file=per_file,
+        slice_only_files=len(golds) - len(per_file),
+        tables=tables if tables.files else None,
+        conflicts=conflicts if conflicts.files else None,
     )
 
 
@@ -344,7 +378,10 @@ def _pct(value: float | None) -> str:
 
 
 def format_extraction_table(result: ExtractionScore) -> str:
-    lines = [f"{result.predicted} of {result.files} gold files have a prediction", ""]
+    lines = [f"{result.predicted} of {result.files} gold files have a prediction"]
+    if result.slice_only_files:
+        lines[0] += f" ({result.slice_only_files} more are scored only in the conflict slice)"
+    lines.append("")
     lines.append(
         f"{'elements':<36} {'tp':>6} {'fp':>6} {'fn':>6} {'prec':>7} {'recall':>7} {'f1':>7} "
         f"{'ctr pred':>8} {'ctr gold':>8}"
@@ -363,12 +400,24 @@ def format_extraction_table(result: ExtractionScore) -> str:
             "not scored (no gold file of the source lists them): "
             + ", ".join(f"{key} {n}" for key, n in result.not_scored.items()),
         ]
-    lines += ["", f"{'rooms':<20} {'f1':>7} {'type acc':>9} {'area 2%':>8} {'plans exact':>12}"]
+    lines += [
+        "",
+        f"{'rooms':<20} {'f1':>7} {'type acc':>9} {'area 2%':>8} {'plans exact':>12}   "
+        "estimated areas: rooms, no area, median error, within 10%, within 20%",
+    ]
     for source in sorted(set(result.rooms) | set(result.plans)):
         stats, plan = result.rooms.get(source, RoomStats()), result.plans.get(source, Rate())
+        estimates = stats.area_estimated
+        estimated = (
+            f"   {len(estimates.errors) + stats.area_estimated_missing}, "
+            f"{stats.area_estimated_missing}, {_pct(estimates.median_error)}, "
+            f"{_pct(estimates.within_10)}, {_pct(estimates.within_20)}"
+            if estimates.errors or stats.area_estimated_missing
+            else ""
+        )
         lines.append(
             f"{source:<20} {_pct(stats.boxes.f1):>7} {_pct(stats.type.rate):>9} "
-            f"{_pct(stats.area.rate):>8} {_pct(plan.rate):>12}"
+            f"{_pct(stats.area.rate):>8} {_pct(plan.rate):>12}{estimated}"
         )
     lines += ["", f"{'counts exact':<36} {'n':>6} {'exact':>7}"]
     for key, rate in [*result.counts.items(), *result.counts_by_source.items()]:
@@ -378,4 +427,8 @@ def format_extraction_table(result: ExtractionScore) -> str:
     )
     for key, stats in [*result.scale.items(), ("overall", result.scale_overall)]:
         lines += ["", format_scale_table(key, stats)]
+    if result.tables is not None:
+        lines += ["", format_table_section(result.tables)]
+    if result.conflicts is not None:
+        lines += ["", format_conflict_section(result.conflicts)]
     return "\n".join(lines)

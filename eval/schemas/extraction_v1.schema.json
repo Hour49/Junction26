@@ -40,6 +40,90 @@
       "title": "Apartment",
       "type": "object"
     },
+    "Conflict": {
+      "additionalProperties": false,
+      "description": "One quantity two independent methods measured on this file (ingestion stage 8).",
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "quantity": {
+          "enum": [
+            "room_area",
+            "apartment_area",
+            "floor_area",
+            "room_count",
+            "element_count",
+            "scale",
+            "storey_count",
+            "other"
+          ],
+          "title": "Quantity",
+          "type": "string"
+        },
+        "subject": {
+          "$ref": "#/$defs/Subject"
+        },
+        "status": {
+          "enum": [
+            "conflict",
+            "agree"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "tolerance": {
+          "description": "relative; 0 for counts",
+          "minimum": 0,
+          "title": "Tolerance",
+          "type": "number"
+        },
+        "values": {
+          "items": {
+            "$ref": "#/$defs/MeasuredValue"
+          },
+          "minItems": 2,
+          "title": "Values",
+          "type": "array"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Resolution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the value to report and the rule; null when no rule decides"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "id",
+        "quantity",
+        "subject",
+        "status",
+        "tolerance",
+        "values"
+      ],
+      "title": "Conflict",
+      "type": "object"
+    },
     "Element": {
       "additionalProperties": false,
       "properties": {
@@ -178,6 +262,103 @@
       "title": "Element",
       "type": "object"
     },
+    "MeasuredValue": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "method": {
+          "enum": [
+            "printed_label",
+            "printed_total",
+            "polygon_x_scale",
+            "summed_rooms",
+            "scale_text",
+            "scale_bar",
+            "dimension_lines",
+            "ifc_model",
+            "plan_drawing",
+            "schedule",
+            "detector",
+            "parser",
+            "annotation",
+            "other"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "description": "[x0, y0, x1, y1] as page fractions, origin top left",
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        }
+      },
+      "required": [
+        "value",
+        "method"
+      ],
+      "title": "MeasuredValue",
+      "type": "object"
+    },
     "Page": {
       "additionalProperties": false,
       "properties": {
@@ -279,6 +460,26 @@
         "box"
       ],
       "title": "Plan",
+      "type": "object"
+    },
+    "Resolution": {
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "minLength": 1,
+          "title": "Rule",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rule",
+        "value"
+      ],
+      "title": "Resolution",
       "type": "object"
     },
     "Room": {
@@ -409,6 +610,54 @@
           "default": null,
           "title": "Area M2"
         },
+        "area_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "exact",
+                "estimated"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "exact: the sheet prints it; unset counts as exact (swiss, ifc)",
+          "title": "Area Status"
+        },
+        "area_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "printed",
+                "geometry_x_scale",
+                "geometry_x_estimate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area Source"
+        },
+        "area_uncertainty": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "estimated: relative",
+          "title": "Area Uncertainty"
+        },
         "apartment": {
           "anyOf": [
             {
@@ -461,10 +710,10 @@
     },
     "Scale": {
       "additionalProperties": false,
-      "description": "The sheet's scale and every kind of scale evidence it shows (Bogdan, 2026-11-13 22:31).",
+      "description": "The sheet's scale and every kind of scale evidence it shows (Bogdan, 2026-11-13 22:31), and\non every image a value to get areas from, approximated where nothing is printed (Bogdan, 23:33:\n\"We should have ON ALL IMAGES THE SCALE TO GET THE AREA, BY APROXIMATING IT IN DIFFERENT WAYS\nIF NOT GOOD SCALE ETC.\").",
       "properties": {
         "status": {
-          "description": "scaled; no_scale (no scale evidence at all); not_to_scale (the sheet says so); estimated (predictions only: a best-effort scale without printed evidence)",
+          "description": "scaled (measured, two checks); estimated (approximated without usable printed evidence); not_to_scale (the sheet says so; may still carry an approximate value); no_scale (no method applies)",
           "enum": [
             "scaled",
             "no_scale",
@@ -485,7 +734,7 @@
             }
           ],
           "default": null,
-          "description": "metres per page unit (px or pt); scaled and estimated",
+          "description": "metres per page unit (px or pt): scaled and estimated; optional on not_to_scale",
           "title": "M Per Unit"
         },
         "evidence": {
@@ -540,7 +789,7 @@
             }
           ],
           "default": null,
-          "description": "estimated only: relative, e.g. 0.10",
+          "description": "relative, e.g. 0.08: estimated and a valued not_to_scale",
           "title": "Uncertainty"
         },
         "reference_m_per_unit": {
@@ -554,7 +803,7 @@
             }
           ],
           "default": null,
-          "description": "gold without a scale: a reference for estimates, not truth",
+          "description": "a reference unit (e.g. the annotation's), not truth",
           "title": "Reference M Per Unit"
         }
       },
@@ -563,10 +812,194 @@
       ],
       "title": "Scale",
       "type": "object"
+    },
+    "Subject": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "room",
+            "apartment",
+            "class",
+            "sheet"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "a room or apartment id in this file, an element class, or null for sheet",
+          "title": "Ref"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "title": "Subject",
+      "type": "object"
+    },
+    "Table": {
+      "additionalProperties": false,
+      "description": "A schedule printed on the sheet (door, window, hardware, finish, room schedules).",
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "box": {
+          "description": "[x0, y0, x1, y1] as page fractions, origin top left",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Box",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "columns": {
+          "description": "header text, left to right",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "key_column": {
+          "default": 0,
+          "description": "0-based column that identifies a row",
+          "minimum": 0,
+          "title": "Key Column",
+          "type": "integer"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/TableRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "page",
+        "box",
+        "columns",
+        "rows"
+      ],
+      "title": "Table",
+      "type": "object"
+    },
+    "TableRow": {
+      "additionalProperties": false,
+      "properties": {
+        "cells": {
+          "description": "one per column, as printed; null when empty",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "description": "[x0, y0, x1, y1] as page fractions, origin top left",
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        }
+      },
+      "required": [
+        "cells"
+      ],
+      "title": "TableRow",
+      "type": "object"
     }
   },
   "additionalProperties": false,
-  "description": "One drawing file: its pages, plans, elements, rooms and apartments (extraction_v1).",
+  "description": "One drawing file: its pages, plans, elements, rooms, apartments and, optionally, its\nschedules and stage-8 conflicts (extraction_v1).",
   "properties": {
     "schema": {
       "const": "extraction_v1",
@@ -588,10 +1021,11 @@
       "type": "string"
     },
     "truth": {
-      "description": "elements: full element and room lists; counts: only `counts` is scored",
+      "description": "elements: full element and room lists; counts: only `counts` is scored; tables: a schedule sheet, only `tables` is scored",
       "enum": [
         "elements",
-        "counts"
+        "counts",
+        "tables"
       ],
       "title": "Truth",
       "type": "string"
@@ -651,6 +1085,38 @@
       "default": null,
       "description": "keys: an element class, room:<type>, or plan",
       "title": "Counts"
+    },
+    "tables": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Table"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "schedules a question can ask",
+      "title": "Tables"
+    },
+    "conflicts": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Conflict"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "quantities measured by two methods, agreeing or not",
+      "title": "Conflicts"
     },
     "notes": {
       "items": {
