@@ -7,6 +7,7 @@ set -euo pipefail
 n="${1:?usage: claude-acc N [args...]}"
 shift
 if [ "$n" = 1 ]; then
+  unset CLAUDE_CONFIG_DIR  # account 1 is the default; a shell export of account 2 must not win
   exec claude --dangerously-skip-permissions "$@"
 fi
 main="$HOME/.claude"
