@@ -370,7 +370,7 @@ const CONFLICTS = [
     why: 'The scan does not show whether the glazing sits in a wall or on the railing. Both readings follow the rules.',
     apply: (i) => { PLANS.B.q.windows.marks.find((m) => m.id === 'w7').state = i === null ? 'contested' : i === 0 ? 'rejected' : 'counted'; } },
 ];
-// The AI's decision stands as approved until the user denies it.
+// The AI's decisions are approved by default; the user only steps in to modify one.
 CONFLICTS.forEach((c) => { if (c.ai !== null) c.verdict = 'approved'; });
 const finalPick = (c) => (c.verdict === 'approved' ? c.ai : c.pick ?? null);
 const resolved = (c) => finalPick(c) !== null;
@@ -583,7 +583,7 @@ function engineerHTML(p) {
 function surveyorHTML(p) {
   const qs = Object.values(p.q), done = qs.filter((q) => q.signed).length, q = p.q[state.focus] || qs[0];
   const st = status(q), blocked = contested(q);
-  return `<section class="card panel"><h2 style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center">Takeoff: ${esc(p.file)} <button class="btn small" id="csv">Export CSV</button></h2>
+  return `<section class="card panel"><h2 style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center"><span><button class="btn small" id="tochat">← Back to the chat</button> Takeoff: ${esc(p.file)}</span> <button class="btn small" id="csv">Export CSV</button></h2>
     <div class="body" style="padding-bottom:6px"><span class="lbl">${done} of ${qs.length} quantities signed off</span><div class="progress"><i style="width:${100 * done / qs.length}%"></i></div></div>
     <div class="tablewrap"><table class="takeoff"><thead><tr><th>Quantity</th><th class="num">Value</th><th>State</th></tr></thead><tbody>
     ${qs.map((x) => { const s = status(x), ch = value(x) !== x.origValue; return `<tr class="click${x.key === q.key ? ' sel' : ''}" data-q="${x.key}"><td>${esc(x.label)}</td><td class="v">${ch ? `<s>${fmt(x, x.origValue)}</s>` : ''}${fmt(x)}${x.kind === 'area' ? ' m²' : ''}</td><td><span class="chip ${s[0]}">${s[1]}</span></td></tr>`; }).join('')}
@@ -645,6 +645,7 @@ function workClick(ev) {
   if (!survey) return;
   if ((el = t('[data-q]'))) { state.focus = el.dataset.q; state.addMode = false; return renderWork(); }
   if (t('#csv')) return exportCSV(p);
+  if (t('#tochat')) { state.role = 'engineer'; state.addMode = false; return renderWork(); }
   if (t('#add')) { state.addMode = !state.addMode; return renderWork(); }
   if (t('#sign')) { q.signed = now(); return renderWork(); }
   if (t('#unsign')) { q.signed = null; return renderWork(); }
@@ -730,27 +731,35 @@ function conflictSummaryHTML() {
     <div class="run-actions"><button class="btn" id="again">New archive</button><button class="btn primary" id="open" ${all ? '' : 'disabled'}>Open the workspace</button></div></div>`;
 }
 
-function conflictHTML(c, i) {
+// Evidence image for a conflict the rules could not settle: where on the drawing the two readings disagree.
+function evidenceSVG(c) {
+  // only c5 is unsolved in this mock
+  return [planSVG(PLANS.B, PLANS.B.q.windows, false),
+    'The amber "?" is the balcony glazing. The detector reads it as glazing on the railing; the vision count reads it as a window in a wall.'];
+}
+
+function conflictHTML(c) {
   const fin = finalPick(c), denied = c.verdict === 'denied';
   const vars = c.v.map((x, i) => `<div class="cfvar${fin === i ? ' chosen' : ''}${c.ai === i ? ' ai' : ''}"><span class="lbl">Variant ${i + 1}${c.ai === i ? ' · AI decision' : ''}</span><b>${esc(x.label)}</b><span>${esc(x.src)}</span></div>`).join('');
   const pickBtns = c.v.map((x, i) => `<button class="btn" data-pick="${c.id}:${i}">Use variant ${i + 1}: ${esc(x.label)}</button>`).join('');
   let act;
-  if (c.verdict === 'approved') act = `<p class="signed">Approved: the AI decision, variant ${c.ai + 1}, is used.</p><button class="btn small no" data-verdict="${c.id}:denied">Modify</button>`;
+  if (c.verdict === 'approved') act = `<span class="approved">✓ Approved: variant ${c.ai + 1}</span><button class="btn" data-verdict="${c.id}:denied">Modify</button>`;
   else if (fin !== null) act = `<p class="signed">You chose variant ${fin + 1}${denied ? ', over the AI decision' : ''}.</p><button class="btn small" data-reset="${c.id}">${c.ai === null ? 'Change' : 'Undo, use the AI decision'}</button>`;
   else if (c.ai === null) act = `<p class="cfask">Choose the variant that is right:</p>${pickBtns}`;
-  else if (denied) act = `<p class="cfask">Pick your own variant:</p>${pickBtns}<button class="btn small" data-reset="${c.id}">Cancel</button>`;
-  return `<article class="card cf${fin !== null ? ' done' : ''}" id="cf-${c.id}"><header><div><span class="lbl">Conflict ${i + 1} of ${CONFLICTS.length} · ${c.ai === null ? 'unsolved' : 'solved by the AI'}</span><h3>${esc(c.title)}</h3><span class="nm">${esc(c.file)}</span></div>
-    <span class="chip ${fin !== null ? 'ok' : c.ai === null ? 'warn' : 'info'}">${c.verdict === 'approved' ? 'approved' : fin !== null ? 'settled' : 'needs you'}</span></header>
-    <div class="cfvars">${vars}</div>
+  else act = `<p class="cfask">Pick the right variant yourself:</p>${pickBtns}<button class="btn small" data-reset="${c.id}">Cancel</button>`;
+  return `<article class="card cf${fin !== null ? ' done' : ''}${c.ai === null ? ' unsolved' : ' solved'}"><header><div><h3>${esc(c.title)}</h3><span class="nm">${esc(c.file)}</span></div>
+    <span class="chip ${fin !== null ? 'ok' : c.ai === null ? 'warn' : 'info'}">${fin !== null ? 'settled' : c.ai === null ? 'needs you' : 'to approve'}</span></header>
+    ${c.ai === null ? `<div class="cfev">${c.showEv ? `<div class="cfimg">${evidenceSVG(c)[0]}</div><p class="cfcap">${esc(evidenceSVG(c)[1])}</p>` : ''}
+      <button class="btn small" data-ev="${c.id}">${c.showEv ? 'Hide evidence' : 'Show evidence'}</button></div>` : `<div class="cfvars">${vars}</div>`}
     <div class="cfrules"><span class="lbl">Rules applied</span><ol>${c.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ol>
       <p><b>${c.ai === null ? 'AI could not decide.' : `AI decision: variant ${c.ai + 1}.`}</b> ${esc(c.why)}</p></div>
     <div class="cfact">${act}</div></article>`;
 }
 
-
 function conflictsClick(ev) {
   const t = (sel) => ev.target.closest(sel), get = (id) => CONFLICTS.find((c) => c.id === id);
   let el, c;
+  if ((el = t('[data-ev]'))) { c = get(el.dataset.ev); c.showEv = !c.showEv; return renderIngest(); }
   if ((el = t('[data-verdict]'))) { const [id, v] = el.dataset.verdict.split(':'); c = get(id); c.verdict = v; c.pick = null; }
   else if ((el = t('[data-pick]'))) { const [id, i] = el.dataset.pick.split(':'); c = get(id); c.pick = +i; }
   else if ((el = t('[data-reset]'))) { c = get(el.dataset.reset); c.verdict = c.ai === null ? null : 'approved'; c.pick = null; }
@@ -819,8 +828,6 @@ function ingestClick(ev) {
 /* ------------------------------------------------------------------- shell */
 
 function render() {
-  document.querySelectorAll('#roleSwitch button').forEach((b) => b.classList.toggle('on', b.dataset.role === state.role));
-  $('#roleSwitch').hidden = state.view !== 'work';
   if (state.view === 'ingest') renderIngest(); else renderWork();
 }
 
@@ -838,12 +845,6 @@ app.addEventListener('drop', (ev) => {
   ev.preventDefault();
   const f = ev.dataTransfer.files[0];
   startIngest(f ? f.name : 'harbour-block-archive.zip', f ? 'This mock does not read your file. It plays the sample archive under your file\'s name.' : '');
-});
-$('#roleSwitch').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-role]'); if (!b) return;
-  state.role = b.dataset.role; state.addMode = false;
-  if (!PLANS[state.plan].q[state.focus]) state.focus = 'doors';
-  render();
 });
 
 // deep links for screenshots and for sending someone to one screen: #work/surveyor/B, #ingest/done
