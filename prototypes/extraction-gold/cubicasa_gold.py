@@ -310,6 +310,394 @@ def make_scale(stem: str, ws: int, W: int):
     }, ["scale not reviewed"]
 
 
+# ---------- all-image scale and room areas (brief scale-all, 2026-11-13) ----------
+DOOR_M = 0.80  # median door-leaf width (review-1: median 0.794 m over 20 scaled plans, 72% of doors within 10%)
+# printed per-room areas read by hand: stem -> [(label, m2)]; matched to the SVG room by label and closest polygon area
+PRINTED = {
+    "high_quality_architectural-14874": [
+        ("K", 12.2),
+        ("OH", 17.9),
+        ("ET", 6.8),
+        ("PH", 3.6),
+        ("WC", 2.0),
+        ("MH", 10.6),
+        ("MH", 12.5),
+        ("MH", 10.7),
+    ],
+    "high_quality_architectural-11461": [
+        ("K", 13.0),
+        ("ET", 5.5),
+        ("OH", 23.0),
+        ("MH", 12.5),
+    ],
+    "high_quality_architectural-13802": [("WC", 1.6), ("KPH", 3.3), ("KHH", 9.0)],
+    "high_quality_architectural-9976": [
+        ("MH", 12.4),
+        ("MH", 11.4),
+        ("MH", 8.6),
+        ("VH", 3.8),
+        ("WC", 3.6),
+        ("KHH", 7.8),
+        ("TK", 7.0),
+    ],
+    "high_quality_architectural-769": [
+        ("VIERASH", 11.7),
+        ("OLOH", 24.0),
+        ("TK", 3.0),
+        ("VH", 2.5),
+    ],
+    "high_quality_architectural-32": [
+        ("MH", 13.9),
+        ("TEKN.TILA", 8.4),
+        ("AT", 20.3),
+        ("MH", 10.9),
+    ],
+    "high_quality_architectural-11250": [
+        ("PH", 4.2),
+        ("PKH", 5.3),
+        ("MH", 8.1),
+        ("TK", 6.1),
+    ],
+    "high_quality_architectural-14087": [
+        ("MH", 16.0),
+        ("KH", 6.6),
+        ("PH", 6.9),
+        ("TYOH", 11.5),
+    ],
+    "high_quality_architectural-13666": [
+        ("MH", 13.3),
+        ("MH", 14.0),
+        ("OH", 26.4),
+        ("TEKN", 3.8),
+        ("VAR", 28.6),
+    ],
+    "high_quality_architectural-14561": [
+        ("K", 9.5),
+        ("OH", 22.0),
+        ("PH", 4.0),
+        ("WC", 2.5),
+        ("KHH", 9.5),
+        ("VAR", 10.0),
+    ],
+}
+
+
+# hand reviews by review-1 (full-size images). stem -> dict(status, m_per_unit (m per Stoa PNG px), uncertainty,
+# evidence, text, source, printed [(label, m2, near (x, y) page fraction or None)], notes [str])
+def _hr(**kw):
+    return kw
+
+
+HAND_REVIEW_1: dict = {
+    "colorful-30": _hr(
+        status="not_to_scale",
+        evidence=["not_to_scale_note"],
+        source='sheet text "SUUNTAA-ANTAVA, EI MITTAKAAVASSA" (approximate, not to scale); no printed areas, no dimensions',
+    ),
+    "high_quality-12278": _hr(
+        status="estimated",
+        source="no scale text, no printed areas, no dimensions on the sheet (agency logo only)",
+    ),
+    "high_quality-3650": _hr(
+        status="estimated",
+        source="no scale text, no printed areas, no dimensions (sheet scanned upside down)",
+    ),
+    "high_quality-3845": _hr(
+        status="estimated",
+        source="no scale text, no printed areas, no dimensions (upside down, pen markings)",
+    ),
+    "high_quality-8329": _hr(
+        status="estimated",
+        source="no scale text, no printed areas, no dimensions; two storeys on one sheet (1 krs, 2. krs). SVG unit and door check disagree by about 40%, so the value is weak",
+    ),
+    "high_quality_architectural-10036": _hr(
+        status="estimated",
+        m_per_unit=0.0189,
+        uncertainty=0.04,
+        evidence=["printed_areas", "dimension_lines"],
+        source="two printed 12 m2 rooms give 0.0190 and 0.0188 m/px; the single overall label 19600 mm (no tick lines visible) spans about 1035 px of the house, 0.0189 m/px; SVG unit 0.0182 and doors 0.0214 are 4% and 13% away",
+        printed=[
+            ("", 12.0, (215 / 1314, 110 / 613)),
+            ("", 12.0, (190 / 1314, 305 / 613)),
+        ],
+        notes=[
+            "'27,5 m2' is printed beside the second 12 m2 room and is not a per-room area (not used)"
+        ],
+    ),
+    "high_quality_architectural-11841": _hr(
+        status="estimated",
+        m_per_unit=0.01481,
+        uncertainty=0.04,
+        evidence=["dimension_lines"],
+        source="bottom chain 3450/1450/2000 = 6900 mm over 466 px (ticks x=49, 281, 381, 515): 14.87, 14.50, 14.93 mm/px, total 14.81; the right chain 1950/2100/1950 = 6000 mm over 390 px gives 15.4 (3.8% apart, so not scaled); SVG unit 14.56",
+    ),
+    "high_quality_architectural-13436": _hr(
+        status="estimated",
+        m_per_unit=0.0119,
+        uncertainty=0.06,
+        evidence=["printed_areas"],
+        source="printed apartment total 'B46 1H+KT 25,0 m2' against the sum of the five indoor room polygons (176163 px2) gives 0.01191 m/px (polygons run 0-8% above net area); SVG unit 0.01176; doors 0.01065 (-10%); no per-room areas",
+        notes=[
+            "cropped plan: the sheet prints one apartment total, not per-room areas"
+        ],
+    ),
+    "high_quality_architectural-1575": _hr(
+        status="scaled",
+        m_per_unit=0.01418,
+        evidence=["printed_areas"],
+        source="6 of 9 printed room areas agree within 2% (WC 2,7 ET 15,0 ARKIET 4,0 VAR 8,5 VAR 8,4 KH 3,1 m2; also MH 12,2 PH 5,5 WC 2,5 TEKN 6,7 KHH 10,8 within 5%) = 0.01418; doors 0.01402 and SVG unit 0.01396 within 1.6%; dimension labels 9824, 4400, 2570, 2422, 4150 not measured; three plans on one sheet",
+        printed=[
+            ("WC", 2.7, None),
+            ("ET", 15.0, None),
+            ("ARKIET", 4.0, None),
+            ("VAR", 8.5, None),
+            ("KH", 3.1, None),
+            ("PH", 5.5, None),
+        ],
+        notes=[
+            "not used as per-room areas: OH/K 39.8 (two rooms in the gold), TV-AULA 20.3, MH1 10.6, MH2 11.8, MH3 12.1, KHH 10.8, TAKKAH 17.4, TEKN 6.7"
+        ],
+    ),
+    "high_quality_architectural-2567": _hr(
+        status="scaled",
+        m_per_unit=0.02243,
+        evidence=["printed_areas"],
+        source="6 printed rooms matched by position agree within 1.5% (MH1 10,2 / 10,7, MH2 8,6, MH3 10,7, MH2 19,8, WC 2,1 m2) = 0.02243; SVG unit 0.02229 (-0.6%) and doors 0.02261 (+0.8%); dimension labels 5800, 9400, 13200 not measured",
+        printed=[
+            ("MH1", 10.2, (468 / 1412, 1396 / 1606)),
+            ("MH1", 10.7, (922 / 1412, 1405 / 1606)),
+            ("MH2", 8.6, (245 / 1412, 1396 / 1606)),
+            ("MH3", 10.7, (928 / 1412, 720 / 1606)),
+            ("MH2", 19.8, (929 / 1412, 512 / 1606)),
+            ("WC", 2.1, (871 / 1412, 562 / 1606)),
+        ],
+        notes=[
+            "the gold rooms have no labels and OH/K, ET, KPH, S, VH are merged or split differently from the print, so only these six printed areas are placed"
+        ],
+    ),
+    "high_quality_architectural-3904": _hr(
+        status="scaled",
+        m_per_unit=0.0250,
+        evidence=["dimension_lines"],
+        source="bottom chain 4500/4500/3800 mm over 180/180/152 px (ticks at 727, 907, 1087, 1239) = 25.0, 25.0, 25.0 mm/px; SVG unit 0.02537 (+1.5%); no printed areas",
+    ),
+    "high_quality_architectural-5765": _hr(
+        status="scaled",
+        m_per_unit=0.02652,
+        evidence=["printed_areas"],
+        source="3 of 5 printed room areas of the right plan agree within 1% of their median (OH 19,5 MH 7,5 TK 2,0 m2; K 12,0 and MH 12,0 are 3% lower) = 0.02652; SVG unit 0.02674 (+0.8%) and doors 0.02625 (-1%); dimension labels 12200, 5600, 6600, 8300 not measured; text of the right plan is rotated",
+        printed=[
+            ("OH", 19.5, None),
+            ("K", 12.0, None),
+            ("MH", 7.5, None),
+            ("MH", 12.0, None),
+            ("TK", 2.0, None),
+        ],
+    ),
+    "high_quality_architectural-6462": _hr(
+        status="estimated",
+        evidence=["printed_areas"],
+        source="one printed area 'H+ALK+S 38,0 m2' for a combined room; OH + ALKOVI polygons are 19.3 m2 at the SVG unit, so it cannot be tied to a room pair and gives no scale (it would need 0.0142 m/px, 40% above the SVG unit and door check, which agree within 2%)",
+        notes=[
+            "sheet rotated 90 degrees; printed 'H+ALK+S 38,0 m2' not placed on a room"
+        ],
+    ),
+    "high_quality_architectural-688": _hr(
+        status="scaled",
+        m_per_unit=0.00631,
+        evidence=["dimension_lines"],
+        source="left chain 2700/2250/1350/2100 = 8400 mm over 1331 px (ticks y=483, 910, 1266, 1474, 1814): 6.32, 6.31, 6.49, 6.18, total 6.31 mm/px; SVG unit 6.37 (+0.9%); same drawing as arch-11841 at higher resolution; no printed areas",
+    ),
+    "high_quality_architectural-843": _hr(
+        status="scaled",
+        m_per_unit=0.01437,
+        evidence=["dimension_lines"],
+        source="bottom chain 4800+4100 = 8900 mm over 619.5 px (ticks x=33, 367.5, 652.5): 14.35, 14.39, total 14.37 mm/px; left chain 3850+3850 gives 14.5-14.8; SVG unit 14.37; no printed areas",
+    ),
+}
+# eval images (read the picture only; decision 0003): stem -> (status or None, evidence, notes)
+EVAL_REVIEW_1 = {
+    "high_quality-11553": {
+        "status": "estimated",
+        "m_per_unit": 0.027,
+        "uncertainty": 0.15,
+        "evidence": [],
+        "source": "image only (scanned upside down, nothing printed): swing-door leaves 28-34 px against 0.80 m give about 0.027 m/px; the right-hand bedroom (about 100 x 147 px) at a typical 11.5 m2 gives 0.028; the house is 340 px = 9.2 m wide",
+    },
+    "high_quality-429": {
+        "status": "estimated",
+        "m_per_unit": 0.0173,
+        "uncertainty": 0.15,
+        "evidence": [],
+        "source": "image only (hand-written room codes, nothing printed): door leaves 45-55 px against 0.80-0.90 m give about 0.0178; the top-right bedroom (155 x 265 px) at a typical 11.5 m2 gives 0.0167; the house is 555 px = 9.6 m wide",
+    },
+    "high_quality-9830": {
+        "status": "not_to_scale",
+        "m_per_unit": 0.0068,
+        "uncertainty": 0.15,
+        "evidence": ["not_to_scale_note"],
+        "source": "the sheet says 'SUUNTAA ANTAVA, EI MITTAKAAVASSA.' (approximate, not to scale); eye estimate from the image: door leaves about 100-135 px against 0.80 m give 0.0068; the top-right bedroom at a typical 11.5 m2 gives 0.0070; the plan is about 1540 px = 10.5 m wide",
+    },
+    "high_quality_architectural-4828": {
+        "status": "estimated",
+        "m_per_unit": 0.0286,
+        "uncertainty": 0.1,
+        "evidence": ["printed_areas", "dimension_lines"],
+        "source": "image only, three checks 12% apart so not scaled: the '3100' label across the 11,5 m2 bedroom (116 px) gives 0.0267; that room's printed 11,5 m2 against its inner box (116 x 117 px) gives 0.0291; the 09x21 door leaf (30 px) against 0.90 m gives 0.0300; mean 0.0286",
+        "notes": [
+            "printed per-room areas, two plans: LUKUTILA 11,5 OH 20,5 TYOH/VIERAS 14 R 9,5 WC 3,2 KHH 9,0 K 11,5 ET/AULA 13,5 LH 4,0 PH 4,5 TEKN 2,5 / MH 11,5 MH 11,5 KPH 7,0 VH 5,5 AULA/TV-TILA 27,5 MH 13,5 m2; dimension labels 4800 3700 3100 2550 1800 present"
+        ],
+    },
+    "high_quality_architectural-8212": {
+        "status": "estimated",
+        "m_per_unit": 0.0185,
+        "uncertainty": 0.15,
+        "evidence": [],
+        "source": "image only (only a lone '2700' dimension fragment): door leaves 35-50 px against 0.80 m give about 0.019; the living room (265 x 235 px) at a typical 20 m2 gives 0.018; the left plan is 485 px = 9.0 m wide",
+    },
+    "high_quality-3839": {
+        "status": "estimated",
+        "m_per_unit": 0.0285,
+        "uncertainty": 0.2,
+        "evidence": [],
+        "source": "image only (room names, nothing printed; small two-storey cabin): door leaves about 28 px against 0.80 m give 0.0286; wall thickness about 7 px at 0.2 m gives 0.029; the house is 175 px = 5.0 m wide",
+    },
+    "high_quality-7073": {
+        "status": "not_to_scale",
+        "m_per_unit": 0.026,
+        "uncertainty": 0.2,
+        "evidence": ["not_to_scale_note"],
+        "source": "the sheet says 'Ohjeellinen, ei mittakaavassa' (indicative, not to scale); eye estimate from the image: door leaves about 28 px against 0.80 m give 0.0286; a typical 12 m2 bedroom (150 x 145 px) gives 0.0235; the right plan is 380 px = 9.9 m wide at 0.026",
+    },
+    "high_quality_architectural-9909": {
+        "status": "estimated",
+        "m_per_unit": 0.0123,
+        "uncertainty": 0.15,
+        "evidence": [],
+        "source": "image only (rotated 90 degrees, a black block hides part of the plan, no dimensions or areas): door leaf about 65 px against 0.80 m gives 0.0123; the MH bedroom (265 x 245 px) then has 9.8 m2, typical",
+    },
+}
+HAND_REVIEW_2: dict = {}  # review-2's side file, filled in main()
+
+
+def poly_area(poly):
+    n = len(poly)
+    return 0.5 * abs(
+        sum(
+            poly[i][0] * poly[(i + 1) % n][1] - poly[(i + 1) % n][0] * poly[i][1]
+            for i in range(n)
+        )
+    )
+
+
+def point_in(poly, x, y):
+    inside = False
+    for i in range(len(poly)):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % len(poly)]
+        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / (y2 - y1) + x1:
+            inside = not inside
+    return inside
+
+
+def door_median_px(elements, W, H):
+    """Median long side of the swing-door boxes, in Stoa PNG pixels, and how many doors."""
+    w = []
+    for e in elements:
+        if e["class"] == "door" and e["attrs"]["source_class"].startswith("Door Swing"):
+            b = e["box"]
+            w.append(max((b[2] - b[0]) * W, (b[3] - b[1]) * H))
+    w.sort()
+    if len(w) < 2:
+        return None, len(w)
+    m = len(w) // 2
+    return (w[m] if len(w) % 2 else (w[m - 1] + w[m]) / 2), len(w)
+
+
+def finish_scale(stem, scale, ref, door_px, n_doors):
+    """Every dev image gets a value: keep a measured scale (and add the two approximations as checks), else estimate."""
+    door = DOOR_M / door_px if door_px else None
+    checks = f"SVG unit {ref:.6f} m/px"
+    if door:
+        checks += f", doors {door:.6f} m/px ({n_doors} swing doors, median leaf at {DOOR_M} m; {100 * (door / ref - 1):+.1f}% vs SVG unit)"
+    else:
+        checks += f", doors n/a ({n_doors} swing doors)"
+    if scale["status"] == "scaled":
+        scale["source"] += " | approximations: " + checks
+        scale.pop("reference_m_per_unit", None)  # the model keeps it off scaled
+        return scale
+    scale["reference_m_per_unit"] = round(ref, 7)
+    agree = door is not None and abs(door / ref - 1) <= 0.10
+    unc = 0.08 if agree else 0.15
+    if scale["status"] == "no_scale":
+        scale["status"] = "estimated"
+    base = scale["source"]
+    scale["m_per_unit"] = round(ref, 7)
+    scale["uncertainty"] = unc
+    scale["source"] = (
+        f"best effort from the CubiCasa5K annotation unit (1 svg unit about 1 cm) and door width: {checks}; "
+        + (
+            "the two agree within 10%"
+            if agree
+            else "the two disagree or doors are missing: wider uncertainty"
+        )
+        + (
+            f" | {base}"
+            if base and not base.startswith(("not reviewed", "looked at", "scale not"))
+            else ""
+        )
+    )
+    return scale
+
+
+def apply_areas(g, W, H, scale, printed):
+    """area_m2 on every room with a polygon. printed: [(label, m2, near)] read from the sheet; matched to rooms."""
+    mpp = scale["m_per_unit"]
+    unc = {"scaled": 0.09}.get(scale["status"]) or round(
+        2 * (scale.get("uncertainty") or 0.15) + 0.05, 2
+    )
+    src = "geometry_x_scale" if scale["status"] == "scaled" else "geometry_x_estimate"
+    used = set()
+    rooms = [r for r in g["rooms"] if r["polygon"]]
+    for r in rooms:
+        r["_a"] = poly_area(r["polygon"]) * W * H * mpp * mpp
+        r.update(
+            area_m2=round(r["_a"], 2),
+            area_status="estimated",
+            area_source=src,
+            area_uncertainty=unc,
+        )
+    unmatched = []
+    for label, val, near in printed:
+        best = None
+        if near:
+            for r in rooms:
+                if id(r) not in used and point_in(r["polygon"], near[0], near[1]):
+                    best = r
+                    break
+        else:
+            cands = [
+                r for r in rooms if id(r) not in used and abs(r["_a"] / val - 1) <= 0.10
+            ]
+            same = [r for r in cands if (r["label"] or "").upper() == label.upper()]
+            cands = same or [r for r in cands if abs(r["_a"] / val - 1) <= 0.06]
+            if cands:
+                best = min(cands, key=lambda r: abs(r["_a"] / val - 1))
+        if best is None:
+            unmatched.append(f"{label} {val}")
+            continue
+        used.add(id(best))
+        best.update(
+            area_m2=val,
+            area_status="exact",
+            area_source="printed",
+            area_uncertainty=None,
+        )
+    for r in g["rooms"]:
+        r.pop("_a", None)
+    return len(used), unmatched
+
+
 # ---------- geometry ----------
 def mat_mul(a, b):  # a applied after b: a*b, matrices (a,b,c,d,e,f)
     return (
@@ -619,8 +1007,17 @@ def build_dev(svg_bytes: bytes, file: str, W: int, H: int, ws: int, hs: int):
     )
     stem = Path(file).stem
     scale, snotes = make_scale(stem, ws, W)
-    notes += snotes
-    return {
+    notes += [n for n in snotes if n != "scale not reviewed"]
+    door_px, n_doors = door_median_px(elements, W, H)
+    scale = finish_scale(stem, scale, SVG_M_PER_UNIT * ws / W, door_px, n_doors)
+    printed = [(a, b, None) for a, b in PRINTED.get(stem, [])]
+    hr = HAND_REVIEW_1.get(stem) or HAND_REVIEW_2.get(stem)
+    if hr:
+        printed = [
+            (p[0], p[1], p[2] if len(p) > 2 else None) for p in hr.get("printed", [])
+        ]
+        notes += list(hr.get("notes", []))
+    g = {
         "schema": "extraction_v1",
         "file": file,
         "split": "dev",
@@ -634,6 +1031,41 @@ def build_dev(svg_bytes: bytes, file: str, W: int, H: int, ws: int, hs: int):
         "counts": None,
         "notes": notes,
     }
+    if hr and hr.get("status"):
+        scale = apply_hand_review(scale, hr, SVG_M_PER_UNIT * ws / W)
+        g["scale"] = scale
+    n_ex, unmatched = apply_areas(g, W, H, scale, printed)
+    if printed:
+        notes.append(
+            f"printed room areas matched to rooms: {n_ex} of {len(printed)}"
+            + (f" (not matched: {', '.join(unmatched)})" if unmatched else "")
+        )
+    return g
+
+
+def apply_hand_review(scale, hr, ref):
+    """A hand review (images read in full) replaces the automatic scale."""
+    st = hr["status"]
+    out = {
+        "status": st,
+        "m_per_unit": hr.get("m_per_unit"),
+        "evidence": hr.get("evidence", []),
+        "text": hr.get("text"),
+        "source": "hand review: " + hr.get("source", "; ".join(hr.get("checks", []))),
+    }
+    if st != "scaled":
+        out["reference_m_per_unit"] = round(ref, 7)
+    if hr.get("uncertainty"):
+        out["uncertainty"] = hr["uncertainty"]
+    if (
+        out["m_per_unit"] is None
+    ):  # no value from the sheet: keep the best effort one, with the reviewed status
+        if st in ("not_to_scale", "estimated"):
+            scale["status"] = st
+            scale["evidence"] = hr.get("evidence", scale.get("evidence", []))
+            scale["source"] = out["source"] + " | " + scale["source"]
+        return scale
+    return out
 
 
 # Frame (checked on 60 dev plans, see review-1.md section 8): model.svg user units are pixels of F1_scaled.png
@@ -688,6 +1120,11 @@ def main():
         default="data/stoa/extraction_gold/_scale/cubicasa_dimension_lines.json",
         help="review-2 dimension-line scale cases ([{file, m_per_unit, checks, note}]); read if present",
     )
+    ap.add_argument(
+        "--hand-review-2",
+        default="data/stoa/extraction_gold/_scale/cubicasa_hand_review_2.json",
+        help="review-2 hand reviews ({file: {...}} or [{file, ...}]); read if present",
+    )
     ap.add_argument("--limit", type=int, default=0)
     a = ap.parse_args()
     ds, out = Path(a.dataset), Path(a.out)
@@ -713,6 +1150,42 @@ def main():
     if dl.exists():
         for c in json.loads(dl.read_text("utf8")):
             DIM_LINES[Path(c["file"]).stem] = c
+    hr2 = Path(a.hand_review_2)
+    if hr2.exists():
+        raw = json.loads(hr2.read_text("utf8"))
+        items = raw.items() if isinstance(raw, dict) else ((c["file"], c) for c in raw)
+        for f, c in items:
+            c = dict(c)
+            c["printed"] = [
+                (x["label"], x["area_m2"], x.get("near"))
+                for x in c.pop("printed_room_areas", [])
+            ]
+            if c.get("notes") and isinstance(c["notes"], str):
+                c["notes"] = [c["notes"]]
+            kinds = {
+                "printed_room_areas": "printed_areas",
+                "dimension_lines": "dimension_lines",
+                "scale_text": "scale_text",
+                "scale_bar": "scale_bar",
+                "printed_areas": "printed_areas",
+                "not_to_scale_note": "not_to_scale_note",
+            }
+            c["evidence"] = [
+                kinds[k] for k in dict.fromkeys(c.get("evidence") or []) if k in kinds
+            ]
+            if c.get("text") and not re.fullmatch(r"1:\d+", c["text"].strip()):
+                c["source"] = c["text"] + (
+                    " | " + "; ".join(c.get("checks") or []) if c.get("checks") else ""
+                )
+                c["text"] = None
+            elif c.get("checks"):
+                c["source"] = "; ".join(c["checks"])
+            if (
+                c.get("status") == "not_to_scale"
+                and "not_to_scale_note" not in c["evidence"]
+            ):
+                c["evidence"].append("not_to_scale_note")
+            HAND_REVIEW_2[Path(f).stem] = c
     n = collections.Counter()
     avg = collections.Counter()
     results = collections.defaultdict(lambda: [0, 0, []])
@@ -773,6 +1246,33 @@ def main():
                     ),
                 ],
             }
+            rv = EVAL_REVIEW_1.get(stem)
+            r2 = HAND_REVIEW_2.get(stem)
+            if r2 and r2.get("status") == "scaled" and r2.get("m_per_unit"):
+                rv = {
+                    "status": "scaled",
+                    "m_per_unit": r2["m_per_unit"],
+                    "evidence": [e for e in r2["evidence"] if e != "not_to_scale_note"],
+                    "source": r2.get("source") or "",
+                }
+            if rv:
+                g["scale"] = {
+                    "status": rv["status"],
+                    "m_per_unit": rv["m_per_unit"],
+                    "evidence": rv["evidence"],
+                    "text": None,
+                    "source": "hand review of the image (eval: image only, no SVG): "
+                    + rv["source"],
+                }
+                if rv.get("uncertainty"):
+                    g["scale"]["uncertainty"] = rv["uncertainty"]
+                g["notes"].remove("scale not reviewed")
+                g["notes"] += rv.get("notes", [])
+            if r2:
+                pa = ", ".join(f"{a} {b}" for a, b, _ in r2["printed"])
+                if pa:
+                    g["notes"].append(f"printed areas (review-2): {pa}")
+                g["notes"] += list(r2.get("notes") or [])
         (out / f"{stem}.json").write_text(
             json.dumps(g, ensure_ascii=False), encoding="utf8"
         )

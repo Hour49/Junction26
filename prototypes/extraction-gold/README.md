@@ -8,7 +8,7 @@ gitignored `data/stoa/extraction_gold/<source>/`; nothing from the dataset is co
 
 | script | truth from | files written | rule check (gold reproduces the dataset answers) |
 | --- | --- | --- | --- |
-| `cubicasa_gold.py` | public CubiCasa5K `model.svg`, dev images only; eval images get `truth: counts` from their question answers (decision 0003) | 4,787 (3,828 dev, 959 eval) | 11 count families 100%; saunas 2,648 / 2,655 |
+| `cubicasa_gold.py` | public CubiCasa5K `model.svg`, dev images only; eval images get `truth: counts` from their question answers (decision 0003) | 4,787 (3,828 dev, 959 eval) | 11 count families 100%; saunas 2,648 / 2,655. Every dev image has a scale: 30 measured (two checks), 3,787 estimated (annotation unit and door widths, within 10% of each other on 72%), 11 not to scale with an estimate; every dev room has an area (113 printed, exact; the rest estimated). The 10 eval images in golden v2 have scales read from the image only |
 | `swiss_gold.py` | the dataset's DXF, fitted to the PDF page (residual 0.00 pt), written for the PDF and the PNG of each plan | 2,080 (831 + 209 per format) | counts 25,562 / 25,568, areas 12,012 / 12,016 |
 | `opening_design_gold.py` | the sheets' PDF text layer (pdfplumber, ruling lines per cell), checked against renders; header rows by hand | 3 (2 dev, 1 eval): 7 schedule tables with `truth: tables`, plus 9 fixtures on A-701 | 64 / 64 |
 | `conflicts_gold.py` | the ifc_models, swiss and CubiCasa gold above plus the PDF text and hand-measured dimension lines; dev split only | `_conflicts/conflicts.jsonl` (62 files), `_conflicts/extras.jsonl` (12 Part 2 lines), 14 overlays in `_overlays/conflicts/` | 14 real conflicts (ifc_models: drawn vs IFC counts), 102 agree entries |
