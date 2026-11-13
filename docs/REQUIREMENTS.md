@@ -1,6 +1,6 @@
 # Requirements: drawing questions answered with proof (Stoa challenge)
 
-Status: draft 1, 2026-11-13 20:40, from the brainstorm between Bogdan and the `requirements` agent. Not yet agreed
+Status: draft 1, 2026-11-13 20:30, from the brainstorm between Bogdan and the `requirements` agent. Not yet agreed
 with the team. Clickable mock: `demo/index.html`. "Countersign" is a working name.
 
 ## 1. What we are building
@@ -25,7 +25,7 @@ Decided by Bogdan, 2026-11-13 20:15: "go with A+B+C", plus an ingestion phase sh
 - The dataset: 127,044 questions on 5,939 files. 67% are on CubiCasa raster plans, 30% on Swiss Dwellings
   (DXF, PDF and PNG of the same drawing), the rest on IFC models and one practice's drawing sets. About 88% are
   counts, scored exact; areas, lengths and volumes are scored within 2%.
-- Review findings so far (`.agents/review/` in the main checkout, 2026-11-13): Swiss counts can be re-derived
+- Review findings so far (dataset review, board #15, 2026-11-13): Swiss counts can be re-derived
   from the DXF with 100% agreement, but counting door arcs instead of openings is wrong on 43% of plans, so the
   counting rule matters as much as the detection. CubiCasa answers follow the annotator's labels (an unlabelled
   bedroom counts as 0; "windows" may mean panes). Many scans are rotated or very small. Legacy archives have no
