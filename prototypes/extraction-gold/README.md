@@ -10,6 +10,8 @@ gitignored `data/stoa/extraction_gold/<source>/`; nothing from the dataset is co
 | --- | --- | --- | --- |
 | `cubicasa_gold.py` | public CubiCasa5K `model.svg`, dev images only; eval images get `truth: counts` from their question answers (decision 0003) | 4,787 (3,828 dev, 959 eval) | 11 count families 100%; saunas 2,648 / 2,655 |
 | `swiss_gold.py` | the dataset's DXF, fitted to the PDF page (residual 0.00 pt), written for the PDF and the PNG of each plan | 2,080 (831 + 209 per format) | counts 25,562 / 25,568, areas 12,012 / 12,016 |
+| `opening_design_gold.py` | the sheets' PDF text layer (pdfplumber, ruling lines per cell), checked against renders; header rows by hand | 3 (2 dev, 1 eval): 7 schedule tables with `truth: tables`, plus 9 fixtures on A-701 | 64 / 64 |
+| `conflicts_gold.py` | the ifc_models, swiss and CubiCasa gold above plus the PDF text and hand-measured dimension lines; dev split only | `_conflicts/conflicts.jsonl` (62 files), `_conflicts/extras.jsonl` (12 Part 2 lines), 14 overlays in `_overlays/conflicts/` | 14 real conflicts (ifc_models: drawn vs IFC counts), 102 agree entries |
 | `ifc_gold.py` | the IFC model (classes, storeys, quantities) placed by the plan SVG, which shares the PDF sheet's frame | 69 (46 dev, 23 eval) | every count, area, length and volume family 100% (columns 22 / 22); 88 model-level questions out of scope |
 
 `ifc_gold.py` needs ifcopenshell (LGPL-3.0-or-later), allowed as an unmodified dependency by
@@ -28,6 +30,9 @@ uv run prototypes/extraction-gold/swiss_gold.py --dataset data/stoa/full/junctio
 uv run prototypes/extraction-gold/ifc_gold.py --dataset data/stoa/full/junction-dataset \
     --split data/stoa/split --out data/stoa/extraction_gold/ifc_models
 cd eval && uv run python -m stoa_eval validate-extraction ../data/stoa/extraction_gold/cubicasa5k
+uv run prototypes/extraction-gold/opening_design_gold.py   # schedule tables of the 3 opening_design sheets (default paths)
+# conflict cases (reads the gold written above; judgements are data inside the script)
+uv run prototypes/extraction-gold/conflicts_gold.py
 ```
 
 Each script pins its own dependencies (PEP 723). No PyMuPDF, no Ultralytics.
