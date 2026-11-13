@@ -25,6 +25,7 @@
 **Actions**
 - [ ] F-003.1 Ask the Stoa rep: "Can we get a sample folder of your files tonight?" and the other §2 questions (Bogdan or Madalina)
 - [ ] F-003.2 `/challenge-pick` on the official brief after 18:00
+- [ ] F-003.3 Round-2 questions (measurable before/after, data source, handoff format): [../challenges/stoa-legacy-files/partner.md](../challenges/stoa-legacy-files/partner.md) "Follow-up questions"
 
 **Status log**
 - 2026-11-13 17:50 OPEN

@@ -79,6 +79,45 @@ the company and its co-founder found no independent coverage (accessed 2026-11-1
 - 3D: from 2D plans for renovation planning, or from existing BIM models?
 - EU-only models required for the weekend?
 
+## Follow-up questions (round 2, 2026-11-13 18:40)
+
+Written after the research above. Ask the round-1 questions first if they are still open, and skip any the official
+brief answers. Short on time: ask 2, 5, 3 and 11.
+
+**Decide the scope**
+1. "Your site says live in two days with no cleanup. On which projects did that not work, and which files broke it?"
+   Shows the real input and gives the pitch its first line.
+2. "Which 3 questions does Stoa answer wrong, or not at all, today because the source files are bad?" These become the
+   demo and the test set.
+3. "When a renovation starts, where do the old drawings come from: the owner's paper archive, the city's
+   building-permit archive, the original architect? How many sheets is a typical archive?" Sets the data source and
+   the scale (batch job or interactive tool). City of Espoo is also a partner: ask whether they have talked.
+4. "On an old project, which document wins: the permit drawing, a later revision or the as-built? What does 'up to
+   date' mean when there is no revision history?"
+
+**Make the result measurable**
+5. "Could we run your Q&A on a raw archive and again on our cleaned output (a sandbox, an API, or you run it)?" Answer
+   accuracy before and after is the number Stoa cares about.
+6. "Is there a project where you already have both the messy files and a clean register or as-built model?" A ground
+   truth to measure against.
+7. "Could one of your engineers check our extraction on 10 sheets on Saturday, 15 minutes?"
+
+**Fit their pipeline**
+8. "If we hand over a cleaned folder (standard names, a sheet register, extracted text) that your SharePoint or M-Files
+   connector already reads, is that enough, or do you want JSON through an API?" A folder needs no integration work
+   on their side.
+9. "Do your customers follow the Finnish standards (COBIM / YTV 2012, Talo 2000 classes) or ISO 19650 naming? Which
+   should the output use?" (Standard names from memory: check before quoting them.)
+10. "3D: is a rough IFC (walls, doors, spaces) that BIM tools open worth more to you than a 3D view in the browser? Do
+    you know Make a BIM, and is 2D-to-3D in or out of scope?"
+
+**Rules and judging**
+11. "Gemini through an EU region: OK, or EU-hosted open models only? Can any sample file go into our public repo, or
+    must all of it stay out?" The repo is public and MIT, so partner data stays out unless they say yes in writing.
+12. "Who judges, and what would make you say 'we would use this'? Is there a pilot or follow-up for the winner?"
+13. "Beyond drawings, which legacy type hurts most: handwritten site diaries, scanned contracts, old Excel schedules,
+    photos? Is Finnish handwriting in scope?"
+
 ## Open questions / UNVERIFIED
 
 - All figures and customer claims are Stoa's own; no independent source found.
