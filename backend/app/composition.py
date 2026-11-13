@@ -11,18 +11,31 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.adapters.answer_prior import DEV_PRIOR, NoPrior, TablePrior
 from app.adapters.dataset_files import DatasetFiles
 from app.adapters.hello import HelloExtractor, HelloParser, HelloSecondCounter
 from app.adapters.page_sizes import PageSizes
 from app.adapters.question_templates import TemplateParser
-from app.adapters.vector_pdf import PdfVectorExtractor
+from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
-from app.core.answering.ports import AnswerSink, Clock, DrawingSource, QuestionParser
+from app.core.answering.ports import (
+    AnswerPrior,
+    AnswerSink,
+    Clock,
+    DrawingSource,
+    QuestionParser,
+)
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import IngestReport, Route
 from app.core.pipeline.ports import DrawingFiles, DrawingSink, Extractor, PageReader, SecondCounter
-from app.settings import ExtractorName, QuestionParserName, SecondCounterName, Settings
+from app.settings import (
+    AnswerPriorName,
+    ExtractorName,
+    QuestionParserName,
+    SecondCounterName,
+    Settings,
+)
 
 
 @dataclass(frozen=True)
@@ -34,6 +47,7 @@ class Pipeline:
     extractors: Mapping[Route, Extractor]
     second_counter: SecondCounter
     parser: QuestionParser
+    prior: AnswerPrior
     clock: Clock
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
@@ -50,7 +64,12 @@ class Pipeline:
         self, questions: Iterable[Question], drawings: DrawingSource, sink: AnswerSink
     ) -> dict[str, int]:
         return answer_questions(
-            questions, drawings=drawings, parser=self.parser, clock=self.clock, sink=sink
+            questions,
+            drawings=drawings,
+            parser=self.parser,
+            clock=self.clock,
+            sink=sink,
+            prior=self.prior,
         )
 
 
@@ -66,8 +85,9 @@ def build_pipeline(settings: Settings, dataset: Path) -> Pipeline:
             "vector": _extractor(settings.extractor_vector, files),
             "raster": _extractor(settings.extractor_raster, files),
         },
-        second_counter=_second_counter(settings.second_counter),
+        second_counter=_second_counter(settings.second_counter, files),
         parser=_parser(settings.question_parser),
+        prior=_prior(settings.answer_prior),
         clock=time.perf_counter,
     )
 
@@ -80,10 +100,12 @@ def _extractor(name: ExtractorName, files: DrawingFiles) -> Extractor:
             return PdfVectorExtractor(files)
 
 
-def _second_counter(name: SecondCounterName) -> SecondCounter:
+def _second_counter(name: SecondCounterName, files: DrawingFiles) -> SecondCounter:
     match name:
         case "hello":
             return HelloSecondCounter()
+        case "pdf":
+            return PdfSecondCounter(files)
 
 
 def _parser(name: QuestionParserName) -> QuestionParser:
@@ -92,3 +114,11 @@ def _parser(name: QuestionParserName) -> QuestionParser:
             return HelloParser()
         case "templates":
             return TemplateParser()
+
+
+def _prior(name: AnswerPriorName) -> AnswerPrior:
+    match name:
+        case "none":
+            return NoPrior()
+        case "dev":
+            return TablePrior(DEV_PRIOR)

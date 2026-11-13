@@ -1,6 +1,6 @@
 # Pipeline (Stoa challenge)
 
-Status: draft, 2026-11-13 21:50; stage table, §2 and §3 updated 23:28. It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
+Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26. It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
 methods). The per-plan output, the drawing model, becomes decision record 0004.
 
 ## 1. Ingestion: from files to one drawing model per plan
@@ -50,23 +50,30 @@ conflicts"). The ingest screen shows that trace, and the demo walks through it.
 
 ## Stages, what each one writes, and what exists today
 
-Every stage is a module in `backend/app/core/pipeline/` with a do-nothing adapter since PR #45 (record
-[0005](decisions/0005-pipeline-core.md)), so the golden set runs end to end and scores near zero. "Today" below says
-what is real beyond that: prototypes and gold scripts that read the dataset, not yet adapters.
+Every stage is a module in `backend/app/core/pipeline/` (record [0005](decisions/0005-pipeline-core.md)). Three
+adapters are real by default: the vector PDF extractor (`EXTRACTOR_VECTOR=pdf`), the PDF second counter
+(`SECOND_COUNTER=pdf`) and the question parser (`QUESTION_PARSER=templates`); everything else is still a do-nothing
+`hello` adapter. "Today" says what each stage does now, as of 2026-11-14 00:26.
+
+Golden v2 (2,948 questions), checked 2026-11-14: end to end (pipeline drawings) 2013 of 2948 (68.3%, with
+`ANSWER_PRIOR=dev`); on the gold drawings 2876 of 2948 (97.6%). The prior: a question the
+drawing gives no value for (a class not read, a schedule not read) gets the dev split's best estimate, marked
+`abstain: true`; without it the same run scores 1436 of 2948 (48.7%). Extraction, Part 1 element F1: swiss 100%, ifc_models
+80.4%, CubiCasa 0% (the raster route is not read yet; it waits on the literature campaign).
 
 | Stage | Writes | Requirement | Today | Next |
 | --- | --- | --- | --- | --- |
 | 1-2 Unpack, hash | file inventory with sha256 | I1, I2 | module: size and sha256 per file | store by hash, unpack archives |
 | 3-4 Identify, group | drawing groups, set-aside list with reasons | I3 | module: format from the first bytes; group = same folder and name | tell non-drawings apart; IFC model with its sheets |
 | 5 Route | the chosen source per drawing | I4 | module: richest format wins (bim, cad, vector, raster) | scanned PDF vs drawn PDF |
-| 6 Normalise | page renderings, rotation, plans per sheet, scale and its source | I5, I6, I7 | module: pages as the file gives them; scale text is read in the prototypes and gold scripts | rotation, rendering, plan split |
-| 7 Extract: vector | rooms, openings, fixtures, apartments | I8 | prototype `prototypes/pdf-extract/` (swiss counts 99.9%, areas 99.97%, IFC plan areas 97%; not blind); swiss gold 2,080 files | wrap it as the vector adapter |
-| 7 Extract: raster | room labels (OCR), symbols (detector), plans | I8 | none; CubiCasa gold from the SVGs (4,787 files); detector training on dev boxes allowed (0003) | detector and OCR adapter |
-| 7 Extract: BIM | IFC elements with GlobalIds, placed on the sheet | I8 | IFC gold (69 sheets) built from SVG shape plus IFC data; ifcopenshell allowed ([0006](decisions/0006-lgpl-dependencies.md)) | IFC adapter |
-| 7 Extract: CAD, tables | DXF elements; schedule rows | I8 | DXF read for the swiss gold only; opening_design schedules read by hand-checked scripts (64 of 64 answers) | table reader; DXF only if Stoa gives it |
-| 8 Second count | the second value and the contested marks | I10 | module pairs two values into `conflicts`; the hello adapter measures nothing; conflict gold exists (§2) | a `SecondCounter` adapter: room and storey counts, printed label vs polygon |
-| 9 Rules | rule ids per quantity | I9 | one rule, `each-once`; the dataset's rules are known and validated against the gold (§3) | encode them as `CountingRule`s |
-| 10 Takeoff, drawing model | one JSON per plan | I9, I11, I12 | module: a count per class, room type and plan, with marks; format fixed in [0004](decisions/0004-extraction-format.md) | areas, lengths, volumes |
+| 6 Normalise | page renderings, rotation, plans per sheet, scale and its source | I5, I6, I7 | module: pages as the file gives them. The scale is read by the vector extractor in stage 7, not here | rotation, rendering, plan split |
+| 7 Extract: vector | rooms, openings, fixtures, apartments | I8 | `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`, default): reads page 1 of a drawn PDF, and the PNG of the same sheet, in two styles: swiss_dwellings plans (element F1 100%, rooms and areas 100%) and sheets IfcConvert drew from an IFC model (rooms and areas 100%, element F1 80.4%). Reads the scale from text and bar. It says which classes it looked for (`read`), so an unread class gets no count | columns, stairs, railings, slabs and beams on IFC-style sheets; other styles (only their scale is read); pages after the first; SVG |
+| 7 Extract: raster | room labels (OCR), symbols (detector), plans | I8 | `hello`, reads nothing: CubiCasa element F1 0%, and its questions are refused or get the dev prior. CubiCasa gold from the SVGs (4,787 files); detector training on dev boxes allowed (0003) | detector and OCR adapter |
+| 7 Extract: BIM | IFC elements with GlobalIds, placed on the sheet | I8 | `hello`. IFC gold (69 sheets) built from SVG shape plus IFC data; ifcopenshell allowed ([0006](decisions/0006-lgpl-dependencies.md)) | IFC adapter; also what finds the 14 plan-vs-model conflicts |
+| 7 Extract: CAD, tables | DXF elements; schedule rows | I8 | none. DXF read for the swiss gold only. Schedules: no reader, so the pipeline has no `tables` and opening_design schedule questions get 0 of 9 area, 3 of 39 count (prior), 0 of 16 text. The answer side is built and gets 8/9, 20/39, 6/16 from gold tables | table reader (schedule rows from the text layer); DXF only if Stoa gives it |
+| 8 Second count | the second value and the contested marks | I10 | `PdfSecondCounter` (`SECOND_COUNTER=pdf`, default) brings the scale text and the scale bar, and on swiss plans the printed area of each room. Stage 8 pairs them with the extraction's own values and applies the §2 rules: the bar wins over the text, the printed label wins over the outline area. On golden v2: 0 false alarms on the 102 agree entries, 0 of the 14 real conflicts found (they need the IFC model). No dev sheet has a real conflict of either kind, so both paths are tested on synthetic sheets only | room and storey counts and element counts against the IFC model; detector vs parser; printed total vs summed rooms |
+| 9 Rules | rule ids per quantity | I9 | one rule, `each-once`. Answering adds a few rules of its own (refuse a class that was not read; a room-area sum is an estimate when one of its rooms is). The dataset's rules are known and validated against the gold (§3) | encode them as `CountingRule`s |
+| 10 Takeoff, drawing model | one JSON per plan | I9, I11, I12 | module: a count per class, room type and plan, with marks; areas of rooms and apartments, wall length and volumes where the drawing has them; format fixed in [0004](decisions/0004-extraction-format.md). A class the extractor did not read is refused, not counted as 0 | lengths and volumes from an extractor |
 
 ## 2. Conflicts (stage 8)
 
@@ -74,6 +81,13 @@ Stage 8 measures a quantity a second way. If the two values differ by more than 
 marks the contested elements and applies a resolution rule if there is one. The quantity names and methods are the
 ones in `app/core/drawing/model.py` (`ConflictQuantity`, `MeasureMethod`). Tolerances are proposed: counts must be
 exact (0), areas and scale use Stoa's 2% (the swiss check below used 0.5%).
+
+Built (2026-11-14, 0005): the rows for **scale** and **room area** (printed label vs polygon x scale), on drawn PDF
+sheets. When the scale text and the scale bar differ by more than 2%, the bar gives the drawing's scale and the
+room areas use it; when a printed room area and the outline area differ, the printed one is put on the room. An
+agreement changes nothing. On the 879 dev sheets of the PDF sources, 6,547 room areas and 877 scales were compared
+and all agree, so neither path has run on a real sheet. The other rows are not built: they need the IFC model, a
+schedule or a detector.
 
 | Quantity | Method A | Method B | Tolerance | Resolution rule |
 | --- | --- | --- | --- | --- |

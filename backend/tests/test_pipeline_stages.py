@@ -6,12 +6,15 @@ import pytest
 
 from app.core.drawing.model import (
     COUNT_KEYS,
+    ConflictQuantity,
     Drawing,
     Element,
     Mark,
     MeasuredValue,
     MeasureMethod,
     Page,
+    Resolution,
+    Room,
     Scale,
     Subject,
 )
@@ -33,7 +36,15 @@ from app.core.pipeline.model import (
 from app.core.pipeline.normalise import normalise
 from app.core.pipeline.route import route
 from app.core.pipeline.rules import AS_GIVEN, EACH_ONCE, apply_rules
-from app.core.pipeline.second_count import element_counts, second_count
+from app.core.pipeline.second_count import (
+    AGREE,
+    RULES,
+    differ,
+    element_counts,
+    measured,
+    resolved_rooms,
+    second_count,
+)
 from app.core.pipeline.takeoff import known_quantities, take_off
 
 PAGE = Page(page=1, width=100, height=50, unit="px")
@@ -230,6 +241,121 @@ def test_second_count_has_no_entry_for_what_only_one_method_measured() -> None:
 def test_second_count_refuses_a_second_value_from_the_same_method() -> None:
     with pytest.raises(ValueError, match="not an independent count"):
         second_count(element_counts(two_doors()), [counted("door", 2, "parser")])
+
+
+def measure_of(
+    quantity: ConflictQuantity, ref: str | None, value: float, method: MeasureMethod
+) -> Measurement:
+    kind = "sheet" if ref is None else "room"
+    return Measurement(
+        quantity=quantity,
+        subject=Subject(kind=kind, ref=ref),
+        value=MeasuredValue(value=value, method=method),
+    )
+
+
+def a_room(id_: str, area_m2: float | None, *, outlined: bool = True) -> Room:
+    outline = ((0.1, 0.2), (0.3, 0.2), (0.3, 0.4)) if outlined else None
+    return Room(id=id_, type="other", page=1, box=BOX, polygon=outline, area_m2=area_m2)
+
+
+def test_the_extraction_measures_each_room_area_as_its_outline_at_the_scale() -> None:
+    found = Extracted(
+        method="parser",
+        scale=NO_SCALE,
+        rooms=(a_room("r1", 12.5), a_room("r2", None), a_room("r3", 8.0, outlined=False)),
+    )
+    areas = [one for one in measured(found) if one.quantity == "room_area"]
+    # r2 has no area; r3 has no outline, so its area is not an outline at a scale
+    assert [(one.subject, one.value.value, one.value.method) for one in areas] == [
+        (Subject(kind="room", ref="r1"), 12.5, "polygon_x_scale")
+    ]
+    assert (areas[0].value.unit, areas[0].value.page, areas[0].value.box) == ("m2", 1, BOX)
+    assert len(measured(found)) == len(element_counts(found)) + 1
+
+
+def test_two_readings_of_the_second_method_are_compared_with_each_other() -> None:
+    """The scale as the sheet prints it and as its bar measures it: neither is the extraction's."""
+    again = [
+        measure_of("scale", None, 0.0353, "scale_text"),
+        measure_of("scale", None, 0.0355, "scale_bar"),
+        measure_of("room_area", "r1", 10.0, "printed_label"),
+    ]
+    (scale,) = second_count([], again)
+    assert (scale.id, scale.quantity, scale.status, scale.tolerance) == (
+        "c1",
+        "scale",
+        "agree",
+        0.02,
+    )
+    assert [value.method for value in scale.values] == ["scale_text", "scale_bar"]
+    assert scale.subject == Subject(kind="sheet", ref=None)
+
+
+def test_the_extractions_value_comes_first_then_the_second_methods() -> None:
+    first = [measure_of("room_area", "r1", 12.5, "polygon_x_scale")]
+    (entry,) = second_count(first, [measure_of("room_area", "r1", 12.4, "printed_label")])
+    assert [(value.value, value.method) for value in entry.values] == [
+        (12.5, "polygon_x_scale"),
+        (12.4, "printed_label"),
+    ]
+    assert entry.status == "agree"
+
+
+@pytest.mark.parametrize(
+    ("quantity", "first", "second", "reported"),
+    [
+        ("room_area", (13.4, "polygon_x_scale"), (12.5, "printed_label"), 12.5),
+        ("room_area", (12.5, "printed_label"), (13.4, "polygon_x_scale"), 12.5),
+        ("scale", (0.0353, "scale_text"), (0.0176, "scale_bar"), 0.0176),
+    ],
+)
+def test_a_conflict_resolves_to_the_method_the_pipeline_doc_prefers(
+    quantity: ConflictQuantity,
+    first: tuple[float, MeasureMethod],
+    second: tuple[float, MeasureMethod],
+    reported: float,
+) -> None:
+    ref = None if quantity == "scale" else "r1"
+    (entry,) = second_count(
+        [measure_of(quantity, ref, *first)], [measure_of(quantity, ref, *second)]
+    )
+    methods: frozenset[MeasureMethod] = frozenset({first[1], second[1]})
+    rule = RULES[quantity, methods]
+    assert entry.status == "conflict"
+    assert entry.resolution == Resolution(rule=rule.text, value=reported)
+
+
+def test_values_that_agree_say_so_and_report_the_preferred_or_the_first_value() -> None:
+    (area,) = second_count(
+        [measure_of("room_area", "r1", 10.309, "polygon_x_scale")],
+        [measure_of("room_area", "r1", 10.31, "printed_label")],
+    )
+    assert area.resolution == Resolution(rule=AGREE, value=10.31)  # the label, as the rule says
+    (count,) = second_count(element_counts(two_doors()), [counted("door", 2, "detector")])
+    assert count.resolution == Resolution(rule=AGREE, value=2)  # no rule for this pair
+
+
+@pytest.mark.parametrize(
+    ("a", "b", "apart"), [(100.0, 101.9, False), (100.0, 103.0, True), (0.0, 0.0, False)]
+)
+def test_differ_is_relative_to_the_larger_value(a: float, b: float, apart: bool) -> None:
+    assert differ(a, b, 0.02) is apart
+    assert differ(b, a, 0.02) is apart
+
+
+def test_a_room_whose_area_is_disputed_carries_the_resolved_value() -> None:
+    rooms = (a_room("r1", 13.4), a_room("r2", 20.0), a_room("r3", 5.0))
+    first = [
+        measure_of("room_area", room.id, room.area_m2 or 0, "polygon_x_scale") for room in rooms
+    ]
+    again = [
+        measure_of("room_area", "r1", 12.5, "printed_label"),  # the label and the outline differ
+        measure_of("room_area", "r2", 20.1, "printed_label"),  # within 2%
+    ]
+    after = resolved_rooms(rooms, second_count(first, again))
+    assert [room.area_m2 for room in after] == [12.5, 20.0, 5.0]
+    assert after[1:] == rooms[1:]
 
 
 # Stage 9: rules

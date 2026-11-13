@@ -75,6 +75,18 @@ def test_a_room_number_names_one_room_and_its_quoted_label_is_an_aside() -> None
     )
 
 
+def test_a_printed_room_code_in_parentheses_names_one_room() -> None:
+    living = Query(measure="area", subject="room", name="OH")
+    assert PARSE("What is the floor area of the living room (OH) in square metres?") == living
+    assert PARSE("How large is the main room (OH) in square metres?") == living
+    assert PARSE("What is the area of the kitchen (K) in square metres?") == Query(
+        measure="area", subject="room", name="K"
+    )
+    # a lower-case aside is a hint, not a code; a count keeps its own meaning
+    assert isinstance(PARSE("What is the area of the rooms (all of them) in m²?"), Unsupported)
+    assert PARSE("How many bedrooms (MH) are there?") == Query(subject="room:bedroom")
+
+
 def test_apartment_and_indoor_totals() -> None:
     apartment = Query(measure="area", subject="apartment", apartment="B")
     assert PARSE("Sum the rooms of apartment B without balconies; area in m²?") == apartment
@@ -133,9 +145,7 @@ def test_a_question_about_the_whole_model_is_marked_as_such() -> None:
         "What is the area of the kitchen in square metres?",
         "What is the length in metres of the longest wall?",
         "What is the total length of the exterior walls in metres?",
-        "How many doors are listed in the door schedule?",
         "Wie viele Steckdosen sind eingezeichnet?",
-        "What is the floor area of the apartment in m²?",
     ],
 )
 def test_a_question_without_a_takeoff_quantity_is_unsupported(text: str) -> None:
@@ -179,3 +189,39 @@ def test_a_subset_breakdown_or_unquoted_place_is_unsupported_not_the_whole_count
 
 def test_a_question_about_the_building_is_about_the_model_not_the_sheet() -> None:
     assert PARSE("How many doors are there in this building?") == Query(subject="door", model=True)
+
+
+def test_the_largest_room_of_a_label_or_type_by_area() -> None:
+    by_label = Query(measure="area", subject="room", label="MH", largest=True)
+    assert PARSE("Kuinka suuri on suurin makuuhuone (MH) neliömetreinä?") == by_label
+    by_type = Query(measure="area", subject="room:kitchen", largest=True)
+    assert PARSE("How big is the biggest kitchen, in m2?") == by_type
+    for other in (
+        "What is the largest door width on this plan?",  # not a room area
+        "How many rooms does the largest apartment have?",  # a count
+        "What is the area of the largest room?",  # which rooms
+        "What is the area of the smallest bedroom?",  # only the largest is taken off
+    ):
+        assert isinstance(PARSE(other), Unsupported), other
+
+
+def test_how_long_a_room_is_by_its_name_or_its_type() -> None:
+    assert PARSE("How long is the living room (OH) along its longer side, in metres?") == Query(
+        measure="length", subject="room", name="OH"
+    )
+    assert PARSE("Kuinka pitkä on parvekkeen pitkä sivu metreinä?") == Query(
+        measure="length", subject="room:balcony"
+    )
+    assert isinstance(PARSE("In room 'A1', what is the length of the walls?"), Unsupported)
+    assert isinstance(PARSE("How long is the room?"), Unsupported)
+
+
+def test_the_apartment_without_a_letter_and_a_living_room_by_its_code() -> None:
+    whole = Query(measure="area", subject="apartment")
+    assert (
+        PARSE("What is the floor area of the apartment in m², not counting the balcony?") == whole
+    )
+    assert PARSE("What is the floor area of the apartment in m²?") == whole
+    assert PARSE("Kuinka suuri on olohuoneen (OH) pinta-ala neliömetreinä?") == Query(
+        measure="area", subject="room", name="OH"
+    )

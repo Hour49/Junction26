@@ -1,7 +1,9 @@
-"""The adapters that read from disk: dataset files, page sizes, and a golden v2 folder."""
+"""The adapters that read from disk: dataset files, page sizes, a golden v2 folder and a
+questions file."""
 
+import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 import pytest
@@ -10,6 +12,7 @@ from app.adapters.dataset_files import DatasetFiles
 from app.adapters.golden_dir import GoldenDir, GoldenFile
 from app.adapters.page_sizes import PageSizes
 from app.adapters.paths import inside
+from app.adapters.questions_file import QuestionsFile
 from app.core.answering.model import Question
 from app.core.drawing.model import Page
 from app.core.errors import InvalidInputError, NotFoundError
@@ -113,9 +116,107 @@ def test_golden_dir_reads_files_with_their_split_and_questions_without_answers(
     assert golden.gold == tmp_path / "part1_extraction" / "gold"
 
 
+def extras_line(id_: int) -> str:
+    """A line as eval's ExtraItem has it; `answer`, `expect` and `why` are the answer key."""
+    return json.dumps(
+        {
+            "path": "data/demo/a.png",
+            "question": "Count the doors on this plan.",
+            "answer": 2,
+            "unit": "count",
+            "type": "count",
+            "id": id_,
+            "kind": "paraphrase",
+            "origin_id": 7,
+            "expect": {"answer": 2},
+            "why": None,
+        }
+    )
+
+
+def test_golden_dir_reads_extras_as_questions_and_none_when_the_file_is_absent(
+    tmp_path: Path,
+) -> None:
+    golden = golden_dir(tmp_path, [], [])
+    assert golden.extras() == []
+    (tmp_path / "part2_answering" / "extras.jsonl").write_text(extras_line(1000001) + "\n")
+    assert golden.extras() == [
+        Question(id=1000001, file="data/demo/a.png", text="Count the doors on this plan.")
+    ]
+
+
+def test_golden_dir_refuses_an_extras_id_that_could_be_a_dataset_line(tmp_path: Path) -> None:
+    golden = golden_dir(tmp_path, [], [])
+    (tmp_path / "part2_answering" / "extras.jsonl").write_text(extras_line(1000000) + "\n")
+    with pytest.raises(InvalidInputError, match=r"extras\.jsonl:1"):
+        golden.extras()
+
+
 def test_golden_dir_names_the_bad_line_or_the_missing_file(tmp_path: Path) -> None:
     golden = golden_dir(tmp_path / "bad", [{"file": "data/demo/a.png", "split": "train"}], [])
     with pytest.raises(InvalidInputError, match=r"files\.jsonl:1"):
         golden.files()
     with pytest.raises(NotFoundError, match="is this a golden v2 folder"):
         GoldenDir(tmp_path / "empty").questions()
+
+
+def questions_file(folder: Path, *rows: Mapping[str, object]) -> Path:
+    path = folder / "questions.jsonl"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    return path
+
+
+def test_a_questions_line_keeps_its_id_and_one_without_gets_its_line_number(tmp_path: Path) -> None:
+    """The split's files carry `id`; the dataset's questions.jsonl does not. The answer key
+    (`answer`, `unit`, `type`) is not read."""
+    path = tmp_path / "questions.jsonl"
+    with_id = {"path": "data/demo/a.png", "question": "How many doors?", "answer": 2, "id": 70}
+    without = {"path": "data/demo/b.pdf", "question": "How many windows?", "unit": "count"}
+    path.write_text(f"{json.dumps(with_id)}\n\n{json.dumps(without)}\n", encoding="utf-8")
+    assert QuestionsFile(path).questions() == [
+        Question(id=70, file="data/demo/a.png", text="How many doors?"),
+        Question(id=3, file="data/demo/b.pdf", text="How many windows?"),
+    ]
+
+
+def test_a_questions_file_with_one_id_twice_is_refused(tmp_path: Path) -> None:
+    row = {"path": "data/demo/a.png", "question": "How many doors?"}
+    path = questions_file(tmp_path, {**row, "id": 2}, row)  # line 2 has no id, so it is id 2 too
+    with pytest.raises(InvalidInputError, match=r"questions\.jsonl:2: id 2 is also .* line 1"):
+        QuestionsFile(path).questions()
+
+
+def test_a_questions_file_names_the_bad_line_or_the_missing_file(tmp_path: Path) -> None:
+    with pytest.raises(InvalidInputError, match=r"questions\.jsonl:1"):
+        QuestionsFile(questions_file(tmp_path, {"path": "data/demo/a.png"})).questions()
+    with pytest.raises(NotFoundError, match="is not a questions file"):
+        QuestionsFile(tmp_path / "absent.jsonl")
+
+
+def test_the_sealed_side_is_known_by_its_bytes_from_either_manifest(tmp_path: Path) -> None:
+    split, other = tmp_path / "split", tmp_path / "other"
+    split.mkdir()
+    other.mkdir()
+    sealed = questions_file(split, {"path": "data/demo/a.png", "question": "How many doors?"})
+    digest = hashlib.sha256(sealed.read_bytes()).hexdigest()
+    manifest = split / "manifest.json"
+    manifest.write_text(json.dumps({"files_sha256": {"eval.jsonl": digest, "dev.jsonl": "0" * 64}}))
+    copy = other / "copy.jsonl"
+    copy.write_bytes(sealed.read_bytes())
+    dev = questions_file(other, {"path": "data/demo/a.png", "question": "How many windows?"})
+
+    assert QuestionsFile(sealed).sealed_by(other) == manifest  # the manifest next to the file
+    assert QuestionsFile(copy).sealed_by(split) == manifest  # the split's manifest
+    assert QuestionsFile(copy).sealed_by(other) is None  # no split is known there
+    assert QuestionsFile(dev).sealed_by(split) is None  # other bytes
+
+    manifest.write_text(json.dumps({"files_sha256": {"dev.jsonl": "0" * 64}}))
+    assert QuestionsFile(copy).sealed_by(split) is None  # a manifest that seals nothing
+
+
+def test_a_split_manifest_that_cannot_be_read_stops_the_check(tmp_path: Path) -> None:
+    """A broken manifest must not pass for "not sealed"."""
+    path = questions_file(tmp_path, {"path": "data/demo/a.png", "question": "How many doors?"})
+    (tmp_path / "manifest.json").write_text('{"files_sha256": "none"}')
+    with pytest.raises(InvalidInputError, match=r"manifest\.json"):
+        QuestionsFile(path).sealed_by(tmp_path)

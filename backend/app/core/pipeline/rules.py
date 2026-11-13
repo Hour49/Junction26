@@ -47,6 +47,20 @@ ELEMENT_QUANTITY = CountingRule(
     text="the sum of the elements' own quantities (the model's Qto values); unknown when one "
     "of them has none",
 )
+SHEET_DWELLING = CountingRule(
+    id="sheet-dwelling",
+    text="a sheet that draws no apartment is one dwelling: the sum of its rooms that are neither "
+    "outdoor nor shafts",
+)
+LARGEST_ROOM = CountingRule(
+    id="largest-room",
+    text="the largest net floor area among the rooms; unknown when one of them has no area",
+)
+ROOM_SIDE = CountingRule(
+    id="room-longer-side",
+    text="the longer side of a rectangular room's outline at the sheet's scale; other shapes "
+    "have no sides to compare",
+)
 
 
 class Combined(Frozen):
@@ -82,9 +96,11 @@ MEASURED: Mapping[tuple[ElementClass, Measure], str] = {
     ("slab", "volume"): "net_volume_m3",
 }
 
-# A room is known by its label and by these attrs, alone or as "<long name> (<name>)",
-# "<name> (<number>)" and "<long name> (<number>)" (IFC spaces: review-6 section 8).
-ROOM_NUMBER, ROOM_NAME, ROOM_LONG_NAME = "number", "ifc_name", "ifc_long_name"
+# A room is known by its label and by these attrs, alone or as "<name> (<number>)" (IFC spaces:
+# review-6 section 8). `number` and `name` are what a sheet prints in the room (the vector
+# extractor); `ifc_name` and `ifc_long_name` are the IFC space's Name and LongName (the gold).
+ROOM_NUMBERS: tuple[str, ...] = ("number", "ifc_name")
+ROOM_NAMES: tuple[str, ...] = ("name", "ifc_long_name", "ifc_name")
 
 
 def apply_rules(listed: Mapping[str, tuple[Mark, ...]]) -> dict[str, Counted]:

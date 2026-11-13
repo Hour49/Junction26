@@ -1,6 +1,7 @@
-"""`python -m app.cli golden` on a synthetic golden v2 folder with two drawing files: what lands in
-the run folder is what eval/ scores."""
+"""`python -m app.cli golden` on a synthetic golden v2 folder with two drawing files, and `answer`
+on a questions file: what lands in the run folder is what eval/ scores."""
 
+import hashlib
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator
+from pdf_sheets import SheetPdf, rect
 
 from app.cli import main
 
@@ -82,8 +84,12 @@ def answers_of(out: Path) -> dict[int, dict[str, Any]]:
 
 
 def test_pipeline_run_writes_an_extraction_per_file_and_an_answer_per_question(
-    run: Callable[..., int], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    run: Callable[..., int],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("QUESTION_PARSER", "hello")  # the default is templates
     out = tmp_path / "runs" / "hello"
     assert run("pipeline", out) == 0
 
@@ -100,6 +106,9 @@ def test_pipeline_run_writes_an_extraction_per_file_and_an_answer_per_question(
         validator("extraction_v1.schema.json").validate(body)
         assert (body["elements"], body["rooms"], body["plans"]) == ([], [], [])
         assert body["scale"]["status"] == "no_scale"
+        # The PNG went to the hello-world extractor and the blank PDF matches no sheet style:
+        # neither was looked at for any class, so no count of theirs is a zero.
+        assert body["read"] == []
     assert (png["file"], png["split"], png["pages"]) == (
         PNG,
         "dev",
@@ -128,8 +137,9 @@ def test_pipeline_run_writes_an_extraction_per_file_and_an_answer_per_question(
 
 
 def test_gold_run_answers_from_the_part1_gold_and_writes_no_extraction(
-    run: Callable[..., int], tmp_path: Path
+    run: Callable[..., int], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setenv("QUESTION_PARSER", "hello")  # the default is templates
     out = tmp_path / "runs" / "hello-gold"
     assert run("gold", out) == 0
 
@@ -142,6 +152,56 @@ def test_gold_run_answers_from_the_part1_gold_and_writes_no_extraction(
         9: "refused:no-drawing",
     }
     assert {answer["answer"] for answer in answers.values()} == {None}
+
+
+def test_extras_lines_are_answered_from_the_drawing_and_never_from_their_answer_key(
+    run: Callable[..., int],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The gold of the PNG has two doors. Both lines' answer keys say something else."""
+    extras = [
+        {
+            "id": 1000001,
+            "path": PNG,
+            "question": "Count the doors on this plan.",
+            "answer": 99,
+            "unit": "count",
+            "type": "count",
+            "kind": "paraphrase",
+            "origin_id": 7,
+            "expect": {"answer": 99},
+            "why": None,
+        },
+        {
+            "id": 1000002,
+            "path": PNG,
+            "question": "How many doors are drawn here?",
+            "answer": None,
+            "unit": None,
+            "type": "unanswerable",
+            "kind": "unanswerable",
+            "origin_id": None,
+            "expect": {"abstain": True},
+            "why": "this answer key says to refuse",
+        },
+    ]
+    (tmp_path / "golden" / "part2_answering" / "extras.jsonl").write_text(
+        "".join(json.dumps(row) + "\n" for row in extras), encoding="utf-8"
+    )
+    monkeypatch.setenv("QUESTION_PARSER", "templates")
+    out = tmp_path / "runs" / "extras"
+    assert run("gold", out) == 0
+
+    answers = answers_of(out)
+    assert sorted(answers) == [7, 8, 9, 1000001, 1000002]
+    for id_ in (1000001, 1000002):
+        assert (answers[id_]["answer"], answers[id_]["unit"]) == (2, "count")
+        assert answers[id_]["method"] == "takeoff"
+        assert not answers[id_].get("abstain")
+        assert [mark["file"] for mark in answers[id_]["evidence"]] == [PNG, PNG]
+    assert "answering: 5 answers" in capsys.readouterr().out
 
 
 def test_a_run_folder_that_is_not_empty_is_refused(
@@ -161,3 +221,126 @@ def test_a_file_missing_from_the_dataset_stops_the_run_with_its_name(
     (tmp_path / "dataset" / PDF).unlink()
     assert run("pipeline", tmp_path / "runs" / "broken") == 1
     assert f"{PDF} is not in the dataset" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------- `answer`
+
+PLAN = "data/demo/plan.pdf"
+
+
+def plan_with_two_doors() -> bytes:
+    """A sheet in the swiss style: one numbered room, a door in each of two walls, a scale."""
+    sheet = SheetPdf(600, 400)
+    sheet.path(rect(100, 50, 300, 150), stroke=(138, 138, 138), width=0.37, fill=(255, 255, 255))
+    sheet.text("Zimmer", 104, 60)
+    sheet.text("2.01", 104, 68)
+    for left in (96, 296):
+        sheet.path(rect(left, 90, left + 8, 110), stroke=(68, 68, 68), width=0.37)
+    sheet.text("Massstab 1:100 (A3)", 450, 380)
+    return sheet.pdf()
+
+
+def split_dir(folder: Path, sealed: str) -> Path:
+    """A sealed split whose eval side has the content `sealed`."""
+    folder.mkdir(parents=True)
+    (folder / "eval.jsonl").write_text(sealed, encoding="utf-8")
+    digest = hashlib.sha256(sealed.encode()).hexdigest()
+    (folder / "manifest.json").write_text(
+        json.dumps({"seed": 1, "files_sha256": {"dev.jsonl": "0" * 64, "eval.jsonl": digest}}),
+        encoding="utf-8",
+    )
+    return folder
+
+
+@pytest.fixture
+def asked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_png: Callable[[int, int], bytes]
+) -> Callable[..., int]:
+    """A dataset with the two-door plan and a blank PNG, and a split whose sealed side asks about
+    the plan. Returns the CLI call for a questions file."""
+    monkeypatch.chdir(tmp_path)  # so a developer's backend/.env can't change the result
+    dataset = tmp_path / "dataset"
+    (dataset / "data" / "demo").mkdir(parents=True)
+    (dataset / PLAN).write_bytes(plan_with_two_doors())
+    (dataset / PNG).write_bytes(make_png(40, 30))
+    sealed = json.dumps({"path": PLAN, "question": "How many doors?", "answer": 2, "id": 3})
+    split = split_dir(tmp_path / "split", sealed + "\n")
+
+    def call(questions: Path, out: Path, *more: str, split_dir: Path = split) -> int:
+        places = ["--questions", str(questions), "--dataset", str(dataset), "--out", str(out)]
+        return main(["answer", *places, "--split-dir", str(split_dir), *more])
+
+    return call
+
+
+def test_answer_ingests_each_drawing_once_and_answers_every_question_of_the_file(
+    asked: Callable[..., int], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Two questions on the plan and one on the PNG. The answer key says 9 doors; two are drawn."""
+    rows = [
+        {"path": PLAN, "question": "How many doors?", "answer": 9, "unit": "count", "id": 41},
+        {"path": PNG, "question": "How many doors?", "answer": 9, "unit": "count", "id": 42},
+        {"path": PLAN, "question": "Combien de portes ?", "answer": 9, "unit": "count", "id": 43},
+    ]
+    questions = tmp_path / "some-questions.jsonl"
+    questions.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    out = tmp_path / "runs" / "batch"
+    assert asked(questions, out) == 0
+
+    written = sorted(path.relative_to(out).as_posix() for path in out.rglob("*") if path.is_file())
+    assert written == [
+        "answers.jsonl",
+        "extraction/demo/a.png.json",
+        "extraction/demo/plan.pdf.json",
+        "ingest.json",
+    ]
+    plan = json.loads((out / "extraction/demo/plan.pdf.json").read_text())
+    validator("extraction_v1.schema.json").validate(plan)
+    assert (plan["file"], plan["split"]) == (PLAN, "dev")
+    assert [element["class"] for element in plan["elements"]] == ["door", "door"]
+    report = json.loads((out / "ingest.json").read_text())
+    assert [sheet["file"] for sheet in report["sheets"]] == [PLAN, PNG]  # each file once
+
+    answers = answers_of(out)
+    assert list(answers) == [41, 43, 42]  # every question, file by file
+    for id_ in (41, 43):
+        assert (answers[id_]["answer"], answers[id_]["method"]) == (2, "takeoff")
+        assert [mark["file"] for mark in answers[id_]["evidence"]] == [PLAN, PLAN]
+    assert (answers[42]["answer"], answers[42]["method"]) == (None, "refused:not-in-drawing")
+    printed = capsys.readouterr().out
+    assert "ingest: 2 drawing models" in printed
+    assert "answering: 3 answers" in printed
+
+
+def test_the_sealed_eval_file_is_refused_without_milestone_under_any_name(
+    asked: Callable[..., int], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    sealed = tmp_path / "split" / "eval.jsonl"
+    copy = tmp_path / "elsewhere" / "my-questions.jsonl"
+    copy.parent.mkdir()
+    copy.write_bytes(sealed.read_bytes())
+    no_split = tmp_path / "no-split-here"
+
+    # The file itself, found by the manifest in its own folder; and a copy, by --split-dir.
+    for number, (questions, split) in enumerate([(sealed, no_split), (copy, sealed.parent)]):
+        out = tmp_path / "runs" / f"refused-{number}"
+        assert asked(questions, out, split_dir=split) == 1
+        assert "is the sealed eval side of the split" in capsys.readouterr().err
+        assert not out.exists()  # nothing was ingested or answered
+
+    out = tmp_path / "runs" / "milestone"
+    assert asked(copy, out, "--milestone") == 0
+    assert answers_of(out)[3]["answer"] == 2
+    assert json.loads((out / "extraction/demo/plan.pdf.json").read_text())["split"] == "eval"
+
+
+def test_a_questions_file_that_is_not_the_sealed_one_needs_no_milestone(
+    asked: Callable[..., int], tmp_path: Path
+) -> None:
+    """One more line than the sealed file: other bytes, so it is not the sealed side."""
+    questions = tmp_path / "dev.jsonl"
+    sealed = (tmp_path / "split" / "eval.jsonl").read_text(encoding="utf-8")
+    questions.write_text(sealed + sealed.replace('"id": 3', '"id": 4'), encoding="utf-8")
+    out = tmp_path / "runs" / "dev"
+    assert asked(questions, out) == 0
+    assert sorted(answers_of(out)) == [3, 4]

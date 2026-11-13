@@ -20,6 +20,7 @@ from app.core.drawing.model import (
     MeasuredValue,
     Page,
     Plan,
+    ReadClass,
     Room,
     Scale,
     Subject,
@@ -120,9 +121,10 @@ def test_a_written_drawing_is_valid_extraction_v1(tmp_path: Path, drawing: Drawi
         "eval",
         "elements",
     )
-    # Written only when the drawing has them, so the file is also valid before 0004's amendment.
+    # Written only when the drawing has them, so the file is also valid before 0004's amendments.
     assert "tables" not in body
     assert "conflicts" not in body
+    assert "read" not in body  # not stated: everything was looked for
 
 
 def test_tables_and_conflicts_are_written_in_the_pinned_shape(tmp_path: Path) -> None:
@@ -134,6 +136,7 @@ def test_tables_and_conflicts_are_written_in_the_pinned_shape(tmp_path: Path) ->
             "box": list(BOX),
             "title": "DOOR SCHEDULE",
             "columns": ["MARK", "WIDTH"],
+            "key_column": 0,
             "rows": [{"cells": ["101A", None], "box": list(BOX)}],
         }
     ]
@@ -151,10 +154,16 @@ def test_tables_and_conflicts_are_written_in_the_pinned_shape(tmp_path: Path) ->
             "note": None,
         }
     ]
-    properties = schema("extraction_v1.schema.json")["properties"]
-    if "tables" not in properties or "conflicts" not in properties:
-        pytest.skip("eval/schemas/extraction_v1.schema.json has no tables and conflicts yet")
     Draft202012Validator(schema("extraction_v1.schema.json")).validate(body)
+
+
+@pytest.mark.parametrize("read", [(), ("door", "room")], ids=["nothing", "two"])
+def test_what_was_read_is_written_when_the_drawing_states_it(
+    tmp_path: Path, read: tuple[ReadClass, ...]
+) -> None:
+    body = written(tmp_path, EMPTY.model_copy(update={"read": read}))
+    Draft202012Validator(schema("extraction_v1.schema.json")).validate(body)
+    assert body["read"] == list(read)  # [] says nothing was looked for: no count is a zero
 
 
 def test_a_drawing_of_stated_totals_is_written_as_truth_counts(tmp_path: Path) -> None:
@@ -177,6 +186,55 @@ def test_the_reader_gives_back_the_drawing_that_was_written(tmp_path: Path) -> N
     reader = ExtractionV1Reader(tmp_path)
     assert reader.drawing(FILE) == WITH_EXTRAS
     assert reader.drawing("data/demo/other.pdf") is None
+
+
+def test_the_reader_loads_gold_with_estimated_areas_a_key_column_and_read_coverage(
+    tmp_path: Path,
+) -> None:
+    """The fields golden v2 gained on 2026-11-13 (eval/stoa_eval/extraction.py): an estimated
+    scale, room areas that say how they were got, a table's key column, what was read."""
+    body = written(tmp_path / "scratch", WITH_EXTRAS)
+    body["scale"] = {
+        "status": "estimated",
+        "m_per_unit": 0.0242,
+        "evidence": [],
+        "source": "door widths",
+        "uncertainty": 0.08,
+    }
+    estimated = {
+        "area_status": "estimated",
+        "area_source": "geometry_x_estimate",
+        "area_uncertainty": 0.35,
+    }
+    printed = {"area_status": "exact", "area_source": "printed"}
+    body["rooms"] = [
+        {**body["rooms"][0], "id": "r1", **estimated},
+        {**body["rooms"][0], "id": "r2", **printed},
+    ]
+    body["tables"][0]["key_column"] = 1
+    body["read"] = ["door", "window", "room"]
+    Draft202012Validator(schema("extraction_v1.schema.json")).validate(body)
+    gold = tmp_path / "gold"
+    gold.mkdir()
+    (gold / "plan.json").write_text(json.dumps(body), encoding="utf-8")
+
+    loaded = ExtractionV1Reader(gold).drawing(FILE)
+
+    assert loaded is not None
+    assert (loaded.scale.status, loaded.scale.uncertainty) == ("estimated", 0.08)
+    first, second = loaded.rooms
+    assert (first.area_status, first.area_source, first.area_uncertainty) == (
+        "estimated",
+        "geometry_x_estimate",
+        0.35,
+    )
+    assert (second.area_status, second.area_source, second.area_uncertainty) == (
+        "exact",
+        "printed",
+        None,
+    )
+    assert loaded.tables is not None and loaded.tables[0].key_column == 1
+    assert loaded.read == ("door", "window", "room")
 
 
 def test_the_reader_finds_files_by_their_file_field_and_skips_underscore_folders(

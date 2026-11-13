@@ -8,12 +8,14 @@ from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
 
 
 class HelloExtractor:
-    """The `Extractor` port: reads nothing, so the drawing has no elements and no scale."""
+    """The `Extractor` port: reads nothing, so the drawing has no elements and no scale, and says
+    it looked for nothing (`read` empty), so none of its counts is a zero."""
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         return Extracted(
             method="other",
             scale=Scale(status="no_scale"),
+            read=(),
             notes=("hello-world extractor: nothing was read from the drawing",),
         )
 

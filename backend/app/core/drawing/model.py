@@ -1,9 +1,10 @@
 """The drawing model: one drawing file with its pages, scale, plans, elements and rooms.
 
 It serialises as extraction_v1 (docs/decisions/0004-extraction-format.md, with the optional
-`tables` and `conflicts` of its 2026-11-13 amendment): the field names and the value lists are that
-format's, so app/adapters/extraction_v1.py only adds the envelope (`schema`, `split`, `truth`).
-Positions are fractions of the page as rendered, origin top left.
+`tables`, `conflicts` and `read` of its 2026-11-13 amendments): the field names and the value lists
+are that format's (eval/stoa_eval/extraction.py), so app/adapters/extraction_v1.py only adds the
+envelope (`schema`, `split`, `truth`). Positions are fractions of the page as rendered, origin top
+left.
 
 Field ranges are checked here. The format's cross-field rules (a `scaled` scale has a value, ids
 are unique, a plan an element names is listed) are checked by `stoa_eval validate-extraction`.
@@ -36,6 +37,7 @@ MeasureMethod = Literal[
     "dimension_lines", "ifc_model", "plan_drawing", "schedule", "detector", "parser", "annotation",
     "other",
 ]  # fmt: skip
+ReadClass = ElementClass | Literal["room"]  # what an extraction can say it looked for
 ELEMENT_CLASSES: tuple[ElementClass, ...] = get_args(ElementClass)
 ROOM_TYPES: tuple[RoomType, ...] = get_args(RoomType)
 PLAN = "plan"
@@ -105,6 +107,11 @@ class Room(Frozen):
     polygon: Polygon | None = None
     box: Box
     area_m2: float | None = Field(default=None, ge=0)
+    # How the area was got. exact: the sheet prints it (unset counts as exact); estimated: the
+    # outline at a measured or an estimated scale, with its relative uncertainty.
+    area_status: Literal["exact", "estimated"] | None = None
+    area_source: Literal["printed", "geometry_x_scale", "geometry_x_estimate"] | None = None
+    area_uncertainty: float | None = Field(default=None, gt=0)
     apartment: str | None = None
     outdoor: bool = False
     attrs: dict[str, Attr] = Field(default_factory=dict[str, Attr])
@@ -129,6 +136,7 @@ class Table(Frozen):
     box: Box
     title: str | None = None
     columns: tuple[str, ...] = Field(min_length=1)  # header text, left to right
+    key_column: int = Field(default=0, ge=0)  # the 0-based column that identifies a row
     rows: tuple[TableRow, ...]
 
 
@@ -187,6 +195,9 @@ class Drawing(Frozen):
     counts: dict[str, Annotated[int, Field(ge=0)]] | None = None
     tables: tuple[Table, ...] | None = None  # None: no schedule was looked for
     conflicts: tuple[Conflict, ...] | None = None  # None: nothing was measured a second way
+    # The element classes, and "room", that were looked for. None: all of them (every gold file).
+    # A class left out was not read, so its count is unknown, not 0.
+    read: tuple[ReadClass, ...] | None = None
     notes: tuple[str, ...] = ()
 
     def marks_by_quantity(self) -> dict[str, tuple[Mark, ...]]:

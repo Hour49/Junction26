@@ -38,7 +38,7 @@ app/cli.py                    python -m app.cli golden ...   (API routes come la
 | 5 `route` | richest format in the group: bim, cad, vector, raster | telling a scanned PDF from a drawn one |
 | 6 `normalise` | pages as the file gives them | rotation; rendering |
 | 7 `extract` | calls the route's `Extractor`; `hello` reads nothing, scale `no_scale`. Vector route: `pdf` reads drawn PDFs (2026-11-13) | one adapter per route |
-| 8 `second_count` | pairs two methods' values into `conflicts`; `hello` measures nothing | a `SecondCounter` adapter; room and storey counts, printed labels against geometry |
+| 8 `second_count` | pairs two methods' values into `conflicts` and applies the resolution rules of PIPELINE.md §2; `pdf` brings the scale bar, the scale text and the printed room areas of a drawn PDF (2026-11-14); `hello` measures nothing | room, storey and element counts from a second source (the IFC model) |
 | 9 `rules` | one rule: every listed item counts once | the dataset's conventions as `CountingRule`s |
 | 10 `takeoff` | a count per element class, room type and plan, with marks | areas, lengths, volumes |
 
@@ -49,7 +49,7 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
 | `DrawingFiles` | bytes of a file by its dataset path | `DatasetFiles` (folder on disk, refuses paths that leave it) |
 | `PageReader` | page sizes of a sheet, as rendered | `PageSizes` (pypdfium2, Pillow) |
 | `Extractor`, one per route | what it read from the group's richest source, as page fractions of the sheet | `HelloExtractor`; vector: `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`) |
-| `SecondCounter` | an independent second measurement | `HelloSecondCounter` |
+| `SecondCounter` | an independent second measurement | `PdfSecondCounter` (`SECOND_COUNTER=pdf`); `HelloSecondCounter` |
 | `DrawingSink` / `DrawingSource` | store and load a drawing model | `ExtractionV1Writer` / `ExtractionV1Reader` |
 | `QuestionParser` | question text to a `Query`, or `Unsupported` | `HelloParser` |
 | `AnswerSink` | take an answer | `AnswerV1Writer` |
@@ -103,6 +103,18 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
   on IFC-rendered sheets (the sheet draws columns like walls, so they are listed as walls, and the rest in one
   shared style), sheets in any other style (only their scale is read), pages after the first, SVG sources, and
   telling a scanned PDF from a drawn one (stage 5).
+- Stage 8 on drawn PDFs (`SECOND_COUNTER=pdf`, 2026-11-14). The second counter re-reads the page and hands over
+  the scale as the text prints it and as the bar measures it, and on swiss plans the area printed in each room
+  under the extractor's room id. `second_count` adds the extraction's own side (element counts; each room's area,
+  which an extractor measures as the outline at the sheet's scale) and lists every quantity with two methods.
+  Resolution follows PIPELINE.md §2 and the drawing carries the resolved value: on a scale conflict the extractor
+  takes the bar's value, so the areas use it; on a room-area conflict stage 8 puts the printed area on the room.
+  An agreement changes nothing. Measured on the 879 dev sheets of the PDF sources: 6,547 room areas and 877
+  scales compared, all agree (largest gaps 0.58% and 0.09%), so both conflict paths are held by synthetic tests
+  only. Cost: each PDF is parsed a second time (ingest of those sheets 15.2 s to 25.9 s); a parsed-page cache by
+  content hash would remove it and is not built.
+- `read` (2026-11-14): every extractor says which element classes, and `room`, it looked for; the drawing and the
+  extraction_v1 file carry it. `hello` and a PDF in no known style say `[]`, so none of their counts is a zero.
 - Open with the formats: a count per room type has no `subject` kind in `conflicts`, so stage 8 compares element
   classes only. When answer_v1.1 lands, a refusal should set `abstain: true` with the reason in `explanation`, and
   the golden run should also answer `part2_answering/extras.jsonl`.
