@@ -127,6 +127,9 @@ dated where it can go stale.
 - **Commands that work** (in `backend/`, checked 2026-11-13): setup `uv sync --locked`; run
   `uv run uvicorn app.main:create_app --factory --reload`; check `./check.sh` (`./check.sh quick` before a commit);
   one test file `uv run pytest -q tests/test_health.py`. Offline mode: `<with the first adapter>`.
+- **Eval** (in `eval/`, checked 2026-11-13; guide `eval/README.md`): `uv run python -m stoa_eval select` (golden set
+  into gitignored `data/stoa/golden/`), `... baseline oracle|constant`, `... score <answers.jsonl>`; `./check.sh`.
+  Answer format: `docs/decisions/0002-answer-format.md`.
 - **Architecture invariants:** `<3-5 rules from docs/ENGINEERING.md §1 as they apply here, e.g. "only the LLM
   adapter calls the model">`
 - **Gotchas:** one line each, newest first: `<date>: <what bit us> → <the fix or rule>`. Add one every time
