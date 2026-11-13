@@ -1,0 +1,18 @@
+team,timestamp_approx,question,category,answer_gist
+wavelet,4:58,Can you tell me what each of you did and how you made decisions?,team roles,Each member named their part: algorithm research; rendering optimisation; satellite texturing; video
+wavelet,6:05,Talk about real-world applications; think one step ahead,use case / impact,Wi-Fi router placement in dense cities; noise optimisation; physics education
+wavelet,7:44,With 48 more hours; which direction and most valuable use case?,next steps,Automatic optimal-placement planning; real material textures for accuracy
+loredash,5:55,Which models did you use and why?,technical choices,Gemini 2.5 Flash for the plan; Pro for code (Flash crashed); OpenAI for transparent sprites
+loredash,7:05,As a solo hacker; what was the hardest part?,process,Sunday-morning crunch before the 10:00 deadline; editing alone
+loredash,7:45,Was that live-generating the game or recorded?,authenticity (live vs recorded),Live; showed it on screen
+dronestalker,5:10,Did you consider on-device inference given war scenarios?,deployment constraints,YOLO needs a GPU; the 300k-parameter LSTM could run on device
+dronestalker,6:05,Which ML framework for the LSTM and why? How do you use the Gemini APIs?,technical choices,PyTorch (to learn it); Gemini drives the whole app as a chatbot that unlocks features; ElevenLabs voice
+dronestalker,7:48,How many GPUs did you train on?,technical choices,Zero; CPU only (tiny LSTM); a big model took 10 h on a laptop
+walkthrough,5:36,What part was built this weekend? Did you bring anything?,authenticity (built this weekend),All from scratch this weekend; Snap kit helped
+walkthrough,6:30,Store owners won't like less time in store; what else could the glasses show (ads; context)?,partner/business objection,Partner with stores to recommend or advertise products
+walkthrough,7:51,The AR video you showed: was that built this weekend?,authenticity (live vs recorded),Yes; the demo was built this weekend
+walkthrough,8:05,Who did what?,team roles,Storytelling and video vs coding; three backend teammates in the audience
+lambda-pump,5:08,Team of four but one storyteller; what did each of you work on?,team roles,Five members: model; data science; software; business side
+lambda-pump,5:55,You wrote a paper and did all this in the weekend? What did you build the front end in?,authenticity + technical choices,Yes; Next.js web app
+lambda-pump,6:35,Tell us about the technology: which models and why?,technical choices,MILP optimisation first; then AI explains the decision to the user
+lambda-pump,7:20,Why pumps? Was that the challenge?,problem choice,Valmet's challenge; they like hard mathematical problems; did similar last year

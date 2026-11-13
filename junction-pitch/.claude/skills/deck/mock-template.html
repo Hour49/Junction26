@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+{{FONTS}}
+<style>
+:root {
+  --bg: #07090d; --panel: #11151d; --fg: #ffffff; --muted: #b9c2cf; --accent: #22e5ff;
+  --warn: #ffcc00; --over: #ff5c5c; --ok: #4ade80;
+  --head: "Michroma", "Eurostile", "Segoe UI", Arial, sans-serif;
+  --body: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Space Mono", Consolas, "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; color: var(--fg); font-family: var(--body); overflow: hidden; }
+#app { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr; }
+#app.presenter { grid-template-columns: 62fr 38fr; grid-template-rows: auto 1fr auto; gap: 12px; padding: 12px; background: #000; }
+.viewport { position: relative; overflow: hidden; }
+.frame { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center; }
+
+/* slide */
+.slide { width: 1920px; height: 1080px; background: var(--bg); position: relative; padding: 110px 140px 120px; display: flex; flex-direction: column; overflow: hidden; }
+.slide h1 { font-family: var(--head); font-size: 44px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); margin: 0 0 40px; }
+.slide .on { font-size: 96px; line-height: 1.12; font-weight: 700; margin: 0; max-width: 1640px; }
+.slide .num { font-family: var(--head); font-size: 260px; line-height: 1; color: var(--accent); margin: 0 0 30px; }
+.slide.l-big-number .on { font-size: 72px; }
+.slide .num.num-todo { font-size: 72px; line-height: 1.2; }
+.qr { flex-direction: column; position: absolute; right: 140px; bottom: 140px; width: 320px; height: 320px; border: 5px dashed #3a4558; border-radius: 12px; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 30px; background: #fff0; }
+.qr img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.qr code { font-family: var(--mono); color: var(--accent); font-size: 24px; }
+.slide.l-close .on { max-width: 1250px; }
+.slide.l-hook, .slide.l-close { justify-content: center; }
+.slide.l-hook .on { font-size: 120px; }
+.slide.l-close .on { font-size: 104px; }
+.slide.l-close h1 { font-size: 56px; }
+.slide.l-image, .slide.l-demo { padding: 80px 100px 110px; }
+.slide.l-image .on, .slide.l-demo .on { font-size: 60px; margin-bottom: 30px; }
+.media { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.media img, .media video { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
+.ph { width: 100%; height: 100%; border: 6px dashed #3a4558; border-radius: 16px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 40px; padding: 40px; }
+.ph b { color: var(--fg); font-size: 46px; margin-bottom: 18px; }
+.ph code { font-family: var(--mono); color: var(--accent); font-size: 34px; margin-top: 18px; }
+.team { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; margin-top: 30px; }
+.team .card { display: flex; flex-direction: column; gap: 20px; }
+.slide.l-team .on { font-size: 60px; }
+.team .photo { text-align: center; aspect-ratio: 1; border: 5px dashed #3a4558; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 30px; overflow: hidden; }
+.team .photo img { width: 100%; height: 100%; object-fit: cover; }
+.team .who { font-size: 40px; font-weight: 700; }
+.team .what { font-size: 30px; color: var(--muted); line-height: 1.3; }
+.badge { position: absolute; top: 48px; right: 140px; font-family: var(--mono); font-size: 30px; font-weight: 700; padding: 8px 22px; border: 3px solid var(--accent); color: var(--accent); border-radius: 40px; }
+.badge.vision { border-color: var(--warn); color: var(--warn); }
+.src { position: absolute; left: 140px; bottom: 44px; right: 260px; font-size: 24px; color: var(--muted); }
+.sno { position: absolute; right: 60px; bottom: 40px; font-family: var(--mono); font-size: 32px; color: var(--muted); }
+.todo { background: var(--warn); color: #000; padding: 0 .2em; border-radius: 6px; }
+.cutmark { position: absolute; left: 140px; top: 48px; font-family: var(--mono); font-size: 24px; color: var(--warn); }
+
+/* bars and presenter */
+#bar { white-space: nowrap; overflow: hidden; display: flex; gap: 18px; align-items: center; padding: 6px 14px; background: #0d1016; font: 15px var(--mono); color: var(--muted); }
+#bar .t { color: var(--fg); font-weight: 700; }
+#bar .over { color: var(--over); }
+#bar .near { color: var(--warn); }
+#bar .grow { flex: 1; }
+#bar button { background: #1b2230; color: var(--fg); border: 1px solid #2c3647; border-radius: 6px; font: inherit; padding: 4px 10px; cursor: pointer; }
+#app.clean #bar { display: none; }
+#side { display: none; }
+#app.presenter #bar { grid-column: 1 / 3; grid-row: 1; font-size: 20px; border-radius: 8px; }
+#app.presenter #main { grid-column: 1; grid-row: 2; }
+#app.presenter #side { display: grid; grid-column: 2; grid-row: 2 / 4; grid-template-rows: auto 30% 1fr; gap: 10px; min-height: 0; }
+#app.presenter #timers { grid-column: 1; grid-row: 3; }
+#timers { display: none; }
+#app.presenter #timers { display: flex; gap: 30px; font: 700 44px var(--mono); padding: 8px 14px; background: var(--panel); border-radius: 8px; align-items: center; }
+#timers small { display: block; font-size: 16px; color: var(--muted); font-weight: 400; }
+.prog { height: 10px; background: #252d3b; border-radius: 6px; overflow: hidden; flex: 1; }
+.prog i { display: block; height: 100%; background: var(--ok); }
+.prog i.near { background: var(--warn); } .prog i.over { background: var(--over); }
+#side h3 { margin: 0; font: 16px var(--mono); color: var(--muted); }
+#next { background: #000; border-radius: 8px; }
+#notes { background: var(--panel); border-radius: 8px; padding: 18px 22px; overflow: auto; font-size: 26px; line-height: 1.45; }
+#notes .extra { color: var(--warn); }
+#notes .vis { font-size: 18px; color: var(--muted); margin-top: 16px; }
+#overlay { display: none; position: absolute; left: 0; right: 0; bottom: 0; max-height: 40%; overflow: auto; background: rgba(10, 12, 18, .95); padding: 18px 28px; font-size: 22px; line-height: 1.45; border-top: 3px solid var(--accent); }
+#app.notes #overlay { display: block; }
+#app.presenter #overlay { display: none; }
+#black { display: none; position: fixed; inset: 0; background: #000; z-index: 10; }
+#help { display: none; position: fixed; inset: 10% 20%; background: var(--panel); border: 2px solid var(--accent); border-radius: 12px; padding: 30px; z-index: 11; font: 20px/1.7 var(--mono); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <span id="deckname"></span>
+    <button id="cutbtn" title="C">cut</button>
+    <span>slide <span class="t" id="pos"></span></span>
+    <span>this slide <span class="t" id="ts"></span></span>
+    <span>total <span class="t" id="tt"></span></span>
+    <span class="grow"></span>
+    <button id="runbtn" title="T">start timer</button>
+    <button id="presbtn" title="P">presenter</button>
+    <button id="notesbtn" title="N">notes</button>
+    <button id="helpbtn">? keys</button>
+  </div>
+  <div class="viewport" id="main"><div class="frame" id="cur"></div><div id="overlay"></div></div>
+  <div id="side">
+    <h3>NEXT</h3>
+    <div class="viewport" id="next"><div class="frame" id="nxt"></div></div>
+    <div id="notes"></div>
+  </div>
+  <div id="timers"></div>
+</div>
+<div id="black"></div>
+<div id="help">
+→ Space PageDown click (right 2/3): next<br>
+← PageUp click (left 1/3): back · Home / End<br>
+C: switch cut (3-min core / 5-min / all + backup)<br>
+P: presenter view (notes, next slide, timers)<br>
+N: notes over the slide · H: hide the bar<br>
+T: start / pause timer (or the first "next" starts it) · R: reset<br>
+F: full screen · B: black screen · ?: this help (Esc closes)<br>Open with ?presenter to start in presenter view; #5-3 = 5-min cut, slide 3
+</div>
+<script>
+const DECK = {{DATA}};
+const S = DECK.slides;
+const CUTN = ["3-min", "5-min", "all"];
+const $ = (id) => document.getElementById(id);
+const H = location.hash.match(/^#(3|5|all)(?:-(\d+))?$/) || [];
+let cut = H[1] === "5" ? 1 : H[1] === "all" ? 2 : 0;
+let idx = 0, running = false, total = 0, per = {}, last = 0;
+
+const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const fmt = (t) => esc(t).replace(/\[\[(.*?)\]\]/g, '<span class="todo">[$1]</span>').replace(/\n/g, "<br>");
+const mmss = (s) => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+function list() {
+  if (cut === 0) return S.filter((s) => s.cut === "both");
+  if (cut === 1) return S.filter((s) => s.cut !== "backup");
+  return S;
+}
+const budget = (s) => (cut === 0 ? s.core : s.long);
+const budgetTotal = () => list().reduce((a, s) => a + budget(s), 0);
+
+function placeholder(path, what) {
+  return `<div class="ph"><b>${esc(what || "Placeholder")}</b>Drop the file here:<code>${esc(path || "assets/…")}</code></div>`;
+}
+function media(s) {
+  if (s.layout === "demo" || s.video) {
+    const fb = s.fallback ? `<img src="${esc(s.fallback)}" alt="" onerror="this.outerHTML=window.PH(this)" data-path="${esc([s.video, s.fallback].filter(Boolean).join("  or  "))}" data-what="Demo: silent video, or the backup GIF / screenshot">`
+                          : placeholder("assets/demo.gif", "Demo backup GIF");
+    if (!s.video) return fb;
+    return `<video src="${esc(s.video)}" muted autoplay loop playsinline data-fb="${esc(fb)}" onerror="this.outerHTML=this.dataset.fb"></video>`;
+  }
+  if (s.image) return `<img src="${esc(s.image)}" alt="" data-path="${esc(s.image)}" data-what="${esc(s.visual || "Screenshot")}" onerror="this.outerHTML=window.PH(this)">`;
+  return placeholder("assets/", s.visual || "Visual");
+}
+window.PH = (el) => placeholder(el.dataset.path, el.dataset.what);
+
+function team(s) {
+  const people = (s.team || "").split(";").map((p) => p.trim()).filter(Boolean);
+  while (people.length < 4) people.push("[[Name — role — one credential]]");
+  return '<div class="team">' + people.slice(0, 4).map((p, i) => {
+    const [who, ...rest] = p.split(/\s+[—-]\s+/);
+    const img = `assets/team-${i + 1}.jpg`;
+    return `<div class="card"><div class="photo"><img src="${img}" alt="" onerror="this.outerHTML='photo<br>${img}'"></div>
+      <div class="who">${fmt(who)}</div><div class="what">${fmt(rest.join(" — "))}</div></div>`;
+  }).join("") + "</div>";
+}
+
+function render(s, n, of) {
+  const L = s.layout;
+  let body = "";
+  if (s.number && L !== "close") body += `<p class="num${/\[\[/.test(s.number) ? " num-todo" : ""}">${fmt(s.number)}</p>`;
+  if (L === "close") { const q = s.image || "assets/qr.png";
+    body += `<div class="qr"><img src="${esc(q)}" alt="" onerror="this.outerHTML='QR code<br><code>${esc(q)}</code>'"></div>`; }
+  if (s.on) body += `<p class="on">${fmt(s.on)}</p>`;
+  if (L === "image" || L === "demo") body += `<div class="media">${media(s)}</div>`;
+  if (L === "team") body += team(s);
+  const badge = s.badge ? `<div class="badge ${/vision/i.test(s.badge) ? "vision" : ""}">${esc(s.badge)}</div>` : "";
+  const mark = s.cut !== "both" ? `<div class="cutmark">${s.cut === "backup" ? "BACKUP" : "5-MIN ONLY"}</div>` : "";
+  return `<section class="slide l-${esc(L)}">${mark}${badge}<h1>${fmt(s.title)}</h1>${body}
+    ${s.source ? `<div class="src">Source: ${fmt(s.source)}</div>` : ""}<div class="sno">${n}/${of}</div></section>`;
+}
+
+function fit(vp, frame) {
+  const r = vp.getBoundingClientRect();
+  const k = Math.min(r.width / 1920, r.height / 1080);
+  frame.style.transform = `translate(-50%, -50%) scale(${k})`;
+}
+function fitAll() { fit($("main"), $("cur")); fit($("next"), $("nxt")); }
+
+function notesHtml(s) {
+  let h = `<b>${esc(s.title)}</b> · ${budget(s)} s<br>${fmt(s.notes)}`;
+  if (cut > 0 && s.extra) h += `<div class="extra">+5-min: ${fmt(s.extra)}</div>`;
+  if (s.visual) h += `<div class="vis">Visual: ${fmt(s.visual)}</div>`;
+  return h;
+}
+
+function show() {
+  const L = list();
+  idx = Math.max(0, Math.min(idx, L.length - 1));
+  const s = L[idx];
+  $("cur").innerHTML = render(s, idx + 1, L.length);
+  const nx = L[idx + 1];
+  $("nxt").innerHTML = nx ? render(nx, idx + 2, L.length) : '<section class="slide l-close"><p class="on">End</p></section>';
+  $("nxt").querySelectorAll("video").forEach((v) => v.pause());
+  $("notes").innerHTML = notesHtml(s);
+  $("overlay").innerHTML = notesHtml(s);
+  $("cutbtn").textContent = "cut: " + CUTN[cut];
+  $("deckname").textContent = DECK.meta.title;
+  history.replaceState(null, "", "#" + (cut === 1 ? "5" : cut === 2 ? "all" : "3") + "-" + (idx + 1));
+  fitAll();
+  tick();
+}
+
+function tick() {
+  const L = list(), s = L[idx];
+  const used = per[s.id] || 0, b = budget(s), bt = budgetTotal();
+  // planned time at the end of this slide
+  const plan = L.slice(0, idx + 1).reduce((a, x) => a + budget(x), 0);
+  const cls = (u, lim) => (lim && u > lim ? "over" : lim && u > lim * 0.8 ? "near" : "");
+  $("pos").textContent = `${idx + 1}/${L.length}`;
+  $("ts").innerHTML = `<span class="${cls(used, b)}">${mmss(used)}</span> / ${mmss(b)}`;
+  $("tt").innerHTML = `<span class="${cls(total, bt)}">${mmss(total)}</span> / ${mmss(bt)}`;
+  $("runbtn").textContent = running ? "pause timer" : (total ? "resume timer" : "start timer");
+  const pct = (u, lim) => Math.min(100, lim ? (u / lim) * 100 : 0);
+  $("timers").innerHTML =
+    `<div><small>THIS SLIDE</small><span class="${cls(used, b)}">${mmss(used)}</span> / ${mmss(b)}</div>
+     <div class="prog"><i class="${cls(used, b)}" style="width:${pct(used, b)}%"></i></div>
+     <div><small>TOTAL (${CUTN[cut]})</small><span class="${cls(total, bt)}">${mmss(total)}</span> / ${mmss(bt)}</div>
+     <div><small>PLAN AT END OF SLIDE</small>${mmss(plan)}</div>`;
+}
+
+setInterval(() => {
+  const now = performance.now();
+  if (running) {
+    const d = (now - last) / 1000, s = list()[idx];
+    total += d; per[s.id] = (per[s.id] || 0) + d;
+  }
+  last = now;
+  tick();
+}, 250);
+
+function go(d) {
+  if (!running && total === 0 && d > 0) running = true; // first "next" starts the clock
+  idx += d; show();
+}
+const toggle = (c) => { $("app").classList.toggle(c); fitAll(); };
+
+document.addEventListener("keydown", (e) => {
+  const k = e.key;
+  if (["ArrowRight", " ", "PageDown", "Enter"].includes(k)) go(1);
+  else if (["ArrowLeft", "PageUp", "Backspace"].includes(k)) go(-1);
+  else if (k === "Home") { idx = 0; show(); }
+  else if (k === "End") { idx = list().length - 1; show(); }
+  else if (k === "c" || k === "C") { const id = list()[idx].id; cut = (cut + 1) % 3; idx = Math.max(0, list().findIndex((s) => s.id === id)); show(); }
+  else if (k === "p" || k === "P") toggle("presenter");
+  else if (k === "n" || k === "N") toggle("notes");
+  else if (k === "h" || k === "H") toggle("clean");
+  else if (k === "t" || k === "T") running = !running;
+  else if (k === "r" || k === "R") { running = false; total = 0; per = {}; }
+  else if (k === "f" || k === "F") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  else if (k === "b" || k === "B" || k === ".") { const b = $("black"); b.style.display = b.style.display === "block" ? "none" : "block"; }
+  else if (k === "?") $("help").style.display = "block";
+  else if (k === "Escape") $("help").style.display = "none";
+  else return;
+  e.preventDefault();
+  tick();
+});
+$("main").addEventListener("click", (e) => {
+  const r = $("main").getBoundingClientRect();
+  go(e.clientX - r.left < r.width / 3 ? -1 : 1);
+});
+$("cutbtn").onclick = () => document.dispatchEvent(new KeyboardEvent("keydown", {key: "c"}));
+$("runbtn").onclick = () => { running = !running; tick(); };
+$("presbtn").onclick = () => toggle("presenter");
+$("notesbtn").onclick = () => toggle("notes");
+$("helpbtn").onclick = () => ($("help").style.display = "block");
+$("black").onclick = () => ($("black").style.display = "none");
+window.addEventListener("resize", fitAll);
+if (H[2]) idx = parseInt(H[2], 10) - 1;
+if (/presenter/.test(location.search)) $("app").classList.add("presenter"); // index.html?presenter
+show();
+</script>
+</body>
+</html>
