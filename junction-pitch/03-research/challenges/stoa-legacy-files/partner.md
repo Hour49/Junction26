@@ -79,6 +79,16 @@ the company and its co-founder found no independent coverage (accessed 2026-11-1
 - 3D: from 2D plans for renovation planning, or from existing BIM models?
 - EU-only models required for the weekend?
 
+## What the Stoa team told us at the stand (2026-11-13 ~19:30)
+
+From Madalina's chat, full notes in [F-004](../../feedback/log.md):
+- Judging: the Sunday presentation counts most; small questions and progress updates during the event may count too.
+- Present technically, what we built and how. No market slides, no proof the problem exists: they know it. Their
+  CTO is very technical and will ask.
+- Their current app: a floor-by-floor building view, written issues on the right that open the floor plan at the
+  issue's location, and a timeline of issues with schedule bars that double as progress bars.
+- So our findings should carry floor, sheet and plan region (and a date when one applies), so they fit that view.
+
 ## Follow-up questions (round 2, 2026-11-13 18:40)
 
 Written after the research above. Ask the round-1 questions first if they are still open, and skip any the official

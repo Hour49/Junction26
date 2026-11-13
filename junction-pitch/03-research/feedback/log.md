@@ -9,6 +9,42 @@
 
 <!-- entries: newest first -->
 
+## F-004 · 2026-11-13 19:30 · Partner team, Stoa · OPEN
+- Based on core.md: template, not filled yet
+- Setting: booth chat (Madalina)
+- Notes: translated from Madalina's notes in Romanian; a personal description of one Stoa person left out.
+  - Judging: the final presentation on Sunday counts most, but coming to them with small questions and progress
+    updates during the event may also count. They don't know when the Saturday check-in is or how judging runs after
+    Sun 10:00; they only want to see what we built.
+  - How to present: no market slides, and no web research proving the problem exists and that we are the solution:
+    they already know the problem. Present what we built and how, technically. Their CTO is very technical and will
+    ask about it.
+  - Their app, as shown on their screen: a building shown floor by floor. On the right, the main issues that could
+    come up, in writing; clicking one opens that floor's plan and shows where. At the bottom, a short list of issues,
+    each drawn as a bar on a timeline for when it is scheduled (day x to day y); the bar is meant to be a progress
+    bar (% done).
+- Signal: useful: judging criteria and the shape of their current app
+
+**Liked** — · **Concerns** — · **Similar products named** — their own app (above) · **Questions they asked** —
+
+**Research requests** —
+
+**Suggested idea changes**
+- Pitch: a technical walkthrough (data in, pipeline, data out, measured accuracy, what fails, architecture), no
+  market framing.
+- Output: every finding gets a floor, a sheet and a region on the plan, so it can drop into a floor-by-floor issue
+  view like theirs; findings tied to dates (a drawing an activity waits on) fit their timeline.
+
+**Actions**
+- [ ] F-004.1 Ask Stoa: is the floor / issue / timeline screen their product today, or a mock of what they want from
+  the challenge? What sits behind a located issue (floor, plan coordinates, schedule ids)?
+- [ ] F-004.2 A short progress check-in with the Stoa team on Saturday: what works, plus our open questions.
+- [ ] F-004.3 Pitch prep: a list of technical questions their CTO may ask (how extraction works, models, accuracy
+  and how it was measured, failure cases, EU data handling, cost per page), each with our answer.
+
+**Status log**
+- 2026-11-13 19:30 OPEN
+
 ## F-003 · 2026-11-13 17:50 · Partner rep, Stoa · OPEN
 - Based on core.md: template, not filled yet
 - Setting: booth chat (Bogdan)
