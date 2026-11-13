@@ -138,7 +138,7 @@ def test_ingest_writes_one_drawing_per_sheet_file_read_from_the_richest_source()
     ]
     assert png_sheet.trace[4] == "normalise: 1 page(s), page 1 is 40 x 30 px"
     assert png_sheet.trace[5] == "extract: 1 elements, 0 rooms, 0 plans, scale no_scale"
-    assert png_sheet.trace[8] == "takeoff: 27 quantities, 1 above zero"
+    assert png_sheet.trace[8] == "takeoff: 31 quantities, 1 above zero"
 
 
 def test_ingest_writes_what_a_second_method_measured_into_the_drawing() -> None:

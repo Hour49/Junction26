@@ -63,13 +63,18 @@ Step 1 writes `<out>/extraction/<source>/<file name>.json` (one extraction_v1 pe
 3. Add a `case` for it in `app/composition.py`.
 4. Select it in `backend/.env` (for example `EXTRACTOR_VECTOR=<name>`), rerun the golden set and score it.
 
+`EXTRACTOR_VECTOR=pdf` (`app/adapters/vector_pdf/`) reads a drawn PDF sheet, and the PNG of the same sheet, from the
+PDF alone: scale, plans, rooms with areas, apartments and elements for swiss_dwellings plans and for sheets rendered
+from an IFC model. Its rules and known misses are in the module docstrings.
+
 ## What works today
 
 | Part | State |
 | --- | --- |
 | Inventory with sha256, format from content, grouping by name, routing to the richest format | real, simple rules |
 | Page sizes of PDF, PNG and JPEG | real |
-| Extraction (all four routes) | hello world: nothing is read, scale `no_scale` |
+| Extraction, vector route | `EXTRACTOR_VECTOR=pdf`: swiss plans and IFC-rendered sheets from the PDF alone; other PDFs get their scale only. Default is still `hello` |
+| Extraction, bim, cad and raster routes | hello world: nothing is read, scale `no_scale` |
 | Second count | hello world: nothing is measured twice, so no conflicts |
 | Counting rules | one rule: every listed item counts once |
 | Takeoff | counts per element class, room type and plan; no areas, lengths or volumes |

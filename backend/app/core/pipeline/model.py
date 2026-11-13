@@ -108,12 +108,17 @@ class Counted(Frozen):
     marks: tuple[Mark, ...]
 
 
+# What a quantity of the takeoff measures, and its unit (stage 10).
+Measure = Literal["count", "area", "length", "volume", "text"]
+QuantityUnit = Literal["count", "m", "m2", "m3"]
+
+
 class Quantity(Frozen):
     """Stage 10: one precomputed answer of the takeoff, with its proof."""
 
-    key: str  # a key of COUNT_KEYS
-    value: int
-    unit: Literal["count"]
+    key: str  # app/core/pipeline/takeoff.py quantity_key(); a plain count is a key of COUNT_KEYS
+    value: int | float
+    unit: QuantityUnit
     marks: tuple[Mark, ...]
     rule: str  # the id of the counting rule
 
@@ -127,7 +132,7 @@ class SheetReport(Frozen):
     group: str
     route: Route
     source: str
-    takeoff: dict[str, int]
+    takeoff: dict[str, int | float]
     trace: tuple[str, ...]
 
 

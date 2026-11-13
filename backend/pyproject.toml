@@ -9,6 +9,7 @@ dependencies = [
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.3",
     "pypdfium2>=5.15.2",
+    "shapely>=2.1",
     "uvicorn>=0.54.0",
 ]
 

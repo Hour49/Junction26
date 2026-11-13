@@ -8,8 +8,8 @@ from app.core.answering.ports import AnswerSink, Clock, DrawingSource, QuestionP
 from app.core.pipeline.model import Quantity
 from app.core.pipeline.takeoff import known_quantities
 
-# `method` of an answer. answer_v1 has no field for why a question was refused, so the reason
-# goes after "refused:".
+# `method` of an answer: how it was answered, or "refused:<why>" (the reason in words goes in
+# answer_v1.1 `explanation`).
 TAKEOFF = "takeoff"
 NO_DRAWING = "refused:no-drawing"
 UNSUPPORTED_QUESTION = "refused:unsupported-question"
@@ -23,18 +23,20 @@ def answer_question(
     clock: Clock,
 ) -> Answer:
     """`quantities` is the takeoff of the question's drawing (`known_quantities`), or None when
-    the file has no drawing model. A refusal is an answer of None with the reason in `method`."""
+    the file has no drawing model. A refusal is an answer of None with the reason in `method`,
+    `abstain` true and the reason in words in `explanation` (answer_v1.1)."""
     start = clock()
     found: Quantity | None = None
     if quantities is None:
-        method = NO_DRAWING
+        method, why = NO_DRAWING, "the file has no drawing model"
     else:
         parsed = parser.parse(question.text)
         if isinstance(parsed, Unsupported):
-            method = UNSUPPORTED_QUESTION
+            method, why = UNSUPPORTED_QUESTION, parsed.reason
         else:
-            found = quantities.get(parsed.quantity)
+            found = quantities.get(parsed.key())
             method = NOT_IN_DRAWING if found is None else TAKEOFF
+            why = f"the drawing model does not give {parsed.key()}"
     return Answer(
         id=question.id,
         answer=None if found is None else found.value,
@@ -46,6 +48,8 @@ def answer_question(
         method=method,
         cost_usd=0.0,  # a lookup: no model is called on the drawing
         latency_s=clock() - start,
+        abstain=True if found is None else None,  # answer_v1.1: a refusal abstains, says why
+        explanation=why if found is None else None,
     )
 
 
