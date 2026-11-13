@@ -140,6 +140,8 @@
 <a id="i342"></a>
 ### 342. Propose with template matching, accept or reject each crop with a small VLM
 
+Reviewer's note: The 0.87 F1 quoted below is on 34 legend drawings. On the same paper's floor-plan blocks (arXiv 2610.09313, Table 20: 339 test items, 21 classes) template matching gets 0.58 and the trained exemplar counters 0.19 and 0.34. Expect the lower figure on plans.
+
 - What: Candidate crops from template matching (or from a low-threshold detector) go to a VLM that answers 'is this the same symbol'; count the accepted ones. Two-stage shape: cheap proposer, verifier.
 - Evidence (floor-plans): LegendSpot: propose-and-verify with eight VLMs F1 0.83-0.91, none significantly different from plain template matching; candidate ceiling 0.98 so the verifier is the loss (arXiv 2610.09313). Chalmers thesis: proposer recall up to 95.4%, then classification against the legend (F1 0.73).
 - Source: [arXiv 2610.09313](https://arxiv.org/abs/2610.09313)

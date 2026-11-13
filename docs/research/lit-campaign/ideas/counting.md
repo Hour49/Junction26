@@ -42,6 +42,8 @@
 <a id="i153"></a>
 ### 153. Second counter: template matching with a symbol cut from the same plan
 
+Reviewer's note: The 0.87 F1 quoted below is on 34 legend drawings. On the same paper's floor-plan blocks (arXiv 2610.09313, Table 20: 339 test items, 21 classes) template matching gets 0.58 and the trained exemplar counters 0.19 and 0.34. Expect the lower figure on plans.
+
 - What: Cut one single-cell symbol from the plan being counted (the detector's most confident box), slide it over the sheet with normalised cross-correlation at four 90-degree rotations and a few scales, take peaks, count them. Use it as the independent second count that feeds conflicts and abstention, not as the main count.
 - Evidence (floor-plans): LegendSpot, 34 architectural drawings, 660 instances: F1 0.87 with the drawing's own legend crop; exactly right on 14 of 40 drawings (10 of 20 small views, 4 of 20 large sheets) with a leave-one-out threshold, 23 of 40 with an oracle threshold (arXiv 2610.09313, appendix and repo summary). Drawings are larger than our plans.
 - Source: [arXiv 2610.09313](https://arxiv.org/abs/2610.09313), [opencv.org](https://opencv.org)
@@ -425,7 +427,7 @@
 <a id="i181"></a>
 ### 181. Template matching with a reference symbol from a library or legend
 
-Reviewer's note: Library and legend templates measured poorly; a symbol cut from the same plan is the version that works. A hand-drawn symbol bank stays an idea.
+Reviewer's note: Library and legend templates measured poorly; a symbol cut from the same plan is the version that works. A hand-drawn symbol bank stays an idea. Same-plan matching itself scores 0.58 on floor-plan blocks, against 0.87 on legend drawings (arXiv 2610.09313, Table 20).
 
 - What: Do not use a stock or legend symbol as the template; cut it from the plan itself.
 - Evidence (floor-plans): F1 falls from 0.87 to 0.38 (0.54 oracle threshold) when the reference comes from a library (arXiv 2610.09313); a master's thesis on electrical diagrams gets recall 0.70 but F1 0.52 with legend templates over the whole sheet and 0.73 on proposed regions, bottleneck is clean-legend vs drawn-instance appearance (stroke, scale).
