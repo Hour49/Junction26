@@ -368,7 +368,7 @@ function at(f, t) {
 const state = {
   view: 'ingest', role: 'engineer', plan: 'A', focus: 'doors', addMode: false,
   thread: [], asked: 0, spent: 0, focusIdx: 0,
-  ing: { t: -1, timer: null, zip: null, sel: { stage: 0 } },
+  ing: { t: -1, timer: null, zip: null },
 };
 
 /* ------------------------------------------------------------ plan → SVG */
@@ -638,110 +638,50 @@ function exportCSV(p) {
 
 /* ----------------------------------------------------------------- ingest */
 
+const HINTS = ['opening the zip safely', 'what each file really is', 'picking the best source per drawing',
+  'upright sheets, views and scale', 'reading rooms, doors, windows, fixtures', 'one schema for every drawing',
+  'a second, independent count', 'precomputing the answers'];
+const RING_R = 32, RING_C = 2 * Math.PI * RING_R;
+
 function renderIngest() {
   const g = state.ing;
-  $('#app').innerHTML = `
-    <div id="ing-top"></div>
-    <div class="rail" id="rail">${STAGES.map((s, i) => `<button class="stage" data-stage="${i}"><span class="num">${i + 1}</span><span class="name">${s.name}</span><span class="cnt">–</span><i class="prog"></i></button>`).join('')}</div>
-    <div id="ing-sum"></div>
-    <div class="ingest-cols">
-      <section class="card"><h2>Files in the archive <small>click a row to follow one file through the pipeline</small></h2>
-        <div class="tablewrap"><table><thead><tr><th>File</th><th>Detected as</th><th>Route</th><th>Stages</th><th>Result</th><th class="num">Cost</th></tr></thead>
-        <tbody id="files">${FILES.map((f, i) => `<tr class="click" data-file="${i}"><td class="path">${f.path}</td><td>${f.kind}<br><span class="lbl" style="text-transform:none;letter-spacing:0">${f.size}</span></td><td class="c-route"></td><td><div class="dots">${STAGES.map(() => '<i></i>').join('')}</div></td><td class="c-res"></td><td class="num c-cost"></td></tr>`).join('')}</tbody></table></div>
-      </section>
-      <section class="card detail"><h2 id="det-h"></h2><div class="body" id="det"></div></section>
-    </div>`;
-  g.detKey = null;
-  updateIngest();
-}
-
-function topHTML() {
-  const g = state.ing;
   if (g.t < 0) {
-    return `<div class="drop" id="drop"><div><h1>Drop a project archive here</h1>
-      <p>A zip of whatever the project has: CAD files, PDFs, scans, a BIM model, photos. It is ingested once. After that, questions are answered from the result, not from the files.</p></div>
-      <div class="actions"><button class="btn primary" id="sample">Use the sample archive (14 files)</button><label class="btn">Choose a zip<input type="file" id="pick" accept=".zip" hidden></label></div></div>`;
+    $('#app').innerHTML = `<div class="landing"><div class="drop" id="drop"><h1>Drop a project archive here (.zip)</h1>
+      <div class="actions"><button class="btn primary" id="sample">Use the sample archive (14 files)</button><label class="btn">Choose a zip<input type="file" id="pick" accept=".zip" hidden></label></div></div></div>`;
+    return;
   }
-  const done = g.t >= MAX_T;
-  return `<div class="runbar"><span class="zip">${esc(g.zip)}</span><span>${done ? 'Ingested' : 'Ingesting'} · ${FILES.filter((f) => at(f, g.t) > f.stop).length} of ${FILES.length} files through</span>
-    <span class="bar"><i style="width:${Math.min(100, 100 * g.t / MAX_T)}%"></i></span>
-    <span class="actions">${done ? '' : `<button class="btn small" id="pause">${g.timer ? 'Pause' : 'Resume'}</button><button class="btn small" id="skip">Skip to the end</button>`}<button class="btn small" id="again">Start over</button></span></div>
-    ${g.note ? `<p style="font-size:12px;color:var(--mute);margin-top:6px">${esc(g.note)}</p>` : ''}`;
-}
-
-function summaryHTML() {
-  const cost = FILES.reduce((s, f) => s + f.cost, 0);
-  return `<div class="summary">
-    <div><b>9</b><span>documents from 14 files (3 renderings merged, 2 set aside)</span></div>
-    <div><b>7</b><span>drawings with quantities: 3 vector, 1 model with 4 levels, 3 raster</span></div>
-    <div><b>88</b><span>quantities precomputed, each with its marks</span></div>
-    <div><b>3</b><span>in the review queue for a surveyor</span></div>
-    <div><b>${eur(cost)}</b><span>inference cost of the whole ingest. Vector and model files cost nothing.</span></div>
-    <div class="go"><span>The archive is ready. Open it as:</span><button class="btn primary" data-open="engineer">Engineer: ask a question</button><button class="btn primary" data-open="surveyor">Surveyor: check the takeoff</button></div>
-  </div>`;
-}
-
-function modelExcerpt(p) {
-  const r = p.rooms[0], d = p.doors[0], w = p.windows[0];
-  const box = (...v) => v.map((n) => Math.round(n * S));
-  return JSON.stringify({
-    source: { file: p.file + (p.route === 'vector' ? '.dxf' : '.png'), sha256: p.route === 'vector' ? 'c21f88b0…' : 'b3d9a172…', route: p.route },
-    views: [{ id: 'v1', type: 'floor_plan', rotation_applied: p.scan ? 180 : 0, scale: p.scan ? { ratio: '1:100', from: 'scale_bar', uncertainty: 0.015 } : { ratio: 'real-world', from: 'cad_units', uncertainty: 0 } }],
-    rooms: [{ id: r.id, label: r.name, unit: r.apt, indoor: true, area_m2: +area(r).toFixed(2), region: box(r.x, r.y, r.w, r.h), method: p.route === 'vector' ? 'wall_loops' : 'wall_segmentation', confidence: p.scan ? 0.93 : 1 }, `… ${p.rooms.length - 1} more`],
-    openings: [{ id: d.id, kind: 'door', has_leaf: !d.open, leaves: 1, between: d.name, region: box(d.x - 0.5, d.y - 0.5, 1, 1), confidence: p.scan ? 0.96 : 1 },
-      { id: w.id, kind: 'window', region: box(w.x - 0.7, w.y - 0.2, 1.4, 0.4), confidence: p.scan ? 0.91 : 1 }, `… ${p.doors.length + p.windows.length - 2} more`],
-    fixtures: [`${p.fixtures.length} items`],
-    quantities: Object.fromEntries(Object.values(p.q).map((q) => [q.key, { value: +fmt(q, q.origValue), second_method: q.kind === 'count' ? q.altValue : 'agrees', review: status(q)[0] === 'warn' && !q.signed }])),
-  }, null, 1).replace(/\[\n\s+(-?\d+),\n\s+(-?\d+),\n\s+(-?\d+),\n\s+(-?\d+)\n\s+\]/g, '[$1, $2, $3, $4]');
-}
-
-function detailHTML() {
-  const g = state.ing, sel = g.sel;
-  if (sel.stage !== undefined) {
-    const s = STAGES[sel.stage];
-    const through = FILES.filter((f) => f.stop >= sel.stage);
-    return [`Stage ${sel.stage + 1}: ${s.name}`, `<p style="margin-bottom:10px">${s.what}</p><dl>
-      <dt>How</dt><dd><ul>${s.how.map((h) => `<li>${h}</li>`).join('')}</ul></dd>
-      <dt>Output</dt><dd>${s.out}</dd><dt>If it fails</dt><dd>${s.fail}</dd><dt>Cost</dt><dd>${s.cost}</dd>
-      <dt>In this run</dt><dd>${through.length} of ${FILES.length} files reach this stage${g.t >= 0 ? `, ${through.filter((f) => at(f, g.t) > sel.stage).length} are through it` : ''}.</dd></dl>`];
-  }
-  const f = FILES[sel.file], k = at(f, g.t), p = f.plan && PLANS[f.plan];
-  const steps = STAGES.map((s, i) => {
-    const cls = i > f.stop ? 'na' : k > i ? 'done' : k === i ? 'now' : 'wait';
-    const body = cls === 'done' ? `<div class="lines">${f.t[i].map((l) => `<div${/flag|contested|refused|unavailable|not reliable|set aside|ignored/.test(l) ? ' class="flag"' : ''}>${esc(l)}</div>`).join('')}</div>`
-      : cls === 'now' ? '<div class="lines"><div>working…</div></div>' : '';
-    return `<li class="${cls}" data-n="${i + 1}"><span class="sname">${s.name}</span>${cls === 'na' ? ' · not needed for this file' : ''}${body}</li>`;
-  }).join('');
-  const finished = k > f.stop;
-  return [f.path, `<p class="sub">${f.kind} · ${f.size}${finished ? ` · ingest cost ${eur(f.cost)}` : ''}</p><ol class="trace">${steps}</ol>
-    ${finished && p ? `<p style="margin-top:12px"><span class="lbl">Drawing model written for this file (excerpt)</span></p><pre class="json">${esc(modelExcerpt(p))}</pre>
-      <p style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn small primary" data-open="engineer" data-openplan="${p.id}">Ask about it</button><button class="btn small primary" data-open="surveyor" data-openplan="${p.id}">Check its takeoff</button></p>` : ''}`];
+  $('#app').innerHTML = `<div class="run"><div class="run-head"><span class="eyebrow"><i class="live"></i> Analysing now</span>
+    <h1>${esc(g.zip)}</h1><p>Reading every drawing once, so later questions are answered from the result, not from the files.</p></div>
+    <div class="console" id="console"></div>
+    ${g.note ? `<p class="run-note">${esc(g.note)}</p>` : ''}
+    <div class="run-actions"><button class="btn" id="again">${g.t >= MAX_T ? 'New archive' : 'Stop'}</button><button class="btn${g.t >= MAX_T ? ' primary' : ''}" id="skip">${g.t >= MAX_T ? 'Open the workspace' : 'Skip to the end'}</button></div></div>`;
+  updateIngest();
 }
 
 function setHTML(node, html) { if (node.dataset.h !== html) { node.innerHTML = html; node.dataset.h = html; } }
 
 function updateIngest() {
   const g = state.ing, t = g.t;
-  setHTML($('#ing-top'), topHTML());
-  setHTML($('#ing-sum'), t >= MAX_T ? summaryHTML() : '');
-  document.querySelectorAll('#rail .stage').forEach((b, i) => {
-    const through = FILES.filter((f) => f.stop >= i), done = through.filter((f) => at(f, t) > i).length;
-    b.className = 'stage' + (g.sel.stage === i ? ' sel' : '') + (done === through.length && t >= 0 ? ' done' : '') + (FILES.some((f) => at(f, t) === i && i <= f.stop) ? ' active' : '');
-    $('.cnt', b).textContent = t < 0 ? `${through.length} files will pass` : `${done} / ${through.length}`;
-    $('.prog', b).style.width = t < 0 ? '0' : 100 * done / through.length + '%';
-  });
-  document.querySelectorAll('#files tr').forEach((tr, i) => {
-    const f = FILES[i], k = at(f, t), fin = k > f.stop;
-    tr.className = 'click' + (g.sel.file === i ? ' sel' : '');
-    tr.style.opacity = t >= 0 && k < 0 ? 0.45 : 1;
-    tr.querySelectorAll('.dots i').forEach((d, j) => { d.className = j > f.stop ? 'na' : k > j ? 'done' : k === j ? 'now' : ''; });
-    setHTML($('.c-route', tr), k > 2 || (fin && k > 1) ? `<span class="chip ${ROUTE_CHIP[f.route][0]}">${ROUTE_CHIP[f.route][1]}</span>` : '');
-    setHTML($('.c-res', tr), fin ? `<span class="chip ${f.res[0]}">${f.res[1]}</span>` : k >= 0 ? `<span class="lbl">${STAGES[Math.min(k, f.stop)].name}</span>` : '');
-    setHTML($('.c-cost', tr), fin ? eur(f.cost) : '');
-  });
-  const [h, body] = detailHTML();
-  $('#det-h').textContent = h;
-  setHTML($('#det'), body);
+  if (t < 0 || !$('#console')) return renderIngest();
+  const n = STAGES.length, frac = Math.min(1, t / MAX_T), idx = Math.min(n - 1, Math.floor(frac * n)), pct = Math.round(frac * 100);
+  const fin = FILES.filter((f) => at(f, t) > f.stop), cost = fin.reduce((sum, f) => sum + f.cost, 0);
+  const drawings = fin.filter((f) => f.stop === n - 1).length, total = FILES.filter((f) => f.stop === n - 1).length;
+  const rows = STAGES.map((st, i) => {
+    const cls = frac >= 1 || i < idx ? 'done' : i === idx ? 'active' : 'pending';
+    const through = FILES.filter((f) => f.stop >= i), passed = through.filter((f) => at(f, t) > i).length;
+    return `<div class="srow ${cls}"><div class="shead"><span class="sicon"></span><span class="slabel">${st.name}</span>${cls === 'active' ? `<span class="shint">${HINTS[i]}</span>` : ''}</div>
+      ${cls === 'active' ? `<div class="sdetail"><div class="sbar"><span style="width:${Math.round(100 * passed / through.length)}%"></span></div><span>${passed} / ${through.length} files</span></div>` : ''}</div>`;
+  }).join('');
+  setHTML($('#console'), `<div class="ctop"><div><span class="eyebrow"><i class="live"></i> ${frac >= 1 ? 'Done' : `Working on step ${idx + 1} of ${n}`}</span>
+      <h3>${frac >= 1 ? 'Ready' : STAGES[idx].name}</h3><p>${frac >= 1 ? '9 drawings indexed. Questions are answered from the result.' : HINTS[idx]}</p></div>
+      <div class="ring"><svg viewBox="0 0 80 80"><circle class="rtrack" cx="40" cy="40" r="${RING_R}"/><circle class="rfill" cx="40" cy="40" r="${RING_R}" stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C * (1 - frac)}"/></svg><span>${pct}<small>%</small></span></div></div>
+    <div class="cstats">
+      <div><span>Elapsed</span><b>${Math.round(t * 0.26)}s</b></div>
+      <div><span>Remaining</span><b>${frac >= 1 ? '–' : '~' + Math.max(1, Math.round((MAX_T - t) * 0.26)) + 's'}</b></div>
+      <div><span>Files through</span><b>${fin.length} / ${FILES.length}</b></div>
+      <div><span>Drawings ready</span><b>${drawings} / ${total}</b></div>
+      <div><span>Inference cost</span><b>${eur(cost)}</b></div></div>
+    <div class="ctimeline"><div class="thead"><span class="lbl">Pipeline</span><div class="ttrack"><i style="width:${pct}%"></i></div></div>${rows}</div>`);
 }
 
 function startIngest(name, note) {
@@ -754,7 +694,7 @@ function startIngest(name, note) {
 function tick() {
   const g = state.ing;
   g.t++;
-  if (g.t >= MAX_T) { clearInterval(g.timer); g.timer = null; }
+  if (g.t >= MAX_T) { clearInterval(g.timer); g.timer = null; setTimeout(() => { if (state.view === 'ingest' && g.t >= MAX_T) openWork('engineer'); }, 900); }
   if (state.view === 'ingest') updateIngest();
 }
 
@@ -767,20 +707,14 @@ function openWork(role, plan) {
 
 function ingestClick(ev) {
   const g = state.ing, t = (sel) => ev.target.closest(sel);
-  let el;
   if (t('#sample')) return startIngest('harbour-block-archive.zip');
-  if (t('#pause')) { if (g.timer) { clearInterval(g.timer); g.timer = null; } else g.timer = setInterval(tick, 260); return updateIngest(); }
-  if (t('#skip')) { clearInterval(g.timer); g.timer = null; g.t = MAX_T; return updateIngest(); }
-  if (t('#again')) { clearInterval(g.timer); g.timer = null; g.t = -1; g.sel = { stage: 0 }; return updateIngest(); }
-  if ((el = t('[data-open]'))) return openWork(el.dataset.open, el.dataset.openplan);
-  if ((el = t('[data-stage]'))) { g.sel = { stage: +el.dataset.stage }; return updateIngest(); }
-  if ((el = t('[data-file]'))) { g.sel = { file: +el.dataset.file }; return updateIngest(); }
+  if (t('#skip')) { clearInterval(g.timer); g.timer = null; return openWork('engineer'); }
+  if (t('#again')) { clearInterval(g.timer); g.timer = null; g.t = -1; return updateIngest(); }
 }
 
 /* ------------------------------------------------------------------- shell */
 
 function render() {
-  document.querySelectorAll('.steps button').forEach((b) => b.classList.toggle('on', b.dataset.view === state.view));
   document.querySelectorAll('#roleSwitch button').forEach((b) => b.classList.toggle('on', b.dataset.role === state.role));
   $('#roleSwitch').hidden = state.view !== 'work';
   if (state.view === 'ingest') renderIngest(); else renderWork();
@@ -801,11 +735,6 @@ app.addEventListener('drop', (ev) => {
   const f = ev.dataTransfer.files[0];
   startIngest(f ? f.name : 'harbour-block-archive.zip', f ? 'This mock does not read your file. It plays the sample archive under your file\'s name.' : '');
 });
-document.querySelector('.steps').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-view]'); if (!b) return;
-  if (b.dataset.view === 'work') { state.view = 'work'; if (state.focusIdx === undefined) state.focusIdx = 0; } else state.view = 'ingest';
-  render();
-});
 $('#roleSwitch').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-role]'); if (!b) return;
   state.role = b.dataset.role; state.addMode = false;
@@ -819,6 +748,6 @@ $('#roleSwitch').addEventListener('click', (ev) => {
   if (v === 'work') { state.view = 'work'; state.role = a === 'surveyor' ? 'surveyor' : 'engineer'; if (PLANS[b]) state.plan = b; state.focusIdx = 0;
     if (state.role === 'engineer') { render(); return ask(SUGGEST[state.plan][0]); }
     if (state.plan === 'B') state.focus = 'windows'; }
-  if (v === 'ingest' && a === 'done') { state.ing.zip = 'harbour-block-archive.zip'; state.ing.t = MAX_T; state.ing.sel = { file: 8 }; }
+  if (v === 'ingest' && a === 'done') { state.ing.zip = 'harbour-block-archive.zip'; state.ing.t = MAX_T; }
   render();
 })();
