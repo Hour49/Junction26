@@ -72,3 +72,17 @@ labelled estimate, instead of a question to abstain on. The extras get a matchin
 `expect: {"answer": <gold value>, "tolerance": 0.2, "estimate": true}`; it passes when the value is within the
 relative tolerance (units converted as for any answer) and the answer says `estimate: true`. It is its own slice,
 outside the headline.
+
+## Amendment, 2026-11-14 00:31: `text_claims_v1`
+
+- Decided by: the orchestrator (golden-9 brief), on review-7's proposal D52 (accepted 2026-11-13); written by agent
+  golden (worker).
+
+The free-text questions get a second score next to exact match. A golden-owned file,
+`part2_answering/text_claims.jsonl` (schema `eval/schemas/text_claims_v1.schema.json`), lists per text question
+the numbers (value and unit) and names a right answer states. A text answer passes the claims score when it states
+every claimed number (counts exact, measures within 2% after unit conversion) and contains every claimed name as
+whole words. answer_v1 itself does not change: the answer stays a string, and the headline still scores text by
+exact match. Gold makers write the claims file: review agents write the lines (holdout ones included, as for the
+counts-only gold of the eval files). The system that answers, and the agents who build it, never read it. Rules:
+[docs/GOLDEN.md](../GOLDEN.md) "Text claims".

@@ -1,0 +1,130 @@
+{
+  "$defs": {
+    "NameClaim": {
+      "additionalProperties": false,
+      "description": "A name, code or phrase a right answer contains (any one of `name` and `aliases`).",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "aliases": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "NameClaim",
+      "type": "object"
+    },
+    "NumberClaim": {
+      "additionalProperties": false,
+      "description": "A number a right answer states, in any unit of the same kind (2% for measures, exact\ncounts).",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "ge": 0,
+          "title": "Value"
+        },
+        "unit": {
+          "description": "count; m, cm, mm, ft, in; m2, ft2; min, h",
+          "enum": [
+            "count",
+            "m",
+            "cm",
+            "mm",
+            "ft",
+            "in",
+            "m2",
+            "ft2",
+            "min",
+            "h"
+          ],
+          "title": "Unit",
+          "type": "string"
+        },
+        "what": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "what the number is, for the reader",
+          "title": "What"
+        }
+      },
+      "required": [
+        "value",
+        "unit"
+      ],
+      "title": "NumberClaim",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One line of part2_answering/text_claims.jsonl: what a right answer to a golden free-text\nquestion says (D52, golden-8 brief). Scored as its own line, never in the headline.",
+  "properties": {
+    "id": {
+      "description": "the golden text question's id",
+      "minimum": 1,
+      "title": "Id",
+      "type": "integer"
+    },
+    "numbers": {
+      "items": {
+        "$ref": "#/$defs/NumberClaim"
+      },
+      "title": "Numbers",
+      "type": "array"
+    },
+    "names": {
+      "items": {
+        "$ref": "#/$defs/NameClaim"
+      },
+      "title": "Names",
+      "type": "array"
+    },
+    "by": {
+      "description": "who curated the line, e.g. review-8",
+      "minLength": 1,
+      "title": "By",
+      "type": "string"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    }
+  },
+  "required": [
+    "id",
+    "by"
+  ],
+  "title": "TextClaims_v1",
+  "type": "object"
+}

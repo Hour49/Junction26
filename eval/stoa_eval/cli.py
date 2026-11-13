@@ -1,9 +1,11 @@
 """Command line: `python -m stoa_eval <command>` (from eval/): split, select, select-plans,
-baseline, baseline-extraction, score, score-extraction, history, validate-extraction, schema."""
+baseline, baseline-extraction, score, score-extraction, history, series, validate-extraction,
+schema."""
 
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -22,24 +24,30 @@ from .extraction_scoring import format_extraction_table, score_extraction
 from .extras_scoring import format_slices, score_golden
 from .families import group_of, source_of
 from .history import (
+    Provenance,
     format_extraction_history,
     format_history,
     format_progress,
+    format_series_markdown,
     make_extraction_record,
     make_record,
     read_extraction_history,
     read_history,
+    series,
     write_extraction_csv,
     write_history_csv,
 )
 from .jsonl import iter_jsonl, read_jsonl, write_jsonl
 from .models import (
     SCHEMA_DIR,
+    SETTING_NAME,
+    SETTING_VALUE,
     Answer,
     ExtraItem,
     GoldenItem,
     NumberedQuestion,
     Question,
+    TextClaims,
     render_schemas,
 )
 from .plans import (
@@ -77,6 +85,7 @@ GOLDEN_DIR = REPO / "data/stoa/golden"
 GOLDEN_V2 = GOLDEN_DIR / "v2"  # two parts: extraction (part1) and answering (part2)
 PART1, PART2, V2_MANIFEST = "part1_extraction", "part2_answering", "manifest.json"
 EXTRAS = "extras.jsonl"  # part2_answering/extras.jsonl: questions Stoa didn't write
+TEXT_CLAIMS = "text_claims.jsonl"  # part2_answering/text_claims.jsonl: curated (review-8)
 CONFLICTS_DIR = "_conflicts"  # under the extraction gold: conflicts.jsonl and extras.jsonl
 DEFAULT_GOLDEN = GOLDEN_V2 / PART2 / "questions.jsonl"
 EXTRACTION_GOLD = REPO / "data/stoa/extraction_gold"
@@ -109,6 +118,33 @@ def _extras_for(golden: Path) -> Path | None:
 
 def _read_extras(path: Path | None) -> list[ExtraItem]:
     return [line for _, line in read_jsonl(path, ExtraItem)] if path else []
+
+
+def _claims_for(golden: Path) -> tuple[list[TextClaims], str | None]:
+    """part2_answering/text_claims.jsonl next to a v2 questions file and its sha256, when it
+    exists."""
+    path = golden.with_name(TEXT_CLAIMS)
+    if golden.parent.name != PART2 or not path.exists():
+        return [], None
+    return [line for _, line in read_jsonl(path, TextClaims)], _sha256(path)
+
+
+def _v2_gold(golden_dir: Path) -> dict[str, tuple[Path, Extraction]]:
+    """Golden v2's Part 1 gold, after checking each file is the one select-plans wrote."""
+    manifest = PlansManifest.model_validate_json((golden_dir / V2_MANIFEST).read_text("utf-8"))
+    gold = _extractions(golden_dir / PART1 / "gold")
+    for path, _ in gold.values():
+        key = path.relative_to(golden_dir).as_posix()
+        if manifest.files_sha256.get(key) != _sha256(path):
+            raise ValueError(f"{path} is not the file select-plans wrote: run it again")
+    return gold
+
+
+def _part1_gold_for(golden: Path) -> dict[str, Extraction] | None:
+    """file -> extraction gold of the v2 that a part2 questions file belongs to; None for v1."""
+    if golden.parent.name != PART2:
+        return None
+    return {file: extraction for file, (_, extraction) in _v2_gold(golden.parent.parent).items()}
 
 
 def _extractions(folder: Path) -> dict[str, tuple[Path, Extraction]]:
@@ -151,19 +187,60 @@ def _split_manifest(split_dir: Path, questions: Path | None = None) -> SplitMani
     return manifest
 
 
-def _git_commit() -> tuple[str, bool]:
-    """Short sha of HEAD, and whether tracked files have uncommitted changes."""
-
-    def git(*args: str) -> str:
+def _git(*args: str) -> str:
+    try:
         done = subprocess.run(
             ["git", "-C", str(REPO), *args], capture_output=True, text=True, check=True
         )
-        return done.stdout.strip()
-
-    try:
-        return git("rev-parse", "--short", "HEAD"), bool(git("status", "--porcelain", "-uno"))
     except (OSError, subprocess.CalledProcessError) as error:
         raise ValueError(f"can't read the git commit to record the run: {error}") from error
+    return done.stdout.strip()
+
+
+def _git_commit() -> tuple[str, bool]:
+    """Short sha of HEAD, and whether tracked files have uncommitted changes."""
+    return _git("rev-parse", "--short", "HEAD"), bool(_git("status", "--porcelain", "-uno"))
+
+
+def _committed_at(commit: str) -> datetime:
+    return datetime.fromisoformat(_git("show", "-s", "--format=%cI", commit)).astimezone(HELSINKI)
+
+
+def _settings(pairs: Sequence[str] | None) -> dict[str, str] | None:
+    """`--setting NAME=VALUE` pairs as the record keeps them: names lowercased, plain values."""
+    if not pairs:
+        return None
+    settings: dict[str, str] = {}
+    for pair in pairs:
+        name, sep, value = pair.partition("=")
+        name = name.strip().lower()
+        if (
+            not sep
+            or not re.fullmatch(SETTING_NAME, name)
+            or not re.fullmatch(SETTING_VALUE, value)
+        ):
+            raise ValueError(
+                f"--setting {pair!r}: give NAME=VALUE with a plain name and value (letters, "
+                "digits, _ . : + -; no paths, the record is public)"
+            )
+        if name in settings:
+            raise ValueError(f"--setting {name} is given twice")
+        settings[name] = value
+    return settings
+
+
+def _provenance(args: argparse.Namespace) -> Provenance:
+    """The code that made the predictions: HEAD of this tree, or with --commit a clean export of
+    that commit (dirty false), scored by this tree's HEAD (eval_commit)."""
+    head, head_dirty = _git_commit()
+    settings = _settings(args.setting)
+    if args.commit is None:
+        return Provenance(head, head_dirty, _committed_at(head), settings=settings)
+    try:
+        commit = _git("rev-parse", "--verify", "--short", f"{args.commit}^{{commit}}")
+    except ValueError as error:
+        raise ValueError(f"--commit {args.commit}: not a commit of this repo") from error
+    return Provenance(commit, False, _committed_at(commit), head, head_dirty, settings)
 
 
 def _cell_keys(text: str) -> tuple[CellKey, ...]:
@@ -255,7 +332,9 @@ def run_select(args: argparse.Namespace) -> None:
 def run_baseline(args: argparse.Namespace) -> None:
     golden = [item for _, item in read_jsonl(args.golden, GoldenItem)]
     if args.name == "oracle":
-        answers = baselines.oracle(golden, _read_extras(_extras_for(args.golden)))
+        answers = baselines.oracle(
+            golden, _read_extras(_extras_for(args.golden)), _part1_gold_for(args.golden)
+        )
     else:
         _, _, split_sha256 = _golden_meta(args.golden)
         _split_manifest(args.split_dir)
@@ -294,6 +373,7 @@ def _recorded(args: argparse.Namespace) -> bool:
         raise ValueError(
             "--out is for --no-record; a recorded run's detail goes to --runs-dir/<stem>.json"
         )
+    args.provenance = _provenance(args)  # before scoring, so a bad --commit or --setting fails fast
     return True
 
 
@@ -328,7 +408,17 @@ def run_score(args: argparse.Namespace) -> None:
         extra_ids = {line.id for line in extras}
         base = score(golden, [answer for answer in answers if answer.id not in extra_ids])
         extras_sha256 = _sha256(extras_path) if extras_path else None
-        result = score_golden(base, golden, answers, extras, extras_sha256)
+        claims, claims_sha256 = _claims_for(args.golden)
+        result = score_golden(
+            base,
+            golden,
+            answers,
+            extras,
+            extras_sha256,
+            part1_gold=_part1_gold_for(args.golden),
+            claims=claims,
+            claims_sha256=claims_sha256,
+        )
         print(format_table(result))
         slices = format_slices(result)
         if slices:
@@ -351,7 +441,6 @@ def run_score(args: argparse.Namespace) -> None:
     out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     print(f"wrote {out}")
     if stem is not None:
-        commit, dirty = _git_commit()
         record = make_record(
             result,
             against=args.against,
@@ -361,8 +450,7 @@ def run_score(args: argparse.Namespace) -> None:
             golden_version=golden_version,
             questions_sha256=questions_sha256,
             score_sha256=_sha256(out),
-            commit=commit,
-            dirty=dirty,
+            provenance=args.provenance,
             now=datetime.now(HELSINKI),
             reads=args.reads if args.against == "golden" else None,
         )
@@ -605,11 +693,7 @@ def run_score_extraction(args: argparse.Namespace) -> None:
     if args.against == "golden":
         manifest = PlansManifest.model_validate_json((args.golden_dir / V2_MANIFEST).read_text())
         golden_version = manifest.params.version
-        gold = _extractions(args.golden_dir / PART1 / "gold")
-        for path, _ in gold.values():
-            key = path.relative_to(args.golden_dir).as_posix()
-            if manifest.files_sha256.get(key) != _sha256(path):
-                raise ValueError(f"{path} is not the file select-plans wrote: run it again")
+        gold = _v2_gold(args.golden_dir)
         listed = [row for _, row in read_jsonl(args.golden_dir / PART1 / "files.jsonl", PlanFile)]
         chosen = [gold[row.file] for row in listed if row.file in gold]
         slice_only = {row.file for row in listed if row.stratum == "conflict"}
@@ -632,7 +716,6 @@ def run_score_extraction(args: argparse.Namespace) -> None:
         digest = hashlib.sha256()
         for path, extraction in sorted(chosen, key=lambda entry: entry[1].file):
             digest.update(f"{extraction.file}\n{_sha256(path)}\n".encode())
-        commit, dirty = _git_commit()
         record = make_extraction_record(
             result,
             against=args.against,
@@ -642,8 +725,7 @@ def run_score_extraction(args: argparse.Namespace) -> None:
             golden_version=golden_version,
             gold_sha256=digest.hexdigest(),
             score_sha256=_sha256(out),
-            commit=commit,
-            dirty=dirty,
+            provenance=args.provenance,
             now=datetime.now(HELSINKI),
         )
         _keep(args, stem, record)
@@ -671,6 +753,22 @@ def run_history(args: argparse.Namespace) -> None:
         if args.part != "answering":
             write_extraction_csv(args.csv / "extraction.csv", extraction)
             print(f"wrote {args.csv / 'extraction.csv'}")
+
+
+def run_series(args: argparse.Namespace) -> None:
+    """The method's points on the golden set as a markdown table (Bogdan, 2026-11-13 22:49: "so at
+    the end we will be able to show the improvement")."""
+    points = series(
+        args.name,
+        read_history(args.results),
+        read_extraction_history(args.results),
+        args.golden_version,
+    )
+    if not points:
+        raise ValueError(
+            f"no recorded golden {args.golden_version} runs named {args.name!r} in {args.results}"
+        )
+    print(format_series_markdown(points, args.name, args.golden_version))
 
 
 def run_baseline_extraction(args: argparse.Namespace) -> None:
@@ -736,6 +834,17 @@ def _recording_args(command: argparse.ArgumentParser) -> None:
     )
     command.add_argument(
         "--runs-dir", type=Path, default=RUNS_DIR, help="where a recorded run's full score goes"
+    )
+    command.add_argument(
+        "--commit",
+        help="the predictions came from a clean export (git archive) of this commit: it is "
+        "recorded as the run's commit with dirty false, and this tree's HEAD as eval_commit",
+    )
+    command.add_argument(
+        "--setting",
+        action="append",
+        metavar="NAME=VALUE",
+        help="a setting the run used, e.g. EXTRACTOR_VECTOR=pdf; repeat for each",
     )
 
 
@@ -844,6 +953,12 @@ def parser() -> argparse.ArgumentParser:
         "--progress", action="store_true", help="per method: first vs latest vs best"
     )
     history.set_defaults(run=run_history)
+
+    points = commands.add_parser("series", help="one method's runs as a markdown table")
+    points.add_argument("--name", default="pipeline", help="the method (default: pipeline)")
+    points.add_argument("--golden-version", default="v2")
+    points.add_argument("--results", type=Path, default=RESULTS)
+    points.set_defaults(run=run_series)
 
     check = commands.add_parser("validate-extraction", help="check extraction_v1 JSON files")
     check.add_argument("paths", type=Path, nargs="+", help="files, or folders searched for *.json")

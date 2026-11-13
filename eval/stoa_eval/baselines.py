@@ -1,30 +1,37 @@
 """Two baselines that call no API.
 
-- oracle: the golden answers themselves, with confidence 1, and the expected behaviour on every
-  extras line (abstain on unanswerable ones, both values on conflict ones, `estimate: true` on
-  estimate ones). It must score 100% on
-  the headline and on every slice; anything less is a scorer bug.
+- oracle: the golden answers themselves, with confidence 1, one evidence box per gold item each
+  answer is about (when Part 1 gold is given), and the expected behaviour on every extras line
+  (abstain on unanswerable ones, both values on conflict ones, `estimate: true` on estimate ones).
+  It must score 100% on the headline and on every slice; anything less is a scorer bug.
 - constant: per question template, the typical answer among dev questions that are not in the golden
   set (median for area/length/volume, most common value otherwise). A template with no such question
   falls back to its source and type. This is the floor any real method has to beat.
 """
 
 from collections import Counter, defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
+from .evidence_scoring import oracle_evidence
 from .extraction import Extraction
 from .models import Answer, AnswerValue, ConflictValue, ExtraItem, GoldenItem, Unit
 
 CONTINUOUS_TYPES = frozenset({"area", "length", "volume"})
 
 
-def oracle(golden: Sequence[GoldenItem], extras: Sequence[ExtraItem] = ()) -> list[Answer]:
+def oracle(
+    golden: Sequence[GoldenItem],
+    extras: Sequence[ExtraItem] = (),
+    part1_gold: Mapping[str, Extraction] | None = None,
+) -> list[Answer]:
+    """With `part1_gold` (file -> extraction gold), each golden answer cites one box per gold item
+    it is about (evidence_scoring.oracle_evidence)."""
     answers = [
         Answer(
             id=item.id,
             answer=item.answer,
             unit=item.unit,
-            evidence=[],
+            evidence=oracle_evidence(item, part1_gold) if part1_gold is not None else [],
             method="oracle",
             cost_usd=0.0,
             latency_s=0.0,

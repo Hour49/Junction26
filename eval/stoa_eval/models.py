@@ -273,6 +273,54 @@ class ExtraItem(BaseModel):
         return self
 
 
+ClaimUnit = Literal["count", "m", "cm", "mm", "ft", "in", "m2", "ft2", "min", "h"]
+
+
+class NumberClaim(BaseModel):
+    """A number a right answer states, in any unit of the same kind (2% for measures, exact
+    counts)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    value: StrictInt | StrictFloat = Field(ge=0)
+    unit: ClaimUnit = Field(description="count; m, cm, mm, ft, in; m2, ft2; min, h")
+    what: str | None = Field(default=None, description="what the number is, for the reader")
+
+    @model_validator(mode="after")
+    def _count_is_whole(self) -> Self:
+        if self.unit == "count" and not isinstance(self.value, int):
+            raise ValueError(f"a count claim is a whole number, not {self.value!r}")
+        return self
+
+
+class NameClaim(BaseModel):
+    """A name, code or phrase a right answer contains (any one of `name` and `aliases`)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    aliases: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list[str])
+
+
+class TextClaims(BaseModel):
+    """One line of part2_answering/text_claims.jsonl: what a right answer to a golden free-text
+    question says (D52, golden-8 brief). Scored as its own line, never in the headline."""
+
+    model_config = ConfigDict(extra="forbid", title="TextClaims_v1")
+
+    id: int = Field(ge=1, description="the golden text question's id")
+    numbers: list[NumberClaim] = Field(default_factory=list[NumberClaim])
+    names: list[NameClaim] = Field(default_factory=list[NameClaim])
+    by: str = Field(min_length=1, description="who curated the line, e.g. review-8")
+    note: str | None = None
+
+    @model_validator(mode="after")
+    def _says_something(self) -> Self:
+        if not self.numbers and not self.names:
+            raise ValueError(f"text claims {self.id}: give at least one number or name")
+        return self
+
+
 Against = Literal["golden", "all", "dev", "eval"]
 
 
@@ -316,6 +364,41 @@ class ExtrasRecord(BaseModel):
     )
     estimate_value_right: Ratio | None = None
     estimate_labelled: Ratio | None = None
+
+
+class EvidenceHitsGroup(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    questions: int = Field(ge=0)
+    with_boxes: int = Field(ge=0, description="questions whose answer has an evidence box")
+    precision: Ratio = Field(description="boxes; correct = boxes that hit a gold target")
+    recall: Ratio = Field(description="gold targets; correct = targets some box hits")
+
+
+class EvidenceHitsRecord(BaseModel):
+    """Evidence hit rate on golden v2 (numeric questions on files with gold item boxes); not
+    headline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rule: str = Field(description="the hit test, in words")
+    overall: EvidenceHitsGroup
+    by_source: dict[str, EvidenceHitsGroup]
+    by_source_family: dict[str, EvidenceHitsGroup] = Field(
+        description="source/what the question counts, e.g. swiss_dwellings/door"
+    )
+
+
+class TextClaimsRecord(BaseModel):
+    """Free-text golden questions scored by curated claims (D52); not headline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    claims_sha256: str
+    passed: Ratio = Field(description="text questions with claims; correct = every claim met")
+    numbers: Ratio = Field(description="number claims matched one to one")
+    names: Ratio = Field(description="name claims found")
+    without_claims: int = Field(ge=0, description="golden text questions with no claims line")
 
 
 class CalibrationBucket(BaseModel):
@@ -387,6 +470,14 @@ class ConflictsRecord(BaseModel):
     by_quantity: dict[str, ConflictCounts]
 
 
+Commit = Annotated[str, Field(pattern=r"^[0-9a-f]{7,40}$")]
+# A setting the run used, `name = value` with the name lowercased (backend settings such as
+# extractor_vector = pdf). Names and plain values only: the repo is public, so no paths.
+SETTING_NAME, SETTING_VALUE = r"^[a-z][a-z0-9_]{0,63}$", r"^[A-Za-z0-9_.:+-]{1,64}$"
+SettingName = Annotated[str, Field(pattern=SETTING_NAME)]
+SettingValue = Annotated[str, Field(pattern=SETTING_VALUE)]
+
+
 class RunRecord(BaseModel):
     """One recorded score run, a file in eval/results/runs/ (run_record_v1). The repo is public, so
     a row holds aggregates only: no question text, answers, templates or file names."""
@@ -394,8 +485,23 @@ class RunRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", title="RunRecord_v1")
 
     recorded_at: AwareDatetime = Field(description="from the clock, Europe/Helsinki")
-    commit: str = Field(pattern=r"^[0-9a-f]{7,40}$", description="short git sha of HEAD")
-    dirty: bool = Field(description="tracked files had uncommitted changes")
+    commit: Commit = Field(
+        description="short git sha of the code that made the predictions: HEAD, or the clean "
+        "export named with --commit"
+    )
+    dirty: bool = Field(description="that code had uncommitted changes (false for an export)")
+    committed_at: AwareDatetime | None = Field(
+        default=None, description="when `commit` was made (committer time, Europe/Helsinki)"
+    )
+    eval_commit: Commit | None = Field(
+        default=None, description="the scorer's own HEAD, when `commit` names an export"
+    )
+    eval_dirty: bool | None = Field(
+        default=None, description="the scorer had uncommitted changes; set with eval_commit"
+    )
+    settings: dict[SettingName, SettingValue] | None = Field(
+        default=None, description="the settings the run used (--setting), name lowercased"
+    )
     name: str = Field(min_length=1, description="the method's name")
     note: str | None
     against: Against
@@ -411,6 +517,9 @@ class RunRecord(BaseModel):
     score_sha256: str = Field(description="sha256 of the full score JSON (gitignored runs folder)")
     overall: Stats
     numeric: Stats
+    by_split: dict[str, Stats] | None = Field(
+        default=None, description="per split (golden: dev, holdout); rows before 2026-11-14 lack it"
+    )
     by_source_type: dict[str, Stats]
     evidence_coverage: float | None
     cost_total_usd: float
@@ -422,6 +531,12 @@ class RunRecord(BaseModel):
     )
     answer_v1_1: AnswerV11Record | None = Field(
         default=None, description="abstain and calibration, when answers carry v1.1 fields"
+    )
+    evidence_hits: EvidenceHitsRecord | None = Field(
+        default=None, description="evidence precision and recall against Part 1 gold boxes"
+    )
+    text_claims: TextClaimsRecord | None = Field(
+        default=None, description="free-text questions scored by curated claims"
     )
 
     @model_validator(mode="after")
@@ -438,8 +553,23 @@ class ExtractionRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", title="ExtractionRecord_v1")
 
     recorded_at: AwareDatetime = Field(description="from the clock, Europe/Helsinki")
-    commit: str = Field(pattern=r"^[0-9a-f]{7,40}$", description="short git sha of HEAD")
-    dirty: bool = Field(description="tracked files had uncommitted changes")
+    commit: Commit = Field(
+        description="short git sha of the code that made the predictions: HEAD, or the clean "
+        "export named with --commit"
+    )
+    dirty: bool = Field(description="that code had uncommitted changes (false for an export)")
+    committed_at: AwareDatetime | None = Field(
+        default=None, description="when `commit` was made (committer time, Europe/Helsinki)"
+    )
+    eval_commit: Commit | None = Field(
+        default=None, description="the scorer's own HEAD, when `commit` names an export"
+    )
+    eval_dirty: bool | None = Field(
+        default=None, description="the scorer had uncommitted changes; set with eval_commit"
+    )
+    settings: dict[SettingName, SettingValue] | None = Field(
+        default=None, description="the settings the run used (--setting), name lowercased"
+    )
     name: str = Field(min_length=1, description="the method's name")
     note: str | None
     part: Literal["extraction"] = Field(description="golden Part 1")
@@ -488,6 +618,7 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "extraction_record_v1.schema.json": ExtractionRecord,
     "extraction_v1.schema.json": Extraction,
     "extras_v1.schema.json": ExtraItem,
+    "text_claims_v1.schema.json": TextClaims,
 }
 
 

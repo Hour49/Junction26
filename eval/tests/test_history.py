@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from stoa_eval.cli import main
 from stoa_eval.history import (
+    Provenance,
     format_history,
     format_progress,
     make_record,
@@ -68,8 +69,7 @@ def record(
         golden_version="v1" if against == "golden" else None,
         questions_sha256="q" * 64,
         score_sha256="s" * 64,
-        commit="abc1234",
-        dirty=False,
+        provenance=Provenance("abc1234", False),
         now=now,
     )
 
@@ -110,7 +110,9 @@ def test_migration_keeps_every_row(tmp_path: Path) -> None:
     rows = [json.loads(line) for line in old.read_text(encoding="utf-8").splitlines()]
     assert len(written) == len(rows) == 5
     migrated = read_records(tmp_path / "runs")
-    defaults = {"part", "reads", "extras", "answer_v1_1"}  # fields added after these rows
+    # fields added after these rows
+    defaults = {"part", "reads", "extras", "answer_v1_1", "evidence_hits", "text_claims",
+                "committed_at", "eval_commit", "eval_dirty", "settings", "by_split"}  # fmt: skip
     assert [r.model_dump(mode="json", exclude=defaults) for r in migrated] == rows
     assert {path.name for path in written} >= {"20261113-204152-answering-oracle.json"}
 
