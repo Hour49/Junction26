@@ -224,22 +224,24 @@ numbers.
 extraction, every real adapter of the commit turned on. Each point runs from a clean export of a merge commit, not
 the shared tree, by `eval/pipeline-run.sh <commit> [NAME=VALUE ...]` and scored by the same eval on the frozen
 set, so the numbers compare. Its records say `dirty: false` with that commit, the settings it ran with, and the
-scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41):
+scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44):
 
 | commit | code time | settings that change | P1 element F1 cubi | P1 element F1 ifc | P1 element F1 open | P1 element F1 swiss | P2 accuracy | P2 dev | P2 holdout | abstained |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0f9120f | 2026-11-13 23:24 | extractor_vector=hello question_parser=hello second_counter=hello | 0.0% | 0.0% | 0.0% | 0.0% | 0/2948 (0.0%) | 0.0% | 0.0% | n/a |
-| 85d3470 | 2026-11-13 23:55 | extractor_vector=pdf question_parser=templates second_counter=hello | 0.0% | 80.4% | 0.0% | 100.0% | 1262/2948 (42.8%) | 39.9% | 55.4% | 14.3% |
-| 6e9a2df | 2026-11-14 00:39 | answer_prior=dev extractor_vector=pdf question_parser=templates second_counter=pdf | 0.0% | 80.4% | 0.0% | 100.0% | 2109/2948 (71.5%) | 71.1% † | 73.2% | 50.8% |
+| 0f9120f | 2026-11-13 23:24 | extractor_bim=hello extractor_vector=hello question_parser=hello second_counter=hello | 0.0% | 0.0% | 0.0% | 0.0% | 0/2948 (0.0%) | 0.0% | 0.0% | n/a |
+| 85d3470 | 2026-11-13 23:55 | extractor_bim=hello extractor_vector=pdf question_parser=templates second_counter=hello | 0.0% | 80.4% | 0.0% | 100.0% | 1262/2948 (42.8%) | 39.9% | 55.4% | 14.3% |
+| 6e9a2df | 2026-11-14 00:39 | answer_prior=dev extractor_bim=hello extractor_vector=pdf question_parser=templates second_counter=pdf | 0.0% | 80.4% | 0.0% | 100.0% | 2109/2948 (71.5%) | 71.1% † | 73.2% | 50.8% |
+| bdfae08 | 2026-11-14 01:43 | answer_prior=dev extractor_bim=ifc extractor_vector=pdf question_parser=templates second_counter=ifc | 0.0% | 100.0% | 0.0% | 100.0% | 2201/2948 (74.7%) | 73.4% † | 80.0% | 47.7% |
 
 Code time is the commit time (Europe/Helsinki); `*` marks a run recorded with uncommitted changes, timed when recorded. Abstained: share of golden answers marked `abstain` (n/a: no answer_v1.1 fields).
 
 † In-sample: with answer_prior=dev an abstained answer carries the dev prior's value, and the prior is fit on dev.jsonl, which holds the golden dev questions. The holdout column is the honest number for the prior.
 
-Settings the same at every point: extractor_bim=hello, extractor_cad=hello, extractor_raster=hello, log_level=INFO.
+Settings the same at every point: extractor_cad=hello, extractor_raster=hello, log_level=INFO.
 
 At 6e9a2df the answers the pipeline read itself are 1436 of 1450 right (99.0%); the other 1498 abstain and carry the
-dev prior, 673 of them right (44.9%). Part 1 is the same at 85d3470 and 6e9a2df (same extractor).
+dev prior, 673 of them right (44.9%). Part 1 is the same at 85d3470 and 6e9a2df (same extractor). At bdfae08 (IFC reader) every answer that does not abstain is right (1542 of
+1542); ifc_models Part 1 is 1630 of 1630 and Part 2 466 of 466. CubiCasa raster is still unread at every point.
 
 ## What the answer should show
 
