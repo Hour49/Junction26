@@ -22,7 +22,7 @@ from app.core.pipeline.normalise import normalise
 from app.core.pipeline.ports import DrawingFiles, DrawingSink, Extractor, PageReader, SecondCounter
 from app.core.pipeline.route import route
 from app.core.pipeline.rules import apply_rules
-from app.core.pipeline.second_count import element_counts, second_count
+from app.core.pipeline.second_count import measured, resolved_rooms, second_count
 from app.core.pipeline.takeoff import take_off
 
 NO_SHEET = "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
@@ -83,17 +83,18 @@ def _ingest_sheet(
     sheet = normalise(file, pages.pages(file))
     found = extract(routed, sheet, extractors)
     again = second_counter.measure(routed.source, sheet)
-    compared = second_count(element_counts(found), again)
+    compared = second_count(measured(found), again)
     drawing = Drawing(
         file=file.path,
         pages=sheet.pages,
         scale=found.scale,
         plans=found.plans,
         elements=found.elements,
-        rooms=found.rooms,
+        rooms=resolved_rooms(found.rooms, compared),
         apartments=found.apartments,
         tables=found.tables,
         conflicts=tuple(compared) if again else None,
+        read=found.read,
         notes=found.notes,
     )
     counted = apply_rules(drawing.marks_by_quantity())

@@ -2,6 +2,8 @@
 
 from typing import Literal
 
+from pydantic import Field
+
 from app.core.drawing.model import (
     Apartment,
     ConflictQuantity,
@@ -11,6 +13,8 @@ from app.core.drawing.model import (
     MeasureMethod,
     Page,
     Plan,
+    ReadClass,
+    Resolution,
     Room,
     Scale,
     Subject,
@@ -82,6 +86,7 @@ class Extracted(Frozen):
     rooms: tuple[Room, ...] = ()
     apartments: tuple[Apartment, ...] = ()
     tables: tuple[Table, ...] | None = None
+    read: tuple[ReadClass, ...] | None = None  # what it looked for; None: every class and rooms
     notes: tuple[str, ...] = ()
 
 
@@ -113,6 +118,17 @@ Measure = Literal["count", "area", "length", "volume", "text"]
 QuantityUnit = Literal["count", "m", "m2", "m3"]
 
 
+class QuantityConflict(Frozen):
+    """Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in
+    that quantity's unit: every method's value, and the rule that picked one (None: no rule
+    decides). `derived`: how the values were carried over from another entry, when they were."""
+
+    values: tuple[MeasuredValue, ...] = Field(min_length=2)
+    resolution: Resolution | None
+    note: str | None = None
+    derived: str | None = None
+
+
 class Quantity(Frozen):
     """Stage 10: one precomputed answer of the takeoff, with its proof."""
 
@@ -121,6 +137,8 @@ class Quantity(Frozen):
     unit: QuantityUnit
     marks: tuple[Mark, ...]
     rule: str  # the id of the counting rule
+    estimate: str | None = None  # what an estimated value rests on, in words; None: as read
+    conflict: QuantityConflict | None = None  # two methods measured it; `value` is the resolved one
 
 
 class SheetReport(Frozen):

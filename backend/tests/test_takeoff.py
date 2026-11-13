@@ -132,6 +132,20 @@ def test_storey_filters_use_each_item_s_own_storey_else_its_plan_s() -> None:
     assert value(found, Query(subject="room", storey="EG")) == 1
 
 
+def test_a_room_is_found_by_the_name_and_number_a_sheet_prints() -> None:
+    # The vector extractor's room: no IFC attrs, the storey from the sheet's plan.
+    printed = {"number": "67-1", "name": "ELUTUBA+KÖÖK"}
+    found = known_quantities(
+        drawing(
+            plans=(Plan(id="p1", page=1, box=BOX, storey="5.korrus"),),
+            rooms=(room(1, "other", 25.247, label="ELUTUBA+KÖÖK 67-1", plan="p1", attrs=printed),),
+        )
+    )
+    for name in ("ELUTUBA+KÖÖK (67-1)", "67-1", "elutuba+köök 67-1", "ELUTUBA+KÖÖK"):
+        query = Query(measure="area", subject="room", name=name, storey="5.korrus")
+        assert value(found, query) == 25.247
+
+
 def test_an_element_quantity_one_element_lacks_is_unknown_and_the_model_is_never_a_sheet() -> None:
     found = known_quantities(
         drawing(elements=(element(1, "wall", length_m=3.0), element(2, "wall")))
@@ -139,3 +153,219 @@ def test_an_element_quantity_one_element_lacks_is_unknown_and_the_model_is_never
     assert Query(measure="length", subject="wall").key() not in found
     assert value(found, Query(subject="wall")) == 2
     assert Query(subject="wall", model=True).key() not in found
+
+
+def test_areas_and_lengths_on_an_estimated_or_not_to_scale_sheet_say_what_they_rest_on() -> None:
+    items = {
+        "rooms": (room(1, "living", 16.7, label="OH"),),
+        "elements": (element(1, "wall", length_m=3.0, net_volume_m3=0.5),),
+    }
+    estimated = Scale(status="estimated", m_per_unit=0.02, source="door widths", uncertainty=0.15)
+    found = known_quantities(drawing(scale=estimated, **items))
+    area = found[Query(measure="area", subject="room", label="OH").key()]
+    assert area.estimate == "an estimated scale (door widths), uncertainty 0.15"
+    assert found[Query(measure="length", subject="wall").key()].estimate == area.estimate
+    assert found[Query(measure="volume", subject="wall").key()].estimate is None
+    assert found[Query(subject="room").key()].estimate is None  # a count needs no scale
+    unscaled = known_quantities(
+        drawing(scale=Scale(status="not_to_scale", evidence=("not_to_scale_note",)), **items)
+    )
+    assert "not to scale" in str(unscaled[Query(measure="area", subject="room").key()].estimate)
+    scaled = known_quantities(
+        drawing(scale=Scale(status="scaled", m_per_unit=0.01, evidence=("scale_text",)), **items)
+    )
+    assert scaled[Query(measure="area", subject="room").key()].estimate is None
+
+
+def test_a_class_the_extraction_did_not_read_has_no_count_and_none_means_all_read() -> None:
+    """None: everything was read (gold). []: nothing was, so not even the plan count (a raster
+    extractor that read nothing answered 0 floors on every CubiCasa sheet). A read list keeps
+    plans and apartments, which need no class."""
+    items = {
+        "plans": (Plan(id="p1", page=1, box=BOX, storey="EG"),),
+        "elements": (element(1, "door"), element(2, "window"), element(3, "wall", length_m=2.0)),
+        "rooms": (room(1, "sauna", 4.0, plan="p1"),),
+    }
+    nothing = known_quantities(drawing(read=[], **items))
+    assert Query(subject="window").key() not in nothing
+    assert Query(subject="room:sauna").key() not in nothing
+    assert Query(subject="door", storey="EG").key() not in nothing
+    assert Query(measure="area", subject="room").key() not in nothing
+    assert nothing == {}  # nothing read: not even the plans, which are not a class
+    everything = known_quantities(drawing(read=None, **items))
+    assert value(everything, Query(subject="window")) == 1
+    doors = known_quantities(drawing(read=["door", "room"], **items))
+    assert value(doors, Query(subject="door")) == 1
+    assert value(doors, Query(subject="room:sauna")) == 1
+    assert Query(subject="window").key() not in doors
+    assert Query(measure="length", subject="wall").key() not in doors
+    assert Query(subject="sauna").key() not in doors  # room else stove: the stoves were not read
+    assert value(doors, Query(subject="plan")) == 1  # something was read: its plans count
+    stated = known_quantities(drawing(counts={"window": 3, "door": 2}, read=["door"]))
+    assert (value(stated, Query(subject="door")), Query(subject="window").key() in stated) == (
+        2,
+        False,
+    )
+
+
+def test_a_room_area_sum_is_an_estimate_when_one_of_its_rooms_is_estimated() -> None:
+    estimated = {"area_status": "estimated", "area_source": "geometry_x_estimate"}
+    rooms = (
+        room(1, "living", 16.7, label="OH", **estimated, area_uncertainty=0.35),
+        room(2, "kitchen", 9.4, label="K", area_status="exact", area_source="printed"),
+    )
+    scaled = Scale(status="scaled", m_per_unit=0.01, evidence=("scale_text",))
+    found = known_quantities(drawing(scale=scaled, rooms=rooms))
+    total = found[Query(measure="area", subject="room").key()]
+    assert (
+        total.estimate
+        == "1 of 2 room areas estimated (geometry_x_estimate, uncertainty up to 0.35)"
+    )
+    assert found[Query(measure="area", subject="room", name="K").key()].estimate is None
+    # a printed (exact) area does not rest on the sheet's estimated scale; an unset one does
+    guessed = Scale(status="estimated", m_per_unit=0.02, source="door widths")
+    on_guess = known_quantities(drawing(scale=guessed, rooms=rooms))
+    assert on_guess[Query(measure="area", subject="room", name="K").key()].estimate is None
+    unset = known_quantities(drawing(scale=guessed, rooms=(room(3, "hall", 5.0, label="ET"),)))
+    assert unset[Query(measure="area", subject="room").key()].estimate == (
+        "an estimated scale (door widths)"
+    )
+
+
+def _room_count_entry(drawn: int, own: int, picked: int | None) -> dict[str, object]:
+    return {
+        "id": "c1",
+        "quantity": "room_count",
+        "subject": {"kind": "sheet", "ref": None},
+        "status": "conflict",
+        "tolerance": 0,
+        "values": [
+            {"value": drawn, "unit": "rooms", "method": "plan_drawing", "page": 1, "box": BOX},
+            {"value": own, "unit": "rooms", "method": "ifc_model", "page": 1, "box": OTHER},
+        ],
+        "resolution": None if picked is None else {"rule": "keep the storey's", "value": picked},
+    }
+
+
+OTHER = (0.5, 0.5, 0.6, 0.6)
+
+
+def test_a_disputed_room_set_disputes_the_storey_s_area_total_the_same_way() -> None:
+    """The sheet draws 3 rooms, 2 of them on its own storey 0: the count's two values are those
+    two sets, so the area total carries each set's sum and the rule's pick, even when the room
+    only one set has is small (1.6% here, under the 2% of two measurements)."""
+    sheet = drawing(
+        plans=(Plan(id="p1", page=1, box=BOX, storey="0"),),
+        rooms=(
+            room(1, "other", 10.0, plan="p1"),
+            room(2, "other", 20.0, plan="p1"),
+            room(3, "other", 0.5, plan="p1", attrs={"storey": "-1"}),
+        ),
+        conflicts=(_room_count_entry(3, 2, picked=2),),
+    )
+    found = known_quantities(sheet)
+    area = found[Query(measure="area", subject="room", storey="0").key()]
+    assert area.value == 30.0
+    assert area.conflict is not None and area.conflict.resolution is not None
+    assert [(v.value, v.unit, v.method) for v in area.conflict.values] == [
+        (30.5, "m2", "plan_drawing"),
+        (30.0, "m2", "ifc_model"),
+    ]
+    assert area.conflict.resolution.value == 30.0 and area.conflict.derived is not None
+    whole = found[Query(subject="room").key()]  # the sheet counted 3; the rule keeps 2
+    assert (whole.value, [m.box for m in whole.marks]) == (2, [OTHER])
+    sheet_area = found[Query(measure="area", subject="room").key()]
+    assert sheet_area.value == 30.0
+    assert found[Query(subject="room", storey="-1").key()].conflict is None  # not the sheet's
+
+
+def test_a_conflict_entry_is_attached_only_to_a_quantity_whose_value_it_lists() -> None:
+    sheet = drawing(
+        plans=(Plan(id="p1", page=1, box=BOX, storey="0"),),
+        rooms=(room(1, "other", 10.0, plan="p1"), room(2, "other", 20.0, plan="p1")),
+        conflicts=(_room_count_entry(4, 3, picked=3),),  # measured something else than 2 rooms
+    )
+    found = known_quantities(sheet)
+    assert found[Query(subject="room").key()].value == 2
+    assert all(quantity.conflict is None for quantity in found.values())
+
+
+def test_a_room_area_conflict_is_on_that_room_s_area_by_any_of_its_names() -> None:
+    entry = {
+        "id": "c1",
+        "quantity": "room_area",
+        "subject": {"kind": "room", "ref": "r1"},
+        "status": "conflict",
+        "tolerance": 0.02,
+        "values": [
+            {"value": 12.5, "unit": "m2", "method": "printed_label", "page": 1, "box": BOX},
+            {"value": 13.4, "unit": "m2", "method": "polygon_x_scale", "page": 1, "box": BOX},
+        ],
+        "resolution": {"rule": "the printed label over the outline", "value": 12.5},
+    }
+    sheet = drawing(
+        rooms=(room(1, "bedroom", 12.5, label="MH", attrs={"number": "2.01"}),),
+        conflicts=(entry,),
+    )
+    found = known_quantities(sheet)
+    for name in ("MH", "2.01"):
+        quantity = found[Query(measure="area", subject="room", name=name).key()]
+        assert quantity.value == 12.5 and quantity.conflict is not None
+
+
+def test_the_largest_room_of_a_label_or_a_type() -> None:
+    sheet = drawing(
+        rooms=(
+            room(1, "bedroom", 11.57, label="MH"),
+            room(2, "bedroom", 9.0, label="MH"),
+            room(3, "bedroom", 12.0, label="MH 3"),
+        )
+    )
+    found = known_quantities(sheet)
+    by_label = Query(measure="area", subject="room", label="MH", largest=True)
+    assert value(found, by_label) == 11.57
+    assert value(found, Query(measure="area", subject="room:bedroom", largest=True)) == 12.0
+    unknown = drawing(rooms=(room(1, "bedroom", 11.0, label="MH"), room(2, "bedroom", None)))
+    assert value(known_quantities(unknown), by_label) == 11.0
+    largest_bedroom = Query(measure="area", subject="room:bedroom", largest=True)
+    assert value(known_quantities(unknown), largest_bedroom) is None  # one area unknown
+
+
+def test_a_rectangular_room_s_longer_side_at_the_sheet_s_scale() -> None:
+    rectangle = ((0.1, 0.1), (0.5, 0.1), (0.5, 0.3), (0.1, 0.3))  # 40 x 20 units on a 100 page
+    ell = ((0.1, 0.1), (0.5, 0.1), (0.5, 0.3), (0.3, 0.3), (0.3, 0.2), (0.1, 0.2))
+    sheet = drawing(
+        scale=Scale(status="estimated", m_per_unit=0.1, source="door widths"),
+        rooms=(
+            room(1, "living", 8.0, label="OH", polygon=rectangle),
+            room(2, "balcony", 8.0, label="PARVEKE", polygon=rectangle),
+            room(3, "bedroom", 6.0, label="MH", polygon=ell),
+        ),
+    )
+    found = known_quantities(sheet)
+    side = found[Query(measure="length", subject="room", name="OH").key()]
+    assert (side.value, side.unit) == (4.0, "m")
+    assert side.estimate == "an estimated scale (door widths)"
+    assert value(found, Query(measure="length", subject="room:balcony")) == 4.0
+    assert (
+        value(found, Query(measure="length", subject="room", name="MH")) is None
+    )  # not a rectangle
+    no_scale = drawing(rooms=(room(1, "living", 8.0, label="OH", polygon=rectangle),))
+    assert (
+        value(known_quantities(no_scale), Query(measure="length", subject="room", name="OH"))
+        is None
+    )
+
+
+def test_the_apartment_is_the_sheet_s_one_dwelling() -> None:
+    whole = Query(measure="area", subject="apartment")
+    rooms = (
+        room(1, "living", 10.0),
+        room(2, "shaft", 1.0),
+        room(3, "balcony", 5.0, outdoor=True),
+    )
+    assert value(known_quantities(drawing(rooms=rooms)), whole) == 10.0
+    one = Apartment(id="a1", label="A", area_m2=55.0)
+    assert value(known_quantities(drawing(rooms=rooms, apartments=(one,))), whole) == 55.0
+    two = (one, Apartment(id="a2", label="B", area_m2=40.0))
+    assert value(known_quantities(drawing(rooms=rooms, apartments=two)), whole) is None

@@ -48,6 +48,13 @@ class OneDoor:
         return Extracted(method="parser", scale=Scale(status="no_scale"), elements=(door,))
 
 
+class DoorsOnly:
+    """An extractor that says it looked for doors and nothing else, and found none."""
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        return Extracted(method="detector", scale=Scale(status="no_scale"), read=("door",))
+
+
 class Nothing:
     def measure(self, source: DrawingFile, sheet: Sheet) -> list[Measurement]:
         return []
@@ -164,3 +171,24 @@ def test_ingest_writes_what_a_second_method_measured_into_the_drawing() -> None:
         (2.0, "detector"),
     ]
     assert report.sheets[0].trace[6] == "second count: 1 quantities measured twice, 1 conflict(s)"
+
+
+def test_the_drawing_says_what_its_extractor_looked_for() -> None:
+    content = {"data/cubi/scan.png": PNG, "data/swiss/plan1.pdf": PDF}
+    sink = Collected()
+    ingest(
+        list(content),
+        files=Files(content),
+        pages=Pages(),
+        extractors={
+            "bim": OneDoor(),
+            "cad": OneDoor(),
+            "vector": OneDoor(),
+            "raster": DoorsOnly(),
+        },
+        second_counter=Nothing(),
+        sink=sink,
+    )
+    read = {drawing.file: drawing.read for drawing in sink.drawings}
+    # No door found is a count of 0 only for a class that was looked for; None: all of them were.
+    assert read == {"data/cubi/scan.png": ("door",), "data/swiss/plan1.pdf": None}

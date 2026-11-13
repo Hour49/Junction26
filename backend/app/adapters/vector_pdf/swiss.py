@@ -32,8 +32,25 @@ from shapely.ops import unary_union
 
 from app.adapters.vector_pdf import frame
 from app.adapters.vector_pdf.frame import Reading
-from app.adapters.vector_pdf.objects import FILL_NONE, FILL_WINDING, PdfPage, PdfPath, Rgb
-from app.core.drawing.model import Apartment, Element, ElementClass, Plan, Room, RoomType
+from app.adapters.vector_pdf.objects import (
+    FILL_NONE,
+    FILL_WINDING,
+    Bounds,
+    PdfPage,
+    PdfPath,
+    PdfText,
+    Rgb,
+)
+from app.adapters.vector_pdf.scale import PRINTED_AREA
+from app.core.drawing.model import (
+    Apartment,
+    Element,
+    ElementClass,
+    Plan,
+    ReadClass,
+    Room,
+    RoomType,
+)
 
 BLACK: Rgb = (0, 0, 0)
 DOOR_STROKE: Rgb = (68, 68, 68)
@@ -43,6 +60,8 @@ THIN, SYMBOL, UNIT_WIDTH = 0.37, 0.51, 1.28
 OUTDOOR_FILL, SHAFT_FILL = 228, 243
 NESTED_SLACK = 0.3  # points: a nested outline may touch the outline around it
 PLAN = "p1"
+# What the rules below look for. Any other class is not read on these sheets: no count for it.
+LOOKS_FOR: tuple[ReadClass, ...] = ("door", "window", "toilet", "sink", "bathtub", "shower", "room")
 
 NUMBER = re.compile(r"[A-Z]*\d+\.\d+")
 UNIT_LABEL = re.compile(r"^(?:Whg|Wohnung|App|Appt|Appartement|Alloggio)\.?\s+([A-Z])$")
@@ -82,6 +101,7 @@ class _RoomFound:
     unit: str | None  # the apartment letter written in the room
     net_pt2: float
     cutouts: int
+    printed: tuple[float, Bounds] | None  # the area printed in the room, m², and where
 
 
 def is_room_outline(path: PdfPath) -> bool:
@@ -216,7 +236,7 @@ def _rooms(page: PdfPage) -> list[_RoomFound]:
         for path in page.paths
         if is_room_outline(path) and (outline := _outline(path)) is not None
     ]
-    words: dict[int, list[tuple[float, str]]] = defaultdict(list)
+    words: dict[int, list[PdfText]] = defaultdict(list)
     for text in page.texts:
         point = ShapelyPoint(text.centre)
         holding = [
@@ -225,13 +245,21 @@ def _rooms(page: PdfPage) -> list[_RoomFound]:
             if outline.shape.contains(point)
         ]
         if holding:  # a text belongs to the smallest outline around it
-            words[min(holding)[1]].append((text.centre[1], text.text))
+            words[min(holding)[1]].append(text)
     rooms: list[_RoomFound] = []
     for index, lines in words.items():
         outline = outlines[index]
         # Top to bottom; two texts at one height keep the order the prototype measured with.
-        ordered = sorted(lines, key=lambda line: (-line[0], line[1]), reverse=True)
-        top_down = [text for _, text in ordered]
+        ordered = sorted(lines, key=lambda line: (-line.centre[1], line.text), reverse=True)
+        top_down = [line.text for line in ordered]
+        printed = next(
+            (
+                (float(area.group(1).replace(",", ".")), line.bounds)
+                for line in ordered
+                if (area := PRINTED_AREA.fullmatch(line.text))
+            ),
+            None,
+        )
         number = next((text for text in top_down if NUMBER.fullmatch(text)), None)
         unit = next((m.group(1) for text in top_down if (m := UNIT_LABEL.match(text))), None)
         names = [
@@ -249,10 +277,24 @@ def _rooms(page: PdfPage) -> list[_RoomFound]:
         ]
         nested = [*outline.holes, *inner_rooms]
         net = outline.shape.difference(unary_union(nested)).area if nested else outline.shape.area
-        rooms.append(
-            _RoomFound(outline, number, names[0] if names else None, unit, net, len(inner_rooms))
-        )
+        name = names[0] if names else None
+        rooms.append(_RoomFound(outline, number, name, unit, net, len(inner_rooms), printed))
     return rooms
+
+
+def _numbered(found: Sequence[_RoomFound]) -> list[_RoomFound]:
+    """The rooms that are listed, in the order of their ids: r1 has the lowest room number."""
+    return sorted((room for room in found if room.number), key=lambda room: room.number or "")
+
+
+def printed_areas(page: PdfPage) -> list[tuple[str, float, Bounds]]:
+    """The area printed in a room, for every listed room that prints one: the room's id as
+    `read` gives it, the square metres, and the label's place in points."""
+    return [
+        (f"r{index}", *room.printed)
+        for index, room in enumerate(_numbered(_rooms(page)), start=1)
+        if room.printed is not None
+    ]
 
 
 def room_type(name: str | None, fill: int) -> tuple[RoomType, bool]:
@@ -286,8 +328,7 @@ def _room_models(
 
     rooms: list[Room] = []
     indoor_pt2: dict[str, float] = defaultdict(float)
-    numbered = sorted((r for r in found if r.number), key=lambda r: r.number or "")
-    for index, room in enumerate(numbered, start=1):
+    for index, room in enumerate(_numbered(found), start=1):
         kind, outdoor = room_type(room.name, room.outline.fill)
         point = room.outline.shape.representative_point()
         letter = next(

@@ -1,30 +1,31 @@
 """The scale of a sheet, read from the sheet alone: the printed ratio ("1:100") and the drawn scale
 bar. A PDF point is 1/72 inch of paper, so a ratio 1:N gives metres per point without any guess.
 
-The bar is a second reading of the same quantity. When both are there the ratio gives the value and
-the bar is compared with it; a difference above 2% is written in the notes, not hidden.
+The bar is a second reading of the same quantity. When both are there and agree, the ratio gives
+the value. When they differ by more than stage 8's tolerance, the bar does (docs/PIPELINE.md
+section 2: the measured value over the text), a note says so, and `PdfSecondCounter` hands both
+readings to stage 8, which lists them as a conflict.
 """
 
 import re
 from collections import defaultdict
 from itertools import pairwise
 
-from app.adapters.vector_pdf.objects import FILL_NONE, PdfPage, PdfPath
+from app.adapters.vector_pdf.objects import FILL_NONE, Bounds, PdfPage, PdfPath
 from app.core.drawing.model import Scale, ScaleEvidence
+from app.core.pipeline.second_count import TOLERANCE, differ
 
 M_PER_PT_ON_PAPER = 25.4 / 72 / 1000
 RATIO = re.compile(r"(?<![\d.,:])1\s*:\s*(\d{1,4})(?![\d.,:])")
-PRINTED_AREA = re.compile(r"\d+[.,]\d+\s*m²")
+PRINTED_AREA = re.compile(r"(\d+[.,]\d+)\s*m²")
 BAR_LABEL = re.compile(r"(\d+)(?:\s*m)?")
 BAR_FILLS = ((0, 0, 0), (255, 255, 255))
 BAR_HEIGHT = (2.0, 8.0)  # points
-AGREE = 0.02
 
 
 def read_scale(page: PdfPage) -> tuple[Scale, tuple[str, ...]]:
     """The scale in metres per point of `page`, and notes about it."""
-    ratio = RATIO.search(page.text)
-    bar = _bar_m_per_pt(page)
+    ratio, bar = read_ratio(page), read_bar(page)
     evidence: list[ScaleEvidence] = []
     if ratio:
         evidence.append("scale_text")
@@ -32,18 +33,40 @@ def read_scale(page: PdfPage) -> tuple[Scale, tuple[str, ...]]:
         evidence.append("scale_bar")
     if any(PRINTED_AREA.fullmatch(text.text) for text in page.texts):
         evidence.append("printed_areas")
-    if ratio:
-        value = int(ratio.group(1)) * M_PER_PT_ON_PAPER
-        text = f"1:{ratio.group(1)}"
-        if bar is None:
-            return _scaled(value, evidence, text, f"sheet text {text}; no scale bar found"), ()
-        off = abs(bar / value - 1)
+    if ratio and bar:
+        value, text, _ = ratio
+        off = abs(bar[0] - value) / max(bar[0], value)
+        if differ(value, bar[0], TOLERANCE):
+            source = (
+                f"scale bar: its length against its metre label; the text {text} is {off:.1%} off"
+            )
+            note = f"scale: the bar and the text {text} disagree by {off:.1%}; the bar is used"
+            return _scaled(bar[0], evidence, text, source), (note,)
         source = f"sheet text {text}; the scale bar differs by {off:.1%}"
-        notes = () if off <= AGREE else (f"scale: the bar and the text {text} disagree: {source}",)
-        return _scaled(value, evidence, text, source), notes
+        return _scaled(value, evidence, text, source), ()
+    if ratio:
+        value, text, _ = ratio
+        return _scaled(value, evidence, text, f"sheet text {text}; no scale bar found"), ()
     if bar:
-        return _scaled(bar, evidence, None, "scale bar: its length against its metre label"), ()
+        return _scaled(bar[0], evidence, None, "scale bar: its length against its metre label"), ()
     return Scale(status="no_scale", source="no scale text and no scale bar on the sheet"), ()
+
+
+def read_ratio(page: PdfPage) -> tuple[float, str, Bounds | None] | None:
+    """Metres per point from the printed ratio, the ratio as text ("1:100"), and where it is
+    printed when one text object holds it."""
+    ratio = RATIO.search(page.text)
+    if ratio is None:
+        return None
+    at = next(
+        (
+            text.bounds
+            for text in page.texts
+            if (found := RATIO.search(text.text)) and found.group(1) == ratio.group(1)
+        ),
+        None,
+    )
+    return int(ratio.group(1)) * M_PER_PT_ON_PAPER, f"1:{ratio.group(1)}", at
 
 
 def _scaled(value: float, evidence: list[ScaleEvidence], text: str | None, source: str) -> Scale:
@@ -64,9 +87,10 @@ def _is_block(path: PdfPath) -> bool:
     )
 
 
-def _bar_m_per_pt(page: PdfPage) -> float | None:
-    """Metres per point from a scale bar: a row of touching blocks, at least one black, with
-    metre labels next to it; the largest label is the length of the whole bar."""
+def read_bar(page: PdfPage) -> tuple[float, Bounds] | None:
+    """Metres per point from a scale bar, and where the bar is: a row of touching blocks, at
+    least one black, with metre labels next to it; the largest label is the length of the whole
+    bar."""
     rows: dict[tuple[int, int], set[tuple[float, float]]] = defaultdict(set)
     black: set[tuple[int, int]] = set()
     for path in filter(_is_block, page.paths):
@@ -90,5 +114,5 @@ def _bar_m_per_pt(page: PdfPage) -> float | None:
             and abs(text.centre[1] - (top + bottom) / 2) < 25
         ]
         if labels and max(labels) > 0:
-            return max(labels) / (right - left)
+            return max(labels) / (right - left), (left, top, right, bottom)
     return None

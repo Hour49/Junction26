@@ -44,6 +44,7 @@ from app.core.drawing.model import (
     ElementClass,
     Plan,
     Polygon,
+    ReadClass,
     Room,
     RoomType,
 )
@@ -56,6 +57,9 @@ WINDOW_WIDTH, DOOR_WIDTH = 0.1, 0.13
 SAME_WINDOW = 0.5  # share of a shape's length that lies within the window drawn before it
 THIN = 0.5  # points: boxes this close touch
 PLAN = "p1"
+# What the rules above look for. Columns, stairs, railings, slabs and beams are not read: no
+# count for them (the cut solids listed as walls include the columns).
+LOOKS_FOR: tuple[ReadClass, ...] = ("room", "wall", "window", "door")
 # The sheet title ends "<project> — <"Floor plan" in the sheet's language>: <storey>".
 STOREY = re.compile(r" — [^:]+: (.+)$")
 ROOM_WORDS: tuple[tuple[RoomType, str], ...] = (

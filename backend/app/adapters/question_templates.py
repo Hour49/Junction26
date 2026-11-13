@@ -13,8 +13,12 @@ dropped hint or a typo still parses:
    out. Showers and bathtubs named together are their combined count.
 4. Filters: a room number (4.01, U1.05), an apartment letter, "indoor"/"numbered" rooms.
 
+5. Three forms that are not dataset templates: the largest room of a type or printed label by
+   area, how long a room is (its longer side), and "the apartment" with no letter (the sheet's
+   one dwelling).
+
 A question it can't place (no measure, no subject, a measure the subject has no quantity for,
-a superlative, a schedule) is `Unsupported` with the reason, never a guess.
+any other superlative) is `Unsupported` with the reason, never a guess.
 """
 
 import re
@@ -22,7 +26,8 @@ import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from app.core.answering.model import Query, Unsupported
+from app.adapters.question_tables import is_table_question, parse_table
+from app.core.answering.model import Query, TableQuery, Unsupported
 from app.core.pipeline.model import Measure
 
 # Quoted names, as eval/stoa_eval/families.py masks them: an apostrophe inside a word (d'escalier)
@@ -73,6 +78,11 @@ SUBJECTS: Sequence[tuple[str, str]] = (
         r"|\bsalles? de bains?\b|\bbagni\b|\bbadkamer\w*|\błazien\w*",
     ),
     ("room:balcony", r"\bbalcon\w*|\bparvek\w*|\bbalkon\w*"),
+    (
+        "room:living",
+        r"\bliving ?rooms?\b|\bolohuone\w*|\bwohnzimmer\b|\bwoonkamer\w*|\bsoggiorn[oi]\b"
+        r"|\bséjours?\b",
+    ),
     (
         "apartment",
         r"\bapartments?\b|\bapartamentos?\b|\bresidential units?\b|\bwohnung\w*"
@@ -153,7 +163,7 @@ MEASURES: Sequence[tuple[Measure, re.Pattern[str]]] = (
         "length",
         re.compile(
             r"\blength\b|l[äa]nge\b|lengte\b|longueur|lunghezza|longitud|pituus|długoś|pikkus"
-            r"|\bhow long\b|\bwie lang\b|længde|lungime"
+            r"|\bhow long\b|\bwie lang\b|længde|lungime|\bkuinka pitkä\b|\bpitkä sivu\b"
         ),
     ),
     (
@@ -193,15 +203,16 @@ MODEL = re.compile(
     r"|\bmodellen\b"
 )
 ROOM_NUMBER = re.compile(r"(?<![\w.])(U?\d+\.\d+)(?![\w.])")
+# A room's printed code in parentheses after its noun, "the living room (OH)": its name.
+ROOM_CODE = re.compile(r"\(([A-ZÄÖÜÅ]{1,8})\)")
 APARTMENT = re.compile(
     r"(?i:\b(?:apartment|apartamento|wohnung|appartement|appartamento|asunto|huoneisto"
     r"|mieszkani[ae]))\s+([A-Z])\b"
 )
 INDOOR = re.compile(r"indoor|innenr|intérieur|interni|numbered|nummeriert|numérot|numerat")
-SUPERLATIVE = re.compile(
-    r"\b(?:longest|largest|biggest|smallest|shortest|längste|grösste|größte|kleinste"
-    r"|plus grand|plus petit|maggiore|suurin|pisin)"
-)
+SUPERLATIVE = re.compile(r"\b(?:longest|smallest|shortest|längste|kleinste|plus petit|pisin)")
+# The one superlative taken off: the largest room by area (of a type, or of a printed label).
+LARGEST = re.compile(r"\b(?:largest|biggest|grösste|größte|plus grand|maggiore|suurin)")
 QUALIFIED_WALL = re.compile(
     r"exterior|external|outer|interior|internal|load-?bearing|au(?:ß|ss)en|extérieur|intérieur"
     r"|estern|ulko|sisä"
@@ -215,7 +226,7 @@ BREAKDOWN = re.compile(
 )
 PLACE = re.compile(
     r"\b(?:ground|first|second|third|fourth|fifth|sixth|top|upper|lower|north|south|east|west)\b"
-    r"|\bhouse [a-z]\b|\bfa[cç]ade\b|\bwing\b"
+    r"|\bhouse [a-z]\b|\bfa[cç]ade\b|\bwing\b|\bplan \d+[a-z]?\b"
 )
 CONDITION = re.compile(  # "rooms that have...": a subset we can't pick
     r"\b(?:rooms?|spaces?|doors?|windows?|walls?)\s+(?:have|has|with|that|containing)\b"
@@ -248,11 +259,13 @@ class _Quoted:
 class TemplateParser:
     """The `QuestionParser` port, from words and quoted names (see the module docstring)."""
 
-    def parse(self, text: str) -> Query | Unsupported:
+    def parse(self, text: str) -> Query | TableQuery | Unsupported:
         raw = unicodedata.normalize("NFC", " ".join(text.split()))
         quoted = _quoted(raw)
         bare = QUOTED.sub(" _ ", raw)  # the question without its quoted names
         lower = bare.casefold()
+        if is_table_question(raw):
+            return parse_table(raw)
         if SCHEDULE.search(lower):
             return Unsupported(reason="schedule (table) questions are not supported yet")
         if SUPERLATIVE.search(lower):
@@ -280,6 +293,9 @@ class TemplateParser:
             name = number.group(1)
         apartment = APARTMENT.search(bare)
         common = {"storey": storey, "model": model}
+        largest = LARGEST.search(lower) is not None
+        if largest and measure != "area":
+            return Unsupported(reason="only the largest room by area is taken off")
         if measure == "count":
             subject = "shower+bathtub" if {"shower", "bathtub"} <= set(subjects) else subjects[0]
             if label is not None and subject.startswith("room"):
@@ -290,6 +306,15 @@ class TemplateParser:
         if measure == "area" and apartment is not None:
             return Query(measure="area", subject="apartment", apartment=apartment.group(1))
         subject = next((s for s in subjects if s in AREA_SUBJECTS), subjects[0])
+        code = ROOM_CODE.search(bare)
+        if largest:
+            return _largest_room(subject, label or (code.group(1) if code else None), common)
+        if measure == "area" and subject == "apartment":  # "the apartment": the sheet's dwelling
+            return Query(measure="area", subject="apartment", **common)
+        if measure == "length" and subject.startswith("room"):
+            return _room_side(subjects, subject, name or (code.group(1) if code else None), common)
+        if measure == "area" and subject.startswith("room") and code and not (name or label):
+            return Query(measure="area", subject="room", name=code.group(1), **common)
         if subject == "wall" and QUALIFIED_WALL.search(lower):
             return Unsupported(reason="only all walls together have a length, area or volume")
         if measure == "area" and subject == "room":
@@ -305,6 +330,31 @@ class TemplateParser:
         if subject in ELEMENT_MEASURES.get(measure, ()):
             return Query(measure=measure, subject=subject, **common)
         return Unsupported(reason=f"no {measure} is taken off for {subject}")
+
+
+def _largest_room(subject: str, label: str | None, common: dict) -> Query | Unsupported:
+    """The largest room with a printed label ("the largest bedroom (MH)"), else of a type."""
+    if not subject.startswith("room"):
+        return Unsupported(reason="only the largest room by area is taken off")
+    if label is not None:
+        return Query(measure="area", subject="room", label=label, largest=True, **common)
+    if subject != "room":
+        return Query(measure="area", subject=subject, largest=True, **common)
+    return Unsupported(reason="the largest of rooms without saying which rooms")
+
+
+def _room_side(
+    subjects: Sequence[str], subject: str, name: str | None, common: dict
+) -> Query | Unsupported:
+    """How long a room is: its longer side, for the room with that name or the one room of
+    that type. A length that also names an element class is that class's length, not a room's."""
+    if any(s in ELEMENT_SUBJECTS for s in subjects):
+        return Unsupported(reason="the length of an element class within a room is not taken off")
+    if name is not None:
+        return Query(measure="length", subject="room", name=name, **common)
+    if subject != "room":
+        return Query(measure="length", subject=subject, **common)
+    return Unsupported(reason="the length of rooms without saying which room")
 
 
 def _quoted(raw: str) -> list[_Quoted]:

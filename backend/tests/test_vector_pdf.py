@@ -5,18 +5,19 @@ import json
 import math
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator
 from pdf_sheets import BLACK, WHITE, Point, SheetPdf, rect, ring
 
 from app.adapters.extraction_v1 import ExtractionV1Writer
-from app.adapters.vector_pdf import PdfVectorExtractor, ifc_render, swiss
+from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor, ifc_render, swiss
 from app.adapters.vector_pdf.objects import FILL_EVEN_ODD, FILL_NONE, FILL_WINDING, read_page
 from app.adapters.vector_pdf.scale import M_PER_PT_ON_PAPER, read_scale
 from app.composition import build_pipeline
 from app.core.drawing.model import Page
-from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
 from app.settings import Settings
 
 SCHEMA = Path(__file__).parents[2] / "eval" / "schemas" / "extraction_v1.schema.json"
@@ -48,18 +49,27 @@ class Files:
         return self.content[path]
 
 
-def extract(pdf: bytes, sheet_page: Page | None = None, sheet_kind: str = "pdf") -> Extracted:
-    """Run the extractor on `pdf`, placing the result on the PDF itself or on another sheet."""
+def source_and_sheet(pdf: bytes, sheet_page: Page | None) -> tuple[DrawingFile, Sheet]:
+    """The PDF as the source, and the sheet to place on: the PDF itself or its render."""
     source = DrawingFile(path="data/demo/plan.pdf", size=len(pdf), sha256="0" * 64, kind="pdf")
     if sheet_page is None:
         page = read_page(pdf)
-        sheet = Sheet(
-            file=source, pages=(Page(page=1, width=page.width, height=page.height, unit="pt"),)
-        )
-    else:
-        other = source.model_copy(update={"path": f"data/demo/plan.{sheet_kind}", "kind": "png"})
-        sheet = Sheet(file=other, pages=(sheet_page,))
+        own = Page(page=1, width=page.width, height=page.height, unit="pt")
+        return source, Sheet(file=source, pages=(own,))
+    other = source.model_copy(update={"path": "data/demo/plan.png", "kind": "png"})
+    return source, Sheet(file=other, pages=(sheet_page,))
+
+
+def extract(pdf: bytes, sheet_page: Page | None = None) -> Extracted:
+    """Run the extractor on `pdf`, placing the result on the PDF itself or on another sheet."""
+    source, sheet = source_and_sheet(pdf, sheet_page)
     return PdfVectorExtractor(Files({source.path: pdf})).extract(source, sheet)
+
+
+def measure_again(pdf: bytes, sheet_page: Page | None = None) -> list[Measurement]:
+    """Run the second counter on `pdf`, for the PDF itself or for another sheet."""
+    source, sheet = source_and_sheet(pdf, sheet_page)
+    return PdfSecondCounter(Files({source.path: pdf})).measure(source, sheet)
 
 
 # --------------------------------------------------------------------------- the object reader
@@ -138,13 +148,28 @@ def test_a_scale_bar_that_agrees_is_listed_as_evidence() -> None:
     assert notes == ()
 
 
-def test_a_scale_bar_that_disagrees_with_the_text_is_reported() -> None:
+def test_a_scale_bar_that_disagrees_with_the_text_gives_the_scale() -> None:
     sheet = SheetPdf()
     sheet.text("1:100", 400, 380)
     bar(sheet, 100, 5 / M_PER_PT / 3 * 2)  # the bar is drawn at 1:50
     scale, notes = read_scale(read_page(sheet.pdf()))
-    assert scale.m_per_unit == pytest.approx(M_PER_PT)  # the text gives the value
-    assert len(notes) == 1 and "disagree" in notes[0]
+    # the measured value over the text (the bar's corners are read to a tenth of a point)
+    assert scale.m_per_unit == pytest.approx(M_PER_PT / 2, rel=1e-3)
+    assert (scale.text, scale.evidence) == ("1:100", ("scale_text", "scale_bar"))
+    assert len(notes) == 1 and "disagree by 50.0%; the bar is used" in notes[0]
+
+
+@pytest.mark.parametrize(("stretch", "from_bar"), [(1.015, False), (1.025, True)])
+def test_the_bar_replaces_the_text_only_beyond_the_two_percent_tolerance(
+    stretch: float, from_bar: bool
+) -> None:
+    sheet = SheetPdf()
+    sheet.text("1:100", 400, 380)
+    bar(sheet, 100, 5 / M_PER_PT / 3 * stretch)
+    scale, notes = read_scale(read_page(sheet.pdf()))
+    expected = M_PER_PT / stretch if from_bar else M_PER_PT
+    assert scale.m_per_unit == pytest.approx(expected, rel=1e-3)
+    assert bool(notes) is from_bar
 
 
 def test_a_scale_bar_alone_gives_the_scale() -> None:
@@ -197,7 +222,7 @@ def swiss_window(sheet: SheetPdf, box: tuple[float, float, float, float], degree
 
 def swiss_sheet() -> SheetPdf:
     sheet = SheetPdf(600, 400)
-    swiss_room(sheet, (100, 50, 300, 150), "Küche", "2.01", "24.89 m²")
+    swiss_room(sheet, (100, 50, 300, 150), "Küche", "2.01", "22.40 m²")  # net of the Reduit
     swiss_room(sheet, (150, 80, 200, 120), "Reduit", "2.02", "2.49 m²")  # inside the kitchen
     swiss_room(sheet, (300, 50, 400, 150), "Bad", "2.03", "12.45 m²")
     swiss_room(sheet, (100, 150, 300, 200), "Balkon", "2.04", "12.45 m²", fill=228)
@@ -238,6 +263,9 @@ def test_swiss_symbols_are_told_apart_by_stroke_and_segments() -> None:
     toilet = next(element for element in found.elements if element.class_ == "toilet")
     assert toilet.box == pytest.approx((314 / 600, 64 / 400, 326 / 600, 76 / 400), abs=1e-3)
     assert all(element.plan == "p1" and element.page == 1 for element in found.elements)
+    # What the swiss rules look for: a class outside this list was not read, so it has no count.
+    assert found.read == ("door", "window", "toilet", "sink", "bathtub", "shower", "room")
+    assert {element.class_ for element in found.elements} < set(found.read or ())
 
 
 def test_swiss_rooms_have_number_label_type_and_net_area() -> None:
@@ -394,6 +422,12 @@ def test_ifc_rooms_have_label_type_and_drawn_area() -> None:
     assert corridor.box == pytest.approx((0.5, 0.125, 500 / 600, 0.375), abs=1e-5)
 
 
+def test_an_ifc_sheet_says_it_was_read_for_rooms_walls_windows_and_doors() -> None:
+    found = extract(ifc_sheet().pdf())
+    assert found.read == ("room", "wall", "window", "door")
+    assert {element.class_ for element in found.elements} < set(found.read or ())
+
+
 def test_ifc_scale_and_storey_come_from_the_sheet_text() -> None:
     found = extract(ifc_sheet().pdf())
     assert (found.scale.status, found.scale.text) == ("scaled", "1:200")
@@ -451,6 +485,7 @@ def test_a_sheet_of_another_shape_is_not_the_pdf_rendered() -> None:
     found = extract(swiss_sheet().pdf(), Page(page=1, width=1000, height=1000, unit="px"))
     assert (found.elements, found.rooms, found.scale.status) == ((), (), "no_scale")
     assert "is not page 1 of data/demo/plan.pdf rendered" in found.notes[0]
+    assert found.read == ()
 
 
 def test_a_pdf_in_no_known_style_gets_its_scale_and_a_note() -> None:
@@ -461,6 +496,7 @@ def test_a_pdf_in_no_known_style_gets_its_scale_and_a_note() -> None:
     assert (found.scale.status, found.scale.text) == ("scaled", "1:50")
     assert (found.elements, found.rooms, found.plans) == ((), (), ())
     assert "no sheet style we have reading rules for" in found.notes[0]
+    assert found.read == ()  # only the scale was read: no class has a count
 
 
 def test_only_the_first_page_is_read_and_the_note_says_so() -> None:
@@ -477,6 +513,180 @@ def test_a_source_that_is_not_a_pdf_is_left_alone() -> None:
     found = PdfVectorExtractor(Files({})).extract(source, sheet)  # reading would raise KeyError
     assert found.elements == ()
     assert "is svg, not a PDF" in found.notes[0]
+    assert found.read == ()
+
+
+# --------------------------------------------------------------------------- the second counter
+
+
+def test_the_second_counter_gives_the_area_printed_in_each_room_under_the_extractors_id() -> None:
+    pdf = swiss_sheet().pdf()
+    rooms = {room.id: room for room in extract(pdf).rooms}
+    again = measure_again(pdf)
+    # No scale bar on this sheet, so the scale has one reading and is not measured twice.
+    assert {one.quantity for one in again} == {"room_area"}
+    printed = {one.subject.ref or "": one.value for one in again}
+    assert {ref: value.value for ref, value in printed.items()} == {
+        "r1": 22.40,  # Küche 2.01
+        "r2": 2.49,
+        "r3": 12.45,
+        "r4": 12.45,
+    }  # the lift and the next apartment's room print no area
+    assert [rooms[ref].attrs["number"] for ref in printed] == ["2.01", "2.02", "2.03", "2.04"]
+    for ref, value in printed.items():
+        assert (value.method, value.unit, value.page) == ("printed_label", "m2", 1)
+        x0, y0, x1, y1 = rooms[ref].box
+        assert value.box is not None  # the label lies in its room
+        assert (
+            x0 <= value.box[0] and value.box[2] <= x1 and y0 <= value.box[1] and value.box[3] <= y1
+        )
+        assert value.value == pytest.approx(rooms[ref].area_m2, rel=0.002)
+
+
+def test_a_printed_area_with_a_decimal_comma_is_read() -> None:
+    sheet = SheetPdf(600, 400)
+    swiss_room(sheet, (300, 50, 400, 150), "Bad", "2.03", "12,45 m²")
+    (area,) = measure_again(sheet.pdf())
+    assert (area.subject.ref, area.value.value) == ("r1", 12.45)
+
+
+def test_the_second_counter_reads_the_scale_from_the_text_and_from_the_bar() -> None:
+    sheet = swiss_sheet()
+    bar(sheet, 100, 5 / M_PER_PT / 3 * 2)  # drawn at 1:50; the sheet says 1:100
+    text, drawn = (one for one in measure_again(sheet.pdf()) if one.quantity == "scale")
+    assert (text.subject.kind, text.subject.ref) == ("sheet", None)
+    assert (text.value.method, text.value.unit) == ("scale_text", "m/pt")
+    assert text.value.value == pytest.approx(M_PER_PT, rel=1e-4)
+    assert text.value.box is not None  # where "Massstab 1:100 (A3)" was written
+    assert text.value.box[0] == pytest.approx(450 / 600, abs=0.01)
+    assert 360 / 400 < text.value.box[1] < text.value.box[3] < 390 / 400
+    assert (drawn.value.method, drawn.value.unit) == ("scale_bar", "m/pt")
+    assert drawn.value.value == pytest.approx(M_PER_PT / 2, rel=1e-3)
+    assert drawn.value.box == pytest.approx(
+        (100 / 600, 370 / 400, (100 + 10 / M_PER_PT) / 600, 375 / 400), abs=1e-4
+    )
+
+
+def test_the_second_counter_measures_a_png_in_its_own_pixels() -> None:
+    sheet = swiss_sheet()
+    bar(sheet, 100, 5 / M_PER_PT / 3)
+    pdf = sheet.pdf()
+    on_png = measure_again(pdf, Page(page=1, width=1200, height=800, unit="px"))  # at 2x
+    on_pdf = measure_again(pdf)
+    scales = [one.value for one in on_png if one.quantity == "scale"]
+    assert [value.unit for value in scales] == ["m/px", "m/px"]
+    assert [value.value for value in scales] == pytest.approx([M_PER_PT / 2] * 2, rel=1e-3)
+    # areas are in m² and boxes are page fractions: the same on the render
+    assert [one for one in on_png if one.quantity == "room_area"] == [
+        one for one in on_pdf if one.quantity == "room_area"
+    ]
+
+
+def test_the_second_counter_measures_nothing_on_a_sheet_that_is_not_the_pdf() -> None:
+    sheet = swiss_sheet()
+    bar(sheet, 100, 5 / M_PER_PT / 3)
+    assert measure_again(sheet.pdf(), Page(page=1, width=1000, height=1000, unit="px")) == []
+    source = DrawingFile(path="data/demo/plan.svg", size=1, sha256="0" * 64, kind="svg")
+    own = Sheet(file=source, pages=(Page(page=1, width=600, height=400, unit="pt"),))
+    assert PdfSecondCounter(Files({})).measure(source, own) == []  # reading would raise KeyError
+
+
+def test_an_ifc_sheet_prints_no_room_area_to_compare() -> None:
+    assert measure_again(ifc_sheet().pdf()) == []
+
+
+def ingested(tmp_path: Path, sheet: SheetPdf) -> dict[str, Any]:
+    """The extraction_v1 JSON the pipeline writes for `sheet`, with the default adapters."""
+    dataset, out, pdf = tmp_path / "dataset", tmp_path / "out", "data/demo/plan.pdf"
+    (dataset / "data" / "demo").mkdir(parents=True)
+    (dataset / pdf).write_bytes(sheet.pdf())
+    build_pipeline(Settings(), dataset).ingest([pdf], ExtractionV1Writer(out, {pdf: "dev"}))
+    written = json.loads((out / "demo" / "plan.pdf.json").read_text(encoding="utf-8"))
+    validator = Draft202012Validator(json.loads(SCHEMA.read_text(encoding="utf-8")))
+    assert list(validator.iter_errors(written)) == []
+    return written
+
+
+def test_a_printed_area_that_disagrees_with_the_outline_is_a_conflict_and_the_label_wins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)  # so a developer's backend/.env can't change the result
+    sheet = SheetPdf(600, 400)
+    swiss_room(sheet, (100, 50, 300, 150), "Küche", "2.01", "30.00 m²")  # the outline is 24.89
+    swiss_room(sheet, (300, 50, 400, 150), "Bad", "2.02", "12.45 m²")
+    swiss_room(sheet, (400, 50, 450, 150), "Zimmer", "2.03")  # prints no area
+    sheet.text("Massstab 1:100 (A3)", 450, 380)
+
+    written = ingested(tmp_path, sheet)
+
+    kitchen, bath = written["conflicts"]
+    assert (kitchen["id"], kitchen["quantity"], kitchen["status"]) == (
+        "c1",
+        "room_area",
+        "conflict",
+    )
+    assert kitchen["subject"] == {"kind": "room", "ref": "r1"}
+    assert [(value["method"], value["value"]) for value in kitchen["values"]] == [
+        ("polygon_x_scale", pytest.approx(area_m2(200, 100), abs=0.002)),
+        ("printed_label", 30.0),
+    ]
+    assert kitchen["resolution"] == {
+        "rule": "the printed label over the outline at the sheet's scale",
+        "value": 30.0,
+    }
+    assert (bath["status"], bath["resolution"]) == (
+        "agree",
+        {"rule": "both methods agree", "value": 12.45},
+    )
+    areas = {room["id"]: room["area_m2"] for room in written["rooms"]}
+    assert areas["r1"] == 30.0  # the drawing carries the value its conflict resolves to
+    assert areas["r2"] == pytest.approx(area_m2(100, 100), abs=0.002)  # agreed: as measured
+    assert areas["r3"] == pytest.approx(area_m2(50, 100), abs=0.002)
+
+
+def test_a_bar_that_disagrees_with_the_text_is_a_conflict_and_the_areas_use_the_bar(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    sheet = SheetPdf(600, 400)
+    swiss_room(sheet, (100, 50, 300, 150), "Zimmer", "2.01")
+    sheet.text("Massstab 1:100 (A3)", 450, 380)
+    bar(sheet, 100, 5 / M_PER_PT / 3 * 2)  # drawn at 1:50
+
+    written = ingested(tmp_path, sheet)
+
+    (scale,) = written["conflicts"]
+    assert (scale["quantity"], scale["subject"]) == ("scale", {"kind": "sheet", "ref": None})
+    assert (scale["status"], scale["tolerance"]) == ("conflict", 0.02)
+    assert [(value["method"], value["value"]) for value in scale["values"]] == [
+        ("scale_text", pytest.approx(M_PER_PT, rel=1e-4)),
+        ("scale_bar", pytest.approx(M_PER_PT / 2, rel=1e-3)),
+    ]
+    assert scale["resolution"] == {
+        "rule": "the measured scale bar over the scale text",
+        "value": scale["values"][1]["value"],
+    }
+    # The drawing's scale is the resolved one, and so is the room area: a quarter of 1:100's.
+    assert written["scale"]["m_per_unit"] == scale["resolution"]["value"]
+    assert written["rooms"][0]["area_m2"] == pytest.approx(area_m2(200, 100) / 4, rel=2e-3)
+
+
+def test_a_bar_that_agrees_with_the_text_is_listed_and_changes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    sheet = SheetPdf(600, 400)
+    swiss_room(sheet, (100, 50, 300, 150), "Zimmer", "2.01")
+    sheet.text("Massstab 1:100 (A3)", 450, 380)
+    bar(sheet, 100, 5 / M_PER_PT / 3 * 1.01)  # 1% off: within the tolerance
+
+    written = ingested(tmp_path, sheet)
+
+    (scale,) = written["conflicts"]
+    assert (scale["quantity"], scale["status"]) == ("scale", "agree")
+    assert scale["resolution"]["rule"] == "both methods agree"
+    assert written["scale"]["m_per_unit"] == pytest.approx(M_PER_PT, rel=1e-4)  # the text's value
+    assert written["rooms"][0]["area_m2"] == pytest.approx(area_m2(200, 100), abs=0.002)
 
 
 def test_the_setting_wires_it_and_a_plan_as_pdf_and_png_gives_two_valid_extractions(
@@ -505,6 +715,11 @@ def test_the_setting_wires_it_and_a_plan_as_pdf_and_png_gives_two_valid_extracti
         assert list(validator.iter_errors(written)) == []
         assert len(written["rooms"]) == 6
         assert written["scale"]["status"] == "scaled"
+        assert written["read"] == ["door", "window", "toilet", "sink", "bathtub", "shower", "room"]
+        # every printed room area was compared with its outline, and all four agree
+        assert [(c["quantity"], c["status"]) for c in written["conflicts"]] == [
+            ("room_area", "agree")
+        ] * 4
     assert on_png["elements"] == on_pdf["elements"]
     assert on_png["pages"][0]["unit"] == "px"
     assert on_png["scale"]["m_per_unit"] == pytest.approx(
