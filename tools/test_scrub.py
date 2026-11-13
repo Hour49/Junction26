@@ -10,7 +10,7 @@ SCRUB = Path(__file__).with_name("scrub.py")
 HOME = "/ho" + "me/alice/project"
 MAC = "/Us" + "ers/alice/project"
 WINDOWS = "C:" + "\\Us" + "ers\\alice\\project"
-TAILNET = "dev1.tail1a2b" + ".ts" + ".net"
+TAILNET = "laptop.tail1a2b" + ".ts" + ".net"
 
 
 @pytest.fixture
