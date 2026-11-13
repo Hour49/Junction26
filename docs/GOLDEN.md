@@ -146,7 +146,9 @@ per case and `m_per_unit` within 2% for scaled gold. On a sheet whose gold scale
 say `estimated` too: claiming a measured scale there is wrong. These are the headline numbers of Part 1. Estimated
 gold values are not pass/fail: an estimated scale or room area is reported as the median relative error of the
 prediction and the shares within 10% and 20%, per source. A prediction may list in `read` the classes it looked
-for (golden-7f); a class it left out is still scored as misses, and the table marks it `not read`.
+for (golden-7f); a class it left out is still scored as misses, and the table marks it `not read`. A sheet of
+a BIM model may carry `model_objects`, every object of the model drawn or not (formats v1.2, 0004 amendment of
+2026-11-14); Part 1 doesn't score it, and gold has none.
 
 Two sections follow the headline without changing it. Tables: a table is found by title or box overlap, rows pair
 by the key column, columns pair by position, and the report gives tables found, row recall, row precision and

@@ -359,6 +359,158 @@
       "title": "MeasuredValue",
       "type": "object"
     },
+    "ModelObject": {
+      "additionalProperties": false,
+      "description": "One object of the BIM model the sheet comes from, drawn on this sheet or not (formats v1.2,\n2026-11-14): storey sums and counts \"in the model\" need every object.",
+      "properties": {
+        "id": {
+          "description": "unique in the file, not an element or room id",
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "class": {
+          "anyOf": [
+            {
+              "enum": [
+                "door",
+                "window",
+                "toilet",
+                "sink",
+                "shower",
+                "bathtub",
+                "sauna_stove",
+                "stair",
+                "wall",
+                "column",
+                "beam",
+                "slab",
+                "railing",
+                "furniture"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "space",
+              "type": "string"
+            }
+          ],
+          "title": "Class"
+        },
+        "storey": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "IfcBuildingStorey.Name, as the model has it",
+          "title": "Storey"
+        },
+        "global_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Global Id"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the object's Name, raw",
+          "title": "Name"
+        },
+        "long_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "an IfcSpace LongName, raw",
+          "title": "Long Name"
+        },
+        "quantities": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "description": "area_m2 on a space: net floor area as the dataset defines it; side_area_m2: one face of a wall",
+          "propertyNames": {
+            "enum": [
+              "length_m",
+              "height_m",
+              "width_m",
+              "area_m2",
+              "side_area_m2",
+              "volume_m3"
+            ]
+          },
+          "title": "Quantities",
+          "type": "object"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the drawn element on this sheet (a room, for a space); null: not drawn here",
+          "title": "Element"
+        },
+        "attrs": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attrs",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "class"
+      ],
+      "title": "ModelObject",
+      "type": "object"
+    },
     "Page": {
       "additionalProperties": false,
       "properties": {
@@ -999,7 +1151,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One drawing file: its pages, plans, elements, rooms, apartments and, optionally, its\nschedules and stage-8 conflicts (extraction_v1).",
+  "description": "One drawing file: its pages, plans, elements, rooms, apartments and, optionally, its\nschedules, stage-8 conflicts and the objects of its BIM model (extraction_v1).",
   "properties": {
     "schema": {
       "const": "extraction_v1",
@@ -1031,10 +1183,10 @@
       "type": "string"
     },
     "pages": {
+      "description": "at least one, except on an .ifc file read as a model: there [] with model_objects, and empty plans, elements and rooms",
       "items": {
         "$ref": "#/$defs/Page"
       },
-      "minItems": 1,
       "title": "Pages",
       "type": "array"
     },
@@ -1157,6 +1309,22 @@
       "default": null,
       "description": "the element classes, and room, this extraction looked for; null: everything its truth covers. A class left out was not read: its count is unknown, not 0",
       "title": "Read"
+    },
+    "model_objects": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ModelObject"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "every object of the BIM model the file comes from, all storeys, drawn here or not; null: the source has no model",
+      "title": "Model Objects"
     },
     "notes": {
       "items": {

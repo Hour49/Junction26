@@ -2,7 +2,7 @@
 gold (`data/stoa/extraction_gold/<source>/<file stem>.json`). Decision record:
 docs/decisions/0004-extraction-format.md (amended 2026-11-13: optional `tables` for schedule sheets,
 `truth: "tables"`, and optional `conflicts` from ingestion stage 8; formats-v1-1 brief; estimated
-scales and room areas; optional `read`, golden-7f brief).
+scales and room areas; optional `read`, golden-7f brief; optional `model_objects`, formats v1.2).
 
 Coordinates are fractions of the page as rendered (after any PDF /Rotate), origin top left, the same
 frame as answer_v1 evidence. Extra keys are refused everywhere, so a typo fails loudly.
@@ -10,7 +10,7 @@ frame as answer_v1 evidence. Extra keys are refused everywhere, so a typo fails 
 
 from typing import Annotated, Literal, Self
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictFloat, model_validator
 
 ElementClass = Literal[
     "door", "window", "toilet", "sink", "shower", "bathtub", "sauna_stove", "stair", "wall",
@@ -277,6 +277,36 @@ class Conflict(_Strict):
         return self
 
 
+QuantityKey = Literal["length_m", "height_m", "width_m", "area_m2", "side_area_m2", "volume_m3"]
+Quantity = Annotated[StrictFloat, Field(ge=0, allow_inf_nan=False)]
+
+
+class ModelObject(_Strict):
+    """One object of the BIM model the sheet comes from, drawn on this sheet or not (formats v1.2,
+    2026-11-14): storey sums and counts "in the model" need every object."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    id: str = Field(min_length=1, description="unique in the file, not an element or room id")
+    class_: ElementClass | Literal["space"] = Field(alias="class")
+    storey: str | None = Field(
+        default=None, description="IfcBuildingStorey.Name, as the model has it"
+    )
+    global_id: str | None = None
+    name: str | None = Field(default=None, description="the object's Name, raw")
+    long_name: str | None = Field(default=None, description="an IfcSpace LongName, raw")
+    quantities: dict[QuantityKey, Quantity] = Field(
+        default_factory=dict[QuantityKey, Quantity],
+        description="area_m2 on a space: net floor area as the dataset defines it; side_area_m2: "
+        "one face of a wall",
+    )
+    element: str | None = Field(
+        default=None,
+        description="the drawn element on this sheet (a room, for a space); null: not drawn here",
+    )
+    attrs: dict[str, Attr] = Field(default_factory=dict[str, Attr])
+
+
 def _count_key_ok(key: str) -> bool:
     kind, _, room_type = key.partition(":")
     return key == "plan" or key in ELEMENT_CLASSES or (kind == "room" and room_type in ROOM_TYPES)
@@ -284,7 +314,7 @@ def _count_key_ok(key: str) -> bool:
 
 class Extraction(_Strict):
     """One drawing file: its pages, plans, elements, rooms, apartments and, optionally, its
-    schedules and stage-8 conflicts (extraction_v1)."""
+    schedules, stage-8 conflicts and the objects of its BIM model (extraction_v1)."""
 
     model_config = ConfigDict(extra="forbid", title="Extraction_v1")
 
@@ -295,7 +325,10 @@ class Extraction(_Strict):
         description="elements: full element and room lists; counts: only `counts` is scored; "
         "tables: a schedule sheet, only `tables` is scored"
     )
-    pages: list[Page] = Field(min_length=1)
+    pages: list[Page] = Field(
+        description="at least one, except on an .ifc file read as a model: there [] with "
+        "model_objects, and empty plans, elements and rooms"
+    )
     scale: Scale
     plans: list[Plan]
     elements: list[Element]
@@ -313,6 +346,11 @@ class Extraction(_Strict):
         description="the element classes, and room, this extraction looked for; null: everything "
         "its truth covers. A class left out was not read: its count is unknown, not 0",
     )
+    model_objects: list[ModelObject] | None = Field(
+        default=None,
+        description="every object of the BIM model the file comes from, all storeys, drawn here "
+        "or not; null: the source has no model",
+    )
     notes: list[str] = Field(default_factory=list[str])
 
     @model_validator(mode="after")
@@ -326,6 +364,7 @@ class Extraction(_Strict):
             ("apartment", [apartment.id for apartment in self.apartments]),
             ("table", [table.id for table in self.tables or []]),
             ("conflict", [conflict.id for conflict in self.conflicts or []]),
+            ("model object", [item.id for item in self.model_objects or []]),
         ):
             repeated = sorted({i for i in ids if ids.count(i) > 1})
             if repeated:
@@ -365,15 +404,52 @@ class Extraction(_Strict):
         bad_keys = sorted(key for key in self.counts or {} if not _count_key_ok(key))
         if bad_keys:
             problems.append(f"counts keys {bad_keys} are not a class, room:<type> or plan")
+        problems += self._model_problems()
         if problems:
             raise ValueError("; ".join(problems[:10]))
         return self
 
+    def _model_problems(self) -> list[str]:
+        problems: list[str] = []
+        objects = self.model_objects or []
+        if not self.pages:
+            if not (objects and self.file.endswith(".ifc")):
+                problems.append(
+                    "pages needs at least 1 page, unless an .ifc file has model_objects"
+                )
+            if self.plans or self.elements or self.rooms:
+                problems.append("a file without pages has empty plans, elements and rooms")
+        elements = {element.id: element.class_ for element in self.elements}
+        rooms = {room.id for room in self.rooms}
+        clash = sorted({item.id for item in objects} & (elements.keys() | rooms))
+        if clash:
+            problems.append(f"model object ids {clash[:5]} are also element or room ids")
+        seen: set[tuple[bool, str]] = set()
+        for item in objects:
+            if item.element is None:
+                continue
+            space = item.class_ == "space"
+            if space and item.element not in rooms:
+                problems.append(f"model object {item.id} names room {item.element!r}, not listed")
+            elif not space and item.element not in elements:
+                problems.append(
+                    f"model object {item.id} names element {item.element!r}, not listed"
+                )
+            elif not space and elements[item.element] != item.class_:
+                problems.append(
+                    f"model object {item.id} is a {item.class_}, element {item.element} a "
+                    f"{elements[item.element]}"
+                )
+            if (space, item.element) in seen:
+                problems.append(f"{'room' if space else 'element'} {item.element} is named twice")
+            seen.add((space, item.element))
+        return problems
+
     def strict_v2_problems(self) -> list[str]:
         """Why this file falls short of golden v2's rule that every image has a scale and every
         room an area (Bogdan, 2026-11-13 23:33); empty when it doesn't. A schedule sheet
-        (truth tables) has no plan to measure."""
-        if self.truth == "tables":
+        (truth tables) has no plan to measure, and an .ifc file without pages has no image."""
+        if self.truth == "tables" or not self.pages:
             return []
         problems: list[str] = []
         if self.scale.m_per_unit is None:
