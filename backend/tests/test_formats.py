@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator
+from pydantic import ValidationError
 
 from app.adapters.answer_v1 import AnswerV1Writer
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer
@@ -18,6 +19,7 @@ from app.core.drawing.model import (
     Drawing,
     Element,
     MeasuredValue,
+    ModelObject,
     Page,
     Plan,
     ReadClass,
@@ -155,6 +157,62 @@ def test_tables_and_conflicts_are_written_in_the_pinned_shape(tmp_path: Path) ->
         }
     ]
     Draft202012Validator(schema("extraction_v1.schema.json")).validate(body)
+
+
+def test_model_objects_are_written_in_the_pinned_shape_and_read_back(tmp_path: Path) -> None:
+    """formats v1.2: a wall the sheet draws as e1 and a slab it does not draw."""
+    wall = ModelObject(
+        id="m1",
+        class_="wall",
+        storey="EG",
+        global_id="2O2Fr$t4X7Zf8NOew3FLOH",
+        name="Wand-001",
+        quantities={"length_m": 4.17, "side_area_m2": 10.425, "volume_m3": 2.496},
+        element="e1",
+        attrs={"source_class": "IfcWallStandardCase"},
+    )
+    slab = ModelObject(id="m2", class_="slab", storey="EG", quantities={"volume_m3": 24.0})
+    space = ModelObject(id="m3", class_="space", name="4", long_name="Schlafzimmer")
+    drawing = WITH_EXTRAS.model_copy(update={"model_objects": (wall, slab, space)})
+    body = written(tmp_path / "with", drawing)
+    Draft202012Validator(schema("extraction_v1.schema.json")).validate(body)
+    assert body["model_objects"][0] == {
+        "id": "m1",
+        "class": "wall",
+        "storey": "EG",
+        "global_id": "2O2Fr$t4X7Zf8NOew3FLOH",
+        "name": "Wand-001",
+        "long_name": None,
+        "quantities": {"length_m": 4.17, "side_area_m2": 10.425, "volume_m3": 2.496},
+        "element": "e1",
+        "attrs": {"source_class": "IfcWallStandardCase"},
+    }
+    assert (body["model_objects"][1]["element"], body["model_objects"][1]["quantities"]) == (
+        None,
+        {"volume_m3": 24.0},
+    )
+    assert ExtractionV1Reader(tmp_path / "with").drawing(FILE) == drawing
+    assert "model_objects" not in written(tmp_path / "without", WITH_EXTRAS)  # no model: no key
+
+
+def test_only_a_model_files_drawing_may_have_no_page(tmp_path: Path) -> None:
+    listed = (ModelObject(id="m1", class_="door", storey="EG"),)
+    model_file = Drawing(
+        file="data/demo/tower.ifc", pages=(), scale=Scale(status="no_scale"), model_objects=listed
+    )
+    ExtractionV1Writer(tmp_path, {model_file.file: "dev"}).write(model_file)
+    body = json.loads((tmp_path / "demo" / "tower.ifc.json").read_text(encoding="utf-8"))
+    Draft202012Validator(schema("extraction_v1.schema.json")).validate(body)
+    assert (body["pages"], body["elements"], body["rooms"]) == ([], [], [])
+    assert ExtractionV1Reader(tmp_path).drawing(model_file.file) == model_file
+    for objects in (None, ()):
+        with pytest.raises(ValidationError, match="pages"):
+            Drawing(
+                file="data/demo/tower.ifc",
+                pages=(),
+                scale=Scale(status="no_scale"),
+                model_objects=objects,
+            )
 
 
 @pytest.mark.parametrize("read", [(), ("door", "room")], ids=["nothing", "two"])

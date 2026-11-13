@@ -1,10 +1,10 @@
 """The drawing model: one drawing file with its pages, scale, plans, elements and rooms.
 
 It serialises as extraction_v1 (docs/decisions/0004-extraction-format.md, with the optional
-`tables`, `conflicts` and `read` of its 2026-11-13 amendments): the field names and the value lists
-are that format's (eval/stoa_eval/extraction.py), so app/adapters/extraction_v1.py only adds the
-envelope (`schema`, `split`, `truth`). Positions are fractions of the page as rendered, origin top
-left.
+`tables`, `conflicts` and `read` of its 2026-11-13 amendments and `model_objects` of 2026-11-14):
+the field names and the value lists are that format's (eval/stoa_eval/extraction.py), so
+app/adapters/extraction_v1.py only adds the envelope (`schema`, `split`, `truth`). Positions are
+fractions of the page as rendered, origin top left.
 
 Field ranges are checked here. The format's cross-field rules (a `scaled` scale has a value, ids
 are unique, a plan an element names is listed) are checked by `stoa_eval validate-extraction`.
@@ -12,7 +12,7 @@ are unique, a plan an element names is listed) are checked by `stoa_eval validat
 
 from typing import Annotated, Literal, get_args
 
-from pydantic import AfterValidator, ConfigDict, Field
+from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from app.core.model import Frozen
 
@@ -38,6 +38,9 @@ MeasureMethod = Literal[
     "other",
 ]  # fmt: skip
 ReadClass = ElementClass | Literal["room"]  # what an extraction can say it looked for
+ModelClass = ElementClass | Literal["space"]  # what a building model's object can be
+# A model object's own quantities. area_m2: a space's net floor area; side_area_m2: one wall face.
+QuantityKey = Literal["length_m", "height_m", "width_m", "area_m2", "side_area_m2", "volume_m3"]
 ELEMENT_CLASSES: tuple[ElementClass, ...] = get_args(ElementClass)
 ROOM_TYPES: tuple[RoomType, ...] = get_args(RoomType)
 PLAN = "plan"
@@ -175,6 +178,26 @@ class Conflict(Frozen):
     note: str | None = None
 
 
+class ModelObject(Frozen):
+    """One object a building model lists, whether this sheet draws it or not (`model_objects`).
+    `element`: the id of the Element this sheet draws it as, or of the Room for a space; None:
+    not drawn here. `quantities` are the model's own, in metres."""
+
+    model_config = ConfigDict(validate_by_name=True)
+
+    id: str = Field(min_length=1)  # unique in the drawing, and no element's or room's id
+    class_: ModelClass = Field(validation_alias="class", serialization_alias="class")
+    storey: str | None = None  # as the model names it
+    global_id: str | None = None
+    name: str | None = None
+    long_name: str | None = None
+    quantities: dict[QuantityKey, Annotated[float, Field(ge=0)]] = Field(
+        default_factory=dict[QuantityKey, float]
+    )
+    element: str | None = None
+    attrs: dict[str, Attr] = Field(default_factory=dict[str, Attr])
+
+
 class Mark(Frozen):
     """Where one counted item is on the drawing: the proof shown with an answer."""
 
@@ -184,7 +207,7 @@ class Mark(Frozen):
 
 class Drawing(Frozen):
     file: str  # the path as the dataset's questions.jsonl gives it
-    pages: tuple[Page, ...] = Field(min_length=1)
+    pages: tuple[Page, ...]  # none only for a model file, which has objects and no page
     scale: Scale
     plans: tuple[Plan, ...] = ()
     elements: tuple[Element, ...] = ()
@@ -198,7 +221,17 @@ class Drawing(Frozen):
     # The element classes, and "room", that were looked for. None: all of them (every gold file).
     # A class left out was not read, so its count is unknown, not 0.
     read: tuple[ReadClass, ...] | None = None
+    # Every object of the building model behind the drawing, all storeys, drawn here or not.
+    # None: the drawing has no model. Sums over a storey and counts "in the model" read this;
+    # what the sheet shows is `elements` and `rooms`.
+    model_objects: tuple[ModelObject, ...] | None = None
     notes: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _a_page_or_a_model(self) -> "Drawing":
+        if not self.pages and not self.model_objects:
+            raise ValueError("pages: a drawing has a page, unless it is a model file's objects")
+        return self
 
     def marks_by_quantity(self) -> dict[str, tuple[Mark, ...]]:
         """Per count key, where each listed item is. Every key of COUNT_KEYS is present, so a

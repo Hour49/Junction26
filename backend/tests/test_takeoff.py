@@ -2,7 +2,16 @@
 the filters (label, name, apartment, storey) a query looks a quantity up by."""
 
 from app.core.answering.model import Query
-from app.core.drawing.model import Apartment, Drawing, Element, Page, Plan, Room, Scale
+from app.core.drawing.model import (
+    Apartment,
+    Drawing,
+    Element,
+    ModelObject,
+    Page,
+    Plan,
+    Room,
+    Scale,
+)
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
     ELEMENT_QUANTITY,
@@ -279,6 +288,33 @@ def test_a_disputed_room_set_disputes_the_storey_s_area_total_the_same_way() -> 
     assert found[Query(subject="room", storey="-1").key()].conflict is None  # not the sheet's
 
 
+def test_with_a_model_the_storey_s_disputed_total_is_summed_from_the_model_like_its_value() -> None:
+    """The model states 10.0 and 20.0 for the storey's two spaces; the sheet's outlines measure
+    them 10.001 and 20.0, so summing outlines would give 30.001, which is not the key's 30.0.
+    The drawn set keeps its outlines: the space of storey -1 shows 0.5 of its 9.0."""
+    spaces = (
+        model_object(1, "space", "0", "r1", area_m2=10.0, name="0.01"),
+        model_object(2, "space", "0", "r2", area_m2=20.0, name="0.02"),
+        model_object(3, "space", "-1", "r3", area_m2=9.0, name="-1.01"),
+    )
+    sheet = drawing(
+        plans=(Plan(id="p1", page=1, box=BOX, storey="0"),),
+        rooms=(
+            room(1, "other", 10.001, plan="p1"),
+            room(2, "other", 20.0, plan="p1"),
+            room(3, "other", 0.5, plan="p1", attrs={"storey": "-1"}),
+        ),
+        conflicts=(_room_count_entry(3, 2, picked=2),),
+        model_objects=spaces,
+    )
+    area = known_quantities(sheet)[Query(measure="area", subject="room", storey="0").key()]
+    assert area.value == 30.0
+    assert area.conflict is not None and area.conflict.resolution is not None
+    assert [v.value for v in area.conflict.values] == [30.501, 30.0]
+    assert area.conflict.resolution.value == 30.0
+    assert area.conflict.derived is not None and "in the model" in area.conflict.derived
+
+
 def test_a_conflict_entry_is_attached_only_to_a_quantity_whose_value_it_lists() -> None:
     sheet = drawing(
         plans=(Plan(id="p1", page=1, box=BOX, storey="0"),),
@@ -369,3 +405,107 @@ def test_the_apartment_is_the_sheet_s_one_dwelling() -> None:
     assert value(known_quantities(drawing(rooms=rooms, apartments=(one,))), whole) == 55.0
     two = (one, Apartment(id="a2", label="B", area_m2=40.0))
     assert value(known_quantities(drawing(rooms=rooms, apartments=two)), whole) is None
+
+
+def model_object(
+    n: int, cls: str, storey: str, drawn: str | None = None, **q: float | str
+) -> ModelObject:
+    names = {key: q.pop(key) for key in ("name", "long_name") if key in q}
+    return ModelObject.model_validate(
+        {"id": f"m{n}", "class": cls, "storey": storey, "element": drawn, "quantities": q, **names}
+    )
+
+
+# A sheet of storey EG that draws one wall and one room of a model with more on EG and on OG.
+MODEL = (
+    model_object(1, "wall", "EG", "e1", length_m=3.0, side_area_m2=6.0, volume_m3=1.0),
+    model_object(2, "wall", "EG", length_m=4.0, side_area_m2=8.0, volume_m3=2.0),
+    model_object(3, "wall", "OG", length_m=5.0, side_area_m2=10.0, volume_m3=2.5),
+    model_object(4, "slab", "EG", volume_m3=10.0),
+    model_object(5, "door", "OG"),
+    model_object(6, "space", "EG", "r1", area_m2=20.0, name="1.01", long_name="Office"),
+    model_object(7, "space", "EG", area_m2=15.0, name="1.02", long_name="Store"),
+)
+SHEET = {
+    "plans": (Plan(id="p1", page=1, box=BOX, storey="EG"),),
+    "elements": (element(1, "wall", length_m=3.0, net_side_area_m2=6.0, net_volume_m3=1.0),),
+    "rooms": (
+        room(1, "other", 20.0, plan="p1", attrs={"ifc_name": "1.01", "ifc_long_name": "Office"}),
+    ),
+}
+
+
+def test_a_storey_sum_counts_what_the_model_has_on_it_and_a_plan_count_what_the_sheet_draws() -> (
+    None
+):
+    found = known_quantities(drawing(**SHEET, model_objects=MODEL))
+    assert value(found, Query(measure="length", subject="wall", storey="EG")) == 7.0
+    assert value(found, Query(measure="area", subject="wall", storey="EG")) == 14.0
+    assert value(found, Query(measure="volume", subject="wall", storey="EG")) == 3.0
+    assert value(found, Query(measure="volume", subject="slab", storey="EG")) == 10.0
+    assert value(found, Query(measure="area", subject="room", storey="EG")) == 35.0
+    store = Query(measure="area", subject="room", name="Store (1.02)", storey="EG")
+    assert value(found, store) == 15.0
+    assert value(found, Query(measure="area", subject="room", name="1.01", storey="EG")) == 20.0
+    assert value(found, Query(subject="wall", storey="EG")) == 1  # shown on the plan
+    assert value(found, Query(subject="room", storey="EG")) == 1
+    walls = found[Query(subject="wall", model=True).key()]
+    assert (walls.value, len(walls.marks)) == (3, 1)  # only the drawn wall has a mark
+    assert value(found, Query(subject="room", model=True)) == 2
+    assert value(found, Query(subject="door", model=True)) == 1
+    assert value(found, Query(subject="wall", storey="OG", model=True)) == 1
+    assert value(found, Query(subject="door")) == 0  # the sheet draws none
+    assert found[store.key()].marks == ()
+
+
+def test_without_a_model_the_storey_sums_are_the_drawn_elements() -> None:
+    found = known_quantities(drawing(**SHEET))
+    assert value(found, Query(measure="length", subject="wall", storey="EG")) == 3.0
+    assert value(found, Query(measure="area", subject="room", storey="EG")) == 20.0
+    assert Query(subject="wall", model=True).key() not in found
+
+
+def test_a_storey_sum_the_model_cannot_give_is_unknown_even_if_the_drawn_elements_can() -> None:
+    lacking = (MODEL[0], model_object(2, "wall", "EG"), MODEL[5], model_object(7, "space", "EG"))
+    found = known_quantities(drawing(**SHEET, model_objects=lacking))
+    assert Query(measure="length", subject="wall", storey="EG").key() not in found
+    assert Query(measure="area", subject="room", storey="EG").key() not in found
+    assert value(found, Query(measure="area", subject="room", name="1.01", storey="EG")) == 20.0
+
+
+def test_a_space_the_model_states_no_area_for_has_the_area_of_the_room_the_sheet_draws() -> None:
+    unstated = model_object(6, "space", "EG", "r1", name="1.01", long_name="Office")
+    found = known_quantities(drawing(**SHEET, model_objects=(*MODEL[:5], unstated)))
+    assert value(found, Query(measure="area", subject="room", name="Office", storey="EG")) == 20.0
+    assert value(found, Query(measure="area", subject="room", storey="EG")) == 20.0
+    undrawn = model_object(7, "space", "OG", name="2.01")
+    found = known_quantities(drawing(**SHEET, model_objects=(*MODEL[:5], unstated, undrawn)))
+    assert Query(measure="area", subject="room", name="2.01", storey="OG").key() not in found
+    assert Query(measure="area", subject="room", storey="OG").key() not in found
+
+
+def test_a_model_file_without_a_page_answers_from_its_objects_alone() -> None:
+    found = known_quantities(
+        Drawing(
+            file="data/demo/m.ifc", pages=(), scale=Scale(status="no_scale"), model_objects=MODEL
+        )
+    )
+    assert value(found, Query(subject="wall", storey="EG")) == 2
+    assert value(found, Query(subject="room", storey="EG")) == 2
+    assert value(found, Query(subject="door", storey="OG")) == 1
+    assert value(found, Query(subject="door", storey="EG")) == 0
+    assert value(found, Query(subject="wall", model=True)) == 3
+    assert value(found, Query(measure="length", subject="wall", storey="EG")) == 7.0
+    assert value(found, Query(measure="area", subject="room", name="Office", storey="EG")) == 20.0
+    for sheet_only in (Query(subject="wall"), Query(subject="plan"), Query(subject="room")):
+        assert sheet_only.key() not in found
+
+
+def test_a_name_two_of_a_storey_s_spaces_share_names_neither() -> None:
+    wcs = tuple(
+        model_object(n, "space", "OG", area_m2=2.0, name=f"2.0{n}", long_name="WC") for n in (8, 9)
+    )
+    found = known_quantities(drawing(**SHEET, model_objects=(*MODEL, *wcs)))
+    assert Query(measure="area", subject="room", name="WC", storey="OG").key() not in found
+    assert value(found, Query(measure="area", subject="room", name="WC (2.08)", storey="OG")) == 2.0
+    assert value(found, Query(measure="area", subject="room", storey="OG")) == 4.0

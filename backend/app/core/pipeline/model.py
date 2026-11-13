@@ -11,6 +11,7 @@ from app.core.drawing.model import (
     Mark,
     MeasuredValue,
     MeasureMethod,
+    ModelObject,
     Page,
     Plan,
     ReadClass,
@@ -87,6 +88,7 @@ class Extracted(Frozen):
     apartments: tuple[Apartment, ...] = ()
     tables: tuple[Table, ...] | None = None
     read: tuple[ReadClass, ...] | None = None  # what it looked for; None: every class and rooms
+    model_objects: tuple[ModelObject, ...] | None = None  # the model's objects; None: no model
     notes: tuple[str, ...] = ()
 
 

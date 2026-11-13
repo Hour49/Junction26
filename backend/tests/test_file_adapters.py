@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.dataset_files import DatasetFiles
+from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
 from app.adapters.golden_dir import GoldenDir, GoldenFile
 from app.adapters.page_sizes import PageSizes
 from app.adapters.paths import inside
@@ -37,6 +37,59 @@ def test_a_path_that_leaves_its_folder_is_refused(tmp_path: Path, path: str) -> 
     (tmp_path / "secret.txt").write_text("outside")
     with pytest.raises(InvalidInputError, match="not a path inside"):
         DatasetFiles(root).read(path)
+
+
+def model_folder(root: Path, *names: str) -> DatasetSheetModels:
+    (root / "data" / "ifc").mkdir(parents=True)
+    for name in names:
+        (root / "data" / "ifc" / name).write_bytes(b"synthetic")
+    return DatasetSheetModels(root)
+
+
+def test_a_plan_sheet_is_paired_with_its_model_only_when_its_twin_is_there(tmp_path: Path) -> None:
+    finder = model_folder(
+        tmp_path,
+        "house.ifc",
+        "house_plan-01-eg.pdf",
+        "house_plan-01-eg.svg",
+        "house_plan-02-og.pdf",  # no twin
+        "house_plan-03-dg.png",  # not a PDF
+        "house_plan-03-dg.svg",
+        "house_section-01.pdf",  # not a plan sheet
+        "house_section-01.svg",
+        "lone_plan-01-eg.pdf",  # no model
+        "lone_plan-01-eg.svg",
+        ".ifc",  # a file without a name is no sheet's model
+        "_plan-01-eg.pdf",
+        "_plan-01-eg.svg",
+    )
+    assert finder.sources("data/ifc/house_plan-01-eg.pdf") == ("data/ifc/house.ifc",)
+    for path in (
+        "data/ifc/house_plan-02-og.pdf",
+        "data/ifc/house_plan-03-dg.png",
+        "data/ifc/house_section-01.pdf",
+        "data/ifc/lone_plan-01-eg.pdf",
+        "data/ifc/house.ifc",
+        "data/ifc/house_plan-01-eg.svg",
+        "data/ifc/_plan-01-eg.pdf",  # no model name before the marker
+    ):
+        assert finder.sources(path) == (), path
+
+
+def test_a_models_name_may_itself_hold_the_sheet_marker(tmp_path: Path) -> None:
+    finder = model_folder(
+        tmp_path, "site_plan-b.ifc", "site_plan-b_plan-01-eg.pdf", "site_plan-b_plan-01-eg.svg"
+    )
+    assert finder.sources("data/ifc/site_plan-b_plan-01-eg.pdf") == ("data/ifc/site_plan-b.ifc",)
+
+
+def test_a_sheet_path_that_leaves_the_dataset_is_refused_by_the_finder(tmp_path: Path) -> None:
+    root = tmp_path / "dataset"
+    finder = model_folder(root)
+    for name in ("house.ifc", "house_plan-01-eg.pdf", "house_plan-01-eg.svg"):
+        (tmp_path / name).write_bytes(b"outside")
+    with pytest.raises(InvalidInputError, match="not a path inside"):
+        finder.sources("../house_plan-01-eg.pdf")
 
 
 def test_inside_allows_a_path_under_the_root(tmp_path: Path) -> None:

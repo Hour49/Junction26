@@ -6,7 +6,8 @@ dropped hint or a typo still parses:
 
 1. Quoted names ('x', „x“, «x», “x”) are taken out first. The words just before each one say
    what it is: a room label ("labelled", "Bezeichnung"...), one room's name ("room", "Raum",
-   "ruimte"...), a building model ("model", "Modell"...) or, by default, a storey.
+   "ruimte"...), a building model ("model", "Modell"...) or, by default, a storey. A model's
+   name only says the question is about the whole model (a sheet has one model behind it).
 2. What is measured: volume, length, area or count, from cue words (first match in that order).
 3. What it is about: the first subject noun of the question, after parenthesised hints and
    clauses that exclude something ("not counting separate WC rooms", "ohne Balkone") are left
@@ -218,11 +219,12 @@ QUALIFIED_WALL = re.compile(
     r"|estern|ulko|sisä"
 )
 SCHEDULE = re.compile(r"schedul|finish|\blisted in\b|zeitplan|\bliste\b|tableau")
-# A breakdown, a list or a place named without quotes is not one quantity of the sheet.
+# A breakdown, a list, several values asked at once ("what are the key metrics...") or a place
+# named without quotes is not one quantity of the sheet.
 BREAKDOWN = re.compile(
     r"\beach\b|\bper (?:type|floor|storey|level|room)\b|\bby (?:type|floor|storey|level|size"
     r"|width|system|function)\b|breakdown|distribut|grouped|\btypes\b|\bdifferent\b|\bdistinct\b"
-    r"|proportion|\bwhich\b|\bwhere\b|\blist\b"
+    r"|proportion|\bwhich\b|\bwhere\b|\blist\b|\bwhat are\b|\bmetrics\b|statistic"
 )
 PLACE = re.compile(
     r"\b(?:ground|first|second|third|fourth|fifth|sixth|top|upper|lower|north|south|east|west)\b"
@@ -287,7 +289,7 @@ class TemplateParser:
         subjects = list(dict.fromkeys(subject for _, subject in hits))
         label = next((q.text for q in quoted if q.role == "label"), None)
         name = next((q.text for q in quoted if q.role == "name"), None)
-        storey = next((q.text for q in quoted if q.role in ("storey", "model")), None)
+        storey = next((q.text for q in quoted if q.role == "storey"), None)
         model = any(q.role == "model" for q in quoted) or BUILDING.search(lower) is not None
         if name is None and (number := ROOM_NUMBER.search(bare)):
             name = number.group(1)

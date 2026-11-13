@@ -12,8 +12,11 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ExtractorName = Literal["hello", "pdf"]  # pdf: the vector route's reader of drawn PDFs
-SecondCounterName = Literal["hello", "pdf"]  # pdf: a drawn PDF sheet's own second readings
+# pdf: the vector route's reader of drawn PDFs. ifc: the model route's reader of a plan sheet
+# with its IFC building model, which also makes ingest look for that model next to the sheet
+ExtractorName = Literal["hello", "pdf", "ifc"]
+# pdf: a drawn PDF sheet's own second readings. ifc: those, and what a sheet's model lists
+SecondCounterName = Literal["hello", "pdf", "ifc"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 
@@ -22,10 +25,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    extractor_bim: ExtractorName = "hello"
+    extractor_bim: ExtractorName = "ifc"
     extractor_cad: ExtractorName = "hello"
     extractor_vector: ExtractorName = "pdf"
     extractor_raster: ExtractorName = "hello"
-    second_counter: SecondCounterName = "pdf"
+    second_counter: SecondCounterName = "ifc"
     question_parser: QuestionParserName = "templates"
     answer_prior: AnswerPriorName = "none"

@@ -14,6 +14,15 @@ class DrawingFiles(Protocol):
     def read(self, path: str) -> bytes: ...
 
 
+class SourceFinder(Protocol):
+    """Stage 4's lookup: the richer sources the store holds for a sheet beyond the files a run
+    was given, e.g. the building model a plan sheet was rendered from. They join the sheet's
+    group, so stage 5 can route to them. A finder names a source only when the route's extractor
+    can read the sheet from it; a sheet without one keeps the route of its own files."""
+
+    def sources(self, path: str) -> Sequence[str]: ...
+
+
 class PageReader(Protocol):
     """The pages of a sheet file as rendered (after any PDF /Rotate), in order from page 1."""
 
@@ -25,7 +34,11 @@ class Extractor(Protocol):
     returns what it found as page fractions of `sheet`, which may be another file of the group.
     It also says what it looked for (`read`): a class it leaves out has no count, not a count
     of 0. A room area it gives is the room's outline at the sheet's scale: stage 8 compares it
-    with a printed area under that name (`polygon_x_scale`)."""
+    with a printed area under that name (`polygon_x_scale`).
+
+    A building model that is asked about itself has no page: the model route's extractor then
+    gets it as `source` and as a `sheet` without pages, and gives the model's objects
+    (`model_objects`) with nothing placed, or nothing, and the file is set aside."""
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted: ...
 

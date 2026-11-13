@@ -2,6 +2,8 @@
 runs end to end and scores near zero. A real adapter replaces one of them in app/composition.py;
 these stay as the floor to compare against."""
 
+from collections.abc import Sequence
+
 from app.core.answering.model import Query, Unsupported
 from app.core.drawing.model import Scale
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
@@ -18,6 +20,13 @@ class HelloExtractor:
             read=(),
             notes=("hello-world extractor: nothing was read from the drawing",),
         )
+
+
+class HelloSourceFinder:
+    """The `SourceFinder` port: knows of no source beyond the files a run was given."""
+
+    def sources(self, path: str) -> Sequence[str]:
+        return ()
 
 
 class HelloSecondCounter:

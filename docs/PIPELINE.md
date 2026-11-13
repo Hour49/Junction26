@@ -51,12 +51,13 @@ conflicts"). The ingest screen shows that trace, and the demo walks through it.
 ## Stages, what each one writes, and what exists today
 
 Every stage is a module in `backend/app/core/pipeline/` (record [0005](decisions/0005-pipeline-core.md)). Three
-adapters are real by default: the vector PDF extractor (`EXTRACTOR_VECTOR=pdf`), the PDF second counter
-(`SECOND_COUNTER=pdf`) and the question parser (`QUESTION_PARSER=templates`); everything else is still a do-nothing
+adapters are real by default: the vector PDF extractor (`EXTRACTOR_VECTOR=pdf`), the IFC reader (`EXTRACTOR_BIM=ifc`),
+the second counter (`SECOND_COUNTER=ifc`, which also runs the PDF one) and the question parser
+(`QUESTION_PARSER=templates`); everything else is still a do-nothing
 `hello` adapter. "Today" says what each stage does now, as of 2026-11-14 00:26.
 
-Golden v2 (2,948 questions), checked 2026-11-14: end to end (pipeline drawings) 2013 of 2948 (68.3%, with
-`ANSWER_PRIOR=dev`); on the gold drawings 2876 of 2948 (97.6%). The prior: a question the
+Golden v2 (2,948 questions), checked 2026-11-14: end to end (pipeline drawings), with ifc on, 2201 of 2948 (74.7%,
+`ANSWER_PRIOR=dev`; 2013, 68.3%, before the IFC route; all 1542 answers that do not abstain are right); on the gold drawings 2876 of 2948 (97.6%). The prior: a question the
 drawing gives no value for (a class not read, a schedule not read) gets the dev split's best estimate, marked
 `abstain: true`; without it the same run scores 1436 of 2948 (48.7%). Extraction, Part 1 element F1: swiss 100%, ifc_models
 80.4%, CubiCasa 0% (the raster route is not read yet; it waits on the literature campaign).
@@ -69,9 +70,9 @@ drawing gives no value for (a class not read, a schedule not read) gets the dev 
 | 6 Normalise | page renderings, rotation, plans per sheet, scale and its source | I5, I6, I7 | module: pages as the file gives them. The scale is read by the vector extractor in stage 7, not here | rotation, rendering, plan split |
 | 7 Extract: vector | rooms, openings, fixtures, apartments | I8 | `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`, default): reads page 1 of a drawn PDF, and the PNG of the same sheet, in two styles: swiss_dwellings plans (element F1 100%, rooms and areas 100%) and sheets IfcConvert drew from an IFC model (rooms and areas 100%, element F1 80.4%). Reads the scale from text and bar. It says which classes it looked for (`read`), so an unread class gets no count | columns, stairs, railings, slabs and beams on IFC-style sheets; other styles (only their scale is read); pages after the first; SVG |
 | 7 Extract: raster | room labels (OCR), symbols (detector), plans | I8 | `hello`, reads nothing: CubiCasa element F1 0%, and its questions are refused or get the dev prior. CubiCasa gold from the SVGs (4,787 files); detector training on dev boxes allowed (0003) | detector and OCR adapter |
-| 7 Extract: BIM | IFC elements with GlobalIds, placed on the sheet | I8 | `hello`. IFC gold (69 sheets) built from SVG shape plus IFC data; ifcopenshell allowed ([0006](decisions/0006-lgpl-dependencies.md)) | IFC adapter; also what finds the 14 plan-vs-model conflicts |
+| 7 Extract: BIM | IFC elements with GlobalIds, placed on the sheet | I8 | `IfcModelExtractor` (`EXTRACTOR_BIM=ifc`, default): reads the IFC model with ifcopenshell ([0006](decisions/0006-lgpl-dependencies.md)) and lists every object, drawn or not, in `model_objects` (format amendment 0004, PR #55). A space's area is the footprint of its solid. An `.ifc` path gets a page-less drawing. Golden ifc_models Part 1 1630/1630, Part 2 466/466. Dev batch ifc_models: area 1918/1918, length 40/40, volume 86/86, count 415/426 (11 fixture counts have no class). Memory: +1 GB on the dev batch, because ifcopenshell keeps parsed files | IFC gold sheets are still built from SVG shape plus IFC data; no placing of model objects on a sheet |
 | 7 Extract: CAD, tables | DXF elements; schedule rows | I8 | none. DXF read for the swiss gold only. Schedules: no reader, so the pipeline has no `tables` and opening_design schedule questions get 0 of 9 area, 3 of 39 count (prior), 0 of 16 text. The answer side is built and gets 8/9, 20/39, 6/16 from gold tables | table reader (schedule rows from the text layer); DXF only if Stoa gives it |
-| 8 Second count | the second value and the contested marks | I10 | `PdfSecondCounter` (`SECOND_COUNTER=pdf`, default) brings the scale text and the scale bar, and on swiss plans the printed area of each room. Stage 8 pairs them with the extraction's own values and applies the §2 rules: the bar wins over the text, the printed label wins over the outline area. On golden v2: 0 false alarms on the 102 agree entries, 0 of the 14 real conflicts found (they need the IFC model). No dev sheet has a real conflict of either kind, so both paths are tested on synthetic sheets only | room and storey counts and element counts against the IFC model; detector vs parser; printed total vs summed rooms |
+| 8 Second count | the second value and the contested marks | I10 | `SECOND_COUNTER=ifc` (default) compares the sheet's counts against the IFC model's: the 14 golden conflicts are found, with 0 of 102 false alarms. `PdfSecondCounter` (`SECOND_COUNTER=pdf`) brings the scale text and the scale bar, and on swiss plans the printed area of each room. Stage 8 pairs them with the extraction's own values and applies the §2 rules: the bar wins over the text, the printed label wins over the outline area. On golden v2: 0 false alarms on the 102 agree entries. No dev sheet has a real scale or room-area conflict, so those two paths are tested on synthetic sheets only | detector vs parser; printed total vs summed rooms |
 | 9 Rules | rule ids per quantity | I9 | one rule, `each-once`. Answering adds a few rules of its own (refuse a class that was not read; a room-area sum is an estimate when one of its rooms is). The dataset's rules are known and validated against the gold (§3) | encode them as `CountingRule`s |
 | 10 Takeoff, drawing model | one JSON per plan | I9, I11, I12 | module: a count per class, room type and plan, with marks; areas of rooms and apartments, wall length and volumes where the drawing has them; format fixed in [0004](decisions/0004-extraction-format.md). A class the extractor did not read is refused, not counted as 0 | lengths and volumes from an extractor |
 
@@ -86,7 +87,8 @@ Built (2026-11-14, 0005): the rows for **scale** and **room area** (printed labe
 sheets. When the scale text and the scale bar differ by more than 2%, the bar gives the drawing's scale and the
 room areas use it; when a printed room area and the outline area differ, the printed one is put on the room. An
 agreement changes nothing. On the 879 dev sheets of the PDF sources, 6,547 room areas and 877 scales were compared
-and all agree, so neither path has run on a real sheet. The other rows are not built: they need the IFC model, a
+and all agree, so neither path has run on a real sheet. The room count and element count rows against the IFC model
+are built too (`SECOND_COUNTER=ifc`) and find the 14 golden conflicts. The other rows are not built: they need a
 schedule or a detector.
 
 | Quantity | Method A | Method B | Tolerance | Resolution rule |

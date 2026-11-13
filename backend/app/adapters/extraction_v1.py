@@ -3,8 +3,8 @@
 
 The drawing model already has the format's fields; this module adds and removes the envelope:
 `schema`, `split` (which side of the sealed split the file is on) and `truth` (`counts` when the
-file only states totals, else `elements`). The optional `tables`, `conflicts` and `read` (0004's
-2026-11-13 amendments) are written only when the drawing has them.
+file only states totals, else `elements`). The optional `tables`, `conflicts`, `read` and
+`model_objects` (0004's amendments) are written only when the drawing has them.
 """
 
 import json
@@ -19,7 +19,7 @@ from app.core.drawing.model import Drawing
 from app.core.errors import InvalidInputError, NotFoundError
 
 SCHEMA = "extraction_v1"
-OPTIONAL = ("tables", "conflicts", "read")  # left out of the file when None
+OPTIONAL = ("tables", "conflicts", "read", "model_objects")  # left out of the file when None
 Split = Literal["dev", "eval"]
 
 
