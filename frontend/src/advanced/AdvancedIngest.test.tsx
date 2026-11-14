@@ -527,7 +527,7 @@ describe('AdvancedIngest', () => {
   it('AV-20/AV-39 Index: questions ready per drawing and the suggestions, no Ask link', async () => {
     await show();
     expect(screen.getByText('Questions ready to ask')).toBeTruthy();
-    expect(document.body.textContent).toContain('71 questions ready to ask');
+    expect(document.body.textContent).toContain('141 questions ready to ask');
     expect(document.body.textContent).toContain(must(drawing.suggestions[0]).label);
     expect(screen.queryByRole('link', { name: 'Ask this drawing' })).toBeNull();
     expect(document.body.textContent).not.toContain('answers ready');

@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import type { ProjectView } from '../api';
 import { ChatAnswer } from '../engineer/ChatAnswer';
 import { routeHref } from '../shell/route';
@@ -29,6 +30,16 @@ export function showHref(projectId: string, e: Evidence, pack: string | null = n
   });
 }
 
+/** With the plan beside the chat, a source link shows its place there instead of leaving the chat (chat-ux #1);
+ * a modified click still opens the workspace. */
+const show = (e: Evidence, onShow?: (e: Evidence) => void) =>
+  onShow &&
+  ((ev: MouseEvent) => {
+    if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    ev.preventDefault();
+    onShow(e);
+  });
+
 /** "Bagno 1.01 · Drawn plan 1, page 1"; the server may leave the label or the drawing's name out. */
 const where = (e: Evidence) =>
   `${e.label ?? 'Place'} · ${e.name ?? 'the drawing'}, page ${String(e.page)}`;
@@ -55,10 +66,12 @@ function Text({
   turn,
   projectId,
   pack,
+  onShow,
 }: {
   turn: ChatTurn;
   projectId: string;
   pack: string | null;
+  onShow?: (e: Evidence) => void;
 }) {
   const byN = new Map(turn.evidence.map((e) => [e.n, e]));
   const cites = (s: string) =>
@@ -71,6 +84,7 @@ function Text({
           className="ag-cite"
           href={showHref(projectId, e, pack)}
           aria-label={`Source ${String(part)}: ${where(e)}`}
+          onClick={show(e, onShow)}
         >
           [{part}]
         </a>
@@ -121,10 +135,12 @@ function Sources({
   turn,
   projectId,
   pack,
+  onShow,
 }: {
   turn: ChatTurn;
   projectId: string;
   pack: string | null;
+  onShow?: (e: Evidence) => void;
 }) {
   return (
     <ol className="ag-sources" aria-label="Sources">
@@ -133,7 +149,9 @@ function Sources({
           <span className="en-tag">{e.n}</span>
           <span>{where(e)}</span>
           {e.level && <Confidence level={e.level} />}
-          <a href={showHref(projectId, e, pack)}>Show it</a>
+          <a href={showHref(projectId, e, pack)} onClick={show(e, onShow)}>
+            Show it
+          </a>
         </li>
       ))}
     </ol>
@@ -176,6 +194,8 @@ export function TurnCard(props: {
   busy: boolean;
   onAsk: (message: string) => void;
   onDecided?: (p: Proposal) => void;
+  /** Set when the plan is beside the chat: `[n]` and "Show it" show the place there. */
+  onShow?: (e: Evidence) => void;
 }) {
   const { turn, projectId, project, pack, busy, onAsk } = props;
   // The ask chat's card for each answer some drawing answered; it lists the references, so no sources list then.
@@ -189,7 +209,7 @@ export function TurnCard(props: {
           <b>{headline}</b>
         </p>
       )}
-      <Text turn={turn} projectId={projectId} pack={pack} />
+      <Text turn={turn} projectId={projectId} pack={pack} onShow={props.onShow} />
       {answers.map((a, i) => (
         <ChatAnswer key={i} ask={a} project={project} projectId={projectId} pack={pack} />
       ))}
@@ -228,7 +248,7 @@ export function TurnCard(props: {
         />
       )}
       {turn.evidence.length > 0 && answers.length === 0 && (
-        <Sources turn={turn} projectId={projectId} pack={pack} />
+        <Sources turn={turn} projectId={projectId} pack={pack} onShow={props.onShow} />
       )}
       <Steps turn={turn} />
     </div>
