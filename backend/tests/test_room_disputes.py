@@ -111,7 +111,6 @@ def test_a_place_two_other_readers_type_and_the_answer_does_not_count_is_listed_
         "label": "KHH",
         "segmentation": "wc",
         "printed_label": "wc",
-        "typer": None,
     }
 
 
@@ -125,23 +124,6 @@ def test_one_other_reader_alone_does_not_list_an_uncounted_place() -> None:
     assert (
         room_disputes("wc", rooms, second=confirmed, printed=[room("wc", IN_A), room("wc", IN_B)])
         == ()
-    )
-
-
-def test_the_typer_is_a_reader_of_its_own() -> None:
-    rooms = [room("bedroom", A, "MH")]
-    second = [room("bedroom", A), room("bedroom", B)]
-    (place,) = room_disputes(
-        "bedroom", rooms, second=second, typed=[room("bedroom", A), room("bedroom", B)]
-    )
-    assert place.mark_id is None
-    assert place.why.startswith(
-        "Not counted: the segmentation reader and the room-type model see a bedroom"
-    )
-    (place,) = room_disputes("bedroom", rooms, second=second[:1], typed=[room("other", A)])
-    assert (
-        place.why
-        == "Counted as a bedroom; the room-type model reads it as a room without a printed label."
     )
 
 

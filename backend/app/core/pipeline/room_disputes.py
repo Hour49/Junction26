@@ -1,22 +1,23 @@
 """Rooms to double-check: the places where independent room readers disagree about one room type.
 
 An answer that counts rooms of a type ("how many bathrooms") comes from one reader's rooms. Other
-readers saw the same sheet: a second room reader with outlines of its own (the room segmentation),
-the printed labels the text reader found, and optionally a model that types one room at a time.
-Where they contradict the counted rooms, a person should look, and this lists those places:
+readers saw the same sheet: a second room reader with outlines of its own (the room segmentation)
+and the printed labels the text reader found. Where they contradict the counted rooms, a person
+should look, and this lists those places:
 
 - a counted room (`mark_id` is the room's id) that a reader contradicts: the second reader types
   the place differently or has no room there, the printed text inside names another type, the
   room's own label is not a label of the type, or it was typed from its furniture alone;
-- a place the answer does not count (`mark_id` None) where two of the other readers see the type,
-  or which the label policy retyped (`attrs.retyped_from`): a bedroom drawn with a bed and no
+- a place the answer does not count (`mark_id` None) where both other readers see the type, or
+  which the label policy retyped (`attrs.retyped_from`): a bedroom drawn with a bed and no
   printed label.
 
 Nothing is fitted: every rule is one reader against another. Measured on CubiCasa val with this
-function (993 room answers of config C1, 63 wrong; readers: the segmentation's rooms, the text
-reader's labels, a crop typer): a person who settles only the listed places turns 38 of the 63
-wrong answers right, 793 of the 930 right answers list no place, and an answer with places has
-1.2 on average, 5 at most. Without the typer: 35 of 63, 813 of 930.
+function (993 room answers of config C1, 63 wrong; readers: the segmentation's rooms and the text
+reader's labels): a person who settles only the listed places turns 35 of the 63 wrong answers
+right, 813 of the 930 right answers list no place, and an answer with places has 1.2 on average,
+4 at most. A model that types one room crop at a time was tried as a third reader: 38 of 63 and
+793 of 930, not worth a model at runtime.
 """
 
 import re
@@ -56,27 +57,23 @@ def room_disputes(
     *,
     second: Sequence[Room] | None = None,
     printed: Sequence[Room] | None = None,
-    typed: Sequence[Room] | None = None,
     answer: int | None = None,
     limit: int = LIMIT,
 ) -> tuple[Disputed, ...]:
     """The disputed places for the count of `kind` rooms among `rooms`, strongest first, at most
     `limit`. `second` is another room reader's rooms and `printed` the text reader's labels as
-    typed boxes (None: that reader did not run, which is not the same as finding nothing),
-    `typed` the rooms a one-room-at-a-time typer read, with its types (`other` for a room it sees
-    as unlabelled). `answer` is the count given when it is not the number of `kind` rooms (a prior
-    answers "1 kitchen" whatever was read): every counted room is then a place to look at."""
+    typed boxes (None: that reader did not run, which is not the same as finding nothing).
+    `answer` is the count given when it is not the number of `kind` rooms (a prior answers
+    "1 kitchen" whatever was read): every counted room is then a place to look at."""
     counted = [room for room in rooms if room.type == kind]
     found: list[tuple[int, Disputed]] = []
     for room in counted:
-        ranked = _counted(
-            kind, room, second, printed or (), typed, second is None and printed is None
-        )
+        ranked = _counted(kind, room, second, printed or (), second is None and printed is None)
         if ranked is None and answer is not None and answer != len(counted):
             ranked = _not_the_answer(kind, room, len(counted), answer)
         if ranked is not None:
             found.append(ranked)
-    found.extend(_missed(kind, rooms, counted, second or (), printed or (), typed or ()))
+    found.extend(_missed(kind, rooms, counted, second or (), printed or ()))
     found.sort(key=lambda ranked: ranked[0])
     return tuple(disputed for _, disputed in found[:limit])
 
@@ -86,7 +83,6 @@ def _counted(
     room: Room,
     second: Sequence[Room] | None,
     printed: Sequence[Room],
-    typed: Sequence[Room] | None,
     alone: bool,
 ) -> tuple[int, Disputed] | None:
     """`alone`: no other reader ran, so "nobody confirms it" says nothing about the room."""
@@ -96,13 +92,11 @@ def _counted(
     reads_same = any(text.type == kind for text in inside)
     reads_other = sorted({text.type for text in inside if text.type not in (kind, "other")})
     there = _at(room, second or (), kind)
-    typer = _at(room, typed or (), kind)
     readers = {
         "reader": room.type,
         "label": label or None,
         "segmentation": there.type if there else None,
         "printed_label": kind if reads_same else (reads_other[0] if reads_other else None),
-        "typer": typer.type if typer else None,
     }
     second_same = there is not None and there.type == kind
 
@@ -140,9 +134,6 @@ def _counted(
             4,
             f"Counted as a {noun} from what is drawn in it; no printed label was read in the room.",
         )
-    if typer is not None and typer.type != kind:
-        says = "a room without a printed label" if typer.type == "other" else f"a {typer.type}"
-        return listed(4, f"Counted as a {noun}; the room-type model reads it as {says}.")
     if not (second_same or reads_same) and not alone:
         return listed(
             5,
@@ -159,7 +150,6 @@ def _not_the_answer(kind: RoomType, room: Room, read: int, answer: int) -> tuple
         "label": _first_line(room) or None,
         "segmentation": None,
         "printed_label": None,
-        "typer": None,
     }
     why = f"{read} {noun} rooms were read on this page; the answer says {answer}."
     return 1, Disputed(room.id, room.page, room.box, why, readers)
@@ -171,14 +161,12 @@ def _missed(
     counted: Sequence[Room],
     second: Sequence[Room],
     printed: Sequence[Room],
-    typed: Sequence[Room],
 ) -> list[tuple[int, Disputed]]:
-    """Places off the counted rooms where two other readers see the type, or the policy retyped."""
+    """Places off the counted rooms where both other readers see the type, or the policy retyped."""
     noun = NOUN.get(kind, kind)
     off = [
-        (name, room)
-        for name, source in (("segmentation", second), ("typer", typed))
-        for room in source
+        ("segmentation", room)
+        for room in second
         if room.type == kind and not any(_same_place(room.box, other.box) for other in counted)
     ]
     off += [
@@ -202,15 +190,6 @@ def _missed(
             continue
         place = max(group, key=lambda pair: (pair[0] != "printed_label", _area(pair[1].box)))[1]
         under = _under(place, rooms)
-        who = " and ".join(
-            words
-            for name, words in (
-                ("printed_label", "a printed label"),
-                ("segmentation", "the segmentation reader"),
-                ("typer", "the room-type model"),
-            )
-            if name in names
-        )
         here = ""
         if under is not None:
             label = _first_line(under)
@@ -220,19 +199,18 @@ def _missed(
         readers = {
             "reader": under.type if under else None,
             "label": (_first_line(under) or None) if under else None,
-            "segmentation": kind if "segmentation" in names else None,
-            "printed_label": kind if "printed_label" in names else None,
-            "typer": kind if "typer" in names else None,
+            "segmentation": kind,
+            "printed_label": kind,
         }
-        rank = 1 if "printed_label" in names else 2
         found.append(
             (
-                rank,
+                1,
                 Disputed(
                     None,
                     place.page,
                     place.box,
-                    f"Not counted: {who} see a {noun} here.{here}",
+                    "Not counted: a printed label and the segmentation reader see "
+                    f"a {noun} here.{here}",
                     readers,
                 ),
             )
@@ -248,7 +226,6 @@ def _missed(
             "label": _first_line(room) or None,
             "segmentation": None,
             "printed_label": None,
-            "typer": None,
         }
         found.append(
             (
