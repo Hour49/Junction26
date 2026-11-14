@@ -434,21 +434,24 @@ def triage(
 
 
 @router.get("/{project_id}/files/{file_id}/trace")
-def trace(project_id: ProjectId, file_id: FileId, ingest: IngestDep) -> FileTrace:
-    return trace_view(ingest.trace(project_id, file_id), ingest)
+def trace(
+    project_id: ProjectId, file_id: FileId, ingest: IngestDep, models_3d: Models3dDep
+) -> FileTrace:
+    return trace_view(ingest.trace(project_id, file_id), ingest, models_3d)
 
 
 @router.get("/{project_id}/trace")
-def project_trace(project_id: ProjectId, ingest: IngestDep) -> ProjectTrace:
+def project_trace(project_id: ProjectId, ingest: IngestDep, models_3d: Models3dDep) -> ProjectTrace:
     """Every file's trace in one request, in the order the upload lists the files."""
     return ProjectTrace(
         project_id=project_id,
-        files=[trace_view(found, ingest) for found in ingest.traces(project_id)],
+        files=[trace_view(found, ingest, models_3d) for found in ingest.traces(project_id)],
     )
 
 
-def trace_view(found: FileTrace, ingest: Ingest) -> FileTrace:
-    """The trace with its file's second count, read from the drawing's conflicts."""
+def trace_view(found: FileTrace, ingest: Ingest, models: GlbModels | None = None) -> FileTrace:
+    """The trace with its file's second count, read from the drawing's conflicts, and its 3D
+    view's state (MODEL_3D)."""
     second = None
     drawing_id = found.file.drawing_id
     if drawing_id is not None:
@@ -458,7 +461,9 @@ def trace_view(found: FileTrace, ingest: Ingest) -> FileTrace:
                 measured=len(measured),
                 conflicts=sum(entry.status == "conflict" for entry in measured),
             )
-    return found.model_copy(update={"second_count": second})
+    return found.model_copy(
+        update={"second_count": second, "file": with_model_3d(found.file, models)}
+    )
 
 
 @router.get(
@@ -485,13 +490,16 @@ def with_models_3d(status: ProjectStatus, models: GlbModels | None) -> ProjectSt
     """Each IFC file with its 3D view's state (MODEL_3D); off, the status as it is."""
     if models is None:
         return status
-    files = tuple(
-        file.model_copy(update={"model_3d": models.status(file.sha256)})
-        if file.kind == "ifc" and file.sha256 is not None
-        else file
-        for file in status.files
+    return status.model_copy(
+        update={"files": tuple(with_model_3d(file, models) for file in status.files)}
     )
-    return status.model_copy(update={"files": files})
+
+
+def with_model_3d(file: FileStatus, models: GlbModels | None) -> FileStatus:
+    """An IFC file with its 3D view's state (MODEL_3D); off, or any other file, as it is."""
+    if models is None or file.kind != "ifc" or file.sha256 is None:
+        return file
+    return file.model_copy(update={"model_3d": models.status(file.sha256)})
 
 
 @router.get(

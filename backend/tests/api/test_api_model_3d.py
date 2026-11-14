@@ -114,3 +114,21 @@ def test_gzip_is_what_is_stored(on: TestClient, settings: Settings) -> None:
     fetched(on, f"/api/projects/{project_id}/files/{file['id']}/model.glb")
     (stored,) = (settings.projects_dir / "models-3d").glob("*.glb.gz")
     assert gzip.decompress(stored.read_bytes())[:4] == b"glTF"
+
+
+def test_the_file_trace_has_model_3d_on_and_none_off(on: TestClient, client: TestClient) -> None:
+    data, _ = house()
+    project_id = upload(on, data, "house.ifc")
+    file_id = file_of(on, project_id, "house.ifc")["id"]
+    traced = on.get(f"/api/projects/{project_id}/files/{file_id}/trace").json()
+    assert traced["file"]["model_3d"]["state"] == "not_started"
+    fetched(on, f"/api/projects/{project_id}/files/{file_id}/model.glb")
+    traced = on.get(f"/api/projects/{project_id}/files/{file_id}/trace").json()
+    assert (traced["file"]["model_3d"]["state"], traced["file"]["model_3d"]["elements"]) == (
+        "ready",
+        3,
+    )
+    listed = on.get(f"/api/projects/{project_id}/trace").json()["files"]
+    assert listed[0]["file"]["model_3d"]["state"] == "ready"
+    off = client.get(f"/api/projects/{project_id}/files/{file_id}/trace").json()
+    assert "model_3d" not in off["file"]
