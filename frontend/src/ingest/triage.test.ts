@@ -11,7 +11,7 @@ import {
   rowLine,
   verdictOf,
 } from './triage';
-import { must, triaged } from './testing';
+import { must, sheet, triaged } from './testing';
 
 const file = (i: number) => must(triaged.files[i]);
 const [plan, south, site, street] = [file(0), file(1), file(2), file(3)];
@@ -43,6 +43,16 @@ describe('triage.ts (file-triage.md FT-5)', () => {
       'Not a floor plan: another kind of drawing · the south elevation of a two-storey house',
     );
     expect(rowLine(t(street))).toBe('Not a floor plan: not a drawing');
+  });
+
+  it('FT-24 a sheet that set the file aside gives its words, title and number', () => {
+    const with_ = (s: Partial<typeof sheet>) => rowLine({ ...t(south), sheet: { ...sheet, ...s } });
+    expect(with_({})).toBe('Not a floor plan: an elevation (South elevation, A-201)');
+    expect(with_({ sheet_number: null })).toBe('Not a floor plan: an elevation (South elevation)');
+    expect(with_({ title: null })).toBe('Not a floor plan: an elevation (A-201)');
+    expect(with_({ title: null, sheet_number: null })).toBe('Not a floor plan: an elevation');
+    for (const decision of ['doubt', 'read'] as const)
+      expect(with_({ decision })).toBe(rowLine(t(south))); // not set aside by the sheet: class words
   });
 
   it('writes the call line, with the judge only when judged (FT-9)', () => {

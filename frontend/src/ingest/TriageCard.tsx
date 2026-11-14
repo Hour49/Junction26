@@ -12,6 +12,7 @@ import {
   callLine,
   canCall,
   canReadAsPlan,
+  notPlanLine,
   planChance,
   readError,
   readLine,
@@ -96,7 +97,7 @@ export function TriageCard(props: {
         </>
       ) : (
         <>
-          <h2 className="v-h3">Not a floor plan: {CLASS_LABEL[t.class]}</h2>
+          <h2 className="v-h3">{notPlanLine(t)}</h2>
           <p className="output">
             Chance of a floor plan {planChance(t.p_plan)} ({t.method})
           </p>
