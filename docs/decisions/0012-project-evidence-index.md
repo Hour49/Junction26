@@ -224,9 +224,15 @@ hard sheets.
 - An elevation uploaded as a drawn PDF is still also read as a plan, as before. That is the `SHEET_KIND` step's
   question, not this one's.
 - Without a describer or a key, pictures are not described and say so; text and listed sources are still indexed.
-- Not yet checked through the real ingest. The check is fixed in advance: the 15 demo questions over three
+- Checked through the real ingest by a check fixed in advance: the 15 demo questions over three
   projects (at least 14 found in the first 5), no floor plan file among the sources, no difference in any file's
   state, route or takeoff against the scope off, the 100 questions of the first decision still 92, and at most
-  0.05 USD per file on average. Result: <fill in>.
+  0.05 USD per file on average. Result (2026-11-14, PR head d8a4ec5, 0.40 USD): 13 of 15 found in the first 5
+  (the Finnish site-plan question at rank 6; the sample's drawn site picture is judged unrelated, so a default
+  search leaves it out); one floor plan among the sources (the demo zip's photos/056.jpg, a photo of a hotel
+  evacuation map that the kind call names "another kind of drawing" with no floor plan on the sheet, 0.65); no
+  file's state, kind, route, group, source or takeoff differs, but every drawing id does, because the scope is
+  part of the ingest cache key; still 92 of 100; 0.009 USD per file on average, at most 0.053. Lines 1 and 2
+  fail.
 - Revisit when: a render exists for DXF and DWG; a project's elevations sit on the same sheet as its plan; the
   describer's price or speed changes.
