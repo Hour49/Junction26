@@ -346,7 +346,7 @@ describe('AccountScreen #121 fields', () => {
     render(<AccountScreen />);
     await flush();
     const [a, b, c, d] = items();
-    const pill = must(must(a).querySelector('.v-pill:not([class*="v-pill--"])'));
+    const pill = must(must(a).querySelector('[data-slot="badge"][data-variant="secondary"]'));
     expect(pill.textContent).toBe('2 picked by Carbon');
     expect(must(a).textContent).toContain('2 to review');
     expect(must(b).textContent).toContain('1 picked by Carbon');

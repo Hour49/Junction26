@@ -436,7 +436,10 @@ describe('shell', () => {
     fireEvent.click(button());
     fireEvent.keyDown(group(), { key: 'Escape' });
     expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
-    expect(document.activeElement).toBe(button());
+    // Radix hands focus back to the trigger on a 0 ms timer.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(button());
+    });
     // The badge re-reads the project on a pack change (SH-88); the picker itself asks nothing.
     const notBadge = api.calls.slice(before).filter((c) => c.url !== `/api/projects/${P}`);
     expect(notBadge).toEqual([]);

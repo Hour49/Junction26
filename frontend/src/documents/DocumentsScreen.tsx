@@ -18,7 +18,8 @@ import { DocumentLists } from './DocumentLists';
 import { IssueCard } from './IssueCard';
 import { issueModel } from '../model3d/model3d';
 import { documentIssues, needsYou } from './documents';
-import './documents.css';
+import { Button } from '@/components/ui/button';
+import { MUTED, SMALL, TITLE } from './ui';
 
 /** Route `#/p/<pid>/documents` (documents.md): the issues to answer, the drawings, every file. */
 export function DocumentsScreen({
@@ -77,7 +78,7 @@ export function DocumentsScreen({
 
   if (project === null)
     return (
-      <div className="v-page v-page--narrow doc">
+      <div className="v-page v-page--narrow [&_p]:m-0">
         {error !== null ? (
           <ErrorView error={error} onRetry={retry} />
         ) : (
@@ -100,26 +101,33 @@ export function DocumentsScreen({
   const failed = issues && 'error' in issues ? errorText(issues.error) : null;
 
   return (
-    <div className="v-page v-page--narrow doc">
-      <div className="doc-title">
+    <div className="v-page v-page--narrow [&_p]:m-0">
+      <div className={TITLE}>
         <div>
-          <span className="doc-kicker">{project.name}</span>
-          <h1 className="v-title">Documents</h1>
-          <p className="doc-muted">
+          <span className="text-[13px] font-semibold text-ok [overflow-wrap:anywhere]">
+            {project.name}
+          </span>
+          <h1 className="v-title m-0">Documents</h1>
+          <p className={MUTED}>
             {plural(project.files.length, 'file')} ingested,{' '}
             {plural(project.drawings.length, 'drawing')} read from them
           </p>
         </div>
-        <a className="v-btn v-btn--secondary v-press" href={`#/p/${projectId}/checks${q}`}>
-          Building-code checks
-        </a>
+        <Button
+          asChild
+          variant="secondary"
+          size="pill"
+          className="v-press font-medium no-underline"
+        >
+          <a href={`#/p/${projectId}/checks${q}`}>Building-code checks</a>
+        </Button>
       </div>
-      <section aria-label="Issues" className="doc-section">
-        <div className="doc-title">
+      <section aria-label="Issues" className="flex flex-col gap-3">
+        <div className={TITLE}>
           <div>
-            <h2 className="doc-h">Issues</h2>
+            <h2 className="m-0 text-xl">Issues</h2>
             {rows.length > 0 && (
-              <p className="doc-muted">
+              <p className={MUTED}>
                 {left
                   ? `${plural(left, 'issue')} need${left === 1 ? 's' : ''} your answer.`
                   : 'Every issue is answered.'}{' '}
@@ -128,33 +136,38 @@ export function DocumentsScreen({
             )}
           </div>
           {done && (
-            <a className="doc-small" href={issuesZipUrl(projectId, pack ?? undefined)} download>
+            <a
+              className={`${SMALL} inline-flex min-h-11 items-center`}
+              href={issuesZipUrl(projectId, pack ?? undefined)}
+              download
+            >
               Export
             </a>
           )}
         </div>
         {!done ? (
-          <p className="doc-muted">The issues are listed once the project is read.</p>
+          <p className={MUTED}>The issues are listed once the project is read.</p>
         ) : failed ? (
-          <p role="alert" className="doc-error">
+          <p role="alert" className="text-danger">
             {failed.detail} ({failed.code}){' '}
-            <button
-              type="button"
-              className="v-btn v-btn--secondary v-press"
+            <Button
+              variant="secondary"
+              size="pill"
+              className="v-press font-medium"
               onClick={() => {
                 setIssues(null);
                 setReload((n) => n + 1);
               }}
             >
               Retry
-            </button>
+            </Button>
           </p>
         ) : list === null ? (
           <Loading label="Loading issues…" />
         ) : rows.length === 0 ? (
-          <p className="doc-muted">No issues: nothing needs a look.</p>
+          <p className={MUTED}>No issues: nothing needs a look.</p>
         ) : (
-          <ol className="doc-issues">
+          <ol className="m-0 flex list-none flex-col gap-2.5 p-0">
             {rows.map(({ issue, n }) => (
               <IssueCard
                 key={issue.id}

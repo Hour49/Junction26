@@ -6,6 +6,7 @@ import { formatSize } from '../ingest/ingest';
 import { flush, variants, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from './AdvancedIngest';
+import { VERDICT_BUTTON } from './visuals';
 
 // The finished block is preqa-a's (src/ingest/IngestFinished.tsx), tested there; here only where it goes (AV-35).
 vi.mock('../ingest/IngestFinished', () => ({
@@ -594,7 +595,7 @@ describe('AdvancedIngest', () => {
       /@media \(max-width: 760px\)[^@]*\.adv-panel > \.ingest-done-line \{[^}]*padding: 0 20px 22px/,
     );
     expect(css).toMatch(/\.adv-now\.done \{[^}]*color: var\(--v-ok\)/);
-    expect(css).toMatch(/\.adv-verdict button \{[^}]*min-height: 44px/);
+    expect(VERDICT_BUTTON).toContain('min-h-11'); // 44 px
   });
 
   it('CSS: the set-aside note never wraps', () => {
