@@ -3154,6 +3154,24 @@
               "title": "Zeros",
               "type": "boolean"
             }
+          },
+          {
+            "description": "the project it is shown in: names the file as that project uploaded it",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the project it is shown in: names the file as that project uploaded it",
+              "title": "Project"
+            }
           }
         ],
         "requestBody": {
@@ -3214,6 +3232,24 @@
               "description": "also list the rows whose value is 0 and nothing happened to",
               "title": "Zeros",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "the project it is shown in: names the file as that project uploaded it",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the project it is shown in: names the file as that project uploaded it",
+              "title": "Project"
             }
           }
         ],
@@ -3276,6 +3312,24 @@
               "title": "Zeros",
               "type": "boolean"
             }
+          },
+          {
+            "description": "the project it is shown in: names the file as that project uploaded it",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the project it is shown in: names the file as that project uploaded it",
+              "title": "Project"
+            }
           }
         ],
         "responses": {
@@ -3326,6 +3380,24 @@
               "description": "also list the rows whose value is 0 and nothing happened to",
               "title": "Zeros",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "the project it is shown in: names the file as that project uploaded it",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the project it is shown in: names the file as that project uploaded it",
+              "title": "Project"
             }
           }
         ],

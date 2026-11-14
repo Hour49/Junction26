@@ -490,7 +490,7 @@ describe('extended answers', () => {
     const t = await shownTurn(answerArea);
     expect(
       within(t).getByText(
-        '22.4 + 2.49 + 12.45 + 14.93 = 52.27 m2; left out: Balkon 12.45 (outdoor room)',
+        '22.4 + 2.49 + 12.45 + 14.93 = 52.27 m²; left out: Balkon 12.45 (outdoor room)',
       ),
     ).toBeTruthy();
     cleanup();

@@ -162,11 +162,18 @@ def _one_key(found: Row) -> tuple[ClassKey, ...]:
     return (ClassKey(label=name, colour=colour(name), count=counted),)
 
 
+SHOWN_UNITS = {"m2": "m²", "m3": "m³"}  # the unit as people write it
+
+
+def _unit(unit: str) -> str:
+    return SHOWN_UNITS.get(unit, unit)
+
+
 def check(found: Row) -> str | None:
     """How a second method checked the value: both values, and the rule that kept one."""
     if found.first is None or found.second is None:
         return None
-    unit = "" if found.unit == "count" else f" {found.unit}"
+    unit = "" if found.unit == "count" else f" {_unit(found.unit)}"
     shown = [f"{METHODS.get(v.method, v.method)} {number(v.value)}{unit}"
              for v in (found.first, found.second)]  # fmt: skip
     if found.conflict is None:
@@ -185,9 +192,9 @@ def _sum(found: Row) -> str | None:
         return None
     total = sum(mark.value or 0.0 for mark in parts)
     text = " + ".join(number(mark.value or 0.0) for mark in parts)
-    text += f" = {number(total)} {found.unit}"
+    text += f" = {number(total)} {_unit(found.unit)}"
     if abs(total - found.value) > 0.01:
-        text += f"; kept: {number(found.value)} {found.unit}"
+        text += f"; kept: {number(found.value)} {_unit(found.unit)}"
     out = [mark for mark in found.marks if mark.state == "excluded"]
     if out:
         text += "; left out: " + ", ".join(
