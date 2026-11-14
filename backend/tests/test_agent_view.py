@@ -110,29 +110,56 @@ def test_a_place_from_an_earlier_turn_can_be_cited_again() -> None:
     assert got.view is not None and [m.n for m in got.view.marks] == [1]
 
 
-def test_show_on_plan_refuses_places_on_two_pages() -> None:
+def test_show_on_plan_shows_the_page_with_most_places_and_names_the_others() -> None:
+    marks = [door(1), door(2, page=2), door(3, page=2)]
     two = {"parts": [{"drawing_id": DRAWING, "name": "plan.pdf",
-                      "answer": {"answer": 2, "marks": [door(1), door(2, page=2)]}}]}  # fmt: skip
+                      "answer": {"answer": 3, "marks": marks}}]}  # fmt: skip
     model = Model(
         step(call("ask_drawings", question="doors")),
-        step(call("show_on_plan", 2, evidence_ids=["ev_1", "ev_2"], caption="Both doors")),
-        final(text="There are 2 doors [ev_1].", evidence_ids=["ev_1"]),
+        step(call("show_on_plan", 2, evidence_ids=["ev_1", "ev_2", "ev_3"], caption="The doors")),
+        final(text="There are 3 doors [ev_1].", evidence_ids=["ev_1"]),
     )
     got = turn(model, Tools(ask_drawings=two), names=NAMES)
     shown = got.steps[-1]
-    assert (shown.tool, shown.status) == ("show_on_plan", "error")
-    assert "one page at a time" in model.sent[2][-1]["content"]
-    assert got.view is not None and got.view.source == "evidence"
+    assert (shown.tool, shown.status) == ("show_on_plan", "ok")
+    result = json.loads(model.sent[2][-1]["content"])
+    assert (result["shown"], result["page"]) == (2, 2)
+    assert result["other_pages"] == [{"drawing": "Drawn plan 1", "page": 1, "places": 1}]
+    assert got.view is not None and (got.view.source, got.view.page) == ("show_on_plan", 2)
 
 
-def test_an_unknown_evidence_id_is_an_error_for_the_model() -> None:
+def test_unknown_evidence_ids_are_named_and_the_known_ones_shown() -> None:
+    model = Model(
+        step(call("ask_drawings", question="how many doors")),
+        step(call("show_on_plan", 2, evidence_ids=["ev_1", "ev_9"], caption="The doors")),
+        final(text="Here."),
+    )
+    got = turn(model, Tools(ask_drawings=DOORS), names=NAMES)
+    assert got.steps[-1].status == "ok"
+    result = json.loads(model.sent[2][-1]["content"])
+    assert (result["shown"], result["unknown"]) == (1, ["ev_9"])
+    assert got.view is not None and len(got.view.marks) == 1
+
+
+def test_only_unknown_evidence_ids_is_an_error_for_the_model() -> None:
     model = Model(
         step(call("show_on_plan", evidence_ids=["ev_9"], caption="x")),
         final(kind="dont_know", text="Nothing to show."),
     )
     got = turn(model, Tools())
-    assert got.steps[-1].status == "error" and "ev_9" in model.sent[1][-1]["content"]
+    said = model.sent[1][-1]["content"]
+    assert got.steps[-1].status == "error" and "ev_9" in said and "answer: latest" in said
     assert got.view is None
+
+
+def test_a_caption_that_names_the_plan_is_not_said_twice() -> None:
+    model = Model(
+        step(call("ask_drawings", question="how many doors")),
+        step(call("show_on_plan", 2, evidence_ids=["ev_1"], caption="The door on the plan")),
+        final(text="Here."),
+    )
+    got = turn(model, Tools(ask_drawings=DOORS), names=NAMES)
+    assert got.steps[-1].label == "Showed the door on the plan"
 
 
 def test_a_caption_with_a_number_no_tool_gave_is_replaced_by_the_server() -> None:
