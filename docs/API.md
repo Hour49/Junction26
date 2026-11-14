@@ -2997,8 +2997,11 @@ a person settled or signed the quantity off, on a refusal, and when `CHECK_POLIC
 whatever the score or route, and the `reason` says why: two methods disagree, also when a rule picked one value
 (`Please double-check the doors: two methods disagree: 2 vs 3; we show 3.`; areas with two decimals and m²);
 the value is an estimate (`... it is an estimate (<the estimate>).`); a person changed the marks without
-signing off (`... edited by you: sign off to confirm.`). A mark the person rejected is never listed in
-`disputed`. A value read from a printed
+signing off (`... edited by you: sign off to confirm.`), or a bedroom count includes a room typed a bedroom
+with no printed label (`... 1 room is drawn as a bedroom with no printed label; please confirm.`, that room
+listed first). A mark the person rejected is never listed in `disputed`. A window count's `reason` gives both
+counts when they differ (`we count 3 windows if a window with several panes is one window, 4 if every pane is
+counted ...`), and panes that may be one window are one entry in `disputed`. A value read from a printed
 schedule gets a request without places unless the policy certified the `schedule` route. A family the
 policy has no threshold for (or a null one) is never certified. The examples use stand-ins for the score (0.87) and
 for the dispute finders: a door count certified at threshold 0.8, the same count at 0.9, and a bedroom count at

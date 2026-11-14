@@ -24,7 +24,7 @@ from app.core.drawing.model import (
 )
 from app.core.errors import InvalidInputError
 from app.core.review.ask import Asked, ask
-from app.core.review.check import CheckPolicy, Place, certified
+from app.core.review.check import CheckPolicy, Found, Place, certified
 from app.core.review.model import ReviewState, Row, Settled, SignOff
 
 SHA = "9c762d68a698dd45a6c1ca4fa7fae39f19199aae470d1b195ed82a873d8c48e9"
@@ -57,19 +57,19 @@ class Scored:
         return self
 
 
-def readers_say(drawing: Drawing, row: Row) -> list[Place]:
+def readers_say(drawing: Drawing, row: Row) -> Found:
     """A dispute finder's stand-in: the counted e2 (or r2) nobody else sees, a place nobody
     counted that one reader sees, and a counted item that has no mark (left out)."""
     counted = "e2" if row.key == "door" else "r2"
     seen = "Counted, but 1 of the 2 other readers sees nothing here."
     missed = "Not counted, but 1 of the 2 other readers sees one here."
-    return [
+    return Found(places=(
         Place(item_id=counted, page=1, box=BOX_B, why=seen,
               readers={"answer": "door, score 0.41", "M one view": None, "seg": "nothing"}),
         Place(item_id=None, page=1, box=BOX_C, why=missed,
               readers={"answer": None, "M one view": "door, score 0.77", "seg": None}),
         Place(item_id="e9", page=1, box=BOX_C, why="no such mark", readers={}),
-    ]  # fmt: skip
+    ))  # fmt: skip
 
 
 def asked(
@@ -229,7 +229,7 @@ def test_at_most_five_places_are_listed() -> None:
     found = ask(
         "How many doors are there?", SCAN, parser=TemplateParser(), clock=lambda: 0.0,
         prior=NoPrior(), state=ReviewState(), confidence=Scored(0.1), raster=True,
-        check=POLICY, route="raster", disputes=lambda drawing, row: many,
+        check=POLICY, route="raster", disputes=lambda drawing, row: Found(places=tuple(many)),
     )  # fmt: skip
     assert found.check is not None and len(found.check.disputed) == 5
     assert found.check.disputed[0].box == many[0].box

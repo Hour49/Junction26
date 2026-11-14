@@ -70,13 +70,21 @@ class Check(Frozen):
     disputed: tuple[Disputed, ...]  # strongest first; empty: no reader points anywhere
 
 
+class Found(Frozen):
+    """What a dispute finder says about an answer: the places to look at, strongest first, and,
+    when it knows why the count is uncertain, the sentence to ask with."""
+
+    places: tuple[Place, ...] = ()
+    reason: str | None = None
+
+
 # (the drawing, the answer's row) -> the places to look at for it
-Disputes = Callable[[Drawing, Row], Sequence[Place]]
+Disputes = Callable[[Drawing, Row], Found]
 
 
-def no_disputes(drawing: Drawing, row: Row) -> Sequence[Place]:
+def no_disputes(drawing: Drawing, row: Row) -> Found:
     """No dispute finder: the request asks for a look without pointing at a place."""
-    return ()
+    return Found()
 
 
 def certified(
@@ -140,19 +148,20 @@ def held(row: Row, drawing: Drawing) -> str | None:
 
 
 def double_check(
-    row: Row, marks: Sequence[MarkView], places: Sequence[Place], reason: str | None = None
+    row: Row, marks: Sequence[MarkView], found: Found, reason: str | None = None
 ) -> Check | None:
-    """The request for `row`'s answer, which is not certified, with `reason` (`held`'s) or the
-    policy's sentence; None once a person settled or signed it off. A place whose counted item
-    has no mark in `marks`, or only one the person rejected, is left out: there is nothing to
-    point at. At most `LIMIT` places, in the finder's order (strongest first)."""
+    """The request for `row`'s answer, which is not certified, with `reason` (`held`'s), else
+    the finder's sentence, else the policy's; None once a person settled or signed it off. A
+    place whose counted item has no mark in `marks`, or only one the person rejected, is left
+    out: there is nothing to point at. At most `LIMIT` places, in the finder's order (strongest
+    first)."""
     if row.signed is not None or row.settled is not None:
         return None
     mark_of = {
         mark.ref: mark.id for mark in marks if mark.ref is not None and mark.state != "rejected"
     }
     disputed: list[Disputed] = []
-    for place in places:
+    for place in found.places:
         if place.item_id is not None and place.item_id not in mark_of:
             continue
         disputed.append(
@@ -165,7 +174,7 @@ def double_check(
             )
         )
     listed = tuple(disputed[:LIMIT])
-    return Check(reason=reason or _reason(row, len(listed)), disputed=listed)
+    return Check(reason=reason or found.reason or _reason(row, len(listed)), disputed=listed)
 
 
 def schedule_check(policy: CheckPolicy) -> Check | None:

@@ -43,7 +43,7 @@ from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportM
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.drawing.model import Drawing  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
-from app.core.review.check import CheckPolicy, Place  # noqa: E402
+from app.core.review.check import CheckPolicy, Found, Place  # noqa: E402
 from app.core.review.model import Row  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
@@ -262,11 +262,11 @@ def rated(root: Path, settings: Settings) -> dict[str, Any]:
         os.chdir(here)
 
 
-def example_disputes(drawing: Drawing, row: Row) -> list[Place]:
+def example_disputes(drawing: Drawing, row: Row) -> Found:
     """A dispute finder's stand-in (core/pipeline/disputed_marks, room_disputes give these): on
     the arm's sheet, the second door or bedroom is disputed and one place was not counted."""
     if row.key == "door":
-        return [
+        return Found(places=(
             Place(item_id="e2", page=1, box=(0.6, 0.1, 0.65, 0.2),
                   why="Counted as a door, but 2 of the 3 other readers see nothing here.",
                   readers={"answer": "door, score 0.41", "L one view": None,
@@ -275,8 +275,8 @@ def example_disputes(drawing: Drawing, row: Row) -> list[Place]:
                   why="Not counted, but 2 of the 3 other readers see a door here.",
                   readers={"answer": None, "L one view": "door, score 0.55",
                            "M one view": "door, score 0.48", "seg": None}),
-        ]  # fmt: skip
-    return [
+        ))  # fmt: skip
+    return Found(places=(
         Place(item_id="r2", page=1, box=(0.55, 0.1, 0.9, 0.9),
               why="Counted as a bedroom; the segmentation reader sees a living room here.",
               readers={"reader": "bedroom", "label": "Makuuhuone 2", "segmentation": "living",
@@ -285,7 +285,7 @@ def example_disputes(drawing: Drawing, row: Row) -> list[Place]:
               why="Not counted, but the segmentation reader and the printed label see a bedroom.",
               readers={"reader": None, "label": None, "segmentation": "bedroom",
                        "printed_label": "bedroom"}),
-    ]  # fmt: skip
+    ))  # fmt: skip
 
 
 def double_checked(root: Path, settings: Settings) -> dict[str, Any]:

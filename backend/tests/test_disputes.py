@@ -56,6 +56,12 @@ def test_a_window_whose_panes_may_be_one_window_is_one_item() -> None:
     w1 = next(mark.id for mark in found.marks if mark.ref == "w1")
     assert [d.mark_id for d in found.check.disputed] == [w1]
     assert found.check.disputed[0].why == "These 2 boxes may be one window."
+    assert found.check.reason == (
+        "Please double-check the windows: we count 3 windows if a window with several panes is "
+        "one window, 4 if every pane is counted. Drawings differ in whether a window with several "
+        "panes is one window or several, and we cannot tell which way this one was counted; 1 "
+        "place is marked on the drawing."
+    )
 
 
 def test_doors_point_where_another_reader_disagrees() -> None:
