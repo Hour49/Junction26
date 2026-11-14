@@ -266,13 +266,22 @@ Home and upload
   [component]
 - IN-6: Dropping two files shows "Drop one file or one zip at a time." and sends no request; dropping one file
   uploads it as IN-3. [component]
-- IN-7: While an upload or sample request is in flight, the box shows "Uploading <name>…" or "Starting the
-  sample…", both controls are disabled, and a second click sends nothing. [component, pending promise]
+- IN-7: While an upload or sample request is in flight, the box shows the upload's progress (IN-89) or "Starting
+  the sample…", both controls are disabled, and a second click sends nothing. [component, pending promise]
 - IN-8: On `202` from an upload or from the sample, the location becomes `#/p/<id>` with `id` from
   `project_started.json`. [component]
 - IN-9: "Try the sample project" sends `POST /api/projects/sample?fresh=true` with no body. [component]
-- IN-10: A 413, 429, 422 or 404 response shows its `detail` and `code` in the box (e.g. "busy") and re-enables the
+- IN-10: For the sample, a 413, 429, 422 or 404 response shows its `detail` and `code` in the box (e.g. "busy") and re-enables the
   controls. [component, `error.json` bodies with status and code changed]
+- IN-89 (Bogdan 2026-11-15, "so I know when i've successfully uploaded and sent to server and received, and moves me
+  to start the extraction"): a file goes over XHR (fetch has no upload progress). Sending: "Sending <name>: <sent>
+  of <total> MB (<p>%)" with a progress bar named "Upload"; all bytes out: "Sent <name> (<total> MB): waiting for
+  the server…". On 202 the app opens `#/p/<id>` (extraction starts on the server by itself) and keeps
+  `{name, bytes}` in sessionStorage `uploaded:<id>`; the project screen then shows "Uploaded: <name>, <MB> MB,
+  received by the server." and "Unpacking…" until the server lists files, then "<n> files found.". Failures, with
+  a Retry that sends the file again: no answer, "The connection was lost while sending <name> (at <p>%)."; an
+  HTTP error, "The server refused <name>: <detail>". [component `HomeScreen.test.tsx`, `ProjectScreen.test.tsx`,
+  unit `client.test.ts`; e2e `upload.spec.ts` 1440 and 390]
 
 Project list
 
