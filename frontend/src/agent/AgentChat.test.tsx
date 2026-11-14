@@ -221,6 +221,14 @@ it('ui-bugs 1 no "Point at the plan" chip; pen on: typing and sending wait; Esca
   expect(document.querySelector('.ag-drawing')).toBeNull();
 });
 
+it('W4 after the first message the project name still shows, above the thread', async () => {
+  open(answerTurn);
+  await send('How big is the bathroom?');
+  await screen.findByText(/is 7.56 m²/);
+  const title = screen.getByRole('heading', { level: 1, name: project.name });
+  expect(title.className).not.toContain('en-sr'); // visible, not only for screen readers
+});
+
 it('ui-bugs 1 the pen click again puts it down too', async () => {
   open(answerTurn);
   await pointer();
