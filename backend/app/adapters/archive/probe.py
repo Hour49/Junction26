@@ -12,9 +12,13 @@ The format comes from the first bytes (`sniff`, app/core/pipeline/identify.py). 
   lines) and that has no drawing of its own is read as an image (`pdf_scan`): pdfium draws the
   annotations when it renders the page, the vector reader reads page objects only. On the
   dataset: a floor plan pasted as a stamp and two hand sketches made of 200-265 ink strokes,
-  set aside before (2026-11-14). When page 1 is text, the next pages (up to `MAX_PAGES`) are
-  looked at, and the ones that hold a drawing are named: the vector reader reads page 1 only. A
-  page that does not load (a damaged cross-reference table) makes the file a damaged PDF.
+  set aside before (2026-11-14). A page that does not load (a damaged cross-reference table)
+  makes the file a damaged PDF.
+- A multi-page PDF (a permit or drawing set): page 1 decides the file's kind as above, and each
+  later page (up to `MAX_PAGES` of them) that is a drawing by the same rules (drawn, scanned or
+  held in annotations; not one with "little on it") is given back as a PDF of its own
+  (`Probed.pages`), which ingest reads as a file `<name>#p<n>.pdf`: the readers read one page.
+  Text pages are not split. A notes cover no longer hides the set (2026-11-14).
 - **PNG/JPEG**: drawing, photo of a drawing, or photo. Measured on a 256 px thumbnail,
   white-balanced on its own brightest 5% (paper under warm room light is yellow until then):
   - `white`: the share of near-white pixels (grey level >= 230). A scan or a rendered plan is
@@ -53,6 +57,7 @@ Commons, data/stoa/exp/photo/real/) are photos of a drawing.
 import codecs
 import ctypes
 import io
+import re
 import zipfile
 from typing import Any
 
@@ -61,7 +66,7 @@ from PIL import Image, ImageChops, ImageStat, UnidentifiedImageError
 from pypdfium2 import raw
 
 from app.adapters.pdfium_lock import PDFIUM
-from app.core.ingest.model import Probed
+from app.core.ingest.model import ContentKind, LaterPage, Probed
 from app.core.pipeline.identify import sniff
 from app.core.wording import count as counted
 
@@ -75,7 +80,7 @@ VECTOR_PATHS = 10  # path objects on page 1 that make a drawing, with text no mo
 SCAN_COVER = 0.5  # share of the page its images cover in a scan (tiles add up)
 SCAN_PATHS = 50  # a scan with more paths than this has a drawn layer on it
 TEXT_CHARS = 200
-MAX_PAGES = 20  # pages after a text page 1 looked at for drawings
+MAX_PAGES = 50  # pages after page 1 looked at for drawings; the reason names any past it
 # The annotations that draw: what a page held only in them is a drawing (FPDF_ANNOT_*).
 DRAWN_ANNOTATIONS = {
     raw.FPDF_ANNOT_INK: "ink drawing",
@@ -149,28 +154,63 @@ def _pdf_unlocked(data: bytes) -> Probed:
 
 def _pdf_pages(document: pypdfium2.PdfDocument) -> Probed:
     count = len(document)
-    page = _page(document, 1)
+    kind, did, _ = _page_kind(_page(document, 1), f"page 1 of {count}")
+    drawn: list[int] = []
+    pages: list[LaterPage] = []
+    notes: list[str] = []
+    for number in range(2, min(count, MAX_PAGES + 1) + 1):
+        try:
+            if _page_kind(_page(document, number), f"page {number} of {count}")[2]:
+                drawn.append(number)
+                pages.append(LaterPage(number=number, data=_alone(document, number)))
+        except _PageNotLoadedError as error:
+            notes.append(str(error))
+    if drawn:
+        notes.insert(0, _later(drawn))
+    if count > MAX_PAGES + 1:
+        notes.append(f"pages after {MAX_PAGES + 1} of {count} were not looked at")
+    return Probed(kind=kind, did="; ".join((did, *notes)), pages=tuple(pages))
+
+
+def _page_kind(page: pypdfium2.PdfPage, at: str) -> tuple[ContentKind, str, bool]:
+    """A page's kind by the rules above, how it was decided (`at`: which page of how many), and
+    whether it holds a drawing a reader reads (not one with little on it)."""
     width, height = page.get_size()
     paths, images, cover = _objects(page, width * height)
     chars = page.get_textpage().count_chars()
-    seen = f"page 1 of {count}: {paths} paths, {images} images, {chars} characters"
+    seen = f"{at}: {paths} paths, {images} images, {chars} characters"
     if paths < SCAN_PATHS and (cover >= SCAN_COVER or (images and chars < TEXT_CHARS)):
-        return Probed(kind="pdf_scan", did=f"a scanned PDF, images cover {cover:.0%} ({seen})")
+        return "pdf_scan", f"a scanned PDF, images cover {cover:.0%} ({seen})", True
     if paths >= VECTOR_PATHS and chars < 20 * paths:
-        return Probed(kind="pdf_vector", did=f"a drawn PDF ({seen})")
+        return "pdf_vector", f"a drawn PDF ({seen})", True
     if chars >= TEXT_CHARS:
-        drawn = [number for number in range(2, min(count, MAX_PAGES + 1) + 1)
-                 if _drawn(_page(document, number))]  # fmt: skip
-        return Probed(
-            kind="pdf_text", did=f"a text document, not a drawing ({seen}){_later(drawn)}"
-        )
+        return "pdf_text", f"a text document, not a drawing ({seen})", False
     annotations = _drawn_annotations(page)
     if annotations and not images and paths < VECTOR_PATHS:
         held = f"a drawing held in the PDF's annotations ({annotations}), read as an image"
-        return Probed(kind="pdf_scan", did=f"{held} ({seen})")
+        return "pdf_scan", f"{held} ({seen})", True
     if paths:
-        return Probed(kind="pdf_vector", did=f"a drawn PDF with little on it ({seen})")
-    return Probed(kind="unknown", did=f"a PDF with nothing to read on page 1 ({seen})")
+        return "pdf_vector", f"a drawn PDF with little on it ({seen})", False
+    return "unknown", f"a PDF with nothing to read on {at.split(' of ')[0]} ({seen})", False
+
+
+def _alone(document: pypdfium2.PdfDocument, number: int) -> bytes:
+    """Page `number` as a PDF of its own, the same bytes every time (pdfium writes the time and a
+    random file ID: both are fixed, at the same length, so the offsets stay right)."""
+    single = pypdfium2.PdfDocument.new()
+    try:
+        single.import_pages(document, [number - 1])
+        buffer = io.BytesIO()
+        single.save(buffer)
+    finally:
+        single.close()
+    data = re.sub(rb"/CreationDate\(D:[^)]*\)", b"/CreationDate(D:20000101000000+00'00')",
+                  buffer.getvalue())  # fmt: skip
+    return re.sub(
+        rb"/ID\[<[0-9A-F]{32}><[0-9A-F]{32}>\]",
+        b"/ID[<" + b"0" * 32 + b"><" + b"0" * 32 + b">]",
+        data,
+    )
 
 
 def _page(document: pypdfium2.PdfDocument, number: int) -> pypdfium2.PdfPage:
@@ -197,20 +237,11 @@ def _objects(page: pypdfium2.PdfPage, area: float) -> tuple[int, int, float]:
     return paths, images, cover
 
 
-def _drawn(page: pypdfium2.PdfPage) -> bool:
-    """Whether a page is a drawing by the drawn-PDF rule of page 1."""
-    width, height = page.get_size()
-    paths, _, _ = _objects(page, width * height)
-    return paths >= VECTOR_PATHS and page.get_textpage().count_chars() < 20 * paths
-
-
 def _later(drawn: list[int]) -> str:
-    if not drawn:
-        return ""
     if len(drawn) == 1:
-        return f"; page {drawn[0]} holds a drawing, which is not read (only page 1 is)"
+        return f"page {drawn[0]} holds a drawing, read as a file of its own"
     numbers = f"{', '.join(map(str, drawn[:-1]))} and {drawn[-1]}"
-    return f"; pages {numbers} hold drawings, which are not read (only page 1 is)"
+    return f"pages {numbers} hold drawings, each read as a file of its own"
 
 
 def _drawn_annotations(page: pypdfium2.PdfPage) -> str:

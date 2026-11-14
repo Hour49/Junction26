@@ -13,6 +13,7 @@ import threading
 from collections import deque
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
+from pathlib import PurePosixPath
 
 from app.core import cost
 from app.core.drawing.model import Drawing
@@ -26,6 +27,7 @@ from app.core.ingest.model import (
     Entry,
     FileState,
     FileTrace,
+    LaterPage,
     Normalised,
     Probed,
     ProjectState,
@@ -255,6 +257,9 @@ class IngestService:
             found = self._identify(run, path, read, probed, first_of, frames)
             if found is not None:
                 drawings[path] = found
+            if probed.exception() is None:  # a failed probe was set aside by `_identify`
+                for page in probed.result()[0].pages:
+                    self._page_file(run, path, page, first_of, frames, drawings)
 
         with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="probe") as pool:
             while True:
@@ -283,6 +288,35 @@ class IngestService:
             while probing:
                 identify_next()
         return drawings
+
+    def _page_file(
+        self,
+        run: Run,
+        path: str,
+        page: LaterPage,
+        first_of: dict[str, str],
+        frames: dict[str, Normalised],
+        drawings: dict[str, DrawingFile],
+    ) -> None:
+        """A later drawn page of the PDF at `path`, unpacked as a file of its own
+        (`<name>#p<n>.pdf`, its own group) and identified like any file of the upload."""
+        started = self._clock()
+        at = PurePosixPath(path)
+        named = str(at.with_name(f"{at.stem}#p{page.number}.pdf"))
+        if run.has(named):
+            run.add(Entry(path=named, size=len(page.data), refused="a second file at a path"))
+            run.stage(named, "unpack", "refused", 0.0, failure="a second file at a path")
+            run.finish(named, "set_aside", "a second file at a path")
+            return
+        run.add(Entry(path=named, size=len(page.data), data=page.data))
+        self._store.put_file(run.id, named, page.data)
+        run.stage(named, "unpack", f"page {page.number} of {path}, as a PDF of its own",
+                  self._ms(started), output=named)  # fmt: skip
+        probed: Future[tuple[Probed, float, float]] = Future()
+        probed.set_result(self._probed(page.data))
+        found = self._identify(run, named, page.data, probed, first_of, frames)
+        if found is not None:
+            drawings[named] = found
 
     def _probed(self, data: bytes) -> tuple[Probed, float, float]:
         """Stage 3's probe, its time and the model calls it paid for, on a probing thread."""
