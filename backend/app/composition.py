@@ -65,6 +65,7 @@ from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
+from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
@@ -264,6 +265,11 @@ def _triage(settings: Settings) -> TriageSteps | None:
             return None
         case "rules":
             classifier = RulesClassifier()
+        case "siglip":
+            try:
+                classifier = SiglipClassifier.from_folder()
+            except DomainError as error:
+                raise InvalidInputError(f"TRIAGE_CLASSIFIER=siglip: {error}") from error
     name = (
         f"classifier={settings.triage_classifier}, describer={settings.triage_describer}, "
         f"judge={settings.triage_judge}"
