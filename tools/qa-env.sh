@@ -7,14 +7,20 @@
 #   tools/qa-env.sh config                         print the demo config the backend starts with
 #
 # The export goes to data/qa/env-<sha>/ (gitignored; made once, reused after). The backend runs
-# from it with the shippable config (config C, picked on val 2026-11-14): the C-yolo26l detector
-# behind the Decisions S1536 swap for elements and plans, Gemini rooms through the
+# from it with the shippable config (config C1-T1, picked on val 2026-11-14): the C-yolo26l
+# detector read in eight views (detector-v8) behind the Decisions S1536 swap for elements and
+# plans, except door, window, sink, toilet, shower and bathtub, whose counts the local count
+# arbiter T1 picks (arbiter-t1, data/models/arbiter/T1: the eight views, one view and the L1
+# page-count model; it keeps what it read on the drawing), Gemini rooms through the
 # region room filter (REGION_MODEL_DIR, the settings default), the r3 photo rectifier, the dev
 # prior, the Decisions confidence and the Decisions sheet-kind signal (a photo of a plan without
 # camera EXIF is still rectified), and golden's gate (eval/results/gate/gate-C-L-swap.json, frozen in
 # the repo: which answers are marked sure, refit on config C's val output, certified once on test),
 # and golden's answer policy (eval/results/policy/policy-C-L-swap.json, frozen in the repo: CubiCasa
-# kitchens are answered from the prior, which beats config C's readers on both val halves).
+# kitchens are answered from the prior, which beats config C's readers on both val halves). The
+# double-check: the readers l1 (C-yolo26l, one view) and m1 (C-yolo26m, one view) are kept on
+# each drawing, and golden's check policy (golden-22 rt-full-small, scored by local-dec's local
+# gates in data/models/arbiter/T1) certifies an answer or asks for a double-check.
 # It reads
 # the repo's data/models, data/stoa, data/cache, data/demo and data/external through symlinks and
 # keeps its own data/projects. GEMINI_API_KEY comes from the repo-root .env, into this process's
@@ -30,10 +36,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QA="$ROOT/data/qa"
-RASTER='elements=decisions-s1536:detector:C-yolo26l,plans=decisions-s1536:detector:C-yolo26l,rooms=regionrooms'
+SWAP='decisions-s1536:detector-v8:C-yolo26l'
+T1='arbiter-t1:C-yolo26l:C-yolo26l-onnx-val'
+RASTER="elements=$SWAP,plans=$SWAP,door=$T1,window=$T1,sink=$T1,toilet=$T1,shower=$T1,bathtub=$T1,rooms=regionrooms"
 DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CONFIDENCE=true
   DECISIONS_KIND=true RASTER_SCALE=priors GATE_POLICY=../eval/results/gate/gate-C-L-swap.json
-  ANSWER_POLICY=../eval/results/policy/policy-C-L-swap.json)
+  ANSWER_POLICY=../eval/results/policy/policy-C-L-swap.json
+  DOUBLE_CHECK_READERS=l1=detector:C-yolo26l,m1=detector:C-yolo26m
+  CHECK_POLICY=../data/stoa/exp/golden22/check-C1-T1-recall96-rt-full-small.json
+  LOCAL_GATES=../data/models/arbiter/T1/lgate2-rt-C1T1.json,../data/models/arbiter/T1/lgate-rt-noL1-C1T1.json)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
