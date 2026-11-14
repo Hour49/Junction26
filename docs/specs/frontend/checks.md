@@ -21,7 +21,7 @@ All new, under `frontend/src/checks/`; each file with logic has a test beside it
 | --- | --- |
 | `ChecksScreen.tsx` | `export function ChecksScreen(props: { projectId: string; pack: string | null }): JSX.Element`, the route component for `#/p/<pid>/checks?pack=<id>` (route, header tab and `App.tsx` wiring: fe-shared). Loads, holds the selected drawing and result, renders summary, results and viewer. |
 | `checks.ts` | pure: `ruleSummary`, `resultStatus` words, `drawingResults` (failed + cannot tell, ordered), `fileName`, `valueText`, `checkStatusOf` (derived status), `viewerMarks` (a result's marks as `MarkView[]` + `tones`, viewer.md "Check marks as viewer marks") |
-| `types.ts` | the #142 shapes typed locally (`RulePack`, `Rule`, `Clause`, `DrawingChecks`, `RuleCheck`, `CheckResult`, `CheckMark`, `ProjectChecks`) until Bogdan's PR lands; then they become aliases of `schema.d.ts` and this file shrinks to re-exports |
+| `types.ts` | re-exports of the generated #139 types from `src/api/types.ts` (PR #150), plus `CheckStatus` (a result's: pass / fail / cannot_tell) and `RuleStatus` (a rule's, drawing's, project's: those or `not_applicable`) narrowed from them |
 | `testing.ts` | hand-made fixtures in the #142 shapes (synthetic rooms and doors, no partner data, no design mock values); replaced by Bogdan's fixtures when they land |
 | `checks.css` | layout, `--v-*` tokens only |
 | `ChecksScreen.test.tsx`, `checks.test.ts` | the criteria below |
@@ -48,15 +48,17 @@ the old request. No polling: the screen asks once the project is finished (see S
   "FI", for the picker's flag only); directly under it **`note` verbatim** (from the checks
   response, else from the pack): "A pre-check of a few rules, not a compliance certificate." Never shortened,
   restyled into a tooltip or hidden at 390 px.
+  Under the note, the pack's `fail_means` when set (what a fail means for this pack, e.g. Zürich: "other cantons set
+  their own"), as sent.
 - **Summary** (one row per rule, in the pack's `rules[]` order; rules the response has but the pack lists not, after
   it in response order): `rule.title`, the clause ref (`clause.ref`), and three counts over all drawings:
   **passed** / **failed** / **cannot tell** = results with that `status`. A rule with no result anywhere reads
-  "Nothing in these drawings it applies to". A summary line above the table counts RULES, as the conflicts screen's
+  "Does not apply to these drawings" (`not_applicable`, below). A summary line above the table counts RULES, as the conflicts screen's
   checks row does (conflicts.md CF-29..31, orch D141): a rule failed if any result fails, else cannot tell if any
   result cannot tell, else passed (a rule with no result is not counted): "`<f>` rules failed, `<c>` cannot tell,
   `<p>` passed, over `<n>` drawings" (`plural` rules). The table's three numbers stay counts of places (results).
 - **Per drawing** (in `project.drawings` order, drawings with no failed or cannot-tell result folded into one line
-  "`<k>` drawings pass every checked place"): heading = this project's file name (`fileName(project, drawing_id)`:
+  "`<k>` drawings pass every checked place"): heading = this project's file name (`drawingName(project, d)`: `fileName(project, drawing_id)`:
   `project.files` by `drawing_id`, else `project.drawings[].file`; never a name from the checks payload, see
   "Asked"), then its **failed** results, then its **cannot tell** results, each in `RuleCheck` order then result
   order. Each result card:
@@ -73,8 +75,8 @@ the old request. No polling: the screen asks once the project is finished (see S
   - "Show on the drawing" (button): selects the result; the viewer opens its drawing at the first mark's page.
 - **Viewer** (beside the list at ≥ 1024 px, under it below): `PageViewer` with the selected drawing's `pages` and
   `credit` (`getDrawing`), `marks` + `tones` = `viewerMarks(result)` as viewer.md "Check marks as viewer marks" says
-  (id = `CheckResult.mark_id`, the takeoff `MarkView.id` of the result's first subject mark, else
-  `<result.id>:<index>`; subject marks numbered
+  (id = the mark's own `CheckMark.mark_id`, the takeoff `MarkView.id`, else `<result.id>:<index>` for a check-only
+  mark; optional `label`/`ref`/`polygon` left out by the API read as null; subject marks numbered
   `n` with tone = the result's status, counted marks tone `counted`), `unit` = the result's unit, and
   `focus = {page, box}` of the first subject mark (VW-76/77). A result with no marks says "Not located on the
   drawing" instead of the button.
@@ -160,6 +162,33 @@ Layout and access
 - CK-18: `checks.css` uses only `--v-*` tokens (no colour literal) and turns animation off under reduced motion.
   [unit on the file text, read from disk]
 
+## Not applicable (PR #150)
+
+`not_applicable` is a rule's (and a drawing's, a project's) status, never a result's: the rule has nothing on the
+drawing it applies to (`applies_to`: room types, element classes). The screen derives it as before, from the results:
+a rule with no result on any drawing is "Does not apply to these drawings" in the table, with zero counts; it is
+**not counted** in the summary line's rules (failed / cannot tell / passed), and never shown as pass or fail. A
+drawing with no result for any rule is counted apart, "`<k>` drawing has / drawings have nothing these rules apply
+to", never folded into "pass every checked place". The payload's own `status` fields are not shown (CK-4 numbers
+come from the results, as the conflicts screen's checks row).
+
+**Rule-level cannot tell (fe-golden live run 13:40).** Offline, a scan, photo or IFC drawing reads no rooms, so its
+RuleChecks are `cannot_tell` with **no results** and a `why` ("No rooms were read on this drawing, so it cannot be
+checked."). Such a RuleCheck counts as cannot tell (`ruleCheckStatus`: the results' status when there are any, else
+the RuleCheck's own; null only for `not_applicable`); a rule's status is the worst over its RuleChecks (a pass on one
+drawing and a cannot tell on another is cannot tell, as CF-30's R3). The drawing lists it as a "? Cannot tell" card
+with the rule title, the RuleCheck's `why` and the clause, no value line, "Not located on the drawing". The table row
+adds "Cannot tell on `<k>` drawing(s): nothing could be read" (places stay 0: there are none). `fail_means` shows only
+when a rule failed. Table headers never break mid-word (`nowrap`); the caption is inset 16 px from the table's
+rounded, clipped corner.
+
+- CK-19: a rule whose RuleChecks are `not_applicable` (no results) reads "Does not apply to these drawings", is not in
+  the summary line's counts, and a drawing with no results gets the "nothing these rules apply to" line, not
+  "passes". [unit `ruleSummary` + component]
+- CK-20: Bogdan's fixtures (`project_checks.json`, `info.json` `rule_packs`) render: pack heading, note and
+  `fail_means`, the drawing named by the payload's `file` when this project's files do not list it, a fail card with
+  its value. [component]
+
 ## Asked (#142): status of our asks
 
 Bogdan accepted every ask (#142 c6876010899). Accepted fields are read directly once his PR lands; until then
@@ -176,8 +205,8 @@ Bogdan accepted every ask (#142 c6876010899). Accepted fields are read directly 
 | no pack preselected; "no pack" valid; single `?pack=` (reviews 2, 3) | accepted | the "Choose a country" state (CK-1) |
 | `applies_to` = `MarkView.room_type` values + element classes (review 5) | accepted | not shown (the rule title says it) |
 | `quote_en` null for English law (review 6) | accepted | shown only when present and different from `quote` |
-| project checks envelope `{project_id, pack, note, drawings: [{drawing_id, file, file_id, status, rules}]}` (review 7) | asked (#142), not in the 13:44 list | `types.ts` types it so; if it lands otherwise, only `types.ts` and the loader change |
-| status enums for drawing and `RuleCheck` (review 9) | asked (#142), not in the 13:44 list | statuses are derived from `results[].status` (`checkStatusOf`); the payload's `status` is not shown |
+| project checks envelope `{project_id, pack, note, status, drawings: [{drawing_id, file, file_id, status, rules}]}` (review 7) | landed (PR #150) | read as generated; `status` not shown (derived from results) |
+| status enums for drawing and `RuleCheck` (review 9) | landed (PR #150): pass, fail, cannot_tell, not_applicable | statuses are derived from `results[].status` (`checkStatusOf`); the payload's `status` is not shown ("Not applicable" above) |
 | checks while the project runs: 409 code (review 12) | asked (#142); the record names "the 409 code" (for issues) | decided from `project.state` first; a 409 from checks shows the same "not finished" line |
 
 ## Out of scope

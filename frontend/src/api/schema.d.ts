@@ -35,6 +35,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drawings/{drawing_id}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Checks
+         * @description Every rule of the pack on one drawing: pass, fail or cannot tell per room, door or sheet.
+         */
+        get: operations["checks_api_drawings__drawing_id__checks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drawings/{drawing_id}/evidence.png": {
         parameters: {
             query?: never;
@@ -250,6 +270,27 @@ export interface paths {
         put?: never;
         /** Project Ask */
         post: operations["project_ask_api_projects__project_id__ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Checks
+         * @description Every drawing of the project checked against the pack, in the project's drawing order.
+         *     409 `not-allowed` until the project's ingest is done, as for the project's questions.
+         */
+        get: operations["project_checks_api_projects__project_id__checks_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -544,6 +585,39 @@ export interface components {
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };
+        /**
+         * AppliesTo
+         * @description What a rule checks, in the drawing model's words (room types as MarkView.room_type,
+         *     element classes as the drawing model's). Room ops: the rooms of `room_types`, but not one
+         *     whose printed label is one of `skip_labels` (a dining nook typed living). door_width:
+         *     `element_classes` ["door"], only the doors that meet a room of `room_types` (every door when
+         *     empty) and none of `not_room_types`. A takeoff rule may name types or classes (for the
+         *     screen).
+         */
+        AppliesTo: {
+            /**
+             * Element Classes
+             * @default []
+             */
+            element_classes: ("door" | "window" | "toilet" | "sink" | "shower" | "bathtub" | "sauna_stove" | "stair" | "wall" | "column" | "beam" | "slab" | "railing" | "furniture")[];
+            /**
+             * Not Room Types
+             * @default []
+             */
+            not_room_types: ("bedroom" | "kitchen" | "bathroom" | "wc" | "sauna" | "balcony" | "living" | "hall" | "storage" | "outdoor" | "shaft" | "other")[];
+            /** Note */
+            note?: string | null;
+            /**
+             * Room Types
+             * @default []
+             */
+            room_types: ("bedroom" | "kitchen" | "bathroom" | "wc" | "sauna" | "balcony" | "living" | "hall" | "storage" | "outdoor" | "shaft" | "other")[];
+            /**
+             * Skip Labels
+             * @default []
+             */
+            skip_labels: string[];
+        };
         /** AskRequest */
         AskRequest: {
             /** Drawing Id */
@@ -582,6 +656,92 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /**
+         * CheckMark
+         * @description An item a result is about, drawn on its page. subject: the room or door checked; counted:
+         *     what was counted for it (a room's windows).
+         */
+        CheckMark: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label?: string | null;
+            /** Mark Id */
+            mark_id?: string | null;
+            /** Page */
+            page: number;
+            /** Polygon */
+            polygon?: [
+                number,
+                number
+            ][] | null;
+            /** Quantity */
+            quantity?: string | null;
+            /** Ref */
+            ref?: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "subject" | "counted";
+        };
+        /**
+         * CheckResult
+         * @description One rule on one room, door or sheet. `value`: what was measured, in the takeoff's units;
+         *     None when nothing was (cannot tell); a value too uncertain to judge is kept, with cannot tell.
+         *     `quantity`: the takeoff row of the subject (Row.key), for the surveyor's view; None: none.
+         */
+        CheckResult: {
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<";
+            /** Comparison Text */
+            comparison_text: string;
+            /** Id */
+            id: string;
+            /** Limit */
+            limit: number;
+            /** Marks */
+            marks: components["schemas"]["CheckMark"][];
+            /** Quantity */
+            quantity: string | null;
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell";
+            subject: components["schemas"]["CheckSubject"];
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "m2" | "m" | "count";
+            /** Value */
+            value: number | null;
+            /** Why */
+            why: string;
+        };
+        /** CheckSubject */
+        CheckSubject: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "room" | "element" | "sheet";
+            /** Label */
+            label: string;
+            /** Ref */
+            ref: string | null;
+        };
         /** ClassKey */
         ClassKey: {
             /** Colour */
@@ -597,6 +757,20 @@ export interface components {
              * @default 0
              */
             unlocated: number;
+        };
+        /**
+         * Clause
+         * @description Where a limit comes from: the clause someone read, the page it is on, and its sentence.
+         */
+        Clause: {
+            /** Quote */
+            quote: string;
+            /** Quote En */
+            quote_en?: string | null;
+            /** Ref */
+            ref: string;
+            /** Url */
+            url: string;
         };
         /** ConflictEntry */
         ConflictEntry: {
@@ -685,6 +859,26 @@ export interface components {
             };
             /** Why */
             why: string;
+        };
+        /** DrawingChecks */
+        DrawingChecks: {
+            /** Drawing Id */
+            drawing_id: string;
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string | null;
+            /** Note */
+            note: string;
+            /** Pack */
+            pack: string;
+            /** Rules */
+            rules: components["schemas"]["RuleCheck"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
         };
         /**
          * DrawingEntry
@@ -864,6 +1058,8 @@ export interface components {
             readers: {
                 [key: string]: string;
             };
+            /** Rule Packs */
+            rule_packs?: components["schemas"]["RulePackView"][];
         };
         /** Issue */
         Issue: {
@@ -1144,6 +1340,22 @@ export interface components {
         ProjectAskRequest: {
             /** Question */
             question: string;
+        };
+        /** ProjectChecks */
+        ProjectChecks: {
+            /** Drawings */
+            drawings: components["schemas"]["DrawingChecks"][];
+            /** Note */
+            note: string;
+            /** Pack */
+            pack: string;
+            /** Project Id */
+            project_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
         };
         /** ProjectIssues */
         ProjectIssues: {
@@ -1446,12 +1658,93 @@ export interface components {
             /** Value */
             value: number;
         };
+        /**
+         * RuleCheck
+         * @description One rule on one drawing: fail when a result fails, else cannot tell when one is, else
+         *     pass. With no results: cannot tell when the drawing could not be checked (what the rule needs
+         *     was not read), not_applicable when it has nothing the rule applies to.
+         */
+        RuleCheck: {
+            clause: components["schemas"]["Clause"];
+            /** Results */
+            results: components["schemas"]["CheckResult"][];
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+            /** Title */
+            title: string;
+            /** Why */
+            why: string;
+        };
+        /**
+         * RulePackView
+         * @description A pack as GET /api/info lists it, for the country picker: the flag from `country`, the
+         *     country's name, the pack's name and law line, and every rule with the clause it quotes.
+         */
+        RulePackView: {
+            /** Country */
+            country: string;
+            /** Country Name */
+            country_name: string;
+            /** Fail Means */
+            fail_means: string | null;
+            /** Id */
+            id: string;
+            /** Law */
+            law: string;
+            /** Name */
+            name: string;
+            /** Note */
+            note: string;
+            /** Rules */
+            rules: components["schemas"]["RuleView"][];
+            /** Version */
+            version: string;
+        };
         /** RuleText */
         RuleText: {
             /** Id */
             id: string;
             /** Text */
             text: string;
+        };
+        /**
+         * RuleView
+         * @description A rule as the pack states it. `op` is the machine check type, never shown; `comparison`
+         *     is machine (">="), `comparison_text` the words the screen shows ("at least").
+         */
+        RuleView: {
+            applies_to: components["schemas"]["AppliesTo"];
+            clause: components["schemas"]["Clause"];
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<";
+            /** Comparison Text */
+            comparison_text: string;
+            /** Id */
+            id: string;
+            /** Key */
+            key: string | null;
+            /** Limit */
+            limit: number;
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "room_area" | "room_windows" | "door_width" | "takeoff";
+            /** Title */
+            title: string;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "m2" | "m" | "count";
         };
         /**
          * ScaleView
@@ -1787,6 +2080,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DrawingView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    checks_api_drawings__drawing_id__checks_get: {
+        parameters: {
+            query: {
+                /** @description the rule pack to check against: an id from GET /api/info rule_packs */
+                pack: string;
+                /** @description the project it is shown in */
+                project?: string | null;
+            };
+            header?: never;
+            path: {
+                drawing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrawingChecks"];
                 };
             };
             /** @description Validation Error */
@@ -2212,6 +2541,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectAnswer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_checks_api_projects__project_id__checks_get: {
+        parameters: {
+            query: {
+                /** @description the rule pack to check against: an id from GET /api/info rule_packs */
+                pack: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectChecks"];
                 };
             };
             /** @description Validation Error */

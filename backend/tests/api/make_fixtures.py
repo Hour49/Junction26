@@ -44,6 +44,7 @@ from make_sample_archive import (  # noqa: E402  # pyright: ignore[reportMissing
     site_photo,
 )
 from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
+from test_api_checks import checks_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     FakeClassifier,
@@ -151,9 +152,13 @@ def responses() -> dict[str, Any]:
     found["project_ask"] = project_ask(client, started["id"])  # the frontend reads it by name
     found["project_issues"] = project_issues(client, started["id"], files)
     others.append(triaged(root / "triage", settings, found))
+    others.append(code_checks(client, found))  # checks, project checks, their issues
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
+        found["checks"]["drawing_id"]: "5c4ed01e00000002",
+        # an issue's id hashes its drawing's: the first failed check's, the one the fixture keeps
+        found["project_issues_checks"]["issues"][0]["id"]: "code_check_failed-5c4ed01e0002",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
     }
     return stable(trimmed(found), [started["id"], *others], variable)
@@ -285,6 +290,24 @@ def schedule_answer(client: TestClient) -> dict[str, Any]:
     upload = client.post("/api/projects", params={"name": "doors.pdf"}, content=door_schedule_pdf())
     drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
     return ask_on(client, drawing_id, "What are the width and height of door 111.B?")
+
+
+def code_checks(client: TestClient, found: dict[str, Any]) -> str:
+    """A flat checked against the Finnish pack (tests/api/test_api_checks.py checks_sheet): a
+    pass, a fail and a cannot tell, each with its marks; the same as its project's checks; and
+    its project's issues with the pack (a failed check)."""
+    upload = client.post("/api/projects", params={"name": "flat-fi.pdf"}, content=checks_sheet())
+    project = client.get(upload.json()["url"]).json()
+    drawing_id = project["drawings"][0]["drawing_id"]
+    params = {"pack": "fi", "project": project["id"]}
+    found["checks"] = client.get(f"/api/drawings/{drawing_id}/checks", params=params).json()
+    found["project_checks"] = client.get(
+        f"/api/projects/{project['id']}/checks", params={"pack": "fi"}
+    ).json()
+    found["project_issues_checks"] = client.get(
+        f"/api/projects/{project['id']}/issues", params={"pack": "fi"}
+    ).json()
+    return project["id"]
 
 
 def set_aside(client: TestClient, found: dict[str, Any]) -> str:
@@ -480,6 +503,16 @@ def trimmed(found: dict[str, Any]) -> dict[str, Any]:
     edited["review_queue"] = sorted(edited["review_queue"])
     for answer in (found["answer_conflict"], found["answer_signed"], found["answer_schedule"]):
         _marks(answer)
+    for pack in found["info"]["rule_packs"]:
+        pack["rules"] = pack["rules"][:1]
+    for rule in found["checks"]["rules"]:  # a pass and a fail, or a fail and a cannot tell
+        rule["results"] = rule["results"][-2:]
+    for drawing in found["project_checks"]["drawings"]:
+        drawing["rules"] = drawing["rules"][:1]
+        for rule in drawing["rules"]:
+            rule["results"] = rule["results"][1:2]  # the fail
+    issues = found["project_issues_checks"]["issues"]
+    issues[:] = [issue for issue in issues if issue["kind"] == "code_check_failed"][:1]
     return found
 
 
