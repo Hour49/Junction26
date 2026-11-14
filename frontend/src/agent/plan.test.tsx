@@ -176,6 +176,32 @@ describe('the plan beside the chat (wide window)', () => {
     expect(viewer().focus).toEqual({ page: 1, box: shownView.box });
   });
 
+  it('a restored thread (back from the workspace) reopens its newest view', async () => {
+    // answers-5 keeps the thread in sessionStorage; the older turn has no place, the newest has one
+    const kept = {
+      chatId: viewTurn.chat_id,
+      rows: [
+        { id: 1, message: 'Where is Bagno 1.01?', chips: [], status: 'done', turn: viewTurn },
+        {
+          id: 2,
+          message: 'Which walls carry load?',
+          chips: [],
+          status: 'done',
+          turn: dontKnowTurn,
+        },
+      ],
+    };
+    sessionStorage.setItem(`agent-chat:${PID}`, JSON.stringify(kept));
+    open(viewTurn);
+    const aside = await screen.findByRole('complementary', { name: 'Plan' });
+    expect(within(aside).getByText('Bagno 1.01 on the plan')).toBeTruthy();
+    await waitFor(() => {
+      expect(within(pane()).getByTestId('viewer')).toBeTruthy();
+    });
+    expect(viewer().focus).toEqual({ page: 1, box: shownView.box });
+    expect(viewer().marks.map((m) => m.n)).toEqual([1]);
+  });
+
   it('the drawing switcher shows another drawing, and back shows the view again', async () => {
     open(viewTurn);
     await send('Where is Bagno 1.01?');
