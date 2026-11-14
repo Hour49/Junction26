@@ -33,6 +33,8 @@ SURE = re.compile(
     r"\b(are you sure|you sure|double[- ]?check|how (sure|certain|confident))\b|really\?"
 )
 ROOM = re.compile(r"\broom\b")
+# Placing a room by its type's word ("Put a toilet here") rather than the word room (multi)
+PLACE = re.compile(r"\b(put|place|add|make|create|draw|build|turn|convert|mark|insert|new)\b")
 # A word for a room, as Room.type names it
 ROOM_WORDS = {
     "bathroom": "bathroom", "bath": "bathroom", "washroom": "bathroom", "shower": "bathroom",
@@ -122,7 +124,8 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     # a drawn area, or a sideways drag described as "a line ..., not an area" (QA robust-10):
     # propose_room gives the true reason for that one
     regions = [line.split(":")[0] for line in turn.selections if REGION.search(line)]
-    if regions and ROOM.search(words) and "propose_room" in offered:
+    placing = ROOM.search(words) or (ROOM_WORD.search(words) and PLACE.search(words))
+    if regions and placing and "propose_room" in offered:
         found = turn.result("propose_room")
         if found is None:
             return "propose_room", {"selection_id": regions[0], "name": _room_name(words)}
@@ -253,11 +256,32 @@ def _remove_wall(turn: _Turn, words: str) -> tuple[str, Json]:
         return "list_drawings", {}
     if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
         drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    if isinstance(drawings, list):
+        drawings = _sheet(words, drawings)  # pyright: ignore[reportUnknownArgumentType]
     if isinstance(drawings, list) and len(walls_of) < min(TRIED, len(drawings)):  # pyright: ignore[reportUnknownArgumentType]
         drawing = drawings[len(walls_of)]
         return "list_walls", {"drawing_id": drawing["drawing_id"], "page": 1}
     reason = next((f.get("reason") or f.get("error") for _, f in walls_of), None)
     return _final("dont_know", f"I can't edit this plan: {reason or 'there is no plan to edit'}.")
+
+
+def _sheet(words: str, drawings: list[Any]) -> list[Any]:
+    """Only the drawings the message names, by plain name ("Drawn plan 2") or file name without
+    its extension, when it names any; else all of them, in order (multi: an edit of a named
+    sheet went to the first drawing with walls)."""
+
+    def named(drawing: Any) -> bool:
+        if not isinstance(drawing, dict):
+            return False
+        given: Json = drawing  # pyright: ignore[reportUnknownVariableType]
+        file = re.sub(r"\.[a-z0-9]+$", "", str(given.get("name") or "").lower())
+        names = [str(given.get("title") or "").lower(), file, re.sub(r"[_-]+", " ", file)]
+        return any(
+            len(name) > 3 and re.search(rf"(?<![\w.]){re.escape(name)}(?![\w]|\.\d)", words)
+            for name in names
+        )
+
+    return [d for d in drawings if named(d)] or drawings
 
 
 def proposed_wall(turn: _Turn) -> Json | None:
@@ -274,6 +298,10 @@ def _pick_wall(turn: _Turn, words: str, args: Json, found: Json) -> tuple[str, J
     rooms: list[Json] = found.get("rooms") or []
     named = {m.upper() for m in re.findall(r"\bw\d+\b", words)}
     chosen = [w for w in walls if w["id"] in named]
+    if len(named) == 1 and not chosen and found.get("walls_more"):
+        # the wall the message names was cut from the list: propose it by its id (multi, W36)
+        place = {"drawing_id": args["drawing_id"], "page": args["page"]}
+        return "propose_remove_wall", {**place, "wall_id": next(iter(named))}
     if not chosen:
         # each clicked room is its own group (edits-2); a word naming a room already clicked
         # ("this bathroom") narrows that group instead of adding one (edits-3)

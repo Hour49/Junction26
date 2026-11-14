@@ -482,6 +482,8 @@ class _Run:
             found: Any = json.loads(out)
         except json.JSONDecodeError:
             found = out
+        if name == "list_drawings" and isinstance(found, list):
+            found = self._titled(found)  # pyright: ignore[reportUnknownArgumentType]
         before = set(self.ledger)
         mint(found, self.ledger, self.chat.minted + 1)
         if name == ASK and isinstance(found, dict):  # kept as the route gives it, without ev ids
@@ -619,6 +621,16 @@ class _Run:
                                status="ok" if status == "ok" else "error", ms=ms))  # fmt: skip
         self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": None})
         self._reply(call, reply)
+
+    def _titled(self, drawings: list[Any]) -> list[Any]:
+        """list_drawings with each drawing's plain name as `title`: the name the user sees
+        ("Drawn plan 2") and may name it by, which the result gives only as its file."""
+        return [
+            {**d, "title": self.names[d["drawing_id"]]}
+            if isinstance(d, dict) and d.get("drawing_id") in self.names
+            else d
+            for d in drawings
+        ]
 
     def _name(self, drawing_id: str, place: Json) -> str:
         """A drawing's plain name ("Drawn plan 1"), else the name its place came with."""

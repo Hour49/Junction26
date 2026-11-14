@@ -278,3 +278,45 @@ def test_answers_7_8_a_refusal_with_no_options_does_not_point_at_any() -> None:
     _, args = plan("What is the ceiling height?", ("ask_drawings", {}, asked))
     assert args == {"kind": "dont_know", "evidence_ids": [],
                     "text": "This question isn't one I can turn into a count."}  # fmt: skip
+
+
+def test_multi_a_named_wall_cut_from_the_list_is_proposed_by_its_id() -> None:
+    """'Remove wall W36' on a 43-wall plan: W36 was cut from the list the model reads."""
+    drawings = ("list_drawings", {}, [{"drawing_id": DRAWING}])
+    cut = {**WALLS, "walls_more": 41}
+    walls = ("list_walls", {"drawing_id": DRAWING, "page": 1}, cut)
+    proposed = ("propose_remove_wall", {"drawing_id": DRAWING, "page": 1, "wall_id": "W36"})
+    assert plan("Remove wall W36", drawings, walls) == proposed
+    # a whole list without it: no such wall, as before
+    assert plan("Remove wall W36", drawings, ("list_walls", walls[1], WALLS))[1]["kind"] == (
+        "dont_know"
+    )
+
+
+def test_multi_an_edit_goes_to_the_sheet_the_message_names() -> None:
+    other = "fedcba9876543210"
+    listed = [
+        {"drawing_id": DRAWING, "name": "ground_floor.pdf", "title": "Drawn plan 1"},
+        {"drawing_id": other, "name": "first_floor.pdf", "title": "Drawn plan 2"},
+    ]
+    drawings = ("list_drawings", {}, listed)
+    for message in (
+        "Remove the wall between the bathroom and the bedroom on Drawn plan 2",
+        "Remove wall W1 on first_floor",
+        "Remove wall W1 on the first floor plan",
+    ):
+        assert plan(message, drawings) == ("list_walls", {"drawing_id": other, "page": 1}), message
+    assert plan("Remove wall W1", drawings) == ("list_walls", {"drawing_id": DRAWING, "page": 1})
+    # "Drawn plan 1" is not "Drawn plan 12"
+    many = [*listed, {"drawing_id": "1" * 16, "name": "x.pdf", "title": "Drawn plan 12"}]
+    found = plan("Remove wall W1 on Drawn plan 12", ("list_drawings", {}, many))
+    assert found == ("list_walls", {"drawing_id": "1" * 16, "page": 1})
+
+
+def test_multi_a_room_type_word_places_a_room_in_a_drawn_area() -> None:
+    area = "\nsel_1: region on a.pdf page 1, about 2 x 1 m"
+    assert plan("Put a toilet here" + area) == (
+        "propose_room", {"selection_id": "sel_1", "name": "Toilet"})  # fmt: skip
+    assert plan("Make this a kitchen" + area)[1]["name"] == "Kitchen"
+    # a question about a drawn area is still a question
+    assert plan("How big is the bathroom here?" + area)[0] == "ask_drawings"
