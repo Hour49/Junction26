@@ -391,5 +391,8 @@
       "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
     }
   ],
-  "expected_drawings": 5
+  "expected_drawings": 5,
+  "conflicts_open": 0,
+  "issues_open": 4,
+  "issues_to_answer": 0
 }

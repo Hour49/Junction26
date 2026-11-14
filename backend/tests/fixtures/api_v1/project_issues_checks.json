@@ -47,7 +47,13 @@
         "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d53",
         "trace": "/api/projects/5e0c1a2b3d53/files/f1/trace",
         "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d53"
-      }
+      },
+      "label": "Fails a rule",
+      "suggestions": [
+        "Accepted as drawn",
+        "To be fixed in the design"
+      ],
+      "answer": null
     }
   ]
 }
