@@ -215,7 +215,7 @@ describe('table and detail', () => {
     expect(screen.getByRole('row', { name: /door count/ }).textContent).toContain('2');
     expect(screen.getByRole('row', { name: /door count/ }).textContent).not.toContain('count2 ');
     const indoor = screen.getByRole('row', { name: /indoor/ }).textContent;
-    expect(indoor).toContain('59.87 m²');
+    expect(indoor).toContain('53.00 m²');
     expect(indoor).not.toContain('32.49');
   });
 

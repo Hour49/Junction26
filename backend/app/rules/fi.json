@@ -1,0 +1,110 @@
+{
+  "id": "fi",
+  "country": "FI",
+  "country_name": "Finland",
+  "name": "Finland: homes and accessibility decrees",
+  "law": "Rakentamislaki 751/2023; decrees 1008/2017 (homes and rooms) and 241/2017 (accessibility), kept in force by the entry-into-force provision of Act 752/2023",
+  "version": "2026-11-14",
+  "fail_means": "It would not meet today's rule for a new building.",
+  "rules": [
+    {
+      "id": "fi-habitable-room-area",
+      "title": "A bedroom or living room is at least 7 m2",
+      "op": "room_area",
+      "applies_to": {
+        "room_types": [
+          "bedroom",
+          "living"
+        ],
+        "note": "New buildings, extensions and substantial changes of use (decree 1008/2017 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show.",
+        "skip_labels": [
+          "R",
+          "RT",
+          "RH",
+          "RUOK",
+          "RUOKAILU",
+          "Essen",
+          "Repas",
+          "Pranzo",
+          "ALKOVI"
+        ]
+      },
+      "comparison": ">=",
+      "limit": 7,
+      "unit": "m2",
+      "clause": {
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+        "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+        "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+      }
+    },
+    {
+      "id": "fi-habitable-room-window",
+      "title": "A bedroom or living room has a window",
+      "op": "room_windows",
+      "applies_to": {
+        "room_types": [
+          "bedroom",
+          "living"
+        ],
+        "note": "New buildings, extensions and substantial changes of use (decree 1008/2017 s. 1); in a repair the original solution may be kept. The decree asks for a window light opening of at least 1/10 of the room area; a plan shows no window heights, so only the necessary part is checked: a room with no window cannot meet it. A room whose only opening is a door to a balcony or terrace is cannot tell (the door may be glazed). Dining nooks and kitchens are left out, as in the area rule.",
+        "skip_labels": [
+          "R",
+          "RT",
+          "RH",
+          "RUOK",
+          "RUOKAILU",
+          "Essen",
+          "Repas",
+          "Pranzo",
+          "ALKOVI"
+        ]
+      },
+      "comparison": ">=",
+      "limit": 1,
+      "unit": "count",
+      "clause": {
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 5 § 1 mom. (as amended by 127/2018)",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+        "quote": "Asuin- ja, majoitustilan ikkunan valoaukon on oltava vähintään 1/10 huonealasta.",
+        "quote_en": "The light opening of the window of a residential or accommodation space must be at least 1/10 of the room area."
+      }
+    },
+    {
+      "id": "fi-door-clear-width",
+      "title": "A door to a habitable room is at least 0.80 m clear",
+      "op": "door_width",
+      "applies_to": {
+        "room_types": [
+          "bedroom",
+          "living",
+          "kitchen"
+        ],
+        "element_classes": [
+          "door"
+        ],
+        "not_room_types": [
+          "sauna",
+          "storage",
+          "shaft",
+          "other",
+          "wc",
+          "bathroom",
+          "balcony",
+          "outdoor"
+        ],
+        "note": "New residential buildings that need a building permit (decree 241/2017 s. 1, as amended by 683/2024); in a detached or semi-detached house only the entrance storey (s. 4). The decree covers doors to habitable rooms, to one WC or washroom and to one balcony or terrace per dwelling, not doors to a sauna, a closet or a store. We check only doors that meet a bedroom, living room or kitchen and no sauna, store, WC, bathroom, shaft, unnamed room, balcony or outdoor space; the one WC and one balcony door per dwelling are not checked (a two-leaf balcony door reads as two narrow doors). The limit is the clear width at the open leaf, 800 mm in the decree. A plan shows the door symbol, which is wider than the clear opening by the frame and the open leaf (we allow 0.10 m; the allowance is ours, not the decree's), and we allow 0.03 m for how far the drawn box may be off, so a symbol under 0.77 m fails, 0.77 to 0.93 m is cannot tell and from 0.93 m it passes. A scale estimated from the doors themselves cannot check a door."
+      },
+      "comparison": ">=",
+      "limit": 0.8,
+      "unit": "m",
+      "clause": {
+        "ref": "Valtioneuvoston asetus rakennuksen esteettömyydestä 241/2017, 4 § 2 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/241",
+        "quote": "Muun rakennuksen kuin asuinrakennuksen huonetiloihin sekä asuinrakennuksen asuinhuoneisiin, asumista palveleviin välttämättömiin tiloihin ja rakennuksen käyttöä palveleviin tiloihin johtavan oven ja kulkuaukon vapaan leveyden on oltava vähintään 800 millimetriä.",
+        "quote_en": "The clear width of a door or passage opening leading to the rooms of a building other than a residential building, and to the habitable rooms of a residential building, the necessary spaces serving the dwelling and the spaces serving the use of the building, must be at least 800 millimetres."
+      }
+    }
+  ]
+}

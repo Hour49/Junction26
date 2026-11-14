@@ -3,6 +3,7 @@ other threads while the run writes it."""
 
 import logging
 import threading
+from collections.abc import Sequence
 
 from app.core.errors import NotFoundError
 from app.core.ingest.model import (
@@ -25,11 +26,23 @@ class Run:
         self.done = threading.Event()
         self.kinds: dict[str, ContentKind] = {}  # by path; written and read by the run only
         self.frame_ms: dict[str, float] = {}  # by path: the EXIF turn and the rectifier
+        self.split: set[str] = set()  # PDFs whose later drawn pages are files of their own
         self._status = status
         self._files: list[FileStatus] = []
         self._stages: dict[str, list[StageTrace]] = {}
         self._index: dict[str, int] = {}  # by path
         self._lock = threading.Lock()
+
+    @classmethod
+    def resumed(cls, status: ProjectStatus, traces: dict[str, FileTrace]) -> "Run":
+        """A finished project's record, live again so one of its files can be read again: its
+        files, their traces and kinds as stored (POST …/triage, decision 0010)."""
+        run = cls(status.model_copy(update={"files": ()}), fresh=False)
+        run._files = list(status.files)
+        run._index = {file.path: at for at, file in enumerate(status.files)}
+        run._stages = {file.id: list(traces[file.id].stages) for file in status.files}
+        run.kinds = {file.path: file.kind for file in status.files if file.kind is not None}
+        return run
 
     @property
     def id(self) -> str:
@@ -90,6 +103,12 @@ class Run:
                 }
             )
 
+    def fail_stage(self, path: str, did: str, failure: str) -> None:
+        """Marks `path`'s last trace line that says `did` as failed with `failure`."""
+        with self._lock:
+            file_id = self._files[self._index[path]].id
+            self._stages[file_id] = list(failed_stage(self._stages[file_id], did, failure))
+
     def finish(self, path: str, state: FileState, reason: str) -> None:
         self.set(path, state=state, reason=reason)
         status = self.file(path)
@@ -124,3 +143,12 @@ class Run:
         with self._lock:
             ids = list(self._stages)
         return {file_id: self.trace(file_id) for file_id in ids}
+
+
+def failed_stage(stages: Sequence[StageTrace], did: str, failure: str) -> tuple[StageTrace, ...]:
+    """`stages` with the last line that says `did` marked as failed with `failure`."""
+    at = next((i for i in reversed(range(len(stages))) if stages[i].did == did), None)
+    if at is None:
+        return tuple(stages)
+    failed = stages[at].model_copy(update={"failure": failure})
+    return (*stages[:at], failed, *stages[at + 1 :])

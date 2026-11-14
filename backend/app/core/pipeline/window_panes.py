@@ -234,7 +234,10 @@ def _disputed(
         elif len(boxes) >= 3 and _length(box) >= setting.long * usual:
             found.append((SPLIT, box, (i,), LONG))
         elif seen[i] < few or scores[i] < setting.weak:
-            why = f"Counted as a window, but only {_of(seen[i], len(readers))} a window here."
+            if seen[i] < few:
+                why = f"Counted as a window, but only {_of(seen[i], len(readers))} a window here."
+            else:  # every reader that matters sees it: the score is what is weak
+                why = "Counted as a window, but the reading of this one is weak."
             found.append((WEAK, box, (i,), why))
     # places readers see that were not counted, one per place
     apart: list[tuple[Px, set[int]]] = []

@@ -500,6 +500,7 @@ def test_the_answer_policy_sends_a_family_to_the_prior_on_its_source_only() -> N
 class Rated:
     value: float | None
     note: str
+    agrees: bool | None = None
 
 
 class FakeConfidence:

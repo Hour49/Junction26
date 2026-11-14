@@ -302,6 +302,26 @@ gives +0.35 pp [+0.12, +0.60]. No key, every reply from the caches, no spend. Ag
   same value.
 - `GATE_POLICY`: 286 answers marked sure, 585 not, the rest null; no policy answer is marked sure.
 
+IFC gold with the reader's room words (golden, 2026-11-14 15:30; no series point recorded). #167 rebuilt the IFC
+Part 1 gold with the room words the IFC reader uses. The old gold typed 408 of the 597 rooms in 24 dev IFC sheets
+as `other` where the reader says hall (127), living (96), wc (81), bedroom (65), bathroom (18), kitchen (16) or
+storage (5). The rebuild of golden v2 ran `select-plans --keep data/stoa/golden/v2/manifest.json`: files.jsonl,
+questions.jsonl, extras.jsonl and text_claims.jsonl are byte-identical, and only those 24 gold files changed, in room
+`type` only. One run of 872ebc3 at default settings, scored against the old and the new gold: ifc_models room type
+accuracy goes from 65.2% to 100.0% and count exact from 93.7% to 100.0% (room:bathroom and kitchen were 86.7%;
+bedroom, hall, living and other 80.0%; wc 93.3%). Nothing else moved. The series columns above (element F1, Part 2)
+don't depend on room type and are unchanged. The earlier records' room type accuracy and IFC count numbers were
+scored against the old words.
+
+Swiss gold with the reader's room words (golden, 2026-11-14 17:45; no series point recorded). #184 types a lone
+"Zimmer" (and "Pièce", "Stanza") as a bedroom on swiss plans, in the reader and in the swiss Part 1 gold. Golden v2
+was rebuilt the same way, with `select-plans --keep`: files.jsonl, questions.jsonl, extras.jsonl and text_claims.jsonl
+are byte-identical, and 58 swiss gold files changed (33 PDF, 25 PNG; 44 dev, 14 holdout), in room `type` only: 527
+rooms go from `other` to `bedroom` (401 dev, 126 holdout). Main's reader at 4cfb1ce (one run at default settings)
+against the old gold: swiss room type accuracy 74.4%, room:bedroom and room:other count exact 16.7%, overall count
+exact 56.9%. Against the new gold: 100.0%, 100.0% and 60.6%, the same as before #184. Element F1 and Part 2
+(1596/2948 at these settings) are the same against both.
+
 ## Experiments (CubiCasa raster, 2026-11-14)
 
 Bogdan, 2026-11-14: "Each should do a/b testing". The experiment tracks (detectors, segmentation, OCR, VLMs)

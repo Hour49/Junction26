@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Issue } from '../api';
+import { projectIssues } from '../api/fixtures';
 import { issueRoute } from '../surveyor/issueLinks';
 import {
   counts,
@@ -116,6 +117,41 @@ describe('issues.ts', () => {
     expect(query(must(check['Open in the surveyor'])).get('q')).toBe('door');
     expect(check['See the check']).toBe(`#/p/${PID}/checks?pack=fi`);
     for (const href of Object.values(check)) expect(query(href).get('pack')).toBe('fi');
+  });
+
+  describe('unrelated_file (file-triage.md)', () => {
+    const base = projectIssues.issues[0];
+    if (!base) throw new Error('project_issues.json has no issue');
+    const unrelated: Issue = {
+      ...base,
+      kind: 'unrelated_file',
+      severity: 'note',
+      state: 'open',
+      drawing_id: null,
+      page: null,
+      box: null,
+      polygon: null,
+      mark_id: null,
+      file_id: 'f3',
+      reason: 'unrelated',
+      links: { ...base.links, trace: `/api/projects/${PID}/files/f3/trace` },
+    };
+
+    it('FT-15 kind word, place, and one link to the trace: Make a call, then See the call', () => {
+      expect(kindOf('unrelated_file')).toEqual({ word: 'Not a floor plan', icon: '▭' });
+      expect(placeOf(unrelated)).toContain('not on a drawing');
+      expect(linksOf(unrelated)).toEqual({ 'Make a call': `#/p/${PID}/f/f3` });
+      expect(linksOf({ ...unrelated, state: 'settled' })).toEqual({
+        'See the call': `#/p/${PID}/f/f3`,
+      });
+      expect(linksOf(unrelated, 'fi')).toEqual({ 'Make a call': `#/p/${PID}/f/f3?pack=fi` });
+    });
+
+    it('FT-16 n is the position in the list as loaded; a state change leaves the order, Issue.id is the reference', () => {
+      const before = numbered([...issues, unrelated]);
+      const after = numbered([...issues, { ...unrelated, state: 'settled' }]);
+      expect(after.map((r) => [r.n, r.issue.id])).toEqual(before.map((r) => [r.n, r.issue.id]));
+    });
   });
 
   it('IS-15 kindOf: an unknown kind is its raw id with no icon', () => {

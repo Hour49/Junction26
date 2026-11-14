@@ -80,10 +80,11 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | --- | --- |
 | Unknown or malformed project, file or drawing id, unknown page, quantity key or mark id | 404 `not-found` |
 | Unknown rule pack (`?pack=`) | 404 `unknown-pack` |
-| A relevance call on a file triage did not describe (decision 0010) | 422 `no-description` |
+| A relevance call on, or reading as a floor plan, a file triage did not set aside as not a floor plan | 422 `not-triaged` |
 | `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
-| Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call before the project is `done` | 409 `not-allowed` |
+| Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
+| A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
 | A method the path does not take (`GET /api/ask`) | 405 `method-not-allowed` |
@@ -113,6 +114,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects/{project_id}` | Project status: every file with its state and reason, one drawing per plan | #27 |
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
+| `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
@@ -126,6 +128,8 @@ An edit of a signed-off quantity (409):
 | `POST /api/drawings/{drawing_id}/review` | Reject, restore or add a mark; settle, unsettle; reset. Returns the takeoff | #32 |
 | `POST /api/drawings/{drawing_id}/signoff` | Sign off one quantity, or undo it. Returns the takeoff | #32 |
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
+| `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
+| `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
 
 ## `GET /api/info`
 
@@ -151,7 +155,105 @@ An edit of a signed-off quantity (409):
     "unpacked_mb": 2048,
     "files": 5000,
     "question_chars": 2000
-  }
+  },
+  "rule_packs": [
+    {
+      "id": "ch-zh",
+      "country": "CH",
+      "country_name": "Canton of Zürich",
+      "name": "Canton of Zürich building act",
+      "law": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), as in force on 1 January 2026",
+      "version": "2026-11-14",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "fail_means": "It would not meet the Canton of Zürich's rule; other cantons set their own.",
+      "rules": [
+        {
+          "id": "ch-zh-room-area",
+          "title": "A bedroom or living room is at least 10 m2 (canton of Zürich)",
+          "op": "room_area",
+          "applies_to": {
+            "room_types": [
+              "bedroom",
+              "living"
+            ],
+            "element_classes": [],
+            "not_room_types": [],
+            "skip_labels": [
+              "R",
+              "RT",
+              "RH",
+              "RUOK",
+              "RUOKAILU",
+              "Essen",
+              "Repas",
+              "Pranzo",
+              "ALKOVI"
+            ],
+            "note": "Canton of Zürich only: Swiss building law is cantonal and there is no national limit. Rooms for living and sleeping (PBG s. 299). Not in single-family houses and comparable dwellings (s. 303). A dining area that is part of an open room (Essen, Repas, Pranzo) is not a room of its own and is not checked; kitchens are left out (the government may set other rules for them)."
+          },
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "limit": 10.0,
+          "unit": "m2",
+          "key": null,
+          "clause": {
+            "ref": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), § 303 Abs. 1",
+            "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/3B9E9F2232301FF3C1258D2A00290112/$File/700.1_7.9.75_131.pdf",
+            "quote": "Die Mindestfläche von Räumen, ausser solchen in Einfamilienhäusern und bei vergleichbaren Wohnungsarten, beträgt 10 m².",
+            "quote_en": "The minimum area of rooms, except those in single-family houses and comparable kinds of dwelling, is 10 m2."
+          }
+        }
+      ]
+    },
+    {
+      "id": "fi",
+      "country": "FI",
+      "country_name": "Finland",
+      "name": "Finland: homes and accessibility decrees",
+      "law": "Rakentamislaki 751/2023; decrees 1008/2017 (homes and rooms) and 241/2017 (accessibility), kept in force by the entry-into-force provision of Act 752/2023",
+      "version": "2026-11-14",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "fail_means": "It would not meet today's rule for a new building.",
+      "rules": [
+        {
+          "id": "fi-habitable-room-area",
+          "title": "A bedroom or living room is at least 7 m2",
+          "op": "room_area",
+          "applies_to": {
+            "room_types": [
+              "bedroom",
+              "living"
+            ],
+            "element_classes": [],
+            "not_room_types": [],
+            "skip_labels": [
+              "R",
+              "RT",
+              "RH",
+              "RUOK",
+              "RUOKAILU",
+              "Essen",
+              "Repas",
+              "Pranzo",
+              "ALKOVI"
+            ],
+            "note": "New buildings, extensions and substantial changes of use (decree 1008/2017 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
+          },
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "limit": 7.0,
+          "unit": "m2",
+          "key": null,
+          "clause": {
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+          }
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -159,6 +261,19 @@ An edit of a signed-off quantity (409):
 in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The screen then shows "running
 offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
 questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+
+`rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
+below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
+writes ("Finland", "Canton of Zürich": Swiss building law is cantonal, so that pack is the canton's, never
+"Switzerland"), `name` the pack's display name, `law` the law line. `note` is always "A pre-check of a few rules,
+not a compliance certificate."; `fail_means` (null: nothing) says what a fail means under that law ("It would
+not meet today's rule for a new building."). Each rule: `title`; `op`, the check type, never shown; `comparison`
+(`>=`, `>`, `<=`, `<`) with `comparison_text`, the words to show ("at least"); `limit` and `unit` (`m2`, `m`,
+`count`, as the takeoff writes units); `applies_to` (`room_types` as `MarkView.room_type`, `element_classes` as
+the drawing model's classes, `not_room_types`, `skip_labels` and a `note` on scope and exceptions, to show with
+the rule); `key`, the takeoff key of a `takeoff` rule, else null; and `clause` `{ref, url, quote, quote_en}`:
+the clause the limit comes from, its sentence as printed, and our English (null when the law is in English: show
+`quote` alone). No pack is preselected and choosing none is valid: then nothing is checked.
 
 ## Projects and ingest
 
@@ -269,8 +384,8 @@ Ingest's project status, plus `drawings`:
         "area:room": 64.714,
         "area:room:balcony|largest": 12.445,
         "area:room:bathroom|largest": 12.445,
+        "area:room:bedroom|largest": 14.934,
         "area:room:kitchen|largest": 22.401,
-        "area:room:other|largest": 14.934,
         "area:room:storage|largest": 2.489,
         "area:room|indoor": 52.269,
         "area:room|label=bad": 12.445,
@@ -297,8 +412,8 @@ Ingest's project status, plus `drawings`:
         "door": 2,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
+        "length:room:bedroom": 4.233,
         "length:room:kitchen": 7.056,
-        "length:room:other": 4.233,
         "length:room:storage": 1.764,
         "length:room|name=1.01": 7.056,
         "length:room|name=1.02": 1.764,
@@ -314,11 +429,11 @@ Ingest's project status, plus `drawings`:
         "room": 5,
         "room:balcony": 1,
         "room:bathroom": 1,
-        "room:bedroom": 0,
+        "room:bedroom": 1,
         "room:hall": 0,
         "room:kitchen": 1,
         "room:living": 0,
-        "room:other": 1,
+        "room:other": 0,
         "room:outdoor": 0,
         "room:sauna": 0,
         "room:shaft": 0,
@@ -360,8 +475,8 @@ Ingest's project status, plus `drawings`:
         "area:room": 64.714,
         "area:room:balcony|largest": 12.445,
         "area:room:bathroom|largest": 12.445,
+        "area:room:bedroom|largest": 14.934,
         "area:room:kitchen|largest": 22.401,
-        "area:room:other|largest": 14.934,
         "area:room:storage|largest": 2.489,
         "area:room|indoor": 52.269,
         "area:room|label=bad": 12.445,
@@ -388,8 +503,8 @@ Ingest's project status, plus `drawings`:
         "door": 2,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
+        "length:room:bedroom": 4.233,
         "length:room:kitchen": 7.056,
-        "length:room:other": 4.233,
         "length:room:storage": 1.764,
         "length:room|name=1.01": 7.056,
         "length:room|name=1.02": 1.764,
@@ -405,11 +520,11 @@ Ingest's project status, plus `drawings`:
         "room": 5,
         "room:balcony": 1,
         "room:bathroom": 1,
-        "room:bedroom": 0,
+        "room:bedroom": 1,
         "room:hall": 0,
         "room:kitchen": 1,
         "room:living": 0,
-        "room:other": 1,
+        "room:other": 0,
         "room:outdoor": 0,
         "room:sauna": 0,
         "room:shaft": 0,
@@ -443,27 +558,27 @@ Ingest's project status, plus `drawings`:
     {
       "id": "f3",
       "path": "plans/flat-b.pdf",
-      "size": 2262,
-      "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
+      "size": 2260,
+      "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
       "kind": "pdf_vector",
       "state": "flagged",
       "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "reused": false,
       "takeoff": {
         "apartment": 1,
-        "area:apartment": 52.27,
-        "area:apartment|apartment=a": 52.27,
-        "area:room": 72.313,
+        "area:apartment": 45.4,
+        "area:apartment|apartment=a": 45.4,
+        "area:room": 65.443,
         "area:room:balcony|largest": 12.445,
         "area:room:bathroom|largest": 12.445,
+        "area:room:bedroom|largest": 8.064,
         "area:room:kitchen|largest": 30.0,
-        "area:room:other|largest": 14.934,
         "area:room:storage|largest": 2.489,
-        "area:room|indoor": 59.868,
+        "area:room|indoor": 52.998,
         "area:room|label=bad": 12.445,
         "area:room|label=bad|largest": 12.445,
         "area:room|label=balkon": 12.445,
@@ -472,24 +587,24 @@ Ingest's project status, plus `drawings`:
         "area:room|label=küche|largest": 30.0,
         "area:room|label=reduit": 2.489,
         "area:room|label=reduit|largest": 2.489,
-        "area:room|label=zimmer": 14.934,
-        "area:room|label=zimmer|largest": 14.934,
+        "area:room|label=zimmer": 8.064,
+        "area:room|label=zimmer|largest": 8.064,
         "area:room|name=1.01": 30.0,
         "area:room|name=1.02": 2.489,
         "area:room|name=1.03": 12.445,
         "area:room|name=1.04": 12.445,
-        "area:room|name=1.05": 14.934,
+        "area:room|name=1.05": 8.064,
         "area:room|name=bad": 12.445,
         "area:room|name=balkon": 12.445,
         "area:room|name=küche": 30.0,
         "area:room|name=reduit": 2.489,
-        "area:room|name=zimmer": 14.934,
+        "area:room|name=zimmer": 8.064,
         "bathtub": 1,
         "door": 2,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
+        "length:room:bedroom": 4.233,
         "length:room:kitchen": 7.056,
-        "length:room:other": 4.233,
         "length:room:storage": 1.764,
         "length:room|name=1.01": 7.056,
         "length:room|name=1.02": 1.764,
@@ -505,11 +620,11 @@ Ingest's project status, plus `drawings`:
         "room": 5,
         "room:balcony": 1,
         "room:bathroom": 1,
-        "room:bedroom": 0,
+        "room:bedroom": 1,
         "room:hall": 0,
         "room:kitchen": 1,
         "room:living": 0,
-        "room:other": 1,
+        "room:other": 0,
         "room:outdoor": 0,
         "room:sauna": 0,
         "room:shaft": 0,
@@ -569,7 +684,7 @@ Ingest's project status, plus `drawings`:
       ]
     },
     {
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "group": "plans/flat-b",
       "file": "plans/flat-b.pdf",
       "kind": "pdf_vector",
@@ -788,15 +903,41 @@ the `identify` stage's line.
   `not_drawing` (a photo, a music score, a text page, an icon). A closed list: map it to words. Unsure is
   `floor_plan`, because a plan set aside would never be read.
 - `p_plan`: P(a floor plan anywhere on the page), 0 to 1. `method`: how, in plain words.
-- `description` (only for a file that is not a floor plan): `text` (1-3 sentences), `subject` (a short label),
-  `text_seen` (words printed on it: title-block and caption text only; the describer is told not to transcribe
-  personal data such as private people's names, phone numbers, number plates or home addresses), `language`
-  (ISO 639-1 of `text_seen`, null when none), `model`, `cost_usd`.
+- `register` (decision 0010 section 8): what the classifier read off the sheet, floor plans included: `kind` (the
+  answer key's 12: `floor_plan`, `multi_view_sheet`, `site_plan_or_map`, `elevation`, `section`, `detail`,
+  `perspective_or_axonometric`, `engineering_non_building`, `cover_or_text_sheet`, `photograph`,
+  `not_architecture`, `other`), `has_floor_plan`, `photo_of_sheet`, `scale_shown` (`bar`, `ratio_text`,
+  `dimensions`, `none`, `unreadable`), `quality` (`good`, `fair`, `poor`), `method`. `class` is derived from it: a
+  floor plan when `has_floor_plan` or `kind` is `floor_plan`, else `not_drawing` for `photograph`,
+  `not_architecture`, `cover_or_text_sheet` and `other`, else `other_drawing`. Display only: nothing else acts on
+  it, and a plan's `scale_shown` is never compared with what its reader found. Null with a classifier that reads
+  no register (`TRIAGE_CLASSIFIER=rules`).
+- `description` (only for a file that is not a floor plan): `text` (1-3 sentences summing up `detail`), `subject`
+  (a short label), `text_seen` (the title-block and caption items of `visible_text`), `language` (ISO 639-1 of the
+  printed text, null when none), `model`, `cost_usd`, and the form of section 8: `what_it_is` (`photograph`,
+  `artwork`, `text_page`, `object`, `music`, `map`, `drawing`, `other`; `drawing` is a drawing that is not a floor
+  plan), `shows_building`, `visible_text` (every legible word as printed, `""` when none, at most 2,000
+  characters) and `detail` (a paragraph or more, at most 4,000 characters: a model's description no person
+  checked). Printed text is kept (project, company, place and room names, the title block); the describer leaves
+  out number plates, home addresses, personal contact data of private persons (phone numbers, e-mails) and the
+  names of people seen in photos.
 - `relevance` (set once the project's ingest is done): `verdict` `related`, `unrelated` or `unsure`, `why` (one
   sentence naming what matched or what is missing), `matched_on`, `plans` (drawing ids, always among this
   project's `drawings`), `judge`. With no plan read in the project the verdict is `unsure`, "no floor plan in the
-  project to compare with".
+  project to compare with". With `TRIAGE_JUDGE=rules` (no model):
+  - a described file is judged by the rule over its form: `related` when a word printed on it (`visible_text`,
+    `text_seen`; 4 letters or more, not a drawing word, never a number alone) is in the project's name, its other
+    files' and folders' names or its plans' text; `unsure` when it shows a building but nothing matches;
+    `unrelated` when it shows no building and nothing matches. `matched_on` lists each word with where it
+    matched, and `why` says whether it shows a building. `judge` is "rule on the words printed on it and whether it
+    shows a building, no model".
+  - a file nothing described (no describer, or the describer refused it) is judged by its class: `not_drawing`
+    is `unrelated`, `other_drawing` `unsure`, and `why` says it was not read; `judge` is "rule on the kind of
+    picture, no model (no description to read)". Its `note` is then "not described: no description model is set
+    up" (or the describer's why).
 - `overruled`: a person's call, `{verdict: related|unrelated, by, at}`; the judge's `relevance` stays as it was.
+- `read_as_plan`: `{by, at}` once a person had the file read as a floor plan (`POST …/triage`); `class` stays the
+  classifier's.
 - `verdict`: the one value that counts: `overruled.verdict`, else `relevance.verdict`, else null.
 - `note`: why `description` or `relevance` is null, a plain sentence: "a floor plan: it is read, so it is not
   described or judged"; "not described: no description model is set up, so it is not judged" (no describer: the
@@ -807,12 +948,14 @@ the `identify` stage's line.
 "not a floor plan: " are plain words, shown as they are. Description and judge costs count in the file's and the
 project's `cost_usd`; with no model set up they are 0.
 
-`not_plans` (on `ProjectView` and `ProjectSummary`): the files triage called not a floor plan, a person's call or
-not (a call changes the verdict, not the class). Never a file set aside for its format (`triage` null). Null until
-`done`, then final; left out when the project was ingested with triage off.
+`not_plans` (on `ProjectView` and `ProjectSummary`): the files triage called not a floor plan, a person's relevance
+call or not (it changes the verdict, not the class), less those a person had read as a floor plan (a class call).
+Never a file set aside for its format (`triage` null). Null until `done`, then final except when a person has a
+file read as a floor plan; left out when the project was ingested with triage off.
 
-A project with triage on (the test fakes: an elevation judged related, the site photo judged unrelated and then
-called related by a person, a photo the describer refused):
+A project with triage on (the test fakes and the rules judge: an elevation judged related, the site photo judged
+unrelated and then called related by a person, a photo the describer refused judged by its class, and a camera
+photo of an elevation sheet with its register, showing a building that matches nothing, so unsure):
 
 <!-- fixture: project_triaged.json -->
 ```json
@@ -844,8 +987,8 @@ called related by a person, a photo the describer refused):
         "area:room": 64.714,
         "area:room:balcony|largest": 12.445,
         "area:room:bathroom|largest": 12.445,
+        "area:room:bedroom|largest": 14.934,
         "area:room:kitchen|largest": 22.401,
-        "area:room:other|largest": 14.934,
         "area:room:storage|largest": 2.489,
         "area:room|indoor": 52.269,
         "area:room|label=bad": 12.445,
@@ -872,8 +1015,8 @@ called related by a person, a photo the describer refused):
         "door": 2,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
+        "length:room:bedroom": 4.233,
         "length:room:kitchen": 7.056,
-        "length:room:other": 4.233,
         "length:room:storage": 1.764,
         "length:room|name=1.01": 7.056,
         "length:room|name=1.02": 1.764,
@@ -889,11 +1032,11 @@ called related by a person, a photo the describer refused):
         "room": 5,
         "room:balcony": 1,
         "room:bathroom": 1,
-        "room:bedroom": 0,
+        "room:bedroom": 1,
         "room:hall": 0,
         "room:kitchen": 1,
         "room:living": 0,
-        "room:other": 1,
+        "room:other": 0,
         "room:outdoor": 0,
         "room:sauna": 0,
         "room:shaft": 0,
@@ -922,7 +1065,7 @@ called related by a person, a photo the describer refused):
       "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
       "kind": "png_plan",
       "state": "set_aside",
-      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover) (P(plan) 0.03, fake classifier)",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)",
       "group": null,
       "route": null,
       "source": null,
@@ -937,6 +1080,7 @@ called related by a person, a photo the describer refused):
         "class": "other_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": {
           "text": "A picture of the south elevation of a two-storey house.",
           "subject": "the south elevation of a two-storey house",
@@ -946,20 +1090,23 @@ called related by a person, a photo the describer refused):
           ],
           "language": "en",
           "model": "fake describer",
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "what_it_is": "drawing",
+          "shows_building": false,
+          "visible_text": "Küche\nSüd",
+          "detail": "A longer account of the south elevation of a two-storey house, for later use."
         },
         "relevance": {
           "verdict": "related",
-          "why": "Related: Küche is on the project's plans.",
+          "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
           "matched_on": [
-            "Küche"
+            "'kuche' (plan text)"
           ],
-          "plans": [
-            "6a47e9a1c33db404"
-          ],
-          "judge": "word judge"
+          "plans": [],
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
         },
         "overruled": null,
+        "read_as_plan": null,
         "verdict": "related",
         "note": null
       }
@@ -971,7 +1118,7 @@ called related by a person, a photo the describer refused):
       "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
       "kind": "photo",
       "state": "set_aside",
-      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)",
+      "reason": "not a floor plan: not a drawing",
       "group": null,
       "route": null,
       "source": null,
@@ -986,26 +1133,32 @@ called related by a person, a photo the describer refused):
         "class": "not_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": {
           "text": "A picture of a building site with a crane.",
           "subject": "a building site with a crane",
           "text_seen": [],
           "language": null,
           "model": "fake describer",
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "what_it_is": "photograph",
+          "shows_building": false,
+          "visible_text": "",
+          "detail": "A longer account of a building site with a crane, for later use."
         },
         "relevance": {
           "verdict": "unrelated",
-          "why": "Unrelated: no word on it is on the project's plans or in its file names.",
+          "why": "Unrelated: it shows no building, and it has no printed text.",
           "matched_on": [],
           "plans": [],
-          "judge": "word judge"
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
         },
         "overruled": {
           "verdict": "related",
           "by": "Ana",
           "at": "2026-11-14T08:05:00Z"
         },
+        "read_as_plan": null,
         "verdict": "related",
         "note": null
       }
@@ -1017,7 +1170,7 @@ called related by a person, a photo the describer refused):
       "sha256": "735c66abcf63f04a3756987b74897e4c83b1e87d76245eeb806623045c2c55fd",
       "kind": "photo",
       "state": "set_aside",
-      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)",
+      "reason": "not a floor plan: not a drawing",
       "group": null,
       "route": null,
       "source": null,
@@ -1032,17 +1185,82 @@ called related by a person, a photo the describer refused):
         "class": "not_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": null,
-        "relevance": null,
+        "relevance": {
+          "verdict": "unrelated",
+          "why": "A picture that is not a drawing; such files are judged unrelated by a rule on what kind of picture they are, without reading what they show.",
+          "matched_on": [],
+          "plans": [],
+          "judge": "rule on the kind of picture, no model (no description to read)"
+        },
         "overruled": null,
-        "verdict": null,
+        "read_as_plan": null,
+        "verdict": "unrelated",
         "note": "not described: the model refused"
+      }
+    },
+    {
+      "id": "f5",
+      "path": "photos/sheet.jpg",
+      "size": 37659,
+      "sha256": "7753c4e8cfd8925200108dfc29ff16ab6d5e6acdaaea87e6ac763280d78a3e26",
+      "kind": "photo_plan",
+      "state": "set_aside",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null,
+      "triage": {
+        "class": "other_drawing",
+        "p_plan": 0.03,
+        "method": "fake classifier",
+        "register": {
+          "kind": "elevation",
+          "has_floor_plan": false,
+          "photo_of_sheet": true,
+          "scale_shown": "bar",
+          "quality": "fair",
+          "method": "fake classifier"
+        },
+        "description": {
+          "text": "A picture of a photographed elevation of a church.",
+          "subject": "a photographed elevation of a church",
+          "text_seen": [
+            "Kirche St. Anna"
+          ],
+          "language": "en",
+          "model": "fake describer",
+          "cost_usd": 0.0,
+          "what_it_is": "drawing",
+          "shows_building": true,
+          "visible_text": "Kirche St. Anna",
+          "detail": "A longer account of a photographed elevation of a church, for later use."
+        },
+        "relevance": {
+          "verdict": "unsure",
+          "why": "Unsure: it shows a building, but none of its printed words is in the project's name, file and folder names or plan text.",
+          "matched_on": [],
+          "plans": [],
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
+        },
+        "overruled": null,
+        "read_as_plan": null,
+        "verdict": "unsure",
+        "note": null
       }
     }
   ],
   "counts": {
     "ready": 1,
-    "set_aside": 3
+    "set_aside": 4
   },
   "readers": {
     "bim": "ifc",
@@ -1074,19 +1292,23 @@ called related by a person, a photo the describer refused):
   "skipped": [
     {
       "path": "elevations/south.png",
-      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover) (P(plan) 0.03, fake classifier)"
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)"
     },
     {
       "path": "photos/site.jpg",
-      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)"
+      "reason": "not a floor plan: not a drawing"
     },
     {
       "path": "photos/street.jpg",
-      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)"
+      "reason": "not a floor plan: not a drawing"
+    },
+    {
+      "path": "photos/sheet.jpg",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)"
     }
   ],
   "expected_drawings": 1,
-  "not_plans": 3
+  "not_plans": 4
 }
 ```
 
@@ -1105,13 +1327,174 @@ verdict is a call too: it settles the file's issue. Returns the file's `FileStat
 ```
 
 - 409 `not-allowed` until the project is `done`; 404 `not-found` for an unknown project or file.
-- 422 `no-description` for a file triage did not describe (there is nothing to judge, so nothing to overrule).
+- 422 `not-triaged` for a file triage did not set aside as not a floor plan. Any file it did takes a call,
+  described and judged or not, so every `unrelated_file` issue can be settled.
 - 422 `validation` for a body outside the shape: a `verdict` other than `related` or `unrelated`, no `by`, an empty
   or too long `by`, `undo` with a `verdict`.
 - `undo` with no call made: 200, the file unchanged.
 
-Reserved: `POST /api/projects/{project_id}/files/{file_id}/triage` `{class: "floor_plan", by}` will read a file
-triage set aside as a floor plan and return its `FileStatus`. It is not built yet.
+### `POST /api/projects/{project_id}/files/{file_id}/triage`
+
+A person says a file triage set aside is a floor plan, so it is read as one: in the background, that file alone,
+through the usual group, route and readers. The body is `{class: "floor_plan", by}` (`by` as in a sign-off). 202
+with the file's `FileStatus`, `queued`; poll `GET /api/projects/{project_id}`: the file goes `running`, then
+`ready`, `flagged` or `set_aside` like any file, and once read it has a `drawing_id` and is in `drawings`. The
+project stays `done` throughout.
+
+- `triage.read_as_plan` = `{by, at}`; `class` stays the classifier's. The file leaves `not_plans`.
+- Its `unrelated_file` issue stays, `settled`, with the same id and place in the list, "<by> had it read as a
+  floor plan" in `why`, and once read the file's `drawing_id` and drawing links. The new drawing's own issues (a reading flag, a conflict) join the list; the issues already there keep their
+  order.
+- The trace adds a second `identify` line, "read as a floor plan, as <by> asked", then the usual stages.
+- A photo is read as a photo of a plan (framed and rectified like one).
+- No undo: a reading is not unread. A relevance call still works.
+- 404 `not-found` for an unknown file; 409 `not-allowed` until the project is `done`, while a file of it is read
+  again, or for a file already read this way; 422 `not-triaged` for a file triage did not set aside as not a floor
+  plan; 422 `validation` for a `class` other than `floor_plan` or no `by`.
+- A reading that fails, or that a restart cut off, sets the file aside with why ("not read as a floor plan: the
+  server restarted while it was read as a floor plan", or the reader's error); the project stays `done`. The file
+  is back to triage's call: `read_as_plan` is null again, it is in `not_plans`, its `unrelated_file` issue is
+  `open` again, and it can be asked again (R6-a-1).
+- While it is read, the file's `reason` is "being read as a floor plan".
+
+<!-- fixture: triage_request.json -->
+```json
+{
+  "class": "floor_plan",
+  "by": "Ana"
+}
+```
+
+<!-- fixture: triage_started.json -->
+```json
+{
+  "id": "f2",
+  "path": "elevations/south.png",
+  "size": 8835,
+  "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
+  "kind": "png_plan",
+  "state": "queued",
+  "reason": "queued to be read as a floor plan",
+  "group": null,
+  "route": null,
+  "source": null,
+  "drawing_id": null,
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": "identify",
+  "cost_usd": 0.0,
+  "normalised": null,
+  "triage": {
+    "class": "other_drawing",
+    "p_plan": 0.03,
+    "method": "fake classifier",
+    "register": null,
+    "description": {
+      "text": "A picture of the south elevation of a two-storey house.",
+      "subject": "the south elevation of a two-storey house",
+      "text_seen": [
+        "Küche",
+        "Süd"
+      ],
+      "language": "en",
+      "model": "fake describer",
+      "cost_usd": 0.0,
+      "what_it_is": "drawing",
+      "shows_building": false,
+      "visible_text": "Küche\nSüd",
+      "detail": "A longer account of the south elevation of a two-storey house, for later use."
+    },
+    "relevance": {
+      "verdict": "related",
+      "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
+      "matched_on": [
+        "'kuche' (plan text)"
+      ],
+      "plans": [],
+      "judge": "rule on the words printed on it and whether it shows a building, no model"
+    },
+    "overruled": null,
+    "read_as_plan": {
+      "by": "Ana",
+      "at": "2026-11-14T08:05:00Z"
+    },
+    "verdict": "related",
+    "note": null
+  }
+}
+```
+
+The same file once read:
+
+<!-- fixture: file_read_as_plan.json -->
+```json
+{
+  "id": "f2",
+  "path": "elevations/south.png",
+  "size": 8835,
+  "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
+  "kind": "png_plan",
+  "state": "flagged",
+  "reason": "no reader for the image route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
+  "group": "elevations/south",
+  "route": "raster",
+  "source": "elevations/south.png",
+  "drawing_id": "90dc7849bebce83d",
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": "write",
+  "cost_usd": 0.0,
+  "normalised": {
+    "exif": null,
+    "rotated": 0,
+    "deskew_deg": 0.0,
+    "rectified": false,
+    "quad": null,
+    "width": 850,
+    "height": 1200,
+    "rectifier": null
+  },
+  "triage": {
+    "class": "other_drawing",
+    "p_plan": 0.03,
+    "method": "fake classifier",
+    "register": null,
+    "description": {
+      "text": "A picture of the south elevation of a two-storey house.",
+      "subject": "the south elevation of a two-storey house",
+      "text_seen": [
+        "Küche",
+        "Süd"
+      ],
+      "language": "en",
+      "model": "fake describer",
+      "cost_usd": 0.0,
+      "what_it_is": "drawing",
+      "shows_building": false,
+      "visible_text": "Küche\nSüd",
+      "detail": "A longer account of the south elevation of a two-storey house, for later use."
+    },
+    "relevance": {
+      "verdict": "related",
+      "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
+      "matched_on": [
+        "'kuche' (plan text)"
+      ],
+      "plans": [],
+      "judge": "rule on the words printed on it and whether it shows a building, no model"
+    },
+    "overruled": null,
+    "read_as_plan": {
+      "by": "Ana",
+      "at": "2026-11-14T08:05:00Z"
+    },
+    "verdict": "related",
+    "note": null
+  }
+}
+```
 
 ### `GET /api/projects/{project_id}/files/{file_id}/trace`
 
@@ -1139,8 +1522,8 @@ triage set aside as a floor plan and return its `FileStatus`. It is not built ye
       "area:room": 64.714,
       "area:room:balcony|largest": 12.445,
       "area:room:bathroom|largest": 12.445,
+      "area:room:bedroom|largest": 14.934,
       "area:room:kitchen|largest": 22.401,
-      "area:room:other|largest": 14.934,
       "area:room:storage|largest": 2.489,
       "area:room|indoor": 52.269,
       "area:room|label=bad": 12.445,
@@ -1167,8 +1550,8 @@ triage set aside as a floor plan and return its `FileStatus`. It is not built ye
       "door": 2,
       "length:room:balcony": 7.056,
       "length:room:bathroom": 3.528,
+      "length:room:bedroom": 4.233,
       "length:room:kitchen": 7.056,
-      "length:room:other": 4.233,
       "length:room:storage": 1.764,
       "length:room|name=1.01": 7.056,
       "length:room|name=1.02": 1.764,
@@ -1184,11 +1567,11 @@ triage set aside as a floor plan and return its `FileStatus`. It is not built ye
       "room": 5,
       "room:balcony": 1,
       "room:bathroom": 1,
-      "room:bedroom": 0,
+      "room:bedroom": 1,
       "room:hall": 0,
       "room:kitchen": 1,
       "room:living": 0,
-      "room:other": 1,
+      "room:other": 0,
       "room:outdoor": 0,
       "room:sauna": 0,
       "room:shaft": 0,
@@ -1379,8 +1762,8 @@ upload lists the files, instead of one request per file.
           "area:room": 64.714,
           "area:room:balcony|largest": 12.445,
           "area:room:bathroom|largest": 12.445,
+          "area:room:bedroom|largest": 14.934,
           "area:room:kitchen|largest": 22.401,
-          "area:room:other|largest": 14.934,
           "area:room:storage|largest": 2.489,
           "area:room|indoor": 52.269,
           "area:room|label=bad": 12.445,
@@ -1407,8 +1790,8 @@ upload lists the files, instead of one request per file.
           "door": 2,
           "length:room:balcony": 7.056,
           "length:room:bathroom": 3.528,
+          "length:room:bedroom": 4.233,
           "length:room:kitchen": 7.056,
-          "length:room:other": 4.233,
           "length:room:storage": 1.764,
           "length:room|name=1.01": 7.056,
           "length:room|name=1.02": 1.764,
@@ -1424,11 +1807,11 @@ upload lists the files, instead of one request per file.
           "room": 5,
           "room:balcony": 1,
           "room:bathroom": 1,
-          "room:bedroom": 0,
+          "room:bedroom": 1,
           "room:hall": 0,
           "room:kitchen": 1,
           "room:living": 0,
-          "room:other": 1,
+          "room:other": 0,
           "room:outdoor": 0,
           "room:sauna": 0,
           "room:shaft": 0,
@@ -1559,8 +1942,8 @@ upload lists the files, instead of one request per file.
           "area:room": 64.714,
           "area:room:balcony|largest": 12.445,
           "area:room:bathroom|largest": 12.445,
+          "area:room:bedroom|largest": 14.934,
           "area:room:kitchen|largest": 22.401,
-          "area:room:other|largest": 14.934,
           "area:room:storage|largest": 2.489,
           "area:room|indoor": 52.269,
           "area:room|label=bad": 12.445,
@@ -1587,8 +1970,8 @@ upload lists the files, instead of one request per file.
           "door": 2,
           "length:room:balcony": 7.056,
           "length:room:bathroom": 3.528,
+          "length:room:bedroom": 4.233,
           "length:room:kitchen": 7.056,
-          "length:room:other": 4.233,
           "length:room:storage": 1.764,
           "length:room|name=1.01": 7.056,
           "length:room|name=1.02": 1.764,
@@ -1604,11 +1987,11 @@ upload lists the files, instead of one request per file.
           "room": 5,
           "room:balcony": 1,
           "room:bathroom": 1,
-          "room:bedroom": 0,
+          "room:bedroom": 1,
           "room:hall": 0,
           "room:kitchen": 1,
           "room:living": 0,
-          "room:other": 1,
+          "room:other": 0,
           "room:outdoor": 0,
           "room:sauna": 0,
           "room:shaft": 0,
@@ -1731,27 +2114,27 @@ upload lists the files, instead of one request per file.
       "file": {
         "id": "f3",
         "path": "plans/flat-b.pdf",
-        "size": 2262,
-        "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
+        "size": 2260,
+        "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
         "kind": "pdf_vector",
         "state": "flagged",
         "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
         "group": "plans/flat-b",
         "route": "vector",
         "source": "plans/flat-b.pdf",
-        "drawing_id": "6d153ea15dca9ab4",
+        "drawing_id": "44cc9f0d991eafe3",
         "reused": false,
         "takeoff": {
           "apartment": 1,
-          "area:apartment": 52.27,
-          "area:apartment|apartment=a": 52.27,
-          "area:room": 72.313,
+          "area:apartment": 45.4,
+          "area:apartment|apartment=a": 45.4,
+          "area:room": 65.443,
           "area:room:balcony|largest": 12.445,
           "area:room:bathroom|largest": 12.445,
+          "area:room:bedroom|largest": 8.064,
           "area:room:kitchen|largest": 30.0,
-          "area:room:other|largest": 14.934,
           "area:room:storage|largest": 2.489,
-          "area:room|indoor": 59.868,
+          "area:room|indoor": 52.998,
           "area:room|label=bad": 12.445,
           "area:room|label=bad|largest": 12.445,
           "area:room|label=balkon": 12.445,
@@ -1760,24 +2143,24 @@ upload lists the files, instead of one request per file.
           "area:room|label=küche|largest": 30.0,
           "area:room|label=reduit": 2.489,
           "area:room|label=reduit|largest": 2.489,
-          "area:room|label=zimmer": 14.934,
-          "area:room|label=zimmer|largest": 14.934,
+          "area:room|label=zimmer": 8.064,
+          "area:room|label=zimmer|largest": 8.064,
           "area:room|name=1.01": 30.0,
           "area:room|name=1.02": 2.489,
           "area:room|name=1.03": 12.445,
           "area:room|name=1.04": 12.445,
-          "area:room|name=1.05": 14.934,
+          "area:room|name=1.05": 8.064,
           "area:room|name=bad": 12.445,
           "area:room|name=balkon": 12.445,
           "area:room|name=küche": 30.0,
           "area:room|name=reduit": 2.489,
-          "area:room|name=zimmer": 14.934,
+          "area:room|name=zimmer": 8.064,
           "bathtub": 1,
           "door": 2,
           "length:room:balcony": 7.056,
           "length:room:bathroom": 3.528,
+          "length:room:bedroom": 4.233,
           "length:room:kitchen": 7.056,
-          "length:room:other": 4.233,
           "length:room:storage": 1.764,
           "length:room|name=1.01": 7.056,
           "length:room|name=1.02": 1.764,
@@ -1793,11 +2176,11 @@ upload lists the files, instead of one request per file.
           "room": 5,
           "room:balcony": 1,
           "room:bathroom": 1,
-          "room:bedroom": 0,
+          "room:bedroom": 1,
           "room:hall": 0,
           "room:kitchen": 1,
           "room:living": 0,
-          "room:other": 1,
+          "room:other": 0,
           "room:outdoor": 0,
           "room:sauna": 0,
           "room:shaft": 0,
@@ -1822,7 +2205,7 @@ upload lists the files, instead of one request per file.
       "stages": [
         {
           "stage": "unpack",
-          "did": "path checked, 2262 bytes",
+          "did": "path checked, 2260 bytes",
           "ms": 12.5,
           "output": "plans/flat-b.pdf",
           "failure": null,
@@ -1830,15 +2213,15 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "hash",
-          "did": "sha256 a7fce07de289",
+          "did": "sha256 b69c8d9a3086",
           "ms": 12.5,
-          "output": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
+          "output": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "identify",
-          "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+          "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 141 characters)",
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
@@ -1894,7 +2277,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "write",
-          "did": "drawing model 6d153ea15dca9ab4 stored",
+          "did": "drawing model 44cc9f0d991eafe3 stored",
           "ms": 12.5,
           "output": "71 quantities",
           "failure": null,
@@ -2673,7 +3056,7 @@ many quantities are left to review and how many are signed off, and every confli
       "quantities": 63
     },
     {
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "file": "plans/flat-b.pdf",
       "to_review": 1,
       "signed": 0,
@@ -2703,7 +3086,7 @@ many quantities are left to review and how many are signed off, and every confli
   ],
   "conflicts": [
     {
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "file": "plans/flat-b.pdf",
       "quantity": "area:room|name=1.01",
       "label": "area of room (name Küche · 1.01)",
@@ -2761,8 +3144,9 @@ methods, refused answers, pages read with a caveat, files set aside, and with a 
 checks. The decision record, with the reasons for each choice, is
 [0008](decisions/0008-located-issues.md). The list makes no model call.
 
-- `pack` is optional: a rule pack's id (decision 0009). Its failed checks (`code_check_failed`) are listed only
-  when a pack is given, since the country is chosen on the screen. Until the code checks land there is no pack.
+- `pack` is optional: a rule pack's id from `GET /api/info` `rule_packs` (decision 0009). Its failed checks
+  (`code_check_failed`) are listed only when a pack is given, since the country is chosen on the screen.
+  `ProjectSummary.issues_open` counts the list without a pack.
 - Errors: an unknown project is 404 `not-found`. An unknown pack is 404 `unknown-pack`. A project that is not
   `done` is 409 `not-allowed`. The CSV and zip routes answer errors the same way (JSON), so offer the downloads
   once the project is `done`.
@@ -2772,7 +3156,9 @@ checks. The decision record, with the reasons for each choice, is
 
 Each issue:
 
-- `id`: stable across calls and restarts, and kept when the issue is settled or signed off.
+- `id`: stable across calls and restarts, and kept when the issue is settled or signed off. It is the reference
+  to keep across re-reads and exports; the `n` of the CSV and zip is the issue's position in the current list,
+  not an identifier (qa-c R6-c-4).
 - `kind`:
   - `conflict`: two methods disagree on a quantity. `quantity` + `drawing_id` is its `ConflictEntry` in
     `GET …/review`.
@@ -2780,15 +3166,19 @@ Each issue:
     parser can't read are left out.
   - `reading_flag`: the page was read with a caveat (a phone photo, a scan), or its reader read nothing.
   - `set_aside`: ingest set the file aside, with `reason`.
-  - `code_check_failed`: a failed rule of the pack (decision 0009). Not produced yet (#139).
+  - `code_check_failed`: a failed rule of the pack (decision 0009), one per failing room, door or sheet. A check
+    that cannot tell is not an issue. `check` + `drawing_id` is its `CheckResult` in
+    `GET /api/drawings/{id}/checks?pack=`; `why` is the result's `why` followed by the clause ref in brackets.
   - `double_check`: an answer we can't vouch for, one issue per disputed place. Not produced yet (#129).
   - `unrelated_file` (file triage, decision 0010): a file triage called not a floor plan whose `triage.verdict`
-    is not `related` (also one not described or not judged), or one a person made a call on. `reason` is the
+    is not `related` (also one not described or not judged), or one a person made a call on or had read as a
+    floor plan. `reason` is the
     verdict (null while there is none), `page`, `box` and `drawing_id` are null. Its severity is the judge's:
     `needs_person` for `unsure`, else `note`. A person's call makes it `settled` and keeps its id, severity and
-    place in the list, whichever way the call went. Such a file has no `set_aside` issue as well.
-  - All seven values are in the type now, so a screen can switch over them; `code_check_failed` and
-    `double_check` appear once their work lands.
+    place in the list, whichever way the call went; so does having it read as a floor plan. Such a file has no
+    `set_aside` issue as well, unless its reading as a floor plan set it aside.
+  - All seven values are in the type now, so a screen can switch over them; `double_check` appears once its
+    work lands.
 - `severity`: `fails_rule` (a failed code check), `needs_person` (a conflict no rule decides and nobody settled),
   or `note` (everything else: decided conflicts, refusals, reading flags, set-aside files).
 - `state`: `open`, `settled` (a person settled it, or a rule decides it) or `signed_off`. Only a conflict or an
@@ -2801,6 +3191,8 @@ Each issue:
   - A quantity with one takeoff mark (a room) gives that mark: its page, box, `polygon` and `mark_id` (its
     `MarkView.id` in the takeoff, so the viewer can select it).
   - Otherwise the box a method read, or the sheet's only plan, with `polygon` and `mark_id` null.
+  - A failed check gives its room's or door's mark (`CheckResult.marks`, role `subject`): page, box, `polygon`
+    and `mark_id`, as the takeoff draws it. A check on the whole sheet has no place.
   - A reading flag gives the page of a one-page drawing and no box. A refused answer and a set-aside file have
     no page.
 - `why`: one plain sentence.
@@ -2808,6 +3200,65 @@ Each issue:
   the source refs, null where they don't apply.
 - `links`: API paths (not screen routes) to the drawing and its takeoff in this project, the file's trace, and for a
   code check the drawing's checks.
+
+A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
+
+<!-- fixture: project_issues_checks.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d53",
+  "pack": "fi",
+  "issues": [
+    {
+      "id": "code_check_failed-5c4ed01e0002",
+      "kind": "code_check_failed",
+      "severity": "fails_rule",
+      "state": "open",
+      "drawing_id": "5c4ed01e00000002",
+      "file": "flat-fi.pdf",
+      "file_id": "f1",
+      "floor": null,
+      "page": 1,
+      "box": [
+        0.28833,
+        0.15,
+        0.43,
+        0.2925
+      ],
+      "polygon": [
+        [
+          0.28833,
+          0.15
+        ],
+        [
+          0.28833,
+          0.2925
+        ],
+        [
+          0.43,
+          0.2925
+        ],
+        [
+          0.43,
+          0.15
+        ]
+      ],
+      "mark_id": "m1",
+      "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building. (Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.)",
+      "quantity": "area:room|name=4.02",
+      "question": null,
+      "reason": null,
+      "check": "fi:fi-habitable-room-area:r2",
+      "links": {
+        "drawing": "/api/drawings/5c4ed01e00000002?project=5e0c1a2b3d53",
+        "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d53",
+        "trace": "/api/projects/5e0c1a2b3d53/files/f1/trace",
+        "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d53"
+      }
+    }
+  ]
+}
+```
 
 The sample after a door question on its scan (no reader in no-keys mode):
 
@@ -2818,11 +3269,11 @@ The sample after a door question on its scan (no reader in no-keys mode):
   "pack": null,
   "issues": [
     {
-      "id": "conflict-734b9f17d4fd",
+      "id": "conflict-efcb1b52a852",
       "kind": "conflict",
       "severity": "note",
       "state": "settled",
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "file": "plans/flat-b.pdf",
       "file_id": "f3",
       "floor": null,
@@ -2858,8 +3309,8 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "reason": null,
       "check": null,
       "links": {
-        "drawing": "/api/drawings/6d153ea15dca9ab4?project=5e0c1a2b3d4f",
-        "takeoff": "/api/drawings/6d153ea15dca9ab4/takeoff?project=5e0c1a2b3d4f",
+        "drawing": "/api/drawings/44cc9f0d991eafe3?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
         "checks": null
       }
@@ -3108,7 +3559,8 @@ drawing does not have.
 ### `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=`
 
 The file as uploaded with only its EXIF turn applied, so the screen can show a phone photo before and after
-normalisation. Images and a PDF's first page; 404 for any other file. `width` as for pages.
+normalisation. Images and a PDF's first page; 404 for any other file, 422 `invalid` for an image or PDF that cannot be
+decoded (cut off or damaged). `width` as for pages.
 
 ## Answering
 
@@ -3632,7 +4084,9 @@ for the dispute finders: a door count certified at threshold 0.8, the same count
 0.9 (`marks` trimmed to two):
 
 With `CHECK_POLICY` on, the answer's `sure` follows it instead of `GATE_POLICY`: true exactly when the answer is
-certified, false when it is not (whether or not a person has since settled or signed it off), null on a refusal.
+certified, false when it is not (whether or not a person has since settled or signed it off; a value a person
+edited is never certified, signed or not), null on an answer it does not rate (a refusal, a question with no
+takeoff row).
 So the screen never shows Sure next to a double-check request. The policy is fit on CubiCasa val read with
 `ROOM_POLICY=gold-labels`; under `furniture` (the demo) room counts are certified outside those conditions, except
 that a bedroom count including a bedroom with no printed label always asks (docs/GOLDEN.md, "The double-check
@@ -4220,7 +4674,7 @@ policy").
     ],
     "signed": null,
     "unlocated": {},
-    "noun": null
+    "noun": "bedrooms"
   },
   "marks": [
     {
@@ -4327,7 +4781,7 @@ policy").
     "check": null
   },
   "check": {
-    "reason": "Please double-check the room bedroom count: the readers disagree at 2 places, marked on the drawing.",
+    "reason": "Please double-check the bedrooms: the readers disagree at 2 places, marked on the drawing.",
     "disputed": [
       {
         "mark_id": "m2",
@@ -4611,11 +5065,11 @@ is no total):
       }
     },
     {
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "name": "plans/flat-b.pdf",
       "answer": {
         "question": "How many doors are there?",
-        "drawing_id": "6d153ea15dca9ab4",
+        "drawing_id": "44cc9f0d991eafe3",
         "file": "plans/flat-b.pdf",
         "pages": [
           {
@@ -4623,7 +5077,7 @@ is no total):
             "width": 600.0,
             "height": 400.0,
             "unit": "pt",
-            "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+            "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
             "normalised": null,
             "scale": {
               "status": "scaled",
@@ -5441,7 +5895,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
 ```json
 {
   "question": "What is the area of room 1.01?",
-  "drawing_id": "6d153ea15dca9ab4",
+  "drawing_id": "44cc9f0d991eafe3",
   "file": "plans/flat-b.pdf",
   "pages": [
     {
@@ -5449,7 +5903,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
       "width": 600.0,
       "height": 400.0,
       "unit": "pt",
-      "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+      "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
       "normalised": null,
       "scale": {
         "status": "scaled",
@@ -5703,7 +6157,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
 ```json
 {
   "question": "What is the area of room 1.01?",
-  "drawing_id": "6d153ea15dca9ab4",
+  "drawing_id": "44cc9f0d991eafe3",
   "file": "plans/flat-b.pdf",
   "pages": [
     {
@@ -5711,7 +6165,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
       "width": 600.0,
       "height": 400.0,
       "unit": "pt",
-      "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+      "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
       "normalised": null,
       "scale": {
         "status": "scaled",
@@ -6114,7 +6568,7 @@ any project, which no project shows. A project that does not hold the drawing is
 <!-- fixture: takeoff.json -->
 ```json
 {
-  "drawing_id": "6d153ea15dca9ab4",
+  "drawing_id": "44cc9f0d991eafe3",
   "file": "plans/flat-b.pdf",
   "quantities": [
     {
@@ -6310,9 +6764,9 @@ any project, which no project shows. A project that does not hold the drawing is
         "model": false,
         "largest": false
       },
-      "value": 59.868,
+      "value": 52.998,
       "unit": "m2",
-      "original_value": 59.868,
+      "original_value": 52.998,
       "status": "single",
       "needs_person": false,
       "rule": {
@@ -6546,7 +7000,7 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
 <!-- fixture: takeoff_edited.json -->
 ```json
 {
-  "drawing_id": "6d153ea15dca9ab4",
+  "drawing_id": "44cc9f0d991eafe3",
   "file": "plans/flat-b.pdf",
   "quantities": [
     {
@@ -6844,6 +7298,474 @@ plans/flat-b.pdf,door,door count,2,count,signed,2,,,,,,each-once,,Ana,2026-11-14
 A text cell that starts with `=`, `+`, `-` or `@` is written with a leading `'`, so a room label can't run as a
 formula in a spreadsheet.
 
+## Building-code checks
+
+A pre-check of a few rules, not a compliance certificate (story #139, decision
+[0009](decisions/0009-building-code-checks.md)). The screen picks one pack from `GET /api/info` `rule_packs` and
+passes its id as `pack` (required; one pack at a time). The check runs on each request over the drawing model as
+ingest read it; review edits don't change it.
+
+### `GET /api/drawings/{drawing_id}/checks?pack=<pack id>&project=<project_id>`
+
+<!-- fixture: checks.json -->
+```json
+{
+  "drawing_id": "5c4ed01e00000002",
+  "file": "flat-fi.pdf",
+  "file_id": "f1",
+  "pack": "fi",
+  "note": "A pre-check of a few rules, not a compliance certificate.",
+  "status": "fail",
+  "rules": [
+    {
+      "rule_id": "fi-habitable-room-area",
+      "title": "A bedroom or living room is at least 7 m2",
+      "status": "fail",
+      "why": "Of 3 checked: 1 fail, 2 pass.",
+      "clause": {
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+        "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+        "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+      },
+      "results": [
+        {
+          "id": "fi-habitable-room-area:r2",
+          "rule_id": "fi-habitable-room-area",
+          "status": "fail",
+          "subject": {
+            "kind": "room",
+            "ref": "r2",
+            "label": "Schlafzimmer 4.02"
+          },
+          "value": 6.03,
+          "limit": 7.0,
+          "unit": "m2",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building.",
+          "quantity": "area:room|name=4.02",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.28833,
+                0.15,
+                0.43,
+                0.2925
+              ],
+              "polygon": [
+                [
+                  0.28833,
+                  0.15
+                ],
+                [
+                  0.28833,
+                  0.2925
+                ],
+                [
+                  0.43,
+                  0.2925
+                ],
+                [
+                  0.43,
+                  0.15
+                ]
+              ],
+              "ref": "r2",
+              "label": "Schlafzimmer 4.02",
+              "role": "subject",
+              "quantity": "area:room|name=4.02",
+              "mark_id": "m1"
+            }
+          ]
+        },
+        {
+          "id": "fi-habitable-room-area:r3",
+          "rule_id": "fi-habitable-room-area",
+          "status": "pass",
+          "subject": {
+            "kind": "room",
+            "ref": "r3",
+            "label": "Wohnen 4.03"
+          },
+          "value": 19.97,
+          "limit": 7.0,
+          "unit": "m2",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The living room \"Wohnen 4.03\" is 19.97 m2; the rule asks at least 7 m2.",
+          "quantity": "area:room|name=4.03",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.43,
+                0.15,
+                0.66667,
+                0.4325
+              ],
+              "polygon": [
+                [
+                  0.43,
+                  0.15
+                ],
+                [
+                  0.43,
+                  0.4325
+                ],
+                [
+                  0.66667,
+                  0.4325
+                ],
+                [
+                  0.66667,
+                  0.15
+                ]
+              ],
+              "ref": "r3",
+              "label": "Wohnen 4.03",
+              "role": "subject",
+              "quantity": "area:room|name=4.03",
+              "mark_id": "m1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "fi-habitable-room-window",
+      "title": "A bedroom or living room has a window",
+      "status": "fail",
+      "why": "Of 3 checked: 1 fail, 2 pass.",
+      "clause": {
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 5 § 1 mom. (as amended by 127/2018)",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+        "quote": "Asuin- ja, majoitustilan ikkunan valoaukon on oltava vähintään 1/10 huonealasta.",
+        "quote_en": "The light opening of the window of a residential or accommodation space must be at least 1/10 of the room area."
+      },
+      "results": [
+        {
+          "id": "fi-habitable-room-window:r2",
+          "rule_id": "fi-habitable-room-window",
+          "status": "fail",
+          "subject": {
+            "kind": "room",
+            "ref": "r2",
+            "label": "Schlafzimmer 4.02"
+          },
+          "value": 0.0,
+          "limit": 1.0,
+          "unit": "count",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The bedroom \"Schlafzimmer 4.02\" has no window on its outline; the rule asks at least 1. It would not meet today's rule for a new building.",
+          "quantity": "area:room|name=4.02",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.28833,
+                0.15,
+                0.43,
+                0.2925
+              ],
+              "polygon": [
+                [
+                  0.28833,
+                  0.15
+                ],
+                [
+                  0.28833,
+                  0.2925
+                ],
+                [
+                  0.43,
+                  0.2925
+                ],
+                [
+                  0.43,
+                  0.15
+                ]
+              ],
+              "ref": "r2",
+              "label": "Schlafzimmer 4.02",
+              "role": "subject",
+              "quantity": "area:room|name=4.02",
+              "mark_id": "m1"
+            }
+          ]
+        },
+        {
+          "id": "fi-habitable-room-window:r3",
+          "rule_id": "fi-habitable-room-window",
+          "status": "pass",
+          "subject": {
+            "kind": "room",
+            "ref": "r3",
+            "label": "Wohnen 4.03"
+          },
+          "value": 1.0,
+          "limit": 1.0,
+          "unit": "count",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The living room \"Wohnen 4.03\" has 1 window on its outline; the rule asks at least 1.",
+          "quantity": "area:room|name=4.03",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.43,
+                0.15,
+                0.66667,
+                0.4325
+              ],
+              "polygon": [
+                [
+                  0.43,
+                  0.15
+                ],
+                [
+                  0.43,
+                  0.4325
+                ],
+                [
+                  0.66667,
+                  0.4325
+                ],
+                [
+                  0.66667,
+                  0.15
+                ]
+              ],
+              "ref": "r3",
+              "label": "Wohnen 4.03",
+              "role": "subject",
+              "quantity": "area:room|name=4.03",
+              "mark_id": "m1"
+            },
+            {
+              "page": 1,
+              "box": [
+                0.5,
+                0.14,
+                0.6,
+                0.155
+              ],
+              "polygon": null,
+              "ref": "e5",
+              "label": "window",
+              "role": "counted",
+              "quantity": "window",
+              "mark_id": "m2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "fi-door-clear-width",
+      "title": "A door to a habitable room is at least 0.80 m clear",
+      "status": "fail",
+      "why": "Of 3 checked: 1 fail, 1 cannot tell, 1 pass.",
+      "clause": {
+        "ref": "Valtioneuvoston asetus rakennuksen esteettömyydestä 241/2017, 4 § 2 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/241",
+        "quote": "Muun rakennuksen kuin asuinrakennuksen huonetiloihin sekä asuinrakennuksen asuinhuoneisiin, asumista palveleviin välttämättömiin tiloihin ja rakennuksen käyttöä palveleviin tiloihin johtavan oven ja kulkuaukon vapaan leveyden on oltava vähintään 800 millimetriä.",
+        "quote_en": "The clear width of a door or passage opening leading to the rooms of a building other than a residential building, and to the habitable rooms of a residential building, the necessary spaces serving the dwelling and the spaces serving the use of the building, must be at least 800 millimetres."
+      },
+      "results": [
+        {
+          "id": "fi-door-clear-width:e2",
+          "rule_id": "fi-door-clear-width",
+          "status": "fail",
+          "subject": {
+            "kind": "element",
+            "ref": "e2",
+            "label": "the door between the bedroom \"Schlafzimmer 4.01\" and the bedroom \"Schlafzimmer 4.02\""
+          },
+          "value": 0.706,
+          "limit": 0.8,
+          "unit": "m",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The door between the bedroom \"Schlafzimmer 4.01\" and the bedroom \"Schlafzimmer 4.02\": its symbol measures 0.71 m, so its clear opening cannot be at least 0.8 m. It would not meet today's rule for a new building.",
+          "quantity": "door",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.28167,
+                0.2,
+                0.295,
+                0.25
+              ],
+              "polygon": null,
+              "ref": "e2",
+              "label": "door",
+              "role": "subject",
+              "quantity": "door",
+              "mark_id": "m2"
+            }
+          ]
+        },
+        {
+          "id": "fi-door-clear-width:e3",
+          "rule_id": "fi-door-clear-width",
+          "status": "cannot_tell",
+          "subject": {
+            "kind": "element",
+            "ref": "e3",
+            "label": "the door between the living room \"Wohnen 4.03\" and the hall \"Korridor 4.04\""
+          },
+          "value": 0.847,
+          "limit": 0.8,
+          "unit": "m",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The door between the living room \"Wohnen 4.03\" and the hall \"Korridor 4.04\": its symbol measures 0.85 m; its clear opening is up to 10 cm (our allowance for the frame, not the law's) less, so it may or may not be at least 0.8 m.",
+          "quantity": "door",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.42333,
+                0.3725,
+                0.43667,
+                0.4325
+              ],
+              "polygon": null,
+              "ref": "e3",
+              "label": "door",
+              "role": "subject",
+              "quantity": "door",
+              "mark_id": "m3"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `file` and `file_id` are the file as `project` uploaded it (a drawing shared by two projects is named as each
+  uploaded it); without `project`, the drawing's stored name and `file_id` null.
+- `status` (the drawing's) and each rule's `status`: `fail` when one result fails, else `cannot_tell` when one
+  cannot tell, else `pass`; `not_applicable` when the drawing has nothing the rule applies to (rooms were read and
+  none is a bedroom; no door leads to a habitable room). A rule with no results and `cannot_tell` could not be
+  checked at all (`why` says what was not read, or that rooms are of a kind we could not tell and may be ones the
+  rule names). A building model file is `not_applicable` ("checked on its sheets") when its sheets are in
+  `project`, else `cannot_tell`.
+- A result is one rule on one room, door or the sheet: `status` is `pass`, `fail` or `cannot_tell`; `id` is
+  `<rule_id>:<room or element id>` (`:sheet` for a sheet quantity), the same on every call for the same drawing.
+  `value` is what was measured, in `unit`; null when nothing was measured; a value too uncertain to judge is kept
+  with `cannot_tell`. `why` is one plain sentence (a fail ends with the pack's `fail_means`).
+- `quantity` is the subject's takeoff row (`Row.key`) for the surveyor's view, null when the takeoff has none.
+  Each mark has `role` (`subject`: the room or door checked; `counted`: what was counted for it, a room's windows),
+  `page`, `box`, `polygon` (a room's outline, else null), `ref` (the room or element id), `label`, and its
+  takeoff row `quantity` with `mark_id`, its `MarkView.id` in that row (the row's own ids; null when the takeoff
+  has no row with it).
+- A fail stands only on reliable inputs: on a drawing read off a picture (route `raster`, or a route not known) a
+  small room from a read outline and a room with no window found are `cannot_tell`, never `fail`; a printed area
+  still decides. A door there is `cannot_tell` whatever its box measures. A door's width is measured from its symbol (or the building model), which bounds the clear opening
+  from above; the 0.10 m allowed for the frame is ours, not the law's, and the `why` says so.
+
+### `GET /api/projects/{project_id}/checks?pack=<pack id>`
+
+<!-- fixture: project_checks.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d53",
+  "pack": "fi",
+  "note": "A pre-check of a few rules, not a compliance certificate.",
+  "status": "fail",
+  "drawings": [
+    {
+      "drawing_id": "5c4ed01e00000002",
+      "file": "flat-fi.pdf",
+      "file_id": "f1",
+      "pack": "fi",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "status": "fail",
+      "rules": [
+        {
+          "rule_id": "fi-habitable-room-area",
+          "title": "A bedroom or living room is at least 7 m2",
+          "status": "fail",
+          "why": "Of 3 checked: 1 fail, 2 pass.",
+          "clause": {
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+          },
+          "results": [
+            {
+              "id": "fi-habitable-room-area:r2",
+              "rule_id": "fi-habitable-room-area",
+              "status": "fail",
+              "subject": {
+                "kind": "room",
+                "ref": "r2",
+                "label": "Schlafzimmer 4.02"
+              },
+              "value": 6.03,
+              "limit": 7.0,
+              "unit": "m2",
+              "comparison": ">=",
+              "comparison_text": "at least",
+              "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building.",
+              "quantity": "area:room|name=4.02",
+              "marks": [
+                {
+                  "page": 1,
+                  "box": [
+                    0.28833,
+                    0.15,
+                    0.43,
+                    0.2925
+                  ],
+                  "polygon": [
+                    [
+                      0.28833,
+                      0.15
+                    ],
+                    [
+                      0.28833,
+                      0.2925
+                    ],
+                    [
+                      0.43,
+                      0.2925
+                    ],
+                    [
+                      0.43,
+                      0.15
+                    ]
+                  ],
+                  "ref": "r2",
+                  "label": "Schlafzimmer 4.02",
+                  "role": "subject",
+                  "quantity": "area:room|name=4.02",
+                  "mark_id": "m1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Every drawing of the project (in `GET /api/projects/{id}` `drawings` order), each as above with this project's
+`file` and `file_id`; `status` over the drawings as a drawing's is over its rules. 409 `not-allowed` until the
+project is `done` (a drawing's own checks answer as soon as that drawing exists); 404 `unknown-pack` for an
+unknown pack, `not-found` for an unknown project.
+
 ## What is not in v1
 
 - Contested marks: a conflict is shown per quantity, with both values and, where the method has one, the `box` it
@@ -6854,6 +7776,18 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0010 section 8, board #152, PR #183): `Triage.register` (the sheet register:
+  kind, has_floor_plan, photo_of_sheet, scale_shown, quality, method; null with no register-reading classifier);
+  `Description.what_it_is`, `shows_building`, `visible_text` and `detail`. `TRIAGE_JUDGE=rules` judges a
+  described file by the words printed on it (`related` only on a match; `unsure` for a building with no match)
+  and an undescribed `other_drawing` as `unsure` (was `related`). Relaxed: `POST …/files/{file_id}/relevance`
+  takes a call on any file triage set aside, described or not (was 422 `no-description` for an undescribed one),
+  so every `unrelated_file` issue can be settled; a file triage did not set aside is 422 `not-triaged`, and the
+  code `no-description` is no longer returned. Fixture `project_triaged.json` gains `photos/sheet.jpg` (f5).
+- 2026-11-14, behaviour (golden-25): with `CHECK_POLICY` on, a plan count is certified (`sure` true, `check` null)
+  only when the answer confidence's own most likely plan count is the answered one, the rule `GATE_POLICY` applies
+  since #174; otherwise it asks, with `check.reason` "Please double-check the plan count: two readers count the
+  plans differently." when that count is another. No shape change.
 - 2026-11-14, additive (golden-21, board #14): `check` on `POST /api/ask`'s answer: `{reason, disputed: [{mark_id,
   page, box, why, readers}]}` or null, the double-check request of an answer `CHECK_POLICY` does not certify (the
   value stays; not a refusal). Null for every answer while `CHECK_POLICY` is off (the default). New fixtures
@@ -6861,11 +7795,22 @@ formula in a spreadsheet.
   an estimate or a person's unsigned edit always asks; a settle or sign-off lifts the request. Not
   `proof.check` (unchanged: how a second method measured the value). Behaviour: with `CHECK_POLICY` on, `sure`
   is true exactly when the answer is certified (`GATE_POLICY` no longer sets it), null on a refusal.
+- 2026-11-14, additive (story #139, decision 0009): `GET /api/info` gains `rule_packs` (the building-code packs,
+  `[]` when none is installed). New `GET /api/drawings/{id}/checks?pack=&project=` and
+  `GET /api/projects/{id}/checks?pack=`. An unknown pack is 404 `unknown-pack`, as for the issues.
+  `GET /api/projects/{id}/issues?pack=` (and `.csv`, `.zip`) now lists the pack's failed checks as
+  `code_check_failed` issues (severity `fails_rule`, `links.checks` set); without a pack the list is unchanged.
+- 2026-11-14, additive (decision 0010, board #152 c6876693460): `POST /api/projects/{project_id}/files/{file_id}/triage`
+  reads a file triage set aside as a floor plan (202, in the background); `Triage.read_as_plan`; a new error code
+  `not-triaged` (422).
 - 2026-11-14, additive (decision 0010, file triage; board #152): `FileStatus.triage` (class, P(plan), method,
   description, relevance, a person's call, the verdict that counts, and a note when something is null),
   `ProjectView.not_plans` and `ProjectSummary.not_plans`, all left out of the JSON when triage is off (the
   default); `POST /api/projects/{project_id}/files/{file_id}/relevance`; the `unrelated_file` issues; a new error
   code `no-description` (422). No new `FileState` or `Stage`.
+- 2026-11-14, text and values (R6 qa-a): a triage set-aside `reason` is "not a floor plan: <class words>"
+  (P(plan) and the method are in `triage`); a settled `unrelated_file` issue of a file read as a floor plan has the
+  file's `drawing_id` and links (same id); a failed or cut re-read clears `read_as_plan`, so it can be asked again.
 - 2026-11-14, text only (QA R4-a-10): a file's `reason` and the route stage's `did` name the route in the words the
   screens use ("read on the drawn PDF route: …", "no reader for the image route yet", "BIM model route, read from
   …"; was "vector", "raster", "bim"), from `ROUTE_WORDS` in `app/core/wording.py`. The fields `route` and the route
@@ -6932,6 +7877,9 @@ formula in a spreadsheet.
   its family's threshold in golden's gate file (`GATE_POLICY`, chosen on val and certified once on test),
   false below it, null when there is no score (a vector or IFC page), the family is not gated or the gate is
   off. `POST /api/ask` sets it too.
+- 2026-11-14, behaviour: a plan count (`floors`) is `line.sure` true only when Gemini's own most likely plan
+  count is the answered one as well (two readers agree); otherwise false, whatever the score. On CubiCasa val
+  it keeps 363 of 376 plan answers sure (was 376), 362 of them exact (was 372 of 376).
 - 2026-11-14, text: a dataset drawing's `credit` is the attribution once, with its licence named once and no
   "<licence>. Credit:" of its own (the screen writes "Credit: "; R3-qa2-1). `proof.arithmetic` is null for a sum of
   one part (was "30 = 30 m²"; a settled one keeps "settled by a person, was …"). `explanation` names the two

@@ -10,6 +10,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence, Set
 
 from app.core.answering.answer import (
+    AGREEING_FAMILIES,
     NO_DRAWING,
     PRIOR_BY_POLICY,
     SCHEDULE,
@@ -42,6 +43,7 @@ from app.core.review.check import (
     Disputes,
     Scorer,
     certified,
+    disagree,
     double_check,
     held,
     no_disputes,
@@ -58,7 +60,7 @@ from app.core.review.model import (
     Suggestion,
 )
 from app.core.review.proof import NO_PROOF, Proof, schedule_proof, takeoff_proof
-from app.core.review.review import label, parse_key, row, storey_twins, with_twins
+from app.core.review.review import label, parse_key, pluralise, row, storey_twins, with_twins
 
 # Every counting rule's text by id, as the answer shows it.
 RULES: dict[str, str] = {
@@ -146,9 +148,11 @@ def ask(
     reader found nothing. `check` (CHECK_POLICY): a takeoff answer it does not certify on `route`
     (ingest's) gets a double-check request with the places `disputes` finds; a family whose
     threshold is on a local gate's signal is scored by `scorers` (LOCAL_GATES), by signal name
-    (app/core/review/check.py). With `check` on, it alone sets `sure`, in place of `sure_at`'s:
-    true exactly when it certifies the answer, None on an answer it does not rate (a refusal),
-    so an answer is never shown sure and asked about at once."""
+    (app/core/review/check.py); a plan count also needs `confidence`'s own count to be the
+    answered one (`agrees`), else it asks. With `check` on, it alone sets `sure`, in place of
+    `sure_at`'s: true exactly when it certifies the answer, None on every answer it does not rate
+    (a refusal, a question with no takeoff row), so an answer is never shown sure and asked
+    about at once."""
     quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
@@ -217,10 +221,15 @@ def ask(
             check, family, confidence=answer.confidence, drawing=drawing, value=answer.answer,
             scorers=scorers,
         )  # fmt: skip
+        agrees = None
+        if family in AGREEING_FAMILIES and confidence is not None and route == "raster":
+            agrees = confidence.probability(drawing.file, family, answer.answer).agrees
         sure = reason is None and certified(
-            check, route=route, family=family, score=score, flags=flags
+            check, route=route, family=family, score=score, flags=flags, agrees=agrees
         )
         if not sure:
+            if reason is None and agrees is False:
+                reason = disagree(shown)
             request = double_check(shown, marks, disputes(drawing, shown), reason)
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
@@ -340,12 +349,7 @@ def plural(kind: str) -> str:
     """The English plural of a kind of element or room ("balcony" → "balconies")."""
     if kind in PLURALS:
         return PLURALS[kind]
-    kind = words(kind)
-    if kind.endswith("y") and kind[-2:-1] not in ("a", "e", "i", "o", "u"):
-        return f"{kind[:-1]}ies"
-    if kind.endswith(("s", "x", "z", "ch", "sh")):
-        return f"{kind}es"
-    return f"{kind}s"
+    return pluralise(words(kind))
 
 
 def _phrasings(key: str) -> Iterable[str]:

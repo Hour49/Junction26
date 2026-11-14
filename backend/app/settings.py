@@ -27,7 +27,8 @@ RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normali
 # rules: the content probe's kind, no model (sets aside what ingest sets aside today).
 TriageClassifierName = Literal["off", "rules"]
 TriageDescriberName = Literal["off"]  # eu-big's measured describers are added here
-TriageJudgeName = Literal["off"]  # and its relevance judges
+# rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
+TriageJudgeName = Literal["off", "rules"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
@@ -119,7 +120,8 @@ class Settings(BaseSettings):
     # takeoff answer asks for a double-check (app/core/review/check.py); "" off
     check_policy: str = ""
     # local-dec's local gate models (local_gate_v1, comma separated): a check policy family whose
-    # threshold is on one of their signals is scored by it (app/core/review/check.py); "" none
+    # threshold is on one of their signals is scored by it (app/core/review/check.py); read only
+    # with CHECK_POLICY set; "" none
     local_gates: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
@@ -132,6 +134,9 @@ class Settings(BaseSettings):
     # none: images are read as uploaded (EXIF turned upright); a rectifier undoes a photo's
     # perspective first (app/core/ingest/ports.py Rectifier)
     rectifier: RectifierName = "none"
+    # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
+    # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
+    rule_packs_dir: Path = Path(__file__).parent / "rules"
     # File triage (decision 0010): is each uploaded image a floor plan; a non-plan is kept, set
     # aside, described and judged against the project. The describer and judge run only with a
     # classifier on.

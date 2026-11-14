@@ -14,15 +14,22 @@ import pytest
 from pydantic import BaseModel, TypeAdapter
 
 from app.api.ask import AnswerView, AskRequest
+from app.api.checks import DrawingChecks, ProjectChecks
 from app.api.drawings import DrawingView
 from app.api.info import Info
 from app.api.issues import ProjectIssues
 from app.api.project_ask import ProjectAnswer
-from app.api.projects import ProjectList, ProjectReview, RelevanceRequest, Started
+from app.api.projects import (
+    ProjectList,
+    ProjectReview,
+    RelevanceRequest,
+    Started,
+    TriageRequest,
+)
 from app.api.questions import ProjectQuestions
 from app.api.takeoff import SignOffRequest, Takeoff
 from app.api.views import ErrorBody, ProjectTrace, ProjectView
-from app.core.ingest.model import FileTrace
+from app.core.ingest.model import FileStatus, FileTrace
 from app.core.review.model import Edit
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "api_v1"
@@ -63,6 +70,12 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "project_issues": ProjectIssues,
     "relevance_request": RelevanceRequest,
     "project_triaged": ProjectView,
+    "triage_request": TriageRequest,
+    "triage_started": FileStatus,
+    "file_read_as_plan": FileStatus,
+    "checks": DrawingChecks,
+    "project_checks": ProjectChecks,
+    "project_issues_checks": ProjectIssues,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 

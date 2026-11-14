@@ -44,16 +44,18 @@ from make_sample_archive import (  # noqa: E402  # pyright: ignore[reportMissing
     site_photo,
 )
 from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
+from test_api_checks import checks_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     FakeClassifier,
     FakeDescriber,
-    WordJudge,
     steps,
 )
 
+from app.adapters.triage.rules_judge import RulesJudge  # noqa: E402
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.drawing.model import Drawing  # noqa: E402
+from app.core.ingest.model import Register  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
 from app.core.review.check import CheckPolicy, Found, Place  # noqa: E402
 from app.core.review.model import Row  # noqa: E402
@@ -76,6 +78,7 @@ class Rated:
 
     value: float | None = 0.87
     note: str = "decisions: example"
+    agrees: bool | None = None
 
 
 class ExampleConfidence:
@@ -150,9 +153,13 @@ def responses() -> dict[str, Any]:
     found["project_ask"] = project_ask(client, started["id"])  # the frontend reads it by name
     found["project_issues"] = project_issues(client, started["id"], files)
     others.append(triaged(root / "triage", settings, found))
+    others.append(code_checks(client, found))  # checks, project checks, their issues
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
+        found["checks"]["drawing_id"]: "5c4ed01e00000002",
+        # an issue's id hashes its drawing's: the first failed check's, the one the fixture keeps
+        found["project_issues_checks"]["issues"][0]["id"]: "code_check_failed-5c4ed01e0002",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
     }
     return stable(trimmed(found), [started["id"], *others], variable)
@@ -200,19 +207,37 @@ def project_issues(
 
 
 def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
-    """File triage on (decision 0010), with the test fakes: the sample's flat-a plan, an image
-    described and judged related (it prints "Küche", a room of flat-a), the site photo judged
-    unrelated and then called related by a person, and a photo the describer refused."""
+    """File triage on (decision 0010), with the test fakes and the rules judge: the sample's
+    flat-a plan, an image described and judged related (it prints "Küche", a room of flat-a),
+    the site photo judged unrelated and then called related by a person, a photo the describer
+    refused (judged by its class alone), and a camera photo of a sheet with its register,
+    showing a building that matches nothing (unsure)."""
     with zipfile.ZipFile(io.BytesIO(build_archive())) as sample:
         plan, photo = sample.read("plans/flat-a.pdf"), sample.read("photos/site.jpg")
     elevation = png_bytes(raster_plan().rotate(90, expand=True))
     refused = jpeg_bytes(site_photo().rotate(180))
+    sheet = jpeg_bytes(raster_plan().rotate(270, expand=True))
     classes = {elevation: "other_drawing", photo: "not_drawing", refused: "not_drawing"}
+    registers = {
+        sheet: Register(
+            kind="elevation",
+            has_floor_plan=False,
+            photo_of_sheet=True,
+            scale_shown="bar",
+            quality="fair",
+            method="fake classifier",
+        )
+    }
     subjects = {
         elevation: ("the south elevation of a two-storey house", ("Küche", "Süd")),
         photo: ("a building site with a crane", ()),
+        sheet: ("a photographed elevation of a church", ("Kirche St. Anna",)),
     }
-    triage = steps(FakeClassifier(classes), FakeDescriber(subjects), WordJudge())  # type: ignore[arg-type]
+    triage = steps(
+        FakeClassifier(classes, registers=registers),  # type: ignore[arg-type]
+        FakeDescriber(subjects, buildings=frozenset({sheet})),
+        RulesJudge(),
+    )
     settings = settings.model_copy(update={"projects_dir": root / "projects"})
     ingest = build_ingest(settings, settings.projects_dir, background=False, triage=triage)
     client = TestClient(create_app(settings, ingest))
@@ -221,6 +246,7 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
         "elevations/south.png": elevation,
         "photos/site.jpg": photo,
         "photos/street.jpg": refused,
+        "photos/sheet.jpg": sheet,
     }
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
@@ -234,6 +260,15 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
     url = f"/api/projects/{project_id}/files/{site_id}/relevance"
     assert client.post(url, json=found["relevance_request"]).status_code == 200
     found["project_triaged"] = client.get(f"/api/projects/{project_id}").json()
+    # then a person has the elevation read as a floor plan (POST …/triage): queued, then read
+    south = next(file["id"] for file in site["files"] if file["path"] == "elevations/south.png")
+    found["triage_request"] = {"class": "floor_plan", "by": "Ana"}
+    url = f"/api/projects/{project_id}/files/{south}/triage"
+    started = client.post(url, json=found["triage_request"])
+    assert started.status_code == 202, started.text
+    found["triage_started"] = started.json()
+    read = client.get(f"/api/projects/{project_id}").json()["files"]
+    found["file_read_as_plan"] = next(file for file in read if file["id"] == south)
     return project_id
 
 
@@ -275,6 +310,24 @@ def schedule_answer(client: TestClient) -> dict[str, Any]:
     upload = client.post("/api/projects", params={"name": "doors.pdf"}, content=door_schedule_pdf())
     drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
     return ask_on(client, drawing_id, "What are the width and height of door 111.B?")
+
+
+def code_checks(client: TestClient, found: dict[str, Any]) -> str:
+    """A flat checked against the Finnish pack (tests/api/test_api_checks.py checks_sheet): a
+    pass, a fail and a cannot tell, each with its marks; the same as its project's checks; and
+    its project's issues with the pack (a failed check)."""
+    upload = client.post("/api/projects", params={"name": "flat-fi.pdf"}, content=checks_sheet())
+    project = client.get(upload.json()["url"]).json()
+    drawing_id = project["drawings"][0]["drawing_id"]
+    params = {"pack": "fi", "project": project["id"]}
+    found["checks"] = client.get(f"/api/drawings/{drawing_id}/checks", params=params).json()
+    found["project_checks"] = client.get(
+        f"/api/projects/{project['id']}/checks", params={"pack": "fi"}
+    ).json()
+    found["project_issues_checks"] = client.get(
+        f"/api/projects/{project['id']}/issues", params={"pack": "fi"}
+    ).json()
+    return project["id"]
 
 
 def set_aside(client: TestClient, found: dict[str, Any]) -> str:
@@ -470,6 +523,16 @@ def trimmed(found: dict[str, Any]) -> dict[str, Any]:
     edited["review_queue"] = sorted(edited["review_queue"])
     for answer in (found["answer_conflict"], found["answer_signed"], found["answer_schedule"]):
         _marks(answer)
+    for pack in found["info"]["rule_packs"]:
+        pack["rules"] = pack["rules"][:1]
+    for rule in found["checks"]["rules"]:  # a pass and a fail, or a fail and a cannot tell
+        rule["results"] = rule["results"][-2:]
+    for drawing in found["project_checks"]["drawings"]:
+        drawing["rules"] = drawing["rules"][:1]
+        for rule in drawing["rules"]:
+            rule["results"] = rule["results"][1:2]  # the fail
+    issues = found["project_issues_checks"]["issues"]
+    issues[:] = [issue for issue in issues if issue["kind"] == "code_check_failed"][:1]
     return found
 
 

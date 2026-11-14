@@ -18,8 +18,10 @@ to the user", review of #129 B1, 2026-11-14): two methods disagree (also when a 
 value), the value is an estimate, a person changed its marks (the score rated the pipeline's
 value, not theirs), or a bedroom count includes a room typed a bedroom from what is drawn in it,
 with no printed label (orchestrator, golden-22: the demo's ROOM_POLICY=furniture counts those; the
-reference answers type a room by its label alone). A refusal has no value to check; a quantity a
-person settled or signed off is theirs, not ours, so neither gets one.
+reference answers type a room by its label alone). A plan count is certified only when the answer
+confidence's own most likely count is the answered one (`AGREEING_FAMILIES`, #174: hand-drawn
+sketches got wrong plan counts with a high score where Gemini counted otherwise). A refusal has no
+value to check; a quantity a person settled or signed off is theirs, not ours, so neither gets one.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -27,6 +29,7 @@ from types import MappingProxyType
 
 from pydantic import Field
 
+from app.core.answering.answer import AGREEING_FAMILIES
 from app.core.answering.local_gate import READER_FAMILIES, LocalGateModel, reading_of, score
 from app.core.drawing.model import Box, Drawing, Room
 from app.core.model import Frozen
@@ -153,11 +156,16 @@ def certified(
     family: str | None,
     score: float | None,
     flags: Sequence[str],
+    agrees: bool | None = None,
 ) -> bool:
+    """`agrees`: whether the answer confidence's own most likely count is the answered one (None:
+    it gives none); a family in `AGREEING_FAMILIES` needs True on the raster route."""
     if flags:
         return False  # the policy was chosen on scans of plans, not on photos
     if route != "raster":
         return route in policy.routes
+    if family in AGREEING_FAMILIES and agrees is not True:
+        return False  # a second reader counts otherwise, or there is none to agree
     threshold = None if family is None else policy.thresholds.get(family)
     return threshold is not None and score is not None and score >= threshold
 
@@ -181,8 +189,8 @@ def unlabelled_bedrooms(row: Row, drawing: Drawing) -> list[Room]:
 def held(row: Row, drawing: Drawing) -> str | None:
     """Why `row`'s answer is never certified, whatever its score, as the request's sentence: two
     methods disagree (a rule's pick included), it is an estimate, a person changed its marks
-    and has not signed off, or it counts bedrooms with no printed label. None: nothing holds
-    it."""
+    (signed off or not: once signed, `double_check` asks nothing, but the answer is still not
+    certified), or it counts bedrooms with no printed label. None: nothing holds it."""
     what = row.noun or row.label
     if row.conflict is not None:
         if row.first is None or row.second is None:
@@ -195,7 +203,8 @@ def held(row: Row, drawing: Drawing) -> str | None:
         )
     if row.estimate is not None:
         return f"Please double-check the {what}: it is an estimate ({row.estimate})."
-    if row.status == "edited":
+    if row.status == "edited" or row.value != row.original_value:
+        # the score rated the pipeline's value; a signed row hides its edit from `status`
         return f"Please double-check the {what}: edited by you: sign off to confirm."
     if unlabelled := unlabelled_bedrooms(row, drawing):
         some = "1 room is" if len(unlabelled) == 1 else f"{len(unlabelled)} rooms are"
@@ -204,6 +213,13 @@ def held(row: Row, drawing: Drawing) -> str | None:
             "please confirm."
         )
     return None
+
+
+def disagree(row: Row) -> str:
+    """The request's sentence when the answer confidence counts otherwise (`AGREEING_FAMILIES`)."""
+    return (
+        f"Please double-check the {row.noun or row.label}: two readers count the plans differently."
+    )
 
 
 def double_check(
@@ -246,7 +262,7 @@ def _shown(row: Row, value: float) -> str:
 
 
 def _reason(row: Row, places: int) -> str:
-    what = row.noun or row.label  # "doors"; "room bedroom count" for a count of no one class
+    what = row.noun or row.label  # "doors", "bedrooms"; "plan count" for no one class or type
     if places:
         where = "one place" if places == 1 else f"{places} places"
         return (

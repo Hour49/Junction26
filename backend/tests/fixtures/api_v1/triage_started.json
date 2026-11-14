@@ -1,0 +1,56 @@
+{
+  "id": "f2",
+  "path": "elevations/south.png",
+  "size": 8835,
+  "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
+  "kind": "png_plan",
+  "state": "queued",
+  "reason": "queued to be read as a floor plan",
+  "group": null,
+  "route": null,
+  "source": null,
+  "drawing_id": null,
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": "identify",
+  "cost_usd": 0.0,
+  "normalised": null,
+  "triage": {
+    "class": "other_drawing",
+    "p_plan": 0.03,
+    "method": "fake classifier",
+    "register": null,
+    "description": {
+      "text": "A picture of the south elevation of a two-storey house.",
+      "subject": "the south elevation of a two-storey house",
+      "text_seen": [
+        "Küche",
+        "Süd"
+      ],
+      "language": "en",
+      "model": "fake describer",
+      "cost_usd": 0.0,
+      "what_it_is": "drawing",
+      "shows_building": false,
+      "visible_text": "Küche\nSüd",
+      "detail": "A longer account of the south elevation of a two-storey house, for later use."
+    },
+    "relevance": {
+      "verdict": "related",
+      "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
+      "matched_on": [
+        "'kuche' (plan text)"
+      ],
+      "plans": [],
+      "judge": "rule on the words printed on it and whether it shows a building, no model"
+    },
+    "overruled": null,
+    "read_as_plan": {
+      "by": "Ana",
+      "at": "2026-11-14T08:05:00Z"
+    },
+    "verdict": "related",
+    "note": null
+  }
+}

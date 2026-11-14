@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, type Screens } from './App';
 import type { ProjectList } from './api';
-import { error as errorBody, info, projectList } from './api/fixtures';
-import { rulePackFi } from './api/testing';
+import { error as errorBody, info, projectList, rulePackFi } from './api/fixtures';
 import { InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
@@ -26,7 +25,8 @@ function ChecksStub({ projectId, pack }: { projectId: string; pack: string | nul
   );
 }
 
-const withPacks = { ...info, rule_packs: [rulePackFi] } as typeof info;
+const withPacks = info;
+const noPacks = { ...info, rule_packs: [] };
 
 function ProjectStub({ projectId }: { projectId: string }) {
   const [mount] = useState(() => ++projectMounts);
@@ -252,8 +252,9 @@ describe('shell', () => {
 
   it('SH-68 with a pack the tabs add Checks and every href carries ?pack', async () => {
     window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`;
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
+    await screen.findByText(OFFLINE);
     expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
       ['Ingest', `#/p/${P}?pack=fi`, null],
       ['Conflicts', `#/p/${P}/conflicts?pack=fi`, null],
@@ -272,7 +273,24 @@ describe('shell', () => {
     ]);
     go(`#/p/${P}/issues?pack=fi`);
     expect(links().find((l) => l.current)?.text).toBe('Issues');
+  });
+
+  it('SH-72 the Checks tab only for a pack info lists (not while info loads); always on its own route', async () => {
+    window.location.hash = `#/p/${P}/issues?pack=fi`;
+    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    expect(links().map((l) => l.text)).not.toContain('Checks');
     await screen.findByText(OFFLINE);
+    expect(links().map((l) => l.text)).toContain('Checks');
+    go(`#/p/${P}/issues?pack=xx`);
+    expect(links().map((l) => [l.text, l.href])).toEqual([
+      ['Ingest', `#/p/${P}?pack=xx`],
+      ['Conflicts', `#/p/${P}/conflicts?pack=xx`],
+      ['Issues', `#/p/${P}/issues?pack=xx`],
+      ['Chat', `#/p/${P}/chat?pack=xx`],
+    ]);
+    go(`#/p/${P}/checks?pack=xx`);
+    expect(links().find((l) => l.text === 'Checks')?.current).toBe('page');
   });
 
   it('SH-68 the project picker keeps ?pack', async () => {
@@ -342,7 +360,7 @@ describe('shell', () => {
     go(`#/p/${P}`);
     expect(screen.getByRole('button', { name: /^Country rules/ })).toBeTruthy();
     unmount();
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': noPacks, 'GET /api/projects': projectList });
     const second = render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     expect(screen.queryByRole('button', { name: /^Country rules/ })).toBeNull();

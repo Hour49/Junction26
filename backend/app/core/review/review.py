@@ -272,12 +272,37 @@ def row(quantity: Quantity, drawing: Drawing, state: ReviewState, rules: Mapping
 UNCOUNTED = frozenset({"furniture"})  # no plural
 
 
+# A room type said as a person names the room, where the type id alone would read oddly
+ROOM_NOUNS: dict[str, str] = {
+    "living": "living room",
+    "storage": "storage room",
+    "other": "other room",
+    "wc": "WC",
+    "outdoor": "outdoor space",
+}
+
+
+def pluralise(name: str) -> str:
+    """The English plural of a noun phrase ("balcony" → "balconies", "WC" → "WCs")."""
+    if name.endswith("y") and name[-2:-1] not in ("a", "e", "i", "o", "u"):
+        return f"{name[:-1]}ies"
+    if name.endswith(("s", "x", "z", "ch", "sh")):
+        return f"{name}es"
+    return f"{name}s"
+
+
 def noun(measure: str, subject: str, value: int | float) -> str | None:
-    """ "doors" for a count of 14 doors, "door" for 1; None unless it counts one element class."""
-    if measure != "count" or subject not in get_args(ElementClass):
+    """ "doors" for a count of 14 doors, "door" for 1, "kitchens" for a count of the rooms of
+    type kitchen; None unless it counts one element class or one room type."""
+    if measure != "count":
         return None
-    name = words(subject)
-    return name if value == 1 or subject in UNCOUNTED else f"{name}s"
+    if subject in get_args(ElementClass):
+        name = words(subject)
+    elif (kind := subject.removeprefix("room:")) != subject and kind in get_args(RoomType):
+        name = ROOM_NOUNS.get(kind, words(kind))
+    else:
+        return None
+    return name if value == 1 or subject in UNCOUNTED else pluralise(name)
 
 
 def status(quantity: Quantity, state: ReviewState) -> RowStatus:

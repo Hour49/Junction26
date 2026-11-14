@@ -114,7 +114,8 @@ TRIAGED_KINDS: frozenset[ContentKind] = frozenset(
 
 
 class _Classed(Frozen):
-    """`class` is a Python keyword, so the field is `class_` under the JSON name `class`."""
+    """`class` is a Python keyword, so the field is `class_` under the JSON name `class`; and
+    `register` is a pydantic model attribute, so the field is `register_` under `register`."""
 
     model_config = ConfigDict(
         frozen=True,
@@ -125,24 +126,96 @@ class _Classed(Frozen):
     )
 
 
+# The sheet register (decision 0010 section 8): the answer key's fields for one image.
+RegisterKind = Literal[
+    "floor_plan",
+    "multi_view_sheet",
+    "site_plan_or_map",
+    "elevation",
+    "section",
+    "detail",
+    "perspective_or_axonometric",
+    "engineering_non_building",
+    "cover_or_text_sheet",
+    "photograph",
+    "not_architecture",
+    "other",
+]
+NOT_DRAWING_KINDS: frozenset[RegisterKind] = frozenset(
+    {"photograph", "not_architecture", "cover_or_text_sheet", "other"}
+)
+ScaleShown = Literal["bar", "ratio_text", "dimensions", "none", "unreadable"]
+SheetQuality = Literal["good", "fair", "poor"]
+
+
+class Register(Frozen):
+    """Triage.register: what the classifier read off an image sheet, floor plans included. The
+    triage class is derived from it (`class_of`); the rest is shown, never acted on in this
+    version (a plan's scale_shown is not compared with what its reader found)."""
+
+    kind: RegisterKind
+    has_floor_plan: bool  # the gate: a floor plan anywhere on the page
+    photo_of_sheet: bool  # a camera photo of a sheet
+    scale_shown: ScaleShown
+    quality: SheetQuality
+    method: str  # which classifier, in plain words; equals the triage's method
+
+
+def class_of(register: Register) -> TriageClass:
+    """The triage class of a register. A plan when either the gate or the kind says so, since
+    unsure means plan; then not a drawing by kind; else another kind of drawing."""
+    if register.has_floor_plan or register.kind == "floor_plan":
+        return "floor_plan"
+    return "not_drawing" if register.kind in NOT_DRAWING_KINDS else "other_drawing"
+
+
 class Classified(_Classed):
-    """Step 1: what the classifier made of one image."""
+    """Step 1: what the classifier made of one image. With a register, `class` is derived from
+    it (given only the register, it is filled in; given both, they must agree)."""
 
     class_: TriageClass = Field(alias="class")
     p_plan: float = Field(ge=0, le=1)  # P(a floor plan anywhere on the page)
     method: str  # in plain words, e.g. "local classifier v1 (EfficientNet-B0, CPU)"
     cost_usd: float = Field(default=0.0, ge=0)
+    # None: this classifier reads no register (rules)
+    register_: Register | None = Field(default=None, alias="register")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _class(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        fields = cast(dict[str, object], data)
+        found = fields.get("register", fields.get("register_"))
+        if found is None:
+            return fields
+        derived = class_of(found if isinstance(found, Register) else Register.model_validate(found))
+        given = fields.get("class", fields.get("class_"))
+        if given is not None and given != derived:
+            raise ValueError(f"class {given} disagrees with the register's {derived}")
+        return {**{k: v for k, v in fields.items() if k != "class_"}, "class": derived}
+
+
+WhatItIs = Literal[
+    "photograph", "artwork", "text_page", "object", "music", "map", "drawing", "other"
+]
 
 
 class Description(Frozen):
-    """Step 2, for a file that is not a floor plan: what the picture shows, in words."""
+    """Step 2, for a file that is not a floor plan: what the picture shows, as a fixed form and
+    a long text (decision 0010 section 8). `text` is the short form a file row shows; `detail`
+    the long one kept for later AI use. Nothing tested depends on `detail`."""
 
-    text: str  # 1-3 plain sentences
+    text: str  # 1-3 plain sentences, summing up `detail`
     subject: str  # a short label: "south elevation of a two-storey house"
-    text_seen: tuple[str, ...] = Field(default=(), max_length=20)  # words printed on it
+    text_seen: tuple[str, ...] = Field(default=(), max_length=20)  # title-block, caption items
     language: str | None = None  # of text_seen, ISO 639-1; None: none read
     model: str  # which describer
     cost_usd: float = Field(default=0.0, ge=0)
+    what_it_is: WhatItIs  # "drawing": not a floor plan; the register's kind says which
+    shows_building: bool
+    visible_text: str = Field(max_length=2000)  # every legible word as printed; "" when none
+    detail: str = Field(max_length=4000)  # a paragraph or more: what it shows
 
 
 class Relevance(Frozen):
@@ -163,6 +236,13 @@ class Overrule(Frozen):
     at: str  # ISO 8601, UTC
 
 
+class ReadAsPlan(Frozen):
+    """A person's call that a file triage set aside is a floor plan: it was read as one."""
+
+    by: str
+    at: str  # ISO 8601, UTC
+
+
 class Triage(_Classed):
     """FileStatus.triage: what triage made of an image file (decision 0010). Build a changed one
     with `model_validate`, not `model_copy`, so `verdict` follows `overruled` and `relevance`."""
@@ -170,9 +250,13 @@ class Triage(_Classed):
     class_: TriageClass = Field(alias="class")
     p_plan: float = Field(ge=0, le=1)
     method: str
+    # What the classifier read off the sheet; None: triage off or a classifier with no register
+    register_: Register | None = Field(default=None, alias="register")
     description: Description | None = None  # only for a file that is not a floor plan
     relevance: Relevance | None = None  # set when the project's ingest finishes
     overruled: Overrule | None = None
+    # A person had it read as a floor plan; `class` stays the classifier's (POST …/triage)
+    read_as_plan: ReadAsPlan | None = None
     # What counts now: the person's call, else the judge's; None while not judged
     verdict: Verdict | None = None
     # Why `description` or `relevance` is null, in a plain sentence; None when both are set
@@ -207,6 +291,7 @@ class ProjectContext(Frozen):
     """What a described file is judged against: the project's own data, once its plans are read."""
 
     plans: tuple[str, ...]  # drawing ids of the project's floor plans
+    project_name: str  # the name the project was uploaded under
     plan_text: tuple[str, ...]  # text read on them: room and flat labels, storeys, table titles
     file_names: tuple[str, ...]  # every file's path in the upload
     descriptions: tuple[str, ...]  # the other described files' subjects

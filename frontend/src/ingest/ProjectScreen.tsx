@@ -1,5 +1,12 @@
 import { useCallback, type ReactNode } from 'react';
-import { errorText, formatTime, getProject, type FileStatus, type ProjectView } from '../api';
+import {
+  errorText,
+  formatTime,
+  getProject,
+  type FileStatus,
+  type ProjectView,
+  type Triage,
+} from '../api';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
@@ -11,10 +18,13 @@ import {
   formatSize,
   isFinished,
   isLive as live,
+  keepPolling,
   kindLabel,
+  plural,
   routeLabel,
 } from './ingest';
 import { ProgressCard } from './ProgressCard';
+import { isNotPlan, rowLine, verdictOf } from './triage';
 import { usePoll } from './usePoll';
 import './ingest.css';
 
@@ -82,6 +92,19 @@ export function TitleRow({
   );
 }
 
+/** A triaged non-plan's row line (file-triage.md flow 1): class, subject, verdict pill, whose call. */
+function TriageLine({ triage }: { triage: Triage }) {
+  return (
+    <span className="reason">
+      {rowLine(triage)}{' '}
+      <span className={`v-pill${triage.verdict === 'unsure' ? ' v-pill--warn' : ''}`}>
+        {verdictOf(triage).pill}
+      </span>
+      {triage.overruled && ` · ${triage.overruled.by}’s call`}
+    </span>
+  );
+}
+
 /** A done project with no drawings: every file and skipped entry with why it was not read (IN-72). */
 function NothingRead({ project }: { project: ProjectView }) {
   const paths = new Set(project.files.map((f) => f.path));
@@ -109,7 +132,7 @@ function NothingRead({ project }: { project: ProjectView }) {
 /** Route `#/p/<project_id>`: the ingest followed live (Simple), or step by step (`?view=advanced`). */
 export function ProjectScreen({ projectId }: { projectId: string }) {
   const load = useCallback((signal: AbortSignal) => getProject(projectId, { signal }), [projectId]);
-  const { data: project, at, error, failedAt, retry } = usePoll(load, live);
+  const { data: project, at, error, failedAt, retry } = usePoll(load, keepPolling);
   const advanced = parseRoute(useHash()).query.get('view') === 'advanced';
 
   if (project === null) {
@@ -199,6 +222,13 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
           )}
           <section aria-label="Files" className="ingest-files">
             <h2 className="v-h3">Files</h2>
+            {typeof project.not_plans === 'number' && (
+              <p className="ingest-not-plans">
+                {project.not_plans === 0
+                  ? 'No image set aside as not a floor plan'
+                  : `${plural(project.not_plans, 'not a floor plan', 'not floor plans')}: kept, not read`}
+              </p>
+            )}
             {project.files.length === 0 ? (
               <p>{waiting ? WAITING : 'This upload has no files.'}</p>
             ) : (
@@ -212,7 +242,15 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
                         {isFinished(f) && ` · ${formatMs(f.ms)}`}
                         {f.reused && ' · reused'}
                       </span>
-                      {f.reason && <span className="reason">{f.reason}</span>}
+                      {f.triage?.read_as_plan ? (
+                        <span className="reason">
+                          {f.reason} · Read as a floor plan on {f.triage.read_as_plan.by}’s call
+                        </span>
+                      ) : f.triage && isNotPlan(f) ? (
+                        <TriageLine triage={f.triage} />
+                      ) : (
+                        f.reason && <span className="reason">{f.reason}</span>
+                      )}
                     </a>
                   </li>
                 ))}

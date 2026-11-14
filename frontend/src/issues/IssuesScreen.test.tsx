@@ -1,8 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { drawing, error, info } from '../api/fixtures';
-import { rulePackFi } from '../api/testing';
-import type { Info, IssueList } from '../api';
+import { drawing, error, info, rulePackFi } from '../api/fixtures';
+import type { IssueList } from '../api';
 import { flush, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { PageViewer } from '../viewer/PageViewer';
@@ -11,7 +10,7 @@ import { DRAWING_B, DRAWING_IFC, PID, issueList, issueListFi, issues } from './t
 
 vi.mock('../viewer/PageViewer', () => ({ PageViewer: vi.fn(() => <p>the plan</p>) }));
 vi.mock('../shell/info', () => ({
-  useInfo: () => ({ info: { ...info, rule_packs: [rulePackFi] } as Info, error: null }),
+  useInfo: () => ({ info, error: null }),
 }));
 
 const GET = `GET /api/projects/${PID}/issues`;
@@ -231,6 +230,23 @@ describe('IssuesScreen', () => {
     render(<IssuesScreen projectId={PID} />);
     await flush();
     expect(screen.getByRole('link', { name: 'Back to workspaces' })).toBeTruthy();
+  });
+
+  it('IS-21 a country change that fails drops the old list: the not-available card, no rows, no Export', async () => {
+    mockApi({
+      [GET]: (c: { url: string }) =>
+        c.url.includes('pack=xx') ? reply(404, { ...error, code: 'unknown-pack' }) : issueListFi,
+      [DRAWING(DRAWING_B)]: drawing,
+      [DRAWING(DRAWING_IFC)]: drawing,
+    });
+    const { rerender } = render(<IssuesScreen projectId={PID} pack="fi" />);
+    await flush();
+    expect(document.querySelectorAll('.is-n').length).toBeGreaterThan(0);
+    rerender(<IssuesScreen projectId={PID} pack="xx" />);
+    await flush();
+    expect(screen.getByText('These country rules are not available.')).toBeTruthy();
+    expect(document.querySelectorAll('.is-n')).toHaveLength(0);
+    expect(screen.queryByRole('link', { name: 'Export' })).toBeNull();
   });
 
   it('IS-14 no issues says so (the pack variant with a pack)', async () => {

@@ -243,7 +243,10 @@ Between the progress row and the first card, one row on `--v-surface` (radius `-
 - Counts **per rule** (frontend-orch decision, matching fe-scaffold's checks screen) over `GET /api/projects/{pid}/
   checks?pack=<id>` (fe-shared's `getProjectChecks`): a rule's results are gathered across every drawing (by
   `rule_id`); the rule is **failed** if any result is `fail`, else **cannot tell** if any is `cannot_tell`, else
-  **passed**; a rule with no result on any drawing is not counted. Shown as "`a` rules passed · `b` failed · `c` cannot
+  **passed**; counted exactly as the checks screen (`ruleSummary` + `ruleCounts` from
+  `src/checks/checks.ts`, reused): a RuleCheck that is `cannot_tell` with no results (nothing read on that drawing) counts
+  as **cannot tell**; a `not_applicable` RuleCheck is never passed or failed and is not counted (CF-30b, Bogdan's
+  `project_checks.json` and derivations). Shown as "`a` rules passed · `b` failed · `c` cannot
   tell" ("1 rule passed" for one; the noun only on the first part), each part a pill (passed `--v-ok` on `--v-ok-soft`,
   failed `--v-danger` on `--v-danger-soft`, cannot tell `--v-text-2` on `--v-fill`); zero parts are left out (the
   first shown part carries "rule(s)"); "cannot tell" is always its own count, never folded into passed or failed. No
@@ -269,6 +272,9 @@ Between the progress row and the first card, one row on `--v-surface` (radius `-
   "1 rule passed · 1 failed · 1 cannot tell" (R2 failed beats its pass, R3 cannot tell beats its pass, R4 not counted),
   the note verbatim, and "See the checks" → `#/p/<pid>/checks?pack=fi`; without `pack` there is no checks request and
   no row.
+- CF-30b: Bogdan's `project_checks.json` shows "1 rule failed"; with a second drawing where that rule, a new rule X
+  and a passed rule Z are `cannot_tell` with no results and a rule Y is `not_applicable`: "1 rule failed · 2 cannot
+  tell" (same data, same counts as the checks screen).
 - CF-31: two rules whose results are all `cannot_tell` show "2 rules cannot tell" and no passed or failed pill; a
   rule with a `fail` and a `cannot_tell` result counts as failed only; rules with no results at all show "Nothing on
   these drawings that these rules check."

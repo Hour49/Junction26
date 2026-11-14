@@ -18,6 +18,7 @@ from app.core.ingest.model import (
     ProjectStatus,
     Rectified,
     Relevance,
+    TriageClass,
     Unavailable,
 )
 from app.core.pipeline.model import Route
@@ -82,10 +83,16 @@ class Describer(Protocol):
 
 class RelevanceJudge(Protocol):
     """Triage step 3: does a described file belong to the project, judged against the project's
-    own data once its plans are read. Always a suggestion; a person can overrule it."""
+    own data once its plans are read. Always a suggestion; a person can overrule it. `kind`:
+    what the classifier called the file (never `floor_plan`: a plan is not judged).
+    `description`: None only for a judge that does not read it (`reads_description` False),
+    which then judges the files nothing described too."""
+
+    @property
+    def reads_description(self) -> bool: ...
 
     def judge(
-        self, description: Description, context: ProjectContext
+        self, kind: TriageClass, description: Description | None, context: ProjectContext
     ) -> Relevance | Unavailable: ...
 
 

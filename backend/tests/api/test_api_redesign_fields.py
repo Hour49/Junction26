@@ -14,6 +14,7 @@ from app.api import takeoff
 from app.api.views import expected_drawings_of, page_views
 from app.core.drawing.model import Drawing, Page, Plan, Scale
 from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.review.review import noun
 
 ROOM = "area:room|name=1.01"  # the sample's flat-b conflict
 
@@ -170,6 +171,37 @@ def test_a_row_names_what_it_counts_and_a_mark_its_room_type(client: TestClient)
     assert {mark["room_type"] for mark in marks if mark["label"] == "Küche"} == {"kitchen"}
     assert all(mark["room_type"] is None for row in rows if row["key"] == "door"
                for mark in row["marks"])  # fmt: skip
+
+
+def test_a_count_of_one_room_type_names_it() -> None:
+    """The double-check request read "the room kitchen count": a room type is named too."""
+    assert noun("count", "room:kitchen", 2) == "kitchens"
+    assert noun("count", "room:kitchen", 1) == "kitchen"
+    assert noun("count", "room:bedroom", 3) == "bedrooms"
+    assert noun("count", "room:living", 2) == "living rooms"
+    assert noun("count", "room:wc", 2) == "WCs"
+    assert noun("count", "door", 2) == "doors"  # unchanged
+    assert noun("count", "room", 4) is None  # all the rooms: no one type
+    assert noun("count", "room:nonsense", 4) is None
+    assert noun("area", "room:kitchen", 12.5) is None  # counts only
+
+
+def test_every_countable_noun_has_a_correct_plural() -> None:
+    """A live request read "Please double-check the balconys": the plural was `name + "s"`."""
+    from typing import get_args
+
+    from app.core.drawing.model import ElementClass, RoomType
+
+    subjects = [*get_args(ElementClass), *(f"room:{kind}" for kind in get_args(RoomType))]
+    plurals = {subject: noun("count", subject, 2) for subject in subjects}
+    assert plurals["room:balcony"] == "balconies"
+    assert plurals["room:other"] == "other rooms"
+    for subject, text in plurals.items():
+        if subject == "furniture":  # uncounted: no plural
+            continue
+        assert text is not None
+        assert not text.endswith(("ys", "ss")), (subject, text)  # balconys, hallss
+        assert text.endswith("s"), (subject, text)
 
 
 def test_unsettle_drops_the_settled_value_and_keeps_the_mark_edits(client: TestClient) -> None:

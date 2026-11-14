@@ -21,6 +21,7 @@ from app.core.drawing.model import (
     Element,
     MeasuredValue,
     Page,
+    Plan,
     ReaderView,
     Resolution,
     Room,
@@ -64,10 +65,11 @@ PHOTO_FLAG = "a phone photo, read without perspective correction"
 
 
 class Scored:
-    """DECISIONS_CONFIDENCE's stand-in: every answer gets the same score."""
+    """DECISIONS_CONFIDENCE's stand-in: every answer gets the same score; `agrees`: whether its
+    own most likely count is the answered one (None: it has none)."""
 
-    def __init__(self, value: float | None) -> None:
-        self.value, self.note = value, "decisions: stand-in"
+    def __init__(self, value: float | None, agrees: bool | None = None) -> None:
+        self.value, self.note, self.agrees = value, "decisions: stand-in", agrees
 
     def probability(self, path: str, family: str, value: object) -> "Scored":
         return self
@@ -335,6 +337,10 @@ def test_local_gates_are_built_by_signal_name_and_a_name_twice_is_refused(
     assert build_answering(Settings()).check == CheckPolicy(  # nothing scores it
         thresholds={}, routes=frozenset({"bim"})
     )
+    # with CHECK_POLICY off, LOCAL_GATES is not read: a bad path can't stop a feature that is off
+    monkeypatch.delenv("CHECK_POLICY")
+    monkeypatch.setenv("LOCAL_GATES", str(tmp_path / "missing.json"))
+    assert build_answering(Settings()).scorers == {}
 
 
 @pytest.mark.parametrize(
@@ -444,6 +450,11 @@ def test_an_edited_value_is_not_certified_on_the_pipeline_s_score() -> None:
     assert found.row is not None and found.row.value == 1
     assert found.check is not None
     assert found.check.reason == "Please double-check the door: edited by you: sign off to confirm."
+    # signed off: nothing more to ask, but the person's 1 is still not what the score certified
+    sign = SignOff(by="Ana", at="2026-11-14T12:00:00Z", value=1)
+    signed = asked(score=0.95, state=ReviewState(rejected={"door": ("m1",)}, signed={"door": sign}))
+    assert signed.row is not None and (signed.row.value, signed.row.status) == (1, "signed")
+    assert signed.check is None and signed.answer.sure is False
 
 
 def test_a_mark_the_person_rejected_is_never_pointed_at() -> None:
@@ -451,3 +462,35 @@ def test_a_mark_the_person_rejected_is_never_pointed_at() -> None:
     found = asked(score=0.1, state=rejected)
     assert found.check is not None
     assert [d.mark_id for d in found.check.disputed] == [None]  # e2's m2 is gone, the miss stays
+
+
+def test_a_plan_count_is_certified_only_when_the_answer_confidence_counts_the_same() -> None:
+    """#174's rule in the certificate: a plan count whose score clears the threshold still asks
+    when Gemini's own most likely plan count is another, or when it gives none."""
+    two_plans = SCAN.model_copy(
+        update={"plans": (Plan(id="p1", page=1, box=BOX_A), Plan(id="p2", page=1, box=BOX_B))}
+    )
+    policy = CheckPolicy(thresholds={"plan": 0.5, "door": 0.8})
+
+    def plans(
+        agrees: bool | None, text: str = "How many floors (storeys) does this floor plan show?"
+    ) -> Asked:
+        return ask(
+            text, two_plans, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
+            state=ReviewState(), confidence=Scored(0.9, agrees), raster=True, check=policy,
+            route="raster",
+        )  # fmt: skip
+
+    agreed = plans(True)
+    assert agreed.answer.answer == 2 and agreed.answer.sure is True and agreed.check is None
+    counted_otherwise = plans(False)
+    assert counted_otherwise.answer.answer == 2 and counted_otherwise.answer.sure is False
+    assert counted_otherwise.check is not None
+    assert counted_otherwise.check.reason == (
+        "Please double-check the plan count: two readers count the plans differently."
+    )
+    no_count = plans(None)
+    assert no_count.answer.sure is False and no_count.check is not None
+    assert "two readers" not in no_count.check.reason  # nothing disagreed: the policy's sentence
+    doors = plans(False, "How many doors are there?")  # other families keep the score alone
+    assert doors.answer.sure is True and doors.check is None

@@ -1,0 +1,112 @@
+"""TRIAGE_JUDGE=rules (decision 0010 sections 6 and 8): with no model, a described file is judged
+by the rule over its description's form, and a file nothing described by its class alone; that
+`why` says it is a rule on the kind of picture, not a reading of what the picture shows."""
+
+from pathlib import Path
+
+import pytest
+from conftest import MakeService
+from test_ingest_triage import PHOTO, PLAN, SCAN, file_of, zipped
+from triage_fakes import FakeClassifier, FakeDescriber, WordJudge
+
+from app.adapters.triage.rules_judge import JUDGE, RulesJudge
+from app.composition import _triage  # pyright: ignore[reportPrivateUsage]
+from app.core.ingest.model import Description, ProjectContext, Unavailable
+from app.core.ingest.triage import NOTE_NO_DESCRIBER, RULE, TriageSteps
+from app.settings import Settings
+
+SAID = Description(
+    text="A picture.",
+    subject="a picture",
+    model="fake describer",
+    what_it_is="music",
+    shows_building=False,
+    visible_text="",
+    detail="A picture.",
+)
+CONTEXT = ProjectContext(
+    plans=("d1",), project_name="p.zip", plan_text=(), file_names=(), descriptions=()
+)
+
+
+def test_with_no_description_not_a_drawing_is_unrelated_and_another_drawing_unsure() -> None:
+    unrelated = RulesJudge().judge("not_drawing", None, CONTEXT)
+    related = RulesJudge().judge("other_drawing", None, CONTEXT)
+    assert not isinstance(unrelated, Unavailable) and not isinstance(related, Unavailable)
+    assert (unrelated.verdict, related.verdict) == ("unrelated", "unsure")
+    for found in (unrelated, related):
+        assert (
+            found.judge == JUDGE == "rule on the kind of picture, no model (no description to read)"
+        )
+        assert "without reading what" in found.why
+        assert (found.matched_on, found.plans) == ((), ())
+    assert unrelated.why.startswith("A picture that is not a drawing;")
+    assert isinstance(RulesJudge().judge("floor_plan", None, CONTEXT), Unavailable)
+
+
+def test_with_a_description_the_rule_over_its_form_judges_not_the_class() -> None:
+    found = RulesJudge().judge("other_drawing", SAID, CONTEXT)  # the class rule: related
+    assert not isinstance(found, Unavailable)
+    assert (found.verdict, found.judge) == ("unrelated", RULE)
+
+
+def test_in_ingest_each_described_non_plan_gets_the_rule_verdict(make_service: MakeService) -> None:
+    classifier = FakeClassifier({SCAN: "other_drawing", PHOTO: "not_drawing"})
+    describer = FakeDescriber(
+        {SCAN: ("an elevation", ("Küche",)), PHOTO: ("a cat", ())}, buildings=frozenset({SCAN})
+    )
+    steps = TriageSteps(classifier=classifier, describer=describer, judge=RulesJudge(), name="t")
+    ingest = make_service(triage=steps)
+    files = {"plan.pdf": PLAN, "elevation.png": SCAN, "cat.jpg": PHOTO}
+    status = ingest.wait(ingest.start("site.zip", zipped(files)))
+    elevation, cat = file_of(status, "elevation.png").triage, file_of(status, "cat.jpg").triage
+    assert elevation is not None and cat is not None
+    assert (elevation.verdict, cat.verdict) == ("related", "unrelated")
+    assert elevation.relevance is not None and elevation.relevance.why == (
+        "Related: 'kuche', printed on it, is in the project's plan text; it shows a building."
+    )
+    assert cat.relevance is not None and cat.relevance.judge == RULE
+    assert (elevation.note, cat.note) == (None, None)
+
+
+def test_the_setting_wires_the_rules_judge_and_off_wires_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)  # so a developer's backend/.env can't change the settings
+    on = _triage(Settings(triage_classifier="rules", triage_judge="rules"))
+    assert on is not None and isinstance(on.judge, RulesJudge)
+    assert on.name == "classifier=rules, describer=off, judge=rules"
+    off = _triage(Settings(triage_classifier="rules"))
+    assert off is not None and off.judge is None
+
+
+def test_with_no_describer_the_rules_judge_still_judges_each_non_plan_by_its_class(
+    make_service: MakeService,
+) -> None:
+    """TRIAGE_CLASSIFIER=rules + TRIAGE_JUDGE=rules, describer off: the rule never reads a
+    description, so it judges undescribed files too (brief triage-judge-undescribed.md)."""
+    classifier = FakeClassifier({SCAN: "other_drawing", PHOTO: "not_drawing"})
+    steps = TriageSteps(classifier=classifier, describer=None, judge=RulesJudge(), name="t")
+    ingest = make_service(triage=steps)
+    files = {"plan.pdf": PLAN, "elevation.png": SCAN, "cat.jpg": PHOTO}
+    status = ingest.wait(ingest.start("site.zip", zipped(files)))
+    elevation, cat = file_of(status, "elevation.png").triage, file_of(status, "cat.jpg").triage
+    assert elevation is not None and cat is not None
+    assert (elevation.description, cat.description) == (None, None)
+    assert (elevation.verdict, cat.verdict) == ("unsure", "unrelated")
+    assert cat.relevance is not None and cat.relevance.why.startswith("A picture that is not")
+    assert cat.note == "not described: no description model is set up"  # judged all the same
+
+
+def test_a_judge_that_reads_the_description_still_skips_an_undescribed_file(
+    make_service: MakeService,
+) -> None:
+    judge = WordJudge()
+    steps = TriageSteps(
+        classifier=FakeClassifier({SCAN: "other_drawing"}), describer=None, judge=judge, name="t"
+    )
+    ingest = make_service(triage=steps)
+    status = ingest.wait(ingest.start("site.zip", zipped({"plan.pdf": PLAN, "scan.png": SCAN})))
+    scan = file_of(status, "scan.png").triage
+    assert scan is not None and (scan.relevance, scan.note) == (None, NOTE_NO_DESCRIBER)
+    assert judge.contexts == []

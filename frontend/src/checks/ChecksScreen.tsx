@@ -16,9 +16,11 @@ import { PageViewer } from '../viewer/PageViewer';
 import {
   STATUS_WORD,
   drawingResults,
-  fileName,
+  drawingName,
   focusOf,
   limitLine,
+  ruleCounts,
+  ruleCheckStatus,
   ruleSummary,
   summaryLine,
   viewerMarks,
@@ -143,7 +145,8 @@ export function ChecksScreen({
   if (project.state === 'error') return page(<ErrorView error={project.error} />);
   const p = project.value;
 
-  const head = (note: string | null) => (
+  // fail_means says what a fail means for this pack: shown only when a rule failed
+  const head = (note: string | null, failed = false) => (
     <header className="ck-head">
       <h1>Pre-check: {rulePack?.name ?? pack}</h1>
       {rulePack && (
@@ -156,6 +159,7 @@ export function ChecksScreen({
           {note}
         </p>
       )}
+      {failed && rulePack?.fail_means && <p className="ck-law">{rulePack.fail_means}</p>}
     </header>
   );
   const packNote = rulePack?.note ?? null;
@@ -204,8 +208,14 @@ export function ChecksScreen({
   const drawings = [...c.drawings].sort(
     (a, b) => (order.get(a.drawing_id) ?? Infinity) - (order.get(b.drawing_id) ?? Infinity),
   );
-  const listed = drawings.map((d) => ({ d, results: drawingResults(d) }));
-  const clean = listed.filter((x) => !x.results.length).length;
+  const listed = drawings.map((d) => ({
+    d,
+    results: drawingResults(d),
+    applies: d.rules.some((r) => ruleCheckStatus(r) !== null),
+  }));
+  // a drawing no rule applies to passed nothing: it is counted apart, never as passing (not_applicable)
+  const clean = listed.filter((x) => x.applies && !x.results.length).length;
+  const none = listed.filter((x) => !x.applies).length;
   const withPack = (path: string, q?: string | null) => {
     const query = new URLSearchParams();
     if (q) query.set('q', q);
@@ -215,26 +225,27 @@ export function ChecksScreen({
   const surveyor = (did: string, q?: string | null) =>
     withPack(`/p/${projectId}/d/${did}/surveyor`, q);
 
-  const card = (did: string, rule: RuleCheck, r: CheckResult) => {
-    const word = STATUS_WORD[r.status];
-    const subject = r.subject.label || `${r.subject.kind} ${r.subject.ref ?? ''}`.trim();
-    const located = focusOf(r) !== null;
-    const isPicked = picked?.result.id === r.id && picked.drawingId === did;
+  // r null: the rule cannot tell on this drawing without any result (nothing read): its own why, no value or place
+  const card = (did: string, rule: RuleCheck, r: CheckResult | null) => {
+    const status = r?.status ?? 'cannot_tell';
+    const word = STATUS_WORD[status];
+    const id = r?.id ?? `rule-${rule.rule_id}`;
+    const subject = r && (r.subject.label || `${r.subject.kind} ${r.subject.ref ?? ''}`.trim());
+    const located = r !== null && focusOf(r) !== null;
+    const isPicked = r !== null && picked?.result.id === r.id && picked.drawingId === did;
     return (
-      <li key={`${rule.rule_id}-${r.id}`}>
+      <li key={`${rule.rule_id}-${id}`}>
         <article
-          className={`ck-card ck-${r.status}`}
+          className={`ck-card ck-${status}`}
           aria-current={isPicked ? 'true' : undefined}
-          aria-labelledby={`ck-${did}-${r.id}`}
+          aria-labelledby={`ck-${did}-${id}`}
         >
           <p className="ck-status">
             <span aria-hidden="true">{word.icon}</span> {word.word}
           </p>
-          <h3 id={`ck-${did}-${r.id}`}>
-            {subject} · {rule.title}
-          </h3>
-          <p className="ck-value">{limitLine(r)}</p>
-          <p>{r.why}</p>
+          <h3 id={`ck-${did}-${id}`}>{subject ? `${subject} · ${rule.title}` : rule.title}</h3>
+          {r && <p className="ck-value">{limitLine(r)}</p>}
+          <p>{r?.why ?? rule.why}</p>
           <div className="ck-clause">
             <p className="ck-ref">{rule.clause.ref}</p>
             <blockquote>{rule.clause.quote}</blockquote>
@@ -246,7 +257,7 @@ export function ChecksScreen({
             </a>
           </div>
           <p className="ck-actions">
-            {located ? (
+            {r && located ? (
               <button
                 type="button"
                 onClick={() => {
@@ -260,7 +271,7 @@ export function ChecksScreen({
             ) : (
               <span className="ck-muted">Not located on the drawing</span>
             )}
-            <a href={surveyor(did, r.quantity)}>Open in the surveyor</a>
+            <a href={surveyor(did, r?.quantity)}>Open in the surveyor</a>
           </p>
         </article>
       </li>
@@ -289,7 +300,10 @@ export function ChecksScreen({
     const { marks, tones } = viewerMarks(picked.result);
     return (
       <PageViewer
-        file={fileName(p, picked.drawingId)}
+        file={drawingName(p, {
+          drawing_id: picked.drawingId,
+          file: c.drawings.find((d) => d.drawing_id === picked.drawingId)?.file ?? picked.drawingId,
+        })}
         pages={v.value.pages}
         credit={v.value.credit ?? null}
         marks={marks}
@@ -302,7 +316,7 @@ export function ChecksScreen({
 
   return page(
     <>
-      {head(c.note || packNote)}
+      {head(c.note || packNote, ruleCounts(rows).failed > 0)}
       {!drawings.length ? (
         <p className="ck-line">No drawing in this project to check.</p>
       ) : (
@@ -324,7 +338,14 @@ export function ChecksScreen({
                   <th scope="row">
                     {r.title}
                     <small>{r.ref}</small>
-                    {r.status === null && <small>Nothing in these drawings it applies to</small>}
+                    {r.status === 'not_applicable' && (
+                      <small>Does not apply to these drawings</small>
+                    )}
+                    {r.blind > 0 && (
+                      <small>
+                        Cannot tell on {plural(r.blind, 'drawing')}: nothing could be read
+                      </small>
+                    )}
                   </th>
                   <td data-label="Passed">{r.pass}</td>
                   <td data-label="Failed">{r.fail}</td>
@@ -333,7 +354,7 @@ export function ChecksScreen({
               ))}
             </tbody>
           </table>
-          {clean === listed.length && (
+          {clean > 0 && listed.every((x) => !x.results.length) && (
             <p className="ck-line">Every checked place passes these rules.</p>
           )}
         </>
@@ -347,14 +368,11 @@ export function ChecksScreen({
             .filter((x) => x.results.length)
             .map(({ d, results }) => (
               <section key={d.drawing_id} aria-labelledby={`ck-h-${d.drawing_id}`}>
-                <h2 id={`ck-h-${d.drawing_id}`}>{fileName(p, d.drawing_id)}</h2>
+                <h2 id={`ck-h-${d.drawing_id}`}>{drawingName(p, d)}</h2>
                 <p className="ck-sub">
                   <a href={surveyor(d.drawing_id)}>Open in the surveyor</a>
                 </p>
-                <ul
-                  className="ck-list"
-                  aria-label={`Places to look at in ${fileName(p, d.drawing_id)}`}
-                >
+                <ul className="ck-list" aria-label={`Places to look at in ${drawingName(p, d)}`}>
                   {results.map(({ rule, result }) => card(d.drawing_id, rule, result))}
                 </ul>
               </section>
@@ -362,6 +380,11 @@ export function ChecksScreen({
           {clean > 0 && (
             <p className="ck-line">
               {plural(clean, 'drawing')} {clean === 1 ? 'passes' : 'pass'} every checked place
+            </p>
+          )}
+          {none > 0 && (
+            <p className="ck-line">
+              {plural(none, 'drawing')} {none === 1 ? 'has' : 'have'} nothing these rules apply to
             </p>
           )}
         </div>

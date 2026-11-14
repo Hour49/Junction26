@@ -4,16 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vellum · clickable demo</title>
-<link rel="icon" href="vellum-logo.png">
-<link rel="stylesheet" href="style.css">
+<meta http-equiv="refresh" content="0; url=stoa/index.html">
+<style>body { font: 16px/1.5 Inter, system-ui, sans-serif; max-width: 640px; margin: 64px auto; padding: 0 16px; color: #1d1d1f; background: #f5f5f7; } code { font-size: 14px; }</style>
 </head>
 <body>
-<div id="app"></div>
-<noscript>This clickable demo needs JavaScript.</noscript>
-<script src="data.js"></script>
-<script src="plan.js"></script>
-<script src="ask.js"></script>
-<script src="chat.js"></script>
-<script src="app.js"></script>
+<h1>Vellum · clickable demo</h1>
+<p>The demo shows only real files from the Stoa dataset, so it is built on your machine and never committed. Build it once:</p>
+<p><code>python3 -I demo/vellum/make_stoa_demo.py --dataset &lt;path to junction-dataset&gt;</code></p>
+<p>Then open <a href="stoa/index.html">stoa/index.html</a> (this page goes there by itself).</p>
 </body>
 </html>

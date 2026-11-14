@@ -16,15 +16,26 @@ from starlette.exceptions import HTTPException
 
 from app.adapters.credits import DatasetCredits
 from app.adapters.review_store import JsonReviewStore
-from app.api import ask, drawings, health, info, issues, project_ask, projects, takeoff
+from app.adapters.rule_packs import load_packs
+from app.api import (
+    ask,
+    checks,
+    drawings,
+    health,
+    info,
+    issues,
+    project_ask,
+    projects,
+    takeoff,
+)
 from app.api.deps import Ingest
 from app.api.views import ErrorBody
 from app.composition import build_answering, build_ingest
 from app.core.errors import (
     DomainError,
     InvalidInputError,
-    NoDescriptionError,
     NotFoundError,
+    NotTriagedError,
     UnknownPackError,
 )
 from app.core.review.review import NotAllowedError
@@ -39,7 +50,7 @@ STATUS_BY_ERROR: dict[type[DomainError], int] = {
 # A domain error with a code of its own, not its status's
 CODE_BY_ERROR: dict[type[DomainError], str] = {
     UnknownPackError: "unknown-pack",
-    NoDescriptionError: "no-description",
+    NotTriagedError: "not-triaged",
 }
 CODES = {
     404: "not-found",
@@ -87,6 +98,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     """`ingest`: the project ingest to serve; by default the settings' one, in the background."""
     settings = settings or Settings()
     logging.basicConfig(level=settings.log_level)
+    rule_packs = load_packs(settings.rule_packs_dir)  # a pack that fails stops here, first
     service = ingest or build_ingest(settings, settings.projects_dir)
 
     @asynccontextmanager
@@ -104,7 +116,8 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     )
     app.state.admission = projects.Admission()  # the 429 limit
     app.state.kept_reviews = projects.KeptReviews()  # the project list's review counts
-    for router in (health, info, projects, drawings, ask, takeoff, project_ask, issues):
+    app.state.rule_packs = rule_packs
+    for router in (health, info, projects, drawings, ask, takeoff, project_ask, issues, checks):
         app.include_router(router.router)
     for error in STATUS_BY_ERROR:
         app.add_exception_handler(error, domain_error_response)
