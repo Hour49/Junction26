@@ -29,6 +29,7 @@ import { canShow3d, paneHighlight } from '../model3d/model3d';
 import { PlanPane, PlanSheet } from './PlanPane';
 import { PlanPointer } from './PlanPointer';
 import { TurnCard } from './TurnCard';
+import { WhatIRead } from './WhatIRead';
 import '../engineer/engineer.css';
 
 type Sent = { id: number; message: string; chips: string[] };
@@ -450,6 +451,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     return split(
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
+        <WhatIRead project={project} />
         {photo.line}
         {pointer}
         {bar}
