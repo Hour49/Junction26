@@ -4868,6 +4868,126 @@
         "title": "Settled",
         "type": "object"
       },
+      "Sheet": {
+        "additionalProperties": false,
+        "description": "Classified.sheet and Triage.sheet: the sheet-kind model's reply and its decision. The\ntitle, sheet number and printed scale are shown, never acted on.",
+        "properties": {
+          "advanced": {
+            "title": "Advanced",
+            "type": "boolean"
+          },
+          "advanced_why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advanced Why"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "decision": {
+            "enum": [
+              "read",
+              "doubt",
+              "set_aside"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "architectural_floor_plan",
+              "multi_view_sheet",
+              "mep_plan",
+              "structural_plan",
+              "roof_or_ceiling_plan",
+              "site_plan_or_map",
+              "elevation",
+              "section",
+              "detail",
+              "perspective_or_axonometric",
+              "schedule_or_text",
+              "not_a_drawing",
+              "other"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "kind_words": {
+            "title": "Kind Words",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "printed_scale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Printed Scale"
+          },
+          "seen": {
+            "title": "Seen",
+            "type": "string"
+          },
+          "sheet_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet Number"
+          },
+          "takeoff_possible": {
+            "title": "Takeoff Possible",
+            "type": "boolean"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "kind",
+          "kind_words",
+          "decision",
+          "takeoff_possible",
+          "confidence",
+          "title",
+          "sheet_number",
+          "printed_scale",
+          "advanced",
+          "advanced_why",
+          "seen",
+          "model"
+        ],
+        "title": "Sheet",
+        "type": "object"
+      },
       "SignOff": {
         "additionalProperties": false,
         "properties": {
@@ -5241,6 +5361,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/Relevance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sheet"
               },
               {
                 "type": "null"

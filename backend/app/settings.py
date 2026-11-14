@@ -28,6 +28,7 @@ RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normali
 # siglip: fixed register heads on a SigLIP2 embedding, CPU (data/models/triage/siglip2-512-v2/);
 # with DECISIONS_KIND, a plan when either it or the sheet-kind signal says so.
 TriageClassifierName = Literal["off", "rules", "siglip"]
+SheetKindName = Literal["off", "carbon"]
 # gemini: gemini-3.5-flash fills the description form and its long text, GEMINI_API_KEY's
 # key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/)
 TriageDescriberName = Literal["off", "gemini"]
@@ -159,8 +160,16 @@ class Settings(BaseSettings):
     rule_packs_dir: Path = Path(__file__).parent / "rules"
     # File triage (decision 0010): is each uploaded image a floor plan; a non-plan is kept, set
     # aside, described and judged against the project. The describer and judge run only with a
-    # classifier on.
+    # classifier on (TRIAGE_CLASSIFIER, or SHEET_KIND below).
     triage_classifier: TriageClassifierName = "off"
     triage_describer: TriageDescriberName = "off"
     triage_describer_cache_dir: Path = Path("../data/cache/triage-describer")
     triage_judge: TriageJudgeName = "off"
+    # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
+    # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
+    # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set
+    # aside, a doubtful one is read and its answers say so. Replies cached in the folder by file
+    # content. Off until its gate passes
+    sheet_kind: SheetKindName = "off"
+    sheet_kind_cache_dir: Path = Path("../data/cache/sheet-kind")
+    sheet_kind_cut: float = Field(default=0.8, ge=0, le=1)
