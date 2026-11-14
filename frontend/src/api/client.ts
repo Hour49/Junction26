@@ -16,6 +16,9 @@ import type {
   SignOffRequest,
   Started,
   Takeoff,
+  DrawingChecks,
+  IssueList,
+  ProjectChecks,
 } from './types';
 
 export type PageWidth = 400 | 1600 | 3200;
@@ -176,3 +179,37 @@ export const evidenceUrl = (
     width: opts.width ?? 1600,
     project: opts.project,
   });
+
+// #139 / #140 (board #142; shared.md "Checks and issues"). `pack` is required for checks: the server 404s without it.
+
+export const getDrawingChecks = (
+  drawingId: string,
+  opts: Opts & { pack: string; project?: string },
+) =>
+  call<DrawingChecks>(
+    'GET',
+    withQuery(`/api/drawings/${seg(drawingId)}/checks`, { pack: opts.pack, project: opts.project }),
+    opts,
+  );
+
+export const getProjectChecks = (projectId: string, opts: Opts & { pack: string }) =>
+  call<ProjectChecks>(
+    'GET',
+    withQuery(`/api/projects/${seg(projectId)}/checks`, { pack: opts.pack }),
+    opts,
+  );
+
+export const getIssues = (projectId: string, opts: Opts & { pack?: string } = {}) =>
+  call<IssueList>(
+    'GET',
+    withQuery(`/api/projects/${seg(projectId)}/issues`, { pack: opts.pack }),
+    opts,
+  );
+
+/** The issues as CSV (same rows as `getIssues`). */
+export const issuesCsvUrl = (projectId: string, pack?: string) =>
+  withQuery(`/api/projects/${seg(projectId)}/issues.csv`, { pack });
+
+/** The export bundle: issues.csv (with an `n` column) plus one PNG per drawing page with the issues drawn and numbered. */
+export const issuesZipUrl = (projectId: string, pack?: string) =>
+  withQuery(`/api/projects/${seg(projectId)}/issues.zip`, { pack });

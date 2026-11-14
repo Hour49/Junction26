@@ -547,14 +547,51 @@ main {
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 720px) {
+/* Compact header up to 1100 px (shared.md "Header tabs"): up to six tabs and the pickers do not fit one row. Line 1:
+   logo, name, Workspaces; line 2: project and country pickers; line 3: the tabs, wrapping when they do not fit. Three
+   rows would cover too much of the screen, so the header scrolls away here. */
+@media (max-width: 1100px) {
   :root {
     --v-header-h: 0px;
   }
-  /* Three rows (about 190 px) would cover a quarter of the screen: on the phone the header scrolls away. */
   .app-header {
     position: static;
   }
+  .app-header-row {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+  }
+  .brand {
+    order: 1;
+  }
+  .workspaces-link {
+    order: 2;
+    margin-left: auto;
+  }
+  .project-picker {
+    order: 3;
+    flex: 1 1 180px;
+    max-width: 100%;
+    margin-left: 0;
+  }
+  .country {
+    order: 4;
+  }
+  .view-links {
+    order: 5;
+    display: flex;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .view-links a {
+    flex: 1 1 auto;
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 720px) {
   .v-hero {
     font-size: 40px;
   }
@@ -576,42 +613,8 @@ main {
   .v-segmented > button {
     min-height: 44px;
   }
-  .app-header-row {
-    flex-wrap: wrap;
-    padding: 10px 16px;
-  }
-  /* Line 1: logo, name, Workspaces; line 2: project and country pickers; line 3: the view links. */
-  .brand {
-    order: 1;
-  }
-  .workspaces-link {
-    order: 2;
-    margin-left: auto;
-  }
-  .project-picker {
-    order: 3;
-    flex: 1 1 180px;
-    max-width: 100%;
-    margin-left: 0;
-  }
-  .country {
-    order: 4;
-  }
   .country-name {
     display: none;
-  }
-  .view-links {
-    order: 5;
-    display: flex;
-    flex: 1 1 100%;
-  }
-  .view-links {
-    min-width: 0;
-  }
-  .view-links a {
-    flex: 1;
-    min-width: 0;
-    padding: 8px 6px;
   }
   .info-bar {
     padding: 8px 16px;

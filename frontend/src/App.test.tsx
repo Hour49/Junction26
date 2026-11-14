@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, type Screens } from './App';
 import type { ProjectList } from './api';
 import { error as errorBody, info, projectList } from './api/fixtures';
+import { rulePackFi } from './api/testing';
 import { InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
@@ -14,6 +15,18 @@ const D = 'adeefbbcc17559fc';
 const OFFLINE = 'Running offline: no API keys, no models';
 
 let projectMounts = 0;
+let checksMounts = 0;
+
+function ChecksStub({ projectId, pack }: { projectId: string; pack: string | null }) {
+  const [mount] = useState(() => ++checksMounts);
+  return (
+    <p>
+      checks {projectId} {String(pack)} mount {mount}
+    </p>
+  );
+}
+
+const withPacks = { ...info, rule_packs: [rulePackFi] } as typeof info;
 
 function ProjectStub({ projectId }: { projectId: string }) {
   const [mount] = useState(() => ++projectMounts);
@@ -28,8 +41,22 @@ const stubs: Screens = {
   HomeScreen: () => <p>home screen</p>,
   AccountScreen: () => <p>account screen</p>,
   ProjectScreen: ProjectStub,
-  ConflictsScreen: ({ projectId }) => <p>conflicts {projectId}</p>,
-  ProjectChat: ({ projectId }) => <p>chat {projectId}</p>,
+  ConflictsScreen: ({ projectId, query }) => (
+    <p>
+      conflicts {projectId} {query?.get('pack')}
+    </p>
+  ),
+  ProjectChat: ({ projectId, query }) => (
+    <p>
+      chat {projectId} {query.get('ask')}
+    </p>
+  ),
+  ChecksScreen: ({ projectId, pack }) => <ChecksStub projectId={projectId} pack={pack} />,
+  IssuesScreen: ({ projectId, pack }) => (
+    <p>
+      issues {projectId} {String(pack)}
+    </p>
+  ),
   FileTraceScreen: ({ fileId }) => <p>trace {fileId}</p>,
   EngineerPage: ({ drawingId }) => <p>engineer {drawingId}</p>,
   SurveyorScreen: ({ drawingId, query }) => (
@@ -105,6 +132,7 @@ describe('shell', () => {
     expect(links().map((l) => [l.text, l.href])).toEqual([
       ['Ingest', `#/p/${P}`],
       ['Conflicts', `#/p/${P}/conflicts`],
+      ['Issues', `#/p/${P}/issues`],
       ['Chat', `#/p/${P}/chat`],
       ['Surveyor', `#/p/${P}/d/${D}/surveyor?q=door`],
     ]);
@@ -127,6 +155,7 @@ describe('shell', () => {
       expect(marked(), hash).toEqual([
         ['Ingest', `#/p/${P}`, 'page'],
         ['Conflicts', `#/p/${P}/conflicts`, null],
+        ['Issues', `#/p/${P}/issues`, null],
         ['Chat', `#/p/${P}/chat`, null],
       ]);
     }
@@ -134,17 +163,19 @@ describe('shell', () => {
     expect(marked()).toEqual([
       ['Ingest', `#/p/${P}`, null],
       ['Conflicts', `#/p/${P}/conflicts`, 'page'],
+      ['Issues', `#/p/${P}/issues`, null],
       ['Chat', `#/p/${P}/chat`, null],
     ]);
     go(`#/p/${P}/d/${D}/surveyor`);
     expect(marked()).toEqual([
       ['Ingest', `#/p/${P}`, null],
       ['Conflicts', `#/p/${P}/conflicts`, null],
+      ['Issues', `#/p/${P}/issues`, null],
       ['Chat', `#/p/${P}/chat`, null],
       ['Surveyor', `#/p/${P}/d/${D}/surveyor`, 'page'],
     ]);
     go(`#/p/${P}/d/${D}/engineer`);
-    expect(marked().map(([, , current]) => current)).toEqual([null, null, null, null]);
+    expect(marked().map(([, , current]) => current)).toEqual([null, null, null, null, null]);
     await screen.findByText(OFFLINE);
   });
 
@@ -152,10 +183,11 @@ describe('shell', () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
     go(`#/p/${P}/chat`);
-    expect(screen.getByText(`chat ${P}`)).toBeTruthy();
+    expect(screen.getByText(`chat ${P}`, { exact: false })).toBeTruthy();
     expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
       ['Ingest', `#/p/${P}`, null],
       ['Conflicts', `#/p/${P}/conflicts`, null],
+      ['Issues', `#/p/${P}/issues`, null],
       ['Chat', `#/p/${P}/chat`, 'page'],
     ]);
     await screen.findByText(OFFLINE);
@@ -167,7 +199,7 @@ describe('shell', () => {
     go('#/workspaces');
     expect(screen.getByText('account screen')).toBeTruthy();
     go(`#/p/${P}/conflicts`);
-    expect(screen.getByText(`conflicts ${P}`)).toBeTruthy();
+    expect(screen.getByText(`conflicts ${P}`, { exact: false })).toBeTruthy();
     go(`#/p/${P}`);
     const first = screen.getByText(new RegExp(`^project ${P} mount`)).textContent;
     go(`#/p/${P}?view=advanced`);
@@ -198,49 +230,130 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-61 the country picker only changes its own name, and is marked pending', async () => {
-    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+  it('SH-67 checks and issues mount with pack: packOf(route); a ?pack change does not remount', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    go(`#/p/${P}/checks?pack=fi`);
+    const first = screen.getByText(new RegExp(`^checks ${P} fi mount`)).textContent;
+    go(`#/p/${P}/checks`);
+    expect(screen.getByText(new RegExp(`^checks ${P} null mount`)).textContent).toBe(
+      first.replace(' fi ', ' null '),
+    );
+    go(`#/p/${P}/issues?pack=fi`);
+    expect(screen.getByText(`issues ${P} fi`)).toBeTruthy();
+    go(`#/p/${P}/issues`);
+    expect(screen.getByText(`issues ${P} null`)).toBeTruthy();
+    go(`#/p/${P}/conflicts?pack=fi`);
+    expect(screen.getByText(`conflicts ${P} fi`)).toBeTruthy();
+    go(`#/p/${P}/chat?ask=doors`);
+    expect(screen.getByText(`chat ${P} doors`)).toBeTruthy();
+    await screen.findByText(OFFLINE);
+  });
+
+  it('SH-68 with a pack the tabs add Checks and every href carries ?pack', async () => {
+    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`;
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
+      ['Ingest', `#/p/${P}?pack=fi`, null],
+      ['Conflicts', `#/p/${P}/conflicts?pack=fi`, null],
+      ['Checks', `#/p/${P}/checks?pack=fi`, null],
+      ['Issues', `#/p/${P}/issues?pack=fi`, null],
+      ['Chat', `#/p/${P}/chat?pack=fi`, null],
+      ['Surveyor', `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`, 'page'],
+    ]);
+    go(`#/p/${P}/checks`);
+    expect(links().map((l) => [l.text, l.current])).toEqual([
+      ['Ingest', null],
+      ['Conflicts', null],
+      ['Checks', 'page'],
+      ['Issues', null],
+      ['Chat', null],
+    ]);
+    go(`#/p/${P}/issues?pack=fi`);
+    expect(links().find((l) => l.current)?.text).toBe('Issues');
+    await screen.findByText(OFFLINE);
+  });
+
+  it('SH-68 the project picker keeps ?pack', async () => {
+    window.location.hash = `#/p/${P}/checks?pack=fi`;
+    const other = { ...projectList.projects[0], id: 'aaaaaaaaaaaa', name: 'second.zip' };
+    mockApi({
+      'GET /api/info': info,
+      'GET /api/projects': { projects: [...projectList.projects, other] },
+    });
+    render(<App screens={stubs} />);
+    await screen.findByRole('option', { name: /^second\.zip/ });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project' }), {
+      target: { value: other.id },
+    });
+    expect(window.location.hash).toBe(`#/p/${other.id}?pack=fi`);
+  });
+
+  it('SH-69 the country picker lists the rule packs and writes ?pack; no request, no pending', async () => {
+    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door`;
+    const api = mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     const button = () => screen.getByRole('button', { name: /^Country rules: / });
-    expect(button().getAttribute('aria-label')).toBe('Country rules: Finland');
-    expect(button().getAttribute('data-pending')).toBe('country-rules');
-    expect(button().getAttribute('aria-expanded')).toBe('false');
+    expect(button().getAttribute('aria-label')).toBe('Country rules: none');
+    expect(document.querySelector('[data-pending]')).toBeNull();
     const before = api.calls.length;
     fireEvent.click(button());
-    const group = screen.getByRole('group', { name: 'Building rules the agent follows' });
+    const group = () => screen.getByRole('group', { name: 'Building rules the agent follows' });
     expect(
-      within(group)
+      within(group()).getByRole('button', { name: 'No checks' }).getAttribute('aria-pressed'),
+    ).toBe('true');
+    const fi = within(group()).getByRole('button', { name: /^Finland/ });
+    expect(fi.textContent).toContain(`${rulePackFi.name} · ${rulePackFi.version}`);
+    expect(
+      within(group()).getByText('Choose a country to pre-check its building rules.'),
+    ).toBeTruthy();
+    fireEvent.click(fi);
+    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/surveyor?q=door&pack=fi`);
+    go(window.location.hash);
+    expect(button().getAttribute('aria-label')).toBe('Country rules: Finland');
+    expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
+    fireEvent.click(button());
+    expect(within(group()).getByText(rulePackFi.note)).toBeTruthy();
+    expect(
+      within(group())
         .getByRole('button', { name: /^Finland/ })
         .getAttribute('aria-pressed'),
     ).toBe('true');
-    expect(within(group).getByText('Rules are not applied yet.')).toBeTruthy();
-    expect(button().getAttribute('aria-expanded')).toBe('true');
-    fireEvent.click(within(group).getByRole('button', { name: /^Switzerland/ }));
-    expect(button().getAttribute('aria-label')).toBe('Country rules: Switzerland');
-    expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
+    fireEvent.click(within(group()).getByRole('button', { name: 'No checks' }));
+    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/surveyor?q=door`);
+    go(window.location.hash);
     fireEvent.click(button());
-    fireEvent.keyDown(screen.getByRole('group', { name: 'Building rules the agent follows' }), {
-      key: 'Escape',
-    });
+    fireEvent.keyDown(group(), { key: 'Escape' });
     expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
     expect(document.activeElement).toBe(button());
     expect(api.calls.length).toBe(before);
   });
 
-  it('SH-61 country_rules from /api/info replace the mock', async () => {
-    const country_rules = [{ id: 'se', name: 'Sweden', law: 'PBL 2010:900' }];
-    mockApi({ 'GET /api/info': { ...info, country_rules }, 'GET /api/projects': projectList });
-    render(<App screens={stubs} />);
+  it('SH-69 the picker is not rendered off project routes, without packs, or while info loads', async () => {
+    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
+    const { unmount } = render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
-    const button = screen.getByRole('button', { name: 'Country rules: Sweden' });
-    fireEvent.click(button);
-    const group = screen.getByRole('group', { name: 'Building rules the agent follows' });
-    expect(
-      within(group)
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual(['SwedenPBL 2010:900']);
+    for (const hash of ['#/', '#/workspaces', '#/nope']) {
+      go(hash);
+      expect(screen.queryByRole('button', { name: /^Country rules/ }), hash).toBeNull();
+    }
+    go(`#/p/${P}`);
+    expect(screen.getByRole('button', { name: /^Country rules/ })).toBeTruthy();
+    unmount();
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    const second = render(<App screens={stubs} />);
+    await screen.findByText(OFFLINE);
+    expect(screen.queryByRole('button', { name: /^Country rules/ })).toBeNull();
+    second.unmount();
+    mockApi({ 'GET /api/info': never(), 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    expect(screen.queryByRole('button', { name: /^Country rules/ })).toBeNull();
+  });
+
+  it('SH-69 src/shell/pending.ts is gone', () => {
+    expect(Object.keys(import.meta.glob('./shell/pending.ts'))).toEqual([]);
   });
 
   it('SH-15 GET /api/info is sent once, not on route changes', async () => {

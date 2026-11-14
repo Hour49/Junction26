@@ -230,4 +230,20 @@ describe('historyEvents', () => {
     const quiet = historyEvents(project, null, [], none).find((e) => e.kind === 'asked');
     expect(quiet?.detail).toBe('not answered');
   });
+
+  it('AC-35 a project ask counts every project drawing, also one with no logged line', () => {
+    const line = must(projectQuestions.questions[1]);
+    const ids = project.drawings.map((d) => d.drawing_id);
+    expect(ids.length).toBe(5);
+    const four = ids.slice(0, 4).map((drawing_id) => ({
+      ...line,
+      drawing_id,
+      project_ask: 'pa2',
+      refused: false,
+      answer: 3,
+    }));
+    const log = { ...projectQuestions, questions: four };
+    const asked = historyEvents(project, null, [], log).find((e) => e.kind === 'asked');
+    expect(asked?.detail).toBe('answered on 4 of 5 drawings');
+  });
 });

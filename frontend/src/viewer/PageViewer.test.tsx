@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   answer,
@@ -15,7 +15,7 @@ import type { AnswerView, MarkView, QuantityConflict, Row } from '../api/types';
 
 type LegendEntry = AnswerView['proof']['legend'][number];
 import { methodName } from '../api/format';
-import { PageViewer } from './PageViewer';
+import { PageViewer, type Tone } from './PageViewer';
 
 const badges = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('.vw-badge')];
 const frameOf = (c: HTMLElement) => c.querySelector<HTMLElement>('.vw-frame');
@@ -795,5 +795,525 @@ describe('PageViewer: Vellum (screen 4)', () => {
     expect(meta(onDrawing(scale('no_scale', null)))).toBe('no scale · Page 1');
     cleanup();
     expect(meta(onDrawing(scale('scaled', '1:50')))).toBe('1:50 · Page 1');
+  });
+});
+
+const why = 'only 1 of 2 readers saw this door';
+const ask = (text: string) => `Please double-check: ${text}`;
+const frameRect = () => {
+  const rect = { left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0 };
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+    ...rect,
+    toJSON: () => rect,
+  });
+};
+const legendItems = (c: HTMLElement) =>
+  [...c.querySelectorAll('figcaption.vw-legend li')].map((li) => li.textContent);
+
+describe('PageViewer: double-check (disputed places)', () => {
+  it('VW-60 a disputed mark: ? tag, same name, the why as its description, a dispute outline', () => {
+    const { container } = viewer(answer, {
+      disputed: [{ markId: 'm2', page: 1, box: door2.box, why }],
+    });
+    const b2 = screen.getByRole('button', { name: 'Mark 2: door, counted' });
+    expect(b2.classList.contains('vw-badge--disputed')).toBe(true);
+    expect(b2.querySelectorAll('.vw-q-tag')).toHaveLength(1);
+    expect(b2.querySelector('.vw-q-tag')?.getAttribute('aria-hidden')).toBe('true');
+    const describedBy = b2.getAttribute('aria-describedby') ?? '';
+    expect(document.getElementById(describedBy)?.textContent).toBe(ask(why));
+    const b1 = screen.getByRole('button', { name: 'Mark 1: door, counted' });
+    expect(b1.classList.contains('vw-badge--disputed')).toBe(false);
+    expect(b1.hasAttribute('aria-describedby')).toBe(false);
+    const outlines = container.querySelectorAll('svg rect.vw-dispute');
+    expect(outlines).toHaveLength(1);
+    const [x0, , x1] = door2.box;
+    expect(Number(outlines[0]?.getAttribute('width'))).toBeGreaterThan(x1 - x0);
+  });
+
+  it('VW-61 hover and focus show the why as a tooltip; leave, blur and Escape hide it', () => {
+    viewer(answer, { disputed: [{ markId: 'm2', page: 1, box: door2.box, why }] });
+    const b2 = screen.getByRole('button', { name: 'Mark 2: door, counted' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.pointerEnter(b2);
+    expect(screen.getByRole('tooltip').textContent).toBe(ask(why));
+    fireEvent.pointerLeave(b2);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.focus(b2);
+    expect(screen.getByRole('tooltip').textContent).toBe(ask(why));
+    fireEvent.blur(b2);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.focus(b2);
+    fireEvent.keyDown(b2, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('VW-62 a place no mark covers: a ? button with the why, toggled by click, never over a badge', () => {
+    const boxWhy = 'reader A saw a door here, reader B did not';
+    const { container } = viewer(answer, {
+      disputed: [{ markId: null, page: 1, box: [0.7, 0.6, 0.8, 0.7], why: boxWhy }],
+    });
+    const q = screen.getByRole('button', { name: ask(boxWhy) });
+    expect(q.textContent).toBe('?');
+    expect(container.querySelectorAll('svg rect.vw-dispute')).toHaveLength(1);
+    fireEvent.click(q);
+    expect(screen.getByRole('tooltip').textContent).toBe(ask(boxWhy));
+    fireEvent.click(q);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    cleanup();
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(358);
+    const marks: MarkView[] = Array.from({ length: 19 }, (_, i) => {
+      const x0 = 0.2 + (i % 5) * 0.06;
+      const y0 = 0.2 + Math.floor(i / 5) * 0.06;
+      return {
+        ...kitchen,
+        id: `m${String(i + 1)}`,
+        n: i + 1,
+        box: [x0, y0, x0 + 0.06, y0 + 0.06],
+        polygon: null,
+      };
+    });
+    const boxes = [0, 1, 2].map((i) => ({
+      markId: null,
+      page: 1,
+      box: [0.26 + i * 0.06, 0.26, 0.3 + i * 0.06, 0.3],
+      why: `w${String(i)}`,
+    }));
+    const many = viewer(answerArea, { marks, unit: 'm2', disputed: boxes }).container;
+    const W = 358;
+    const H = (W * 400) / 600;
+    const rectOf = (b: HTMLElement) => ({
+      x: (parseFloat(b.style.left) * W) / 100,
+      y: (parseFloat(b.style.top) * H) / 100,
+      w: parseFloat(b.style.width),
+      h: parseFloat(b.style.height),
+    });
+    const qs = [...many.querySelectorAll<HTMLElement>('.vw-q')].map(rectOf);
+    expect(qs.length).toBeGreaterThan(0);
+    for (const a of qs)
+      for (const b of badges(many).map(rectOf))
+        expect(
+          Math.abs(a.x - b.x) >= (a.w + b.w) / 2 - 0.2 ||
+            Math.abs(a.y - b.y) >= (a.h + b.h) / 2 - 0.2,
+        ).toBe(true);
+  });
+
+  it('VW-63 the legend counts places to double-check, here, on other pages and not shown', () => {
+    const here = viewer(answer, { disputed: [{ markId: 'm2', page: 1, box: door2.box, why }] });
+    expect(legendItems(here.container)).toContain('1 to double-check');
+    expect(here.container.querySelector('.vw-swatch--doubt')).not.toBeNull();
+    cleanup();
+    const marks = [door1, { ...door2, page: 2 }];
+    viewer(answer, {
+      pages: twoPages(),
+      marks,
+      disputed: [{ markId: 'm2', page: 2, box: door2.box, why }],
+    });
+    expect(legendItems(document.body)).toContain('1 to double-check on page 2');
+    expect(
+      screen.getByText(/^Page 1 of 2 · 1 mark/).textContent.endsWith(' · 1 to double-check'),
+    ).toBe(true);
+    cleanup();
+    viewer(answer, {
+      pages: twoPages(),
+      disputed: [{ markId: null, page: 2, box: [0.1, 0.1, 0.2, 0.2], why }],
+    });
+    expect(legendItems(document.body)).toContain('1 to double-check on page 2');
+    expect(document.querySelectorAll('.vw-q')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(document.querySelectorAll('.vw-q')).toHaveLength(1);
+    cleanup();
+    viewer(answer, {
+      pages: twoPages(),
+      disputed: [{ markId: null, box: [0.1, 0.1, 0.2, 0.2], why }],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(document.querySelectorAll('.vw-q')).toHaveLength(1);
+    cleanup();
+    const lost = viewer(answer, {
+      disputed: [
+        { markId: 'nope', page: 1, box: [0.1, 0.1, 0.2, 0.2], why },
+        { markId: null, page: 1, box: [0.9, 0.2, 1.2, 0.3], why },
+      ],
+    });
+    expect(legendItems(lost.container)).toContain('2 place(s) to double-check could not be shown');
+  });
+
+  it('VW-64 no disputed places: nothing of the double-check shows', () => {
+    for (const disputed of [undefined, []]) {
+      const { container } = viewer(answer, { disputed });
+      expect(
+        container.querySelector('.vw-dispute, .vw-q, .vw-q-tag, .vw-swatch--doubt'),
+      ).toBeNull();
+      expect(screen.queryByRole('tooltip')).toBeNull();
+      expect(container.textContent).not.toMatch(/double-check/);
+      cleanup();
+    }
+  });
+
+  it('VW-65 the mark line of a disputed mark ends with its why; the why is text', () => {
+    const { container } = viewer(answer, {
+      selected: 'm2',
+      disputed: [{ markId: 'm2', page: 1, box: door2.box, why }],
+    });
+    expect(container.querySelector('.vw-selection')?.textContent).toBe(
+      `2 · door · counted · ${ask(why)}`,
+    );
+    cleanup();
+    const evil = viewer(answer, {
+      selected: 'm2',
+      disputed: [{ markId: 'm2', page: 1, box: door2.box, why: '<b>x</b>' }],
+    }).container;
+    expect(evil.querySelector('.vw-selection b')).toBeNull();
+    expect(evil.querySelector('.vw-selection')?.textContent).toContain('<b>x</b>');
+  });
+});
+
+describe('PageViewer: double-check (fix mode)', () => {
+  const scrollOf = (c: HTMLElement) => c.querySelector('.vw-scroll') as HTMLElement;
+
+  it('VW-66 mouse: a drag draws a draft and proposes its box; a short drag is a click; Escape cancels', () => {
+    frameRect();
+    const onAddMark = vi.fn();
+    const { container } = viewer(answer, { fixMode: true, onAddMark });
+    const s = scrollOf(container);
+    const frame = frameOf(container) as HTMLElement;
+    fireEvent.pointerDown(frame, { clientX: 100, clientY: 100, pointerType: 'mouse', button: 0 });
+    fireEvent.pointerMove(s, { clientX: 200, clientY: 150, pointerType: 'mouse' });
+    expect(container.querySelectorAll('svg rect.vw-draft')).toHaveLength(1);
+    fireEvent.pointerUp(s, { clientX: 200, clientY: 150, pointerType: 'mouse' });
+    expect(onAddMark).toHaveBeenCalledTimes(1);
+    expect(onAddMark).toHaveBeenLastCalledWith([0.16667, 0.25, 0.33333, 0.375], 1);
+    expect(container.querySelector('svg rect.vw-draft')).toBeNull();
+    fireEvent.pointerDown(frame, { clientX: 200, clientY: 150, pointerType: 'mouse', button: 0 });
+    fireEvent.pointerMove(s, { clientX: 100, clientY: 100, pointerType: 'mouse' });
+    fireEvent.pointerUp(s, { clientX: 100, clientY: 100, pointerType: 'mouse' });
+    expect(onAddMark).toHaveBeenLastCalledWith([0.16667, 0.25, 0.33333, 0.375], 1);
+    fireEvent.pointerDown(frame, { clientX: 300, clientY: 200, pointerType: 'mouse', button: 0 });
+    fireEvent.pointerUp(s, { clientX: 305, clientY: 202, pointerType: 'mouse' });
+    expect(onAddMark).toHaveBeenLastCalledWith([0.485, 0.4775, 0.515, 0.5225], 1);
+    expect(onAddMark).toHaveBeenCalledTimes(3);
+    fireEvent.pointerDown(frame, { clientX: 100, clientY: 100, pointerType: 'mouse', button: 0 });
+    fireEvent.pointerMove(s, { clientX: 200, clientY: 150, pointerType: 'mouse' });
+    fireEvent.keyDown(s, { key: 'Escape' });
+    expect(container.querySelector('svg rect.vw-draft')).toBeNull();
+    fireEvent.pointerUp(s, { clientX: 200, clientY: 150, pointerType: 'mouse' });
+    expect(onAddMark).toHaveBeenCalledTimes(3);
+  });
+
+  it('VW-67 touch: a tap proposes the 3 % square, no draft; a moving touch is a pan', () => {
+    frameRect();
+    const onAddMark = vi.fn();
+    const { container } = viewer(answer, { fixMode: true, onAddMark });
+    const s = scrollOf(container);
+    const frame = frameOf(container) as HTMLElement;
+    fireEvent.pointerDown(frame, { clientX: 300, clientY: 200, pointerType: 'touch' });
+    fireEvent.pointerMove(s, { clientX: 302, clientY: 201, pointerType: 'touch' });
+    expect(container.querySelector('svg rect.vw-draft')).toBeNull();
+    fireEvent.pointerUp(s, { clientX: 302, clientY: 201, pointerType: 'touch' });
+    expect(onAddMark).toHaveBeenCalledTimes(1);
+    const [box, pageNo] = onAddMark.mock.calls[0] as [number[], number];
+    expect(pageNo).toBe(1);
+    [0.485, 0.4775, 0.515, 0.5225].forEach((v, i) => {
+      expect(box[i]).toBeCloseTo(v, 6);
+    });
+    fireEvent.pointerDown(frame, { clientX: 300, clientY: 200, pointerType: 'touch' });
+    fireEvent.pointerUp(s, { clientX: 300, clientY: 220, pointerType: 'touch' });
+    expect(onAddMark).toHaveBeenCalledTimes(1);
+    expect(css).not.toMatch(/touch-action/);
+  });
+
+  it('VW-68 fix mode: badges still select, shapes do not, the hint shows; without onAddMark nothing changes', () => {
+    frameRect();
+    const onAddMark = vi.fn();
+    const onSelect = vi.fn();
+    const { container } = viewer(answer, { fixMode: true, onAddMark, onSelect });
+    const b1 = badgeOf(container, '1') as HTMLElement;
+    fireEvent.pointerDown(b1, { clientX: 300, clientY: 100, pointerType: 'mouse', button: 0 });
+    fireEvent.pointerUp(b1, { clientX: 300, clientY: 100, pointerType: 'mouse' });
+    fireEvent.click(b1);
+    expect(onSelect).toHaveBeenLastCalledWith('m1');
+    expect(onAddMark).not.toHaveBeenCalled();
+    fireEvent.click(container.querySelector('svg rect') as Element);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Click or drag on the drawing where a mark is missing')).toBeTruthy();
+    expect(frameOf(container)?.classList.contains('vw-picking')).toBe(true);
+    cleanup();
+    const bare = viewer(answer, { fixMode: true, onSelect }).container;
+    expect(screen.queryByText(/where a mark is missing/)).toBeNull();
+    fireEvent.pointerDown(frameOf(bare) as HTMLElement, {
+      clientX: 10,
+      clientY: 10,
+      pointerType: 'mouse',
+      button: 0,
+    });
+    fireEvent.pointerUp(scrollOf(bare), { clientX: 10, clientY: 10, pointerType: 'mouse' });
+    fireEvent.click(frameOf(bare) as HTMLElement, { clientX: 10, clientY: 10 });
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('VW-69 viewer.css: dispute and draft rules use tokens; the dispute is dotted, a reading dashed', () => {
+    const rule = (sel: string) => new RegExp(`\\${sel}[^{]*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    expect(rule('.vw-dispute')).toMatch(/var\(--v-warn\)/);
+    expect(rule('.vw-dispute')).toMatch(/var\(--v-warn-soft\)/);
+    expect(rule('.vw-draft')).toMatch(/var\(--v-accent\)/);
+    const { container } = viewer(answer, {
+      conflict,
+      disputed: [{ markId: 'm2', page: 1, box: door2.box, why }],
+    });
+    expect(container.querySelector('rect.vw-dispute')?.getAttribute('stroke-dasharray')).toBe(
+      '2 3',
+    );
+    expect(container.querySelector('rect.vw-reading')?.getAttribute('stroke-dasharray')).toBe(
+      '6 3',
+    );
+  });
+});
+
+// Check marks as the checks screen maps them (viewer.md "Checks and issues"): a failed room and a counted door.
+const room: MarkView = { ...kitchen, id: 'r1:0', n: 1, label: 'Bedroom 2', value: null };
+const doorCounted: MarkView = { ...door1, id: 'r1:1', n: null, label: 'Door', polygon: null };
+const subject = (id: string, n: number, label: string): MarkView => ({
+  ...door1,
+  id,
+  n,
+  label,
+  polygon: null,
+  box: [0.1 + n * 0.15, 0.6, 0.18 + n * 0.15, 0.7],
+});
+const checks = (
+  marks: MarkView[],
+  tones: Record<string, Tone>,
+  extra: Partial<Parameters<typeof PageViewer>[0]> = {},
+) => viewer(answerArea, { marks, tones, legend: null, unit: null, ...extra });
+
+describe('PageViewer: checks (tones and legend mode)', () => {
+  it('VW-71 a failed room: danger badge and shape; a counted door: dotted, muted, no badge', () => {
+    const { container } = checks([room, doorCounted], { 'r1:0': 'fail', 'r1:1': 'counted' });
+    const b = screen.getByRole('button', { name: 'Mark 1: Bedroom 2, fails the rule' });
+    expect(b.textContent).toBe('1');
+    expect(b.classList.contains('vw-badge--fail')).toBe(true);
+    expect(colour(b)).toBe('var(--v-danger)');
+    expect(colour(container.querySelector('svg polygon') ?? undefined)).toBe('var(--v-danger)');
+    const door = container.querySelector('svg rect.vw-shape');
+    expect(door?.getAttribute('stroke-dasharray')).toBe('2 3');
+    expect(colour(door ?? undefined)).toBe('var(--v-muted)');
+    expect(badges(container)).toHaveLength(1);
+  });
+
+  it('VW-72 cannot tell and pass have their own look; an untoned mark keeps its state look', () => {
+    const a = subject('c1', 1, 'Door 1');
+    const p = subject('c2', 2, 'Door 2');
+    const plain = subject('c3', 3, 'Door 3');
+    const { container } = checks([a, p, plain], { c1: 'cannot_tell', c2: 'pass' });
+    const ct = screen.getByRole('button', { name: 'Mark 1: Door 1, cannot tell' });
+    expect(ct.classList.contains('vw-badge--cannot_tell')).toBe(true);
+    expect(colour(ct)).toBe('var(--v-warn)');
+    const shapes = [...container.querySelectorAll('svg rect.vw-shape')];
+    expect(shapes[0]?.getAttribute('stroke-dasharray')).toBe('6 3');
+    const ok = screen.getByRole('button', { name: 'Mark 2: Door 2, passes' });
+    expect(ok.classList.contains('vw-badge--pass')).toBe(true);
+    expect(colour(ok)).toBe('var(--v-ok)');
+    const untoned = screen.getByRole('button', { name: 'Mark 3: Door 3, counted' });
+    expect(untoned.classList.contains('vw-badge--filled')).toBe(true);
+    expect(colour(untoned)).toBe('var(--v-accent)');
+  });
+
+  it('VW-73 legend mode: one item per tone present, in order, with swatches; no state or colour items', () => {
+    const marks = [room, subject('c1', 2, 'Door 1'), doorCounted, { ...doorCounted, id: 'r1:2' }];
+    const { container } = checks(
+      marks,
+      { 'r1:0': 'fail', c1: 'cannot_tell', 'r1:1': 'counted', 'r1:2': 'counted' },
+      { legend: answerArea.proof.legend },
+    );
+    expect(legendItems(container)).toEqual([
+      '1 fails the rule',
+      '1 cannot tell',
+      '2 counted for the rule',
+    ]);
+    for (const t of ['fail', 'cannot_tell', 'counted'])
+      expect(container.querySelector(`.vw-legend .vw-swatch--${t}`)).not.toBeNull();
+    cleanup();
+    const pass = checks([subject('p1', 1, 'A'), subject('p2', 2, 'B'), subject('p3', 3, 'C')], {
+      p1: 'pass',
+      p2: 'pass',
+      p3: 'pass',
+    });
+    expect(legendItems(pass.container)).toEqual(['3 pass']);
+  });
+
+  it('VW-74 the mark line of a toned mark says its value and outcome', () => {
+    const door = { ...subject('d1', 1, 'Door 3'), value: 0.75 };
+    const { container } = checks([door], { d1: 'fail' }, { unit: 'm', selected: 'd1' });
+    expect(container.querySelector('.vw-selection')?.textContent).toBe(
+      '1 · Door 3 · 0.75 m · fails the rule',
+    );
+  });
+});
+
+describe('PageViewer: issues (disputed prefix, tag, legend words)', () => {
+  it('VW-75 a disputed item with prefix and tag; legend words from disputedLegend', () => {
+    const narrow = 'door narrower than 0.80 m';
+    const { container } = viewer(answer, {
+      disputed: [
+        { page: 1, box: [0.7, 0.6, 0.8, 0.7], why: narrow, prefix: 'Fails the rule', tag: '3' },
+      ],
+      disputedLegend: 'issue(s)',
+    });
+    const q = screen.getByRole('button', { name: `Fails the rule: ${narrow}` });
+    expect(q.textContent).toBe('3');
+    fireEvent.click(q);
+    expect(screen.getByRole('tooltip').textContent).toBe(`Fails the rule: ${narrow}`);
+    expect(legendItems(container)).toContain('1 issue(s)');
+    cleanup();
+    const onMark = viewer(answer, {
+      selected: 'm2',
+      disputed: [
+        { markId: 'm2', page: 1, box: door2.box, why: narrow, prefix: 'Needs a person', tag: '7' },
+      ],
+    }).container;
+    expect(onMark.querySelector('.vw-q-tag')?.textContent).toBe('7');
+    expect(onMark.querySelector('.vw-selection')?.textContent).toBe(
+      `2 · door · counted · Needs a person: ${narrow}`,
+    );
+  });
+});
+
+describe('PageViewer: focus (jump-to-place)', () => {
+  const scrollTo = vi.fn();
+  const withScroll = () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(600);
+    scrollTo.mockClear();
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      value: scrollTo,
+      configurable: true,
+    });
+  };
+  const zoomText = () => screen.getByText(/^\d+%$/).textContent;
+
+  it('VW-76 focus opens the page, zooms to a small box, scrolls it to the middle and outlines it', () => {
+    withScroll();
+    const { container } = viewer(answer, {
+      pages: twoPages(),
+      focus: { page: 2, box: [0.4, 0.4, 0.43, 0.43] },
+    });
+    expect(imgSrc()).toMatch(/\/pages\/2\.png/);
+    expect(zoomText()).toBe('200%');
+    expect(container.querySelectorAll('rect.vw-focus')).toHaveLength(1);
+    const [arg] = scrollTo.mock.calls.at(-1) as [{ left: number; top: number }];
+    // frame 600 px × 200 % = 1200 × 800 px; box centre 0.415 → (498, 332); minus half the scroll box (300 × 0)
+    expect(arg.left).toBeCloseTo(498 - 300, 0);
+    expect(arg.top).toBeCloseTo(332, 0);
+    cleanup();
+    withScroll();
+    viewer(answer, { pages: twoPages(), focus: { page: 1, box: [0.4, 0.4, 0.402, 0.402] } });
+    expect(zoomText()).toBe('400%');
+  });
+
+  it('VW-77 focus: page only, a missing page, an equal focus, focus beats selected, a polygon outline', () => {
+    withScroll();
+    const props = { file: answer.file, pages: twoPages(), marks: answer.marks, credit: null };
+    const { container, rerender } = render(
+      <PageViewer {...props} focus={{ page: 2, box: null }} />,
+    );
+    expect(imgSrc()).toMatch(/\/pages\/2\.png/);
+    expect(zoomText()).toBe('100%');
+    expect(container.querySelector('.vw-focus')).toBeNull();
+    rerender(<PageViewer {...props} focus={{ page: 9, box: [0.1, 0.1, 0.2, 0.2] }} />);
+    expect(imgSrc()).toMatch(/\/pages\/2\.png/);
+    expect(legendItems(container)).toContain(
+      'That place is on page 9, which this drawing does not have',
+    );
+    rerender(<PageViewer {...props} focus={{ page: 1, box: [0.1, 0.1, 0.3, 0.3] }} />);
+    const calls = scrollTo.mock.calls.length;
+    rerender(<PageViewer {...props} focus={{ page: 1, box: [0.1, 0.1, 0.3, 0.3] }} />);
+    expect(scrollTo.mock.calls.length).toBe(calls);
+    rerender(
+      <PageViewer {...props} selected="m2" focus={{ page: 2, box: [0.1, 0.1, 0.3, 0.3] }} />,
+    );
+    expect(imgSrc()).toMatch(/\/pages\/2\.png/);
+    cleanup();
+    withScroll();
+    const poly = render(
+      <PageViewer
+        {...props}
+        focus={{
+          page: 1,
+          box: [0.1, 0.1, 0.3, 0.3],
+          polygon: [
+            [0.1, 0.1],
+            [0.3, 0.1],
+            [0.2, 0.3],
+          ],
+        }}
+      />,
+    ).container;
+    expect(poly.querySelector('polygon.vw-focus')).not.toBeNull();
+  });
+
+  it('VW-78 viewer.css: tone and focus rules use tokens only; reduced motion turns smooth scrolling off', () => {
+    const rule = (sel: string) =>
+      new RegExp(`${sel.replace(/\./g, '\\.')}[^{]*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    expect(rule('.vw-badge--fail')).toMatch(/var\(--v-danger\)/);
+    expect(rule('.vw-badge--cannot_tell')).toMatch(/var\(--v-warn/);
+    expect(rule('.vw-badge--pass')).toMatch(/var\(--v-ok\)/);
+    expect(rule('.vw-focus')).toMatch(/var\(--v-accent\)/);
+    expect(css).toMatch(/\.vw-scroll\s*\{[^}]*scroll-behavior:\s*smooth/);
+    expect(css).toMatch(/prefers-reduced-motion:\s*reduce\)\s*\{[^@]*scroll-behavior:\s*auto/);
+  });
+});
+
+describe('PageViewer: focus kept and state words (fe-ingest browser check)', () => {
+  it('VW-80 a resize of the scroll box re-centres the focused box until the user moves the plan', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(326);
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      value: scrollTo,
+      configurable: true,
+    });
+    let resized: () => void = () => undefined;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          resized = cb;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const { container } = viewer(answer, { focus: { page: 1, box: [0.62, 0.05, 0.75, 0.1] } });
+    expect(screen.getByText(/^\d+%$/).textContent).toBe('200%');
+    const [first] = scrollTo.mock.calls.at(-1) as [{ left: number }];
+    // 326 px × 200 % = 652 px; box centre 0.685 → 446.6, minus half the scroll box (163)
+    expect(first.left).toBeCloseTo(446.6 - 163, 0);
+    scrollTo.mockClear();
+    act(() => {
+      resized();
+    });
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    fireEvent.pointerDown(container.querySelector('.vw-scroll') as HTMLElement);
+    scrollTo.mockClear();
+    act(() => {
+      resized();
+    });
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('VW-81 issue tones: needs a person and note have their own look, words and legend items', () => {
+    const a = subject('n1', 1, 'Conflict');
+    const b = subject('n2', 2, 'Set aside');
+    const f = subject('n3', 3, 'Fails a code rule');
+    const { container } = checks([a, b, f], { n1: 'needs_person', n2: 'note', n3: 'fail' });
+    const np = screen.getByRole('button', { name: 'Mark 1: Conflict, needs a person' });
+    expect(np.classList.contains('vw-badge--needs_person')).toBe(true);
+    expect(colour(np)).toBe('var(--v-warn)');
+    const note = screen.getByRole('button', { name: 'Mark 2: Set aside, note' });
+    expect(note.classList.contains('vw-badge--note')).toBe(true);
+    expect(colour(note)).toBe('var(--v-muted)');
+    expect(
+      screen.getByRole('button', { name: 'Mark 3: Fails a code rule, fails the rule' }),
+    ).toBeTruthy();
+    expect(legendItems(container)).toEqual(['1 fails the rule', '1 needs a person', '1 note']);
+    expect(legendItems(container).join()).not.toMatch(/counted/);
   });
 });
