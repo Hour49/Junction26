@@ -47,6 +47,7 @@ from app.core.ingest.ports import (
 from app.core.ingest.progress import Run
 from app.core.pipeline.identify import sniff
 from app.core.pipeline.model import DrawingFile
+from app.core.wording import kind_words
 
 logger = logging.getLogger(__name__)
 # Files probed at once (stage 3) while the upload is unpacked. A probe can ask a remote service
@@ -326,7 +327,9 @@ class IngestService:
                 self._store.put_upload(run.id, path, data)
                 self._store.put_file(run.id, path, upright)
                 data = upright
-        run.stage(path, "identify", probed.did, identified, output=probed.kind, cost_usd=paid)
+        run.stage(
+            path, "identify", probed.did, identified, output=kind_words(probed.kind), cost_usd=paid
+        )
         run.set(path, kind=probed.kind)
         run.kinds[path] = probed.kind
         if probed.kind in TEXT_KINDS:
