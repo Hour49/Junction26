@@ -367,14 +367,15 @@ def discipline_from_sheet(
     kind: str, title: str | None, sheet_number: str | None
 ) -> Discipline | None:
     """A 2D sheet's discipline from the sheet-kind reply's fields, with no new model call. A title
-    or number that names a discipline other than architecture wins (a heating plan the model
-    called a floor plan); a mep_plan only by a service its title or number names (strong words
-    and codes; "PIPING PLAN" or "HVAC" names none), else None."""
+    or number that names a discipline other than architecture by a strong word or code wins (a
+    heating plan the model called a floor plan); weak words ("POST OFFICE", "PUMP HOUSE") never
+    override the kind. A mep_plan only by a service its title or number names (strong words and
+    codes; "PIPING PLAN" or "HVAC" names none), else None."""
     text = " ".join(part for part in (title, sheet_number) if part)
+    strong = _strong_in(text, codes=True)
     if kind == "mep_plan":
-        strong = _strong_in(text, codes=True)
         return strong.pop() if len(strong) == 1 else None
     named = discipline_from_title(text)
-    if named is not None and named != "architecture":
+    if strong and named not in (None, "architecture"):
         return named
     return _KIND_DISCIPLINE.get(kind) or named

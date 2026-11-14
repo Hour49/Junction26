@@ -91,3 +91,32 @@ test("M3-17 the chat answer's References open the 3D view with the counted door 
   await expect(open).toBeFocused();
   expect(unexpected(errors)).toEqual([]);
 });
+
+test("M3-22 the agent chat's plan pane opens the model with the newest answer's walls highlighted", async ({
+  page,
+}, testInfo) => {
+  const errors = watchErrors(page);
+  const id = await uploaded(page, testInfo);
+  await page.goto(`/#/p/${id}/chat?ask=${encodeURIComponent('How many walls are there?')}`);
+  await expect(
+    page.getByRole('list', { name: 'References' }).getByRole('button', { name: /^View in 3D: / }),
+  ).toBeVisible({ timeout: 30_000 });
+  // Beside the chat at 1440; a sheet over it on a phone, opened by "Show the plan".
+  if (testInfo.project.name === 'phone')
+    await page.getByRole('button', { name: 'Show the plan' }).click();
+  const pane = page.getByRole('complementary', { name: 'Plan' });
+  const open = pane.getByRole('button', { name: /^View in 3D: / });
+  expect((await open.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: /^3D view: / });
+  await expect(dialog.getByRole('button', { name: 'Reset view' })).toBeVisible({ timeout: 60_000 });
+  await expect(dialog.getByRole('list', { name: 'Highlighted elements' })).toHaveText(
+    'Affected: 4',
+  );
+  await shot(page, testInfo, 'model3d-pane', await noKeys(page));
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(pane).toBeVisible(); // Esc closed the dialog only, not the plan sheet behind it
+  await expect(open).toBeFocused();
+  expect(unexpected(errors)).toEqual([]);
+});

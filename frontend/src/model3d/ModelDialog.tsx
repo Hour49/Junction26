@@ -29,6 +29,8 @@ export function ModelDialog({
   }, []);
 
   const onKeyDown = (e: KeyboardEvent) => {
+    // a portal's key events bubble through the React tree: keep them from the plan sheet's own Esc/Tab handling
+    if (e.key === 'Escape' || e.key === 'Tab') e.stopPropagation();
     if (e.key === 'Escape') onClose();
     else if (e.key === 'Tab') {
       const items = [

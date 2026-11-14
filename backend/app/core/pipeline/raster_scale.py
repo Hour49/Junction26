@@ -105,9 +105,10 @@ def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
 
 
 # SCALE_CARBON_DOORS=on (app/adapters/raster_scale/ CarbonDoorScale): when the detector found no
-# door, the Carbon reader's door boxes. shortcut: CARBON_DOOR_M is DOOR_M, fitted on the detector's
-# boxes, not Carbon's (it boxes a door with its swing, a square about a leaf wide on a side); fit it
-# on Carbon's val doors before the setting goes on by default
+# door it is sure of, the Carbon reader's own door boxes. shortcut: CARBON_DOOR_M is DOOR_M, fitted
+# on the detector's boxes, not Carbon's (it boxes a door with its swing, a square about a leaf wide
+# on a side; on golden's 19 Carbon door boxes the scale comes out about 14.5% low); fit it on the
+# hard set before the setting goes on: scripts/carbon_door_scale.py prints the value ("fit:")
 CARBON_DOOR_M = DOOR_M
 
 
@@ -120,6 +121,6 @@ def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
         status="estimated",
         m_per_unit=CARBON_DOOR_M / statistics.median(sides),
         source=f"a door is about {CARBON_DOOR_M} m wide; median of {len(sides)} doors the Carbon "
-        "reader found (the detector found none)",
+        "reader found (the detector found no door it is sure of)",
         uncertainty=SPREAD_FEW,
     )

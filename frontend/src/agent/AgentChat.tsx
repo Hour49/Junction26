@@ -25,9 +25,11 @@ import {
   type Selection,
   type View,
 } from './agent';
+import { canShow3d, paneHighlight } from '../model3d/model3d';
 import { PlanPane, PlanSheet } from './PlanPane';
 import { PlanPointer } from './PlanPointer';
 import { TurnCard } from './TurnCard';
+import { WhatIRead } from './WhatIRead';
 import '../engineer/engineer.css';
 
 type Sent = { id: number; message: string; chips: string[] };
@@ -264,6 +266,18 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     if (!wide) setSheet(true);
   };
   const paneId = shown?.drawingId ?? plans[0]?.drawing_id;
+  // model-3d.md "More places": the shown drawing's 3D model, its newest answer's elements highlighted
+  const modelFile = project.files.find((f) => f.drawing_id === paneId && canShow3d(f.model_3d));
+  const model =
+    modelFile && paneId
+      ? {
+          fileId: modelFile.id,
+          highlight: paneHighlight(
+            rows.flatMap((r) => (r.status === 'done' ? [r.turn] : [])),
+            paneId,
+          ),
+        }
+      : null;
   const plan = paneId && (
     <PlanPane
       projectId={projectId}
@@ -276,6 +290,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       drawing={drawn ? (drawn[paneId] ?? null) : undefined}
       view={shown?.view ?? null}
       focus={shown?.focus ?? null}
+      model={model}
       onDrawing={(id) => {
         setShown((s) => ({ drawingId: id, view: s?.view ?? null, focus: null }));
       }}
@@ -436,6 +451,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     return split(
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
+        <WhatIRead project={project} />
         {photo.line}
         {pointer}
         {bar}

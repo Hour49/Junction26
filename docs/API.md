@@ -10092,7 +10092,8 @@ without wall fills) gets `dont_know` saying so.
         "text": "A wet room changes: its waterproofing is redone and inspected."
       }
     ],
-    "law": null
+    "law": null,
+    "services": null
   },
   "options": null,
   "steps": [
@@ -10320,7 +10321,8 @@ unchanged.
       "text": "A wet room changes: its waterproofing is redone and inspected."
     }
   ],
-  "law": null
+  "law": null,
+  "services": null
 }
 ```
 
