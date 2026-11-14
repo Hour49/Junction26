@@ -20,6 +20,8 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from app.core.drawing.model import ArbiterReading, Drawing
+
 # family -> the element classes it counts (a sauna is counted by its stove)
 FAMILY_CLASSES: Mapping[str, tuple[str, ...]] = {
     "door": ("door",),
@@ -106,3 +108,9 @@ def pick(model: ArbiterModel, family: str, reading: Reading) -> Pick:
             best = Pick(k, p)
     assert best is not None  # candidates() is never empty
     return best
+
+
+def count_arbiter_reading(drawing: Drawing, family: str) -> ArbiterReading | None:
+    """What the count arbiter read of `family` on the drawing (`door`, `room:wc`...): L1's
+    P(count) and the arbiter's P of its pick, as stored at ingest. None: it did not run."""
+    return (drawing.count_arbiter or {}).get(family)
