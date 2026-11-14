@@ -84,4 +84,9 @@ the prior, all certified at one fixed score), gave High 41.8% at 98.2%, Medium 3
   which is a measured rate, not a guarantee for one answer. Every window answer is Low: no
   runtime signal separates windows. The policy is fit on CubiCasa scans read with `ROOM_POLICY=gold-labels`.
   The vector and IFC High rests on 23 Swiss sheets and 11 models; a schedule's Medium on one sheet.
+  A raster page with no plan and no located element found certifies nothing and its answers are Low (basis
+  `page`): a safety rule added on 2026-11-14 (orchestrator, 17:24) after seeing 50 legacy archive sheets, not
+  pre-registered, and after the test read. It costs 0 certified answers on CubiCasa val and golden v2 dev (no such
+  page in either) and catches 1 of the 2 archive Sure-and-wrong toilet counts (61261280, read as blank); the
+  blueprint case (1373, three bowls answered 2 with the detectors agreeing) stays open.
 - Revisit when the check policy changes (the levels are regenerated with it) or when a family gets a new signal.

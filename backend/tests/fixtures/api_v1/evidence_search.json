@@ -1,0 +1,31 @@
+{
+  "query": "St. Anna",
+  "method": "BM25 (no embedder model on this machine)",
+  "indexed_files": 3,
+  "unrelated_left_out": 0,
+  "note": null,
+  "hits": [
+    {
+      "id": "f5-visible_text-1",
+      "file_id": "f5",
+      "file": "photos/sheet.jpg",
+      "page": 1,
+      "part": "visible_text",
+      "kind": "elevation",
+      "subject": "a photographed elevation of a church",
+      "snippet": "Kirche St. Anna",
+      "language": "en",
+      "verdict": "unsure",
+      "credit": null,
+      "score": 0.166667,
+      "why": {
+        "terms": [
+          "st",
+          "anna"
+        ],
+        "bm25_rank": 1,
+        "dense_rank": null
+      }
+    }
+  ]
+}
