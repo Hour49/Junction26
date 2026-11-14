@@ -1,0 +1,58 @@
+{
+  "id": "conflict-efcb1b52a852",
+  "kind": "conflict",
+  "severity": "note",
+  "state": "settled",
+  "drawing_id": "44cc9f0d991eafe3",
+  "file": "plans/flat-b.pdf",
+  "file_id": "f3",
+  "floor": null,
+  "page": 1,
+  "box": [
+    0.16667,
+    0.125,
+    0.5,
+    0.375
+  ],
+  "polygon": [
+    [
+      0.16667,
+      0.125
+    ],
+    [
+      0.16667,
+      0.375
+    ],
+    [
+      0.5,
+      0.375
+    ],
+    [
+      0.5,
+      0.125
+    ]
+  ],
+  "mark_id": "m1",
+  "why": "Area of room (name Küche · 1.01): checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale.",
+  "quantity": "area:room|name=1.01",
+  "question": null,
+  "reason": null,
+  "check": null,
+  "links": {
+    "drawing": "/api/drawings/44cc9f0d991eafe3?project=5e0c1a2b3d4f",
+    "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
+    "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
+    "checks": null
+  },
+  "label": "Area of room (name Küche · 1.01)",
+  "suggestions": [
+    "22.4 m² is right",
+    "30 m² is right",
+    "Check it on site"
+  ],
+  "answer": {
+    "text": "22.4 m² is right",
+    "by": "Ana",
+    "at": "2026-11-14T08:05:00Z"
+  }
+}

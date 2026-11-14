@@ -47,7 +47,14 @@
         "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
         "checks": null
-      }
+      },
+      "label": "Area of room (name Küche · 1.01)",
+      "suggestions": [
+        "22.4 m² is right",
+        "30 m² is right",
+        "Check it on site"
+      ],
+      "answer": null
     },
     {
       "id": "reading_flag-b8584dc30c73",
@@ -72,7 +79,13 @@
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
         "checks": null
-      }
+      },
+      "label": "How it was read",
+      "suggestions": [
+        "The reading is fine",
+        "I'll send a better copy"
+      ],
+      "answer": null
     },
     {
       "id": "refused_answer-3b5adbf71a63",
@@ -97,7 +110,13 @@
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
         "checks": null
-      }
+      },
+      "label": "No answer",
+      "suggestions": [
+        "Not needed",
+        "I'll send a drawing that shows it"
+      ],
+      "answer": null
     },
     {
       "id": "reading_flag-2b11c57c0ff6",
@@ -122,7 +141,13 @@
         "takeoff": "/api/drawings/37f6819bd17d65d9/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f6/trace",
         "checks": null
-      }
+      },
+      "label": "How it was read",
+      "suggestions": [
+        "The reading is fine",
+        "I'll send a better copy"
+      ],
+      "answer": null
     },
     {
       "id": "set_aside-02a5f0314890",
@@ -147,7 +172,13 @@
         "takeoff": null,
         "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
         "checks": null
-      }
+      },
+      "label": "Set aside",
+      "suggestions": [
+        "Not needed",
+        "I'll send a readable copy"
+      ],
+      "answer": null
     },
     {
       "id": "set_aside-ac138023ff60",
@@ -172,7 +203,13 @@
         "takeoff": null,
         "trace": "/api/projects/5e0c1a2b3d4f/files/f9/trace",
         "checks": null
-      }
+      },
+      "label": "Set aside",
+      "suggestions": [
+        "Not needed",
+        "I'll send a readable copy"
+      ],
+      "answer": null
     }
   ]
 }

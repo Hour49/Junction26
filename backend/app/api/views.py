@@ -168,6 +168,10 @@ class ProjectView(ProjectStatus):
     # Files triage called not a floor plan (decision 0010); None until done; left out of the
     # JSON when triage is off
     not_plans: int | None = Field(default=None, exclude_if=lambda value: value is None)
+    # As in GET /api/projects (same numbers); None until `done`
+    conflicts_open: int | None = None
+    issues_open: int | None = None
+    issues_to_answer: int | None = None
 
 
 def not_plans_of(status: ProjectStatus) -> int | None:
