@@ -101,6 +101,9 @@ As in every design's `<header>`, without the avatar (common brief: not built). T
 
 ### Pending fields (mocked)
 
+Superseded in the checks round (#139): the picker lists the real `rule_packs` and `src/shell/pending.ts` is deleted
+(see "Checks and issues"). Kept below for the record.
+
 CHANGE 11:05 (Tudor): fields the API lacks get a mock, not nothing. The shell has one: the building rules of the
 country picker. `src/shell/pending.ts` exports `PENDING_COUNTRY_RULES` tagged
 `// PENDING(Info.country_rules): mock until the backend adds it (#14)`: Finland ("Building Act 751/2023") and
@@ -170,6 +173,8 @@ All are `margin: 0 auto`, flex column, `gap: 24px`. `main` keeps `min-width: 0; 
 | `conflicts` | `#/p/<pid>/conflicts` | `ConflictsScreen({projectId})` from `src/surveyor/ConflictsScreen.tsx` |
 | `chat` | `#/p/<pid>/chat` | `ProjectChat({projectId})` from `src/engineer/ProjectChat.tsx` (fe-engineer; chat.md, fe-chat brief 12:06) |
 | `file` | `#/p/<pid>/f/<fid>` | `FileTraceScreen({projectId, fileId})` |
+| `checks` | `#/p/<pid>/checks` (`?pack=<id>`) | `ChecksScreen({projectId, pack})` from `src/checks/ChecksScreen.tsx` (fe-scaffold, checks.md); `pack: string \| null` from `?pack` |
+| `issues` | `#/p/<pid>/issues` (`?pack=<id>` optional) | `IssuesScreen({projectId, pack})` from `src/issues/IssuesScreen.tsx` (fe-ingest, issues.md); `pack?: string` from `?pack` |
 | `workspace` | `#/p/<pid>/d/<did>/engineer` / `surveyor` | `EngineerPage` / `SurveyorScreen({projectId, drawingId, query})` |
 
 `parseRoute` returns `{name: 'account', query}`, `{name: 'conflicts', projectId, query}` and `{name: 'chat',
@@ -177,6 +182,102 @@ projectId, query}`; ids keep their
 patterns, one trailing `/` is accepted, anything else is not-found. `routePath` gives `/workspaces` and
 `/p/<pid>/conflicts` and `/p/<pid>/chat`; each screen is keyed by its path (a `?view` or `?q` change does not
 remount). `App`'s `Screens` gains `AccountScreen`, `ConflictsScreen` and `ProjectChat`.
+
+## Checks and issues (round 3: #139 building-code pre-check, #140 located issues; fe-checks-issues 13:26)
+
+Backend contract: board decision #142 (records 0009-building-code-checks.md, 0008-located-issues.md; PRs open, shapes
+may still move). Until Bogdan's PRs land, the shapes are typed by hand in `src/api/types.ts` exactly as #142 states
+them, with hand-made fixtures in `src/api/testing.ts`; when the PRs land they become `Schemas[...]` re-exports and the
+backend fixtures, and the hand-made ones are deleted. Product rules (#142, binding): the pack `note` is shown
+verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
+
+### API client additions (`src/api/client.ts`)
+
+| Function | Request | Returns |
+| --- | --- | --- |
+| `getDrawingChecks(drawingId, {pack, project?, signal?})` | `GET /api/drawings/{drawing_id}/checks?pack=<id>[&project=<pid>]` | `DrawingChecks` `{drawing_id, pack, note, status, rules: RuleCheck[]}` |
+| `getProjectChecks(projectId, {pack, signal?})` | `GET /api/projects/{project_id}/checks?pack=<id>` | `ProjectChecks` (#142: "the same per drawing"; typed as `{project_id, pack, note, drawings: DrawingChecks[]}` until 0009 names it, Open point 18) |
+| `getIssues(projectId, {pack?, signal?})` | `GET /api/projects/{project_id}/issues[?pack=<id>]` | `IssueList` `{project_id, pack, issues: Issue[]}` |
+| `issuesCsvUrl(projectId, pack?)` | URL only: `/api/projects/{project_id}/issues.csv[?pack=<id>]` | `string` |
+| `issuesZipUrl(projectId, pack?)` | URL only: `/api/projects/{project_id}/issues.zip[?pack=<id>]` (CHANGE 13:22: `issues.csv` with an `n` column + one PNG per drawing page with the issues drawn and numbered) | `string` |
+
+- `pack` is required by type on both checks functions (the backend answers 404 without a known pack); query values
+  go through `encodeURIComponent` like every other URL builder (D3). Errors are `ApiError` as everywhere (404 unknown
+  project/pack, 409 issues before the project is done).
+- The rule packs need no request: they arrive with `GET /api/info` (`Info.rule_packs`), which `InfoProvider` already
+  loads once. Screens read them with `useInfo()` and `rulePacksOf(info)` (`src/api/format.ts`: `info?.rule_packs ?? []`,
+  read through a cast until the schema has the field). (The brief's `getRulePacks` is this; Open point 17.)
+- Hand-typed (`src/api/types.ts`, one block marked `// #142 shapes, hand-typed until the backend PRs land`):
+  `RulePack {id, country, country_name, name, law, version, note, rules: Rule[]}` (`country` ISO upper case "FI",
+  `country_name` "Finland", `name` the pack's display name; 13:44), `Rule {id, title, op, comparison,
+  comparison_text, limit, unit, applies_to, clause: Clause}` (`op` is never shown, `comparison_text` is: "at least";
+  `applies_to` holds `MarkView.room_type` values and element classes), `Clause {ref, url, quote, quote_en}`
+  (`quote_en` null when the law is in English), `DrawingChecks`, `RuleCheck {rule_id, title, status, why, clause,
+  results: CheckResult[]}`, `CheckResult {id, rule_id, status: 'pass' | 'fail' | 'cannot_tell', subject: {kind:
+  'room' | 'element' | 'sheet', ref, label}, value, limit, unit, comparison, comparison_text, why, mark_id,
+  quantity, marks: CheckMark[]}` (`mark_id` = the takeoff `MarkView.id`, null for a check-only result; `quantity` =
+  the takeoff `Row.key`),
+  `CheckMark {page, box, polygon, ref, label, role: 'subject' | 'counted'}`, `ProjectChecks`, `Issue {id, kind:
+  'conflict' | 'refused_answer' | 'set_aside' | 'reading_flag' | 'code_check_failed' | 'double_check', severity:
+  'fails_rule' | 'needs_person' | 'note', state: 'open' | 'settled' | 'signed_off', drawing_id, file, file_id, floor,
+  page, box, polygon?, why, mark_id, quantity, question, reason, check, links: {drawing, takeoff, trace, checks}}`
+  (nullable as #142 says; `file` is this project's path; `links` are API paths, screens build `#/p/…` routes from
+  the ids), `IssueList` (issues ordered by severity, drawing in project order, page, box top: the screen keeps that
+  order). Bogdan accepted all our #142 asks (c6876010899); the per-mark fields (mark id, status, value) are typed as
+  the records 0009/0008 name them. Errors: an unknown pack is a 404 with code `unknown_pack` (distinct from an unknown
+  project); the 409 code is the one the record names.
+- Fixtures (`src/api/testing.ts`, hand-made, no partner data): `rulePackFi` (two rules, the note verbatim),
+  `drawingChecks` (one rule with a pass, a fail and a cannot-tell result, marks on page 1), `projectChecks` (that
+  drawing plus one with no results), `issueList` (one issue per kind except `double_check`, every severity and state,
+  one with `page`/`box` null).
+
+### Country picker (real; replaces the mock)
+
+- Shown only on routes with a project (project, file, conflicts, chat, checks, issues, workspace) and only when
+  `rulePacksOf(info)` is not empty; while info loads, after an info error, with no packs, and on home, account and
+  not-found it is not rendered (there is nothing to choose and no project to check).
+- The button: flag (inline SVG for `FI` and `CH` by the pack's ISO `country`, none for others), the chosen pack's
+  `country_name`, chevron; accessible name "Country rules: <country_name>", or "Country rules: none" with no pack
+  (no pack is preselected and "no pack" is a valid choice, 13:44). No `data-pending`.
+- The popover (group "Building rules the agent follows"): first "No checks" (pressed when the route has no `?pack`),
+  then one button per pack (flag, `country_name`, under it the pack `name` · `version` in `--v-muted`, check on the
+  chosen one, `aria-pressed`). Its closing line is the chosen pack's `note`, verbatim ("A pre-check of a few rules, not a
+  compliance certificate."); with no pack: "Choose a country to pre-check its building rules."
+- Choosing a pack writes `?pack=<id>` into the current route's hash (other query keys such as `q` and `view` kept) with
+  a history entry and closes the popover; "No checks" removes `pack`. Nothing is stored and no request is sent by the
+  picker itself (the screens fetch with the pack). A `?pack` naming no listed pack shows as "none" (the screens get
+  its 404).
+- `src/shell/pending.ts` (`PENDING_COUNTRY_RULES`) is deleted; `grep -rn "PENDING(Info" frontend/src` finds nothing.
+
+### The pack in the URL (`src/shell/route.ts`)
+
+- `packOf(route): string | null` reads `route.query.get('pack')`; `withPack(hash, pack)` returns the hash with
+  `pack` set (or removed when null), other query keys kept (encoded as `routeHref`). Every link between project
+  routes keeps the pack: the header's view links and the project picker (switching project keeps the country) use
+  it; screens that link to another project route (conflicts → chat, chat → engineer, issues → drawing, …) use
+  `withPack` (their owners; issues.md, checks.md, conflicts.md, chat.md say so).
+- `routePath` ignores the query, so choosing a pack does not remount the screen; `ChecksScreen` and `IssuesScreen`
+  get the new `pack` prop.
+
+### Header tabs (supersede the Header table above for project routes)
+
+| Route | Tabs, in this order (current one marked) |
+| --- | --- |
+| project, file | Ingest (current), Conflicts, Checks*, Issues, Chat |
+| conflicts | Ingest, Conflicts (current), Checks*, Issues, Chat |
+| checks | Ingest, Conflicts, Checks (current), Issues, Chat |
+| issues | Ingest, Conflicts, Checks*, Issues (current), Chat |
+| chat | Ingest, Conflicts, Checks*, Issues, Chat (current) |
+| workspace | Ingest, Conflicts, Checks*, Issues, Chat, Surveyor (current on the surveyor route; none on engineer) |
+
+\* Checks only while a pack is chosen (on `#/p/<pid>/checks` without a pack it still shows, current, so the page
+has its tab). Hrefs: `#/p/<pid>`, `/conflicts`, `/checks`, `/issues`, `/chat`, the drawing's surveyor route (keeps
+`?q`); every one carries `?pack=<id>` when a pack is chosen.
+
+- Width: up to six tabs no longer fit the one-row header between 721 and ~1100 px, so the compact header (three rows,
+  not sticky, `--v-header-h: 0px`; "Vellum look") applies up to 1100 px instead of 720 px. At ≤1100 px the tabs fill
+  the third row and wrap to a second line of the control when they do not fit (each ≥44 px high); no horizontal
+  page scroll at 390, 768 and 1024.
 
 ## Files owned
 
@@ -207,12 +308,13 @@ API client, `frontend/src/api/`:
 - `types.ts`: named re-exports of the generated schemas (list below).
 - `format.ts`: `formatValue` and `formatTime` (below), used by viewer, engineer, surveyor and ingest.
 - `fixtures.ts`: every file of `backend/tests/fixtures/api_v1/` imported and exported under its type (list below).
+- `testing.ts` (checks round): hand-made #142 fixtures until the backend's land ("Checks and issues").
 
 Shell, `frontend/src/shell/`:
 
 - `frontend/src/App.tsx` (replaced: providers, header, info bar, the route's screen),
   `route.ts` (`parseRoute`, `routeHref`, `useRoute`), `Header.tsx`, `ProjectPicker.tsx`, `CountryPicker.tsx`,
-  `pending.ts` (the mocked country rules), `InfoBar.tsx`,
+  `pending.ts` (the mocked country rules; deleted in the checks round), `InfoBar.tsx`,
   `info.tsx` (`InfoProvider`, `useInfo`), `limits.ts` (`uploadTooLarge`), `Loading.tsx`, `ErrorView.tsx`,
   `NotFound.tsx`, `Credit.tsx`, `strings.ts` (`PRODUCT_NAME = "Vellum"`, the reader names), `shell.css`
   (tokens, base styles), `vellum-logo.png` (the canvas logo asset).
@@ -604,6 +706,29 @@ Vellum round (round 2)
 - SH-64 (fe-chat) `parseRoute('#/p/5e0c1a2b3d4f/chat')` (and with a trailing `/`) → `chat` with that `projectId`;
   `#/p/XYZ/chat` and `#/p/5e0c1a2b3d4f/chat/x` → not-found; `routeHref` round-trips it. `App` mounts `ProjectChat`
   with `projectId` on it; the header shows Ingest and Conflicts there, neither marked current. [unit + component]
+- SH-65 (checks) `getDrawingChecks('adeefbbcc17559fc', {pack: 'fi', project: '5e0c1a2b3d4f'})` sends
+  `GET /api/drawings/adeefbbcc17559fc/checks?pack=fi&project=5e0c1a2b3d4f`; `getProjectChecks(pid, {pack: 'fi'})`,
+  `getIssues(pid)` and `getIssues(pid, {pack: 'fi'})` send their table rows; each resolves with its hand-made fixture
+  and passes the caller's signal; `issuesCsvUrl`/`issuesZipUrl` give the URLs with and without `?pack=`; a pack id
+  with a space is percent-encoded (`%20`). [unit, mockApi]
+- SH-66 (checks) `parseRoute`: `#/p/<pid>/checks` → `checks`, `#/p/<pid>/issues` → `issues` (trailing `/` accepted;
+  `#/p/XYZ/checks`, `#/p/<pid>/issues/x` not-found); `packOf` reads `?pack`; `withPack('#/p/<pid>/d/<did>/surveyor?q=a',
+  'fi')` keeps `q` and adds `pack`, `withPack(…, null)` removes it; `routeHref` round-trips both routes with `?pack`.
+  [unit]
+- SH-67 (checks) `App` mounts `ChecksScreen` with `{projectId, pack: 'fi'}` on `#/p/<pid>/checks?pack=fi` and `pack:
+  null` without it, `IssuesScreen` with `{projectId, pack}`; changing only `?pack` does not remount. [component]
+- SH-68 (checks) The header tabs per route are those of "Header tabs" (Checks only with a pack, or on the checks
+  route), in that order, each href carrying `?pack=fi` when the route has it (Surveyor also `?q`), exactly the
+  current one marked (none on the engineer route); the project picker's choice keeps `?pack`. [component]
+- SH-69 (checks) Country picker: not rendered while info loads, with `rule_packs` absent or empty, or on home,
+  account and not-found; with `rulePackFi` on a project route: button "Country rules: none", popover "No checks"
+  (pressed) and the pack (`country_name`, `name · version`), closing line "Choose a country…"; choosing the pack sets
+  `?pack=fi` (keeping `?q`), renames the button "Country rules: Finland", and the closing line is the note verbatim;
+  "No checks" removes `pack`; no request is sent by the picker; no `data-pending`; `src/shell/pending.ts` does not
+  exist. Supersedes SH-61. [component]
+- SH-70 (checks) At 390x844, 768x1024, 1024x768 and 1440x900 on a drawing route with a pack (six tabs): no horizontal
+  page scroll, every tab ≥44 px high below 1100 px; the header is sticky only above 1100 px (`--v-header-h` 76px
+  there, 0px below). [unit: parse the CSS; e2e fe-golden]
 - SH-63 `index.html`'s `<title>` equals `PRODUCT_NAME` ("Vellum"). [unit]
 - SH-61 The country picker: a button "Country rules: Finland" with `data-pending="country-rules"` and
   `aria-expanded="false"`; clicking opens the group "Building rules the agent follows" with Finland
@@ -672,3 +797,17 @@ Vellum round (round 2)
     workspace screens of one project. Conflicts is added to them.
 16. **Not in the API** (header): the country picker's building rules (`Info.country_rules`), mocked in
     `src/shell/pending.ts` (CHANGE 11:05), for Bogdan's backend to add. The avatar stays out by decision.
+    Superseded by #139: the real `Info.rule_packs` (checks round).
+17. **`getRulePacks`** (checks brief): not a request. `/api/info` already carries `rule_packs` and is loaded once by
+    `InfoProvider`; a second fetch would duplicate it. Screens use `useInfo()` + `rulePacksOf(info)`. If the
+    orchestrator wants the name `getRulePacks`, it can be that helper.
+18. **`ProjectChecks` shape**: #142 says "the same per drawing" without naming the wrapper. Typed as
+    `{project_id, pack, note, drawings: DrawingChecks[]}`; to confirm against record 0009 when the PR lands.
+22. **`ProjectSummary.issues_open`** (13:44, null until done): a Workspaces list pill is the account screen's
+    (account.md), not in this spec; whoever owns src/account then can add "<n> issues open" like "to review".
+19. **Picker off project routes**: not rendered on home, account and not-found (no project to check, and the pack
+    lives on project routes). Alternative: show it disabled there. Recommendation: hidden.
+20. **Compact header up to 1100 px** (was 720): six tabs plus the pickers do not fit one row below ~1100 px. The
+    alternative (a horizontally scrolling tab strip) hides tabs. Recommendation: the 1100 px breakpoint.
+21. **`IssuesScreen` prop** is `pack?: string` and `ChecksScreen`'s is `pack: string | null`, as the brief fixes them;
+    the shell passes `undefined` / `null` for no pack.

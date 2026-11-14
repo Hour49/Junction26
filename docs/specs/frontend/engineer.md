@@ -1,6 +1,6 @@
 # Engineer workspace (spec, frontend v1)
 Status: draft, 2026-11-14, by fe-spec-engineer; Vellum redesign (round 2, design screen 4 "Ask, with proof",
-`Workspace.dc.html`) added 2026-11-14 by fe-vellum-engineer: Layout, the "Vellum" API rows, EN-54..EN-71, "Not in the API"; built 2026-11-14 with orch D61 (viewer `meta` prop, arrows outside the viewer) and Bogdan's triage of the missing fields (#14 c6874945888, "Pending fields (mocked)").  Story: #33.  API: docs/API.md (v1, main 5092dc3), plus the
+`Workspace.dc.html`) added 2026-11-14 by fe-vellum-engineer; 13:45 "Opening at a question or a place" (`?ask=`, `?page=&box=`, EN-72..EN-78) for the issues list: Layout, the "Vellum" API rows, EN-54..EN-71, "Not in the API"; built 2026-11-14 with orch D61 (viewer `meta` prop, arrows outside the viewer) and Bogdan's triage of the missing fields (#14 c6874945888, "Pending fields (mocked)").  Story: #33.  API: docs/API.md (v1, main 5092dc3), plus the
 pending `confidence` object (Open point 1).
 
 ## Purpose
@@ -14,7 +14,7 @@ surveyor signed off shows as verified. Mock: `demo/` screen 2 (`index.html#work/
 
 - `frontend/src/engineer/EngineerPage.tsx`: the route view `EngineerPage({projectId, drawingId, query})`, mounted by
   the shell with key = route path without query (shared.md); loads the drawing, holds the thread of asked questions.
-  `query` is not used in v1.
+  `query`: `ask`, `page` and `box` (section "Opening at a question or a place"); every other key is ignored.
 - `frontend/src/engineer/DrawingHeader.tsx`: file, how it was read, the suggested questions.
 - `frontend/src/engineer/AskBox.tsx`: the question input with its length check.
 - `frontend/src/engineer/AnswerCard.tsx`: one answer (value, proof, rule, checks, cost) or one refusal.
@@ -47,6 +47,9 @@ Uses, does not own: the API client (`frontend/src/api/`, shared.md), the shell, 
    the server's drawn proof (`evidence.png`) in a new tab.
 8. The user asks more questions; earlier answers stay in the thread above (newest at the bottom). The thread lives
    in memory only: a reload or another drawing starts an empty thread.
+9. From the issues list (issues.md) the user follows a link that opens this screen already asking an issue's
+   question (`?ask=`), or with the drawing opened at an issue's place (`?page=&box=`); section "Opening at a
+   question or a place".
 
 ## API calls
 
@@ -183,9 +186,57 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | Settled | derived: conflict case with `settled: {"value": 22.401, "at": "2026-11-14T01:30:00Z"}` | "Settled by a surveyor at 2026-11-14 01:30 UTC: 22.40 m²" |
 | Excluded item | derived: `answer_area.json` with one more mark `{"id": "x1", "n": null, "state": "excluded", "reason": "outdoor room", "label": "Balkon", …}` (box/polygon copied from m2) | mark list row "– Balkon left out by the rule: outdoor room" |
 | No-keys | `info.json` (`no_keys: true`) | the shell's "running offline" banner shows on this route (shared.md) |
+| Opened with a question | `#/p/<pid>/d/<did>/engineer?ask=How%20many%20doors%20are%20there%3F` | after loading, the thread already has that question's turn (pending, then its answer or refusal); no opening card |
+| Opened at a place | `…/engineer?page=1&box=0.49,0.22,0.51,0.28` | the opening card's viewer on page 1, zoomed or scrolled to that box, outlined (viewer.md `focus`) |
 
 Status words (`quantity.status`): `signed` "Verified", `conflict` "Methods disagree", `estimate` "Estimate",
 `edited` "Changed in review", `agree` "Two methods agree", `single` "One method".
+
+## Opening at a question or a place
+
+Added 2026-11-14 13:45 by fe-engineer for #139/#140 (brief `fe-checks-issues.md`, decision #142): the issues list
+reopens a refused question and jumps to an issue's place. Read once when the screen mounts (the shell remounts it
+on a new route path; another issue's link always comes from another route). The URL is left as it is, so a reload
+does the same again: the link is the question or the place.
+
+**`?ask=<question>`** (a `refused_answer` issue whose `drawing_id` is set; `Issue.question` verbatim):
+- After `GET /api/drawings/{id}` succeeds, the question is asked exactly as if typed: one turn, one
+  `POST /api/ask` `{drawing_id, question, project_id}`, the same answer, refusal or error card. Exactly one request
+  per mount (also under React StrictMode's double effects).
+- The value is trimmed; empty or whitespace-only: nothing is asked (the empty thread shows). Not shortened and not
+  checked against `limits.question_chars`: the backend's 422 shows as the ask error turn (never invent or cut a
+  question).
+- Not asked when the drawing fails to load (the error view shows). The ask box is free right after, as usual.
+- Named `ask`, not `q`: on the workspace routes `q` is the surveyor's takeoff row key (surveyor.md, SH-3), and the
+  shell's Surveyor tab keeps the query (`routeHref({ ...route, role: 'surveyor' })`), so a question in `q` would
+  reach the surveyor as a row key (and a surveyor's row key would be asked as a question). With `ask`, the surveyor
+  ignores it.
+
+**`?page=<n>&box=<x0>,<y0>,<x1>,<y1>`** (an issue with `page`, and `box` when it has one; page fractions as
+`MarkView.box`, the page 1-based as `PageView.page`):
+- `page` must be a whole number ≥ 1, else both keys are ignored (the drawing opens as without them). A page the
+  drawing does not have is passed on: the viewer stays put and says where the place is (viewer.md "Focus").
+- `box`: four comma-separated finite numbers with `0 ≤ x0 ≤ x1 ≤ 1` and `0 ≤ y0 ≤ y1 ≤ 1`, else `box` is null
+  (the page still opens: a sheet-level issue). A `box` without a valid `page` is ignored (#142 ask 9: box ⇒ page).
+- Passed to the opening drawing's viewer (the empty-thread card) as `focus={{ page, box }}` (viewer.md
+  `focus?: {page, box?: number[] | null} | null`, VW-76/77): the viewer opens that page and zooms or scrolls to and
+  outlines the box; with `box` null it only switches the page. Marks stay `[]`.
+- Only the opening card gets it: after the first question that card goes (as now), and answer cards open as usual.
+- A building model (no pages): ignored, the screen shows "Building model: no sheet to draw on." as now.
+- With `ask` too, the question is asked and the place is not shown (the turn replaces the opening card); an issue
+  link carries one or the other.
+- The prev/next drawing arrows and "Also as" links carry no query (as now): the place belongs to this drawing.
+
+Builders of these links (fe-ingest, fe-surveyor): `routeHref({ name: 'workspace', projectId, drawingId,
+role: 'engineer', query: new URLSearchParams({ ask }) })`, or `{ page: String(page), box: box.join(',') }`
+(`URLSearchParams` encodes the commas; both forms parse). A `refused_answer` with `drawing_id` null (a project
+ask) links to the chat instead (chat.md `?ask=`).
+
+**Not a key:** `?mark=<id>`: the opening card shows no marks, so there is nothing to select, and a mark id alone
+names no place (ids repeat across takeoff rows: `takeoff.json` has `m1` in three). Selecting the issue's mark is
+the surveyor's job: `Issue.quantity` (takeoff `Row.key`) + `Issue.mark_id` (#142 c6876010899) fit
+`#/p/<pid>/d/<did>/surveyor?q=<quantity>` (surveyor.md). Every located issue carries `page` + `box`; `Issue.polygon`
+is not used here, since `focus` takes a box.
 
 ## Layout
 
@@ -386,6 +437,24 @@ Thread and pages
 - EN-69 A derived `answer.json` with `check: {reason: "Please double-check: …", disputed: []}` shows the reason in a `role="status"` line right after the value row, `data-pending="AnswerView.check"`; `answer.json` has no such line. [component]
 - EN-55 (PR #120) With a derived page 1 `storey: "Ground floor"` the figure shows "PDF vector · vector route", and "Ground floor" and "1:100" each once (the viewer's page line). [component]
 - EN-71 (golden 06/07) The ask box is a solid band: `.en-ask` has `background: var(--v-bg)`, and neither `.en-ask` nor `.en-askpill` uses `transparent` or `backdrop-filter`; `.en-turn` has `scroll-margin-top: calc(var(--v-header-h, 0px) + 8px)`. In the browser, after "How many doors are there?" on the sample's `plans/flat-b.pdf`, the plan's legend line ends above the ask band at 1440x900 and 390x844, and the bubble is below the site header. [unit on the CSS text; browser: fe-golden's screenshots 06/07]
+- EN-72 `?ask=How many doors are there?`: after `drawing.json` loads, exactly one `POST /api/ask` with
+  `{drawing_id, question: "How many doors are there?", project_id}` (also when rendered in `<StrictMode>`); the
+  thread shows the article named by the question with `answer.json`'s value; the ask box is enabled after.
+  [component, `drawing.json` + `answer.json`]
+- EN-73 `?ask=` with `answer_refused.json`: the refusal card in that turn, its `can_answer` chips, as a typed
+  question (EN-62). [component]
+- EN-74 `?ask=` that is empty or only spaces asks nothing (no POST; the opening card shows); a drawing 404 asks
+  nothing (the error view, no POST). [component, `error.json`]
+- EN-75 `?q=How many doors are there?` (no `ask`) asks nothing: `q` stays the surveyor's row key. [component]
+- EN-76 `?page=1&box=0.49,0.22,0.51,0.28` passes `focus={{page: 1, box: [0.49, 0.22, 0.51, 0.28]}}` to the opening
+  card's `PageViewer` (the `%2C`-encoded form too); `?page=1` alone passes `{page: 1, box: null}`. [component with a
+  `PageViewer` spy (`vi.mock`)]
+- EN-77 Ignored places pass no `focus`: `page=0`, `page=1.5`, `page=x`, a `box` without `page`; `page=9` (not in
+  the drawing) is passed on as `{page: 9, box: null}`;
+  `box=0.6,0.2,0.5,0.3` (x0 > x1), `box=0,0,1` (three numbers), `box=0,0,1,1.2` (over 1) keep the page with
+  `box: null`. A building model (`answer_model`-like drawing with no pages) ignores both. [component]
+- EN-78 `?ask=` together with `?page=&box=`: the question is asked; no opening card (no `focus` rendered).
+  [component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)
@@ -421,6 +490,8 @@ is read when present but never mocked (its shape is not final); its line carries
 - Vellum: screens 6-8 (Edit my plan) and the ask box's "+" link to them; the country picker and rules line; the
   user avatar and name.
 - A model-object 3D view, or fetching `GET /api/drawings/{id}/model`.
+- `?mark=<id>` (section "Opening at a question or a place"), focusing a place inside an answer card, outlining
+  `Issue.polygon` (the viewer's `focus` takes a box).
 
 ## Open points
 
@@ -440,7 +511,14 @@ is read when present but never mocked (its shape is not final); its line carries
    `explanation`. The spec shows the key as the query. Recommend: keep, unless core can give the parsed query.
 5. **`?q=` on the surveyor route** is surveyor.md's proposal (its Open point 4) and shared.md parses it (SH-3,
    `routeHref`); this spec links to it (EN-30). The engineer route ignores a `?q=` it is given (the shell keeps one
-   on the role links, SH); recommend leaving it so for v1.
+   on the role links, SH); recommend leaving it so for v1. Still true with the 13:45 addition: the engineer's
+   question key is `ask` (EN-75).
+8. **`ask` instead of the brief's `?q=`** (frontend-orch 13:30 asked for `?q=<question>`): `q` already means the
+   takeoff row key on the same routes and crosses roles on the Surveyor tab (section "Opening at a question or a
+   place"). Recommend `ask`. If `q` is kept instead, fe-shared must drop the query from the role tab and the
+   surveyor's row keys can never reach the engineer: say which.
+9. **`focus` prop** (resolved 13:44): viewer.md's `focus?: {page, box?: number[] | null} | null` takes a null box
+   (page only) and handles a page the drawing lacks, so this screen only checks the URL's syntax.
 7. **Viewer props for Vellum.** Decided (D61): `PageViewer` keeps `unit` and gains `meta?: string`; the arrows
    and the position are this screen's; the viewer shows the file name and no longer names itself "Drawing" (the
    left column's `<figure aria-label="Drawing">` does). The original proposal, kept for the record: This screen needs:

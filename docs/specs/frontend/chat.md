@@ -93,6 +93,25 @@ Component tests with `mockApi`, `project.json` (5 drawings: 4 `ready`/`flagged`â
   at 390); after "How many doors
   are there?" on the sample, answer cards and "Show it on" links, no plan; no sideways scroll.
 
+## Opening with a question (`?ask=`)
+
+Added 2026-11-14 13:45 by fe-engineer for #140 (brief `fe-checks-issues.md`): a `refused_answer` issue from a
+project ask (`Issue.drawing_id` null) reopens its question here: `#/p/<pid>/chat?ask=<Issue.question>`. Same rules
+as engineer.md "Opening at a question or a place": read once on mount, the URL kept, the value trimmed (empty: nothing
+asked), asked exactly as typed after `GET /api/projects/{id}` succeeds (one project ask per mount, also under
+StrictMode), so the screen goes straight to the thread layout (no empty start page, no starter chips). Not asked
+when the project fails to load, or when no drawing is askable (the "No drawing in this project can be asked yet."
+line shows, as CH-8). `q` is not read (engineer.md Open point 8).
+
+Shell (fe-shared): the chat route passes `query` to `ProjectChat({projectId, query})` as it does for the workspace
+routes (`App.tsx` today passes only `projectId`).
+
+- CH-14 `?ask=How many doors are there?`: after the project loads, one ask with that question (also in
+  `<StrictMode>`); the article named by the question shows its card; no "Suggested questions" group and no
+  `.en-chat--empty`. [component]
+- CH-15 `?ask=` empty or spaces: nothing asked, the empty start page; a project 404 or a project with no askable
+  drawing: nothing asked. [component]
+
 ## Out of scope
 
 - A project-wide ask in the backend (one request, one answer across drawings): asked of Bogdan via orch; this

@@ -58,10 +58,17 @@ interface PageViewerProps {
   // Vellum (all optional, so today's callers compile unchanged):
   meta?: string;                      // appended to the page meta line, composed by the screen (e.g. "PDF vector · vector route")
   // Double-check (section "Double-check"; all optional):
-  disputed?: { markId?: string; box?: number[]; page?: number; why: string }[]; // places the readers disagree on
+  disputed?: { markId?: string; box?: number[]; page?: number; why: string;
+               prefix?: string; tag?: string }[];  // places the readers disagree on; prefix/tag: "Checks and issues"
   fixMode?: boolean;                  // "Fix it": a click, tap or drag on the page proposes a new mark
   onAddMark?: (box: Box, page: number) => void; // the proposed box, page fractions, on the shown page
+  // Checks and issues (section "Checks and issues"; all optional):
+  tones?: Record<string, Tone> | null; // mark id → its check outcome; replaces the state look of that mark
+  disputedLegend?: string;            // the legend's count words for `disputed`; default "to double-check"
+  focus?: { page: number; box?: number[] | null; polygon?: [number, number][] | null } | null; // jump-to-place
 }
+type Tone = 'fail' | 'cannot_tell' | 'pass' | 'counted';
+```
 ```
 
 The viewer has no drawing navigation (frontend-orch D61): the engineer's figure puts its previous/next drawing
@@ -307,7 +314,70 @@ restore stay the screen's existing review actions on the badges and the mark lis
 - With `fixMode` but no `onAddMark`, or `onAddMark` without `fixMode`, nothing changes. When `onPick` is also set,
   fix mode wins (Open point 13).
 
-## Acceptance criteria
+## Checks and issues
+
+#139 (building-code pre-check) and #140 (located issues), contract board #142; brief `fe-checks-issues.md`. The
+checks screen (checks.md, fe-scaffold) shows a rule result's marks on the drawing; the issues screen (issues.md,
+fe-ingest) jumps to an issue's place. The viewer gets three props and two optional fields on a `disputed` item. It
+fetches nothing new: the screens get `pages` and `credit` from `GET /api/drawings/{id}` (the checks response has
+no pages, review-142 ask 7). Depends on the double-check build (`disputed`, VW-60…69) being merged into this branch.
+
+**Check marks as viewer marks (the checks screen maps them).** `CheckResult.marks[]` `{page, box, polygon, ref,
+label, role, mark_id}` becomes a `MarkView`: `id` = `mark_id` (the takeoff `MarkView.id`, Bogdan c6876010899) when
+set, else `<result id>:<index>` (check-only geometry, `mark_id` null); `n` = a running number over the drawing's `role: subject` marks (counted marks `n: null`);
+`state: "counted"`; `label`, `ref`, `page`, `box`, `polygon` as sent; `value` = the result's `value` for a subject
+mark when the result has one subject (a door's width), else null; `reason: null`. `unit` = the result's `unit`.
+`tones[id]` = the mark's own status when #142's record sends one (ask 5 accepted; field name per 0009), else the
+result's `status` (`pass`, `fail`, `cannot_tell`), for a subject mark; `"counted"` for a counted mark. The box and
+polygon are page fractions in the `pages[]` frame, as `MarkView` (asks 2-4 accepted).
+
+**Tones** (`tones` set for a mark id; marks without an entry keep their state look):
+
+| Tone | Shape | Badge | Words (aria-label, mark line, legend) |
+| --- | --- | --- | --- |
+| `fail` | solid 2 px `--v-danger`, polygon fill `--v-danger` 20 % | filled `--v-danger`, `--v-surface` text, `n` (+ value) | "fails the rule" |
+| `cannot_tell` | dashed (6 3) 2 px `--v-warn`, fill `--v-warn-soft` 40 % | open: `--v-warn-soft` fill, `--v-warn` border and text | "cannot tell" |
+| `pass` | solid 2 px `--v-ok`, no fill | open: `--v-surface` fill, `--v-ok` border and text | "passes" |
+| `counted` | dotted (2 3) 1 px `--v-muted`, no fill | none (context only, not focusable) | "counted for the rule" |
+
+- The colour goes through `--vw-c` as every mark colour (`var(--v-danger)`…); `legend` colours do not apply to a
+  toned mark. "cannot tell" is never drawn like pass or fail: its own line style, colour and words.
+- The badge name is "Mark <n>: <label>, <words>" ("Mark 2: Bedroom 2, fails the rule"); the selected/hovered mark
+  line reads "2 · Bedroom 2 · 0.75 m · fails the rule".
+- Draw order: counted marks under subject marks, so a failed room's outline stays clickable around its doors.
+- **Legend mode:** with `tones` set, the state items (counted, added…) are replaced by one item per tone present,
+  in the order fail, cannot tell, pass, counted, each with a swatch drawn like its shape (`vw-swatch--fail`,
+  `--cannot_tell`, `--pass`, `--counted`) and its count: "2 fail the rule", "1 cannot tell", "3 pass", "4 counted
+  for the rule". `legend` entries (label colours) are not listed in this mode. The other lines (could not be
+  placed, had no room, double-check) stay.
+
+**Disputed items for issues and failed checks.** A `disputed` item may carry `prefix` (default "Please
+double-check") and `tag` (default "?"):
+- The why reads "<prefix>: <why>" everywhere it shows (tooltip, description, `?` button name, mark line). The
+  issues screen passes its severity in words ("Fails the rule", "Needs a person", "Note").
+- `tag` is the text of the box item's button and of a disputed mark's corner tag: the issues screen passes the
+  issue's row number ("3"), so the drawing matches the list and the exported CSV/PNG bundle (CHANGE 13:22). The
+  button name stays "<prefix>: <why>".
+- `disputedLegend` replaces "to double-check" in the legend lines ("<k> <disputedLegend>", "… on page <p>"). It is
+  one string for any count, so the issues screen passes "issue(s)": "1 issue(s)", "3 issue(s) on page 2".
+
+**Focus (jump-to-place).** `focus={page, box}` opens that page and brings the box into view:
+- When `focus` changes (by value), the viewer shows `focus.page`; the box's width at zoom 1 decides the zoom: under
+  48 px → 200 %, under 24 px at 200 % → 400 %, else unchanged. Then it scrolls `.vw-scroll` so the box centre is
+  in the middle (clamped to the scroll range), and draws a focus outline (`rect.vw-focus`, 3 px `--v-accent`, 6 px
+  outside the box; around `polygon` instead when one is given, e.g. `Issue.polygon`). The outline stays until
+  `focus` changes or is null.
+- An issue with `mark_id` (takeoff `MarkView.id`, c6876010899) on a drawing whose `marks` contain it: the issues
+  screen also passes `selected = mark_id`, so the badge is pressed and the mark line shows; `focus` still decides
+  page and scroll.
+- `focus` without a valid `box` (page set, box null: a sheet-level issue) only switches the page.
+- A `focus.page` that is not in `pages`: no change, and the legend says "That place is on page <p>, which this
+  drawing does not have".
+- `focus` wins over `selected` when both change in one render. After a focus the user's zoom, scroll and page
+  switching work as before; the viewer does not move again until `focus` changes.
+- `prefers-reduced-motion: reduce`: the scroll jumps (no smooth scrolling); otherwise `behavior: "smooth"`.
+- Phone 390: the same; the 200/400 % zoom makes the box readable and native scrolling pans from there.
+
 
 Fixtures are the files in `backend/tests/fixtures/api_v1/`, imported read-only. A "derived" mark is a fixture
 mark copied with only the named fields changed (e.g. `answer.json` m2 with `state: "rejected", n: null`).
@@ -533,6 +603,40 @@ Double-check (Bogdan's state, board #14 c6875044070). Fixtures: `answer.json`, `
   the viewport; in fix mode a tap on the page adds a `+n` mark (the screen's part) and the page does not scroll
   sideways. A screenshot is taken and looked at. [e2e, built by the e2e worker, golden-path.md]
 
+Checks and issues (#139/#140, board #142). Fixtures: hand-made check marks in `src/checks/testing.ts` mapped as in
+"Checks and issues", on `drawing.json`'s page; `answer.json` for the issue cases.
+
+- **VW-71** With `tones={r1:0: "fail", r1:1: "counted"}` (a room polygon and a door box): the room badge reads "1",
+  has the class `vw-badge--fail`, the name "Mark 1: Bedroom 2, fails the rule" and `--vw-c` `var(--v-danger)`; its
+  polygon carries `--vw-c` `var(--v-danger)`; the door has a dotted shape (`stroke-dasharray` "2 3"), `--vw-c`
+  `var(--v-muted)` and no badge. [component]
+- **VW-72** `cannot_tell` and `pass`: badges `vw-badge--cannot_tell` (dashed shape "6 3", `var(--v-warn)`, name
+  "…, cannot tell") and `vw-badge--pass` (`var(--v-ok)`, "…, passes"); a mark without a `tones` entry keeps its
+  state look (VW-52). [component]
+- **VW-73** Legend mode: with one fail, one cannot tell and two counted marks the legend reads, in order, "1 fails
+  the rule", "1 cannot tell", "2 counted for the rule", each with its `vw-swatch--<tone>`; no "counted" state item
+  and no label-colour item even with `legend` passed. [component]
+- **VW-74** With the subject mark selected and `unit: "m"`, `value: 0.75`, the mark line reads "1 · Door 3 · 0.75 m ·
+  fails the rule". [component]
+- **VW-75** A disputed box item with `prefix: "Fails the rule"`, `tag: "3"`: a button named "Fails the rule: door
+  narrower than 0.80 m" whose text is "3"; its tooltip reads the same sentence; with `disputedLegend: "issue(s)"`
+  the legend reads "1 issue(s)". Without `prefix`/`tag` VW-60…VW-65 hold unchanged. [component]
+- **VW-76** Focus: with the frame mocked at 600 px and the two-page fixture, `focus={page: 2, box: [0.40, 0.40,
+  0.43, 0.43]}` shows page 2 and the zoom reads "200%" (the box is 18 px wide at 100 %, under 48; 36 px at 200 %,
+  not under 24); with `box: [0.40, 0.40, 0.402, 0.402]` (1.2 px) it reads "400%"; one `rect.vw-focus` exists, and
+  `.vw-scroll`'s `scrollTo` was called with the box centre in the middle. [component]
+- **VW-77** Focus edge cases: `{page: 2, box: null}` switches to page 2 with no zoom change and no `rect.vw-focus`;
+  `{page: 9, box}` keeps the page and the legend reads "That place is on page 9, which this drawing does not have";
+  re-rendering with an equal `focus` object (new identity, same values) does not scroll again; `focus` and
+  `selected` changing together show the focus page; with `polygon` given, the focus outline is a `polygon.vw-focus`.
+  [component]
+- **VW-78** `viewer.css` tone and focus rules use only `var(--v-danger)`, `--v-danger-soft`, `--v-warn`,
+  `--v-warn-soft`, `--v-ok`, `--v-muted`, `--v-accent` (VW-53 still passes); a reduced-motion block exists for the
+  focus scroll's CSS `scroll-behavior`. [unit]
+- **VW-79** At 390x844 and 1440x900 on the checks screen and on an issue jump: the failed room is visible in the
+  scroll box without the user scrolling, no sideways page scroll, and the badge names read as above. Screenshots
+  taken and looked at. [e2e, fe-golden]
+
 Criteria kept as they are under Vellum: VW-1 to VW-22 and VW-24 to VW-47. Where they check a colour (VW-21), the
 build reads `--vw-c` instead of the `stroke` attribute, with the same values.
 
@@ -620,3 +724,10 @@ the file name (`.vw-name`) is the label; `Row.second.boxes` NO, nothing drawn. `
 15. **Double-check: `room_id`.** The viewer takes `markId` only. The engineer maps `room_id` to the room's mark id
     (in today's fixtures a room's mark id is its own id; to confirm with Bogdan's PR). `readers` is not shown by the
     viewer (the engineer may list it).
+16. **Checks: mark ids and per-mark status. Answered (c6876010899):** marks carry `mark_id` (takeoff `MarkView.id`,
+    null for check-only geometry, then `<result id>:<index>`). Per-mark status/value were accepted (asks 5, 6);
+    the exact field names come with record 0009, until then the result's status and value.
+17. **Checks: counted marks have no badge.** They are context for the rule (the doors of a room); listing them as
+    badges would crowd the room and double the tab stops. Their count is in the legend; the screen's list names them.
+18. **Issues: polygon and mark. Answered (c6876010899):** `Issue.polygon` (optional) goes into `focus.polygon`;
+    `Issue.mark_id` (takeoff `MarkView.id`) becomes `selected` when the drawing's marks contain it.
