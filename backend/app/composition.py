@@ -197,7 +197,8 @@ class Pipeline:
     # a part from the `carbon` source; ingest flags those drawings. None: no file is
     carbon_read: Callable[[str], CarbonRead | None] | None = None
     # VECTOR_FALLBACK=raster: whether a drawn PDF has no sheet style the vector reader has rules
-    # for; stage 5 routes it to the raster route (in `scanned` too) and ingest flags it. None: off
+    # for; when the vector route reads nothing of it, ingest reads it again on the raster route
+    # (pipeline/ingest.py `fallback`) and flags it. None: off
     unruled: Callable[[bytes], bool] | None = None
     # How ingest read a file's page, by path (judge.reading_flags: a scan, a photo, Carbon): no
     # answer on a flagged page is sure, on this path as in the product's ask. None: none is
@@ -214,7 +215,11 @@ class Pipeline:
             sink=sink,
             readable=self.readable,
             scanned=self.scanned,
+            fallback=None if self.unruled is None else self._unruled_file,
         )
+
+    def _unruled_file(self, path: str) -> bool:
+        return self.unruled is not None and self.unruled(self.files.read(path))
 
     def answer_questions(
         self, questions: Iterable[Question], drawings: DrawingSource, sink: AnswerSink
@@ -286,7 +291,7 @@ def build_pipeline(
         clock=time.perf_counter,
         prior_families=_policy(settings.answer_policy),
         readable=_readable(settings),
-        scanned=as_image,
+        scanned=is_scanned_pdf,
         confidence=DecisionsConfidence(scans, decisions())
         if settings.decisions_confidence
         else None,
@@ -742,8 +747,9 @@ def build_ingest(
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
         names["raster_tiles"] = settings.raster_tiles
-    if settings.vector_fallback != "off":  # the same
-        names["vector_fallback"] = settings.vector_fallback
+    if settings.vector_fallback != "off":  # the same; v2 reads the page only when the vector
+        # reader read nothing, and keeps that reading only when it found something (r10)
+        names["vector_fallback"] = f"{settings.vector_fallback}:v2"
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         rule = (

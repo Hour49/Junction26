@@ -13,6 +13,7 @@ from app.core.ingest.model import (
     Stage,
     StageTrace,
 )
+from app.core.pipeline.ingest import nothing_read
 from app.core.pipeline.model import Route
 from app.core.wording import CONFLICT_WORDS, ROUTE_WORDS, SCALE_WORDS, count, route_words
 
@@ -69,7 +70,7 @@ UNRULED_FLAG = "a drawn PDF without reading rules, read as an image"
 def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:
     """Why the route's reader read nothing from the drawing, or None when it read something
     (a schedule sheet reads tables). `reader` "hello" is the do-nothing stand-in."""
-    if drawing.read != () or drawing.tables:
+    if not nothing_read(drawing):
         return None
     if reader == "hello":
         return f"not read: this setup has no reader for the {route_words(route)}"
