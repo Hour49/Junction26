@@ -13,7 +13,7 @@
   "clauses": [
     {
       "id": "ch-zh-ls-700-2-1",
-      "ref": "§ 1",
+      "ref": "§ 1 Abs. 1",
       "heading": "Bauten / und Anlagen",
       "heading_en": "Structures / and installations",
       "text": "Bauten und Anlagen im Sinne des Planungs- und Baugesetzes sind:\na. Bauten, die im Boden eingelassen oder mit einer gewissen Ortsbezogenheit darauf stehend ihrem Umfang nach geeignet sind, die Umgebung durch Luft- und Lichtverdrängung, Überlagerung einer freien Bodenfläche oder durch sonstige Einwirkungen zu beeinflussen,\nb. alle planungs- und baurechtlich bedeutsamen äusserlichen Veränderungen von Grundstücken oder deren Nutzung.",
@@ -84,7 +84,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-2a",
-      "ref": "§ 2a",
+      "ref": "§ 2a Abs. 1",
       "heading": "Kleinbauten / und Anbauten",
       "heading_en": "Small buildings / and annexes",
       "text": "Kleinbauten sind freistehende Gebäude mit einer Grundfläche von höchstens 50 m², deren Gesamthöhe 4,0 m, bei Schrägdächern 5,0 m, nicht überschreitet und die nur Nebennutzflächen enthalten.",
@@ -271,7 +271,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-5",
-      "ref": "§ 5",
+      "ref": "§ 5 Abs. 1",
       "heading": "Massgebendes / Terrain",
       "heading_en": "Decisive / terrain",
       "text": "Als massgebendes Terrain gilt der natürlich gewachsene Geländeverlauf. Kann dieser infolge früherer Abgrabungen und Aufschüttungen nicht mehr festgestellt werden, ist vom natürlichen Geländeverlauf der Umgebung auszugehen.",
@@ -317,7 +317,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-6",
-      "ref": "§ 6",
+      "ref": "§ 6 Abs. 1",
       "heading": "Fassadenflucht",
       "heading_en": "Facade alignment",
       "text": "Die Fassadenflucht ist die Mantelfläche, gebildet aus den lotrechten Geraden durch die äussersten Punkte des Baukörpers über dem massgebenden Terrain.",
@@ -406,7 +406,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-6c",
-      "ref": "§ 6c",
+      "ref": "§ 6c Abs. 1",
       "heading": "Vorspringende / Gebäudeteile",
       "heading_en": "Projecting / building parts",
       "text": "Vorspringende Gebäudeteile ragen höchstens 2 m über die Fassadenflucht hinaus und dürfen, mit Ausnahme der Dachvorsprünge, die Hälfte des zugehörigen Fassadenabschnitts nicht überschreiten.",
@@ -467,7 +467,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-6d",
-      "ref": "§ 6d",
+      "ref": "§ 6d Abs. 1",
       "heading": "Rückspringende / Gebäudeteile",
       "heading_en": "Receding / building parts",
       "text": "Rückspringende Gebäudeteile sind gegenüber der Hauptfassade zurückversetzt.",
@@ -684,7 +684,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-12",
-      "ref": "§ 12",
+      "ref": "§ 12 Abs. 1",
       "heading": "Anrechenbare / Grünflächen",
       "heading_en": "Creditable green areas",
       "text": "Als natürliche Bodenflächen gelten Flächen, die einen natürlichen Bodenaufbau und natürliche Versickerungseigenschaften aufweisen.",
@@ -732,7 +732,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-13",
-      "ref": "§ 13",
+      "ref": "§ 13 Abs. 1",
       "heading": "Aufteilung der / Baumassenziffer",
       "heading_en": "Division of the volume ratio",
       "text": "Die Gemeinden können die Baumassenziffer aufteilen und je gesondert regeln für\na. Hauptgebäude,\nb. Kleinbauten und Anbauten.",
@@ -815,7 +815,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-20",
-      "ref": "§ 20",
+      "ref": "§ 20 Abs. 1",
       "heading": "Gemischte / Bauten",
       "heading_en": "Mixed-use buildings",
       "text": "Grenzen Räume für die besondere Nutzung unmittelbar an sonstige Räume oder an gemeinsame Nebenräume und Erschliessungsanlagen, erstreckt sich ihre Fläche bis zur halben Stärke der Trennwand.",
@@ -865,7 +865,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-21",
-      "ref": "§ 21",
+      "ref": "§ 21 Abs. 1",
       "heading": "A. Begriff",
       "heading_en": "A. Concept",
       "text": "Der Grenzabstand setzt sich aus dem Grundabstand und dem Mehrhöhenzuschlag sowie dem Mehrlängenzuschlag gemäss Bau- und Zonenordnung zusammen.",
@@ -914,7 +914,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-22",
-      "ref": "§ 22",
+      "ref": "§ 22 Abs. 1",
       "heading": "B. Grundabstand",
       "heading_en": "B. Basic setback",
       "text": "Der Grundabstand ist der kleinste erforderliche Grenzabstand ohne Mehrlängen- und Mehrhöhenzuschlag; er wird rechtwinklig zur projizierten Fassadenlinie und radial über die Gebäudeecken gemessen.",
@@ -963,7 +963,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-23",
-      "ref": "§ 23",
+      "ref": "§ 23 Abs. 1",
       "heading": "C. Mehrlängenzuschlag",
       "heading_en": "C. Surcharge for greater length",
       "text": "Der Mehrlängenzuschlag entspricht einem bestimmten Teil der als Mehrlänge qualifizierten Fassadenlänge; der Zuschlag kann auf ein Höchstmass begrenzt werden.",
@@ -1010,7 +1010,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-24",
-      "ref": "§ 24",
+      "ref": "§ 24 Abs. 1",
       "heading": "II. Bei / besonderem / Fassadenverlauf",
       "heading_en": "II. For a special facade course",
       "text": "Bei seitlich gegliederten Fassaden wird die für den Mehrlängenzuschlag massgebende Länge für jeden Fassadenteil für sich bestimmt.",
@@ -1130,7 +1130,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-27",
-      "ref": "§ 27",
+      "ref": "§ 27 Abs. 1",
       "heading": "Begriff",
       "heading_en": "Definition",
       "text": "Die Fassadenlänge entspricht dem Fassadenabschnitt, der für die Berechnung der zulässigen Breite vorspringender und unbedeutend rückspringender Gebäudeteile sowie von Dachaufbauten massgebend ist.",
@@ -1211,7 +1211,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-28",
-      "ref": "§ 28",
+      "ref": "§ 28 Abs. 1",
       "heading": "Begriff",
       "heading_en": "Definition",
       "text": "Die Gebäudelänge ist die längere Seite des flächenkleinsten Rechtecks, welches die projizierte Fassadenlinie umfasst.",
@@ -1306,7 +1306,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-30",
-      "ref": "§ 30",
+      "ref": "§ 30 Abs. 1",
       "heading": "Beeinträchtigung durch / Schattenwurf",
       "heading_en": "Impairment by / shadow cast",
       "text": "Als wesentliche Beeinträchtigung durch Schattenwurf im Sinne von § 284 PBG gilt:\na. bei überbauten Grundstücken: die an den mittleren Wintertagen länger als drei Stunden dauernde Beschattung der bewohnten oder in Wohnzonen liegenden Nachbargebäude, in der Regel an ihrem Fusspunkt gemessen,\nb. bei unüberbauten Grundstücken in Wohnzonen: die an den mittleren Wintertagen länger als drei Stunden dauernde Beschattung überbaubarer Flächen des Nachbargrundstückes, sofern dadurch eine den örtlichen Verhältnissen und der Bau- und Zonenordnung entsprechende Überbauung verunmöglicht oder erheblich erschwert wird.",
@@ -1398,7 +1398,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-31",
-      "ref": "§ 31",
+      "ref": "§ 31 Abs. 1",
       "heading": "Offene und / geschlossene / Überbauung",
       "heading_en": "Open / closed development",
       "text": "Als offen im Sinne von § 286 PBG gilt eine Überbauung, deren Gebäude nach allen Seiten frei stehen.",
@@ -1495,7 +1495,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-anhang-2",
-      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 2 Abs. 1",
       "heading": "Gebäude",
       "heading_en": "Buildings",
       "text": "Gebäude sind Bauten und Anlagen, die einen Raum zum Schutz von Menschen oder Sachen gegen äussere, namentlich atmosphärische Einflüsse mehr oder weniger vollständig abschliessen.",
@@ -1560,7 +1560,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-anhang-5",
-      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 5",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 5 Abs. 1",
       "heading": "Gewachsener / Boden",
       "heading_en": "Natural ground",
       "text": "Gewachsener Boden ist der bei Einreichung des Baugesuchs bestehende Verlauf des Bodens.",
@@ -1760,7 +1760,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-anhang-12",
-      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 12",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 12 Abs. 1",
       "heading": "Anrechenbare / Bereiche",
       "heading_en": "Creditable / Areas",
       "text": "Als oberirdisch gelten alle über dem gewachsenen Boden liegenden Gebäudeteile.",
@@ -1883,7 +1883,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-anhang-22",
-      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 22",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 22 Abs. 1",
       "heading": "B. Grundabstand",
       "heading_en": "Basic setback",
       "text": "Der Grundabstand ist der kleinste erforderliche Grenzabstand ohne Mehrlängen- und Mehrhöhenzuschlag; er wird rechtwinklig zu den Fassaden und radial über die Gebäudeecken gemessen.",
@@ -1964,7 +1964,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-anhang-27",
-      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 27",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 27 Abs. 1",
       "heading": "Begriff",
       "heading_en": "Definition",
       "text": "Zur Fassadenlänge werden oberirdische Vorsprünge über mehr als einem Geschoss hinzugerechnet, wenn sie in der Richtung der betreffenden Fassade eine geschlossene Höhe von mehr als 1,3 m aufweisen.",
@@ -2023,7 +2023,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-anhang-28",
-      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 28",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 28 Abs. 1",
       "heading": "Begriff",
       "heading_en": "Definition",
       "text": "Als Gebäudelänge gilt die längere Seite des flächenkleinsten Rechtecks, welches die senkrecht auf den Erdboden projizierte grösste, durch die massgebliche Fassadenlänge gebildete Gebäudeumfassung umschreibt. Als Gebäudebreite gilt die kürzere Seite dieses Rechtecks.",
@@ -2076,7 +2076,7 @@
     },
     {
       "id": "ch-zh-ls-700-2-anhang-29",
-      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 29",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 29 Abs. 1",
       "heading": "Einzelheiten",
       "heading_en": "Details",
       "text": "Alle Höhenmasse werden im Lot gemessen.",

@@ -761,7 +761,7 @@ Ingest's project status, plus `drawings`:
   "skipped": [
     {
       "path": "photos/site.jpg",
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))"
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))"
     },
     {
       "path": "cad/detail.dxf",
@@ -2793,7 +2793,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "identify",
-          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink, camera EXIF (SyntheticPhone Model 1))",
+          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink (2.2% on the paper), camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
           "output": "photo of a drawing",
           "failure": null,
@@ -2867,7 +2867,7 @@ upload lists the files, instead of one request per file.
         "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
         "kind": "photo",
         "state": "set_aside",
-        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
         "group": null,
         "route": null,
         "source": null,
@@ -2898,7 +2898,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "identify",
-          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
           "output": "photo",
           "failure": null,
@@ -4445,10 +4445,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1)).",
+      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1)).",
       "quantity": null,
       "question": null,
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
       "check": null,
       "links": {
         "drawing": null,
@@ -9121,8 +9121,10 @@ order.
 ### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
 
 `q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
-starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. Clauses with every word come first, then
-clauses with any word fill `limit`, each group by score. `topic` one of `rooms accessibility fire
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored; words of 1-2 letters, a few English stopwords
+("when", "do", "need", ...) and words past the 20th are ignored, so a query of only those has no hits. Clauses with
+every word come first, then clauses with any word fill `limit`, each group by score; old wording (an id with
+`-anhang-`) comes after every current clause. `topic` one of `rooms accessibility fire
 escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
 distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
 -BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.

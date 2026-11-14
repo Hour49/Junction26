@@ -7,12 +7,15 @@
 
 import { COOKIE, TTL_S, codeMatches, cookieValue, setCookie, sign, verify, withoutCookie } from "./gate.js";
 
+// a strip above the demo page, in its flow: a fixed box in a corner covered the demo's own buttons
 const FORM_STYLE =
-  "position:fixed;right:12px;bottom:12px;z-index:2147483647;background:#fff;color:#111;border:1px solid #bbb;" +
-  "border-radius:8px;padding:8px 10px;font:14px/1.3 system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.2)";
+  "display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 10px;margin:0;padding:6px 12px;" +
+  "background:#fff;color:#111;border-bottom:1px solid #ccc;font:14px/1.3 system-ui,sans-serif";
 
 const FORM =
-  `<form method="post" action="/__unlock" style="${FORM_STYLE}"><label>Have an access code? ` +
+  `<form method="post" action="/__unlock" style="${FORM_STYLE}">` +
+  `<a href="/credits.html" style="color:inherit;margin-right:auto">Credits</a>` +
+  `<label>Have an access code? ` +
   `<input name="code" type="password" autocomplete="off" required style="font:inherit;width:11em"></label> ` +
   `<button type="submit" style="font:inherit">Open the app</button></form>`;
 
@@ -141,7 +144,8 @@ async function demo(request, env) {
   const type = asset.headers.get("content-type") || "";
   if (request.method === "GET" && asset.ok && type.includes("text/html")) {
     const html = await asset.text();
-    const out = new Response(html.includes("</body>") ? html.replace("</body>", `${FORM}</body>`) : html + FORM, asset);
+    const body = /<body[^>]*>/i;
+    const out = new Response(body.test(html) ? html.replace(body, (tag) => tag + FORM) : FORM + html, asset);
     out.headers.delete("content-length");
     out.headers.delete("etag");
     out.headers.set("cache-control", "no-store"); // see proxy(): the same address is the app once unlocked

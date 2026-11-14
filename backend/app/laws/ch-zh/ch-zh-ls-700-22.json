@@ -13,7 +13,7 @@
   "clauses": [
     {
       "id": "ch-zh-ls-700-22-1",
-      "ref": "§ 1",
+      "ref": "§ 1 Abs. 1",
       "heading": "Geltungsbereich",
       "heading_en": "Scope",
       "text": "Diese Verordnung trifft Verschärfungen oder Milderungen von Bauvorschriften.",
@@ -62,7 +62,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-3",
-      "ref": "§ 3",
+      "ref": "§ 3 Abs. 1",
       "heading": "B. Verkaufsgeschäfte",
       "heading_en": "Retail businesses",
       "text": "Verkaufsgeschäfte sind dem Publikum offenstehende Betriebe für die Gütergrossverteilung und den Detailhandel, in denen Waren angeboten werden.",
@@ -143,7 +143,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-4",
-      "ref": "§ 4",
+      "ref": "§ 4 Abs. 1",
       "heading": "II. Grossläden",
       "heading_en": "Large stores",
       "text": "Grossläden sind Verkaufsgeschäfte oder Zusammenfassungen von solchen mit einer Verkaufsfläche von insgesamt mindestens 1000 m².",
@@ -203,7 +203,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-5",
-      "ref": "§ 5",
+      "ref": "§ 5 Abs. 1",
       "heading": "I. Allgemein / III. Einkaufszentren",
       "heading_en": "General / Shopping centres",
       "text": "Einkaufszentren sind Verkaufsgeschäfte des Detailhandels oder Zusammenfassungen von solchen mit einer Verkaufsfläche von insgesamt mindestens 2000 m².",
@@ -364,7 +364,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-10",
-      "ref": "§ 10",
+      "ref": "§ 10 Abs. 1",
       "heading": "II. Rauminhalt",
       "heading_en": "Room volume",
       "text": "Verkaufsgeschäfte, Begegnungsstätten mit grossem Publikumsverkehr und Räume mit grosser Personenbelegung haben einen von der Bodenfläche abhängigen Mindestinhalt aufzuweisen. Dieser beträgt 2,40 m³ je Quadratmeter für Bodenflächen bis zu 200 m² und erhöht sich um 0,002 m³ für jeden zusätzlichen Quadratmeter; ab 500 m² Bodenfläche bleibt der Mindestinhalt von 3,0 m³ je Quadratmeter konstant.",
@@ -507,7 +507,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-12",
-      "ref": "§ 12",
+      "ref": "§ 12 Abs. 1",
       "heading": "A. Raummasse / B. Erschliessung",
       "heading_en": "Room dimensions / Access",
       "text": "Der gesetzliche Zugang von Einkaufszentren darf in Wohnzonen nur über Strassen führen, die mindestens als Sammelstrassen ausgebaut sind; im Übrigen gilt § 237 PBG.",
@@ -558,7 +558,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-13",
-      "ref": "§ 13",
+      "ref": "§ 13 Abs. 1",
       "heading": "II. Interne / Erschliessung",
       "heading_en": "Internal / Access",
       "text": "Für Grossläden, Begegnungsstätten mit grossem Publikumsverkehr und Räume mit grosser Personenbelegung gelten die Bestimmungen der Verordnung über den baulichen Brandschutz über Ein- und Ausgänge auch dann, wenn diesen die Funktion einer Haustüre zukommt; vorbehalten bleibt das Mindestmass von § 305 PBG für mindestens eine Türe.",
@@ -610,7 +610,8 @@
         "Lichtmass",
         "Treppe",
         "Gang",
-        "Notfall"
+        "Notfall",
+        "Fluchtwegbreite"
       ],
       "topics": [
         "escape-routes",
@@ -622,7 +623,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-14",
-      "ref": "§ 14",
+      "ref": "§ 14 Abs. 1",
       "heading": "C. Gebäudeabstand",
       "heading_en": "Building distance",
       "text": "Soweit nicht das Gesetz von der Beachtung eines Gebäudeabstands befreit, beträgt dieser mindestens 10 m, wenn eines der Gebäude brennbare Aussenwände aufweist.",
@@ -680,7 +681,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-15",
-      "ref": "§ 15",
+      "ref": "§ 15 Abs. 1",
       "heading": "II. Bei feuer-oder explosionsgefährlichen / Nutzungen",
       "heading_en": "For fire- or explosion-hazardous / uses",
       "text": "Bauten und Anlagen, in denen feuer- oder explosionsgefährliche Stoffe gelagert oder verarbeitet werden oder die dem Transport solcher Stoffe dienen, haben unter sich und gegenüber benachbarten Bauten und Anlagen, soweit die Sicherheit von Personen und Sachen es erfordert, erhöhte Abstände einzuhalten.",
@@ -737,7 +738,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-18",
-      "ref": "§ 18",
+      "ref": "§ 18 Abs. 1",
       "heading": "I. Zugänglichkeit / I. Bei brennbaren Aussenwänden / Milderungen",
       "heading_en": "Accessibility / For combustible external walls / Relief",
       "text": "Gartenhäuser und Schöpfe, die nicht für den dauernden Aufenthalt von Menschen bestimmt sind, sowie überdeckte, seitlich mindestens zur Hälfte der Abwicklung offene Gartensitzplätze sind von den Abstandsvorschriften gegenüber grundstückinternen Gebäuden befreit, wenn ihre Grundfläche 10 m², ihre Fassadenlänge mit Einschluss allfälliger Pergolen 6 m und ihre Gesamthöhe 3 m nicht übersteigen.",
@@ -838,7 +839,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-19",
-      "ref": "§ 19",
+      "ref": "§ 19 Abs. 1",
       "heading": "B. Hohe / Bauwerke",
       "heading_en": "High / structures",
       "text": "Gebäude oder Teile davon, deren Gesamthöhe und Standort durch ihre besondere Art oder ihre Funktion bestimmt wird, wie Kirchtürme, Hochkamine und Silos für Landwirtschaftsbetriebe, sind von den Bestimmungen über die Geschosszahl, die Gesamt- und Fassadenhöhen sowie Abstandsvergrösserungen aufgrund von Mehrhöhen befreit; vorbehalten bleiben die besonderen Anforderungen an Hochhäuser.",
@@ -967,7 +968,7 @@
     },
     {
       "id": "ch-zh-ls-700-22-22",
-      "ref": "§ 22",
+      "ref": "§ 22 Abs. 1",
       "heading": "B. Inkrafttreten",
       "heading_en": "Entry into force",
       "text": "Diese Verordnung bedarf der Genehmigung durch den Kantonsrat.",
