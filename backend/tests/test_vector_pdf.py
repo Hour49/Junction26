@@ -113,12 +113,15 @@ def test_each_text_object_keeps_its_own_text() -> None:
 # --------------------------------------------------------------------------- the scale
 
 
-def bar(sheet: SheetPdf, left: float, block: float, label: str = "5") -> None:
-    """A scale bar of three blocks, black-white-black, with its end label above it."""
+def bar(sheet: SheetPdf, left: float, block: float, label: str = "5", unit: str = "m") -> None:
+    """A scale bar of three blocks, black-white-black, with its end label above it and its unit
+    on its own after the label, as the Swiss sheets print it ("" for none)."""
     for at, fill in enumerate((BLACK, WHITE, BLACK)):
         sheet.path(rect(left + at * block, 370, left + (at + 1) * block, 375), width=0.5, fill=fill)
     sheet.text("0", left, 366)
     sheet.text(label, left + 3 * block - 2, 366)
+    if unit:
+        sheet.text(unit, left + 3 * block + 4, 366)
 
 
 def test_the_printed_ratio_gives_metres_per_point() -> None:
@@ -265,6 +268,42 @@ def test_a_scale_bar_alone_gives_the_scale() -> None:
     scale, _ = read_scale(read_page(sheet.pdf()))
     assert (scale.status, scale.text, scale.evidence) == ("scaled", None, ("scale_bar",))
     assert scale.m_per_unit == pytest.approx(5 / 90)
+
+
+@pytest.mark.parametrize(("label", "unit"), [("16'", ""), ("16", "FEET"), ("16 ft", "")])
+def test_a_bar_labelled_in_feet_is_read_in_feet(label: str, unit: str) -> None:
+    sheet = SheetPdf()
+    bar(sheet, 100, 30, label=label, unit=unit)  # 16 ft over 90 pt
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.evidence) == ("scaled", ("scale_bar",))
+    assert scale.m_per_unit == pytest.approx(16 * 0.3048 / 90)
+
+
+@pytest.mark.parametrize("unit", ["", "FEET"])  # no unit; metres and feet on one bar
+def test_a_bar_without_one_unit_is_not_read(unit: str) -> None:
+    sheet = SheetPdf()
+    bar(sheet, 100, 30, label="5 m" if unit else "5", unit=unit)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.evidence) == ("no_scale", ())
+
+
+def test_a_view_callout_is_not_a_scale_bar() -> None:
+    """Lake_Kegonsa A-400: a section mark, a black and a white half with the view number "12"
+    over the sheet "A-400", was read as a bar 12 m long."""
+    sheet = SheetPdf()
+    sheet.path(rect(497, 366, 515, 371), width=0.5, fill=BLACK)
+    sheet.path(rect(515, 366, 533, 371), width=0.5, fill=WHITE)
+    sheet.text("12", 512, 348)
+    sheet.text("A-400", 506, 362)
+    sheet.text('1/4" = 1\'-0"', 300, 380)
+    scale, notes = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text, scale.evidence) == (
+        "scaled",
+        '1/4" = 1\'-0"',
+        ("scale_text",),
+    )
+    assert scale.m_per_unit == pytest.approx(48 * M_PER_PT_ON_PAPER)
+    assert notes == ()
 
 
 def test_legend_squares_are_not_a_scale_bar() -> None:

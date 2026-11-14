@@ -32,7 +32,10 @@ SLOPE_AFTER = re.compile(
     rf"\W{{0,3}}{SLOPE_WORD}\b|(?:\s+(?:{SLOPE_WORD}|{SLOPE_QUALIFIER})\b)+\W*$", re.IGNORECASE
 )
 PRINTED_AREA = re.compile(r"(\d+[.,]\d+)\s*m²")
-BAR_LABEL = re.compile(r"(\d+)(?:\s*m)?")
+_BAR_UNIT = r"(m|meters?|metres?|ft|feet|foot|'|\u2019)"  # ' or a right single quote: feet
+BAR_LABEL = re.compile(rf"(\d+)\s*{_BAR_UNIT}?", re.IGNORECASE)
+BAR_UNIT = re.compile(_BAR_UNIT, re.IGNORECASE)
+M_PER_FOOT = 0.3048
 BAR_FILLS = ((0, 0, 0), (255, 255, 255))
 BAR_HEIGHT = (2.0, 8.0)  # points
 
@@ -62,7 +65,8 @@ def read_scale(page: PdfPage) -> tuple[Scale, tuple[str, ...]]:
         off = abs(bar[0] - value) / max(bar[0], value)
         if differ(value, bar[0], TOLERANCE):
             source = (
-                f"scale bar: its length against its metre label; the text {text} is {off:.1%} off"
+                "scale bar: its drawn length against the length printed on it; "
+                f"the text {text} is {off:.1%} off"
             )
             note = f"scale: the bar and the text {text} disagree by {off:.1%}; the bar is used"
             return _scaled(bar[0], evidence, text, source), (note,)
@@ -72,7 +76,7 @@ def read_scale(page: PdfPage) -> tuple[Scale, tuple[str, ...]]:
         value, text, _ = ratio
         return _scaled(value, evidence, text, f"sheet text {text}; no scale bar found"), ()
     if bar:
-        source = "scale bar: its length against its metre label"
+        source = "scale bar: its drawn length against the length printed on it"
         return _scaled(bar[0], evidence, None, source), several
     if several:
         return Scale(status="no_scale", source="several printed scales and no scale bar"), several
@@ -153,8 +157,10 @@ def _is_block(path: PdfPath) -> bool:
 
 def read_bar(page: PdfPage) -> tuple[float, Bounds] | None:
     """Metres per point from a scale bar, and where the bar is: a row of touching blocks, at
-    least one black, with metre labels next to it; the largest label is the length of the whole
-    bar."""
+    least one black, with number labels next to it and one unit, metres or feet, printed with a
+    label ("5 m", "16'") or on its own beside them; the largest label is the length of the whole
+    bar. Without a unit it is no bar: a view callout (a black and a white half beside the view
+    number, "12" over "A-400") looks like one."""
     rows: dict[tuple[int, int], set[tuple[float, float]]] = defaultdict(set)
     black: set[tuple[int, int]] = set()
     for path in filter(_is_block, page.paths):
@@ -170,13 +176,22 @@ def read_bar(page: PdfPage) -> tuple[float, Bounds] | None:
         if any(abs(a[1] - b[0]) > 1.0 for a, b in pairwise(blocks)):
             continue
         left, right = blocks[0][0], blocks[-1][1]
-        labels = [
-            int(found.group(1))
+        near = [
+            text.text
             for text in page.texts
-            if (found := BAR_LABEL.fullmatch(text.text))
-            and left - 5 <= text.centre[0] <= right + 15
+            if left - 5 <= text.centre[0] <= right + 15
             and abs(text.centre[1] - (top + bottom) / 2) < 25
         ]
-        if labels and max(labels) > 0:
-            return max(labels) / (right - left), (left, top, right, bottom)
+        labels = [found for text in near if (found := BAR_LABEL.fullmatch(text))]
+        units = {_metres(found.group(2)) for found in labels if found.group(2)} | {
+            _metres(text) for text in near if BAR_UNIT.fullmatch(text)
+        }
+        length = max((int(found.group(1)) for found in labels), default=0)
+        if length > 0 and len(units) == 1:
+            return length * units.pop() / (right - left), (left, top, right, bottom)
     return None
+
+
+def _metres(unit: str) -> float:
+    """Metres in one `unit` of a bar label: a metre, or a foot."""
+    return 1.0 if unit.lower().startswith("m") else M_PER_FOOT
