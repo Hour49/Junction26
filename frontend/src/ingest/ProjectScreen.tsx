@@ -1,5 +1,5 @@
 import { useCallback, type ReactNode } from 'react';
-import { errorText, formatTime, getProject, type FileStatus } from '../api';
+import { errorText, formatTime, getProject, type FileStatus, type ProjectView } from '../api';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
@@ -12,6 +12,7 @@ import {
   isFinished,
   isLive as live,
   kindLabel,
+  routeLabel,
 } from './ingest';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
@@ -81,6 +82,30 @@ export function TitleRow({
   );
 }
 
+/** A done project with no drawings: every file and skipped entry with why it was not read (IN-72). */
+function NothingRead({ project }: { project: ProjectView }) {
+  const paths = new Set(project.files.map((f) => f.path));
+  const why = [
+    ...project.files.map((f) => ({ path: f.path, reason: f.reason })),
+    ...project.skipped.filter((s) => !paths.has(s.path)),
+  ];
+  return (
+    <section aria-label="Nothing read" className="v-card ingest-nothing">
+      <h2 className="v-h2">Nothing could be read from this upload</h2>
+      {why.length > 0 && (
+        <ul>
+          {why.map((w) => (
+            <li key={w.path}>
+              <b className="path">{w.path}</b>
+              {w.reason && <span className="reason">{w.reason}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** Route `#/p/<project_id>`: the ingest followed live (Simple), or step by step (`?view=advanced`). */
 export function ProjectScreen({ projectId }: { projectId: string }) {
   const load = useCallback((signal: AbortSignal) => getProject(projectId, { signal }), [projectId]);
@@ -103,6 +128,8 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   const waiting = live(project);
   const WAITING = 'Waiting for the files…';
   const base = `#/p/${projectId}`;
+  // An upload with nothing readable ends plainly, not "Ready" with a 0% ring (IN-72, R4-a-7).
+  const nothingRead = project.state === 'done' && project.drawings.length === 0;
   return (
     <div className="v-page v-page--narrow ingest">
       <TitleRow eyebrow={PROJECT_STATE_LABEL[project.state] ?? project.state} title={project.name}>
@@ -123,43 +150,53 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
         <AdvancedIngest projectId={projectId} project={project} />
       ) : (
         <>
-          <ProgressCard project={project} now={at} />
-          {project.state === 'done' && (
-            <p className="ingest-next">
-              <a className="v-btn v-press" href={`${base}/conflicts`}>
-                Settle the conflicts
-              </a>
-            </p>
+          {nothingRead ? (
+            <NothingRead project={project} />
+          ) : (
+            <>
+              <ProgressCard project={project} now={at} />
+              {project.state === 'done' && (
+                <p className="ingest-next">
+                  <a className="v-btn v-press" href={`${base}/conflicts`}>
+                    Settle the conflicts
+                  </a>
+                </p>
+              )}
+            </>
           )}
-          <section aria-label="Drawings" className="ingest-drawings">
-            <h2 className="v-h3">Drawings</h2>
-            {project.drawings.length === 0 ? (
-              <p>
-                {waiting ? WAITING : 'No drawings: nothing in this upload could be read as a plan.'}
-              </p>
-            ) : (
-              <ul>
-                {project.drawings.map((d) => (
-                  <li key={d.drawing_id} className="v-card">
-                    <b className="path">{d.file}</b>
-                    <span>
-                      <StateBadge state={d.state} /> {kindLabel(d.kind)}
-                      {d.route && ` · ${d.route} route`}
-                    </span>
-                    {d.other_renderings.length > 0 && (
-                      <span>also: {d.other_renderings.map((r) => r.file).join(', ')}</span>
-                    )}
-                    <a
-                      className="v-btn v-btn--secondary v-press"
-                      href={`${base}/d/${d.drawing_id}/engineer`}
-                    >
-                      Open
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {!nothingRead && (
+            <section aria-label="Drawings" className="ingest-drawings">
+              <h2 className="v-h3">Drawings</h2>
+              {project.drawings.length === 0 ? (
+                <p>
+                  {waiting
+                    ? WAITING
+                    : 'No drawings: nothing in this upload could be read as a plan.'}
+                </p>
+              ) : (
+                <ul>
+                  {project.drawings.map((d) => (
+                    <li key={d.drawing_id} className="v-card">
+                      <b className="path">{d.file}</b>
+                      <span>
+                        <StateBadge state={d.state} /> {kindLabel(d.kind)}
+                        {d.route && ` · ${routeLabel(d.route)}`}
+                      </span>
+                      {d.other_renderings.length > 0 && (
+                        <span>also: {d.other_renderings.map((r) => r.file).join(', ')}</span>
+                      )}
+                      <a
+                        className="v-btn v-btn--secondary v-press"
+                        href={`${base}/d/${d.drawing_id}/engineer`}
+                      >
+                        Open
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
           <section aria-label="Files" className="ingest-files">
             <h2 className="v-h3">Files</h2>
             {project.files.length === 0 ? (

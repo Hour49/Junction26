@@ -143,7 +143,7 @@
 
   const STEPS = [
     ['Unpack', 'opening the zip safely', 'unpack', 1.6], ['Identify', 'what each file really is', 'identify', 1.8],
-    ['Route', 'picking the best source per drawing', 'identify', 1.4], ['Normalise', 'upright sheets, views and scale', 'extract', 1.6],
+    ['Route', 'picking the best source per drawing', 'identify', 1.4], ['Normalise', 'upright sheets, views and scale', 'normalise', 1.6],
     ['Extract', 'rooms, doors, windows, fixtures', 'extract', 2.6], ['Drawing model', 'one schema for every drawing', 'extract', 1.4],
     ['Cross-check', 'a second, independent count', 'check', 2.0], ['Index', 'precomputing the answers', 'check', 1.2],
   ].map(([name, hint, panel, secs]) => ({ name, hint, panel, secs }));

@@ -232,6 +232,27 @@
   display: flex;
 }
 
+/* Screen 2: a done upload with no drawings (IN-72) */
+.ingest-nothing {
+  display: grid;
+  gap: 16px;
+}
+.ingest-nothing ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ingest-nothing li {
+  display: grid;
+  gap: 4px;
+}
+.ingest-nothing .reason {
+  color: var(--v-muted);
+  font-size: 14px;
+}
+
 /* Screen 2: drawings and files */
 .ingest-drawings ul {
   display: grid;

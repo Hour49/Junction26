@@ -258,7 +258,8 @@
 .sv-signed {
   color: var(--v-ok);
 }
-.sv-screen button {
+/* not the viewer's buttons (its badges and bar, viewer.css); :where keeps the specificity (SV-55) */
+.sv-screen button:not(:where(.vw *)) {
   border: 0;
   border-radius: 980px;
   padding: 0 14px;
@@ -273,22 +274,22 @@
   background: none;
   font-weight: 400;
 }
-.sv-screen button.sv-primary {
+.sv-screen button:not(:where(.vw *)).sv-primary {
   background: var(--v-accent);
   color: var(--v-surface);
 }
-.sv-screen button.sv-primary:hover:not(:disabled) {
+.sv-screen button:not(:where(.vw *)).sv-primary:hover:not(:disabled) {
   background: var(--v-accent-strong);
 }
-.sv-screen button.sv-danger {
+.sv-screen button:not(:where(.vw *)).sv-danger {
   color: var(--v-danger);
 }
-.sv-screen button:disabled {
+.sv-screen button:not(:where(.vw *)):disabled {
   color: var(--v-muted);
   background: var(--v-fill);
   cursor: not-allowed;
 }
-.sv-screen button:active:not(:disabled) {
+.sv-screen button:not(:where(.vw *)):active:not(:disabled) {
   transform: scale(0.97);
 }
 .sv-detail .sv-tools button {
@@ -314,10 +315,10 @@
   border-radius: 3px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .sv-screen button {
+  .sv-screen button:not(:where(.vw *)) {
     transition: none;
   }
-  .sv-screen button:active:not(:disabled) {
+  .sv-screen button:not(:where(.vw *)):active:not(:disabled) {
     transform: none;
   }
 }

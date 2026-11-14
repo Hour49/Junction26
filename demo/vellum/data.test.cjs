@@ -116,3 +116,7 @@ test('one answering drawing gives a total with its unit, sure only when the draw
     assert.match(one.total_note, /flat-b12/);
   } finally { V.DRAWINGS.push(...saved); }
 });
+
+test('every reading step opens an advanced panel, Normalise its own', () => {
+  assert.deepEqual([...new Set(V.STEPS.map((s) => s.panel))], ['unpack', 'identify', 'normalise', 'extract', 'check']);
+});

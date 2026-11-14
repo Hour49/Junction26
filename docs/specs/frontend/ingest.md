@@ -98,7 +98,7 @@ project screen mounts, then 500 ms after each response while `state` is `queued`
   given: `path`, `kind` (`kindLabel`: in words, "PDF vector", "photo of a plan"; "not identified" when null), `state` (badge, `STATE_LABEL`), `reason` (when not
   empty), `size` (`formatSize`), `ms` (`formatMs`, finished files only), `reused` ("reused" tag when true). The row
   links to `#/p/<project_id>/f/<id>`.
-- `drawings[]`: one card each under the progress card: `file` (title), `kind`, `route` ("vector route"), `state`
+- `drawings[]`: one card each under the progress card: `file` (title), `kind`, `route` as `routeLabel` ("drawn PDF route", IN-73), `state`
   (badge), `other_renderings[].file` ("also: plans/flat-a.png"), and an "Open" link to
   `#/p/<project_id>/d/<drawing_id>/engineer`.
 - `ms`, `cost_usd`, `created_at`: the stats row (below). The whole object goes to `AdvancedIngest` as `project`.
@@ -410,6 +410,15 @@ Across the screens
   Kind fact use it. [unit + component]
 - IN-70: At 390 the tap targets are at least 44 px: home's "Earlier uploads are in Workspaces", the trace's "Back to
   the project" and the takeoff `<summary>` (pre-QA). [unit: the `ingest.css` rules; browser check]
+- IN-71 (R4-a-6): The working step's file bar ("<passed> / <through> files") is left out when no file has reached
+  the step (`through` 0): a `queued` project with `files: []` shows no "0 / 0 files". [component]
+- IN-72 (R4-a-7, Bogdan 12:45): A `done` project with no drawings (an empty zip, a lone .exe, a password zip) shows,
+  in Simple, a plain card (`section` "Nothing read") "Nothing could be read from this upload" listing every file and
+  every skipped entry with its reason, then the Files list; no progress card (no ring, no "All 8 steps done"), no
+  "Settle the conflicts", no Drawings list. Backend unchanged. [component: `done`, `drawings: []`, set-aside files;
+  browser 1440 and 390 with a synthetic upload]
+- IN-73 (R4-a-4): Drawing cards show the route as `routeLabel` ("drawn PDF route", "image route", "BIM model
+  route", "CAD route"), never the raw id ("vector route"). [unit `routeLabel`; component]
 - IN-66: `ingest.css` has no colour literal (`#hex`, `rgb(`, `hsl(`): every colour is a `var(--v-…)`. [unit:
   read the file]
 - IN-67: At 390x844 home, the Simple project screen and the trace have no horizontal scroll, the hero is 40 px, the
