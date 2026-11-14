@@ -44,7 +44,8 @@ from app.core.errors import NotFoundError
 from app.core.ingest.judge import read_nothing
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.ingest.triage import called_not_plan, is_not_plan, not_plan_words
-from app.core.review.model import MarkView, Row
+from app.core.review.conflict_card import number
+from app.core.review.model import MarkView, Resolved, Row, is_none
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import NO_PROOF, PALETTE, ClassKey, check
 from app.core.review.review import NotAllowedError, disputes
@@ -141,6 +142,9 @@ class Issue(View):
     label: str | None = None  # short legend text for the issue's mark; always set
     suggestions: list[str] = Field(default_factory=list[str])  # answer chips, rule-based
     answer: IssueAnswer | None = None  # a person's answer; it does not change `state`
+    # RESOLVER: what a model said about a conflict issue no person settled or signed (a pick
+    # makes it a note, which `issues_to_answer` doesn't count); left out of the JSON when None
+    resolved: Resolved | None = Field(default=None, exclude_if=is_none)
 
 
 class ProjectIssues(View):
@@ -562,6 +566,7 @@ def _conflicts(
                 why=_conflict_why(row),
                 quantity=row.key,
                 label=f"{row.label[:1].upper()}{row.label[1:]}",
+                resolved=_model_said(row),
             )
 
 
@@ -578,7 +583,22 @@ def _conflict_why(row: Row) -> str:
     why = f"{row.label[:1].upper()}{row.label[1:]}: {said[:1].lower()}{said[1:]}"
     if row.signed is not None:
         why += f"; signed off by {row.signed.by}"
+    elif (said_by := _model_said(row)) is not None:
+        picked = None if said_by.value is None else number(row, said_by.value)
+        if picked is None:
+            why += f"; checked by a model ({said_by.by}), which could not tell"
+        elif row.needs_person:  # the marks were edited after the pick
+            why += f"; a model ({said_by.by}) picked {picked} before the marks were edited"
+        else:
+            why += f" ({said_by.by}): you can change it"  # check() said what it picked
     return f"{why}."
+
+
+def _model_said(row: Row) -> Resolved | None:
+    """The resolver's reply on the row's conflict while no person settled or signed it."""
+    if row.settled is not None or row.signed is not None:
+        return None
+    return row.resolved
 
 
 def _place(row: Row, drawing: Drawing) -> tuple[int | None, Box | None, Polygon | None, str | None]:

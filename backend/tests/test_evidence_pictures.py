@@ -1,0 +1,223 @@
+"""The evidence step for a picture (decision 0012 sources v2, report 7.2-7.3): the kind rule as
+amended, the record's `why`, and the real adapters' cache and spend guard (faked models, no
+network)."""
+
+import hashlib
+import json
+import urllib.request
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+import pytest
+from evidence_fakes import FakeKinds, picture_kind
+from pydantic import SecretStr
+from test_sheet_kind import CUT, PIPING, FakeModel, png, reply
+from test_triage_describer import FakeModel as FakeDescribeModel
+from test_triage_describer import answer, form
+from test_vector_pdf import swiss_sheet
+from triage_fakes import FakeDescriber
+
+from app.adapters.evidence.pictures import SheetKindPictures
+from app.adapters.triage import gemini_describer
+from app.adapters.triage.gemini_describer import GeminiDescriber
+from app.adapters.triage.sheet_kind import GeminiSheetKindClient, SheetKindReader
+from app.composition import (  # pyright: ignore[reportPrivateUsage]
+    _evidence_steps,  # pyright: ignore[reportPrivateUsage]
+    _triage,  # pyright: ignore[reportPrivateUsage]
+    build_ingest,
+    uses_keys,
+)
+from app.core import cost
+from app.core.errors import InvalidInputError
+from app.core.evidence.pictures import FLOOR_PLAN, NO_DESCRIBER, picture_evidence
+from app.core.ingest.model import ProjectStatus, SheetKindName
+from app.core.spend import SpendGuard
+from app.settings import Settings
+
+
+@pytest.fixture(autouse=True)
+def _cost_put_back() -> Iterator[None]:
+    """The describers charge this thread's running cost total, which nothing resets; put back
+    after each test, so a later test comparing a cost exactly (test_raster_latency) is not off
+    by a float rounding (as in tests/test_triage_describer.py)."""
+    before = cost.spent()
+    yield
+    cost._local.usd = before  # pyright: ignore[reportPrivateUsage]
+
+
+IMAGE = b"\x89PNG a picture"
+DESCRIBER = FakeDescriber({IMAGE: ("the north elevation of a house", ("A203",))}, usd=0.03)
+
+
+@pytest.mark.parametrize(
+    ("kind", "plan_on_sheet", "source"),
+    [
+        ("architectural_floor_plan", True, False),
+        ("architectural_floor_plan", False, False),  # a floor plan sheet, whatever else it says
+        ("multi_view_sheet", True, False),  # plan beside elevations: the page is the unit
+        ("multi_view_sheet", False, True),
+        ("site_plan_or_map", True, True),  # the house's floor inside its lot (A000): amended
+        ("elevation", False, True),
+        ("mep_plan", True, True),
+        ("schedule_or_text", False, True),
+    ],
+)
+def test_the_kind_rule_as_amended(kind: SheetKindName, plan_on_sheet: bool, source: bool) -> None:
+    kinds = FakeKinds({IMAGE: picture_kind(kind, plan_on_sheet)})
+    found = picture_evidence(IMAGE, kinds, DESCRIBER)
+    assert found.indexed is source
+    assert (found.how, found.kind) == (("described", kind) if source else (None, None))
+    assert found.sheet is not None and found.sheet.kind == kind
+    if not source:
+        assert (found.why, found.description, found.cost_usd) == (FLOOR_PLAN, None, 0.012)
+
+
+def test_a_source_is_described_and_says_why_with_both_calls_costed() -> None:
+    found = picture_evidence(IMAGE, FakeKinds({IMAGE: picture_kind("elevation", False)}), DESCRIBER)
+    assert found.description is not None
+    assert found.description.subject == "the north elevation of a house"
+    assert found.why == "not a floor plan: elevation (Gemini sheet kind, fake kind)"
+    assert found.cost_usd == pytest.approx(0.042)
+
+
+def test_a_failed_kind_call_is_not_a_source_and_says_why() -> None:
+    found = picture_evidence(IMAGE, FakeKinds({}), DESCRIBER)
+    assert (found.indexed, found.sheet, found.cost_usd) == (False, None, 0.0)
+    assert found.why == "the kind call failed: the sheet-kind model could not answer: timed out"
+
+
+def test_no_describer_is_not_a_source_and_says_so() -> None:
+    found = picture_evidence(IMAGE, FakeKinds({IMAGE: picture_kind("section", False)}), None)
+    assert (found.indexed, found.why, found.cost_usd) == (False, NO_DESCRIBER, 0.012)
+
+
+def test_a_refused_description_is_not_a_source_and_gives_the_describers_note() -> None:
+    kinds = FakeKinds({IMAGE: picture_kind("section", False)})
+    found = picture_evidence(IMAGE, kinds, FakeDescriber({}))
+    assert (found.indexed, found.why) == (False, "not described: the model refused")
+
+
+def test_a_spent_budget_is_not_a_source_and_sends_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[int] = []
+
+    def urlopen(request: urllib.request.Request, timeout: float) -> Any:
+        sent.append(1)
+        raise AssertionError("nothing is sent once the budget is spent")
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    client = GeminiSheetKindClient("test-key-not-real", 5.0, budget=SpendGuard(0))
+    kinds = SheetKindPictures(SheetKindReader(client, tmp_path), CUT)
+    found = picture_evidence(png(), kinds, DESCRIBER)
+    assert found.indexed is False and "Gemini budget used up" in found.why
+    assert found.why.startswith("the kind call failed: ")
+    assert sent == []
+
+
+def test_a_cached_kind_reply_and_description_cost_nothing_and_ask_no_model(
+    tmp_path: Path,
+) -> None:
+    image = png()
+    kind_model = FakeModel(reply(PIPING))
+    describe_model = FakeDescribeModel(answer(form()), answer(form()))
+    kinds = SheetKindPictures(SheetKindReader(kind_model, tmp_path / "kind"), CUT)
+    describer = GeminiDescriber(describe_model, tmp_path / "describe")
+    first = picture_evidence(image, kinds, describer)
+    assert first.indexed and first.cost_usd > 0
+    again = picture_evidence(image, kinds, describer)
+    assert (kind_model.calls, len(describe_model.asked)) == (1, 1)
+    assert again.cost_usd == 0
+    assert again.description is not None and first.description is not None
+    assert again.description.subject == first.description.subject
+    assert json.dumps(again.sheet.model_dump() if again.sheet else None) == json.dumps(
+        first.sheet.model_dump() if first.sheet else None
+    )
+
+
+def test_the_scope_is_wired_shown_only_when_on_and_counts_as_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def urlopen(request: urllib.request.Request, timeout: float) -> Any:
+        raise OSError("no network in tests")
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    key = SecretStr("test-key-not-real")
+
+    def ingested(**on: Any) -> ProjectStatus:
+        settings = Settings(_env_file=None, gemini_api_key=key, **on)  # pyright: ignore[reportCallIssue]
+        ingest = build_ingest(settings, tmp_path / "projects", background=False)
+        status = ingest.wait(ingest.start("photo.png", png()))
+        ingest.close()
+        return status
+
+    off = ingested()
+    assert "evidence_scope" not in off.readers  # the default keeps the keys it had before
+    assert off.files[0].evidence is None
+    assert not uses_keys(Settings(_env_file=None))  # pyright: ignore[reportCallIssue]
+    on = ingested(evidence_scope="all_non_plan")
+    assert on.readers["evidence_scope"] == "all_non_plan"
+    found = on.files[0].evidence
+    assert found is not None and not found.indexed
+    assert found.why.startswith("the kind call failed: the sheet-kind model could not answer")
+    assert uses_keys(Settings(_env_file=None, evidence_scope="all_non_plan"))  # pyright: ignore[reportCallIssue]
+
+
+def test_the_scope_never_changes_a_drawing_id_and_a_reused_file_is_still_asked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """7.9 line 3 (first run: every drawing id differed): the step reads no drawing, so the scope
+    is shown in the status but is not part of the ingest cache key."""
+
+    def urlopen(request: urllib.request.Request, timeout: float) -> Any:
+        raise OSError("no network in tests")
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    sheet = swiss_sheet().pdf()
+
+    def ingested(root: Path, **on: Any) -> ProjectStatus:
+        settings = Settings(
+            _env_file=None,  # pyright: ignore[reportCallIssue]
+            gemini_api_key=SecretStr("test-key-not-real"),
+            **on,
+        )
+        ingest = build_ingest(settings, root, background=False)
+        status = ingest.wait(ingest.start("plan.pdf", sheet))
+        ingest.close()
+        return status
+
+    off = ingested(tmp_path / "off")
+    on = ingested(tmp_path / "on", evidence_scope="all_non_plan")
+    assert off.files[0].drawing_id is not None
+    assert on.files[0].drawing_id == off.files[0].drawing_id
+    assert on.readers["evidence_scope"] == "all_non_plan"  # shown, as triage is
+    again = ingested(tmp_path / "off", evidence_scope="all_non_plan")  # the same folder
+    assert again.files[0].reused and again.files[0].drawing_id == off.files[0].drawing_id
+    assert again.files[0].evidence is not None  # a reused file is still asked
+
+
+def test_the_evidence_step_describes_with_carbon_when_set_even_with_triage_off(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]
+        evidence_scope="all_non_plan",
+        triage_describer="carbon",
+        gemini_api_key=SecretStr("test-key-not-real"),
+        triage_describer_cache_dir=tmp_path,
+    )
+    assert _triage(settings) is None  # triage is off: only the evidence step describes
+    image = png()
+    name = (
+        f"{hashlib.sha256(image).hexdigest()}-{gemini_describer.PROMPT_VERSION}-"
+        f"{gemini_describer.PROMPT_SHA[:12]}-gemini-4-carbon-low.json"
+    )
+    (tmp_path / name).write_text(json.dumps({"form": form()}))  # Carbon's cached reply
+    found = _evidence_steps(settings)
+    assert found is not None and found.describer is not None
+    kinds = FakeKinds({image: picture_kind("elevation", False)})
+    described = picture_evidence(image, kinds, found.describer).description
+    assert described is not None and described.model == "gemini-4-carbon-low, describe-6"
+    with pytest.raises(InvalidInputError, match="45"):
+        _evidence_steps(settings.model_copy(update={"gemini_timeout_s": 30.0}))

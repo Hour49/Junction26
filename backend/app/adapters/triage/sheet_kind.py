@@ -393,6 +393,32 @@ class SheetKindReader:
         return SheetReply(form, usd, model, said)
 
 
+def sheet_of(found: SheetReply, image: bytes, cut: float, set_aside: bool = True) -> Sheet:
+    """The reply as `Triage.sheet` holds it, with its decision at `cut`; with `set_aside` false
+    (SHEET_KIND_SET_ASIDE) a sheet it would set aside is a doubt: read, and flagged."""
+    form = found.form
+    decision = decide(form, cut)
+    if decision == "set_aside" and not set_aside:
+        decision = "doubt"
+    # a set-aside sheet is not read, so it routes no reader (hardphotos: the size rule marked
+    # 13 of 14 set-aside non-plans advanced)
+    hard, why = (False, None) if decision == "set_aside" else advanced(form, long_side(image))
+    return Sheet(
+        kind=form["sheet_kind"],
+        kind_words=KINDS[form["sheet_kind"]],
+        decision=decision,
+        takeoff_possible=form["takeoff_possible"],
+        confidence=float(form["confidence"]),
+        title=form["title"],
+        sheet_number=form["sheet_number"],
+        printed_scale=form["printed_scale"],
+        advanced=hard,
+        advanced_why=why,
+        seen=form["seen"],
+        model=found.model,
+    )
+
+
 class SheetKindClassifier:
     """The `Classifier` port (app/core/ingest/ports.py): `inner`, then the sheet-kind model."""
 
@@ -415,26 +441,9 @@ class SheetKindClassifier:
         found = self._reader.read(image)
         if isinstance(found, Unavailable):
             return before if isinstance(before, Classified) else found
-        form, decision = found.form, decide(found.form, self._cut)
-        if decision == "set_aside" and not self._set_aside:  # read it, its answers say the kind
-            decision = "doubt"
-        # a set-aside sheet is not read, so it routes no reader (hardphotos: the size rule marked
-        # 13 of 14 set-aside non-plans advanced)
-        hard, why = (False, None) if decision == "set_aside" else advanced(form, long_side(image))
-        sheet = Sheet(
-            kind=form["sheet_kind"],
-            kind_words=KINDS[form["sheet_kind"]],
-            decision=decision,
-            takeoff_possible=form["takeoff_possible"],
-            confidence=float(form["confidence"]),
-            title=form["title"],
-            sheet_number=form["sheet_number"],
-            printed_scale=form["printed_scale"],
-            advanced=hard,
-            advanced_why=why,
-            seen=form["seen"],
-            model=found.model,
-        )
+        form = found.form
+        sheet = sheet_of(found, image, self._cut, self._set_aside)
+        decision = sheet.decision
         method = f"Gemini sheet kind ({found.said})"
         if isinstance(before, Classified):
             method = f"{before.method}; {method}"
