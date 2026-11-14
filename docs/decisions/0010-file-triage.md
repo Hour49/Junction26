@@ -248,6 +248,8 @@ class RelevanceJudge(Protocol):
   - `TRIAGE_JUDGE=rules` (`app/adapters/triage/rules_judge.py`, 2026-11-14): the baseline fixed before any model,
     `not_drawing` -> unrelated, `other_drawing` -> related, a `why` that says it was not read; a model judge
     replaces it only by the kill rule and keeps it as its named fallback. The judge port gets the class as `kind`.
+    It reads no description (`reads_description` False on the port), so it also judges non-plans nothing described
+    (no describer set up, or the describer refused); a judge that reads descriptions still skips them.
   - The default `off` keeps today's behaviour exactly, in no-keys mode too.
   - The describer and judge run only when the classifier is on.
 - eu-big's chosen models land as adapters (`app/adapters/triage/<name>.py`) without touching the stage.
