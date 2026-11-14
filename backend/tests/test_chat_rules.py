@@ -320,3 +320,28 @@ def test_multi_a_room_type_word_places_a_room_in_a_drawn_area() -> None:
     assert plan("Make this a kitchen" + area)[1]["name"] == "Kitchen"
     # a question about a drawn area is still a question
     assert plan("How big is the bathroom here?" + area)[0] == "ask_drawings"
+
+
+def test_review_361_s1_the_longest_name_wins_and_a_tie_asks() -> None:
+    other = "fedcba9876543210"
+    listed = [{"drawing_id": DRAWING, "name": "plan.pdf", "title": "Drawn plan 1"},
+              {"drawing_id": other, "name": "second.pdf", "title": "Drawn plan 2"}]  # fmt: skip
+    found = plan("Remove wall W1 on Drawn plan 2", ("list_drawings", {}, listed))
+    assert found == ("list_walls", {"drawing_id": other, "page": 1})
+    floors = [
+        {"drawing_id": DRAWING, "name": "floor.pdf"},
+        {"drawing_id": other, "name": "floor_2.pdf"},
+    ]
+    assert plan("Remove wall W1 on floor 2", ("list_drawings", {}, floors)) == (
+        "list_walls", {"drawing_id": other, "page": 1})  # fmt: skip
+    twins = [{"drawing_id": DRAWING, "name": "a.pdf", "title": "Ground floor"},
+             {"drawing_id": other, "name": "b.pdf", "title": "Ground floor"}]  # fmt: skip
+    name, args = plan("Remove wall W1 on the ground floor", ("list_drawings", {}, twins))
+    assert name == "final_answer" and args["kind"] == "needs_input" and len(args["options"]) == 2
+
+
+def test_review_361_s2_a_question_about_a_drawn_area_places_no_room() -> None:
+    area = "\nsel_1: region on a.pdf page 1, about 2 x 1 m"
+    for message in ("Is this toilet new?", "Is this a good place for a kitchen?"):
+        assert plan(message + area)[0] == "ask_drawings", message
+    assert plan("Please place a kitchen here" + area)[0] == "propose_room"
