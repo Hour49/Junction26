@@ -1,0 +1,26 @@
+# site/: junction.hour49.com, the access gate
+
+A Cloudflare Worker (`src/index.js`, `src/gate.js`) in front of the real app. Bogdan's design (2026-11-14): anyone
+with the shared access code gets the app, everyone else gets the HTML demo.
+
+- No valid cookie: the HTML demo from `assets/` (built by `build-assets.sh`: `demo/vellum` at `/`, the older mock at
+  `/mock`) and a small "Have an access code?" form. `/api/*` answers 401.
+- `POST /__unlock` with the right code (secret `ACCESS_CODE`, compared as SHA-256 digests in constant time) sets
+  `h49_gate`: an HMAC-signed value with a 24 h expiry (key: secret `COOKIE_KEY`), HttpOnly, Secure, SameSite=Lax, and
+  redirects to `/`. `/__lock` clears it.
+- With a valid cookie every request is proxied, streamed, to the tunnel origin (secret `ORIGIN_URL`), with the
+  Cloudflare Access service-token headers added (`ACCESS_CLIENT_ID`, `ACCESS_CLIENT_SECRET`). The origin sits behind
+  an Access app that only accepts that token, so the app is reachable only through this Worker. The gate cookie is
+  removed from the request before it is forwarded.
+- With `ACCESS_CODE` or `COOKIE_KEY` unset nothing unlocks.
+
+Tests: `cd site && npm test` (Node's test runner, no dependencies). To run it locally against the real app:
+`npx wrangler@4.161.0 dev --env preview --var ACCESS_CODE:... --var COOKIE_KEY:... --var ORIGIN_URL:http://127.0.0.1:8871
+--var ACCESS_CLIENT_ID:... --var ACCESS_CLIENT_SECRET:...`.
+
+Build and deploy: `./build-assets.sh`, then `npx wrangler@4.161.0 deploy` (secrets go in with `wrangler secret put`,
+never in this folder); the steps are in `.agents/deploy/RUNBOOK.md` (local, gitignored). `build-assets.sh` refuses
+partner data: the Stoa scans (`demo/vellum/stoa/archive`) stop it, and the one Swiss Dwellings floor in
+`demo/vellum/stoa` goes in only with `INCLUDE_STOA_FLOOR=1`, because its answer key comes from Stoa's questions file.
+
+`public/` is the earlier static placeholder page, kept for reference; the Worker does not serve it.

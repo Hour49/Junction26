@@ -1,9 +1,20 @@
-// Static-assets-only Cloudflare Worker for junction.hour49.com, the Hour49 page for Junction 2026 (public/ is the site).
-// Deploy from this folder: set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in the env, then
-// `npx wrangler@4.161.0 deploy`. No account id here: the repo is public.
+// junction.hour49.com: the access gate (src/index.js) in front of the real app, with the HTML demo as its static
+// assets (built into ./assets by build-assets.sh, gitignored). Deploy from this folder: set CLOUDFLARE_ACCOUNT_ID and
+// CLOUDFLARE_API_TOKEN in the env, run ./build-assets.sh, then `npx wrangler@4.161.0 deploy`. Secrets (ACCESS_CODE,
+// COOKIE_KEY, ORIGIN_URL, ACCESS_CLIENT_ID, ACCESS_CLIENT_SECRET) are set with `wrangler secret put`, never here.
+// No account id here: the repo is public. `--env preview` deploys a copy to workers.dev, no custom domain.
 {
   "name": "hour49-junction",
+  "main": "src/index.js",
   "compatibility_date": "2026-11-10",
-  "assets": { "directory": "./public" },
-  "routes": [{ "pattern": "junction.hour49.com", "custom_domain": true }]
+  "assets": { "directory": "./assets", "binding": "ASSETS", "run_worker_first": true },
+  "routes": [{ "pattern": "junction.hour49.com", "custom_domain": true }],
+  "env": {
+    "preview": {
+      "name": "hour49-junction-preview",
+      "workers_dev": true,
+      "routes": [],
+      "assets": { "directory": "./assets", "binding": "ASSETS", "run_worker_first": true }
+    }
+  }
 }
