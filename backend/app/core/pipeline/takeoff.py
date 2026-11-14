@@ -154,6 +154,7 @@ def _add_sheet(
     _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale)
     _add_apartments(found, drawing, scale)
     _add_room_sides(found, drawing, scale)
+    _add_room_counts(found, drawing)
     plans = {plan.id: plan.storey for plan in drawing.plans}
     elements_by: dict[str, list[Element]] = defaultdict(list)
     rooms_by: dict[str, list[Room]] = defaultdict(list)
@@ -691,6 +692,64 @@ def _storey(attrs: Mapping[str, Attr], plan: str | None, plans: Mapping[str, obj
 
 def _mark(item: Element | Room) -> Mark:
     return Mark(page=item.page, box=item.box)
+
+
+def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
+    """What is drawn in each room one name selects (`room_names`; a name two rooms share selects
+    neither), counted by the sheet's rules ("How many doors does Bagno 1.01 have?" counted the
+    whole sheet; Tudor's chat QA, 2026-11-14). A fixture is the room's when its box centre lies
+    in the room's outline; a door or window sits in a wall, outside every room's floor outline
+    (floor9178: all 19, about half a wall from the outline), so it is the room's when its centre
+    lies within its box's short side (the wall's depth) of the outline: a door between two rooms
+    is both rooms'. A room with no outline, only its box, gets none: a box is not the room's
+    shape (review/ask.py says so)."""
+    named: dict[str, list[Room]] = defaultdict(list)
+    for room in drawing.rooms:
+        for name in room_names(room):
+            named[name].append(room)
+    for name, same in named.items():
+        if len(same) != 1 or (outline := same[0].polygon) is None:
+            continue
+        page = same[0].page
+        inside = [e for e in drawing.elements if e.page == page and _in_room(e, outline)]
+        for key, chosen in apply_rules(_listed(inside, ())).items():
+            if not key.startswith("room"):
+                count = quantity_key("count", key, name=name)
+                marks = chosen.marks
+                _put(
+                    found, count, "count", len(marks), marks, chosen.rule, excluded=chosen.excluded
+                )
+
+
+def _in_room(element: Element, outline: Sequence[tuple[float, float]]) -> bool:
+    x0, y0, x1, y1 = element.box
+    x, y = (x0 + x1) / 2, (y0 + y1) / 2
+    if _holds(outline, x, y):
+        return True
+    return element.class_ in OPENINGS and _gap(outline, x, y) <= min(x1 - x0, y1 - y0)
+
+
+OPENINGS = frozenset({"door", "window"})  # in a wall: the room's when they touch its outline
+
+
+def _holds(outline: Sequence[tuple[float, float]], x: float, y: float) -> bool:
+    """Whether the point lies inside the polygon (even-odd rule)."""
+    inside = False
+    for (ax, ay), (bx, by) in zip(outline, (*outline[1:], outline[0]), strict=True):
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            inside = not inside
+    return inside
+
+
+def _gap(outline: Sequence[tuple[float, float]], x: float, y: float) -> float:
+    """The distance from the point to the polygon's edges."""
+    best = math.inf
+    for (ax, ay), (bx, by) in zip(outline, (*outline[1:], outline[0]), strict=True):
+        dx, dy = bx - ax, by - ay
+        along = ((x - ax) * dx + (y - ay) * dy) / ((dx * dx + dy * dy) or 1.0)
+        t = min(1.0, max(0.0, along))
+        best = min(best, math.hypot(ax + t * dx - x, ay + t * dy - y))
+    return best
 
 
 def _listed(elements: Iterable[Element], rooms: Iterable[Room]) -> dict[str, tuple[Mark, ...]]:
