@@ -19,6 +19,10 @@ import projectFailedJson from '@fixtures/project_failed.json';
 import projectListJson from '@fixtures/project_list.json';
 import projectAskJson from '@fixtures/project_ask.json';
 import projectReviewJson from '@fixtures/project_review.json';
+import projectResolvedJson from '@fixtures/project_resolved.json';
+import projectReviewResolvedJson from '@fixtures/project_review_resolved.json';
+import resolvingJson from '@fixtures/resolving.json';
+import answerResolvedJson from '@fixtures/answer_resolved.json';
 import projectRunningJson from '@fixtures/project_running.json';
 import projectStartedJson from '@fixtures/project_started.json';
 import projectTriagedJson from '@fixtures/project_triaged.json';
@@ -57,6 +61,7 @@ import type {
   RulePack,
   ProjectQuestions,
   ProjectView,
+  Resolving,
   FileStatus,
   RelevanceRequest,
   TriageRequest,
@@ -104,5 +109,10 @@ export const issueAnswered = issueAnsweredJson as unknown as Issue;
 export const triageRequest = triageRequestJson as unknown as TriageRequest;
 export const triageStarted = triageStartedJson as unknown as FileStatus;
 export const fileReadAsPlan = fileReadAsPlanJson as unknown as FileStatus;
+// #252 resolver (RESOLVER=carbon): a pick in use, the review with it, a cannot_tell, an uncertain answer with a pick.
+export const projectResolved = projectResolvedJson as unknown as ProjectView;
+export const projectReviewResolved = projectReviewResolvedJson as unknown as ProjectReview;
+export const resolving = resolvingJson as unknown as Resolving;
+export const answerResolved = answerResolvedJson as unknown as AnswerView;
 export const error: ErrorBody = errorJson;
 export const errorNotAllowed: ErrorBody = errorNotAllowedJson;
