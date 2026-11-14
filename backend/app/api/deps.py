@@ -98,3 +98,18 @@ ReviewsDep = Annotated[ReviewStore, Depends(get_reviews)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 AnsweringDep = Annotated[Answering, Depends(get_answering)]
 CreditsDep = Annotated[Credits, Depends(get_credits)]
+
+
+def as_uploaded(ingest: Ingest, info: DrawingInfo, project_id: str | None) -> DrawingInfo:
+    """The drawing named as `project_id` uploaded it. A drawing is shared by content (its id), so
+    its stored name is the upload that wrote it last, maybe in another project; a screen inside a
+    project names that project's file and source. With no project: the stored names."""
+    if project_id is None:
+        return info
+    status = ingest.status(_project_id(project_id))
+    files = [file for file in status.files if file.drawing_id == info.drawing_id]
+    if not files:
+        raise NotFoundError(f"project {project_id} has no drawing {info.drawing_id}")
+    file = next((file for file in files if file.path == file.source), files[0])
+    update = {"project_id": status.id, "path": file.path, "source": file.source}
+    return info.model_copy(update=update)
