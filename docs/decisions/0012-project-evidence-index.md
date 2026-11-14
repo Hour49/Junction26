@@ -1,7 +1,9 @@
 # 0012: A project's files that are not floor plans are searchable through a local hybrid index (BM25 + a multilingual embedder), offered to the chat agent as two tools
 
 - Status: accepted by Bogdan's orchestrator (2026-11-14: "contract, eval (hybrid k=5 92/100), ADR and manifest
-  accepted"); the tool shapes confirmed by Tudor's agent orchestrator (board #220, c6879237435); built in PR #235
+  accepted"); the tool shapes confirmed by Tudor's agent orchestrator (board #220, c6879237435); built in PR #235.
+  Amended 2026-11-14 (Amendment 1 below: what is indexed), accepted by Bogdan's orchestrator ("Amended 7.2 rule
+  accepted", "Carbon describer per your rule"); built in PR #<fill in>
 - Date: 2026-11-14 16:52 (Europe/Helsinki)
 - Decided by: agent rag (worker, in charge of the design), for Bogdan ("Are we lacking a free form LLM chat agent?
   WIth tool calls s othat will work with the hybrid rag and other tool calls? [...] Tudor will work on the agent
@@ -25,6 +27,7 @@
 **What is in the index.** Every file of a project that has a triage description and was not read as a floor plan.
 Floor plans stay out: their facts come from the pipeline's answers. The index is derived from the project's status
 and can always be rebuilt from it; a project ingested before this decision is indexed when it is first opened.
+With `EVIDENCE_SCOPE=all_non_plan` more files are indexed: see Amendment 1.
 
 **Passages.** Per file: one `summary` (kind in words, subject, the short text); the long description split at
 sentence ends into passages of at most 500 characters; the printed text packed by lines the same way. Ids are
@@ -108,3 +111,122 @@ three sets written before each run (recall@5 at file level; method and limits in
   agent that reads five snippets; a search box showing one result would need more work.
 - Revisit when: the describer starts writing in the project's language; a project grows past a few thousand files;
   real users' questions show a kind of question the three sets lack.
+
+## Amendment 1 (2026-11-14): everything that is not a floor plan is indexed
+
+- Date: 2026-11-14 17:51, rule amended 17:58 (Europe/Helsinki)
+- Decided by: agent rag, for Bogdan ("everything, as a normal hybrid rag search on the description of the non
+  floor plans", 2026-11-14 17:45, when asked what the demo should be able to find)
+
+### Context
+
+- The decision above indexes only what file triage sets aside and describes, and triage looks at images and scans.
+  In a real drawing set most of what is not a floor plan is a drawn (vector) PDF: elevations, sections, the site
+  plan, the roof plan, schedules. Those never reached the describer. Text documents were kept as "text only" and
+  not searched. In the three demo projects the index held one file of 42.
+- Reading a file as a plan and describing it for the index were one decision. Tying them together means that
+  widening the index would set more files aside, and a plan set aside is never read.
+
+### Decision
+
+**A setting.** `EVIDENCE_SCOPE=set_aside|all_non_plan`. `set_aside` is the default and is the decision above,
+unchanged. With `all_non_plan`, every file and every PDF page that is not a floor plan becomes a source.
+
+**Describing for the index is separate from setting aside.** The scope never changes how a file is routed. What is
+read as a plan with the scope off is read as a plan with it on, with the same state, route and takeoff. A file can
+therefore be both read and described. The record of the new step is `FileStatus.evidence` (is it indexed, how,
+its kind, one sentence why, the kind reply, the description), next to `triage`, which keeps its meaning.
+
+**What becomes a source.**
+
+| File | How | From what | Paid call |
+| --- | --- | --- | --- |
+| An image triage set aside and described | `described` | its triage description, as before | as before |
+| Any other picture: a PNG or JPEG, a scanned PDF page, a drawn PDF page (a multi-page PDF's later drawn pages are files of their own) | `described`, when the kind rule below says so | the describer's form, from the page rendered to an image | one kind call, then one description |
+| A text document (a text PDF, a plain text file), and the text pages inside another PDF | `text` | its own text, cut per page into passages of at most 500 characters; contact data cut as in descriptions; at most 200,000 characters per file | none |
+| A file nothing reads: DWG, office document, IFC model, archive, encrypted PDF, unknown type | `listed` | its name, type and size; the passage says its content is not read | none |
+
+**The kind rule for a picture.** One call to the sheet-kind reader (`sheet-kind-2` on gemini-4-carbon, the reader
+of the `SHEET_KIND` step, with its cache; a file is asked once whichever setting asks). The picture is a source
+when the reply's sheet kind is neither "architectural floor plan" nor "several views", or when it says no floor
+plan is on the sheet and the kind is not "architectural floor plan". No confidence cut. A failed call, a spent
+budget or a page that cannot be rendered is not a source, and the file's record says why.
+
+**The describer.** For `all_non_plan` the demo sets `TRIAGE_DESCRIBER=carbon`: the same prompt (`describe-6`) on
+gemini-4-carbon. `gemini` (gemini-3.5-flash) stays the default value.
+
+**Passages and tools.** A described source is cut exactly as before, so the measured retrieval is untouched. A
+text source has a `summary` (kind, file name in words, its first 300 characters) and `text-1..n` passages, each
+with the page it comes from. A listed source has one `summary`. The tools and REST routes gain, and lose nothing:
+a field `how` (`described`, `text`, `listed`), the part `text`, and new kinds (the sheet kinds, `text_document`,
+`text_file`, and the listed file types). The system-prompt paragraph tells the agent that a text document is
+quoted from its own text and that a listed file was not read.
+
+**Not indexed.** A floor plan sheet. A several-views sheet with a floor plan on it. DXF and SVG files: nothing
+renders them for a kind call, and most are copies of a sheet that has one. The inside of office documents, DWG
+files and IFC models.
+
+### Alternatives considered
+
+Kind rules, counted on the cached replies of the sheet-kind gate run: 675 hand-checked sheets that are not the
+demo's files (416 with no floor plan, 227 with one somewhere on the sheet, 32 either way). The set over-samples
+hard sheets.
+
+| Rule | Sheets with no floor plan that become sources (of 416) | Sheets with a floor plan that are also described (of 227) |
+| --- | --- | --- |
+| No floor plan on the sheet, and the kind is not floor plan | 409 | 17 |
+| **That, or a kind that is neither floor plan nor several views (this decision)** | **410** | **31** |
+| The kind is not floor plan, nothing else | 412 | 74 |
+
+- The first rule was the one first written. It keeps out a site plan sheet that also draws the house's floor
+  inside the lot, and that is the sheet that answers "where does the house sit on its lot". The rule was changed
+  after a pilot on the demo's house set showed this on one sheet; it was then chosen on the 675 other sheets, and
+  before any ingest ran with the scope on.
+- The third rule brings in the several-views sheets with a floor plan: 43 more sheets of 227 would be described
+  as something they are only partly.
+- A confidence cut, as the set-aside step has: there a mistake loses a plan; here a plan called "no plan" is still
+  read and only also described, while a sheet left out cannot be found. So no cut.
+- Using `triage` for drawn PDFs: triage sets aside what it calls not a plan. The sheet-kind step did not pass its
+  gate for that (7 of 227 plans set aside), so the index must not depend on it.
+- One call that classifies and describes: it would change the measured describer prompt, and floor plans would
+  pay for a description they do not need.
+- The describer, 5 house sheets given as PDFs, same prompt:
+
+  | | gemini-3.5-flash | gemini-4-carbon |
+  | --- | --- | --- |
+  | Valid form | 5 of 5 | 5 of 5 |
+  | A private home's house number and postal code left out | 4 of 5 | 5 of 5 |
+  | Sheet number and title read | 5 of 5 | 5 of 5 |
+  | USD per sheet | 0.0095 | 0.030 (at 4 / 20 USD per million tokens, the price from December 2026; half until then) |
+  | Seconds per sheet | 4 to 7 | 32 to 42 |
+
+  The rule was fixed before the run: gemini-3.5-flash stays unless Carbon is at least as good on every sheet and
+  costs at most 0.05 USD. Five sheets of one project show cost and breakage, not quality in general.
+- A relevance verdict for the new sources: the judge works on triage records. Not built; every new source is
+  searched by default.
+- File names in the searched text of described sources: it would change the measured passages. Used only for
+  text and listed sources, which have nothing else.
+- Reading DXF text, office documents or IFC metadata: no reader for them is in this path yet.
+
+### Consequences
+
+- The chat can find a project's elevations, sections, site plan, roof plan and schedules when they are drawn
+  PDFs, quote a specification by page, and say that a DWG exists without claiming to have read it.
+- Cost per picture: 0.012 USD for the kind call, plus 0.030 USD for the description when it is not a floor plan;
+  text and listed files cost nothing. A ten-sheet house set is about 0.36 USD, once per content (both replies are
+  cached by the file's hash). All of it is charged to the Gemini spend guard.
+- Time: a kind call takes 6 to 9 seconds and a Carbon description 32 to 42. One kind call in ten timed out in the
+  pilot and answered when asked again. A cold ingest of a drawing set takes minutes unless the calls run side by
+  side; with warm caches it takes seconds.
+- A few sheets that hold a floor plan are also described (31 of 227 on the hard set): site plans with a floor in
+  them, shop directory maps, ceiling and framing plans. Their descriptions may name rooms. The agent is told that
+  floor plan facts come from the takeoff, not from a description.
+- An elevation uploaded as a drawn PDF is still also read as a plan, as before. That is the `SHEET_KIND` step's
+  question, not this one's.
+- Without a describer or a key, pictures are not described and say so; text and listed sources are still indexed.
+- Not yet checked through the real ingest. The check is fixed in advance: the 15 demo questions over three
+  projects (at least 14 found in the first 5), no floor plan file among the sources, no difference in any file's
+  state, route or takeoff against the scope off, the 100 questions of the first decision still 92, and at most
+  0.05 USD per file on average. Result: <fill in>.
+- Revisit when: a render exists for DXF and DWG; a project's elevations sit on the same sheet as its plan; the
+  describer's price or speed changes.

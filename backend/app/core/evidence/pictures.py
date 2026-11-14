@@ -1,6 +1,6 @@
 """The evidence step for a picture (decision 0012 sources v2): one image the models can look at
 (a PNG or JPEG, a scanned or drawn PDF page) that today's triage did not set aside. The sheet-kind
-model is asked what it is; a picture with no floor plan on it is described and becomes a source.
+model is asked what it is; a picture that is not a floor plan sheet is described and becomes a source.
 A floor plan, a failed call or no describer leaves it out, with the reason in `why`.
 
 This only adds descriptions: the file is read as a plan or set aside exactly as it would be with
@@ -27,14 +27,17 @@ NO_DESCRIBER = "not described: no description model is set up"
 def picture_evidence(
     image: bytes, kinds: PictureKinds, describer: Describer | None
 ) -> FileEvidence:
-    """Whether the picture is a source: the sheet-kind reply says no floor plan on the sheet and
-    a kind other than architectural_floor_plan (no confidence cut: a plan wrongly called no plan
-    is still read, only also described)."""
+    """Whether the picture is a source (rule 7.2 as amended): every sheet except a floor plan
+    sheet and a several-views sheet with a floor plan on it, so a site plan that also draws the
+    house's floor is one. No confidence cut: a plan wrongly called no plan is still read, only
+    also described."""
     found = kinds.kind(image)
     if isinstance(found, Unavailable):
         return FileEvidence(indexed=False, why=f"the kind call failed: {found.note}")
     sheet = found.sheet
-    if found.floor_plan_on_sheet or sheet.kind == "architectural_floor_plan":
+    if sheet.kind == "architectural_floor_plan" or (
+        sheet.kind == "multi_view_sheet" and found.floor_plan_on_sheet
+    ):
         return FileEvidence(indexed=False, why=FLOOR_PLAN, sheet=sheet, cost_usd=found.usd)
     if describer is None:
         return FileEvidence(indexed=False, why=NO_DESCRIBER, sheet=sheet, cost_usd=found.usd)
