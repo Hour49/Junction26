@@ -2,10 +2,14 @@
 backend/ on the path, and uses the backend as a library, so the experiments are answered by the
 same parser and takeoff the pipeline runs. `stoa_eval` starts it; nobody needs to call it by hand.
 
-    answer   --questions Q --drawings DIR --out A.jsonl [--prior TABLE]
+    answer   --questions Q --drawings DIR --out A.jsonl [--prior TABLE [--policy P]]
              answers every question of Q from the extraction_v1 files in DIR (the pipeline's
              answering, `Pipeline.answer_questions`, with QUESTION_PARSER=templates); a file
              missing from DIR is refused. With --prior, a refusal carries that table's value.
+             With --policy P (an answer_policy_v1 file, read by the backend's own ANSWER_POLICY
+             loader) as well, the families P sends to the prior are answered from --prior and
+             nothing else is: a refusal stays null, so the arm differs from the plain one by the
+             policy alone.
     prior    --train Q --out TABLE
              fits the answer prior (`app.adapters.answer_prior.build`) on the experiment's train
              questions only (data/stoa/exp/train_questions.jsonl), never val, test or dev.jsonl.
@@ -49,17 +53,34 @@ from app.adapters.extraction_v1 import ExtractionV1Reader
 from app.adapters.question_templates import TemplateParser
 from app.adapters.questions_file import QuestionsFile
 from app.composition import build_pipeline
-from app.core.answering.model import Unsupported
+from app.core.answering.model import Prior, Unsupported
+from app.core.answering.ports import AnswerPrior
 from app.settings import Settings
 
 TRAIN_QUESTIONS = "train_questions.jsonl"
 
 
+class _PolicyOnly:
+    """The prior for the answer policy's (source, family) pairs only."""
+
+    def __init__(self, prior: AnswerPrior, pairs: frozenset[tuple[str, str]]) -> None:
+        self._prior = prior
+        self._pairs = pairs
+
+    def prior(self, source: str, family: str) -> Prior | None:
+        return self._prior.prior(source, family) if (source, family) in self._pairs else None
+
+
 def answer(args: argparse.Namespace) -> None:
-    settings = Settings(question_parser="templates", answer_prior="none")
+    if args.policy is not None and args.prior is None:
+        raise SystemExit("--policy answers its families from --prior: give both")
+    policy = "" if args.policy is None else str(args.policy)
+    settings = Settings(question_parser="templates", answer_prior="none", answer_policy=policy)
     pipeline = build_pipeline(settings, args.dataset)
     if args.prior is not None:
-        pipeline = dataclasses.replace(pipeline, prior=TablePrior(args.prior))
+        table = TablePrior(args.prior)
+        prior = table if args.policy is None else _PolicyOnly(table, pipeline.prior_families)
+        pipeline = dataclasses.replace(pipeline, prior=prior)
     questions = QuestionsFile(args.questions).questions()
     args.out.unlink(missing_ok=True)
     pipeline.answer_questions(
@@ -168,6 +189,7 @@ def main() -> None:
     run.add_argument("--dataset", type=Path, default=Path("."))
     run.add_argument("--out", type=Path, required=True)
     run.add_argument("--prior", type=Path)
+    run.add_argument("--policy", type=Path)
     run.set_defaults(run=answer)
     fit = commands.add_parser("prior")
     fit.add_argument("--train", type=Path, required=True)

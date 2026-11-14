@@ -12,7 +12,9 @@
 # region room filter (REGION_MODEL_DIR, the settings default), the r3 photo rectifier, the dev
 # prior, the Decisions confidence and the Decisions sheet-kind signal (a photo of a plan without
 # camera EXIF is still rectified), and golden's gate (eval/results/gate/gate-C-L-swap.json, frozen in
-# the repo: which answers are marked sure, refit on config C's val output, certified once on test).
+# the repo: which answers are marked sure, refit on config C's val output, certified once on test),
+# and golden's answer policy (eval/results/policy/policy-C-L-swap.json, frozen in the repo: CubiCasa
+# kitchens are answered from the prior, which beats config C's readers on both val halves).
 # It reads
 # the repo's data/models, data/stoa, data/cache, data/demo and data/external through symlinks and
 # keeps its own data/projects. GEMINI_API_KEY comes from the repo-root .env, into this process's
@@ -30,7 +32,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QA="$ROOT/data/qa"
 RASTER='elements=decisions-s1536:detector:C-yolo26l,plans=decisions-s1536:detector:C-yolo26l,rooms=regionrooms'
 DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CONFIDENCE=true
-  DECISIONS_KIND=true RASTER_SCALE=priors GATE_POLICY=../eval/results/gate/gate-C-L-swap.json)
+  DECISIONS_KIND=true RASTER_SCALE=priors GATE_POLICY=../eval/results/gate/gate-C-L-swap.json
+  ANSWER_POLICY=../eval/results/policy/policy-C-L-swap.json)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180

@@ -82,7 +82,8 @@ def test_style_of() -> None:
 def fake_backend(*args: str) -> None:
     """The backend's commands, for doors and windows only: answers are the derived counts of the
     file's extraction, refused (null) without one; the prior says 1 door, 2 windows; g1main
-    gives the distributions in <replies>/dists.json; swap makes every window answer 3."""
+    gives the distributions in <replies>/dists.json; swap makes every window answer 3. With
+    --policy, the families it sends to the prior come from the prior, and only those."""
     command, opts = args[0], dict(zip(args[1::2], args[2::2], strict=True))
     if command in ("g1main", "swap"):  # the drawings, for the backend's own cache
         assert Path(opts["--dataset"]).name == "junction-dataset"
@@ -117,11 +118,20 @@ def fake_backend(*args: str) -> None:
     prior: dict[str, Any] = (
         json.loads(Path(opts["--prior"]).read_text()) if "--prior" in opts else {}
     )
+    policy = json.loads(Path(opts["--policy"]).read_text()) if "--policy" in opts else None
+    to_prior = {
+        f for f, pick in (policy or {}).get("families", {}).items() if pick["source"] == "prior"
+    }
     with Path(opts["--out"]).open("w") as out:
         for row in rows:
             drawing = drawings.get(row["path"])
             kind = family[row["question"]]
-            value = prior.get(kind) if drawing is None else drawing.derived_counts().get(kind, 0)
+            if kind in to_prior:
+                value = prior.get(kind)
+            elif drawing is None:
+                value = None if policy else prior.get(kind)
+            else:
+                value = drawing.derived_counts().get(kind, 0)
             out.write(reply(row["id"], value).model_dump_json() + "\n")
 
 
@@ -175,6 +185,51 @@ def test_ab_command_end_to_end(
     ones = sum(q["answer"] == (1 if q["question"] == DOORS else 2) for q in questions)
     assert none_prior["b"]["overall"]["hits"] == ones
     assert none_prior["prior_sha256"] is not None
+
+
+def test_ab_answers_b_with_an_answer_policy(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--policy: B (only) is answered with ANSWER_POLICY and the train prior, by an absolute path
+    (the backend runs from backend/), and is named after the policy file, so an arm can be
+    compared with itself under a policy."""
+    calls: list[tuple[str, ...]] = []
+
+    def recorded(*args: str) -> None:
+        calls.append(args)
+        fake_backend(*args)
+
+    monkeypatch.setattr(backend, "run", recorded)
+    exp = dataset / "exp"
+    assert exp_split(dataset, exp) == 0
+    policy = dataset / "windows.json"
+    families = {"window": {"source": "prior"}, "door": {"source": "reader"}}
+    policy.write_text(
+        json.dumps({"schema": "answer_policy_v1", "part": "val", "families": families})
+    )
+    monkeypatch.chdir(dataset)  # given relative to here
+    common = ("--exp-dir", exp, "--gold", dataset / "gold", "--prior", dataset / "prior.json")
+    given = ("--policy", "windows.json")
+    assert run("ab", "--a", "gold", "--b", "gold", *given, *common, "--reps", 50) == 0
+    result = json.loads((exp / "ab/gold-vs-gold+windows-val.json").read_text())
+    answered = [dict(zip(c[1::2], c[2::2], strict=True)) for c in calls if c[0] == "answer"]
+    assert ["--policy" in opts for opts in answered] == [False, True]
+    assert Path(answered[1]["--policy"]) == policy.resolve()
+    assert Path(answered[1]["--prior"]).name == "prior.json"
+    questions = [
+        json.loads(line) for line in (exp / "val_questions.jsonl").read_text().splitlines()
+    ]
+    golds = [
+        Extraction.model_validate_json(p.read_text()) for p in (dataset / "gold").rglob("*.json")
+    ]
+    truth = {found.file: found.derived_counts() for found in golds}
+    doors = sum(
+        q["answer"] == truth[q["path"]].get("door", 0) for q in questions if q["question"] == DOORS
+    )
+    windows = sum(q["answer"] == 2 for q in questions if q["question"] == WINDOWS)  # the prior's
+    assert result["b"]["overall"]["hits"] == doors + windows
+    assert run("ab", "--a", "gold", "--b", "prior", *given, *common) == 1
+    assert "an answer policy needs" in capsys.readouterr().err
 
 
 def test_ab_refuses_a_changed_questions_file(

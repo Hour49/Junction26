@@ -90,3 +90,18 @@ def test_the_demo_config_marks_answers_sure_by_goldens_frozen_gate() -> None:
     frozen = json.loads((SCRIPT.parents[1] / "backend" / setting.split("=")[1]).read_text())
     assert (frozen["schema"], frozen["certified"]) == ("gate_policy_v1", True)
     assert frozen["test"]["certificate"]["lower_bound"] >= frozen["target"]
+
+
+def test_the_demo_config_answers_kitchens_from_goldens_frozen_policy() -> None:
+    """golden (2026-11-14, fail-2): with ANSWER_POLICY empty every family was answered by the
+    readers, and config C's kitchens (91.7% on val) lost to the train prior (96.2%). The prior
+    wins kitchens on both val halves; the backend runtime A/B gives +0.35 pp [+0.12, +0.60]. The
+    demo reads a committed copy that sends exactly that family to the prior."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    setting = "ANSWER_POLICY=../eval/results/policy/policy-C-L-swap.json"
+    assert setting in found.stdout.split()
+    frozen = json.loads((SCRIPT.parents[1] / "backend" / setting.split("=")[1]).read_text())
+    assert (frozen["schema"], frozen["part"]) == ("answer_policy_v1", "val")
+    to_prior = [family for family, pick in frozen["families"].items() if pick["source"] == "prior"]
+    assert to_prior == ["room:kitchen"]

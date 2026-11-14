@@ -52,6 +52,7 @@ def answer_question(
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
     sure_at: Mapping[str, float] | None = None,
+    flags: Sequence[str] = (),
 ) -> Answer:
     """`quantities` is the takeoff of the question's drawing (`known_quantities`), or None when
     the file has no drawing model; `tables` the schedules it prints. `prior_families` holds the
@@ -63,7 +64,9 @@ def answer_question(
     takeoff answer gets its probability as `confidence`; when there is none, the reason is
     logged, never added to the answer. `sure_at` (GATE_POLICY: family -> threshold on that
     confidence's signal) sets `sure`: true at or above the family's threshold, false below it,
-    None without a probability or for a family it doesn't gate."""
+    None without a probability or for a family it doesn't gate. `flags`: how ingest read the
+    page (judge.reading_flags: a phone photo, a scan); on a flagged page `sure` is None, since
+    the gate was certified on CubiCasa scans, not on photos (orchestrator, 2026-11-14 O1)."""
     start = clock()
     parsed = parser.parse(question.text)
     read = _read(parsed)
@@ -118,7 +121,7 @@ def answer_question(
         if confidence is None or isinstance(parsed, Unsupported | TableQuery):
             return read(answer)
         rated = confidence.probability(question.file, parsed.family(), answer.answer)
-        sure = _sure(sure_at, parsed.family(), rated.value)
+        sure = _sure(sure_at, parsed.family(), rated.value, flags)
         if rated.value is None:  # why goes to the log: nothing a reader of the answer can act on
             logger.info("question %d: no confidence: %s", question.id, rated.note)
             return read(answer.model_copy(update={"sure": sure}))
@@ -144,9 +147,13 @@ def answer_question(
     )
 
 
-def _sure(sure_at: Mapping[str, float] | None, family: str, value: float | None) -> bool | None:
+def _sure(
+    sure_at: Mapping[str, float] | None, family: str, value: float | None, flags: Sequence[str]
+) -> bool | None:
     if sure_at is None or family not in sure_at or value is None:
         return None  # no score (a vector or IFC page, a failed read): the gate has no verdict
+    if flags:
+        return None  # a photo or a scanned PDF: the gate's certificate is on CubiCasa scans
     return value >= sure_at[family]
 
 
