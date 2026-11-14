@@ -3,15 +3,16 @@ as a file of its own, `<name>#p<n>.pdf`, through the normal route; page 1 is rea
 one-page PDF ingests exactly as it did (orchestrator brief, 2026-11-14: a notes cover hid a set)."""
 
 import io
+from pathlib import Path
 
 import pypdfium2
 from conftest import MakeService
 from test_ingest_probe import ink_sketch_pdf
 from test_vector_pdf import swiss_sheet
 
-from app.adapters.archive import FileProbe
+from app.adapters.archive import DiskProjectStore, FileProbe
 from app.adapters.archive.probe import MAX_PAGES
-from app.core.ingest.model import page_path, split_from
+from app.core.ingest.model import Probed, page_path, split_from
 from scripts.make_sample_archive import text_pdf
 
 
@@ -75,6 +76,45 @@ def test_pages_past_the_cap_are_named_not_read() -> None:
     assert len(found.pages) == MAX_PAGES
     last, count = MAX_PAGES + 1, MAX_PAGES + 3
     assert found.did.endswith(f"; pages after {last} of {count} were not looked at")
+
+
+def drawn_set() -> bytes:
+    """A drawn page 1 and a drawn page 2: page 2 is split off as set#p2.pdf."""
+    return pdf_of(swiss_sheet().pdf(), swiss_sheet().pdf())
+
+
+def test_a_set_s_own_drawing_has_only_page_1_when_its_later_pages_are_split_off(
+    make_service: MakeService,
+) -> None:
+    """QA R5-c-5: the set's drawing still paged through page 2, which is its own drawing too."""
+    ingest = make_service()
+    project = ingest.wait(ingest.start("set.pdf", drawn_set()))
+    by_path = {file.path: file for file in project.files}
+    assert list(by_path) == ["set.pdf", "set#p2.pdf"]
+    pages = [page.page for page in ingest.drawing(by_path["set.pdf"].drawing_id or "").pages]
+    assert pages == [1]
+
+
+class NoSplit:
+    """The probe as it was before pages were split: a set's later pages are not given."""
+
+    def probe(self, data: bytes) -> Probed:
+        return FileProbe().probe(data).model_copy(update={"pages": ()})
+
+
+def test_a_set_read_before_its_pages_were_split_is_read_again(
+    make_service: MakeService, tmp_path: Path
+) -> None:
+    store = DiskProjectStore(tmp_path / "shared")
+    before = make_service(store=store, probe=NoSplit())
+    old = before.wait(before.start("set.pdf", drawn_set())).files[0]
+    assert [page.page for page in before.drawing(old.drawing_id or "").pages] == [1, 2]
+
+    ingest = make_service(store=store)
+    project = ingest.wait(ingest.start("set.pdf", drawn_set()))
+    parent = project.files[0]
+    assert parent.reused is False  # the two-page reading is not served from the cache
+    assert [page.page for page in ingest.drawing(parent.drawing_id or "").pages] == [1]
 
 
 def test_a_page_file_names_the_pdf_it_was_split_from() -> None:

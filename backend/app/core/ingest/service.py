@@ -353,6 +353,7 @@ class IngestService:
                 drawings[path] = found
             if probed.exception() is None:  # a failed probe was set aside by `_identify`
                 for page in probed.result()[0].pages:
+                    run.split.add(path)
                     self._page_file(run, path, page, first_of, frames, drawings)
 
         with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="probe") as pool:
