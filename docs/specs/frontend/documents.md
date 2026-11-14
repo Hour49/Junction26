@@ -56,9 +56,10 @@ not edited).
      the only place the call is made now (the file page drops its "Does it belong to this project?" block, preqa-a);
    - any **other answerable** issue (severity `fails_rule` or `needs_person`): the same name field, one chip per
      `Issue.suggestions` entry (none when empty), then "Your answer" with a text box (max 140 characters) and "Use my
-     answer". A chip or "Use my answer" sends `answerIssue(pid, issue.id, {text, by})` (fe-shared, `POST
+     answer". A chip or "Use my answer" sends `answerIssue(pid, issue.id, {text, by}, {pack})` (the route's `?pack=`, a
+     code check's issue needs it; `POST
      …/issues/{issue_id}/answer`, #223) with the saved name (`countersign.surveyorName`, as the triage call); the
-     returned `Issue` replaces the card's. Once `Issue.answer` is set: "“<text>” · <by>’s answer, <time>" with
+     returned `Issue` replaces the card's and `issuesChanged(pid)` (fe-shared) refreshes the header badge. Once `Issue.answer` is set: "“<text>” · <by>’s answer, <time>" with
      "Change" (the chips and the box again, prefilled, with "Cancel") and "Undo" (sends `{undo: true}`). Answering
      does not close an issue (`state` stays `open`); `Issue.answer` alone makes it answered. Saved by the API, so it
      survives a reload.
@@ -78,7 +79,7 @@ not edited).
 ## The source figure per issue (`issueSource`)
 
 Against fe-viewer's published props (`viewer.md` "Props", 16:40): `<SourceFigure sources={[source]} label="Source of
-issue <n>"/>`, one `Source` per issue: `name` = the plain drawing name (fe-shared's helper) or `file`.
+issue <n>"/>`, one `Source` per issue: `name` = `Issue.drawing_name` (#229, the plain drawing name) or `file`.
 
 | Issue | `Source` |
 | --- | --- |
@@ -142,7 +143,8 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
   "Ana"}` to `POST …/issues/<id>/answer` and shows the returned answer "“1:100” · Ana’s answer, <time>" and the
   pill "Answered"; "Change" reopens the box prefilled, "Cancel" closes it unchanged; "Undo" sends `{undo: true}` and
   the form is back; an empty or spaces-only answer, or no name, cannot be sent; a failed POST is worded under the
-  card (`detail (code)`), the form usable. [component]
+  card (`detail (code)`), the form usable. Under `?pack=fi` the POST URL carries `?pack=fi`; after an answer the
+  badge is asked again (`issuesChanged`). [component]
 - DOC-9: One chip per `Issue.suggestions` entry; a chip press sends `{text: <chip>, by}` (`issue_answer_request.json`
   for "Check it on site" by Ana); no chips when `suggestions` is empty or missing (no invented chips). [component]
 - DOC-10: The drawings section lists every drawing with its plain name (`drawingLabel`: "Drawn plan 1") as the

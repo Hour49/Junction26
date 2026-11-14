@@ -15,8 +15,13 @@ import type { FileStatus, Issue, IssueList, ProjectView } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { flush, must } from '../ingest/testing';
+import { issuesChanged } from '../shell/issueCount';
 import { DocumentsScreen } from './DocumentsScreen';
 
+vi.mock('../shell/issueCount', async (original) => ({
+  ...(await original<typeof import('../shell/issueCount')>()),
+  issuesChanged: vi.fn(),
+}));
 vi.mock('../viewer/SourceFigure', () => ({
   SourceFigure: vi.fn(({ label }: { label: string }) => <figure aria-label={label} />),
 }));
@@ -167,6 +172,7 @@ describe('DocumentsScreen (documents.md)', () => {
     fireEvent.click(use());
     await flush();
     expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual({ text: '1:100', by: 'Ana' });
+    expect(vi.mocked(issuesChanged)).toHaveBeenCalledWith(PID); // the header badge asks again
     expect(card().getByText(/“1:100” · Ana’s answer, /)).toBeTruthy();
     expect(card().getByText('Answered')).toBeTruthy();
     expect(document.body.textContent).not.toContain('Kept in this tab only');
@@ -202,6 +208,28 @@ describe('DocumentsScreen (documents.md)', () => {
     await flush();
     expect(card.getByRole('alert').textContent).toContain(`(${error.code})`);
     expect(use.disabled).toBe(false);
+  });
+
+  it('DOC-8 under ?pack= the answer carries the pack (a code check issue: 404 without)', async () => {
+    localStorage.setItem(NAME_KEY, 'Ana');
+    const chipped = { ...needs, suggestions: ['Not needed'] };
+    const api = show(
+      project,
+      { ...projectIssues, issues: [chipped] },
+      {
+        [ANSWER]: {
+          ...chipped,
+          answer: { text: 'Not needed', by: 'Ana', at: '2026-11-14T08:05:00Z' },
+        },
+      },
+      'fi',
+    );
+    await flush();
+    fireEvent.click(within(must(cards()[0])).getByRole('button', { name: 'Not needed' }));
+    await flush();
+    expect(api.calls.find((c) => c.method === 'POST')?.url).toBe(
+      `/api/projects/${PID}/issues/needs/answer?pack=fi`,
+    );
   });
 
   it('DOC-9 a chip per suggestion sends it as the answer', async () => {

@@ -49,7 +49,7 @@ export function issueSource(
       issue.page !== null ? (drawing?.pages.find((p) => p.page === issue.page) ?? null) : null;
     const located = issue.box || issue.polygon;
     return {
-      name: issue.file,
+      name: issue.drawing_name ?? issue.file,
       page,
       places: located
         ? [{ label: issue.label ?? issue.why, box: issue.box, polygon: issue.polygon }]
@@ -58,7 +58,7 @@ export function issueSource(
   }
   if (!issue.file_id || !PREVIEWABLE.has(file?.kind ?? '')) return null;
   return {
-    name: issue.file,
+    name: issue.drawing_name ?? issue.file,
     page: null,
     image: previewUrl(projectId, issue.file_id, 400),
     places: [],

@@ -175,7 +175,8 @@ Status is never colour alone: kind, severity and state each carry a word (and an
 - IS-2: Each issue is a row in the API's order with `n` = its 1-based position in the response, its kind word, `why`,
   place line and state word; rows sit under the severity heading of their `severity`; the screen does not re-sort (a
   fixture whose order differs from any local sort keeps the API order). [component]
-- IS-3: `placeOf` gives "plans/flat-b.pdf · floor 1 · page 1"; "… · floor not stated · page 2" with `floor` null;
+- IS-3: `placeOf` starts with `drawing_name` (#229, "Drawn plan 2 · floor 1 · page 1"), else `file` when it is null
+  or missing: "plans/flat-b.pdf · floor 1 · page 1"; "… · floor not stated · page 2" with `floor` null;
   "… · the whole drawing" with `page` null and a drawing; "… · not on a drawing" with `drawing_id` null. [unit]
 - IS-4: The summary counts by state ("3 open · 1 settled · 1 signed off", `plural` rules, zero states left out).
   [unit `counts` + component]

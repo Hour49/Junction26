@@ -11,6 +11,7 @@ import {
 } from '../api';
 import { keepPolling, plural } from '../ingest/ingest';
 import { usePoll } from '../ingest/usePoll';
+import { issuesChanged } from '../shell/issueCount';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { DocumentLists } from './DocumentLists';
@@ -87,9 +88,11 @@ export function DocumentsScreen({
   const onFile = (file: FileStatus) => {
     set({ ...project, files: project.files.map((f) => (f.id === file.id ? file : f)) });
     setReload((n) => n + 1); // the issue's state follows the call
+    issuesChanged(projectId); // and so does the header badge
   };
   const onIssue = (issue: Issue) => {
     if (list) setIssues({ list: list.map((i) => (i.id === issue.id ? issue : i)) });
+    issuesChanged(projectId); // the header badge asks again
   };
   const q = pack ? `?pack=${encodeURIComponent(pack)}` : '';
   const left = list ? needsYou(list) : 0;
@@ -160,6 +163,7 @@ export function DocumentsScreen({
                 drawing={issue.drawing_id ? drawings[issue.drawing_id] : null}
                 file={project.files.find((f) => f.id === issue.file_id)}
                 onFile={onFile}
+                pack={pack}
                 onIssue={onIssue}
               />
             ))}

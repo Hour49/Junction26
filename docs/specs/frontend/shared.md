@@ -858,7 +858,8 @@ Vellum round (round 2)
   the header: the link's name "Documents, 2 issues to answer" (singular "1 issue"), the badge `aria-hidden`, none
   for 0 or null. [unit + component, mockApi]
 - SH-87 (#223) `answerIssue(pid, id, issue_answer_request.json)` and `answerIssue(pid, id, {undo: true})` post those
-  bodies to `/api/projects/<pid>/issues/<id>/answer` and resolve with the issue; `issuesChanged(pid)` makes the hook
+  bodies to `/api/projects/<pid>/issues/<id>/answer` and resolve with the issue; with `{pack: 'fi'}` the URL carries
+  `?pack=fi` (a code check's issue: 404 without it); `issuesChanged(pid)` makes the hook
   (and the header badge) ask again, `issuesChanged('other')` does not. [unit + component, mockApi]
 - SH-79 (parity) No element with class `credit` and no text starting "Credit:" on any route of App with stub
   screens; the footer link "About and credits" is on every route, `#/about?project=<pid>` on project routes and

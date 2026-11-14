@@ -173,6 +173,9 @@ describe('API client', () => {
     expect(await answerIssue(pid, id, fx.issueAnswerRequest)).toEqual(fx.issueAnswered);
     await answerIssue(pid, id, { undo: true });
     expect(api.calls.map((c) => c.body)).toEqual([fx.issueAnswerRequest, { undo: true }]);
+    await answerIssue(pid, id, { undo: true }, { pack: 'fi' }); // a code check's issue needs its pack
+    expect(api.calls.at(-1)?.url).toBe(`/api/projects/${pid}/issues/${id}/answer?pack=fi`);
+    expect(api.calls[0]?.url).toBe(`/api/projects/${pid}/issues/${id}/answer`);
   });
 
   it('SH-73 postRelevance sends the request fixture and resolves with the file', async () => {

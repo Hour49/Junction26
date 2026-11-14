@@ -32,6 +32,12 @@ describe('issues.ts', () => {
 
   it('IS-3 placeOf: file, floor, page or the whole drawing or not on a drawing', () => {
     expect(placeOf(byId('i-conflict'))).toBe('plans/flat-b.pdf · floor 1 · page 1');
+    expect(placeOf({ ...byId('i-conflict'), drawing_name: 'Drawn plan 2' })).toBe(
+      'Drawn plan 2 · floor 1 · page 1',
+    );
+    expect(placeOf({ ...byId('i-conflict'), drawing_name: null })).toBe(
+      'plans/flat-b.pdf · floor 1 · page 1',
+    );
     expect(placeOf({ ...byId('i-conflict'), floor: null, page: 2 })).toBe(
       'plans/flat-b.pdf · floor not stated · page 2',
     );

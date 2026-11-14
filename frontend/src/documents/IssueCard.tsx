@@ -133,9 +133,10 @@ function RelevanceCall(props: {
 function IssueAnswerForm(props: {
   projectId: string;
   issue: Issue;
+  pack: string | null;
   onIssue: (issue: Issue) => void;
 }) {
-  const { projectId, issue, onIssue } = props;
+  const { projectId, issue, pack, onIssue } = props;
   const answer = issue.answer ?? null;
   const [name, setName] = useState(savedName);
   const [editing, setEditing] = useState(false);
@@ -148,7 +149,7 @@ function IssueAnswerForm(props: {
     setSending(true);
     setFailed(null);
     try {
-      const next = await answerIssue(projectId, issue.id, body);
+      const next = await answerIssue(projectId, issue.id, body, { pack: pack ?? undefined });
       setEditing(false);
       setText(next.answer?.text ?? '');
       onIssue(next);
@@ -268,9 +269,10 @@ export function IssueCard(props: {
   drawing: DrawingView | null | undefined;
   file: FileStatus | undefined;
   onFile: (file: FileStatus) => void;
+  pack: string | null;
   onIssue: (issue: Issue) => void;
 }) {
-  const { projectId, issue, n, drawing, file, onFile, onIssue } = props;
+  const { projectId, issue, n, drawing, file, onFile, pack, onIssue } = props;
   const pill = pillOf(issue);
   const source = issueSource(issue, projectId, drawing, file);
   return (
@@ -293,7 +295,7 @@ export function IssueCard(props: {
         (issue.kind === 'unrelated_file' ? (
           file?.triage && <RelevanceCall projectId={projectId} file={file} onFile={onFile} />
         ) : (
-          <IssueAnswerForm projectId={projectId} issue={issue} onIssue={onIssue} />
+          <IssueAnswerForm projectId={projectId} issue={issue} pack={pack} onIssue={onIssue} />
         ))}
     </li>
   );

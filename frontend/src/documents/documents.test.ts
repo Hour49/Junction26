@@ -80,12 +80,15 @@ describe('documents.ts', () => {
     const page = drawing.pages[0];
     const withDrawing = { ...needs, page: page?.page ?? 1 };
     expect(issueSource(withDrawing, PID, drawing)).toEqual({
-      name: withDrawing.file,
+      name: 'Plan image 1', // #229 drawing_name, not the file
       page,
       places: [
         { label: 'How it was read', box: [0.1, 0.2, 0.3, 0.4], polygon: withDrawing.polygon },
       ],
     });
+    expect(issueSource({ ...withDrawing, drawing_name: null }, PID, drawing)?.name).toBe(
+      withDrawing.file,
+    ); // no drawing name: the file
     expect(issueSource({ ...withDrawing, label: null }, PID, drawing)?.places[0]?.label).toBe(
       withDrawing.why,
     ); // no Issue.label: the why

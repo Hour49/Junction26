@@ -179,13 +179,18 @@ export const readAsPlan = (projectId: string, fileId: string, by: string, opts?:
   );
 
 /** A person's answer to an issue, or `{undo: true}` (#223); answers the issue as it now stands. Answering does
- * not close it. */
+ * not close it. A code check's issue needs its `pack` (404 without). */
 export const answerIssue = (
   projectId: string,
   issueId: string,
   body: IssueAnswerRequest,
-  opts?: Opts,
-) => postJson<Issue>(`/api/projects/${seg(projectId)}/issues/${seg(issueId)}/answer`, body, opts);
+  opts: Opts & { pack?: string } = {},
+) =>
+  postJson<Issue>(
+    withQuery(`/api/projects/${seg(projectId)}/issues/${seg(issueId)}/answer`, { pack: opts.pack }),
+    body,
+    opts,
+  );
 
 export const pageUrl = (drawingId: string, page: number, width: PageWidth = 1600) =>
   withQuery(`/api/drawings/${seg(drawingId)}/pages/${String(page)}.png`, { width });
