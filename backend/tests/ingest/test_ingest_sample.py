@@ -50,7 +50,9 @@ def test_each_file_says_why_it_ends_where_it_does(make_service: MakeService) -> 
     reason: Callable[[str], str] = lambda path: files[path].reason  # noqa: E731
     assert reason("plans/flat-a.pdf").startswith("read on the drawn PDF route: 7 elements, 5 rooms")
     assert reason("plans/flat-b.pdf").startswith("1 conflict between the two methods (room areas)")
-    assert "no reader for the image route yet" in reason("scans/ground-floor.png")
+    assert "not read: this setup has no reader for the image route" in reason(
+        "scans/ground-floor.png"
+    )
     assert "a phone photo, read without perspective correction" in reason("photos/plan-photo.jpg")
     assert reason("photos/site.jpg").startswith("a photo, not of a drawing")
     assert reason("cad/detail.dxf").startswith("no PDF, PNG or JPEG in its group")
