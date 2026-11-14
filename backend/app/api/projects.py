@@ -143,15 +143,31 @@ async def upload(
 ) -> Started:
     """The request body is the file's bytes (a zip or one drawing file); `name` its file name."""
     admission: Admission = request.app.state.admission
-    with admission.slot(ingest) as record:
-        data = bytearray()
-        async for chunk in request.stream():
-            data += chunk
-            if len(data) > MAX_UPLOAD:
-                raise HTTPException(413, f"the upload is over {MAX_UPLOAD // 2**20} MB")
-        started = _start(ingest, name, bytes(data))
-        record(started.id)
+    try:
+        with admission.slot(ingest) as record:
+            data = bytearray()
+            async for chunk in request.stream():
+                data += chunk
+                if len(data) > MAX_UPLOAD:
+                    raise HTTPException(413, f"the upload is over {MAX_UPLOAD // 2**20} MB")
+            started = _start(ingest, name, bytes(data))
+            record(started.id)
+    except HTTPException as refused:
+        if refused.status_code == 429:  # refused before the body was read
+            await _discard(request)
+        raise
     return started
+
+
+async def _discard(request: Request) -> None:
+    """Reads the body to nowhere, up to the upload limit: a 429 sent with the body unread closes
+    the socket with bytes still coming, the kernel resets it, and a client still writing never
+    sees the 429 (R3-qa-3-1). Over the limit the client gets the reset, as a 413 would."""
+    seen = 0
+    async for chunk in request.stream():
+        seen += len(chunk)
+        if seen > MAX_UPLOAD:
+            return
 
 
 @router.post("/sample", status_code=202)
