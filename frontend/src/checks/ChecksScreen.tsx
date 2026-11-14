@@ -6,6 +6,7 @@ import {
   getDrawing,
   getProject,
   getProjectChecks,
+  issuesZipUrl,
   rulePacksOf,
   type DrawingView,
   type ProjectView,
@@ -422,7 +423,7 @@ export function ChecksScreen({
         </>
       )}
       <p className="m-0">
-        <a className={TAP} href={withPack(`/p/${projectId}/issues`)}>
+        <a className={TAP} href={issuesZipUrl(projectId, pack)}>
           Export issues and plans
         </a>
       </p>

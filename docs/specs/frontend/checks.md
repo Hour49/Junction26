@@ -82,8 +82,8 @@ the old request. No polling: the screen asks once the project is finished (see S
   drawing" instead of the button.
 - Links out: per result "Open in the surveyor" → `#/p/<pid>/d/<did>/surveyor?q=<quantity>&pack=<id>` (the
   takeoff row, `CheckResult.quantity`; without `q` when null); per drawing heading the same without `q`;
-  "Export issues and plans" → `#/p/<pid>/issues?pack=<id>` (the export itself is fe-ingest's issues screen, CHANGE
-  13:22).
+  "Export issues and plans" → `/api/projects/<pid>/issues.zip?pack=<id>`, the export itself (the issues screen it
+  once linked to is gone: its route lands on Ingest; QA 2026-11-15).
 
 ## States
 

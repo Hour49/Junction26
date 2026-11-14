@@ -312,8 +312,9 @@ describe('ChecksScreen', () => {
         .getByRole('link', { name: /Open in the surveyor/ })
         .getAttribute('href'),
     ).toBe(`#/p/${PID}/d/${D2}/surveyor?q=door&pack=fi`);
+    // QA fe-ui2: the issues screen is gone (its route lands on Ingest): the link is the export itself
     expect(screen.getByRole('link', { name: /Export issues and plans/ }).getAttribute('href')).toBe(
-      `#/p/${PID}/issues?pack=fi`,
+      `/api/projects/${PID}/issues.zip?pack=fi`,
     );
     expect(screen.getByRole('heading', { name: fileOf(D2) })).toBeTruthy();
   });
