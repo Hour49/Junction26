@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from app.adapters.decisions.uses import Confidence
 from app.api.takeoff import _cell
 from app.composition import DECISIONS_SIGNAL, build_ingest
+from app.core import cost
 from app.core.pipeline.ports import DrawingFiles
 from app.main import create_app
 from app.settings import Settings
@@ -396,3 +397,23 @@ def test_a_settled_room_area_shows_the_settled_value_on_its_mark_and_in_its_sum(
     assert after["answer"] == pytest.approx(22.40, abs=0.01)
     assert [mark["value"] for mark in after["marks"]] == [outline["value"]]
     assert after["proof"]["arithmetic"] == "22.4 = 22.4 m²; settled by a person, was 30 m²"
+
+
+class PaidRated(Rated):
+    """Rated, whose Decisions call costs $0.0003 (R1b-4-2)."""
+
+    def probability(self, path: str, family: str, value: object) -> Confidence:
+        cost.charge(0.0003)
+        return super().probability(path, family, value)
+
+
+def test_an_answer_records_the_model_calls_it_paid_for(raster: tuple[TestClient, str]) -> None:
+    images, drawing_id = raster
+    state = cast(FastAPI, images.app).state
+    seen: list[tuple[str, str, object, bytes]] = []
+    state.answering = replace(
+        state.answering, confidence=partial(PaidRated, seen), signal=DECISIONS_SIGNAL
+    )
+    answer = ask(images, drawing_id, DOORS)
+    assert answer["cost_usd"] == pytest.approx(0.0003)
+    assert answer["line"]["cost_usd"] == pytest.approx(0.0003)

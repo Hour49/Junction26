@@ -6,6 +6,7 @@ stage was running when one failed."""
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
+from app.core import cost
 from app.core.drawing.model import Drawing, Page
 from app.core.ingest.model import Stage
 from app.core.ingest.ports import Clock
@@ -15,27 +16,37 @@ from app.core.pipeline.ports import Extractor, PageReader, SecondCounter
 
 @dataclass
 class StageClock:
-    """`ms[path][stage]`: time spent in each stage for the sheet at `path`. `running` is the
-    (stage, path) whose call has started and not returned: after an exception, the one that
-    failed."""
+    """`ms[path][stage]`: time spent in each stage for the sheet at `path`, `usd[path][stage]`
+    the model calls it paid for (app/core/cost.py). `running` is the (stage, path) whose call has
+    started and not returned: after an exception, the one that failed."""
 
     clock: Clock
     on_start: Callable[[Stage, str], None] = lambda stage, path: None  # shows the live stage
     ms: dict[str, dict[Stage, float]] = field(default_factory=dict[str, dict[Stage, float]])
+    usd: dict[str, dict[Stage, float]] = field(default_factory=dict[str, dict[Stage, float]])
     running: tuple[Stage, str] | None = None
     _ended: dict[str, float] = field(default_factory=dict[str, float])
+    _spent: float = 0.0  # cost.spent() when the running call started
 
     def start(self, stage: Stage, path: str) -> float:
         self.running = (stage, path)
         self.on_start(stage, path)
+        self._spent = cost.spent()
         return self.clock()
 
     def stop(self, stage: Stage, path: str, started: float) -> None:
         now = self.clock()
         spent = self.ms.setdefault(path, {})
         spent[stage] = spent.get(stage, 0.0) + (now - started) * 1000
+        self._charged(stage, path)
         self._ended[path] = now
         self.running = None
+
+    def _charged(self, stage: Stage, path: str) -> None:
+        paid, self._spent = cost.spent() - self._spent, cost.spent()
+        if paid:
+            usd = self.usd.setdefault(path, {})
+            usd[stage] = usd.get(stage, 0.0) + paid
 
     def since_last(self, path: str) -> float:
         """When the last timed call for `path` returned (the start of the untimed stages)."""

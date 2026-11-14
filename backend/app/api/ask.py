@@ -16,6 +16,7 @@ from app.api.deps import (
 )
 from app.api.views import PageView, Reader, View, page_views, reader_of
 from app.composition import Answering, readers
+from app.core import cost
 from app.core.answering.model import Answer, Unit
 from app.core.answering.ports import AnswerConfidence
 from app.core.drawing.model import Drawing
@@ -146,8 +147,10 @@ def ask_route(
     info = ingest.drawing_info(drawing_id)
     named = as_uploaded(ingest, info, body.project_id)
     owner = None if body.project_id is None else named.project_id
+    spent = cost.spent()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
     asked = asked_on(body.question, drawing, drawing_id, reviews, answering, ingest, owner)
-    line, shown = asked.answer, asked.row
+    line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
+    shown = asked.row
     value = shown_value(asked)
     return AnswerView(
         question=body.question,

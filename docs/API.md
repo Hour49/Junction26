@@ -621,8 +621,9 @@ Ingest's project status, plus `drawings`:
   name is listed once. An IFC model asked about on its own is an entry with no pages. An upload with no drawing
   gives `"drawings": []`.
 - `stage`: the stage a running file is in, or the last one it finished, so the ingest screen needs no trace
-  request per file. `cost_usd` on the project, each file and each stage: 0.0 with no paid reader, which is the
-  point to show. `normalised` on an image file: as on the drawing's page.
+  request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
+  (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
+  0), 0.0 with no paid reader, which is the point to show. `normalised` on an image file: as on the drawing's page.
 - A project a restart cut off is `failed` with `error` "the server restarted during ingest", its unfinished files
   `set_aside`: no screen polls it for ever.
 
@@ -1368,7 +1369,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
 - `pages`: the drawing's pages, so the viewer needs no second request.
 - `method`: `takeoff`, `schedule`, or `refused:<why>` / `prior:policy` on a refusal. `explanation`: how the value
   was reached, for a "details" view.
-- `cost_usd`, `latency_s`: of this answer. A takeoff lookup costs 0: no model call at question time.
+- `cost_usd`, `latency_s`: of this answer. A takeoff lookup costs 0: no model call at question time, except the
+  Decisions answer confidence when its page was not read at ingest (then its call's cost).
 - `line` is the exact answer_v1.1 line (decision 0002, `eval/schemas/answer_v1.schema.json`) as the scorer reads
   it, from the pipeline's own reading: edits never change it. On a refusal it may hold the dev prior's estimate.
 - `proof`: what to draw as the answer's proof (docs/GOLDEN.md "What an answer should show"); `evidence.png`
@@ -3443,7 +3445,8 @@ formula in a spreadsheet.
   they are that project's; without one, a drawing-level state no project sees. Edits stored before this change
   were per drawing and are now that no-project state (not migrated). `reader.second_counter` names the counter
   that measured: the IFC counter passes every file that is no model to the PDF one, so a PDF or image reads
-  `pdf` (was `ifc`) (R2-qa4-1, R2-qa-1-2).
+  `pdf` (was `ifc`) (R2-qa4-1, R2-qa-1-2). `cost_usd` (stage, file, project, answer) now records the Gemini
+  Decisions calls it was 0.0 for (R1b-4-2).
 - 2026-11-14, additive: on a sheet of one storey, an edit or sign-off of a storey row that carries the sheet row's
   disagreement is made on the sheet's row, and the storey row shows its edits (K4). `POST /api/ask` answers the
   area of a room asked by a printed name the parser has no word for ("the Reduit"), "how big/large" as an area,

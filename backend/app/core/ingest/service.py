@@ -14,6 +14,7 @@ from collections import deque
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 
+from app.core import cost
 from app.core.drawing.model import Drawing
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
 from app.core.ingest.groups import Groups
@@ -239,7 +240,7 @@ class IngestService:
         first_of: dict[str, str] = {}  # sha256 -> the first path with that content
         entries = self._unpacker.entries(name, data)
         # Probed ahead in a bounded window, identified in upload order.
-        probing: deque[tuple[str, bytes, Future[tuple[Probed, float]]]] = deque()
+        probing: deque[tuple[str, bytes, Future[tuple[Probed, float, float]]]] = deque()
 
         def identify_next() -> None:
             path, read, probed = probing.popleft()
@@ -275,18 +276,18 @@ class IngestService:
                 identify_next()
         return drawings
 
-    def _probed(self, data: bytes) -> tuple[Probed, float]:
-        """Stage 3's probe and its time, on a probing thread."""
-        started = self._clock()
+    def _probed(self, data: bytes) -> tuple[Probed, float, float]:
+        """Stage 3's probe, its time and the model calls it paid for, on a probing thread."""
+        started, spent = self._clock(), cost.spent()
         probed = self._probe.probe(data)
-        return probed, self._ms(started)
+        return probed, self._ms(started), cost.spent() - spent
 
     def _identify(
         self,
         run: Run,
         path: str,
         data: bytes,
-        probing: Future[tuple[Probed, float]],
+        probing: Future[tuple[Probed, float, float]],
         first_of: dict[str, str],
         frames: dict[str, Normalised],
     ) -> DrawingFile | None:
@@ -298,7 +299,7 @@ class IngestService:
         run.set(path, sha256=sha256)
         started = self._clock()
         try:
-            probed, identified = probing.result()
+            probed, identified, paid = probing.result()
             framed = None
             if probed.kind in IMAGE_KINDS:  # timed as the normalise stage, which it is
                 framing = self._clock()
@@ -318,7 +319,7 @@ class IngestService:
                 self._store.put_upload(run.id, path, data)
                 self._store.put_file(run.id, path, upright)
                 data = upright
-        run.stage(path, "identify", probed.did, identified, output=probed.kind)
+        run.stage(path, "identify", probed.did, identified, output=probed.kind, cost_usd=paid)
         run.set(path, kind=probed.kind)
         run.kinds[path] = probed.kind
         if probed.kind in TEXT_KINDS:

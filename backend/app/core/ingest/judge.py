@@ -58,8 +58,11 @@ def judge(
     return "ready", f"read on the {route} route: {found}"
 
 
-def pipeline_stages(lines: Sequence[str], ms: Mapping[Stage, float]) -> list[StageTrace]:
-    """The pipeline's lines from stage 6 on, one `StageTrace` per stage with its time."""
+def pipeline_stages(
+    lines: Sequence[str], ms: Mapping[Stage, float], usd: Mapping[Stage, float]
+) -> list[StageTrace]:
+    """The pipeline's lines from stage 6 on, one `StageTrace` per stage with its time and the
+    model calls it paid for."""
     merged: dict[Stage, list[str]] = {}
     for line in lines:
         prefix, _, said = line.partition(": ")
@@ -67,6 +70,12 @@ def pipeline_stages(lines: Sequence[str], ms: Mapping[Stage, float]) -> list[Sta
         if stage is not None:
             merged.setdefault(stage, []).append(said if stage != "takeoff" else line)
     return [
-        StageTrace(stage=stage, did="; ".join(said), ms=ms.get(stage, 0.0), output=said[-1])
+        StageTrace(
+            stage=stage,
+            did="; ".join(said),
+            ms=ms.get(stage, 0.0),
+            output=said[-1],
+            cost_usd=usd.get(stage, 0.0),
+        )
         for stage, said in merged.items()
     ]

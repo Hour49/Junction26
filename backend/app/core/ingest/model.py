@@ -78,7 +78,7 @@ class StageTrace(Frozen):
     ms: float = Field(ge=0)
     output: str = ""  # what it produced, in short
     failure: str | None = None  # set when the stage failed; the file is then set aside
-    cost_usd: float = Field(default=0.0, ge=0)  # model calls paid for; no stage calls one yet
+    cost_usd: float = Field(default=0.0, ge=0)  # model calls paid for (app/core/cost.py)
 
 
 Point = tuple[float, float]
