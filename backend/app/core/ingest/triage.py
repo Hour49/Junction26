@@ -182,14 +182,14 @@ def context_of(files: Iterable[FileStatus], drawings: Mapping[str, Drawing]) -> 
 
 
 def relevance_of(
-    judge: RelevanceJudge, description: Description, context: ProjectContext
+    judge: RelevanceJudge, kind: TriageClass, description: Description, context: ProjectContext
 ) -> Relevance | Unavailable:
     """Step 3 for one described file. With no plan in the project there is nothing to compare
     with, so the verdict is unsure without asking the judge."""
     if not context.plans:
         return Relevance(verdict="unsure", why=f"Unsure: {NO_PLAN}.", judge="no judge asked")
     mine = tuple(said for said in context.descriptions if said != description.subject)
-    found = judge.judge(description, context.model_copy(update={"descriptions": mine}))
+    found = judge.judge(kind, description, context.model_copy(update={"descriptions": mine}))
     if isinstance(found, Unavailable):
         return found
     # only this project's plans, so a screen can name them from the project's drawings

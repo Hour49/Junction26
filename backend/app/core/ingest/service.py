@@ -566,7 +566,7 @@ class IngestService:
             assert file.triage is not None and file.triage.description is not None
             spent = cost.spent()
             try:
-                found = relevance_of(judge, file.triage.description, context)
+                found = relevance_of(judge, file.triage.class_, file.triage.description, context)
             except Exception:  # one file's judging must not stop the project
                 logger.warning("judging the relevance of %s failed", file.path, exc_info=True)
                 run.set(file.path, triage=judged(file.triage, None, NOTE_JUDGE_FAILED))

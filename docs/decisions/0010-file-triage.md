@@ -244,7 +244,10 @@ class RelevanceJudge(Protocol):
   - `TRIAGE_CLASSIFIER=rules` (`app/adapters/triage/rules.py`): no model, from the content probe's kind. It sets
     aside exactly what ingest sets aside today (a camera photo not of a drawing, an image the kind signal calls not
     a drawing) and calls everything else unsure, so a floor plan. It lets the offline demo show triage on those
-    files at no cost. The describer and judge have only `off` until eu-big's adapters land.
+    files at no cost. The describer has only `off` until eu-big's adapters land.
+  - `TRIAGE_JUDGE=rules` (`app/adapters/triage/rules_judge.py`, 2026-11-14): the baseline fixed before any model,
+    `not_drawing` -> unrelated, `other_drawing` -> related, a `why` that says it was not read; a model judge
+    replaces it only by the kill rule and keeps it as its named fallback. The judge port gets the class as `kind`.
   - The default `off` keeps today's behaviour exactly, in no-keys mode too.
   - The describer and judge run only when the classifier is on.
 - eu-big's chosen models land as adapters (`app/adapters/triage/<name>.py`) without touching the stage.
