@@ -541,8 +541,7 @@ elements, which it does not do yet.
 **Status of this section: draft, first written 2026-11-14 about 12:30 and extended the same day with the work after
 12:08 (14.7 to 14.11).** The single test read of C1-T1 and its certificate are in
 (14.2); the rest of the section is val numbers from the logs, plus golden dev numbers where a log gives them. Still open,
-marked `TODO` below: the golden series point; arm 3's
-per-style result.
+marked `TODO` below: the golden series point.
 
 The round had two goals. First, find out where the 13.5% of val questions that config C gets wrong come from, and take
 whatever is cheap. Second, replace the hosted calls (Gemini's count swap, its gate score, its photo flag) with local
@@ -752,7 +751,7 @@ one per page and family). Intervals are Wilson 95%. The per-family table and the
 | Medium | 41.1% (1,381) | 92.8% [91.3, 94.0] | 100 | 34.6%, 91.6% |
 | Low | 21.0% (706) | 54.2% [50.6, 57.9] | 323 | 20.4%, 58.6% |
 
-The levels order the answers as intended: exactness falls from 99.0% to 92.8% to 54.2%, and 323 of the 436 wrong
+Exactness falls from 99.0% to 92.8% to 54.2%, and 323 of the 436 wrong
 answers are Low. High is a smaller share on test than the cross-fit on val gave (37.9% against 44.9%) at the same exact rate,
 and Low is a little worse on test (54.2% against 58.6%).
 
@@ -941,9 +940,21 @@ level (+0.3 pp [-0.5, +1.2], val mAP50-95 0.516 against 0.512), and every door s
 window count falls 8 to 19 pp on every door-styled set. In its copies a page with re-drawn doors always had thin-line
 windows, so it learned that link and stopped scoring the original window frames there. The mirror case confirms it: on a
 window-styled set with untouched doors its door count is 46.6% against 71.7% shipped. **Arm 1 is not shippable**; arm 2
-had the same coupling and was stopped. Arm 3 (copies built so door and window styles vary independently): clean val -0.5
-pp [-1.4, +0.4] (door 71.0 to 68.5, sink 87.9 to 85.7, every interval includes 0); its per-style and hand-drawn results
-were still running when the log was last updated. **TODO:** arm 3's per-style recall and its decision.
+had the same coupling and was stopped. Arm 3 (copies built so door and window styles vary independently, `S-styles-l3`) is not default and stays available by setting
+(`detector:S-styles-l3` in `RASTER_COMPONENTS`, one view; it has no eight-view thresholds). Clean val is level: all questions -0.5 pp
+[-1.4, +0.4], door 71.0 to 68.5 (-2.5 [-6.8, +1.8]), sink 87.9 to 85.7 (-2.2 [-5.4, +1.1]), window -0.3 [-4.8, +4.3]; this
+is one training seed. On our re-drawn door styles it counts doors as well as arc doors on clean pages (69 to 77% exact) and the window
+coupling of arm 1 is gone (window family -1.1 to +5.3 on the door-styled sets). The door-family gains over the shipped
+detector are +14 to +65 pp on the style sets, but about +5 pp of that is the renderer: on doors re-drawn as our own arcs
+it gains +4.7 [+0.7, +9.0], on real arcs it loses 2.5. On real val pages it is level for doors (box recall +0.5 [-0.2,
++1.2]) and finds fewer windows (box recall -1.6 [-3.1, -0.3]; lines_2 -5.1 [-9.2, -1.0]). Window exact count with the
+answer key removed (original jambs): 46 to 47% against 27 to 39% on the four re-drawn styles of its mix, with 1.12 to 1.13
+boxes per window; real pages -0.8 [-4.8, +3.5]. The 92% exact on re-drawn windows with gold jambs is the renderer's key and
+is not quoted. Real drawings: hand-drawn sheets, door in range 1 of 10 against 0 for the shipped detector; on fail-1's 50
+archive sheets, by the pre-registered line, it is worse: drawn doors in range 1 against 4 of 16 sheets (3 to 0 discordant,
+sign test p = 0.25), windows 10 against 7 of 29 (p = 0.45), and on an 18th-century engraving with no doors it boxes 43 where the
+shipped detector boxes 18. Decision (orchestrator, 2026-11-14): not the default. The gains are on re-drawn CubiCasa pages
+only; nothing on real drawings separates it from the shipped detector (`styles-doors.md`, `styles-windows.md`).
 
 **Hand-drawn sheets** (`handdrawn.md`; 14 sheets: 9 pencil, ink or wash drawings of 1781 to 1922, a pencil bedroom on grid
 paper, a marker overlay on a photographed print, 2 tablet-ink sketches, an inked print scan). The gold is a hand count in
