@@ -169,6 +169,12 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 - AC-34 API client: `chatTurn(projectId, {chat_id?, message, selection?})` and `decideProposal(projectId, chatId,
   proposalId, action)` in `src/api/client.ts`; types from `npm run api:gen`.
 - AC-35 Phone width (390): the edit card's plan is full width, the change list below; no horizontal scroll.
+- AC-39 (chat-ux #8) The empty agent chat says what was read before the first question: a "What I read" block
+  (`region`) between the title and the ask bar, per askable drawing (at most 3, then "and N more drawings") its
+  plain name, kind and route in words, what its file's takeoff counted ("8 rooms (38.32 m² indoors) · 6 doors ·
+  4 windows", zero counts left out) and the file's `reason` as a sentence (the server's words, flags included).
+  From `GET /api/projects/{id}` alone, no model call; gone once the thread has a turn. [component
+  `WhatIRead.test.tsx`, `AgentChat.test.tsx`; browser 1440 and 390]
 
 ## 4. Tests
 

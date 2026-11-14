@@ -15,6 +15,7 @@ import { Loading } from '../shell/Loading';
 import type { ChatTurn, Selection } from './agent';
 import { PlanPointer } from './PlanPointer';
 import { TurnCard } from './TurnCard';
+import { WhatIRead } from './WhatIRead';
 import '../engineer/engineer.css';
 
 type Sent = { id: number; message: string; chips: string[] };
@@ -289,6 +290,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     return (
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
+        <WhatIRead project={project} />
         {pointer}
         {bar}
         {plans.length === 0 ? (

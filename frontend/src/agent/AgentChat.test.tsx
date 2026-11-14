@@ -149,3 +149,11 @@ it("LC-11 every turn sends the route's ?pack=; none without one", async () => {
   await screen.findByText(/is 7.56 m²/);
   expect(posts(bare)[0]).not.toHaveProperty('pack');
 });
+
+it('chat-ux #8 the empty chat says what was read from the drawings; the first turn replaces it', async () => {
+  open(answerTurn);
+  expect(await screen.findByRole('region', { name: 'What I read' })).toBeTruthy();
+  await send('How big is the bathroom?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  expect(screen.queryByRole('region', { name: 'What I read' })).toBeNull();
+});
