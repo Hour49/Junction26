@@ -459,3 +459,18 @@ def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:
         assert found.answer.estimate is True
     plain = asked_flagged("How many doors are there?", drawing, ())
     assert plain.row is not None and plain.row.status == "single" and plain.row.estimate is None
+
+
+def test_a_printed_label_with_digits_names_its_room_only_as_printed() -> None:
+    """R3-qa-5-2: "What is the area of the MH1?" on colorful-13019 was refused (printed names
+    with digits were skipped). Letters and digits match as printed, case-sensitive, a whole
+    token, one room only; a room number ("1.01") stays the room-number path."""
+    mh1 = Room(id="r1", type="bedroom", label="MH1", page=1, box=BOX_A, area_m2=11.5)
+    mh2 = Room(id="r2", type="bedroom", label="MH2", page=1, box=BOX_B, area_m2=9.0)
+    found = asked("What is the area of the MH1?", scaled(mh1, mh2))
+    assert found.refusal is None and found.answer.answer == 11.5
+    assert asked("How big is MH2?", scaled(mh1, mh2)).answer.answer == 9.0
+    for text in ("What is the area of the mh1?", "What is the area of the MH12?"):
+        assert asked(text, scaled(mh1, mh2)).answer.answer is None, text
+    twice = Room(id="r3", type="bedroom", label="MH1", page=1, box=BOX_B, area_m2=9.0)
+    assert asked("What is the area of the MH1?", scaled(mh1, twice)).answer.answer is None

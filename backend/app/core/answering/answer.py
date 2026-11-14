@@ -202,6 +202,10 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
     )
 
 
+SHORT_LABEL = re.compile(r"[^\W\d_a-zäöå]{2}")  # MH, OH, KT: two capitals
+CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
+
+
 class RoomByType:
     """The parser, with the area of a room asked by its type ("the area of the kitchen") turned
     into that room's own area (the key "room 2.01" answers under) when the drawing has exactly one
@@ -211,9 +215,9 @@ class RoomByType:
 
     The same for a room asked by a printed label or name the parser has no word for ("the area
     of the Reduit"), when the parser refuses the question as typed: when one room on the drawing
-    carries that name (3 letters or more, no digits; a 2-letter one only in the capitals it is
-    printed in, "the MH"), the question is read with it as the room's name, and answers when that
-    is an area (R2-2-3, R3-qa-1-1)."""
+    carries that name (3 letters or more, no digits; a 2-letter one or one of letters and digits
+    only as printed, "the MH", "the MH1"), the question is read with it as the room's name, and
+    answers when that is an area (R2-2-3, R3-qa-1-1, R3-qa-5-2)."""
 
     def __init__(
         self, parser: QuestionParser, drawing: Drawing, quantities: Mapping[str, Quantity]
@@ -254,16 +258,14 @@ class RoomByType:
         at: dict[str, re.Match[str]] = {}
         for room in self._drawing.rooms:
             names = [(name, name, re.IGNORECASE) for name in room_names(room) if len(name) > 2]
-            # a 2-letter label (MH, OH) only as printed, in capitals: never a word ("of", "is")
-            if (
-                room.label
-                and len(room.label) == 2
-                and room.label.isalpha()
-                and room.label.isupper()
+            # a 2-letter label (MH, OH) or one of letters and digits (MH1) only as printed,
+            # case-sensitive: never a word ("of", "is"); a room number stays the parser's
+            if room.label and (
+                SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)
             ):
                 names.append((normalised(room.label), room.label, re.NOFLAG))
             for name, printed, flags in names:
-                if any(char.isdigit() for char in name):
+                if flags and any(char.isdigit() for char in name):
                     continue
                 match = re.search(rf"(?<!\w){re.escape(printed)}(?!\w)", text, flags)
                 if match is not None:
