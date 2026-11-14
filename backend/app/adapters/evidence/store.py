@@ -78,8 +78,15 @@ class EvidenceReader:
         self._db: sqlite3.Connection | None = None
 
     def _connection(self) -> sqlite3.Connection | None:
+        """The connection, once the file holds an index: a file without the schema (another sync
+        between creating it and committing, or one that died there) reads as empty."""
         if self._db is None and self._path.is_file():
-            self._db = sqlite3.connect(self._path)
+            db = sqlite3.connect(self._path)
+            made = db.execute("select 1 from sqlite_master where name = 'meta'").fetchone()
+            if made is None:
+                db.close()
+                return None
+            self._db = db
         return self._db
 
     def close(self) -> None:
@@ -194,10 +201,12 @@ class SqliteEvidenceIndex:
         path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(path, isolation_level=None)  # transactions spelt out below
         try:
-            db.execute("pragma journal_mode=wal")
-            db.executescript(SCHEMA)
+            db.execute("pragma journal_mode=wal")  # not allowed inside a transaction
             db.execute("begin immediate")
             try:
+                for statement in SCHEMA.split(";"):  # in the transaction, with the rows
+                    if statement.strip():
+                        db.execute(statement)
                 self._write(db, current)
                 db.execute("commit")
             except BaseException:

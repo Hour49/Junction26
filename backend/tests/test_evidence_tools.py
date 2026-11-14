@@ -209,6 +209,34 @@ def test_searches_answer_while_another_connection_holds_the_write_lock(tmp_path:
         writer.close()
 
 
+def test_a_file_without_its_schema_reads_as_empty_and_the_next_open_repairs_it(
+    tmp_path: Path,
+) -> None:
+    """codecheck e6: a search between another sync's connect (the file exists) and its schema,
+    or after a sync that died there, found no `meta` table and failed every time after."""
+    path = tmp_path / "projects" / "p1" / "evidence.sqlite"
+    path.parent.mkdir(parents=True)
+    sqlite3.connect(path).close()  # the file as a sync's connect leaves it, no tables yet
+    found = open_index(tmp_path).search("brick")
+    assert [hit.file for hit in found.hits] == ["facade.jpg"]
+
+
+def test_a_sync_that_fails_after_the_schema_leaves_no_half_made_index(tmp_path: Path) -> None:
+    """The schema is written in the same transaction as the rows: a sync that dies rolls both
+    back, so a reader never sees tables without their rows."""
+
+    class Dying(SqliteEvidenceIndex):
+        def _write(self, db: sqlite3.Connection, current: dict[str, Any]) -> None:
+            raise RuntimeError("killed mid-sync")
+
+    with pytest.raises(RuntimeError):
+        Dying(tmp_path / "projects", passages, None).update(SITE)
+    path = tmp_path / "projects" / "p1" / "evidence.sqlite"
+    with sqlite3.connect(path) as db:
+        assert db.execute("select name from sqlite_master where type = 'table'").fetchall() == []
+    assert [hit.file for hit in open_index(tmp_path).search("brick").hits] == ["facade.jpg"]
+
+
 def test_an_index_in_step_is_read_through_one_connection_and_never_written(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
