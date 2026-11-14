@@ -68,6 +68,7 @@ export function QuantityDetail(props: Props) {
             {conflict.values.map((v, i) => (
               <li key={`${v.method} ${String(i)}`}>
                 {LETTERS[i]}: {formatValue(v.value, v.unit ?? row.unit)} {methodName(v.method)}
+                {v.value === row.value && <strong className="sv-in-use"> · in use</strong>}
               </li>
             ))}
           </ul>

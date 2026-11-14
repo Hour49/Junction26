@@ -26,7 +26,7 @@ import {
   type Grade,
 } from './format';
 import { ModelProof } from './ModelProof';
-import { Plan, type Place } from './Plan';
+import { DrawingNav, Plan, type Place } from './Plan';
 
 export type Turn =
   | { id: number; question: string; status: 'pending' }
@@ -392,6 +392,7 @@ function Answer(props: {
             />
           ) : (
             <div className="en-planbox">
+              <DrawingNav place={place} />
               {a.proof.kind === 'model' && <ModelProof proof={a.proof} />}
               {overlay}
             </div>
@@ -553,6 +554,7 @@ export function AnswerCard(props: {
             onAsk={onAsk}
             label="Questions this drawing can answer"
           />
+          <DrawingNav place={place} />
         </div>
       )}
       {turn.status === 'done' && !refusal && (

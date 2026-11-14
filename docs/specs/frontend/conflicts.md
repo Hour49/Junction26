@@ -31,7 +31,7 @@ methodName, errorText), `src/shell/` (Loading, ErrorView, routeHref), `src/viewe
 | mount | `getProject(pid)` and `getProjectReview(pid)`, in parallel | heading line, the conflicts, the workspace link |
 | a card's evidence opens | `getDrawing(drawing_id, {project: pid})`, once per drawing id (kept in a map) | `pages`, `credit`, `file` for the PageViewer |
 | Keep a variant | `postReview(drawing_id, {quantity, action: "settle", value}, {project: pid})` | then `getProjectReview(pid)` again |
-| Use the rule's value | `postReview(drawing_id, {quantity, action: "reset"}, {project: pid})` | then `getProjectReview(pid)` again |
+| Use the rule's value | `postReview(drawing_id, {quantity, action: "unsettle"}, {project: pid})` | then `getProjectReview(pid)` again |
 
 The POST returns that drawing's whole takeoff; the screen ignores it and reloads the project review, which is the
 one source of the cards (a storey twin, K4, is listed once by the server; merging takeoff rows here would redo
@@ -77,7 +77,7 @@ Heading, from `project` and `review`:
 Screen:
 
 - Loading: the shell's `Loading` until both GETs answer.
-- Error: the shell's `ErrorView` with `errorText`; a 404 (no such project) shows "Back to projects" and no Retry,
+- Error: the shell's `ErrorView` with `errorText`; a 404 (no such project) shows "Back to workspaces" and no Retry,
   anything else Retry (same rule as SV-45).
 - Project not done (`project.state` `queued`/`running`): a line under the heading "Still reading the drawings: these
   are the conflicts so far." and a "Check again" button that reloads both GETs. `failed`: "Reading stopped: `error`."
@@ -97,11 +97,15 @@ Per card (`mode` is local state, keyed by `drawing_id + quantity`, reset when th
 
 - Tapping an enabled tile sends `settle` with that tile's value; pressing the tile already in use only leaves
   choosing mode (no request).
-- "Use the rule's value" sends `reset` for the quantity after a confirm: "Use the rule's value? This also undoes
-  every other edit and any sign-off of `label` on `file`." (the API's `reset` drops all of them; Not in the API 3).
+- "Use the rule's value" sends `unsettle` for the quantity at once, no confirm (backend PR #121: it drops only the
+  settled value; mark edits and sign-offs stay). A 409 (the drawing is signed off) shows the signed-off sentence
+  below and the card stays "Your choice".
 - A failed POST: the card shows `errorText(err)` under its buttons (role alert) and goes back to its mode; a 409
   (signed off) reads "This value is signed off. Undo the sign-off in the surveyor workspace first." with the
   workspace link.
+- A reload after an edit keeps each card (keyed by its quantity, not by its state): an opened "Why …" or "Where
+  each value was read" stays open; the card's mode starts over from the new server state (open: choosing, else
+  idle) as before (pre-QA c, 2026-11-14).
 - Tooltips on the pill (hover and focus, as the design): open "The rules could not decide. Pick a value before you
   open the workspace."; rule "A rule settled this: `resolution.rule`. Modify it if you disagree."; yours "You picked
   this value; it overrides the rule."; choosing "Tap the right value, or Cancel."
@@ -124,8 +128,9 @@ The design's: header (shell's), then the shell's `.v-page.v-page--narrow` frame 
   anywhere; pill right. Tiles in a 2-column grid (12px gap; 3+ values wrap to more rows), each a button: 16px
   padding, 16px radius, 1px `--v-line` border; pressed: 2px `--v-accent` border, `--v-accent-soft` background and the
   check badge "in use". Why: `<details>` on `--v-fill`, 14px radius. Actions row: the action text left, the
-  buttons right (pills, 44px tall).
-- Phone 390: the heading row stacks (link under the text), tiles one column, the h1 32px, no sideways scroll,
+  buttons right (pills, 44px tall) in every state, also when a long action line puts the buttons on their own line.
+- Phone 390: the heading row stacks (link under the text), each card's pill sits above its kicker and title (the
+  title gets the card's full width), tiles one column, the h1 32px, no sideways scroll,
   every button at least 44px tall.
 - Motion: the design's press scale (0.97) and chevron turn, none under `prefers-reduced-motion`.
 
@@ -148,8 +153,9 @@ the same props-recording double as SurveyorScreen.test.tsx):
   `GET …/review` and renders the reloaded data.
 - CF-8: a `settled` card at 22.401 shows "Your choice", tile A pressed, "You kept A, over the rule's choice." and
   both "Change" and "Use the rule's value".
-- CF-9: "Use the rule's value" asks the confirm; accepted, sends `{"quantity": …, "action": "reset"}` with
-  `?project=<pid>`; dismissed, sends nothing.
+- CF-9: "Use the rule's value" sends `{"quantity": …, "action": "unsettle"}` at once (no confirm) with
+  `?project=<pid>`, then reloads the review: the pill reads "Settled by rule". CF-9b: a 409 on it shows "This value
+  is signed off. Undo the sign-off in the surveyor workspace first." (role alert) and the card stays "Your choice".
 - CF-10: a `needs_person` card shows "Needs you", enabled tiles with none pressed, the evidence open, and the
   workspace link disabled with "Settle the conflicts that need you first."
 - CF-11: a `settled` value matching no tile shows no tile pressed and "You settled it at … in the surveyor
@@ -160,7 +166,7 @@ the same props-recording double as SurveyorScreen.test.tsx):
   stays.
 - CF-14: a 409 on settle shows the signed-off sentence (role alert) and the workspace link of that card; the card
   returns to choosing mode.
-- CF-15: a load 404 shows "Back to projects" (`#/`) and no Retry; a 500 shows Retry, which reloads both GETs.
+- CF-15: a load 404 shows "Back to workspaces" (`#/workspaces`) and no Retry; a 500 shows Retry, which reloads both GETs.
 - CF-16: `project.state` "running" shows "Still reading the drawings…" and "Check again" reloads both GETs.
 - CF-17: "Open the workspace" links to `#/p/<pid>/d/<first drawing with quantities>/engineer`.
 - CF-18: each card's "Open in the surveyor workspace" links to `#/p/<pid>/d/<did>/surveyor?q=<quantity encoded>`.
@@ -172,13 +178,19 @@ the same props-recording double as SurveyorScreen.test.tsx):
 - CF-23: a `ConflictEntry` with a real `signed` shows the pill "Signed off by `by`", disabled tiles and no Modify.
 - CF-24: a rule card with `value: 27.5` (no tile has it) presses no tile and reads "In use: 27.50 m²."; nothing on
   the screen carries `data-pending`.
+- CF-25: opening "Why …" and "Where each value was read", then Modify and a tile, leaves both open after the
+  reload; the card shows "Your choice" with Change and disabled tiles (its mode starts over).
+- CF-26: at ≤600px `.cf-card-top` is `column-reverse`, `align-items: flex-start` (the pill above the title). [CSS
+  text; browser at 390]
+- CF-27: `.cf-buttons` has `margin-left: auto` and `justify-content: flex-end` (right-aligned in every state).
+  [CSS text; browser at 1440: the button row ends at the same x for "Settled by rule" and "Your choice"]
 - Tile accessible names: "`X`: `value`, `method`, page `n`[, the rule's choice][, in use]" (e2e: `/^A\b/`).
 
 [e2e] (fe-golden, `frontend/e2e/`, at 1440 and 390, sample project):
 
 - CF-22: from the project screen's link (or `#/p/<pid>/conflicts`), the sample shows "1 conflict found" with
   "area of room (name 1.01)" on `plans/flat-b.pdf`; Modify, tap A, the pill reads "Your choice"; "Use the rule's
-  value", confirm, the pill reads "Settled by rule". No sideways scroll at 390.
+  value", the pill reads "Settled by rule". No sideways scroll at 390.
 
 ## Not in the API
 
@@ -186,8 +198,7 @@ the same props-recording double as SurveyorScreen.test.tsx):
    it offers Keep and learns of the sign-off from a 409. With it: the pill "Signed off by `by`", tiles disabled.
 2. **`value` on `ConflictEntry`** (the row's current value): after a mark edit in the surveyor workspace the value
    in use is a recount that is neither variant; the card cannot show it. With it: "In use: `value`".
-3. **An `unsettle` action** (drop the settled value only): "Use the rule's value" must send `reset`, which also
-   drops the quantity's mark edits and sign-off; hence the confirm.
+3. ~~An `unsettle` action~~: real since backend PR #121 (vellum 732ec9d); "Use the rule's value" sends it.
 4. **A plain-words title per conflict** (the design's "Is the balcony glazing a window?") and **a rule list per
    conflict** (the design shows two rules and a "why" paragraph): the API has one `resolution.rule` sentence and
    `note`. The card shows `label` and those.
@@ -199,8 +210,8 @@ the same props-recording double as SurveyorScreen.test.tsx):
 None left. `ConflictEntry.signed` and `ConflictEntry.value` landed with backend PR #120 (vellum 859eed6) and are read
 directly: `signed` drives the pill "Signed off by `by`" and locks the card; `value` picks the pressed tile, and a
 value no tile has (a recount in the workspace) reads "In use: `value`." on a rule card. A card that needs a person
-presses no tile whatever `value` says. The `unsettle` edit action is part 2: until it lands, "Use the rule's
-value" sends `reset` behind the confirm. Not coming, so not mocked: a plain-words title (`h2` = `label`), a rule
+presses no tile whatever `value` says. The `unsettle` edit action is real too (PR #121): "Use the rule's value"
+sends it, no confirm. Not coming, so not mocked: a plain-words title (`h2` = `label`), a rule
 list (rule, note, derived), `Settled.by` ("you").
 
 ## Out of scope

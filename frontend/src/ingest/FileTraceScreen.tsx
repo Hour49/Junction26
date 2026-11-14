@@ -2,7 +2,15 @@ import { useCallback } from 'react';
 import { getTrace, type FileTrace } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
-import { STAGE_LABEL, formatCost, formatMs, formatSize, isFinished, plural } from './ingest';
+import {
+  STAGE_LABEL,
+  formatCost,
+  kindLabel,
+  formatMs,
+  formatSize,
+  isFinished,
+  plural,
+} from './ingest';
 import { BeforeAfter } from './BeforeAfter';
 import { StaleNote, StateBadge, TitleRow } from './ProjectScreen';
 import { usePoll } from './usePoll';
@@ -17,7 +25,11 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
     [projectId, fileId],
   );
   const { data: trace, error, failedAt, retry } = usePoll(load, live);
-  const back = <a href={`#/p/${projectId}`}>Back to the project</a>;
+  const back = (
+    <a className="ingest-back" href={`#/p/${projectId}`}>
+      Back to the project
+    </a>
+  );
 
   if (trace === null) {
     return (
@@ -35,7 +47,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
   const { file, stages } = trace;
   const takeoff = Object.entries(file.takeoff ?? {});
   const facts: [string, string | null | undefined][] = [
-    ['Kind', file.kind ?? 'not identified'],
+    ['Kind', kindLabel(file.kind)],
     ['Size', formatSize(file.size)],
     ['Route', file.route],
     ['Read from', file.source],
@@ -62,9 +74,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           value ? (
             <div key={label}>
               <dt>{label}</dt>
-              <dd title={label === 'sha256' ? (file.sha256 ?? undefined) : undefined}>
-                {label === 'Read from' ? `read from ${value}` : value}
-              </dd>
+              <dd title={label === 'sha256' ? (file.sha256 ?? undefined) : undefined}>{value}</dd>
             </div>
           ) : null,
         )}

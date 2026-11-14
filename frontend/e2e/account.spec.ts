@@ -49,7 +49,7 @@ test('AC-25 AC-26 AC-27 the workspaces list and the selected one', async ({ page
   await expect(stat('Signed off')).toHaveText(/^0 of \d+$/);
   await expect(panel.getByText('Uploaded sample-project.zip')).toBeVisible();
   await expect(panel.getByText('Analysis done')).toBeVisible();
-  await expect(panel.getByText(/^Decided by rule: area of room \(name 1\.01\)$/)).toBeVisible();
+  await expect(panel.getByText(/^Settled by a rule: area of room \(name 1\.01\)$/)).toBeVisible();
 
   const listBox = await page.locator('.account-list').boundingBox();
   const panelBox = await panel.boundingBox();

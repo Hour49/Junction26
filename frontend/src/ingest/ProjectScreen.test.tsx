@@ -4,7 +4,7 @@ import { error, project, projectRunning } from '../api/fixtures';
 import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
-import { formatMs } from './ingest';
+import { formatMs, kindLabel } from './ingest';
 import { ProjectScreen } from './ProjectScreen';
 import { flush, must, variants } from './testing';
 
@@ -96,7 +96,7 @@ describe('ProjectScreen', () => {
     project.files.forEach((f, i) => {
       const row = must(rows[i]);
       expect(row.getAttribute('href')).toBe(`#/p/${ID}/f/${f.id}`);
-      expect(row.textContent).toContain(must(f.kind));
+      expect(row.textContent).toContain(kindLabel(f.kind));
       expect(row.textContent).toContain(f.state === 'ready' ? 'ready' : 'flagged');
       expect(row.textContent).toContain(f.reason);
       expect(row.textContent).toMatch(/\d+(\.\d)? (B|KB|MB)/);
@@ -130,7 +130,7 @@ describe('ProjectScreen', () => {
     project.drawings.forEach((d, i) => {
       const card = must(cards[i]);
       expect(card.textContent).toContain(d.file);
-      expect(card.textContent).toContain(must(d.kind));
+      expect(card.textContent).toContain(kindLabel(d.kind));
       expect(card.textContent).toContain(`${must(d.route)} route`);
       expect(card.textContent).toContain(d.state === 'ready' ? 'ready' : 'flagged');
       expect(within(card).getByRole('link', { name: 'Open' }).getAttribute('href')).toBe(
@@ -195,13 +195,15 @@ describe('ProjectScreen', () => {
     expect(gets(api)).toBe(1);
   });
 
-  it('IN-29 a 404 first load shows detail, code and a link home; a network failure offers Retry', async () => {
+  it('IN-29 a 404 first load shows detail, code and "Back to workspaces"; a network failure offers Retry', async () => {
     mockApi({ [GET]: reply(404, error) });
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
     expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
-    expect(document.querySelector('a[href="#/"]')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to workspaces' }).getAttribute('href')).toBe(
+      '#/workspaces',
+    );
     cleanup();
 
     let n = 0;

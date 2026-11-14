@@ -67,7 +67,7 @@ export function AdvancedIngest({
   const lines = stepLines(project.files, traces, step);
   const status = stepStatus(project, step).status;
   const takeoffs = [...data.takeoffs.values()];
-  const pairs = pairsOf(takeoffs);
+  const pairs = pairsOf(takeoffs, project);
 
   const elapsed = (): Stat => {
     const ms = elapsedMs(project, now);
@@ -148,7 +148,7 @@ export function AdvancedIngest({
   const visual = () => {
     switch (view.visual) {
       case 'files':
-        return <FileStrip project={project} working={working} />;
+        return <FileStrip projectId={projectId} project={project} working={working} />;
       case 'lanes':
         return (
           <RouteLanes
@@ -161,6 +161,7 @@ export function AdvancedIngest({
       case 'plan':
         return (
           <PlanMarks
+            projectId={projectId}
             project={project}
             takeoffs={data.takeoffs}
             failed={takeoffFailed}
@@ -201,7 +202,12 @@ export function AdvancedIngest({
               </span>
               <span>{s.name}</span>
               <span className="adv-sr">, {STATUS_WORD[st.status]}</span>
-              {st.setAside > 0 && <span className="adv-aside"> · {st.setAside} set aside</span>}
+              {st.setAside > 0 && (
+                <span className="adv-aside">
+                  <span className="adv-sr"> · </span>
+                  {st.setAside} set aside
+                </span>
+              )}
             </button>
           );
         })}

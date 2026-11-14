@@ -770,6 +770,19 @@ describe('PageViewer: Vellum (screen 4)', () => {
     expect(meta(onDrawing({ storey: null, scale_text: null }))).toBe('Page 1');
   });
 
+  it('VW-59 a page from a backend without the scale fields (before #121) renders with no scale', () => {
+    const old: Partial<typeof page1> = { ...page1 };
+    delete old.scale;
+    delete old.scale_text;
+    delete old.storey;
+    const c = render(
+      <PageViewer file={drawing.file} pages={[old as typeof page1]} marks={[]} credit={null} />,
+    ).container;
+    expect(meta(c)).toBe('Page 1');
+    cleanup();
+    expect(meta(onDrawing({ scale: null, scale_text: null, storey: null }))).toBe('Page 1');
+  });
+
   it('VW-59 a scale not read off the sheet says how it was got', () => {
     const scale = (status: string, text: string | null) => ({
       scale_text: text,

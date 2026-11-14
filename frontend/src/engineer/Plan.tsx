@@ -60,6 +60,29 @@ const Chevron = ({ d }: { d: string }) => (
   </svg>
 );
 
+/** The position and previous/next drawing links as a row, where there is no plan to put them on
+ * (a building model, a refusal): every drawing kind can step through the project (EN-56). */
+export function DrawingNav({ place }: { place: Place | null }) {
+  if (!place?.pos) return null;
+  return (
+    <nav className="en-drawnav" aria-label="Drawings">
+      {place.prev && (
+        <a className="en-nav" href={place.prev} aria-label="Previous drawing">
+          <Chevron d="M15 5l-7 7 7 7" />
+        </a>
+      )}
+      <span className="en-pos" aria-live="polite">
+        {place.pos}
+      </span>
+      {place.next && (
+        <a className="en-nav" href={place.next} aria-label="Next drawing">
+          <Chevron d="M9 5l7 7-7 7" />
+        </a>
+      )}
+    </nav>
+  );
+}
+
 /** The page viewer with this screen's drawing position, arrows and overlay around it. */
 export function Plan(props: {
   viewer: ComponentProps<typeof PageViewer>;

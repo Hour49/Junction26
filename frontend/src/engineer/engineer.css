@@ -19,8 +19,9 @@
 .en-turn {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  scroll-margin-top: 8px;
+  gap: 8px;
+  /* Below the sticky site header (0 on the phone, where it is not sticky). */
+  scroll-margin-top: calc(var(--v-header-h, 0px) + 8px);
   scroll-margin-bottom: var(--en-ask-h);
 }
 .en-bubble {
@@ -60,7 +61,9 @@
 .en-left {
   position: relative;
   margin: 0;
-  padding: 20px;
+  /* The viewer pads itself (viewer.css .vw): no second padding above or beside it, so the plan's legend line
+     sits higher and stays clear of the ask band at 1440x900 (golden 06/07). */
+  padding: 0 0 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -75,7 +78,22 @@
 .en-side p {
   margin: 0;
 }
+.en-left > :not(.en-plan) {
+  margin-inline: 20px;
+}
+.en-left > .en-planbox:first-child {
+  margin-top: 20px;
+}
+.en-plan {
+  position: relative;
+}
+/* Over the empty right end of the viewer's file-name row (its padding is 20 px); in flow on a phone. */
 .en-place {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1;
+  max-width: 50%;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -116,6 +134,25 @@
 }
 .en-nav:active {
   transform: translateY(-50%) scale(0.97);
+}
+
+/* Where there is no plan (building model, refusal), the arrows and position sit in a row (EN-56). */
+.en-drawnav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.en-drawnav .en-pos {
+  margin-left: 0;
+}
+.en-drawnav .en-nav {
+  position: static;
+  transform: none;
+}
+.en-drawnav .en-nav:active {
+  transform: scale(0.97);
 }
 
 /* The opened reference covers the plan box. */
@@ -437,16 +474,18 @@ button.en-ref:hover,
   cursor: default;
 }
 
-/* The ask box: a pill stuck to the bottom. */
+/* The ask box: a pill on a solid band stuck to the bottom; content scrolls behind the band, never shows through
+   it (golden 06/07: the plan's legend and mark rows read through the glass). */
 .en-ask {
   position: sticky;
-  bottom: 16px;
+  bottom: 0;
   z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 4px;
-  margin-bottom: 16px;
+  padding: 6px 0 10px;
+  background: var(--v-bg);
 }
 .en-askpill {
   display: flex;
@@ -454,9 +493,7 @@ button.en-ref:hover,
   gap: 8px;
   padding: 6px 6px 6px 18px;
   border-radius: 980px;
-  background: color-mix(in srgb, var(--v-surface) 80%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--v-surface);
   box-shadow: var(--v-shadow);
 }
 .en-askpill input {
@@ -485,10 +522,15 @@ button.en-ref:hover,
   opacity: 0.5;
   cursor: default;
 }
-.en-ask .en-meta,
 .en-limit {
   text-align: center;
   font-size: 12px;
+}
+/* "<n> asked · len / limit" inside the pill (a shorter band on desktop); under it on a phone. */
+.en-askpill .en-meta {
+  flex: none;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 /* Read by screen readers, not shown. */
@@ -508,12 +550,30 @@ button.en-ref:hover,
   .en-page {
     padding: 24px 16px 0;
   }
-}
-@media (prefers-reduced-transparency: reduce) {
+  .en-left > :not(.en-plan) {
+    margin-inline: 16px;
+  }
+  .en-place {
+    position: static;
+    max-width: none;
+    padding: 16px 16px 0;
+  }
+  .en-ask {
+    padding-bottom: 28px;
+  }
   .en-askpill {
-    background: var(--v-surface);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    position: relative;
+  }
+  .en-askpill .en-meta {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    text-align: center;
+  }
+  /* Under the meta line, not over it. */
+  .en-limit {
+    margin-top: 18px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -127,7 +127,7 @@ Mark rows, by `state`:
 | Ready | Side panel, viewer, takeoff panel as in Layout | `takeoff.json` + `drawing.json` + `project_review.json` |
 | Empty | No rows: "Nothing was counted on this drawing." When `reader.extractor` is `hello`: "This drawing's route has no reader in this build, so nothing was counted." When `zeros` is false: also the "Show rows with value 0" control. No sign-off, no CSV link, no reset-all | `takeoff.json` with `quantities: []`, `review_queue: []`; the sample's `scans/` or `photos/` drawing (0 quantities in `project_review.json`) |
 | Nothing to review | The "To review" group says "Nothing left to review." | `takeoff.json` with `review_queue: []` |
-| Load error | The shell's `ErrorView` with `detail`, `code` and Retry, which repeats the failed loads (on a 404 `ErrorView` shows "Back to projects" to `#/` instead of Retry) | Mock a 404 `error.json` for the takeoff; an unknown drawing id against the backend |
+| Load error | The shell's `ErrorView` with `detail`, `code` and Retry, which repeats the failed loads (on a 404 `ErrorView` shows "Back to workspaces" to `#/workspaces` instead of Retry) | Mock a 404 `error.json` for the takeoff; an unknown drawing id against the backend |
 | Side-panel error | Only the side panel shows `detail`, `code` and Retry; the takeoff still works | Mock a 500 for `GET …/review` |
 | Saving | "Saving…" in a live region; every edit, settle, sign-off and reset control disabled; the table stays readable | Any edit with a delayed response |
 | Edit refused | An alert in the detail with `detail` and `code` (409 `not-allowed`, 422 `invalid`, 422 `validation`, 404 `not-found`); the takeoff stays as it was; the alert clears on the next successful request | Mock 409/422 bodies shaped as `error.json` |
@@ -157,6 +157,13 @@ sideways (QA R1-4-2: one inner box for both tables showed one row of 61).
 Phone 390x844: one column, in this order: the side panel collapsed behind "Drawings and conflicts" (a `<details>`),
 the viewer (at most 50% of the viewport height), the takeoff panel in the page's flow (no column scroll, no
 sticky header, no scroll box around the tables). The table keeps its three columns and wraps labels. Buttons and table rows are at least 40px tall. Nothing scrolls sideways.
+At 760px and narrower, selecting a row (click, Enter or a `?q=` change by the user) scrolls the detail into view
+(`scrollIntoView({block: "start"})`, `scroll-margin-top` clears the sticky site header): the detail sits under all
+the rows (63 on the sample), and the row order stays as on the desktop (pre-QA 2026-11-14, SV-53).
+
+Selection after an edit or sign-off: the row acted on stays selected, even when it leaves "To review" (it was the
+default selection), so its "Settled at …" / "Signed off by …" line shows (frontend-orch decision, pre-QA, SV-52).
+The conflict block marks the value in use (the row's `value`) with " · in use" after that letter (SV-54).
 
 Table cell content: Quantity = `label`, and under it in small text when `first` and `second` are set:
 "<methodName(first.method)> `first.value` · <methodName(second.method)> `second.value`". Value = the original value struck through when it
@@ -330,7 +337,7 @@ States, safety, layout
   no-reader sentence; with zeros off also the zeros toggle; there is no Sign off, CSV link or Reset all.
   [component] derived `takeoff.json` (`quantities: []`), derived `drawing.json`
 - SV-45: A 404 on the takeoff shows `ErrorView` with "no drawing 0123456789abcdef" and "code: not-found", a link
-  "Back to projects" to `#/` and no Retry (asking again finds nothing, QA qa-3 (b)); any other load error (a 500)
+  "Back to workspaces" to `#/workspaces` and no Retry (asking again finds nothing, QA qa-3 (b)); any other load error (a 500)
   shows Retry, which re-sends the loads. [component] `error.json`, derived 500
 - SV-46: A label, mark label, reason, rule text or file name holding `<img src=x onerror=alert(1)>` renders as that
   literal text and adds no element. [component] derived
@@ -351,6 +358,15 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
   other than `var(--v-font)` or the monospace stack: a unit test reads the file from disk (vitest hands `?raw` CSS over empty) and checks.
 - SV-51 (Vellum): the restyle changes no accessible name or test id: SV-1 to SV-46 pass unchanged, and the e2e
   golden path, surveyor and qa specs pass at 1440 and 390. [e2e]
+- SV-52 (pre-QA): with no `?q=`, Keep A on the default (first queue) row whose answer drops it from `review_queue`
+  keeps that row selected and shows "Settled at 22.40 m² …". [component]
+- SV-53 (pre-QA): with `matchMedia('(max-width: 760px)')` matching, selecting a row calls `scrollIntoView` on the
+  detail; not matching, it does not. [component]
+- SV-54 (pre-QA): a conflict settled at A shows "A: … · in use" and B without it. [component]
+- Pre-QA look (checked live at 1440 and 390, not unit-tested): the takeoff panel's sticky header starts at the card's
+  top edge (no padding above it); inputs 40px tall, 12px radius, `--v-line` border, 16px text; Export CSV a
+  secondary pill (`--v-fill`, 600); table cells vertically centred; the 32px value with no extra margins; at 390 side
+  panel links, "Settle the conflicts", Export CSV and "Show rows with value 0" are 40px tall (checkbox 22px).
 
 ## Out of scope
 

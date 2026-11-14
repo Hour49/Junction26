@@ -257,6 +257,9 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  /* right-aligned in every state, also when a long action line pushes the row onto its own line */
+  margin-left: auto;
+  justify-content: flex-end;
 }
 .cf-error {
   color: var(--v-danger);
@@ -264,6 +267,12 @@
 }
 
 @media (max-width: 600px) {
+  /* the pill above the title, so the title gets the card's full width */
+  .cf-card-top {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 8px;
+  }
   .cf-head {
     flex-direction: column;
     align-items: stretch;

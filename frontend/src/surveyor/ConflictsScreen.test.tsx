@@ -185,6 +185,39 @@ describe('ConflictsScreen', () => {
     expect(gets(api, `/api/projects/${pid}/review`)).toBe(2);
   });
 
+  it('CF-25 Why and Where each value was read stay open after a settle reloads the review', async () => {
+    let settled = false;
+    show({
+      [PATH.edit]: () => {
+        settled = true;
+        return {};
+      },
+      [PATH.review]: () =>
+        settled
+          ? withConflicts([{ ...base, settled: { value: 22.401, at: AT }, value: 22.401 }])
+          : projectReview,
+    });
+    await ready();
+    const c = card(base.label);
+    const why = within(c).getByText(/^Why /).closest('details') as HTMLDetailsElement;
+    why.open = true;
+    click(evidence(c));
+    await within(c).findByTestId('viewer');
+    click(within(c).getByRole('button', { name: 'Modify' }));
+    click(tile(c, 'A'));
+    await waitFor(() => {
+      expect(within(card(base.label)).getByText('Your choice')).toBeTruthy();
+    });
+    const after = card(base.label);
+    expect((within(after).getByText(/^Why /).closest('details') as HTMLDetailsElement).open).toBe(
+      true,
+    );
+    expect((evidence(after).closest('details') as HTMLDetailsElement).open).toBe(true);
+    // the card's mode still starts over from the server's new state
+    expect(within(after).getByRole('button', { name: 'Change' })).toBeTruthy();
+    expect(disabled(tile(after, 'A'))).toBe(true);
+  });
+
   it('CF-8 a settled card shows Your choice, the kept tile and both buttons', async () => {
     show({
       [PATH.review]: withConflicts([
@@ -201,31 +234,45 @@ describe('ConflictsScreen', () => {
     expect(within(c).getByRole('button', { name: "Use the rule's value" })).toBeTruthy();
   });
 
-  it("CF-9 Use the rule's value asks first; yes sends reset, no sends nothing", async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it("CF-9 Use the rule's value sends unsettle at once and reloads the review", async () => {
+    const confirm = vi.spyOn(window, 'confirm');
+    const yoursNow = { ...base, settled: { value: 22.401, at: AT }, value: 22.401 };
+    let sent = false;
     const { api } = show({
+      [PATH.review]: () => withConflicts([sent ? base : yoursNow]),
+      [PATH.edit]: () => {
+        sent = true;
+        return {};
+      },
+    });
+    await ready();
+    click(within(card(base.label)).getByRole('button', { name: "Use the rule's value" }));
+    await waitFor(() => {
+      expect(within(card(base.label)).getByText('Settled by rule')).toBeTruthy();
+    });
+    expect(confirm).not.toHaveBeenCalled();
+    const posts = api.calls.filter((x) => x.method === 'POST');
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.url).toBe(`/api/drawings/${did}/review?project=${pid}`);
+    expect(posts[0]?.body).toEqual({ quantity: QTY, action: 'unsettle' });
+  });
+
+  it("CF-9b a 409 on Use the rule's value reads the signed-off sentence and keeps Your choice", async () => {
+    show({
       [PATH.review]: withConflicts([
         { ...base, settled: { value: 22.401, at: AT }, value: 22.401 },
       ]),
-      [PATH.edit]: {},
+      [PATH.edit]: reply(409, { ...errorBody, code: 'signed', detail: 'signed off' }),
     });
     await ready();
-    const use = () => {
-      click(within(card(base.label)).getByRole('button', { name: "Use the rule's value" }));
-    };
-    use();
-    expect(confirm).toHaveBeenCalledWith(
-      `Use the rule's value? This also undoes every other edit and any sign-off of ${base.label} on ${base.file}.`,
+    const c = card(base.label);
+    click(within(c).getByRole('button', { name: "Use the rule's value" }));
+    const alert = await within(c).findByRole('alert');
+    expect(alert.textContent).toBe(
+      'This value is signed off. Undo the sign-off in the surveyor workspace first.',
     );
-    expect(api.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
-    confirm.mockReturnValue(true);
-    use();
-    await waitFor(() => {
-      expect(api.calls.filter((x) => x.method === 'POST')).toHaveLength(1);
-    });
-    const post = api.calls.find((x) => x.method === 'POST');
-    expect(post?.url).toBe(`/api/drawings/${did}/review?project=${pid}`);
-    expect(post?.body).toEqual({ quantity: QTY, action: 'reset' });
+    expect(within(c).getByText('Your choice')).toBeTruthy();
+    expect(within(c).getByRole('button', { name: "Use the rule's value" })).toBeTruthy();
   });
 
   it('CF-10 a card that needs a person: open tiles, evidence open, workspace locked', async () => {
@@ -311,8 +358,8 @@ describe('ConflictsScreen', () => {
   it('CF-15 a 404 leads back to projects; a 500 retries both loads', async () => {
     show({ [PATH.project]: reply(404, { ...errorBody, code: 'not_found' }) });
     expect(
-      (await screen.findByRole('link', { name: 'Back to projects' })).getAttribute('href'),
-    ).toBe('#/');
+      (await screen.findByRole('link', { name: 'Back to workspaces' })).getAttribute('href'),
+    ).toBe('#/workspaces');
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     cleanup();
     let fail = true;

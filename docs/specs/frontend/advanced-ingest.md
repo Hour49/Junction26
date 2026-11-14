@@ -131,8 +131,9 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
 
 - Visual `FileStrip`: a `--v-fill` band with a horizontal, scrollable (`tabindex="0"`, `aria-label="Files in
   this upload"`) row of file cards in `project.files` order: path, `formatSize(size)`, kind word (or "not
-  identified"), `StateBadge`. A drawing file's card shows `pageUrl(drawing_id, 1, 400)` as its thumbnail; other
-  cards show none. The card of the file the step is working on (unfinished, its stage in the step) is framed, as
+  identified"), `StateBadge`. Each card shows the upload itself, `previewUrl(projectId, id, 400)`, when its kind
+  has a preview (`previewNote` null: images and PDFs, the backend's `PREVIEW_KINDS`), else the line for its kind:
+  "A model: no picture to show" (ifc), "No preview for <kind> files", "Not identified yet" (kind null). The card of the file the step is working on (unfinished, its stage in the step) is framed, as
   the design frames the centre. No auto-scrolling film: the band scrolls by hand.
 - Caption (mono, under the band): while working, `"<path> · <formatSize(size)>"` of that file; else
   `plural(files.length, 'file')`, total `formatSize` of all files.
@@ -144,7 +145,7 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
 ### Screen 10, Identify and Route (`IngestIdentify`)
 
 - Visual `RouteLanes`: on top a file view: a `<select aria-label="File">` over `project.files` (default: the file the
-  step works on, else the first file with a `route`), its `previewUrl` image, and chips over the image's bottom
+  step works on, else the first file with a `route`), its own `previewUrl` image or its kind's line (as Unpack), and chips over the image's bottom
   edge from real fields only: kind word (no medium, year or language: Bogdan, no `identified`),
   `"<normalised.width> × <normalised.height> px"` when `normalised`, `scaleChip(pages[0].scale)` of the file's drawing ("Scale 1:100 found", "… estimated", "No scale found", "Not to scale"),
   `"route <route>"`, `"read from <source>"` when `source` differs from `path`, `reused` → "read before". Below, two
@@ -166,8 +167,9 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   1"` `preserveAspectRatio="none"` with one rect per mark of the takeoff rows keyed `room`, `door`, `window` (page 1,
   `state` not `rejected`), and a label pill with `mark.label` for room marks (text node, never HTML), `title` = `mark.room_type` when set. The sweep line
   animates only while Extract is `working`; off under reduced motion. An IFC drawing without pages: "A model, no
-  sheet to show" and its counts. Normalise selected: under the image, `normalisedSteps(file.normalised)` of the
-  drawing's file, or "Pages as the file gives them" for a PDF.
+  sheet to show" and its counts. Normalise selected: before/after, "As uploaded" (the drawing's file `previewUrl`, or its
+  kind's line) beside "Normalised page 1" (`pageUrl`, stacked under 760 px); under them
+  `normalisedSteps(file.normalised)` of the drawing's file, or "Pages as the file gives them" for a PDF.
 - Stats (`planCounts`, summed over `project.drawings`, each drawing's file's `takeoff`, so a PNG beside its PDF is
   not counted twice): **Rooms** (`takeoff.room`), **Doors** (`takeoff.door`), **Windows** (`takeoff.window`), and
   **Drawings ready** (`"<finished drawings> / <expected_drawings>"`, finished drawings alone while `expected_drawings` is null). A key no drawing has shows "–",
@@ -273,6 +275,19 @@ Layout and access
 - AV-24: Under `prefers-reduced-motion: reduce` no element in `src/advanced/` animates (CSS rule present; the
   classes `pulse`, `spin`, `sweep`, `live` set `animation: none`). [unit on the CSS text, or e2e emulation]
 - AV-25: CSS in `advanced.css` uses only `--v-*` tokens for colour (no hex or rgb literal). [unit: grep the file]
+- AV-26: Every step renders from what the user uploaded, by kind (Tudor 12:03): Unpack and Identify/Route show each
+  file's own `preview.png` for images and PDFs and the kind's line for the rest (ifc, dxf, text, unidentified), so
+  no request can 404 and no image breaks; Normalise shows the drawing's upload beside its normalised page 1; Extract
+  its page 1 with the marks (ifc: "A model, no sheet to show."); Cross-check and Index the takeoffs' own values.
+  [unit `previewNote`; component: mixed kinds; browser: a real upload (zip of photo, PDF, PNG scan, IFC; and one
+  photo alone) at 1440 and 390, 0 console errors]
+- AV-27: Trace lines show a sha256 as its first 12 characters and "…" (`shortHashes`); mark keys are
+  `<row key>-<mark id>` (ids repeat across rows); "Ask this drawing" links and the Drawing select are 44 px tall.
+  [unit, component, CSS text]
+- AV-28: Every file name in src/advanced comes from THIS project (`fileName(project, drawingId)`: `project.files` by
+  `drawing_id`, else `project.drawings[].file`), never `Takeoff.file` or `DrawingView.file`: drawings are
+  content-addressed and shared, so those may be another project's path for the same bytes. Kinds show as
+  `kindLabel` words ("photo of a plan"), never raw ids. [unit `pairsOf` with a shared drawing; component Cross-check]
 
 ## Not in the API
 

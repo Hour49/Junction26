@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readdirSync, readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
+import { PRODUCT_NAME } from './strings';
 
 const css = readFileSync(new URL('./shell.css', import.meta.url), 'utf8').replace(
   /\/\*[\s\S]*?\*\//g,
@@ -114,21 +115,26 @@ it("SH-57 the base classes carry the designs' values", () => {
   expect(rulesFor('.v-hero', css)).toMatch(/font-size:\s*64px/);
 });
 
-it('SH-58 focus ring on every focusable element, no outline: none, reduced motion and transparency', () => {
+it('SH-58 focus ring on every focusable element, no outline: none, reduced motion', () => {
   const focusable = ['a', 'button', 'select', 'input', 'textarea', 'summary', '[tabindex]'];
   for (const el of focusable) {
     const ring = rulesFor(`${el}:focus-visible`, css);
     expect(ring, el).toMatch(/outline:\s*2px solid var\(--v-accent\)/);
     expect(ring, el).toMatch(/outline-offset:\s*2px/);
   }
-  expect(css).not.toMatch(/outline:\s*(none|0)\b/);
+  // The one exception: App focuses <main tabindex=-1> on a route change; it is not a control (pre-QA 12:00).
+  const quiet = "main[tabindex='-1']";
+  expect(rulesFor(`${quiet}:focus-visible`, css)).toMatch(/outline:\s*none/);
+  expect(rulesFor(`${quiet}:focus`, css)).toMatch(/outline:\s*none/);
+  const others = css.replace(
+    /main\[tabindex='-1'\]:focus,\s*main\[tabindex='-1'\]:focus-visible\s*\{[^}]*\}/,
+    '',
+  );
+  expect(others).not.toMatch(/outline:\s*(none|0)\b/);
   const motion = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
   expect(css).toContain('@media (prefers-reduced-motion: reduce)');
   expect(rulesFor('*', motion)).toMatch(/transition:\s*none !important/);
   expect(rulesFor('*', motion)).toMatch(/animation:\s*none !important/);
-  const clear = css.slice(css.indexOf('@media (prefers-reduced-transparency: reduce)'));
-  expect(css).toContain('@media (prefers-reduced-transparency: reduce)');
-  expect(rulesFor('.app-header', clear)).toMatch(/backdrop-filter:\s*none/);
 });
 
 it('SH-59 body uses the tokens and no font or stylesheet comes from another origin', () => {
@@ -143,4 +149,28 @@ it('SH-59 body uses the tokens and no font or stylesheet comes from another orig
   expect(sheets.length).toBeGreaterThan(1);
   for (const f of sheets) expect(readFileSync(new URL(f, src), 'utf8'), f).not.toMatch(/https?:/);
   expect(readFileSync(new URL('../../index.html', import.meta.url), 'utf8')).not.toMatch(/https?:/);
+});
+
+it('SH-62 the sticky header is opaque, above page content, and its height is --v-header-h', () => {
+  const header = rulesFor('.app-header', css.slice(0, css.indexOf('@media')));
+  expect(header).toMatch(/position:\s*sticky/);
+  expect(header).toMatch(/top:\s*0/);
+  expect(header).toMatch(/background:\s*var\(--v-surface\)/);
+  expect(header).not.toMatch(/background:[^;]*rgba|backdrop-filter/);
+  // Screens' own layers go up to 5 (engineer.css); the header stays above them.
+  expect(Number(/z-index:\s*(\d+)/.exec(header)?.[1])).toBeGreaterThanOrEqual(10);
+  // 76 px = row padding 14 + 14 and the 48 px pills.
+  const desktop = css.slice(0, css.indexOf('@media'));
+  expect(declarations(rulesFor(':root', desktop)).get('--v-header-h')).toBe('76px');
+  expect(rulesFor('.app-header-row', css)).toMatch(/padding:\s*14px 24px/);
+  expect(rulesFor('.header-pill', css)).toMatch(/min-height:\s*48px/);
+  // Phone: three rows would cover a quarter of the screen, so the header scrolls away and covers nothing.
+  const phone = css.slice(css.indexOf('@media (max-width: 720px)'));
+  expect(rulesFor('.app-header', phone)).toMatch(/position:\s*static/);
+  expect(declarations(rulesFor(':root', phone)).get('--v-header-h')).toBe('0px');
+});
+
+it('SH-63 the browser tab title is the product name', () => {
+  const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+  expect(/<title>([^<]*)<\/title>/.exec(html)?.[1]).toBe(PRODUCT_NAME);
 });

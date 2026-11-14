@@ -44,6 +44,8 @@ on Retry. Per `ProjectSummary`:
 | `state` | the list pill: `queued`/`running` "Reading", `done` "Ready", `failed` "Failed" (words, plus the token colour) |
 | `created_at` | list item time and the panel's "created <time>" (`formatTime`, shared: `YYYY-MM-DD HH:MM UTC`) |
 | `files`, `drawings` | "<kind> · 11 files · 5 drawings" (singular "1 file", "1 drawing"); kind: `files === 1` "Single file", else "Archive" |
+| `to_review` (#121, `number \| null`, null unless done) | a warn pill "<n> to review" after the state pill; none when null or 0 |
+| `conflicts_open` (#121) | not shown (pre-QA 12:00): the API counts conflicts a rule settled as open (API.md), while the conflicts screen calls them "settled by a rule" and nothing for a person; a warn pill would contradict it |
 
 **`getProject(id)` → `GET /api/projects/{id}`** (`project.json`). When an item is selected (and for the first one on
 mount). Fields: `files[]` (count, `size` summed for the upload event), `counts` (`ready`, `flagged`, `set_aside`,
@@ -53,6 +55,11 @@ mount). Fields: `files[]` (count, `size` summed for the upload event), `counts` 
 Fields: `drawings[].to_review`, `.signed`, `.quantities`, `.drawing_id`, `.file`; `conflicts[]` (`label`, `file`,
 `conflict.resolution`, `conflict.values[]`, `settled`, `needs_person`).
 
+**`getProjectQuestions(id)` → `GET /api/projects/{id}/questions`** (#121; `project_questions.json`). With `getProject`
+and `getProjectReview`, in parallel. `questions[]` newest first: `question`, `answer` (`number | null`), `unit`,
+`drawing_id`, `at`, `refused`. Only asks that sent `project_id` are logged. Drives the Questions stat and the
+"Asked" events.
+
 **`getTakeoff(drawingId, { project: id })` → `GET /api/drawings/{id}/takeoff?project=<id>`** (`takeoff.json`). Only
 for the review's drawings with `signed > 0`, after the review arrives, in parallel. `project` is required here:
 sign-offs are kept per project (API.md "GET …/takeoff"), and without it the takeoff is the drawing's state outside
@@ -61,12 +68,13 @@ any project. Fields: `quantities[].signed` (`by`, `at`, `value`), `.label`,
 
 ### Stats (`workspaceStats`)
 
-Four cells, in this order (the design's three, plus sign-offs, minus questions):
+Five cells, in this order (the design's three, plus to review and sign-offs):
 
 | Label | Value |
 | --- | --- |
 | Files | `project.files.length` |
 | Drawings | `project.drawings.length` |
+| Questions | `questions.length` of the log; "–" while it is loading or failed |
 | To review | sum of `review.drawings[].to_review` |
 | Signed off | "<sum of `signed`> of <sum of `quantities`>" |
 
@@ -83,10 +91,11 @@ nothing relies on the colour.
 | reading | `state` `queued`/`running` | `created_at` | "Reading the drawings" | "<finished> of <n> files" |
 | done | `state` `done` | `created_at` | "Analysis done" | "<drawings> drawings · <ready> ready, <flagged> flagged, <set_aside> set aside, <text_only> text only · <ms, `formatMs` from `src/ingest/ingest.ts`>" (zero counts left out) |
 | failed | `state` `failed` | `created_at` | "Ingest failed" | `error` |
-| rule | a conflict with `settled` null and `conflict.resolution` set | `created_at` | "Decided by rule: <label>" | "<file> · kept <resolution.value, formatValue> · <resolution.rule>" |
+| rule | a conflict with `settled` null and `conflict.resolution` set | `created_at` | "Settled by a rule: <label>" (conflicts.md wording, never "AI") | "<file> · kept <resolution.value, formatValue> · <resolution.rule>" |
 | needs you | a conflict with `needs_person` true | `created_at` | "Conflict waiting for you: <label>" | "<file> · <values joined ' vs '>" |
 | settled | a conflict with `settled` set | `settled.at` | "Conflict settled: <label>" | "<file> · kept <settled.value, formatValue>" |
 | signed | a takeoff row with `signed` set | `signed.at` | "Signed off: <label>" | "<file> · <signed.value, formatValue> · by <signed.by>" |
+| asked | each entry of the questions log | `at` | "Asked: <question>" | "<file> · <answer, formatValue with unit>" (a text `answer` as is); refused: "<file> · not answered"; `answer` null and not refused: "<file> · no answer". `<file>`: the project drawing with that `drawing_id`, else the id |
 
 ## States
 
@@ -98,6 +107,7 @@ nothing relies on the colour.
 | Loading panel | the list, and in the panel "Loading <name>…" | pending `GET /api/projects/{id}` |
 | Panel error | the list stays; the panel shows `ErrorView` with Retry (reloads that project) | 404 `error.json` for the project |
 | Review error | heading, Files and Drawings stats and the upload / analysis events show; To review and Signed off read "–"; one line "Review not loaded: <detail> (<code>)" with Retry | 500 for `…/review` |
+| Questions error | all else shows; the Questions stat reads "–"; "Questions not loaded: <detail> (<code>)" with Retry | 500 for `…/questions` |
 | Sign-offs error | all else shows; "Sign-offs not loaded: <detail> (<code>)" under the history | 500 for one `…/takeoff` |
 | Reading | pill "Reading"; the "Reading the drawings" event; no polling on this page (Out of scope) | `project.json` with `state: "running"` |
 | Failed | pill "Failed"; the "Ingest failed" event with `error` | `state: "failed"`, `error` set |
@@ -115,7 +125,7 @@ Design `Account.dc.html`, without the country picker and the avatar (fe-vellum-c
   name in mono 24 px, "Open workspace" soft accent pill), the stats `dl` as a 4-column grid with 1 px dividers,
   then "History" (`h3`) and the `ol` of events (grid 52 px time · 28 px glyph · text).
 - Phone 390x844: one column, 16 px gutters; the top row wraps ("New workspace" under the heading); the list above
-  the panel, full width; stats in 2 columns; event text wraps (`overflow-wrap: anywhere`); no horizontal page
+  the panel, full width; stats in 2 columns, the fifth ("Signed off") spanning both; event text wraps (`overflow-wrap: anywhere`); no horizontal page
   scroll; tap targets at least 44 px.
 - The pill tooltip of the design is not built: the pill's word is the whole message.
 
@@ -146,7 +156,8 @@ Panel
 - AC-10 With the item selected, `GET /api/projects/5e0c1a2b3d4f` and `GET /api/projects/5e0c1a2b3d4f/review` are
   sent; the panel shows "Archive · created 2026-11-14 08:00 UTC", the name, and a link "Open workspace" to
   `#/p/5e0c1a2b3d4f`. [component, `project.json`, `project_review.json`]
-- AC-11 Stats with `project.json` and `project_review.json`: Files "3", Drawings "5", To review "2", Signed off
+- AC-11 Stats with `project.json`, `project_review.json` and `project_questions.json`: Files "3", Drawings "5",
+  Questions "2", To review "2", Signed off
   "0 of 157" (the fixture's sums). [unit `workspaceStats`]
 - AC-12 "New workspace" is a link to `#/`. [component]
 - AC-13 While the project is loading the panel reads "Loading sample-project.zip…". [component, pending]
@@ -158,7 +169,7 @@ Panel
 History
 - AC-16 `historyEvents(project.json, project_review.json, [])` gives, in order: "Uploaded sample-project.zip" with
   detail "3 files · <formatSize of 26513>", "Analysis done" with "5 drawings · 3 ready, 4 flagged, 2 set aside,
-  2 text only · 12.5 ms", and "Decided by rule: area of room (name 1.01)" with "plans/flat-b.pdf · kept 30.00 m² ·
+  2 text only · 12.5 ms", and "Settled by a rule: area of room (name 1.01)" with "plans/flat-b.pdf · kept 30.00 m² ·
   the printed label over the outline at the sheet's scale". [unit]
 - AC-17 A derived conflict with `settled: {"value": 22.401, "at": "2026-11-14T09:30:00Z"}` gives "Conflict settled:
   area of room (name 1.01)", "plans/flat-b.pdf · kept 22.40 m²", time "09:30", and no "Decided by rule" event for
@@ -176,40 +187,40 @@ History
 - AC-23 A 500 for a takeoff shows "Sign-offs not loaded: internal error (internal)" and every other event.
   [component]
 - AC-24 Each event's glyph is `aria-hidden`; its title says the kind in words ("Uploaded", "Analysis done",
-  "Decided by rule", "Conflict settled", "Signed off"…). [component]
+  "Settled by a rule", "Conflict settled", "Signed off"…). [component]
 
 Layout
 - AC-25 At 390x844 the page has no horizontal scroll with a 60-character unbroken workspace name, the list is above
   the panel, and the stats are two columns. [e2e, qa-r1's long-name upload]
 - AC-26 At 1440x900 the list and the panel sit side by side. [e2e screenshot, looked at]
+- AC-28 (#121, pre-QA) A list item with `to_review: 2, conflicts_open: 1` shows the pill "2 to review" and no
+  conflict pill (rule-settled conflicts are counted open by the API); with `to_review` null or 0 no pill shows; no
+  element has `data-pending`. [component]
+- AC-31 (pre-QA) "Open workspace" is a soft accent pill (`.account-open`: `--v-accent-soft` background,
+  `--v-accent-strong` text); at ≤720 px the fifth stat ("Signed off") spans both columns. [unit: parse account.css]
+- AC-29 (#121) `GET /api/projects/{id}/questions` is sent with the project; with `project_questions.json` the
+  Questions stat reads "2" and the history has "Asked: How many doors are there?" with "<file> · 2" and "Asked: What
+  colour is the roof?" with "<file> · not answered", at 08:05; `workspaceStats` with no log gives Questions "–".
+  [unit + component]
+- AC-30 (#121) A 500 for the questions: Questions reads "–", "Questions not loaded: internal error (internal)" with
+  Retry, which asks again; every other stat and event shows. [component]
 - AC-27 No user name, initials, avatar or country control is rendered. [component: no text "Beatrice", no
   element with the old avatar's role; review of the file]
 
 ## Not in the API
 
-| What the design shows | Field that would back it |
+| What the design shows | Field that backs it |
 | --- | --- |
-| "Questions" stat and "asked …" history events | an ask log per project: `GET /api/projects/{id}/questions` → `[{question, answer, unit, drawing_id, at}]` (answers are not stored today) |
-| "1 conflict open" pill in the list (needs a review request per project) | `to_review` (sum) or `conflicts_open` on `ProjectSummary` |
-| A finish time for "Analysis done" | `finished_at` on `ProjectView` (shown today: the duration from `ms`) |
+| "Questions" stat and "asked …" history events | real since #121: `GET /api/projects/{id}/questions` (`getProjectQuestions`) |
+| "1 conflict open" pill in the list | real since #121: `ProjectSummary.conflicts_open` and `.to_review` |
+| A finish time for "Analysis done" | real since #120: `ProjectView.finished_at` (`created_at` while it is null) |
 | "AI decision approved" vs "Your choice" on a settled conflict | already backed: `settled` set = a person's choice, else the rule; no new field |
 | User name, avatar, team ("Beatrice · Hour49") | none: no login (decision 0001). Left out. |
 
 ## Pending fields (mocked)
 
-Tudor 11:05 and Bogdan's triage 11:07 (#14 c6874945888): the three fields above are YES. `ProjectView.finished_at` came with #120 and is read directly (the "Analysis done"
-time, shared by the rule and needs-you events; `created_at` while it is null). The other two are mocked
-in `src/account/pending.ts` (`grep -rn "PENDING(" frontend/src`), reads the real field first, and marks each mocked
-element with `data-pending="<field>"` (no visible label). One test per mock in `pending.test.ts`.
-
-| Field (Bogdan's shape) | Real first | Mock, from real data | Where it shows |
-| --- | --- | --- | --- |
-| `ProjectSummary.to_review: number \| null` | `to_review` | sum of the review's `to_review`, only for workspaces opened on this page | a warn pill "<n> to review" on the list item (none when 0 or unknown) |
-| `GET /api/projects/{id}/questions` → `{questions: [...]}` | the log's length | one per settled conflict plus one per sign-off | a fifth stat "Questions" after Drawings ("–" without the review) |
-
-The ask log is not requested yet: `src/api/` has no `getQuestions`, and calling a missing endpoint would log a 404
-in the console on every visit. When fe-shared adds it, the screen loads it and passes it to `questionsOf`. The
-"asked …" history events wait for the real log (there is no question text to derive them from).
+None left on this screen (#121, 11:35): the `to_review` and questions mocks and `src/account/pending.ts` are gone;
+null fields show the empty states above (no pill, "–").
 
 ## Out of scope
 

@@ -32,6 +32,27 @@ export const STAGE_LABEL: Record<Stage, string> = {
   write: 'Write',
 };
 
+/** File kinds (API.md "File kind") in words; an unknown id is shown as sent. */
+const KIND_LABEL: Record<string, string> = {
+  pdf_vector: 'PDF vector',
+  pdf_scan: 'PDF scan',
+  pdf_text: 'text PDF',
+  pdf_encrypted: 'encrypted PDF',
+  png_plan: 'PNG plan',
+  jpeg_plan: 'JPEG plan',
+  photo_plan: 'photo of a plan',
+  ifc: 'IFC model',
+  dxf: 'DXF',
+  svg: 'SVG',
+  dwg: 'DWG',
+  office: 'office document',
+  unknown: 'unknown file type',
+};
+
+export function kindLabel(kind: string | null | undefined): string {
+  return kind ? (KIND_LABEL[kind] ?? kind) : 'not identified';
+}
+
 /** Word and icon per file state: status is never shown by colour alone. */
 export const STATE_LABEL: Record<FileState, { word: string; icon: string }> = {
   queued: { word: 'queued', icon: '…' },

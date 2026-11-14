@@ -1,7 +1,7 @@
 // Pure parts of the Advanced view (docs/specs/frontend/advanced-ingest.md). The step list and the stage-to-step
 // mapping are screen 2's (`STEPS`, `stepOf`, `activeStep` in src/ingest/ingest.ts), so both views agree.
 import type { DrawingView, FileStatus, FileTrace, ProjectView, Row, Takeoff } from '../api';
-import { STAGE_LABEL, activeStep, isFinished, stepOf } from '../ingest/ingest';
+import { STAGE_LABEL, activeStep, isFinished, kindLabel, stepOf } from '../ingest/ingest';
 
 export type Visual = 'files' | 'lanes' | 'plan' | 'pairs' | 'ready';
 
@@ -37,7 +37,7 @@ export const STEP_VIEW: readonly { heading: string; visual: Visual; explain: str
       'Rooms, doors, windows and fixtures are read from the drawing, with its scale. A class the reader does not read gets no count, not a zero.',
   },
   {
-    heading: 'Cross-checking',
+    heading: 'Cross\u2011checking', // a non-breaking hyphen: the heading never breaks at it
     visual: 'pairs',
     explain:
       'Quantities that can be measured a second way are measured again by an independent method. When the two disagree, it goes to you as a conflict.',
@@ -115,7 +115,7 @@ export function stepLines(
     (traces.get(file.id)?.stages ?? [])
       .filter((s) => stepOf(s.stage) === k)
       .map((s, i) => {
-        const what = s.stage === 'cache' ? `Cached: ${s.did}` : s.output || s.did;
+        const what = shortHashes(s.stage === 'cache' ? `Cached: ${s.did}` : s.output || s.did);
         return {
           key: `${file.id}-${String(i)}-${s.stage}`,
           path: file.path,
@@ -166,12 +166,24 @@ export interface Pair {
   drawingId: string;
 }
 
-/** Every quantity measured twice, conflicts first, then takeoff order. */
-export function pairsOf(takeoffs: readonly Takeoff[]): Pair[] {
+/**
+ * This project's name for a drawing: its file's path here. Drawings are content-addressed and shared between
+ * projects, so `Takeoff.file`/`DrawingView.file` may be another project's path for the same bytes.
+ */
+export function fileName(project: ProjectView, drawingId: string): string {
+  return (
+    project.files.find((f) => f.drawing_id === drawingId)?.path ??
+    project.drawings.find((d) => d.drawing_id === drawingId)?.file ??
+    drawingId
+  );
+}
+
+/** Every quantity measured twice, conflicts first, then takeoff order; named by this project's files. */
+export function pairsOf(takeoffs: readonly Takeoff[], project: ProjectView): Pair[] {
   const pairs = takeoffs.flatMap((t) =>
     t.quantities
       .filter((row) => row.second != null)
-      .map((row) => ({ row, file: t.file, drawingId: t.drawing_id })),
+      .map((row) => ({ row, file: fileName(project, t.drawing_id), drawingId: t.drawing_id })),
   );
   return [
     ...pairs.filter((p) => p.row.status === 'conflict'),
@@ -193,4 +205,30 @@ export function scaleChip(scale: DrawingView['pages'][number]['scale'] | undefin
   const text = scale.text ?? (scale.ratio ? `1:${String(scale.ratio)}` : null);
   if (!text) return null;
   return scale.status === 'estimated' ? `Scale ${text} estimated` : `Scale ${text} found`;
+}
+
+/** A sha256 in a trace line, cut to its first 12 characters as the trace facts show it. */
+export function shortHashes(text: string): string {
+  return text.replace(/\b[0-9a-f]{64}\b/g, (h) => `${h.slice(0, 12)}…`);
+}
+
+// The kinds the backend previews (backend/app/api/projects.py PREVIEW_KINDS): images, and a PDF's first page.
+const PREVIEW_KINDS: ReadonlySet<string> = new Set([
+  'pdf_vector',
+  'pdf_scan',
+  'pdf_text',
+  'png_plan',
+  'jpeg_plan',
+  'photo_plan',
+  'photo',
+  'pdf_encrypted',
+]);
+
+/** Null when the file's `preview.png` exists; else the line shown in its place (never a broken image). */
+export function previewNote(file: FileStatus): string | null {
+  if (file.kind == null) return 'Not identified yet';
+  if (PREVIEW_KINDS.has(file.kind)) return null;
+  return file.kind === 'ifc'
+    ? 'A model: no picture to show'
+    : `No preview for a ${kindLabel(file.kind)}`;
 }

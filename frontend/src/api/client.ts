@@ -7,6 +7,7 @@ import type {
   Edit,
   FileTrace,
   ProjectTrace,
+  ProjectQuestions,
   Info,
   ProjectList,
   ProjectReview,
@@ -90,6 +91,10 @@ export const getTrace = (projectId: string, fileId: string, opts?: Opts) =>
 /** Every file's trace in one request, files in upload order (#120). */
 export const getProjectTrace = (projectId: string, opts?: Opts) =>
   call<ProjectTrace>('GET', `/api/projects/${seg(projectId)}/trace`, opts);
+
+/** The questions asked about the project, newest first (#121; only asks that sent `project_id` are logged). */
+export const getProjectQuestions = (projectId: string, opts?: Opts) =>
+  call<ProjectQuestions>('GET', `/api/projects/${seg(projectId)}/questions`, opts);
 
 export const getProjectReview = (projectId: string, opts?: Opts) =>
   call<ProjectReview>('GET', `/api/projects/${seg(projectId)}/review`, opts);

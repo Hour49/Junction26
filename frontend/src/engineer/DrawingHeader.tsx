@@ -9,7 +9,8 @@ export function howRead({ reader }: DrawingView): string {
   const second =
     reader.second_counter === 'none'
       ? 'no second count'
-      : `second count: ${readerName(reader.second_counter)}`;
+      : // the drawing's second counter; a question it does not count says "no second count" (preqa-b)
+        `second count where a question has one: ${readerName(reader.second_counter)}`;
   return (
     `${reader.route ?? 'no'} route, read from ${reader.source ?? 'no file'}${by}; ${second}; ` +
     `questions: ${readerName(reader.question_parser)}`

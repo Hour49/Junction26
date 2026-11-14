@@ -30,7 +30,7 @@ All under `frontend/src/ingest/`; each `*.tsx`/`*.ts` with logic has a `*.test.t
 | `ProgressCard.tsx` | screen 2's card: step label, ring, stats row, the 8-step list |
 | `FileTraceScreen.tsx` | route `#/p/<project_id>/f/<file_id>`, `FileTraceScreen({projectId, fileId})`: restyled, same content |
 | `BeforeAfter.tsx` | the upload (`preview.png`) next to the normalised page, with what normalisation did |
-| `ingest.ts` | pure functions: `progressOf`, `isFinished`, `isLive`, `STEPS`, `stepOf`, `activeStep`, `stepFiles`, `percentDone`, `elapsedMs`, `normalisedSteps`, `formatMs`, `formatCost`, `formatSize`, `plural`, `STATE_LABEL`, `STAGE_LABEL` |
+| `ingest.ts` | pure functions: `progressOf`, `isFinished`, `isLive`, `kindLabel`, `STEPS`, `stepOf`, `activeStep`, `stepFiles`, `percentDone`, `elapsedMs`, `normalisedSteps`, `formatMs`, `formatCost`, `formatSize`, `plural`, `STATE_LABEL`, `STAGE_LABEL` |
 | `usePoll.ts` | poll a request 500 ms after each answer while a predicate holds; aborts (`signal`) on unmount |
 | `ingest.css` | the screens' styles, colours only through the `--v-*` tokens of `src/shell/shell.css` |
 
@@ -95,7 +95,7 @@ project screen mounts, then 500 ms after each response while `state` is `queued`
 - `name`: the `h1`. `state`: the eyebrow above it, a dot and a word (`queued` "Waiting to start", `running`
   "Analysing now", `done` "Done", `failed` "Ingest failed"). `error`: shown under the title when `failed`.
 - `files[]`: every number of the progress card (table below), and one row each under the card, in the order
-  given: `path`, `kind` (raw value, or "not identified" when null), `state` (badge, `STATE_LABEL`), `reason` (when not
+  given: `path`, `kind` (`kindLabel`: in words, "PDF vector", "photo of a plan"; "not identified" when null), `state` (badge, `STATE_LABEL`), `reason` (when not
   empty), `size` (`formatSize`), `ms` (`formatMs`, finished files only), `reused` ("reused" tag when true). The row
   links to `#/p/<project_id>/f/<id>`.
 - `drawings[]`: one card each under the progress card: `file` (title), `kind`, `route` ("vector route"), `state`
@@ -139,8 +139,8 @@ project screen mounts, then 500 ms after each response while `state` is `queued`
 **`GET /api/projects/{project_id}/files/{file_id}/trace`** (`getTrace(projectId, fileId)`; API.md "…/trace"; fixture `trace.json`). When the trace
 screen mounts, then 500 ms after each response while `file.state` is `queued` or `running`. Fields:
 
-- `file.path` (title), `file.state` (badge), `file.reason`, `file.kind`, `file.size`, `file.route`, `file.source`
-  ("read from plans/flat-a.pdf"), `file.group`, `file.sha256` (first 12 characters, full value in `title`),
+- `file.path` (title), `file.state` (badge), `file.reason`, `file.kind` (`kindLabel`), `file.size`, `file.route`, `file.source`
+  (the "Read from" fact: the path only), `file.group`, `file.sha256` (first 12 characters, full value in `title`),
   `file.reused` ("reused: read before, not recomputed"), `file.ms`, `file.cost_usd`.
 - `file.drawing_id`: when set, an "Open the drawing" link to `#/p/<project_id>/d/<drawing_id>/engineer`.
 - `file.normalised` and `file.drawing_id`: when both are set, `BeforeAfter` (below).
@@ -175,7 +175,7 @@ when `rotated` is not 0, "deskewed <deskew_deg>°" when `deskew_deg` is not 0, "
 | --- | --- | --- | --- | --- |
 | Loading | list shows "Loading projects…" | "Loading project…" in place of the content | "Loading trace…" | delay the response (component test: a pending promise; e2e: `page.route` with a delay) |
 | Empty | (no list on home in v2) | only once the project is `done` or `failed`: no files: "This upload has no files." No drawings: "No drawings: nothing in this upload could be read as a plan." While `queued` or `running` an empty list gives no verdict: it reads "Waiting for the files…", and with no files yet the progress line is left out (no "0 of 0") | stages `[]`: "No stages yet." | variants `list-empty`, `no-drawings`, `no-files`, `trace-queued`; `queued` with `files: []` |
-| Error | drop card: `detail` and `code` of the upload error | first load fails: `ErrorView` (its `not-found` link home) with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
+| Error | drop card: `detail` and `code` of the upload error | first load fails: `ErrorView` (its `not-found` link "Back to workspaces") with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
 | Upload refused | `uploadTooLarge`'s sentence. No request sent | | | a `File` over the limit (component test: `new File` with a stubbed `size`) |
 | Busy / too large | box shows `detail` and `code` (`busy`, `too-large`) | | | `mockApi` 429 / 413 with `error.json` spread with that `code` |
 | Running | | polling; "Analysing now"; the working step row shows its hint and file bar; running files show "running" | polling; stages grow | variant `running` / `trace-running` |
@@ -235,7 +235,7 @@ The header is the shell's (logo, "Vellum", "Workspaces"); these screens draw non
 - Advanced: the title row stays; `AdvancedIngest` replaces everything under it.
 
 **File trace (restyle, no design screen).** Column max 820 px. "Back to the project", then the title row as screen
-2 (state eyebrow over the path `h1`, "Open the drawing" as an accent pill on the right); the facts as a stats-style
+2 (the state badge as eyebrow, no dot (one marker), over the path `h1`, "Open the drawing" as an accent pill on the right); the facts as a stats-style
 `dl` card (two columns, one on a phone); `BeforeAfter` as a card; the stages as a card with the step-list look
 (done check or failed icon + word, label, `did`, `output`, time on the right); the takeoff `<details>` as a card.
 
@@ -313,7 +313,7 @@ Project screen
 - IN-28: A poll that fails keeps the last data on screen and shows "Not updating since <formatTime(now)>: <detail> (<code>)"
   with Retry; polling is paused until Retry, which sends the request again. [component, fake timers, 500 +
   `error.json`]
-- IN-29: A first load answered 404 `not-found` shows `ErrorView` with `detail`, `code` and its link to `#/`; a
+- IN-29: A first load answered 404 `not-found` shows `ErrorView` with `detail`, `code` and its link "Back to workspaces" (`#/workspaces`); a
   first load that fails with `code` `network` shows Retry, which requests the project again. [component,
   `error.json`, rejected fetch]
 - IN-54: The toggle is a group "View" with links "Simple" (`#/p/<id>`) and "Advanced" (`#/p/<id>?view=advanced`);
@@ -405,6 +405,11 @@ Across the screens
   drawing" reaches the engineer route. [e2e]
 - IN-47: At 390x844 and 1440x900 the three screens (home, sample project done, the `plans/flat-a.png` trace) have
   no horizontal page scroll, and a screenshot of each is saved. [e2e]
+- IN-69: `kindLabel` gives every API file kind in words ("PDF vector", "PNG plan", "photo of a plan", "IFC model",
+  "text PDF", …; no `_`), an unknown id as sent, "not identified" for null; file rows, drawing cards and the trace's
+  Kind fact use it. [unit + component]
+- IN-70: At 390 the tap targets are at least 44 px: home's "Earlier uploads are in Workspaces", the trace's "Back to
+  the project" and the takeoff `<summary>` (pre-QA). [unit: the `ingest.css` rules; browser check]
 - IN-66: `ingest.css` has no colour literal (`#hex`, `rgb(`, `hsl(`): every colour is a `var(--v-…)`. [unit:
   read the file]
 - IN-67: At 390x844 home, the Simple project screen and the trace have no horizontal scroll, the hero is 40 px, the

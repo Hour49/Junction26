@@ -4,7 +4,7 @@ import { drawing, error, trace } from '../api/fixtures';
 import type { FileTrace } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { FileTraceScreen } from './FileTraceScreen';
-import { formatMs, normalisedSteps } from './ingest';
+import { formatMs, kindLabel, normalisedSteps } from './ingest';
 import { flush, must, traceVariants } from './testing';
 
 const PID = trace.project_id;
@@ -43,9 +43,9 @@ describe('FileTraceScreen', () => {
     expect(screen.getByRole('heading', { name: f.path })).toBeTruthy();
     for (const s of [
       f.reason,
-      must(f.kind),
+      kindLabel(f.kind),
       must(f.route),
-      `read from ${must(f.source)}`,
+      must(f.source),
       must(f.group),
       '$0.00',
     ])
@@ -54,6 +54,9 @@ describe('FileTraceScreen', () => {
     expect(text).toContain(must(f.sha256).slice(0, 12));
     expect(must(document.querySelector('.ingest-facts')).textContent).not.toContain(must(f.sha256));
     expect(text).toMatch(/\d\.\d KB/);
+    // pre-QA: the Read from fact holds the path only, and the eyebrow has one marker (the badge, no dot)
+    expect(must(document.querySelector('.ingest-facts')).textContent).not.toContain('read from');
+    expect(document.querySelector('.ingest-head .ingest-dot')).toBeNull();
   });
 
   it('IN-33 every stage in order with label, did, ms; output only when it adds something', async () => {

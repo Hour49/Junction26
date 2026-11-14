@@ -9,6 +9,7 @@ import {
   formatCost,
   formatMs,
   formatSize,
+  kindLabel,
   percentDone,
   plural,
   progressOf,
@@ -81,6 +82,52 @@ describe('ingest.ts', () => {
     expect(elapsedMs(projectRunning, started + 5000)).toBe(5000);
     expect(elapsedMs(projectRunning, started - 5000)).toBe(0);
     expect(elapsedMs(variants.queued, started + 5000)).toBeNull();
+  });
+
+  it('IN-69 kindLabel gives every API kind in words; null is "not identified"', () => {
+    const kinds = [
+      'pdf_vector',
+      'pdf_scan',
+      'png_plan',
+      'jpeg_plan',
+      'photo_plan',
+      'ifc',
+      'dxf',
+      'svg',
+    ];
+    const more = [
+      'pdf_text',
+      'text',
+      'photo',
+      'pdf_encrypted',
+      'dwg',
+      'office',
+      'archive',
+      'unknown',
+    ];
+    const plainAlready = ['text', 'photo', 'archive'];
+    for (const k of [...kinds, ...more]) {
+      expect(kindLabel(k)).not.toContain('_');
+      if (!plainAlready.includes(k)) expect(kindLabel(k), k).not.toBe(k);
+    }
+    expect(kindLabel('pdf_vector')).toBe('PDF vector');
+    expect(kindLabel('photo_plan')).toBe('photo of a plan');
+    expect(kindLabel(null)).toBe('not identified');
+  });
+
+  it('IN-70 phone tap targets: the Workspaces link, Back to the project and the takeoff summary are 44 px', () => {
+    const css = readFileSync('src/ingest/ingest.css', 'utf8');
+    const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^}]*)\}/g)].map(
+      (m) => ({
+        selectors: (m[1] ?? '').split(',').map((x) => x.trim()),
+        body: m[2] ?? '',
+      }),
+    );
+    for (const selector of ['.ingest-earlier a', '.ingest-back', '.ingest-takeoff summary'])
+      expect(
+        rules.some((r) => r.selectors.includes(selector) && r.body.includes('min-height: 44px')),
+        selector,
+      ).toBe(true);
   });
 
   it('IN-66 ingest.css has no colour literal: every colour is a var(--v-…)', () => {

@@ -8,9 +8,9 @@ import {
   type Takeoff,
 } from '../api';
 import { formatValue, methodName, readerName } from '../api/format';
-import { formatSize, isFinished, normalisedSteps, plural } from '../ingest/ingest';
+import { formatSize, isFinished, kindLabel, normalisedSteps, plural } from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
-import { drawingFiles, scaleChip, type Pair } from './advanced';
+import { drawingFiles, previewNote, scaleChip, type Pair } from './advanced';
 
 /** An image that says so when it cannot load, instead of a broken icon. */
 function Img({ src, alt, missing }: { src: string; alt: string; missing: string }) {
@@ -27,11 +27,34 @@ function Img({ src, alt, missing }: { src: string; alt: string; missing: string 
   );
 }
 
+/** The upload itself (`preview.png`) for a kind the backend previews, else the line for its kind. */
+function Preview({
+  projectId,
+  file,
+  width = 1600,
+}: {
+  projectId: string;
+  file: FileStatus;
+  width?: 400 | 1600;
+}) {
+  const note = previewNote(file);
+  if (note) return <p className="adv-missing">{note}</p>;
+  return (
+    <Img
+      src={previewUrl(projectId, file.id, width)}
+      alt={`${file.path} as uploaded`}
+      missing="Preview not available"
+    />
+  );
+}
+
 /** Unpack: every file of the upload as a card; the one the step works on is framed. */
 export function FileStrip({
+  projectId,
   project,
   working,
 }: {
+  projectId: string;
   project: ProjectView;
   working: FileStatus | null;
 }) {
@@ -42,12 +65,10 @@ export function FileStrip({
       <ul className="adv-strip" tabIndex={0} aria-label="Files in this upload">
         {files.map((f) => (
           <li key={f.id} className={f.id === working?.id ? 'adv-card framed' : 'adv-card'}>
-            {f.drawing_id && (
-              <Img src={pageUrl(f.drawing_id, 1, 400)} alt="" missing="Page not available" />
-            )}
+            <Preview projectId={projectId} file={f} width={400} />
             <span className="adv-path">{f.path}</span>
             <span>
-              {formatSize(f.size)} · {f.kind ?? 'not identified'}
+              {formatSize(f.size)} · {kindLabel(f.kind)}
             </span>
             <StateBadge state={f.state} />
           </li>
@@ -87,7 +108,7 @@ export function RouteLanes({
   const page = file?.drawing_id ? views.get(file.drawing_id)?.pages[0] : undefined;
   const chips: [string, string | null][] = file
     ? [
-        ['kind', file.kind ?? 'not identified'],
+        ['kind', kindLabel(file.kind)],
         [
           'size',
           file.normalised
@@ -128,11 +149,7 @@ export function RouteLanes({
             </select>
           </label>
           <figure className="adv-figure">
-            <Img
-              src={previewUrl(projectId, file.id)}
-              alt={`${file.path} as uploaded`}
-              missing="Preview not available"
-            />
+            <Preview projectId={projectId} file={file} />
             <ul className="adv-chips" aria-label="What was found">
               {chips.map(([key, text]) => (text ? <li key={key}>{text}</li> : null))}
             </ul>
@@ -156,6 +173,7 @@ const MARKED = new Set(['room', 'door', 'window']);
 
 /** Normalise, Extract, Drawing model: a drawing's first page with the rooms, doors and windows found on it. */
 export function PlanMarks({
+  projectId,
   project,
   takeoffs,
   failed,
@@ -163,6 +181,7 @@ export function PlanMarks({
   sweep,
   showNormalised,
 }: {
+  projectId: string;
   project: ProjectView;
   takeoffs: ReadonlyMap<string, Takeoff>;
   failed: (drawingId: string) => boolean;
@@ -201,37 +220,51 @@ export function PlanMarks({
       {drawing.kind === 'ifc' ? (
         <p className="adv-missing">A model, no sheet to show.</p>
       ) : (
-        <div className="adv-plan">
-          <Img
-            src={pageUrl(drawing.drawing_id, 1)}
-            alt={`${drawing.file}, page 1`}
-            missing="Page not available"
-          />
-          <svg viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
-            {marks.map(({ m, key }) => (
-              <rect
-                key={m.id}
-                className={`adv-mark ${key}`}
-                x={m.box[0]}
-                y={m.box[1]}
-                width={m.box[2] - m.box[0]}
-                height={m.box[3] - m.box[1]}
+        <div className={showNormalised ? 'adv-compare' : undefined}>
+          {showNormalised && file && (
+            <figure className="adv-before">
+              <figcaption className="adv-caption">As uploaded</figcaption>
+              <Preview projectId={projectId} file={file} />
+            </figure>
+          )}
+          <figure className="adv-before">
+            {showNormalised && <figcaption className="adv-caption">Normalised page 1</figcaption>}
+            <div className="adv-plan">
+              <Img
+                src={pageUrl(drawing.drawing_id, 1)}
+                alt={`${drawing.file}, page 1`}
+                missing="Page not available"
               />
-            ))}
-          </svg>
-          {sweep && <span className="adv-sweep" aria-hidden="true" />}
-          {marks
-            .filter(({ m, key }) => key === 'room' && m.label)
-            .map(({ m }) => (
-              <span
-                key={`${m.id}-label`}
-                className="adv-pill"
-                style={{ left: `${String(m.box[0] * 100)}%`, top: `${String(m.box[1] * 100)}%` }}
-                title={m.room_type ?? undefined}
-              >
-                {m.label}
-              </span>
-            ))}
+              <svg viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+                {marks.map(({ m, key }) => (
+                  <rect
+                    key={`${key}-${m.id}`}
+                    className={`adv-mark ${key}`}
+                    x={m.box[0]}
+                    y={m.box[1]}
+                    width={m.box[2] - m.box[0]}
+                    height={m.box[3] - m.box[1]}
+                  />
+                ))}
+              </svg>
+              {sweep && <span className="adv-sweep" aria-hidden="true" />}
+              {marks
+                .filter(({ m, key }) => key === 'room' && m.label)
+                .map(({ m, key }) => (
+                  <span
+                    key={`${key}-${m.id}-label`}
+                    className="adv-pill"
+                    style={{
+                      left: `${String(m.box[0] * 100)}%`,
+                      top: `${String(m.box[1] * 100)}%`,
+                    }}
+                    title={m.room_type ?? undefined}
+                  >
+                    {m.label}
+                  </span>
+                ))}
+            </div>
+          </figure>
         </div>
       )}
       {failed(drawing.drawing_id) && (

@@ -97,6 +97,13 @@
 .account-panel-head a {
   text-decoration: none;
 }
+/* `a.` outranks the shared .v-btn whatever order the two stylesheets load in. */
+a.account-open,
+a.account-open:hover {
+  color: var(--v-accent-strong);
+  background: var(--v-accent-soft);
+  border-radius: 980px;
+}
 .account-stats {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -196,5 +203,9 @@
   .account-stats > div {
     border-left: 0;
     border-bottom: 1px solid var(--v-line);
+  }
+  /* Five stats in two columns: the odd last one ("Signed off") takes the whole row. */
+  .account-stats > div:nth-child(5) {
+    grid-column: 1 / -1;
   }
 }

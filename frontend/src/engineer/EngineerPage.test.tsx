@@ -157,7 +157,7 @@ describe('drawing header and ask box', () => {
     expect(await screen.findByRole('heading', { name: 'plans/flat-a.pdf' })).toBeTruthy();
     expect(
       screen.getByText(
-        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count: PDF vector reader; questions: question templates',
+        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count where a question has one: PDF vector reader; questions: question templates',
       ),
     ).toBeTruthy();
   });
@@ -366,7 +366,12 @@ describe('refusals and errors', () => {
     expect(t.textContent).not.toContain(answerRefused.refusal?.code ?? 'unsupported-question');
     expect(within(t).queryByTestId('answer-value')).toBeNull();
     expect(within(t).queryByRole('button', { name: /^Mark / })).toBeNull();
-    expect(within(t).queryByRole('link')).toBeNull();
+    // The answer's own links (surveyor, picture) are absent; the drawing arrows stay (preqa-b, EN-56).
+    expect(
+      within(t)
+        .queryAllByRole('link')
+        .filter((l) => !l.closest('nav')),
+    ).toEqual([]);
   });
 
   it('EN-40 a can_answer button asks that question', async () => {
@@ -480,14 +485,22 @@ describe('thread', () => {
     expect(details.style.display).toBe('list-item');
   });
 
-  it('EN-60 suggestion chips sit after the thread, outside every turn; no fold', async () => {
-    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused) });
+  it('EN-60 suggestion chips sit after the thread; after a refusal they show once, in the refusal card', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused, answer) });
+    const before = await screen.findByRole('group', { name: 'Suggested questions' });
+    expect(before.closest('article')).toBeNull();
     await typeAndAsk(answerRefused.question);
     const t = await turn(answerRefused.question);
-    const repeated = answerRefused.refusal?.can_answer[0]?.question ?? '';
-    expect(drawing.suggestions.map((x) => x.question)).toContain(repeated);
-    expect(within(t).getAllByRole('button', { name: repeated })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: repeated })).toHaveLength(2);
+    await within(t).findByText("I can't answer that from this drawing.");
+    // orch 12:20 (testers): no second row of the same questions right under the refusal
+    for (const q of answerRefused.refusal?.can_answer ?? []) {
+      expect(screen.getAllByRole('button', { name: q.question })).toHaveLength(1);
+      expect(within(t).getByRole('button', { name: q.question })).toBeTruthy();
+    }
+    expect(screen.queryByRole('group', { name: 'Suggested questions' })).toBeNull();
+    // the next answer brings the row back after the thread
+    fireEvent.click(within(t).getByRole('button', { name: answer.question }));
+    await within(await turn(answer.question)).findByTestId('answer-value');
     const row = screen.getByRole('group', { name: 'Suggested questions' });
     expect(row.closest('article')).toBeNull();
     expect(screen.queryByText('Suggested questions')).toBeNull();
@@ -852,6 +865,27 @@ describe('Vellum (screen 4)', () => {
     expect(screen.getByRole('link', { name: 'Previous drawing' }).getAttribute('href')).toBe(
       `#/p/${PROJECT}/d/1db9bcf1e67e27a3/engineer`,
     );
+  });
+
+  it('PREQA-B EN-56 a drawing with no page (building model) has the arrows and position', async () => {
+    open({ [DRAWING_ROUTE]: { ...drawing, pages: [] } });
+    const nav = await screen.findByRole('navigation', { name: 'Drawings' });
+    expect(within(nav).getByRole('link', { name: 'Next drawing' })).toBeTruthy();
+    expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
+    expect(within(nav).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+  });
+
+  it.each([
+    ['a building-model answer', answerModel],
+    ['a refusal', answerRefused],
+  ])('PREQA-B EN-56 %s card has the arrows and position', async (_, a) => {
+    const t = await shownTurn(a);
+    const nav = await within(t).findByRole('navigation', { name: 'Drawings' });
+    expect(within(nav).getByRole('link', { name: 'Next drawing' }).getAttribute('href')).toBe(
+      `#/p/${PROJECT}/d/${project.drawings[1]?.drawing_id ?? ''}/engineer`,
+    );
+    expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
+    expect(within(nav).getByText('1 / 5')).toBeTruthy();
   });
 
   it.each([

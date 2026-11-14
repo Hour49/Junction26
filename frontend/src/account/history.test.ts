@@ -5,6 +5,7 @@ import {
   project,
   projectFailed,
   projectList,
+  projectQuestions,
   projectReview,
   projectRunning,
   takeoff,
@@ -40,19 +41,19 @@ describe('workspacePill', () => {
 });
 
 describe('workspaceStats', () => {
-  it('AC-11 sums the fixture', () => {
+  it('AC-11 AC-29 sums the fixtures; Questions is the log length', () => {
     const toReview = projectReview.drawings.reduce((n, d) => n + d.to_review, 0);
     const signed = projectReview.drawings.reduce((n, d) => n + d.signed, 0);
     const total = projectReview.drawings.reduce((n, d) => n + d.quantities, 0);
-    expect(workspaceStats(project, projectReview)).toEqual([
+    expect(workspaceStats(project, projectReview, projectQuestions)).toEqual([
       { label: 'Files', value: String(project.files.length) },
       { label: 'Drawings', value: String(project.drawings.length) },
-      { label: 'Questions', value: '0', pending: 'GET /api/projects/{id}/questions' },
+      { label: 'Questions', value: String(projectQuestions.questions.length) },
       { label: 'To review', value: String(toReview) },
       { label: 'Signed off', value: `${String(signed)} of ${String(total)}` },
     ]);
   });
-  it('AC-15 without a review the review stats read "–"', () => {
+  it('AC-15 AC-29 without a review or a log those stats read "–"', () => {
     const stats = workspaceStats(project, null);
     expect(stats.map((s) => s.value)).toEqual([
       String(project.files.length),
@@ -78,7 +79,7 @@ describe('historyEvents', () => {
         `5 drawings · 3 ready, 4 flagged, 2 set aside, 2 text only · ${formatMs(project.ms)}`,
       ],
       [
-        'Decided by rule: area of room (name 1.01)',
+        'Settled by a rule: area of room (name 1.01)',
         "plans/flat-b.pdf · kept 30.00 m² · the printed label over the outline at the sheet's scale",
       ],
     ]);
@@ -100,7 +101,7 @@ describe('historyEvents', () => {
       detail: 'plans/flat-b.pdf · kept 22.40 m²',
       time: '09:30',
     });
-    expect(events.some((e) => e.title.startsWith('Decided by rule'))).toBe(false);
+    expect(events.some((e) => e.title.startsWith('Settled by a rule'))).toBe(false);
   });
 
   it('AC-18 a conflict that needs a person', () => {
@@ -152,5 +153,38 @@ describe('historyEvents', () => {
     expect(running.some((e) => e.title === 'Analysis done')).toBe(false);
     const failed = historyEvents(projectFailed, null, []).find((e) => e.kind === 'failed');
     expect(failed).toMatchObject({ title: 'Ingest failed', detail: projectFailed.error });
+  });
+
+  it('AC-29 each logged question is an "Asked" event at its time', () => {
+    const asked = historyEvents(project, null, [], projectQuestions).filter(
+      (e) => e.kind === 'asked',
+    );
+    expect(asked.map((e) => [e.title, e.detail, e.time])).toEqual([
+      ['Asked: What colour is the roof?', 'plans/flat-a.pdf · not answered', '08:05'],
+      ['Asked: How many doors are there?', 'plans/flat-a.pdf · 2', '08:05'],
+    ]);
+    const odd = {
+      ...projectQuestions,
+      questions: [
+        {
+          question: 'Area?',
+          answer: 12.345,
+          unit: 'm2' as const,
+          drawing_id: 'ffffffffffffffff',
+          at: '2026-11-14T09:00:00Z',
+          refused: false,
+        },
+        { ...must(projectQuestions.questions[1]), answer: null },
+        { ...must(projectQuestions.questions[1]), answer: 'ground floor', unit: null },
+      ],
+    };
+    const details = historyEvents(project, null, [], odd)
+      .filter((e) => e.kind === 'asked')
+      .map((e) => e.detail);
+    expect(details).toEqual([
+      'plans/flat-a.pdf · no answer',
+      'plans/flat-a.pdf · ground floor',
+      'ffffffffffffffff · 12.35 m²',
+    ]);
   });
 });

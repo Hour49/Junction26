@@ -21,7 +21,7 @@ because the designs use those colours on every screen (pill and button fills, st
 | Token | Value | Where the designs use it |
 | --- | --- | --- |
 | `--v-bg` | `#f5f5f7` | page background |
-| `--v-surface` | `#ffffff` | cards, drop zone, header glass base |
+| `--v-surface` | `#ffffff` | cards, drop zone, the header |
 | `--v-text` | `#1d1d1f` | text; the logo tile's background |
 | `--v-muted` | `#6e6e73` | secondary text, captions, chevrons |
 | `--v-line` | `#d2d2d7` | hairlines, input borders, the dashed drop border is `#c3cbc7` (use `--v-line`) |
@@ -40,9 +40,13 @@ because the designs use those colours on every screen (pill and button fills, st
 | `--v-accent-soft` | `#e6eeea` | icon tiles, selected rows, chips (`#dfe8e4` in the designs folds into it) |
 | `--v-fill` | `#f0f1f0` | secondary button; tag pills (`#f2f2f5` folds into it) |
 
-Header glass (not a token, used once): `rgba(255,255,255,0.72)` with `backdrop-filter: blur(20px) saturate(180%)`
-and a hairline `box-shadow: 0 1px 0 rgba(0,0,0,0.06)`; under `prefers-reduced-transparency: reduce` it is
-`var(--v-surface)` with no blur.
+Header (round-2 QA, 11:35): opaque `var(--v-surface)` with a hairline `box-shadow: 0 1px 0 rgba(0,0,0,0.06)`. The
+designs' glass (`rgba(255,255,255,0.72)` + blur) let scrolled engineer content show through and collide with the
+header's buttons, so it is not used.
+
+`--v-header-h` (on `:root`, not a colour): what the sticky header covers at the top of the viewport, `76px` on
+desktop (row padding 14 + 14 and the 48 px pills) and `0px` at ≤720 px, where the header is not sticky. Any other
+sticky element uses `top: var(--v-header-h)`.
 
 ## Vellum look (header, page frame, base styles, routes)
 
@@ -51,7 +55,7 @@ and a hairline `box-shadow: 0 1px 0 rgba(0,0,0,0.06)`; under `prefers-reduced-tr
 As in every design's `<header>`, without the avatar (common brief: not built). The country picker is built (CHANGE
 11:05, Tudor) and changes nothing but its own shown name (see "Pending fields (mocked)").
 
-- Sticky at the top (`z-index: 2`), header glass (above), inner row `max-width: 1120px` (`1280px` on the account
+- Sticky at the top (`z-index: 10`, above every screen layer; engineer.css goes up to 5), opaque (above), inner row `max-width: 1120px` (`1280px` on the account
   and workspace routes, as Account and Workspace have it), `margin: 0 auto`, `padding: 14px 24px`, flex, `gap: 12px`,
   items centred.
 - Left: one link to `#/` whose accessible name is "Vellum": the logo `src/shell/vellum-logo.png` (the canvas asset
@@ -89,7 +93,8 @@ As in every design's `<header>`, without the avatar (common brief: not built). T
   the header row.
 - Phone (≤720 px): the row wraps: logo + name + "Workspaces" on the first line, the project picker (growing) and
   the country picker on the second, the view links full width (equal segments, each ≥44 px high) on the third. No horizontal scroll at
-  390 px (R1-5-4 still holds).
+  390 px (R1-5-4 still holds). The header is not sticky there (`position: static`, `--v-header-h: 0px`): its three
+  rows (about 190 px) would cover a quarter of a 390x844 screen; it scrolls away with the page.
 
 ### Pending fields (mocked)
 
@@ -141,10 +146,9 @@ All are `margin: 0 auto`, flex column, `gap: 24px`. `main` keeps `min-width: 0; 
   `aria-pressed="true"`: weight 600, `--v-text` on `--v-surface`, `box-shadow: 0 1px 3px rgba(0,0,0,0.12)`.
 - Focus: every focusable element (`a, button, select, input, textarea, summary, [tabindex]`) shows
   `outline: 2px solid var(--v-accent); outline-offset: 2px` on `:focus-visible`; nothing sets `outline: none`
-  without a replacement. (The designs draw no focus ring; this one is ours.)
+  without a replacement, except `main` (SH-58). (The designs draw no focus ring; this one is ours.)
 - Reduced motion: under `prefers-reduced-motion: reduce` every transition and animation is off
   (`transition: none !important; animation: none !important` on `*`), and `.v-press:active` does not scale.
-  Reduced transparency: the header glass becomes `--v-surface`, no blur.
 - Old names: the round-1 mock tokens (`--paper`, `--panel`, `--ink`, `--mute`, `--line`, `--line-soft`,
   `--accent`, `--accent-soft`, `--ok`, `--ok-soft`, `--warn`, `--warn-soft`, `--blue`, `--blue-soft`, `--mono`,
   `--sans`) stay defined as aliases of the `--v-*` tokens, so a screen not yet restyled still matches; they are
@@ -215,7 +219,7 @@ Tests: `*.test.ts(x)` next to each file above. [e2e] criteria are built by the e
 
 ## User flow
 
-1. The user opens the app at `#/` (or any deep link). The header shows "Countersign", the project picker and,
+1. The user opens the app at `#/` (or any deep link). The header shows "Vellum", the project picker and,
    below it, the info strip "Checking the server…" until `GET /api/info` answers; then "Running offline: no API
    keys, no models" with a "What runs" disclosure. The route's screen fills the rest.
 2. The user picks a project in the picker: the hash becomes `#/p/<project_id>` and the ingest screen shows it.
@@ -266,6 +270,7 @@ as below or rejects with `ApiError`. Path ids go through `encodeURIComponent`; q
 | `listProjects(opts?)` | `GET /api/projects` | `ProjectList` |
 | `getProject(projectId, opts?)` | `GET /api/projects/{project_id}` | `ProjectView` |
 | `getTrace(projectId, fileId, opts?)` | `GET /api/projects/{project_id}/files/{file_id}/trace` | `FileTrace` |
+| `getProjectQuestions(projectId, opts?)` | `GET /api/projects/{project_id}/questions` (#121) | `ProjectQuestions` (`{project_id, questions: AskedQuestion[]}`, newest first; each `{question, answer, unit, drawing_id, at, refused}`) |
 | `getProjectTrace(projectId, opts?)` | `GET /api/projects/{project_id}/trace` (#120) | `ProjectTrace` (`{project_id, files: FileTrace[]}`, files in upload order) |
 | `getProjectReview(projectId, opts?)` | `GET /api/projects/{project_id}/review` | `ProjectReview` |
 | `getDrawing(drawingId, opts?: {project?: string, signal?})` | `GET /api/drawings/{drawing_id}[?project=<project_id>]` (a screen inside a project passes it, so `file` and `reader.source` are that project's names; API.md "GET /api/drawings/{drawing_id}?project=") | `DrawingView` |
@@ -333,7 +338,7 @@ does not declare it in `/openapi.json` (Open points).
 
 **Types.** `types.ts` re-exports `components["schemas"][...]` from `schema.d.ts` under the same names: `Info`,
 `Limits`, `Started`, `ProjectList`, `ProjectSummary`, `ProjectView`, `FileStatus`, `DrawingEntry`, `Rendering`,
-`FileTrace`, `ProjectTrace`, `StageTrace`, `ProjectReview`, `DrawingReview`, `ConflictEntry`, `DrawingView`, `PageView`,
+`FileTrace`, `ProjectTrace`, `ProjectQuestions`, `AskedQuestion`, `StageTrace`, `ProjectReview`, `DrawingReview`, `ConflictEntry`, `DrawingView`, `PageView`,
 `Normalised`, `Reader`, `Suggestion`, `AskRequest`, `AnswerView`, `Refusal`, `MarkView`, `Row`, `Scope`,
 `RuleText`, `QuantityConflict`, `Settled`, `SignOff`, `Proof`, `Takeoff`, `Edit`, `SignOffRequest`. These are the
 schema names `/openapi.json` has on main 5092dc3 (checked 2026-11-14 by dumping it); screens import from `src/api`,
@@ -346,7 +351,7 @@ temp file and fails, naming `src/api/schema.d.ts`, when it differs from the comm
 
 **Fixtures.** `src/api/fixtures.ts` imports each `@fixtures/<file>.json` and exports it typed, one camelCase name per
 file: `info: Info`, `projectStarted: Started`, `projectList: ProjectList`, `project: ProjectView`, `trace:
-FileTrace`, `projectTrace: ProjectTrace`, `projectReview: ProjectReview`, `drawing: DrawingView`, `askRequest: AskRequest`, `answer`,
+FileTrace`, `projectTrace: ProjectTrace`, `projectQuestions: ProjectQuestions`, `projectReview: ProjectReview`, `drawing: DrawingView`, `askRequest: AskRequest`, `answer`,
 `answerArea`, `answerConfidence`, `answerModel`, `answerRefused: AnswerView`, `takeoff: Takeoff`, `reviewRequests:
 Edit[]`, `signoffRequest: SignOffRequest`, `error: ErrorBody`. (A JSON import widens string unions, so each is cast
 `as unknown as <Type>`; the backend's fixture test is what keeps the files true to the models.) Tests never write a
@@ -374,7 +379,7 @@ request no route matches with a thrown error naming it, so a test fails on an un
 | No project in route | Picker shows the placeholder option "Choose a project" selected; no view links. | `#/`. |
 | Not found | `NotFound`: heading "Page not found", text "Nothing at `<hash>`" (as text), link "Go to the start" (`#/`). No request is made for it. | `#/nope`, `#/p/XYZ`, `#/p/<pid>/d/<did>` (no role). |
 | Screen loading | `Loading` with the screen's label, e.g. "Loading the project…" (`role="status"`, `aria-live="polite"`). | per screen spec. |
-| Screen error | `ErrorView`: heading, `detail`, "code: `<code>`", HTTP status when not 0, Retry when the screen passes `onRetry` and the error is not a 404; for a 404 (`status` 404) no Retry (asking again finds nothing) and a link "Back to projects" to `#/`. `role="alert"`. | per screen spec; `error.json` for a 404. |
+| Screen error | `ErrorView`: heading, `detail`, "code: `<code>`", HTTP status when not 0, Retry when the screen passes `onRetry` and the error is not a 404; for a 404 (`status` 404) no Retry (asking again finds nothing) and a link "Back to workspaces" to `#/workspaces` (the project list; `#/` lists none since the Vellum round). `role="alert"`. | per screen spec; `error.json` for a 404. |
 
 Refusal and set-aside are screen states (engineer, ingest): `ErrorView` is not used for them, since they come with
 200.
@@ -385,12 +390,12 @@ Reference: the mock (`demo/index.html`) has no global header; its workspace has 
 surveyor" buttons. The header replaces those with one place for the role switch. Colours and type follow the mock's
 `style.css` tokens.
 
-- **Desktop 1440x900.** One header row, 56 px: "Countersign" (link to `#/`) left; the project picker (max 320 px
+- **Desktop 1440x900.** One header row, 56 px: "Vellum" (link to `#/`) left; the project picker (max 320 px
   wide, shrinks with the header) next to it; the view links Ingest · Engineer · Surveyor centred (only on project, file and drawing routes);
   nothing on the right. Under it the info strip, one line, 32 px: offline text left, "What runs" right; open, it
   drops a two-column list (port, reader) under the strip, pushing content down (not over it). The route's screen
   fills the rest, max width 1440, no horizontal scroll.
-- **Phone 390x844.** Header in rows: "Countersign"; the picker full width and never wider (a long project name is cut
+- **Phone 390x844.** Header in rows: "Vellum"; the picker full width and never wider (a long project name is cut
   off in the closed select and shown in full in its open list, R1-5-4); the view links as three equal
   tabs full width, each at least 44 px high. The strip under them wraps the full offline text (no shortened form),
   and "What runs" is a full-width disclosure under it. No horizontal scroll
@@ -465,7 +470,7 @@ Info strip
 API client
 
 - SH-23 Each read function sends the method and path of its table row and resolves with the fixture body:
-  `getInfo` (`info.json`), `listProjects`, `getProject`, `getTrace`, `getProjectTrace` (`project_trace.json`),
+  `getInfo` (`info.json`), `listProjects`, `getProject`, `getTrace`, `getProjectTrace` (`project_trace.json`), `getProjectQuestions` (`project_questions.json`),
   `getProjectReview`, `getDrawing`, `getTakeoff`.
   [unit, `mockApi`, each named fixture]
 - SH-24 `uploadProject(new File([bytes], "my plan #1.zip"))` sends `POST /api/projects?name=my%20plan%20%231.zip`
@@ -543,7 +548,7 @@ QA round 2 (qa-3 notes)
   null and undefined "no reader", `False`) and an unknown id as is; "What runs" shows `readerName` of each value. [unit, component,
   R2-qa-3-1]
 - SH-48 `ErrorView` for a 404 (an `ApiError` with `status` 404, whatever its `code`) shows no Retry even when the
-  screen passes `onRetry`, and a "Back to projects" link to `#/`; any other error keeps Retry and has no such link.
+  screen passes `onRetry`, and a "Back to workspaces" link to `#/workspaces` (pre-QA 12:02; was "Back to projects" to `#/`); any other error keeps Retry and has no such link.
   Ingest's project screen answered 404 shows it. [component, R2-qa-3-2]
 
 QA round 3
@@ -579,11 +584,18 @@ Vellum round (round 2)
   `.v-btn--secondary` (`--v-fill`), `.v-pill` and its four tones, `.v-segmented`, `.v-page` and its three widths,
   `.v-title`, `.v-hero`. [unit: parse the CSS]
 - SH-58 Focus and motion: `:focus-visible` on `a, button, select, input, textarea, summary, [tabindex]` sets
-  `outline: 2px solid var(--v-accent)` with `outline-offset: 2px`; no rule in `src/shell/` sets `outline: none`;
-  a `prefers-reduced-motion: reduce` block turns off transitions and animations for `*`; a
-  `prefers-reduced-transparency: reduce` block removes the header blur. [unit: parse the CSS]
+  `outline: 2px solid var(--v-accent)` with `outline-offset: 2px`; the only rule in `src/shell/` that sets `outline:
+  none` is for `main[tabindex='-1']` (`:focus`, `:focus-visible`): App moves focus there on a route change, and it is
+  not a control, so it draws no ring around the page (pre-QA 12:00);
+  a `prefers-reduced-motion: reduce` block turns off transitions and animations for `*`. (The reduced-transparency
+  block went with the glass, SH-62.) [unit: parse the CSS]
 - SH-59 `body` uses `--v-bg`, `--v-text` and `font: 16px/1.5 var(--v-font)`; no stylesheet or font is loaded from
   another origin (`index.html` and `src/**/*.css` hold no `http` URL). [unit]
+- SH-62 (round-2 QA) `.app-header` is sticky at `top: 0` with `background: var(--v-surface)` (no `rgba`
+  background) and no `backdrop-filter`, and `z-index` ≥ 10; `:root` has `--v-header-h: 76px`; at ≤720 px the header is
+  `position: static` and `--v-header-h` is `0px`. In the browser: at 1440 the header is 76 px high and scrolled
+  engineer content does not show through it; at 390 the header scrolls away. [unit: parse the CSS; live check]
+- SH-63 `index.html`'s `<title>` equals `PRODUCT_NAME` ("Vellum"). [unit]
 - SH-61 The country picker: a button "Country rules: Finland" with `data-pending="country-rules"` and
   `aria-expanded="false"`; clicking opens the group "Building rules the agent follows" with Finland
   (`aria-pressed="true"`) and Switzerland and the line "Rules are not applied yet."; choosing Switzerland renames the
@@ -637,7 +649,8 @@ Vellum round (round 2)
     it. For the client: regenerate with `npm run api:gen` when that PR lands, add the new schema's name to
     `types.ts`, and `fixtures.answerConfidence` follows the updated fixture. Rule for every screen (engineer owns
     the display): never label or format `score` as a probability or a percentage.
-11. **Product name.** "Countersign" is the mock's name; one constant in `strings.ts` if the team renames it.
+11. **Product name.** "Vellum" (Vellum round; was the mock's "Countersign"): one constant, `PRODUCT_NAME` in
+    `strings.ts`, and the `<title>` of `index.html` (SH-63 keeps them equal).
 12. Removed (round 1, decision 1): Node 24 is the scaffold's and CI's.
 13. **Old token names.** The round-1 names (`--ink`, `--paper`…) stay as aliases of the `--v-*` tokens during the
     restyle. Recommendation: once every screen is restyled, a tree-wide test like SH-52 over `src/**/*.css` and the

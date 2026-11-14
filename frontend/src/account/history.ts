@@ -1,13 +1,13 @@
 // Pure view data for the workspaces screen (docs/specs/frontend/account.md): list lines, stats and history.
 import {
   formatValue,
+  type ProjectQuestions,
   type ProjectReview,
   type ProjectSummary,
   type ProjectView,
   type Takeoff,
 } from '../api';
 import { formatMs, formatSize, plural, progressOf } from '../ingest/ingest';
-import { questionsOf } from './pending';
 
 export function workspaceKind(p: Pick<ProjectSummary, 'files' | 'drawings'>): string {
   const kind = p.files === 1 ? 'Single file' : 'Archive';
@@ -25,25 +25,20 @@ export function workspacePill(state: string): { word: string; tone: PillTone } {
 export interface Stat {
   label: string;
   value: string;
-  /** The API field this value stands in for while it is mocked (`data-pending`). */
-  pending?: string;
 }
 
-/** Files, Drawings, Questions, To review, Signed off; the review's read "–" while it is missing. */
-export function workspaceStats(project: ProjectView, review: ProjectReview | null): Stat[] {
+/** Files, Drawings, Questions, To review, Signed off; a stat whose source is missing reads "–". */
+export function workspaceStats(
+  project: ProjectView,
+  review: ProjectReview | null,
+  questions: ProjectQuestions | null = null,
+): Stat[] {
   const sum = (pick: (d: ProjectReview['drawings'][number]) => number) =>
     review ? review.drawings.reduce((n, d) => n + pick(d), 0) : 0;
-  const questions = questionsOf(null, review);
   return [
     { label: 'Files', value: String(project.files.length) },
     { label: 'Drawings', value: String(project.drawings.length) },
-    questions
-      ? {
-          label: 'Questions',
-          value: String(questions.n),
-          ...(questions.pending && { pending: 'GET /api/projects/{id}/questions' }),
-        }
-      : { label: 'Questions', value: '–' },
+    { label: 'Questions', value: questions ? String(questions.questions.length) : '–' },
     { label: 'To review', value: review ? String(sum((d) => d.to_review)) : '–' },
     {
       label: 'Signed off',
@@ -55,7 +50,7 @@ export function workspaceStats(project: ProjectView, review: ProjectReview | nul
 }
 
 export type EventKind =
-  'upload' | 'reading' | 'done' | 'failed' | 'rule' | 'needs' | 'settled' | 'signed';
+  'upload' | 'reading' | 'done' | 'failed' | 'rule' | 'needs' | 'settled' | 'signed' | 'asked';
 
 export interface HistoryEvent {
   kind: EventKind;
@@ -65,8 +60,6 @@ export interface HistoryEvent {
   glyph: string;
   title: string;
   detail: string;
-  /** The API field the time stands in for while it is mocked (`data-pending`). */
-  pending?: string;
 }
 
 // The table order of account.md "History": the tie-break for equal times.
@@ -79,6 +72,7 @@ const ORDER: EventKind[] = [
   'needs',
   'settled',
   'signed',
+  'asked',
 ];
 const GLYPH: Record<EventKind, string> = {
   upload: '↑',
@@ -89,6 +83,7 @@ const GLYPH: Record<EventKind, string> = {
   needs: '!',
   settled: '✔',
   signed: '✔',
+  asked: '?',
 };
 
 function hhmm(iso: string): string {
@@ -101,6 +96,7 @@ export function historyEvents(
   project: ProjectView,
   review: ProjectReview | null,
   takeoffs: Takeoff[],
+  questions: ProjectQuestions | null = null,
 ): HistoryEvent[] {
   const events: Omit<HistoryEvent, 'time' | 'glyph'>[] = [];
   const at = project.created_at;
@@ -165,7 +161,7 @@ export function historyEvents(
       events.push({
         kind: 'rule',
         at: end,
-        title: `Decided by rule: ${c.label}`,
+        title: `Settled by a rule: ${c.label}`,
         detail: `${c.file} · kept ${formatValue(resolution.value, unit)} · ${resolution.rule}`,
       });
     }
@@ -180,6 +176,22 @@ export function historyEvents(
         detail: `${t.file} · ${formatValue(q.signed.value, q.unit)} · by ${q.signed.by}`,
       });
     }
+  }
+  const fileOf = (id: string) => project.drawings.find((d) => d.drawing_id === id)?.file ?? id;
+  for (const q of questions?.questions ?? []) {
+    const said = q.refused
+      ? 'not answered'
+      : q.answer === null
+        ? 'no answer'
+        : typeof q.answer === 'number'
+          ? formatValue(q.answer, q.unit)
+          : q.answer;
+    events.push({
+      kind: 'asked',
+      at: q.at,
+      title: `Asked: ${q.question}`,
+      detail: `${fileOf(q.drawing_id)} · ${said}`,
+    });
   }
   return events
     .map((e, i) => ({ e, i, ms: new Date(e.at).getTime() }))

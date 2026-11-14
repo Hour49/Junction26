@@ -64,6 +64,17 @@
 .ingest-earlier {
   font-size: 15px;
 }
+/* phone tap targets (ingest.md "Phone 390x844") */
+.ingest-earlier a,
+.ingest-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.ingest-back {
+  justify-self: start;
+  align-self: flex-start;
+}
 
 /* Title row (screen 2 and the trace) */
 .ingest-head {
@@ -308,6 +319,12 @@
   font-size: 13px;
   color: var(--v-muted);
   margin-top: 6px;
+}
+.ingest-takeoff summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
 }
 .ingest-takeoff dl {
   display: grid;

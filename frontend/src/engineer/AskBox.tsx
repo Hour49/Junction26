@@ -39,6 +39,10 @@ export function AskBox(props: {
             setText(e.target.value);
           }}
         />
+        <span className="en-meta">
+          {asked} asked
+          {limit !== undefined && ` · ${String(question.length)} / ${String(limit)}`}
+        </span>
         <button type="submit" className="en-send v-press" aria-label="Ask" disabled={blocked}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path
@@ -51,10 +55,6 @@ export function AskBox(props: {
           </svg>
         </button>
       </div>
-      <p className="en-meta">
-        {asked} asked
-        {limit !== undefined && ` · ${String(question.length)} / ${String(limit)}`}
-      </p>
       {tooLong && (
         <p id="en-too-long" className="en-warn en-limit" role="alert">
           Questions are at most {limit} characters.

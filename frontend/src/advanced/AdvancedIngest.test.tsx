@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drawing, error, project, projectTrace, takeoff, trace } from '../api/fixtures';
 import type { FileTrace, ProjectView } from '../api';
 import { flush, variants, must } from '../ingest/testing';
@@ -222,6 +222,56 @@ describe('AdvancedIngest', () => {
     for (const f of project.files) expect(strip.textContent).toContain(f.path);
   });
 
+  it('AV-26 Unpack shows each upload itself by kind: preview.png for images and PDFs, else a line', async () => {
+    const base = must(project.files[0]);
+    const files = [
+      { ...base, id: 'p1', path: 'site/plan.jpg', kind: 'photo_plan' as const },
+      { ...base, id: 'd1', path: 'docs/spec.pdf', kind: 'pdf_text' as const, drawing_id: null },
+      { ...base, id: 'm1', path: 'model/house.ifc', kind: 'ifc' as const },
+      { ...base, id: 'c1', path: 'cad/detail.dxf', kind: 'dxf' as const, drawing_id: null },
+      { ...base, id: 'q1', path: 'new.bin', kind: null, stage: null, state: 'queued' as const },
+    ];
+    await show({ ...project, files, drawings: [] });
+    await pick(/^Unpack/);
+    const strip = screen.getByRole('list', { name: 'Files in this upload' });
+    const srcs = [...strip.querySelectorAll('img')].map((i) => i.getAttribute('src'));
+    expect(srcs).toEqual([
+      `/api/projects/${PID}/files/p1/preview.png?width=400`,
+      `/api/projects/${PID}/files/d1/preview.png?width=400`,
+    ]);
+    expect(strip.textContent).toContain('A model: no picture to show');
+    expect(strip.textContent).toContain('No preview for a DXF');
+    expect(strip.textContent).toContain('photo of a plan'); // kindLabel, never the raw id
+    expect(strip.textContent).not.toContain('photo_plan');
+    expect(strip.textContent).toContain('Not identified yet');
+  });
+
+  it("AV-26 Identify shows the picked file's own preview, or the line for its kind", async () => {
+    const ifc = {
+      ...must(project.files[0]),
+      id: 'm1',
+      path: 'model/house.ifc',
+      kind: 'ifc' as const,
+    };
+    await show({ ...project, files: [ifc], drawings: [] });
+    await pick(/^Identify/);
+    expect(document.querySelector('.adv-figure img')).toBeNull();
+    expect(screen.getByText('A model: no picture to show')).toBeTruthy();
+  });
+
+  it('AV-26 Normalise shows the upload as it came next to its normalised page', async () => {
+    await show();
+    await pick(/^Normalise/);
+    const d = must(project.drawings[0]);
+    const f = must(project.files.find((x) => x.path === d.file));
+    expect(screen.getByAltText(`${f.path} as uploaded`).getAttribute('src')).toBe(
+      `/api/projects/${PID}/files/${f.id}/preview.png?width=1600`,
+    );
+    expect(screen.getByAltText(`${d.file}, page 1`)).toBeTruthy();
+    expect(screen.getByText('As uploaded')).toBeTruthy();
+    expect(screen.getByText('Normalised page 1')).toBeTruthy();
+  });
+
   it('AV-15/16 lanes count by route with reader names; the file lane is marked', async () => {
     await show();
     await pick(/^Route/);
@@ -264,6 +314,23 @@ describe('AdvancedIngest', () => {
     expect(screen.getByText('Küche').getAttribute('title')).toBe('kitchen');
   });
 
+  it('PlanMarks: marks of different rows may share an id without a duplicate React key', async () => {
+    const d = must(project.drawings[0]);
+    const door = must(takeoff.quantities[1]);
+    const window = { ...door, key: 'window' }; // same mark ids as the door row
+    const errors: unknown[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => {
+      errors.push(a.join(' '));
+    });
+    await show(project, {
+      [`GET /api/drawings/${d.drawing_id}/takeoff`]: { ...takeoff, quantities: [door, window] },
+    });
+    await pick(/^Extract/);
+    spy.mockRestore();
+    expect(document.querySelectorAll('.adv-plan svg rect')).toHaveLength(4);
+    expect(errors.filter((e) => String(e).includes('same key'))).toEqual([]);
+  });
+
   it('AV-18 the plan view draws one rect per page-1 mark of the room, door and window rows', async () => {
     await show();
     await pick(/^Extract/);
@@ -284,6 +351,28 @@ describe('AdvancedIngest', () => {
     ).toBe(`#/p/${PID}/conflicts`);
     expect(stat('Conflicts').textContent).toContain('5'); // one per drawing, 5 drawings
     expect(stat('Agree').textContent).toContain('0');
+  });
+
+  it("Cross-check names each pair by this project's file even when the drawing is shared", async () => {
+    const d = must(project.drawings[0]);
+    const p: ProjectView = {
+      ...project,
+      drawings: [{ ...d, file: 'drawings/mine.pdf' }],
+      files: project.files.map((f) =>
+        f.drawing_id === d.drawing_id ? { ...f, path: 'drawings/mine.pdf' } : f,
+      ),
+    };
+    await show(p, {
+      [`GET /api/drawings/${d.drawing_id}/takeoff`]: {
+        ...takeoff,
+        drawing_id: d.drawing_id,
+        file: 'plans/someone-else.pdf',
+      },
+    });
+    await pick(/^Cross-check/);
+    const pairs = screen.getByRole('list', { name: 'Measured twice' });
+    expect(pairs.textContent).toContain('drawings/mine.pdf');
+    expect(document.body.textContent).not.toContain('someone-else');
   });
 
   it('Cross-check shows every conflict and the first agreeing pairs, the rest behind "Show all"', async () => {
@@ -353,5 +442,11 @@ describe('AdvancedIngest', () => {
     const css = readFileSync('src/advanced/advanced.css', 'utf8');
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none/);
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+  });
+
+  it('CSS: the Index links are 44 px tap targets and the set-aside note never wraps', () => {
+    const css = readFileSync('src/advanced/advanced.css', 'utf8');
+    expect(css).toMatch(/\.adv-ready a \{[^}]*min-height: 44px/);
+    expect(css).toMatch(/\.adv-aside \{[^}]*white-space: nowrap/);
   });
 });

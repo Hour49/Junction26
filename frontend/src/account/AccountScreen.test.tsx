@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ProjectList, ProjectReview } from '../api';
-import { project, projectList, projectReview, takeoff } from '../api/fixtures';
+import { project, projectList, projectQuestions, projectReview, takeoff } from '../api/fixtures';
 import { flush, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AccountScreen } from './AccountScreen';
@@ -10,6 +10,8 @@ const ID = '5e0c1a2b3d4f';
 const LIST = 'GET /api/projects';
 const PROJECT = `GET /api/projects/${ID}`;
 const REVIEW = `GET /api/projects/${ID}/review`;
+const QUESTIONS = `GET /api/projects/${ID}/questions`;
+const noQuestions = { project_id: ID, questions: [] };
 const internal = { detail: 'internal error', code: 'internal' };
 const notFound = { detail: `no project ${ID}`, code: 'not-found' };
 
@@ -21,7 +23,12 @@ const twoProjects: ProjectList = {
   ],
 };
 
-const routes = { [LIST]: projectList, [PROJECT]: project, [REVIEW]: projectReview };
+const routes = {
+  [LIST]: projectList,
+  [PROJECT]: project,
+  [REVIEW]: projectReview,
+  [QUESTIONS]: noQuestions,
+};
 
 const items = () => [...document.querySelectorAll<HTMLElement>('button[aria-pressed]')];
 const panel = () => screen.getByRole('region', { name: 'Selected workspace' });
@@ -29,6 +36,14 @@ const panel = () => screen.getByRole('region', { name: 'Selected workspace' });
 afterEach(cleanup);
 
 describe('AccountScreen list', () => {
+  it('renders no main landmark of its own (the shell owns the one <main>)', async () => {
+    mockApi(routes);
+    const { container } = render(<AccountScreen />);
+    await flush();
+    expect(container.querySelector('main, [role="main"]')).toBeNull();
+    expect(container.querySelector('.account')).not.toBeNull();
+  });
+
   it('AC-1 asks for the list once and shows the loading line', async () => {
     const api = mockApi({ [LIST]: never() });
     render(<AccountScreen />);
@@ -79,6 +94,7 @@ describe('AccountScreen list', () => {
       [LIST]: twoProjects,
       [`GET /api/projects/${OTHER}`]: { ...project, id: OTHER, name: 'flat-c.pdf' },
       [`GET /api/projects/${OTHER}/review`]: projectReview,
+      [`GET /api/projects/${OTHER}/questions`]: noQuestions,
     });
     render(<AccountScreen />);
     await flush();
@@ -100,6 +116,7 @@ describe('AccountScreen list', () => {
       [LIST]: { projects: [{ ...must(projectList.projects[0]), name }] },
       [PROJECT]: { ...project, name },
       [REVIEW]: projectReview,
+      [QUESTIONS]: noQuestions,
     });
     const { container } = render(<AccountScreen />);
     await flush();
@@ -140,14 +157,12 @@ describe('AccountScreen panel', () => {
       ['To review', String(sum('to_review'))],
       ['Signed off', `${String(sum('signed'))} of ${String(sum('quantities'))}`],
     ]);
-    // Questions is mocked until the API has it (pending.ts): the cell names its field.
-    expect(
-      panel().querySelector('[data-pending="GET /api/projects/{id}/questions"] dt')?.textContent,
-    ).toBe('Questions');
+    // #121: every stat is real, none is marked pending.
+    expect(document.querySelector('[data-pending]')).toBeNull();
   });
 
   it('AC-13 the panel loading line', async () => {
-    mockApi({ [LIST]: projectList, [PROJECT]: never(), [REVIEW]: never() });
+    mockApi({ [LIST]: projectList, [PROJECT]: never(), [REVIEW]: never(), [QUESTIONS]: never() });
     render(<AccountScreen />);
     await flush();
     expect(within(panel()).getByText('Loading sample-project.zip…')).toBeTruthy();
@@ -159,6 +174,7 @@ describe('AccountScreen panel', () => {
       [LIST]: projectList,
       [PROJECT]: () => (++n === 1 ? reply(500, internal) : project),
       [REVIEW]: projectReview,
+      [QUESTIONS]: noQuestions,
     });
     render(<AccountScreen />);
     await flush();
@@ -175,6 +191,7 @@ describe('AccountScreen panel', () => {
       [LIST]: projectList,
       [PROJECT]: reply(404, notFound),
       [REVIEW]: reply(404, notFound),
+      [QUESTIONS]: reply(404, notFound),
     });
     render(<AccountScreen />);
     await flush();
@@ -195,7 +212,7 @@ describe('AccountScreen panel', () => {
     expect(values).toEqual([
       String(project.files.length),
       String(project.drawings.length),
-      '–',
+      '0',
       '–',
       '–',
     ]);
@@ -246,7 +263,7 @@ describe('AccountScreen history', () => {
     const p = within(panel());
     expect(p.getByText('Sign-offs not loaded: internal error (internal)')).toBeTruthy();
     expect(p.getByText('Uploaded sample-project.zip')).toBeTruthy();
-    expect(p.getByText(/^Decided by rule: /)).toBeTruthy();
+    expect(p.getByText(/^Settled by a rule: /)).toBeTruthy();
   });
 
   it('AC-24 glyphs are hidden, titles say the kind', async () => {
@@ -261,7 +278,7 @@ describe('AccountScreen history', () => {
     expect(events.map((e) => e.querySelector('strong')?.textContent.split(' ')[0])).toEqual([
       'Uploaded',
       'Analysis',
-      'Decided',
+      'Settled',
     ]);
   });
 
@@ -271,5 +288,56 @@ describe('AccountScreen history', () => {
     await flush();
     expect(container.textContent).not.toMatch(/Beatrice|Hour49/);
     expect(container.querySelector('img, select, [role="img"]')).toBeNull();
+  });
+});
+
+describe('AccountScreen #121 fields', () => {
+  it('AC-28 the to-review pill; no conflict pill (the API counts rule-settled ones open)', async () => {
+    const base = must(projectList.projects[0]);
+    mockApi({
+      ...routes,
+      [LIST]: {
+        projects: [
+          { ...base, to_review: 2, conflicts_open: 1 },
+          { ...base, id: OTHER, to_review: null, conflicts_open: 0 },
+        ],
+      },
+    });
+    render(<AccountScreen />);
+    await flush();
+    const [first, second] = items();
+    expect(must(first).textContent).toContain('2 to review');
+    expect(must(first).textContent).not.toMatch(/conflict/);
+    expect(must(second).textContent).not.toMatch(/to review|conflict/);
+    expect(document.querySelector('[data-pending]')).toBeNull();
+  });
+
+  it('AC-29 the questions log is asked for and shows as a stat and events', async () => {
+    const api = mockApi({ ...routes, [QUESTIONS]: projectQuestions });
+    render(<AccountScreen />);
+    await flush();
+    expect(api.calls.some((c) => c.url === `/api/projects/${ID}/questions`)).toBe(true);
+    const p = within(panel());
+    expect(p.getByText('Questions').nextElementSibling?.textContent).toBe('2');
+    expect(p.getByText('Asked: How many doors are there?')).toBeTruthy();
+    expect(p.getByText('Asked: What colour is the roof?')).toBeTruthy();
+  });
+
+  it('AC-30 a questions error: "–", a note and Retry', async () => {
+    let n = 0;
+    const api = mockApi({
+      ...routes,
+      [QUESTIONS]: () => (++n === 1 ? reply(500, internal) : projectQuestions),
+    });
+    render(<AccountScreen />);
+    await flush();
+    const p = within(panel());
+    expect(p.getByText('Questions').nextElementSibling?.textContent).toBe('–');
+    expect(p.getByText('Questions not loaded: internal error (internal)')).toBeTruthy();
+    expect(p.getByText('Uploaded sample-project.zip')).toBeTruthy();
+    fireEvent.click(p.getByRole('button', { name: 'Retry' }));
+    await flush();
+    expect(api.calls.filter((c) => c.url === `/api/projects/${ID}/questions`)).toHaveLength(2);
+    expect(p.getByText('Questions').nextElementSibling?.textContent).toBe('2');
   });
 });

@@ -1,6 +1,6 @@
 # Engineer workspace (spec, frontend v1)
 Status: draft, 2026-11-14, by fe-spec-engineer; Vellum redesign (round 2, design screen 4 "Ask, with proof",
-`Workspace.dc.html`) added 2026-11-14 by fe-vellum-engineer: Layout, the "Vellum" API rows, EN-54..EN-69, "Not in the API"; built 2026-11-14 with orch D61 (viewer `meta` prop, arrows outside the viewer) and Bogdan's triage of the missing fields (#14 c6874945888, "Pending fields (mocked)").  Story: #33.  API: docs/API.md (v1, main 5092dc3), plus the
+`Workspace.dc.html`) added 2026-11-14 by fe-vellum-engineer: Layout, the "Vellum" API rows, EN-54..EN-71, "Not in the API"; built 2026-11-14 with orch D61 (viewer `meta` prop, arrows outside the viewer) and Bogdan's triage of the missing fields (#14 c6874945888, "Pending fields (mocked)").  Story: #33.  API: docs/API.md (v1, main 5092dc3), plus the
 pending `confidence` object (Open point 1).
 
 ## Purpose
@@ -60,7 +60,7 @@ hold the drawing answers 404 (the Drawing error state). Fixture: `drawing.json`.
 | Field | Drives |
 | --- | --- |
 | `file` | the header title and the pending line "Reading <file>…" |
-| `reader.route`, `reader.source`, `reader.extractor`, `reader.second_counter`, `reader.question_parser` | the header's "How it was read" line: `<route> route, read from <source> by <extractor>; second count: <second_counter>; questions: <question_parser>`, each reader id shown by the shared `readerName()` (`pdf` "PDF vector reader", `composite` "image reader", `ifc` "IFC model", `templates` "question templates"): "vector route, read from plans/flat-a.pdf by PDF vector reader; second count: IFC model; questions: question templates". An `extractor` of `hello` reads "not read (no reader for this route yet)" instead of `by hello`. A `second_counter` of `none` (no second count ran) reads "no second count" instead of `second count: none`. |
+| `reader.route`, `reader.source`, `reader.extractor`, `reader.second_counter`, `reader.question_parser` | the header's "How it was read" line: `<route> route, read from <source> by <extractor>; second count where a question has one: <second_counter>; questions: <question_parser>` (the drawing's counter; a question it does not count says "no second count" in its answer, preqa-b), each reader id shown by the shared `readerName()` (`pdf` "PDF vector reader", `composite` "image reader", `ifc` "IFC model", `templates` "question templates"): "vector route, read from plans/flat-a.pdf by PDF vector reader; second count where a question has one: IFC model; questions: question templates". An `extractor` of `hello` reads "not read (no reader for this route yet)" instead of `by hello`. A `second_counter` of `none` (no second count ran) reads "no second count" instead of `second count: none`. |
 | `pages` | the viewer before the first answer (page 1, no marks). `[]`: no viewer; the header says "Building model: no sheet to draw on." |
 | `credit` | passed to the viewer, which places the shell's `<Credit>` under the page; null shows "Credit: none recorded for this file" |
 | `suggestions[].question` | one button each, text = `question`; click asks it |
@@ -259,15 +259,23 @@ Desktop 1440x900: one centred column, max 1040 px, padding 32 px 24 px, sections
   5. A refusal turn: the bubble, the read-as note, then a card (`--v-surface`, radius, padding 20 px) with bold
      "I can't answer that from this drawing.", `refusal.text`, and the `can_answer` questions as chips. No plan.
   6. An error turn: as today (detail, code, "Try again"), in a `.v-card` with `--v-danger` text.
-- **Suggestion chips** (`drawing.suggestions`): one row of chips (radius 980 px, 14 px, min 44 px tall,
+- **Suggestion chips** (`drawing.suggestions`; hidden while the newest turn is a refusal, whose card offers its
+  own `can_answer` chips, EN-60): one row of chips (radius 980 px, 14 px, min 44 px tall,
   `--v-fill`, hover `--v-accent-soft`, wrapping) after the thread, outside every article (a refusal's `can_answer` chips are inside
   its article, so the same question can be in both without two buttons in one turn). Before the first answer the
   row sits under the plan card. The "Suggested questions" `<details>` fold is gone.
-- **Ask box**: a pill form sticky at the bottom (16 px from the edge), `color-mix(in srgb, var(--v-surface) 80%, transparent)` with blur (solid
-  `--v-surface` under `prefers-reduced-transparency`), radius 980 px, padding 6 px, `--v-shadow`. The input keeps
-  the accessible name "Question" (visually hidden label) and the placeholder "Ask about <file>"; the Ask button is a
-  round 44 px `--v-accent` button with an up-arrow icon and `aria-label="Ask"`. "<n> asked" and the length counter
-  sit under the pill (12 px, `--v-muted`, centred).
+- **Ask box** (amended 11:40, golden 06/07: the plan's legend and mark rows read through the glass pill): a pill
+  on a solid `--v-bg` band sticky at the bottom (`bottom: 0`, padding 6 px 0 10 px; content scrolls behind the band,
+  never shows through it), the pill `--v-surface` (no transparency, no blur), radius 980 px, padding 6 px,
+  `--v-shadow`. The input keeps the accessible name "Question" (visually hidden label) and the placeholder
+  "Ask about <file>"; the Ask button is a round 44 px `--v-accent` button with an up-arrow icon and
+  `aria-label="Ask"`. "<n> asked · <len> / <limit>" (12 px, `--v-muted`) sits inside the pill before the button
+  on desktop, centred under the pill at ≤900 px.
+- **Scrolling under the site header:** a turn scrolled into view stops `var(--v-header-h) + 8px` from the top
+  (shared.md: 76 px while the header is sticky, 0 on the phone), so the opaque header never covers the bubble.
+- **Plan column padding:** the viewer pads itself (viewer.md, 20 px / 16 px), so the left column adds no padding
+  above or beside it; the position and "Also as" row sits over the right end of the viewer's file-name row on
+  desktop and in flow above it at ≤900 px.
 
 Motion: press feedback by the shared `.v-press` (scale 0.97, 100 ms) on chips and buttons; the overlay opens with opacity and
 scale 0.97 → 1 in 220 ms; both off under `prefers-reduced-motion`.
@@ -300,7 +308,7 @@ Drawing header and ask box
 - EN-1 Opening the route calls `GET /api/drawings/<drawing_id>` once with the id from the route. [component, `drawing.json`]
 - EN-2 While that request is pending, the shared loading view shows and no ask box is rendered. [component, pending fetch]
 - EN-3 A 404 shows the shared `ErrorView` with "no drawing 0123456789abcdef" and "not-found", and a link to `#/p/<project_id>`. [component, `error.json` 404]
-- EN-4 (Vellum: the page meta shows the file, the "How it was read" line sits under the plan card before the first answer) The header shows "plans/flat-a.pdf" and "vector route, read from plans/flat-a.pdf by PDF vector reader; second count: IFC model; questions: question templates"; with `second_counter: "none"` it shows "vector route, read from plans/flat-a.pdf by PDF vector reader; no second count; questions: question templates". No raw reader id (`pdf`, `ifc`, `templates`) shows. [component, `drawing.json`, derived `drawing.json`]
+- EN-4 (Vellum: the page meta shows the file, the "How it was read" line sits under the plan card before the first answer) The header shows "plans/flat-a.pdf" and "vector route, read from plans/flat-a.pdf by PDF vector reader; second count where a question has one: IFC model; questions: question templates"; with `second_counter: "none"` it shows "vector route, read from plans/flat-a.pdf by PDF vector reader; no second count; questions: question templates". No raw reader id (`pdf`, `ifc`, `templates`) shows. [component, `drawing.json`, derived `drawing.json`]
 - EN-5 With `reader.extractor: "hello"` the header says "not read (no reader for this route yet)" and does not say "by hello". [component, derived `drawing.json`]
 - EN-6 One button per suggestion, labelled with its `question`, in order: "How many doors are there?", "How many windows are there?", "How many toilets are there?". [component, `drawing.json`]
 - EN-7 With `suggestions: []` the screen shows "No ready questions for this drawing." and the ask box. [component, derived `drawing.json`]
@@ -363,11 +371,11 @@ Thread and pages
 
 - EN-54 Vellum layout: with `answer.json` the turn shows, in order, the bubble, the answer sentence "Door count: **2**." with the counting rule's text after it, then the card whose left column is `<figure aria-label="Drawing">` (page meta, viewer, mark list) and whose right column has the value `2`, "Checks" with the pill "One method", "Counting rule: …", "References". No element shows "Confidence", "Finland", "Switzerland" or a person's name, and with `answer.json` (not sure, no score) no grade ("High", "Medium", "Low"). [component, `answer.json`]
 - EN-55 Page meta: with `project.json` (route drawing `adeefbbcc17559fc`) the figure shows "PDF vector · vector route" (the viewer's `meta`), "Also as plans/flat-a.png" ("plans/flat-a.png" a link to drawing `c9b719f715357201`'s engineer route) and the position "1 / 5" (`aria-live="polite"`). [component, `project.json` + `drawing.json` + `answer.json`]
-- EN-56 Previous/next drawing: "Next drawing" links to the engineer route of `drawings[1]`, "Previous drawing" to the last entry's (`1db9bcf1e67e27a3`, wrap round); with one drawing in the project, or before `GET /api/projects/{id}` answers, or when it fails, neither link nor position shows and the rest of the screen works. Both are at least 44x44 px. [component, `project.json` and derived one-drawing `project.json`; size: e2e]
+- EN-56 (preqa-b: also on a building model before the first answer, on a model answer card and on a refusal card, as a `<nav aria-label="Drawings">` row with the position) Previous/next drawing: "Next drawing" links to the engineer route of `drawings[1]`, "Previous drawing" to the last entry's (`1db9bcf1e67e27a3`, wrap round); with one drawing in the project, or before `GET /api/projects/{id}` answers, or when it fails, neither link nor position shows and the rest of the screen works. Both are at least 44x44 px. [component, `project.json` and derived one-drawing `project.json`; size: e2e]
 - EN-57 Status pill: each status (table "Status tooltips") shows its pill words and, on focus of the pill, a `role="tooltip"` with its tooltip text, linked by `aria-describedby`. [component, `answer.json` and the derived fixtures of States]
 - EN-58 References with `answer.json` and `project.json`: three chips in order, "1 … plans/flat-a.pdf" whose where-line is the EN-26 sentence, "2 … plans/flat-a.pdf … Page 1 · marks 1–2", "3 … no second count". Chips 1 and 2 are buttons; chip 3 is not. With `answer_confidence.json` chip 2 is not a button. Without a matching file in `project.files`, chip 1 is not a button. [component]
 - EN-59 Overlay: clicking chip 1 opens a `role="dialog"` named "Original file: plans/flat-a.pdf" over the plan with an `<img>` whose `src` is `previewUrl(projectId, "f1")`; chip 1 is `aria-pressed="true"`; focus is on "Close the original". Esc closes it and focus returns to chip 1; clicking chip 2 instead shows `evidenceUrl(drawing_id, question, {project})`. Only one dialog exists at a time. [component]
-- EN-60 Suggestion chips sit after the thread, outside every article: after a refusal (`answer_refused.json`) whose `can_answer` repeats a suggestion, the turn has exactly one button with that question and the page has two. No "Suggested questions" `<details>` exists. [component, `drawing.json` + `answer_refused.json`]
+- EN-60 (amended 12:20, orch: testers saw the same six questions twice after a refusal) Suggestion chips sit after the thread, outside every article, except while the newest turn is a refusal: then the refusal card's `can_answer` chips are the only ones, so after `answer_refused.json` each `can_answer` question is exactly one button on the page (inside that turn) and no "Suggested questions" group shows; the next answer brings the row back after the thread. No "Suggested questions" `<details>` exists. [component, `drawing.json` + `answer_refused.json` + `answer.json`]
 - EN-61 Ask box: the input's accessible name is "Question", its placeholder "Ask about plans/flat-a.pdf"; the submit button's name is "Ask"; Enter and the button ask (EN-10 unchanged). No link to "Edit a house plan from a photo". [component, `drawing.json`]
 - EN-62 Refusal turn in Vellum: card with "I can't answer that from this drawing.", `refusal.text`, chips for `can_answer`; no figure, no value, no References, no footer. [component, `answer_refused.json`]
 - EN-63 Only tokens: `engineer.css` has no colour literal (`#…`, `rgb(`, `hsl(`) except inside `var()` fallbacks; every colour is a `--v-*` token. [unit test reading the CSS file as text]
@@ -377,6 +385,7 @@ Thread and pages
 - EN-68 `Row.noun` (PR #120): `answer.json` shows "doors" after the value and in the sentence, with no `data-pending`; a derived `noun: null` shows no noun and "Door count: 2. …"; a sum (`answer_area.json`, noun null) keeps "Area of room (indoor): 52.27 m². …". [component]
 - EN-69 A derived `answer.json` with `check: {reason: "Please double-check: …", disputed: []}` shows the reason in a `role="status"` line right after the value row, `data-pending="AnswerView.check"`; `answer.json` has no such line. [component]
 - EN-55 (PR #120) With a derived page 1 `storey: "Ground floor"` the figure shows "PDF vector · vector route", and "Ground floor" and "1:100" each once (the viewer's page line). [component]
+- EN-71 (golden 06/07) The ask box is a solid band: `.en-ask` has `background: var(--v-bg)`, and neither `.en-ask` nor `.en-askpill` uses `transparent` or `backdrop-filter`; `.en-turn` has `scroll-margin-top: calc(var(--v-header-h, 0px) + 8px)`. In the browser, after "How many doors are there?" on the sample's `plans/flat-b.pdf`, the plan's legend line ends above the ask band at 1440x900 and 390x844, and the bubble is below the site header. [unit on the CSS text; browser: fe-golden's screenshots 06/07]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)

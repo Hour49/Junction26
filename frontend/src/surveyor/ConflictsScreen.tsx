@@ -84,7 +84,7 @@ export function ConflictsScreen({ projectId }: { projectId: string }) {
   async function edit(
     drawingId: string,
     quantity: string,
-    e: { action: 'settle'; value: number } | { action: 'reset' },
+    e: { action: 'settle'; value: number } | { action: 'unsettle' },
   ) {
     await postReview(drawingId, { quantity, ...e }, { project: projectId });
     // the server's project review is the one source of the cards (it lists a storey twin once)
@@ -160,8 +160,8 @@ export function ConflictsScreen({ projectId }: { projectId: string }) {
 
       {conflicts.map((c, i) => (
         <ConflictCard
-          // remount when the server's state changes, so the card's mode starts over
-          key={`${keyOf(c)} ${String(c.needs_person)} ${String(c.settled?.value)}`}
+          // stable: a reload keeps the card (and its open Why / evidence); the card resets its own mode
+          key={keyOf(c)}
           entry={c}
           index={i}
           total={k}

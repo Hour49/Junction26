@@ -33,6 +33,16 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await shot(page, testInfo, '02-project', offline);
   });
 
+  await test.step('GP-30 V3: the Advanced view, then back to Simple', async () => {
+    const view = page.getByRole('group', { name: 'View' });
+    await view.getByRole('link', { name: 'Advanced' }).click();
+    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\?view=advanced$/);
+    await expect(page.getByRole('navigation', { name: 'Steps' })).toBeVisible();
+    await shot(page, testInfo, '03-advanced', offline);
+    await view.getByRole('link', { name: 'Simple' }).click();
+    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
+  });
+
   await test.step('GP-4 step 3: the trace of plans/flat-b.pdf', async () => {
     await page.locator('a[href*="/f/f"]').filter({ hasText: 'plans/flat-b.pdf' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/f\/f\d+$/);
@@ -60,7 +70,6 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await card.getByRole('button', { name: 'Modify' }).click();
     await card.getByRole('button', { name: /^A\b/ }).click();
     await expect(card).toContainText('Your choice');
-    page.once('dialog', (dialog) => void dialog.accept());
     await card.getByRole('button', { name: "Use the rule's value" }).click();
     await expect(card).toContainText('Settled by rule');
   });
@@ -213,9 +222,9 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     const all = await titles.allTextContents();
     const at = (pattern: RegExp) => all.findIndex((t) => pattern.test(t));
     expect(at(/^Analysis done$/)).toBe(1);
-    expect(at(/^Decided by rule: area of room \(name küche\)$/i)).toBeGreaterThan(1);
+    expect(at(/^Settled by a rule: area of room \(name küche\)$/i)).toBeGreaterThan(1);
     expect(at(/^Conflict settled: area of room \(name 1\.01\)$/)).toBeGreaterThan(
-      at(/^Decided by rule: area of room \(name küche\)$/i),
+      at(/^Settled by a rule: area of room \(name küche\)$/i),
     );
     expect(at(/^Signed off: area of room \(name 1\.01\)$/)).toBeGreaterThan(
       at(/^Conflict settled: area of room \(name 1\.01\)$/),

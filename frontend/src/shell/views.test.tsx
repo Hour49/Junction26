@@ -25,7 +25,7 @@ describe('common views', () => {
     expect(alert.textContent).toContain('three projects are being ingested');
     expect(alert.textContent).toContain('code: busy');
     expect(alert.textContent).toContain('429');
-    expect(screen.queryByRole('link', { name: 'Back to projects' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Back to workspaces' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(retry).toHaveBeenCalledOnce();
     unmount();
@@ -51,7 +51,7 @@ describe('common views', () => {
     expect(other.querySelector('b')).toBeNull();
   });
 
-  it('R2-qa-3-2 (SH-48) a 404 offers Back to projects, not Retry', () => {
+  it('R2-qa-3-2 (SH-48) a 404 offers Back to workspaces, not Retry', () => {
     const retry = vi.fn();
     for (const notFound of [
       new ApiError(404, errorBody.code, errorBody.detail),
@@ -61,8 +61,8 @@ describe('common views', () => {
       const alert = screen.getByRole('alert');
       expect(alert.textContent).toContain(notFound.detail);
       expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
-      const back = screen.getByRole('link', { name: 'Back to projects' });
-      expect(back.getAttribute('href')).toBe('#/');
+      const back = screen.getByRole('link', { name: 'Back to workspaces' });
+      expect(back.getAttribute('href')).toBe('#/workspaces');
       unmount();
     }
     // the status decides: a 500 keeps Retry whatever its code says
@@ -70,14 +70,14 @@ describe('common views', () => {
       <ErrorView error={new ApiError(500, errorBody.code, errorBody.detail)} onRetry={retry} />,
     );
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: 'Back to projects' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Back to workspaces' })).toBeNull();
   });
 
-  it('R2-qa-3-2 (SH-48) ingest project screen answered 404 shows Back to projects, no Retry', async () => {
+  it('R2-qa-3-2 (SH-48) ingest project screen answered 404 shows Back to workspaces, no Retry', async () => {
     mockApi({ [`GET /api/projects/${project.id}`]: reply(404, errorBody) });
     render(<ProjectScreen projectId={project.id} />);
-    const back = await screen.findByRole('link', { name: 'Back to projects' });
-    expect(back.getAttribute('href')).toBe('#/');
+    const back = await screen.findByRole('link', { name: 'Back to workspaces' });
+    expect(back.getAttribute('href')).toBe('#/workspaces');
     expect(screen.getByRole('alert').textContent).toContain(errorBody.detail);
     expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
   });

@@ -11,6 +11,7 @@ import {
   formatSize,
   isFinished,
   isLive as live,
+  kindLabel,
 } from './ingest';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
@@ -69,7 +70,8 @@ export function TitleRow({
     <header className="ingest-head">
       <div>
         <p className="ingest-eyebrow">
-          <span aria-hidden="true" className="ingest-dot" />
+          {/* a word gets the accent dot; a badge (the trace) is its own marker */}
+          {typeof eyebrow === 'string' && <span aria-hidden="true" className="ingest-dot" />}
           {eyebrow}
         </p>
         <h1 className="v-title path">{title}</h1>
@@ -141,7 +143,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
                   <li key={d.drawing_id} className="v-card">
                     <b className="path">{d.file}</b>
                     <span>
-                      <StateBadge state={d.state} /> {d.kind ?? 'not identified'}
+                      <StateBadge state={d.state} /> {kindLabel(d.kind)}
                       {d.route && ` · ${d.route} route`}
                     </span>
                     {d.other_renderings.length > 0 && (
@@ -169,8 +171,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
                     <a href={`${base}/f/${f.id}`}>
                       <b className="path">{f.path}</b>
                       <span>
-                        <StateBadge state={f.state} /> {f.kind ?? 'not identified'} ·{' '}
-                        {formatSize(f.size)}
+                        <StateBadge state={f.state} /> {kindLabel(f.kind)} · {formatSize(f.size)}
                         {isFinished(f) && ` · ${formatMs(f.ms)}`}
                         {f.reused && ' · reused'}
                       </span>

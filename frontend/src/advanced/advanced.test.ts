@@ -10,8 +10,10 @@ import {
   elapsedMs,
   pairsOf,
   planCounts,
+  previewNote,
   quantityCount,
   scaleChip,
+  shortHashes,
   stepLines,
   stepStatus,
 } from './advanced';
@@ -83,9 +85,9 @@ describe('advanced.ts', () => {
     const unpack = stepLines(files, traces, 1);
     expect(unpack.map((l) => l.text)).toEqual([
       `Unpack ${trace.file.path} ${must(trace.stages[0]).output}`,
-      `Hash ${trace.file.path} ${must(trace.stages[1]).output}`,
+      `Hash ${trace.file.path} ${must(trace.stages[1]).output.slice(0, 12)}…`, // sha256 cut to 12
       `Unpack b.pdf ${must(trace.stages[0]).output}`,
-      `Hash b.pdf ${must(trace.stages[1]).output}`,
+      `Hash b.pdf ${must(trace.stages[1]).output.slice(0, 12)}…`,
     ]);
     const failed = stepLines(
       [traceSetAside.file],
@@ -124,12 +126,26 @@ describe('advanced.ts', () => {
       second: { method: 'ifc_model', value: 2 },
     };
     const t: Takeoff = { ...takeoff, quantities: [agree, ...takeoff.quantities] };
-    const pairs = pairsOf([t]);
+    const pairs = pairsOf([t], project);
     expect(pairs.map((p) => [p.row.key, p.row.status])).toEqual([
       ['area:room|name=1.01', 'conflict'],
       ['door', 'agree'],
     ]);
-    expect(pairs[0]?.file).toBe(takeoff.file);
+    const own = must(project.files.find((f) => f.drawing_id === takeoff.drawing_id));
+    expect(pairs[0]?.file).toBe(own.path);
+  });
+
+  it("pairsOf names the drawing by THIS project's file, not the shared drawing's first upload", () => {
+    // Drawings are content-addressed: another project uploaded the same file under another path first.
+    const d = must(project.drawings[0]);
+    const t: Takeoff = { ...takeoff, drawing_id: d.drawing_id, file: 'plans/someone-else.pdf' };
+    const p: ProjectView = {
+      ...project,
+      files: project.files.map((f) =>
+        f.drawing_id === d.drawing_id ? { ...f, path: 'drawings/mine.pdf' } : f,
+      ),
+    };
+    expect(pairsOf([t], p).map((x) => x.file)).toEqual(['drawings/mine.pdf']);
   });
 
   it('elapsedMs: done -> project.ms; running -> now - started_at; not started -> null', () => {
@@ -151,5 +167,29 @@ describe('advanced.ts', () => {
     expect(scaleChip({ ...real, status: 'not_to_scale' })).toBe('Not to scale');
     expect(scaleChip({ ...real, text: null, ratio: null })).toBeNull();
     expect(scaleChip(undefined)).toBeNull();
+  });
+
+  it('shortHashes: a sha256 in a trace line reads as its first 12 characters', () => {
+    const sha = 'ca6138f02cfafd870094f2e8ef9a15f39c6c8925025613a0c6465ae21f2e7a20';
+    expect(shortHashes(sha)).toBe('ca6138f02cfa…');
+    expect(shortHashes(`sha256 ${sha}, 2 files`)).toBe('sha256 ca6138f02cfa…, 2 files');
+    expect(shortHashes('5 rooms')).toBe('5 rooms');
+  });
+
+  it('previewNote: null for a kind the backend previews (images, PDFs), else the honest line', () => {
+    const f = must(project.files[0]);
+    for (const kind of [
+      'pdf_vector',
+      'pdf_scan',
+      'pdf_text',
+      'png_plan',
+      'jpeg_plan',
+      'photo_plan',
+      'photo',
+    ] as const)
+      expect(previewNote({ ...f, kind })).toBeNull();
+    expect(previewNote({ ...f, kind: 'ifc' })).toBe('A model: no picture to show');
+    expect(previewNote({ ...f, kind: 'dxf' })).toBe('No preview for a DXF');
+    expect(previewNote({ ...f, kind: null })).toBe('Not identified yet');
   });
 });

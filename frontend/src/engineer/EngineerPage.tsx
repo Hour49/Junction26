@@ -5,7 +5,7 @@ import { Loading } from '../shell/Loading';
 import { AnswerCard, type Turn } from './AnswerCard';
 import { AskBox } from './AskBox';
 import { howRead, SuggestionRow } from './DrawingHeader';
-import { Plan, placeOf } from './Plan';
+import { DrawingNav, Plan, placeOf } from './Plan';
 import './engineer.css';
 
 type Load =
@@ -119,7 +119,10 @@ export function EngineerPage(props: {
               </figure>
             </div>
           ) : (
-            <p className="en-small">Building model: no sheet to draw on.</p>
+            <>
+              <DrawingNav place={place} />
+              <p className="en-small">Building model: no sheet to draw on.</p>
+            </>
           )}
           <p className="en-read">{howRead(drawing)}</p>
         </>
@@ -139,7 +142,10 @@ export function EngineerPage(props: {
           />
         ))}
       </section>
-      <SuggestionRow drawing={drawing} busy={busy} onAsk={ask} />
+      {/* After a refusal its card already offers the questions: show them once (orch 12:20, EN-60). */}
+      {!(last?.status === 'done' && last.answer.refusal) && (
+        <SuggestionRow drawing={drawing} busy={busy} onAsk={ask} />
+      )}
       {turns.length === 0 && <p className="en-empty">Ask a question about this drawing.</p>}
       <AskBox file={drawing.file} busy={busy} asked={turns.length} onAsk={ask} />
     </div>

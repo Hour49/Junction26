@@ -23,7 +23,7 @@ interface Props {
   /** Asks the screen for the drawing (it fetches each drawing once); `retry` asks again after an error. */
   onNeedDrawing: (retry?: boolean) => void;
   /** Sends the edit and reloads the review; rejects with the POST's error. */
-  onEdit: (edit: { action: 'settle'; value: number } | { action: 'reset' }) => Promise<void>;
+  onEdit: (edit: { action: 'settle'; value: number } | { action: 'unsettle' }) => Promise<void>;
 }
 
 type Mode = 'idle' | 'choosing' | 'saving';
@@ -50,6 +50,13 @@ export function ConflictCard({
   const state = cardState(c);
   const signed = c.signed;
   const [mode, setMode] = useState<Mode>(state === 'open' ? 'choosing' : 'idle');
+  // The server's state changed (a reload after an edit): the mode starts over, the open details stay.
+  const serverState = `${String(c.needs_person)} ${String(c.settled?.value)} ${String(c.signed?.at)}`;
+  const [seen, setSeen] = useState(serverState);
+  if (seen !== serverState) {
+    setSeen(serverState);
+    setMode(state === 'open' ? 'choosing' : 'idle');
+  }
   const [error, setError] = useState<unknown>(null);
   const [open, setOpen] = useState(false);
   const values = c.conflict.values;
@@ -84,7 +91,8 @@ export function ConflictCard({
     setError(null);
     try {
       await onEdit(edit);
-      setMode(state === 'open' ? 'choosing' : 'idle');
+      // only if the reload did not already reset the mode (same server state)
+      setMode((m) => (m === 'saving' ? (state === 'open' ? 'choosing' : 'idle') : m));
     } catch (e) {
       setError(e);
       setMode(back);
@@ -98,10 +106,7 @@ export function ConflictCard({
     else void send({ action: 'settle', value: v.value }, 'choosing');
   }
   function useRule() {
-    const ok = window.confirm(
-      `Use the rule's value? This also undoes every other edit and any sign-off of ${c.label} on ${c.file}.`,
-    );
-    if (ok) void send({ action: 'reset' }, 'idle');
+    void send({ action: 'unsettle' }, 'idle'); // drops the settled value only (no confirm: nothing else is lost)
   }
 
   const action =

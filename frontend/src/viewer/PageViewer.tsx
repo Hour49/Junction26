@@ -153,11 +153,18 @@ export function PageViewer({
   const unlocatedLines = Object.entries(unlocated ?? {}).filter(([, k]) => k > 0);
   const chosen = onPage.find((m) => m.id === selected) ?? onPage.find((m) => m.id === highlighted);
   const note = normalisedNote(page.normalised);
+  // #121's page fields are missing on an older backend: read them as optional (VW-59).
+  const facts: {
+    scale?: PageView['scale'] | null;
+    scale_text?: string | null;
+    storey?: string | null;
+  } = page;
   // A scale that was not read off the sheet says so: "1:100 (estimated)", "not to scale" (VW-59).
-  const scaleWords = page.scale.status === 'scaled' ? '' : page.scale.status.replace(/_/g, ' ');
+  const status = facts.scale?.status;
+  const scaleWords = !status || status === 'scaled' ? '' : status.replace(/_/g, ' ');
   const scale =
-    page.scale_text && scaleWords ? `${page.scale_text} (${scaleWords})` : page.scale_text;
-  const pageMeta = [page.storey, scale ?? scaleWords].filter((t): t is string => !!t);
+    facts.scale_text && scaleWords ? `${facts.scale_text} (${scaleWords})` : facts.scale_text;
+  const pageMeta = [facts.storey, scale || scaleWords].filter((t): t is string => !!t);
   const classes = onPage.length > 0 ? (legend ?? []).filter((e) => e.count > 0) : [];
   const reasons = new Set(onPage.filter((m) => m.state === 'excluded').map((m) => m.reason));
   const [oneReason] = reasons.size === 1 ? [...reasons] : [];
