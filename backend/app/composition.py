@@ -187,7 +187,8 @@ class Pipeline:
     # GATE_POLICY: family -> the confidence at or above which an answer is sure; None: ungated
     sure_at: Mapping[str, float] | None = None
     # What Carbon read of the raster route's drawing of a file (by path): "elements" when
-    # CARBON_READER sent it there (the same yes/no its switch uses), "part" when a composite takes
+    # CARBON_READER sent it there (the same yes/no its switch uses, or CarbonThings' record of the
+    # pages it sent for few things found, so asked after reading), "part" when a composite takes
     # a part from the `carbon` source; ingest flags those drawings. None: no file is
     carbon_read: Callable[[str], CarbonRead | None] | None = None
     # How ingest read a file's page, by path (judge.reading_flags: a scan, a photo, Carbon): no
@@ -239,12 +240,13 @@ def build_pipeline(
     scans = ScanImages(files)  # what the raster side reads: a scanned PDF as its page's image
     kind_of = kinds or _probed_kinds(settings, files)
     use_carbon = _carbon_read(settings, advanced, scans)
+    took: set[str] = set()  # CARBON_READER=large: the files read by Carbon for few things found
     models = IfcModels(files)
     # A sheet is paired with its building model only when the model route can read it.
     with_models = settings.extractor_bim == "ifc"
     # One Decisions reader for the count swap and the confidence, made only when one is used.
     decisions = cache(lambda: decisions_reader(settings))
-    carbon_read = _carbon_counted(settings, use_carbon, kind_of)
+    carbon_read = _carbon_counted(settings, _or_took(use_carbon, took), kind_of)
     return Pipeline(
         files=files,
         finder=DatasetSheetModels(dataset) if with_models else HelloSourceFinder(),
@@ -260,7 +262,9 @@ def build_pipeline(
             # schedule checks noted) as on the vector route.
             "raster": _tables(
                 settings.tables,
-                _printed(settings, _raster(settings, scans, decisions, kind_of, use_carbon), scans),
+                _printed(
+                    settings, _raster(settings, scans, decisions, kind_of, use_carbon, took), scans
+                ),
                 files,
             ),
         },
@@ -280,6 +284,16 @@ def build_pipeline(
         carbon_read=carbon_read,
         flags=partial(_page_flags, kind_of=kind_of, carbon_read=carbon_read),
     )
+
+
+def _or_took(
+    use_carbon: Callable[[str], bool] | None, took: set[str]
+) -> Callable[[str], bool] | None:
+    """Whether Carbon counted a file's things: `use_carbon` said so, or CarbonThings sent it there
+    after the shipped reader found few (asked after the file is read, as ingest does)."""
+    if use_carbon is None:
+        return None
+    return lambda path: use_carbon(path) or path in took
 
 
 def _page_flags(
@@ -338,6 +352,10 @@ def _carbon_part(spec: str) -> bool:
 # CARBON_READER=large: on a raster image longer than this on its long side Carbon counts the things
 # drawn (the sheet-kind step's size rule, #251); below it the shipped reader stays (CubiCasa pages)
 LARGE_PX = ADVANCED_LONG_SIDE
+# ... and on a smaller raster page where the shipped reader found fewer elements than this (a scan
+# or photo the detector cannot read; confidence, carbon-reader.md 5.8-5.9: K = 3 moves no CubiCasa
+# page of val or golden dev, K = 10 would)
+FEW_THINGS = 3
 
 
 def _carbon_read(
@@ -345,7 +363,8 @@ def _carbon_read(
 ) -> Callable[[str], bool] | None:
     """CARBON_READER's choice of the files Carbon reads alone, by path: all of them, the ones the
     sheet-kind step called advanced (a file without that record: not), the images longer than
-    LARGE_PX (their PNG or JPEG header's size; a PDF or another format: not), or none (None)."""
+    LARGE_PX (their PNG or JPEG header's size; a PDF or another format: not; CarbonThings also
+    sends a page where the shipped reader found few things), or none (None)."""
     match settings.carbon_reader:
         case "off":
             return None
@@ -512,6 +531,7 @@ class Answering:
     disputes: Disputes = no_disputes  # where a double-check request points
     scorers: Mapping[str, Scorer] = NO_SCORERS  # LOCAL_GATES, by signal name (lower case)
     resolver: Resolver | None = None  # RESOLVER; None: off
+    carbon_ladder: bool = False  # CARBON_LEVELS=ladder: a Medium answer Carbon reads alike is High
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -540,6 +560,7 @@ def build_answering(settings: Settings) -> Answering:
         disputes=find_disputes,
         scorers=scorers,
         resolver=_resolver(settings),
+        carbon_ladder=settings.carbon_levels == "ladder",
     )
 
 
@@ -691,9 +712,15 @@ def build_ingest(
         names["raster_tiles"] = settings.raster_tiles
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
-        names["carbon_reader"] = f"{settings.carbon_reader}:{READER_SHA[:12]}"
-    if settings.carbon_levels != "off":  # the same
-        names["carbon_levels"] = f"{settings.carbon_levels}:{READER_SHA[:12]}"
+        rule = (
+            f"large+few{FEW_THINGS}"
+            if settings.carbon_reader == "large"
+            else settings.carbon_reader
+        )
+        names["carbon_reader"] = f"{rule}:{READER_SHA[:12]}"
+    if settings.carbon_levels != "off":  # the same; demote and ladder store the same reading
+        # (ladder acts only when answering), so they share one name and a switch reads nothing again
+        names["carbon_levels"] = f"demote:{READER_SHA[:12]}"
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -743,6 +770,7 @@ def _raster(
     decisions: Callable[[], G1MainReader],
     kind_of: Callable[[str], str | None],
     use_carbon: Callable[[str], bool] | None = None,
+    took: set[str] | None = None,
 ) -> Extractor:
     photo = settings.raster_photo_components
     match settings.extractor_raster:
@@ -777,10 +805,10 @@ def _raster(
                 )
             read = shipped
             if use_carbon is not None and settings.carbon_reader == "large":  # things drawn
-                read = CarbonThings(shipped, _carbon(settings, files), use_carbon)
+                read = CarbonThings(shipped, _carbon(settings, files), use_carbon, FEW_THINGS, took)
             elif use_carbon is not None:
                 read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
-            if settings.carbon_levels == "demote":  # Carbon reading on its own, as integ's test
+            if settings.carbon_levels != "off":  # Carbon reading on its own, as integ's test
                 return CarbonChecked(read, _carbon(settings, files, policy))
             return read
 
