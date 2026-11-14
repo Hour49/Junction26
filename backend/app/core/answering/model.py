@@ -150,6 +150,8 @@ SEVERAL_FLOORS = "a floor several of the drawing's storeys could be"
 # A floor several plans of the drawing are labelled ("1st Floor Plan - Option 1/2/3"): never their
 # sum (review-352 B2); review/ask.py gives each plan's count
 SHARED_FLOOR = "a floor several plans of the drawing are labelled"
+# "level-1" asked, or a storey printed "LEVEL-1": level 1 or level -1 (review-352 N5)
+GLUED_FLOOR = "a floor written with a hyphen that may be a minus"
 # A supported kind of question whose room or element was not recognised (review/ask.py words it)
 NO_SUBJECT = "no element, room or apartment named"
 

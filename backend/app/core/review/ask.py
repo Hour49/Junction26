@@ -21,8 +21,16 @@ from app.core.answering.answer import (
     printed_rooms,
     rooms_of_type,
 )
-from app.core.answering.floors import FLOOR, FLOOR_AT, floor_number, floor_of
+from app.core.answering.floors import (
+    FLOOR,
+    FLOOR_AT,
+    floor_number,
+    floor_of,
+    glued,
+    glued_floors,
+)
 from app.core.answering.model import (
+    GLUED_FLOOR,
     IN_ONE_ROOM,
     NO_SUBJECT,
     NO_SUCH_FLOOR,
@@ -515,7 +523,7 @@ def suggestions(
     return tuple(found)
 
 
-FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR)
+FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR)
 
 
 def _floor_text(
@@ -533,6 +541,20 @@ def _floor_text(
     asked = "floor" if found is None else found.group().casefold()
     number = None if found is None else floor_number(found)
     named = storeys(drawing)
+    if reason == GLUED_FLOOR and found is not None and number is not None:
+        n = abs(number)
+        if glued(found):
+            word = found.group().split("-")[0]
+            return (
+                f'"{found.group()}" could be {word} {n} or {word} -{n} (below ground), so I can\'t '
+                f'tell which is meant. Ask for "{word} {n}" or "{word} -{n}".'
+            )
+        same = [storey for storey in named if number in glued_floors(storey)]
+        return (
+            f"This drawing's storey {same[0]} could be floor {n} or floor -{n} (below ground), so "
+            f"I can't tell if it is the {asked}. Ask with the storey's name in quotes, as in "
+            f"\"How many doors are on '{same[0]}'?\""
+        )
     if reason == SEVERAL_FLOORS:
         same = [storey for storey in named if floor_of(storey) == number]
         return (

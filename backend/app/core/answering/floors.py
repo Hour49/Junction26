@@ -13,8 +13,9 @@ ORDINALS = {
 _LEVEL = r"(?:floor|storey|story|level)"
 FLOOR = re.compile(
     rf"\b(?:(?P<word>{'|'.join(ORDINALS)})|(?P<nth>\d+)(?:st|nd|rd|th)\.?)[ -]+{_LEVEL}\b"
-    # the sign stays: "Level -1" is a basement, not floor 1 (review-352 B1)
-    rf"|\b{_LEVEL}\s*(?P<num>-?\d+)\b(?![.,]\d)",
+    # the sign stays: "Level -1" is a basement, not floor 1 (review-352 B1); a hyphen glued
+    # between the word and the number ("LEVEL-1") may be either, so it names no floor (N5)
+    rf"|\b{_LEVEL}(?:(?P<glued>-)|\s*)(?P<num>(?:(?<=\s)-|\u2212)?\d+)\b(?![.,]\d)",
     re.IGNORECASE,
 )
 # the floor with the words that put a question on it ("on the second floor")
@@ -36,13 +37,24 @@ PART = re.compile(
 def floor_number(match: re.Match[str]) -> int:
     if word := match.group("word"):
         return ORDINALS[word.casefold()]
-    return int(match.group("nth") or match.group("num"))
+    return int((match.group("nth") or match.group("num")).replace("\u2212", "-"))
+
+
+def glued(match: re.Match[str]) -> bool:
+    """ "LEVEL-1": level 1 or level -1, the text can't tell (review-352 N5)."""
+    return match.group("glued") is not None
+
+
+def glued_floors(text: str | None) -> set[int]:
+    """Both readings of each glued floor in `text` ("LEVEL-1": 1 and -1)."""
+    found = (floor_number(match) for match in FLOOR.finditer(text or "") if glued(match))
+    return {sign * number for number in found for sign in (1, -1)}
 
 
 def floor_of(text: str | None) -> int | None:
     """The floor number a storey name names, None when it names none, or several (two numbers,
     a list or a range: SEVERAL)."""
-    if SEVERAL.search(text or ""):
+    if SEVERAL.search(text or "") or glued_floors(text):
         return None
     found = {floor_number(match) for match in FLOOR.finditer(text or "")}
     return found.pop() if len(found) == 1 else None
