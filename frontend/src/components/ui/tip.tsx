@@ -19,13 +19,26 @@ interface TipProps {
   className?: string;
 }
 
+/** What a tap activates: a tap on one of these (enabled) is its action, not a request for the tip. */
+const CONTROL =
+  'button, a[href], input, select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="option"]';
+
+function onControl(target: EventTarget) {
+  const hit = target instanceof Element ? target.closest(CONTROL) : null;
+  return hit !== null && !hit.matches(':disabled, [aria-disabled="true"]');
+}
+
 /**
- * One hover explanation for any control. Shows on hover, keyboard focus and tap; Escape closes it. Radix adds
- * `role="tooltip"` and `aria-describedby`, and moves the box away from the screen edges.
+ * One hover explanation for any control. Shows on hover, keyboard focus and a tap on a label, number or locked
+ * control; Escape or the next tap closes it. A tap on a working control (a link, an enabled button) does what it
+ * does and shows no tip. Radix adds `role="tooltip"` and `aria-describedby`, and moves the box away from the
+ * screen edges.
  */
 export function Tip({ text, children, wrap = false, side = 'bottom', className }: TipProps) {
   const [open, setOpen] = React.useState(false);
-  // On touch there is no hover: a tap toggles the tip. Radix would close it again on the same tap.
+  // On touch there is no hover: the tap's click alone decides. From the touch's pointerdown, Radix's own changes
+  // are ignored: the focus a tap gives would open the tip (on a link too), and Radix's click handler, which runs
+  // after ours, would close it again. A tap that opened the tip keeps ignoring them until the next pointer down.
   const touch = React.useRef(false);
   const triggerEl = React.useRef<HTMLButtonElement>(null);
 
@@ -61,7 +74,7 @@ export function Tip({ text, children, wrap = false, side = 'bottom', className }
       <Tooltip
         open={open}
         onOpenChange={(next) => {
-          if (!next && touch.current) return;
+          if (touch.current) return;
           setOpen(next);
         }}
       >
@@ -71,11 +84,14 @@ export function Tip({ text, children, wrap = false, side = 'bottom', className }
           onPointerDown={(e) => {
             touch.current = e.pointerType === 'touch';
           }}
-          onClick={() => {
-            if (touch.current) {
-              touch.current = false;
-              setOpen((o) => !o);
-            }
+          onPointerCancel={() => {
+            touch.current = false; // the touch became a scroll: no click will come
+          }}
+          onClick={(e) => {
+            if (!touch.current) return;
+            const show = !open && !onControl(e.target);
+            setOpen(show);
+            if (!show) touch.current = false;
           }}
         >
           {trigger}

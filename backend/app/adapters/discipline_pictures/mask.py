@@ -11,6 +11,7 @@ L = (P/2 + sqrt(P²/4 - 4A)) / 2.
 """
 
 import math
+import re
 
 import cv2
 import numpy as np
@@ -39,6 +40,7 @@ COLOURFUL = 60  # max - min channel: a pixel with a colour, not black or grey
 SAME_COLOUR = 50  # per channel: a pixel drawn in the legend line's colour
 ELONGATED = 4.0  # a run is at least this many times longer than wide (text, blobs are not)
 PAD = 2  # pixels around a legend box
+SIZE = re.compile(r"\b(?:DN|NS|NW)\s?\d+\b|Ø\s?\d+(?:\s?mm)?", re.I)  # a size as printed
 
 
 class MaskReader:
@@ -95,7 +97,9 @@ def read_runs(rgb: np.ndarray, legend: tuple[LegendEntry, ...], m_per_px: float)
         runs += [
             Run(
                 label=entry.label,
-                size=None,  # shortcut: sizes printed along a run come from the VLM tiles later
+                # the size the legend line names; shortcut: sizes printed along a run need the
+                # VLM tiles (spec, Method 1)
+                size=size_of(entry.label),
                 length_m=length * m_per_px,
                 spots=(Spot(page=1, box=page_box(*box, width, height), reader=READER),),
             )
@@ -108,6 +112,12 @@ def read_runs(rgb: np.ndarray, legend: tuple[LegendEntry, ...], m_per_px: float)
         runs=tuple(runs),
         notes=tuple(notes),
     )
+
+
+def size_of(label: str) -> str | None:
+    """The pipe or duct size a legend label prints ("Heating pipe DN20" -> "DN20"), or None."""
+    found = SIZE.search(label)
+    return None if found is None else found[0].replace(" ", "")
 
 
 def _mask(rgb: np.ndarray, colour: np.ndarray) -> np.ndarray:

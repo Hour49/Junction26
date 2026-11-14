@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 from conftest import MakeService
+from PIL import Image
 from test_vector_pdf import swiss_sheet
 
 from app.adapters.archive import ThreadRunner
@@ -262,3 +263,25 @@ def test_a_dxf_with_no_reader_does_not_take_its_plan_away_from_the_vector_reader
     assert (files["a/p.pdf"].state, files["a/p.pdf"].route) == ("ready", "vector")
     assert (files["a/p.dxf"].state, files["a/p.dxf"].route) == ("ready", "vector")
     assert files["a/p.dxf"].reason == "another rendering of a/p; its drawing is read from a/p.pdf"
+
+
+def test_a_png_and_a_tiff_of_one_name_are_both_read_and_none_stays_queued(
+    make_service: MakeService,
+) -> None:
+    scan = png_bytes(raster_plan())
+    tiff = io.BytesIO()
+    page = Image.open(io.BytesIO(scan)).convert("L")
+    page.save(tiff, "TIFF", save_all=True, append_images=[page.copy()])
+    ingest = make_service()
+    status = ingest.status(
+        ingest.start(
+            "a.zip",
+            zipped(
+                {"plan.png": scan, "plan.tif": tiff.getvalue(), "x.png": scan, "dir/x.png": scan}
+            ),
+        )
+    )
+    paths = sorted(file.path for file in status.files)
+    assert paths == ["dir/x.png", "plan#p2.png", "plan-2.png", "plan.png", "x.png"]
+    assert all(file.state not in ("queued", "reading") for file in status.files)
+    assert all(file.drawing_id is not None or file.state == "set_aside" for file in status.files)
