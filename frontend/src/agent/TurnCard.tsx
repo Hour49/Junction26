@@ -1,6 +1,6 @@
 import { useState, type MouseEvent } from 'react';
 import type { ProjectView } from '../api';
-import { ChatAnswer } from '../engineer/ChatAnswer';
+import { ChatAnswer, RefusedLine } from '../engineer/ChatAnswer';
 import { routeHref } from '../shell/route';
 import {
   blocksOf,
@@ -201,6 +201,9 @@ export function TurnCard(props: {
   // The ask chat's card for each answer some drawing answered. Its References number drawings, so the Sources list
   // stays: the text's [n] number the marks (Tudor's smoke 3).
   const answers = turn.answers.filter((a) => a.parts.some((p) => p.answer.refusal === null));
+  // K7: an answer no drawing answered has no card; its drawings are still named with what each lacks (the card
+  // names the refused ones of the answers above)
+  const refused = turn.answers.filter((a) => !answers.includes(a));
   const headline = HEADLINE[turn.kind];
   const options = turn.options ?? [];
   // Tudor's smoke (1): an edit's sources are its change: Show it and [n] show the card's own After plan.
@@ -221,6 +224,9 @@ export function TurnCard(props: {
       <Text turn={turn} projectId={projectId} pack={pack} onShow={onShow} />
       {answers.map((a, i) => (
         <ChatAnswer key={i} ask={a} project={project} projectId={projectId} pack={pack} />
+      ))}
+      {refused.map((a, i) => (
+        <RefusedLine key={i} parts={a.parts} project={project} />
       ))}
       {turn.kind !== 'needs_input' && options.length > 0 && (
         <p className="en-small">{OPTIONS_LABEL}</p>
