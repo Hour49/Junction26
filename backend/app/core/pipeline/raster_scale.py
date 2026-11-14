@@ -60,7 +60,7 @@ def estimate_scale(sides: Sequence[float]) -> Scale | None:
     return Scale(
         status="estimated",
         m_per_unit=DOOR_M / statistics.median(sides),
-        source=f"door-leaf prior: a door is {DOOR_M} m, median of {len(sides)} detected doors",
+        source=f"a door is about {DOOR_M} m wide; median of {len(sides)} detected doors",
         uncertainty=SPREAD_FEW if len(sides) < FEW_DOORS else SPREAD_MANY,
     )
 

@@ -88,7 +88,7 @@ def test_the_wrapper_estimates_only_a_missing_scale_and_only_when_doors_were_rea
     assert found.scale.status == "estimated"
     assert found.scale.m_per_unit == pytest.approx(DOOR_M / 8)
     assert found.rooms[0].area_status == "estimated"
-    assert found.notes[-1].startswith("scale estimate: door-leaf prior")
+    assert found.notes[-1].startswith("scale estimate: a door is about 0.794 m wide")
 
     no_doors = PriorScale(Fake(rooms=[living], read=["room"])).extract(FILE, SHEET)
     assert no_doors.scale.status == "no_scale"
@@ -152,7 +152,12 @@ def test_an_area_question_is_answered_as_an_estimate_only_when_the_setting_is_on
     assert on.answer == pytest.approx(round(20 * 15 * side**2 / BOX_RATIO, 2), abs=0.01)
     assert on.estimate is True
     assert on.explanation is not None
-    assert "estimated" in on.explanation and "uncertainty" in on.explanation
+    # plain words and a percentage, the same sentence as the card's Estimate line
+    assert on.explanation == (
+        "the room's area is measured on an estimated scale (a door is about 0.794 m wide; "
+        "median of 2 detected doors), which may be off by about ±16%; "
+        "the area may be off by about ±40%"
+    )
 
 
 def test_priors_with_a_scale_part_is_refused_at_startup(

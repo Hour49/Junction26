@@ -487,32 +487,55 @@ def _reads(key: str) -> set[str]:
 
 
 def rooms_estimate(rooms: Sequence[Room], scale: str | None) -> str | None:
-    """What a sum of room areas rests on, when that is an estimate: the rooms whose own area is
-    estimated (and the sheet's estimated scale an outline was measured at); else the sheet's
-    estimated scale, unless every room's area is printed (exact)."""
+    """What a sum of room areas rests on, in words a user reads, when that is an estimate: the
+    rooms whose own area is estimated, how, and how far off it may be; else the sheet's estimated
+    scale (`scale`, from scale_estimate), unless every room's area is printed (exact)."""
     estimated = [room for room in rooms if room.area_status == "estimated"]
     if estimated:
-        how = sorted({room.area_source or "an unnamed method" for room in estimated})
-        spread = max((room.area_uncertainty or 0.0 for room in estimated), default=0.0)
-        worst = f", uncertainty up to {spread:g}" if spread else ""
-        at = f", at {scale}" if scale and "geometry_x_estimate" in how else ""
-        return (
-            f"{len(estimated)} of {len(rooms)} room areas estimated ({', '.join(how)}{worst}){at}"
+        n, total = len(estimated), len(rooms)
+        if n == total == 1:
+            subject = "the room's area is"
+        elif n == total:
+            subject = f"the {n} rooms' areas are"
+        else:
+            subject = f"{n} of {total} room areas {'is' if n == 1 else 'are'}"
+        how = " or ".join(
+            sorted({_AREA_HOW.get(room.area_source or "", "estimated") for room in estimated})
         )
+        if scale and "geometry_x_estimate" in {room.area_source for room in estimated}:
+            how = how.replace(_AREA_HOW["geometry_x_estimate"], scale)
+        spread = max((room.area_uncertainty or 0.0 for room in estimated), default=0.0)
+        which = "the area" if n == 1 else "each area"
+        band = f"; {which} may be off by about ±{_percent(spread)}" if spread else ""
+        return f"{subject} {how}{band}"
     if rooms and all(room.area_status == "exact" for room in rooms):
         return None
     return scale
 
 
+# How an estimated room area was measured, in words (extraction_v1 `area_source`)
+_AREA_HOW = {
+    "geometry_x_estimate": "measured on an estimated scale",
+    "geometry_x_scale": "measured from its outline at the sheet's scale",
+}
+
+
+def _percent(spread: float) -> str:
+    return f"{round(100 * spread)}%"
+
+
 def scale_estimate(scale: Scale) -> str | None:
-    """What an area or length on a sheet with this scale rests on, when that is an estimate."""
+    """What an area or length on a sheet with this scale rests on, in words a user reads, when
+    that is an estimate."""
     match scale.status:
         case "estimated":
             how = f" ({scale.source})" if scale.source else ""
-            spread = f", uncertainty {scale.uncertainty:g}" if scale.uncertainty else ""
-            return f"an estimated scale{how}{spread}"
+            band = ""
+            if scale.uncertainty:
+                band = f", which may be off by about ±{_percent(scale.uncertainty)}"
+            return f"measured on an estimated scale{how}{band}"
         case "not_to_scale":
-            return "a sheet marked not to scale, so its scale is a guess"
+            return "measured on a sheet marked not to scale, so its scale is a guess"
         case _:
             return None
 
