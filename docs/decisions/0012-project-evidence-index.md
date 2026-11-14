@@ -233,6 +233,7 @@ hard sheets.
   evacuation map that the kind call names "another kind of drawing" with no floor plan on the sheet, 0.65); no
   file's state, kind, route, group, source or takeoff differs, but every drawing id does, because the scope is
   part of the ingest cache key; still 92 of 100; 0.009 USD per file on average, at most 0.053. Lines 1 and 2
-  fail.
+  fail. The scope was then taken out of the cache key (the step reads no drawing) and line 3 alone was run again
+  (head bc25177, warm caches, 0 USD): no difference in any of the 42 files, drawing ids included.
 - Revisit when: a render exists for DXF and DWG; a project's elevations sit on the same sheet as its plan; the
   describer's price or speed changes.
