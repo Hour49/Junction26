@@ -2055,6 +2055,17 @@
             ],
             "title": "Drawing Id"
           },
+          "drawing_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing Name"
+          },
           "file": {
             "title": "File",
             "type": "string"
