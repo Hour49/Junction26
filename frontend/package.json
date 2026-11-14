@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "playwright test",
+    "e2e": "npm run build && playwright test",
     "api:gen": "node scripts/api-schema.mjs",
     "api:check": "node scripts/api-schema.mjs --check"
   },

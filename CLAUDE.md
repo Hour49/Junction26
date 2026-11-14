@@ -123,10 +123,16 @@ dated where it can go stale.
 - **What it is:** `<the product in one sentence: for whom, which challenge or track>`
 - **Layout:** `backend/` (Python 3.13, FastAPI; owner `<name>`): `app/api` routers, `app/core` pure logic,
   `app/adapters` outside services and fakes, `app/settings.py` the only env reader, `app/main.py` `create_app()`
-  (checked 2026-11-13). Frontend: `<not picked>`.
+  (checked 2026-11-13). `frontend/` (React + Vite + TS, Node 24; owner Tudor): `src/api` client and generated
+  types, `src/shell`, `src/viewer`, `src/ingest`, `src/engineer`, `src/surveyor`, `e2e/`; specs in
+  `docs/specs/frontend/` (checked 2026-11-14).
 - **Commands that work** (in `backend/`, checked 2026-11-13): setup `uv sync --locked`; run
   `uv run uvicorn app.main:create_app --factory --reload`; check `./check.sh` (`./check.sh quick` before a commit);
   one test file `uv run pytest -q tests/test_health.py`. Offline mode: `<with the first adapter>`.
+- **Frontend commands** (in `frontend/`, checked 2026-11-14; guide `frontend/README.md`): `npm ci`; dev `npm run dev`
+  (5173) or `npm run build && npm run preview` (4173), both proxy `/api` to `BACKEND_URL` (default
+  `http://127.0.0.1:8000`); check `./check.sh` (`quick` before a commit); e2e `npm run e2e` (starts its own no-keys
+  backend on 8010; screenshots in `frontend/screenshots/`); types `npm run api:gen` after any response-model change.
 - **Pipeline** (in `backend/`, checked 2026-11-13; record `docs/decisions/0005-pipeline-core.md`, guide
   `backend/README.md`): ports and adapters; `app/core` declares ports as Protocols and imports no adapter, settings
   or PDF/image library (`tests/test_architecture.py`); only `app/composition.py` picks adapters, by setting
@@ -142,6 +148,9 @@ dated where it can go stale.
   adapter calls the model">`
 - **Gotchas:** one line each, newest first: `<date>: <what bit us> → <the fix or rule>`. Add one every time
   something costs time.
+  - 2026-11-14: npm 10 (Node 22) crashes installing Vite 8 (`edgesOut`) → Node 24 / npm 11 only.
+  - 2026-11-14: a PR that adds or changes `docs/api/openapi-v1.json` or a response model turns the frontend CI red
+    → run `cd frontend && npm run api:gen` and commit `src/api/schema.d.ts` in the same PR.
 
 Current work (update on each merge):
 

@@ -54,7 +54,7 @@ service-down test (GP-20) stays.
 - `frontend/playwright.config.ts`: two projects (`desktop`, `phone`), the two web servers, output folders.
 - `frontend/package.json`: only the `e2e` script and the `@playwright/test` dev dependency (the scaffold owns the
   rest of the file).
-- `frontend/.gitignore`: the lines `e2e/screenshots/`, `test-results/`, `playwright-report/`.
+- `frontend/.gitignore`: nothing: the root `.gitignore` has `frontend/screenshots/`, `frontend/test-results/`, `frontend/playwright-report/`.
 - `.github/workflows/ci.yml`: the new `e2e` job (nothing else in the file changes).
 
 ## User flow
@@ -137,7 +137,7 @@ run one after another, and each starts with `startSample`, so no file sees anoth
 A fresh temp `PROJECTS_DIR` per run, plus `fresh=true` on the sample button, means each run starts with no edits and
 no sign-offs, whatever ran before.
 
-Screenshots: `shot(page, name)` saves `frontend/e2e/screenshots/<project>/<NN>-<name>.png` (viewport size, not
+Screenshots: `shot(page, name)` saves `frontend/screenshots/<project>/<NN>-<name>.png` (viewport size, not
 full page: what the judge sees), after checking the offline text and that the page does not scroll sideways
 (`document.documentElement.scrollWidth <= window.innerWidth`). Ten per project:
 
@@ -187,7 +187,7 @@ the jobs above; `upload-artifact` pinned the same way, its SHA looked up by the 
         with:
           name: golden-path-screenshots
           path: |
-            frontend/e2e/screenshots/
+            frontend/screenshots/
             frontend/playwright-report/
           retention-days: 7
 ```
@@ -278,7 +278,7 @@ The path
 
 Evidence and checks on every screen
 
-- GP-16 Ten screenshots per project are written to `frontend/e2e/screenshots/{desktop,phone}/01-home.png` …
+- GP-16 Ten screenshots per project are written to `frontend/screenshots/{desktop,phone}/01-home.png` …
   `10-verified.png`, at the project's viewport size. [e2e]
 - GP-17 At each of those screenshots `document.documentElement.scrollWidth <= window.innerWidth` holds (no
   horizontal scroll; covers EN-45 and IN-47 on the path). [e2e]

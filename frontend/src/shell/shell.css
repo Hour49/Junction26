@@ -1,0 +1,168 @@
+/* Tokens from the mock (demo/style.css); every screen's CSS may use them. */
+:root {
+  --paper: #f4f1ea;
+  --panel: #fffdf8;
+  --ink: #1b2230;
+  --mute: #667085;
+  --line: #d8d2c4;
+  --line-soft: #e8e3d7;
+  --accent: #c8402a;
+  --accent-soft: #f6ddd6;
+  --ok: #2c7a4b;
+  --ok-soft: #dcefe2;
+  --warn: #a8690f;
+  --warn-soft: #f7e7c6;
+  --blue: #24588f;
+  --blue-soft: #dbe7f3;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 14px/1.45 var(--sans);
+  overflow-x: hidden;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 56px;
+  padding: 0 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.view-links {
+  display: flex;
+  gap: 4px;
+  margin: 0 auto;
+}
+.view-links a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.view-links a.current {
+  font-weight: 700;
+  border-bottom-color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+.info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  min-height: 32px;
+  padding: 4px 16px;
+  font-size: 13px;
+  background: var(--warn-soft);
+  border-bottom: 1px solid var(--line);
+}
+.info-bar .offline {
+  font-weight: 600;
+}
+.info-bar-error {
+  background: var(--accent-soft);
+}
+.what-runs {
+  margin-left: auto;
+}
+.what-runs summary {
+  cursor: pointer;
+}
+.what-runs dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 16px;
+  margin: 6px 0 2px;
+}
+.what-runs dl div {
+  display: contents;
+}
+.what-runs dd {
+  margin: 0;
+  font-family: var(--mono);
+}
+
+main {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px;
+  outline: none;
+}
+.loading {
+  color: var(--mute);
+}
+.error-view,
+.not-found {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+.not-found {
+  border-color: var(--line);
+}
+.error-code {
+  font-family: var(--mono);
+  color: var(--mute);
+}
+.credit {
+  font-size: 12px;
+  color: var(--mute);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 8px 16px 0;
+  }
+  .brand {
+    width: 100%;
+    padding-bottom: 8px;
+  }
+  .view-links {
+    width: 100%;
+    margin: 0;
+  }
+  .view-links a {
+    flex: 1;
+    justify-content: center;
+  }
+  .what-runs {
+    margin-left: 0;
+    width: 100%;
+  }
+}
