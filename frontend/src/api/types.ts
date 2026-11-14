@@ -10,6 +10,7 @@ export type ProjectSummary = Schemas['ProjectSummary'];
 export type ProjectView = Schemas['ProjectView'];
 export type FileStatus = Schemas['FileStatus'];
 export type Model3d = Schemas['Model3d'];
+export type Highlight = Schemas['Highlight'];
 export type DrawingEntry = Schemas['DrawingEntry'];
 export type Rendering = Schemas['Rendering'];
 export type FileTrace = Schemas['FileTrace'];

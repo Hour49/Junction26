@@ -15,9 +15,10 @@ from pydantic import Field, StringConstraints
 
 from app.adapters.agent_tools import project_toolbox
 from app.adapters.chat_store import JsonChatStore
+from app.adapters.ifc_model.glb import GlbModels
 from app.api.checks import RulePacksDep, find_pack
-from app.api.deps import IngestDep, ProjectId, SettingsDep
-from app.api.project_ask import ProjectAnswer
+from app.api.deps import IngestDep, Models3dDep, ProjectId, SettingsDep
+from app.api.project_ask import ProjectAnswer, with_models_3d
 from app.api.views import View, drawings_of
 from app.composition import chat_caps, chat_model, spend_guard
 from app.core.agent import model
@@ -77,8 +78,9 @@ def chat(
     settings: SettingsDep,
     chats: ChatsDep,
     packs: RulePacksDep,
+    models_3d: Models3dDep,
 ) -> ChatTurn:
-    run, _ = _turn_runner(project_id, body, request, ingest, settings, chats, packs)
+    run, _ = _turn_runner(project_id, body, request, ingest, settings, chats, packs, models_3d)
     return run(lambda kind, data: None)
 
 
@@ -102,10 +104,11 @@ def chat_stream(
     settings: SettingsDep,
     chats: ChatsDep,
     packs: RulePacksDep,
+    models_3d: Models3dDep,
 ) -> StreamingResponse:
     """One turn as a step stream (.agents/chat/contract.md C). Errors known before the turn are
     plain HTTP, as on POST .../chat; the turn runs to its end even when the client goes away."""
-    run, first = _turn_runner(project_id, body, request, ingest, settings, chats, packs)
+    run, first = _turn_runner(project_id, body, request, ingest, settings, chats, packs, models_3d)
     events: queue.Queue[Event | None] = queue.Queue()
     sent: list[str] = []
 
@@ -154,6 +157,7 @@ def _turn_runner(
     settings: Any,
     chats: JsonChatStore,
     packs: tuple[RulePack, ...],
+    models_3d: GlbModels | None,
 ) -> tuple[Callable[[Callable[[str, Any], None]], ChatTurn], dict[str, Any]]:
     """Checks what can be refused before a turn (422, 503, 404, 409) and takes the chat's lock;
     gives the function that runs the turn with an event sink, stores it and releases the lock,
@@ -184,7 +188,10 @@ def _turn_runner(
             turn = run_turn(current, body.message, body.selection, model, tools, caps, guard,
                             names=names, context=context, emit=emit)  # fmt: skip
             chats.put(project_id, current)
-            return ChatTurn.model_validate(turn.model_dump(mode="json"))
+            shown = ChatTurn.model_validate(turn.model_dump(mode="json"))
+            # MODEL_3D: the views' state is put on at response time only, never kept with the chat
+            answers = tuple(with_models_3d(answer, status, models_3d) for answer in shown.answers)
+            return shown.model_copy(update={"answers": answers})
         finally:
             lock.release()
 

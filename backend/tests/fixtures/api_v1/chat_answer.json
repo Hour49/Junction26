@@ -259,7 +259,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f1"
         },
         {
           "drawing_id": "44cc9f0d991eafe3",
@@ -465,7 +466,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f3"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -577,7 +579,19 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f8",
+          "model_file_id": "f8",
+          "highlight": [
+            {
+              "global_id": "000000000000000000000K",
+              "role": "affected"
+            },
+            {
+              "global_id": "000000000000000000000M",
+              "role": "affected"
+            }
+          ]
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -661,7 +675,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f4"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -745,7 +760,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f6"
         }
       ],
       "total": null,
