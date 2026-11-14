@@ -540,8 +540,7 @@ elements, which it does not do yet.
 
 **Status of this section: draft, first written 2026-11-14 about 12:30 and extended the same day with the work after
 12:08 (14.7 to 14.11).** The single test read of C1-T1 and its certificate are in
-(14.2); the rest of the section is val numbers from the logs, plus golden dev numbers where a log gives them. Still open,
-marked `TODO` below: the golden series point.
+(14.2); the rest of the section is val numbers from the logs, plus golden dev numbers where a log gives them. Nothing is marked `TODO`.
 
 The round had two goals. First, find out where the 13.5% of val questions that config C gets wrong come from, and take
 whatever is cheap. Second, replace the hosted calls (Gemini's count swap, its gate score, its photo flag) with local
@@ -891,7 +890,18 @@ code for bedrooms).
 With the double-check policy as the backend applied it at the time (only the plan gate wired): dev 2,383 answers, 164
 wrong, 45.7% ask, 162 of 164 wrong ones ask, the rest 99.8% exact; holdout 558 answers, 27 wrong, 29.0% ask, 27 of 27 ask,
 the rest 100% exact. Vector and BIM answers (0 wrong) are certified by route; raster families other than plan wait for the
-runtime gates. **TODO:** the golden table with the runtime gates, and the series point.
+runtime gates.
+
+**Golden v2 series point** (6150709, recorded 2026-11-14 17:27, from `docs/GOLDEN.md`): the shipped demo config on main,
+config C1-T1 with the l1 and m1 readers and the levels check policy, from caches with no key, so nothing was spent. It
+scores 2,746 of 2,948 right (93.1%; dev 92.8%, which GOLDEN.md marks with a dagger; holdout 94.8%), against 2,717 at
+bd2471f: +29. Of those, +19 come from code on opening_design schedule questions (#122 and #123): 19 questions that were
+refused are answered from the schedules and 18 of them are right. The other +10 come from C1-T1's element counts on
+CubiCasa: shower+bathtub 116 to 120 of 142, toilet 140 to 144 of 154, window 70 to 72 of 154 (dev +16, holdout -6).
+Abstained fell from 4.5% to 3.8% for the same reason. This path does not measure the double-check or the levels: the CLI
+that runs golden applies neither `CHECK_POLICY` nor `LOCAL_GATES` (only the API does), so the point is answer values only.
+The golden numbers for the runtime gates are therefore not available from this run, and the test certificate (14.2) and
+the levels (14.3) remain the evidence for them.
 
 **The test read config.** C1-T1 run live on the 376 test pages with the shipping settings (arbiter at runtime, the two
 extra readers, the runtime policy, the dev prior, `ROOM_POLICY=gold-labels`). On val the runtime C1-T1 differs from the
