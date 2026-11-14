@@ -51,6 +51,7 @@ from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, Ge
 from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
 from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
+from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
@@ -167,7 +168,9 @@ def build_pipeline(settings: Settings, dataset: Path) -> Pipeline:
             # A precomputed arm finds an uploaded sheet in the Stoa dataset by its content. A PDF
             # whose page 1 is not a vector plan is read here, so its schedules are read (and its
             # schedule checks noted) as on the vector route.
-            "raster": _tables(settings.tables, _raster(settings, files, decisions), files),
+            "raster": _tables(
+                settings.tables, _scaled(settings, _raster(settings, files, decisions)), files
+            ),
         },
         second_counter=_checked(
             settings.tables, _second_counter(settings.second_counter, files, models), files
@@ -253,6 +256,7 @@ def readers(settings: Settings) -> dict[str, str]:
         "cad": settings.extractor_cad,
         "vector": settings.extractor_vector,
         "raster": settings.extractor_raster,
+        "raster_scale": settings.raster_scale,
         "tables": settings.tables,
         "second_counter": settings.second_counter,
         "rectifier": settings.rectifier,
@@ -295,6 +299,8 @@ def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> 
         "rectifier": settings.rectifier,  # it makes the frame every box is in
         "decisions_kind": str(settings.decisions_kind),  # it can make an image a photo
     }
+    if settings.raster_scale != "off":  # named only when on: the default keeps its cache keys
+        names["raster_scale"] = settings.raster_scale
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -345,6 +351,21 @@ def _raster(
                 )
             except DomainError as error:
                 raise InvalidInputError(f"RASTER_COMPONENTS={components!r}: {error}") from error
+
+
+def _scaled(settings: Settings, inner: Extractor) -> Extractor:
+    """RASTER_SCALE=priors: a raster sheet without a scale gets an estimated one."""
+    match settings.raster_scale:
+        case "off":
+            return inner
+        case "priors":
+            composite = settings.extractor_raster == "composite"
+            if composite and "scale" in parse_components(settings.raster_components):
+                raise InvalidInputError(
+                    "RASTER_SCALE=priors estimates the scale itself: drop scale= from "
+                    "RASTER_COMPONENTS, or set RASTER_SCALE=off"
+                )
+            return PriorScale(inner)
 
 
 def _raster_component(

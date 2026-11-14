@@ -263,6 +263,11 @@ def test_a_room_area_sum_is_an_estimate_when_one_of_its_rooms_is_estimated() -> 
     guessed = Scale(status="estimated", m_per_unit=0.02, source="door widths")
     on_guess = known_quantities(drawing(scale=guessed, rooms=rooms))
     assert on_guess[Query(measure="area", subject="room", name="K").key()].estimate is None
+    # an outline at an estimated scale also says how that scale was estimated
+    assert on_guess[Query(measure="area", subject="room").key()].estimate == (
+        "1 of 2 room areas estimated (geometry_x_estimate, uncertainty up to 0.35), "
+        "at an estimated scale (door widths)"
+    )
     unset = known_quantities(drawing(scale=guessed, rooms=(room(3, "hall", 5.0, label="ET"),)))
     assert unset[Query(measure="area", subject="room").key()].estimate == (
         "an estimated scale (door widths)"
