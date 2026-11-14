@@ -1,0 +1,391 @@
+/* The agent chat (docs/specs/agent-chat.md §3), on the shell's Vellum tokens and the chat's en- classes. */
+.ag-card {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ag-card p {
+  margin: 0;
+}
+.ag-text {
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.ag-text ul,
+.ag-text ol {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.ag-cite {
+  font-size: 0.8em;
+  vertical-align: super;
+  line-height: 0;
+  padding: 0 1px;
+  color: var(--v-accent);
+}
+/* dont_know: the refusal look (chat.md), a quiet card with the headline in the text colour. */
+.ag-card--dont_know {
+  background: var(--v-fill);
+  box-shadow: none;
+}
+.ag-card--conflict {
+  border-left: 4px solid var(--v-warn);
+}
+.ag-card--conflict .ag-headline {
+  color: var(--v-warn);
+}
+
+.ag-sources {
+  list-style: none;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--v-line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+.ag-sources li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.ag-sources a {
+  color: var(--v-accent);
+  font-weight: 500;
+}
+
+.ag-steps {
+  font-size: 13px;
+  color: var(--v-muted);
+}
+.ag-steps summary {
+  cursor: pointer;
+  min-height: 24px;
+}
+.ag-steps ol {
+  margin: 6px 0 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--v-text-2);
+}
+.ag-step--error,
+.ag-errmark {
+  color: var(--v-danger);
+}
+
+/* The edit card: plan left, change list right; one column below 900 px (AC-35). */
+.ag-edit {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 20px;
+  align-items: start;
+}
+.ag-plan {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.ag-defs {
+  position: absolute;
+}
+.ag-toggle {
+  align-self: flex-start;
+}
+.ag-planbox {
+  border-radius: 14px;
+  overflow: auto;
+  max-height: min(70vh, 640px);
+  border: 1px solid var(--v-line);
+}
+.ag-overlay {
+  pointer-events: none;
+}
+/* Demolished: yellow fill, dashed dark outline. New: red, solid. Changed room: hatched, accent outline. */
+.ag-removed {
+  fill: #f2c500;
+  fill-opacity: 0.85;
+  stroke: var(--v-text);
+  stroke-width: 2px;
+  stroke-dasharray: 5 3;
+}
+/* New walls as a thick red line, not a fill: propose_room's new partition is one ring around the new room. */
+.ag-added {
+  fill: none;
+  stroke: var(--v-danger);
+  stroke-width: 4px;
+}
+.ag-room {
+  stroke: var(--v-accent);
+  stroke-width: 2px;
+}
+.ag-hatchline {
+  stroke: var(--v-accent);
+  stroke-opacity: 0.55;
+}
+.ag-existing {
+  fill: var(--v-text);
+}
+.ag-badges {
+  position: absolute;
+  transform: translate(-50%, 6px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.ag-badge {
+  max-width: 220px;
+  width: max-content;
+  text-align: center;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--v-surface);
+  border: 1.5px solid var(--v-accent);
+  color: var(--v-text);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  box-shadow: var(--v-shadow);
+}
+.ag-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13px;
+  color: var(--v-text-2);
+}
+.ag-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ag-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.ag-changes,
+.ag-unknowns,
+.ag-flags {
+  margin: 0 0 6px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+.ag-changes {
+  font-variant-numeric: tabular-nums;
+}
+.ag-unknowns {
+  color: var(--v-warn);
+}
+.ag-decide {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.ag-decided {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+/* Point at the plan and the selection chips over the ask box; the band is sticky as the chat's ask box. */
+.ag-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  background: var(--v-bg);
+}
+.ag-bar .en-ask {
+  position: static;
+  margin-top: 0;
+}
+.en-chat--empty .ag-bar {
+  position: static;
+  margin-top: 0;
+  padding: 0;
+  background: none;
+}
+.ag-selrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ag-selchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 4px 0 14px;
+  border-radius: 980px;
+  background: var(--v-accent-soft);
+  color: var(--v-accent-strong);
+  font-size: 14px;
+}
+.ag-selchip button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+.ag-pointer {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ag-bubble-sel {
+  display: block;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+@media (max-width: 900px) {
+  .ag-edit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ag-card {
+    padding: 16px;
+  }
+}
+
+/* The ask chat's answer inside an agent turn: its card as a bordered panel, not a card in a card. */
+.ag-card .en-chatcard {
+  box-shadow: none;
+  border: 1px solid var(--v-line);
+}
+
+/* Building rules on the edit card (plan-edit-law-check.md LC-12 to LC-16): status by icon and word, never colour
+   alone; rows stack (status + title, values, clause) and wrap at any width. */
+.ag-law {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--v-line);
+}
+.ag-law-h {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ag-law-rows,
+.ag-law-related {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ag-law-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--v-fill);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.ag-law-row p,
+.ag-law-related li {
+  margin: 0;
+}
+.ag-law-head {
+  font-weight: 600;
+}
+.ag-law-status {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.ag-law-status--fail {
+  color: var(--v-danger);
+}
+.ag-law-status--unclear {
+  color: var(--v-warn);
+}
+.ag-law-status--pass {
+  color: var(--v-ok);
+}
+.ag-law-values {
+  font-variant-numeric: tabular-nums;
+}
+.ag-law-limit {
+  color: var(--v-text-2);
+}
+.ag-law-subject {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--v-accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.ag-law-clause a,
+.ag-law-related a,
+.ag-law-title a {
+  color: var(--v-accent);
+}
+.ag-law-quote summary {
+  cursor: pointer;
+  color: var(--v-text-2);
+  font-size: 13px;
+}
+.ag-law-quote blockquote {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--v-line);
+}
+.ag-law-quote p {
+  margin: 4px 0 0;
+}
+.ag-law-pick {
+  align-self: flex-start;
+}
+/* The subject a law row points at: a thick accent outline over the plan. */
+.ag-hot {
+  fill: var(--v-accent);
+  fill-opacity: 0.12;
+  stroke: var(--v-accent);
+  stroke-width: 4px;
+}
+
+/* Chrome starts a native image drag when a mouse presses on the page <img> and moves: that cancels the viewer's
+   pointer drag (no pointerup). In the pointer the frame, not the image, takes the drag. */
+.ag-pointer .vw-frame img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+/* edits-9: the viewer's fix-mode hint ("where a mark is missing") is the wrong task here; the pointer's heading
+   says what to do. */
+.ag-pointer .vw-hint {
+  display: none;
+}

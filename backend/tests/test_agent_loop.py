@@ -1,0 +1,403 @@
+"""The agent loop with a scripted model (spec AC-1..AC-9)."""
+
+import json
+from typing import Any
+
+import pytest
+
+from app.core.agent.loop import NUDGE, STOPS, UNBACKED, run_turn
+from app.core.agent.model import Caps, Chat, ChatTurn
+from app.core.agent.ports import ChatModelError, Reply
+from app.core.agent.prompt import SYSTEM
+from app.core.plan_edit.model import Proposal, Selection
+from app.core.spend import SpendGuard
+
+Json = dict[str, Any]
+DRAWING = "0123456789abcdef"
+ASKED = {
+    "question": "how big is the bathroom",
+    "parts": [{
+        "drawing_id": DRAWING, "name": "plan.pdf",
+        "answer": {"answer": 7.56, "unit": "m2", "line": {"sure": True},
+                   "level": {"level": "high", "basis": "vector", "text": "Read from vectors."},
+                   "marks": [{"id": "m1", "page": 1, "box": [0.1, 0.2, 0.3, 0.4],
+                              "label": "Bagno 1.01"}]},
+    }],
+}  # fmt: skip
+PROPOSAL = {
+    "status": "ok",
+    "proposal": {
+        "proposal_id": "p1", "drawing_id": DRAWING, "page": 1,
+        "removed": [{"id": "W4", "polygon": [[0.4, 0.2], [0.41, 0.2], [0.41, 0.3]],
+                     "label": "Wall W4"}],
+        "rooms": [{"id": "R1+R2", "label": "Bagno 1.01 + Stanza 1.02",
+                   "polygon": [[0.3, 0.2], [0.5, 0.2], [0.5, 0.3]],
+                   "area_before_m2": 24.04, "area_after_m2": 24.69, "was": ["R1", "R2"]}],
+        "unknowns": ["Whether wall W4 is load-bearing: this drawing does not say."],
+    },
+}  # fmt: skip
+
+
+def call(name: str, n: int = 1, **arguments: Any) -> Json:
+    return {"id": f"c{n}", "type": "function",
+            "function": {"name": name, "arguments": json.dumps(arguments)}}  # fmt: skip
+
+
+def step(*calls: Json, **extra: Any) -> Reply:
+    return Reply({"role": "assistant", "content": None, "tool_calls": list(calls), **extra}, 0.0)
+
+
+def final(kind: str = "answer", text: str = "Done.", n: int = 9, **more: Any) -> Reply:
+    return step(call("final_answer", n, kind=kind, text=text, **more))
+
+
+class Model:
+    name = "scripted"
+
+    def __init__(self, *replies: Reply) -> None:
+        self.replies = list(replies)
+        self.sent: list[list[Json]] = []
+        self.tools: list[Json] = []
+
+    def complete(self, messages: list[Json], tools: list[Json]) -> Reply:
+        self.sent.append(json.loads(json.dumps(messages)))
+        self.tools = tools
+        if not self.replies:
+            raise AssertionError("the model was called more often than scripted")
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+
+class Tools:
+    def __init__(self, **results: Any) -> None:
+        self.results = results
+        self.ran: list[tuple[str, str]] = []
+
+    @property
+    def tools(self) -> list[Json]:
+        return [{"type": "function", "function": {"name": name}} for name in self.results]
+
+    def run(self, name: str, arguments: str) -> str:
+        self.ran.append((name, arguments))
+        found = self.results.get(name, {"error": f"unknown tool {name}"})
+        return found if isinstance(found, str) else json.dumps(found)
+
+    def proposal(self, proposal_id: str) -> Proposal | None:
+        return None
+
+    def describe(self, selection: Selection) -> str:
+        return f"{selection.id}: room {selection.ref}"
+
+
+CAPS = Caps()
+
+
+def turn(model: Model, tools: Tools | None = None, chat: Chat | None = None,
+         caps: Caps = CAPS, guard: SpendGuard | None = None, message: str = "How big?",
+         **more: Any) -> ChatTurn:  # fmt: skip
+    tools = tools or Tools(ask_drawings=ASKED)
+    selection = more.pop("selection", ())
+    chat = chat or Chat("c3f9a1b2c4d5")
+    return run_turn(chat, message, selection, model, tools, caps, guard or SpendGuard(), **more)
+
+
+def test_ac1_ac5_ac6_answer_cites_minted_evidence_and_lists_steps() -> None:
+    model = Model(
+        step(call("ask_drawings", question="how big is the bathroom")),
+        final(text="The bathroom Bagno 1.01 is 7.56 m² [ev_1].", evidence_ids=["ev_1"]),
+    )
+    got = turn(model)
+    assert (got.kind, got.text, got.turn) == (
+        "answer",
+        "The bathroom Bagno 1.01 is 7.56 m² [1].",
+        1,
+    )
+    [evidence] = got.evidence
+    assert (evidence.n, evidence.id, evidence.name, evidence.label) == (1, "ev_1", "plan.pdf",
+                                                                       "Bagno 1.01")  # fmt: skip
+    assert evidence.box == (0.1, 0.2, 0.3, 0.4) and evidence.sure is True
+    assert evidence.level is not None and evidence.level.level == "high"
+    [only] = got.steps
+    assert (only.tool, only.label, only.status) == (
+        "ask_drawings",
+        "Asked the drawings: how big is the bathroom",
+        "ok",
+    )
+    assert got.model == "scripted"
+    tool_message = model.sent[1][-1]
+    assert tool_message["role"] == "tool" and '"ev":"ev_1"' in tool_message["content"]
+    assert model.sent[0][0] == {"role": "system", "content": SYSTEM}
+    assert model.tools[-1]["function"]["name"] == "final_answer"
+
+
+def test_ac4_a_number_no_tool_gave_is_sent_back_once() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="It is 9.99 m²."),
+        final(text="It is 7.6 m² [ev_1].", evidence_ids=["ev_1"], n=10),
+    )
+    got = turn(model)
+    assert got.kind == "answer" and got.text == "It is 7.6 m² [1]."  # 7.56 rounded to 1 decimal
+    refusal = model.sent[2][-1]
+    assert "9.99" in refusal["content"] and "error" in refusal["content"]
+
+
+def test_ac4_second_failure_becomes_dont_know() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="It is 9.99 m²."),
+        final(text="It is 99 m² [ev_7].", evidence_ids=["ev_7"], n=10),
+    )
+    got = turn(model)
+    assert (got.kind, got.text, got.evidence) == ("dont_know", UNBACKED, ())
+
+
+def test_ac4_numbers_in_the_users_message_count_and_citations_do_not() -> None:
+    model = Model(final(text="You asked about 3 rooms [1]."))
+    got = turn(model, Tools(), message="What about my 3 rooms?")
+    assert got.kind == "answer"
+
+
+def test_ac4_edit_needs_a_proposal_of_this_turn() -> None:
+    model = Model(
+        final(kind="edit", text="Removed.", proposal_id="p1"),
+        step(call("propose_remove_wall", wall_id="W4")),
+        final(kind="edit", text="Removing wall W4 makes 24.69 m².", proposal_id="p1", n=10),
+    )
+    chat = Chat("c3f9a1b2c4d5")
+    got = turn(model, Tools(propose_remove_wall=PROPOSAL), chat)
+    assert got.kind == "edit" and got.edit is not None
+    assert got.edit.rooms[0].area_after_m2 == 24.69 and got.edit.state == "proposed"
+    assert "proposal_id" in model.sent[1][-1]["content"]
+    assert chat.proposals["p1"] == got.edit
+    assert got.steps[0].label == "Proposed removing wall W4"
+
+
+def test_ac4_answer_on_failed_tools_only_is_refused() -> None:
+    model = Model(
+        step(call("list_walls", drawing_id=DRAWING, page=1)),
+        final(text="The walls are fine."),
+        final(kind="dont_know", text="This plan is a scan.", n=10),
+    )
+    got = turn(model, Tools(list_walls={"status": "cannot_edit", "reason": "a scan"}))
+    assert got.kind == "dont_know" and "failed" in model.sent[2][-1]["content"]
+
+
+def test_ac4_needs_input_carries_its_options() -> None:
+    options = [{"label": "Bagno 1.01", "message": "the first"},
+               {"label": "Bagno 1.05", "message": "the second"}]  # fmt: skip
+    got = turn(Model(final(kind="needs_input", text="Which bathroom?", options=options)), Tools())
+    assert got.kind == "needs_input" and got.options and got.options[1].label == "Bagno 1.05"
+
+
+def test_options_go_out_on_any_kind() -> None:
+    options = [{"label": "door count", "message": "How many doors are there?"}]
+    got = turn(Model(final(kind="dont_know", text="I don't know.", options=options)), Tools())
+    assert got.options and got.options[0].message == "How many doors are there?"
+
+
+def test_evidence_and_steps_use_the_drawings_plain_name() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="See [ev_1].", evidence_ids=["ev_1"]),
+    )
+    got = turn(model, names={DRAWING: "Drawn plan 1"})
+    assert got.evidence[0].name == "Drawn plan 1"
+
+
+def test_ac2_step_cap() -> None:
+    model = Model(*(step(call("ask_drawings", question=f"q{n}")) for n in range(3)))
+    got = turn(model, caps=Caps(max_steps=3))
+    assert (got.kind, got.text, len(got.steps)) == ("dont_know", STOPS["steps"], 3)
+
+
+def test_ac2_ac7_turn_spend_cap_and_charges() -> None:
+    expensive = [Reply(step(call("ask_drawings", question=f"q{n}")).message, 0.06)
+                 for n in range(3)]  # fmt: skip
+    guard = SpendGuard()
+    got = turn(Model(*expensive), guard=guard)
+    assert (got.kind, got.text) == ("dont_know", STOPS["turn_usd"])
+    assert got.cost_usd == pytest.approx(0.12) and guard.spent_by() == {"agent chat": 0.12}
+
+
+def test_ac2_spend_guard_exhausted_before_any_call() -> None:
+    guard = SpendGuard(total_usd=0.01)
+    guard.charge(0.02)
+    model = Model()
+    got = turn(model, guard=guard)
+    assert (got.kind, got.text, model.sent) == ("dont_know", STOPS["budget"], [])
+
+
+def test_ac2_time_cap() -> None:
+    ticks = iter(range(0, 1000, 40))
+    model = Model(*(step(call("ask_drawings", question=f"q{n}")) for n in range(5)))
+    got = turn(model, caps=Caps(seconds=60), clock=lambda: next(ticks))
+    assert got.text == STOPS["seconds"]
+
+
+def test_ac2_the_same_call_a_third_time_stops() -> None:
+    model = Model(*(step(call("ask_drawings", n, question="q")) for n in range(3)))
+    tools = Tools(ask_drawings=ASKED)
+    got = turn(model, tools)
+    assert (got.text, len(tools.ran)) == (STOPS["repeat"], 2)
+
+
+def test_ac3_no_tool_call_is_nudged_once() -> None:
+    silent = Reply({"role": "assistant", "content": "Hmm."}, 0.0)
+    model = Model(silent, silent)
+    got = turn(model)
+    assert model.sent[1][-1] == {"role": "user", "content": NUDGE}
+    assert (got.kind, got.text) == ("dont_know", STOPS["silent"])
+
+
+def test_model_error_is_a_dont_know() -> None:
+    got = turn(Model(ChatModelError("HTTP 503")))  # type: ignore[arg-type]
+    assert got.kind == "dont_know" and "HTTP 503" in got.text
+
+
+def test_r7_a_failed_but_paid_model_call_is_charged() -> None:
+    guard = SpendGuard()
+    got = turn(Model(ChatModelError("no message", usd=0.05)), guard=guard)  # type: ignore[arg-type]
+    assert got.kind == "dont_know" and got.cost_usd == 0.05
+    assert guard.spent_by() == {"agent chat": 0.05}
+
+
+def test_a_tool_error_goes_back_to_the_model_and_marks_the_step() -> None:
+    model = Model(
+        step(call("get_takeoff", drawing_id=DRAWING)),
+        final(kind="dont_know", text="I could not read it."),
+    )
+    got = turn(model, Tools(get_takeoff={"error": "project is running"}), names={DRAWING: "a.pdf"})
+    assert got.steps[0].status == "error" and got.steps[0].label == "Read the quantities of a.pdf"
+    assert "project is running" in model.sent[1][-1]["content"]
+
+
+def test_ac8_assistant_message_with_extra_content_is_sent_back_verbatim() -> None:
+    signed = call("ask_drawings", question="q")
+    signed["extra_content"] = {"google": {"thought_signature": "c2lnbmF0dXJl"}}
+    first = step(signed, reasoning="kept")
+    model = Model(first, final(text="Ok [ev_1].", evidence_ids=["ev_1"]))
+    turn(model)
+    assert model.sent[1][2] == first.message
+
+
+def test_at_most_four_calls_per_step_each_answered() -> None:
+    calls = [call("ask_drawings", n, question=f"q{n}") for n in range(5)]
+    model = Model(step(*calls), final(kind="dont_know", text="No."))
+    tools = Tools(ask_drawings=ASKED)
+    got = turn(model, tools)
+    replies = [m for m in model.sent[1] if m["role"] == "tool"]
+    assert len(tools.ran) == 4 and len(got.steps) == 4
+    assert [m["tool_call_id"] for m in replies] == [f"c{n}" for n in range(5)]
+    assert "at most 4" in replies[4]["content"]
+
+
+def test_ac13_long_results_are_cut_for_the_model_and_kept_whole() -> None:
+    big = {"rows": [{"x": "x" * 100, "box": [0.1, 0.1, 0.2, 0.2], "note": None}] * 100}
+    chat = Chat("c3f9a1b2c4d5")
+    model = Model(
+        step(call("get_takeoff", drawing_id=DRAWING)), final(kind="dont_know", text="No.")
+    )
+    turn(model, Tools(get_takeoff=big), chat)
+    seen = json.loads(model.sent[1][-1]["content"])  # still JSON, geometry and nulls left out
+    assert seen["rows"][0] == {"x": "x" * 100} and seen["rows"][-1] == "... 92 more"
+    assert chat.results[0]["result"] == big
+
+
+def test_ac13_a_result_too_long_even_cut_ends_with_a_note() -> None:
+    big = {"text": "y" * 9000}
+    model = Model(
+        step(call("get_takeoff", drawing_id=DRAWING)), final(kind="dont_know", text="No.")
+    )
+    turn(model, Tools(get_takeoff=big))
+    assert model.sent[1][-1]["content"].endswith('{"truncated": true}')
+
+
+def test_ac12_selection_lines_follow_the_message() -> None:
+    chosen = Selection(id="sel_1", kind="room", drawing_id=DRAWING, page=1, ref="R3")
+    model = Model(final(kind="dont_know", text="No."))
+    turn(model, Tools(), selection=[chosen], message="Make this larger")
+    assert model.sent[0][1] == {"role": "user", "content": "Make this larger\nsel_1: room R3"}
+
+
+def test_ac23_later_turns_see_six_turns_and_old_tool_results_cut() -> None:
+    chat = Chat("c3f9a1b2c4d5")
+    big = {"rows": ["x" * 100] * 30}
+    models = [Model(step(call("get_takeoff", drawing_id=DRAWING)),
+                    final(kind="dont_know", text="No.")) for _ in range(7)]  # fmt: skip
+    got = [turn(model, Tools(get_takeoff=big), chat) for model in models][-1]
+    model = models[-1]
+    assert got.turn == 7 and len(chat.turns) == 7
+    sent = model.sent[0]
+    assert sum(m["role"] == "user" for m in sent) == 6
+    assert all(len(m["content"]) <= 1000 for m in sent if m["role"] == "tool")
+
+
+def test_evidence_ids_run_on_through_the_chat() -> None:
+    chat = Chat("c3f9a1b2c4d5")
+    for n in (1, 2):
+        model = Model(step(call("ask_drawings", question="q")),
+                      final(text=f"See [ev_{n}].", evidence_ids=[f"ev_{n}"]))  # fmt: skip
+        got = turn(model, chat=chat)
+        assert got.kind == "answer" and got.evidence[0].id == f"ev_{n}"
+
+
+THREE = {
+    "question": "how many doors",
+    "parts": [{"drawing_id": DRAWING, "name": "plans/a.pdf", "answer": {"answer": 3, "marks": [
+        {"id": f"m{n}", "page": 1, "box": [0.1, 0.1, 0.2, 0.2], "label": "door"}
+        for n in (1, 2, 3)]}}],
+}  # fmt: skip
+
+
+def test_ac5_evidence_is_only_what_the_text_cites_in_its_order() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="Doors [ev_3] and [ev_1].", evidence_ids=["ev_1", "ev_2", "ev_3"]),
+    )
+    got = turn(model, Tools(ask_drawings=THREE))
+    assert got.text == "Doors [1] and [2]."
+    assert [(e.n, e.id) for e in got.evidence] == [(1, "ev_3"), (2, "ev_1")]
+
+
+def test_the_text_names_drawings_by_their_plain_name() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="plans/a.pdf: 3 doors [ev_1]."),
+    )
+    got = turn(model, Tools(ask_drawings=THREE), names={DRAWING: "Drawn plan 1"})
+    assert got.text == "Drawn plan 1: 3 doors [1]."
+    unmarked = {"parts": [{"drawing_id": DRAWING, "name": "model/house.ifc",
+                           "answer": {"answer": 2, "marks": []}}]}  # fmt: skip
+    model = Model(step(call("ask_drawings", question="q")), final(text="model/house.ifc: 2."))
+    got = turn(model, Tools(ask_drawings=unmarked), names={DRAWING: "Building model"})
+    assert got.text == "Building model: 2."
+
+
+def test_answers_are_the_cited_ask_drawings_results_as_given() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="3 doors [ev_2]."),
+    )
+    got = turn(model, Tools(ask_drawings=THREE))
+    assert got.answers == (THREE,)  # without the ev ids the server added for the model
+
+
+def test_a_dont_know_on_a_refusal_carries_that_result() -> None:
+    answer = {"answer": None, "refusal": {"text": "No scale."}}
+    refused = {"parts": [{"drawing_id": DRAWING, "name": "a.pdf", "answer": answer}]}
+    model = Model(step(call("ask_drawings", question="q")),
+                  final(kind="dont_know", text="No scale."))  # fmt: skip
+    assert turn(model, Tools(ask_drawings=refused)).answers == (refused,)
+
+
+def test_answers_without_citations() -> None:
+    model = Model(step(call("ask_drawings", question="q")), final(text="See below."))
+    assert turn(model, Tools(ask_drawings=THREE)).answers == (THREE,)  # an answer: every result
+    walls = {"walls": [{"id": "W1", "page": 1, "box": [0.1, 0.1, 0.2, 0.2]}],
+             "drawing_id": DRAWING}  # fmt: skip
+    model = Model(step(call("ask_drawings", question="q"), call("list_walls", 2)),
+                  final(text="Wall W1 [ev_4].", evidence_ids=["ev_4"]))  # fmt: skip
+    assert turn(model, Tools(ask_drawings=THREE, list_walls=walls)).answers == ()

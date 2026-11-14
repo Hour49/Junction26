@@ -14,7 +14,7 @@ from app.api.checks import RulePacksDep, RulePackView, pack_views
 from app.api.deps import SettingsDep
 from app.api.projects import MAX_UPLOAD
 from app.api.views import View
-from app.composition import readers, spend_guard, uses_keys
+from app.composition import chat_model, readers, spend_guard, uses_keys
 from app.settings import Settings
 
 router = APIRouter(prefix="/api")
@@ -28,6 +28,14 @@ class Limits(View):
     unpacked_mb: int
     files: int
     question_chars: int
+
+
+class ChatInfo(View):
+    """The project chat agent (decision 0013): CHAT_MODEL, and whether a turn can run now."""
+
+    model: Literal["gemini", "rules", "off"]
+    available: bool
+    reason: str | None  # why not available; None when it is
 
 
 class Info(View):
@@ -44,6 +52,7 @@ class Info(View):
     # APP_COMMIT: the git commit the backend was started from (tools/qa-env.sh sets it); null
     # when the env doesn't say
     commit: str | None = None
+    chat: ChatInfo | None = None
 
 
 @router.get("/info")
@@ -61,6 +70,7 @@ def info(settings: SettingsDep, packs: RulePacksDep = ()) -> Info:
         rule_packs=pack_views(packs),
         gemini=_gemini(settings),
         commit=settings.app_commit or None,
+        chat=_chat(settings),
     )
 
 
@@ -69,3 +79,9 @@ def _gemini(settings: Settings) -> Literal["ok", "budget_exhausted"] | None:
     if not guard.limited:
         return None
     return "budget_exhausted" if guard.exhausted() else "ok"
+
+
+def _chat(settings: Settings) -> ChatInfo:
+    paid = settings.chat_model != "rules"  # the rules planner is free: no budget stops it
+    reason = chat_model(settings)[1] or (spend_guard(settings).exhausted() if paid else None)
+    return ChatInfo(model=settings.chat_model, available=reason is None, reason=reason)

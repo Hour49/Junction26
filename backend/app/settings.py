@@ -61,6 +61,9 @@ VectorFallbackName = Literal["off", "raster"]
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
+# The project chat's model (decision 0013). gemini: Gemini's OpenAI-compatible endpoint
+# (AGENT_*, GEMINI_API_KEY). rules: a deterministic planner, no key. off: no agent chat
+ChatModelName = Literal["gemini", "rules", "off"]
 # The Carbon reader of raster drawings (app/adapters/carbon/). off; all: every raster drawing;
 # advanced: the drawings the sheet-kind step (SHEET_KIND=carbon) called advanced
 # large: on raster images over 4,000 px on their long side (from the file's header), and on smaller
@@ -231,6 +234,17 @@ class Settings(BaseSettings):
     triage_describer: TriageDescriberName = "off"
     triage_describer_cache_dir: Path = Path("../data/cache/triage-describer")
     triage_judge: TriageJudgeName = "off"
+    # The project chat agent (decision 0013, app/core/agent/): its model, and for gemini the
+    # model id, endpoint and USD per million tokens in and out (no published price yet: a high
+    # placeholder, so the spend guard stops early); the most one turn may spend and its steps.
+    # Every call is charged to the Gemini spend guard
+    chat_model: ChatModelName = "rules"
+    agent_model: str = "gemini-4-hydrogen"
+    agent_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
+    agent_price_in_per_m: float = Field(default=1.50, ge=0)
+    agent_price_out_per_m: float = Field(default=9.00, ge=0)
+    agent_turn_usd: float = Field(default=0.10, gt=0)
+    agent_max_steps: int = Field(default=8, ge=1, le=20)
     # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
     # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
     # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set

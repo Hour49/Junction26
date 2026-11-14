@@ -14,12 +14,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from app.adapters.chat_store import JsonChatStore
 from app.adapters.credits import DatasetCredits
 from app.adapters.law_index import SqliteLawIndex, load_laws
 from app.adapters.review_store import JsonReviewStore
 from app.adapters.rule_packs import load_packs
 from app.api import (
     ask,
+    chat,
     checks,
     drawings,
     evidence,
@@ -123,6 +125,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     app.state.admission = projects.Admission()  # the 429 limit
     app.state.kept_reviews = projects.KeptReviews()  # the project list's review counts
     app.state.rule_packs = rule_packs
+    app.state.chats = JsonChatStore(settings.projects_dir)  # the agent chats (decision 0013)
     app.state.laws = law_index
     routers = (
         health,
@@ -139,6 +142,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     )
     for router in routers:
         app.include_router(router.router)
+    app.include_router(chat.router)
     for error in STATUS_BY_ERROR:
         app.add_exception_handler(error, domain_error_response)
     app.add_exception_handler(HTTPException, http_error_response)
