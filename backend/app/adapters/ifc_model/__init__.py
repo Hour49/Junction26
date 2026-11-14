@@ -36,6 +36,7 @@ from app.adapters.vector_pdf.ifc_render import STOREY
 from app.adapters.vector_pdf.objects import read_page
 from app.adapters.vector_pdf.scale import read_scale
 from app.core.drawing.model import (
+    Attr,
     MeasuredValue,
     ModelClass,
     ModelObject,
@@ -154,6 +155,11 @@ def _listed(model: Model, drawn: Mapping[str, str]) -> tuple[ModelObject, ...]:
         *((class_, listed) for class_ in CLASSES.values() for listed in model.elements[class_]),
         *(("space", space) for space in model.spaces),
     ]
+    ids = {
+        listed.guid: f"m{number}"
+        for number, (class_, listed) in enumerate(found, start=1)
+        if class_ == "window"
+    }
     return tuple(
         ModelObject(
             id=f"m{number}",
@@ -164,10 +170,20 @@ def _listed(model: Model, drawn: Mapping[str, str]) -> tuple[ModelObject, ...]:
             long_name=listed.long_name,
             quantities=dict(listed.quantities),
             element=drawn.get(listed.guid),
-            attrs={"source_class": listed.source_class},
+            attrs={"source_class": listed.source_class, **_windows(listed, ids)},
         )
         for number, (class_, listed) in enumerate(found, start=1)
     )
+
+
+def _windows(space: IfcObject, ids: Mapping[str, str]) -> dict[str, Attr]:
+    """What a space's model object says of its windows (decision 0004, 2026-11-14): `windows`,
+    how many of the model's windows belong to it, drawn on this sheet or not, and `window_ids`,
+    their model object ids. Nothing when that is not known, so such a space says what it said."""
+    if space.windows is None:
+        return {}
+    listed = [ids[guid] for guid in space.windows if guid in ids]
+    return {"windows": len(listed), **({"window_ids": " ".join(listed)} if listed else {})}
 
 
 def _read(files: DrawingFiles, models: IfcModels, source: DrawingFile, sheet: Sheet) -> _Read | str:

@@ -105,6 +105,17 @@ class IfcFile:
     ) -> str:
         """A room of `storey`. Each solid is an outline in metres, the height of its floor and
         its own height; without one the space has no geometry."""
+        space = self._rooted(
+            "IfcSpace",
+            Name=number,
+            LongName=name,
+            ObjectPlacement=self._new("IfcLocalPlacement", RelativePlacement=self._origin),
+            Representation=self._body(solids) if solids else None,
+        )
+        self._part(storey, space)
+        return space.GlobalId
+
+    def _body(self, solids: Sequence[tuple[Sequence[Point], float, float]]) -> Any:
         bodies = [
             self._new(
                 "IfcExtrudedAreaSolid",
@@ -122,7 +133,7 @@ class IfcFile:
             )
             for outline, floor, height in solids
         ]
-        shape = self._new(
+        return self._new(
             "IfcProductDefinitionShape",
             Representations=[
                 self._new(
@@ -134,15 +145,47 @@ class IfcFile:
                 )
             ],
         )
-        space = self._rooted(
-            "IfcSpace",
-            Name=number,
-            LongName=name,
-            ObjectPlacement=self._new("IfcLocalPlacement", RelativePlacement=self._origin),
-            Representation=shape if bodies else None,
+
+    def window(
+        self,
+        storey: str,
+        name: str,
+        *,
+        solid: tuple[Sequence[Point], float, float] | None = None,
+        at: tuple[float, float, float] | None = None,
+        height: float | None = None,
+    ) -> str:
+        """A window of `storey`. `solid`: its shape, as a space's (outline, floor, height);
+        without one the geometry kernel has nothing to build. `at`: where it is placed, in
+        metres; `height`: its stated OverallHeight."""
+        placed = self._origin
+        if at is not None:
+            placed = self._new("IfcAxis2Placement3D", Location=self._point(*at))
+        window = self._rooted(
+            "IfcWindow",
+            Name=name,
+            ObjectPlacement=self._new("IfcLocalPlacement", RelativePlacement=placed)
+            if solid is not None or at is not None
+            else None,
+            Representation=None if solid is None else self._body([solid]),
+            OverallHeight=None if height is None else height * self._per_metre,
         )
-        self._part(storey, space)
-        return space.GlobalId
+        self._rooted(
+            "IfcRelContainedInSpatialStructure",
+            RelatingStructure=self._file.by_guid(storey),
+            RelatedElements=[window],
+        )
+        return window.GlobalId
+
+    def boundary(self, space: str, element: str) -> None:
+        """The model's own statement that `element` bounds `space` (IfcRelSpaceBoundary)."""
+        self._rooted(
+            "IfcRelSpaceBoundary",
+            RelatingSpace=self._file.by_guid(space),
+            RelatedBuildingElement=self._file.by_guid(element),
+            PhysicalOrVirtualBoundary="PHYSICAL",
+            InternalOrExternalBoundary="EXTERNAL",
+        )
 
     def ifc(self) -> bytes:
         return self._file.to_string().encode()
