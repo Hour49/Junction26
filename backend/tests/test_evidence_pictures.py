@@ -2,6 +2,7 @@
 amended, the record's `why`, and the real adapters' cache and spend guard (faked models, no
 network)."""
 
+import hashlib
 import json
 import urllib.request
 from collections.abc import Iterator
@@ -17,10 +18,17 @@ from test_triage_describer import answer, form
 from triage_fakes import FakeDescriber
 
 from app.adapters.evidence.pictures import SheetKindPictures
+from app.adapters.triage import gemini_describer
 from app.adapters.triage.gemini_describer import GeminiDescriber
 from app.adapters.triage.sheet_kind import GeminiSheetKindClient, SheetKindReader
-from app.composition import build_ingest, uses_keys
+from app.composition import (  # pyright: ignore[reportPrivateUsage]
+    _evidence_steps,  # pyright: ignore[reportPrivateUsage]
+    _triage,  # pyright: ignore[reportPrivateUsage]
+    build_ingest,
+    uses_keys,
+)
 from app.core import cost
+from app.core.errors import InvalidInputError
 from app.core.evidence.pictures import FLOOR_PLAN, NO_DESCRIBER, picture_evidence
 from app.core.ingest.model import ProjectStatus, SheetKindName
 from app.core.spend import SpendGuard
@@ -153,3 +161,29 @@ def test_the_scope_is_wired_named_in_the_reuse_key_only_when_on_and_counts_as_ke
     assert found is not None and not found.indexed
     assert found.why.startswith("the kind call failed: the sheet-kind model could not answer")
     assert uses_keys(Settings(_env_file=None, evidence_scope="all_non_plan"))  # pyright: ignore[reportCallIssue]
+
+
+def test_the_evidence_step_describes_with_carbon_when_set_even_with_triage_off(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]
+        evidence_scope="all_non_plan",
+        triage_describer="carbon",
+        gemini_api_key=SecretStr("test-key-not-real"),
+        triage_describer_cache_dir=tmp_path,
+    )
+    assert _triage(settings) is None  # triage is off: only the evidence step describes
+    image = png()
+    name = (
+        f"{hashlib.sha256(image).hexdigest()}-{gemini_describer.PROMPT_VERSION}-"
+        f"{gemini_describer.PROMPT_SHA[:12]}-gemini-4-carbon-low.json"
+    )
+    (tmp_path / name).write_text(json.dumps({"form": form()}))  # Carbon's cached reply
+    found = _evidence_steps(settings)
+    assert found is not None and found.describer is not None
+    kinds = FakeKinds({image: picture_kind("elevation", False)})
+    described = picture_evidence(image, kinds, found.describer).description
+    assert described is not None and described.model == "gemini-4-carbon-low, describe-6"
+    with pytest.raises(InvalidInputError, match="45"):
+        _evidence_steps(settings.model_copy(update={"gemini_timeout_s": 30.0}))
