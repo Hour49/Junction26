@@ -35,6 +35,7 @@ from app.core.drawing.model import (
     Mark,
     ModelObject,
     Page,
+    Plan,
     Resolution,
     Room,
     Scale,
@@ -50,6 +51,7 @@ from app.core.pipeline.model import (
     QuantityUnit,
     ValueMark,
 )
+from app.core.pipeline.raster_scale import AREA_REFUSED
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
     AS_GIVEN,
@@ -168,11 +170,21 @@ def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
     if not (read or missing):
         return
     for key, quantity in found.items():
-        if quantity.rule in PARTIAL_RULES and "label=" not in key and "name=" not in key:
+        if _whole_sheet(key, quantity.rule):
+            refused = () if quantity.partial is None else quantity.partial.refused  # _area_sum's
             partial = Partial(
-                counted=len(quantity.marks), missing=missing, read=read, schedule=schedule
+                counted=len(quantity.marks),
+                missing=missing,
+                read=read,
+                schedule=schedule,
+                refused=refused,
             )
             found[key] = quantity.model_copy(update={"partial": partial})
+
+
+def _whole_sheet(key: str, rule: str) -> bool:
+    """Whether a takeoff key is a whole-sheet room total (not a sum by label or name)."""
+    return rule in PARTIAL_RULES and "label=" not in key and "name=" not in key
 
 
 def _room_columns(table: Table) -> tuple[int, int | None] | None:
@@ -779,6 +791,31 @@ def _storey(attrs: Mapping[str, Attr], plan: str | None, plans: Mapping[str, obj
     return None if on_plan is None else str(on_plan)
 
 
+def storeys(drawing: Drawing) -> tuple[str, ...]:
+    """Every storey the drawing names: its plans', its items' and its building model's."""
+    plans = {plan.id: plan.storey for plan in drawing.plans}
+    found = {str(plan.storey) for plan in drawing.plans if plan.storey is not None}
+    for item in (*drawing.elements, *drawing.rooms):
+        if (storey := _storey(item.attrs, item.plan, plans)) is not None:
+            found.add(storey)
+    found |= {str(item.storey) for item in drawing.model_objects or () if item.storey is not None}
+    return tuple(sorted(found))
+
+
+def plan_counts(drawing: Drawing, key: str) -> list[tuple[Plan, int]]:
+    """How many of a count key's items each plan of the drawing holds (an item's `plan`), by the
+    sheet's counting rules; [] when the rules have no such key."""
+    found: list[tuple[Plan, int]] = []
+    for plan in drawing.plans:
+        elements = [e for e in drawing.elements if e.plan == plan.id]
+        rooms = [r for r in drawing.rooms if r.plan == plan.id]
+        counted = apply_rules(_listed(elements, rooms))
+        if key not in counted:
+            return []
+        found.append((plan, len(counted[key].marks)))
+    return found
+
+
 def _mark(item: Element | Room) -> Mark:
     return Mark(page=item.page, box=item.box)
 
@@ -884,13 +921,22 @@ def _area_sum(
 ) -> None:
     """The total net area of `rooms`; no key when there are none or one has no area. `scale`:
     what the sheet's scale makes an estimate of (scale_estimate). `excluded`: the rooms the
-    rule left out, with the reason."""
+    rule left out, with the reason. A whole-sheet total leaves out a room whose box area was
+    refused (`AREA_REFUSED`), named in its `partial`; any other room without an area still
+    leaves the total unknown."""
+    whole = _whole_sheet(key, rule.id)
+    refused = [r for r in rooms if whole and r.area_m2 is None and AREA_REFUSED in r.attrs]
+    rooms = [r for r in rooms if not (whole and r.area_m2 is None and AREA_REFUSED in r.attrs)]
     areas = [room.area_m2 for room in rooms]
     if rooms and all(area is not None for area in areas):
         total = sum(area for area in areas if area is not None)
         marks = [_mark(room) for room in rooms]
         estimate = rooms_estimate(rooms, scale)
         _put(found, key, "area", total, marks, rule, estimate, excluded, label_source(rooms))
+        if refused:
+            names = tuple(room.label or room.id for room in refused)
+            partial = Partial(counted=len(rooms), refused=names)
+            found[key] = found[key].model_copy(update={"partial": partial})
 
 
 def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:

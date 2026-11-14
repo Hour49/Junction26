@@ -145,6 +145,19 @@ def test_a_question_about_one_room_has_no_total(
     )
 
 
+def test_a_room_s_name_has_no_total(client: TestClient) -> None:
+    """ "Which room is the largest?" answers each drawing with a room's name: never added up, and
+    never said to come "from a printed table"."""
+    found = ask(client, sample(client)["id"], "Which room is the largest?")
+    names = [part["answer"]["answer"] for part in found["parts"] if not part["answer"]["refusal"]]
+    assert names and all(isinstance(name, str) for name in names)
+    assert (found["total"], found["total_unit"]) == (None, None)
+    assert found["total_note"].startswith(
+        f"{len(names)} drawing{'' if len(names) == 1 else 's'} answered with a room's name, so "
+        "there is no total"
+    )
+
+
 def test_parts_in_different_units_have_no_total(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -11,6 +11,12 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   FEW_DOORS, else SPREAD_MANY, each the 68% quantile of the scale error, fitted on one half of val
   and checked on the other, both ways, then averaged (prototypes/areas/calibrate.py). One
   uncertainty for every sheet covered sheets with 1-4 doors only 41% of the time (held out).
+- The doors' own spread (K5): when the detected door widths disagree, some boxes may not be door
+  leaves (a double door, a wardrobe, a window). The band is the 68% scale error of the page's door
+  count group and spread bucket (`door_spread`, the robust log spread of the widths, cut at
+  SPREAD_EDGES): BANDS_FEW / BANDS_MANY, fitted with `scripts/k5_band.py --fit` (closest to 68%
+  coverage, as narrow as that allows; half A checked on half B, both ways, averaged). No spread
+  refuses a scale: an estimate main had inside its band stays an answer.
 - No door detected: no estimate. The page-size prior (a door is about 5% of the page's long side)
   is 37-72% off on 68% of such val sheets; an area off by that much is not an answer.
 - A room's area is its outline's pixel area times the scale squared. A box (the raster room
@@ -34,6 +40,7 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   scripts/fit_label_boxes.py sweeps them per half on cached replies.
 """
 
+import bisect
 import itertools
 import math
 import statistics
@@ -75,6 +82,17 @@ MIN_BOX_M2 = 0.5
 MIN_COVER = 0.1
 MIN_COVER_ROOMS = 3  # fewer boxes on a page say nothing about coverage
 REFUSED_NOTE = "room area: "  # how the note on a room the box does not measure starts
+# The attr a refused room carries (its reason): a whole-sheet total leaves it out, marked partial
+AREA_REFUSED = "area_refused"
+SPREAD_EDGES = (0.10, 0.20)  # door width log spread buckets: < 0.10, 0.10-0.20, >= 0.20 (K5)
+# The 68% relative scale error per spread bucket, with 1-4 doors and with 5 or more (K5).
+# Bogdan's integ `k5_band.py --fit` (board #14, comment 6883082176): main's bands hold everywhere
+# except 5+ doors with spread >= 0.20 (16 / 14 pages on halves A / B), where main's ±8% held only
+# 44% / 50%; fitted ±14.2% / ±14.3%, checked on the other half 64% / 69%. Post-hoc choice: the
+# pre-stated 15-page minimum said keep main's band there; widened anyway because both halves
+# agree and the wider band moves toward the measured error (conservative). Others stay main's.
+BANDS_FEW = (SPREAD_FEW, SPREAD_FEW, SPREAD_FEW)
+BANDS_MANY = (SPREAD_MANY, SPREAD_MANY, 0.142)
 
 
 def door_sides(elements: Sequence[Element], pages: Sequence[Page]) -> list[float]:
@@ -96,24 +114,42 @@ def door_sides(elements: Sequence[Element], pages: Sequence[Page]) -> list[float
     return [side for side in sides if side > 0]
 
 
+def door_spread(sides: Sequence[float]) -> float:
+    """The robust log spread of the door widths (a standard deviation's worth); 0 under two."""
+    if len(sides) < 2:
+        return 0.0
+    middle = statistics.median(sides)
+    return 1.4826 * statistics.median(abs(math.log(side / middle)) for side in sides)
+
+
+def door_band(sides: Sequence[float]) -> float:
+    """The 68% relative scale error of a page whose detected doors are `sides` (K5): its door
+    count group's band in its spread bucket."""
+    bands = BANDS_FEW if len(sides) < FEW_DOORS else BANDS_MANY
+    return bands[bisect.bisect_right(SPREAD_EDGES, door_spread(sides))]
+
+
 def estimate_scale(sides: Sequence[float]) -> Scale | None:
     """The scale from the door prior over `sides`; None without a door."""
     if not sides:
         return None
+    band = door_band(sides)
+    source = f"a door is about {DOOR_M} m wide; median of {len(sides)} detected doors"
+    if band > (BANDS_FEW if len(sides) < FEW_DOORS else BANDS_MANY)[0]:  # K5: a wider bucket
+        source += f", whose widths disagree (±{math.expm1(door_spread(sides)):.0%})"
     return Scale(
-        status="estimated",
-        m_per_unit=DOOR_M / statistics.median(sides),
-        source=f"a door is about {DOOR_M} m wide; median of {len(sides)} detected doors",
-        uncertainty=SPREAD_FEW if len(sides) < FEW_DOORS else SPREAD_MANY,
-    )
+        status="estimated", m_per_unit=DOOR_M / statistics.median(sides), source=source,
+        uncertainty=band,
+    )  # fmt: skip
 
 
 def rooms_with_areas(
     rooms: Sequence[Room], scale: Scale, pages: Sequence[Page]
 ) -> tuple[list[Room], list[str]]:
     """Each room without an area gets its outline's area at `scale`, as an estimate, unless its
-    box cannot be the room (`refused_boxes`): that room keeps no area, and the notes say why. A
-    room that has an area keeps it."""
+    box cannot be the room (`refused_boxes`): that room keeps no area, `attrs[AREA_REFUSED]` and
+    the notes say why (a refusal at an earlier scale is measured again). A room that has an area
+    keeps it."""
     if scale.m_per_unit is None:
         return list(rooms), []
     by_page = {page.page: page for page in pages}
@@ -121,8 +157,16 @@ def rooms_with_areas(
     spread = math.hypot(2 * math.log1p(scale.uncertainty or 0.0), OUTLINE_SPREAD)
     out: list[Room] = []
     for room in rooms:
+        if AREA_REFUSED in room.attrs:  # refused at the scale this one replaces
+            attrs = {key: value for key, value in room.attrs.items() if key != AREA_REFUSED}
+            room = room.model_copy(update={"attrs": attrs})
         page = by_page.get(room.page)
-        if room.area_m2 is not None or page is None or room.id in refused:
+        if room.id in refused and room.area_m2 is None and page is not None:
+            out.append(
+                room.model_copy(update={"attrs": {**room.attrs, AREA_REFUSED: refused[room.id]}})
+            )
+            continue
+        if room.area_m2 is not None or page is None:
             out.append(room)
             continue
         if room.polygon is not None:
@@ -260,11 +304,12 @@ def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
 
 
 # SCALE_CARBON_DOORS=on (app/adapters/raster_scale/ CarbonDoorScale): when the detector found no
-# door it is sure of, the Carbon reader's own door boxes. shortcut: CARBON_DOOR_M is DOOR_M, fitted
-# on the detector's boxes, not Carbon's (it boxes a door with its swing, a square about a leaf wide
-# on a side; on golden's 19 Carbon door boxes the scale comes out about 14.5% low); fit it on the
-# hard set before the setting goes on: scripts/carbon_door_scale.py prints the value ("fit:")
-CARBON_DOOR_M = DOOR_M
+# door it is sure of, the Carbon reader's own door boxes (it boxes a door with its swing: a side
+# longer than the detector's leaf box). Fitted by scripts/carbon_door_scale.py on 34 scans of dev
+# swiss/IFC plans with a known scale (scripts/make_scans.py, pre-registered halves): the half-1
+# fit; 13/14 half-2 sheets inside the band (DOOR_M gave 4/28, median -25.3%); USCG fp21 alone fit
+# 1.123. shortcut: only 3 real scans behind it (fp21, 2 HABS), refit when more real scans exist
+CARBON_DOOR_M = 1.086  # m
 
 
 def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
