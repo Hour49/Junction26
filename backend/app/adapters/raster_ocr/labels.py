@@ -19,6 +19,7 @@ two letter code is too short for a near match to mean anything.
 
 import json
 import unicodedata
+from collections.abc import Mapping
 from functools import cache
 from pathlib import Path
 
@@ -43,14 +44,23 @@ def table() -> dict[str, RoomType]:
     return {label: row["type"] for label, row in rows.items()}
 
 
-def room_type(text: str) -> RoomType | None:
+@cache
+def annotated() -> dict[str, RoomType]:
+    """room_labels.json alone: the labels the dev gold's annotators typed."""
+    rows = json.loads(TABLE.read_text(encoding="utf-8"))
+    return {label: row["type"] for label, row in rows.items()}
+
+
+def room_type(text: str, rows: Mapping[str, RoomType] | None = None) -> RoomType | None:
     """The type of the room a reading names, or None when the reading names no room we know.
     A reading of several words ("MH 12,5 m2") names the room of its first word of two or more
-    letters that is a label: a lone letter inside other text is noise."""
-    if (kind := table().get(fold(text))) is not None:
+    letters that is a label: a lone letter inside other text is noise. `rows`: the table to look
+    in (None: `table()`)."""
+    found = table() if rows is None else rows
+    if (kind := found.get(fold(text))) is not None:
         return kind
     for word in text.split():
         key = fold(word)
-        if len(key) >= 2 and key in table():
-            return table()[key]
+        if len(key) >= 2 and key in found:
+            return found[key]
     return None
