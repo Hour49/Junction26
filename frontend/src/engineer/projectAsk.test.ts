@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { project, projectAsk } from '../api/fixtures';
-import { askable, followUps, orderParts, starters } from './projectAsk';
+import { drawing, project, projectAsk } from '../api/fixtures';
+import { askable, canDraw, followUps, orderParts, starters } from './projectAsk';
 
 const ids = project.drawings.map((d) => d.drawing_id);
 
@@ -82,4 +82,14 @@ it('CH-36 followUps: up to 3 unasked questions, the first of each kind first, th
   ]);
   expect(q(followUps([flatA, flatB], q(flatA)))).toEqual(['What is the area of the kitchen?']);
   expect(followUps([flatA], q(flatA))).toEqual([]);
+});
+
+it('ui-bugs 1 canDraw: drawn PDFs and model sheets with pages; never a scan or photo, nor a drawing without pages', () => {
+  const [vector, , raster] = project.drawings;
+  if (!vector || !raster) throw new Error('fixture drawings');
+  const read = { ...drawing };
+  expect(canDraw(vector, read)).toBe(true);
+  expect(canDraw(raster, read)).toBe(false);
+  expect(canDraw(vector, { ...read, pages: [] })).toBe(false);
+  expect(canDraw(vector, undefined)).toBe(false);
 });
