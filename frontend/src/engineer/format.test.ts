@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { estimateLine, formatCost, formatLatency, formatScore, statusWord } from './format';
+import {
+  estimateLine,
+  formatCost,
+  formatLatency,
+  formatScore,
+  partialLine,
+  statusWord,
+} from './format';
 import { answer, answerArea } from '../api/fixtures';
 
 describe('engineer format', () => {
@@ -49,4 +56,20 @@ it('EN-88 estimateLine: about the rounded measure and the API sentence; a count 
   expect(estimateLine({ ...est, answer: 0.3 })).toBe('0.30 m², the scale estimated from the doors');
   expect(estimateLine(answerArea)).toBeNull();
   expect(estimateLine(answer)).toBeNull();
+});
+
+it('CH-49 partialLine: the rooms summed and up to five missing names; null unless partial', () => {
+  expect(partialLine({ partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] })).toBe(
+    'May be partial: sums 7 rooms the reader found; missing from it: Sauna, WC 2.',
+  );
+  const seven = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  expect(partialLine({ partial: true, rooms_counted: 1, rooms_missing: seven })).toBe(
+    'May be partial: sums 1 room the reader found; missing from it: A, B, C, D, E and 2 more.',
+  );
+  expect(partialLine({ partial: true, rooms_counted: 3, rooms_missing: [] })).toBe(
+    'May be partial: sums 3 rooms the reader found.',
+  );
+  expect(partialLine({ partial: false, rooms_counted: 3, rooms_missing: ['Sauna'] })).toBeNull();
+  expect(partialLine({})).toBeNull();
+  expect(partialLine(answer)).toBeNull();
 });

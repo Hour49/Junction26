@@ -827,7 +827,8 @@ button.en-cref {
 }
 /* CH-43/CH-44: why and the estimate, each a full row under the value */
 .en-parts .en-why,
-.en-parts .en-estimate {
+.en-parts .en-estimate,
+.en-parts .en-partial {
   flex-basis: 100%;
   margin: 0;
 }

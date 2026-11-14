@@ -92,3 +92,16 @@ export function estimateLine(a: AnswerView): string | null {
   // a whole number: formatValue's two decimals would claim a precision the estimate has not
   return `about ${shownValue(n, a.unit, true)}, ${why}`;
 }
+
+/** CH-49/EN-90: a room total that may leave rooms out (#350): "May be partial: sums 7 rooms the reader found;
+ * missing from it: Sauna, WC 2." with at most five names; null unless `partial`. */
+export function partialLine(
+  a: Pick<AnswerView, 'partial' | 'rooms_counted' | 'rooms_missing'>,
+): string | null {
+  if (!a.partial) return null;
+  const n = a.rooms_counted ?? 0;
+  const missing = a.rooms_missing ?? [];
+  const more = missing.length > 5 ? ` and ${String(missing.length - 5)} more` : '';
+  const named = missing.length ? `; missing from it: ${missing.slice(0, 5).join(', ')}${more}` : '';
+  return `May be partial: sums ${String(n)} room${n === 1 ? '' : 's'} the reader found${named}.`;
+}

@@ -25,6 +25,7 @@ import {
   formatLatency,
   formatScore,
   gradeOf,
+  partialLine,
   shownValue,
   statusTip,
   statusWord,
@@ -427,6 +428,7 @@ function Answer(props: {
             {noun && <span className="en-noun">{noun}</span>}
           </div>
           {estimate && <p className="en-estimate">{estimate}</p>}
+          {partialLine(a) && <p className="en-partial">{partialLine(a)}</p>}
           {/* Decides itself whether to ask (null when certified); never for a High answer (EN-83). */}
           {a.level?.level !== 'high' && (
             <DoubleCheck

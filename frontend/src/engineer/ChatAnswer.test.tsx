@@ -380,3 +380,20 @@ it('CH-48 a printed-table answer (no quantity) still shows its own answer', () =
   const [row] = rows() as [HTMLElement];
   expect(row.textContent).toContain(`${LA}: 12`);
 });
+
+it('CH-49 a partial room total: one line under that row value, none on the other rows', () => {
+  const partial = {
+    ...flatA,
+    answer: { ...flatA.answer, partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] },
+  };
+  show({ ...projectAsk, parts: [partial, ...projectAsk.parts.slice(1)] });
+  const lines = rows().map((row) => row.querySelector('.en-partial')?.textContent ?? null);
+  expect(lines.filter(Boolean)).toEqual([
+    'May be partial: sums 7 rooms the reader found; missing from it: Sauna, WC 2.',
+  ]);
+});
+
+it('CH-49 nothing when no part is partial', () => {
+  show();
+  expect(document.querySelector('.en-partial')).toBeNull();
+});

@@ -4,7 +4,15 @@ import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
 import { GRADE_TONE, StatusPill } from './AnswerCard';
 import { ResolverLines } from './Resolver';
-import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
+import {
+  estimateLine,
+  gradeOf,
+  kindName,
+  levelWord,
+  partialLine,
+  shownValue,
+  type Grade,
+} from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
 import { ModelDialog } from '../model3d/ModelDialog';
@@ -165,6 +173,8 @@ export function ChatAnswer(props: {
                   Show it on {labelOf(p)}
                 </a>
                 {estimate(p) && <p className="en-estimate">{estimate(p)}</p>}
+                {/* CH-49: a room total that may leave rooms out says which it sums and which it lacks */}
+                {partialLine(p.answer) && <p className="en-partial">{partialLine(p.answer)}</p>}
                 {/* CH-43: why, under the value, as a refusal gives its reason */}
                 {why(p) && <p className="en-why">{why(p)}</p>}
                 <ResolverLines a={p.answer} />

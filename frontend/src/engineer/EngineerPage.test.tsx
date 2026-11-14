@@ -1210,6 +1210,23 @@ describe('judge path', () => {
     expect(t.textContent).not.toMatch(/4\.88|5\.00/);
   });
 
+  it('EN-90 a partial room total says which rooms it sums and which are missing; nothing without it', async () => {
+    const t = await shownTurn({
+      ...answer,
+      partial: true,
+      rooms_counted: 7,
+      rooms_missing: ['Sauna', 'WC 2'],
+    });
+    expect(t.querySelector('.en-head .en-partial')?.textContent).toBe(
+      'May be partial: sums 7 rooms the reader found; missing from it: Sauna, WC 2.',
+    );
+  });
+
+  it('EN-90 no partial line when partial is absent', async () => {
+    const t = await shownTurn(answer);
+    expect(t.querySelector('.en-partial')).toBeNull();
+  });
+
   it('EN-89 a double-check reason that already gives the estimate is the one line: no estimate line', async () => {
     const why = 'counted by Gemini Carbon, an AI reader: check its marks on the plan';
     const reason = `Please double-check the doors: it is an estimate (${why}).`;
