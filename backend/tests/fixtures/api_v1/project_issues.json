@@ -3,11 +3,11 @@
   "pack": null,
   "issues": [
     {
-      "id": "conflict-734b9f17d4fd",
+      "id": "conflict-efcb1b52a852",
       "kind": "conflict",
       "severity": "note",
       "state": "settled",
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "file": "plans/flat-b.pdf",
       "file_id": "f3",
       "floor": null,
@@ -43,8 +43,8 @@
       "reason": null,
       "check": null,
       "links": {
-        "drawing": "/api/drawings/6d153ea15dca9ab4?project=5e0c1a2b3d4f",
-        "takeoff": "/api/drawings/6d153ea15dca9ab4/takeoff?project=5e0c1a2b3d4f",
+        "drawing": "/api/drawings/44cc9f0d991eafe3?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
         "checks": null
       }

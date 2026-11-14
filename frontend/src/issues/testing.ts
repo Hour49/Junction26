@@ -2,7 +2,7 @@
 import type { Issue, IssueList } from '../api';
 
 export const PID = 'a8d435e09c5d';
-export const DRAWING_B = '6d153ea15dca9ab4';
+export const DRAWING_B = '44cc9f0d991eafe3';
 export const DRAWING_IFC = '1db9bcf1e67e27a3';
 
 const base: Issue = {
