@@ -17,7 +17,7 @@
     const now = Date.now();
     const conflicts = {};
     for (const c of V.CONFLICTS) conflicts[c.id] = { mode: c.ai === null ? 'open' : 'ai', pick: null };
-    S.p = { started: analysed ? now - TOTAL * 1000 : now, doneLogged: false, conflicts, history: [], turns: [], di: 0, checks: {} };
+    S.p = { started: analysed ? now - TOTAL * 1000 : now, doneLogged: false, conflicts, history: [], turns: [], chat: [], di: 0, checks: {} };
     log(S.p.started, 'up', 'Uploaded the archive', `${V.ARCHIVE} · ${V.FILES.length} files`);
     logDone();
   }
@@ -56,11 +56,11 @@
     const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
     const name = parts[0] || 'home';
     if (name === 'ingest' && PANELS.includes(parts[1])) return { name: 'advanced', panel: parts[1] };
-    return { name: ['ingest', 'conflicts', 'ask', 'workspaces'].includes(name) ? name : 'home' };
+    return { name: ['ingest', 'conflicts', 'chat', 'ask', 'workspaces'].includes(name) ? name : 'home' };
   }
 
   function header(r) {
-    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['ask', 'Engineer', '#/ask']];
+    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['chat', 'Chat', '#/chat'], ['ask', 'Engineer', '#/ask']];
     const cur = r.name === 'advanced' ? 'ingest' : r.name;
     const nav = S.p && r.name !== 'home' && r.name !== 'workspaces'
       ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => (k === cur
@@ -79,7 +79,7 @@
     if (r.name !== 'home' && r.name !== 'workspaces' && !S.p) newProject(true);
     slots = {};
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, conflicts: conflictsScreen,
-      ask: window.VAsk.screen, workspaces: workspacesScreen }[r.name](r);
+      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen }[r.name](r);
     app.innerHTML = header(r) + screen + '<p class="foot">Clickable demo · synthetic data drawn in the browser, no backend, nothing read from a real file.</p>';
     fill();
   }
@@ -303,7 +303,6 @@
           <span class="tile-val">${esc(labels[i])}</span><span class="tile-src">${esc(v.src)}</span></button>`;
       }).join('');
       const action = { ai: '', own: `You chose variant ${(st.pick ?? 0) + 1}${!unsolved && st.pick !== c.ai ? ', over the AI decision' : ''}.`, modify: 'Tap the right variant.', open: 'Tap the right variant.' }[st.mode];
-      const reset = st.mode === 'modify' ? 'Cancel' : unsolved ? 'Change' : 'Use the AI decision';
       return `<article class="conflict" aria-label="Conflict ${n + 1}"><div class="c-head"><div>
           <span style="font-size:12px;font-weight:500;color:var(--v-muted)">Conflict ${n + 1} of ${V.CONFLICTS.length} · ${unsolved ? 'unsolved' : 'solved by the AI'}</span>
           <h2>${esc(c.title)}</h2><span class="mono" style="font-size:12px;color:var(--v-muted)">${esc(c.files)}</span></div>
@@ -311,14 +310,20 @@
         ${plan}<div class="vars" role="group" aria-label="Variants">${tiles}</div>
         <details class="why"><summary><svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6e6e73" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>${unsolved ? 'Why the AI could not decide' : `Why the AI chose variant ${c.ai + 1}`}</summary>
           <ol>${c.rules.map((x) => `<li>${esc(x)}</li>`).join('')}</ol><p>${esc(c.why)}</p></details>
-        <div class="c-foot"><span>${action}</span>${st.mode === 'ai' ? `<button class="btn btn-soft press" data-act="modify" data-c="${c.id}">Modify</button>` : ''}
-          ${st.mode === 'modify' || st.mode === 'own' ? `<button class="btn btn-plain press" data-act="reset" data-c="${c.id}">${reset}</button>` : ''}</div></article>`;
+        <div class="c-foot"><span>${action}</span>${st.mode === 'ai' || st.mode === 'own' ? `<button class="btn btn-soft press" data-act="modify" data-c="${c.id}">Modify</button>` : ''}
+          ${st.mode === 'modify' ? `<button class="btn btn-plain press" data-act="cancel" data-c="${c.id}">Cancel</button>` : ''}
+          ${st.mode === 'own' && !unsolved ? `<button class="btn btn-plain press" data-act="use-ai" data-c="${c.id}">Use the AI decision</button>` : ''}</div></article>`;
     }).join('');
-    const open = V.CONFLICTS.length - ai;
+    const count = (m) => V.CONFLICTS.filter((c) => p.conflicts[c.id].mode === m).length;
+    const needs = V.CONFLICTS.length - count('ai') - count('own');
+    const summary = [[count('ai'), 'settled by the AI'], [count('own'), 'settled by you'], [needs, needs === 1 ? 'needs you' : 'need you']]
+      .filter(([n]) => n).map(([n, t]) => `${n} ${t}.`).join(' ');
     return `<main class="w820"><div class="title-row"><div>
         <span class="kicker ok">${esc(V.ARCHIVE)} · ${V.DRAWINGS.length} drawings ready</span>
-        <h1>${V.CONFLICTS.length} conflicts found</h1><p class="muted" style="margin:0">The AI settled ${ai}. ${open === 1 ? 'One needs' : `${open} need`} you.</p></div>
-        ${locked ? '<button class="btn press" disabled title="Settle every conflict first">Open the workspace</button>' : '<a class="btn btn-primary press" href="#/ask">Open the workspace</a>'}</div>
+        <h1>${V.CONFLICTS.length} conflicts found</h1><p class="muted" style="margin:0">${summary}</p></div>
+        <div class="chat-cta">${locked
+          ? '<button class="btn press" disabled aria-describedby="chat-why">Start a new chat</button><span id="chat-why" class="small">Settle the conflicts that need you first.</span>'
+          : `<a class="btn btn-primary press" href="#/chat" aria-describedby="chat-why">Start a new chat</a><span id="chat-why" class="small">Ask anything about the ${V.DRAWINGS.length} drawings in this project</span><a class="small" href="#/ask">Open the workspace</a>`}</div></div>
       <div style="display:flex;align-items:center;gap:12px"><div class="segs" aria-hidden="true">${V.CONFLICTS.map((_, i) => `<span class="${i < settled ? 'on' : ''}"></span>`).join('')}</div>
         <span style="font-size:13px;font-weight:500;color:var(--v-text-2)" role="status">${settled} of ${V.CONFLICTS.length} settled</span></div>
       ${cards}</main>`;
@@ -348,7 +353,7 @@
         <section class="card hist" aria-label="History"><div class="hist-head"><div style="display:flex;flex-direction:column;gap:4px;min-width:0">
             <span style="font-size:12px;font-weight:500;color:var(--v-muted)">Archive · created today, ${hhmm(p.started)}</span><h2>${esc(V.ARCHIVE)}</h2></div>
             <a class="btn btn-soft press" href="${pr.done ? '#/ask' : '#/ingest'}">Open workspace</a></div>
-          <dl class="stats" style="border-bottom:1px solid #f0f1f0">${stat('Files', V.FILES.length)}${stat('Drawings', V.DRAWINGS.length)}${stat('Questions', p.turns.length)}${stat('Signed off', signed)}</dl>
+          <dl class="stats" style="border-bottom:1px solid #f0f1f0">${stat('Files', V.FILES.length)}${stat('Drawings', V.DRAWINGS.length)}${stat('Questions', p.turns.length + p.chat.length)}${stat('Signed off', signed)}</dl>
           <h3 style="margin:20px 24px 4px;font-size:15px">History</h3><ol class="events">${events}</ol></section></div></main>`;
   }
 
@@ -359,17 +364,19 @@
     pick: (el) => { const c = V.CONFLICTS.find((x) => x.id === el.dataset.c), i = Number(el.dataset.i);
       S.p.conflicts[c.id] = { mode: 'own', pick: i };
       log(Date.now(), 'cf', `Conflict settled: ${c.title}`, `Your choice · ${V.variantLabels(c)[i]}${c.ai !== null && c.ai !== i ? ', over the AI decision' : ''}`); },
-    modify: (el) => { S.p.conflicts[el.dataset.c] = { mode: 'modify', pick: null }; },
-    reset: (el) => { const c = V.CONFLICTS.find((x) => x.id === el.dataset.c), was = S.p.conflicts[c.id].mode;
-      S.p.conflicts[c.id] = c.ai === null ? { mode: 'open', pick: null } : { mode: 'ai', pick: null };
-      if (was === 'own') log(Date.now(), 'cf', c.ai === null ? `Choice undone: ${c.title}` : `AI decision restored: ${c.title}`, c.ai === null ? 'Waiting for you again' : `AI decision approved · ${V.variantLabels(c)[c.ai]}`); },
+    // Modify keeps what was in use, so Cancel can put it back (a person's choice keeps Modify, never "Change")
+    modify: (el) => { const id = el.dataset.c; S.p.conflicts[id] = { mode: 'modify', pick: null, back: S.p.conflicts[id] }; },
+    cancel: (el) => { const id = el.dataset.c; S.p.conflicts[id] = S.p.conflicts[id].back; },
+    'use-ai': (el) => { const c = V.CONFLICTS.find((x) => x.id === el.dataset.c);
+      S.p.conflicts[c.id] = { mode: 'ai', pick: null };
+      log(Date.now(), 'cf', `AI decision restored: ${c.title}`, `AI decision approved · ${V.variantLabels(c)[c.ai]}`); },
   };
   function start() { newProject(false); location.hash = '#/ingest'; return false; }
 
   app.addEventListener('click', (ev) => {
     const el = ev.target.closest('[data-act]');
     if (!el || el.getAttribute('aria-disabled') === 'true') return;
-    const fn = ACTIONS[el.dataset.act] || window.VAsk.actions[el.dataset.act];
+    const fn = ACTIONS[el.dataset.act] || window.VAsk.actions[el.dataset.act] || window.VChat.actions[el.dataset.act];
     if (fn && fn(el, ev) !== false) render();
   });
   app.addEventListener('keydown', (ev) => {

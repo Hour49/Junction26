@@ -77,3 +77,14 @@ test('ingest progress ends with every file through and every drawing ready', () 
   assert.equal(end.ready, V.DRAWINGS.length);
   assert.equal(end.aside, 2);
 });
+
+test('the project chat adds nothing up across drawings, or refuses with what can be asked', () => {
+  const r = V.askProject('How many doors are there?', {});
+  assert.equal(r.rows.length, V.DRAWINGS.length);
+  assert.equal(r.rows[0].drawing, V.DRAWINGS[0].id);
+  assert.equal(r.total, null);
+  assert.match(r.total_note, /same rooms/);
+  const no = V.askProject('Who designed this?', {});
+  assert.equal(no.rows, undefined);
+  assert.ok(no.refusal && no.canAnswer.length > 0);
+});
