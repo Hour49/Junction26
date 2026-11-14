@@ -148,7 +148,7 @@ KEY="$(grep -m1 '^GEMINI_API_KEY=' "$ROOT/.env" 2>/dev/null | cut -d= -f2- | tr 
 [[ -n "$KEY" ]] || echo "qa-env: no GEMINI_API_KEY in $ROOT/.env: rooms and the confidence report no reply"
 
 cd "$ENV/backend"
-GEMINI_API_KEY="$KEY" PROJECTS_DIR="$ENV/data/projects" RASTER_COMPONENTS="$RASTER" \
+APP_COMMIT="$SHA" GEMINI_API_KEY="$KEY" PROJECTS_DIR="$ENV/data/projects" RASTER_COMPONENTS="$RASTER" \
   start backend "$ENV/backend.log" \
   env "${DEMO_ENV[@]}" uv run --locked uvicorn app.main:create_app --factory --host 127.0.0.1 --port "$PORT"
 unset KEY
