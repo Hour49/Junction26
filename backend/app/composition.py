@@ -63,6 +63,7 @@ from app.adapters.ifc_model.facts_source import IfcFactSource
 from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
+from app.adapters.one_at_a_time import OneAtATime
 from app.adapters.openvlm.client import OpenVlmClient
 from app.adapters.openvlm.decider import OpenVlmDecider
 from app.adapters.openvlm.rooms import OpenVlmRoomExtractor, OpenVlmRoomModel
@@ -899,6 +900,7 @@ def _raster(
                     _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
                     kind_of,
                 )
+            shipped = OneAtATime(shipped)  # one local reading in memory at a time (groups.py)
             shipped = _scaled(settings, shipped)  # PriorScale's door constants fit the detector
             if settings.carbon_reader == "advanced" and settings.sheet_kind == "off":
                 raise InvalidInputError(

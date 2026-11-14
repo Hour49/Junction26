@@ -5,13 +5,17 @@ import io
 import threading
 import urllib.request
 import zipfile
+from pathlib import Path
 from typing import Any
 
 import pytest
 from conftest import MakeService
 from PIL import Image
+from test_ingest_carbon import carbon_settings
 
 from app.adapters.carbon import reader as carbon
+from app.adapters.one_at_a_time import OneAtATime
+from app.composition import build_pipeline
 from app.core import cost
 from app.core.drawing.model import Scale
 from app.core.ingest import groups
@@ -192,3 +196,48 @@ def test_carbon_calls_in_flight_never_pass_the_cap(monkeypatch: pytest.MonkeyPat
     for caller in callers:
         caller.join(10)
     assert most[0] == carbon.CALLS_IN_FLIGHT
+
+
+class Inside:
+    """A local reader that counts how many reads are inside it at once."""
+
+    def __init__(self) -> None:
+        self.inside, self.most, self.go = 0, 0, threading.Event()
+        self.changed = threading.Condition()
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        with self.changed:
+            self.inside += 1
+            self.most = max(self.most, self.inside)
+            self.changed.notify_all()
+        assert self.go.wait(10)
+        with self.changed:
+            self.inside -= 1
+        return Extracted(method="detector", scale=Scale(status="no_scale"), read=("door",))
+
+
+def test_the_local_reading_runs_one_sheet_at_a_time() -> None:
+    """Groups read at once, but the memory-heavy local reading is one sheet at a time."""
+    local = Inside()
+    reader = OneAtATime(local)
+    file = drawing("a.png")
+    sheet = Sheet(file=file, pages=())
+    callers = [threading.Thread(target=reader.extract, args=(file, sheet)) for _ in range(3)]
+    for caller in callers:
+        caller.start()
+    with local.changed:
+        assert local.changed.wait_for(lambda: local.inside == 1, timeout=10)
+        assert not local.changed.wait_for(lambda: local.inside > 1, timeout=0.5)
+    local.go.set()
+    for caller in callers:
+        caller.join(10)
+    assert local.most == 1
+
+
+def test_the_composite_s_local_reading_is_wrapped_one_at_a_time(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    settings = carbon_settings(monkeypatch, tmp_path, CARBON_READER="all", RASTER_SCALE="priors")
+    switch = build_pipeline(settings, tmp_path).extractors["raster"]._inner  # pyright: ignore[reportAttributeAccessIssue]
+    scaled = switch._other  # pyright: ignore[reportPrivateUsage]
+    assert isinstance(scaled._inner, OneAtATime)  # pyright: ignore[reportPrivateUsage]
