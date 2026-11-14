@@ -31,7 +31,7 @@ from app.core.answering.ports import (
 from app.core.answering.tables import TableAnswer, answer_table, why_none
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.ifc_facts import FactSheet
-from app.core.pipeline.model import Quantity
+from app.core.pipeline.model import Partial, Quantity
 from app.core.pipeline.second_count import METHODS
 from app.core.pipeline.takeoff import known_quantities, normalised, room_names
 
@@ -261,11 +261,36 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
         cost_usd=0.0,  # a lookup: no model is called on the drawing
         latency_s=latency,
         abstain=abstain,
-        explanation="; ".join(notes) or None,
+        explanation=_with_partial("; ".join(notes), found.partial) or None,
         estimate=None if found.estimate is None else True,
         conflicts=conflicts,
         resolution=resolution,
     )
+
+
+NAMED_MISSING = 3  # rooms named in a partial total's sentence; the rest are counted
+
+
+def _with_partial(said: str, partial: Partial | None) -> str:
+    """The other notes, then a partial total's sentence as a sentence of its own."""
+    if partial is None:
+        return said
+    sentence = partial_text(partial)
+    return f"{said.rstrip('.')}. {sentence}" if said else sentence
+
+
+def partial_text(partial: Partial) -> str:
+    """One plain sentence: a room total is the sum of the rooms found, and which it misses."""
+    rooms = f"{partial.counted} room{'' if partial.counted == 1 else 's'}"
+    named = ", ".join(partial.missing[:NAMED_MISSING])
+    if (more := len(partial.missing) - NAMED_MISSING) > 0:
+        named += f" and {more} more"
+    if not partial.read:  # a vector or IFC sheet has no reader: only a schedule makes it partial
+        said = f"This is the sum of the {rooms} drawn on the sheet"
+        table = f"the {partial.schedule}" if partial.schedule else "a schedule on the sheet"
+        return f"{said}; {table} lists more: {named}."
+    said = f"This is the sum of the {rooms} the reader found; rooms it missed are not in it"
+    return said + (f". Not in it: {named}." if partial.missing else ".")
 
 
 HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates' PARENTHESES

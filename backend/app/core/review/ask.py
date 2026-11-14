@@ -18,6 +18,7 @@ from app.core.answering.answer import (
     UNSUPPORTED_QUESTION,
     RoomByType,
     answer_question,
+    partial_text,
     printed_rooms,
     rooms_of_type,
 )
@@ -39,9 +40,10 @@ from app.core.drawing.model import ELEMENT_CLASSES, CarbonCheck, Drawing, Room, 
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
-from app.core.pipeline.model import CountingRule, Quantity
+from app.core.pipeline.model import CountingRule, Partial, Quantity
 from app.core.pipeline.takeoff import known_quantities, normalised, quantity_key, room_names
 from app.core.review.check import (
+    ASK,
     NO_SCORERS,
     Check,
     CheckPolicy,
@@ -128,6 +130,8 @@ class Asked(Frozen):
     # CHECK_POLICY's confidence level; None: a refusal, a value a person signed or settled, the
     # policy off, or a policy file without levels
     level: Level | None = None
+    # A room total that may leave rooms out (Quantity.partial); None: not one, or a refusal
+    partial: Partial | None = None
 
 
 class _Once:
@@ -283,6 +287,10 @@ def ask(
     sure: bool | None = None  # CHECK_POLICY's verdict
     if check is not None and shown is not None and isinstance(parsed, Query):
         reason = held(shown, drawing)
+        if reason is None and found is not None and found.partial is not None:
+            reason = f"Please double-check the {shown.noun or shown.label}: " + partial_text(
+                found.partial
+            )
         family = parsed.family()
         score = score_of(
             check, family, confidence=answer.confidence, drawing=drawing, value=answer.answer,
@@ -312,6 +320,10 @@ def ask(
                 level = carbon_checked(
                     level, drawing.carbon_check, carbon, answer.answer, ladder=ladder
                 )
+        if level is not None and found is not None and found.partial is not None:
+            # a sum missing rooms is Low whatever its score, in its own words (partial totals)
+            said = "Low confidence: " + partial_text(found.partial) + ASK["low"]
+            level = Level(level="low", basis="held", text=said)
         if not sure and not (level is not None and level.level == "high"):
             found = disputes(drawing, shown)
             if reason is None and doubt is not None:
@@ -340,6 +352,7 @@ def ask(
         proof=proof,
         check=request,
         level=level,
+        partial=None if found is None else found.partial,
     )
 
 

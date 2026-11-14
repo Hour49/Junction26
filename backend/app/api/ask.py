@@ -3,6 +3,7 @@ takeoff row it was read from, in the same shape as the takeoff gives it, and the
 the scorer reads."""
 
 from collections.abc import Callable
+from typing import TypedDict
 
 from fastapi import APIRouter
 from pydantic import Field
@@ -100,6 +101,12 @@ class AnswerView(View):
     # nothing when it could not; both left out of the JSON when None
     resolved: Resolved | None = Field(default=None, exclude_if=is_none)
     resolver_note: str | None = Field(default=None, exclude_if=is_none)
+    # A room total that may leave rooms out: the sum of the `rooms_counted` rooms the reader
+    # found (or drawn); `rooms_missing` are the rooms a room schedule names that it lacks.
+    # Left out of the JSON when it is not one
+    partial: bool | None = Field(default=None, exclude_if=is_none)
+    rooms_counted: int | None = Field(default=None, exclude_if=is_none)
+    rooms_missing: list[str] | None = Field(default=None, exclude_if=is_none)
 
 
 class _SheetFiles:
@@ -310,4 +317,22 @@ def answer_view(
         level=asked.level,
         resolved=resolved,
         resolver_note=note,
+        **partial_fields(asked),
     )
+
+
+class PartialFields(TypedDict, total=False):
+    partial: bool
+    rooms_counted: int
+    rooms_missing: list[str]
+
+
+def partial_fields(asked: Asked) -> PartialFields:
+    """AnswerView's partial fields of a room total that may leave rooms out; none otherwise."""
+    if asked.partial is None or asked.refusal is not None:
+        return {}
+    return {
+        "partial": True,
+        "rooms_counted": asked.partial.counted,
+        "rooms_missing": list(asked.partial.missing),
+    }
