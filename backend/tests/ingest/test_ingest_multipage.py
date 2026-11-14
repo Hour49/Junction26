@@ -12,7 +12,7 @@ from test_vector_pdf import swiss_sheet
 
 from app.adapters.archive import DiskProjectStore, FileProbe
 from app.adapters.archive.probe import MAX_PAGES
-from app.core.ingest.model import Probed
+from app.core.ingest.model import Probed, page_path, split_from
 from scripts.make_sample_archive import text_pdf
 
 
@@ -115,3 +115,11 @@ def test_a_set_read_before_its_pages_were_split_is_read_again(
     parent = project.files[0]
     assert parent.reused is False  # the two-page reading is not served from the cache
     assert [page.page for page in ingest.drawing(parent.drawing_id or "").pages] == [1]
+
+
+def test_a_page_file_names_the_pdf_it_was_split_from() -> None:
+    paths = ["sets/Permit .PDF", "sets/Permit #p3.pdf", "plan.pdf", "notes#p2.pdf"]
+    assert page_path("sets/Permit .PDF", 3) == "sets/Permit #p3.pdf"
+    assert split_from("sets/Permit #p3.pdf", paths) == "sets/Permit .PDF"
+    assert split_from("plan.pdf", paths) is None  # not a page file
+    assert split_from("notes#p2.pdf", paths) is None  # named like one, but no notes.pdf

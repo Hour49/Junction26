@@ -273,8 +273,9 @@ verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
 | chat | Ingest, Conflicts, Checks*, Issues, Chat (current) |
 | workspace | Ingest, Conflicts, Checks*, Issues, Chat, Surveyor (current on the surveyor route; none on engineer) |
 
-\* Checks only while a pack is chosen (on `#/p/<pid>/checks` without a pack it still shows, current, so the page
-has its tab). Hrefs: `#/p/<pid>`, `/conflicts`, `/checks`, `/issues`, `/chat`, the drawing's surveyor route (keeps
+\* Checks only while the chosen `?pack` names a pack in `rulePacksOf(info)` (QA R5-c-4: not for an unknown pack,
+not while info loads or after an info error); on `#/p/<pid>/checks` it always shows, current, so the page has its
+tab. Hrefs: `#/p/<pid>`, `/conflicts`, `/checks`, `/issues`, `/chat`, the drawing's surveyor route (keeps
 `?q`); every one carries `?pack=<id>` when a pack is chosen.
 
 - Width: up to six tabs no longer fit the one-row header between 721 and ~1100 px, so the compact header (three rows,
@@ -735,6 +736,9 @@ Vellum round (round 2)
 - SH-71 (follow-up) The country button never wraps: `.country-button` has `white-space: nowrap`, `.country` does
   not shrink (`flex: 0 0 auto`) and caps at `max-width: 240px`, `.country-name` ends in an ellipsis (`overflow: hidden`,
   `text-overflow: ellipsis`); at 1440x900, 1024x768 and 390x844 it is one line high. [unit: parse the CSS; browser]
+- SH-72 (QA R5-c-4) With packs `[fi]` in info: `?pack=fi` shows the Checks tab once info has loaded; `?pack=xx`
+  (not listed) shows none, its other tabs still carry `?pack=xx`; while info loads `?pack=fi` shows none; on
+  `#/p/<pid>/checks?pack=xx` Checks shows, current. [component]
 - SH-63 `index.html`'s `<title>` equals `PRODUCT_NAME` ("Vellum"). [unit]
 - SH-61 The country picker: a button "Country rules: Finland" with `data-pending="country-rules"` and
   `aria-expanded="false"`; clicking opens the group "Building rules the agent follows" with Finland

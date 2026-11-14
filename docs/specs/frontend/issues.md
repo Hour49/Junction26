@@ -215,6 +215,9 @@ Status is never colour alone: kind, severity and state each carry a word (and an
 - IS-19: At 1440x900 and 390x844 the issues screen of the sample project (done, no pack and `?pack=fi`) has no
   horizontal scroll, the first issue is outlined on its page, and a screenshot of each is saved. [e2e]
 - IS-20: Every row's tap target is at least 44 px tall at 390. [e2e]
+- IS-21 (QA R5-c-1): a change of `pack` loads afresh: while the new list loads the screen shows "Loading issues…",
+  and a failed load (404 `unknown-pack`) shows the IS-13 card with no old rows and no Export, the same as a fresh
+  load of that URL. The filters reset with it. [component]
 
 ## Out of scope
 

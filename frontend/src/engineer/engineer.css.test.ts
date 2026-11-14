@@ -52,3 +52,8 @@ it('EN-79 the ask bar focus ring follows the pill, not a square box around the i
   expect(ring).toMatch(/outline-offset:\s*2px/);
   expect(rulesFor('.en-askpill')).toMatch(/border-radius:\s*980px/);
 });
+
+it('EN-80 the place row and the file name share the row without covering each other (QA R5-c-2)', () => {
+  expect(rulesFor('.en-plan:has(> .en-place) .vw-name')).toMatch(/max-width:\s*50%/);
+  expect(rulesFor('.en-place')).toMatch(/max-width:\s*calc\(50% - 32px\)/);
+});
