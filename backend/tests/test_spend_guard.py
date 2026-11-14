@@ -22,6 +22,7 @@ from app.adapters.decisions_kind import KindReader, KindUnavailable
 from app.adapters.decisions_kind.probe import KindProbe
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiError, GeminiRoomExtractor
 from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
+from app.adapters.triage.sheet_kind import SheetKindClassifier
 from app.composition import (  # pyright: ignore[reportPrivateUsage]
     _gemini_rooms,
     _probe,
@@ -225,6 +226,7 @@ def test_every_gemini_client_the_app_builds_charges_the_one_ledger(
         triage_classifier="rules",
         triage_describer="gemini",
         triage_describer_cache_dir=tmp_path / "describer",
+        sheet_kind="carbon",
     )
     guard = spend_guard(settings)
     assert spend_guard(settings) is guard
@@ -238,7 +240,9 @@ def test_every_gemini_client_the_app_builds_charges_the_one_ledger(
     steps = _triage(settings)
     assert steps is not None and isinstance(steps.describer, GeminiDescriber)
     describe_client = steps.describer._model  # pyright: ignore[reportPrivateUsage]
-    for client in (counts, kind, room_client, describe_client):
+    assert isinstance(steps.classifier, SheetKindClassifier)
+    sheet_client = steps.classifier._reader._model  # pyright: ignore[reportPrivateUsage]
+    for client in (counts, kind, room_client, describe_client, sheet_client):
         assert client._budget is guard  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
 
 

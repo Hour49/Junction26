@@ -1,0 +1,1013 @@
+{
+  "id": "ch-zh-ls-700-22",
+  "pack": "ch-zh",
+  "jurisdiction": "CH-ZH",
+  "number": "LS 700.22",
+  "title": "Besondere Bauverordnung II (BBV II)",
+  "title_en": "Special Building Ordinance II of the Canton of Zürich (stricter or milder rules for special buildings)",
+  "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/176C2C267E526801C12583F90029DB03/$File/700.22_26.8.81_97_Anhang.pdf",
+  "language": "de",
+  "in_force": "2017-04-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version (Stand 1 April 2017, latest on zhlex) of the ordinance of 26 August 1981; main text in full, the Anhang (older wording) not included.",
+  "clauses": [
+    {
+      "id": "ch-zh-ls-700-22-1",
+      "ref": "§ 1",
+      "heading": "Geltungsbereich",
+      "heading_en": "Scope",
+      "text": "Diese Verordnung trifft Verschärfungen oder Milderungen von Bauvorschriften.",
+      "text_en": "This ordinance makes building regulations stricter or more lenient.",
+      "summary_en": "This ordinance tightens or relaxes certain building regulations.",
+      "keywords": [
+        "scope",
+        "Geltungsbereich",
+        "building regulations",
+        "Bauvorschriften",
+        "stricter",
+        "Verschärfung",
+        "relaxation",
+        "Milderung"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-1-2",
+      "ref": "§ 1 Abs. 2",
+      "heading": "Geltungsbereich",
+      "heading_en": "Scope",
+      "text": "Soweit diese Verordnung einen Sachbereich regelt, sind Verschärfungen der Bauvorschriften im Einzelfall gemäss § 219 PBG unzulässig.",
+      "text_en": "Insofar as this ordinance regulates a subject area, tightening of the building regulations in individual cases pursuant to § 219 PBG is inadmissible.",
+      "summary_en": "Where this ordinance regulates a matter, individual cases cannot be made stricter under the building regulations pursuant to § 219 PBG.",
+      "keywords": [
+        "scope",
+        "Geltungsbereich",
+        "tightening",
+        "Verschärfung",
+        "individual case",
+        "Einzelfall",
+        "§ 219 PBG",
+        "building regulations",
+        "Bauvorschriften"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-3",
+      "ref": "§ 3",
+      "heading": "B. Verkaufsgeschäfte",
+      "heading_en": "Retail businesses",
+      "text": "Verkaufsgeschäfte sind dem Publikum offenstehende Betriebe für die Gütergrossverteilung und den Detailhandel, in denen Waren angeboten werden.",
+      "text_en": "Retail businesses are commercial establishments open to the public for the distribution of goods and retail trade in which goods are offered.",
+      "summary_en": "A retail business is any public-facing establishment selling goods.",
+      "keywords": [
+        "retail business",
+        "Verkaufsgeschäft",
+        "retail",
+        "Detailhandel",
+        "goods",
+        "Waren",
+        "sales area",
+        "Verkaufsfläche",
+        "shop",
+        "Laden"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-3-2",
+      "ref": "§ 3 Abs. 2",
+      "heading": "B. Verkaufsgeschäfte",
+      "heading_en": "Retail businesses",
+      "text": "Verkaufsgeschäften gleichgestellt sind Dienstleistungsbetriebe und Teile davon, wie Reisebüros und Schalterhallen von Banken, soweit nach ihrer Art in ihnen Dienstleistungen wie Waren angeboten werden und damit ein entsprechender Publikumsverkehr ausgelöst wird.",
+      "text_en": "Service businesses and parts thereof, such as travel agencies and bank counter halls, are treated as retail businesses insofar as, by their nature, services offered like goods are provided in them and thereby generate corresponding public traffic.",
+      "summary_en": "Service businesses such as travel agencies or bank counters count as retail businesses where they offer goods-like services that attract public traffic.",
+      "keywords": [
+        "service business",
+        "Dienstleistungsbetrieb",
+        "travel agency",
+        "Reisebüro",
+        "bank counter hall",
+        "Schalterhalle",
+        "retail business",
+        "Verkaufsgeschäft",
+        "public traffic",
+        "Publikumsverkehr"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-3-3",
+      "ref": "§ 3 Abs. 3",
+      "heading": "B. Verkaufsgeschäfte",
+      "heading_en": "Retail businesses",
+      "text": "Als Verkaufsflächen gelten die Flächen der Räume, in denen regelmässig Waren oder Dienstleistungen angeboten werden, unter Einschluss der dazugehörigen Erschliessungsflächen und Sanitärräume samt inneren Trennwänden. Nicht angerechnet werden Räume, die für die Lagerung oder in Dienstleistungsbetrieben nicht für die Bedienung des Publikums bestimmt sind.",
+      "text_en": "Sales areas are the areas of rooms in which goods or services are regularly offered, including the associated access areas and sanitary rooms together with internal partition walls. Rooms used for storage, or in service businesses not intended for serving the public, are not counted.",
+      "summary_en": "Sales area includes the rooms where goods or services are regularly offered, plus their access areas and toilets, but excludes storage and back-of-house rooms.",
+      "keywords": [
+        "sales area",
+        "Verkaufsfläche",
+        "floor area",
+        "Fläche",
+        "m²",
+        "access area",
+        "Erschliessungsfläche",
+        "sanitary room",
+        "Sanitärraum",
+        "storage",
+        "Lager",
+        "partition wall"
+      ],
+      "topics": [
+        "rooms",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-4",
+      "ref": "§ 4",
+      "heading": "II. Grossläden",
+      "heading_en": "Large stores",
+      "text": "Grossläden sind Verkaufsgeschäfte oder Zusammenfassungen von solchen mit einer Verkaufsfläche von insgesamt mindestens 1000 m².",
+      "text_en": "Large stores are retail businesses, or combinations of such, with a total sales area of at least 1000 m².",
+      "summary_en": "A store or combined retail complex with at least 1000 m² of sales area counts as a large store.",
+      "keywords": [
+        "large store",
+        "Grossladen",
+        "Grossläden",
+        "sales area",
+        "Verkaufsfläche",
+        "1000 m²",
+        "retail",
+        "Detailhandel",
+        "store size"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "total sales area of a large store",
+          "comparison": ">=",
+          "value": 1000,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-4-2",
+      "ref": "§ 4 Abs. 2",
+      "heading": "II. Grossläden",
+      "heading_en": "Large stores",
+      "text": "Nicht als Grossläden gelten Verkaufsgeschäfte, die zwar die Mindestfläche gemäss Absatz 1 aufweisen, zufolge ihres sperrigen Warenangebots, wie Automobile, Werkzeugmaschinen und Möbel, aber keine entsprechende Personenbelegung nach sich ziehen.",
+      "text_en": "Retail businesses that meet the minimum area under paragraph 1 are not considered large stores if, because of bulky goods such as automobiles, machine tools and furniture, they do not generate a corresponding number of persons.",
+      "summary_en": "Bulky-goods retailers such as car, machine tool or furniture showrooms are not large stores even above 1000 m², if they attract few visitors.",
+      "keywords": [
+        "large store",
+        "Grossladen",
+        "bulky goods",
+        "sperrige Waren",
+        "automobiles",
+        "Automobile",
+        "machine tools",
+        "Werkzeugmaschinen",
+        "furniture",
+        "Möbel",
+        "sales area",
+        "Verkaufsfläche"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-5",
+      "ref": "§ 5",
+      "heading": "I. Allgemein / III. Einkaufszentren",
+      "heading_en": "General / Shopping centres",
+      "text": "Einkaufszentren sind Verkaufsgeschäfte des Detailhandels oder Zusammenfassungen von solchen mit einer Verkaufsfläche von insgesamt mindestens 2000 m².",
+      "text_en": "Shopping centres are retail businesses, or combinations of such, with a total sales area of at least 2000 m².",
+      "summary_en": "A retail complex with at least 2000 m² of sales area counts as a shopping centre.",
+      "keywords": [
+        "shopping centre",
+        "Einkaufszentrum",
+        "sales area",
+        "Verkaufsfläche",
+        "2000 m²",
+        "retail",
+        "Detailhandel",
+        "retail complex"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "total sales area of a shopping centre",
+          "comparison": ">=",
+          "value": 2000,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-5-2",
+      "ref": "§ 5 Abs. 2",
+      "heading": "I. Allgemein / III. Einkaufszentren",
+      "heading_en": "General / Shopping centres",
+      "text": "Grosszentren sind Einkaufszentren mit einer Verkaufsfläche von mindestens 15 000 m².",
+      "text_en": "Large shopping centres are shopping centres with a sales area of at least 15,000 m².",
+      "summary_en": "A shopping centre with at least 15,000 m² of sales area is classed as a large shopping centre.",
+      "keywords": [
+        "large shopping centre",
+        "Grosszentrum",
+        "shopping centre",
+        "Einkaufszentrum",
+        "sales area",
+        "Verkaufsfläche",
+        "15000 m²",
+        "15 000 m²"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "sales area of a large shopping centre",
+          "comparison": ">=",
+          "value": 15000,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-6",
+      "ref": "§ 6",
+      "heading": "C. Begegnungsstätten mit grossem Publikumsverkehr",
+      "heading_en": "Meeting places with heavy public traffic",
+      "text": "Begegnungsstätten mit grossem Publikumsverkehr sind Kultus- und Kulturstätten, Ausstellungshallen, Sportstadien und andere vergleichbare Einrichtungen, in denen Veranstaltungen durchgeführt werden können, an welchen gleichzeitig mehr als 3000 Personen teilnehmen.",
+      "text_en": "Meeting places with heavy public traffic are places of worship and culture, exhibition halls, sports stadiums and other comparable facilities in which events can be held at which more than 3000 persons take part at the same time.",
+      "summary_en": "Venues such as churches, cultural centres, exhibition halls and stadiums are classed as high-traffic meeting places when they can host more than 3000 people at once.",
+      "keywords": [
+        "meeting place",
+        "Begegnungsstätte",
+        "public traffic",
+        "Publikumsverkehr",
+        "stadium",
+        "Stadion",
+        "exhibition hall",
+        "Ausstellungshalle",
+        "cultural venue",
+        "Kulturstätte",
+        "3000 persons",
+        "3000 Personen"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "number of persons taking part at the same time in a meeting place with heavy public traffic",
+          "comparison": ">",
+          "value": 3000,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-7",
+      "ref": "§ 7",
+      "heading": "D. Räume / mit grosser / Personenbelegung",
+      "heading_en": "Rooms / with large occupancy",
+      "text": "Räume mit grosser Personenbelegung sind solche, für die aufgrund der zugelassenen Nutzweise damit gerechnet werden muss, dass sich in ihnen in der Regel mehr als 100 Personen gleichzeitig aufhalten; für Vorführräume in Theatern, Kinos und ähnlichen Betrieben sowie für Gastwirtschaftsräume beträgt die massgebliche Personenbelegung 50 Plätze.",
+      "text_en": "Rooms with large occupancy are those in which, given the permitted use, it must be expected that as a rule more than 100 people will be present at the same time; for screening rooms in theatres, cinemas and similar establishments, as well as for restaurant rooms, the relevant occupancy is 50 seats.",
+      "summary_en": "Rooms expected to hold more than 100 people at once fall under the large-occupancy rules; for theatre and cinema screening rooms and restaurant rooms the relevant figure is 50 seats.",
+      "keywords": [
+        "large occupancy room",
+        "assembly room",
+        "more than 100 people",
+        "theatre",
+        "cinema",
+        "restaurant room",
+        "Räume mit grosser Personenbelegung",
+        "Versammlungsraum",
+        "Gastwirtschaftsraum",
+        "Vorführraum",
+        "Plätze"
+      ],
+      "topics": [
+        "rooms",
+        "fire"
+      ],
+      "limits": [
+        {
+          "what": "occupancy of a room with large occupancy (more than)",
+          "comparison": ">",
+          "value": 100,
+          "unit": "count"
+        },
+        {
+          "what": "relevant occupancy of screening rooms and restaurant rooms (seats)",
+          "comparison": "=",
+          "value": 50,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-8",
+      "ref": "§ 8",
+      "heading": "E. Familiengartenhäuser",
+      "heading_en": "Family allotment garden houses",
+      "text": "Familiengartenhäuser sind Gartenhäuser, die der Freizeitgärtnerei dienen, nicht für den dauernden Aufenthalt von Menschen bestimmt sind und in eigens dafür vorgesehenen Gebieten nach einer feststehenden Ordnung errichtet werden.",
+      "text_en": "Family allotment garden houses are garden houses that serve leisure gardening, are not intended for permanent human habitation and are erected in specially designated areas under a fixed set of rules.",
+      "summary_en": "Small garden houses for hobby gardening are not for living in and may only be built in designated allotment areas.",
+      "keywords": [
+        "allotment garden house",
+        "garden shed",
+        "Familiengartenhaus",
+        "Gartenhaus",
+        "Schrebergarten",
+        "Freizeitgärtnerei",
+        "not for permanent residence"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-10",
+      "ref": "§ 10",
+      "heading": "II. Rauminhalt",
+      "heading_en": "Room volume",
+      "text": "Verkaufsgeschäfte, Begegnungsstätten mit grossem Publikumsverkehr und Räume mit grosser Personenbelegung haben einen von der Bodenfläche abhängigen Mindestinhalt aufzuweisen. Dieser beträgt 2,40 m³ je Quadratmeter für Bodenflächen bis zu 200 m² und erhöht sich um 0,002 m³ für jeden zusätzlichen Quadratmeter; ab 500 m² Bodenfläche bleibt der Mindestinhalt von 3,0 m³ je Quadratmeter konstant.",
+      "text_en": "Sales premises, meeting places with heavy public traffic and rooms with large occupancy must have a minimum volume that depends on the floor area. This is 2.40 m³ per square metre for floor areas up to 200 m² and increases by 0.002 m³ for each additional square metre; from 500 m² of floor area the minimum volume of 3.0 m³ per square metre remains constant.",
+      "summary_en": "Shops, meeting places and large-occupancy rooms need a minimum air volume of 2.4 to 3.0 m³ per m² of floor area, rising with floor area up to 500 m².",
+      "keywords": [
+        "room volume",
+        "minimum volume",
+        "air volume",
+        "2.4 m³",
+        "3.0 m³",
+        "floor area",
+        "shop",
+        "Rauminhalt",
+        "Mindestinhalt",
+        "Verkaufsgeschäft",
+        "Bodenfläche",
+        "Raumhöhe"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [
+        {
+          "what": "minimum room volume per m² of floor area (floor area up to 200 m²)",
+          "comparison": ">=",
+          "value": 2.4,
+          "unit": "m3/m2"
+        },
+        {
+          "what": "increase of minimum room volume per additional m² of floor area",
+          "comparison": ">=",
+          "value": 0.002,
+          "unit": "m3/m2"
+        },
+        {
+          "what": "floor area up to which the 2.40 m³/m² basis applies",
+          "comparison": "<=",
+          "value": 200,
+          "unit": "m2"
+        },
+        {
+          "what": "floor area from which the minimum volume is constant",
+          "comparison": ">=",
+          "value": 500,
+          "unit": "m2"
+        },
+        {
+          "what": "minimum room volume per m² of floor area (constant from 500 m²)",
+          "comparison": ">=",
+          "value": 3,
+          "unit": "m3/m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-10-2",
+      "ref": "§ 10 Abs. 2",
+      "heading": "II. Rauminhalt",
+      "heading_en": "Room volume",
+      "text": "Die mittlere Höhe, die erforderlich ist, um den Mindestinhalt zu erreichen, muss wenigstens über einem Drittel der Bodenfläche eingehalten werden.",
+      "text_en": "The mean height needed to reach the minimum volume must be maintained over at least one third of the floor area.",
+      "summary_en": "The average room height needed to reach the required volume must hold across at least a third of the floor area.",
+      "keywords": [
+        "mean room height",
+        "minimum volume",
+        "one third of floor area",
+        "room height",
+        "Raumhöhe",
+        "mittlere Höhe",
+        "Bodenfläche",
+        "Drittel"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-10-3",
+      "ref": "§ 10 Abs. 3",
+      "heading": "II. Rauminhalt",
+      "heading_en": "Room volume",
+      "text": "Die Flächen von Räumen werden zusammengerechnet, wenn die zugehörige feste Trennwand über mehr als einen Drittel ihrer Fläche, jedenfalls aber um mehr als 4 m² unterbrochen ist.",
+      "text_en": "The floor areas of rooms are added together if the solid partition wall between them is interrupted over more than one third of its area, but in any event by more than 4 m².",
+      "summary_en": "Two rooms count as one combined area when the wall between them is opened over more than a third of its area or more than 4 m².",
+      "keywords": [
+        "combined room area",
+        "open wall",
+        "partition opening",
+        "one third of wall",
+        "4 m²",
+        "Raumfläche",
+        "Trennwand",
+        "Wandöffnung",
+        "Durchbruch",
+        "zusammengerechnet"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [
+        {
+          "what": "opening in the partition wall (absolute, more than)",
+          "comparison": ">",
+          "value": 4,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-11",
+      "ref": "§ 11",
+      "heading": "III. Abweichungen und / Vorbehalt",
+      "heading_en": "Deviations and / reservations",
+      "text": "Von den Verschärfungen der Raummasse kann in begründeten Fällen abgewichen werden; vom vorgeschriebenen Rauminhalt insbesondere dann, wenn auf andere Weise einwandfreie Verhältnisse geschaffen werden.",
+      "text_en": "Stricter room dimension requirements may be deviated from in justified cases; in particular the prescribed room volume may be deviated from where proper conditions are created in another way.",
+      "summary_en": "Stricter room size rules can be relaxed for good reason, including the minimum volume, if equally good conditions are achieved another way.",
+      "keywords": [
+        "deviation",
+        "exemption",
+        "room dimensions",
+        "minimum volume",
+        "equivalent solution",
+        "Abweichung",
+        "Raummasse",
+        "Rauminhalt",
+        "Ausnahme",
+        "Verschärfung"
+      ],
+      "topics": [
+        "rooms",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-12",
+      "ref": "§ 12",
+      "heading": "A. Raummasse / B. Erschliessung",
+      "heading_en": "Room dimensions / Access",
+      "text": "Der gesetzliche Zugang von Einkaufszentren darf in Wohnzonen nur über Strassen führen, die mindestens als Sammelstrassen ausgebaut sind; im Übrigen gilt § 237 PBG.",
+      "text_en": "The statutory access of shopping centres may in residential zones only lead via roads that are built out at least as collector roads; otherwise § 237 PBG applies.",
+      "summary_en": "In residential zones a shopping centre may only be reached by roads built at least as collector roads; otherwise § 237 PBG applies.",
+      "keywords": [
+        "shopping centre access",
+        "residential zone",
+        "collector road",
+        "Sammelstrasse",
+        "Einkaufszentrum",
+        "Zufahrt",
+        "Wohnzone",
+        "Erschliessung",
+        "§ 237 PBG"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-12-2",
+      "ref": "§ 12 Abs. 2",
+      "heading": "A. Raummasse / B. Erschliessung",
+      "heading_en": "Room dimensions / Access",
+      "text": "Grosszentren und Begegnungsstätten mit grossem Publikumsverkehr sind nur zulässig,\na. wenn sie mit öffentlichen Verkehrsmitteln gut erreichbar sind oder\nb. wenn bei vorwiegender Erschliessung mit privaten Motorfahrzeugen der Benützerverkehr direkt oder ohne für die Wohnnutzung vorgesehene Zonen – mit Ausnahme der Zentrumszone – zu berühren in Strassen für den grossen Durchgangsverkehr abgeleitet wird; vorbehalten bleiben zonenbedingte Immissionsvorschriften.",
+      "text_en": "Large centres and meeting places with heavy public traffic are only permitted,\na. if they are easy to reach by public transport, or\nb. if, where access is mainly by private motor vehicle, user traffic is led directly, or without touching residential-use zones (except the centre zone), onto roads for major through traffic; zone-related emission rules remain reserved.",
+      "summary_en": "Large shopping centres and big meeting places are allowed only if public transport serves them well, or if car traffic is routed onto through roads without passing housing zones.",
+      "keywords": [
+        "large shopping centre",
+        "meeting place",
+        "public transport access",
+        "through road",
+        "car access",
+        "Grosszentrum",
+        "Begegnungsstätte",
+        "Erschliessung",
+        "Wohnzone",
+        "Durchgangsverkehr"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-13",
+      "ref": "§ 13",
+      "heading": "II. Interne / Erschliessung",
+      "heading_en": "Internal / Access",
+      "text": "Für Grossläden, Begegnungsstätten mit grossem Publikumsverkehr und Räume mit grosser Personenbelegung gelten die Bestimmungen der Verordnung über den baulichen Brandschutz über Ein- und Ausgänge auch dann, wenn diesen die Funktion einer Haustüre zukommt; vorbehalten bleibt das Mindestmass von § 305 PBG für mindestens eine Türe.",
+      "text_en": "For large shops, meeting places with heavy public traffic and rooms with large occupancy, the provisions of the ordinance on structural fire protection on entrances and exits apply even where these serve as the function of a front door; the minimum requirement of § 305 PBG for at least one door remains reserved.",
+      "summary_en": "Entrances and exits of large shops, meeting places and large-occupancy rooms must meet the fire-protection door rules even when they act as the main door.",
+      "keywords": [
+        "exit door",
+        "entrance door",
+        "fire protection door",
+        "large shop",
+        "large occupancy",
+        "Ausgang",
+        "Eingang",
+        "Haustüre",
+        "Brandschutz",
+        "Fluchttür",
+        "§ 305 PBG"
+      ],
+      "topics": [
+        "fire",
+        "escape-routes",
+        "doors-windows"
+      ],
+      "limits": [
+        {
+          "what": "doors required under § 305 PBG (at least)",
+          "comparison": ">=",
+          "value": 1,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-13-2",
+      "ref": "§ 13 Abs. 2",
+      "heading": "II. Interne / Erschliessung",
+      "heading_en": "Internal / Access",
+      "text": "Das Lichtmass für Treppen und Gänge, die als Fluchtwege dienen, ist so festzulegen, dass im Notfall eine rasche Entleerung des Betriebs und der übrigen Räume des Gebäudes gewährleistet ist.",
+      "text_en": "The clear width for stairs and corridors that serve as escape routes must be set so that in an emergency the operation and the other rooms of the building can be emptied quickly.",
+      "summary_en": "Stairs and corridors used as escape routes need enough clear width for the building to be evacuated quickly in an emergency.",
+      "keywords": [
+        "escape route width",
+        "clear width",
+        "stair width",
+        "corridor width",
+        "evacuation",
+        "Fluchtweg",
+        "Lichtmass",
+        "Treppe",
+        "Gang",
+        "Notfall"
+      ],
+      "topics": [
+        "escape-routes",
+        "stairs-railings",
+        "fire"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-14",
+      "ref": "§ 14",
+      "heading": "C. Gebäudeabstand",
+      "heading_en": "Building distance",
+      "text": "Soweit nicht das Gesetz von der Beachtung eines Gebäudeabstands befreit, beträgt dieser mindestens 10 m, wenn eines der Gebäude brennbare Aussenwände aufweist.",
+      "text_en": "Unless the law exempts from observing a building separation, this is at least 10 m if one of the buildings has combustible external walls.",
+      "summary_en": "Where either building has combustible external walls, the gap between buildings must be at least 10 m, unless the law exempts it.",
+      "keywords": [
+        "building separation",
+        "building distance",
+        "10 m",
+        "combustible external wall",
+        "Gebäudeabstand",
+        "brennbare Aussenwand",
+        "Brandabstand",
+        "Abstand"
+      ],
+      "topics": [
+        "distances-heights",
+        "fire"
+      ],
+      "limits": [
+        {
+          "what": "distance between buildings where one has combustible external walls",
+          "comparison": ">=",
+          "value": 10,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-14-2",
+      "ref": "§ 14 Abs. 2",
+      "heading": "C. Gebäudeabstand",
+      "heading_en": "Building distance",
+      "text": "Die Bau- und Zonenordnung kann für Gebiete mit ländlichem Baucharakter und für Kernzonen Erleichterungen vorsehen.",
+      "text_en": "The building and zoning regulations may provide relief for areas with rural building character and for core zones.",
+      "summary_en": "Communes may relax the building-separation rule in areas of rural character and in core zones.",
+      "keywords": [
+        "building separation relief",
+        "rural area",
+        "core zone",
+        "Kernzone",
+        "Gebäudeabstand",
+        "Erleichterung",
+        "Bau- und Zonenordnung",
+        "BZO",
+        "ländlich"
+      ],
+      "topics": [
+        "distances-heights",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-15",
+      "ref": "§ 15",
+      "heading": "II. Bei feuer-oder explosionsgefährlichen / Nutzungen",
+      "heading_en": "For fire- or explosion-hazardous / uses",
+      "text": "Bauten und Anlagen, in denen feuer- oder explosionsgefährliche Stoffe gelagert oder verarbeitet werden oder die dem Transport solcher Stoffe dienen, haben unter sich und gegenüber benachbarten Bauten und Anlagen, soweit die Sicherheit von Personen und Sachen es erfordert, erhöhte Abstände einzuhalten.",
+      "text_en": "Buildings and facilities in which fire- or explosion-hazardous substances are stored or processed, or which serve the transport of such substances, must keep increased distances between themselves and from neighbouring buildings and facilities, where the safety of persons and property requires it.",
+      "summary_en": "Buildings that store, process or transport fire- or explosion-hazardous substances need larger separation distances from each other and from neighbours where safety requires.",
+      "keywords": [
+        "hazardous substances",
+        "explosive",
+        "flammable",
+        "safety distance",
+        "increased distance",
+        "neighbouring building",
+        "feuergefährlich",
+        "explosionsgefährlich",
+        "Sicherheitsabstand",
+        "Gefahrstoff",
+        "Lager"
+      ],
+      "topics": [
+        "distances-heights",
+        "fire"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-15-2",
+      "ref": "§ 15 Abs. 2",
+      "heading": "II. Bei feuer-oder explosionsgefährlichen / Nutzungen",
+      "heading_en": "For fire- or explosion-hazardous / uses",
+      "text": "Die Sicherheitsabstände werden durch die kantonale Feuerpolizei im Verfahren festgesetzt, das für Bauten und Anlagen mit erhöhtem Brandrisiko gilt; es werden dabei die einschlägigen Richtlinien und Normalien anerkannter Fachstellen mitberücksichtigt.",
+      "text_en": "The safety distances are set by the cantonal fire police in the procedure that applies to buildings and facilities with increased fire risk; the relevant guidelines and standards of recognised specialist bodies are taken into account.",
+      "summary_en": "The cantonal fire authority sets the required safety distances in a dedicated procedure, using recognised guidelines.",
+      "keywords": [
+        "safety distance",
+        "fire authority",
+        "fire police",
+        "increased fire risk",
+        "guideline",
+        "standard",
+        "Sicherheitsabstand",
+        "Feuerpolizei",
+        "Brandrisiko",
+        "Richtlinie",
+        "Normalie"
+      ],
+      "topics": [
+        "distances-heights",
+        "fire",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-18",
+      "ref": "§ 18",
+      "heading": "I. Zugänglichkeit / I. Bei brennbaren Aussenwänden / Milderungen",
+      "heading_en": "Accessibility / For combustible external walls / Relief",
+      "text": "Gartenhäuser und Schöpfe, die nicht für den dauernden Aufenthalt von Menschen bestimmt sind, sowie überdeckte, seitlich mindestens zur Hälfte der Abwicklung offene Gartensitzplätze sind von den Abstandsvorschriften gegenüber grundstückinternen Gebäuden befreit, wenn ihre Grundfläche 10 m², ihre Fassadenlänge mit Einschluss allfälliger Pergolen 6 m und ihre Gesamthöhe 3 m nicht übersteigen.",
+      "text_en": "Garden houses and sheds not intended for permanent human occupation, as well as covered garden sitting areas that are open on at least half of their side length, are exempt from the distance rules towards buildings on the same plot, if their footprint does not exceed 10 m², their façade length including any pergolas does not exceed 6 m and their total height does not exceed 3 m.",
+      "summary_en": "Small garden houses, sheds and open covered garden seats up to 10 m² footprint, 6 m façade length and 3 m height are exempt from distance rules to buildings on the same plot.",
+      "keywords": [
+        "garden house",
+        "garden shed",
+        "pergola",
+        "garden seating",
+        "exempt from distance",
+        "10 m²",
+        "6 m",
+        "3 m",
+        "Gartenhaus",
+        "Schopf",
+        "Gartensitzplatz",
+        "Pergola"
+      ],
+      "topics": [
+        "distances-heights",
+        "outdoor"
+      ],
+      "limits": [
+        {
+          "what": "footprint of garden house or shed exempt from distances",
+          "comparison": "<=",
+          "value": 10,
+          "unit": "m2"
+        },
+        {
+          "what": "façade length including pergolas",
+          "comparison": "<=",
+          "value": 6,
+          "unit": "m"
+        },
+        {
+          "what": "total height",
+          "comparison": "<=",
+          "value": 3,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-18-2",
+      "ref": "§ 18 Abs. 2",
+      "heading": "I. Zugänglichkeit / I. Bei brennbaren Aussenwänden / Milderungen",
+      "heading_en": "Accessibility / For combustible external walls / Relief",
+      "text": "Familiengartenhäuser samt den zugehörigen gemeinschaftlichen Nebenbauten, wie Wasch- und Abortanlagen, sind von den Bestimmungen über die Grenzabstände von Nachbargrundstücken und über die Gebäudeabstände befreit, von den Abständen gegenüber Gebäuden und Grundstücken Dritter aber nur, wenn letztere der Baubehörde ihr schriftliches Einverständnis abgegeben haben.",
+      "text_en": "Family allotment garden houses together with the associated shared ancillary buildings, such as laundry and toilet facilities, are exempt from the rules on boundary distances to neighbouring plots and on building separation; from distances to buildings and plots of third parties, however, only if the third parties have given the building authority their written consent.",
+      "summary_en": "Family allotment garden houses and shared ancillary buildings are exempt from boundary and building-separation rules, but distances to third-party buildings and plots need their written consent.",
+      "keywords": [
+        "allotment garden house",
+        "boundary distance",
+        "building separation",
+        "written consent",
+        "neighbour consent",
+        "shared facilities",
+        "Familiengartenhaus",
+        "Grenzabstand",
+        "Gebäudeabstand",
+        "Einverständnis",
+        "Nebenbau"
+      ],
+      "topics": [
+        "distances-heights",
+        "outdoor",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-18-3",
+      "ref": "§ 18 Abs. 3",
+      "heading": "I. Zugänglichkeit / I. Bei brennbaren Aussenwänden / Milderungen",
+      "heading_en": "Accessibility / For combustible external walls / Relief",
+      "text": "Solche Bauten sind dem verschärften Abstand zwischen Gebäuden mit brennbaren Aussenwänden nicht unterstellt.",
+      "text_en": "Such buildings are not subject to the stricter separation required between buildings with combustible external walls.",
+      "summary_en": "Garden houses and similar small buildings are not subject to the stricter separation required between buildings with combustible external walls.",
+      "keywords": [
+        "combustible external wall",
+        "building separation",
+        "garden house",
+        "brennbare Aussenwand",
+        "Gebäudeabstand",
+        "Gartenhaus",
+        "verschärfter Abstand"
+      ],
+      "topics": [
+        "distances-heights",
+        "fire"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-19",
+      "ref": "§ 19",
+      "heading": "B. Hohe / Bauwerke",
+      "heading_en": "High / structures",
+      "text": "Gebäude oder Teile davon, deren Gesamthöhe und Standort durch ihre besondere Art oder ihre Funktion bestimmt wird, wie Kirchtürme, Hochkamine und Silos für Landwirtschaftsbetriebe, sind von den Bestimmungen über die Geschosszahl, die Gesamt- und Fassadenhöhen sowie Abstandsvergrösserungen aufgrund von Mehrhöhen befreit; vorbehalten bleiben die besonderen Anforderungen an Hochhäuser.",
+      "text_en": "Buildings or parts of them whose overall height and location are determined by their special type or function, such as church towers, high chimneys and silos for agricultural holdings, are exempt from the provisions on the number of storeys, overall and façade heights and increased separation distances due to additional height; the special requirements for high-rise buildings remain reserved.",
+      "summary_en": "Special-function structures such as church towers, tall chimneys and farm silos are exempt from storey, height and extra-distance rules, but high-rise requirements still apply.",
+      "keywords": [
+        "tall structure",
+        "church tower",
+        "chimney",
+        "silo",
+        "exempt from height",
+        "storeys",
+        "high-rise",
+        "Kirchturm",
+        "Hochkamin",
+        "Silo",
+        "Hochhaus",
+        "Gesamthöhe"
+      ],
+      "topics": [
+        "distances-heights",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-19-2",
+      "ref": "§ 19 Abs. 2",
+      "heading": "B. Hohe / Bauwerke",
+      "heading_en": "High / structures",
+      "text": "Die Nachbarschaft darf durch solche Bauwerke nicht wesentlich beeinträchtigt werden.",
+      "text_en": "The neighbourhood must not be significantly impaired by such structures.",
+      "summary_en": "Tall special-purpose structures must not significantly impair the neighbourhood.",
+      "keywords": [
+        "neighbourhood impairment",
+        "tall structure",
+        "Nachbarschaft",
+        "beeinträchtigen",
+        "Bauwerk",
+        "Hochbau"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-19a",
+      "ref": "§ 19a",
+      "heading": "C. Liftanbauten",
+      "heading_en": "Lift extensions",
+      "text": "Beim Anbau von Liften an ein Gebäude sind die Bestimmungen über die Geschosszahl, die Gesamt- und Fassadenhöhen sowie Abstandsvergrösserungen aufgrund von Mehrhöhen nicht anwendbar, wenn\na. der Anbau der behindertengerechten Erschliessung des Gebäudes dient,\nb. die für die Erstellung des Gebäudes erforderlichen Bewilligungen vor dem 1. Juli 1978 erteilt worden sind,\nc. keine überwiegenden öffentlichen oder nachbarlichen Interessen entgegenstehen und\nd. keine den Bauvorschriften entsprechende Lösung möglich ist.",
+      "text_en": "When a lift is added to a building, the provisions on the number of storeys, overall and façade heights and increased separation distances due to additional height do not apply if,\na. the extension serves the barrier-free access of the building,\nb. the permits required for constructing the building were granted before 1 July 1978,\nc. no overriding public or neighbourly interests oppose it and\nd. no solution complying with the building regulations is possible.",
+      "summary_en": "A lift added to an existing building may exceed storey and height limits if it serves barrier-free access, the original permit predates 1 July 1978, no overriding interests oppose it and no compliant solution exists.",
+      "keywords": [
+        "lift extension",
+        "elevator addition",
+        "barrier-free access",
+        "storeys",
+        "façade height",
+        "1 July 1978",
+        "Liftanbau",
+        "Lift",
+        "behindertengerecht",
+        "Geschosszahl",
+        "Fassadenhöhe",
+        "Bewilligung"
+      ],
+      "topics": [
+        "accessibility",
+        "distances-heights",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-22-20",
+      "ref": "§ 20",
+      "heading": "D. Baubaracken",
+      "heading_en": "Site huts",
+      "text": "Baubaracken sind für die Dauer der Bauarbeiten von den Bestimmungen über die Ausnützung befreit, soweit dadurch keine wesentlichen Interessen der Öffentlichkeit oder der Nachbarschaft verletzt werden.",
+      "text_en": "Site huts are exempt from the provisions on utilisation for the duration of the construction work, insofar as no essential interests of the public or of the neighbourhood are thereby infringed.",
+      "summary_en": "Temporary site huts are exempt from floor-area utilisation limits during construction, provided no essential public or neighbour interests are harmed.",
+      "keywords": [
+        "site hut",
+        "construction hut",
+        "temporary building",
+        "utilisation",
+        "floor area ratio",
+        "Baubaracke",
+        "Ausnützung",
+        "Bauarbeiten",
+        "vorübergehend",
+        "Nachbarschaft"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-21",
+      "ref": "§ 21",
+      "heading": "A. Gartenhäuser / Schlussbestimmungen",
+      "heading_en": "Garden houses / Final provisions",
+      "text": "Die nachstehenden Verordnungen werden wie folgt geändert: . . .",
+      "text_en": "The following ordinances are amended as follows: . . .",
+      "summary_en": "This is a final provision that amends other ordinances and sets no direct building requirement.",
+      "keywords": [
+        "amendment",
+        "final provisions",
+        "ordinance amendment",
+        "Änderung",
+        "Schlussbestimmungen",
+        "Verordnung"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-22",
+      "ref": "§ 22",
+      "heading": "B. Inkrafttreten",
+      "heading_en": "Entry into force",
+      "text": "Diese Verordnung bedarf der Genehmigung durch den Kantonsrat.",
+      "text_en": "This ordinance requires approval by the Cantonal Council.",
+      "summary_en": "The ordinance needs approval by the cantonal parliament before it takes effect.",
+      "keywords": [
+        "entry into force",
+        "cantonal council",
+        "approval",
+        "Kantonsrat",
+        "Genehmigung",
+        "Inkrafttreten",
+        "Verordnung"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-22-22-2",
+      "ref": "§ 22 Abs. 2",
+      "heading": "B. Inkrafttreten",
+      "heading_en": "Entry into force",
+      "text": "Der Regierungsrat bestimmt den Zeitpunkt des Inkrafttretens.",
+      "text_en": "The Cantonal Government sets the date on which the ordinance enters into force.",
+      "summary_en": "The cantonal government sets the date when the ordinance takes effect.",
+      "keywords": [
+        "entry into force date",
+        "cantonal government",
+        "Regierungsrat",
+        "Inkrafttreten",
+        "Zeitpunkt"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

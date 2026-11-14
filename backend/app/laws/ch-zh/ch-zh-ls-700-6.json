@@ -1,0 +1,2330 @@
+{
+  "id": "ch-zh-ls-700-6",
+  "pack": "ch-zh",
+  "jurisdiction": "CH-ZH",
+  "number": "LS 700.6",
+  "title": "Bauverfahrensverordnung (BVV)",
+  "title_en": "Building Procedure Ordinance of the Canton of Zürich (permits, documents, procedure)",
+  "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/3FCEA6CD28F45873C1258DFF004B8F6D/$File/700.6_3.12.97_133.pdf",
+  "language": "de",
+  "in_force": "2026-07-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version 133 (Stand 1 July 2026) of the ordinance of 3 December 1997; sections I-IX in full. The Anhang (table of cantonal reviews) is not included.",
+  "clauses": [
+    {
+      "id": "ch-zh-ls-700-6-1",
+      "ref": "§ 1",
+      "heading": "Befreiung / A. Tatbestände",
+      "heading_en": "Exemption / Facts of the case",
+      "text": "Keiner baurechtlichen Bewilligung bedürfen in Bauzonen:\na. Bauten und Anlagen, deren Gesamthöhe nicht mehr als 2,5 m beträgt und die eine Bodenfläche von höchstens 6 m² überlagern; sie sind jedoch bewilligungspflichtig in Kernzonen, im Geltungsbereich einer anderen Schutzanordnung oder eines Ortsbild- oder Denkmalschutzinventars und im Bereich von Verkehrsbaulinien,\nb. Beseitigen von inneren Trennwänden zwischen Wohnräumen oder Verändern von Öffnungen in solchen Wänden,\nc. Baubaracken, Bauinstallationen und Baureklametafeln für eine bestimmte Baustelle und für die Dauer der Bauausführung,\nd. Geländeveränderungen, die nicht im Zusammenhang mit anderen bewilligungspflichtigen Bauten und Anlagen stehen und weder 1,0 m Höhe noch 500 m² Fläche überschreiten,\ne. Mauern und geschlossene Einfriedigungen bis zu einer Höhe von 0,8 m sowie offene Einfriedigungen,\nf. nicht leuchtende Eigenreklamen auf privatem Grund bis zu einer Fläche von ½ m² je Betrieb; solche Anlagen sind jedoch bewilligungspflichtig in Kernzonen und im Geltungsbereich einer anderen Schutzanordnung oder eines Ortsbild- oder Denkmalschutzinventars,\ng. nach aussen nicht in Erscheinung tretende Ausrüstungen baurechtlich untergeordneter Bedeutung, wie Lichtanlagen, Bade-, Wasch- und Abortanlagen, Wasser- und Elektrizitätsanschlüsse sowie Fallrohre, Schneefänge und untergeordnete Lüftungsaufsätze üblicher Konstruktion,\nh. Werk- und Lagerplätze in Industriezonen, soweit sie nicht mehr als 1/5 der vermarkten Grundstücksfläche belegen,\ni. Empfangs- und Sendeantennen mit einer gesamten Sendeleistung (äquivalenten Strahlungsleistung ERP max.) von weniger als 6 Watt, sofern die einzelnen Antennen in keiner Richtung 0,8 m überschreiten und die Höhe tragender Masten weniger als 1 m beträgt; solche Anlagen sind jedoch bewilligungspflichtig in Kernzonen sowie im Geltungsbereich einer anderen Schutzanordnung oder eines Ortsbild- oder Denkmalschutzinventars,\nj. steckerfertige Solaranlagen bis zu einer Fläche von 4 m²; solche Anlagen sind jedoch bewilligungspflichtig in Kernzonen, im Geltungsbereich eines Ortsbild- oder Denkmalschutzinventars oder im Geltungsbereich einer denkmalpflegerischen Schutzanordnung,\nk. nicht öffentlich zugängliche Ladestationen für Elektrofahrzeuge an bestehenden Fahrzeugabstellplätzen.",
+      "text_en": "No building permit is required in building zones for:\na. structures and installations with a total height of no more than 2.5 m that cover a floor area of no more than 6 m²; they do, however, require a permit in core zones, within the scope of another protection order or of a townscape or heritage protection inventory, and in the area of traffic building lines,\nb. removing internal partition walls between living rooms or altering openings in such walls,\nc. construction huts, construction installations and construction advertising boards for a specific construction site and for the duration of the works,\nd. changes to ground levels that are not connected with other permit-requiring structures or installations and that exceed neither 1.0 m in height nor 500 m² in area,\ne. walls and closed enclosures up to a height of 0.8 m, as well as open enclosures,\nf. non-illuminated self-advertising on private land up to an area of ½ m² per business; such installations do, however, require a permit in core zones and within the scope of another protection order or of a townscape or heritage protection inventory,\ng. installations of minor building-law significance that are not visible from outside, such as lighting systems, bathroom, washing and toilet installations, water and electricity connections, as well as downpipes, snow guards and minor ventilation attachments of usual construction,\nh. work and storage areas in industrial zones, insofar as they cover no more than 1/5 of the marketable plot area,\ni. receiving and transmitting antennas with a total transmitting power (maximum equivalent radiated power, ERP) of less than 6 watts, provided the individual antennas do not exceed 0.8 m in any direction and the height of supporting masts is less than 1 m; such installations do, however, require a permit in core zones and within the scope of another protection order or of a townscape or heritage protection inventory,\nj. plug-in solar installations up to an area of 4 m²; such installations do, however, require a permit in core zones, within the scope of a townscape or heritage protection inventory, or within the scope of a heritage conservation protection order,\nk. charging stations for electric vehicles that are not publicly accessible, at existing vehicle parking spaces.",
+      "summary_en": "Small structures, garden changes, walls, fences, small signs and small antennas and solar units in building zones need no building permit, but several of them still need one in core or protected zones.",
+      "keywords": [
+        "building permit exemption",
+        "Bewilligungsfreiheit",
+        "2.5 m",
+        "6 m²",
+        "ground level change",
+        "Geländeveränderung",
+        "1.0 m",
+        "500 m²",
+        "fence",
+        "Einfriedigung",
+        "0.8 m",
+        "wall"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor",
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "total height of structures exempt from permit (building zones)",
+          "comparison": "<=",
+          "value": 2.5,
+          "unit": "m"
+        },
+        {
+          "what": "floor area of structures exempt from permit (building zones)",
+          "comparison": "<=",
+          "value": 6,
+          "unit": "m2"
+        },
+        {
+          "what": "height of ground level changes exempt from permit",
+          "comparison": "<=",
+          "value": 1,
+          "unit": "m"
+        },
+        {
+          "what": "area of ground level changes exempt from permit",
+          "comparison": "<=",
+          "value": 500,
+          "unit": "m2"
+        },
+        {
+          "what": "height of walls and closed fences exempt from permit",
+          "comparison": "<=",
+          "value": 0.8,
+          "unit": "m"
+        },
+        {
+          "what": "area of non-illuminated self-advertising exempt from permit (per business)",
+          "comparison": "<=",
+          "value": 0.5,
+          "unit": "m2"
+        },
+        {
+          "what": "total transmitting power of antennas exempt from permit (ERP max.)",
+          "comparison": "<",
+          "value": 6,
+          "unit": "W"
+        },
+        {
+          "what": "width of individual antennas exempt from permit",
+          "comparison": "<=",
+          "value": 0.8,
+          "unit": "m"
+        },
+        {
+          "what": "height of supporting masts for antennas exempt from permit",
+          "comparison": "<",
+          "value": 1,
+          "unit": "m"
+        },
+        {
+          "what": "area of plug-in solar installations exempt from permit",
+          "comparison": "<=",
+          "value": 4,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-2",
+      "ref": "§ 2",
+      "heading": "B. Tragweite",
+      "heading_en": "Scope",
+      "text": "Die Befreiung erstreckt sich auf die Pflicht zur Einreichung eines Baugesuches sowie zur Aussteckung und zur öffentlichen Bekanntmachung des Bauvorhabens.",
+      "text_en": "The exemption extends to the obligation to submit a building application as well as to the staking out and public announcement of the building project.",
+      "summary_en": "An exempt project does not need a building application, staking out or public notice.",
+      "keywords": [
+        "building application",
+        "Baugesuch",
+        "staking out",
+        "Aussteckung",
+        "public announcement",
+        "öffentliche Bekanntmachung",
+        "exemption",
+        "Befreiung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2-2",
+      "ref": "§ 2 Abs. 2",
+      "heading": "B. Tragweite",
+      "heading_en": "Scope",
+      "text": "Die Befreiung von der Bewilligungspflicht entbindet nicht von der Pflicht, die Vorschriften des materiellen Rechts einzuhalten.",
+      "text_en": "The exemption from the permit requirement does not release from the obligation to comply with the provisions of substantive building law.",
+      "summary_en": "Being exempt from a permit does not exempt the project from meeting the building rules.",
+      "keywords": [
+        "substantive building law",
+        "materielles Recht",
+        "permit exemption",
+        "Bewilligungsbefreiung",
+        "building rules",
+        "Bauvorschriften",
+        "compliance",
+        "Einhaltung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2a",
+      "ref": "§ 2a",
+      "heading": "A. Tatbestände",
+      "heading_en": "Facts of the case",
+      "text": "Der Meldepflicht unterliegen unter Vorbehalt von Abs. 2:\na. Solaranlagen auf Dächern, soweit sie nach Art. 32 a der Raumplanungsverordnung vom 28. Juni 2000 (RPV) genügend angepasst sind,\nb. Solaranlagen an Fassaden in Bauzonen, wenn sie nach dem Stand der Technik reflexionsarm ausgeführt werden, kompakt angeordnet sind, parallel zur Fassade verlaufen, nicht über die Fassadenfläche hinausragen und diese im rechten Winkel um höchstens 20 cm überragen,\nc. freistehende Solaranlagen in Bauzonen bis zu einer Fläche von 20 m²,\nd. Solaranlagen in Industrie- und Gewerbezonen auf Dächern, auch wenn sie nicht nach Art. 32 a RPV genügend angepasst sind,\ne. Solaranlagen an Fassaden sowie freistehende Solaranlagen in Industrie- und Gewerbezonen,\nf. innen aufgestellte Luft/Wasser-Wärmepumpen,\ng. aussen aufgestellte Luft/Wasser-Wärmepumpen, sofern sie ein Volumen von 2 m³ nicht überschreiten,\nh. Erdwärmesonden-Wärmepumpen, wenn alle neu zu erstellenden Erdwärmesonden mindestens 2,5 m Grenzabstand aufweisen und nicht im Bereich von Bau- und Abstandslinien liegen; vorbehalten bleibt in jedem Fall die gewässerschutzrechtliche Bewilligung,\ni. Anschlüsse an ein Fernwärmenetz, wenn dieses die Voraussetzungen gemäss § 47 g der Besonderen Bauverordnung I vom 6. Mai 1981 erfüllt,\nj. öffentlich zugängliche Ladestationen für Elektrofahrzeuge an bestehenden Fahrzeugabstellplätzen.",
+      "text_en": "Subject to para. 2, the following are subject to the notification requirement:\na. solar installations on roofs, insofar as they are sufficiently adapted within the meaning of Art. 32 a of the Spatial Planning Ordinance of 28 June 2000 (RPV),\nb. solar installations on façades in building zones, if they are executed in a low-reflection manner according to the state of the art, are compactly arranged, run parallel to the façade, do not project beyond the façade surface and protrude from it at right angles by no more than 20 cm,\nc. free-standing solar installations in building zones up to an area of 20 m²,\nd. solar installations on roofs in industrial and commercial zones, even if they are not sufficiently adapted within the meaning of Art. 32 a RPV,\ne. solar installations on façades as well as free-standing solar installations in industrial and commercial zones,\nf. indoor-installed air/water heat pumps,\ng. outdoor-installed air/water heat pumps, provided they do not exceed a volume of 2 m³,\nh. heat pumps with geothermal probes, if all newly to be constructed probes have a boundary distance of at least 2.5 m and do not lie within the area of building and setback lines; the water-protection permit remains reserved in any case,\ni. connections to a district heating network, if this meets the requirements under § 47 g of the Special Building Ordinance I of 6 May 1981,\nj. publicly accessible charging stations for electric vehicles at existing vehicle parking spaces.",
+      "summary_en": "Roof and facade solar systems, free-standing solar up to 20 m², most heat pumps, district heating connections and public EV chargers only need a notification, subject to size and placement limits.",
+      "keywords": [
+        "notification",
+        "Meldepflicht",
+        "solar installation",
+        "Solaranlage",
+        "roof",
+        "Dach",
+        "façade",
+        "Fassade",
+        "20 cm",
+        "20 m²",
+        "heat pump",
+        "Wärmepumpe"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "projection of façade solar installation from the façade surface",
+          "comparison": "<=",
+          "value": 0.2,
+          "unit": "m"
+        },
+        {
+          "what": "area of free-standing solar installation in building zones (notification)",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "m2"
+        },
+        {
+          "what": "volume of outdoor-installed air/water heat pump (notification)",
+          "comparison": "<=",
+          "value": 2,
+          "unit": "m3"
+        },
+        {
+          "what": "boundary distance of newly constructed geothermal probes (notification)",
+          "comparison": ">=",
+          "value": 2.5,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-2a-2",
+      "ref": "§ 2a Abs. 2",
+      "heading": "A. Tatbestände",
+      "heading_en": "Facts of the case",
+      "text": "Bewilligungspflichtig sind sämtliche Solaranlagen und aussen aufgestellte Luft/Wasser-Wärmepumpen in Kernzonen, im Geltungsbereich eines Ortsbild- oder Denkmalschutzinventars oder im Geltungsbereich einer denkmalpflegerischen Schutzanordnung.",
+      "text_en": "Permits are required for all solar installations and outdoor-installed air/water heat pumps in core zones, within the scope of a townscape or heritage protection inventory, or within the scope of a heritage conservation protection order.",
+      "summary_en": "Solar systems and outdoor heat pumps in core zones or protected areas always need a full building permit, not just a notification.",
+      "keywords": [
+        "building permit",
+        "Bewilligungspflicht",
+        "core zone",
+        "Kernzone",
+        "heritage protection",
+        "Denkmalschutz",
+        "townscape inventory",
+        "Ortsbildinventar",
+        "solar installation",
+        "Solaranlage",
+        "heat pump",
+        "Wärmepumpe"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2b",
+      "ref": "§ 2b",
+      "heading": "B. Tragweite",
+      "heading_en": "Scope",
+      "text": "Meldepflichtige Bauvorhaben müssen nicht ausgesteckt und öffentlich bekannt gemacht werden.",
+      "text_en": "Notifiable building projects need not be staked out or publicly announced.",
+      "summary_en": "Notifiable projects skip the staking out and public announcement that a full permit requires.",
+      "keywords": [
+        "notification",
+        "Meldepflicht",
+        "staking out",
+        "Aussteckung",
+        "public announcement",
+        "öffentliche Bekanntmachung",
+        "notifiable project",
+        "meldepflichtiges Bauvorhaben"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2b-2",
+      "ref": "§ 2b Abs. 2",
+      "heading": "B. Tragweite",
+      "heading_en": "Scope",
+      "text": "Die Meldung entbindet nicht von der Pflicht, die Vorschriften des materiellen Rechts einzuhalten.",
+      "text_en": "The notification does not release from the obligation to comply with the provisions of substantive building law.",
+      "summary_en": "A notification does not exempt the project from meeting the building rules.",
+      "keywords": [
+        "notification",
+        "Meldung",
+        "substantive building law",
+        "materielles Recht",
+        "building rules",
+        "Bauvorschriften",
+        "compliance",
+        "Einhaltung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2c",
+      "ref": "§ 2c",
+      "heading": "C. Einzureichende / Unterlagen",
+      "heading_en": "Documents to be submitted / Documents",
+      "text": "Mit der Meldung für eine Solaranlage sind folgende Unterlagen einzureichen:\na. Situationsplan im Massstab 1:500 oder 1:1000 mit rot eingetragener Solaranlage im selben Massstab,\nb. Darstellung (Skizze, Plan oder Foto) der Dachaufsicht,\nc. Darstellung (Skizze, Plan oder Foto) der Giebelfassade,\nd. Darstellung (Skizze, Plan oder Foto) der Trauffassade mit der Dachfläche, auf der die Solaranlage installiert wird,\ne. Produktbeschrieb des Herstellers der Solaranlage und Abbildungen der zum Einsatz kommenden Module und Anlagenteile,\nf. Orientierungsplan gemäss Brandschutzmerkblatt «Solaranlagen» der Vereinigung Kantonaler Feuerversicherungen,\ng. bei Anlagen an der Fassade ein Nachweis der Einhaltung der Anforderungen der Brandschutzrichtlinien «14-15 Verwendung von Baustoffen» und «15-15 Brandschutzabstände Tragwerke Brandabschnitte» der Vereinigung Kantonaler Feuerversicherungen.",
+      "text_en": "The following documents must be submitted with the notification for a solar installation:\na. situation plan at scale 1:500 or 1:1000 with the solar installation marked in red at the same scale,\nb. representation (sketch, plan or photo) of the roof plan,\nc. representation (sketch, plan or photo) of the gable façade,\nd. representation (sketch, plan or photo) of the eaves façade with the roof surface on which the solar installation is installed,\ne. product description from the manufacturer of the solar installation and illustrations of the modules and system components used,\nf. orientation plan according to the fire-protection information sheet 'Solar installations' of the Association of Cantonal Fire Insurers,\ng. for installations on the façade, proof of compliance with the requirements of the fire-protection guidelines '14-15 Use of building materials' and '15-15 Fire separation distances, supporting structures, fire compartments' of the Association of Cantonal Fire Insurers.",
+      "summary_en": "A solar notification needs a red-marked situation plan, roof, gable and eaves sketches or photos, the product description and fire-safety evidence for façade systems.",
+      "keywords": [
+        "solar installation",
+        "Solaranlage",
+        "notification documents",
+        "Meldeunterlagen",
+        "situation plan",
+        "Situationsplan",
+        "1:500",
+        "1:1000",
+        "fire protection",
+        "Brandschutz",
+        "VKF",
+        "roof plan"
+      ],
+      "topics": [
+        "permits-procedure",
+        "fire",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2c-2",
+      "ref": "§ 2c Abs. 2",
+      "heading": "C. Einzureichende / Unterlagen",
+      "heading_en": "Documents to be submitted / Documents",
+      "text": "Mit der Meldung für eine Luft/Wasser-Wärmepumpe sind folgende Unterlagen einzureichen:\na. Gesuch wärmetechnische Anlage,\nb. Situationsplan im Massstab 1:500 oder 1:1000 mit rot eingetragener Wärmepumpe,\nc. Lärmschutznachweis einschliesslich Situationsplan mit vermassten Abständen der Lärmquelle zum massgebenden Empfangspunkt,\nd. technisches Datenblatt der gewählten Wärmepumpe,\ne. bei aussen aufgestellten Luft/Wasser-Wärmepumpen einfache Skizzen, Fotos oder Pläne der projektierten Anlage.",
+      "text_en": "The following documents must be submitted with the notification for an air/water heat pump:\na. application for a thermotechnical installation,\nb. situation plan at scale 1:500 or 1:1000 with the heat pump marked in red,\nc. noise-protection proof including a situation plan with dimensioned distances between the noise source and the relevant receiving point,\nd. technical data sheet of the selected heat pump,\ne. for outdoor-installed air/water heat pumps, simple sketches, photos or plans of the planned installation.",
+      "summary_en": "A heat pump notification needs a situation plan with the unit marked, a noise-protection proof with dimensioned distances, and the product data sheet.",
+      "keywords": [
+        "heat pump",
+        "Wärmepumpe",
+        "notification documents",
+        "Meldeunterlagen",
+        "noise protection",
+        "Lärmschutz",
+        "noise proof",
+        "Lärmschutznachweis",
+        "situation plan",
+        "Situationsplan",
+        "1:500",
+        "technical data sheet"
+      ],
+      "topics": [
+        "permits-procedure",
+        "energy",
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2c-3",
+      "ref": "§ 2c Abs. 3",
+      "heading": "C. Einzureichende / Unterlagen",
+      "heading_en": "Documents to be submitted",
+      "text": "Mit der Meldung für eine Erdwärmesonden-Wärmepumpe sind folgende Unterlagen einzureichen:\na. Gesuch wärmetechnische Anlage,\nb. Situationsplan im Massstab 1:500 oder 1:1000 mit rot eingetragener Wärmepumpe und den Standorten der Erdwärmesonden,\nc. Gesuch um Erteilung der gewässerschutzrechtlichen Bewilligung für eine Erdwärmesonden-Wärmepumpenanlage.",
+      "text_en": "With the notification for a ground-source heat pump with geothermal probes, the following documents must be submitted:\na. application for the thermal installation,\nb. site plan at scale 1:500 or 1:1000 with the heat pump marked in red and the locations of the geothermal probes,\nc. application for the water-protection permit for a ground-source heat pump installation.",
+      "summary_en": "A ground-source heat pump needs a notification with a thermal installation application, a site plan showing the pump and probe locations, and a water-protection permit application.",
+      "keywords": [
+        "ground-source heat pump",
+        "geothermal probe",
+        "heat pump",
+        "site plan",
+        "water protection permit",
+        "Erdwärmesonde",
+        "Wärmepumpe",
+        "Situationsplan",
+        "1:500",
+        "Gewässerschutz"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-2c-4",
+      "ref": "§ 2c Abs. 4",
+      "heading": "C. Einzureichende / Unterlagen",
+      "heading_en": "Documents to be submitted",
+      "text": "Mit der Meldung für einen Anschluss an ein Fernwärmenetz sind folgende Unterlagen einzureichen:\na. Gesuch wärmetechnische Anlage,\nb. Situationsplan im Massstab 1:500 oder 1:1000 mit rot eingetragener Hauszuleitung.",
+      "text_en": "With the notification for a connection to a district heating network, the following documents must be submitted:\na. application for the thermal installation,\nb. site plan at scale 1:500 or 1:1000 with the building connection line marked in red.",
+      "summary_en": "Connecting to district heating needs a notification with a thermal installation application and a site plan showing the building connection line.",
+      "keywords": [
+        "district heating connection",
+        "building connection line",
+        "site plan",
+        "thermal installation",
+        "Fernwärme",
+        "Hauszuleitung",
+        "Situationsplan",
+        "Wärmetechnik"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-2c-5",
+      "ref": "§ 2c Abs. 5",
+      "heading": "C. Einzureichende / Unterlagen",
+      "heading_en": "Documents to be submitted",
+      "text": "Mit der Meldung für eine Ladestation für Elektrofahrzeuge sind einzureichen:\na. Situationsplan im Massstab 1:500 oder 1:1000 mit rot eingetragener Ladestation,\nb. einfache Skizzen, Fotos oder Pläne der projektierten Anlage,\nc. Produktbeschrieb des Herstellers der Ladestation.",
+      "text_en": "With the notification for a charging station for electric vehicles, the following must be submitted:\na. site plan at scale 1:500 or 1:1000 with the charging station marked in red,\nb. simple sketches, photos or plans of the planned installation,\nc. product description from the charging station manufacturer.",
+      "summary_en": "An EV charging station notification needs a site plan marking its location, sketches or photos, and the manufacturer's product description.",
+      "keywords": [
+        "EV charging station",
+        "electric vehicle",
+        "site plan",
+        "parking space",
+        "product description",
+        "Ladestation",
+        "Elektrofahrzeug",
+        "Situationsplan",
+        "Parkplatz"
+      ],
+      "topics": [
+        "energy",
+        "parking"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-2d",
+      "ref": "§ 2d",
+      "heading": "D. Einreichung",
+      "heading_en": "Submission",
+      "text": "Die Meldung ist zusammen mit den Unterlagen spätestens 30 Tage vor Baubeginn elektronisch über die Plattform gemäss §§ 19 a–19 c im Dateiformat PDF bei der örtlichen Baubehörde einzureichen.",
+      "text_en": "The notification together with the documents must be submitted electronically in PDF format via the platform under §§ 19 a–19 c to the local building authority, at the latest 30 days before construction starts.",
+      "summary_en": "The notification must reach the local building authority electronically as PDF at least 30 days before construction starts.",
+      "keywords": [
+        "notification deadline",
+        "30 days before construction",
+        "PDF",
+        "electronic submission",
+        "platform",
+        "Meldung",
+        "Baubeginn",
+        "Einreichung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "notification submitted before construction start",
+          "comparison": ">=",
+          "value": 30,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2d-2",
+      "ref": "§ 2d Abs. 2",
+      "heading": "D. Einreichung",
+      "heading_en": "Submission",
+      "text": "Das örtliche Bauamt bestätigt den Eingang der Meldung und gibt bekannt, wann die Behandlungsfrist abläuft.",
+      "text_en": "The local building authority confirms receipt of the notification and announces when the processing period ends.",
+      "summary_en": "The building authority confirms receipt of the notification and states when its review period ends.",
+      "keywords": [
+        "receipt confirmation",
+        "processing period",
+        "building authority",
+        "Eingangsbestätigung",
+        "Behandlungsfrist",
+        "Bauamt"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2d-3",
+      "ref": "§ 2d Abs. 3",
+      "heading": "D. Einreichung",
+      "heading_en": "Submission",
+      "text": "Die Behandlungsfrist beträgt 30 Tage. Das örtliche Bauamt kann die Frist bei Vorhaben mit erhöhtem Behandlungsaufwand verlängern.",
+      "text_en": "The processing period is 30 days. The local building authority may extend it for projects that require increased processing effort.",
+      "summary_en": "The authority has 30 days to process a notification, extendable for projects that need more review effort.",
+      "keywords": [
+        "processing period",
+        "30 days",
+        "extension",
+        "Behandlungsfrist",
+        "Verlängerung",
+        "Bauamt"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "processing period for a notification",
+          "comparison": "=",
+          "value": 30,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2d-4",
+      "ref": "§ 2d Abs. 4",
+      "heading": "D. Einreichung",
+      "heading_en": "Submission",
+      "text": "Das örtliche Bauamt kann ein Bewilligungsverfahren anordnen, um öffentliche Interessen zu wahren oder Rechte Dritter zu schützen.",
+      "text_en": "The local building authority may order a permit procedure to safeguard public interests or to protect the rights of third parties.",
+      "summary_en": "The authority can require a full permit procedure instead of notification when public interests or third-party rights are at stake.",
+      "keywords": [
+        "permit procedure",
+        "Bewilligungsverfahren",
+        "public interest",
+        "third-party rights",
+        "Drittrechte",
+        "Meldeverfahren",
+        "notification"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2d-5",
+      "ref": "§ 2d Abs. 5",
+      "heading": "D. Einreichung",
+      "heading_en": "Submission",
+      "text": "Die Gesuchstellenden können anstelle des Meldeverfahrens die Durchführung eines ordentlichen Verfahrens verlangen.",
+      "text_en": "Instead of the notification procedure, the applicants may request that an ordinary procedure be carried out.",
+      "summary_en": "Applicants can choose an ordinary permit procedure instead of the simpler notification procedure.",
+      "keywords": [
+        "ordinary procedure",
+        "notification procedure",
+        "Meldeverfahren",
+        "ordentliches Verfahren",
+        "applicant right",
+        "Gesuchsteller"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-2e",
+      "ref": "§ 2e",
+      "heading": "E. Baufreigabe",
+      "heading_en": "Construction release",
+      "text": "Muss ein Bewilligungsverfahren durchgeführt werden, teilt die örtliche Baubehörde dies innert 30 Tagen nach Einreichung der Meldung elektronisch über die Plattform mit. Andernfalls darf das Projekt ausgeführt werden.",
+      "text_en": "If a permit procedure has to be carried out, the local building authority announces this electronically via the platform within 30 days of submission of the notification. Otherwise the project may be carried out.",
+      "summary_en": "If no permit procedure is ordered within 30 days of notification, the project may proceed.",
+      "keywords": [
+        "construction release",
+        "30 days",
+        "notification",
+        "Baufreigabe",
+        "Bewilligungsverfahren",
+        "Meldung",
+        "Baubeginn"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "authority announces permit procedure after notification",
+          "comparison": "<=",
+          "value": 30,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-3",
+      "ref": "§ 3",
+      "heading": "Gesuchsunterlagen / A. Pläne / I. Art und Inhalt",
+      "heading_en": "Application documents / A. Plans / I. Type and content",
+      "text": "Mit dem Baugesuch sind in der Regel folgende Pläne einzureichen:\na. Situationsplan in Form eines aktuellen Katasterplans gemäss amtlicher Vermessung oder eines anderen Plans gleichen Inhalts und gleicher Darstellung. Der Situationsplan gibt Aufschluss über die Stellung und die Abstände der projektierten Bauten und Anlagen zu den Grundstücksgrenzen und den benachbarten Bauten und Anlagen. Ferner sind darin die im Kataster der öffentlich-rechtlichen Eigentumsbeschränkungen erfassten Themen (§ 2 Kantonale Verordnung über den Kataster der öffentlich-rechtlichen Eigentumsbeschränkungen [KÖREBKV] vom 27. Juni 2012) soweit darstellbar abzubilden. Die Übereinstimmung mit den massgeblichen Daten und den Darstellungsnormen der amtlichen Vermessung ist durch die Nachführungsstelle der amtlichen Vermessung bestätigen zu lassen. Eine Beglaubigung im Sinne von Art. 37 Abs. 1 der Verordnung über die amtliche Vermessung vom 18. November 1992 ist nicht erforderlich.\nb. Grundrisse aller Geschosse sowie die baurechtlich wesentlichen Schnitte im Massstab 1:100 mit auf die Meereshöhe bezogenen Höhenkoten, wobei eingetragen sein müssen: – die Mauern und Wände samt Öffnungen und Türen, – die Art der Baukonstruktion, – die Höhenverhältnisse, namentlich auch die Geschosshöhen, – die Dachaufbauten und Dacheinschnitte, – die Treppen- und Gangbreiten, – die Boden- und Fensterflächen sowie die lichten Höhen, – die Nutzweise und die Zweckbestimmung der Räume, – die Ausrüstungen, wie Heiz- und Feuereinrichtungen, sanitäre Einrichtungen, Beförderungsanlagen, Klima- und Ventilationsanlagen sowie Feuerschutzeinrichtungen, soweit sie baurechtlich von Bedeutung sind,\nc. Fassadenzeichnungen im Massstab 1:100 mit Angaben des massgebenden und gestalteten Terrains, allfälliger Niveaulinien sowie der auf die Meereshöhe bezogenen Höhenkoten, d. Umgebungsplan im Massstab 1:200 oder 1:100 mit Angaben über – die Höhen des massgebenden und des gestalteten Terrains, – die Gestaltung, die Art der Begrünung, den Versiegelungsgrad und die Nutzweise des Umschwungs, – die Umgebungsgestaltung beeinflussende Entwässerungsanlagen als Informationsinhalt.",
+      "text_en": "As a rule, the following plans must be submitted with the building application:\na. a situation plan in the form of a current cadastral plan under official surveying, or another plan with the same content and presentation. The situation plan shows the position and distances of the planned buildings and installations to the property boundaries and to neighbouring buildings and installations. It must also show, as far as representable, the topics recorded in the cadastre of public-law restrictions on land ownership (§ 2 Cantonal Ordinance on the Cadastre of Public-Law Restrictions on Land Ownership [KÖREBKV] of 27 June 2012). Consistency with the relevant data and the presentation standards of official surveying must be confirmed by the maintenance office of official surveying. Certification within the meaning of Art. 37 para. 1 of the Ordinance on Official Surveying of 18 November 1992 is not required.\nb. floor plans of all storeys and the sections relevant under building law at scale 1:100, with height levels referred to sea level, which must show: – the walls and partitions including openings and doors, – the type of construction, – the height conditions, in particular also the storey heights, – the roof structures and roof openings, – the widths of stairs and corridors, – the floor and window areas and the clear heights, – the use and intended purpose of the rooms, – the installations, such as heating and fire installations, sanitary installations, lifts, air-conditioning and ventilation systems, and fire-protection installations, insofar as they are relevant under building law,\nc. facade drawings at scale 1:100 with the relevant and designed terrain, any level lines, and the height levels referred to sea level, d. site plan at scale 1:200 or 1:100 with information on – the heights of the relevant and designed terrain, – the design, the type of planting, the degree of sealing and the use of the grounds, – drainage installations affecting the design of the grounds, as information content.",
+      "summary_en": "A building application normally needs a cadastral situation plan with distances, scaled floor plans and sections with heights, facade drawings, and a site plan of the terrain and grounds.",
+      "keywords": [
+        "building application plans",
+        "situation plan",
+        "cadastral plan",
+        "floor plan",
+        "section",
+        "facade drawing",
+        "site plan",
+        "1:100 scale",
+        "Grundriss",
+        "Situationsplan",
+        "Umgebungsplan",
+        "lichte Höhe"
+      ],
+      "topics": [
+        "permits-procedure",
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-3-2",
+      "ref": "§ 3 Abs. 2",
+      "heading": "Gesuchsunterlagen",
+      "heading_en": "Application documents",
+      "text": "Bei Neubauten und Umbauten mit wesentlichen Auswirkungen auf den Gebäudeumschwung ist der Umgebungsplan zwingend einzureichen.",
+      "text_en": "For new buildings and conversions with significant effects on the building grounds, the site plan must be submitted.",
+      "summary_en": "New builds and conversions that significantly affect the grounds must include the site plan.",
+      "keywords": [
+        "site plan",
+        "Umgebungsplan",
+        "new building",
+        "conversion",
+        "building grounds",
+        "Umschwung",
+        "Gebäudeumschwung"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-3-3",
+      "ref": "§ 3 Abs. 3",
+      "heading": "Gesuchsunterlagen",
+      "heading_en": "Application documents",
+      "text": "Die Pläne müssen auch die allfällig weiteren für die Prüfung des Bauvorhabens nötigen Angaben enthalten.",
+      "text_en": "The plans must also contain any other information needed to examine the project.",
+      "summary_en": "Plans must include any further information needed to check the project.",
+      "keywords": [
+        "plan content",
+        "project examination",
+        "additional information",
+        "Pläne",
+        "Prüfung",
+        "Bauvorhaben",
+        "Angaben"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-4",
+      "ref": "§ 4",
+      "heading": "II. Gestaltung",
+      "heading_en": "Design and presentation",
+      "text": "Im Situationsplan nach § 3 Abs. 1 lit. a sind bleibende Bauten und Anlagen schwarz, Neu- und Umbauten rot, abzubrechende Teile gelb darzustellen.",
+      "text_en": "In the situation plan under § 3 para. 1 lit. a, existing buildings and installations are shown in black, new and altered buildings in red, and parts to be demolished in yellow.",
+      "summary_en": "On the situation plan, existing works are black, new and altered works red, and parts to be demolished yellow.",
+      "keywords": [
+        "colour coding",
+        "red",
+        "black",
+        "yellow",
+        "situation plan",
+        "Schwarz-Rot-Gelb",
+        "Abbruch",
+        "Neubau",
+        "Umbau",
+        "Bestand"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-4-2",
+      "ref": "§ 4 Abs. 2",
+      "heading": "II. Gestaltung",
+      "heading_en": "Design and presentation",
+      "text": "In den Grundrissen, Schnitten und Fassadenzeichnungen sind Neubauten schwarz darzustellen. Bei Umbauten sind bleibende Bauteile schwarz, neue rot und abzubrechende gelb wiederzugeben.",
+      "text_en": "In the floor plans, sections and facade drawings, new buildings are shown in black. For conversions, retained components are shown in black, new ones in red, and those to be demolished in yellow.",
+      "summary_en": "In floor plans, sections and elevations, new work is black, and in conversions retained parts are black, new parts red and demolished parts yellow.",
+      "keywords": [
+        "colour coding",
+        "floor plan",
+        "section",
+        "facade",
+        "red",
+        "yellow",
+        "black",
+        "Grundriss",
+        "Schnitt",
+        "Fassade",
+        "Umbau",
+        "Abbruch"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-4-3",
+      "ref": "§ 4 Abs. 3",
+      "heading": "II. Gestaltung",
+      "heading_en": "Design and presentation",
+      "text": "Bei Zweckänderungen ist in den Grundrissen die neue Zweckbestimmung rot und die ursprüngliche gelb zu unterstreichen.",
+      "text_en": "For changes of use, the new intended purpose is underlined in red in the floor plans, and the original intended purpose in yellow.",
+      "summary_en": "A change of use is shown on the floor plans by underlining the new use in red and the old use in yellow.",
+      "keywords": [
+        "change of use",
+        "Zweckänderung",
+        "Nutzungsänderung",
+        "floor plan",
+        "intended purpose",
+        "red",
+        "yellow",
+        "Grundriss",
+        "Zweckbestimmung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-4-4",
+      "ref": "§ 4 Abs. 4",
+      "heading": "II. Gestaltung",
+      "heading_en": "Design and presentation",
+      "text": "Anstelle oder neben der Schwarz-, Rot- und Gelb-Darstellung in einem Plan können allenfalls, nach Vereinbarung mit der örtlichen Baubehörde, separate Pläne mit altem und neuem Zustand eingereicht werden.",
+      "text_en": "Instead of or alongside the black, red and yellow presentation in one plan, separate plans showing the old and new state may possibly be submitted, by agreement with the local building authority.",
+      "summary_en": "With the building authority's agreement, separate old-state and new-state plans can replace the colour-coded presentation.",
+      "keywords": [
+        "separate plans",
+        "old and new state",
+        "colour coding",
+        "existing state",
+        "building authority",
+        "Vereinbarung",
+        "Planbeilage"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-5",
+      "ref": "§ 5",
+      "heading": "B. Weitere / Unterlagen",
+      "heading_en": "Further documents",
+      "text": "Je nach Art und Lage des Bauvorhabens sind ferner erforderlich:\na. Grundbuchauszüge über die vom Baugesuch erfassten Grundstücke und Grundstücksteile,\nb. Berechnungen über die Ausnützung in Bezug auf Nutzungsziffern oder eine allfällige andere Beschränkung, nötigenfalls mit planlicher Erläuterung,\nc. Angaben über die äusseren Materialien und Farben,\nd. Plan über die Liegenschaftenentwässerung mit Versickerungsflächen und Anlagen zur Nutzung des Regenwassers sowie der Umgebungsgestaltung als Informationsinhalt,\ne. Berechnung der erforderlichen und zulässigen Fahrzeugabstellplätze,\nf. Nachweis der Energiebedarfsdeckung (§ 10 a Energiegesetz vom 19. Juni 1983),\ng. Lärmgutachten,\nh. Emissionserklärung sowie Pläne und Angaben über Abluftanlagen,\ni. allfällige weitere nach Spezialgesetzen erforderliche Unterlagen,\nj. Umweltverträglichkeitsbericht,\nk. Begründung für allfällige Ausnahmegesuche,\nl. nachbarliche Zustimmungserklärungen in den vom Gesetz vorgesehenen Fällen,\nm. Nachweis der Berechtigung zur Einreichung des Baugesuches, wenn die Gesuchstellenden über das Baugrundstück nicht alleinverfügungsberechtigt sind,\nn. aktuelle Fotos des Zustands des Baugrundstücks, der unmittelbaren Umgebung des Bauvorhabens und von bestehenden Bauten und Anlagen,\no. Nachweis der Menge des Aushubs gemäss § 2 der Verordnung über den Bahntransport von Aushub und Gesteinskörnung vom 3. Februar 2021.",
+      "text_en": "Depending on the type and location of the project, the following are also required:\na. land register extracts for the plots and parts of plots covered by the building application,\nb. calculations of utilisation in relation to use ratios or any other restriction, if necessary with plan explanations,\nc. information on external materials and colours,\nd. plan of property drainage with infiltration areas and installations for using rainwater, as well as the design of the grounds, as information content,\ne. calculation of the required and permitted vehicle parking spaces,\nf. proof that the energy demand is covered (§ 10 a Energy Act of 19 June 1983),\ng. noise assessment,\nh. emissions declaration, and plans and information on exhaust-air installations,\ni. any other documents required under special legislation,\nj. environmental impact report,\nk. justification for any exemption requests,\nl. neighbours' consent statements in the cases provided for by law,\nm. proof of entitlement to submit the building application, if the applicants do not alone have disposal rights over the building plot,\nn. current photos of the condition of the building plot, its immediate surroundings, and existing buildings and installations,\no. proof of the quantity of excavated material under § 2 of the Ordinance on Rail Transport of Excavated Material and Aggregates of 3 February 2021.",
+      "summary_en": "Depending on the project, applications may also need land register extracts, utilisation and parking calculations, drainage and energy proofs, a noise report, an emissions declaration, an EIA report, neighbour consents and site photos.",
+      "keywords": [
+        "further application documents",
+        "land register extract",
+        "Grundbuchauszug",
+        "parking calculation",
+        "Fahrzeugabstellplätze",
+        "noise report",
+        "Lärmgutachten",
+        "emissions declaration",
+        "Emissionserklärung",
+        "drainage plan",
+        "Entwässerung",
+        "neighbour consent"
+      ],
+      "topics": [
+        "permits-procedure",
+        "parking",
+        "sound",
+        "ventilation",
+        "energy",
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-5-2",
+      "ref": "§ 5 Abs. 2",
+      "heading": "B. Weitere / Unterlagen",
+      "heading_en": "Further documents",
+      "text": "Bei Neubauten und Umbauten mit wesentlichen Auswirkungen auf die Liegenschaftenentwässerung ist der Plan über die Liegenschaftenentwässerung zwingend einzureichen.",
+      "text_en": "For new buildings and conversions with significant effects on property drainage, the drainage plan must be submitted.",
+      "summary_en": "New builds and conversions that significantly affect drainage must include a property drainage plan.",
+      "keywords": [
+        "drainage plan",
+        "Entwässerungsplan",
+        "property drainage",
+        "Liegenschaftenentwässerung",
+        "new building",
+        "conversion",
+        "stormwater"
+      ],
+      "topics": [
+        "moisture",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-6",
+      "ref": "§ 6",
+      "heading": "C. Einreichung",
+      "heading_en": "Submission",
+      "text": "Das Baugesuch und die Gesuchsunterlagen sind elektronisch im Dateiformat PDF über die Plattform einzureichen.",
+      "text_en": "The building application and the application documents must be submitted electronically in PDF format via the platform.",
+      "summary_en": "The building application and its documents must be filed electronically as PDF through the platform.",
+      "keywords": [
+        "electronic submission",
+        "PDF",
+        "platform",
+        "building application",
+        "Baugesuch",
+        "Einreichung",
+        "digital filing"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-6-2",
+      "ref": "§ 6 Abs. 2",
+      "heading": "C. Einreichung",
+      "heading_en": "Submission",
+      "text": "Die Gesuchstellenden oder die für das Projekt Verantwortlichen reichen das Baugesuch ein. Sie versehen das Gesuch mit\na. einer qualifizierten elektronischen Signatur gemäss dem Bundesgesetz vom 18. März 2016 über Zertifizierungsdienste im Bereich der elektronischen Signatur und anderer Anwendungen digitaler Zertifikate (Bundesgesetz über die elektronische Signatur) oder\nb. einer handschriftlich unterzeichneten Eingabequittung, die in Papierform bei der örtlichen Baubehörde eingereicht wird.",
+      "text_en": "The applicants or the persons responsible for the project submit the building application. They must provide it with\na. a qualified electronic signature under the Federal Act of 18 March 2016 on Certification Services in the Area of Electronic Signatures and Other Applications of Digital Certificates (Federal Electronic Signature Act), or\nb. a handwritten, signed receipt, which is submitted on paper to the local building authority.",
+      "summary_en": "The building application must be signed either with a qualified electronic signature or with a handwritten receipt filed on paper.",
+      "keywords": [
+        "qualified electronic signature",
+        "handwritten signature",
+        "paper receipt",
+        "Eingabequittung",
+        "Signatur",
+        "building application",
+        "Baugesuch"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-6-3",
+      "ref": "§ 6 Abs. 3",
+      "heading": "C. Einreichung",
+      "heading_en": "Submission",
+      "text": "Die Bevollmächtigung oder die Zustimmung Dritter ist mit einer qualifizierten elektronischen Signatur gemäss dem Bundesgesetz über die elektronische Signatur oder mit einer handschriftlichen Unterschrift zu versehen. Bei handschriftlicher Unterschrift ist die Bevollmächtigung oder die Zustimmung einzuscannen und elektronisch im Dateiformat PDF über die Plattform einzureichen.",
+      "text_en": "Powers of attorney or consent from third parties must bear a qualified electronic signature under the Federal Electronic Signature Act or a handwritten signature. Where a handwritten signature is used, the document must be scanned and submitted electronically in PDF format via the platform.",
+      "summary_en": "Third-party powers of attorney or consents need a qualified electronic or handwritten signature, and handwritten ones are uploaded as scanned PDF.",
+      "keywords": [
+        "power of attorney",
+        "third-party consent",
+        "Bevollmächtigung",
+        "Zustimmung",
+        "electronic signature",
+        "handwritten signature",
+        "scan",
+        "PDF"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-6a",
+      "ref": "§ 6a",
+      "heading": "D. Akteneinsicht",
+      "heading_en": "Inspection of files",
+      "text": "Die Akteneinsicht gemäss § 8 des Verwaltungsrechtspflegegesetzes vom 24. Mai 1959 (VRG) erfolgt elektronisch über die Plattform.",
+      "text_en": "Inspection of files under § 8 of the Administrative Procedure Act of 24 May 1959 (VRG) takes place electronically via the platform.",
+      "summary_en": "Case files are inspected electronically through the platform.",
+      "keywords": [
+        "file inspection",
+        "Akteneinsicht",
+        "electronic access",
+        "platform",
+        "VRG",
+        "administrative procedure"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-6a-2",
+      "ref": "§ 6a Abs. 2",
+      "heading": "D. Akteneinsicht",
+      "heading_en": "Inspection of files",
+      "text": "Das Gesuch um Akteneinsicht ist mit einer qualifizierten elektronischen Signatur gemäss dem Bundesgesetz über die elektronische Signatur zu versehen.",
+      "text_en": "A request for inspection of files must bear a qualified electronic signature under the Federal Electronic Signature Act.",
+      "summary_en": "A file-inspection request must carry a qualified electronic signature.",
+      "keywords": [
+        "file inspection request",
+        "Akteneinsicht",
+        "qualified electronic signature",
+        "Gesuch",
+        "Signatur"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-7",
+      "ref": "§ 7",
+      "heading": "Ergänzungen / zur Grundordnung",
+      "heading_en": "Supplements / to the basic regulations",
+      "text": "Die im Anhang zu dieser Verordnung genannten Vorhaben bedürfen neben oder anstelle der baurechtlichen Bewilligung der örtlichen Baubehörde (§ 318 PBG) der Beurteilung (Bewilligung, Konzession oder Genehmigung) anderer, namentlich kantonaler Stellen.",
+      "text_en": "Projects listed in the annex to this ordinance require, in addition to or instead of the building permit of the local building authority (§ 318 PBG), an assessment (permit, concession or approval) by other, in particular cantonal, authorities.",
+      "summary_en": "Projects listed in the annex also need approval from other, mainly cantonal, authorities besides the local building permit.",
+      "keywords": [
+        "additional approval",
+        "annex",
+        "cantonal authority",
+        "building permit",
+        "Konzession",
+        "Genehmigung",
+        "Bewilligung",
+        "Anhang",
+        "§ 318 PBG"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-7-2",
+      "ref": "§ 7 Abs. 2",
+      "heading": "Ergänzungen / zur Grundordnung",
+      "heading_en": "Supplements / to the basic regulations",
+      "text": "Die besonderen Bestimmungen des Wasser- und Strassenrechts über das Verfahren und die Zuständigkeiten bleiben vorbehalten.",
+      "text_en": "The special provisions of water and road law on procedure and competences remain reserved.",
+      "summary_en": "Special water and road law rules on procedure and jurisdiction still apply.",
+      "keywords": [
+        "water law",
+        "road law",
+        "Wasserrecht",
+        "Strassenrecht",
+        "procedure",
+        "competence",
+        "Zuständigkeit"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-8",
+      "ref": "§ 8",
+      "heading": "Koordinationspflicht",
+      "heading_en": "Duty to coordinate",
+      "text": "Die für die Koordination verantwortliche Stelle sorgt bei Vorhaben, die durch mehrere Stellen zu prüfen sind, für die ausreichende formelle und materielle Koordination der Beurteilungen, für widerspruchsfreie Entscheide und für einheitliche Rechtsmittelbelehrungen.",
+      "text_en": "For projects that must be assessed by several authorities, the body responsible for coordination ensures sufficient formal and substantive coordination of the assessments, decisions free of contradictions, and uniform notices of legal remedies.",
+      "summary_en": "For multi-authority projects, one coordinating body ensures consistent assessments, non-conflicting decisions and uniform appeal notices.",
+      "keywords": [
+        "coordination duty",
+        "multi-authority project",
+        "consistent decisions",
+        "legal remedies",
+        "Koordinationspflicht",
+        "Rechtsmittelbelehrung",
+        "Verfahren"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-8-2",
+      "ref": "§ 8 Abs. 2",
+      "heading": "Koordinationspflicht",
+      "heading_en": "Duty to coordinate",
+      "text": "Nicht der Koordinationspflicht unterliegen die im Anhang bezeichneten Beurteilungen, die für die Zulässigkeit des Vorhabens an sich nicht erheblich sind. Solche Nebenbewilligungen können ergänzenden Verfahren vorbehalten werden.",
+      "text_en": "Assessments designated in the annex that are not material to whether the project is permissible in itself are not subject to the coordination duty. Such ancillary permits may be reserved for supplementary procedures.",
+      "summary_en": "Ancillary permits in the annex that do not decide whether the project is allowed are outside the coordination duty and can follow in separate procedures.",
+      "keywords": [
+        "ancillary permit",
+        "coordination exemption",
+        "Nebenbewilligung",
+        "supplementary procedure",
+        "annex",
+        "Koordinationspflicht"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-9",
+      "ref": "§ 9",
+      "heading": "Verantwortliche Behörden",
+      "heading_en": "Responsible authorities",
+      "text": "Die für die Koordination verantwortliche Stelle ist\na. im Regelfall die örtliche Baubehörde,\nb. bei Vorhaben, die einer Umweltverträglichkeitsprüfung bedürfen, die im massgeblichen Verfahren zuständige Behörde,\nc. bei Vorhaben, die keine Bewilligung der örtlichen Baubehörde benötigen, die kantonale Leitstelle.",
+      "text_en": "The body responsible for coordination is\na. as a rule the local building authority,\nb. for projects requiring an environmental impact assessment, the authority competent in the relevant procedure,\nc. for projects that need no permit from the local building authority, the cantonal coordination office (kantonale Leitstelle).",
+      "summary_en": "Usually the local building authority coordinates; for EIA projects the competent procedural authority does, and projects without a local permit go to the cantonal coordination office.",
+      "keywords": [
+        "coordinating authority",
+        "local building authority",
+        "environmental impact assessment",
+        "UVP",
+        "cantonal coordination office",
+        "Leitstelle",
+        "Bauamt"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-9-2",
+      "ref": "§ 9 Abs. 2",
+      "heading": "Verantwortliche Behörden",
+      "heading_en": "Responsible authorities",
+      "text": "Muss ein Vorhaben durch mehrere kantonale Stellen beurteilt werden, sorgt die kantonale Leitstelle für die Koordination der kantonalen Verfahren und Entscheide.",
+      "text_en": "If a project must be assessed by several cantonal authorities, the cantonal coordination office coordinates the cantonal procedures and decisions.",
+      "summary_en": "When several cantonal authorities must assess one project, the cantonal coordination office coordinates them.",
+      "keywords": [
+        "cantonal coordination",
+        "coordination office",
+        "Leitstelle",
+        "multiple cantonal authorities",
+        "kantonale Verfahren"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-11",
+      "ref": "§ 11",
+      "heading": "Vorprüfung im / Allgemeinen",
+      "heading_en": "Preliminary review / General",
+      "text": "Das örtliche Bauamt prüft unverzüglich nach Eingang eines Baugesuches summarisch, ob die Unterlagen den Anforderungen entsprechen. Es weist offensichtlich mangelhafte Gesuche zurück. Diese werden nicht an andere Stellen weitergeleitet, und die Vorprüfungsfrist gemäss § 313 PBG beginnt nicht zu laufen.",
+      "text_en": "Immediately after receiving a building application, the local building authority checks in summary whether the documents meet the requirements. It rejects applications that are obviously deficient. These are not forwarded to other authorities, and the preliminary review period under § 313 PBG does not start to run.",
+      "summary_en": "The building authority does a quick completeness check on receipt and returns obviously deficient applications without starting the review clock.",
+      "keywords": [
+        "preliminary review",
+        "completeness check",
+        "building application",
+        "rejection",
+        "incomplete application",
+        "Vorprüfung",
+        "Vorprüfungsfrist",
+        "§ 313 PBG"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-11-2",
+      "ref": "§ 11 Abs. 2",
+      "heading": "Vorprüfung im / Allgemeinen",
+      "heading_en": "Preliminary review / General",
+      "text": "Das örtliche Bauamt stellt gleichzeitig fest, ob und welche Beurteilungen kantonaler Stellen erforderlich sind, nimmt zum Bauvorhaben Stellung und leitet das Gesuch mit den Gesuchsunterlagen elektronisch über die Plattform unverzüglich an die kantonale Leitstelle weiter. Es verweist auf die massgebenden Ziffern gemäss dem Anhang zu dieser Verordnung.",
+      "text_en": "At the same time, the local building authority determines whether and which assessments by cantonal authorities are required, comments on the project, and immediately forwards the application with its documents electronically via the platform to the cantonal coordination office. It refers to the relevant numbers in the annex to this ordinance.",
+      "summary_en": "The local building authority identifies which cantonal assessments are needed, comments on the project and forwards the application at once.",
+      "keywords": [
+        "preliminary review",
+        "cantonal assessment",
+        "coordination office",
+        "forwarding",
+        "annex",
+        "Leitstelle",
+        "Vorprüfung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-11-3",
+      "ref": "§ 11 Abs. 3",
+      "heading": "Vorprüfung im / Allgemeinen",
+      "heading_en": "Preliminary review / General",
+      "text": "Das örtliche Bauamt und die kantonalen Stellen prüfen, ob die Unterlagen für den Entscheid ausreichen. Falls weitere Unterlagen erforderlich sind, teilen die kantonalen Stellen dies unter Orientierung der kantonalen Leitstelle dem örtlichen Bauamt so rechtzeitig mit, dass dieses die Gesuchstellenden innert der Frist von drei Wochen seit der Einreichung des Gesuches gesamthaft zu den nötigen Ergänzungen auffordern kann. Die nachträglich eingereichten Unterlagen unterliegen erneut der Vorprüfung.",
+      "text_en": "The local building authority and the cantonal authorities check whether the documents are sufficient for the decision. If further documents are required, the cantonal authorities inform the local building authority, with notice to the cantonal coordination office, in good time so that it can request the applicants to provide all necessary supplements together within three weeks of submission of the application. Subsequently submitted documents are again subject to preliminary review.",
+      "summary_en": "Authorities can ask for missing documents, and the building authority must request all supplements from the applicant within three weeks of submission.",
+      "keywords": [
+        "missing documents",
+        "supplement request",
+        "three weeks",
+        "preliminary review",
+        "Nachforderung",
+        "Ergänzung",
+        "Vorprüfungsfrist"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "time limit to request supplementary documents after submission",
+          "comparison": "<=",
+          "value": 21,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-11-4",
+      "ref": "§ 11 Abs. 4",
+      "heading": "Vorprüfung im / Allgemeinen",
+      "heading_en": "Preliminary review / General",
+      "text": "Die Behandlungsfrist gemäss § 319 PBG beginnt mit dem Abschluss der Vorprüfung durch sämtliche Stellen, spätestens mit Ablauf der Vorprüfungsfrist von drei Wochen.",
+      "text_en": "The processing period under § 319 PBG begins when all authorities have completed the preliminary review, at the latest when the three-week preliminary review period expires.",
+      "summary_en": "The main processing period starts once all authorities finish preliminary review, and at the latest after three weeks.",
+      "keywords": [
+        "processing period",
+        "end of preliminary review",
+        "three weeks",
+        "Behandlungsfrist",
+        "Vorprüfung",
+        "§ 319 PBG"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "preliminary review period",
+          "comparison": "<=",
+          "value": 21,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-11-5",
+      "ref": "§ 11 Abs. 5",
+      "heading": "Vorprüfung im / Allgemeinen",
+      "heading_en": "Preliminary review / General",
+      "text": "Ausnahmsweise können ergänzende Unterlagen nachträglich verlangt werden, wenn dies für die Beurteilung des Vorhabens erforderlich und mit den Anforderungen an die öffentliche Auflage (§ 314 PBG) vereinbar ist.",
+      "text_en": "In exceptional cases, supplementary documents may be requested later, if this is necessary to assess the project and is compatible with the requirements for public display (§ 314 PBG).",
+      "summary_en": "Supplementary documents can occasionally be requested later if needed for assessment and consistent with public display rules.",
+      "keywords": [
+        "supplementary documents",
+        "late request",
+        "public display",
+        "öffentliche Auflage",
+        "§ 314 PBG",
+        "Nachforderung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12",
+      "ref": "§ 12",
+      "heading": "Koordination / und Eröffnung / der Entscheide",
+      "heading_en": "Coordination and notification of decisions",
+      "text": "Die Leitstelle führt die der Koordination unterliegenden Entscheide aller kantonaler Stellen in der Regel in einer einzigen Verfügung zusammen.",
+      "text_en": "The coordinating office generally combines the decisions of all cantonal authorities that are subject to coordination into a single order (Verfügung).",
+      "summary_en": "The coordinating office usually merges all coordinated cantonal decisions into one order.",
+      "keywords": [
+        "single order",
+        "coordinated decision",
+        "cantonal decisions",
+        "Verfügung",
+        "Koordination",
+        "Leitstelle"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12-2",
+      "ref": "§ 12 Abs. 2",
+      "heading": "Koordination / und Eröffnung / der Entscheide",
+      "heading_en": "Coordination and notification of decisions",
+      "text": "Die kantonalen Entscheide werden der örtlichen Baubehörde elektronisch über die Plattform übermittelt. Die Baubehörde eröffnet sie zusammen mit ihrem eigenen Beschluss.",
+      "text_en": "The cantonal decisions are transmitted to the local building authority electronically via the platform. The building authority notifies them together with its own resolution.",
+      "summary_en": "Cantonal decisions reach the building authority electronically and are notified together with its own decision.",
+      "keywords": [
+        "decision notification",
+        "cantonal decision",
+        "building authority",
+        "platform",
+        "Eröffnung",
+        "Beschluss"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12-3",
+      "ref": "§ 12 Abs. 3",
+      "heading": "Koordination / und Eröffnung / der Entscheide",
+      "heading_en": "Coordination and notification of decisions",
+      "text": "Die baurechtlichen Entscheide sind mit einer qualifizierten elektronischen Signatur gemäss dem Bundesgesetz über die elektronische Signatur zu versehen.",
+      "text_en": "Building-law decisions must bear a qualified electronic signature under the Federal Electronic Signature Act.",
+      "summary_en": "Building-law decisions must carry a qualified electronic signature.",
+      "keywords": [
+        "building decision",
+        "qualified electronic signature",
+        "digital signature",
+        "Signatur",
+        "Entscheid",
+        "Baurecht"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12-4",
+      "ref": "§ 12 Abs. 4",
+      "heading": "Koordination / und Eröffnung / der Entscheide",
+      "heading_en": "Coordination and notification of decisions",
+      "text": "Baurechtliche Entscheide werden elektronisch im Dateiformat PDF über die Plattform eröffnet.",
+      "text_en": "Building-law decisions are notified electronically in PDF format via the platform.",
+      "summary_en": "Building-law decisions are issued electronically as PDF through the platform.",
+      "keywords": [
+        "decision notification",
+        "PDF",
+        "platform",
+        "electronic notice",
+        "Baurechtlicher Entscheid",
+        "Eröffnung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12a",
+      "ref": "§ 12a",
+      "heading": "2. Eröffnung / eines Einzelentscheids",
+      "heading_en": "2. Notification / of an individual decision",
+      "text": "Stellt das örtliche Bauamt oder ein kantonales Amt, das eine Beurteilung vornehmen muss, klare Hindernisse fest, die dem Vorhaben entgegenstehen und sich nicht mit Nebenbestimmungen beheben lassen, teilt es dies den Gesuchstellenden unverzüglich mit. Es informiert die weiteren Stellen.",
+      "text_en": "If the local building authority, or a cantonal office that must make an assessment, finds clear obstacles to the project that stand in its way and cannot be remedied by ancillary conditions, it immediately informs the applicants. It informs the other authorities.",
+      "summary_en": "If an authority finds clear obstacles that conditions cannot fix, it must tell the applicants immediately and inform the other authorities.",
+      "keywords": [
+        "clear obstacle",
+        "ancillary conditions",
+        "immediate notice",
+        "applicant",
+        "Einzelentscheid",
+        "Hindernis",
+        "Nebenbestimmung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12a-2",
+      "ref": "§ 12a Abs. 2",
+      "heading": "2. Eröffnung / eines Einzelentscheids",
+      "heading_en": "2. Notification / of an individual decision",
+      "text": "Das örtliche Bauamt eröffnet vorab den ablehnenden Einzelentscheid, wenn die Gesuchstellenden\na. das Gesuch nicht zurückziehen,\nb. keine vollständige Behandlung verlangen.",
+      "text_en": "The local building authority first issues the rejecting individual decision if the applicants\na. do not withdraw the application,\nb. do not request full processing.",
+      "summary_en": "If the applicants neither withdraw the application nor ask for full processing, the building authority first issues a rejecting individual decision.",
+      "keywords": [
+        "individual decision",
+        "rejection",
+        "withdrawal",
+        "full processing",
+        "Einzelentscheid",
+        "ablehnend",
+        "Gesuchsrückzug"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12a-3",
+      "ref": "§ 12a Abs. 3",
+      "heading": "2. Eröffnung / eines Einzelentscheids",
+      "heading_en": "2. Notification / of an individual decision",
+      "text": "Die weiteren Stellen sistieren das Verfahren, bis die Gesuchstellenden die Wiederaufnahme verlangen oder das Gesuch zurückziehen.",
+      "text_en": "The other authorities suspend the procedure until the applicants request its resumption or withdraw the application.",
+      "summary_en": "Other authorities pause their review until the applicant asks for it to resume or withdraws the application.",
+      "keywords": [
+        "suspension",
+        "resumption",
+        "withdrawal",
+        "procedure pause",
+        "Sistierung",
+        "Wiederaufnahme",
+        "Gesuch zurückziehen"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12b",
+      "ref": "§ 12b",
+      "heading": "1. Grundsatz / 3. Trägerwandlung",
+      "heading_en": "1. Principle / 3. Conversion of medium",
+      "text": "Werden in elektronischer Form vorliegende Akten, die mit einer elektronischen Signatur versehen sind, in physische Akten gewandelt, prüft die aktenführende Verwaltungsbehörde die elektronische Signatur bezüglich\na. Integrität des Dokuments,\nb. Identität der unterzeichnenden Person,\nc. Gültigkeit und Qualität der elektronischen Signatur,\nd. Datum und Uhrzeit der elektronischen Signatur.",
+      "text_en": "When electronic records that bear an electronic signature are converted into physical records, the administrative authority keeping the file checks the electronic signature for\na. integrity of the document,\nb. identity of the signing person,\nc. validity and quality of the electronic signature,\nd. date and time of the electronic signature.",
+      "summary_en": "When signed electronic records are converted to paper, the authority must verify the document's integrity, the signer's identity, the signature's validity and its timestamp.",
+      "keywords": [
+        "file conversion",
+        "paper file",
+        "signature check",
+        "integrity",
+        "signer identity",
+        "timestamp",
+        "elektronische Signatur",
+        "Trägerwandlung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12b-2",
+      "ref": "§ 12b Abs. 2",
+      "heading": "1. Grundsatz / 3. Trägerwandlung",
+      "heading_en": "1. Principle / 3. Conversion of medium",
+      "text": "Die Verwaltungsbehörde fügt den gewandelten Akten das Ergebnis der Signaturprüfung aus Abs. 1 bei.",
+      "text_en": "The administrative authority attaches the result of the signature check under para. 1 to the converted records.",
+      "summary_en": "The result of the signature check is attached to the converted paper file.",
+      "keywords": [
+        "signature check result",
+        "converted file",
+        "paper record",
+        "Signaturprüfung",
+        "Akten",
+        "Trägerwandlung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-12b-3",
+      "ref": "§ 12b Abs. 3",
+      "heading": "1. Grundsatz / 3. Trägerwandlung",
+      "heading_en": "1. Principle / 3. Conversion of medium",
+      "text": "Die Bestätigung, dass die gewandelten Akten mit den in elektronischer Form vorliegenden Akten übereinstimmen, ist mit Vorname, Name und Funktion sowie mit Datum und Unterschrift zu versehen.",
+      "text_en": "The confirmation that the converted records match the electronic records must show first name, surname and function, as well as date and signature.",
+      "summary_en": "A conversion confirmation must show the official's name, function, date and signature.",
+      "keywords": [
+        "conversion confirmation",
+        "signature",
+        "date",
+        "official",
+        "Bestätigung",
+        "Akten",
+        "Trägerwandlung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-13",
+      "ref": "§ 13",
+      "heading": "Grundsatz",
+      "heading_en": "Principle",
+      "text": "Für Bauvorhaben von untergeordneter Bedeutung, durch welche keine zum Rekurs berechtigenden Interessen Dritter berührt werden, wird anstelle des ordentlichen Verfahrens das Anzeigeverfahren angewendet.",
+      "text_en": "For building projects of minor significance, which do not affect any third-party interests entitled to appeal, the notification procedure is applied instead of the ordinary procedure.",
+      "summary_en": "Minor building projects that do not affect neighbours' appealable interests may go through the shorter notification procedure instead of the ordinary permit procedure.",
+      "keywords": [
+        "notification procedure",
+        "Anzeigeverfahren",
+        "ordinary procedure",
+        "ordentliches Verfahren",
+        "minor building project",
+        "Bauvorhaben",
+        "third-party interests",
+        "Dritte"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-13-2",
+      "ref": "§ 13 Abs. 2",
+      "heading": "Grundsatz",
+      "heading_en": "Principle",
+      "text": "Beim Anzeigeverfahren entfallen die Aussteckung und die öffentliche Bekanntmachung. Die Behandlungsfrist beträgt 30 Tage.",
+      "text_en": "In the notification procedure, the staking out and the public announcement are omitted. The processing period is 30 days.",
+      "summary_en": "Under the notification procedure there is no staking out and no public notice, and the authority has 30 days to process the application.",
+      "keywords": [
+        "notification procedure",
+        "Anzeigeverfahren",
+        "processing period",
+        "Behandlungsfrist",
+        "30 days",
+        "30 Tage",
+        "Aussteckung",
+        "staking out",
+        "public notice",
+        "öffentliche Bekanntmachung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "processing period in the notification procedure",
+          "comparison": "=",
+          "value": 30,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-13-3",
+      "ref": "§ 13 Abs. 3",
+      "heading": "Grundsatz",
+      "heading_en": "Principle",
+      "text": "Die Gesuchstellenden können anstelle des Anzeigeverfahrens die Durchführung des ordentlichen Verfahrens verlangen.",
+      "text_en": "Applicants may request that the ordinary procedure be carried out instead of the notification procedure.",
+      "summary_en": "An applicant can choose the ordinary permit procedure even when the notification procedure would be available.",
+      "keywords": [
+        "ordinary procedure",
+        "ordentliches Verfahren",
+        "notification procedure",
+        "Anzeigeverfahren",
+        "applicant",
+        "Gesuchsteller",
+        "Baugesuch"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-14",
+      "ref": "§ 14",
+      "heading": "Voraussetzungen / 1. Untergeord- / nete Bedeutung",
+      "heading_en": "Requirements / Minor significance",
+      "text": "Das Anzeigeverfahren findet namentlich Anwendung auf:\na. Vordächer,\nb. Balkone, Nischen, rückspringende und vorspringende Gebäudeteile,\nc. Dachkamine und andere kleinere technisch bedingte Dachaufbauten,\nd. Dachflächenfenster, Dachaufbauten, wie Lukarnen, Gauben und dergleichen, sowie Dacheinschnitte, sofern sie zusammen mit den bereits bestehenden nicht mehr als 1/20 der betreffenden Dachfläche beanspruchen; ausgenommen sind Vorhaben in Kernzonen und Quartiererhaltungszonen,\ne. unwesentliche Verkleinerungen des Gebäudegrundrisses und des Baukubus,\nf. die Veränderung einzelner Fassadenöffnungen, insbesondere von Türen und Fenstern, g. das Verschieben oder Einziehen innerer Trennwände,\nh. Änderungen der Zweckbestimmung einzelner Räume ohne Änderung der Nutzweise,\ni. Einrichtung und Umbau von Heizungen, Erdwärmesonden sowie Öltanks für das bediente Gebäude, soweit sie nicht meldepflichtig sind (§ 2 a),\nj. Empfangsantennen, soweit sie bewilligungspflichtig sind (§ 1 lit. i),\nk. offene, nicht gewerbliche Schwimmbäder,\nl. Gartenhäuser und Schöpfe gemäss § 18 Abs. 1 der Besonderen Bauverordnung II vom 26. August 1981, soweit diese bewilligungspflichtig sind (§ 1 lit. a),\nm. Reklameeinrichtungen, soweit sie bewilligungspflichtig sind (§ 1 lit. f), ausser in Kernzonen,\nn. Mauern und geschlossene Einfriedigungen von nicht mehr als 1,5 m Höhe ab massgebendem Terrain,\no. die Unterteilung von Grundstücken gemäss § 309 Abs. 1 lit. e PBG,\np. das Fällen von Bäumen, für die eine Erhaltungspflicht gemäss § 309 Abs. 1 lit. n PBG besteht.",
+      "text_en": "The notification procedure applies in particular to:\na. canopies,\nb. balconies, niches, recessed and projecting parts of buildings,\nc. roof chimneys and other smaller technically necessary roof structures,\nd. roof windows, roof structures such as dormers, gables and the like, as well as roof cuts, provided that together with those already existing they do not occupy more than 1/20 of the relevant roof surface; excluded are projects in core zones and neighbourhood preservation zones,\ne. insignificant reductions of the building footprint and building volume,\nf. the alteration of individual façade openings, in particular doors and windows,\ng. the shifting or removal of internal partition walls,\nh. changes in the designated use of individual rooms without changing the manner of use,\ni. installation and conversion of heating systems, ground probe heat exchangers and oil tanks for the served building, insofar as they are not subject to notification (§ 2 a),\nj. receiving antennas, insofar as they require a permit (§ 1 lit. i),\nk. open, non-commercial swimming pools,\nl. garden sheds and open sheds pursuant to § 18 para. 1 of the Besondere Bauverordnung II of 26 August 1981, insofar as these require a permit (§ 1 lit. a),\nm. advertising installations, insofar as they require a permit (§ 1 lit. f), except in core zones,\nn. walls and closed fences of not more than 1.5 m height above the relevant terrain,\no. the subdivision of plots pursuant to § 309 para. 1 lit. e PBG,\np. the felling of trees for which a preservation obligation exists pursuant to § 309 para. 1 lit. n PBG.",
+      "summary_en": "Small works such as canopies, balconies, dormers, facade window changes, internal wall changes, fences up to 1.5 m and tree felling qualify for the notification procedure.",
+      "keywords": [
+        "notification procedure",
+        "Anzeigeverfahren",
+        "canopy",
+        "Vordach",
+        "balcony",
+        "Balkon",
+        "dormer",
+        "Dachaufbau",
+        "roof window",
+        "Dachflächenfenster",
+        "fence",
+        "Einfriedigung"
+      ],
+      "topics": [
+        "distances-heights",
+        "doors-windows",
+        "outdoor",
+        "structure",
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "height of walls and closed fences above relevant terrain (notification procedure)",
+          "comparison": "<=",
+          "value": 1.5,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-6-15",
+      "ref": "§ 15",
+      "heading": "2. Interessen / Dritter",
+      "heading_en": "Interests of third parties",
+      "text": "Das örtliche Bauamt beurteilt, ob keine zum Rekurs berechtigenden Interessen Dritter berührt werden und daher auf die Aussteckung und die öffentliche Bekanntmachung verzichtet werden kann.",
+      "text_en": "The local building authority assesses whether no third-party interests entitled to appeal are affected and whether the staking out and public announcement can therefore be dispensed with.",
+      "summary_en": "The local building authority decides whether neighbours with appeal rights are affected, which determines whether the notification procedure can be used without public notice.",
+      "keywords": [
+        "third-party interests",
+        "Interessen Dritter",
+        "appeal",
+        "Rekurs",
+        "staking out",
+        "Aussteckung",
+        "public notice",
+        "öffentliche Bekanntmachung",
+        "building authority",
+        "Bauamt"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-15-2",
+      "ref": "§ 15 Abs. 2",
+      "heading": "2. Interessen / Dritter",
+      "heading_en": "Interests of third parties",
+      "text": "Das Anzeigeverfahren wird gleichwohl durchgeführt, sofern die Gesuchstellenden die Zustimmung der offensichtlich zum Rekurs berechtigten Dritten nachweisen.",
+      "text_en": "The notification procedure is nevertheless carried out if the applicants prove the consent of third parties who are obviously entitled to appeal.",
+      "summary_en": "Even where neighbours could appeal, the notification procedure can still be used if the applicant provides their written consent.",
+      "keywords": [
+        "consent",
+        "Zustimmung",
+        "third parties",
+        "Dritte",
+        "appeal",
+        "Rekurs",
+        "notification procedure",
+        "Anzeigeverfahren",
+        "neighbour consent",
+        "Nachbarzustimmung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-15-3",
+      "ref": "§ 15 Abs. 3",
+      "heading": "2. Interessen / Dritter",
+      "heading_en": "Interests of third parties",
+      "text": "Die Zustimmung ist mit einer qualifizierten elektronischen Signatur gemäss dem Bundesgesetz über die elektronische Signatur oder mit einer handschriftlichen Unterschrift zu versehen. Bei handschriftlicher Unterschrift ist die Zustimmung einzuscannen und elektronisch im Dateiformat PDF über die Plattform einzureichen.",
+      "text_en": "The consent must bear a qualified electronic signature pursuant to the Federal Act on Electronic Signatures or a handwritten signature. In the case of a handwritten signature, the consent must be scanned and submitted electronically in PDF format via the platform.",
+      "summary_en": "Neighbour consent must be signed electronically with a qualified signature, or handwritten, scanned and uploaded as PDF through the platform.",
+      "keywords": [
+        "electronic signature",
+        "elektronische Signatur",
+        "qualified signature",
+        "qualifizierte Signatur",
+        "PDF",
+        "consent",
+        "Zustimmung",
+        "platform",
+        "Plattform"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-15-4",
+      "ref": "§ 15 Abs. 4",
+      "heading": "2. Interessen / Dritter",
+      "heading_en": "Interests of third parties",
+      "text": "In Zweifelsfällen wird das Vorhaben öffentlich bekannt gemacht, sobald die aufzulegenden Unterlagen vollständig sind. Werden innert der Auflagefrist Zustellbegehren gemäss § 315 PBG gestellt, findet das ordentliche Verfahren, andernfalls das Anzeigeverfahren Anwendung. Unverzüglich nach Ablauf der Auflagefrist orientiert das örtliche Bauamt die Gesuchstellenden und die kantonale Leitstelle entweder über die Zustellbegehren oder über die Behandlung des Vorhabens im Anzeigeverfahren. Die Behandlungsfrist von 30 Tagen beginnt in diesem Fall am dritten Tag nach Ablauf der Auflagefrist.",
+      "text_en": "In cases of doubt, the project is publicly announced as soon as the documents to be displayed are complete. If notices of service pursuant to § 315 PBG are filed within the display period, the ordinary procedure applies; otherwise the notification procedure applies. Immediately after the display period expires, the local building authority informs the applicants and the cantonal central office either about the notices of service or about the handling of the project in the notification procedure. In this case, the processing period of 30 days begins on the third day after the display period expires.",
+      "summary_en": "If in doubt the project is publicly displayed; if no objections are filed in the display period the notification procedure continues, and its 30-day clock starts on the third day after display ends.",
+      "keywords": [
+        "public display",
+        "Auflage",
+        "display period",
+        "Auflagefrist",
+        "notices of service",
+        "Zustellbegehren",
+        "processing period",
+        "Behandlungsfrist",
+        "30 days",
+        "30 Tage",
+        "notification procedure",
+        "Anzeigeverfahren"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "processing period in the notification procedure (counted from the third day after display ends)",
+          "comparison": "=",
+          "value": 30,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-16",
+      "ref": "§ 16",
+      "heading": "Unterlagen / und Vorprüfung",
+      "heading_en": "Documents and preliminary review",
+      "text": "Die Unterlagen gemäss §§ 3 und 5 sind soweit einzureichen, als sie zur Beurteilung des Vorhabens erforderlich sind.",
+      "text_en": "The documents pursuant to §§ 3 and 5 are to be submitted insofar as they are necessary for assessing the project.",
+      "summary_en": "Only the application documents actually needed to assess the project have to be submitted for the notification procedure.",
+      "keywords": [
+        "application documents",
+        "Unterlagen",
+        "Baugesuch",
+        "preliminary review",
+        "Vorprüfung",
+        "notification procedure",
+        "Anzeigeverfahren"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-16-2",
+      "ref": "§ 16 Abs. 2",
+      "heading": "Unterlagen / und Vorprüfung",
+      "heading_en": "Documents and preliminary review",
+      "text": "Auf die Vorprüfung ist § 11 Abs. 1 und 2 sinngemäss anzuwenden.",
+      "text_en": "§ 11 paras. 1 and 2 apply mutatis mutandis to the preliminary review.",
+      "summary_en": "The preliminary review rules for the ordinary procedure also apply, with necessary changes, to the notification procedure.",
+      "keywords": [
+        "preliminary review",
+        "Vorprüfung",
+        "notification procedure",
+        "Anzeigeverfahren",
+        "application documents",
+        "Unterlagen"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-17",
+      "ref": "§ 17",
+      "heading": "Eingangsbestätigung",
+      "heading_en": "Acknowledgement of receipt",
+      "text": "Wird der Entscheid von der örtlichen Baubehörde nicht sofort getroffen oder ist sie nicht allein zuständig, bestätigt sie den Eingang des Gesuches, sobald die Unterlagen vollständig sind.",
+      "text_en": "If the decision is not made immediately by the local building authority, or if it is not solely responsible, it confirms receipt of the application as soon as the documents are complete.",
+      "summary_en": "When the building authority cannot decide at once, it confirms receipt of the application once the documents are complete.",
+      "keywords": [
+        "acknowledgement of receipt",
+        "Eingangsbestätigung",
+        "building application",
+        "Baugesuch",
+        "complete documents",
+        "vollständige Unterlagen",
+        "building authority",
+        "Baubehörde"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-17-2",
+      "ref": "§ 17 Abs. 2",
+      "heading": "Eingangsbestätigung",
+      "heading_en": "Acknowledgement of receipt",
+      "text": "Mit der Eingangsbestätigung wird den Gesuchstellenden und den weiteren Stellen das Datum bekannt gegeben, an welchem die Behandlungsfrist von 30 Tagen endet.",
+      "text_en": "With the acknowledgement of receipt, the applicants and the other bodies are informed of the date on which the 30-day processing period ends.",
+      "summary_en": "The acknowledgement of receipt states the date on which the 30-day processing period ends.",
+      "keywords": [
+        "acknowledgement of receipt",
+        "Eingangsbestätigung",
+        "processing period",
+        "Behandlungsfrist",
+        "30 days",
+        "30 Tage",
+        "end date",
+        "Fristende"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "processing period (end date stated in the acknowledgement of receipt)",
+          "comparison": "=",
+          "value": 30,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-18",
+      "ref": "§ 18",
+      "heading": "Abschluss / des Anzeigeverfahrens",
+      "heading_en": "Conclusion of the notification procedure",
+      "text": "Die für den Entscheid zuständigen Stellen können das Anzeigeverfahren elektronisch über die Plattform abschliessen mit\na. der Mitteilung, dass dem Vorhaben in ihrem Zuständigkeitsbereich nichts entgegenstehe,\nb. einer gleichlautenden Verfügung, in der Nebenbestimmungen sowie Behandlungsgebühren festgesetzt werden,\nc. der Verfügung, dass die Voraussetzungen für das Anzeigeverfahren nicht erfüllt seien und das Baugesuch aus diesem Grunde in das ordentliche Verfahren verwiesen werde,\nd. der Verfügung, dass die Bewilligung verweigert wird.",
+      "text_en": "The bodies responsible for the decision may conclude the notification procedure electronically via the platform with\na. the notice that nothing stands in the way of the project within their area of competence,\nb. an identically worded order that also sets ancillary provisions and processing fees,\nc. the order that the conditions for the notification procedure are not met and the building application is therefore referred to the ordinary procedure,\nd. the order that the permit is refused.",
+      "summary_en": "The notification procedure ends with a notice of no objection, an order with conditions and fees, a referral to the ordinary procedure, or a refusal.",
+      "keywords": [
+        "notification procedure",
+        "Anzeigeverfahren",
+        "conclusion",
+        "Abschluss",
+        "permit refused",
+        "Bewilligung verweigert",
+        "ancillary provisions",
+        "Nebenbestimmungen",
+        "processing fees",
+        "Behandlungsgebühren",
+        "ordinary procedure",
+        "ordentliches Verfahren"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-18-2",
+      "ref": "§ 18 Abs. 2",
+      "heading": "Abschluss / des Anzeigeverfahrens",
+      "heading_en": "Conclusion of the notification procedure",
+      "text": "Auf die Koordination und die Eröffnung der Entscheide ist § 12 sinngemäss anwendbar.",
+      "text_en": "§ 12 applies mutatis mutandis to the coordination and the notification of the decisions.",
+      "summary_en": "The coordination and notification rules for decisions in the ordinary procedure also apply, with necessary changes, to the notification procedure.",
+      "keywords": [
+        "coordination",
+        "Koordination",
+        "notification of decisions",
+        "Eröffnung der Entscheide",
+        "notification procedure",
+        "Anzeigeverfahren"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19",
+      "ref": "§ 19",
+      "heading": "Abgekürzte / Behandlungsfrist",
+      "heading_en": "Shortened processing period",
+      "text": "Für die im Anhang zu dieser Verordnung besonders bezeichneten Beurteilungen kantonaler Stellen gilt eine abgekürzte Behandlungsfrist von 30 Tagen auch für Vorhaben, die keiner Bewilligung der örtlichen Baubehörde bedürfen oder im ordentlichen Verfahren behandelt werden.",
+      "text_en": "For the cantonal assessments specially designated in the annex to this ordinance, a shortened processing period of 30 days applies, also for projects that do not require a permit from the local building authority or are handled in the ordinary procedure.",
+      "summary_en": "Specified cantonal reviews must be completed within 30 days, even for projects that need no municipal building permit or go through the ordinary procedure.",
+      "keywords": [
+        "shortened processing period",
+        "abgekürzte Behandlungsfrist",
+        "30 days",
+        "30 Tage",
+        "cantonal assessment",
+        "kantonale Beurteilung",
+        "annex",
+        "Anhang",
+        "processing period",
+        "Behandlungsfrist"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "shortened processing period for designated cantonal assessments",
+          "comparison": "=",
+          "value": 30,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19-2",
+      "ref": "§ 19 Abs. 2",
+      "heading": "Abgekürzte / Behandlungsfrist",
+      "heading_en": "Shortened processing period",
+      "text": "In diesen Fällen gibt die kantonale Leitstelle den Gesuchstellenden und der örtlichen Baubehörde das Datum bekannt, an welchem die Behandlungsfrist endet.",
+      "text_en": "In these cases the cantonal central office informs the applicants and the local building authority of the date on which the processing period ends.",
+      "summary_en": "In the shortened procedure the cantonal central office states the date on which the processing period ends.",
+      "keywords": [
+        "processing period",
+        "Behandlungsfrist",
+        "end date",
+        "Fristende",
+        "cantonal central office",
+        "kantonale Leitstelle",
+        "building authority",
+        "Baubehörde"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19-3",
+      "ref": "§ 19 Abs. 3",
+      "heading": "Abgekürzte / Behandlungsfrist",
+      "heading_en": "Shortened processing period",
+      "text": "Bei Vorhaben, die einen besonderen Untersuchungsaufwand erfordern, kann die zum Entscheid zuständige Stelle innert der Behandlungsfrist von 30 Tagen anordnen, dass die kantonale Beurteilung innert der Fristen für das ordentliche Verfahren erfolgt. Die beantragende Stelle orientiert die kantonale Leitstelle und die örtliche Baubehörde bzw., falls diese nicht am Verfahren beteiligt ist, die Gesuchstellenden darüber.",
+      "text_en": "For projects that require special investigative effort, the body responsible for the decision may, within the 30-day processing period, order that the cantonal assessment be carried out within the periods for the ordinary procedure. The requesting body informs the cantonal central office and the local building authority or, if the latter is not involved in the procedure, the applicants.",
+      "summary_en": "For projects needing extra investigation, the decision-making body can extend the cantonal review to the ordinary-procedure deadlines, provided it orders this within the 30-day period.",
+      "keywords": [
+        "processing period",
+        "Behandlungsfrist",
+        "30 days",
+        "30 Tage",
+        "ordinary procedure",
+        "ordentliches Verfahren",
+        "cantonal assessment",
+        "kantonale Beurteilung",
+        "investigative effort",
+        "Untersuchungsaufwand"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "period within which the decision-making body must order extension to ordinary-procedure deadlines",
+          "comparison": "=",
+          "value": 30,
+          "unit": "days"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19a",
+      "ref": "§ 19a",
+      "heading": "Betrieb und / Anbindung",
+      "heading_en": "Operation and connection",
+      "text": "Die Baudirektion stellt den am Baubewilligungsverfahren Beteiligten eine Applikation für die elektronische Einreichung des Baugesuches (Plattform) zur Verfügung und trägt die Verantwortung für deren Betrieb.",
+      "text_en": "The Building Directorate provides those involved in the building permit procedure with an application for the electronic submission of building applications (platform) and bears responsibility for its operation.",
+      "summary_en": "The cantonal Building Directorate runs the electronic platform through which building applications are submitted.",
+      "keywords": [
+        "platform",
+        "Plattform",
+        "electronic submission",
+        "elektronische Einreichung",
+        "building application",
+        "Baugesuch",
+        "Baudirektion",
+        "building permit procedure",
+        "Baubewilligungsverfahren"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19a-2",
+      "ref": "§ 19a Abs. 2",
+      "heading": "Betrieb und / Anbindung",
+      "heading_en": "Operation and connection",
+      "text": "Die Plattform stellt über eine standardisierte Schnittstelle (eCH- 0211) die Anbindung der Bauverwaltungsapplikationen der Gemeinden, der Geschäftskontrolle des Kantons und anderer im Bewilligungsverfahren benötigter Fachapplikationen sicher.",
+      "text_en": "The platform ensures, via a standardised interface (eCH-0211), the connection of the municipalities' building administration applications, the cantonal business control system and other specialist applications required in the permit procedure.",
+      "summary_en": "The platform connects municipal building systems, the cantonal case system and other specialist tools through a standard interface.",
+      "keywords": [
+        "interface",
+        "Schnittstelle",
+        "eCH-0211",
+        "municipal building administration",
+        "Bauverwaltung",
+        "platform",
+        "Plattform",
+        "specialist applications",
+        "Fachapplikationen"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19b",
+      "ref": "§ 19b",
+      "heading": "Speicherung / und Protokollierung",
+      "heading_en": "Storage and logging",
+      "text": "Die Baudirektion speichert die auf der Plattform erfassten und elektronisch eingereichten Baugesuchsdaten auf einem von ihr oder in ihrem Auftrag betriebenen Server.",
+      "text_en": "The Building Directorate stores the building application data recorded on the platform and submitted electronically on a server operated by it or on its behalf.",
+      "summary_en": "Building application data entered on the platform is stored on a server run by or for the Building Directorate.",
+      "keywords": [
+        "data storage",
+        "Speicherung",
+        "server",
+        "Server",
+        "building application",
+        "Baugesuch",
+        "platform",
+        "Plattform",
+        "Baudirektion"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19b-2",
+      "ref": "§ 19b Abs. 2",
+      "heading": "Speicherung / und Protokollierung",
+      "heading_en": "Storage and logging",
+      "text": "Alle Vorgänge auf der Plattform sind unter Angabe des Zeitpunkts zu protokollieren. Die Protokolle zum jeweiligen Baugesuch sind bis zur Schlusskontrolle, mindestens jedoch bis zum Ablauf von drei Jahren nach dem rechtskräftigen Abschluss des Bewilligungsverfahrens, aufzubewahren.",
+      "text_en": "All activities on the platform are to be logged with the time stated. The logs for the respective building application are to be kept until the final check, but at least until three years after the legally binding conclusion of the permit procedure.",
+      "summary_en": "Every platform action is logged with a timestamp, and the logs must be kept at least three years after the permit procedure is legally concluded.",
+      "keywords": [
+        "logging",
+        "Protokollierung",
+        "audit log",
+        "retention",
+        "Aufbewahrung",
+        "three years",
+        "drei Jahre",
+        "final check",
+        "Schlusskontrolle",
+        "building application",
+        "Baugesuch"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "minimum retention of platform logs after the legally binding conclusion of the permit procedure",
+          "comparison": ">=",
+          "value": 3,
+          "unit": "years"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19c",
+      "ref": "§ 19c",
+      "heading": "Datenschutz / und Informationssicherheit",
+      "heading_en": "Data protection and information security",
+      "text": "Die Baudirektion trifft die erforderlichen Massnahmen, dass\na. die Plattform eine hohe Verfügbarkeit aufweist,\nb. kein Datenverlust entsteht,\nc. die sich auf der Plattform befindenden Daten nicht unrechtmässig eingesehen, verändert oder gelöscht werden können,\nd. bis zur Löschung des Baugesuches auf der Plattform nachvollzogen werden kann, welche Personen welche Daten zu welchem Zeitpunkt bearbeitet haben.",
+      "text_en": "The Building Directorate takes the necessary measures to ensure that\na. the platform has high availability,\nb. no data loss occurs,\nc. the data located on the platform cannot be unlawfully viewed, altered or deleted,\nd. until the building application is deleted from the platform, it can be traced which persons processed which data at which time.",
+      "summary_en": "The Building Directorate must keep the platform highly available, prevent data loss and protect data from unlawful access or change, with traceable processing until deletion.",
+      "keywords": [
+        "data protection",
+        "Datenschutz",
+        "information security",
+        "Informationssicherheit",
+        "availability",
+        "Verfügbarkeit",
+        "data loss",
+        "Datenverlust",
+        "audit trail",
+        "Nachvollziehbarkeit",
+        "platform",
+        "Plattform"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-19c-2",
+      "ref": "§ 19c Abs. 2",
+      "heading": "Datenschutz / und Informationssicherheit",
+      "heading_en": "Data protection and information security",
+      "text": "Wird das Baugesuch archiviert, löscht die Gemeinde die entsprechenden Daten auf der Plattform.",
+      "text_en": "If the building application is archived, the municipality deletes the corresponding data on the platform.",
+      "summary_en": "When a building application is archived, the municipality removes its data from the platform.",
+      "keywords": [
+        "archiving",
+        "Archivierung",
+        "deletion",
+        "Löschung",
+        "municipality",
+        "Gemeinde",
+        "building application",
+        "Baugesuch",
+        "platform",
+        "Plattform"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-20",
+      "ref": "§ 20",
+      "heading": "Gültigkeitsdauer der Baubewilligungen",
+      "heading_en": "Validity period of building permits",
+      "text": "Als baurechtliche Bewilligungen, deren Datum gemäss § 322 PBG für die Gültigkeitsdauer massgeblich ist, gelten alle Bewilligungen und Genehmigungen, die nach dem Planungs- und Baugesetz Voraussetzung für den Baubeginn sind.",
+      "text_en": "The building law permits whose date is decisive for the validity period pursuant to § 322 PBG are all permits and approvals that are a prerequisite for starting construction under the Planning and Building Act.",
+      "summary_en": "Permits and approvals that must be in place before construction starts count as building permits for the validity-period rule.",
+      "keywords": [
+        "validity period",
+        "Gültigkeitsdauer",
+        "building permit",
+        "Baubewilligung",
+        "start of construction",
+        "Baubeginn",
+        "§ 322 PBG",
+        "approval",
+        "Genehmigung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-21",
+      "ref": "§ 21",
+      "heading": "Betriebe / mit Schwertransporten",
+      "heading_en": "Businesses with heavy transports",
+      "text": "Will die Standortgemeinde bei Betrieben für Schwertransporte (§ 227 PBG) die Genehmigung des Tiefbauamtes vorbehalten, hat sie ihm dies rechtzeitig mitzuteilen, damit die Genehmigung zusammen mit der Bewilligung eröffnet werden kann.",
+      "text_en": "If the site municipality wishes to reserve approval by the civil engineering office for businesses requiring heavy transports (§ 227 PBG), it must notify the office in good time so that the approval can be issued together with the permit.",
+      "summary_en": "A site municipality that wants civil engineering office approval for heavy-transport businesses must tell that office early so both can be issued together.",
+      "keywords": [
+        "heavy transport",
+        "Schwertransporte",
+        "civil engineering office",
+        "Tiefbauamt",
+        "approval",
+        "Genehmigung",
+        "building permit",
+        "Baubewilligung",
+        "§ 227 PBG",
+        "site municipality",
+        "Standortgemeinde"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-21-2",
+      "ref": "§ 21 Abs. 2",
+      "heading": "Betriebe / mit Schwertransporten",
+      "heading_en": "Businesses with heavy transports",
+      "text": "Begehrt eine andere Gemeinde die Genehmigung der kommunalen baurechtlichen Bewilligung durch das Tiefbauamt, hat sie dies bei ihm unter Orientierung der Standortgemeinde innert der Frist gemäss § 315 PBG schriftlich zu verlangen.",
+      "text_en": "If another municipality requests that the civil engineering office approve the municipal building permit, it must make this request to that office in writing within the period pursuant to § 315 PBG, informing the site municipality.",
+      "summary_en": "Another municipality wanting the civil engineering office to approve its building permit must request this in writing within the § 315 PBG period and inform the site municipality.",
+      "keywords": [
+        "civil engineering office",
+        "Tiefbauamt",
+        "approval",
+        "Genehmigung",
+        "municipal building permit",
+        "kommunale Baubewilligung",
+        "§ 315 PBG",
+        "time limit",
+        "Frist",
+        "site municipality",
+        "Standortgemeinde",
+        "heavy transport"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-22",
+      "ref": "§ 22",
+      "heading": "Vorentscheide",
+      "heading_en": "Preliminary decisions",
+      "text": "Die Bestimmungen über die Vorprüfung von Gesuchsunterlagen (§ 313 PBG) und über die Behandlungsfristen (§ 319 PBG) gelten auch für Vorentscheidgesuche.",
+      "text_en": "The provisions on the preliminary review of application documents (§ 313 PBG) and on the processing periods (§ 319 PBG) also apply to applications for preliminary decisions.",
+      "summary_en": "Preliminary review and processing-period rules also apply to requests for preliminary decisions.",
+      "keywords": [
+        "preliminary decision",
+        "Vorentscheid",
+        "preliminary review",
+        "Vorprüfung",
+        "processing period",
+        "Behandlungsfrist",
+        "§ 313 PBG",
+        "§ 319 PBG",
+        "application documents",
+        "Gesuchsunterlagen"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-23",
+      "ref": "§ 23",
+      "heading": "Meldungen / über die Bauausführung",
+      "heading_en": "Reports on construction execution",
+      "text": "Als wesentliche Zwischenstände im Sinne von § 327 PBG gelten die Erstellung des Schnurgerüsts, die Fertigstellung der Kanalisationsgrundleitungen, die Rohbauvollendung, die Bezugsbereitschaft und die Vollendung der Umgebungsarbeiten.",
+      "text_en": "The essential intermediate stages within the meaning of § 327 PBG are the setting out of the batter boards, the completion of the main sewer lines, completion of the shell, readiness for occupation and completion of the outdoor works.",
+      "summary_en": "Reportable construction milestones are the setting out, main sewer completion, completed shell, ready for occupation and finished outdoor works.",
+      "keywords": [
+        "construction milestones",
+        "Zwischenstände",
+        "setting out",
+        "Schnurgerüst",
+        "sewer",
+        "Kanalisation",
+        "shell",
+        "Rohbau",
+        "occupancy",
+        "Bezugsbereitschaft",
+        "outdoor works",
+        "Umgebungsarbeiten"
+      ],
+      "topics": [
+        "structure",
+        "outdoor",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-23-2",
+      "ref": "§ 23 Abs. 2",
+      "heading": "Meldungen / über die Bauausführung",
+      "heading_en": "Reports on construction execution",
+      "text": "Die zuständige Baubehörde kann die Meldung weiterer Zwischenstände anordnen oder auf Meldungen verzichten, wenn die Umstände es rechtfertigen.",
+      "text_en": "The competent building authority may order the reporting of further intermediate stages or waive reporting where the circumstances justify it.",
+      "summary_en": "The building authority can require reports at additional stages or drop reporting where circumstances justify it.",
+      "keywords": [
+        "reporting",
+        "Meldung",
+        "intermediate stages",
+        "Zwischenstände",
+        "building authority",
+        "Baubehörde",
+        "construction execution",
+        "Bauausführung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-23-3",
+      "ref": "§ 23 Abs. 3",
+      "heading": "Meldungen / über die Bauausführung",
+      "heading_en": "Reports on construction execution",
+      "text": "Die Meldungen erfolgen elektronisch über die Plattform.",
+      "text_en": "Reports are submitted electronically via the platform.",
+      "summary_en": "Construction progress reports are filed electronically through the platform.",
+      "keywords": [
+        "reporting",
+        "Meldung",
+        "electronic",
+        "elektronisch",
+        "platform",
+        "Plattform",
+        "construction progress",
+        "Bauausführung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-24",
+      "ref": "§ 24",
+      "heading": "Baukontrollen",
+      "heading_en": "Construction inspections",
+      "text": "Die Ergebnisse der Baukontrollen sind elektronisch zu protokollieren.",
+      "text_en": "The results of construction inspections are to be logged electronically.",
+      "summary_en": "Results of construction inspections must be recorded electronically.",
+      "keywords": [
+        "construction inspection",
+        "Baukontrolle",
+        "inspection record",
+        "Protokoll",
+        "electronic logging",
+        "elektronisch protokollieren"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-24-2",
+      "ref": "§ 24 Abs. 2",
+      "heading": "Baukontrollen",
+      "heading_en": "Construction inspections",
+      "text": "Das Protokoll ist mit einer qualifizierten elektronischen Signatur gemäss dem Bundesgesetz über die elektronische Signatur zu versehen.",
+      "text_en": "The record must bear a qualified electronic signature pursuant to the Federal Act on Electronic Signatures.",
+      "summary_en": "Construction inspection records must carry a qualified electronic signature.",
+      "keywords": [
+        "electronic signature",
+        "elektronische Signatur",
+        "qualified signature",
+        "qualifizierte Signatur",
+        "inspection record",
+        "Protokoll",
+        "construction inspection",
+        "Baukontrolle"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-24-3",
+      "ref": "§ 24 Abs. 3",
+      "heading": "Baukontrollen",
+      "heading_en": "Construction inspections",
+      "text": "Das örtliche Bauamt zieht die weiteren Stellen, die Bewilligungen zu erteilen hatten, auf ihr Verlangen zu den sie betreffenden Kontrollen bei.",
+      "text_en": "At its request, the local building authority includes the other bodies that had to grant permits in the inspections concerning them.",
+      "summary_en": "Other bodies that issued permits can ask to join the inspections that concern their permits.",
+      "keywords": [
+        "construction inspection",
+        "Baukontrolle",
+        "permitting bodies",
+        "Bewilligungsstellen",
+        "local building authority",
+        "Bauamt",
+        "inspection",
+        "Kontrolle"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-6-25",
+      "ref": "§ 25",
+      "heading": "Inkrafttreten",
+      "heading_en": "Entry into force",
+      "text": "Diese Verordnung tritt am 1. Januar 1998 in Kraft. Auf den gleichen Zeitpunkt wird die Verordnung über das baurechtliche Verfahren vom 19. April 1978 aufgehoben.",
+      "text_en": "This ordinance enters into force on 1 January 1998. At the same time, the Ordinance on the Building Permit Procedure of 19 April 1978 is repealed.",
+      "summary_en": "The ordinance took effect on 1 January 1998 and replaced the 1978 building permit procedure ordinance.",
+      "keywords": [
+        "entry into force",
+        "Inkrafttreten",
+        "repeal",
+        "Aufhebung",
+        "building permit procedure",
+        "baurechtliches Verfahren"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

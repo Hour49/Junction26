@@ -1,0 +1,261 @@
+{
+  "id": "ch-sr-151-31",
+  "pack": "ch-zh",
+  "jurisdiction": "CH",
+  "number": "SR 151.31",
+  "title": "Verordnung über die Beseitigung von Benachteiligungen von Menschen mit Behinderungen (Behindertengleichstellungsverordnung, BehiV)",
+  "title_en": "Ordinance on the Elimination of Discrimination against People with Disabilities",
+  "url": "https://www.fedlex.admin.ch/eli/cc/2003/668/de",
+  "language": "de",
+  "in_force": "2021-01-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version of 1 January 2021 (latest on fedlex). Included: Art. 1, 2, 6-8 (definitions of buildings open to the public, housing and work buildings; proportionality; costs; SIA 500 for federal buildings). SIA 500 itself is named, never quoted.",
+  "clauses": [
+    {
+      "id": "ch-sr-151-31-1-1",
+      "ref": "Art. 1 Abs. 1",
+      "heading": "Gegenstand",
+      "heading_en": "Subject matter",
+      "text": "Diese Verordnung enthält Bestimmungen zu:\na. der Organisation des Eidgenössischen Büros für die Gleichstellung von Menschen mit Behinderungen (EBGB);\nb. der Geltendmachung von Rechtsansprüchen und dem Verhältnismässigkeitsprinzip;\nc. den Anforderungen an eine behindertengerechte Erstellung oder Erneuerung von Bauten und Anlagen, die im Eigentum des Bundes stehen oder von ihm mitfinanziert werden;\nd. den Anforderungen an eine behindertengerechte Ausgestaltung von Dienstleistungen des Bundes;\ne. den Massnahmen des Bundes als Arbeitgeber zu Gunsten seiner Angestellten mit Behinderungen;\nf. der Ausrichtung von Finanzhilfen.",
+      "text_en": "This Ordinance contains provisions on:\na. the organisation of the Federal Office for the Equality of Persons with Disabilities (EBGB);\nb. the assertion of legal claims and the principle of proportionality;\nc. the requirements for barrier-free construction or renewal of buildings and installations that are owned by the Confederation or co-financed by it;\nd. the requirements for the barrier-free design of federal services;\ne. the measures of the Confederation as employer in favour of its employees with disabilities;\nf. the granting of financial assistance.",
+      "summary_en": "The ordinance covers barrier-free requirements for federally owned or co-financed buildings, along with other federal matters.",
+      "keywords": [
+        "barrier-free",
+        "Behindertengleichstellung",
+        "Bauten und Anlagen",
+        "federal building",
+        "Finanzhilfen",
+        "financial assistance",
+        "Verhältnismässigkeit"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-1-2",
+      "ref": "Art. 1 Abs. 2",
+      "heading": "Gegenstand",
+      "heading_en": "Subject matter",
+      "text": "Die Massnahmen im öffentlichen Verkehr sind in der Verordnung vom 12. November 2003 über die behindertengerechte Gestaltung des öffentlichen Verkehrs geregelt.",
+      "text_en": "Measures in public transport are governed by the Ordinance of 12 November 2003 on the barrier-free design of public transport.",
+      "summary_en": "Barrier-free measures for public transport are set in a separate 2003 ordinance.",
+      "keywords": [
+        "public transport",
+        "öffentlicher Verkehr",
+        "barrier-free",
+        "Verordnung 2003",
+        "behindertengerecht"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-2",
+      "ref": "Art. 2",
+      "heading": "Begriffe",
+      "heading_en": "Definitions",
+      "text": "Die folgenden Ausdrücke bedeuten:\na. Bau und Erneuerung (Art. 3 Bst. a, c und d BehiG): Die Erstellung und die Änderung von Bauten und Anlagen, soweit sie einem ordentlichen oder einfachen kantonalen Bewilligungsverfahren unterstellt sind;\nb. Bauten und Anlagen (Art. 3 Bst. a BehiG): befristet errichtete oder auf Dauer angelegte Räumlichkeiten und Einrichtungen;\nc. öffentlich zugängliche Bauten und Anlagen (Art. 3 Bst. a BehiG): Bauten und Anlagen:\n1. die einem beliebigen Personenkreis offen stehen,\n2. die nur einem bestimmten Personenkreis offen stehen, der in einem besonderen Rechtsverhältnis zu Gemeinwesen oder zu Dienstleistungsanbieterinnen und –anbietern steht, welche in der Baute oder Anlage tätig sind. Ausgenommen sind Bauten und Anlagen, die zur Kampf- und Führungsinfrastruktur der Armee gehören, oder\n3. in denen Dienstleistungsanbieterinnen und –anbieter persönliche Dienstleistungen erbringen;\nd. Diskriminieren (Art. 6 und 8 Abs. 3 BehiG): Behinderte besonders krass unterschiedlich und benachteiligend behandeln mit dem Ziel oder der Folge, sie herabzuwürdigen oder auszugrenzen;\ne. Arbeitgeber (Art. 13 BehiG): der Bundesrat, die Bundesversammlung, die Schweizerische Post, die Schweizerischen Bundesbahnen, das Bundesgericht und der ETH-Rat;\nf. Internet (Art. 14 Abs. 2 BehiG): Durch unterschiedliche Anwendungen genutztes Computernetzwerk, welches mit einem Webbrowser oder einer anderen benutzerseitigen Zugangstechnologie genutzt wird.",
+      "text_en": "The following terms have the following meanings:\na. construction and renewal (Art. 3 let. a, c and d BehiG): the erection and alteration of buildings and installations, insofar as they are subject to an ordinary or simplified cantonal permit procedure;\nb. buildings and installations (Art. 3 let. a BehiG): premises and facilities erected temporarily or intended to last permanently;\nc. publicly accessible buildings and installations (Art. 3 let. a BehiG): buildings and installations:\n1. that are open to any group of persons,\n2. that are open only to a specific group of persons who have a special legal relationship with a public entity or with service providers operating in the building or installation. Excluded are buildings and installations that belong to the combat and command infrastructure of the armed forces, or\n3. in which service providers provide personal services;\nd. discriminate (Art. 6 and 8 para. 3 BehiG): treat persons with disabilities markedly differently and to their disadvantage, with the aim or effect of disparaging them or excluding them;\ne. employer (Art. 13 BehiG): the Federal Council, the Federal Assembly, Swiss Post, the Swiss Federal Railways, the Federal Supreme Court and the ETH Board;\nf. internet (Art. 14 para. 2 BehiG): a computer network used through various applications and accessed with a web browser or another user-side access technology.",
+      "summary_en": "Defines what counts as construction or renewal and as a publicly accessible building, which decides when barrier-free rules apply.",
+      "keywords": [
+        "hindernisfrei",
+        "barrierefrei",
+        "accessible",
+        "definitions",
+        "publicly accessible building",
+        "öffentlich zugängliche Bauten",
+        "construction and renewal",
+        "Bau und Erneuerung",
+        "Bewilligungsverfahren",
+        "barrier-free",
+        "Bauten und Anlagen"
+      ],
+      "topics": [
+        "accessibility",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-6-1",
+      "ref": "Art. 6 Abs. 1",
+      "heading": "Abwägung der Interessen",
+      "heading_en": "Weighing of interests",
+      "text": "Zur Beurteilung der Frage, ob ein Missverhältnis im Sinne von Artikel 11 Absatz 1 BehiG vorliegt, muss in der Interessenabwägung namentlich berücksichtigt werden:\na. die Zahl der Personen, welche die Baute oder die Anlage benutzen oder die Dienstleistung in Anspruch nehmen;\nb. die Bedeutung der Baute, der Anlage oder der Dienstleistung für die Menschen mit Behinderungen;\nc. der provisorische oder dauerhafte Charakter der Baute, der Anlage oder der Dienstleistung.",
+      "text_en": "To assess whether a disproportion within the meaning of Article 11 paragraph 1 BehiG exists, the following must in particular be taken into account when weighing interests:\na. the number of persons who use the building or installation or the service;\nb. the importance of the building, installation or service for persons with disabilities;\nc. the provisional or permanent character of the building, installation or service.",
+      "summary_en": "When a barrier-free adaptation would be disproportionate, authorities weigh how many people use the building, how important it is, and whether it is temporary.",
+      "keywords": [
+        "disproportion",
+        "Missverhältnis",
+        "weighing of interests",
+        "Interessenabwägung",
+        "barrier-free",
+        "number of users",
+        "provisional building"
+      ],
+      "topics": [
+        "accessibility",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-6-2",
+      "ref": "Art. 6 Abs. 2",
+      "heading": "Abwägung der Interessen",
+      "heading_en": "Weighing of interests",
+      "text": "Sind die Interessen der Behinderten gegen die Interessen des Umweltschutzes, des Naturschutzes oder des Heimatschutzes und der Denkmalpflege abzuwägen (Art. 11 Abs. 1 Bst. b BehiG), so sind zusätzlich zu berücksichtigen:\na. die Bedeutung der Baute oder der Anlage aus der Sicht des Umweltschutzes, des Naturschutzes oder des Heimatschutzes und der Denkmalpflege; und\nb. das Ausmass, in dem die verlangten Anpassungen:\n1. die Umwelt beeinträchtigen;\n2. die Bausubstanz, die Struktur und das Erscheinungsbild der Baute oder der Anlage aus der Sicht des Naturschutzes oder des Heimatschutzes und der Denkmalpflege beeinträchtigen.",
+      "text_en": "If the interests of persons with disabilities must be weighed against the interests of environmental protection, nature conservation, or heritage conservation and monument preservation (Art. 11 para. 1 let. b BehiG), the following must also be taken into account:\na. the significance of the building or installation from the point of view of environmental protection, nature conservation, or heritage conservation and monument preservation; and\nb. the extent to which the required adaptations:\n1. impair the environment;\n2. impair the building fabric, structure and appearance of the building or installation from the point of view of nature conservation or heritage conservation and monument preservation.",
+      "summary_en": "For listed or protected buildings, the heritage and environmental impact of barrier-free changes must be weighed in addition to the access needs.",
+      "keywords": [
+        "heritage conservation",
+        "Denkmalpflege",
+        "Heimatschutz",
+        "monument",
+        "nature conservation",
+        "Naturschutz",
+        "barrier-free",
+        "Umweltschutz",
+        "building fabric",
+        "Bausubstanz"
+      ],
+      "topics": [
+        "accessibility",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-7-1",
+      "ref": "Art. 7 Abs. 1",
+      "heading": "Massgebliche Kosten",
+      "heading_en": "Relevant costs",
+      "text": "Der maximale Wert von 5 Prozent des Gebäudeversicherungswertes im Sinne von Artikel 12 Absatz 1 BehiG muss auf der Grundlage des Versicherungswertes des Gebäudes vor der Erneuerung berechnet werden.",
+      "text_en": "The maximum value of 5 percent of the building insurance value within the meaning of Article 12 paragraph 1 BehiG must be calculated on the basis of the insured value of the building before renovation.",
+      "summary_en": "Barrier-free work on a renovation is capped at 5 percent of the building's insured value, measured before the renovation.",
+      "keywords": [
+        "5 percent",
+        "5 %",
+        "building insurance value",
+        "Gebäudeversicherungswert",
+        "renovation",
+        "Erneuerung",
+        "cost cap",
+        "barrier-free"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "maximum barrier-free cost on renovation (share of building insurance value before renovation)",
+          "comparison": "<=",
+          "value": 5,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-7-2",
+      "ref": "Art. 7 Abs. 2",
+      "heading": "Massgebliche Kosten",
+      "heading_en": "Relevant costs",
+      "text": "Als Erneuerungskosten im Sinne von Artikel 12 Absatz 1 BehiG gelten die voraussichtlichen Baukosten ohne besondere Massnahmen für Behinderte.",
+      "text_en": "Renovation costs within the meaning of Article 12 paragraph 1 BehiG are the anticipated construction costs without special measures for persons with disabilities.",
+      "summary_en": "Renovation costs for the 5 percent cap are the expected building costs without the special barrier-free measures.",
+      "keywords": [
+        "renovation costs",
+        "Erneuerungskosten",
+        "construction costs",
+        "Baukosten",
+        "barrier-free",
+        "Behinderte"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-8-1",
+      "ref": "Art. 8 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Die Norm SIA 500 «Hindernisfreie Bauten» ist massgeblich für:\na. die Verwaltungseinheiten, die nach Artikel 8 der Verordnung vom 5. Dezember 2008 über das Immobilienmanagement und die Logistik des Bundes für das Immobilienmanagement zuständig sind;\nb. die Verwaltungseinheiten, die Wohnbauten erstellen oder mitfinanzieren;\nc. die Verwaltungseinheiten, die Finanzhilfen oder Abgeltungen nach dem Subventionsgesetz vom 5. Oktober 1990 ausrichten.",
+      "text_en": "The standard SIA 500 “Barrier-free buildings” is authoritative for:\na. the administrative units responsible for real estate management under Article 8 of the Ordinance of 5 December 2008 on the real estate management and logistics of the Confederation;\nb. the administrative units that build or co-finance residential buildings;\nc. the administrative units that grant financial assistance or compensation under the Subsidies Act of 5 October 1990.",
+      "summary_en": "Federal property, residential and subsidy bodies must apply the SIA 500 barrier-free building standard.",
+      "keywords": [
+        "SIA 500",
+        "barrier-free buildings",
+        "Hindernisfreie Bauten",
+        "standard",
+        "Norm",
+        "Wohnbauten",
+        "residential building",
+        "Finanzhilfen"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-8-2",
+      "ref": "Art. 8 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Diese Verwaltungseinheiten erarbeiten für ihren jeweiligen Zuständigkeitsbereich ein Konzept zur Umsetzung der Anliegen der Behinderten bezüglich der Bauten und Anlagen im Rahmen der verfügbaren Mittel.",
+      "text_en": "These administrative units shall prepare, for their respective areas of responsibility, a concept for implementing the concerns of persons with disabilities regarding buildings and installations within the available resources.",
+      "summary_en": "Each federal unit responsible for buildings must prepare a plan for meeting the needs of people with disabilities within its budget.",
+      "keywords": [
+        "concept",
+        "Konzept",
+        "implementation",
+        "Umsetzung",
+        "persons with disabilities",
+        "Behinderte",
+        "available resources",
+        "verfügbare Mittel"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-31-8-3",
+      "ref": "Art. 8 Abs. 3",
+      "heading": null,
+      "heading_en": null,
+      "text": "Die Bestimmungen der Verordnung vom 12. November 2003 über die behindertengerechte Gestaltung des öffentlichen Verkehrs bleiben vorbehalten.",
+      "text_en": "The provisions of the Ordinance of 12 November 2003 on the barrier-free design of public transport remain reserved.",
+      "summary_en": "The public transport ordinance keeps its own rules, which this ordinance does not override.",
+      "keywords": [
+        "public transport",
+        "öffentlicher Verkehr",
+        "reserved",
+        "Vorbehalt",
+        "barrier-free",
+        "Verordnung 2003"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

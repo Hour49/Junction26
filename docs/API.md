@@ -134,6 +134,9 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
 | `POST /api/projects/{project_id}/chat` | One turn of the agent chat: tools called, cited sources, plan-edit proposals | 0013 |
 | `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}` | Accept or reject a plan-edit proposal | 0013 |
+| `GET /api/laws` | The building-law knowledge base: each pack's laws (table of contents) | 0014 |
+| `GET /api/laws/{pack}/search?q=&topic=&limit=` | Search one pack's law clauses, best first | 0014 |
+| `GET /api/laws/clauses/{clause_id}` | One clause, verbatim and in our English, with its law | 0014 |
 
 ## `GET /api/info`
 
@@ -941,7 +944,7 @@ after a restart cut that run off:
 
 ### File triage (decision 0010)
 
-Off by default (`TRIAGE_CLASSIFIER=off`). With it on, every image file (a PNG or JPEG, a photo, a scanned PDF;
+Off by default (`TRIAGE_CLASSIFIER=off` and `SHEET_KIND=off`). With either on, every image file (a PNG or JPEG, a photo, a scanned PDF;
 not vector PDFs, IFC, DXF or SVG) is asked "is this a floor plan?" in the `identify` stage, before any reader. A
 floor plan goes on as before. Any other image is kept, set aside, described in words, and once the project's plans
 are read, judged against the project. Nothing is deleted, and a person's call is never a reading: an image called
@@ -991,6 +994,18 @@ the `identify` stage's line.
 - `read_as_plan`: `{by, at}` once a person had the file read as a floor plan (`POST …/triage`); `class` stays the
   classifier's.
 - `verdict`: the one value that counts: `overruled.verdict`, else `relevance.verdict`, else null.
+- `sheet` (left out unless `SHEET_KIND=carbon` asked about the file; off by default): what gemini-4-carbon calls
+  the sheet. `kind` (`architectural_floor_plan`, `multi_view_sheet`, `mep_plan`, `structural_plan`,
+  `roof_or_ceiling_plan`, `site_plan_or_map`, `elevation`, `section`, `detail`, `perspective_or_axonometric`,
+  `schedule_or_text`, `not_a_drawing`, `other`) with `kind_words` to show, `decision` (`set_aside`: no floor plan
+  on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT` (default 0.9), the file is set aside with the reason "not a
+  floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it; `doubt`: it is read, and every
+  answer with a value from it ends its `explanation` with "This sheet may not be a floor plan[: it looks like
+  <kind_words>]."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the sheet), `title`,
+  `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder than a clean scan
+  of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet), `seen`, `model`. A
+  call that fails leaves the file as triage would have it without the step ("triage not available: ...; read as
+  today" with no classifier). A model answer alone; never a certified value.
 - `note`: why `description` or `relevance` is null, a plain sentence: "a floor plan: it is read, so it is not
   described or judged"; "not described: no description model is set up, so it is not judged" (no describer: the
   offline demo); "not described: <why>" (the model refused or failed); "not judged yet: the project is still being
@@ -9986,6 +10001,79 @@ Every drawing of the project (in `GET /api/projects/{id}` `drawings` order), eac
 project is `done` (a drawing's own checks answer as soon as that drawing exists); 404 `unknown-pack` for an
 unknown pack, `not-found` for an unknown project.
 
+## Building law
+
+The law knowledge base the AI searches instead of carrying the laws in its prompt (decision
+[0014](decisions/0014-law-knowledge-base.md)): one file per law in `backend/app/laws/<pack>/`, one clause per
+subsection, `text` verbatim from the official source and `text_en` our unofficial translation. Packs are `fi` and
+`ch-zh` (Swiss federal law and the Canton of Zürich), the rule packs' ids. The examples are the test laws of
+`backend/tests/fixtures/laws/` (made up).
+
+### `GET /api/laws`
+
+Both packs, always; `laws: []` while a pack has none. `topics`: the topics its clauses use, in the closed list's
+order.
+
+```json
+{
+  "packs": [
+    {
+      "id": "fi",
+      "laws": [
+        {"law_id": "fi-test-1", "number": "1/2026", "title_en": "Test decree on residential spaces",
+         "clauses": 2, "topics": ["rooms", "fire", "escape-routes"]}
+      ]
+    },
+    {"id": "ch-zh", "laws": [...]}
+  ]
+}
+```
+
+### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
+
+`q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. Clauses with every word come first, then
+clauses with any word fill `limit`, each group by score. `topic` one of `rooms accessibility fire
+escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
+distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
+-BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.
+
+```json
+{
+  "pack": "fi",
+  "query": "minimum bedroom area",
+  "hits": [
+    {"id": "fi-test-1-4-2", "law_id": "fi-test-1", "ref": "4 § 2 mom.",
+     "title_en": "Test decree on residential spaces",
+     "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+     "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "score": 2.745}
+  ]
+}
+```
+
+### `GET /api/laws/clauses/{clause_id}`
+
+The clause as its file has it, plus its law's `law_id`, `law_number`, `law_title`, `law_title_en`, `url`,
+`language` (of `text`), `checked` and `status_note`. `text_en` is null only for a law in English; show it as an
+unofficial translation. An unknown id is 404 `not-found`.
+
+```json
+{
+  "id": "fi-test-1-4-2", "ref": "4 § 2 mom.", "heading": "Huoneala", "heading_en": "Room area",
+  "text": "Asuintilan huonealan on oltava vähintään 7 neliömetriä.",
+  "text_en": "The room area of a residential space must be at least 7 square metres.",
+  "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+  "keywords": ["room area", "minimum area", "bedroom", "huoneala", "makuuhuone"],
+  "topics": ["rooms"],
+  "limits": [{"what": "habitable room area", "comparison": ">=", "value": 7.0, "unit": "m2"}],
+  "drawing_checkable": true,
+  "law_id": "fi-test-1", "law_number": "1/2026", "law_title": "Testiasetus asuintiloista",
+  "law_title_en": "Test decree on residential spaces",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "language": "fi", "checked": "2026-11-14",
+  "status_note": "A made-up test law: its clauses point nowhere real."
+}
+```
+
 ## What is not in v1
 
 - Contested marks: a conflict is shown per quantity, with both values and, where the method has one, the `box` it
@@ -10003,6 +10091,8 @@ unknown pack, `not-found` for an unknown project.
   `chat_answer`, `chat_dont_know`, `chat_edit`, `chat_proposal_accepted`.
 - 2026-11-14, additive (decision 0013): `ChatTurn.answers` (last), the `ProjectAnswer`s a turn rests on;
   `ChatTurn.evidence` lists only the cited places; `options` may come with any kind.
+- 2026-11-14, additive (decision 0014): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
+  `GET /api/laws/clauses/{clause_id}`, the building-law knowledge base. An unknown pack is 404 `unknown-pack`.
 - 2026-11-14, additive (decision 0012): `GET /api/projects/{id}/evidence/search?q=&k=&include_unrelated=` and
   `GET /api/projects/{id}/evidence/{evidence_id}`, the project's evidence index (described non-plan files; BM25 +
   a local multilingual embedder). New fixtures `evidence_search`, `evidence_detail`.

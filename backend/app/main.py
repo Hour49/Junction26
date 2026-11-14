@@ -16,6 +16,7 @@ from starlette.exceptions import HTTPException
 
 from app.adapters.chat_store import JsonChatStore
 from app.adapters.credits import DatasetCredits
+from app.adapters.law_index import SqliteLawIndex, load_laws
 from app.adapters.review_store import JsonReviewStore
 from app.adapters.rule_packs import load_packs
 from app.api import (
@@ -27,6 +28,7 @@ from app.api import (
     health,
     info,
     issues,
+    laws,
     project_ask,
     projects,
     takeoff,
@@ -102,6 +104,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     settings = settings or Settings()
     logging.basicConfig(level=settings.log_level)
     rule_packs = load_packs(settings.rule_packs_dir)  # a pack that fails stops here, first
+    law_index = SqliteLawIndex(load_laws(settings.laws_dir))  # so does a law file
     index = build_evidence(settings, settings.projects_dir)  # shared: one embedder session
     service = ingest or build_ingest(settings, settings.projects_dir, evidence=index)
 
@@ -123,6 +126,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     app.state.kept_reviews = projects.KeptReviews()  # the project list's review counts
     app.state.rule_packs = rule_packs
     app.state.chats = JsonChatStore(settings.projects_dir)  # the agent chats (decision 0013)
+    app.state.laws = law_index
     routers = (
         health,
         info,
@@ -134,6 +138,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
         issues,
         checks,
         evidence,
+        laws,
     )
     for router in routers:
         app.include_router(router.router)
