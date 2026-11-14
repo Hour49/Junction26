@@ -39,6 +39,9 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.openvlm.client import OpenVlmClient
+from app.adapters.openvlm.decider import OpenVlmDecider
+from app.adapters.openvlm.rooms import OpenVlmRoomExtractor, OpenVlmRoomModel
 from app.adapters.page_sizes import PageSizes
 from app.adapters.paths import inside
 from app.adapters.pdf_tables import PdfTables
@@ -191,8 +194,12 @@ def _probe(settings: Settings) -> ContentProbe:
     """Ingest's content probe; with DECISIONS_KIND, the Gemini sheet-kind signal on top."""
     if not settings.decisions_kind:
         return FileProbe()
-    client = DecisionsClient(
-        settings.gemini_api_key.get_secret_value(), settings.decisions_timeout_s
+    client = (
+        OpenVlmDecider(_eu(settings))
+        if settings.kind_provider == "eu"
+        else DecisionsClient(
+            settings.gemini_api_key.get_secret_value(), settings.decisions_timeout_s
+        )
     )
     return KindProbe(FileProbe(), KindReader(client, settings.decisions_cache_dir))
 
@@ -416,6 +423,9 @@ def _raster_component(
 
 
 def _gemini_rooms(settings: Settings, files: DrawingFiles) -> Extractor:
+    if settings.rooms_provider == "eu":  # Qwen's own box order (val: region mask works with it)
+        reader = GeminiRoomReader(OpenVlmRoomModel(_eu(settings)), settings.gemini_cache_dir)
+        return OpenVlmRoomExtractor(files, reader)
     client = GeminiClient(
         settings.gemini_api_key.get_secret_value(), settings.gemini_model, settings.gemini_timeout_s
     )
@@ -425,9 +435,22 @@ def _gemini_rooms(settings: Settings, files: DrawingFiles) -> Extractor:
 def decisions_reader(settings: Settings) -> G1MainReader:
     """Gemini Decisions' count reader. The count swap and the answer confidence share its cache
     (DECISIONS_CACHE_DIR), so each page is paid for once."""
+    if settings.decisions_provider == "eu":  # joint: one call per page (val: beats the walk)
+        decider = OpenVlmDecider(_eu(settings), joint=True)
+        return G1MainReader(decider, settings.decisions_cache_dir)
     key = settings.gemini_api_key.get_secret_value()
     client = DecisionsClient(key, settings.decisions_timeout_s)
     return G1MainReader(client, settings.decisions_cache_dir)
+
+
+def _eu(settings: Settings) -> OpenVlmClient:
+    """Our open-model server (EU_VLM_*); one client per step that uses it."""
+    return OpenVlmClient(
+        settings.eu_vlm_base_url,
+        settings.eu_vlm_api_key.get_secret_value(),
+        settings.eu_vlm_model,
+        settings.eu_vlm_timeout_s,
+    )
 
 
 def _checked(name: TablesName, inner: SecondCounter, files: DrawingFiles) -> SecondCounter:
