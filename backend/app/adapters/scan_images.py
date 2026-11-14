@@ -48,23 +48,45 @@ def scan_png(data: bytes, dpi: float = SCAN_DPI) -> bytes:
     return buffer.getvalue()
 
 
-class ScanImages:
-    """`files` with each scanned PDF read as `scan_png` of it, one render per file content."""
+class ScanRenders:
+    """The PNG each scanned PDF reads as, rendered once per file content and kept (`KEEP`); one
+    of them can serve many `ScanImages` (answer time: a view per request, review-280 S2)."""
 
-    def __init__(self, files: DrawingFiles) -> None:
-        self._files = files
+    def __init__(self) -> None:
         self._made: OrderedDict[str, bytes] = OrderedDict()  # sha256 of the PDF -> what reads
-        self._lock = threading.Lock()  # readers of one page wait for its one render
+        self._rendering: dict[str, threading.Lock] = {}  # sha256 -> the lock of its one render
+        self._lock = threading.Lock()  # guards both; never held during a render
+
+    def image(self, data: bytes) -> bytes:
+        """What the PDF `data` reads as: the PNG of its page if it is a scan, else itself. Readers
+        of one page wait for its one render; readers of other pages do not (review-280 S1)."""
+        key = hashlib.sha256(data).hexdigest()
+        with self._lock:
+            rendering = self._rendering.setdefault(key, threading.Lock())
+        with rendering:
+            with self._lock:
+                made = self._made.get(key)
+            if made is None:
+                made = scan_png(data) if is_scanned_pdf(data) else data
+            with self._lock:
+                self._made[key] = made
+                self._made.move_to_end(key)
+                while len(self._made) > KEEP:
+                    self._made.popitem(last=False)
+                self._rendering.pop(key, None)
+            return made
+
+
+class ScanImages:
+    """`files` with each scanned PDF read as `scan_png` of it, one render per file content (in
+    `renders`, by default its own)."""
+
+    def __init__(self, files: DrawingFiles, renders: ScanRenders | None = None) -> None:
+        self._files = files
+        self._renders = renders or ScanRenders()
 
     def read(self, path: str) -> bytes:
         data = self._files.read(path)
         if not data.startswith(b"%PDF"):
             return data
-        key = hashlib.sha256(data).hexdigest()
-        with self._lock:
-            if key not in self._made:
-                self._made[key] = scan_png(data) if is_scanned_pdf(data) else data
-                while len(self._made) > KEEP:
-                    self._made.popitem(last=False)
-            self._made.move_to_end(key)
-            return self._made[key]
+        return self._renders.image(data)

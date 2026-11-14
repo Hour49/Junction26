@@ -117,5 +117,10 @@
       ]
     }
   ],
-  "commit": null
+  "commit": null,
+  "chat": {
+    "model": "rules",
+    "available": true,
+    "reason": null
+  }
 }

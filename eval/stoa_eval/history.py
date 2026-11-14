@@ -123,7 +123,11 @@ def make_record(
         extras=_extras(result.extras) if isinstance(result, GoldenScore) else None,
         answer_v1_1=_answer_v11(result.answer_v1_1) if isinstance(result, GoldenScore) else None,
         evidence_hits=_evidence(result.evidence_hits) if isinstance(result, GoldenScore) else None,
-        text_claims=_text_claims(result.text_claims) if isinstance(result, GoldenScore) else None,
+        text_claims=(
+            _text_claims(result.text_claims)
+            if isinstance(result, GoldenScore | CoverageScore)
+            else None
+        ),
     )
 
 

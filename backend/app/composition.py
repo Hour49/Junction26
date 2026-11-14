@@ -37,6 +37,7 @@ from app.adapters.carbon import (
     CarbonThings,
 )
 from app.adapters.carbon.contract import READER_SHA, SOURCE
+from app.adapters.chat_rules import RulesChatModel
 from app.adapters.check_policy import load_check
 from app.adapters.count_arbiter import ArbiterCountExtractor
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
@@ -58,6 +59,7 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
 from app.adapters.openvlm.client import OpenVlmClient
 from app.adapters.openvlm.decider import OpenVlmDecider
@@ -82,7 +84,7 @@ from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
 from app.adapters.resolver.carbon import CarbonResolver
-from app.adapters.scan_images import ScanImages
+from app.adapters.scan_images import ScanImages, ScanRenders
 from app.adapters.triage.gemini_describer import (
     CARBON_MIN_TIMEOUT_S,
     DESCRIBERS,
@@ -100,6 +102,8 @@ from app.adapters.triage.sheet_kind import (
 )
 from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
+from app.core.agent.model import Caps
+from app.core.agent.ports import ChatModel
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
 from app.core.answering.ports import (
@@ -539,7 +543,8 @@ def build_answering(settings: Settings) -> Answering:
     signal: str | None = None
     if settings.decisions_confidence:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
-        confidence = partial(_scan_confidence, reader=reader)
+        # one cache for every answer: each answer on a scan re-rendered its page (review-280 S2)
+        confidence = partial(_scan_confidence, reader=reader, renders=ScanRenders())
         signal = DECISIONS_SIGNAL
     # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
     scorers = _scorers(settings.local_gates) if settings.check_policy else {}
@@ -563,10 +568,13 @@ def build_answering(settings: Settings) -> Answering:
     )
 
 
-def _scan_confidence(files: DrawingFiles, reader: G1MainReader) -> AnswerConfidence:
+def _scan_confidence(
+    files: DrawingFiles, reader: G1MainReader, renders: ScanRenders
+) -> AnswerConfidence:
     """The answer confidence over a raster drawing's file as ingest's readers read it: a scanned
-    PDF as the image of its page (scan_images.py), so Gemini is asked about the same image."""
-    return DecisionsConfidence(ScanImages(files), reader)
+    PDF as the image of its page (scan_images.py), so Gemini is asked about the same image. The
+    page is rendered once in `renders`, shared by every answer."""
+    return DecisionsConfidence(ScanImages(files, renders), reader)
 
 
 def _resolver(settings: Settings) -> Resolver | None:
@@ -709,7 +717,7 @@ def build_ingest(
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         rule = (
-            f"large+few{FEW_THINGS}"
+            f"large+few{FEW_THINGS}+snap"  # +snap: door boxes on the detector's (#310)
             if settings.carbon_reader == "large"
             else settings.carbon_reader
         )
@@ -1081,3 +1089,28 @@ def _prior(name: AnswerPriorName) -> AnswerPrior:
             return NoPrior()
         case "dev":
             return TablePrior(DEV_PRIOR)
+
+
+def chat_model(settings: Settings) -> tuple[ChatModel | None, str | None]:
+    """The project chat's model by CHAT_MODEL, or None and why the chat is not available."""
+    match settings.chat_model:
+        case "off":
+            return None, "the agent chat is off (CHAT_MODEL=off)"
+        case "rules":
+            return RulesChatModel(), None
+        case "gemini":
+            key = settings.gemini_api_key.get_secret_value()
+            if not key:
+                return None, "the agent chat needs GEMINI_API_KEY"
+            model = OpenAiChatModel(
+                settings.agent_base_url,
+                key,
+                settings.agent_model,
+                settings.agent_price_in_per_m,
+                settings.agent_price_out_per_m,
+            )
+            return model, None
+
+
+def chat_caps(settings: Settings) -> Caps:
+    return Caps(max_steps=settings.agent_max_steps, turn_usd=settings.agent_turn_usd)

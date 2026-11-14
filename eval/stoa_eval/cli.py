@@ -1,6 +1,6 @@
 """Command line: `python -m stoa_eval <command>` (from eval/): split, select, select-plans,
 baseline, baseline-extraction, score, score-extraction, history, series, validate-extraction,
-schema, exp-split, ab, gate, leaderboard, annotated-region, hard-questions, hard."""
+schema, exp-split, ab, gate, leaderboard, annotated-region, hard-questions, hard, disc-pictures."""
 
 import argparse
 import fnmatch
@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence, Set
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
@@ -72,6 +73,10 @@ from .check import (
     thresholds_at,
 )
 from .coverage import format_coverage_table, load_answers, score_all
+from .disc_pictures import DiscPred, pick_split, truth_from_render
+from .disc_pictures import aggregates as disc_aggregates
+from .disc_pictures import format_report as format_disc
+from .disc_pictures import score as score_disc
 from .exp_split import (
     DEFAULT_EXP_SEED,
     DEFAULT_SHARES,
@@ -207,6 +212,13 @@ from .split import (
     group_sizes,
     split_counts,
 )
+from .text_claims_dev import (
+    claims_path,
+    derive,
+    format_split_claims,
+    score_split_claims,
+    write_text_answers,
+)
 
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_QUESTIONS = REPO / "data/stoa/full/junction-dataset/questions.jsonl"
@@ -226,6 +238,8 @@ NOT_WRITTEN = "score not written (--no-record; --out <file> keeps it)"
 RESULTS = Path(__file__).resolve().parents[1] / "results/runs"  # tracked: one file per run
 # the hard slice's records (aggregates only) and its committable gold (r8 section BA)
 HARD_RESULTS = Path(__file__).resolve().parents[1] / "results/hard"
+# the discipline-picture bench's records (aggregates only), apart from results/runs (RunRecord only)
+DISC_RESULTS = Path(__file__).resolve().parents[1] / "results/disc-pictures/runs"
 HELSINKI = ZoneInfo("Europe/Helsinki")
 EXP_DIR = REPO / "data/stoa/exp"  # gitignored: the experiment split, A/B results, arms
 EXP_PRIOR = REPO / "data/stoa/priors/exp-train.json"  # the prior fit on the train part only
@@ -1678,6 +1692,18 @@ def run_score(args: argparse.Namespace) -> None:
         )
         result = score_all(questions, answers)
         print(format_coverage_table(result, args.top))
+        claims_file = claims_path(args.split_dir, "dev")
+        if "dev" in names and claims_file.exists():  # built by `text-claims`; never for eval
+            result.text_claims = score_split_claims(
+                [
+                    (row, "dev")
+                    for _, row in iter_jsonl(args.split_dir / "dev.jsonl", NumberedQuestion)
+                ],
+                {key: reply.answer for key, reply in answers.items()},
+                [line for _, line in read_jsonl(claims_file, TextClaims)],
+                _sha256(claims_file),
+            )
+            print(f"\n{format_split_claims(result.text_claims)}")
         out, stem = _detail_path(args, "answering")
     if out is None:
         print(NOT_WRITTEN)
@@ -1700,6 +1726,24 @@ def run_score(args: argparse.Namespace) -> None:
             reads=args.reads if args.against == "golden" else None,
         )
         _keep(args, stem, record)
+
+
+def run_text_claims(args: argparse.Namespace) -> None:
+    """Derive dev's text claims from the gold answers, plus two baselines on the claimed
+    questions: oracle (the gold text) and constant (the most common gold text)."""
+    _split_manifest(args.split_dir)
+    rows = [row for _, row in iter_jsonl(args.split_dir / "dev.jsonl", NumberedQuestion)]
+    claims = derive(rows, args.source)
+    out = claims_path(args.split_dir, "dev")
+    write_jsonl(out, claims)
+    print(f"wrote {len(claims)} claims lines ({args.source}) to {out}")
+    claimed = {line.id for line in claims}
+    gold = {row.id: str(row.answer) for row in rows if row.id in claimed}
+    common = Counter(gold.values()).most_common(1)[0][0] if gold else ""
+    for name, texts in (("oracle", gold), ("constant", dict.fromkeys(gold, common))):
+        path = args.split_dir / f"dev_text_{name}.jsonl"
+        write_text_answers(texts, path, method=f"baseline-{name}")
+        print(f"wrote {len(texts)} {name} answers to {path}")
 
 
 def run_select_plans(args: argparse.Namespace) -> None:
@@ -2077,6 +2121,41 @@ def run_hard(args: argparse.Namespace) -> None:
         print(f"recorded {args.name!r} in {out} (commit it with your PR)")
 
 
+def run_disc_pictures(args: argparse.Namespace) -> None:
+    """The discipline-picture bench (spec discipline-pictures.md, P4): disc_pred_v1 lines scored
+    against the renderer's truth files (every .json under the bench but the manifest) of one
+    split; test only with --milestone."""
+    if args.split == "test" and not args.milestone:
+        raise ValueError("the test split is scored once per milestone: add --milestone")
+    manifest = json.loads((args.manifest or args.bench / "manifest.json").read_text("utf-8"))
+    truths = [
+        truth_from_render(json.loads(path.read_text("utf-8")))
+        for path in sorted(args.bench.rglob("*.json"))
+        if path.name != "manifest.json"
+    ]
+    chosen = pick_split(truths, manifest, args.split)
+    if not chosen:
+        raise ValueError(f"no truth files of the {args.split} buildings under {args.bench}")
+    lines = args.preds.read_text("utf-8").splitlines()
+    names = {t.picture for t in chosen}
+    preds = [DiscPred.model_validate_json(line) for line in lines if line.strip()]
+    report = score_disc(chosen, [p for p in preds if p.picture in names], args.near)
+    print(f"{args.split}: {len(chosen)} pictures")
+    print(format_disc(report))
+    if args.name:
+        commit, dirty = _git_commit()
+        now = datetime.now(HELSINKI)
+        record = {
+            "recorded_at": now.isoformat(timespec="seconds"), "commit": commit, "dirty": dirty,
+            "name": args.name, "note": args.note, "split": args.split, "near": args.near,
+            "report": disc_aggregates(report),
+        }  # fmt: skip
+        args.results.mkdir(parents=True, exist_ok=True)
+        out = args.results / f"{now:%Y%m%d-%H%M%S}-{slug(args.name)}.json"
+        out.write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
+        print(f"recorded {args.name!r} in {out} (commit it with your PR)")
+
+
 def run_series(args: argparse.Namespace) -> None:
     """The method's points on the golden set as a markdown table (Bogdan, 2026-11-13 22:49: "so at
     the end we will be able to show the improvement")."""
@@ -2289,6 +2368,13 @@ def parser() -> argparse.ArgumentParser:
     )
     scored.set_defaults(run=run_score)
 
+    claimed = commands.add_parser(
+        "text-claims", help="derive dev text claims from the gold answers, with baselines"
+    )
+    claimed.add_argument("--split-dir", type=Path, default=SPLIT_DIR)
+    claimed.add_argument("--source", default="ifc_bench", help="the dataset folder to derive")
+    claimed.set_defaults(run=run_text_claims)
+
     part1 = commands.add_parser("score-extraction", help="score extraction_v1 files (Part 1)")
     part1.add_argument("pred_dir", type=Path, help="the pipeline's extraction JSON files")
     part1.add_argument("--against", choices=["golden", "dev", "eval"], default="golden")
@@ -2349,6 +2435,18 @@ def parser() -> argparse.ArgumentParser:
     hard.add_argument("--results", type=Path, default=HARD_RESULTS / "runs")
     hard.add_argument("--public", type=Path, help="write the labels whose licence allows it here")
     hard.set_defaults(run=run_hard)
+
+    disc = commands.add_parser("disc-pictures", help="score the discipline-picture bench")
+    disc.add_argument("bench", type=Path, help="the renderer's folder: pictures + truth .json")
+    disc.add_argument("preds", type=Path, help="disc_pred_v1 lines, one per picture")
+    disc.add_argument("--manifest", type=Path, help="default: <bench>/manifest.json")
+    disc.add_argument("--split", choices=["dev", "test"], default="dev")
+    disc.add_argument("--milestone", action="store_true", help="needed to score the test split")
+    disc.add_argument("--near", type=float, default=0.006, help="of the page diagonal")
+    disc.add_argument("--name", help="record the aggregates under this method name")
+    disc.add_argument("--note", default="", help="a line for the record (no paths)")
+    disc.add_argument("--results", type=Path, default=DISC_RESULTS)
+    disc.set_defaults(run=run_disc_pictures)
 
     check = commands.add_parser("validate-extraction", help="check extraction_v1 JSON files")
     check.add_argument("paths", type=Path, nargs="+", help="files, or folders searched for *.json")

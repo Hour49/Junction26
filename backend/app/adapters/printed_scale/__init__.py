@@ -7,13 +7,15 @@ resolution, which turns a printed ratio into metres per pixel, is what the file 
 (PNG pHYs, JPEG density), trusted only as `printed.trusted_dpi` says.
 
 The reader is the Carbon reader's `printed_scale` and `printed_facts` plus the scale bar's ends on
-a full-resolution tile (`carbon`, app/adapters/printed_scale/carbon.py).
+a full-resolution tile (`carbon`, app/adapters/printed_scale/carbon.py). It reads the sheet at the
+same time as the inner reader (app/adapters/beside.py): neither needs the other's result.
 """
 
 import io
 
 from PIL import Image
 
+from app.adapters.beside import beside
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles, Extractor, PrintedReader
 from app.core.pipeline.printed import trusted_dpi, with_printed
@@ -26,11 +28,13 @@ class PrintedScale:
         self._files = files
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        found = self._inner.extract(source, sheet)
         if not sheet.pages:
-            return found
+            return self._inner.extract(source, sheet)
+        found, printed = beside(  # independent reads of the same file: at the same time
+            lambda: self._inner.extract(source, sheet), lambda: self._reader.read(source, sheet)
+        )
         dpi = trusted_dpi(stated_dpi(self._files.read(source.path)))
-        return with_printed(found, self._reader.read(source, sheet), sheet.pages, dpi)
+        return with_printed(found, printed, sheet.pages, dpi)
 
 
 def stated_dpi(data: bytes) -> tuple[float, float] | None:

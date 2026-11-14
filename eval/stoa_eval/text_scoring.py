@@ -12,6 +12,10 @@ every claimed number and contains every claimed name.
   square metres, minutes), are matched one to one (each mention serves one claim), and a measure
   matches within 2% while a count matches exactly. Numbers the answer adds beyond the claims are
   reported, not penalised.
+- The same scorer runs on a split (`score --against dev`) with claims derived from the dataset's
+  own answers (`text_claims_dev.py`). There an unanswered question is left out, not failed, and
+  `mentions(extended=True)` also reads volumes (cu m, m³), percentages and 10,957 as one count.
+  Golden scoring keeps the reading above, so its recorded scores stay comparable.
 - Names: a name or one of its aliases appears in the answer as whole words, after NFKC, casefolding
   and turning every run of other characters into one space ("ST-4/GL-9" = "st 4 gl 9").
 """
@@ -26,9 +30,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from .models import FREE_TEXT_TYPES, Answer, GoldenItem, NumberClaim, TextClaims
 from .scoring import REL_TOL, Tally
 
-Kind = Literal["count", "length", "area", "time"]
+Kind = Literal["count", "length", "area", "volume", "percent", "time"]
 FT, INCH = 0.3048, 0.0254
-UNITS: dict[str, tuple[Kind, float]] = {  # claim unit -> kind and factor to metres, m2, minutes
+UNITS: dict[str, tuple[Kind, float]] = {  # claim unit -> kind and factor to m, m2, m3, %, minutes
     "count": ("count", 1.0),
     "m": ("length", 1.0),
     "cm": ("length", 0.01),
@@ -37,9 +41,17 @@ UNITS: dict[str, tuple[Kind, float]] = {  # claim unit -> kind and factor to met
     "in": ("length", INCH),
     "m2": ("area", 1.0),
     "ft2": ("area", FT**2),
+    "m3": ("volume", 1.0),
+    "ft3": ("volume", FT**3),
+    "pct": ("percent", 1.0),
     "min": ("time", 1.0),
     "h": ("time", 60.0),
 }
+_MORE_UNITS: tuple[tuple[str, str], ...] = (  # read only with extended=True (split claims)
+    (r"cu\.?\s*ft\.?|ft3|cubic\s+f(?:ee|oo)t", "ft3"),  # after NFKC, ³ is 3 and ² is 2
+    (r"cu\.?\s*m|m3|cubic\s+met(?:re|er)s?", "m3"),
+    (r"%|percent|per\s+cent", "pct"),
+)
 _WORD_UNITS: tuple[tuple[str, str], ...] = (  # unit words after a number, longest first
     (r"sq\.?\s*ft\.?|s\.?f\.?|ft2|ft²|square\s+f(?:ee|oo)t", "ft2"),
     (r"sq\.?\s*m|m2|m²|square\s+met(?:re|er)s?", "m2"),
@@ -65,12 +77,19 @@ _FRACTION_INCHES = re.compile(
     rf"{_START}(?:(?P<whole>\d+)[\s-]+)?(?P<num>\d+)/(?P<den>\d+)\s*(?:\"|inch(?:es)?\b|in\.)"
 )
 _PLAIN_INCHES = re.compile(rf"{_START}(?P<value>{_NUM})\s*\"")
-_WITH_UNIT = re.compile(
-    rf"{_START}(?P<value>{_NUM})\s*(?P<unit>"
-    + "|".join(f"(?:{pattern})" for pattern, _ in _WORD_UNITS)
-    + r")(?![\w²])"
-)
+
+
+def _with_unit(units: Sequence[tuple[str, str]]) -> re.Pattern[str]:
+    alternatives = "|".join(f"(?:{pattern})" for pattern, _ in units)
+    return re.compile(rf"{_START}(?P<value>{_NUM})\s*(?P<unit>{alternatives})(?![\w²])")
+
+
+_WITH_UNIT = _with_unit(_WORD_UNITS)
+_WITH_MORE_UNITS = _with_unit(_MORE_UNITS + _WORD_UNITS)
 _BARE = re.compile(rf"{_START}(?P<value>\d+)(?![\w'\"/]|[.,]\w)")
+_BARE_THOUSANDS = re.compile(  # 10,957 as one count; without it the bare reader sees 957
+    rf"{_START}(?P<value>\d{{1,3}}(?:,\d{{3}})+|\d+)(?![\w'\"/]|[.,]\w)"
+)
 _NUMBER_NAMES = (
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
     "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
@@ -99,7 +118,7 @@ def _number(text: str) -> float:
 
 
 def _unit_of(word: str) -> str:
-    for pattern, unit in _WORD_UNITS:
+    for pattern, unit in _MORE_UNITS + _WORD_UNITS:
         if re.fullmatch(pattern, word):
             return unit
     raise AssertionError(f"no unit for {word!r}")  # the alternation only matches listed words
@@ -111,8 +130,10 @@ def normalise(text: str) -> str:
     return text.translate(_QUOTES)
 
 
-def mentions(answer: str) -> list[Mention]:
-    """The numbers an answer states, with their kind; each piece of text is read once."""
+def mentions(answer: str, *, extended: bool = False) -> list[Mention]:
+    """The numbers an answer states, with their kind; each piece of text is read once.
+    `extended` also reads volumes, percentages and 10,957 as one count: split claims use it,
+    golden scoring doesn't, so its scores stay as they were recorded."""
     text = normalise(answer)
     found: list[Mention] = []
 
@@ -136,8 +157,9 @@ def mentions(answer: str) -> list[Mention]:
     text = _FEET_WORD_INCHES.sub(feet_inches, text)
     text = _FRACTION_INCHES.sub(fraction, text)
     text = _PLAIN_INCHES.sub(lambda m: take(m, "length", _number(m["value"]) * INCH), text)
-    text = _WITH_UNIT.sub(with_unit, text)
-    text = _BARE.sub(lambda m: take(m, "count", float(m["value"])), text)
+    text = (_WITH_MORE_UNITS if extended else _WITH_UNIT).sub(with_unit, text)
+    bare = _BARE_THOUSANDS if extended else _BARE
+    text = bare.sub(lambda m: take(m, "count", _number(m["value"])), text)
     _NUMBER_WORD.sub(lambda m: take(m, "count", float(_NUMBER_WORDS[m[1]])), text)
     return found
 
@@ -218,35 +240,52 @@ def _tally(correct: int, n: int) -> Tally:
     return Tally(n=n, correct=correct, accuracy=correct / n if n else None)
 
 
-def score_text_claims(
-    golden: Sequence[GoldenItem],
-    answers: Mapping[int, Answer],
+class Claimed(NamedTuple):
+    """A free-text question's labels for the report."""
+
+    source: str
+    split: str
+
+
+def score_claims(
+    questions: Mapping[int, Claimed],
+    answers: Mapping[int, str | float | None],
     claims: Sequence[TextClaims],
     claims_sha256: str,
+    *,
+    splits: Sequence[str],
+    what: str,
+    skip_unanswered: bool = False,
+    extended: bool = False,
 ) -> TextClaimsScore:
-    text_items = {item.id: item for item in golden if item.type in FREE_TEXT_TYPES}
+    """`questions`: free-text question id -> labels; `answers`: id -> the answer. A missing
+    answer fails its claims, or with `skip_unanswered` (a split's coverage mode) is left out and
+    not judged. `what` names the questions in errors ("golden", "dev"); `extended` is passed to
+    `mentions`."""
     by_id: dict[int, TextClaims] = {}
     for line in claims:
         if line.id in by_id:
             raise ValueError(f"text claims repeat id {line.id}")
-        if line.id not in text_items:
-            raise ValueError(f"text claims id {line.id} is not a golden free-text question")
+        if line.id not in questions:
+            raise ValueError(f"text claims id {line.id} is not a {what} free-text question")
         by_id[line.id] = line
     items: list[TextClaimsItem] = []
-    for item_id, item in text_items.items():
+    for item_id, labels in questions.items():
         line = by_id.get(item_id)
         if line is None:
             continue
-        answer = answers.get(item_id)
-        text = _as_text(answer.answer if answer is not None else None)
-        found = mentions(text)
+        value = answers.get(item_id)
+        if value is None and skip_unanswered:
+            continue
+        text = _as_text(value)
+        found = mentions(text, extended=extended)
         numbers = matched_claims(line.numbers, found)
         names = sum(has_name(text, [claim.name, *claim.aliases]) for claim in line.names)
         items.append(
             TextClaimsItem(
                 id=item_id,
-                source=item.source,
-                split=item.split,
+                source=labels.source,
+                split=labels.split,
                 passed=numbers == len(line.numbers) and names == len(line.names),
                 numbers=len(line.numbers),
                 numbers_matched=numbers,
@@ -255,6 +294,7 @@ def score_text_claims(
                 extra_numbers=len(found) - numbers,
             )
         )
+
     return TextClaimsScore(
         claims_sha256=claims_sha256,
         passed=_tally(sum(i.passed for i in items), len(items)),
@@ -265,10 +305,34 @@ def score_text_claims(
                 sum(i.passed for i in items if i.split == split),
                 sum(i.split == split for i in items),
             )
-            for split in ("dev", "holdout")
+            for split in splits
         },
-        without_claims=sorted(text_items.keys() - by_id.keys()),
+        without_claims=sorted(
+            item_id
+            for item_id in questions.keys() - by_id.keys()
+            if not skip_unanswered or answers.get(item_id) is not None
+        ),
         items=items,
+    )
+
+
+def score_text_claims(
+    golden: Sequence[GoldenItem],
+    answers: Mapping[int, Answer],
+    claims: Sequence[TextClaims],
+    claims_sha256: str,
+) -> TextClaimsScore:
+    return score_claims(
+        {
+            item.id: Claimed(item.source, item.split)
+            for item in golden
+            if item.type in FREE_TEXT_TYPES
+        },
+        {item_id: answer.answer for item_id, answer in answers.items()},
+        claims,
+        claims_sha256,
+        splits=("dev", "holdout"),
+        what="golden",
     )
 
 
@@ -277,13 +341,13 @@ def _cell(tally: Tally) -> str:
     return f"{tally.correct}/{tally.n} {rate}"
 
 
-def format_text_claims(score: TextClaimsScore) -> str:
+def format_text_claims(score: TextClaimsScore, what: str = "golden") -> str:
+    splits = ", ".join(f"{split} {_cell(tally)}" for split, tally in score.by_split.items())
     return "\n".join(
         [
             "text by claims (not in the headline; the headline's text line is exact match)",
-            f"  passed           {_cell(score.passed)} (dev {_cell(score.by_split['dev'])}, "
-            f"holdout {_cell(score.by_split['holdout'])})",
+            f"  passed           {_cell(score.passed)} ({splits})",
             f"  claims           numbers {_cell(score.numbers)}, names {_cell(score.names)}",
-            f"  without claims   {len(score.without_claims)} golden text questions",
+            f"  without claims   {len(score.without_claims)} {what} text questions",
         ]
     )

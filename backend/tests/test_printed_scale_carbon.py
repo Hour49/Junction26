@@ -96,7 +96,8 @@ def png(size: tuple[int, int] = (2000, 1000)) -> bytes:
 def test_the_page_bars_and_ticks_calls_give_the_printed_sheet(tmp_path: Path) -> None:
     model = Model()
     printed = CarbonPrinted(model, Files(png()), tmp_path).read(FILE, SHEET)
-    assert [kind for kind, _ in model.calls] == ["page", "bars", "ticks"]
+    kinds = [kind for kind, _ in model.calls]  # page and bars at the same time, then the bar's
+    assert sorted(kinds[:2]) == ["bars", "page"] and kinds[2:] == ["ticks"]
     assert printed.printed_scale == "1:200"
     (bar,) = printed.bars
     assert bar.length_m == 5 and bar.text == "0 5 m"

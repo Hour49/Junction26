@@ -327,6 +327,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat */
+        post: operations["chat_api_projects__project_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/checks": {
         parameters: {
             query?: never;
@@ -663,6 +697,60 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** After */
+        After: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+            /** Value */
+            value: number | null;
+            /** Why */
+            why: string | null;
+        };
+        /**
+         * AiFinding
+         * @description A law note the server kept (LC-9b): its verdict recomputed, its clause filled in.
+         */
+        AiFinding: {
+            /**
+             * Basis
+             * @default ai_reading
+             * @constant
+             */
+            basis: "ai_reading";
+            /** Clause Id */
+            clause_id: string;
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<" | "=";
+            /** Law */
+            law: string;
+            /** Limit */
+            limit: number;
+            /** Quote */
+            quote: string;
+            /** Quote En */
+            quote_en: string | null;
+            /** Ref */
+            ref: string;
+            /** Subject */
+            subject: string;
+            /** Unit */
+            unit: string;
+            /** Url */
+            url: string;
+            /** Value */
+            value?: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "would_not_meet" | "meets" | "check";
+        };
         /** Answer */
         Answer: {
             /** Abstain */
@@ -725,7 +813,7 @@ export interface components {
             file: string;
             /** Latency S */
             latency_s: number;
-            level: components["schemas"]["Level"] | null;
+            level: components["schemas"]["app__core__review__check__Level"] | null;
             line: components["schemas"]["Answer"];
             /** Marks */
             marks: components["schemas"]["MarkView"][];
@@ -805,6 +893,108 @@ export interface components {
             refused: boolean;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+        };
+        /** Before */
+        Before: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+            /** Value */
+            value: number | null;
+        };
+        /** ChatEvidence */
+        ChatEvidence: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Drawing Id */
+            drawing_id: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string | null;
+            level?: components["schemas"]["app__core__agent__model__Level"] | null;
+            /** N */
+            n: number;
+            /** Name */
+            name: string | null;
+            /** Page */
+            page: number;
+            /** Sure */
+            sure: boolean | null;
+        };
+        /**
+         * ChatInfo
+         * @description The project chat agent (decision 0013): CHAT_MODEL, and whether a turn can run now.
+         */
+        ChatInfo: {
+            /** Available */
+            available: boolean;
+            /**
+             * Model
+             * @enum {string}
+             */
+            model: "gemini" | "rules" | "off";
+            /** Reason */
+            reason: string | null;
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            /** Chat Id */
+            chat_id?: string | null;
+            /** Message */
+            message: string;
+            /** Pack */
+            pack?: string | null;
+            /** Selection */
+            selection?: components["schemas"]["Selection"][];
+        };
+        /**
+         * ChatTurn
+         * @description A turn as the API returns it: `answers` typed as POST /api/projects/{id}/ask's answers.
+         */
+        ChatTurn: {
+            /**
+             * Answers
+             * @default []
+             */
+            answers: components["schemas"]["ProjectAnswer"][];
+            /** Chat Id */
+            chat_id: string;
+            /** Cost Usd */
+            cost_usd: number;
+            edit?: components["schemas"]["Proposal"] | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: components["schemas"]["ChatEvidence"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "answer" | "dont_know" | "conflict" | "needs_input" | "edit";
+            /** Latency S */
+            latency_s: number;
+            /** Model */
+            model: string;
+            /** Options */
+            options?: components["schemas"]["Option"][] | null;
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["Step"][];
+            /** Text */
+            text: string;
+            /** Turn */
+            turn: number;
         };
         /**
          * Check
@@ -1029,6 +1219,14 @@ export interface components {
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
             /** Value */
             value: number;
+        };
+        /** Decision */
+        Decision: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "accept" | "reject";
         };
         /**
          * Description
@@ -1413,6 +1611,47 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageTrace"][];
         };
+        /**
+         * Finding
+         * @description One rule on one room or door whose result the proposal changes, or that still fails on a
+         *     room or door it touches (LC-3). `ev`: the chat's evidence id, set by the agent loop.
+         */
+        Finding: {
+            after: components["schemas"]["After"];
+            before: components["schemas"]["Before"];
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "newly_fails" | "now_passes" | "newly_cannot_tell" | "still_fails" | "still_passes";
+            clause: components["schemas"]["Clause"];
+            /** Comparison Text */
+            comparison_text: string;
+            /** Ev */
+            ev?: string | null;
+            /** Limit */
+            limit: number;
+            /** Rule Id */
+            rule_id: string;
+            /** Subject */
+            subject: string;
+            /** Subject Ref */
+            subject_ref: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "m2" | "m" | "count";
+        };
+        /** Flag */
+        Flag: {
+            /** Code */
+            code: string;
+            /** Text */
+            text: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1437,6 +1676,7 @@ export interface components {
         };
         /** Info */
         Info: {
+            chat?: components["schemas"]["ChatInfo"] | null;
             /** Commit */
             commit?: string | null;
             /** Gemini */
@@ -1537,6 +1777,55 @@ export interface components {
             /** Trace */
             trace: string | null;
         };
+        /**
+         * Item
+         * @description A removed or added piece of geometry (a wall strip, a door, a new partition).
+         */
+        Item: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Polygon */
+            polygon: [
+                number,
+                number
+            ][];
+        };
+        /** LawCheck */
+        LawCheck: {
+            /**
+             * Ai Findings
+             * @default []
+             */
+            ai_findings: components["schemas"]["AiFinding"][];
+            /** Fail Means */
+            fail_means: string | null;
+            /** Findings */
+            findings: components["schemas"]["Finding"][];
+            /** Note */
+            note: string;
+            /** Pack */
+            pack: string;
+            /** Pack Name */
+            pack_name: string;
+            /**
+             * Related
+             * @default []
+             */
+            related: components["schemas"]["ClauseView"][];
+            /** Subject Values */
+            subject_values?: {
+                [key: string]: number[];
+            };
+            /**
+             * Subjects
+             * @default []
+             */
+            subjects: string[];
+            /** Unchanged */
+            unchanged: number;
+        };
         /** LawPack */
         LawPack: {
             /** Id */
@@ -1557,25 +1846,6 @@ export interface components {
             pack: string;
             /** Query */
             query: string;
-        };
-        /**
-         * Level
-         * @description How far to trust an answer: one of three levels, what it rests on, and one plain sentence
-         *     with the measured counts behind it.
-         */
-        Level: {
-            /**
-             * Basis
-             * @enum {string}
-             */
-            basis: "certified" | "route" | "score" | "page" | "held" | "unrated" | "carbon";
-            /**
-             * Level
-             * @enum {string}
-             */
-            level: "high" | "medium" | "low";
-            /** Text */
-            text: string;
         };
         /**
          * Limit
@@ -1739,6 +2009,13 @@ export interface components {
             rotated: number;
             /** Width */
             width: number;
+        };
+        /** Option */
+        Option: {
+            /** Label */
+            label: string;
+            /** Message */
+            message: string;
         };
         /**
          * Overrule
@@ -1973,6 +2250,47 @@ export interface components {
             /** Storeys */
             storeys: components["schemas"]["StoreyRow"][] | null;
         };
+        /** Proposal */
+        Proposal: {
+            /**
+             * Added
+             * @default []
+             */
+            added: components["schemas"]["Item"][];
+            /** Drawing Id */
+            drawing_id: string;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: components["schemas"]["Flag"][];
+            law?: components["schemas"]["LawCheck"] | null;
+            /** Page */
+            page: number;
+            /** Proposal Id */
+            proposal_id: string;
+            /**
+             * Removed
+             * @default []
+             */
+            removed: components["schemas"]["Item"][];
+            /**
+             * Rooms
+             * @default []
+             */
+            rooms: components["schemas"]["RoomChange"][];
+            /**
+             * State
+             * @default proposed
+             * @enum {string}
+             */
+            state: "proposed" | "accepted" | "rejected";
+            /**
+             * Unknowns
+             * @default []
+             */
+            unknowns: string[];
+        };
         /**
          * QuantityConflict
          * @description Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in
@@ -2164,6 +2482,27 @@ export interface components {
             /** Notes */
             notes: string[];
             review: components["schemas"]["ProjectReview"];
+        };
+        /** RoomChange */
+        RoomChange: {
+            /** Area After M2 */
+            area_after_m2: number;
+            /** Area Before M2 */
+            area_before_m2: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Polygon */
+            polygon: [
+                number,
+                number
+            ][];
+            /**
+             * Was
+             * @default []
+             */
+            was: string[];
         };
         /**
          * Row
@@ -2414,6 +2753,32 @@ export interface components {
             measured: number;
         };
         /**
+         * Selection
+         * @description What the user pointed at on a plan: a room (`ref` its id) or a dragged rectangle (`box`).
+         */
+        Selection: {
+            /** Box */
+            box?: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
+            /** Drawing Id */
+            drawing_id: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "room" | "region";
+            /** Page */
+            page: number;
+            /** Ref */
+            ref?: string | null;
+        };
+        /**
          * Settled
          * @description The value a surveyor chose to keep for a quantity (the `settle` action).
          */
@@ -2442,6 +2807,8 @@ export interface components {
              * @enum {string}
              */
             decision: "read" | "doubt" | "set_aside";
+            /** Discipline */
+            discipline?: ("architecture" | "structural" | "plumbing" | "heating" | "ventilation" | "electrical" | "fire" | "site" | "other") | null;
             /**
              * Kind
              * @enum {string}
@@ -2545,6 +2912,22 @@ export interface components {
             state: "queued" | "running" | "done" | "failed";
             /** Url */
             url: string;
+        };
+        /** Step */
+        Step: {
+            /** Label */
+            label: string;
+            /** Ms */
+            ms: number;
+            /** N */
+            n: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Tool */
+            tool: string;
         };
         /** StoreyRow */
         StoreyRow: {
@@ -2665,6 +3048,40 @@ export interface components {
             label: string;
             /** Page */
             page: number;
+        };
+        /**
+         * Level
+         * @description An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').
+         */
+        app__core__agent__model__Level: {
+            /** Basis */
+            basis?: string | null;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /** Text */
+            text?: string | null;
+        };
+        /**
+         * Level
+         * @description How far to trust an answer: one of three levels, what it rests on, and one plain sentence
+         *     with the measured counts behind it.
+         */
+        app__core__review__check__Level: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "certified" | "route" | "score" | "page" | "held" | "unrated" | "carbon";
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /** Text */
+            text: string;
         };
     };
     responses: never;
@@ -3278,6 +3695,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectAnswer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_api_projects__project_id__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatTurn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description CHAT_MODEL=off */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+                proposal_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Decision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
                 };
             };
             /** @description Validation Error */
