@@ -77,3 +77,11 @@ def test_rules_removes_the_wall_the_filtered_list_gives() -> None:
     filtered = ("list_walls", {**PAGE, "room_a": "r1", "room_b": "r2"}, BETWEEN)
     name, args = plan(MESSAGE, LISTED, ("list_walls", PAGE, WALLS), filtered)
     assert (name, args) == ("propose_remove_wall", {**PAGE, "wall_id": "W200"})
+
+
+def test_run_timings_are_not_sent_to_the_model() -> None:
+    """chat-eval 2026-11-14: a part's latency_s reached the model as a number it could cite."""
+    found = {
+        "parts": [{"name": "a.pdf", "latency_s": 2.75, "answer": {"answer": 3, "latency_s": 1.5}}]
+    }
+    assert json.loads(_for_model(found)) == {"parts": [{"name": "a.pdf", "answer": {"answer": 3}}]}

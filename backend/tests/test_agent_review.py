@@ -7,13 +7,15 @@ import json
 from typing import Any
 
 import pytest
-from test_agent_loop import Model, Tools, call, final, step
+from test_agent_loop import DRAWING, Model, Tools, call, final, step
 from test_agent_view import DOORS, again
 
 from app.adapters.chat_rules import RulesChatModel
 from app.core.agent.loop import run_turn
 from app.core.agent.model import Caps, Chat
 from app.core.spend import SpendGuard
+
+Json = dict[str, Any]
 
 LEVELLED: dict[str, Any] = json.loads(json.dumps(DOORS))
 LEVELLED["parts"][0]["answer"]["level"] = {
@@ -93,3 +95,56 @@ def test_only_a_doubt_about_the_answer_is_reviewed(message: str, tool: str) -> N
     history = [{"role": "system", "content": "..."}, {"role": "user", "content": message}]
     reply = RulesChatModel().complete(history, offered)
     assert reply.message["tool_calls"][0]["function"]["name"] == tool
+
+
+def levelled(level: str, disputed: bool = True, question: str = "how many doors") -> Json:
+    found: Json = json.loads(json.dumps(DOORS))
+    found["question"] = question
+    answer = found["parts"][0]["answer"]
+    answer["level"] = {"level": level, "basis": "page", "text": f"{level.title()} confidence."}
+    if not disputed:
+        answer["check"] = {"reason": "the readers agree", "disputed": []}
+    return found
+
+
+def sure(found: Json) -> Any:
+    chat, tools, rules = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=found), RulesChatModel()
+    run_turn(chat, "How many doors are there?", (), rules, tools, Caps(), SpendGuard())
+    return run_turn(chat, "Are you sure?", (), rules, tools, Caps(), SpendGuard())
+
+
+def test_review_339_s1_a_high_answer_nothing_disputed_is_not_called_uncertain() -> None:
+    got = sure(levelled("high", disputed=False))
+    assert got.kind == "answer"
+    assert got.text == (
+        'About "how many doors": Yes, as far as the checks go. plan.pdf: 3. High confidence.'
+        " No other reader disputes its marks."
+    )
+
+
+def test_review_339_s1_n1_a_disputed_answer_is_not_for_certain_in_plain_grammar() -> None:
+    got = sure(levelled("high"))
+    assert "Not for certain." in got.text and "Yes" not in got.text
+    assert "1 of its marks is disputed by the other readers: [1]" in got.text
+
+
+def test_review_339_n1_every_drawing_is_named_with_its_level() -> None:
+    two: Json = levelled("high", disputed=False)
+    other = json.loads(json.dumps(two["parts"][0]))
+    other["drawing_id"], other["name"] = "fedcba9876543210", "other.pdf"
+    other["answer"]["level"] = {"level": "low", "basis": "page", "text": "Low confidence."}
+    two["parts"].append(other)
+    got = sure(two)
+    assert got.text.startswith('About "how many doors": Not for certain.')
+    assert "plan.pdf: 3. High confidence. No other" in got.text
+    assert "other.pdf: 3. Low confidence. No other" in got.text
+
+
+def test_review_339_n2_a_refused_last_answer_is_called_a_refusal() -> None:
+    refused = {"question": "how many doors", "parts": [{"drawing_id": DRAWING, "name": "plan.pdf",
+               "answer": {"answer": None, "refusal": {"text": "Nothing was read."}}}]}  # fmt: skip
+    got = sure(refused)
+    assert (got.kind, got.text) == (
+        "dont_know",
+        "I can't check that: the last answer was a refusal.",
+    )

@@ -189,30 +189,43 @@ def _rooms(found: Json) -> tuple[str, Json] | None:
 
 
 def _sure(turn: _Turn) -> tuple[str, Json]:
-    """ "Are you sure?": the last answer's level, why, and its disputed marks, cited."""
+    """ "Are you sure?": the reviewed question, then per drawing its value, level and disputed
+    marks, cited. "Yes" only when every drawing is High and none of its marks is disputed."""
     found = turn.result("review_answer")
     if found is None:
         return "review_answer", {}
     drawings: list[Json] = [d for d in found.get("drawings") or [] if isinstance(d, dict)]
     answered = [d for d in drawings if "answer" in d]
     if found.get("status") != "ok" or not answered:
-        why = found.get("reason") or "the last answer had no number to check"
-        return _final("dont_know", f"I can't check that: {why}.")
-    first = answered[0]
-    unit = first.get("unit")
-    value = f"{first['answer']}{f' {unit}' if unit and unit != 'count' else ''}"
-    level = first.get("level_text") or f"Confidence: {first.get('level') or 'not given'}."
-    disputed: list[Json] = [d for d in first.get("disputed") or [] if isinstance(d, dict)]
-    cited = [str(d["ev"]) for d in disputed[:4] if d.get("ev")]
-    count = first.get("disputed_count") or 0
-    if count:
-        noun = "mark is" if count == 1 else "marks are"
-        doubt = f" {count} of its {noun} disputed by the other readers: " + " ".join(
-            f"[{ev}]" for ev in cited
+        refused = drawings and found.get("status") == "ok"
+        why = (
+            "the last answer was a refusal"
+            if refused
+            else found.get("reason") or "the last answer had no number to check"
         )
-    else:
-        doubt = " No other reader disputes its marks."
-    return _final("answer", f"Not for certain. {first['drawing']}: {value}. {level}{doubt}", cited)
+        return _final("dont_know", f"I can't check that: {why}.")
+    lines: list[str] = []
+    cited: list[str] = []
+    for drawing in answered:
+        unit = drawing.get("unit")
+        value = f"{drawing['answer']}{f' {unit}' if unit and unit != 'count' else ''}"
+        level = drawing.get("level_text") or f"Confidence: {drawing.get('level') or 'not given'}."
+        disputed: list[Json] = [d for d in drawing.get("disputed") or [] if isinstance(d, dict)]
+        evs = [str(d["ev"]) for d in disputed if d.get("ev")][: max(0, 4 - len(cited))]
+        cited += evs
+        count = drawing.get("disputed_count") or 0
+        if count:
+            noun = "marks is" if count == 1 else "marks are"
+            doubt = f" {count} of its {noun} disputed by the other readers"
+            doubt += ": " + " ".join(f"[{ev}]" for ev in evs) if evs else "."
+        else:
+            doubt = " No other reader disputes its marks."
+        lines.append(f"{drawing['drawing']}: {value}. {level}{doubt}")
+    sure = all(d.get("level") == "high" and not d.get("disputed_count") for d in answered)
+    question = found.get("question")
+    about = f'About "{question}": ' if question else ""
+    lead = "Yes, as far as the checks go." if sure else "Not for certain."
+    return _final("answer", f"{about}{lead} " + " ".join(lines), cited)
 
 
 def _law(turn: _Turn, offered: set[str]) -> tuple[str, Json]:

@@ -357,12 +357,20 @@ class TemplateParser:
         if largest and measure != "area":
             return Unsupported(reason="only the largest room by area is taken off")
         if measure == "count":
+            things = [s for s in subjects if not s.startswith("room")]
+            if things and len({n.group(1) for n in numbers}) > 1:
+                return Unsupported(reason=SEVERAL_ROOMS)
+            if things and name is not None:  # a room's number or quoted name: what is inside it
+                if set(things) == {"shower", "bathtub"}:
+                    return Query(measure="count", subject="shower+bathtub", name=name, **common)
+                if len(things) > 1:
+                    return Unsupported(reason=SEVERAL_THINGS)
+                return Query(measure="count", subject=things[0], name=name, **common)
             if {"shower", "bathtub"} == set(subjects):
                 return Query(measure="count", subject="shower+bathtub", **common)
             # Never drop part of a question: two element classes ("doors and windows", "doors
             # near the window"), or elements counted in one room ("doors the kitchen has"), are
             # not one count of the sheet. Room types name the same rooms ("WC rooms").
-            things = [s for s in subjects if not s.startswith("room")]
             if len(things) > 1:
                 return Unsupported(reason=SEVERAL_THINGS)
             if (

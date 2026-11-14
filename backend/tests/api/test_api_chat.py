@@ -409,5 +409,44 @@ def test_item2_stream_errors_before_the_turn_are_plain_http(client: TestClient) 
     )
 
 
+def test_item2_a_turn_that_fails_after_the_200_ends_the_stream_with_error(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review 326 S1: one terminal event, nothing stored, the lock released."""
+    import app.api.chat as chat_api
+
+    project = sample(client)
+    first = ask(client, project, "How many doors are there?")
+
+    def broken(chat: Any, *args: Any, emit: Any, **more: Any) -> Any:
+        emit("turn", {"chat_id": chat.chat_id, "turn": len(chat.turns) + 1})
+        raise RuntimeError("boom")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(chat_api, "run_turn", broken)
+        got = stream(client, project, "How many windows?", chat_id=first["chat_id"])
+    error = {"status": 500, "detail": "the turn failed on the server"}
+    assert got == [("turn", {"chat_id": first["chat_id"], "turn": 2}), ("error", error)]
+    again = ask(client, project, "How many windows?", chat_id=first["chat_id"])
+    assert again["turn"] == 2  # nothing of the failed turn was stored, and no 409
+
+
+def test_item2_a_failure_before_the_turn_began_still_sends_turn_first(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review 326 N4: the contract's `turn` comes first, always."""
+    import app.api.chat as chat_api
+
+    project = sample(client)
+
+    def broken(*args: Any, **more: Any) -> Any:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(chat_api, "project_toolbox", broken)
+    got = stream(client, project, "How many doors are there?")
+    assert [kind for kind, _ in got] == ["turn", "error"]
+    assert got[0][1]["turn"] == 1 and len(got[0][1]["chat_id"]) == 12
+
+
 def test_item2_info_says_the_chat_streams(client: TestClient) -> None:
     assert client.get("/api/info").json()["chat"]["stream"] is True
