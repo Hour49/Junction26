@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import struct
+import urllib.error
 import urllib.request
 import zlib
 from pathlib import Path
@@ -359,3 +360,83 @@ def test_the_default_cut_is_the_one_the_gate_run_picked(
     assert Settings().sheet_kind_cut == CUT == 0.9
     # 0.85: set aside at the old 0.8, a doubt (read) at 0.9
     assert decide(form("mep_plan", False, True, 0.85), CUT) == "doubt"
+
+
+class FlakyNetwork:
+    """urlopen, faked: raises `errors` in turn, then answers PIPING. Records every request."""
+
+    def __init__(self, *errors: Exception) -> None:
+        self.errors, self.calls = list(errors), 0
+
+    def __call__(self, request: urllib.request.Request, timeout: float) -> io.BytesIO:
+        self.calls += 1
+        if self.errors:
+            raise self.errors.pop(0)
+        return io.BytesIO(json.dumps(reply(PIPING)).encode())
+
+
+@pytest.mark.parametrize(
+    "timeout",
+    [TimeoutError("timed out"), urllib.error.URLError(TimeoutError("timed out"))],
+)
+def test_a_timeout_is_asked_once_more_with_a_warning_and_only_the_answer_is_charged(
+    timeout: Exception,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    network = FlakyNetwork(timeout)
+    monkeypatch.setattr(urllib.request, "urlopen", network)
+    guard = SpendGuard(1.0)
+    client = GeminiSheetKindClient("test-key-not-real", 5.0, budget=guard)
+    with caplog.at_level("WARNING"):
+        found = SheetKindClassifier(None, SheetKindReader(client, tmp_path), CUT).classify(
+            png(), PNG_PROBED
+        )
+    assert isinstance(found, Classified) and found.class_ == "other_drawing"
+    assert network.calls == 2
+    assert guard.spent_by() == pytest.approx({"gemini sheet kind": 0.0128})  # one paid reply
+    assert any("timed out" in record.message and record.levelname == "WARNING"
+               for record in caplog.records)  # fmt: skip
+
+
+def test_a_second_timeout_fails_and_other_errors_are_not_asked_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    network = FlakyNetwork(TimeoutError("timed out"), TimeoutError("timed out"))
+    monkeypatch.setattr(urllib.request, "urlopen", network)
+    client = GeminiSheetKindClient("test-key-not-real", 5.0, budget=SpendGuard(1.0))
+    found = SheetKindClassifier(None, SheetKindReader(client, tmp_path), CUT).classify(
+        png(), PNG_PROBED
+    )
+    assert found == Unavailable(
+        note="the sheet-kind model could not answer: no answer: TimeoutError"
+    )
+    assert network.calls == 2
+    for error in (ConnectionResetError("reset"), urllib.error.URLError("no route")):
+        network = FlakyNetwork(error)
+        monkeypatch.setattr(urllib.request, "urlopen", network)
+        found = SheetKindClassifier(None, SheetKindReader(client, tmp_path), CUT).classify(
+            png(), PNG_PROBED
+        )
+        assert isinstance(found, Unavailable) and network.calls == 1
+
+
+def test_the_budget_is_asked_again_before_the_second_try(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guard = SpendGuard(1.0)
+
+    class SpendsThenTimesOut(FlakyNetwork):
+        def __call__(self, request: urllib.request.Request, timeout: float) -> io.BytesIO:
+            guard.charge(1.0, "another caller")  # the budget runs out while this call waits
+            return super().__call__(request, timeout)
+
+    network = SpendsThenTimesOut(TimeoutError("timed out"))
+    monkeypatch.setattr(urllib.request, "urlopen", network)
+    client = GeminiSheetKindClient("test-key-not-real", 5.0, budget=guard)
+    found = SheetKindClassifier(None, SheetKindReader(client, tmp_path), CUT).classify(
+        png(), PNG_PROBED
+    )
+    assert isinstance(found, Unavailable) and "Gemini budget used up" in found.note
+    assert network.calls == 1
