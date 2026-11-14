@@ -342,3 +342,19 @@ def test_smoke_1_ac31_floor9178_bathroom_1_01_by_type_word_or_label(client: Test
         assert turn["kind"] == "answer", (question, turn["text"])
         [answer] = turn["answers"]
         assert answer["parts"][0]["answer"]["answer"] == pytest.approx(7.557, abs=0.01)
+
+
+def test_item1_an_answer_turn_moves_the_plan_to_its_sources(client: TestClient) -> None:
+    """contract A: `view` on the API turn, from the places the answer cites."""
+    project = sample(client)
+    turn = ask(client, project, "How many doors are there?")
+    view = turn["view"]
+    first = turn["evidence"][0]
+    assert view["source"] == "evidence" and view["caption"] is None
+    assert (view["drawing_id"], view["page"], view["name"]) == (
+        first["drawing_id"], first["page"], first["name"])  # fmt: skip
+    assert view["marks"][0]["n"] == 1 and view["marks"][0]["box"] == first["box"]
+    x0, y0, x1, y1 = view["box"]
+    assert 0 <= x0 <= first["box"][0] and first["box"][2] <= x1 <= 1 and y0 < y1
+    dont = ask(client, project, "Is that wall load-bearing?", chat_id=turn["chat_id"])
+    assert dont["kind"] == "dont_know" and dont["view"] is None

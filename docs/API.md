@@ -7865,6 +7865,15 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
 
+`view` (added 2026-11-14) is the plan the turn wants on screen, or null when it has no place: `{drawing_id, name,
+page, box, marks: [{n, label, box, polygon}], caption, source}`, all in page fractions. `source: "show_on_plan"`:
+the agent called the `show_on_plan` tool (places of this chat by evidence id, or every mark, or the disputed ones,
+of the chat's latest `ask_drawings` answer, which then comes back in `answers`); its marks are added to `evidence`
+after the cited ones. `source: "evidence"`: the page of `[1]` with every cited place on it; an `edit` turn's view is
+the proposal's page around its geometry. `box` is the marks' union with a margin, the box to focus; each mark's `n`
+is its `evidence` item. Places minted in earlier turns stay citable: a follow-up may cite them (numbers in `text`
+still come from this turn's tool results).
+
 <!-- fixture: chat_answer.json -->
 ```json
 {
