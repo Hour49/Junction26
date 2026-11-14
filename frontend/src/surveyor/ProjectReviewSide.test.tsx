@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { drawing, error as errorBody, project, projectReview, takeoff } from '../api/fixtures';
-import type { ProjectReview } from '../api';
+import { drawingLabel, type ProjectReview } from '../api';
 import { mockApi } from '../test/mockApi';
 import { ProjectReviewSide } from './ProjectReviewSide';
 import { SurveyorScreen } from './SurveyorScreen';
@@ -32,7 +32,7 @@ describe('ProjectReviewSide', () => {
     projectReview.drawings.forEach((d, i) => {
       const item = nth(items, i);
       const text = item.textContent;
-      expect(text).toContain(d.file);
+      expect(text).toContain(drawingLabel(d)); // no names passed: the file name (SV-56)
       expect(text.includes(`${String(d.to_review)} to review`)).toBe(d.to_review > 0);
       if (d.quantities === 0) expect(text).toContain('nothing counted');
       else expect(text).toContain(`${String(d.signed)} of ${String(d.quantities)} signed off`);
@@ -65,7 +65,7 @@ describe('ProjectReviewSide', () => {
     expect(items).toHaveLength(3);
     const first = nth(items, 0).textContent;
     expect(first).toContain('area of room (name Küche · 1.01)');
-    expect(first).toContain('plans/flat-b.pdf');
+    expect(first).toContain('flat-b.pdf'); // no names passed: drawingLabel's file name (SV-56)
     expect(first).toContain('22.40 m² vs 30.00 m²');
     expect(first).toContain('decided by rule');
     expect(nth(items, 1).textContent).toContain('needs you');
@@ -80,6 +80,7 @@ describe('ProjectReviewSide', () => {
     const api = mockApi({
       [`GET /api/drawings/${current.drawing_id}/takeoff`]: takeoff,
       [`GET /api/drawings/${current.drawing_id}`]: drawing,
+      [`GET /api/projects/${projectId}`]: project,
       [reviewPath]: () =>
         fail
           ? { status: 500, body: { ...errorBody, detail: 'internal error', code: 'internal' } }
@@ -100,6 +101,23 @@ describe('ProjectReviewSide', () => {
     fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
     await screen.findByRole('list', { name: /Drawings/ });
     expect(api.calls.filter((c) => c.url.includes('/review'))).toHaveLength(2);
+  });
+
+  it("SV-56 with the project's names the drawings and the conflicts name each drawing plainly (#224)", async () => {
+    mockApi({ [reviewPath]: projectReview });
+    const names = Object.fromEntries(project.drawings.map((d) => [d.drawing_id, drawingLabel(d)]));
+    render(
+      <ProjectReviewSide projectId={projectId} drawingId={current.drawing_id} names={names} />,
+    );
+    const list = await screen.findByRole('list', { name: /Drawings/ });
+    expect(
+      within(list)
+        .getAllByRole('link')
+        .map((a) => a.textContent),
+    ).toEqual(projectReview.drawings.map((d) => names[d.drawing_id]));
+    const conflicts = screen.getByRole('list', { name: /Conflicts/ });
+    expect(conflicts.textContent).toContain('Drawn plan 2');
+    expect(conflicts.textContent).not.toContain('plans/flat-b.pdf');
   });
 
   it('SV-46 file names and labels from the project review render as text', async () => {

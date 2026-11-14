@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  drawingLabel,
   getDrawing,
   getTakeoff,
   postReview,
@@ -14,6 +15,7 @@ import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
+import { useDrawingNames } from './drawingNames';
 import { ProjectReviewSide } from './ProjectReviewSide';
 import { QuantityDetail } from './QuantityDetail';
 import { TakeoffTable } from './TakeoffTable';
@@ -46,6 +48,7 @@ const isAbort = (e: unknown) => e instanceof DOMException && e.name === 'AbortEr
 
 /** The surveyor workspace (docs/specs/frontend/surveyor.md): takeoff, review edits, sign-off. */
 export function SurveyorScreen({ projectId, drawingId, query }: Props) {
+  const names = useDrawingNames(projectId); // one project GET, shared with the side panel (#224)
   const [drawing, setDrawing] = useState<DrawingView | null>(null);
   const [takeoff, setTakeoff] = useState<Takeoff | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -110,7 +113,9 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     };
   }, [addMode]);
 
-  const side = <ProjectReviewSide projectId={projectId} drawingId={drawingId} reload={reload} />;
+  const side = (
+    <ProjectReviewSide projectId={projectId} drawingId={drawingId} reload={reload} names={names} />
+  );
   if (loadError !== null)
     return (
       <div className="v-page v-page--wide sv-screen">
@@ -132,6 +137,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       </div>
     );
 
+  const title = drawingLabel({ name: names[drawingId], file: drawing.file }); // the project's file, not the takeoff's
   const rows = takeoff.quantities;
   const keys = new Set(rows.map((r) => r.key));
   const selectedKey =
@@ -217,7 +223,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
         {rows.length === 0 ? (
           <>
             <header className="sv-panel-head">
-              <h2>Takeoff: {drawing.file}</h2>
+              <h2>Takeoff: {title}</h2>
             </header>
             <p>Nothing was counted on this drawing.</p>
             {drawing.reader.extractor === 'hello' && (
@@ -228,7 +234,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
         ) : (
           <>
             <header className="sv-panel-head">
-              <h2>Takeoff: {drawing.file}</h2>
+              <h2>Takeoff: {title}</h2>
               <div className="sv-tools">
                 <a href={takeoffCsvUrl(drawingId, zq)} download>
                   Export CSV
