@@ -538,9 +538,10 @@ elements, which it does not do yet.
 
 ## 14. Round "local": fewer hosted calls, and answers that say when they are unsure (2026-11-14 from 09:42; logs: `fail-1` to `fail-5`, `think-acc.md`, `think-local.md`, `local-dec.md`, `fable-rooms.md`, `integ.md`, `golden.md`, `tables-fix.md`)
 
-**Status of this section: draft, written 2026-11-14 about 12:30.** The round is still running. Three things are not
-filled in yet and are marked `TODO` below: the final config pick, the single test read, and the golden series point.
-Everything else is val numbers from the logs.
+**Status of this section: draft, first written 2026-11-14 about 12:30 and extended the same day with the work after
+12:08 (14.7 to 14.11).** The round is still running. Three things are not filled in yet and are marked `TODO` below: the
+final config pick, the single test read, and the golden series point. Everything else is val numbers from the logs, plus
+golden dev numbers where a log gives them.
 
 The round had two goals. First, find out where the 13.5% of val questions that config C gets wrong come from, and take
 whatever is cheap. Second, replace the hosted calls (Gemini's count swap, its gate score, its photo flag) with local
@@ -643,7 +644,11 @@ answers ask, and the API carries it as `check` on `/api/ask`.
 | `window_panes` (#126), windows | the count as whole windows and as panes, and the places that differ | 37 of 376 sheets clean, 36 of them right (97.3%); on the rest the first five places reach at least one error on 87% of wrong sheets. In-sample: the clean rule was chosen on val |
 | readers at ingest (#127, `DOUBLE_CHECK_READERS`) | stores what extra readers saw, never counted | about 1.6 s wall per page for all three extra readers (0.6 s when the segmentation network already gives the rooms) |
 
-None of the three finders is wired into the API yet, so today a request has a sentence and no places.
+Since this table was written the finders are wired (PR #129, merged): elements are checked against the extra readers
+(`DOUBLE_CHECK_READERS`), windows through `window_panes` with one place per window, rooms through the label rules of
+`room_disputes` only (there is no second room reader at runtime), and a bedroom count that includes a bedroom drawn
+without a printed label always asks. Windows list no per-view boxes at runtime, so a window answer carries its two
+counts (whole windows and panes) in the sentence.
 
 **Which answers ask (D455 and D476, PR #129, open).** Two rules were fitted on C1's val answers with the gate halves
 (each rule picked on one half and scored on the other):
@@ -662,14 +667,16 @@ None of the three finders is wired into the API yet, so today a request has a se
   plan, kitchen and bathroom.
 
 What a person sees on val, over all 12 families (`double-check-demo.md`): 9 answers per plan, 2 ask for a check (median),
-5 places marked (9 or fewer on 90% of plans); 74% of answers are sure, 97.7% of those exact; 84 wrong answers that ask
-are fixed by one click on one listed place. Windows carry most of it: 68% of all marked places are window panes.
+5 places marked (9 or fewer on 90% of plans); 84 wrong answers that ask are fixed by one click on one listed place.
+Windows carry most of it: 68% of all marked places are window panes. The "74% sure, 97.7% exact among sure" figure that
+an earlier version of this paragraph gave came from the cost rule's lambda point and is superseded by the recall rule
+above and by the runtime numbers in 14.8.
 
 Caveats, all stated in the logs: the per-family signal was picked on val by a kill rule (5 points of coverage at equal
 accuracy at 97, 98 or 99%), so these are slightly optimistic; 421 wrong answers is a small sample, and differences of 2
 to 3 points between signals are noise; the recall rule's signals other than Gemini's have no runtime scorer yet, so the
-backend loads the file today and certifies only the plan family on the raster route. **TODO:** the golden v2 version of
-this table (raster golden answers carry only Gemini's score so far) and the test-read recall.
+backend loads the file today and certifies only the plan family on the raster route. The runtime version of this table is
+in 14.8. **TODO(test read):** the test-read recall, flagged share and unflagged exact.
 
 ### 14.4 What we learned
 
@@ -712,7 +719,208 @@ the run's answers exactly (0 of 3,058 differ), a parse check over 104,709 questi
 answers and refused nothing new. Not fixed: one answer that differs from gold by a parenthetical, a width formula, a
 legend drawn as a label, and enlarged-plan symbols that have no reader. Not a series point yet.
 
-### 14.7 Gaps in this section
+### 14.7 Why the window answers are wrong (`window-errors.md`, val and golden dev, no test)
+
+Config C1-T1 gets 208 of 376 val pages right on windows (55.3%) and 32 of 67 golden dev pages (47.8%). The 203 wrong
+pages out of 443 were split box by box: a page's answer boxes and gold boxes are linked where they overlap, and each
+group adds the difference between the two counts. A group is a **convention** error when the side with more boxes is
+a row of boxes end to end, one per box of the other side (a window drawn as panes against a window drawn whole), and a
+**detection** error otherwise.
+
+| class of the wrong page | pages | share |
+| --- | --- | --- |
+| convention only | 71 | 35.0% |
+| detection only (includes pages where the gold itself is off) | 97 | 47.8% |
+| both kinds on the page | 35 | 17.2% |
+
+By unit, over the 720 error units on those pages: missed windows 39%, one box over several gold panes 21%, one gold
+window split into panes 19%, extra boxes 12%, other detection merges and splits 10%. So convention is 40% of the units
+and it goes both ways (merge 151, split 134): the detector learned both readings because the gold has both. Direction:
+135 pages undercount and 68 overcount. A rule that picks the count between our whole and pane counts holds on only 67 of
+the 203 wrong pages, and 16 of those are detection pages by chance.
+
+By eye (random 20 wrong pages): 9 convention, 4 detection, 4 where the gold is off, 3 mixed. Of 20 random extra boxes, 14
+are windows drawn on the page that the gold does not mark (9 of the 20 come from one page, gold 13 against about 31
+drawn); of 20 random missed windows, 6 are glazing on a thin balcony line, 5 are plain clear windows, 3 are not readable
+from the page. Misses by what was drawn:
+
+| missed windows | gold windows | missed |
+| --- | --- | --- |
+| balcony or porch glazing (thin, often coloured line along an edge) | 120 | 52.5% (against 6.2% for all other windows) |
+| diagonal or curved wall | 103 | 42.7% |
+| no line at all (faint gap) | 52 | 21.2% |
+| two thin lines | 392 | 17.1% |
+| one thin line | 223 | 13.5% |
+| three or more lines | 2,274 | 2.7% to 4.3% |
+
+Of the misses, 76% are in outline walls. Thin one-line, two-line and no-line windows together are the largest lever (an
+oracle that fixed them would gain 27 val pages, to 62.5%). The caveat for any detector that finds more windows: about
+half the extra boxes are real windows the gold lacks, so such a detector loses exact counts on those pages. Score it on
+box recall per style, not only on page exact. The gold-slip shares come from 20-page samples and have wide intervals.
+
+### 14.8 The check policy at runtime, and what lowers the share that asks
+
+**The shipped numbers.** The offline D476 table in 14.3 uses signals that were not available at runtime. With the
+runtime gates (`LOCAL_GATES`: `lgate2-rt` for door, plan, sauna and shower+bathtub, `lgate-rt-nol1` for toilet,
+Gemini's score for the rest; small families pooled, D23) on C1-T1's val answers (3,382 answers, 400 wrong), cross-fit at
+96%: **55.1% of answers ask, 96.0% of the wrong ones are among them (384 of 400), and the answers that do not ask are
+98.95% exact** (1,520 certified, 16 of the 400 wrong ones unflagged). In-sample 58.5% ask. Door and window are 655 of the
+1,862 answers that ask, 19.4 of the 55.1 points; sink, shower+bathtub and bedroom add 706 more. A policy file holds only
+for the exact signal it was fitted on, which is why the runtime gates needed their own refit and a parity check (8 models,
+every unit, largest difference 5e-9; the backend score matches the offline fit within 2.3e-4 on 68 val units).
+
+How the share moved while the signals changed (pooled, cross-fit, recall 96%):
+
+| step | C1-T1 flagged / unflagged exact | note |
+| --- | --- | --- |
+| offline signals, each small family fitted alone | 47.9% / 99.09% | C1: 45.2% / 99.14% |
+| plan and sauna (fewer than 10 wrong) pooled over their own signals (D23) | 58.1% / 98.87% | one curve over two signals fits neither |
+| small families pooled by signal | 43.9% / 99.16% | best offline |
+| runtime signals, D23 pooling (shipped) | 55.1% / 98.95% | by-signal pooling is no better at runtime |
+
+**Plan agreement (PR #186).** On the raster route a plan count is certified only if the one-view readers' count agrees
+with Gemini's. On val it changes 3 of 3,382 certified answers, all right ones (1,520 to 1,517 certified, same 384 of 400
+wrong flagged). On three hand-drawn sheets where the plan count was wrong, the local gate alone would have certified one
+(hd13, score 0.990 against 0.971); the agreement rule holds it back.
+
+**Live checks, val and the demo zip, never test.** Five val pages: 55 answers, 29 certified (1 wrong: sauna 1 against 0 on
+colorful-14147, whose val score is above its threshold), 26 ask (2 wrong). Demo zip: 81 answers, 37 certified (0 wrong),
+44 ask (9 wrong). `sure` equals "no check" on all 136, and the certified flag, the sure flag and the absence of a check
+agree on every raster local-gate answer. Ingest with the extra readers takes 6 to 26 s a page depending on load.
+
+**What would lower the share that asks (`flagged-share.md`, 58 overlays opened).** Of the 1,862 answers that ask, 1,478 are
+right. The cases: many flagged windows, sinks and doors are clean prints with every box on a gold mark, flagged because
+the family never gets under the cut (doors with full agreement are still 10% wrong); small shower marks and toilet
+symbols are a few pixels; bedrooms, kitchens and balconies depend on the label rule and the flat code (`3H+K` is N rooms,
+so N-1 bedrooms); some wc and bathroom cases are a convention clash (a toilet in a room the gold calls bathroom). Five
+signals were registered before measuring, with a kill line of at least 3.0 points lower on the gate halves at 384 of 400
+or better, and a median drop of at least 3.0 over 50 random halvings.
+
+| signal | gate halves: flagged (drop, positive = fewer ask) | 50 halvings: median drop | verdict |
+| --- | --- | --- | --- |
+| two sources agree, every family | 65.29% (-10.23) | -0.30 | killed |
+| two sources agree, elements only | 59.34% (-4.29) | +2.25 | killed |
+| room count with a label problem (`room_disputes` lists a place) | 52.99% (+2.07) | +3.80 | killed on the gate halves, 0.93 short; clears the median |
+| same with segmentation rooms and OCR labels | 58.25% (-3.19) | +4.82 | not available at runtime; killed on the gate halves |
+| places the one-view readers dispute | 53.84% (+1.21) | +0.04 | killed |
+| pool families with fewer than 11 wrong, not 10 (golden-25) | 54.08% (+0.98) | -0.15 | not shipped |
+
+Nothing ships under the rule. Another agreement signal will not lower the share at this recall; what moves it is the
+recall target (96 to 95 is about 4 points on the median, 1 on the gate halves), a relabel of the answers where every
+reader agrees and the gold differs, and new evidence for the big families (the eight views' boxes for windows, the flat
+code for bedrooms).
+
+**Golden v2 look of C1-T1** (`--no-record`, not a series point): 2,750 of 2,948 right (93.3%; dev 92.9%, holdout 94.8%).
+With the double-check policy as the backend applied it at the time (only the plan gate wired): dev 2,383 answers, 164
+wrong, 45.7% ask, 162 of 164 wrong ones ask, the rest 99.8% exact; holdout 558 answers, 27 wrong, 29.0% ask, 27 of 27 ask,
+the rest 100% exact. Vector and BIM answers (0 wrong) are certified by route; raster families other than plan wait for the
+runtime gates. **TODO:** the golden table with the runtime gates, and the series point.
+
+**The test read config.** C1-T1 run live on the 376 test pages with the shipping settings (arbiter at runtime, the two
+extra readers, the runtime policy, the dev prior, `ROOM_POLICY=gold-labels`). On val the runtime C1-T1 differs from the
+precomputed splice on 6 of 6,764 answers, all explained, and scores 88.5% (+0.2 [-0.15, +0.57] against shipped C1).
+**TODO(test read):** exact, flagged share, error recall and unflagged exact, per family and pooled, from one read.
+
+### 14.9 Drawing styles: what the detectors miss, and a training arm that was not shippable
+
+**How doors and windows are drawn** (`styles-catalog.md`, train and val; the test split was never read). 33,620 gold
+doors on train and val: 78.5% a quarter arc with a leaf, 7.2% faint or hidden, 2.4% on a diagonal wall, 2.3% an opening
+with a line in it, 2.3% an angled leaf with no arc, 1.9% sliding, 1.9% a bare gap, 1.4% a perpendicular leaf, 0.9% two
+leaves, 0.7% folding. Shipped C1 box recall on val (3,575 doors) is 91.2% overall and depends on the style:
+
+| door style | val doors | box recall [95%] |
+| --- | --- | --- |
+| arc with a leaf | 2,748 | 97.6 [96.8, 98.3] |
+| two leaves | 21 | 95.2 [84.2, 100] |
+| angled leaf, no arc | 90 | 97.8 [93.9, 100] |
+| faint or hidden | 272 | 79.4 [72.2, 85.5] |
+| diagonal wall | 102 | 80.4 [66.7, 95.4] |
+| perpendicular leaf, no arc | 56 | 66.1 [50.0, 79.3] |
+| opening with a line | 113 | 61.9 [45.2, 77.6] |
+| sliding | 69 | 52.2 [37.0, 66.7] |
+| folding | 22 | 40.9 [22.7, 58.3] |
+| bare gap | 60 | 35.0 [17.0, 53.3] |
+| roll-up | 22 | 4.5 [0.0, 13.0] |
+
+Most of the "missed" perpendicular-leaf and opening-with-a-line doors are gold `Door None` (a bare or threshold-lined
+opening), where not boxing is right, so those two rows understate both detectors. Window recall: 87.3% overall; 91.5 to
+92.5% with three or more lines, 75.8% with two, 80.7% with one; a pane of a group 74.5% against 92.4% for a window on its
+own; outline walls 83.2% against 92.8% for solid walls.
+
+**Re-drawing the same pages in other styles** (val, one view and eight views, shipped thresholds, nothing tuned). Doors:
+with the original gold boxes kept, the shipped detector drops on re-drawn styles (a perpendicular leaf 47.4% box recall,
+sliding 58.6%, accordion 41.7%) and wrongly boxes bare gaps as doors on 35.7% of them. Windows on all 376 pages with eight views:
+exact 55.1% clean; one line 35.4% (-19.7 [-25.3, -14.4]), two lines 43.9% (-11.2), two lines with a sill 37.8% (-17.3),
+filled bar 51.3% (-3.7, interval includes 0), whole frame 48.1% (-6.9), three lines 59.8% (+4.8). Voting over eight views
+does not bring thin-line windows back: the detector half-sees them, below the threshold. A control that re-draws the
+windows in CubiCasa's own most common symbol loses nothing measurable (+2.1 [-3.5, +7.7]), so the loss is the style and
+not the re-drawing. A crisp three-line frame helps short windows (71.8% to 79.8% recall).
+
+**Training on the styles (Verda, one A100, about 1 h per arm).** Arm 1 (YOLO26 L on train plus re-drawn copies): clean val
+level (+0.3 pp [-0.5, +1.2], val mAP50-95 0.516 against 0.512), and every door style rises to about 75 to 82% exact, but its
+window count falls 8 to 19 pp on every door-styled set. In its copies a page with re-drawn doors always had thin-line
+windows, so it learned that link and stopped scoring the original window frames there. The mirror case confirms it: on a
+window-styled set with untouched doors its door count is 46.6% against 71.7% shipped. **Arm 1 is not shippable**; arm 2
+had the same coupling and was stopped. Arm 3 (copies built so door and window styles vary independently): clean val -0.5
+pp [-1.4, +0.4] (door 71.0 to 68.5, sink 87.9 to 85.7, every interval includes 0); its per-style and hand-drawn results
+were still running when the log was last updated. **TODO:** arm 3's per-style recall and its decision.
+
+**Hand-drawn sheets** (`handdrawn.md`; 14 sheets: 9 pencil, ink or wash drawings of 1781 to 1922, a pencil bedroom on grid
+paper, a marker overlay on a photographed print, 2 tablet-ink sketches, an inked print scan). The gold is a hand count in
+ranges by one model pass, then reconciled against a second blind count by another pass (9 cells changed, each settled by
+looking at the image); both are the same model family, so a person should count them before any number is quoted. The
+demo config answers in the range on 22 of 48 non-zero answers: doors 0 of 10 (gaps, words, V lines and ink arcs are
+mostly invisible to it), windows 4 of 10 (found on clean thin double-line drawings; none on pencil photographs), bedrooms 4
+of 6, kitchens 6 of 7, wc rooms 2 of 4, toilets 1 of 4, sinks 2 of 3. Plans on the page were sure and wrong on 3 of 14
+(a house and studio counted as 2, a page with two floors counted as 1, a second floor counted as 0). Every door, window,
+bedroom, kitchen and wc count asked for a check, including the right ones. Do not quote a hand-drawn accuracy number:
+14 sheets, mostly historical houses, no bathroom or sauna sketch in the set.
+
+### 14.10 Triage of uploaded files: classifier, describer, answer key (`triage-*.md`, `describe-50-blind.md`)
+
+For the archive files that are not floor plans or hide a small plan, three questions were worked in parallel.
+
+**Is there a floor plan?** Heads on image embeddings (siglip2, dinov2, so400m; one A100 for about 25 min, about 0.35
+EUR) with a plan threshold set on a slice of the training rows, never on a test set. The shipped gate is a local head OR
+Gemini's sheet reading. Plan recall on the 374-file preview is 159 of 160 (99.4%); val 376 of 376, 30 of 30 phone photos,
+14 of 14 hand-drawn. No local arm alone passes the 99% bar at its own threshold. The four plans that the checked answer
+key counts and the gate misses are all small plans on large sheets (a one-room smokehouse and a one-room mill beside
+elevations, a four-room homestead house inside a site plan, a mill basement among site sections).
+
+**Can tiles find them?** Pre-registered: tiles of a 1024 px copy OR'ed into the gate had to find 73 of the 74 checked-200
+plans. It found 71 (all six arms landed on the same 71) and was killed. Windows cut from the 3000 px originals
+(115 per page) found 72 of 74 for the pre-registered head (killed, the bar was 73) and 73 of 74 at 66.4% not-plan recall
+for the other head, which cannot change the verdict. Resolution was the cause for three of the four sheets: the page head
+scores the window that holds the plan at 0.95, 0.91 and 0.84 on originals against 0.41, 0.61 (wrong tile) and 0.17 on
+the 1024 px tiles. The fourth (a 113 by 133 px house) stays missed on every arm. Not shippable on CPU (66 s a page), though
+on a GPU it is 0.19 s a page. Cost 0.44 EUR, box deleted.
+
+**Is the answer key right?** A hand check of 200 preview key rows (`triage-keycheck.md`): 31 had at least one wrong field.
+The errors lean one way: the key under-counts floor plans (10 marked false that are plans, 1 the other way), photos of
+sheets (9) and scale shown (10). Another 92 fields are borderline, 35 of them quality, which the labelling prompt never
+defines. Rescored on the checked key the shipped gate's plan numbers are unchanged (70 of 74 on checked-200, 159 of 160
+on the preview), so the gate result stands; register field scores shift by 0.1 to 0.4 pp from one row.
+
+**What is it, in words (describer).** Gemini reads each non-plan sheet into a form and a long text. Cost of the shipped
+prompt: 8.0 USD per 1,000 images (8.5 for describe-5); the track spent 2.88 of its 3 USD. Counted blind on 50 images
+(`describe-50-blind.md`): describe-4 had 43 right, 7 minor errors and 0 wrong; describe-5 had 44, 6 and 0, and was shipped
+(PR #193). Five of the seven describe-4 errors are a number (six clusters where five are drawn, ten bays where thirteen
+are, a sheet count): do not trust counts of repeated elements, or handwritten dates, from the long text. It copied
+street addresses from two sheets, and a no-personal-data rule and a contact-redaction step were added.
+
+### 14.11 What 14.7 to 14.10 change in the story
+
+- The double-check costs more than the offline table said: at the runtime signals 55% of answers ask, not 45%, for the
+  same 96% of errors caught. No cheap signal we tried lowers it.
+- Windows and doors are where the product is weakest and where the checks concentrate, and the reasons are specific:
+  gold conventions (35 to 40% of window errors), thin and glazed drawings the detectors half-see, and door styles with no
+  arc. A training arm that fixed door styles broke the window count by learning a link between the two; the lesson is to
+  vary the styles independently.
+- Hand-drawn sheets are outside what the product reads today: doors are mostly invisible and the gate asks on nearly
+  every count, which is the right behaviour, but plan counts can be sure and wrong.
+- The triage track is about 0.8 EUR of GPU and 2.9 USD of Gemini for a classifier, a describer and a check of the key.
+
+### 14.12 Gaps in this section
 
 - Every val number is from precomputed arms or the backend runtime on the same 376 pages the rules were chosen on, and
   is optimistic by the size of the choice (about 0.4 pp for C1). The single test read is the real number (TODO above).
@@ -720,7 +928,13 @@ legend drawn as a label, and enlarged-plan symbols that have no reader. Not a se
   or all val.
 - Missing intervals: the gate-score rows are AUROCs without intervals; the D455 and D476 tables are single draws of the
   halves; the window finder's 97.3% is 36 of 37 sheets.
-- The finders and the check policy are not wired into the running product; the numbers describe the functions on val.
+- The finders, the check policy and the runtime gates are wired (PR #129), but every number above is val or golden dev;
+  the test read is the only one that is not tuned on the data it reports.
+- The runtime policy thresholds are a fit on val halves or all val (3,382 answers, 400 wrong), and one decision in it
+  (pooling families with fewer than 10 wrong) was chosen by looking at val. Small families (plan 4 wrong, sauna 3) rest on
+  a handful of errors.
+- The hand-drawn gold and its reconciliation come from one model family; no person has counted those sheets.
+- The window-error shares are from small hand samples (20 pages, 20 extra boxes, 20 missed windows).
 
 ---
 
