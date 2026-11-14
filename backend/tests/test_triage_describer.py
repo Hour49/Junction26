@@ -7,6 +7,7 @@ import io
 import json
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +46,16 @@ USD = (1092 * 1.50 + 600 * 9.00) / 1e6
 NOT_DRAWING = Classified.model_validate(
     {"class": "not_drawing", "p_plan": 0.03, "method": "fake classifier"}
 )
+
+
+@pytest.fixture(autouse=True)
+def _cost_put_back() -> Iterator[None]:
+    """The describer charges this thread's running cost total, which nothing resets; it is put
+    back after each test, since a later test on the thread may compare a cost exactly
+    (tests/ingest/test_ingest_triage.py's 0.003 failed as 0.003000000000000001 after this file)."""
+    before = cost.spent()
+    yield
+    cost._local.usd = before  # pyright: ignore[reportPrivateUsage]
 
 
 def png(width: int = 64, height: int = 48, colour: str = "white") -> bytes:
