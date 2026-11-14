@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drawing, error, project, takeoff, trace } from '../api/fixtures';
 import type { FileTrace, ProjectView } from '../api';
+import { formatSize } from '../ingest/ingest';
 import { flush, variants, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from './AdvancedIngest';
@@ -380,6 +381,7 @@ describe('AdvancedIngest', () => {
       ...must(takeoff.quantities[0]),
       key: `k${String(i)}`,
       status: 'agree' as const,
+      conflict: null, // an agreeing row has no conflict
     });
     const long = {
       ...takeoff,
@@ -407,6 +409,42 @@ describe('AdvancedIngest', () => {
     await show();
     await pick(/^Cross-check/);
     expect(stat('Measured twice').textContent).not.toContain('–');
+  });
+
+  it('AV-34 Cross-check: Conflicts counts Takeoff.disputes, not every conflict row', async () => {
+    const real = must(takeoff.quantities.find((r) => r.status === 'conflict'));
+    const twin = { ...real, key: 'area:room|name=Küche' };
+    const over: Record<string, unknown> = {};
+    for (const d of project.drawings)
+      over[`GET /api/drawings/${d.drawing_id}/takeoff`] = {
+        ...takeoff,
+        drawing_id: d.drawing_id,
+        quantities: [...takeoff.quantities, twin],
+        disputes: [real.key],
+      };
+    await show(project, over);
+    await pick(/^Cross-check/);
+    expect(stat('Conflicts').textContent).toBe(`Conflicts${String(project.drawings.length)}`);
+  });
+
+  it('AV-32 a queued project with no files: no "0 / 0", no "0 files, 0 B"', async () => {
+    await show({ ...variants.queued, files: [] });
+    await pick(/^Unpack/);
+    expect(stat('Files opened').textContent).toBe('Files opened–');
+    expect(document.body.textContent).not.toMatch(/0 files|0 \/ 0/);
+  });
+
+  it('AV-33 lanes and the Unpack headline in words: no reader ids, no hash', async () => {
+    await show();
+    await pick(/^Route/);
+    const lanes = [...document.querySelectorAll('.adv-lane')].map((l) => l.textContent).join(' ');
+    expect(lanes).not.toMatch(/\b(bim|cad|vector|raster):/);
+    expect(lanes).toContain('drawn PDF route: PDF vector reader');
+    await pick(/^Unpack/);
+    const last = must(project.files.at(-1));
+    expect(must(document.querySelector('.adv-live')).textContent).toBe(
+      `${last.path}: ${formatSize(last.size)}`,
+    );
   });
 
   it('AV-20 Index: questions ready per drawing, the suggestions, and Ask this drawing', async () => {
