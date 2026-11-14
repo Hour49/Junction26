@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     # The region arm (app/adapters/raster_region/, source `region:<detector arm>`), built only when
     # RASTER_COMPONENTS names it: the annotated-flat segmenter's folder ("" reads the whole page)
     region_model_dir: str = "../data/models/region/R1-unet34"
+    # The local count arbiter T1 (app/adapters/count_arbiter/, source `arbiter-t1:<arm>`), built
+    # only when RASTER_COMPONENTS names it: its model, prior and L1 page-count model
+    arbiter_model_dir: Path = Path("../data/models/arbiter/T1")
     second_counter: SecondCounterName = "ifc"
     question_parser: QuestionParserName = "templates"
     answer_prior: AnswerPriorName = "none"
