@@ -10,6 +10,7 @@
   const S = { p: null, signer: '' };
   const app = document.getElementById('app');
 
+  const many = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const hhmm = (ms) => new Date(ms).toTimeString().slice(0, 5);
   const ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
@@ -30,7 +31,7 @@
     if (!p || p.doneLogged || !progress().done) return;
     p.doneLogged = true;
     const at = p.started + TOTAL * 1000, aside = V.FILES.filter((f) => !f.drawing).length;
-    log(at, 'run', 'Analysis done', `${V.DRAWINGS.length} drawings ready, ${aside} files set aside, ${V.CONFLICTS.length} conflicts found`);
+    log(at, 'run', 'Analysis done', `${many(V.DRAWINGS.length, 'drawing')} ready, ${many(aside, 'file')} set aside, ${many(V.CONFLICTS.length, 'conflict')} found`);
     for (const c of V.CONFLICTS) {
       if (c.ai !== null) log(at, 'cf', `Conflict settled by the AI: ${c.title}`, `AI decision approved · ${V.variantLabels(c)[c.ai]}`);
       else log(at, 'cf', `Conflict waiting for you: ${c.title}`, 'The rules could not decide');
@@ -38,7 +39,7 @@
   }
 
   const elapsed = () => (S.p ? (Date.now() - S.p.started) / 1000 : 0);
-  const progress = () => V.progress(elapsed());
+  const progress = () => V.progress(elapsed(), V.FILES, V.DRAWINGS.length);
 
   // The reading of each conflict now: the AI's while approved, the person's pick, else unsettled (null).
   function picks() {
@@ -60,7 +61,7 @@
   }
 
   function header(r) {
-    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['chat', 'Chat', '#/chat'], ['ask', 'Engineer', '#/ask']];
+    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['chat', 'Chat', '#/chat']];
     const cur = r.name === 'advanced' ? 'ingest' : r.name;
     const nav = S.p && r.name !== 'home' && r.name !== 'workspaces'
       ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => (k === cur
@@ -80,7 +81,9 @@
     slots = {};
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, conflicts: conflictsScreen,
       chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen }[r.name](r);
-    app.innerHTML = header(r) + screen + '<p class="foot">Clickable demo · synthetic data drawn in the browser, no backend, nothing read from a real file.</p>';
+    app.innerHTML = header(r) + screen + (V.CREDIT
+      ? `<p class="foot">Stoa mode, local only: a real drawing and its answer key from the Stoa dataset; the reading steps are illustrated. From the Stoa dataset's LICENSE.md: “${esc(V.CREDIT)}”</p>`
+      : '<p class="foot">Clickable demo · synthetic data drawn in the browser, no backend, nothing read from a real file.</p>');
     fill();
   }
   function fill() {
@@ -132,7 +135,7 @@
     const pr = progress();
     if (!pr.done) return '';
     const open = V.CONFLICTS.filter((c) => S.p.conflicts[c.id].mode === 'open').length;
-    return `<div class="done-row"><span>${V.DRAWINGS.length} drawings ready. ${V.CONFLICTS.length} conflicts found${open ? `, ${open} needs you` : ''}.</span>
+    return `<div class="done-row"><span>${many(V.DRAWINGS.length, 'drawing')} ready. ${many(V.CONFLICTS.length, 'conflict')} found${open ? `, ${open} needs you` : ''}.</span>
       <a class="btn btn-primary press" href="#/conflicts">Settle the conflicts</a></div>`;
   }
 
@@ -176,6 +179,7 @@
   const DRAWING_FILES = V.FILES.filter((f) => f.drawing);
   const WHY = { DXF: 'read exactly from its layers and blocks.', DWG: 'converted to DXF once, then read exactly from its layers and blocks.',
     'IFC model': 'a BIM model: every door and window is already a typed object.', 'Vector PDF': 'vector lines inside the PDF, so measurements stay exact.',
+    'PNG rendering': 'a raster rendering of the floor, so it is read from the image.',
     'PNG scan': 'a scan has no CAD layers, so rooms and openings are read from the image.', 'JPG scan': 'a scan has no CAD layers, so rooms and openings are read from the image.',
     'JPG photo': 'a phone photo at low resolution: rooms are readable, openings less sure.' };
 
@@ -247,13 +251,15 @@
   }
 
   function extractPanel() {
-    const d = V.drawing('ground-floor'), rooms = V.rooms(d);
-    const doors = V.valueOf(V.marksFor(d, 'door', {}), 'door'), windows = V.valueOf(V.marksFor(d, 'window', {}), 'window');
+    const { drawing: d, rooms, doors, windows } = V.extractFacts();
     slots.say = () => sayLine(['Finding rooms: closed loops of wall with a label inside.', 'Reading the labels inside each room.',
       'Finding doors: a gap in a wall with a leaf and a swing arc.', 'Finding windows: thin double lines set into outside walls.',
       'Measuring: the scale in the title block turns pixels into metres.']);
-    slots.log = () => logLines(rooms.map((r) => `room  ${r.label} ${r.area.toFixed(1)} m²`).concat([`door  ${doors} found`, `window ${windows} found`]));
+    slots.log = () => logLines(rooms.map((r) => `room  ${r.label}${r.area === undefined ? '' : ` ${r.area.toFixed(1)} m²`}`).concat([`door  ${doors} found`, `window ${windows} found`]));
     slots.stats = () => stat('Rooms', rooms.length) + stat('Doors', doors) + stat('Windows', windows) + stat('Drawings ready', `${progress().ready} / ${V.DRAWINGS.length}`);
+    if (d.image) {
+      return { fig: `<div class="fig" style="position:relative">${P.plain(d, 'scan', `${d.name}, being read`)}<div class="sweep" aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:40px;background:linear-gradient(rgba(61,90,79,0),rgba(61,90,79,0.3));border-bottom:2px solid #3d5a4f"></div></div><p class="small mono" style="margin-top:10px">${esc(d.name)}</p>` };
+    }
     const [vx, vy, vw] = V.layoutOf(d).view;
     const finds = rooms.map((r, i) => `<g class="find-g" style="animation-delay:${(i * 0.45).toFixed(2)}s"><rect x="${r.x + 5}" y="${r.y + 5}" width="${r.w - 10}" height="${r.h - 10}" rx="6" fill="rgba(61,90,79,0.12)" stroke="#3d5a4f" stroke-width="2.5"/><rect x="${r.x + 11}" y="${r.y + 11}" width="${r.label.length * 7 + 16}" height="20" rx="10" fill="#3d5a4f"/><text x="${r.x + 19}" y="${r.y + 25}" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#fff">${esc(r.label)}</text></g>`).join('');
     const plan = P.plain(d, 'scan', `${d.name}, rooms being found`).replace('</svg>', `${finds}<g class="sweep"><rect x="${vx}" y="${vy}" width="${vw}" height="40" fill="rgba(61,90,79,0.18)"/><rect x="${vx}" y="${vy + 39}" width="${vw}" height="2" fill="#3d5a4f"/></g></svg>`);
@@ -267,6 +273,13 @@
     slots.say = () => sayLine(say);
     slots.log = () => logLines(pairs.map((q) => `check ${q.drawing} ${q.quantity}s ${q.a}/${q.b} ${q.agree ? 'ok' : 'CONFLICT'}`));
     const FAM = ['Doors per drawing', 'Windows per drawing', 'Rooms per drawing', 'Net floor area', 'Marks on every answer', 'Second count per answer'];
+    if (!pairs.length) {
+      slots.say = () => sayLine(['Each value is checked by a second, independent reading where one exists.', 'This drawing has no second reading here, so nothing is cross-checked.']);
+      slots.log = () => '<li>check  no second reading</li>';
+      slots.fig = () => `<div class="ready"><strong style="font-size:15px">Answers ready before you ask</strong><ul>${FAM.map((n) => `<li class="on"><i aria-hidden="true"></i>${n}</li>`).join('')}</ul></div>`;
+      slots.stats = () => stat('Elapsed', secs()) + stat('Counts checked', 0) + stat('Agree', 0) + stat('Conflicts', V.CONFLICTS.length);
+      return { fig: '<div data-slot="fig"></div>' };
+    }
     slots.fig = () => {
       const q = cycle(pairs), on = Math.min(FAM.length, 2 + (k() % (FAM.length + 2)));
       return `<div class="pair"><div class="pair-box"><span class="small">First reading</span><b class="live">${q.a}</b><span style="font-size:13px;color:var(--v-text-2)">${q.quantity}s</span></div>
@@ -319,14 +332,14 @@
     const summary = [[count('ai'), 'settled by the AI'], [count('own'), 'settled by you'], [needs, needs === 1 ? 'needs you' : 'need you']]
       .filter(([n]) => n).map(([n, t]) => `${n} ${t}.`).join(' ');
     return `<main class="w820"><div class="title-row"><div>
-        <span class="kicker ok">${esc(V.ARCHIVE)} · ${V.DRAWINGS.length} drawings ready</span>
-        <h1>${V.CONFLICTS.length} conflicts found</h1><p class="muted" style="margin:0">${summary}</p></div>
-        <div class="chat-cta">${locked
-          ? '<button class="btn press" disabled aria-describedby="chat-why">Start a new chat</button><span id="chat-why" class="small">Settle the conflicts that need you first.</span>'
-          : `<a class="btn btn-primary press" href="#/chat" aria-describedby="chat-why">Start a new chat</a><span id="chat-why" class="small">Ask anything about the ${V.DRAWINGS.length} drawings in this project</span><a class="small" href="#/ask">Open the workspace</a>`}</div></div>
-      <div style="display:flex;align-items:center;gap:12px"><div class="segs" aria-hidden="true">${V.CONFLICTS.map((_, i) => `<span class="${i < settled ? 'on' : ''}"></span>`).join('')}</div>
-        <span style="font-size:13px;font-weight:500;color:var(--v-text-2)" role="status">${settled} of ${V.CONFLICTS.length} settled</span></div>
-      ${cards}</main>`;
+        <span class="kicker ok">${esc(V.ARCHIVE)} · ${many(V.DRAWINGS.length, 'drawing')} ready</span>
+        <h1>${V.CONFLICTS.length ? `${V.CONFLICTS.length} conflicts found` : 'No conflicts found'}</h1><p class="muted" style="margin:0">${summary || 'Nothing to settle: no drawing was read twice with different values.'}</p></div></div>
+      ${V.CONFLICTS.length ? `<div style="display:flex;align-items:center;gap:12px"><div class="segs" aria-hidden="true">${V.CONFLICTS.map((_, i) => `<span class="${i < settled ? 'on' : ''}"></span>`).join('')}</div>
+        <span style="font-size:13px;font-weight:500;color:var(--v-text-2)" role="status">${settled} of ${V.CONFLICTS.length} settled</span></div>` : ''}
+      ${cards}
+      <div class="chat-cta">${locked
+        ? '<button class="btn press" disabled aria-describedby="chat-why">Start a new chat</button><span id="chat-why" class="small">Settle the conflicts that need you first.</span>'
+        : '<a class="btn btn-primary press" href="#/chat">Start a new chat</a><a class="small" href="#/ask">Open the workspace</a>'}</div></main>`;
   }
 
   // ---------- 5 workspaces ----------
@@ -348,7 +361,7 @@
       <div class="acc-wrap"><section class="ws-list" aria-label="Workspaces">
           <div class="ws"><span class="ws-top"><span class="mono" style="font-size:13px;font-weight:600">${esc(V.ARCHIVE)}</span>
             <span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${pill[1]}">${pill[0]}</span>${pr.done && open ? `<span class="pill warn">${open} conflict open</span>` : ''}</span></span>
-            <span class="small">Archive · ${V.FILES.length} files · ${V.DRAWINGS.length} drawings</span><span class="small">Today, ${hhmm(p.started)}</span></div>
+            <span class="small">Archive · ${many(V.FILES.length, 'file')} · ${many(V.DRAWINGS.length, 'drawing')}</span><span class="small">Today, ${hhmm(p.started)}</span></div>
         </section>
         <section class="card hist" aria-label="History"><div class="hist-head"><div style="display:flex;flex-direction:column;gap:4px;min-width:0">
             <span style="font-size:12px;font-weight:500;color:var(--v-muted)">Archive · created today, ${hhmm(p.started)}</span><h2>${esc(V.ARCHIVE)}</h2></div>
