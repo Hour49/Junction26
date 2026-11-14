@@ -43,10 +43,17 @@ METHODS = {
     "schedule": "the schedule",
     "printed_label": "the printed room areas",
     "polygon_x_scale": "the room outlines at the sheet's scale",
+    "printed_total": "the total printed on the sheet",
 }
 
 COUNTS: frozenset[ConflictQuantity] = frozenset({"room_count", "element_count", "storey_count"})
 TOLERANCE = 0.02  # relative, for everything that is not a count (the dataset's 2% rule)
+# relative, for a printed scale against the one estimated from the doors (`detector`), which is
+# about 16% off with few doors: within it the two agree (app/core/pipeline/printed.py)
+ESTIMATE_TOLERANCE = 0.10
+# a printed scale more than this many times the estimate (or less than its inverse) is a misread
+# on one side, not the estimate's error: no rule decides it, a person does
+ESTIMATE_RANGE = 2.0
 AGREE = "both methods agree"
 
 
@@ -65,6 +72,12 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
     ("scale", frozenset({"scale_text", "scale_bar"})): Rule(
         "scale_bar", "the measured scale bar over the scale text"
     ),
+    ("scale", frozenset({"scale_bar", "detector"})): Rule(
+        "scale_bar", "the printed scale bar over the scale estimated from the doors"
+    ),
+    ("scale", frozenset({"scale_text", "detector"})): Rule(
+        "scale_text", "the printed scale over the scale estimated from the doors"
+    ),
     ("element_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
         "plan_drawing", "count what the sheet draws"
     ),
@@ -72,6 +85,17 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
         "ifc_model", "keep the spaces of the sheet's storey"
     ),
 }
+
+
+def mm_per_px(m_per_unit: float) -> str:
+    """A raster scale in words a user reads: "1 px = 8.5 mm"."""
+    return f"1 px = {m_per_unit * 1000:.3g} mm"
+
+
+def far_apart(a: float, b: float) -> bool:
+    """Whether two scales are more than ESTIMATE_RANGE times apart (either way)."""
+    low, high = sorted((a, b))
+    return low <= 0 or high / low > ESTIMATE_RANGE
 
 
 def differ(a: float, b: float, tolerance: float) -> bool:
@@ -165,6 +189,8 @@ def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) ->
         if len(values) < 2:
             continue
         tolerance = 0.0 if quantity in COUNTS else TOLERANCE
+        if quantity == "scale" and any(value.method == "detector" for value in values):
+            tolerance = ESTIMATE_TOLERANCE
         numbers = [value.value for value in values]
         apart = differ(min(numbers), max(numbers), tolerance)
         entries.append(
@@ -187,6 +213,10 @@ def _resolution(
     """The value to report: the preferred method's when a rule names one, else the first value
     when they agree, else nothing."""
     rule = RULES.get((quantity, frozenset(value.method for value in values)))
+    if quantity == "scale" and any(value.method == "detector" for value in values):
+        numbers = [value.value for value in values]
+        if far_apart(min(numbers), max(numbers)) and (rule is None or rule.prefer != "scale_bar"):
+            rule = None  # a measured bar keeps its rule (printed.py); a ratio does not
     if rule is None:
         return None if apart else Resolution(rule=AGREE, value=values[0].value)
     preferred = next(value.value for value in values if value.method == rule.prefer)

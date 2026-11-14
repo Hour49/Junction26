@@ -79,6 +79,15 @@ class Sheet(Frozen):
     pages: tuple[Page, ...]
 
 
+class Measurement(Frozen):
+    """Stage 8: one quantity as one method measured it. Two of the same quantity and subject,
+    from different methods, become a `Conflict` entry of the drawing model."""
+
+    quantity: ConflictQuantity
+    subject: Subject
+    value: MeasuredValue
+
+
 class Extracted(Frozen):
     """Stage 7: what an extractor read, placed on the sheet as page fractions. `method` is how it
     reads, as a conflict names it (`parser`, `detector`, `ifc_model`...)."""
@@ -96,16 +105,10 @@ class Extracted(Frozen):
     double_check: dict[str, ReaderView] | None = None
     # what the local count arbiter read, by count family, never counted; None: it did not run
     count_arbiter: dict[str, ArbiterReading] | None = None
+    # What the sheet prints about this reading (its scale, its printed counts), measured against
+    # it at stage 8 next to the second counter's values (app/core/pipeline/printed.py)
+    printed: tuple[Measurement, ...] = ()
     notes: tuple[str, ...] = ()
-
-
-class Measurement(Frozen):
-    """Stage 8: one quantity as one method measured it. Two of the same quantity and subject,
-    from different methods, become a `Conflict` entry of the drawing model."""
-
-    quantity: ConflictQuantity
-    subject: Subject
-    value: MeasuredValue
 
 
 class CountingRule(Frozen):
