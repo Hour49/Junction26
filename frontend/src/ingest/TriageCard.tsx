@@ -12,7 +12,8 @@ import {
   callLine,
   canCall,
   canReadAsPlan,
-  notPlanLine,
+  classLine,
+  looksLike,
   planChance,
   readError,
   readLine,
@@ -48,7 +49,16 @@ export function TriageCard(props: {
   const [failed, setFailed] = useState<string | null>(null);
   const [noPreview, setNoPreview] = useState(false);
   const t = file.triage;
-  if (!t || t.class === 'floor_plan') return null;
+  if (!t || (t.class === 'floor_plan' && !looksLike(t))) return null;
+  if (t.class === 'floor_plan')
+    return (
+      <section aria-label="Is it a floor plan?" className="v-card ingest-triage">
+        <h2 className="v-h3">{classLine(t)}</h2>
+        <p className="output">
+          Chance of a floor plan {planChance(t.p_plan)} ({t.method})
+        </p>
+      </section>
+    );
 
   const send = async (
     busy: string,
@@ -97,7 +107,7 @@ export function TriageCard(props: {
         </>
       ) : (
         <>
-          <h2 className="v-h3">{notPlanLine(t)}</h2>
+          <h2 className="v-h3">{classLine(t)}</h2>
           <p className="output">
             Chance of a floor plan {planChance(t.p_plan)} ({t.method})
           </p>

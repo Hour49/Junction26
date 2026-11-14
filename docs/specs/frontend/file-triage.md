@@ -291,6 +291,13 @@ Criteria:
   <sheet_number>)" in the trace card heading and in its Documents file row (`rowLine`), e.g. "Not a floor plan: an
   elevation (South elevation, A-201)"; only the title → "(South elevation)"; only the number → "(A-201)"; neither →
   no parentheses; no subject after it. No sheet, or `doubt` / `read` → the class words as today. [unit + component]
+- FT-25: A sheet the model doubts (`triage.sheet.decision` `doubt`, the demo's warn-only mode) whose `kind` is not a
+  plan kind (backend `SHEET_PLAN_KINDS`: `architectural_floor_plan`, `multi_view_sheet`) adds "Looks like:
+  <kind_words>" right after the class words, on the trace card heading and the Documents file row. Such a file is
+  read, so its class is usually `floor_plan`: it then gets a small card (heading "A floor plan · Looks like: an
+  elevation", the chance line, no calls, no read button) and a row line "A floor plan · Looks like: an elevation";
+  a non-plan reads "Not a floor plan: another kind of drawing · Looks like: an elevation" (subject after it). A doubt
+  with a plan kind, `read`, no sheet: unchanged (no card for a plan); `set_aside`: FT-24 unchanged. [unit + component]
 
 ## Out of scope
 
