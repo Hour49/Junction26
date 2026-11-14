@@ -1,0 +1,2867 @@
+{
+  "id": "fi-1010-2017",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "1010/2017",
+  "title": "Ympäristöministeriön asetus uuden rakennuksen energiatehokkuudesta",
+  "title_en": "Ministry of the Environment Decree on the energy performance of new buildings",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1010",
+  "language": "fi",
+  "in_force": "2018-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force on 2026-11-14. Kept in force by the entry-into-force provision of the Building Act 752/2023 until replaced. Decree 868/2026 on the energy performance of new zero-emission buildings (in force 2027-01-01) is not included yet. Formulas are kept in the source's LaTeX notation.",
+  "clauses": [
+    {
+      "id": "fi-1010-2017-1-1",
+      "ref": "1 §",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Tämä asetus koskee sisäilmaston ylläpitämiseen energiaa käyttävän, katetusta seinällisestä rakenteesta koostuvan uuden rakennuksen suunnittelua ja rakentamista. Asetus koskee myös rakennuksen laajennusta ja kerrosalaan laskettavan tilan lisäämistä. Asetus koskee kerrosalaltaan alle 50 neliömetrin kokoisen rakennuksen laajennusta vain siltä osin kuin rakennus laajennuksineen ylittää 50 neliömetriä.",
+      "text_en": "This decree applies to the design and construction of a new building consisting of a roofed structure with walls, which uses energy to maintain the indoor climate. The decree also applies to extensions of a building and to adding space that counts toward floor area. The decree applies to the extension of a building with a floor area under 50 m2 only insofar as the building including the extension exceeds 50 m2.",
+      "summary_en": "The decree covers the design and construction of new energy-using buildings and extensions, with the 50 m2 threshold applying to extensions of small buildings.",
+      "keywords": [
+        "scope",
+        "new building",
+        "uusi rakennus",
+        "extension",
+        "laajennus",
+        "kerrosala",
+        "soveltamisala",
+        "50 m2"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "building floor area threshold for extension rule",
+          "comparison": "<",
+          "value": 50,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-2-1",
+      "ref": "2 §",
+      "heading": "Määritelmät",
+      "heading_en": "Definitions",
+      "text": "Tässä asetuksessa tarkoitetaan:\n1) ilmanvaihdon lämmityksen tarvitsemalla lämpömäärällä sitä lämpömäärää, joka tarvitaan ilmanvaihdon ilmavirran lämmittämiseksi ulkoilman lämpötilasta huonelämpötilaan;\n2) ilmanvaihdon lämmitysenergian nettotarpeella lämmitysenergian tarvetta, joka muodostuu ilman lämmittämisestä lämmöntalteenoton jälkeen tuloilman lämpötilaan ja mahdollisesta lämmittämisestä ennen lämmöntalteenottoa;\n3) ilmanvaihdon poistoilman lämmöntalteenoton vuosihyötysuhteella lämmöntalteenottolaitteistolla talteenotettavan ja hyödynnettävän lämpömäärän suhdetta ilmanvaihdon lämmityksen tarvitsemaan lämpömäärään vuodessa, kun lämmöntalteenottoa ei ole;\n4) ilmanvaihtojärjestelmän ominaissähköteholla (kW/(m³ /s)) rakennuksen koko ilmanvaihtojärjestelmän kaikkien puhaltimien ja niihin liittyvien taajuusmuuttajien ja muiden tehonsäätölaitteiden yhteenlaskettua sähköverkosta ottamaa sähkötehoa jaettuna ilmanvaihtojärjestelmän suunnitellun käyttöajan ulospuhallusilmavirralla tai ulkoilmavirralla sen mukaisesti kumpi näistä on suurempi;\n5) ilmanvaihtojärjestelmän sähköenergiankulutuksella puhaltimien ja mahdollisten apulaitteiden sähkönkulutusta;\n6) ilmanvuotoluvulla q 50 (m³ /(h m²)) rakennuksen vaipan keskimääräistä vuotoilmavirtaa tunnissa 50 Pa:n paine-erolla rakennuksen kokonaissisämittojen mukaan laskettua rakennuksen vaipan pinta-alaa kohden;\n7) jäähdytettävällä kylmällä tilalla sellaista tilaa, jossa jäähdytys- ja mahdollisen lämmitysjärjestelmän avulla ympärivuotisesti ylläpidetään käyttötarkoituksen mukaista alle 17 celsiusastetta lämpötilaa;\n8) jäähdytysjärjestelmän energiankulutuksella jäähdytysenergian tuoton energiankulutusta ja apulaitteiden sähkönkulututusta;\n9) kaukolämmöllä jakeluverkon kautta asiakkaana olevalle kiinteistölle toimitettua lämpöä;\n10) kylmäsillalla rakenteiden lujuus- tai liitossyistä johtuvaa rakennusosan pienen osan lämmönläpäisykertoimen heikentymistä;\n11) lämmitetyllä nettoalalla A netto (m²) lämmitettyjen kerrostasoalojen summaa kerrostasoja ympäröivien ulkoseinien sisäpintojen mukaan laskettuna;\n12) lämmittämättömällä tilalla sellaista tilaa, jota ei ole tarkoitettu lämmityskaudella jatkuvaan oleskeluun ja jota ei suunnitella lämmitettäväksi;\n13) lämmitysenergian nettotarpeella rakennuksen tilojen, ilmanvaihdon ja lämpimän käyttöveden lämmitysenergioiden yhteenlaskettua nettotarvetta;\n14) lämmitysjärjestelmän energiankulutuksella tilojen, ilmanvaihdon ja lämpimän käyttöveden lämmityksen energiankulutusta;\n15) lämmönläpäisykertoimella lämpövirran tiheyttä, joka jatkuvuustilassa läpäisee rakennusosan, kun lämpötilaero rakennusosan eri puolilla olevien ilmatilojen välillä on yksikön suuruinen, ja jonka tunnuksena käytetään U:ta ja yksikkönä W/(m² K);\n16) lämpimällä tilalla sellaista rakennuksen tilaa, jonka huonelämpötila on +17 celsiusastetta tai korkeampi;\n17) lämpimän käyttöveden lämmitysenergian nettotarpeella lämmitysenergian tarvetta, joka kuluu lämpimän käyttöveden lämmittämiseen kylmän veden lämpötilasta lämpimän veden lämpötilaan;\n18) massiivipuurakennuksella rakennusta, jossa ulkoseinien pääasiallinen rakennusmateriaali on massiivipuurakenne, jonka keskimääräinen rakennepaksuus on vähintään 180 mm;\n19) puolilämpimällä tilalla sellaista tilaa, joka ei ole tarkoitettu jatkuvaan oleskeluun pelkästään normaalia sisävaatetusta käyttäen ja jonka lämpötila lämmityskaudella on keskimäärin vähintään +5 celsiusastetta mutta alle +17 celsiusastetta;\n20) rakennuksen laskennallisella ostoenergiankulutuksella rakennuksen vakioituun käyttöön perustuvaa energiankulutusta, joka lasketaan hankittavaksi rakennukseen sähkönjakeluverkosta, kaukolämpöverkosta, kaukojäähdytysverkosta tai uusiutuvan tai fossiilisen polttoaineen sisältämänä energiana;\n21) rakennuksen vaipalla niitä rakennusosia, jotka erottavat lämpimän, puolilämpimän, erityisen lämpimän tai jäähdytettävän kylmän tilan ulkoilmasta, maaperästä tai lämmittämättömästä tilasta;\n22) rakennuksen vertailulämpöhäviöllä rakennuksen vaipan, vuotoilman ja ilmanvaihdon vertailuarvoilla laskettua laskennallista lämpöhäviötä;\n23) siirtokelpoisella rakennuksella väliaikaiseen käyttöön tarkoitettua, liikuteltavaa rakennusta;\n24) suunnitteluratkaisulla rakennuksen toteutettavaksi aiottua suunnitelmaa;\n25) uusiutuvalla polttoaineella puuta ja puupohjaista sekä muuta biopolttoainetta, ei kuitenkaan turvetta;\n26) tarpeen mukaisella ilmanvaihdolla järjestelmää, jolla ilmavirtoja voidaan ohjata kuormituksen tai ilman laadun mukaan käyttötilannetta vastaavasti;\n27) ympäristössä olevasta energiasta otetulla energialla rakennukseen kuuluvalla laitteistolla paikan päällä tai rakennuksen lähellä auringosta, tuulesta, maasta, ilmasta tai vedestä tuotettua lämpö- tai sähköenergiaa.",
+      "text_en": "In this decree:\n1) the heating energy required for ventilation means the amount of heat needed to heat the ventilation airflow from outdoor air temperature to room temperature;\n2) the net heating energy need for ventilation means the heating energy need formed by heating the air after heat recovery to supply air temperature, and any heating done before heat recovery;\n3) the annual efficiency of exhaust air heat recovery of a ventilation system means the ratio of the heat recovered and utilised by the heat recovery equipment to the heat needed for ventilation heating in a year, when there is no heat recovery;\n4) the specific electric power of a ventilation system (kW/(m3/s)) means the sum of the electric power drawn from the mains by all fans of the whole ventilation system, and their associated frequency converters and other power control devices, divided by the planned operating-time exhaust airflow or outdoor airflow, whichever of these is greater;\n5) the electricity consumption of a ventilation system means the electricity consumption of fans and any auxiliary equipment;\n6) the air leakage figure q50 (m3/(h m2)) means the average leakage airflow per hour of the building envelope at a pressure difference of 50 Pa, per unit of envelope area calculated from the building's total interior dimensions;\n7) a cooled cold space means a space in which the cooling and any heating system maintains, year-round, a temperature below 17 degC according to its intended use;\n8) the energy consumption of a cooling system means the energy consumption of cooling energy production and the electricity consumption of auxiliary equipment;\n9) district heat means heat delivered through the distribution network to a property that is a customer;\n10) a cold bridge means a weakening of the thermal transmittance of a small part of a building component, caused by structural or joint reasons;\n11) heated net area A net (m2) means the sum of the heated storey areas, calculated by the interior surfaces of the external walls surrounding the storeys;\n12) an unheated space means a space not intended for continuous occupation during the heating season and not designed to be heated;\n13) the net heating energy need means the combined net need of heating energy for the building's spaces, ventilation and domestic hot water;\n14) the energy consumption of the heating system means the energy consumption of heating the spaces, ventilation and domestic hot water;\n15) thermal transmittance (U) means the heat flow density that passes through a building component in steady state when the temperature difference between the air spaces on either side of it is one unit, with the unit W/(m2 K);\n16) a warm space means a building space whose room temperature is 17 degC or higher;\n17) the net heating energy need of domestic hot water means the heating energy needed to heat domestic hot water from the cold water temperature to the hot water temperature;\n18) a solid timber building means a building whose main external wall material is solid timber construction with an average construction thickness of at least 180 mm;\n19) a semi-warm space means a space not intended for continuous occupation using only normal indoor clothing, whose average temperature during the heating season is at least 5 degC but below 17 degC;\n20) the calculated purchased energy consumption of a building means the energy consumption based on standard use of the building, calculated as energy acquired from the electricity distribution network, district heating network, district cooling network, or as energy contained in renewable or fossil fuel;\n21) the building envelope means the building components that separate a warm, semi-warm, particularly warm or cooled cold space from outdoor air, the ground or an unheated space;\n22) the reference heat loss of a building means the calculated heat loss using reference values for the building envelope, leakage air and ventilation;\n23) a relocatable building means a movable building intended for temporary use;\n24) a design solution means the plan intended for building the building;\n25) renewable fuel means wood, wood-based and other biofuel, but not peat;\n26) demand-controlled ventilation means a system by which airflows can be controlled according to load or air quality, to match the operating situation;\n27) energy obtained from the environment means heat or electrical energy produced on site or near the building from the sun, wind, ground, air or water by equipment belonging to the building.",
+      "summary_en": "The decree defines the terms used in it, including the E-value, air leakage figure, U-value, cold bridge, warm and semi-warm spaces, and solid timber building.",
+      "keywords": [
+        "definitions",
+        "E-value",
+        "air leakage figure q50",
+        "U-value",
+        "cold bridge",
+        "solid timber building",
+        "määritelmät",
+        "E-luku",
+        "ilmanvuotoluku",
+        "kylmäsilta",
+        "massiivipuurakennus",
+        "lämmin tila"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "cooled cold space maximum temperature",
+          "comparison": "<",
+          "value": 17,
+          "unit": "degC"
+        },
+        {
+          "what": "warm space minimum temperature",
+          "comparison": ">=",
+          "value": 17,
+          "unit": "degC"
+        },
+        {
+          "what": "semi-warm space minimum temperature",
+          "comparison": ">=",
+          "value": 5,
+          "unit": "degC"
+        },
+        {
+          "what": "semi-warm space maximum temperature",
+          "comparison": "<",
+          "value": 17,
+          "unit": "degC"
+        },
+        {
+          "what": "solid timber external wall construction thickness",
+          "comparison": ">=",
+          "value": 180,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-3-1",
+      "ref": "3 §",
+      "heading": "Rakennuksen energiatehokkuuden vähimmäisvaatimukset",
+      "heading_en": "Minimum requirements for the energy efficiency of the building",
+      "text": "Pääsuunnittelijan, erityissuunnittelijan ja rakennussuunnittelijan on tehtäviensä mukaisesti huolehdittava uuden rakennuksen suunnittelusta siten, että se käyttötarkoituksensa mukaisesti on:\n1) energiatehokkuudeltaan joko laskennallisen energiatehokkuuden vertailuluvun (E-luvun) tai rakenteellisen energiatehokkuuden mukainen;\n2) on rakennuksen lämpöhäviöltään vähäiselle energiantarpeelle edellytykset luova;\n3) on energiatehokas laskennalliselta kesäajan huonelämpötilaltaan, energiankäytön mittaamiseltaan, lämmön ja sähkön tehon tarpeeltaan sekä käytettäessä koneellista ilmanvaihtojärjestelmää myös ilmanvaihtojärjestelmän ominaissähköteholtaan.",
+      "text_en": "The principal designer, specialist designer and building designer must, within their duties, ensure that the design of a new building is such that, for its intended use, it is:\n1) energy efficient according to either the calculated energy efficiency figure (E-value) or structural energy efficiency;\n2) creates conditions for a low energy need, through the low heat loss of the building;\n3) energy efficient in its calculated summer indoor room temperature, the measurement of energy use, the heating and electrical power need, and, where a mechanical ventilation system is used, also its specific electric power of the ventilation system.",
+      "summary_en": "The designers must ensure a new building meets the E-value or structural energy efficiency route, has low heat loss, and is efficient in summer room temperature, metering, heating and electric power, and ventilation specific electric power.",
+      "keywords": [
+        "minimum energy efficiency",
+        "E-value",
+        "structural energy efficiency",
+        "heat loss",
+        "summer room temperature",
+        "ventilation specific electric power",
+        "pääsuunnittelija",
+        "E-luku",
+        "lämpöhäviö"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-4-1",
+      "ref": "4 § 1 mom.",
+      "heading": "Laskennallisen energiatehokkuuden vertailuluvun vaatimustasot käyttötarkoitusluokittain",
+      "heading_en": "Requirement levels of the E-value by building use class",
+      "text": "Laskennallinen energiatehokkuuden vertailuluku (E-luku), jonka yksikkönä käytetään kWh E /(m² a), on energiamuotojen kertoimilla painotettu rakennuksen laskennallinen ostoenergiankulutus rakennuksen lämmitettyä nettoalaa kohden vuodessa. Rakennuksen käyttötarkoitusluokan mukaisesti laskettu E-luku ei saa ylittää seuraavia raja-arvoja:\nKäyttötarkoitusluokka | E-luvun raja-arvo kWh E /(m² a)\nLuokka 1) Pienet asuinrakennukset: | \na) Erillinen pientalo ja ketjutalon osana oleva rakennus, joiden lämmitetty nettoala (A netto) on 50–150 m² | 200–0,6 A netto\nb) Erillinen pientalo ja ketjutalon osana oleva rakennus, joiden lämmitetty nettoala (A netto) on enemmän kuin 150 m² kuitenkin enintään 600 m² | 116–0,04 A netto\nc) Erillinen pientalo ja ketjutalon osana oleva rakennus, joiden lämmitetty nettoala (A netto) on enemmän kuin 600 m² | 92\nd) Rivitalo ja asuinkerrostalo, jossa on asuinkerroksia enintään kahdessa kerroksessa | 105\nLuokka 2) Asuinkerrostalo, jossa on asuinkerroksia vähintään kolmessa kerroksessa | 90\nLuokka 3) Toimistorakennus, terveyskeskus | 100\nLuokka 4) Liikerakennus, tavaratalo, kauppakeskus, myymälärakennus lukuun ottamatta päivittäistavarakaupan alle 2000 m² yksikköä, myymälähalli, teatteri, ooppera-, konsertti- ja kongressitalo, elokuvateatteri, kirjasto, arkisto, museo, taidegalleria, näyttelyhalli | 135\nLuokka 5) Majoitusliikerakennus, hotelli, asuntola, palvelutalo, vanhainkoti, hoitolaitos | 160\nLuokka 6) Opetusrakennus ja päiväkoti | 100\nLuokka 7) Liikuntahalli lukuun ottamatta uimahalliaja jäähallia | 100\nLuokka 8) Sairaala | 320\nLuokka 9) Muu rakennus, varastorakennus, liikenteen rakennus,uimahalli, jäähalli, päivittäistavarakaupan alle 2000 m² yksikkö, siirtokelpoinen rakennus | ei raja-arvoa",
+      "text_en": "The calculated energy efficiency figure (E-value), the unit of which is kWh E/(m2 a), is the calculated purchased energy consumption of the building per heated net area per year, weighted by energy-form factors. The E-value calculated according to the building's use class must not exceed the following limit values:\nUse class | E-value limit value kWh E/(m2 a)\nClass 1) Small residential buildings: | \na) Detached house and a building that is part of a terraced house, with a heated net area (A net) of 50–150 m2 | 200–0.6 A net\nb) Detached house and a building that is part of a terraced house, with a heated net area (A net) of more than 150 m2 but at most 600 m2 | 116–0.04 A net\nc) Detached house and a building that is part of a terraced house, with a heated net area (A net) of more than 600 m2 | 92\nd) Row house and residential apartment building with residential storeys at most in two storeys | 105\nClass 2) Residential apartment building with residential storeys in at least three storeys | 90\nClass 3) Office building, health centre | 100\nClass 4) Commercial building, department store, shopping centre, shop building, except a grocery store unit under 2000 m2, sales hall, theatre, opera, concert and congress hall, cinema, library, archive, museum, art gallery, exhibition hall | 135\nClass 5) Accommodation commercial building, hotel, dormitory, service house, old people's home, care institution | 160\nClass 6) Teaching building and day-care centre | 100\nClass 7) Sports hall, except swimming hall and ice hall | 100\nClass 8) Hospital | 320\nClass 9) Other building, storage building, transport building, swimming hall, ice hall, grocery store unit under 2000 m2, relocatable building | no limit value",
+      "summary_en": "The calculated E-value must not exceed its use-class limit, e.g. 90 kWh E/(m2 a) for apartment blocks of three or more storeys, 100 for offices, schools and sports halls, 135 for shops and theatres, 160 for hotels and care homes, and 320 for hospitals; small houses have a formula limit and class 9 has no limit.",
+      "keywords": [
+        "E-value limit",
+        "use class",
+        "kWh E/(m2 a)",
+        "apartment block",
+        "office",
+        "school",
+        "hospital",
+        "shop",
+        "hotel",
+        "E-luku",
+        "asuinkerrostalo",
+        "käyttötarkoitusluokka"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "E-value limit, class 1c (detached house over 600 m2)",
+          "comparison": "<=",
+          "value": 92,
+          "unit": "kWh E/(m2 a)"
+        },
+        {
+          "what": "E-value limit, class 1d (row house or apartment up to two storeys)",
+          "comparison": "<=",
+          "value": 105,
+          "unit": "kWh E/(m2 a)"
+        },
+        {
+          "what": "E-value limit, class 2 (apartment block of three or more storeys)",
+          "comparison": "<=",
+          "value": 90,
+          "unit": "kWh E/(m2 a)"
+        },
+        {
+          "what": "E-value limit, class 3 (office, health centre)",
+          "comparison": "<=",
+          "value": 100,
+          "unit": "kWh E/(m2 a)"
+        },
+        {
+          "what": "E-value limit, class 4 (shop, theatre, library, museum)",
+          "comparison": "<=",
+          "value": 135,
+          "unit": "kWh E/(m2 a)"
+        },
+        {
+          "what": "E-value limit, class 5 (hotel, dormitory, care home)",
+          "comparison": "<=",
+          "value": 160,
+          "unit": "kWh E/(m2 a)"
+        },
+        {
+          "what": "E-value limit, class 6 (school, day-care)",
+          "comparison": "<=",
+          "value": 100,
+          "unit": "kWh E/(m2 a)"
+        },
+        {
+          "what": "E-value limit, class 7 (sports hall)",
+          "comparison": "<=",
+          "value": 100,
+          "unit": "kWh E/(m2 a)"
+        },
+        {
+          "what": "E-value limit, class 8 (hospital)",
+          "comparison": "<=",
+          "value": 320,
+          "unit": "kWh E/(m2 a)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Laskennallisen energiatehokkuuden vertailuluvun vaatimustasot käyttötarkoitusluokittain",
+      "heading_en": "Requirement levels of the E-value by building use class",
+      "text": "Käyttötarkoitusluokan 6 rakennuksessa, jonka lämmitetty nettoala on enintään 1 000 neliömetriä, voidaan edellä 1 momentissa esitetty E-luvun raja-arvo ylittää 5 kWh E /(m² a).",
+      "text_en": "In a use class 6 building with a heated net area of at most 1,000 square metres, the E-value limit in subsection 1 may be exceeded by 5 kWh E/(m2 a).",
+      "summary_en": "A teaching or day-care building with a heated net area of up to 1,000 m2 may exceed its E-value limit by 5 kWh E/(m2 a).",
+      "keywords": [
+        "E-value exceedance",
+        "teaching building",
+        "day-care centre",
+        "heated net area",
+        "opetusrakennus",
+        "päiväkoti",
+        "lämmitetty nettoala",
+        "E-luku",
+        "1000 m2"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "heated net area of use class 6 building for E-value allowance",
+          "comparison": "<=",
+          "value": 1000,
+          "unit": "m2"
+        },
+        {
+          "what": "E-value excess allowed, use class 6",
+          "comparison": "<=",
+          "value": 5,
+          "unit": "kWh E/(m2 a)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-4-3",
+      "ref": "4 § 3 mom.",
+      "heading": "Laskennallisen energiatehokkuuden vertailuluvun vaatimustasot käyttötarkoitusluokittain",
+      "heading_en": "Requirement levels of the E-value by building use class",
+      "text": "Massiivipuurakennuksessa voidaan edellä 1 ja 2 momentissa esitetyt E-luvun raja-arvot ylittää käyttötarkoitusluokan 1a rakennuksessa 20 prosentilla, 1b–c rakennuksessa 15 prosentilla ja muussa käyttötarkoitusluokan 1d–8 rakennuksessa 10 prosentilla.",
+      "text_en": "In a solid timber building, the E-value limits in subsections 1 and 2 may be exceeded by 20 percent in a use class 1a building, by 15 percent in a use class 1b–c building, and by 10 percent in another use class 1d–8 building.",
+      "summary_en": "A solid timber building may exceed its E-value limit by 20 % (class 1a), 15 % (classes 1b and 1c) or 10 % (classes 1d to 8).",
+      "keywords": [
+        "solid timber building",
+        "E-value exceedance",
+        "E-luku",
+        "massiivipuurakennus",
+        "käyttötarkoitusluokka",
+        "20 %",
+        "15 %",
+        "10 %"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "E-value excess allowed, solid timber class 1a",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "%"
+        },
+        {
+          "what": "E-value excess allowed, solid timber classes 1b-1c",
+          "comparison": "<=",
+          "value": 15,
+          "unit": "%"
+        },
+        {
+          "what": "E-value excess allowed, solid timber classes 1d-8",
+          "comparison": "<=",
+          "value": 10,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-4-4",
+      "ref": "4 § 4 mom.",
+      "heading": "Laskennallisen energiatehokkuuden vertailuluvun vaatimustasot käyttötarkoitusluokittain",
+      "heading_en": "Requirement levels of the E-value by building use class",
+      "text": "Käyttötarkoitusluokan 1d rakennuksessa voidaan 1 ja 3 momentissa esitetty E-luvun raja-arvo ylittää 5 kWh E /(m² a), kun rakennus on kytketty lämmitysjärjestelmään, jossa lämpö johdetaan rakennuksen ulkopuolisilla lämpöputkilla yhteisestä lämmönsiirtimestä tai lämmöntuottolaitteesta kolmeen tai useampaan rakennukseen.",
+      "text_en": "In a use class 1d building, the E-value limit in subsections 1 and 3 may be exceeded by 5 kWh E/(m2 a) when the building is connected to a heating system in which heat is delivered by heat pipes outside the building from a common heat exchanger or heat production unit to three or more buildings.",
+      "summary_en": "A row house or apartment building of up to two storeys (class 1d) connected to shared heat pipes serving three or more buildings may exceed its E-value limit by 5 kWh E/(m2 a).",
+      "keywords": [
+        "row house",
+        "shared heat pipes",
+        "common heat exchanger",
+        "E-value exceedance",
+        "rivitalo",
+        "yhteinen lämmönsiirrin",
+        "lämpöputket",
+        "E-luku",
+        "kaukolämpö"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "number of buildings served by shared heat pipes (minimum)",
+          "comparison": ">=",
+          "value": 3,
+          "unit": "count"
+        },
+        {
+          "what": "E-value excess allowed, use class 1d with shared heat pipes",
+          "comparison": "<=",
+          "value": 5,
+          "unit": "kWh E/(m2 a)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-4-5",
+      "ref": "4 § 5 mom.",
+      "heading": "Laskennallisen energiatehokkuuden vertailuluvun vaatimustasot käyttötarkoitusluokittain",
+      "heading_en": "Requirement levels of the E-value by building use class",
+      "text": "Käyttötarkoitusluokan 9 mukaisen rakennuksen E-luku on laskettava. Laskennassa on käytettävä suunnitteluarvoja.",
+      "text_en": "The E-value of a building in use class 9 must be calculated. Design values must be used in the calculation.",
+      "summary_en": "A use class 9 building has no E-value limit, but its E-value must still be calculated using design values.",
+      "keywords": [
+        "use class 9",
+        "other building",
+        "storage building",
+        "design values",
+        "suunnitteluarvot",
+        "muu rakennus",
+        "varastorakennus",
+        "E-luku"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-4-6",
+      "ref": "4 § 6 mom.",
+      "heading": "Laskennallisen energiatehokkuuden vertailuluvun vaatimustasot käyttötarkoitusluokittain",
+      "heading_en": "Requirement levels of the E-value by building use class",
+      "text": "E-luvulle asetettua raja-arvo ei sovelleta:\n1) asunnon rakentamiseen asuinkerrostalon ullakolle;\n2) käyttötarkoitusluokan 1 mukaisen rakennuksen laajennukseen eikä kerrosalaan laskettavan tilan lisäämiseen;\n3) sellaiseen muun käyttötarkoitusluokan mukaisen rakennuksen laajennukseen tai kerrosalaan laskettavan tilan lisäämiseen, missä ilmanvaihdon tai lämmityksen järjestämisessä voi käyttää olemassa olevaa ilmanvaihto- tai lämmitysjärjestelmää;\n4) loma-asumiseen suunniteltavaan pientaloon.",
+      "text_en": "The E-value limit does not apply to:\n1) building a dwelling in the attic of an apartment building;\n2) an extension of a use class 1 building, nor to adding space that counts toward floor area;\n3) an extension of, or adding floor-area space to, another use class building where an existing ventilation or heating system may be used to arrange ventilation or heating;\n4) a small house designed for holiday residential use.",
+      "summary_en": "The E-value limit does not apply to attic dwellings in apartment blocks, extensions of class 1 buildings, certain extensions of other buildings that reuse existing systems, and small houses for holiday use.",
+      "keywords": [
+        "E-value exemption",
+        "attic dwelling",
+        "apartment building",
+        "holiday house",
+        "extension",
+        "ullakko",
+        "asuinkerrostalo",
+        "loma-asuminen",
+        "laajennus",
+        "kerrosala",
+        "E-luku"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-5-1",
+      "ref": "5 §",
+      "heading": "Eri käyttötarkoitusluokkiin kuuluvat rakennuksen osat",
+      "heading_en": "Parts of a building in different use classes",
+      "text": "Rakennuksen eri käyttötarkoitusluokkiin kuuluviin osiin on sovellettava kunkin osan mukaisia E-luvun raja-arvoja. Jos rakennuksen osan lämmitetty nettoala on alle 10 prosenttia koko rakennuksen lämmitetystä nettoalasta tai rakennuksen osan lämmitetty nettoala on alle 50 neliömetriä, rakennuksen osa voidaan laskea pinta-alaltaan suurimpaan käyttötarkoitusluokkaan kuuluvaksi.",
+      "text_en": "Each part of a building that belongs to a different use class must follow the E-value limits applicable to that part. If the heated net area of a part of the building is under 10 percent of the heated net area of the whole building, or the heated net area of the part is under 50 square metres, the part may be treated as belonging to the use class with the largest floor area.",
+      "summary_en": "Each part of a building follows the E-value limit of its own use class, but a part under 10 % of the heated net area or under 50 m2 may be counted in the largest use class.",
+      "keywords": [
+        "use class parts",
+        "calculation zone",
+        "käyttötarkoitusluokka",
+        "lämmitetty nettoala",
+        "E-luku",
+        "10 %",
+        "50 m2"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "share of heated net area for part of building treated as largest use class",
+          "comparison": "<",
+          "value": 10,
+          "unit": "%"
+        },
+        {
+          "what": "heated net area of part of building treated as largest use class",
+          "comparison": "<",
+          "value": 50,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-6-1",
+      "ref": "6 § 1 mom.",
+      "heading": "Rakennuksen laskennallinen ostoenergiankulutus",
+      "heading_en": "Calculated purchased energy consumption of the building",
+      "text": "Vakioituun käyttöön perustuva rakennuksen laskennallinen ostoenergiankulutus koostuu lämmitys-, ilmanvaihto- ja jäähdytysjärjestelmien sekä järjestelmien apulaitteiden, kuluttajalaitteiden ja valaistuksen energiamuodoittain eritellystä energiankulutuksesta, josta on vähennetty rakennukseen kuuluvalla laitteistolla ympäristöstä olevasta energiasta otettu energia siltä osin, kuin se on käytetty rakennuksessa siinä tapahtuvan vakioituun käyttöön perustuvan energiankulutuksen kattamiseen.",
+      "text_en": "The calculated purchased energy consumption of the building, based on standard use, consists of the energy consumption broken down by energy form for the heating, ventilation and cooling systems and their auxiliary equipment, consumer appliances and lighting, less the energy taken from the environment by equipment belonging to the building, to the extent that it has been used in the building to cover the energy consumption based on standard use.",
+      "summary_en": "The calculated purchased energy is the standard-use consumption of heating, ventilation, cooling, appliances and lighting, minus on-site environmental energy used to cover that consumption.",
+      "keywords": [
+        "purchased energy",
+        "calculated purchased energy",
+        "standard use",
+        "on-site energy",
+        "ostoenergia",
+        "vakioitu käyttö",
+        "laskennallinen ostoenergiankulutus",
+        "valaistus"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-6-2",
+      "ref": "6 § 2 mom.",
+      "heading": "Rakennuksen laskennallinen ostoenergiankulutus",
+      "heading_en": "Calculated purchased energy consumption of the building",
+      "text": "Rakennukseen kuuluvalla laitteistolla ympäristössä olevasta energiasta otetun energian hyödyntäminen on laskettava kuukausittain tai sitä lyhyempinä ajanjaksoina.",
+      "text_en": "The utilisation of energy taken from the environment by equipment belonging to the building must be calculated monthly or over shorter periods.",
+      "summary_en": "Energy taken from the environment by on-site building equipment must be calculated monthly or over shorter periods.",
+      "keywords": [
+        "on-site energy",
+        "environmental energy",
+        "monthly calculation",
+        "uusiutuva energia",
+        "ympäristöenergia",
+        "kuukausittain",
+        "laskenta"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-7-1",
+      "ref": "7 § 1 mom.",
+      "heading": "E-luvun laskeminen",
+      "heading_en": "Calculation of the E-value",
+      "text": "E-luku on laskettava energiamuodoittain eritellystä rakennuksen laskennallisesta ostoenergiankulutuksesta energiamuotojen kertoimia käyttäen kaavalla:\n$$ E = \\frac{f_{\\text{kaukolämpö}}Q_{\\text{kaukolämpö}}+f_{\\text{kaukojäähdytys}}Q_{\\text{kaukojäähdytys}}+\\sum\\limits_i f_{\\text{polttoaine, }i}Q_{\\text{polttoaine, }i} + f_{\\text{sähkö}} W_{\\text{sähkö}}}{A_{\\text{netto}}} $",
+      "text_en": "The E-value must be calculated by energy form from the building's calculated purchased energy consumption, using the energy-form factors, with the formula:\n$$ E = \\frac{f_{\\text{kaukolämpö}}Q_{\\text{kaukolämpö}}+f_{\\text{kaukojäähdytys}}Q_{\\text{kaukojäähdytys}}+\\sum\\limits_i f_{\\text{polttoaine, }i}Q_{\\text{polttoaine, }i} + f_{\\text{sähkö}} W_{\\text{sähkö}}}{A_{\\text{netto}}} $",
+      "summary_en": "The E-value is the calculated purchased energy by energy form, weighted by energy-form factors and divided by heated net area, using the formula in subsection 2.",
+      "keywords": [
+        "E-value formula",
+        "energy-form factor",
+        "energiamuodon kerroin",
+        "E-luku laskenta",
+        "ostoenergia",
+        "kaava",
+        "lämmitetty nettoala"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-7-2",
+      "ref": "7 § 2 mom.",
+      "heading": "E-luvun laskeminen",
+      "heading_en": "Calculation of the E-value",
+      "text": "jossa:\nE on energiatehokkuuden vertailuluku, kWh E /(m² a);\nQ kaukolämpö on kaukolämmön kulutus vuodessa, kWh/a;\nQ kaukojäähdytys on kaukojäähdytyksen kulutus vuodessa, kWh/a;\nQ polttoaine,i on polttoaineen i sisältämän energian kulutus vuodessa, kWh/a;\nW sähkö on sähkön kulutus vuodessa, missä on otettu huomioon vähennykset rakennukseen kuuluvalla laitteistolla ympäristöstä vapaasti hyödynnettävästä energiasta otetusta energiasta siltä osin, kuin se on käytetty rakennuksessa siinä tapahtuvan vakioituun käyttöön perustuvan energiankulutuksen kattamiseen, kWh/a;\nf kaukolämpö on kaukolämmön energiamuodon kerroin;\nf kaukojäähdytys on kaukojäähdytyksen energiamuodon kerroin;\nf polttoaine,i on polttoaineen i energiamuodon kerroin;\nf sähkö on sähkön energiamuodon kerroin;\nA netto on rakennuksen lämmitetty nettoala, m².",
+      "text_en": "where:\nE is the energy efficiency figure, kWh E/(m2 a);\nQ district heat is the annual consumption of district heat, kWh/a;\nQ district cooling is the annual consumption of district cooling, kWh/a;\nQ fuel,i is the annual consumption of the energy contained in fuel i, kWh/a;\nW electricity is the annual consumption of electricity, taking into account deductions for energy taken from freely usable environmental energy by equipment belonging to the building, to the extent that it has been used in the building to cover the energy consumption based on standard use, kWh/a;\nf district heat is the energy-form factor of district heat;\nf district cooling is the energy-form factor of district cooling;\nf fuel,i is the energy-form factor of fuel i;\nf electricity is the energy-form factor of electricity;\nA net is the heated net area of the building, m2.",
+      "summary_en": "E is the annual purchased energy from district heat, district cooling, fuels and electricity, each weighted by its energy-form factor, divided by the heated net area.",
+      "keywords": [
+        "E-value formula",
+        "energy-form factor",
+        "district heat",
+        "district cooling",
+        "electricity",
+        "fuel",
+        "heated net area",
+        "kaukolämpö",
+        "kaukojäähdytys",
+        "polttoaine",
+        "sähkö",
+        "A netto"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-7-3",
+      "ref": "7 § 3 mom.",
+      "heading": "E-luvun laskeminen",
+      "heading_en": "Calculation of the E-value",
+      "text": "Energiamuotojen kertoimien lukuarvoina käytetään maankäyttö- ja rakennuslain nojalla säädettyjä lukuarvoja.",
+      "text_en": "The numerical values of the energy-form factors are those laid down under the Land Use and Building Act.",
+      "summary_en": "The energy-form factors used in the E-value calculation are the values set under the Land Use and Building Act.",
+      "keywords": [
+        "energy-form factor",
+        "Land Use and Building Act",
+        "maankäyttö- ja rakennuslaki",
+        "E-luku",
+        "kertoimet"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Vaatimukset laskentamenetelmälle",
+      "heading_en": "Requirements for the calculation method",
+      "text": "Laskenta on tehtävä laskentamenetelmällä, joka ottaa huomioon vähintään seuraavat tekijät:\na) rakennusosien ja niiden liitosten lämpöominaisuudet, rakennuksen ilmanpitävyys, ilmanvaihdon ilmavirta;b)sisäilman lämpötila;c)lämpimän käyttöveden tarve;d)ilmanvaihdon lämmöntalteenotto;e)lämpökuormat henkilöistä, valaistuksesta, sähkölaitteista, lämpimästä käyttövedestä ja auringosta;f)tilojen ja ilmanvaihdon lämmitysjärjestelmän lämpö- ja sähköenergian tarve;g)käyttöveden lämmitysjärjestelmän lämpö- ja sähköenergian tarve;h)ilmanvaihtojärjestelmän sähköenergiantarve;i)kuluttajalaitteiden ja valaistuksen sähköenergiantarve.",
+      "text_en": "The calculation must be made with a calculation method that takes into account at least the following factors: a) the thermal properties of building components and their joints, the airtightness of the building, and the ventilation airflow; b) the indoor air temperature; c) the domestic hot water need; d) the heat recovery of ventilation; e) the heat loads from people, lighting, electrical equipment, domestic hot water and the sun; f) the heat and electrical energy need of the space and ventilation heating system; g) the heat and electrical energy need of the domestic hot water heating system; h) the electrical energy need of the ventilation system; i) the electrical energy need of consumer appliances and lighting.",
+      "summary_en": "The purchased energy calculation must cover at least envelope and airtightness, ventilation airflow, indoor temperature, hot water, heat recovery, internal and solar heat loads, and the energy needs of heating, hot water, ventilation and appliances.",
+      "keywords": [
+        "calculation method",
+        "thermal properties",
+        "airtightness",
+        "heat recovery",
+        "internal heat loads",
+        "solar heat",
+        "laskentamenetelmä",
+        "lämmöntalteenotto",
+        "ilmanpitävyys",
+        "lämpökuormat",
+        "lämmin käyttövesi"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Vaatimukset laskentamenetelmälle",
+      "heading_en": "Requirements for the calculation method",
+      "text": "Ja silloin, kun rakennukseen suunnitellaan aurinkokeräin, aurinkopaneeli tai jäteveden lämmöntalteenotto:\nj) aurinkokeräimen lämmöntuotto ja sen hyödyntäminen rakennuksessa;\nk) aurinkopaneelin sähköntuotto ja sen hyödyntäminen rakennuksessa;\nl) jäteveden lämmöntalteenotto ja sen hyödyntäminen rakennuksessa.",
+      "text_en": "And where a solar collector, a solar panel or waste water heat recovery is planned for the building: j) the heat output of the solar collector and its use in the building; k) the electricity output of the solar panel and its use in the building; l) the waste water heat recovery and its use in the building.",
+      "summary_en": "Where solar collectors, solar panels or waste water heat recovery are planned, the calculation must also cover their heat or electricity output and how it is used in the building.",
+      "keywords": [
+        "solar collector",
+        "solar panel",
+        "waste water heat recovery",
+        "aurinkokeräin",
+        "aurinkopaneeli",
+        "jäteveden lämmöntalteenotto",
+        "laskentamenetelmä"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-8-3",
+      "ref": "8 § 3 mom.",
+      "heading": "Vaatimukset laskentamenetelmälle",
+      "heading_en": "Requirements for the calculation method",
+      "text": "Rakennuksen laskennallinen ostoenergiakulutus voidaan laskea kuukausitason laskentamenetelmällä rakennukselle, jonka sisäilman lämpötilan hallinta ei edellytä jäähdytystä tai jäähdytystä edellytetään vain tiloissa, joiden lämmitetty nettoala on alle 10 prosenttia rakennuksen lämmitetystä nettoalasta tai joiden lämmitetty nettoala on alle 50 neliömetriä.",
+      "text_en": "The calculated purchased energy consumption of the building may be calculated with a monthly-level calculation method for a building whose indoor temperature control does not require cooling, or where cooling is required only in spaces whose heated net area is under 10 percent of the building's heated net area or under 50 square metres.",
+      "summary_en": "A monthly calculation method may be used when the building needs no cooling, or cooling is needed only in spaces under 10 % or under 50 m2 of heated net area.",
+      "keywords": [
+        "monthly calculation",
+        "cooling",
+        "heated net area",
+        "kuukausitason laskenta",
+        "jäähdytys",
+        "lämmitetty nettoala",
+        "10 %",
+        "50 m2"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "share of heated net area cooled, below which monthly method may be used",
+          "comparison": "<",
+          "value": 10,
+          "unit": "%"
+        },
+        {
+          "what": "heated net area of cooled spaces, below which monthly method may be used",
+          "comparison": "<",
+          "value": 50,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-8-4",
+      "ref": "8 § 4 mom.",
+      "heading": "Vaatimukset laskentamenetelmälle",
+      "heading_en": "Requirements for the calculation method",
+      "text": "Jos rakennuksen sisäilman lämpötilan hallinta edellyttää jäähdytystä, rakennuksen laskennallinen ostoenergiankulutus on laskettava laskentamenetelmällä, joka 1 momentissa mainittujen tekijöiden lisäksi ottaa huomioon jäähdytysjärjestelmän lämpö- ja sähköenergiantarpeen ja jonka lämmönsiirron laskenta ottaa huomioon rakenteiden lämmönvarausominaisuuden ajasta riippuvaisena enintään tunnin aika-askeleella (dynaaminen laskentamenetelmä).",
+      "text_en": "If the control of the building's indoor temperature requires cooling, the calculated purchased energy consumption must be calculated with a method that, in addition to the factors in subsection 1, takes into account the heat and electrical energy need of the cooling system, and whose heat transfer calculation takes into account the heat storage property of the structures as time-dependent, with a time step of at most one hour (dynamic calculation method).",
+      "summary_en": "Buildings that need cooling must use a dynamic calculation method with a time step of at most one hour that includes the energy need of the cooling system.",
+      "keywords": [
+        "dynamic calculation method",
+        "cooling system",
+        "time step",
+        "heat storage",
+        "dynaaminen laskentamenetelmä",
+        "jäähdytys",
+        "aika-askel",
+        "lämmönvarausominaisuus"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "maximum calculation time step for cooled buildings",
+          "comparison": "<=",
+          "value": 1,
+          "unit": "h"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-9-1",
+      "ref": "9 §",
+      "heading": "Säätiedot",
+      "heading_en": "Weather data",
+      "text": "E-luku on laskettava liitteen 1 säävyöhykkeen I säätietojen mukaisesti.",
+      "text_en": "The E-value must be calculated according to the weather data for zone I in Annex 1.",
+      "summary_en": "The E-value must be calculated using the weather data for climate zone I given in Annex 1.",
+      "keywords": [
+        "weather data",
+        "climate zone I",
+        "Annex 1",
+        "säätiedot",
+        "säävyöhyke I",
+        "liite 1",
+        "E-luku"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-10-1",
+      "ref": "10 § 1 mom.",
+      "heading": "Ulkoilmavirrat ja huonelämpötilat",
+      "heading_en": "Outdoor airflows and room temperatures",
+      "text": "E-luku on laskettava käyttäen seuraavia käyttöajan ulkoilmavirtoja sekä huonelämpötilan lämmitys- ja jäähdytysrajan lämpötiloja:\nKäyttötarkoitusluokka | Ulkoilmavirta | Lämmitysraja | Jäähdytysraja\n | dm³ /(s m²) | °C | °C\nLuokka 1) | 0,4 | 21 | 27\nLuokka 2) | 0,5 | 21 | 27\nLuokka 3) | 2 | 21 | 25\nLuokka 4) | 2 | 18 | 25\nLuokka 5) | 2 | 21 | 25\nLuokka 6) | 3 | 21 | 25\nLuokka 7) | 2 | 18 | 25\nLuokka 8) | 4 | 22 | 25",
+      "text_en": "The E-value must be calculated using the following outdoor airflows during operating hours, and the heating and cooling limit temperatures of the room temperature:\nUse class | Outdoor airflow | Heating limit | Cooling limit\n | dm3/(s m2) | degC | degC\nClass 1) | 0.4 | 21 | 27\nClass 2) | 0.5 | 21 | 27\nClass 3) | 2 | 21 | 25\nClass 4) | 2 | 18 | 25\nClass 5) | 2 | 21 | 25\nClass 6) | 3 | 21 | 25\nClass 7) | 2 | 18 | 25\nClass 8) | 4 | 22 | 25",
+      "summary_en": "The E-value uses design outdoor airflows of 0.4 to 4 dm3/(s m2) and room heating limits of 18 to 22 degC and cooling limits of 25 to 27 degC, set by use class.",
+      "keywords": [
+        "design outdoor airflow",
+        "heating limit temperature",
+        "cooling limit temperature",
+        "use class",
+        "ulkoilmavirta",
+        "lämmitysraja",
+        "jäähdytysraja",
+        "käyttöaika",
+        "dm3/(s m2)"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-10-2",
+      "ref": "10 § 2 mom.",
+      "heading": "Ulkoilmavirrat ja huonelämpötilat",
+      "heading_en": "Outdoor airflows and room temperatures",
+      "text": "Poistoilmavirrat on laskettava ulkoilmavirtaa vastaavilla arvoilla.",
+      "text_en": "Exhaust airflows must be calculated using values equal to the outdoor airflow values.",
+      "summary_en": "Exhaust airflows used in the calculation equal the outdoor airflow values.",
+      "keywords": [
+        "exhaust airflow",
+        "outdoor airflow",
+        "poistoilmavirta",
+        "ulkoilmavirta",
+        "ilmanvaihto"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-10-3",
+      "ref": "10 § 3 mom.",
+      "heading": "Ulkoilmavirrat ja huonelämpötilat",
+      "heading_en": "Outdoor airflows and room temperatures",
+      "text": "Muun kuin käyttötarkoitusluokan 1 ja 2 rakennuksen ilmanvaihdon ulkoilmavirtana on käytettävä laskennassa käyttöajan ulkopuolella vähintään 0,15 dm³ /s neliömetrille.",
+      "text_en": "For a building other than use class 1 or 2, the outdoor airflow used in the calculation outside operating hours must be at least 0.15 dm3/s per square metre.",
+      "summary_en": "For buildings other than use classes 1 and 2, the calculated outdoor airflow outside operating hours must be at least 0.15 dm3/(s m2).",
+      "keywords": [
+        "outdoor airflow",
+        "outside operating hours",
+        "ulkoilmavirta",
+        "käyttöajan ulkopuolella",
+        "muu rakennus",
+        "0.15 dm3/(s m2)",
+        "ilmanvaihto"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "outdoor airflow outside operating hours, minimum",
+          "comparison": ">=",
+          "value": 0.15,
+          "unit": "dm3/(s m2)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-10-4",
+      "ref": "10 § 4 mom.",
+      "heading": "Ulkoilmavirrat ja huonelämpötilat",
+      "heading_en": "Outdoor airflows and room temperatures",
+      "text": "Käyttötarkoitusluokan 2 rakennuksessa, jossa asukkaalla on mahdollisuus ohjata tulo- ja poistoilmavirtoja siten, että niitä voidaan huoneistokohtaisesti tehostaa vähintään 30 prosenttia ja pienentää vähintään 40 prosenttia suunnitellun käyttöajan ilmavirroista, rakennuksen ulkoilmavirtana voidaan käyttää 0,4 dm³ /s neliömetrille.",
+      "text_en": "In a use class 2 building where the resident can control the inlet and exhaust airflows so that, per dwelling, they can be boosted by at least 30 percent and reduced by at least 40 percent relative to the planned operating-time airflows, the outdoor airflow of the building may be 0.4 dm3/s per square metre.",
+      "summary_en": "A use class 2 residential building whose residents can boost ventilation by at least 30 % and reduce it by at least 40 % may use an outdoor airflow of 0.4 dm3/(s m2).",
+      "keywords": [
+        "resident airflow control",
+        "boost",
+        "reduce",
+        "ulkoilmavirta",
+        "asukkaan ohjaus",
+        "tehostus",
+        "pienennys",
+        "käyttötarkoitusluokka 2",
+        "0.4 dm3/(s m2)"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "resident boost of ventilation airflow, minimum",
+          "comparison": ">=",
+          "value": 30,
+          "unit": "%"
+        },
+        {
+          "what": "resident reduction of ventilation airflow, minimum",
+          "comparison": ">=",
+          "value": 40,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-10-5",
+      "ref": "10 § 5 mom.",
+      "heading": "Ulkoilmavirrat ja huonelämpötilat",
+      "heading_en": "Outdoor airflows and room temperatures",
+      "text": "Tarpeenmukaisella ilmanvaihdolla varustetussa rakennuksen tilassa, mitä ohjataan läsnäoloon tai olosuhdemittaukseen perustuvalla rakennusautomaatiojärjestelmällä, voidaan käyttää 20 prosenttia pienempää ulkoilmavirran arvoa tai ilmanvaihtosuunnitelmaan perustuen määrittää tarpeenmukaisen ilmanvaihdon suhteellinen vaikutus 1 momentissa esitettyyn ulkoilmavirran arvoon. Ilmanvaihtosuunnitelmaan perustuvassa tarkastelussa voidaan tilan ilmanvaihtoa laskennassa pienentää kuitenkin enintään arvoon 0,35 dm³ /s neliömetrille rakennuksen käyttöaikana. Koko rakennuksen ulkoilmavirran arvoa voidaan laskennallisesti pienentää tarpeenmukaisen ilmanvaihdon vaikutusta vastaavalla osuudella ottaen huomioon tarpeenmukaisen ilmanvaihdon kattaman rakennuksen osan suhde koko rakennuksen pinta-alaan.",
+      "text_en": "In a room of a building with demand-controlled ventilation, controlled by a building automation system based on presence or condition measurement, an outdoor airflow value 20 percent lower may be used, or the relative effect of demand-controlled ventilation on the outdoor airflow value in subsection 1 may be determined on the basis of a ventilation plan. In a review based on a ventilation plan, the ventilation of the room in the calculation may, however, be reduced to at most 0.35 dm3/s per square metre during the building's operating time. The outdoor airflow value of the whole building may be reduced in the calculation by a share corresponding to the effect of demand-controlled ventilation, taking into account the ratio of the building area covered by demand-controlled ventilation to the total building area.",
+      "summary_en": "Rooms with demand-controlled ventilation may use an outdoor airflow 20 % lower, or a value from a ventilation plan reduced to at most 0.35 dm3/(s m2) during operating hours.",
+      "keywords": [
+        "demand-controlled ventilation",
+        "presence measurement",
+        "building automation",
+        "ventilation plan",
+        "tarpeenmukainen ilmanvaihto",
+        "läsnäolo",
+        "olosuhdemittaus",
+        "rakennusautomaatio",
+        "ilmanvaihtosuunnitelma",
+        "0.35 dm3/(s m2)"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "outdoor airflow reduction for demand-controlled ventilation",
+          "comparison": "=",
+          "value": 20,
+          "unit": "%"
+        },
+        {
+          "what": "outdoor airflow after reduction in demand-controlled room, maximum",
+          "comparison": "<=",
+          "value": 0.35,
+          "unit": "dm3/(s m2)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-11-1",
+      "ref": "11 § 1 mom.",
+      "heading": "Rakennuksen vakioitu käyttö",
+      "heading_en": "Standard use of the building",
+      "text": "E-luvun laskennassa käytettävä rakennuksen vuorokautinen ja viikoittainen käyttöaika, keskimääräinen valaistuksen, kuluttajalaitteiden ja ihmisten läsnäolon käyttöaste rakennuksen käyttöajan aikana sekä sisäiset lämpökuormat lämmitettyä nettoalaa kohti ovat seuraavat:\nKäyttötarkoitus-luokka | Kellonaika | Käyttöaika | Käyttöaste | Sisäinen lämpökuormalämmitettyä nettoalaa kohti\n |  | Vuorokautinen h/24h | Viikoittainen d/7d | - | Valaistus W/m² | Kuluttaja-laitteet W/m² | Ihmiset W/m²\nLuokka 1) | 00:00-24:00 | 24 | 7 | valaistus 0,1muut 0,6 | 6 | 3 | 2\nLuokka 2 | 00:00-24:00 | 24 | 7 | valaistus 0,1muut 0,6 | 9 | 4 | 3\nLuokka 3) | 07:00-18:00 | 11 | 5 | 0,65 | 10 | 12 | 5\nLuokka 4) | 08:00-21:00 | 13 | 6 | 1 | 19 | 1 | 2\nLuokka 5) | 00:00-24:00 | 24 | 7 | 0,3 | 11 | 4 | 4\nLuokka 6) | 08:00-16:00 | 8 | 5 | 0,6 | 14 | 8 | 14\nLuokka 7) | 08:00-22:00 | 14 | 7 | 0,5 | 10 | 0 | 5\nLuokka 8) | 00:00-24:00 | 24 | 7 | 0,6 | 7 | 9 | 8",
+      "text_en": "The daily and weekly operating time of the building used in the E-value calculation, the average degree of use of lighting, consumer appliances and occupancy during the operating time, and the internal heat loads per heated net area are as follows:\nUse class | Time of day | Operating time | Degree of use | Internal heat load per heated net area\n | | Daily h/24h | Weekly d/7d | - | Lighting W/m2 | Consumer appliances W/m2 | People W/m2\nClass 1) | 00:00-24:00 | 24 | 7 | lighting 0.1 others 0.6 | 6 | 3 | 2\nClass 2 | 00:00-24:00 | 24 | 7 | lighting 0.1 others 0.6 | 9 | 4 | 3\nClass 3) | 07:00-18:00 | 11 | 5 | 0.65 | 10 | 12 | 5\nClass 4) | 08:00-21:00 | 13 | 6 | 1 | 19 | 1 | 2\nClass 5) | 00:00-24:00 | 24 | 7 | 0.3 | 11 | 4 | 4\nClass 6) | 08:00-16:00 | 8 | 5 | 0.6 | 14 | 8 | 14\nClass 7) | 08:00-22:00 | 14 | 7 | 0.5 | 10 | 0 | 5\nClass 8) | 00:00-24:00 | 24 | 7 | 0.6 | 7 | 9 | 8",
+      "summary_en": "For the E-value, each use class has a set operating schedule and set internal heat loads per heated net area, for example 24 hours a day and 7 days a week for residential use, or 11 hours on 5 days for offices.",
+      "keywords": [
+        "standard operating time",
+        "degree of use",
+        "internal heat load",
+        "lighting",
+        "consumer appliances",
+        "people",
+        "vakioitu käyttö",
+        "käyttöaika",
+        "käyttöaste",
+        "sisäinen lämpökuorma",
+        "valaistus",
+        "kuluttajalaitteet"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-11-2",
+      "ref": "11 § 2 mom.",
+      "heading": "Rakennuksen vakioitu käyttö",
+      "heading_en": "Standard use of the building",
+      "text": "Valaistuksen, kuluttajalaitteiden ja ihmisten aiheuttama vuotuinen lämpökuorma Q (kWh/m2) on laskettava kaavalla:\n$$ Q = kP \\frac{\\tau_d}{24}\\frac{\\tau_w}{7}\\frac{8760}{1000} $",
+      "text_en": "The annual heat load Q (kWh/m2) from lighting, consumer appliances and people must be calculated with the formula:\n$$ Q = kP \\frac{\\tau_d}{24}\\frac{\\tau_w}{7}\\frac{8760}{1000} $",
+      "summary_en": "The annual internal heat load from lighting, appliances and people is calculated per m2 with a formula using the degree of use, the heat load and the operating hours and days.",
+      "keywords": [
+        "annual internal heat load",
+        "heat load formula",
+        "sisäinen lämpökuorma",
+        "vuotuinen lämpökuorma",
+        "kWh/m2",
+        "käyttöaste"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-11-3",
+      "ref": "11 § 3 mom.",
+      "heading": "Rakennuksen vakioitu käyttö",
+      "heading_en": "Standard use of the building",
+      "text": "jossa:\nk on keskimääräinen valaistuksen ja kuluttajalaitteiden käyttöaste sekä ihmisten läsnäolo rakennuksen käyttöajan aikana;\nP on lämpökuorma W/m²;\nτ d on rakennuksen käyttötuntien lukumäärä vuorokaudessa h;\nτ w on rakennuksen käyttöpäivien lukumäärä viikossa d.",
+      "text_en": "where:\nk is the average degree of use of lighting and consumer appliances, and the presence of people, during the operating time of the building;\nP is the heat load, W/m2;\ntau d is the number of operating hours of the building per day, h;\ntau w is the number of operating days of the building per week, d.",
+      "summary_en": "The annual internal heat load formula uses the average degree of use k, the heat load P in W/m2, the daily operating hours and the operating days per week.",
+      "keywords": [
+        "internal heat load formula",
+        "degree of use",
+        "heat load W/m2",
+        "operating hours",
+        "operating days",
+        "käyttöaste",
+        "lämpökuorma",
+        "käyttötunnit",
+        "käyttöpäivät"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-11-4",
+      "ref": "11 § 4 mom.",
+      "heading": "Rakennuksen vakioitu käyttö",
+      "heading_en": "Standard use of the building",
+      "text": "Valaistuksen, kuluttajalaitteiden ja ihmisten aiheuttama kuukausittainen lämpökuorma on määritettävä vuotuisesta lämpökuormasta kuukauden päivien lukumäärän perusteella.",
+      "text_en": "The monthly heat load from lighting, consumer appliances and people must be determined from the annual heat load according to the number of days in the month.",
+      "summary_en": "The monthly internal heat load is taken from the annual load in proportion to the number of days in the month.",
+      "keywords": [
+        "monthly heat load",
+        "number of days in month",
+        "kuukausittainen lämpökuorma",
+        "kuukauden päivät",
+        "sisäinen lämpökuorma"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-11-5",
+      "ref": "11 § 5 mom.",
+      "heading": "Rakennuksen vakioitu käyttö",
+      "heading_en": "Standard use of the building",
+      "text": "Edellä 1 momentissa säädetyn sijasta valaistuksen lämpökuorman arvona voidaan käyttää valaistussuunnitelman mukaista arvoa, jos valaistussuunnitelmasta voidaan lämpökuorma määrittää tilatyyppikohtaisesti valaistuksen tehotiheyden ja valaistuksen ohjauksen perusteella. Rakennuksen keskimääräinen valaistuksen lämpökuorma lasketaan tilatyyppien pinta-aloilla painotettuna keskiarvona.",
+      "text_en": "Instead of the value in subsection 1 for the lighting heat load, the value from a lighting plan may be used if the lighting heat load can be determined by space type from the lighting power density and the lighting control. The average lighting heat load of the building is calculated as the average weighted by the floor areas of the space types.",
+      "summary_en": "A lighting plan may replace the default lighting heat load when it gives space-type loads from lighting power density and controls, averaged by floor area.",
+      "keywords": [
+        "lighting heat load",
+        "lighting plan",
+        "lighting power density",
+        "lighting control",
+        "space type",
+        "valaistussuunnitelma",
+        "valaistus",
+        "tehotiheys",
+        "valaistuksen ohjaus",
+        "tilatyyppi"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-11-6",
+      "ref": "11 § 6 mom.",
+      "heading": "Rakennuksen vakioitu käyttö",
+      "heading_en": "Standard use of the building",
+      "text": "Ilmanvaihtojärjestelmän käyntiaika on laskettava siten, että 1 momentin mukaiseen käyttöaikaan lisätään tunti ennen käyttöajan alkua ja tunti käyttöajan päättymisen jälkeen. Lisäystä ei tehdä jatkuvasti käytettäviin rakennuksiin.",
+      "text_en": "The operating time of the ventilation system must be calculated so that one hour is added before the start of the operating time in subsection 1, and one hour after its end. No such addition is made for buildings in continuous use.",
+      "summary_en": "Ventilation runtime in the calculation is the standard operating time plus one hour before and one hour after, except for continuously used buildings.",
+      "keywords": [
+        "ventilation operating time",
+        "pre-run",
+        "post-run",
+        "continuous use",
+        "käyntiaika",
+        "käyttöaika",
+        "tunti ennen",
+        "tunti jälkeen",
+        "jatkuva käyttö",
+        "ilmanvaihto"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "ventilation run-up and run-down time added to operating hours",
+          "comparison": "=",
+          "value": 1,
+          "unit": "h"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-12-1",
+      "ref": "12 § 1 mom.",
+      "heading": "Lämpimän käyttöveden vakioitu käyttö",
+      "heading_en": "Standard use of domestic hot water",
+      "text": "Lämpimän käyttöveden vakioidun käytön lämmitysenergian nettotarpeena on käytettävä seuraavia käyttötarkoitusluokittaisia lämmitysenergian nettotarpeita rakennuksen lämmitettyä nettoalaa kohden:\nKäyttötarkoitusluokka | Lämpimän käyttöveden lämmitysenergian nettotarve vuodessakWh/(m² a)\n | \nLuokka 1) | 35\nLuokka 2) | 35\nLuokka 3) | 6\nLuokka 4) | 4\nLuokka 5) | 40\nLuokka 6) | 11\nLuokka 7) | 20\nLuokka 8) | 30",
+      "text_en": "For the standard use of domestic hot water, the following use-class-specific net heating energy needs per heated net area must be used:\nUse class | Net heating energy need of domestic hot water per year, kWh/(m2 a)\n |\nClass 1) | 35\nClass 2) | 35\nClass 3) | 6\nClass 4) | 4\nClass 5) | 40\nClass 6) | 11\nClass 7) | 20\nClass 8) | 30",
+      "summary_en": "The standard net heating energy need for domestic hot water is set per use class, from 4 kWh/(m2 a) for commercial buildings (class 4) to 40 kWh/(m2 a) for accommodation buildings (class 5).",
+      "keywords": [
+        "domestic hot water",
+        "net heating energy need",
+        "kWh/(m2 a)",
+        "standard use",
+        "use class",
+        "lämpimän käyttöveden lämmitysenergia",
+        "käyttöveden nettotarve",
+        "käyttötarkoitusluokka"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-12-2",
+      "ref": "12 § 2 mom.",
+      "heading": "Lämpimän käyttöveden vakioitu käyttö",
+      "heading_en": "Standard use of domestic hot water",
+      "text": "Luokassa 1 on lämpimän käyttöveden lämmitysenergian nettotarve kuitenkin enintään 4 200 kWh vuodessa asuntoa kohden.",
+      "text_en": "In class 1, however, the net heating energy need of domestic hot water is at most 4,200 kWh per year per dwelling.",
+      "summary_en": "In use class 1 the domestic hot water heating need is capped at 4,200 kWh per dwelling per year.",
+      "keywords": [
+        "domestic hot water cap",
+        "per dwelling",
+        "4200 kWh/a",
+        "asunto",
+        "lämpimän käyttöveden lämmitysenergia",
+        "luokka 1",
+        "asuinrakennus"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "domestic hot water net heating need per dwelling, class 1, maximum",
+          "comparison": "<=",
+          "value": 4200,
+          "unit": "kWh/a"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-12-3",
+      "ref": "12 § 3 mom.",
+      "heading": "Lämpimän käyttöveden vakioitu käyttö",
+      "heading_en": "Standard use of domestic hot water",
+      "text": "Lämpimän käyttöveden lämmitysenergian nettotarpeena voi laskennassa käyttää 15 prosenttia edellä mainittuja pienempiä arvoja, jos rakennuksen käyttövesiverkosto varustetaan vakiopaineventtiilillä tai muulla vastaavalla painetasoa säätävällä tekniikalla.",
+      "text_en": "For the calculation, the net heating energy need of domestic hot water may be taken as 15 percent lower than the values above, if the building's domestic water network is equipped with a constant-pressure valve or other similar technology for controlling the pressure level.",
+      "summary_en": "The domestic hot water need may be taken 15 % lower when the water network has a constant-pressure valve or similar pressure control.",
+      "keywords": [
+        "constant-pressure valve",
+        "pressure control",
+        "domestic water network",
+        "vakiopaineventtiili",
+        "painesäätö",
+        "käyttövesiverkosto",
+        "15 %",
+        "lämpimän käyttöveden tarve"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "reduction of domestic hot water need with pressure control",
+          "comparison": "=",
+          "value": 15,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-13-1",
+      "ref": "13 §",
+      "heading": "Laskentavyöhykkeet",
+      "heading_en": "Calculation zones",
+      "text": "Yhden käyttötarkoituksen rakennuksen E-luvun laskennassa voidaan koko rakennus laskea yhtenä laskentavyöhykkeenä. Useita eri käyttötarkoituksia sisältävän rakennuksen E-luvun laskennassa rakennus on jaettava käyttötarkoitusta ja käyttöaikoja vastaaviin laskentavyöhykkeisiin.",
+      "text_en": "In the E-value calculation of a building with a single use, the whole building may be calculated as one calculation zone. In the E-value calculation of a building containing several different uses, the building must be divided into calculation zones corresponding to the uses and operating times.",
+      "summary_en": "A single-use building may be calculated as one zone, whereas a building with several uses must be split into zones that match each use and its operating hours.",
+      "keywords": [
+        "calculation zone",
+        "use",
+        "operating time",
+        "laskentavyöhyke",
+        "käyttötarkoitus",
+        "käyttöaika",
+        "E-luku",
+        "rakennuksen jako"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-14-1",
+      "ref": "14 § 1 mom.",
+      "heading": "Erikoistilat ja eräät tekniset järjestelmät",
+      "heading_en": "Special spaces and certain technical systems",
+      "text": "Rakennuksessa olevan ravintolan, ammattikeittiön, ruokalan, kahvilan, laboratorion tai muuna erikoistilan E-luvun laskenta on tehtävä näiden osalta rakennuksen tai rakennuksen osan käyttötarkoitusta vastaavilla lähtöarvoilla.",
+      "text_en": "The E-value of a restaurant, professional kitchen, canteen, café, laboratory or other special space in the building must be calculated for those parts using starting values that match the purpose of the building or part of the building.",
+      "summary_en": "Special spaces such as restaurants, professional kitchens, canteens, cafés and laboratories must be calculated with starting values that match their own use.",
+      "keywords": [
+        "special space",
+        "restaurant",
+        "professional kitchen",
+        "canteen",
+        "laboratory",
+        "ravintola",
+        "ammattikeittiö",
+        "ruokala",
+        "kahvila",
+        "laboratorio",
+        "lähtöarvo"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-14-2",
+      "ref": "14 § 2 mom.",
+      "heading": "Erikoistilat ja eräät tekniset järjestelmät",
+      "heading_en": "Special spaces and certain technical systems",
+      "text": "E-luvun laskennassa ei oteta huomioon tässä asetuksessa erittelemättömiä teknisiä järjestelmiä.",
+      "text_en": "The E-value calculation does not take into account technical systems that are not itemised in this decree.",
+      "summary_en": "Technical systems not listed in the decree are excluded from the E-value calculation.",
+      "keywords": [
+        "technical systems not itemised",
+        "calculation scope",
+        "E-value calculation",
+        "tekniset järjestelmät",
+        "erittelemättömät järjestelmät",
+        "laskennan rajaus",
+        "E-luku"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-15-1",
+      "ref": "15 § 1 mom.",
+      "heading": "Lämmitysenergian nettotarve",
+      "heading_en": "Net heating energy need",
+      "text": "Rakennuksen tilojen lämmitysenergian nettotarve on laskettava johtumislämpöhäviöistä, vuotoilman lämpöhäviöistä, korvausilman ja tuloilman lämpenemisestä tilassa huonelämpötilaan, joista on vähennettävä auringon ja sisäisten lämpökuormien vaikutus. Rakennukseen tulevan aurinkoenergian laskennassa on otettava huomioon rakennuksessa olevat auringonsuojausratkaisut.",
+      "text_en": "The net heating energy need of the building's spaces must be calculated from conduction heat losses, leakage air heat losses, and the warming of makeup air and supply air to room temperature in the space, from which the effect of solar and internal heat loads must be deducted. In calculating the solar energy reaching the building, the solar shading solutions in the building must be taken into account.",
+      "summary_en": "Space heating need is the conduction and leakage heat losses plus heating of makeup and supply air, minus solar and internal heat gains, with the building's solar shading taken into account.",
+      "keywords": [
+        "net heating energy need",
+        "conduction heat loss",
+        "leakage air heat loss",
+        "makeup air",
+        "solar shading",
+        "internal heat loads",
+        "lämmitysenergian nettotarve",
+        "johtumislämpöhäviö",
+        "vuotoilma",
+        "korvausilma",
+        "auringonsuojaus"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-15-2",
+      "ref": "15 § 2 mom.",
+      "heading": "Lämmitysenergian nettotarve",
+      "heading_en": "Net heating energy need",
+      "text": "Ilmanvaihdon lämmitysenergian nettotarve on laskettava ilman lämmittämisestä lämmöntalteenoton jälkeen tuloilman lämpötilaan ja mahdollisesta lämmittämisestä ennen lämmöntalteenottoa.",
+      "text_en": "The net heating energy need of ventilation must be calculated from heating the air after heat recovery to the supply air temperature, and from any heating before heat recovery.",
+      "summary_en": "Ventilation heating need is the heating of air after heat recovery to supply temperature, plus any pre-heating before heat recovery.",
+      "keywords": [
+        "ventilation heating need",
+        "heat recovery",
+        "supply air",
+        "pre-heating",
+        "ilmanvaihdon lämmitysenergian nettotarve",
+        "lämmöntalteenotto",
+        "tuloilma",
+        "esilämmitys"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-15-3",
+      "ref": "15 § 3 mom.",
+      "heading": "Lämmitysenergian nettotarve",
+      "heading_en": "Net heating energy need",
+      "text": "Lämpimän käyttöveden lämmitysenergian nettotarve on laskettava 12 §:n mukaan.",
+      "text_en": "The net heating energy need of domestic hot water must be calculated in accordance with section 12.",
+      "summary_en": "Domestic hot water heating need is calculated as set out in section 12.",
+      "keywords": [
+        "domestic hot water need",
+        "section 12",
+        "lämpimän käyttöveden lämmitysenergia",
+        "12 §",
+        "lämmitysenergian nettotarve"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-16-1",
+      "ref": "16 § 1 mom.",
+      "heading": "Lämpöhäviön huomioon ottaminen E-luvun laskennassa",
+      "heading_en": "Accounting for heat loss in the E-value calculation",
+      "text": "E-lukua laskettaessa rakennuksen vaipan lämpöhäviö on laskettava rakennuksen vaipan sisämitoilla. Laskennassa on otettava huomioon rakenteiden ja niiden liitosten kylmäsillat. Rakennuksen vaipan yksittäisiä kylmäsiltoja ei oteta huomioon.",
+      "text_en": "In calculating the E-value, the heat loss of the building envelope must be calculated using the internal dimensions of the envelope. The calculation must take into account cold bridges of the structures and their joints. Individual cold bridges of the building envelope are not taken into account.",
+      "summary_en": "Envelope heat loss uses internal dimensions and includes structural cold bridges and joints, but not individual cold bridges in the envelope.",
+      "keywords": [
+        "cold bridge",
+        "internal dimensions",
+        "envelope heat loss",
+        "structural joint",
+        "kylmäsilta",
+        "sisämitta",
+        "vaipan lämpöhäviö",
+        "rakenteiden liitos",
+        "E-luku"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-16-2",
+      "ref": "16 § 2 mom.",
+      "heading": "Lämpöhäviön huomioon ottaminen E-luvun laskennassa",
+      "heading_en": "Accounting for heat loss in the E-value calculation",
+      "text": "Lämpöhäviön laskennassa on otettava huomioon maaperän ja ryömintätilan vaikutus lämpöhäviöön.",
+      "text_en": "In calculating the heat loss, the effect of the ground and of the crawl space on the heat loss must be taken into account.",
+      "summary_en": "The heat loss calculation must include the effect of the ground and of any crawl space.",
+      "keywords": [
+        "ground heat loss",
+        "crawl space",
+        "maaperä",
+        "ryömintätila",
+        "lämpöhäviö",
+        "E-luku"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-17-1",
+      "ref": "17 § 1 mom.",
+      "heading": "Vuotoilmavirran huomioon ottaminen E-luvun laskennassa",
+      "heading_en": "Accounting for leakage airflow in the E-value calculation",
+      "text": "E-lukua laskettaessa on käytettävä rakennuksen vaipan ilmanvuotolukuna suunnitteluarvoa, jos ilmanpitävyys osoitetaan teollisen talonrakennuksen laadunvarmistusmenettelyllä tai tullaan osoittamaan mittaamalla. Muutoin laskennassa on käytettävä rakennuksen vaipan ilmanvuotolukuna arvoa 4 m³ /(h m²). Vuotoilmavirta q v,vuotoilma on laskettava kaavalla:\n$$ q_{v,\\text{ vuotoilma}} = \\frac{q_{50}}{3600 \\cdot x} A_{\\text{vaippa}} $",
+      "text_en": "In calculating the E-value, the design value must be used as the air leakage figure of the building envelope if airtightness is shown by an industrial building quality assurance procedure or will be shown by measurement. Otherwise, the air leakage figure of the building envelope must be 4 m3/(h m2). The leakage airflow q v,leak is calculated with the formula:\n$$ q_{v,\\text{ vuotoilma}} = \\frac{q_{50}}{3600 \\cdot x} A_{\\text{vaippa}} $",
+      "summary_en": "Unless airtightness is shown by quality assurance or measurement, the E-value calculation uses an envelope air leakage figure of 4 m3/(h m2).",
+      "keywords": [
+        "air leakage figure",
+        "q50",
+        "airtightness",
+        "quality assurance",
+        "4 m3/(h m2)",
+        "ilmanvuotoluku",
+        "ilmanpitävyys",
+        "vuotoilma",
+        "laadunvarmistus",
+        "mittaus"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "default envelope air leakage figure q50 when not measured or quality assured",
+          "comparison": "=",
+          "value": 4,
+          "unit": "m3/(h m2)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-17-2",
+      "ref": "17 § 2 mom.",
+      "heading": "Vuotoilmavirran huomioon ottaminen E-luvun laskennassa",
+      "heading_en": "Accounting for leakage airflow in the E-value calculation",
+      "text": "jossa:\nq v,vuotoilma on vuotoilmavirta, m³/s;\nq 50 on rakennusvaipan ilmanvuotoluku, m³ /(h·m²);\nA vaippa on rakennusvaipan pinta-ala, m²;\nx on kerroin, joka on yksikerroksisille rakennuksille 35, kaksikerroksisille 24, kolmi- ja nelikerroksisille 20 ja näitä korkeammille rakennuksille 15;\n3600 on kerroin, joka muuttaa ilmavirran yksiköstä m³ /h yksikköön m³ /s.",
+      "text_en": "where:\nq v,leak is the leakage airflow, m3/s;\nq50 is the air leakage figure of the building envelope, m3/(h m2);\nA envelope is the surface area of the building envelope, m2;\nx is a factor, which is 35 for single-storey buildings, 24 for two-storey buildings, 20 for three- and four-storey buildings, and 15 for buildings higher than these;\n3600 is a factor that converts the airflow from m3/h to m3/s.",
+      "summary_en": "The leakage airflow is calculated from the envelope air leakage figure, the envelope area and a storey-dependent factor of 35, 24, 20 or 15, with 3600 converting m3/h to m3/s.",
+      "keywords": [
+        "leakage airflow",
+        "air leakage figure",
+        "envelope surface area",
+        "storey factor",
+        "vuotoilmavirta",
+        "ilmanvuotoluku",
+        "vaipan pinta-ala",
+        "kerroskerroin",
+        "3600"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-18-1",
+      "ref": "18 § 1 mom.",
+      "heading": "Lämmitysjärjestelmän energiankäyttö",
+      "heading_en": "Heating system energy use",
+      "text": "Rakennuksen lämmitysjärjestelmän energiankäyttöön kuuluvat tilojen lämmityksen, ilmanvaihdon lämmityksen ja lämpimän käyttöveden valmistuksen energiankäyttö.",
+      "text_en": "The energy use of the building's heating system includes the energy use for space heating, heating of ventilation air, and the production of domestic hot water.",
+      "summary_en": "Heating system energy use covers space heating, ventilation heating and domestic hot water production.",
+      "keywords": [
+        "heating system energy use",
+        "space heating",
+        "ventilation heating",
+        "domestic hot water production",
+        "lämmitysjärjestelmä",
+        "tilojen lämmitys",
+        "ilmanvaihdon lämmitys",
+        "lämmin käyttövesi",
+        "energiankäyttö"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-18-2",
+      "ref": "18 § 2 mom.",
+      "heading": "Lämmitysjärjestelmän energiankäyttö",
+      "heading_en": "Heating system energy use",
+      "text": "Lämmitysjärjestelmän energiankulutuksen laskennassa otetaan huomioon lämmönjaon häviöt rakennuksen sisä- ja ulkopuolella, lämmön luovutuksen häviöt, lämmitysenergian tuoton häviöt ja muunnokset, lämpimän käyttöveden siirron ja kiertojohdon häviöt rakennuksen sisä- ja ulkopuolella, varastoinnin häviöt sekä lämmitysjärjestelmän apulaitteiden sähkönkulutus.",
+      "text_en": "The calculation of the heating system's energy consumption takes into account distribution losses inside and outside the building, heat emission losses, heat generation losses and conversions, domestic hot water transfer and circulation line losses inside and outside the building, storage losses, and the electricity consumption of the heating system's auxiliary equipment.",
+      "summary_en": "Heating system energy use includes distribution, emission, generation, storage and circulation losses, plus the electricity of auxiliary equipment.",
+      "keywords": [
+        "distribution losses",
+        "heat emission",
+        "circulation line",
+        "storage losses",
+        "auxiliary equipment",
+        "lämmönjakohäviö",
+        "lämmön luovutus",
+        "kiertojohto",
+        "varastointihäviö",
+        "apulaitteet"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-18-3",
+      "ref": "18 § 3 mom.",
+      "heading": "Lämmitysjärjestelmän energiankäyttö",
+      "heading_en": "Heating system energy use",
+      "text": "Jos rakennus on kytketty lämmitysjärjestelmään, jossa lämpö johdetaan rakennuksen ulkopuolisilla lämpöputkilla yhteisestä lämmönsiirtimestä tai lämmöntuottolaitteesta useampaan rakennukseen, on kyseisten lämpöputkien lämpöhäviö jaettava rakennusten kesken pinta-alojen suhteessa.",
+      "text_en": "If the building is connected to a heating system in which heat is delivered by heat pipes outside the building from a common heat exchanger or heat generator to several buildings, the heat losses of those heat pipes must be divided between the buildings in proportion to their floor areas.",
+      "summary_en": "Heat losses of shared external heat pipes serving several buildings are split between the buildings in proportion to their floor areas.",
+      "keywords": [
+        "shared heat pipes",
+        "common heat exchanger",
+        "heat loss allocation",
+        "floor area",
+        "lämpöputket",
+        "yhteinen lämmönsiirrin",
+        "lämpöhäviön jako",
+        "pinta-ala"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-18-4",
+      "ref": "18 § 4 mom.",
+      "heading": "Lämmitysjärjestelmän energiankäyttö",
+      "heading_en": "Energy use of the heating system",
+      "text": "Jos käyttötarkoitusluokan 2 mukaisen rakennuksen asuinhuoneissa on vesikiertoinen lämmitys ja märkätiloissa sähköinen lattialämmitys, asuinhuoneiston tilojen lämmitysenergian nettotarpeesta voidaan laskea kohdistuvan 35 prosenttia märkätilojen lattialämmitykselle ja 65 prosenttia asuinhuoneiden lämmitysjärjestelmälle ellei märkätilojen sähköisen lattialämmityksen osuutta tilojen nettotarpeesta lasketa tarkemmin dynaamisella laskentatyökalulla ottaen huomioon suunnitellut ilmavirrat ja tilojen väliset siirtoilmavirtaukset. Märkätilojen sisälämpötilana on käytettävä 22 celsiusastetta. Märkätilojen sähköisen lattialämmityksen osuus asuinhuoneiston tilojen lämmitysenergian nettotarpeesta on kuitenkin enintään suunnitelmassa esitetyn sähköisen lattialämmityksen asennustehon ja 8760 tunnin käyttöajan perusteella laskettu osuus.",
+      "text_en": "If the residential rooms of a use class 2 building have water-circulating heating and the wet rooms have electric floor heating, 35 per cent of the net heating energy need of the dwelling's spaces may be allocated to the wet-room floor heating and 65 per cent to the residential room heating system, unless the share of the wet-room electric floor heating in the net need of the spaces is calculated more precisely with a dynamic calculation tool that takes into account the planned airflows and the transfer airflows between spaces. The indoor temperature of wet rooms must be 22 degrees Celsius. However, the share of wet-room electric floor heating in the net heating energy need of the dwelling's spaces is at most the share calculated from the installed power of the electric floor heating shown in the plan and an operating time of 8760 hours.",
+      "summary_en": "In a use class 2 building with water-circulating heating and electric wet-room floor heating, the heating energy may be split 35 per cent to wet-room floor heating and 65 per cent to room heating, with wet rooms at 22 degC and the floor heating share capped by its installed power over 8760 hours.",
+      "keywords": [
+        "electric floor heating",
+        "wet room floor heating",
+        "lattialämmitys",
+        "märkätila",
+        "vesikiertoinen lämmitys",
+        "asuinhuone",
+        "22 degC wet room temperature",
+        "8760 h operating time"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "default share of heating energy for wet-room electric floor heating",
+          "comparison": "=",
+          "value": 35,
+          "unit": "%"
+        },
+        {
+          "what": "default share of heating energy for residential room heating system",
+          "comparison": "=",
+          "value": 65,
+          "unit": "%"
+        },
+        {
+          "what": "wet room indoor temperature",
+          "comparison": "=",
+          "value": 22,
+          "unit": "degC"
+        },
+        {
+          "what": "operating time of electric floor heating",
+          "comparison": "=",
+          "value": 8760,
+          "unit": "h"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-18-5",
+      "ref": "18 § 5 mom.",
+      "heading": "Lämmitysjärjestelmän energiankäyttö",
+      "heading_en": "Energy use of the heating system",
+      "text": "Jos lämpimän käyttöveden kiertojohto sijaitsee rakennuksen vaipan eristeen ulkopuolella, ei lämpimän käyttöveden kierron lasketusta lämpöhäviöstä aiheudu rakennuksen tiloihin lämpökuormaa. Jos kiertojohto sijaitsee rakennuksen vaipan eristeessä, on rakennuksen tilojen lämpökuormaan lisättävä 25 prosenttia lämpimän käyttöveden kierron lasketusta lämpöhäviöstä. Jos kiertojohto sijaitsee rakennuksen vaipan sisäpuolella, on rakennuksen tilojen lämpökuormaan lisättävä 50 prosenttia lämpimän käyttöveden kierron lasketusta lämpöhäviöstä. Jos lämpimän käyttöveden varaaja sijaitsee rakennuksen vaipan sisäpuolella, on rakennuksen tilojen lämpökuormaan lisättävä 50 prosenttia varaajan lasketusta lämpöhäviöstä.",
+      "text_en": "If the hot water circulation pipe is located outside the insulation of the building envelope, no heat load on the building's spaces arises from the calculated heat loss of the hot water circulation. If the circulation pipe is located in the insulation of the building envelope, 25 per cent of the calculated heat loss of the hot water circulation must be added to the building's space heat load. If the circulation pipe is located inside the building envelope, 50 per cent of the calculated heat loss of the hot water circulation must be added to the building's space heat load. If the hot water storage tank is located inside the building envelope, 50 per cent of the calculated heat loss of the tank must be added to the building's space heat load.",
+      "summary_en": "Hot water circulation losses add 25 per cent to the space heat load if the pipe is in the envelope insulation and 50 per cent if it is inside the envelope, while a storage tank inside the envelope adds 50 per cent of its loss, and a pipe outside the envelope adds nothing.",
+      "keywords": [
+        "hot water circulation loss",
+        "lämpimän käyttöveden kierto",
+        "kiertojohto",
+        "hot water storage tank",
+        "käyttöveden varaaja",
+        "vaippa",
+        "lämpökuorma",
+        "25 per cent circulation loss"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "share of hot water circulation heat loss added to space heat load when pipe is in envelope insulation",
+          "comparison": "=",
+          "value": 25,
+          "unit": "%"
+        },
+        {
+          "what": "share of hot water circulation heat loss added to space heat load when pipe is inside envelope",
+          "comparison": "=",
+          "value": 50,
+          "unit": "%"
+        },
+        {
+          "what": "share of hot water tank heat loss added to space heat load when tank is inside envelope",
+          "comparison": "=",
+          "value": 50,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-18-6",
+      "ref": "18 § 6 mom.",
+      "heading": "Lämmitysjärjestelmän energiankäyttö",
+      "heading_en": "Energy use of the heating system",
+      "text": "Lämmitysjärjestelmän mahdollisista lämpötilarajoituksista ja osatehomitoituksesta johtuva lisälämmitysenergia on laskettava mukaan lämmitysjärjestelmän energiankäyttöön.",
+      "text_en": "Extra heating energy resulting from possible temperature limitations and part-load sizing of the heating system must be included in the energy use of the heating system.",
+      "summary_en": "Extra heating energy caused by temperature limits or part-load sizing of the heating system must be included in the heating system's energy use.",
+      "keywords": [
+        "heating energy use",
+        "lämmitysenergia",
+        "osatehomitoitus",
+        "part-load sizing",
+        "lämpötilarajoitus",
+        "temperature limit",
+        "lisälämmitysenergia"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-19-1",
+      "ref": "19 § 1 mom.",
+      "heading": "Tulisija ja ilmalämpöpumppu",
+      "heading_en": "Storage fireplace and air-to-air heat pump",
+      "text": "Varaavan tulisijan asuinhuoneistoon tuottamaksi lämmitysenergiaksi voidaan laskea enintään 3 000 kilowattituntia vuodessa tulisijaa kohden.",
+      "text_en": "The heating energy produced for a dwelling by a storage fireplace may be counted at most 3,000 kilowatt-hours per year per fireplace.",
+      "summary_en": "A storage fireplace may be credited with at most 3,000 kWh of heating energy per year for each fireplace.",
+      "keywords": [
+        "storage fireplace",
+        "varaava tulisija",
+        "tulisija",
+        "3000 kWh/a",
+        "heating energy credit",
+        "asuinhuoneisto"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "heating energy counted from a storage fireplace per fireplace",
+          "comparison": "<=",
+          "value": 3000,
+          "unit": "kWh/a"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-19-2",
+      "ref": "19 § 2 mom.",
+      "heading": "Tulisija ja ilmalämpöpumppu",
+      "heading_en": "Storage fireplace and air-to-air heat pump",
+      "text": "Ilma-ilmalämpöpumpun asuinhuoneistoon tuottamaksi lämmitysenergiaksi voidaan laskea enintään 3 000 kilowattituntia vuodessa laitetta kohden, ellei laitteen toimintaa rakennuksessa lasketa tarkemmin dynaamisella laskentamenetelmällä huomioon ottaen tilojen väliset ilmavirtaukset ja lämpötilaerot.",
+      "text_en": "The heating energy produced for a dwelling by an air-to-air heat pump may be counted at most 3,000 kilowatt-hours per year per unit, unless the operation of the unit in the building is calculated more precisely with a dynamic calculation method that takes into account the airflows and temperature differences between spaces.",
+      "summary_en": "An air-to-air heat pump may be credited with at most 3,000 kWh of heating energy per year for each unit, unless a dynamic calculation is used.",
+      "keywords": [
+        "air-to-air heat pump",
+        "ilma-ilmalämpöpumppu",
+        "ilmalämpöpumppu",
+        "3000 kWh/a",
+        "dynamic calculation",
+        "lämpöpumppu"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "heating energy counted from an air-to-air heat pump per unit",
+          "comparison": "<=",
+          "value": 3000,
+          "unit": "kWh/a"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-20-1",
+      "ref": "20 §",
+      "heading": "Ilmanvaihtojärjestelmä",
+      "heading_en": "Ventilation system",
+      "text": "Rakennuksen ilmanvaihtojärjestelmän ilmavirrat ja käyntiajat on laskettava 10 ja 11 §:n mukaisesti. Koneellisen ilmanvaihtojärjestelmän sähköenergiankulutus on laskettava ilmavirtojen, ominaissähkötehojen ja käyntiaikojen avulla kaikille rakennuksessa oleville ilmanvaihtokoneille ja huippuimureille.",
+      "text_en": "The airflows and operating times of the building's ventilation system must be calculated according to sections 10 and 11. The electricity use of mechanical ventilation must be calculated from the airflows, specific electric power and operating times of all ventilation units and booster fans in the building.",
+      "summary_en": "The airflows, operating times and electricity use of all mechanical ventilation units and booster fans must be calculated from their airflows, specific power and operating times.",
+      "keywords": [
+        "ventilation airflow",
+        "ilmanvaihto",
+        "ilmavirta",
+        "käyntiaika",
+        "ominaissähköteho",
+        "huippuimuri",
+        "ilmanvaihtokone",
+        "ventilation electricity use"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-21-1",
+      "ref": "21 §",
+      "heading": "Jäähdytysjärjestelmä",
+      "heading_en": "Cooling system",
+      "text": "Rakennuksen jäähdytysjärjestelmän energiankulutusta laskettaessa on otettava huomioon jäähdytysenergian tuoton energiankulutus ja apulaitteiden sähköenergiankulutus siltä osin kuin sisälämpötilan hallinta edellyttää järjestelmien käyttöä.",
+      "text_en": "When calculating the energy use of the building's cooling system, the energy use of cooling production and the electricity used by auxiliary equipment must be taken into account, to the extent that controlling indoor temperature requires the systems to be operated.",
+      "summary_en": "Cooling energy use must include cooling production and auxiliary equipment electricity wherever indoor temperature control requires the systems to run.",
+      "keywords": [
+        "cooling energy use",
+        "jäähdytys",
+        "jäähdytysjärjestelmä",
+        "apulaitteet",
+        "auxiliary equipment electricity",
+        "sisälämpötilan hallinta",
+        "jäähdytysenergia"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-22-1",
+      "ref": "22 §",
+      "heading": "Valaistuksen ja kuluttajalaitteiden sähkönkäyttö",
+      "heading_en": "Electricity use of lighting and consumer appliances",
+      "text": "Rakennuksessa käytettävän valaistuksen ja kuluttajalaitteiden vuotuinen sähköenergian kulutus on laskettava 11 §:n mukaisesti niiden lämpökuormasta. Valaistuksen ja kuluttajalaitteiden sähköenergian kulutus on samansuuruinen kuin niiden lämpökuorma.",
+      "text_en": "The annual electricity use of the lighting and consumer appliances used in the building must be calculated according to section 11 from their heat load. The electricity use of lighting and consumer appliances is of the same magnitude as their heat load.",
+      "summary_en": "Annual electricity use of lighting and consumer appliances is calculated from their heat load and equals that heat load in magnitude.",
+      "keywords": [
+        "lighting electricity",
+        "valaistus",
+        "kuluttajalaitteet",
+        "consumer appliances",
+        "lämpökuorma",
+        "sähkönkulutus",
+        "annual electricity use"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-23-1",
+      "ref": "23 § 1 mom.",
+      "heading": "Rakennuksen lämpöhäviön määrittäminen",
+      "heading_en": "Determining the heat loss of the building",
+      "text": "Rakennuksen lämpöhäviö on rakennuksen vaipan, vuotoilman ja ilmanvaihdon yhteenlaskettu lämpöhäviö. Rakennuksen lämpöhäviö voi olla enintään yhtä suuri kuin vertailuarvoilla rakennukselle määritetty vertailulämpöhäviö. Rakennuksen lämpöhäviölle asetettu vaatimus koskee erikseen rakennuksen lämpimiä ja puolilämpimiä tiloja.",
+      "text_en": "The heat loss of the building is the combined heat loss of the building envelope, air leakage and ventilation. The heat loss of the building may be at most equal to the reference heat loss determined for the building. The requirement on the heat loss of the building applies separately to heated and partly heated spaces.",
+      "summary_en": "The building's total heat loss from envelope, air leakage and ventilation may be at most equal to its reference heat loss, and the requirement applies separately to heated and partly heated spaces.",
+      "keywords": [
+        "building heat loss",
+        "rakennuksen lämpöhäviö",
+        "vertailulämpöhäviö",
+        "reference heat loss",
+        "vaipan lämpöhäviö",
+        "vuotoilma",
+        "ilmanvaihto",
+        "puolilämmin tila"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-23-2",
+      "ref": "23 § 2 mom.",
+      "heading": "Rakennuksen lämpöhäviön määrittäminen",
+      "heading_en": "Determining the heat loss of the building",
+      "text": "Sellaista rakennuksen laajennusta tai kerrosalaan laskettavan tilan lisäämistä, missä ilmanvaihdon ja lämmityksen järjestämisessä voi käyttää olemassa olevaa ilmanvaihto- tai lämmitysjärjestelmää, koskevat rakennuksen lämpöhäviön osalta vain rakennuksen vaipan lämpöhäviölle asetetut vaatimukset. Loma-asumiseen suunniteltavaa pientaloa, joka on tarkoitettu käytettäväksi vuodessa vähintään neljä kuukautta, koskevat rakennuksen lämpöhäviön osalta vain rakennuksen vaipan lämpöhäviölle asetetut vaatimukset. Rakennuksen lämpöhäviötä koskeva vaatimus ei koske ennen heinäkuun 1 päivää 2012 valmistetuista osista koottua siirtokelpoista rakennusta, jota käytetään edelleen samaan käyttötarkoitukseen.",
+      "text_en": "For an extension of a building, or an added floor area where the existing ventilation or heating system may be used to arrange ventilation and heating, only the requirements for the envelope heat loss of the building apply to the building's heat loss. A small house designed for holiday use and intended for use for at least four months a year is subject only to the envelope heat loss requirements regarding the building's heat loss. The requirement on the building's heat loss does not apply to a transportable building assembled from parts completed before 1 July 2012 that continues to be used for the same purpose.",
+      "summary_en": "For an extension or added floor area that reuses the existing ventilation or heating system, and for a holiday house used at least four months a year, only the envelope heat loss requirements apply.",
+      "keywords": [
+        "extension heat loss",
+        "laajennus",
+        "kerrosala",
+        "loma-asuminen",
+        "holiday house",
+        "4 months use",
+        "siirtokelpoinen rakennus",
+        "envelope heat loss requirement"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "annual use period of a holiday house for the envelope-only requirement",
+          "comparison": ">=",
+          "value": 4,
+          "unit": "months"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-24-1",
+      "ref": "24 § 1 mom.",
+      "heading": "Rakennuksen vaipan lämpöhäviö",
+      "heading_en": "Envelope heat loss of the building",
+      "text": "Rakennuksen vaipan lämpöhäviö on laskettava eri rakennusosien pinta-alojen ja lämmönläpäisykertoimien perusteella kaavalla:\n$$ \\begin{align*} \\sum H_{\\text{joht}} &= \\sum (U_{\\text{ulkoseinä}} A_{\\text{ulkoseinä}}) + \\sum (U_{\\text{yläpohja}} A_{\\text{yläpohja}}) \\\\ &+ \\sum (U_{\\text{alapohja}} A_{\\text{alapohja}}) + \\sum (U_{\\text{ikkuna}} A_{\\text{ikkuna}}) + \\sum (U_{\\text{ovi}} A_{\\text{ovi}}) \\end{align*} $",
+      "text_en": "The envelope heat loss of the building must be calculated from the areas and U-values of the different building parts using the formula:\n$$ \\begin{align*} \\sum H_{\\text{joht}} &= \\sum (U_{\\text{ulkoseinä}} A_{\\text{ulkoseinä}}) + \\sum (U_{\\text{yläpohja}} A_{\\text{yläpohja}}) \\\\ &+ \\sum (U_{\\text{alapohja}} A_{\\text{alapohja}}) + \\sum (U_{\\text{ikkuna}} A_{\\text{ikkuna}}) + \\sum (U_{\\text{ovi}} A_{\\text{ovi}}) \\end{align*} $",
+      "summary_en": "The building envelope heat loss is calculated as the sum over each building part of its U-value times its area.",
+      "keywords": [
+        "envelope heat loss",
+        "vaipan lämpöhäviö",
+        "U-value",
+        "lämmönläpäisykerroin",
+        "pinta-ala",
+        "building part area"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-24-2",
+      "ref": "24 § 2 mom.",
+      "heading": "Rakennuksen vaipan lämpöhäviö",
+      "heading_en": "Envelope heat loss of the building",
+      "text": "jossa:\n∑H joht on rakennuksen vaipan lämpöhäviö, W/K;\nU on rakennusosan lämmönläpäisykerroin, W/(m²K);\nA on rakennusosan pinta-ala, m².",
+      "text_en": "where:\n∑H joht is the envelope heat loss of the building, W/K;\nU is the U-value of the building part, W/(m²K);\nA is the area of the building part, m².",
+      "summary_en": "The envelope heat loss in W/K is the sum of each building part's U-value times its area.",
+      "keywords": [
+        "envelope heat loss formula",
+        "U-value",
+        "lämmönläpäisykerroin",
+        "pinta-ala",
+        "W/K",
+        "vaipan lämpöhäviö kaava"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-24-3",
+      "ref": "24 § 3 mom.",
+      "heading": "Rakennuksen vaipan lämpöhäviö",
+      "heading_en": "Envelope heat loss of the building",
+      "text": "Lämpimän tai jäähdytettävän kylmän tilan rakennuksen vaipan lämpöhäviön vertailuarvo on laskettava käyttämällä rakennusosien lämmönläpäisykertoimina seuraavia vertailuarvoja:\na) seinä 0,17 W/(m² K);\nb) massiivipuuseinä, jonka keskimääräinen\npaksuus on vähintään 180 mm 0,40 W/(m² K);\nc) yläpohja ja ulkoilmaan rajoittuva alapohja 0,09 W/(m² K);\nd) ryömintätilaan rajoittuva alapohja 0,17 W/(m² K);\ne) maata vasten oleva rakennusosa 0,16 W/(m² K);\nf) ikkuna, kattoikkuna, ovi, kattovalokupu,\nsavunpoisto- ja uloskäyntiluukku 1,0 W/(m² K).",
+      "text_en": "The reference envelope heat loss of a heated or cooled cold space must be calculated using the following reference values as U-values of building parts: a) wall 0.17 W/(m² K); b) solid timber wall with an average thickness of at least 180 mm 0.40 W/(m² K); c) roof and ground floor bordering outdoor air 0.09 W/(m² K); d) ground floor bordering a crawl space 0.17 W/(m² K); e) building part against the ground 0.16 W/(m² K); f) window, roof window, door, roof light, smoke vent and exit hatch 1.0 W/(m² K).",
+      "summary_en": "Reference U-values for a heated or cooled cold space are 0.17 for walls, 0.40 for solid timber walls of at least 180 mm, 0.09 for roofs and outdoor-air floors, 0.17 for crawl-space floors, 0.16 for ground-contact parts and 1.0 for windows and doors, all in W/(m2 K).",
+      "keywords": [
+        "reference U-value",
+        "vertailuarvo",
+        "lämmönläpäisykerroin",
+        "ulkoseinä",
+        "massiivipuuseinä",
+        "ikkuna",
+        "ryömintätila",
+        "maata vasten"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "reference U-value of wall in heated or cooled cold space",
+          "comparison": "=",
+          "value": 0.17,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of solid timber wall of at least 180 mm",
+          "comparison": "=",
+          "value": 0.4,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of roof and ground floor bordering outdoor air",
+          "comparison": "=",
+          "value": 0.09,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of ground floor bordering crawl space",
+          "comparison": "=",
+          "value": 0.17,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of building part against the ground",
+          "comparison": "=",
+          "value": 0.16,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of window, roof window, door, roof light, smoke vent and exit hatch",
+          "comparison": "=",
+          "value": 1,
+          "unit": "W/(m2 K)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-24-4",
+      "ref": "24 § 4 mom.",
+      "heading": "Rakennuksen vaipan lämpöhäviö",
+      "heading_en": "Envelope heat loss of the building",
+      "text": "Siirtokelpoisen rakennuksen sekä puolilämpimän tilan rakennuksen vaipan lämpöhäviön vertailuarvo on laskettava käyttämällä rakennusosien lämmönläpäisykertoimina seuraavia vertailuarvoja:\na) seinä 0,26 W/(m² K);\nb) massiivipuuseinä, jonka rakenteen\nkeskimääräinen paksuus vähintään 180 mm 0,60 W/(m² K);\nc) yläpohja ja ulkoilmaan rajoittuva alapohja 0,14 W/(m² K);\nd) ryömintätilaan rajoittuva alapohja 0,26 W/(m² K);\ne) maata vasten oleva rakennusosa 0,24 W/(m² K);\nf) ikkuna, kattoikkuna, ovi, kattovalokupu,\nsavunpoisto- ja uloskäyntiluukku 1,4 W/(m² K).",
+      "text_en": "The reference envelope heat loss of a transportable building and of a partly heated space must be calculated using the following reference values as U-values of building parts: a) wall 0.26 W/(m² K); b) solid timber wall with an average thickness of at least 180 mm 0.60 W/(m² K); c) roof and ground floor bordering outdoor air 0.14 W/(m² K); d) ground floor bordering a crawl space 0.26 W/(m² K); e) building part against the ground 0.24 W/(m² K); f) window, roof window, door, roof light, smoke vent and exit hatch 1.4 W/(m² K).",
+      "summary_en": "Reference U-values for a transportable building or partly heated space are 0.26 for walls, 0.60 for solid timber walls of at least 180 mm, 0.14 for roofs and outdoor-air floors, 0.26 for crawl-space floors, 0.24 for ground-contact parts and 1.4 for windows and doors, all in W/(m2 K).",
+      "keywords": [
+        "reference U-value",
+        "vertailuarvo",
+        "siirtokelpoinen rakennus",
+        "puolilämmin tila",
+        "lämmönläpäisykerroin",
+        "ikkuna 1.4",
+        "ryömintätila",
+        "maata vasten"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "reference U-value of wall in transportable building or partly heated space",
+          "comparison": "=",
+          "value": 0.26,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of solid timber wall of at least 180 mm, transportable or partly heated",
+          "comparison": "=",
+          "value": 0.6,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of roof and ground floor bordering outdoor air, transportable or partly heated",
+          "comparison": "=",
+          "value": 0.14,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of ground floor bordering crawl space, transportable or partly heated",
+          "comparison": "=",
+          "value": 0.26,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of building part against the ground, transportable or partly heated",
+          "comparison": "=",
+          "value": 0.24,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of window, roof window, door, roof light, smoke vent and exit hatch, transportable or partly heated",
+          "comparison": "=",
+          "value": 1.4,
+          "unit": "W/(m2 K)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-24-5",
+      "ref": "24 § 5 mom.",
+      "heading": "Rakennuksen vaipan lämpöhäviö",
+      "heading_en": "Envelope heat loss of the building",
+      "text": "Loma-asumiseen suunniteltavan pientalon, joka on tarkoitettu käytettäväksi vähintään neljä kuukautta vuodessa, rakennuksen vaipan lämpöhäviön vertailuarvo on laskettava käyttämällä rakennusosien lämmönläpäisykertoimina seuraavia vertailuarvoja:\na) seinä 0,24 W/(m² K);\nb) massiivipuuseinä, jonka rakenteen\nkeskimääräinen paksuus vähintään 130 mm 0,80 W/(m² K);\nc) yläpohja ja ulkoilmaan rajoittuva alapohja 0,15 W/(m² K);\nd) ryömintätilaan rajoittuva alapohja 0,19 W/(m² K);\ne) maata vasten oleva rakennusosa 0,24 W/(m² K);\nf) ikkuna, kattoikkuna, ovi, kattovalokupu,\nsavunpoisto- ja uloskäyntiluukku 1,4 W/(m² K).",
+      "text_en": "The reference envelope heat loss of a small house designed for holiday use and intended for use for at least four months a year must be calculated using the following reference values as U-values of building parts: a) wall 0.24 W/(m² K); b) solid timber wall with an average thickness of at least 130 mm 0.80 W/(m² K); c) roof and ground floor bordering outdoor air 0.15 W/(m² K); d) ground floor bordering a crawl space 0.19 W/(m² K); e) building part against the ground 0.24 W/(m² K); f) window, roof window, door, roof light, smoke vent and exit hatch 1.4 W/(m² K).",
+      "summary_en": "Reference U-values for a holiday house used at least four months a year are 0.24 for walls, 0.80 for solid timber walls of at least 130 mm, 0.15 for roofs and outdoor-air floors, 0.19 for crawl-space floors, 0.24 for ground-contact parts and 1.4 for windows and doors, all in W/(m2 K).",
+      "keywords": [
+        "holiday house",
+        "loma-asuminen",
+        "reference U-value",
+        "vertailuarvo",
+        "lämmönläpäisykerroin",
+        "massiivipuuseinä 130 mm",
+        "ikkuna 1.4",
+        "4 months use"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "reference U-value of wall of holiday house",
+          "comparison": "=",
+          "value": 0.24,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of solid timber wall of at least 130 mm, holiday house",
+          "comparison": "=",
+          "value": 0.8,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of roof and ground floor bordering outdoor air, holiday house",
+          "comparison": "=",
+          "value": 0.15,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of ground floor bordering crawl space, holiday house",
+          "comparison": "=",
+          "value": 0.19,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of building part against the ground, holiday house",
+          "comparison": "=",
+          "value": 0.24,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of window, roof window, door, roof light, smoke vent and exit hatch, holiday house",
+          "comparison": "=",
+          "value": 1.4,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "minimum average thickness of solid timber wall for holiday house reference value",
+          "comparison": ">=",
+          "value": 130,
+          "unit": "mm"
+        },
+        {
+          "what": "annual use period of holiday house for this reference value",
+          "comparison": ">=",
+          "value": 4,
+          "unit": "months"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-24-6",
+      "ref": "24 § 6 mom.",
+      "heading": "Rakennuksen vaipan lämpöhäviö",
+      "heading_en": "Envelope heat loss of the building",
+      "text": "Rakennuksen yhteenlasketun ikkunapinta-alan vertailuarvo on 15 prosenttia rakennuksen kokonaan tai osittain maanpäällisten kerrosten kerrostasoalojen yhteismäärästä, mutta kuitenkin enintään 50 prosenttia rakennuksen julkisivupinta-alasta. Ikkunan pinta-ala on laskettava ikkunan kehän ulkomittojen mukaan.",
+      "text_en": "The reference value for the building's total window area is 15 per cent of the total floor area of the storeys of the building that are wholly or partly above ground, but at most 50 per cent of the building's facade area. The window area is calculated from the outer dimensions of the window frame perimeter.",
+      "summary_en": "The reference window area is 15 per cent of the above-ground storey floor area, but at most 50 per cent of the facade area, with window area measured from the outer frame dimensions.",
+      "keywords": [
+        "window area",
+        "ikkunapinta-ala",
+        "reference window area",
+        "15 per cent",
+        "50 per cent facade",
+        "kerrostasoala",
+        "julkisivupinta-ala",
+        "window frame outer dimensions"
+      ],
+      "topics": [
+        "energy",
+        "doors-windows"
+      ],
+      "limits": [
+        {
+          "what": "reference window area as share of above-ground storey floor area",
+          "comparison": "=",
+          "value": 15,
+          "unit": "%"
+        },
+        {
+          "what": "maximum window area as share of facade area",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1010-2017-24-7",
+      "ref": "24 § 7 mom.",
+      "heading": "Rakennuksen vaipan lämpöhäviö",
+      "heading_en": "Envelope heat loss of the building",
+      "text": "Laskennassa on käytettävä suunnitellun rakennuksen koko- ja geometriatietoja. Rakennuksen vaipan eri rakennusosien pinta-alat on määritettävä rakennuksen kokonaissisämittojen mukaan.",
+      "text_en": "The calculation must use the size and geometry data of the planned building. The areas of the different building parts of the envelope must be determined according to the total internal dimensions of the building.",
+      "summary_en": "The envelope calculation must use the planned building's size and geometry, with building part areas taken from total internal dimensions.",
+      "keywords": [
+        "calculation geometry",
+        "rakennuksen koko",
+        "geometria",
+        "sisämitta",
+        "internal dimensions",
+        "vaipan pinta-ala",
+        "building part areas"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-24-8",
+      "ref": "24 § 8 mom.",
+      "heading": "Rakennuksen vaipan lämpöhäviö",
+      "heading_en": "Envelope heat loss of the building",
+      "text": "Rakennuksen suunnitteluratkaisun vaipan lämpöhäviön laskennassa on käytettävä suunniteltuja rakennusosakohtaisia lämmönläpäisykertoimia ja ikkunapinta-aloja.",
+      "text_en": "The envelope heat loss of the building's design solution must be calculated using the planned U-values for each building part and the planned window areas.",
+      "summary_en": "The design envelope heat loss must use the planned U-value of each building part and the planned window areas.",
+      "keywords": [
+        "design envelope heat loss",
+        "suunnitellut U-arvot",
+        "planned U-value",
+        "ikkunapinta-ala",
+        "suunnitteluratkaisu",
+        "vaipan lämpöhäviö"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-25-1",
+      "ref": "25 § 1 mom.",
+      "heading": "Rakennuksen vuotoilman lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from air leakage of the building",
+      "text": "Rakennuksen vuotoilman lämpöhäviö on laskettava kaavalla:\n$$ H_{\\text{vuotoilma}} = \\rho_i c_{pi} q_{v,\\text{vuotoilma}} $",
+      "text_en": "The heat loss from air leakage of the building must be calculated using the formula:\n$$ H_{\\text{vuotoilma}} = \\rho_i c_{pi} q_{v,\\text{vuotoilma}} $",
+      "summary_en": "The heat loss from air leakage must be calculated from the leakage airflow using the formula given in the following subsection.",
+      "keywords": [
+        "air leakage heat loss",
+        "vuotoilman lämpöhäviö",
+        "vuotoilmavirta",
+        "ilmanvuotoluku",
+        "air leakage formula",
+        "ilman tiheys"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-25-2",
+      "ref": "25 § 2 mom.",
+      "heading": "Rakennuksen vuotoilman lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from air leakage of the building",
+      "text": "jossa:\nH vuotoilma on vuotoilman lämpöhäviö, W/K;\nρ i on ilman tiheys, 1,2 kg/m³;\nc pi on ilman ominaislämpökapasiteetti, 1000 Ws/(kg K);\nq v,vuotoilma on vuotoilmavirta, m³/s.",
+      "text_en": "where:\nH vuotoilma is the heat loss from air leakage, W/K;\nρ i is the air density, 1.2 kg/m³;\nc pi is the specific heat capacity of air, 1000 Ws/(kg K);\nq v,vuotoilma is the air leakage airflow, m³/s.",
+      "summary_en": "The air leakage heat loss in W/K equals the leakage airflow times air density and specific heat, with air density 1.2 kg/m3 and specific heat 1000 Ws/(kg K).",
+      "keywords": [
+        "air leakage heat loss formula",
+        "vuotoilma",
+        "air density 1.2 kg/m3",
+        "ilman ominaislämpökapasiteetti",
+        "vuotoilmavirta",
+        "m3/s"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-25-3",
+      "ref": "25 § 3 mom.",
+      "heading": "Rakennuksen vuotoilman lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from air leakage of the building",
+      "text": "Vuotoilmavirta q v,vuotoilma on määritettävä 17 §:n mukaisesti. Rakennuksen vertailulämpöhäviötä laskettaessa rakennuksen vaipan ilmanvuotoluvun vertailuarvona on käytettävä arvoa 2,0 m³ /(h m²).",
+      "text_en": "The air leakage airflow q v,vuotoilma must be determined according to section 17. When calculating the reference heat loss of the building, the reference value of the envelope air leakage rate must be 2.0 m³/(h m²).",
+      "summary_en": "The reference heat loss uses an envelope air leakage rate of 2.0 m3/(h m2).",
+      "keywords": [
+        "reference air leakage",
+        "vertailu ilmanvuotoluku",
+        "2.0 m3/(h m2)",
+        "q50",
+        "ilmanvuotoluku",
+        "vuotoilmavirta",
+        "vertailulämpöhäviö"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "reference envelope air leakage rate",
+          "comparison": "=",
+          "value": 2,
+          "unit": "m3/(h m2)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-25-4",
+      "ref": "25 § 4 mom.",
+      "heading": "Rakennuksen vuotoilman lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from air leakage of the building",
+      "text": "Rakennuksen suunnitteluratkaisun lämpöhäviötä laskettaessa on käytettävä suunnitteluarvoa rakennuksen vaipan ilmanvuotoluvun arvona. Jos ilmanpitävyyden suunnitteluarvon toteutumista ei osoiteta mittaamalla tai teollisen talonrakennuksen laadunvarmistusmenettelyllä, on käytettävä rakennuksen vaipan ilmanvuotoluvun arvoa 4,0 m³ /(h m²).",
+      "text_en": "For the heat loss of the building's design solution, the design value must be used as the envelope air leakage rate. If the design value of airtightness is not shown to be met by measurement or by the quality assurance procedure of industrial building construction, the envelope air leakage rate value of 4.0 m³/(h m²) must be used.",
+      "summary_en": "The design heat loss uses the design air leakage rate, or 4.0 m3/(h m2) if airtightness is not shown by measurement or industrial quality assurance.",
+      "keywords": [
+        "design air leakage",
+        "suunnitteluarvo",
+        "ilmanpitävyys",
+        "ilmanvuotoluku 4.0",
+        "mittaus",
+        "airtightness test",
+        "teollinen talonrakennus",
+        "q50"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "default envelope air leakage rate when airtightness is not verified",
+          "comparison": "=",
+          "value": 4,
+          "unit": "m3/(h m2)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-26-1",
+      "ref": "26 § 1 mom.",
+      "heading": "Rakennuksen ilmanvaihdon lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from ventilation of the building",
+      "text": "Rakennuksen ilmanvaihdon lämpöhäviö on laskettava kaavalla:\n$$ H_{iv} = \\rho_i c_{pi} q_{v,\\text{poisto}} t_d t_V (1 - \\eta_\\alpha) $",
+      "text_en": "The heat loss from ventilation of the building must be calculated using the formula:\n$$ H_{iv} = \\rho_i c_{pi} q_{v,\\text{poisto}} t_d t_V (1 - \\eta_\\alpha) $",
+      "summary_en": "The ventilation heat loss must be calculated from ventilation airflow, operating times and heat recovery efficiency using the formula in the following subsection.",
+      "keywords": [
+        "ventilation heat loss",
+        "ilmanvaihdon lämpöhäviö",
+        "ilmanvaihto",
+        "lämpöhäviö kaava",
+        "W/K",
+        "lämmöntalteenotto"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-26-2",
+      "ref": "26 § 2 mom.",
+      "heading": "Rakennuksen ilmanvaihdon lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from ventilation of the building",
+      "text": "jossa:\nH iv on ilmanvaihdon ominaislämpöhäviö, W/K;\nρ i on ilman tiheys, 1,2 kg/m³;\nc pi on ilman ominaislämpökapasiteetti, 1000 Ws/(kg K);\nq v, poisto on vakioidun käytön mukainen laskennallinen poistoilmavirta, m³/s;\nt d on ilmanvaihtojärjestelmän keskimääräinen vuorokautinen käyntiaikasuhde, h/24h;\nt v on ilmanvaihtojärjestelmän viikoittainen käyntiaikasuhde, vrk/7 vrk;\nη a on ilmanvaihdon poistoilman lämmöntalteenoton vuosihyötysuhde.",
+      "text_en": "where:\nH iv is the specific heat loss of ventilation, W/K;\nρ i is the air density, 1.2 kg/m³;\nc pi is the specific heat capacity of air, 1000 Ws/(kg K);\nq v, poisto is the calculated exhaust airflow for the standardised use, m³/s;\nt d is the average daily operating time ratio of the ventilation system, h/24 h;\nt v is the weekly operating time ratio of the ventilation system, days/7 days;\nη a is the annual efficiency of exhaust air heat recovery of the ventilation.",
+      "summary_en": "Ventilation heat loss in W/K is calculated from exhaust airflow, daily and weekly operating time ratios and the annual heat recovery efficiency.",
+      "keywords": [
+        "ventilation heat loss formula",
+        "ilmanvaihdon lämpöhäviö",
+        "poistoilmavirta",
+        "käyntiaikasuhde",
+        "lämmöntalteenoton vuosihyötysuhde",
+        "heat recovery efficiency",
+        "W/K"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-26-3",
+      "ref": "26 § 3 mom.",
+      "heading": "Rakennuksen ilmanvaihdon lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from ventilation of the building",
+      "text": "Ilmanvaihdon vertailulämpöhäviön ja suunnitteluratkaisun ilmanvaihdon lämpöhäviön laskennassa on käytettävä samoja ilmavirtojen arvoja ja käyntiaikoja.",
+      "text_en": "The same airflow values and operating times must be used in calculating the reference ventilation heat loss and the design solution's ventilation heat loss.",
+      "summary_en": "The reference and design ventilation heat loss calculations must use the same airflows and operating times.",
+      "keywords": [
+        "ventilation heat loss comparison",
+        "vertailulämpöhäviö",
+        "ilmavirta",
+        "käyntiaika",
+        "design ventilation",
+        "suunnitteluratkaisu"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-26-4",
+      "ref": "26 § 4 mom.",
+      "heading": "Rakennuksen ilmanvaihdon lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from ventilation of the building",
+      "text": "Ilmanvaihdon ilmavirta on laskettava 10 §:n mukaisesti. Laskettaessa vertailulämpöhäviötä ja suunnitteluratkaisun lämpöhäviötä ei tarpeenmukaista ilmanvaihtoa oteta huomioon. Ilmanvaihdon käyntiaika on laskettava lisäämällä yksi tunti ennen ja yksi tunti jälkeen 11 §:n mukaiseen rakennuksen käyttöaikaan. Lisäystä ei tehdä jatkuvasti käytettäviin rakennuksiin. Käyttötarkoitusluokan 9 rakennuksille on käytettävä rakennuksen suunnitteluarvoja ilmavirtoina ja ilmanvaihdon käyntiaikana.",
+      "text_en": "The ventilation airflow must be calculated according to section 10. When calculating the reference heat loss and the design solution's heat loss, demand-controlled ventilation is not taken into account. The ventilation operating time must be calculated by adding one hour before and one hour after the building's operating time under section 11. The addition is not made for buildings that are used continuously. For use class 9 buildings, the design values must be used for airflows and ventilation operating time.",
+      "summary_en": "Ventilation operating time is extended by one hour before and after building use, except for continuously used buildings, and demand-controlled ventilation is ignored in the heat loss calculation.",
+      "keywords": [
+        "ventilation operating time",
+        "käyntiaika",
+        "demand-controlled ventilation",
+        "tarpeenmukainen ilmanvaihto",
+        "1 h before and after",
+        "use class 9",
+        "ilmavirta"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "extra ventilation operating time before and after building use",
+          "comparison": "=",
+          "value": 1,
+          "unit": "h"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-26-5",
+      "ref": "26 § 5 mom.",
+      "heading": "Rakennuksen ilmanvaihdon lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from ventilation of the building",
+      "text": "Vertailulämpöhäviön laskennassa on käytettävä rakennuksen ilmanvaihtojärjestelmän ilmanvaihdon poistoilman lämmöntalteenoton vuosihyötysuhteena arvoa 55 prosenttia. Rakennuksen vertailulämpöhäviön laskennassa yksittäisen tilan poistoilman lämmöntalteenoton vuosihyötysuhteen arvo on nolla prosenttia, jos poistoilman likaisuus estää lämmöntalteenoton toiminnan, tilan lämpötila lämmityskaudella on alle +10 celsiusastetta eikä poistoilmasta ole saatavissa lämpöä talteen kustannustehokkaasti tai jos ilmanvaihtojärjestelmän toiminta perustuu pääasiassa korkeus- ja lämpötilaerojen sekä tuulen aiheuttamiin paine-eroihin.",
+      "text_en": "The reference heat loss calculation must use an annual heat recovery efficiency of 55 per cent for the exhaust air of the building's ventilation system. In the reference heat loss calculation, the annual heat recovery efficiency of an individual room's exhaust air is zero per cent if the dirtiness of the exhaust air prevents heat recovery from working, the room temperature in the heating season is below +10 degrees Celsius and no heat can be recovered from the exhaust air cost-effectively, or if the ventilation system operates mainly on pressure differences caused by height and temperature differences and wind.",
+      "summary_en": "The reference heat loss uses 55 per cent exhaust-air heat recovery, or zero for a room with dirty exhaust air, a heating-season temperature below +10 degC, no cost-effective heat recovery, or purely pressure-driven ventilation.",
+      "keywords": [
+        "heat recovery efficiency",
+        "lämmöntalteenoton vuosihyötysuhde",
+        "55 per cent",
+        "reference heat loss",
+        "poistoilma",
+        "10 degC",
+        "painovoimainen ilmanvaihto",
+        "likainen poistoilma"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "reference annual heat recovery efficiency of exhaust air",
+          "comparison": "=",
+          "value": 55,
+          "unit": "%"
+        },
+        {
+          "what": "heat recovery efficiency for an individual room in the reference calculation, when conditions apply",
+          "comparison": "=",
+          "value": 0,
+          "unit": "%"
+        },
+        {
+          "what": "room temperature in heating season below which room heat recovery is zero",
+          "comparison": "<",
+          "value": 10,
+          "unit": "degC"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-26-6",
+      "ref": "26 § 6 mom.",
+      "heading": "Rakennuksen ilmanvaihdon lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from ventilation of the building",
+      "text": "Jos käytetään koneellista ilmanvaihtoa, ilmanvaihtokoneen poistoilman lämmöntalteenoton vuosihyötysuhde on määritettävä käyttäen lämmöntalteenottolaitteen ominaisuuksia ja ilmanvaihtokoneen suunniteltuja ilmavirtoja sekä liitteessä 1 säädetyn säävyöhykkeen I säätietoja.",
+      "text_en": "If mechanical ventilation is used, the annual heat recovery efficiency of the ventilation unit's exhaust air must be determined using the properties of the heat recovery device and the planned airflows of the ventilation unit, together with the weather data of climate zone I set out in annex 1.",
+      "summary_en": "The annual heat recovery efficiency of a mechanical ventilation unit is determined from the heat recovery device and planned airflows, using climate zone I weather data from annex 1.",
+      "keywords": [
+        "mechanical ventilation heat recovery",
+        "koneellinen ilmanvaihto",
+        "ilmanvaihtokone",
+        "lämmöntalteenottolaite",
+        "säävyöhyke I",
+        "climate zone I",
+        "liite 1"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-26-7",
+      "ref": "26 § 7 mom.",
+      "heading": "Rakennuksen ilmanvaihdon lämpöhäviön laskeminen",
+      "heading_en": "Heat loss from ventilation of the building",
+      "text": "Kahden tai useamman ilmanvaihtokoneen poistoilman lämmöntalteenoton vuosihyötysuhde on määritettävä suunniteltujen ilmavirtojen ja käyntiaikojen painotettuna vuosihyötysuhteena. Rakennuksen suunnitteluratkaisun ilmanvaihdon lämpöhäviö on laskettava käyttäen näin määritettyä poistoilman lämmöntalteenoton vuosihyötysuhdetta ja 3 momentin mukaisia ilmavirtojen arvoja ja käyntiaikoja.",
+      "text_en": "The annual heat recovery efficiency of two or more ventilation units must be determined as an annual efficiency weighted by the planned airflows and operating times. The design solution's ventilation heat loss must be calculated using the annual exhaust-air heat recovery efficiency determined in this way and the airflow values and operating times under subsection 3.",
+      "summary_en": "With two or more ventilation units, heat recovery efficiency is a weighted average by planned airflows and operating times, and is used in the design ventilation heat loss.",
+      "keywords": [
+        "weighted heat recovery efficiency",
+        "useampi ilmanvaihtokone",
+        "painotettu vuosihyötysuhde",
+        "several ventilation units",
+        "planned airflow",
+        "käyntiaika",
+        "design ventilation heat loss"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-27-1",
+      "ref": "27 §",
+      "heading": "Rakennuksen ilmanpitävyys",
+      "heading_en": "Airtightness of the building",
+      "text": "Rakennuksen vaipan ilmanvuotoluku (q 50) voi olla enintään 4,0 m³ /(h m²). Ilmanvuotoluku voi ylittää arvon 4,0 m³ /(h m²), jos rakennuksen käytön vaatimat rakenteelliset ratkaisut sitä edellyttävät.",
+      "text_en": "The envelope air leakage rate (q 50) of the building may be at most 4.0 m³/(h m²). The air leakage rate may exceed 4.0 m³/(h m²) if structural solutions required by the building's use make this necessary.",
+      "summary_en": "The building envelope air leakage rate q50 may be at most 4.0 m3/(h m2), unless structural solutions required by the building's use make a higher value necessary.",
+      "keywords": [
+        "airtightness",
+        "ilmanpitävyys",
+        "ilmanvuotoluku",
+        "q50",
+        "4.0 m3/(h m2)",
+        "envelope air leakage"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "envelope air leakage rate q50",
+          "comparison": "<=",
+          "value": 4,
+          "unit": "m3/(h m2)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-28-1",
+      "ref": "28 § 1 mom.",
+      "heading": "Routaeristys, perusmuurin lämmöneristys ja eräiden tilojen välinen eristys",
+      "heading_en": "Frost insulation, foundation wall insulation and insulation between certain spaces",
+      "text": "Rakennuksen alapohjan lämmöneristyksen suunnittelussa on otettava huomioon routaeristys ja mahdollinen rakennuksen vaippaan kuulumaton perusmuurin lämmöneristys routavaurioiden välttämiseksi.",
+      "text_en": "When designing the thermal insulation of the building's ground floor, frost insulation and any thermal insulation of the foundation wall that does not belong to the building envelope must be taken into account to avoid frost damage.",
+      "summary_en": "Ground-floor insulation design must consider frost insulation and any foundation wall insulation outside the envelope to avoid frost damage.",
+      "keywords": [
+        "frost insulation",
+        "routaeristys",
+        "perusmuuri",
+        "foundation wall insulation",
+        "alapohja",
+        "routavaurio",
+        "lämmöneristys"
+      ],
+      "topics": [
+        "structure",
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-28-2",
+      "ref": "28 § 2 mom.",
+      "heading": "Routaeristys, perusmuurin lämmöneristys ja eräiden tilojen välinen eristys",
+      "heading_en": "Frost insulation, foundation wall insulation and insulation between certain spaces",
+      "text": "Jäähdytettävän kylmän tilan ja muiden tilojen välisen seinän ja välipohjan lämmönläpäisykerroin saa olla enintään 0,27 W/(m² K) ja oven enintään 1,4 W/(m² K).",
+      "text_en": "The U-value of a wall and floor between a cooled cold space and other spaces may be at most 0.27 W/(m² K), and the U-value of a door may be at most 1.4 W/(m² K).",
+      "summary_en": "Walls and floors between a cooled cold space and other spaces may have a U-value of at most 0.27 W/(m2 K), and doors at most 1.4 W/(m2 K).",
+      "keywords": [
+        "cold space partition",
+        "jäähdytettävä kylmä tila",
+        "välipohja",
+        "väliseinä",
+        "ovi U-arvo 1.4",
+        "lämmönläpäisykerroin",
+        "U-value 0.27"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "U-value of wall and floor between a cooled cold space and other spaces",
+          "comparison": "<=",
+          "value": 0.27,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "U-value of door between a cooled cold space and other spaces",
+          "comparison": "<=",
+          "value": 1.4,
+          "unit": "W/(m2 K)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-28-3",
+      "ref": "28 § 3 mom.",
+      "heading": "Routaeristys, perusmuurin lämmöneristys ja eräiden tilojen välinen eristys",
+      "heading_en": "Frost insulation, foundation wall insulation and insulation between certain spaces",
+      "text": "Lämpimän tilan ja puolilämpimän tilan välisen seinän ja välipohjan lämmönläpäisykerroin saa olla enintään 0,60 W/(m² K) ja ikkunan ja oven enintään 2,8 W/(m² K) lukuun ottamatta loma-asumiseen suunniteltavaa pientaloa.",
+      "text_en": "The U-value of a wall and floor between a heated space and a partly heated space may be at most 0.60 W/(m² K), and the U-value of a window and a door may be at most 2.8 W/(m² K), except for a small house designed for holiday use.",
+      "summary_en": "A wall or floor between a heated and a partly heated space may have a U-value of at most 0.60 W/(m2 K), and a window or door at most 2.8 W/(m2 K), except for holiday houses.",
+      "keywords": [
+        "partly heated space",
+        "puolilämmin tila",
+        "välipohja",
+        "väliseinä",
+        "ikkuna U-arvo 2.8",
+        "ovi",
+        "loma-asuminen",
+        "lämmönläpäisykerroin"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "U-value of wall and floor between a heated and a partly heated space",
+          "comparison": "<=",
+          "value": 0.6,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "U-value of window and door between a heated and a partly heated space",
+          "comparison": "<=",
+          "value": 2.8,
+          "unit": "W/(m2 K)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-29-1",
+      "ref": "29 §",
+      "heading": "Laskennallinen kesäajan huonelämpötila",
+      "heading_en": "Calculated summer-time room temperature",
+      "text": "Laskennallinen kesäajan huonelämpötila ei saa ylittää jäähdytysrajan arvoa 27 celsius-astetta käyttötarkoitusluokassa 2 ja jäähdytysrajan arvoa 25 celsiusastetta käyttötarkoitusluokissa 3–8 enemmän kuin 150 astetuntia kesäkuun 1 päivän ja elokuun 31 päivän välisenä aikana suunnitteluratkaisun mukaista ilmavirtaa käyttäen. Kesäajan huonelämpötilan vaatimuksenmukaisuus on osoitettava eri tilatyyppien lämpötilalaskennalla. Laskennassa on käytettävä ilmavirtaa lukuun ottamatta E-luvun laskennan mukaisia lähtötietoja. Kesäajan huonelämpötilaa koskevaa vaatimusta ei sovelleta käyttötarkoitusluokkaan 1 ja 9 kuuluviin rakennuksiin. Kesäajan huonelämpötilan laskennassa on käytettävä dynaamista laskentatyökalua.",
+      "text_en": "The calculated summer-time room temperature must not exceed the cooling limit of 27 degrees Celsius in use class 2 and the cooling limit of 25 degrees Celsius in use classes 3-8 by more than 150 degree-hours during the period from 1 June to 31 August, using the airflow of the design solution. Compliance with the summer-time room temperature requirement must be shown by temperature calculations for the different room types. The calculation must use the input data of the E-value calculation, except for airflow. The summer-time room temperature requirement does not apply to buildings in use classes 1 and 9. The summer-time room temperature calculation must use a dynamic calculation tool.",
+      "summary_en": "Summer-time room temperature must not exceed the 27 degC (use class 2) or 25 degC (use classes 3-8) cooling limit by more than 150 degree-hours between 1 June and 31 August, calculated with a dynamic tool.",
+      "keywords": [
+        "summer indoor temperature",
+        "kesäajan huonelämpötila",
+        "cooling limit",
+        "jäähdytysraja",
+        "27 degC",
+        "150 degree-hours",
+        "astetunti",
+        "dynamic calculation"
+      ],
+      "topics": [
+        "energy",
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "cooling limit temperature for use class 2",
+          "comparison": "=",
+          "value": 27,
+          "unit": "degC"
+        },
+        {
+          "what": "cooling limit temperature for use classes 3-8",
+          "comparison": "=",
+          "value": 25,
+          "unit": "degC"
+        },
+        {
+          "what": "summer degree-hours above the cooling limit, 1 June to 31 August",
+          "comparison": "<=",
+          "value": 150,
+          "unit": "degC h"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-30-1",
+      "ref": "30 § 1 mom.",
+      "heading": "Rakennuksen koneellisen ilmanvaihtojärjestelmän ominaissähköteho",
+      "heading_en": "Specific electric power of the building's mechanical ventilation system",
+      "text": "Jos rakennuksessa on koneellinen ilmanvaihtojärjestelmä, voi koneellisen tulo- ja poistoilmajärjestelmän ominaissähköteho olla enintään 1,8 kW/(m³ /s) ja koneellisen poistoilmajärjestelmän ominaissähköteho enintään 0,9 kW/(m³ /s).",
+      "text_en": "If the building has a mechanical ventilation system, the specific electric power of the mechanical supply and exhaust air system may be at most 1.8 kW/(m³/s), and that of the mechanical exhaust air system at most 0.9 kW/(m³/s).",
+      "summary_en": "A mechanical supply and exhaust ventilation system may have a specific fan power of at most 1.8 kW per m3/s, and an exhaust-only system at most 0.9 kW per m3/s.",
+      "keywords": [
+        "specific fan power",
+        "ominaissähköteho",
+        "SFP",
+        "tulo- ja poistoilmajärjestelmä",
+        "poistoilmajärjestelmä",
+        "kW/(m3/s)",
+        "koneellinen ilmanvaihto"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "specific electric power of mechanical supply and exhaust ventilation system",
+          "comparison": "<=",
+          "value": 1.8,
+          "unit": "kW/(m3/s)"
+        },
+        {
+          "what": "specific electric power of mechanical exhaust ventilation system",
+          "comparison": "<=",
+          "value": 0.9,
+          "unit": "kW/(m3/s)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-30-2",
+      "ref": "30 § 2 mom.",
+      "heading": "Rakennuksen koneellisen ilmanvaihtojärjestelmän ominaissähköteho",
+      "heading_en": "Specific electric power of the building's mechanical ventilation system",
+      "text": "Ilmanvaihtojärjestelmän ominaissähköteho voi ylittää edellä mainitut arvot rakennuksen käyttötarkoituksen mukaisen sisäilmaston niin edellyttäessä.",
+      "text_en": "The specific electric power of the ventilation system may exceed the values in subsection 1 if the indoor climate required by the building's use so requires.",
+      "summary_en": "The specific fan power may exceed the subsection 1 limits when the building's use requires a particular indoor climate.",
+      "keywords": [
+        "specific fan power exception",
+        "ominaissähköteho",
+        "sisäilmasto",
+        "indoor climate requirement",
+        "käyttötarkoitus",
+        "ventilation power"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-31-1",
+      "ref": "31 §",
+      "heading": "Energiankäytön mittaus rakennuksessa",
+      "heading_en": "Energy use metering in the building",
+      "text": "Rakennuksessa on oltava energiankäytön mittauksen mahdollistavat mittauslaitteet tai mittausvalmius, jotta rakennuksen energiankäyttöä voidaan seurata tärkeimpien kulutuskohteiden ja rakennuksen koko kulutuksen osalta tai tällainen seurantamahdollisuus on oltava helposti toteutettavissa.",
+      "text_en": "The building must have metering devices, or readiness for metering, that make it possible to monitor energy use for the main consumption items and for the building's total consumption, or such monitoring must be easy to implement.",
+      "summary_en": "The building must have energy metering devices or metering readiness for its main consumers and total consumption, or monitoring must be easy to add.",
+      "keywords": [
+        "energy metering",
+        "energiankäytön mittaus",
+        "mittauslaitteet",
+        "mittausvalmius",
+        "kulutuskohde",
+        "energy monitoring",
+        "kokonaiskulutus"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-32-1",
+      "ref": "32 § 1 mom.",
+      "heading": "Rakennuksen lämmön ja sähkön tehon tarve",
+      "heading_en": "Heating and electricity power demand of the building",
+      "text": "Rakennuksen lämmitysjärjestelmän lämmitysteho on mitoitettava siten, että rakennuksen tilojen suunnitellut lämpöolot ja ilmanvaihto voidaan ylläpitää rakennuksen sijaintipaikkakunnan mukaisen säävyöhykkeen mitoittavilla ulkolämpötiloilla, jotka esitetään liitteessä 1.",
+      "text_en": "The heating output of the building's heating system must be dimensioned so that the planned indoor thermal conditions and the ventilation of the building can be maintained at the design outdoor temperatures of the climate zone where the building is located, as set out in annex 1.",
+      "summary_en": "Heating output must be sized to maintain planned indoor conditions and ventilation at the design outdoor temperature of the building's climate zone from annex 1.",
+      "keywords": [
+        "heating power",
+        "lämmitysteho",
+        "mitoitus",
+        "design outdoor temperature",
+        "mitoittava ulkolämpötila",
+        "säävyöhyke",
+        "liite 1"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-32-2",
+      "ref": "32 § 2 mom.",
+      "heading": "Rakennuksen lämmön ja sähkön tehon tarve",
+      "heading_en": "Heating and electricity power demand of the building",
+      "text": "Suunnittelussa on otettava huomioon mahdollisuuksia sähkön huipputehon tarpeen pienentämiseksi ja sähkötehon ohjattavuuden parantamiseksi.",
+      "text_en": "Design must consider possibilities for reducing the need for peak electric power and for improving the controllability of electric power.",
+      "summary_en": "Design must consider ways to reduce peak electric power demand and to improve the controllability of electric power.",
+      "keywords": [
+        "peak electric power",
+        "sähkön huipputeho",
+        "sähkötehon ohjattavuus",
+        "demand response",
+        "power controllability",
+        "sähkötehon tarve"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-33-1",
+      "ref": "33 § 1 mom.",
+      "heading": "Rakenteellinen energiatehokkuus",
+      "heading_en": "Structural energy efficiency",
+      "text": "Rakennuksen energiatehokkuudelle 4 §:ssä asetettujen vaatimusten täyttyminen voidaan 4 §:stä poiketen osoittaa rakenteellisella energiatehokkuudella.",
+      "text_en": "Compliance with the energy efficiency requirements set in section 4 may, unlike section 4, be demonstrated by structural energy efficiency.",
+      "summary_en": "The energy efficiency requirements of section 4 may instead be demonstrated through structural energy efficiency.",
+      "keywords": [
+        "structural energy efficiency",
+        "rakenteellinen energiatehokkuus",
+        "E-luku",
+        "energy efficiency requirement",
+        "vaihtoehtoinen osoitus",
+        "section 4"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-33-2",
+      "ref": "33 § 2 mom.",
+      "heading": "Rakenteellinen energiatehokkuus",
+      "heading_en": "Structural energy efficiency",
+      "text": "Käyttötarkoitusluokkiin 1 ja 2 kuuluva rakennus täyttää energiatehokkuudelle asetetut vaatimukset, jos:\n1) rakennuksen lämpöhäviö on enintään yhtä suuri kuin rakenteellisen energiatehokkuuden vertailuarvoilla rakennukselle määritetty vertailulämpöhäviö vastaavasti laskettuna kuin 24, 25 ja 26 §:ssä on esitetty. Rakennusosien lämmönläpäisykertoimien, ilmanvuotoluvun ja poistoilman lämmöntalteenoton vuosihyötysuhteen vertailuarvot ovat:a) seinä, käyttötarkoitusluokka 1 0,12 W/(m² K); b) seinä, käyttötarkoitusluokka 2 0,14 W/(m² K); c) yläpohja ja ulkoilmaan rajoittuva alapohja 0,07 W/(m² K); d)ryömintätilaan rajoittuva tuuletettu alapohja ja maata vasten oleva rakennusosa 0,10 W/(m² K); e)ikkuna, kattoikkuna, ovi, kattovalokupu, savunpoisto- ja uloskäyntiluukku 0,70 W/(m² K); f) rakennuksen ilmanvuotoluku (q 50) 0,60 m³ /(h m²); g)poistoilman lämmöntalteenoton vuosihyötysuhde 65 prosenttia;\n2) Rakennus on varustettu koneellisella tulo- ja poistoilmanvaihtojärjestelmällä, jonka ominaissähköteho on enintään 1,5 kW/(m³ /s);\n3) Rakennuksen lämmitysjärjestelmänä on käytettävä kaukolämpöä, maalämpöpumppua tai ilma-vesilämpöpumppua.",
+      "text_en": "A building of use classes 1 and 2 meets the energy efficiency requirements if:\n1) the heat loss of the building is at most equal to the reference heat loss determined for the building with the structural energy efficiency reference values, calculated as set out in sections 24, 25 and 26. The reference values for U-values of building parts, air leakage rate and annual heat recovery efficiency are: a) wall, use class 1 0.12 W/(m² K); b) wall, use class 2 0.14 W/(m² K); c) roof and ground floor bordering outdoor air 0.07 W/(m² K); d) ventilated ground floor bordering a crawl space, and building part against the ground 0.10 W/(m² K); e) window, roof window, door, roof light, smoke vent and exit hatch 0.70 W/(m² K); f) building envelope air leakage rate (q 50) 0.60 m³/(h m²); g) annual heat recovery efficiency of exhaust air 65 per cent;\n2) the building is equipped with a mechanical supply and exhaust ventilation system with a specific electric power of at most 1.5 kW/(m³/s);\n3) the building's heating system must use district heating, a ground-source heat pump or an air-to-water heat pump.",
+      "summary_en": "A use class 1 or 2 building meets the energy requirement through structural efficiency if its heat loss is within the structural reference value, with the reference U-values, 0.60 air leakage, 65 per cent heat recovery, a fan power of at most 1.5 kW per m3/s, and district heating, ground-source or air-to-water heat pump heating.",
+      "keywords": [
+        "structural energy efficiency",
+        "reference U-values",
+        "wall U-value 0.12",
+        "wall U-value 0.14",
+        "ilmanvuotoluku 0.60",
+        "lämmöntalteenotto 65 %",
+        "kaukolämpö",
+        "maalämpöpumppu",
+        "ilma-vesilämpöpumppu",
+        "ominaissähköteho 1.5"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "reference U-value of wall, use class 1",
+          "comparison": "=",
+          "value": 0.12,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of wall, use class 2",
+          "comparison": "=",
+          "value": 0.14,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of roof and ground floor bordering outdoor air",
+          "comparison": "=",
+          "value": 0.07,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of ventilated ground floor bordering crawl space and of ground-contact building part",
+          "comparison": "=",
+          "value": 0.1,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference U-value of window, roof window, door, roof light, smoke vent and exit hatch",
+          "comparison": "=",
+          "value": 0.7,
+          "unit": "W/(m2 K)"
+        },
+        {
+          "what": "reference envelope air leakage rate q50",
+          "comparison": "=",
+          "value": 0.6,
+          "unit": "m3/(h m2)"
+        },
+        {
+          "what": "reference annual heat recovery efficiency of exhaust air",
+          "comparison": "=",
+          "value": 65,
+          "unit": "%"
+        },
+        {
+          "what": "maximum specific electric power of mechanical supply and exhaust ventilation",
+          "comparison": "<=",
+          "value": 1.5,
+          "unit": "kW/(m3/s)"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-34-1",
+      "ref": "34 § 1 mom.",
+      "heading": "Energiaselvitys",
+      "heading_en": "Energy report",
+      "text": "Rakennusta suunniteltaessa on laadittava energiaselvitys. Energiaselvitys sisältää tarkastelut:\na) E-luku 4 §:n mukaan ja E-luvun laskennan keskeiset lähtötiedot ja tulokset, rakennuksen lämpöhäviön määräystenmukaisuus 23 §:n mukaan ja koneellisen ilmanvaihtojärjestelmän ominaissähköteho 30 §:n mukaan; tai\nb) rakenteellisen energiatehokkuuden määräystenmukaisuus 33 §:n mukaan.",
+      "text_en": "An energy report must be prepared when designing a building. The energy report includes the following reviews: a) the E-value under section 4 and the key input data and results of the E-value calculation, the building's heat loss complying with section 23, and the specific electric power of the mechanical ventilation system under section 30; or b) compliance of the structural energy efficiency with section 33.",
+      "summary_en": "An energy report must be prepared at design stage, showing either the E-value with heat loss and ventilation fan power compliance, or compliance of the structural energy efficiency.",
+      "keywords": [
+        "energy report",
+        "energiaselvitys",
+        "E-luku",
+        "E-value calculation",
+        "lupavaihe",
+        "permit stage",
+        "structural energy efficiency",
+        "energy report at design stage"
+      ],
+      "topics": [
+        "permits-procedure",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-34-2",
+      "ref": "34 § 2 mom.",
+      "heading": "Energiaselvitys",
+      "heading_en": "Energy report",
+      "text": "Lisäksi energiaselvitys sisältää tarkastelut:\na) laskennallinen kesäaikainen huonelämpötila 29 §:n mukaan;\nb) rakennuksen energiatodistus, jos rakennuksen energiatodistusta koskeva lainsäädäntö sitä edellyttää.",
+      "text_en": "In addition, the energy report includes the following reviews: a) the calculated summer-time room temperature under section 29; b) the building's energy certificate, if the legislation on building energy certificates requires it.",
+      "summary_en": "The energy report must also include the calculated summer-time room temperature and, where the law requires it, the building's energy certificate.",
+      "keywords": [
+        "energy report summer temperature",
+        "kesäajan huonelämpötila",
+        "energiatodistus",
+        "energy certificate",
+        "energiaselvitys",
+        "section 29"
+      ],
+      "topics": [
+        "permits-procedure",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-34-3",
+      "ref": "34 § 3 mom.",
+      "heading": "Energiaselvitys",
+      "heading_en": "Energy report",
+      "text": "Energiaselvitys on päivitettävä ennen rakennuksen käyttöönottoa, jos lupavaiheen energiaselvityksen perusteena oleviin suunnitelmiin on tullut muutoksia. Rakennusvaiheen vastuuhenkilön on tehtävä merkintä rakennustyön tarkastusasiakirjaan siitä, että rakennustyö vastaa energiaselvityksessä esitettyä.",
+      "text_en": "The energy report must be updated before the building is taken into use if changes have been made to the plans on which the permit-stage energy report was based. The person responsible for the construction phase must make an entry in the construction inspection document that the construction work corresponds to the energy report presented in the energy report.",
+      "summary_en": "The energy report must be updated before occupancy if the permit-stage plans changed, and the construction supervisor must record in the inspection document that the work matches it.",
+      "keywords": [
+        "energy report update",
+        "käyttöönotto",
+        "occupancy",
+        "rakennustyön tarkastusasiakirja",
+        "construction inspection document",
+        "vastuuhenkilö",
+        "lupavaihe"
+      ],
+      "topics": [
+        "permits-procedure",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-35-1",
+      "ref": "35 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2018.",
+      "text_en": "This decree enters into force on 1 January 2018.",
+      "summary_en": "This decree enters into force on 1 January 2018.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "1 January 2018",
+        "asetus",
+        "energiatehokkuus",
+        "määräykset"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-35-2",
+      "ref": "35 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tällä asetuksella kumotaan ympäristöministeriön asetus rakennusten energiatehokkuudesta 2/11.",
+      "text_en": "This decree repeals the Ministry of the Environment decree on the energy efficiency of buildings 2/11.",
+      "summary_en": "This decree repeals the earlier Ministry of the Environment decree 2/11 on building energy efficiency.",
+      "keywords": [
+        "repeal",
+        "kumoaminen",
+        "ympäristöministeriön asetus 2/11",
+        "energiatehokkuus",
+        "voimaantulo",
+        "rakennusten energiatehokkuus"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1010-2017-35-3",
+      "ref": "35 § 3 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämän asetuksen voimaan tullessa vireillä olevaan hankkeeseen sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "For a project pending when this decree enters into force, the provisions that were in force when this decree entered into force apply.",
+      "summary_en": "Projects already pending when the decree enters into force are governed by the provisions in force at that time.",
+      "keywords": [
+        "transitional provision",
+        "siirtymäsäännös",
+        "vireillä oleva hanke",
+        "pending project",
+        "voimaantulo",
+        "voimassa olleet säännökset"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

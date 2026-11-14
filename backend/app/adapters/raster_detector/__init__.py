@@ -19,6 +19,9 @@ mirrors, views.py) and fuses them into one detection per object before the thres
 knobs are `detector-v<N>.json` in the folder (thresholds tuned on N-view predictions), never the
 one-view files. Each element's attrs say which views saw it: `views`, one character per view
 ("1" saw it), so a view's own count of a class is the number of its elements with a "1" there.
+
+With `tiles` (RASTER_TILES=auto) a page longer than 4000 px is read tile by tile for its elements
+(tiles.py); its plans still come from the whole page.
 """
 
 import json
@@ -31,7 +34,7 @@ import numpy as np
 from PIL import Image
 from pydantic import BaseModel
 
-from app.adapters.raster_detector import post
+from app.adapters.raster_detector import post, tiles
 from app.adapters.raster_detector.sessions import shared_session
 from app.adapters.raster_detector.views import (
     MIN_SCORE,
@@ -129,6 +132,7 @@ class OnnxDetector:
         session: Session,
         name: str,
         views: int = 1,
+        tiles: bool = False,
     ) -> None:
         if not 1 <= views <= len(VIEWS):
             raise InvalidInputError(f"views must be 1 to {len(VIEWS)}, not {views}")
@@ -137,45 +141,53 @@ class OnnxDetector:
         self._session = session
         self._name = name
         self._views = views
+        self._tiles = tiles
 
     @classmethod
     def from_folder(
-        cls, files: DrawingFiles, folder: Path, thresholds: Path | None = None, views: int = 1
+        cls,
+        files: DrawingFiles,
+        folder: Path,
+        thresholds: Path | None = None,
+        views: int = 1,
+        tiles: bool = False,
     ) -> "OnnxDetector":
         config = load_config(folder, thresholds, views)
-        return cls(files, config, onnx_session(folder / "model.onnx"), folder.name, views)
+        session = onnx_session(folder / "model.onnx")
+        return cls(files, config, session, folder.name, views, tiles)
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         config = self._config
         with Image.open(BytesIO(self._files.read(source.path))) as image:
-            canvas, frame = post.letterbox(post.open_rgb(image), config.side)
-        seen: dict[int, tuple[int, ...]] = {}  # a kept detection (by id) -> its views
-        if self._views == 1:
-            found = post.kept(self._detections(post.pixels(canvas, config)), config)
+            page = post.open_rgb(image)
+        found, seen, frame = self._read(page)
+        width, height = page.size
+        cut = self._tiles and tiles.tiled(width, height)
+        count = 0  # tiles read
+        if cut:
+            merged, count = self._tiled(page)
+            located = [
+                (d.name, d.score, (d.box[0] / width, d.box[1] / height, d.box[2] / width,
+                                   d.box[3] / height), d.seen)
+                for d in merged
+            ]  # fmt: skip
         else:
-            fused = fuse_views(
-                read_views(canvas, self._views, config.side, self._found), self._views
-            )
-            candidates = [post.Detection(d.name, d.score, d.box) for d in fused]
-            seen = {id(c): d.seen for c, d in zip(candidates, fused, strict=True)}
-            found = post.kept(candidates, config)
+            located = [(d.name, d.score, frame.to_page(d.box), seen.get(id(d), ())) for d in found]
         elements = []
-        for det in found:
-            name = config.element_class.get(det.name)
+        for detector_class, score, box, views in located:
+            name = config.element_class.get(detector_class)
             if name is None:
                 continue
-            attrs: dict[str, Attr] = {"score": round(det.score, 4), "detector_class": det.name}
-            if seen:
-                attrs["views"] = "".join(
-                    "1" if v in seen[id(det)] else "0" for v in range(self._views)
-                )
+            attrs: dict[str, Attr] = {"score": round(score, 4), "detector_class": detector_class}
+            if self._views > 1:
+                attrs["views"] = "".join("1" if v in views else "0" for v in range(self._views))
             elements.append(
                 Element.model_validate(
                     {
                         "id": f"e{len(elements) + 1}",
                         "class": name,
                         "page": 1,
-                        "box": tuple(round(v, 5) for v in frame.to_page(det.box)),
+                        "box": tuple(round(v, 5) for v in box),
                         "attrs": attrs,
                     }
                 )
@@ -192,10 +204,44 @@ class OnnxDetector:
             read=config.read,
             notes=(
                 f"detector {self._name} ({config.format}, {config.side} px, onnxruntime CPU"
-                f"{f', {self._views} views' if self._views > 1 else ''}): "
+                f"{f', {self._views} views' if self._views > 1 else ''}"
+                f"{f', {count} tiles of {tiles.SIZE} px' if cut else ''}): "
                 f"{len(elements)} elements, {len(plans)} plans by {config.plans}",
             ),
         )
+
+    def _read(
+        self, image: Image.Image
+    ) -> tuple[list[post.Detection], dict[int, tuple[int, ...]], post.Letterbox]:
+        """The kept detections of one image (a page or a tile) on its canvas, the views that saw
+        each (by id; empty for one view) and how the image sits on the canvas."""
+        config = self._config
+        canvas, frame = post.letterbox(image, config.side)
+        if self._views == 1:
+            return post.kept(self._detections(post.pixels(canvas, config)), config), {}, frame
+        fused = fuse_views(read_views(canvas, self._views, config.side, self._found), self._views)
+        candidates = [post.Detection(d.name, d.score, d.box) for d in fused]
+        seen = {id(c): d.seen for c, d in zip(candidates, fused, strict=True)}
+        return post.kept(candidates, config), seen, frame
+
+    def _tiled(self, page: Image.Image) -> tuple[list[tiles.Found], int]:
+        """The page's element detections read tile by tile, on page px, merged across the
+        tiles (tiles.py), and the number of tiles."""
+        width, height = page.size
+        grid = tiles.grid(width, height)
+        found: list[tiles.Found] = []
+        for tile in grid:
+            x0, y0, x1, y1 = tile
+            kept, seen, frame = self._read(page.crop(tile))
+            for det in kept:
+                if self._config.element_class.get(det.name) is None:
+                    continue
+                fx0, fy0, fx1, fy1 = frame.to_page(det.box)
+                w, h = x1 - x0, y1 - y0
+                box = (x0 + fx0 * w, y0 + fy0 * h, x0 + fx1 * w, y0 + fy1 * h)
+                if not tiles.inner_edge(box, tile, width, height):
+                    found.append(tiles.Found(det.name, det.score, box, seen.get(id(det), ())))
+        return tiles.merge(found, self._config.groups), len(grid)
 
     def _found(self, canvas: Image.Image) -> list[Det]:
         """One view's detections as core's predict.py saved them (rounded, MIN_SCORE up)."""

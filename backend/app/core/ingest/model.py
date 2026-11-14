@@ -175,6 +175,50 @@ def class_of(register: Register) -> TriageClass:
     return "not_drawing" if register.kind in NOT_DRAWING_KINDS else "other_drawing"
 
 
+# The VLM sheet-kind step (.agents/exp/vlm-kind.md): what the model calls a sheet, and what that
+# decides. Set aside: no floor plan on the sheet and a non-plan kind at confidence >= the cut; any
+# other "not a plan" sign is a doubt (read, and its answers say so); unsure always means read.
+SheetKindName = Literal[
+    "architectural_floor_plan",
+    "multi_view_sheet",
+    "mep_plan",
+    "structural_plan",
+    "roof_or_ceiling_plan",
+    "site_plan_or_map",
+    "elevation",
+    "section",
+    "detail",
+    "perspective_or_axonometric",
+    "schedule_or_text",
+    "not_a_drawing",
+    "other",
+]
+SheetDecision = Literal["read", "doubt", "set_aside"]
+SHEET_PLAN_KINDS: frozenset[SheetKindName] = frozenset(
+    {"architectural_floor_plan", "multi_view_sheet"}
+)
+
+
+class Sheet(Frozen):
+    """Classified.sheet and Triage.sheet: the sheet-kind model's reply and its decision. The
+    title, sheet number and printed scale are shown, never acted on."""
+
+    kind: SheetKindName
+    kind_words: str  # the kind in plain words, as a set-aside reason shows it
+    decision: SheetDecision
+    takeoff_possible: bool
+    confidence: float = Field(ge=0, le=1)  # how sure the model is of a floor plan on the sheet
+    title: str | None
+    sheet_number: str | None
+    printed_scale: str | None
+    # Harder than a clean scan of one small residential plan (the model's call, or an upload over
+    # 4,000 px on its long side): routes the Carbon reader (r8 AS-2); nothing reads it yet
+    advanced: bool
+    advanced_why: str | None
+    seen: str  # one sentence on what is drawn
+    model: str
+
+
 class Classified(_Classed):
     """Step 1: what the classifier made of one image. With a register, `class` is derived from
     it (given only the register, it is filled in; given both, they must agree)."""
@@ -185,6 +229,7 @@ class Classified(_Classed):
     cost_usd: float = Field(default=0.0, ge=0)
     # None: this classifier reads no register (rules)
     register_: Register | None = Field(default=None, alias="register")
+    sheet: Sheet | None = None  # the sheet-kind step's reply; None: off, or not asked
 
     @model_validator(mode="before")
     @classmethod
@@ -267,6 +312,8 @@ class Triage(_Classed):
     verdict: Verdict | None = None
     # Why `description` or `relevance` is null, in a plain sentence; None when both are set
     note: str | None = None
+    # The sheet-kind step's reply (SHEET_KIND); absent when the step is off or was not asked
+    sheet: Sheet | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="before")
     @classmethod

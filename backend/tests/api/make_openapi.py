@@ -28,6 +28,9 @@ class _NoIngest:
     def close(self) -> None:
         pass
 
+    def status(self, project_id: str) -> None:  # the evidence routes are bound to it, not called
+        raise NotImplementedError
+
 
 def schema() -> str:
     """The app's OpenAPI document as the file holds it."""

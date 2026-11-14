@@ -336,12 +336,15 @@ def test_carbon_reader_all_sends_every_raster_drawing_to_carbon_with_no_door_pri
     assert names["carbon_reader"] == f"all:{c.READER_SHA[:12]}"
 
 
-def test_carbon_reader_advanced_refuses_to_start_without_the_flag(
+def test_carbon_reader_advanced_refuses_to_start_without_the_sheet_kind_step(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     settings = carbon_settings(monkeypatch, tmp_path, CARBON_READER="advanced")
     assert uses_keys(settings)
-    with pytest.raises(InvalidInputError, match="CARBON_READER=advanced needs SHEET_KIND"):
+    with pytest.raises(
+        InvalidInputError,
+        match=r"CARBON_READER=advanced reads the sheet-kind step's `advanced` flag: set SHEET_KIND",
+    ):
         build_pipeline(settings, tmp_path)
 
 
@@ -453,3 +456,96 @@ def test_the_source_may_pin_the_reader_hash_and_a_stale_hash_is_refused(
         InvalidInputError, match=f"not the Carbon reader this build has \\({c.SOURCE}"
     ):
         build_pipeline(stale, tmp_path)
+
+
+# --- CARBON_READER=advanced: the sheet-kind step's record (#251) -------------------------------
+
+
+class SheetKinds:
+    """The classifier with the sheet-kind step's record, per file's bytes: (class, advanced)."""
+
+    def __init__(self, answers: dict[bytes, tuple[str, bool]]) -> None:
+        self.answers = answers
+
+    def classify(self, image: bytes, probed: Any) -> Any:
+        from app.core.ingest.model import Classified
+
+        kind, advanced = self.answers[image]
+        plan = kind == "floor_plan"
+        sheet = {
+            "kind": "architectural_floor_plan" if plan else "mep_plan",
+            "kind_words": "a floor plan" if plan else "a piping plan",
+            "decision": "read" if plan else "set_aside", "takeoff_possible": plan,
+            "confidence": 0.95 if plan else 0.05, "title": None, "sheet_number": None,
+            "printed_scale": None, "advanced": advanced,
+            "advanced_why": "over 4,000 px on its long side" if advanced else None,
+            "seen": "a sheet", "model": "fake sheet kind",
+        }  # fmt: skip
+        return Classified.model_validate(
+            {"class": kind, "p_plan": 0.97 if plan else 0.03, "method": "fake", "sheet": sheet}
+        )
+
+
+def test_carbon_reader_advanced_reads_what_the_sheet_kind_step_called_advanced_and_read(
+    make_service: Any, tmp_path: Path
+) -> None:
+    import zipfile
+
+    from app.adapters.archive import DiskProjectStore
+    from app.composition import _stored_advanced  # pyright: ignore[reportPrivateUsage]
+    from app.core.ingest.triage import TriageSteps
+
+    big = png_bytes(raster_plan().resize((4200, 2975)))  # advanced, read as a plan
+    small = png_bytes(raster_plan())  # not advanced
+    piping = png_bytes(raster_plan().resize((4300, 3044)))  # advanced, but set aside
+    read_by: dict[str, list[str]] = {"carbon": [], "shipped": []}
+
+    class Named:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+            from app.core.drawing.model import Scale
+
+            read_by[self.name].append(source.path)
+            return Extracted(method="detector", scale=Scale(status="no_scale"), read=("door",))
+
+    store = DiskProjectStore(tmp_path / "projects")
+    advanced = _stored_advanced(store, "p001")  # the fixture's first project id
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as zipped:
+        for name, data in (("big.png", big), ("small.png", small), ("piping.png", piping)):
+            zipped.writestr(name, data)
+    kinds = SheetKinds({big: ("floor_plan", True), small: ("floor_plan", False),
+                        piping: ("other_drawing", True)})  # fmt: skip
+    ingest = make_service(
+        store=store,
+        raster=lambda files: CarbonSwitch(Named("shipped"), Named("carbon"), advanced),
+        carbon_read=advanced,
+        triage=TriageSteps(classifier=kinds, describer=None, judge=None, name="fakes"),
+    )
+    status = ingest.wait(ingest.start("site.zip", archive.getvalue()))
+    assert status.id == "p001"
+    assert read_by == {"carbon": ["big.png"], "shipped": ["small.png"]}
+    files = {file.path: file for file in status.files}
+    assert CARBON_FLAG in files["big.png"].reason
+    assert CARBON_FLAG not in files["small.png"].reason
+    assert (
+        files["piping.png"].state == "set_aside" and CARBON_FLAG not in files["piping.png"].reason
+    )
+    assert not advanced("not-in-the-project.png")
+
+
+def test_carbon_reader_advanced_builds_with_the_sheet_kind_step_and_uses_its_flag(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    settings = carbon_settings(monkeypatch, tmp_path, CARBON_READER="advanced", SHEET_KIND="carbon")
+    flagged = build_pipeline(settings, tmp_path, advanced=lambda path: path == "big.png")
+    assert flagged.carbon_read is not None
+    assert flagged.carbon_read("big.png") and not flagged.carbon_read("small.png")
+    switch = flagged.extractors["raster"]._inner  # pyright: ignore[reportAttributeAccessIssue]
+    assert isinstance(switch, CarbonSwitch) and switch._use_carbon is flagged.carbon_read  # pyright: ignore[reportPrivateUsage]
+    unrecorded = build_pipeline(settings, tmp_path)  # the CLI: no sheet record, so none is
+    assert unrecorded.carbon_read is not None and not unrecorded.carbon_read("big.png")
+    names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
+    assert names["carbon_reader"] == f"advanced:{c.READER_SHA[:12]}"
