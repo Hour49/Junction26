@@ -15,7 +15,11 @@ come after the model has looked.
 
 - Replies are cached on disk by the file's sha256, the prompt version and the model, as the
   prototype names them, so a file is paid for once. What is cached is the model's form as it
-  came; the cuts and the contact-data rule below run on every read.
+  came, contact data included: the cache is private (data/cache, gitignored) and never exported
+  or served; the cuts and the contact-data rule below run on every read. A cache file that can't
+  be read as a description (truncated, empty, an old form) is a miss: the file is asked again,
+  the file overwritten, and that is logged (and said in the note when the new call fails too).
+  Two threads asking for one file at the same time both pay (no in-flight dedupe; accepted).
 - The cost of a call comes from its `usageMetadata` and is charged (app/core/cost.py) even when
   the reply is unusable; a cached reply costs nothing.
 - A failed call (HTTP error, timeout, a refusal such as RECITATION, a form that is incomplete) is
@@ -24,7 +28,8 @@ come after the model has looked.
 - Phone numbers and e-mail addresses are taken out of every text field (orchestrator,
   2026-11-14: "drop every phone number and e-mail address from visible_text and detail with a
   tested regex, firm or private"). Street addresses and firm names stay. Names of people in
-  photos are kept out by the prompt.
+  photos are kept out by the prompt. A national number with no label, no "+" or "00" and no
+  area-code dash (0401234567) is not caught: it can't be told from a row of dimensions.
 """
 
 import base64
@@ -32,6 +37,7 @@ import hashlib
 import http.client
 import io
 import json
+import logging
 import re
 import urllib.error
 import urllib.request
@@ -47,6 +53,8 @@ from app.adapters.whole_file import write_whole
 from app.core import cost
 from app.core.errors import InvalidInputError
 from app.core.ingest.model import Classified, Description, Unavailable
+
+log = logging.getLogger(__name__)
 
 MODEL = "gemini-3.5-flash"
 THINKING = "minimal"  # 0 thought tokens; the pilot's form was right on 18 of 20
@@ -142,44 +150,70 @@ PROMPT_SHA = hashlib.sha256((PROMPT + json.dumps(SCHEMA, sort_keys=True)).encode
 
 # Contact data, each with the digits a match needs to count (fewer: a level, date or scale)
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
-# a phone or fax label (fi, sv, de, en, fr) and the number after it on the same line
-_LABELLED = re.compile(
-    r"\b(?:puh(?:elin)?|matkapuh(?:elin)?|tel(?:efon|ephone|éphone|efax)?|phone|fax|telefax|"
-    r"gsm|mob(?:il|ile)?|tfn)\b\.?[ \t]*(?:n[or]o?\.?[ \t]*)?:?[ \t]*\+?\(?\d[\d \t()/.-]*\d",
-    re.IGNORECASE,
+# a phone or fax label (fi, sv, de, en, fr), "T." and "P." with their dot and a space (T.01.1930
+# is a date), and what may follow it
+_LABEL = (
+    r"(?:\b(?:puh(?:elin)?|matkapuh(?:elin)?|t[eé]l(?:efon|ephone|éphone|efax)?|phone|ph|fax|"
+    r"faksi|telefax|gsm|mob(?:il|ile)?|tfn|tlf)\b\.?|\b[tp]\.(?=[ \t]))"
+    r"[ \t]*(?:n[or]o?\.?[ \t]*)?:?[ \t]*"
 )
-_INTERNATIONAL = re.compile(r"(?<![\w+])\+\d{1,3}[ \t.-]?\(?\d{1,4}\)?(?:[ \t.-]?\d{1,4}){1,5}")
+_NUMBER = r"\+?\(?\d[\d \t()/.-]*\d"
+_LABELLED = re.compile(_LABEL + _NUMBER, re.IGNORECASE)
+_LABEL_AT_END = re.compile(_LABEL + "$", re.IGNORECASE)  # its number on the next line
+_NUMBER_AT_START = re.compile(r"^[ \t]*" + _NUMBER)
+# a country code after "+" or "00", an area code, then groups of 2-4 digits
+_GROUPS = r"\d{1,3}[ \t.-]?\(?\d{1,4}\)?(?:[ \t.-]?\d{2,4}){1,5}"
+_PLUS = re.compile(r"(?<![\w+])\+" + _GROUPS)
+_DOUBLE_ZERO = re.compile(r"(?<![\w+])00" + _GROUPS)
+# "09-123 4567", "019-123456": a 0 area code, a dash, one or two groups, nothing numeric after
 _AREA_CODE = re.compile(
-    r"(?<![\w.,/+-])0\d{1,3}-[ \t]?\d{2,4}(?:[ \t]\d{2,4}){0,3}(?![\w/-]|[.,]\d)"
+    r"(?<![\w.,/+-])0\d{1,3}-[ \t]?(?:\d{5,7}|\d{3,4}[ \t]\d{2,4})(?![\w/-]|[.,]\d|[ \t]+\d)"
+)
+# "(555) 123-4567", "555-123-4567"
+_NORTH_AMERICAN = re.compile(
+    r"(?<![\w.,/+-])(?:\(\d{3}\)[ \t]?|\d{3}-)\d{3}-\d{4}(?![\w/-]|[.,]\d)"
 )
 CONTACTS: tuple[tuple[re.Pattern[str], int], ...] = (
     (_EMAIL, 0),
-    (_LABELLED, 5),  # "PUH 651088", "Tel. (09) 123 456"
-    (_INTERNATIONAL, 8),  # "+358 9 123 4567", never a level such as "+108.65"
-    (_AREA_CODE, 7),  # "09-123 4567", "040-123 4567"
+    (_LABELLED, 5),  # "PUH 651088", "Tel. (09) 123 456", "T. 09 123 4567"
+    (_PLUS, 8),  # "+358 9 123 4567", never a level such as "+108.65"
+    (_DOUBLE_ZERO, 10),  # "0049 30 1234567", never a postal code such as "00130"
+    (_AREA_CODE, 7),
+    (_NORTH_AMERICAN, 10),
 )
 
 
 def without_contacts(text: str) -> str:
-    """`text` with every e-mail address and phone number found taken out. A line left empty
-    goes; the rest of a line stays. A national number with no label, no "+" and no area-code
-    dash is not caught: it cannot be told from a row of dimensions."""
-    lines: list[str] = []
-    for line in text.split("\n"):
-        kept = line
+    """`text` with every e-mail address and phone number found taken out, also a number whose
+    label ends the line above it. A line left empty goes; the rest of a line stays. A national
+    number with no label, no "+" or "00" and no area-code dash is not caught: it cannot be told
+    from a row of dimensions."""
+    lines = text.split("\n")
+    kept = list(lines)
+    for at in range(len(kept) - 1):
+        label = _LABEL_AT_END.search(kept[at])
+        number = _NUMBER_AT_START.match(kept[at + 1])
+        if label and number and _digits(number.group(0)) >= 5:
+            kept[at], kept[at + 1] = kept[at][: label.start()], kept[at + 1][number.end() :]
+    out: list[str] = []
+    for line, now in zip(lines, kept, strict=True):
         for pattern, digits in CONTACTS:
-            kept = pattern.sub(lambda found, n=digits: _drop(found, n), kept)
-        if kept != line:
-            kept = re.sub(r"[ \t]{2,}", " ", kept).strip()
-            if not kept:
+            now = pattern.sub(lambda found, n=digits: _drop(found, n), now)
+        if now != line:
+            now = re.sub(r"[ \t]{2,}", " ", now).strip()
+            if not now:
                 continue
-        lines.append(kept)
-    return "\n".join(lines)
+        out.append(now)
+    return "\n".join(out)
+
+
+def _digits(text: str) -> int:
+    return sum(char.isdigit() for char in text)
 
 
 def _drop(found: re.Match[str], digits: int) -> str:
     said = found.group(0)
-    return "" if sum(char.isdigit() for char in said) >= digits else said
+    return "" if _digits(said) >= digits else said
 
 
 def cut(text: str, limit: int) -> str:
@@ -287,8 +321,20 @@ class GeminiDescriber:
         digest = hashlib.sha256(image).hexdigest()
         name = f"{digest}-{PROMPT_VERSION}-{PROMPT_SHA[:12]}-{self._model.name}"
         path = self._cache / f"{re.sub(r'[^A-Za-z0-9.-]', '_', name)}.json"
+        stale = ""
         if path.is_file():
-            return self._description(json.loads(path.read_text())["form"], 0.0)
+            try:
+                return self._description(json.loads(path.read_text())["form"], 0.0)
+            except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+                stale = f"the cached reply {path.name} could not be read ({type(error).__name__})"
+                log.warning("%s, so it is asked again", stale)
+        found = self._asked(image, path)
+        if stale and isinstance(found, Unavailable):
+            return Unavailable(note=f"{found.note}; {stale}, so it was asked again")
+        return found
+
+    def _asked(self, image: bytes, path: Path) -> Description | Unavailable:
+        """A fresh call for `image`; a usable reply is cached at `path`."""
         try:
             jpeg = encode(image)
         except (OSError, ValueError, Image.DecompressionBombError) as error:

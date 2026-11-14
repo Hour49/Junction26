@@ -172,6 +172,42 @@ def test_an_unusable_reply_is_unavailable_charged_and_not_cached(
     assert isinstance(describe(model, tmp_path), Description)  # asked again, not a cached failure
 
 
+BAD_CACHE = {
+    "truncated": '{"form": {"detail": "A pen dra',
+    "empty": "",
+    "no form": "{}",
+    "incomplete form": json.dumps({"form": {k: v for k, v in form().items() if k != "detail"}}),
+    "stale value": json.dumps({"form": form(what_it_is="elevation")}),  # not a value any more
+}
+
+
+@pytest.mark.parametrize("stored", BAD_CACHE.values(), ids=BAD_CACHE.keys())
+def test_a_bad_cache_file_is_a_miss_asked_again_and_overwritten(
+    tmp_path: Path, stored: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    describe(FakeModel(answer(form())), tmp_path)
+    [path] = tmp_path.iterdir()
+    path.write_text(stored)
+    model = FakeModel(answer(form(subject="asked again")))
+    found = describe(model, tmp_path)
+    assert isinstance(found, Description) and found.subject == "asked again"
+    assert len(model.asked) == 1 and found.cost_usd == pytest.approx(USD)
+    assert json.loads(path.read_text())["form"]["subject"] == "asked again"  # overwritten
+    assert f"the cached reply {path.name} could not be read" in caplog.text
+
+
+def test_a_bad_cache_file_and_a_failed_call_say_both_in_the_note(tmp_path: Path) -> None:
+    describe(FakeModel(answer(form())), tmp_path)
+    [path] = tmp_path.iterdir()
+    path.write_text("{}")
+    found = describe(FakeModel(GeminiError("HTTP 503 UNAVAILABLE")), tmp_path)
+    assert isinstance(found, Unavailable)
+    assert found.note == (
+        "the describer could not answer: HTTP 503 UNAVAILABLE; the cached reply "
+        f"{path.name} could not be read (KeyError), so it was asked again"
+    )
+
+
 def test_a_failed_call_is_unavailable(tmp_path: Path) -> None:
     found = describe(FakeModel(GeminiError("HTTP 429 RESOURCE_EXHAUSTED")), tmp_path)
     assert found == Unavailable(note="the describer could not answer: HTTP 429 RESOURCE_EXHAUSTED")
@@ -208,44 +244,66 @@ def test_cut_keeps_whole_lines_and_short_texts() -> None:
     assert cut("no line breaks here", 12) == "no line"
 
 
-@pytest.mark.parametrize(
-    ("printed", "kept"),
-    [
-        (
-            "ARKKITEHTITOIMISTO ESIMERKKI\nPUH 123456\nHELSINKI",
-            "ARKKITEHTITOIMISTO ESIMERKKI\nHELSINKI",
-        ),
-        ("LISÄTIETOJA ANTAA PUH. 12 34 56", "LISÄTIETOJA ANTAA"),
-        ("Tel.: (09) 123 4567", ""),
-        ("Telefon 0211-12345, Fax 0211-12346", ","),
-        ("Puhelin +358 9 123 4567", ""),
-        ("call +358 40 123 4567 today", "call today"),
-        ("toimisto@example.fi", ""),
-        ("Mail: arkkitehti.esimerkki@toimisto.example.com.", "Mail: ."),
-        ("office 09-123 4567.", "office ."),
-        ("040-123 4567", ""),
-    ],
-)
-def test_phone_numbers_and_email_addresses_are_dropped(printed: str, kept: str) -> None:
-    assert without_contacts(printed) == kept
+# What the contact rule takes out (printed -> kept) and what it leaves (kept == printed)
+CONTACT_TABLE = [
+    # labelled numbers, the label on the same line
+    (
+        "ARKKITEHTITOIMISTO ESIMERKKI\nPUH 123456\nHELSINKI",
+        "ARKKITEHTITOIMISTO ESIMERKKI\nHELSINKI",
+    ),
+    ("LISÄTIETOJA ANTAA PUH. 12 34 56", "LISÄTIETOJA ANTAA"),
+    ("Tel.: (09) 123 4567", ""),
+    ("Telefon 0211-12345, Fax 0211-12346", ","),
+    ("Puhelin +358 9 123 4567", ""),
+    ("T. 09 123 4567", ""),
+    ("P. 09 123 4567", ""),
+    ("Puh 09 123 4567", ""),
+    ("Tel 09 123 4567", ""),
+    ("Fax: 09-123 456", ""),
+    ("Mob. 040 123 4567", ""),
+    ("Tél. 01 23 45 67 89", ""),
+    # the label on the line above its number (visible_text keeps one line per printed line)
+    ("Puh:\n09 123 4567", ""),
+    ("LISÄTIETOJA ANTAA PUH.\n123456\nHELSINKI", "LISÄTIETOJA ANTAA\nHELSINKI"),
+    # international, with "+" or "00"
+    ("call +358 40 123 4567 today", "call today"),
+    ("+41 (0)44 123 45 67", ""),
+    ("0049 30 1234567", ""),
+    ("00358 9 123 4567", ""),
+    # an area code and its number
+    ("office 09-123 4567.", "office ."),
+    ("040-123 4567", ""),
+    ("Porvoo 019-123456", "Porvoo"),
+    ("toimisto 09-123 4567, 040-123 4567", "toimisto ,"),
+    ("(555) 123-4567", ""),
+    ("555-123-4567", ""),
+    # e-mail addresses
+    ("toimisto@example.fi", ""),
+    ("Mail: arkkitehti.esimerkki@toimisto.example.com.", "Mail: ."),
+    # stays: addresses, levels, scales, dates, dimensions, drawing numbers
+    ("ESIMERKKIKATU 18 A 2 00130 HELSINKI 13", None),  # a street address (relevance uses it)
+    ("+23.43\n+108.65\n+-000\n-050", None),
+    ("+4 5 6 7 8 9 10 11", None),
+    ("1:100 ja 1:20\n12.3.1954\n4.1.78\n01-02 2026", None),
+    ("3600 2400 1200 900", None),
+    ("Drawing 03-120 4500 2400", None),
+    ("Sheet 02-100 200 300", None),
+    ("DRAWING NO 05-1954", None),
+    ("N:o 12/345 T.01.1931.", None),  # "T." with no space: a date (seen in the archive)
+    ("VAIHTOEHTO 2A+2B 1:2000", None),
+    ("PUHDISTUSHUONEEN PIIRUSTUS", None),  # a word that starts like the phone label
+    ("Mobile, Alabama 1934\nTel Aviv", None),  # a label word with no number after it
+    ("SEC @ BENCH SUPPORTS", None),
+    # stays, a known limit: a national number with no label, no "+"/"00" and no dash
+    ("0401234567", None),
+]
 
 
-@pytest.mark.parametrize(
-    "printed",
-    [
-        "ESIMERKKIKATU 18 A 2 00130 HELSINKI 13",  # a street address stays (relevance uses it)
-        "+23.43\n+108.65\n+-000\n-050",  # levels
-        "1:100 ja 1:20\n12.3.1954\n4.1.78",  # scales and dates
-        "3600 2400 1200 900",  # a row of dimensions
-        "PUHDISTUSHUONEEN PIIRUSTUS",  # a word that starts like the phone label
-        "Mobile, Alabama 1934\nTel Aviv",  # a label word with no number after it
-        "SEC @ BENCH SUPPORTS",
-        "DRAWING NO 05-1954",
-        "VAIHTOEHTO 2A+2B 1:2000",
-    ],
-)
-def test_text_that_is_not_contact_data_stays(printed: str) -> None:
-    assert without_contacts(printed) == printed
+@pytest.mark.parametrize(("printed", "kept"), CONTACT_TABLE)
+def test_the_contact_rule_takes_out_phone_numbers_and_emails_and_nothing_else(
+    printed: str, kept: str | None
+) -> None:
+    assert without_contacts(printed) == (printed if kept is None else kept)
 
 
 def test_contact_data_leaves_every_text_field(tmp_path: Path) -> None:
