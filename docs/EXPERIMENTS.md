@@ -539,9 +539,10 @@ elements, which it does not do yet.
 ## 14. Round "local": fewer hosted calls, and answers that say when they are unsure (2026-11-14 from 09:42; logs: `fail-1` to `fail-5`, `think-acc.md`, `think-local.md`, `local-dec.md`, `fable-rooms.md`, `integ.md`, `golden.md`, `tables-fix.md`)
 
 **Status of this section: draft, first written 2026-11-14 about 12:30 and extended the same day with the work after
-12:08 (14.7 to 14.11).** The round is still running. Three things are not filled in yet and are marked `TODO` below: the
-final config pick, the single test read, and the golden series point. Everything else is val numbers from the logs, plus
-golden dev numbers where a log gives them.
+12:08 (14.7 to 14.11).** The single test read of C1-T1 is in (14.2); the rest of the
+section is val numbers from the logs, plus golden dev numbers where a log gives them. Still open, marked `TODO` below:
+the certificate rows of the test read (flagged share, error recall, unflagged exact), which wait for a measurement fix
+in the certificate script; the final config confirmation; the golden series point; arm 3's per-style result.
 
 The round had two goals. First, find out where the 13.5% of val questions that config C gets wrong come from, and take
 whatever is cheap. Second, replace the hosted calls (Gemini's count swap, its gate score, its photo flag) with local
@@ -618,13 +619,47 @@ A golden v2 look at the same candidates (a look, not a pick; Swiss, IFC, `openin
 answer are byte-identical in all five): C 2717 (92.2%), C1 2727, C1-furn 2725, C2 2725, C2-furn 2723. Holdout 516 of 560
 for C1 against 520 for C: four questions on 560, too few to read either way.
 
-**TODO (final config pick):** which of C1, C1-T1 or a fully local config the demo and the scored run use. Decided by
-the orchestrator after the integration window; fill in the name, the setting string and why.
+**The single test read (integ-13, 2026-11-14 15:37 to 16:48).** The config read is C1-T1, run live through the shipping
+settings: 376 of 376 test pages, 6,718 of 6,718 answers, no unread replies, no hosted calls (0 USD, dummy key, nothing
+written to the Gemini caches for test pages). Its settings: C1's swap source for elements and plans; door, window, sink,
+toilet, shower and bathtub from `arbiter-t1:C-yolo26l:C-yolo26l-onnx-val`; rooms from `regionrooms`; the two extra readers
+on; the runtime check policy; the dev prior; `ROOM_POLICY=gold-labels`. The read is the CLI (`app.cli answer`), which has
+no rectifier and no reading flags; on these CubiCasa scans that matches the API.
 
-**TODO (single test read):** accuracy and error recall of the picked config on the CubiCasa test split, read once, with
-the certificate. Format as in section 13: exact % (n/N), 95% CI, train prior, per family. The older read (config C,
-85.0% [83.4, 86.5]) does not carry over: the sure-flag certificate, the check policy's threshold and the kitchen policy
-were all fitted on C or C1's val output.
+**C1-T1 on test: 87.2% exact (5,860 of 6,718)**, against 56.3% for a guess from the train prior (+31.0 [+28.9, +33.0]).
+Config C, read once at 07:47, scored 85.0% (5,708 of 6,718), so C1-T1 is +2.2 pp, 152 more questions. That difference is
+unpaired: no paired C1-T1 against C test comparison was run, and the log records no interval for it. The log also gives
+no interval for the 87.2% itself, so none is quoted here.
+
+C's 07:47 row was read without the answer policy, so the kitchen figures below are not like for like: C1-T1 answers
+kitchens from the dev prior under that policy (95.0 against 91.5 is partly that). Bedroom also changed, by switching to
+`gold-labels`.
+
+| family | C1-T1, test | C at 07:47, test | note |
+| --- | --- | --- | --- |
+| door | 74.4 | 73.3 | |
+| window | 55.9 | 53.7 | |
+| sink | 88.4 | 85.7 | |
+| toilet | 95.2 | 93.1 | |
+| shower+bathtub | 86.6 | 82.3 | |
+| sauna | 98.5 | 98.1 | |
+| plan | 98.9 | 99.2 | |
+| bedroom | 88.4 | 77.6 | `gold-labels` rooms |
+| kitchen | 95.0 | 91.5 | prior policy, C had none |
+| bathroom | 89.3 | 89.8 | |
+| wc | 96.2 | 96.7 | |
+| balcony | 91.5 | 91.5 | |
+
+Val said 88.5% for the same config, so test is 1.3 pp lower; config C lost 1.5 pp between val (86.5%) and test (85.0%).
+The thresholds and the policy are fitted on val too. The weak families are the same as on val: window, door, shower+bathtub
+and sink.
+
+**TODO(certificate):** flagged share, error recall and unflagged exact on the test read, per family and pooled. The
+certificate script rated kitchen on the drawing's count, while the product answers kitchen from the prior (56 of the
+kitchen answers differ between the two); the numbers are being re-run and will be filled in from that re-run only.
+
+**TODO (final config confirmation):** the test read used C1-T1 with the settings above; the orchestrator confirms it as
+the demo and scored config.
 
 **TODO (golden series point):** the golden v2 series row for the picked config (commit, time, all, holdout). The
 schedule fixes (14.6) are in main but are an answer-only rerun, not a series point. Add the row to `GOLDEN.md` too.
@@ -676,7 +711,7 @@ Caveats, all stated in the logs: the per-family signal was picked on val by a ki
 accuracy at 97, 98 or 99%), so these are slightly optimistic; 421 wrong answers is a small sample, and differences of 2
 to 3 points between signals are noise; the recall rule's signals other than Gemini's have no runtime scorer yet, so the
 backend loads the file today and certifies only the plan family on the raster route. The runtime version of this table is
-in 14.8. **TODO(test read):** the test-read recall, flagged share and unflagged exact.
+in 14.8. **TODO(certificate):** the test-read recall, flagged share and unflagged exact (see 14.2).
 
 ### 14.4 What we learned
 
@@ -820,7 +855,8 @@ runtime gates. **TODO:** the golden table with the runtime gates, and the series
 extra readers, the runtime policy, the dev prior, `ROOM_POLICY=gold-labels`). On val the runtime C1-T1 differs from the
 precomputed splice on 6 of 6,764 answers, all explained. Both score 88.5%: +0.2 [-0.1, +0.6] against shipped C1 (the
 runtime run gives +0.2 [-0.15, +0.57]) and +1.6 [+0.9, +2.3] against shipped C (table in 14.2).
-**TODO(test read):** exact, flagged share, error recall and unflagged exact, per family and pooled, from one read.
+The single read is in 14.2: 87.2% exact on test. **TODO(certificate):** flagged share, error recall and unflagged exact
+on test, pending the corrected re-run.
 
 ### 14.9 Drawing styles: what the detectors miss, and a training arm that was not shippable
 
@@ -923,7 +959,7 @@ street addresses from two sheets, and a no-personal-data rule and a contact-reda
 ### 14.12 Gaps in this section
 
 - Every val number is from precomputed arms or the backend runtime on the same 376 pages the rules were chosen on, and
-  is optimistic by the size of the choice (about 0.4 pp for C1). The single test read is the real number (TODO above).
+  is optimistic by the size of the choice (about 0.4 pp for C1). The single test read is the real number (14.2): 87.2%, 1.3 pp under the val figure.
 - T1's element part is the only learned part fitted off val; its rooms (A6) and the thresholds are fitted on val halves
   or all val.
 - Missing intervals: the gate-score rows are AUROCs without intervals; the D455 and D476 tables are single draws of the
