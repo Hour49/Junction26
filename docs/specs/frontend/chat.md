@@ -226,6 +226,9 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   that its first row (value, estimate and reason, CH-43/44) is fully above the sticky ask bar (`scrollIntoView`
   `block: 'nearest'`, scroll margin `--en-ask-h`): no line of it under the bar. (The engineer page already has
   its value block first on phones, EN-86.) [component (the calls); browser 390x844: row bottom <= `.en-ask` top]
+- CH-48 (chat-ux, orch 20:30) A row's value is `quantity.value` when the part has a quantity (what `total` adds
+  up), else `answer`: `answer` is the golden format, rounded to an integer for areas, and printed "5.00 m²" beside
+  a "4.88 m²" lead. [component]
 
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 

@@ -326,3 +326,35 @@ it('CH-46 a check reason that already gives the estimate is the one line: no est
   expect(row.querySelector('.en-estimate')).toBeNull();
   expect(row.textContent).not.toContain('about 19');
 });
+
+it('CH-48 a row shows the measured value the total adds up, not the rounded golden answer (4.88 m², not 5.00 m²)', () => {
+  // The Finnish flat's kitchen: `answer` is the golden format (an integer), `quantity.value` the measured area.
+  const kitchen = {
+    ...answerArea,
+    answer: 5,
+    quantity: {
+      ...(answerArea.quantity as NonNullable<typeof answerArea.quantity>),
+      value: 4.88,
+      original_value: 4.88,
+    },
+  };
+  const ask: ProjectAnswer = {
+    ...projectAsk,
+    parts: [{ ...flatA, answer: kitchen }],
+    total: 4.88,
+    total_unit: 'm2',
+    why_no_total: null,
+  };
+  show(ask);
+  expect(screen.getByTestId('answer-value').textContent).toBe('4.88 m²');
+  const [row] = rows() as [HTMLElement];
+  expect(row.textContent).toContain(`${LA}: 4.88 m²`);
+  expect(document.body.textContent).not.toContain('5.00');
+});
+
+it('CH-48 a printed-table answer (no quantity) still shows its own answer', () => {
+  const table = { ...answerArea, answer: 12, unit: 'count' as const, quantity: null };
+  show({ ...projectAsk, parts: [{ ...flatA, answer: table }], total: null });
+  const [row] = rows() as [HTMLElement];
+  expect(row.textContent).toContain(`${LA}: 12`);
+});

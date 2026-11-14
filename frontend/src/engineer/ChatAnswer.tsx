@@ -42,9 +42,12 @@ export function ChatAnswer(props: {
   const query = new URLSearchParams(pack ? { ask: ask.question, pack } : { ask: ask.question });
   // "2 doors" (EN-68's noun), as the demo's "11 doors"
   const noun = (n: string | null | undefined) => (n ? ` ${n}` : '');
+  // The measured value the total adds up (`quantity.value`), not `answer`: that is the golden format, rounded to an
+  // integer, which `formatValue` would print as an exact-looking "5.00 m²" beside a "4.88 m²" lead (CH-48).
   const value = (p: (typeof parts)[number]) =>
     typeof p.answer.answer === 'number'
-      ? formatValue(p.answer.answer, p.answer.unit) + noun(p.answer.quantity?.noun)
+      ? formatValue(p.answer.quantity?.value ?? p.answer.answer, p.answer.unit) +
+        noun(p.answer.quantity?.noun)
       : (p.answer.answer ?? '');
   // CH-40: a drawing by its plain name (#224), else its file name; files keep their path
   const labelOf = (p: (typeof parts)[number]) =>
