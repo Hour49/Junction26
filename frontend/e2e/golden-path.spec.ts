@@ -37,9 +37,7 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/f\/f\d+$/);
     await expect(page.getByText('flagged').first()).toBeVisible();
     await expect(page.getByText('1 conflict between the two methods').first()).toBeVisible();
-    await expect(
-      page.getByText('5 quantities measured twice, 1 conflict').first(),
-    ).toBeVisible();
+    await expect(page.getByText('5 quantities measured twice, 1 conflict').first()).toBeVisible();
     // the write stage's `did`
     await expect(page.getByText(/drawing model [0-9a-f]{16} stored/).first()).toBeVisible();
     await shot(page, testInfo, '03-trace', offline);
