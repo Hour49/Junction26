@@ -45,6 +45,7 @@ from app.core.pipeline.model import (
     Quantity,
     QuantityConflict,
     QuantityUnit,
+    ValueMark,
 )
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
@@ -326,7 +327,10 @@ def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Q
         if entry.status != "conflict":
             continue
         disputed = QuantityConflict(
-            values=entry.values, resolution=entry.resolution, note=entry.note
+            values=entry.values,
+            resolution=entry.resolution,
+            note=entry.note,
+            value_marks=_value_marks(entry, drawing),
         )
         for key in _conflict_keys(entry, drawing, storey, plans):
             _attach(out, key, disputed, entry.tolerance)
@@ -337,11 +341,61 @@ def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Q
         if entry.status != "agree":
             continue
         agreed = QuantityConflict(
-            values=entry.values, resolution=entry.resolution, note=entry.note, status="agree"
+            values=entry.values,
+            resolution=entry.resolution,
+            note=entry.note,
+            status="agree",
+            value_marks=_value_marks(entry, drawing),
         )
         for key in _conflict_keys(entry, drawing, storey, plans):
             _agree(out, key, agreed, entry.tolerance)
     return out
+
+
+def _value_marks(entry: Conflict, drawing: Drawing) -> tuple[tuple[ValueMark, ...], ...]:
+    """Where each value's items are, aligned with `entry.values`: a count of an element class or
+    of rooms lists what the method counted (what the plan draws; the model's objects the sheet
+    draws, a model object it does not draw has no position); any other value is its own
+    position (page and box) when it has one. () when no value has a position."""
+    ref = entry.subject.ref
+    shown_storeys = {plan.id: plan.storey for plan in drawing.plans}
+    elements = {e.id: e for e in drawing.elements}
+    rooms = {r.id: r for r in drawing.rooms}
+    drawn: list[tuple[ValueMark, ...]] = []
+    for value in entry.values:
+        marks: list[ValueMark] = []
+        if entry.quantity == "element_count" and entry.subject.kind == "class" and ref:
+            if value.method == "plan_drawing":
+                shown = [e for e in drawing.elements if e.class_ == ref]
+                shown = [e for e in shown if of_its_plans_storey(e, shown_storeys)]
+            elif value.method == "ifc_model":
+                shown = [
+                    elements[o.element]
+                    for o in drawing.model_objects or ()
+                    if o.class_ == ref and o.element in elements
+                ]
+            else:
+                shown = []
+            for n, item in enumerate(shown, 1):
+                tag = item.attrs.get("mark")
+                label = tag if isinstance(tag, str) and tag else f"{ref} {n}"
+                marks.append(ValueMark(page=item.page, box=item.box, label=label))
+        elif entry.quantity == "room_count" and entry.subject.kind == "sheet":
+            if value.method == "plan_drawing":
+                counted = list(drawing.rooms)
+            elif value.method == "ifc_model":
+                counted = [
+                    rooms[o.element]
+                    for o in drawing.model_objects or ()
+                    if o.class_ == "space" and o.element in rooms
+                ]
+            else:
+                counted = []
+            marks = [ValueMark(page=r.page, box=r.box, label=r.label or r.id) for r in counted]
+        if not marks and value.page is not None and value.box is not None:
+            marks = [ValueMark(page=value.page, box=value.box, label=value.method)]
+        drawn.append(tuple(marks))
+    return tuple(drawn) if any(drawn) else ()
 
 
 def _agree(

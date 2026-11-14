@@ -24,7 +24,7 @@ from app.core.answering.ports import AnswerConfidence
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
 from app.core.review.ask import Asked, ask
-from app.core.review.check import Check
+from app.core.review.check import Check, Level
 from app.core.review.model import MarkView, Refusal, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
@@ -72,6 +72,10 @@ class AnswerView(View):
     # CHECK_POLICY: the answer is not certified, so a person is asked to double-check it at the
     # places where the readers disagree; None: certified, signed off, a refusal, or the policy off
     check: Check | None
+    # CHECK_POLICY: the answer's confidence level (high, medium, low), what it rests on and one
+    # sentence with the measured counts; high exactly when `check` is null on a rated answer.
+    # None: a refusal, a value a person signed off or settled, the policy off or without levels
+    level: Level | None
 
 
 class _SheetFiles:
@@ -227,4 +231,5 @@ def answer_view(
         line=line,
         proof=asked.proof,
         check=asked.check,
+        level=asked.level,
     )

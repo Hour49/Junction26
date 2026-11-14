@@ -50,13 +50,44 @@ export async function startSample(page: Page): Promise<string> {
   return /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
 }
 
-/** The sample's plans/flat-b.pdf on the surveyor route (via its trace and the engineer page). */
+/** The sample, then a file's page from Documents' file list (parity: no file list on Ingest). */
+export async function fileFromDocuments(page: Page, file: string): Promise<string> {
+  const pid = await startSample(page);
+  await page.goto(`/#/p/${pid}/documents`);
+  await page
+    .getByRole('region', { name: 'Files' })
+    .getByRole('link')
+    .filter({ hasText: file })
+    .click();
+  await expect(page).toHaveURL(/\/f\/f\d+$/);
+  return pid;
+}
+
+/** The sample's plans/flat-b.pdf on the surveyor route, by its URL (parity: no Surveyor tab; these tests are about
+ * the workspace, not the way in, which golden-path.spec.ts walks). */
 export async function openSurveyor(page: Page) {
-  await startSample(page);
-  await page.locator('a[href*="/f/f"]').filter({ hasText: 'plans/flat-b.pdf' }).click();
-  await page.getByRole('link', { name: 'Open the drawing' }).click();
-  await page.getByRole('link', { name: 'Surveyor', exact: true }).click();
+  const pid = await startSample(page);
+  const { id } = await drawingOf(page, pid, 'plans/flat-b.pdf');
+  await page.goto(`/#/p/${pid}/d/${id}/surveyor`);
   await expect(page).toHaveURL(/\/d\/[0-9a-f]{16}\/surveyor/);
+}
+
+/** A drawing of the project by its file: its id and its on-screen name (`drawingLabel`: #224's `name`, else the file
+ * name). */
+export async function drawingOf(
+  page: Page,
+  pid: string,
+  file: string,
+): Promise<{ id: string; label: string }> {
+  const project = (await (await page.request.get(`/api/projects/${pid}`)).json()) as {
+    drawings: { drawing_id: string; file: string; name?: string | null }[];
+  };
+  const drawing = project.drawings.find((d) => d.file === file);
+  expect(drawing, `${file} is a drawing of ${pid}`).toBeTruthy();
+  return {
+    id: drawing?.drawing_id ?? '',
+    label: drawing?.name || (file.split('/').pop() ?? file),
+  };
 }
 
 /** The sample through the API (not the ingest screen, whose wording is its own spec's), read to the end. */

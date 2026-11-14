@@ -313,7 +313,7 @@ bedroom, hall, living and other 80.0%; wc 93.3%). Nothing else moved. The series
 don't depend on room type and are unchanged. The earlier records' room type accuracy and IFC count numbers were
 scored against the old words.
 
-Swiss gold with the reader's room words (golden, 2026-11-14 17:45; no series point recorded). #184 types a lone
+Swiss gold with the reader's room words (golden, 2026-11-14 about 15:00; no series point recorded). #184 types a lone
 "Zimmer" (and "Pièce", "Stanza") as a bedroom on swiss plans, in the reader and in the swiss Part 1 gold. Golden v2
 was rebuilt the same way, with `select-plans --keep`: files.jsonl, questions.jsonl, extras.jsonl and text_claims.jsonl
 are byte-identical, and 58 swiss gold files changed (33 PDF, 25 PNG; 44 dev, 14 holdout), in room `type` only: 527
@@ -416,18 +416,164 @@ families flags at least 96% of val's wrong answers. The file holds one threshold
 used: `g1main` (DECISIONS_CONFIDENCE) and local-dec's local gates (LOCAL_GATES). Routes are certified on golden v2's
 holdout (vector and BIM yes, schedules no).
 
-The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json`, fit on config
-C1-T1's val answers: door, plan, sauna and shower+bathtub on `lgate2-rt`, toilet on `lgate-rt-nol1`, the rest on
-`g1main`. Cross-fit on val: 55.1% of the answers flagged, 96.0% of the wrong ones among them, 98.95% of the
-unflagged answers exact. The local gates read the count arbiter's L1 probabilities and P and the double-check
-readers, so the config needs `arbiter-t1` in RASTER_COMPONENTS and DOUBLE_CHECK_READERS `l1,m1`; on a drawing
-without them those families always ask.
+Levels (Bogdan, 2026-11-14: cut 0.20). `--medium 0.20` adds a second threshold per family, `medium`, read from the
+same all-val calibration at P(wrong) 0.20: a certified answer is High, an answer at or above `medium` is Medium,
+any other is Low. A calibration group whose cross-fit Medium has fewer than 30 answers or is under 80% exact gets
+no Medium (`--medium-min-units`, `--medium-min-exact`; window on C1-T1, 7 answers). The top-level `levels` block
+keeps the cross-fit counts per level. Each route gets a `level`: High when certified, else Medium when its golden
+v2 dev answers reach 30 at 80% exact (schedules: 35/37), else Low. On C1-T1 val, cross-fit: High 44.9% of the
+answers at 98.9% exact, Medium 34.6% at 91.6%, Low 20.4% at 58.6%. An always-flagged bedroom answer (a bedroom
+with no printed label) is Low whatever its score, in eval and in the backend (orchestrator, 2026-11-14), so the
+Medium figure is what was measured. A known small difference: eval does not model #174's plan agreement, so 3 val
+plans the backend asks about count as High here.
+
+The levels file is `eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json` (sha256
+`bfce5524cd32f3a6aac94307265892ed99251bc1efbee692ba9855e8d11b369a`), made by `check-policy --medium 0.20` on the
+pinned policy's inputs. Every field of the pinned file (sha256
+`a9334da1b908866d57fb4066791011bf5344a0f11471a05dba2f0815dd239def`) has the same value in it, except `generated`;
+it only adds `medium` per family, the `levels` block, and each route's `level` and `dev`. The pinned file stays
+the policy the test certificate below was computed with.
+
+The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json` (committed as
+`eval/results/check/check-C1-T1-recall96-rt-full-small.json`, sha256
+`a9334da1b908866d57fb4066791011bf5344a0f11471a05dba2f0815dd239def`), fit on config C1-T1's val answers: door, plan,
+sauna and shower+bathtub on `lgate2-rt`, toilet on `lgate-rt-nol1`, the rest on `g1main`. Cross-fit on val: 55.1%
+of the answers flagged, 96.0% of the wrong ones among them, 98.95% of the unflagged answers exact. The local gates
+read the count arbiter's L1 probabilities and P and the double-check readers, so the config needs `arbiter-t1` in
+RASTER_COMPONENTS and DOUBLE_CHECK_READERS `l1,m1`; on a drawing without them those families always ask.
 
 Known limitation: the policy is fit on ROOM_POLICY=gold-labels (rooms typed by their printed label, as the
 reference answers are), and the demo runs ROOM_POLICY=furniture (a room with a bed is a bedroom). Room families
 are therefore certified outside the conditions they were fit on. The main case is covered by a rule: a bedroom
-count that includes a bedroom with no printed label always asks. The test certificate (integ's single test read)
-is still to come; until then the val numbers are estimates chosen on val.
+count that includes a bedroom with no printed label always asks. The test certificate is below.
+
+#### The test certificate (config C1-T1)
+
+The committed policy is the val fit, byte for byte; the test read changes nothing in it. The certificate is the
+backend's own `ask()` with that policy on the drawings the test read stored, so it runs the same code as the API,
+then each verdict is joined with the truth. integ read the 376 CubiCasa test pages once (2026-11-14 15:37-16:48,
+commit 671d67f), with the shipping config (C1-T1 with the arbiter-t1 count arbiter run live, DOUBLE_CHECK_READERS
+`l1,m1`, LOCAL_GATES, DECISIONS_CONFIDENCE, #174's plan agreement) and ROOM_POLICY=gold-labels, as on val. The
+read covers the raster route only; the vector and BIM routes are certified on golden v2's holdout (above). The
+two scripts are in `eval/certificate/`, byte for byte as they ran. From a backend checkout of the read's commit:
+
+```bash
+PYTHONPATH=. uv run --locked python ../eval/certificate/certify.py --drawings <run>/extraction/cubicasa5k --questions <run>/questions.jsonl --answers <run>/answers.jsonl --policy <check policy> --local-gates <lgate2-rt.json,lgate-rt-noL1.json> --flags <run>/flags --g1main <run>/g1main.json --out certified.jsonl --api-answers answers-api.jsonl
+cd ../eval && PYTHONPATH=. uv run --locked python certificate/certify_join.py <test questions with truth> answers-api.jsonl certified.jsonl
+```
+
+An answer is flagged when the policy does not certify it, so it asks for a double-check. The numbers count
+questions, as the join does. On val each page and family has one English and one Finnish question with the same
+answer, so every count there is twice the number of answers; the 95% bound (one-sided Clopper-Pearson) is computed
+on answers, not questions (on test too, every page and family has two questions with one answer and one verdict).
+
+**On the test pages, the double-check flagged 97.0% of the wrong answers (one-sided 95% bound 95.3%) and asked on
+62.1% of all answers; 99.0% of the answers it did not flag are exact.**
+
+| read | rated | wrong | flagged | wrong flagged (recall) | 95% bound on recall | unflagged exact |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| val, shipped thresholds (as the backend runs) | 6764 | 800 | 3962 (58.6%) | 782/800 (97.8%) | 96.1% | 2784/2802 (99.36%) |
+| val, cross-fit (each half under the other half's fit) | 6764 | 800 | 3730 (55.1%) | 768/800 (96.0%) | 94.0% | 3002/3034 (98.95%) |
+| **test, once** | 6718 | 872 | 4174 (62.1%) | 846/872 (97.0%) | 95.3% | 2518/2544 (98.98%) |
+| test, first run of the certificate (kitchen scored on the prior, see below) | 6718 | 858 | 3908 (58.2%) | 808/858 (94.2%) | 92.0% | 2760/2810 (98.22%) |
+
+The val rows are chosen on val, not a guarantee: the shipped row is in-sample, and the cross-fit row is the honest
+val estimate. The 96% target is one point above Bogdan's 95% (D476, D490), a margin for choosing the cut on val.
+
+Per family (questions; val with the shipped thresholds):
+
+| family | val flagged | val recall | val unflagged exact | test flagged | test recall | test unflagged exact |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| door | 100.0% | 152/152 | - | 100.0% | 142/142 | - |
+| plan | 7.4% | 6/8 | 694/696 | 9.3% | 8/8 | 682/682 |
+| room:balcony | 96.0% | 20/20 | 10/10 | 94.3% | 18/18 | 12/12 |
+| room:bathroom | 48.9% | 24/24 | 186/186 | 52.4% | 40/40 | 178/178 |
+| room:bedroom | 67.5% | 40/42 | 156/158 | 69.4% | 48/54 | 136/142 |
+| room:kitchen | 44.9% | 38/42 | 288/292 | 51.6% | 38/40 | 248/250 |
+| room:wc | 62.9% | 20/20 | 132/132 | 57.4% | 6/14 | 148/156 |
+| sauna | 4.1% | 4/6 | 518/520 | 5.3% | 4/8 | 500/504 |
+| shower+bathtub | 80.4% | 60/62 | 132/134 | 100.0% | 94/94 | - |
+| sink | 90.0% | 68/68 | 74/74 | 90.8% | 86/86 | 68/68 |
+| toilet | 20.0% | 14/20 | 594/600 | 26.6% | 30/36 | 546/552 |
+| window | 100.0% | 336/336 | - | 100.0% | 332/332 | - |
+
+Three notes on what this read does and does not cover:
+
+- Kitchen (the certificate's first run, corrected). The test read answered through the CLI, where ANSWER_POLICY
+  sends CubiCasa kitchen counts to the dev prior, because a page's path there is `data/cubicasa5k/...`. The API
+  never does: an uploaded file keeps its bare name, so `source_of()` (`backend/app/core/answering/model.py:75`)
+  finds no dataset, and the kitchen count comes from the drawing, scored by G1main (checked live on a val page
+  at 671d67f: method takeoff, sure). The first run of the certificate took each answer's score from the run's
+  line, and on kitchen that was the prior's hit rate (0.9579): all 516 kitchen answers were certified, 26 of
+  them wrong, and the prior's value was judged. The corrected run (the test row) scores G1main's P of the
+  drawing's count, as the API does, and judges the answer the API gives; only the 516 kitchen lines change (266
+  of them now ask), and on every line answered from the drawing in both runs the two scores are equal (6,202 of
+  6,202). The corrected run is the product's. The API's kitchen answers are 476/516 exact on test (92.2%; the
+  prior's were 490/516), so the API's test accuracy is 5,846/6,718 (87.0%), not the CLI read's 5,860 (87.2%).
+
+- Sauna. The count arbiter stores, in `count_arbiter["sauna"]`, T1's P for its own sauna-stove pick. C1-T1 does
+  not answer sauna with that pick: the rule counts sauna rooms first (one per sauna room, else C1's stoves from
+  the Decisions swap). lgate2-rt's sauna score therefore reads the arbiter's P next to an answered count that can
+  differ from the arbiter's pick. The gate model and the policy were fit on exactly these values: on val C1-T1's
+  sauna answer equals the arbiter arm's on 271 of 271 pages, and the arbiter's pick differs from the answer on 5 of
+  them. Those 5 score 0.83 to 0.94, below the sauna threshold 0.971, so they ask (1 of the 5 is wrong): on val
+  every sauna answer the arbiter did not back asked. On val 260 of 271 sauna answers are certified, 1 of them
+  wrong.
+- Photos. The test read answers through the CLI (`python -m app.cli answer`), which has no phone-photo
+  rectifier and no reading flags: both run only in the API's ingest. The test pages are CubiCasa plan images
+  (PNG scans of drawings), not phone photos, so neither the rectifier nor a photo flag would apply to them. In
+  the API a flagged page (a phone photo or a scanned PDF) never certifies, and this certificate says nothing
+  about photos.
+
+#### Confidence levels on test (config C1-T1)
+
+The levels are scored on the same read as the certificate. Each answer of the corrected run gets the level the
+backend gives it (`ask()` with `check-C1-T1-recall96-rt-full-small-medium20.json`, PR #233), and is then joined
+with the truth. This is the single read of the 376 test pages, not a second one. The rule and its thresholds
+were written down with their sha256 on 2026-11-14 at 16:48:46, before any test number of the levels was computed,
+and nothing was refit afterwards. The Medium thresholds in the committed file equal the pre-registered ones
+(largest difference 2e-16). The counts are answers, one per page and family (3,359; each has an English and a
+Finnish question with one verdict), with Wilson 95% intervals.
+
+| level | test: share (answers) | test: exact | test: wrong | val cross-fit: share, exact |
+| --- | ---: | ---: | ---: | ---: |
+| High | 37.9% (1,272) | 99.0% [98.3, 99.4] | 13 | 44.9%, 98.9% |
+| Medium | 41.1% (1,381) | 92.8% [91.3, 94.0] | 100 | 34.6%, 91.6% |
+| Low | 21.0% (706) | 54.2% [50.6, 57.9] | 323 | 20.4%, 58.6% |
+
+Per family on test (share of the family's answers, their number, exact rate with its interval):
+
+| family | answers | High | Medium | Low |
+| --- | ---: | --- | --- | --- |
+| door | 277 | 0 | 57.4% (159), 88.1% [82.1, 92.2] | 42.6% (118), 55.9% [46.9, 64.6] |
+| plan | 376 | 90.7% (341), 100.0% [98.9, 100.0] | 8.0% (30), 93.3% [78.7, 98.2] | 1.3% (5), 60.0% [23.1, 88.2] |
+| room:balcony | 106 | 5.7% (6), 100.0% [61.0, 100.0] | 87.7% (93), 93.5% [86.6, 97.0] | 6.6% (7), 57.1% [25.0, 84.2] |
+| room:bathroom | 187 | 47.6% (89), 100.0% [95.9, 100.0] | 42.8% (80), 93.8% [86.2, 97.3] | 9.6% (18), 16.7% [5.8, 39.2] |
+| room:bedroom | 232 | 30.6% (71), 95.8% [88.3, 98.6] | 50.0% (116), 92.2% [85.9, 95.9] | 19.4% (45), 66.7% [52.1, 78.6] |
+| room:kitchen | 258 | 48.4% (125), 99.2% [95.6, 99.9] | 42.6% (110), 99.1% [95.0, 99.8] | 8.9% (23), 21.7% [9.7, 41.9] |
+| room:wc | 183 | 42.6% (78), 94.9% [87.5, 98.0] | 53.6% (98), 98.0% [92.9, 99.4] | 3.8% (7), 85.7% [48.7, 97.4] |
+| sauna | 266 | 94.7% (252), 99.2% [97.2, 99.8] | 3.8% (10), 90.0% [59.6, 98.2] | 1.5% (4), 75.0% [30.1, 95.4] |
+| shower+bathtub | 351 | 0 | 83.2% (292), 94.5% [91.3, 96.6] | 16.8% (59), 47.5% [35.3, 60.0] |
+| sink | 371 | 9.2% (34), 100.0% [89.8, 100.0] | 83.6% (310), 90.0% [86.2, 92.9] | 7.3% (27), 55.6% [37.3, 72.4] |
+| toilet | 376 | 73.4% (276), 98.9% [96.9, 99.6] | 22.1% (83), 90.4% [82.1, 95.0] | 4.5% (17), 58.8% [36.0, 78.4] |
+| window | 376 | 0 | 0 | 100.0% (376), 55.9% [50.8, 60.8] |
+| **pooled** | 3,359 | 37.9% (1,272), 99.0% [98.3, 99.4] | 41.1% (1,381), 92.8% [91.3, 94.0] | 21.0% (706), 54.2% [50.6, 57.9] |
+
+What the table shows:
+
+- Medium and Low keep their val meaning on test: 92.8% against 91.6%, and 54.2% against 58.6%. Every family with
+  30 or more Medium answers is between 88% and 99% exact.
+- Fewer answers are High than on val: 37.9%, against 44.9% cross-fit and 41.4% with the shipped thresholds. No
+  shower+bathtub answer is certified on test (19.6% of them on val with the shipped thresholds): its gate score
+  tops out at 0.983 on this read, under the threshold 0.988.
+- High is weakest on wc (74 of 78 exact) and bedroom (68 of 71). Low is mostly wrong on bathroom (3 of 18 exact)
+  and kitchen (5 of 23). Every window answer is Low, and 55.9% of them are exact.
+- No test answer was held for a check (the read uses ROOM_POLICY=gold-labels), and no page was flagged.
+- The pre-registered rule gave window a Medium threshold; the committed file gives it none. That moves 2 window
+  answers from Medium to Low and changes nothing else.
+- The levels were first scored at 16:51 on the certificate's first run (kitchen from the prior, see the kitchen
+  note above): High 41.8% at 98.2%, Medium 37.9% at 92.2%, Low 20.3% at 55.2%. The table above is the corrected
+  run; only the kitchen lines differ.
 
 ## What the answer should show
 

@@ -26,6 +26,8 @@ import fileReadAsPlanJson from '@fixtures/file_read_as_plan.json';
 import triageRequestJson from '@fixtures/triage_request.json';
 import triageStartedJson from '@fixtures/triage_started.json';
 import relevanceRequestJson from '@fixtures/relevance_request.json';
+import issueAnswerRequestJson from '@fixtures/issue_answer_request.json';
+import issueAnsweredJson from '@fixtures/issue_answered.json';
 import reviewRequestsJson from '@fixtures/review_requests.json';
 import signoffRequestJson from '@fixtures/signoff_request.json';
 import takeoffJson from '@fixtures/takeoff.json';
@@ -49,6 +51,7 @@ import type {
   ProjectReview,
   ProjectTrace,
   DrawingChecks,
+  Issue,
   IssueList,
   ProjectChecks,
   RulePack,
@@ -96,6 +99,8 @@ export const reviewRequests = reviewRequestsJson as unknown as Edit[];
 export const signoffRequest = signoffRequestJson as unknown as SignOffRequest;
 export const projectTriaged = projectTriagedJson as unknown as ProjectView;
 export const relevanceRequest = relevanceRequestJson as unknown as RelevanceRequest;
+export const issueAnswerRequest = issueAnswerRequestJson;
+export const issueAnswered = issueAnsweredJson as unknown as Issue;
 export const triageRequest = triageRequestJson as unknown as TriageRequest;
 export const triageStarted = triageStartedJson as unknown as FileStatus;
 export const fileReadAsPlan = fileReadAsPlanJson as unknown as FileStatus;

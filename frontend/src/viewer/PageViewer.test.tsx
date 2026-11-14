@@ -210,13 +210,13 @@ describe('PageViewer: legend, caption, pages', () => {
     expect(text).toContain('rejected by a surveyor');
   });
 
-  it('VW-29 credit under the page, or "none recorded"; file name either way', () => {
+  it('VW-29 (demo parity) no credit line, with or without a credit; file name shown', () => {
     viewer(answer, { credit: 'Plan © Example, CC BY 4.0' });
-    expect(screen.getByText('Credit: Plan © Example, CC BY 4.0')).toBeTruthy();
+    expect(screen.queryByText(/Credit:/)).toBeNull();
     expect(screen.getByText('plans/flat-a.pdf')).toBeTruthy();
     cleanup();
     render(<PageViewer file={drawing.file} pages={drawing.pages} marks={[]} credit={null} />);
-    expect(screen.getByText('Credit: none recorded for this file')).toBeTruthy();
+    expect(screen.queryByText(/Credit:|none recorded/)).toBeNull();
     expect(screen.getByText('plans/flat-a.pdf')).toBeTruthy();
   });
 
@@ -726,7 +726,8 @@ describe('PageViewer: Vellum (screen 4)', () => {
   });
 
   it('VW-53 viewer.css uses only tokens, has press feedback and turns it off for reduced motion', () => {
-    const plain = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    // the one allowed literal: --v-plan's fallback until fe-shared adds the token (re-sweep 6)
+    const plain = css.replace(/\/\*[\s\S]*?\*\//g, '').replaceAll('var(--v-plan, #fbf8ef)', '');
     expect(plain).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
     expect(plain).toContain('var(--v-');
     expect(plain).toContain('var(--vw-c)');
@@ -1315,5 +1316,30 @@ describe('PageViewer: focus kept and state words (fe-ingest browser check)', () 
     ).toBeTruthy();
     expect(legendItems(container)).toEqual(['1 fails the rule', '1 needs a person', '1 note']);
     expect(legendItems(container).join()).not.toMatch(/counted/);
+  });
+});
+
+describe('PageViewer: bare (chat reference image)', () => {
+  it('VW-93 bare shows only the image and the marks', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    const pages = twoPages();
+    const { container } = viewer(answer, { bare: true, pages, selected: 'm1' });
+    for (const sel of [
+      '.vw-name',
+      '.vw-classes',
+      '.vw-bar',
+      '.vw-zoom',
+      '.vw-switcher',
+      '.vw-pagemeta',
+      '.vw-selection',
+      '.vw-legend',
+    ]) {
+      expect(container.querySelector(sel), sel).toBeNull();
+    }
+    expect(container.querySelector('.vw--bare')).toBeTruthy();
+    expect(screen.getByAltText('Page 1 of plans/flat-a.pdf')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mark 1: door, counted' })).toBeTruthy();
+    cleanup();
+    expect(viewer(answer).container.querySelector('.vw-legend')).toBeTruthy();
   });
 });

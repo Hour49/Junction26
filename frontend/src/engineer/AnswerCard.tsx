@@ -121,7 +121,7 @@ const TONE: Record<Row['status'], string> = {
 };
 
 /** The status in words, with its explanation as a tooltip on hover and focus. */
-function StatusPill({ status }: { status: Row['status'] }) {
+export function StatusPill({ status }: { status: Row['status'] }) {
   const id = useId();
   const [tip, setTip] = useState(false);
   const show = () => {

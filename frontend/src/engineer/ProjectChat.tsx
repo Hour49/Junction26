@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   askProject,
-  formatValue,
   getDrawing,
   getProject,
   type ProjectAnswer,
@@ -10,11 +9,11 @@ import {
 } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
-import { routeHref } from '../shell/route';
-import { AnswerCard, SURE_TIP, type Turn } from './AnswerCard';
+import { AnswerCard, type Turn } from './AnswerCard';
+import { ChatAnswer } from './ChatAnswer';
 import { AskBox } from './AskBox';
 import { Suggestions } from './DrawingHeader';
-import { askable, starters } from './projectAsk';
+import { askable, followUps, starters } from './projectAsk';
 import './engineer.css';
 
 type ChatTurn =
@@ -27,56 +26,6 @@ type Load =
   | { state: 'error'; error: unknown }
   | { state: 'ready'; project: ProjectView };
 
-/** The total, then one line per answering drawing with a link to show it (chat.md). */
-function PartsCard(props: { ask: ProjectAnswer; projectId: string; pack: string | null }) {
-  const { ask, projectId, pack } = props;
-  // That drawing opens answering this question (EN-72), in the chat's rule pack (QA R4b-1).
-  const query = new URLSearchParams(pack ? { ask: ask.question, pack } : { ask: ask.question });
-  const answering = ask.parts.filter((p) => p.answer.refusal === null);
-  const label = answering[0]?.answer.quantity?.label;
-  return (
-    <div className="v-card en-chatcard">
-      {label && <p className="en-small">{label.charAt(0).toUpperCase() + label.slice(1)}</p>}
-      {ask.total !== null && (
-        <p className="en-value-row">
-          <span className="en-value" data-testid="answer-value">
-            {formatValue(ask.total, ask.total_unit)}
-          </span>
-          {ask.total_sure && (
-            <span className="en-sure v-pill v-pill--ok" title={SURE_TIP}>
-              Sure<span className="en-sr">. {SURE_TIP}</span>
-            </span>
-          )}
-        </p>
-      )}
-      {ask.total_note && <p className="en-small">{ask.total_note}</p>}
-      <ul className="en-parts">
-        {answering.map((p) => (
-          <li key={p.drawing_id}>
-            <span>
-              <span className="en-part-name en-mono">{p.name}</span>:{' '}
-              {typeof p.answer.answer === 'number'
-                ? formatValue(p.answer.answer, p.answer.unit)
-                : (p.answer.answer ?? '')}
-            </span>{' '}
-            <a
-              href={routeHref({
-                name: 'workspace',
-                projectId,
-                drawingId: p.drawing_id,
-                role: 'engineer',
-                query,
-              })}
-            >
-              Show it on {p.name}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 /** The project-wide chat at #/p/<pid>/chat (docs/specs/frontend/chat.md): empty until asked, no drawing shown.
  * `query`: `ask` is asked on open (chat.md "Opening with a question"). */
 export function ProjectChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
@@ -85,8 +34,8 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   const nextId = useRef(1);
   const pending = useRef(false);
   const thread = useRef<HTMLElement>(null);
-  // Starter chips from the drawings' own suggestions; not blocking, failures leave fewer (or none).
-  const [chips, setChips] = useState<Suggestion[]>([]);
+  // The drawings' own suggestions, for the starter and follow-up chips; not blocking, failures leave fewer (or none).
+  const [lists, setLists] = useState<Suggestion[][]>([]);
   const openAsk = query?.get('ask')?.trim() ?? '';
 
   const send = useCallback(
@@ -130,7 +79,7 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
           ),
         ).then((rs) => {
           if (abort.signal.aborted) return;
-          setChips(starters(rs.map((r) => (r.status === 'fulfilled' ? r.value.suggestions : []))));
+          setLists(rs.map((r) => (r.status === 'fulfilled' ? r.value.suggestions : [])));
         });
       },
       (error: unknown) => {
@@ -174,7 +123,12 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
       return (
         <article key={turn.id} className="en-turn" aria-label={turn.ask.question}>
           <p className="en-bubble">{turn.ask.question}</p>
-          <PartsCard ask={turn.ask} projectId={projectId} pack={query?.get('pack') ?? null} />
+          <ChatAnswer
+            ask={turn.ask}
+            project={project}
+            projectId={projectId}
+            pack={query?.get('pack') ?? null}
+          />
         </article>
       );
     }
@@ -210,6 +164,17 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   const box = (
     <AskBox file="the project's drawings" busy={busy || n === 0} asked={turns.length} onAsk={ask} />
   );
+  const chips = starters(lists);
+  // CH-36: hidden while the newest turn is a refusal (its own chips are the choice then).
+  const newest = turns.at(-1);
+  const refusedLast =
+    newest?.status === 'done' && newest.ask.parts.every((p) => p.answer.refusal !== null);
+  const next = refusedLast
+    ? []
+    : followUps(
+        lists,
+        turns.map((t) => t.question),
+      );
   // Empty (Tudor 12:45): the heading, the bar in the upper middle and the starter chips under it.
   if (turns.length === 0) {
     return (
@@ -226,10 +191,13 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   }
   return (
     <div className="en-page en-chat">
-      <h1 className="en-chat-title">{project.name}</h1>
+      <h1 className="en-sr">{project.name}</h1>
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {turns.map(card)}
       </section>
+      {next.length > 0 && (
+        <Suggestions items={next} busy={busy} onAsk={ask} label="Follow-up questions" />
+      )}
       {box}
     </div>
   );

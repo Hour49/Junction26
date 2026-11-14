@@ -1,6 +1,9 @@
 """GET /api/info: which reader each port uses and the upload limits, so the screen can say what it
-runs on and refuse a file before sending it, and the building-code rule packs the country picker
-offers. Names only: no keys, endpoints or local paths."""
+runs on and refuse a file before sending it, the building-code rule packs the country picker
+offers, and the commit the backend was started from. Names only: no keys, endpoints or local
+paths."""
+
+from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import Field
@@ -11,7 +14,8 @@ from app.api.checks import RulePacksDep, RulePackView, pack_views
 from app.api.deps import SettingsDep
 from app.api.projects import MAX_UPLOAD
 from app.api.views import View
-from app.composition import readers, uses_keys
+from app.composition import readers, spend_guard, uses_keys
+from app.settings import Settings
 
 router = APIRouter(prefix="/api")
 
@@ -32,6 +36,14 @@ class Info(View):
     limits: Limits
     # The building-code packs GET /api/drawings/{id}/checks?pack= takes (decision 0009)
     rule_packs: list[RulePackView] = Field(default_factory=list[RulePackView])
+    # GEMINI_BUDGET_USD / GEMINI_BUDGET_USD_PER_HOUR: budget_exhausted while Gemini calls are
+    # refused; left out when no budget is set
+    gemini: Literal["ok", "budget_exhausted"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    # APP_COMMIT: the git commit the backend was started from (tools/qa-env.sh sets it); null
+    # when the env doesn't say
+    commit: str | None = None
 
 
 @router.get("/info")
@@ -47,4 +59,13 @@ def info(settings: SettingsDep, packs: RulePacksDep = ()) -> Info:
             question_chars=QUESTION_CHARS,
         ),
         rule_packs=pack_views(packs),
+        gemini=_gemini(settings),
+        commit=settings.app_commit or None,
     )
+
+
+def _gemini(settings: Settings) -> Literal["ok", "budget_exhausted"] | None:
+    guard = spend_guard(settings)
+    if not guard.limited:
+        return None
+    return "budget_exhausted" if guard.exhausted() else "ok"

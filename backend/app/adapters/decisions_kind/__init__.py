@@ -93,8 +93,8 @@ class KindSignal:
         """One readable trace line."""
         top = self.kind
         flag = ", photo of a plan" if self.photo else ""
-        return (f"sheet kind {top} ({self.probs.get(top, 0.0):.2f}), P(plan) {self.p_plan:.2f}"
-                f"{flag}; {self.note}")  # fmt: skip
+        seen = f"sheet kind {top} ({self.probs.get(top, 0.0):.2f})"
+        return f"{seen}, P(plan drawn) {self.p_plan:.2f}{flag}; {self.note}"
 
 
 @dataclass(frozen=True)
@@ -105,6 +105,8 @@ class KindUnavailable:
 def page_png(data: bytes) -> bytes:
     """The image sent: a PDF's page 1 rendered, or the image, long side <= MAX_SIDE, as PNG."""
     from PIL import Image
+
+    from app.adapters.eight_bit import eight_bit
 
     if data.startswith(b"%PDF-"):
         import pypdfium2
@@ -119,7 +121,7 @@ def page_png(data: bytes) -> bytes:
                 pdf.close()
     else:
         try:
-            image = Image.open(io.BytesIO(data)).convert("RGB")
+            image = eight_bit(Image.open(io.BytesIO(data))).convert("RGB")
         except OSError as error:
             raise DecisionsError(f"the file is not an image or PDF: {error}") from None
     image.thumbnail((MAX_SIDE, MAX_SIDE))

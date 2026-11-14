@@ -50,5 +50,8 @@
       "reason": "not ingested: the server restarted during ingest"
     }
   ],
-  "expected_drawings": 0
+  "expected_drawings": 0,
+  "conflicts_open": null,
+  "issues_open": null,
+  "issues_to_answer": null
 }
