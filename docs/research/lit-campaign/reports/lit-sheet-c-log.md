@@ -1,0 +1,77 @@
+# lit-sheet-c reading log (public-safe; date read = 2026-11-14)
+- gh api licence + HF raw README: PaddleOCR Apache-2.0, PaddleX Apache-2.0, docTR Apache-2.0, docling MIT, docling-ibm-models MIT, RF-DETR Apache-2.0, RotNet(d4nst) MIT, DocLayout-YOLO AGPL-3.0, NFIQ2 (LICENSE.md read: NIST public domain), OFIQ (LICENSE.md read: MIT); HF cards: PP-LCNet_x1_0_doc_ori apache-2.0, PP-DocLayoutV3 apache-2.0, docling-layout-heron apache-2.0, GreenMap yolo11x-blueprint apache-2.0 (weights, ultralytics runtime AGPL), DocLayout-YOLO-DocStructBench weights apache-2.0 (code AGPL)
+- https://www.paddleocr.ai/latest/en/version3.x/module_usage/doc_img_orientation_classification.html + HF card + ONNX card: 4-class doc orientation, 99.06% top-1 on a 1000-image self-built set, 7 MB, 3.24 ms CPU
+- https://arxiv.org/html/2506.02738 (Open-PMC-18M, 2025): DAB-DETR subfigure detector trained on 500k synthetic composites; ImageCLEF2016 mAP 36.88 / F1 73.55; synthetic val mAP 98.58
+- https://arxiv.org/html/2601.08026 (FigEx2, 2026): panel detection mAP table; DAB-DETR BioSci mAP50 0.830
+- https://arxiv.org/abs/2510.21862 (2025, v2 2026): YOLOv11 layout (views, title blocks) 1,000 drawings, mech drawings (abstract read via headless browser; html 404)
+- https://arxiv.org/abs/2607.18997 (EC3 2026): AEC layout benchmark, RF-DETR mAP50 0.949 (abstract only; html 404, pdf unreadable)
+- https://arxiv.org/html/2509.11720 (Docling heron/egret, 2025): RT-DETRv2/D-FINE layout models, 640x640, mAP table, 17 classes, no drawing class
+- https://arxiv.org/html/2601.21957 (PaddleOCR-VL-1.5, 2026): Real5-OmniDocBench skew 91.66; no orientation classifier named; CAD drawings in layout hard cases
+- https://arxiv.org/html/2504.03241v1 (Zernike rotation, 2025): GNN on vectorised plans; CubiCasa 400 plans, 45 degree rotation only; avg F1 67.01 vs 50.7 with/without normalisation (summary part)
+- https://arxiv.org/html/2511.13523v1 (clinical OCR noisy, 2025): NR-IQA vs OCR error rho up to 0.62 for Tesseract only, others not significant, n=60
+- https://arxiv.org/abs/1803.07728 + https://github.com/d4nst/RotNet (RotNet): 4-way rotation task; ambiguity only for round objects
+- search-only (not counted as read): NFIQ2/OFIQ context, historical map layout (2510.08385, 2506.16006), XY-cut surveys, comic panel repos
+- https://arxiv.org/html/2606.29667 (MatMMExtract, 2026): YOLO12-m panel detector F1 0.9502, mAP50 0.9227, 1024 px, 50 epochs, one A6000, 2,249 train images; code repo GPL-3.0 (gh api); eval repo MIT
+- https://arxiv.org/html/2602.16430 (India production OCR, 2026): rotation module on Phi-3.5 encoder lifts EM 82.13 to 88.70; no standalone rotation accuracy; no gating
+- https://docs.rs/crate/kreuzberg/4.5.3/source/src/doc_orientation.rs: PP-LCNet doc_ori onnx, 224 centre crop of short-side-256, MIN_CONFIDENCE 0.35 because correct class sits near 45% in 4-class
+- https://mindee.github.io/doctr/using_doctr/using_models.html + modules/models.html: docTR page orientation predictor named, no accuracy, classes, size or weights licence stated
+- https://github.com/vectorInstitute/pmc-data-extraction: README lists CLIP evaluation only; subfigure detector weights and generator not found there; repo Apache-2.0
+- https://rfdetr.roboflow.com/latest/learn/train/ + README + releases: sizes, resolutions, COCO format, >=8 GB VRAM advice, N/S/M/L Apache-2.0 weights, XL/2XL PML; latest release 1.12.1 on 12 Nov
+- https://www.alphaxiv.org/abs/2607.18997 (AI overview of the paper, read via headless browser): FELD 551 facade drawings, 9 classes incl GA plans, RF-DETR-M mAP50 0.949 / 0.890 mAP50:95, DocLayout-YOLO doc-pretrain 0.589 vs COCO 0.772 mAP50:95
+- https://arxiv.org/html/2608.00473 (CrossProjection, 2026): VLM benchmark across plan/section/elevation, belongs to L7 scope, one line only
+- https://arxiv.org/html/2511.04161v2 (Seeing Straight, v2 Mar 2026): training data proprietary, code/weights "upon acceptance", no non-text pages tested, own failure analysis
+- Semantic Scholar citation API via headless browser: citations of 2506.02738 (9 papers, MatMMExtract is the panel one), 2511.04161 (2), 2601.08026 (0); several 429 on retry
+- https://huggingface.co/PaddlePaddle/PP-DocLayoutV3 README: Apache-2.0, ECCV 2026, polygons + reading order, 25 classes (as stated in PaddleOCR-VL-1.5 read)
+- https://huggingface.co/dimtri009/rfdetr-pid-detector card: RF-DETR fine-tune on P&ID symbols, 10 epochs, SAHI advice, Apache-2.0 (card claims, no independent eval)
+- https://github.com/usnistgov/NFIQ2 + https://github.com/BSI-OFIQ/OFIQ-Project READMEs: quality score linked to recognition performance (ISO/IEC 29794-4 / -5)
+- https://huggingface.co/vector-institute/pmc-18m-dab-detr (card + api): Apache-2.0, 43.75M params, Open-PMC subfigure detector weights
+- https://tesseract-ocr.github.io/tessdoc/ImproveQuality.html + tesseract.1.asc: psm 0 no minimum-text statement; expects page of text; 300 dpi advice
+- https://github.com/CubiCasa5k via search only; https://arxiv.org/html/2408.01526v1 (multi-unit plans, 2024): no sheet splitting
+- https://arxiv.org/html/2610.28171v1 (DocLayout-YOLO 2026): MeshLayout-1M BestFit synthetic page composition; mAP table; 1600 px, 8xH200; code AGPL-3.0 (gh api)
+- https://arxiv.org/html/2510.09110 (Synthetic Object Compositions, 2026-01 v4): composites help low-data detection (+6.59 AP at 1% COCO), no code link found; L8 scope
+- HF model API listings for orientation models: onnxtr page-orientation card Apache-2.0; DINOv3 Tibetan flip classifier uses DINOv3 licence; StabRise line orientation AGPL-3.0
+- https://ar5iv.arxiv.org/html/1606.01021 (Taschwer and Marques 2016 classical separator bands; tables via model summary)
+- https://ar5iv.arxiv.org/html/2101.09903 (two-stage label+subfigure detector 2021: needs letter labels; code repo MaterialEyes/exsclaim)
+- https://github.com/roboflow/rf-detr pyproject.toml, LICENSE, issues #1052 #1030 #1460 #780 #958 (gh): deps permissive, no rectangular training, seg OOM at validation
+- OpenAlex: citations of arXiv:2510.21862 (7 works, 2026: drawing-to-CAD mapping, BlueprintAgent EMNLP findings, engineering-drawing retrieval); of 2504.03241: 0
+- https://blog.thegrizzlylabs.com/2024/01/genius-scan-auto-rotate-technology.html (vendor): MobileNet 4-class 224px INT8 676KB, text-based rejected for non-text docs
+- https://github.com/ispras/dedoc benchmark file + training script, HF dedoc/scan_orientation_efficient_net_b0 card, dataset card: EfficientNet-B0 F1 0.999 on text pages, 4,121 docs
+- 2607.18997 full text via locally saved PDF + pypdf (scratch): Tables 1-4 read; RF-DETR-M 1344x800 on 16GB T4; replaces the alphaXiv overview read
+- 1711.08189 (SNIP) full text via saved PDF + pypdf: Table 1 small-object mAP 19.6/19.9/19.5/21.4; resolution mismatch finding
+- 2506.02738 and 2601.08026 full PDFs via pypdf: Open-PMC 40 epochs batch 64 lr 1e-5 confirmed; FigEx2 text extracted
+- US12243342B2 (Google Patents, Autodesk) first 40k chars: FCNN multi-floorplan boxes per sheet, no numbers
+- https://digitalcommons.isical.ac.in/conf-articles/217 and /107: ICDAR 2017 AEC orientation abstract only
+- Springer IJDAR MC-dropout staff paper: login redirect, unread
+- arXiv 2505.01530 and 2110.11593 abstracts: not orientation of sheets (part-level only)
+- https://arxiv.org/html/2506.16006v1 (DIGMAPPER 2025): LayoutLMv3 content/legend split, IoU .84 F1 .87; HF microsoft/layoutlmv3-base card cc-by-nc-sa-4.0; RF-DETR issue #958
+- https://arxiv.org/abs/2606.23344 (RT-DocLayout = PP-DocLayoutV3, Jun 2026): 33M, OmniDocBench overall 94.50, no CAD in listed domains
+- https://arxiv.org/html/2002.00867v1 (sketch SSL 2020): RotNet fails on centrosymmetric sketches (Sec IV-B)
+- https://arxiv.org/html/2609.25615 (SALI-FP Sep 2026): CubiCasa5K test, four-rotation baseline, no multi-plan handling, proprietary APIs; L10 scope
+- 2606.29667 and 2610.28171 full PDFs via pypdf/curl: MatMMExtract table confirmed; DocLayout-YOLO Table 4 values confirmed, which tick is which component stays inferred
+- https://arxiv.org/html/2504.14913v1 (JEITA OCR disturbance factors 2025): factor catalogue, no numeric thresholds, no gating
+- 2026-11-14 00:59 Semantic Scholar via pwfetch, citers of 2606.23344 (RT-DocLayout): 3 (2611.04874 OCR survey, 2609.36136 Xiaomi-OCR-0, 2607.22200 LayoutLite); titles only, all document OCR, none about sheet layout or plan counting. OpenAlex hit its free daily limit.
+- 2026-11-14 01:00 arXiv 2504.03241 (Zernike, full PDF via curl+pypdf, https://arxiv.org/pdf/2504.03241): Table 2 verified, rotated CubiCasa5K (45 degrees) avg F1 67.01 vs 50.70 without normalisation; trained on CubiCasa5K train (leaky); row 10 stays skip.
+- 2026-11-14 01:00 Hugging Face model API + raw cards: Voix7/rtdetrv2-floorplan-v2 (apache-2.0, unknown dataset), joshlyman/rtdetrv2-floorplancad-doors (apache-2.0), Yytsi/floorplan-to-3d-walls (mit, CubiCasa5K), Hyunwoo1605/mask2former-floorplan-instance-segmentation (no licence). None does plan counting.
+- 2026-11-14 01:00 web search (search results only, not opened): DocSplit 2602.15958 (ACL 2026 industry), nutrientdocs/doc-split-v1 (Apache-2.0 per search result) split page streams into documents; page-level boundaries, not regions on one page, so off scope for plan counting; not counted as read.
+- 2026-11-14 01:00 Shafait, Keysers, Breuel DAS 2006 six page segmentation algorithms (full PDF via curl+pypdf, https://link.springer.com/content/pdf/10.1007/11669487_33.pdf): X-Y cut merges regions when a noise strip crosses the page; added to report section 3.
+- 2026-11-14 01:01 DocLayout-YOLO LICENSE file on main and release-v2 (raw GitHub): both read for the heading line (see row 5c); code AGPL-3.0 confirmed.
+- 2026-11-14 01:04 Google Patents US12243342B2 full page via curl (https://patents.google.com/patent/US12243342B2/en): claim 1 read; keyword-gated floor-plan extraction plus boundary segmentation, no box-count claim; row no longer 'reported'.
+- 2026-11-14 01:05 arXiv 2510.21862 full PDF (curl+pypdf): Stage 1 YOLOv11-det confusion 0.96/0.99/0.98, no mAP. arXiv 2510.09110 full PDF abstract: +6.59 AP on 1% COCO confirmed, 100K synthetic images beat GRIT-20M by +24-36% claim; no code link found in text.
+- 2026-11-14 01:05 gh api roboflow/rf-detr issues #1460 #974 #1344 (bodies and first comments): OOM in seg validation on V100 16GB, 2x slowdown 1.5.0 to 1.6.4, no RAM cache; added to report section 3.
+- 2026-11-14 01:06 UVic MSc thesis Cabrera Vargas 2018 (full PDF, https://dspace.library.uvic.ca/bitstreams/189b0857-eaf8-49d0-b6b1-11c768e85ce4/download): multi-unit = many apartments in one plan, whole-image method; no sheet splitting.
+- 2026-11-14 01:06 gh api licences for ScanSplitter, autocrop, cropMultipleScannedImages: all GPL-3.0; found by web search only, READMEs not read; adjacent field noted in section 3.
+- 2026-11-14 01:07 arXiv 2110.11593 mould drawings (full PDF): ResNet-50 part rotation 94.4%/92.0%, parts not sheets, 92 training drawings; gap on drawing-sheet orientation stays open. Forward walk Semantic Scholar for 2607.18997: 0 citers.
+- 2026-11-14 01:08 arXiv 2512.02566 Panel2Patch (html): panels parsed with a VLM; its table calls the Open-PMC detector YOLO, contradicting the primary paper (DAB-DETR); no use for plan counting. S2 forward list for 2506.02738 re-run: 9 citers, same as before.
+- 2026-11-14 01:07 pyproject.toml of rf-detr and PaddleOCR requirements.txt via gh api; PyPI JSON for hotcoco, peft, pytorch-lightning, torchmetrics, supervision, albumentations; dedoc licence: no AGPL/GPL entry found.
+- 2026-11-14 01:08 Springer IJDAR 2024 s10032-024-00492-9 (full PDF via curl+pypdf): 640 px patches on 14,042 x 9,934 sheets, mAP 79 (YOLOv7) / 83 (Faster R-CNN); no tile ablation. Detection scope, one line only.
+- 2026-11-14 01:08 upscaling gap retried: search only; hu.ac.th conference PDF unreachable (404 direct, blocked via helper).
+- 2026-11-14 01:09 arXiv 2504.08645 title block detection building drawings (full PDF): Faster R-CNN MobileNetV3, title block acc 0.971, main content 0.943, one box kept per drawing; dataset not public.
+- 2026-11-14 01:10 arXiv API searches (floor plan + sheet / multi-floor / multi-story / orientation): nothing on sheet splitting; 2608.24886 abstract read, one plan per image.
+- 2026-11-14 01:10 HF card + API pmc-18m-dab-detr re-read: apache-2.0, 43,754,884 params, 500,000 synthetic compound figures, downloads 37; code repo licence via gh api.
+- 2026-11-14 01:10 arXiv 2312.13620 (full PDF): recall 32.74/85.19/88.93/98.89/99.33 verified; abstract links a GitHub repo; gh api repos/Lattle-y/AI-recognition-for-lq-ed: no licence file.
+- 2026-11-14 01:11 tesseract osdetect.cpp (raw GitHub): min_characters_to_try and 'Too few characters. Skipping this page' confirmed; default 50 found in tesseractclass.cpp line 846.
+- 2026-11-14 01:11 gh api rf-detr issue #1052 comments (last 3) and latest release 1.12.1 (2026-11-12): squash judged probably fine by a maintainer; rectangular training still a roadmap question.
+- 2026-11-14 01:11 US12243342B2 description re-read (full text): FCNN outputs one or more boxes, threshold plus NMS leave a given floorplan box; no statement that box count equals plan count. Report wording corrected.
+- 2026-11-14 01:11 arXiv 2609.25615 SALI-FP full PDF (82 pages, curl+pypdf), searched for multi-plan, rotation, scan: only CubiCasa5K four-rotation test and 5-degree augmentation limit; nothing on sheets.
+- 2026-11-14 01:12 DocLayout-YOLO 2610.28171 Table 4 re-read from saved PDF text: single-tick rows reproduce text averages (pretrain-only +4.7, PALA-only +2.2 on PRIMA-LAD), mapping verified.
+- 2026-11-14 01:13 gh search + READMEs: apple2373/figure-separator (no licence), GaetanLepage compound-figure-separator (GPL-3.0), AlbertZweistein-2 course project (MIT, YOLO). Semantic Scholar 429 for Taschwer citers.

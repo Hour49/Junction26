@@ -1,0 +1,142 @@
+# lit-data-a reading log (one line per source opened; date read 2026-11-14)
+- https://api.semanticscholar.org/graph/v1/paper/arXiv:2508.14006/citations (curl) : 14 citing papers of ResPlan (2025-26); ArchCAD hit 429
+- same API for 2412.07377 (CADSpotting) and 2602.09016 (Raster2Seq): citing lists (PolarSym 2608.11793, TextCAD 2607.12678, VecFormer 2505.23395)
+- gh api license: ResPlan repo NOASSERTION (read LICENSE file next), CubiCasa5k NOASSERTION, MLStructFP MIT, dinov2 Apache-2.0, dinov3 NOASSERTION, augraphy MIT
+- https://arxiv.org/abs/2610.17178 + /html (web-fetch, partly summarised): ModRes, 8,431 cleaned ResPlan plans, 1 bathroom class, no fixtures, no detection numbers
+- https://arxiv.org/html/2608.25608 (pwfetch, full text read): procedural synthetic generator + cc5k vs cc5k+synth: wall F1 .769->.781 (r2s), .747->.751 (wf); bootstrap half-width .013-.017 (no significant gain)
+- https://arxiv.org/html/2607.12678 (web-fetch, partly summarised): TextCAD, FloorPlanCAD-V2 text annotations, no release/licence stated (belongs to L5/L11)
+- https://ir.library.osaka-u.ac.jp/.../AutomConstr_181_106584.pdf : ResBIM, fetch failed (>10 MB), retry via pwfetch pending
+- https://raw.githubusercontent.com/m-agour/ResPlan/main/LICENSE + README + resplan_utils.py (curl): data CC BY 4.0 (derived geometry recovered by CV from listing renderings, takedown process), code MIT, single 'bathroom' key, no WC, no fixtures
+- https://arxiv.org/html/2503.22346 (web-fetch, verbatim): ArchCAD-400K, 11917 drawings -> 5538, 27 classes, 14x14 m chunks, pretrain gain only in a figure (30 epochs vs 50), no window class confirmed
+- gh api ArchiAI-LAB/ArchCAD LICENSE: ACADEMIC USE ONLY, commercial prohibited (HF subset 40K); repo spdx NOASSERTION
+- https://raw.githubusercontent.com/facebookresearch/dinov3/main/LICENSE.md (web-fetch): custom DINOv3 License, commercial use allowed, redistribution under same terms, ITAR/trade-control exclusion; HF card 401
+- https://arxiv.org/html/2508.10104 (web-fetch, partly summary): DINOv3, frozen-backbone COCO det 66.1, SAT-493M satellite results; no line-drawing eval
+- https://arxiv.org/html/2511.09554 (web-fetch, first 40k verbatim): RF-DETR, DINOv2 init 'significantly improves detection accuracy on small datasets'
+- https://github.com/roboflow/rf-detr README + LICENSE (gh api): Apache-2.0 for N/S/M/L + Seg, PML 1.0 for Atto..Pico/XL/2XL
+- https://github.com/Cyprinus12138/fpvec-lab (gh api, tree + fpgen/README + symbols.py + scene.py + pipeline.py): MIT generator, toilet/sink/shower/bathtub/stove glyphs, fixtures with bbox in gt json, four styles, Augraphy-based degradations
+- https://www.mdpi.com/2076-3417/16/13/6290 (pwfetch): Access Denied (Akamai); not read
+- https://ir.library.osaka-u.ac.jp/repo/ouka/all/103515/AutomConstr_181_106584.pdf (curl PDF to scratch, pypdf text): ResBIM, Liang/Yabuki/Fukuda, Autom. Constr. 181 (2026), >1000 synthetic BIMs from an RPLAN-trained generator, paper CC BY 4.0, no toilet/sink classes, data at GitHub
+- https://arxiv.org/html/2607.06483 (web-fetch, full verbatim): synthetic pre-training for floor-plan GENERATION (135k synthetic scenes), fine-tune MPE 7.05 vs 12.1 at 1k real; no real-only baseline, no code URL
+- https://arxiv.org/html/2604.16513 (web-fetch, full): SynthPID, 665 topology-seeded synthetic P&IDs; E2 synth-only edge mAP 63.8, oracle 12 real 69.4, mixed 72.6 (OPEN100, 12 real images); no randomisation ablation
+- https://arxiv.org/html/2508.10449v1 (web-fetch): SkeySpot, 45 scanned plans, 2450 inst, YOLOv8 mAP50 81.12 vs Faster R-CNN 48.62; no licence for data; UK electrical symbols
+- https://arxiv.org/html/2508.06696v1 (web-fetch, full): line-drawing pretraining, VOC mAP 22.16 vs 18.17 at 10% data; natural images only; no code URL
+- https://ec-3.org/publication/ec32026_305/ (web-fetch, abstract only): AEC drawing layout detection, RF-DETR mAP50 0.949, general-document pretraining shows domain interference
+- https://api.semanticscholar.org/graph/v1/paper/arXiv:2503.22346/citations (curl) : ArchCAD citers (TempFit 2610.17776, DoorDet, VecFormer...)
+- https://api.semanticscholar.org/graph/v1/paper/arXiv:1904.01920/citations (curl, 176 citers): forward walk from CubiCasa5K, ~70 papers 2025-26 (list used to pick the reads below)
+- https://arxiv.org/html/2609.24565 (web-fetch, 40k verbatim + summary): real vs synthetic drawings, 'transfer without adaptation does not work for anyone', DINOv2-B 0.757 hatch accuracy vs small CNN 0.959, scan shift CNN -0.188
+- https://arxiv.org/html/2609.12723 (web-fetch, 40k verbatim): frozen DINOv3 ViT-B/16 + DPT head contrastive on floorplans (CubiCasa5K in training = leak), no door/window eval, no weights URL
+- https://arxiv.org/html/2603.14764 (web-fetch): polygon augmentation, 2000 Korean plans, YOLOv11-Seg mIoU 88.4->90.8, private data (AI Hub), no small-object analysis
+- WebSearch 'Why floor plan object detection breaks under real scans': title not found by search (pending retry)
+- https://papers.ssrn.com/... and sciencedirect S0926580526004346 (web-fetch + pwfetch): 403 / Elsevier Content Blocked; https://portal.fis.tum.de/.../why-floor-plan-object-detection-breaks-under-real-scans (web-fetch, abstract only): Carrara/Nousias/Borrmann, Autom. Constr. 191:107193, CubiCasa5K paired CAD vs scan renders, RT-DETR; geometry change inside object regions is the main loss; checkpoints 'publicly released', no URL found
+- https://pmc.ncbi.nlm.nih.gov/articles/PMC13619391 + frontiersin 10.3389/frai.2026.1911589 (web-fetch, 40k verbatim + summary): FloorYOLO, SESYD/CVC-FP only, no toilet class, CVC-FP mAP50 0.8241; no code URL
+- https://huggingface.co/api/datasets?search=floorplan etc. (curl): HF re-uploads with conflicting licence tags (Voxel51/FloorPlanCAD cc-by-sa-4.0 vs original CC BY-NC; Barath/cubicasa apache-2.0 vs CC BY-NC); BinniesHK floorplan-vlm-sft-dataset-flat is a CubiCasa5K repackage tagged cc-by-4.0 (leak)
+- https://huggingface.co/datasets/benikm91/synthetic-floorplans-with-furnitures-for-transcription/raw/main/README.md (curl, full card): 1M synthetic plans, 256x256, CC BY 4.0, furniture boxes incl. toilet/basin/bathtub/shower/sink/hob/washer, no text labels
+- https://floorplancad.github.io/ + /classes-page.html + CubiCasa5k README (web-fetch): FloorPlanCAD licence statement is CC BY-NC 4.0 on annotations and website, authors do not own drawings' copyright, project shut down early 2022; CubiCasa5k README states no licence and no split sizes
+- https://ojs.aaai.org/.../37625 (FloorPlanFormer, FloorPlan8K): Anubis/BotStopper block on web-fetch and pwfetch; not read
+- WebSearch hits only (not opened): FloorplanMAE 2506.08363 (generation), ELINA (not found by search)
+- https://www-live.dfki.de/.../12196_Mishra2021_AppliedSciences.pdf (web-fetch): PDF bytes, only abstract-level summary; SFPI 10k synthetic images
+- https://huggingface.co/api/models/facebook/dinov2-base card: apache-2.0; Roboflow/rf-detr-large card: apache-2.0; facebook/dinov3-* gated (card API)
+- /tmp scratch text of Mishra2021 PDF (pypdf): SFPI 10k synthetic images from SESYD layouts, mAP 99.8 synthetic / 98.1 SESYD, no real-image test at all
+- gh api repos/gesstalt/ROBIN (+ LICENSE, README): ROBIN.zip 32 MB and ROBIN++.zip in a GPL-3.0 repo, last push 2022-03; class list not in README
+- https://dag.cvc.uab.es/dataset/cvc-fp-database-for-structural-floor-plan-analysis/ (pwfetch): timeout, site still down
+- https://arxiv.org/html/2511.09554 (pwfetch, full text): RF-DETR Table 6 (COCO, Objects365-pretrained LW-DETR-M): CAEv2 AP 52.3/APS 32.3 vs DINOv2 ViT-S/14 AP 54.3/APS 35.8; text: DINOv2 init 'significantly improves detection accuracy on small datasets'; resolutions 320-960 in NAS grid
+- https://sol.sbc.org.br/index.php/eramiars/article/download/39477/39249 (curl via saved PDF + pypdf, full 4 pages): DETR R50 trained synthetic-only (700 sheets + 300 grids, 40 classes, 640 px crops): mAP 90.5 synth test, 33.8 IPD (2 sheets), 4.0 OPEN100 (COCO init); 70 h on RTX 3060
+- https://arxiv.org/html/2411.13929v2 (web-fetch, ~verbatim): Relationformer P&ID, synthetic-only vs mixed (60 real + 500 synthetic): OPEN100 symbols mAP 26.67 -> 73.49; real-only not reported; patch size 1500 px, bigger patches cost >=10% on symbols
+- https://zenodo.org/api/records/2613548 + CubiCasa5k LICENSE (curl/gh): Zenodo says cc-by-nc-sa-4.0, GitHub LICENSE says CC BY-NC 4.0 (conflict); 5.47 GB zip
+- https://arxiv.org/html/2508.07714v1 (pwfetch): DoorDet built from CubiCasa5K SVGs (leak), R-FP500 (Dodge 2017, 500 real-estate plans) listed with no fixtures
+- Roboflow floor-plans-500 and Kaggle copy (pwfetch): empty page (JS), not read; web search shows licence conflict CC BY 4.0 vs MIT
+- https://github.com/Cyprinus12138/fpvec-lab pyproject + fpgen/degrade.py (gh api): fpgen deps numpy/shapely/scipy/opencv/skia-python; degradations via Augraphy (MIT) ops registered in a whitelist with alignment test
+- https://arxiv.org/html/2512.02413 (web-fetch, full verbatim): MitUNet wall segmentation, 'Floor Plan CIS' 500 real-estate plans on Zenodo (walls only), CubiCasa5K pretrain then fine-tune: mIoU 87.91 scratch vs 88.75 fine-tuned (validation, no test split)
+- https://arxiv.org/html/2507.10343 (web-fetch, full): FGSSNet, CubiCasa5K walls only, 10 extra real plans; no synthetic; no code URL
+- https://arxiv.org/html/2607.00015 (web-fetch, first 40k verbatim + summary): compliance framework, no detection numbers, only position text on few-shot and domain adaptation; HF VLM adaptor link
+- https://zenodo.org/api/records/17871079 + gh api aliasstudio/mitunet: licence of Floor Plan CIS and MitUNet code (see report)
+- https://huggingface.co/datasets/{wheres-my-python/floorplans-cityscapes, JoaoMigSilva/floorplans, hamoodey/floorplan-graph-rl, Voxel51/FloorPlanCAD}/raw/main/README.md (curl): web-scraped sets with 'other'/MIT tags; Voxel51 card header cc-by-sa-4.0 vs body CC BY-NC 4.0
+- https://zenodo.org/records/17871079 (pwfetch) + api/records/17871080: Floor Plan CIS, CC BY 4.0, 500 raw plans, 23 MB
+- fpvec-lab fpgen/render.py, styles.py, pipeline.py, scene.py, symbols.py (gh api): long side 900-1600 px fitted to 1024 frame, fixtures+texts bbox in gt.json, no sauna
+- https://github.com/roboflow/rf100-vl (gh api): Apache-2.0; 100 datasets, 7 categories, no floor-plan dataset by name
+- WebSearch (not opened): floor-plan diffusion generators (DiffPlanner 2602.01949 etc.), CycleGAN drawing translation: no detection numbers found
+- https://arxiv.org/html/2509.17283 (web-fetch, 40k verbatim): Co-DETR door detector on two merged public sets, no detector metric; evaluates counts on CubiCasa5K (97 images) etc.; relevant only as a pointer for lit-count
+- https://arxiv.org/html/2609.07362 (web-fetch, full): BlueprintAgent, 300 real scanned structural sheets, MLLM pipeline, no detector, perception errors 45% on aged scans; pointer for lit-ocr
+- https://arxiv.org/abs/2607.18997 (pwfetch) + https://arxiv.org/pdf/2607.18997 (curl to scratch, pypdf, 8 pages full): AEC layout benchmark FELD 551 drawings, RF-DETR-M 1344x800 mAP50 .949 / mAP50:95 .890, DocLayNet-pretrained DocLayout-YOLO .589 (confounded)
+- https://api.semanticscholar.org/graph/v1/paper/arXiv:2511.09554/citations (curl, 205 citers filtered): RF-DETR forward walk; drawing-related 2026 citers: 2607.18997, a hand-drawn circuit augmentation benchmark (title only; search and S2 rate-limit, not opened), a railway signal-layout drawing paper (title only)
+- https://api.semanticscholar.org/graph/v1/paper/arXiv:2208.14558/citations (curl, 30 citers): Augraphy forward walk; OMR/document synthetic papers (Transcoda, Smashcima, Synth-JDoc)
+- https://arxiv.org/html/2605.10835 (web-fetch, Sections 1-6 verbatim): Transcoda OMR, synthetic-only; ablation OMR-NED 65.76 full vs 76.95 without visual degradation (real scans, 102)
+- https://arxiv.org/html/2502.06132 (web-fetch, full): Augraphy augmentation on document key-information localisation, mixed small effects on handwritten
+- gh issue view: m-agour/ResPlan #1,#4,#5,#8 ; emmashelley/ModRes #1 ; Cyprinus12138/fpvec-lab #1,#2 ; ArchiAI-LAB/ArchCAD #2,#8 : licence conflict unresolved (croissant.json NC-SA vs LICENSE CC BY), no maintainer replies; fpvec-lab weights not released; ArchCAD cannot be reproduced from the repo (missing loader), no weights
+- https://raw.githubusercontent.com/m-agour/ResPlan/main/croissant.json + TAKEDOWN.md (curl): license CC BY-NC-SA 4.0 in metadata (Kaggle v6, 2025-05-22)
+- gh issue view roboflow/rf-detr #669, #780, #958: query caps (300 detection, 256 seg head, 100 nano-seg), advice to move up a size for small objects, ViT cost vs resolution
+- https://api.openalex.org/works?filter=cites:... (curl): forward citations of 2508.14006 (15), 2511.09554 (140), 2608.25608 (0); no new symbol-detection work citing ResPlan; RF-DETR citers include RT-SDGOD (abstract empty in OpenAlex) and a handwriting-localisation paper
+- https://api.openalex.org/works?search=... (curl): abstract of 'Vision foundation models for engineering document intelligence ...' (AI Review 2026, abstract only): confirms gap, no engineering-specific pretraining corpora yet; 'Leveraging self-supervision and open-set detection for pattern spotting in historical documents' IJDAR 2025 (no abstract available)
+- https://arxiv.org/html/2610.17178 (pwfetch, full 59 kB): ModRes limitation 'does not include any data on furniture or interior fixtures'; dataset licence not stated, paper CC BY 4.0
+- https://zenodo.org/api/records/18890483, 19894248, 7921780, 22169669 (curl): CubiCasa5k-ScanShift (CC BY-NC 4.0, 4.68 GB), Aurinkolahti spreadsheet (CC BY 4.0), FP-TXT, permeability-graph weights (CC BY 4.0, trained on CubiCasa5K)
+- https://arxiv.org/html/2609.12723 (pwfetch, full 46 kB): MMFE re-read; no code, weights or licence statement; sensing modality simulated; benefit 'most visible when downstream data is limited' (authors)
+- https://api.openalex.org/works?search=LGS-FPP... (curl, abstract only): LGS-FPP SAM2 floor-plan parsing mIoU 88.92 CubiCasa5K vs 69.58 on scanned CFP (Research Square preprint, not opened further)
+- gh api roboflow/rf-detr pyproject.toml + PyPI albumentations 2.0.8 (MIT): RF-DETR dependency check, no AGPL
+- https://arxiv.org/pdf/2511.19538 (curl PDF to scratch, pypdf, 396 pages, ablation table read): Petitpierre PhD thesis; Table 6: test mIoU 74.2 full vs 69.1 without synthetic pretraining (1,006 real train samples)
+- WebSearch historical maps synthetic (not opened beyond the thesis): SynthMap 2112.06104, SynthMap+, CaSiDD benchmark noted
+- gh api LatentSpaceIITB/SynthPID + gh search repos (2026-11-14 00:53): repo 404, not findable; SynthPID code unusable
+- gh api btrkeks/transcoda (00:53): AGPL-3.0, pushed 2026-11-13
+- gh api HAIx-Lab/SkeySpot (00:53): license null; repo holds a Streamlit app, requirements, images
+- gh api emmashelley/ModRes readme (00:53): repo folders LICENSE, README, dataset, images; README gives no separate data licence line
+- arXiv API abstracts 2608.27923 (PCBnet), 2604.00270 (OmniSch) (00:53): real-data PCB schematic sets; no synthetic transfer measured
+- WebSearch PCB/hand-drawn circuit augmentation (00:53): only CGHD (DFKI) and a vendor RF-DETR P&ID blog; nothing citable on augmentation
+- https://arxiv.org/html/2609.24565 (pwfetch tail, 00:53): Kuklev limitations read; small imbalanced real sets, proprietary drawings, CubiCasa5K geometry; [S] mark removed
+- https://ojs.aaai.org/index.php/AAAI/article/download/37625/41587 (curl PDF, pypdf, 00:54): FloorPlan8K read: Chinese property-company plans, contours/doors/rooms only, no fixtures; repo LTayfaker/FloorPlanFormer no licence, val/test only on Drive
+- WebSearch self-supervised drawings (00:54): only FloorplanMAE 2506.08363 (generation), FP-MAE (Buildings 2026), DINO-YOLO 2510.25140 (civil engineering, not drawings); gap stays
+- https://github.com/andreacar/floorplan-detection-scan-robustness (gh api, 00:55): README, LICENSE split (code MIT, assets NC), mitigation README, artifacts/tables csv: error decomposition, size-success, ROI, factorised degradation; numbers into report rank 3
+- https://zenodo.org/api/records/18890483 (curl, 00:54): related identifiers give the repo; description and split counts re-read
+- OpenAlex API (00:54): free daily budget used up for this IP, no more OpenAlex calls (no key requested)
+- gh api issues m-agour/ResPlan #5 #7 + comments (00:56): no maintainer answer on licence; per-plan scale varies
+- gh api Cyprinus12138/fpvec-lab tree, commits, issues #1 #2 (00:56): code released 2026-10-20; skv4 = CubiCasa5K derived NC-SA
+- https://huggingface.co/datasets/Tristan12138/resplan-fp (card API, 00:56): 16,998 plans, 256 px, no fixtures, cc-by-4.0
+- gh api roboflow/rf-detr issues #974 #1599 + README + release (00:56): v1.12.1 current, licences unchanged; training-speed regression report (unreproduced); tile-shift confidence sensitivity from patch grid
+- https://arxiv.org/html/2606.10953 (pwfetch, 98 kB, 00:56): Architect-Ant / AntPlan read: 505 real plans, 92 classes, pseudo-labels reviewed
+- https://huggingface.co/datasets/OldDelorean/AntPlan (Hub API + raw README, 00:56): CC BY-NC 4.0, no source images, YOLO boxes + svg
+- WebSearch extended synthetic floor plan fixtures 2026 (00:56): HomeWorld 2606.06390 (3D scene gen, not read), V-Scan 2604.07010 (3D), Architect-Ant; nothing else with fixtures on raster
+- Semantic Scholar citations API (00:56): 429 again; used WebSearch for fpvec-lab citers: none found
+- HF Hub API search floor plan x6 spellings + cards/images of JoaoMigSilva/floorplans, G-list/floor_plans, OldDelorean/FloorplanQA-Layouts (00:57): toy synthetic / real Japanese drawings unknown rights / JSON layouts; none usable
+- gh api sparkfish/augraphy + PyPI JSON + requirements (00:58): MIT, push 2025-07-20, 8.2.6 (2023-12-31), numba dep
+- WebSearch stroke-width augmentation digital-to-scan (extended, 00:58): nothing new 2025-2026
+- docs/decisions/0003-training-data.md + 00-context.md (00:59): dev/eval images are CubiCasa5K scanned originals; report section 4 now says depiction jitter matters for the clean supplement and unseen styles, not dev-to-eval
+- https://arxiv.org/html/2607.12678 (pwfetch, 78 kB, 00:59): TextCAD full read: FloorPlanCAD-V2 and CubiCasa5K, PQ 91.09 vs VecFormer 88.14, no release statement; [S] removed
+- https://arxiv.org/html/2606.06390v1 (pwfetch, 59 kB, 00:59): HomeWorld: 300K plans from 1.08M scraped listing images, 'will release', no licence
+- https://arxiv.org/html/2605.10835 (pwfetch, 00:59): Transcoda Appendix A read: render-time line-weight ranges; [S] removed
+- https://huggingface.co/OsamaMo/2dplan2strct (Hub API, README, USAGE_TERMS, 00:59): RF-DETR-M floor-plan ckpt, NC, data unstated, 16 h T4 13 epochs
+- https://www.preprints.org/manuscript/202605.1893 (pwfetch, 00:59): Access Denied (YOLOv8-nano 18-symbol paper, not read)
+- WebSearch ScanShift citers, RF-DETR floor plan (00:59): nothing new citing Carrara; Roboflow Universe RF-DETR floor-plan models seen as titles only
+- https://zenodo.org/api/records/17871080 (curl, 01:00): Floor Plan CIS provenance: images from real-estate listings; CC BY by uploader; rights caveat added
+- WebSearch open-source procedural plan generators (01:01): Infinigen Indoors (3D), Schematex (drawing lib), Delft 2407.10121 (no fixtures); nothing like fpgen
+- https://ddlab.technion.ac.il/wp-content/uploads/buildings.pdf (curl PDF, pypdf, 01:01): Buildings 2023 cGAN bathroom furniture layouts, 1,290 pairs; not detector data
+- arXiv API abstract 2509.17283 (01:01): door detection + LLM facility counting; no data
+- WebSearch tiling/SAHI floor plan fixtures 2026 (01:01): nothing 2026; 2020 tile-based YOLO symbol spotting (older)
+- gh api Cyprinus12138/fpvec-lab fpgen/degrade.py (01:02): full read; down_up U(0.55,0.9), blur k 3/5, JPEG 40-92, no dilation op; report corrected
+- gh api roboflow/rf-detr docs/faq.md + docs/learn/train/augmentations.md (01:02): num_queries can be raised; resolution divisible by 32 blocks; default aug; grad_accum default 1
+- HF API cards rf-detr-large, dinov2-base/small + gh api licences fpvec-lab MIT, dinov2 Apache-2.0, ArchCAD NOASSERTION (01:02): top-5 licence rows re-verified, unchanged
+- gh api facebookresearch/dinov3 LICENSE.md (01:02): custom licence read; not in record 0006 allowed list; row 9 verdict changed to skip
+- gh api fpvec-lab pyproject.toml, requirements.txt, fpgen sources grep (01:02): deps permissive; Augraphy not declared; no AGPL imports
+- WebSearch mechanical drawing synthetic (01:04): Bickel 2024 (six generation types), PHM 2026 abstract, GD&T papers; none read in full
+- Crossref API 10.3390/app14146106 (01:04): Bickel abstract only; MDPI/FAU blocked
+- https://arxiv.org/html/2608.25608 (pwfetch re-read, 97 kB, 01:04): Table values .769/.781/.747/.751, openings .840/.848/.341/.367 re-verified; half-width 0.012-0.018 main text; test set 296 (287 common roster); report wording adjusted
+- local text of 2607.18997 (pdf/aec.txt, 01:05): Table 2 re-read: RF-DETR-M P .985 R .800 mAP50 .949 mAP50:95 .890, 44.8 ms; all numbers in report confirmed
+- local texts sbc.txt, map.txt, transcoda.txt (01:05): numbers 90.5/33.8/4.0, 74.2/69.1/70.0, 65.76/78.99/76.95/80.10/60.70/63.97 re-verified against the extracted text
+- local text doordet.txt (arXiv 2508.07714 html, 01:05): DoorDet built from 4,991 CubiCasa5K SVG renders: leak; table row 30
+- WebSearch phone-photographed floor plans; Finnish plan datasets (01:05): nothing new; Aurinkolahti and CubiCasa5K only
+- arXiv API abstracts 2607.00015, 2506.08363, 2610.09313, 2610.17776 (01:06): compliance framework (no results), FloorplanMAE (generation), VLM small objects, TempFit; report cross-references fixed
+- WebSearch CubiCasa5K 2026 synthetic ablation (extended, 01:07): none found; WebSearch copy-paste symbols (01:07): Jamieson 2024 few-shot (Cloudflare-blocked), two patents
+- https://rgu-repository.worktribe.com/... + tandfonline DOI (curl, pwfetch, 01:08): blocked (Cloudflare); abstract only via Crossref (no abstract) so unread
+- arXiv API abstract 2510.25140 (01:08): DINO-YOLO small-dataset gains; YOLO AGPL, DINOv3 custom: evidence only
+- gh api emmashelley/ModRes LICENSE, dataset folder, issues (01:09): plain MIT, no data licence line; issue 'Inquiry About Commercial Use of ModRes' unanswered
+- gh api ArchCAD LICENSE, floorplancad.github.io, Zenodo 2613548 API, gh CubiCasa5k license (01:08): ArchCAD academic-only, FloorPlanCAD NC annotations and no drawing copyright, CubiCasa5K Zenodo cc-by-nc-sa-4.0 and GitHub NOASSERTION: all ledger entries re-verified
+- https://icdar2026.org/index.php/accepted-papers/ (pwfetch, 26 kB, 01:09): list scanned for drawings/floor plan titles: GRaF-Net, P&ID KG extraction only
+- WebSearch ICDAR/GREC floor plan synthetic (extended, 01:09): older tiling paper 2006.00684 and SESYD only
+- https://arxiv.org/pdf/2006.00684 (curl PDF, pypdf, 10 pages, 01:10): Rezvanifar 2020 tile-based symbol spotting read; 115 real units, 12 classes, YOLOv2, tile val mAP 72.4; whole-plan about 59; data not released
+- Zenodo API title search floor plan (01:11): 40 records 2025-2026 scanned by title; relevant: 23000152 (read), 21642514 (product extraction, PDF 14 MB, not read), 22169669 (known)
+- https://zenodo.org/records/23000152 PDF (curl, pypdf, 11 pages, 01:11): negative case study of rule-based and GA plan generators; no metrics
+- https://zenodo.org/records/21642514 PDF (curl, pypdf, 7 pages, 01:11): vendor poster, YOLOv8+OCR, no method or data detail
+- gh search repos floor plan dataset + gh api MLSTRUCT/MLStructFP readme (01:12): 954 plans, walls only, request form, code MIT; nothing else new on GitHub search
+- gh api yunusskeete/floor-plan-datasets readme (01:12): curated list, nothing new; context file: MSD/Swiss Dwellings = test source leak
+- arXiv API listing sweep floor plan / floorplan / architectural drawings by date (01:12): new: 2608.14317 (lighting symbols, abstract), 2609.34047 (benchmark); nothing on synthetic data
+- https://arxiv.org/html/2609.07159 (pwfetch, 45 kB, 01:13): UDA symbol spotting font glyph -> manuscript; ablation P@1 .457 -> .595; no code link
+- arXiv API sweep symbol spotting / synthetic data drawings / sim-to-real (01:13): 2609.07159 new; others known
+- gh api Intellindust-AI-Lab/DEIMv2 + README, Peterande/D-FINE (01:13): DEIMv2 custom licence (DINOv3-based), D-FINE Apache-2.0
+- fpvec text re-check (01:14): fixtures placed by rejection sampling per room rule table [V]; unit statistics fitted to Singapore listing titles [V]; wrap-up on new deadline, no further sources

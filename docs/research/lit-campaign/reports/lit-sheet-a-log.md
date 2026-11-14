@@ -1,0 +1,120 @@
+# lit-sheet-a reading log (one line per source opened; date read 2026-11-14)
+- https://arxiv.org/pdf/2607.18997 (read full text via PDF download + pypdf) — AEC layout benchmark (FELD, 551 facade sheets, RF-DETR m mAP50 0.949; plan class 21 images)
+- https://arxiv.org/pdf/2510.21862 (full text) — YOLOv11 layout split of mechanical multi-view drawings: 1,000 sheets, views/title/notes, normalised confusion 0.96/0.99/0.98
+- https://arxiv.org/pdf/2504.08645 (full text) — title block detection, MobileNetV3 Faster R-CNN, 1,385 drawings, acc 0.971
+- https://arxiv.org/html/2504.03241v1 (via web-fetch) — Zernike rotation invariance, CubiCasa 400 plans; no global orientation step
+- https://arxiv.org/abs/2408.01526 + html (via web-fetch) — multi-unit floor plan segmentation; no per-unit split
+- https://arxiv.org/abs/2607.00015 + html (via web-fetch) — compliance framework; unit separation is future work
+- https://arxiv.org/pdf/2609.07362 (full text via PDF) — BlueprintAgent: scanned RC structural blueprints, 300 sheets, constraint-triggered MLLM revisit; whole-sheet downsampling drops small text
+- https://arxiv.org/pdf/2602.13345 (full text via PDF) — BLUEPRINT ORNL: YOLOv8-S region detector 89.5% mAP50:95 on 750 drawings, region VLM-OCR
+- Semantic Scholar citations API (curl) for 2504.08645, 2510.21862, 2408.01526, 2511.04161, 2202.06934 — forward walk, 2025-26 citers listed
+- gh api licence: sparkfish/augraphy MIT; roboflow/rf-detr Apache-2.0; opendatalab/DocLayout-YOLO AGPL-3.0
+- https://www.paddleocr.ai/latest/en/version3.x/module_usage/doc_img_orientation_classification.html (web-fetch) — PP-LCNet_x1_0_doc_ori 4-class page orientation, top-1 99.06, 7 MB, 3.24 ms CPU; eval set not stated
+- https://ar5iv.labs.arxiv.org/html/2112.09844 (web-fetch) — SR before CubiCasa5k net: 90 images, SR x2, icon micro-F1 0.886 -> 0.875 (drops for toilet/sink/bath), rooms up
+- https://arxiv.org/html/2312.13620v1 (web-fetch, first 40k chars verbatim) — restoration for low-quality electrical drawings, GLCM patch routing to ESRGAN, no hallucination metric
+- https://arxiv.org/html/2508.10449v1 (web-fetch) — SkeySpot, YOLOv8 on 45 electrical plans, mAP50 81.12 (Ultralytics = AGPL)
+- gh api licence: PaddlePaddle/PaddleOCR, PaddleX, rbg-research/Floor-Plan-Detection, Lattle-y repo, HAIx-Lab/Skeyspot (see report)
+- https://arxiv.org/pdf/2609.24565 (full text via PDF) — fly-connectome texture features on architectural docs; useful only for: scan noise + thickened strokes cost task-trained nets up to 0.188 accuracy (synthetic to real)
+- https://arxiv.org/pdf/2609.25615 (text via PDF, skimmed) — SALI-FP evidence-gated floor plan parsing, 11,534 plans, uses an OpenAI-compatible image model; L1/L10 territory, one line
+- https://arxiv.org/pdf/2611.12657 (text via PDF) — when sliced inference pays off: much of tiling gain is a resolution effect (VisDrone, DOTA); L2 territory, one line + cross-use for resolution choice
+- https://arxiv.org/pdf/2608.23923 (text via PDF) — ROI-gated SAHI: lower mAP50 than full SAHI on COCO128 (0.6602 vs 0.7569), speedup only on sparse scenes
+- https://arxiv.org/pdf/2610.09313 (abstract + head via PDF) — VLM small-object recall vs tokens/splitting; L7 territory, one line
+- https://arxiv.org/pdf/2511.04161 (PDF text) — Seeing Straight: 12-class rotation, Phi-3.5-Vision encoder, ORB benchmark 1,863 images; abstract: 98% (En) / 96% (Indic)
+- https://arxiv.org/pdf/2602.16430 (PDF text, grep only) — production OCR for India, rotation module adds to Parichay (88.70 / 89.80 with rotation)
+- Semantic Scholar citations of 1904.01920 (CubiCasa5K), 176 citers, 2025-27 listed; "Why floor plan object detection breaks under real scans" (2026) found by title only, no page found
+- GitHub repo searches (gh api search/repositories) floorplan rotation / document orientation / title block / drawing layout: nothing usable (hobby repos, no licences, ThomasBury/document-image-orient is a PaddleX demo)
+- https://arxiv.org/pdf/2509.17012 (PDF text) — DocIQ: DIQA-5000 5,000 images, SRCC 0.8704 avg, SmartDoc-QA CACC SRCC 0.9086; ResNet50 1600x1600
+- https://arxiv.org/pdf/2507.10343 (PDF text) — FGSSNet wall segmentation, CubiCasa5k + self-captured; walls only, L1 territory
+- https://openaccess.thecvf.com/content/WACV2025/supplemental/Ganon_WAFFLE_Multimodal_Floorplan_WACV_2025_supplemental.pdf (PDF text) — DETR (doc-table base) fine-tuned on 200 images for floorplan/legend/scale/compass, no metric
+- https://huggingface.co/TahaDouaji/detr-doc-table-detection (raw README) — Apache-2.0, ICDAR2019 table data
+- https://huggingface.co/dimtri009/rfdetr-pid-detector (raw README) — RF-DETR fine-tuned for P&ID symbols, apache-2.0, 10 epochs, 32 classes; DocEng 2026
+- https://github.com/roboflow/rf-detr README + issues #1516 #1052 (gh api) — Apache N/S/M/L, resolutions 384/512/576/704, antialias mismatch in predict(), no rectangular support
+- https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct (raw README) — apache-2.0
+- https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_doc_ori (raw README) — apache-2.0, 99.06 recognition avg accuracy
+- Springer IJDAR survey 10.1007/s10032-025-00528-8 via pwfetch — empty output, blocked
+- Round 3 searches (title block, orientation, SR, DIQA, venue sweeps ICDAR/WACV/CVPR 2025-26): summaries only, used to find the papers above
+- REPORT FIRST DRAFT WRITTEN 00:3x; continuing rounds
+- https://arxiv.org/pdf/1904.01920 (PDF text) — CubiCasa5K paper: 3 sub-categories 3732/992/276, 'amount of floors' in annotation time, 90-degree training aug + 4-rotation TTA, 3 h on a TitanX
+- https://www-live.dfki.de/fileadmin/user_upload/import/4339_2009-IUPR-21Aug_1307.pdf (PDF text, read) — RD-POD recognition-driven page orientation, 99.7% UW-1, words-in-dictionary ratio over 4 rotations, 3 lines
+- https://raw.githubusercontent.com/DanBloomberg/leptonica/master/src/flipdetect.c (header read) — pixOrientDetect/pixMirrorDetect use ascender/descender asymmetry; BSD-2 text in file (API: NOASSERTION)
+- Searches on mirror detection, text-free orientation, OCR-confidence voting: summaries only; no benchmark on drawings found
+- https://huggingface.co/ThakiCloud/BlueprintParse-R50 (raw README, read in full) — Faster R-CNN R50-FPN v2, 5 classes, test mAP50-95 0.926, novel 0.7875, per-drawing exact 0.566, apache-2.0, AI-Hub data
+- https://huggingface.co/kiyo07/floorplan-door-detector-rfdetr (raw README, first 70 lines) — RF-DETR S door, weights apache-2.0, runner AGPL, 768 px tiles/384 stride, data unnamed
+- Hugging Face model search API (floorplan, floor plan, blueprint, drawing layout, orientation): many empty/unlicensed repos; v1nz yolo11 floorplan-det CC-BY-NC; ArashNasr AGPL; GreenMap yolo11x-blueprint-wall (YOLO)
+- https://openaccess-api.cms-conferences.org/articles/download/978-1-964867-75-5_221 (PDF text, read) — AHFE 2025 OCR-confidence quality gate on 50 bridge plans, thr 80, P 97.14 R 87.18
+- https://arxiv.org/pdf/2506.09993 (PDF text, Table 2 read) — TAIR: Real-ESRGAN/SwinIR raise detection F1 but lower end-to-end text spotting (24.29 -> 21.45 / 22.70)
+- https://arxiv.org/pdf/2601.17340 (PDF text, intro + abstract read) — TEXTS-Diff: diffusion SR gives distorted glyphs/hallucinated characters; code promised, not released on the page
+- https://arxiv.org/pdf/2509.17283 (PDF text, python search) — facility enumeration with Co-DETR doors + LLM on CubiCasa5K and SydneyHouse; L3/L7 pointer only
+- https://arxiv.org/pdf/2608.17237 (abstract only) — training-free agentic detection on 100 synthetic vector framing plans; vector, not raster; skip
+- https://www.frontiersin.org/journals/artificial-intelligence/articles/10.3389/frai.2026.1911589/pdf (PDF text) — FloorYOLO: SESYD mAP50 0.995 vs CVC-FP scanned 0.8241 (baseline 0.8116), 640 px
+- https://www.mdpi.com/2076-3417/16/13/6290/htm via pwfetch — Access Denied (Akamai); not read; not retried
+- https://mindee.github.io/doctr/modules/models.html + github README (curl) — docTR page/crop orientation MobileNetV3-small, 4 classes; code Apache-2.0
+- https://github.com/roboflow/rf-detr docs/learn/train/{training-parameters,augmentations,index}.md (gh api) — resolution settable (multiple of 32), default aug hflip, batch auto, T4 16GB illustrative 4x4
+- https://arxiv.org/pdf/2602.09016 (PDF text, searched) — Raster2Seq: fixed 256x256 input, 6,281 samples
+- https://arxiv.org/pdf/2602.06507 (PDF text, searched) — FloorplanVLM: longer edge to 1024, coordinates as text tokens
+- https://arxiv.org/pdf/2601.04819 (PDF text, searched) — AECV-Bench: nothing on rotation/resolution in the text searched; L7
+- https://arxiv.org/pdf/2608.15032 (PDF text, searched) — Handoff-H1: sheet-level CV primitives + agents; no sheet-splitting detail found; L7
+- https://arxiv.org/pdf/2408.01526 (PDF text) — multi-floor processing named as future work (align storey plans)
+- docs/PIPELINE.md (repo, read) — stage 6 normalise owns rotation + plan split; stage 7 raster extractor is the hello stub
+- https://arxiv.org/pdf/2603.05942 (PDF text) — Fourier adaptive radial projection skew estimation, DISE-2021, code jdeskew; AED 0.14/0.12 deg in Table 1
+- web searches on dewarp (AADD 2507.15000, DvD 2505.21975, DRCCBI 2501.03145) and skew: summaries only, not opened, not ranked; UVDoc repo MIT (gh api)
+- https://strathprints.strath.ac.uk/93309/7/Carrara-etal-EG-ICE-2025-Content-based-classification-of-construction-drawings.pdf (PDF text) — 450 drawings; Representation acc 0.916 (pretrained ViT), Level 0.600/0.737 GAT; text removed; 800x800 tiles
+- Round summary (00:42): 45+ sources opened; report updated through rank 1-5, tables 2, 2b-2d, transfers, not-found, citation walks. Remaining time to 01:30 used for further sweeps, see lines below.
+- searches: ICDAR/GREC 2024-25 lists, CVPR/ICCV/WACV 2025-26 sweeps, sheet-segmentation datasets: summaries only; FloorPlan8K (AAAI-26) is room-level, not opened
+- Round 2 (00:50) https://github.com/roboflow/rf-detr pyproject.toml + issues #879 #747 (gh api, read) — deps all permissive; maintainer: bigger model over higher resolution, slicing for high-res; no min-object-scale figure
+- licences (gh api): supervision MIT, albumentations MIT (archived), pytorch-lightning Apache-2.0, torchmetrics Apache-2.0, TransformerEngine Apache-2.0, ultrafast-pycocotools BSD-2
+- Corrected from full text of 2511.04161: 4-class 96.81/92.68, 12-class 98/96.71, 304M params, weights not released; docTR numbers in Table 3
+- OpenAlex citers of DocIQ/TAIR/Zernike/FELD/jdeskew: Zernike, FELD, jdeskew have none yet; DocIQ cited by Ljubljana thesis 2026 (read: localised quality AUC 0.92 vs 0.76, direct transfer to SmartDoc-QA SROCC -0.31); TAIR citers: 2512.08922 (not opened)
+- https://arxiv.org/pdf/2601.08026 (PDF text) — FigEx2 compound figure panel detection mAP50:95 0.751 BioSci-Fig-Cap; adjacent field round
+- https://digitalcommons.isical.ac.in/conf-articles/217 (page, abstract only) — Automatic Orientation Correction of AEC Drawing Documents; paywalled body
+- https://research.chalmers.se/publication/543739 (page, abstract) — density and noise on P&ID symbol recognition, 2024
+- https://v2.docs.werk24.io/limitations/resolution/ (page, vendor guidance) — ~10 px text, 300 dpi recommended, 200 minimum; reported
+- searches round 2: orientation, plans per sheet, symbol size threshold with new terms: no new method
+- Round 2: https://arxiv.org/pdf/2312.13620 full text re-read: Table 1 verified (interpolation recall 32.74 vs jointly trained 99.33), hollow-circle failure verified
+- Round 2: https://arxiv.org/pdf/2504.03241 full text re-read: Tables 1-2 verified; CVC-FP scans window F1 3.7-12.7, door 1.9-3.0
+- Round 2: https://docs.rs/crate/kreuzberg/4.9.0/source/src/doc_orientation.rs (source read) — PP-LCNet doc_ori wrapper: short side 256, centre crop 224, conf gate 0.35, ~45% correct-class comment
+- Round 2: https://arxiv.org/pdf/2509.11720 (Docling layout, full text) — RT-DETRv2/D-FINE at 640x640, 150k text docs, no drawings, permissive release; added to 2c; verified
+- Round 2: https://arxiv.org/pdf/2512.08922 (UniT, TAIR) full text skimmed — scene-text restoration (SA-Text, Real-Text), diffusion restorers hallucinate text unless a VLM/spotter guides them; no drawings; supports D5 caution only
+- Round 2 gap retry: search engines (duckduckgo, bing) and arXiv listing search for "floor plan object detection breaks under real scans": no page found; arXiv search "floor plan scanned detection" gave 2604.25388 (robot localisation from plans, off-topic), 2508.10449 (already a row), 2210.01456 (old)
+- Round 2: OpenAlex free budget used up for the day; arXiv API returned empty; forward-hit titles (engineering-document survey, multimodal retrieval from technical drawings) not found by other means
+- Round 2 adjacent field (map sheets): https://arxiv.org/pdf/2510.08385 full text read (verified); 2604.22539, 2610.35606, 2507.20632 opened, off-topic; arXiv search 'map layout analysis map body legend' returned nothing
+- Round 2 gap retry (plans per sheet, multi-floor split, drawing view segmentation) via arXiv search with 8 new term sets: opened 2610.22863, 2608.28733, 2611.08352, 2602.18518 (all off-topic: LLM KV cache, 3D scene graphs, ultrasound, content safety); no new method; gap stays open in section 4
+- Round 2: Semantic Scholar citations of arXiv 2607.18997 (FELD): empty list (no citing papers indexed yet); 2611.12657 citations: 429 rate limit, OpenAlex budget exhausted; forward walk for these two stays unfinished
+- Round 2: https://arxiv.org/pdf/2602.16430 full text read (verified): rotation module raises ID-document extraction EM 82.13 to 88.70 (Parichay-1), 89.80 (Parichay-2); text documents only; corrected section 5 wording
+- Round 2: arXiv 2610.02214 (ship cargo-hold dataset, off-topic), 2608.24039 (manufacturing planning agents; drawing annotation detector uses oriented boxes for arbitrary orientation, 2D drawing stage, no sheet split), 2602.18296 (drawing annotation to 3D mapping, VLM on crops; off-topic for count) read from PDF text; section 5 walk now complete for 2510.21862 citers
+- Round 3 (round 1 of lit-orch list): PaddleX doc_ori module page re-read: test set 1000 self-built ID/document images (verified); arXiv 2609.07362 Table 1 re-read: B2 beam 0.301, B3 0.820, B5 0.994, single run, 20 projects, GPT-5.4
+- Round 3 repos: roboflow/rf-detr docs/faq.md and src/rfdetr/config.py (num_queries/num_select 300 default), issues #81, #1186, #722/#210 (off-topic) read; PML tier list verified
+- Round 3 adjacent field (newspapers): https://arxiv.org/pdf/2607.15082 full text read (verified); 2511.06490 (comic VLM RL, opened, off-topic), 2607.14769 and 2605.14352 (text NLP, off-topic)
+- Round 3 gap retry (symbol size): https://arxiv.org/pdf/2604.16513 (SynthPID) and https://arxiv.org/pdf/2411.13929 (DLR P&ID transformers) full text read (verified): 8x8 px symbols, 800 px detector shrinks them, patches 50% overlap at 4500x7000; no measured threshold; 2408.14947 opened, off-topic
+- Round 3 gap retry (plans per sheet, scans robustness): arXiv searches; opened 2609.34082 (K-OPSD, pointer to L1/L7), 2602.08417 (LiDAR localisation) and 2511.09724 (floor plan localisation), both off-topic; 'breaks under real scans' still not found
+- Round 3 forward walk: Semantic Scholar citations of 2607.18997, 2611.12657, 2609.07362 all empty on retry (papers too new); walk complete
+- Round 3 repos: mindee/doctr LICENSE Apache-2.0 (gh api), README licence section read; HF API: Felix92/onnxtr-mobilenet-v3-small-page-orientation tagged apache-2.0; raw README fetch for the torch variant failed (auth error)
+- Round 3: https://arxiv.org/pdf/2601.04819 (AECV-Bench) text read (verified): 120 plans, counts of doors/windows/bedrooms/toilets, VLM exact accuracy 0.40-0.55 on doors and windows
+- Round 3 gap retry (scan border/crop): arXiv 2609.22620 (LLM page stream segmentation, multi-page, off-topic) and 2608.10279 (streaming guardrails, off-topic) opened; no border/frame removal method for drawings
+- Round 3: 2611.12657 abstract numbers re-verified (SCAHI +4.3 to +5.6 mAP50 over best single pass at 2048 px on DOTA; merge step alone +2.3 to +4.0)
+- Round 3: https://arxiv.org/pdf/2608.23923 (ROI-gated SAHI) re-read: 0.6602 vs 0.7569 on COCO128; speed ratio 0.88 static, 1.02 adaptive, 3.41x mean on a 3-image case study; Ultralytics only in references
+- Round 3 repos: Lattle-y/AI-recognition-for-lq-ed (repo of 2312.13620): exists, last push 2024-02-27, no LICENSE (gh api 404), README no licence line; 2611.12657 text has no code link in my extraction
+- Round 3: BlueprintParse-R50 raw README re-read: numbers confirmed, plus threshold 0.8 and 0.684 exact on unflagged plans
+- Round 3 gap retry (plans per sheet): grep over all downloaded papers; arXiv 2602.09016 appendix A.2 read: images with several floor plan instances split by contours on the label mask (no accuracy)
+- Round 4 web searches (WebSearch tool; Google via headless browser gave a captcha, not bypassed): 'breaks under real scans' (not found; DFKI 2021 augmentation paper and a 2023 VR floor-plan paper (scitepress 116293, opened, off-topic) surfaced); multi-document-per-scan (patents and vendor pages only, not opened)
+- Round 4: https://arxiv.org/pdf/2512.02413 (MitUNet) read: 512x512 input, CubiCasa5K, rotation aug 15 deg (verified); 2303.13798 (robot map segmentation) opened, off-topic; WebSearch for orientation / SR / plans-per-sheet: nothing new beyond already-listed papers
+- Round 4: https://huggingface.co/GreenMap/yolo11x-blueprint-layout-detector raw README read in full (reported: 178 val images, drawing_area 694 boxes mAP50-95 0.885, 1472 px, apache-2.0 tag, Ultralytics); legend detector card from the same author read, 68 images, not ranked; HF API: single file yolo_layout.pt, 1022 downloads
+- Round 4: HF API model sweep (floorplan, blueprint terms, sorted by date): new cards Voix7/rtdetrv2-floorplan-v2 (read in full, auto card, dataset unknown) and GreenMap/yolo11x-blueprint-wall-detector (read); ArashNasr kitchen-perception cards are off-topic (AI2-THOR)
+- Round 4 GitHub repo sweeps (floorplan detection rf-detr, blueprint layout, floor plan orientation, drawing sheet segmentation): nothing relevant (hobby or unrelated repos)
+- Round 3 repos: roboflow/rf-detr docs/learn/train/augmentations.md and src/rfdetr/datasets/aug_configs.py read: D4/SquareSymmetry/Rotate supported with box handling, four presets, extra rfdetr[augment]
+- Round 3 repos: roboflow/rf-detr issue #1052 read in full (square squash advice; user's +20% was a missing-pretrained-weights artefact); gh search for DocIQ code: none
+- Round 3: 2607.18997 text grepped for release/licence/github: no statement of dataset or code availability
+- Round 5 (extended WebSearch: plans per sheet): https://arxiv.org/pdf/2608.17237 read (verified, synthetic benchmark, vector path); Wiley mice.13397 and mice.70030 snippets only (paywalled); ArchCAD-400K 2503.22346 listed, not read (L1 symbol spotting)
+- Round 5 (extended WebSearch: orientation): https://github.com/PaddlePaddle/PaddleOCR/discussions/17325 read via GitHub API with replies (reported, user issue): rotated labels on architectural drawings flipped, finetuning did not help, unresolved Mar 2026
+- Round 5 (extended WebSearch: SR, quality gate): VQualA 2025 DIQA challenge paper opened (verified text documents, DIQA-5000); 2503.23200 and Sensors crack paper snippets only; nothing on drawings
+- Round 3 repos: PaddlePaddle/PaddleOCR README (3.7.0, PP-OCRv6 tiers, Apache-2.0 gh api), issues 18268 (thread safety, read) and 18244 (grid-line table rows dropped, v5, read); no issue found on doc_ori accuracy
+- Round 3: 2411.13929 merge recipe and Table IV re-read (verified): 1500 px patches, border-weighted confidence, NMS then WBF; stitched 76.74 at 2000 px patches vs 87.48 small-symbol subset at 1500
+- Round 3: 2604.16513 section 3.3 re-read: 1500x1500 patches, stride 750, border down-weighting, NMS then WBF (verified)
+- Round 5 WebSearch (brochure multi-floor pages): snippets only; vendor guide says multi-floor page separation unsolved; Roboflow Universe floor_plan_multiple not opened
+- Round 1 recheck: DocIQ Table (2509.17012): per-dimension SRCC 0.8832/0.8615/0.8666 (avg 0.8704), SmartDoc-QA 0.9086/0.8989 verified; section 0 range corrected to 0.86-0.91
+- Round 1 recheck: 2607.18997 Table 4 (0.772 / 0.727 / 0.589), Table 1-3 numbers for RF-DETR m (0.890 / 0.949 / P 0.985 / R 0.800 / 22.3 FPS), plan AP 0.969 / 0.510 / 0.330 re-verified
+- Round 1 recheck: 2112.09844 icon table re-read: micro F1 0.875 with each SR method vs 0.886 for CubiCasa5K alone (last column group); text confirms a slight icon drop after SR; 2506.09993 Table 2 numbers already verified in report
+- Round 3: https://arxiv.org/pdf/2511.09554 (RF-DETR, ICLR 2026) read: DINOv2 backbone, NAS resolutions 320-960, RF100-VL, >100 epochs on small datasets (verified)
+- Round 5: 'Why floor plan object detection breaks under real scans' identified via Semantic Scholar citation list of CubiCasa5K: Carrara, Nousias, Borrmann, Automation in Construction 2026-11, DOI 10.1016/j.autcon.2026.107193, OA CC BY per S2; ScienceDirect blocked headless browser and curl (not bypassed), Crossref no abstract, WebSearch no copy; UNREAD
+- Round 2 forward walk (CubiCasa5K, Semantic Scholar list of 2026 citers): opened 2603.14764 and 2609.34047 (both marginal)
+- Final: report wrapped up on orchestrator order; section 6 items 8-9 added

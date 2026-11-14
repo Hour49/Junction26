@@ -1,0 +1,100 @@
+# lit-vector-b reading log (one line per source opened; date read 2026-11-14)
+- https://arxiv.org/html/2506.09369v1 + github ant-research/scalelsd (README, LICENSE): ScaleLSD, ViT-B+DPT, 512 px, Rep/Loc metrics only, no drawing test, code MIT, weights licence unstated (HF cherubicxn/scalelsd not read)
+- https://github.com/cvg/DeepLSD: MIT code and MIT weights (README verbatim), wireframe + MegaDepth checkpoints, no numbers in README
+- https://github.com/cherubicXN/hawp: code MIT, weights licence unstated, HAWPv3 self-supervised
+- https://github.com/navervision/mlsd: Apache-2.0 code, weights unstated, 320/512 px inputs, TF
+- https://huggingface.co/lllyasviel/Annotators README: licence "other" only
+- https://arxiv.org/html/2407.01928v1 + github nicehuster/SymPointV2: FloorPlanCAD PQ 90.1, true primitives only, no LICENSE file; sibling SymPoint repo is non-commercial licence
+- https://arxiv.org/html/2412.07377v5 CADSpotting: PQ 87.4, true primitives, licence of code unread
+- https://arxiv.org/html/2505.23395v3 + github WesKwong/VecFormer: PQ 91.1 w/ prior, Apache-2.0 code, no weights listed, true primitives
+- https://arxiv.org/html/2409.00316 (OMR, staff-removed MUSCIMA++, YOLOv8 mAP 84.79) + github BreezeWhite/oemer (MIT code, weights unlicensed, segments staff lines as own class)
+- https://arxiv.org/html/2601.22114 SINA (schematic to netlist; CCL on bbox-masked wiring) and 2405.09045 AMSNet (flood-fill from boxes): gave connectivity design, no hand-drawn split
+- https://github.com/hustvl/MapTR (MIT code, weights unstated) + arxiv 2208.14437 abs + arxiv.org/html/2605.09619 GSMap (2026; no code yet): point-set polylines, nuScenes only
+- https://arxiv.org/html/2003.05471 + github Vahe1994/Deep-Vectorization-of-Technical-Drawings (README, LICENSE): PFP IoU 86/88 vs CHD 22, PVF 60; real DLD scans 79/82; code MPL-2.0 (archived), line/curve weights on Yandex Disk unlicensed, cleaning model NOT released
+- https://arxiv.org/html/2403.16051v3 + github htcr/sam_road (MIT; weights on HF congrui/sam_road, card unread): road graph F1 77.2 City-scale, intersection mask kept separate
+- https://arxiv.org/html/2602.23290 LineGraph2Road (2026): F1 82.37 City-scale, overpass head; code wzzzzzzy/LineGraph2Road licence unread
+- https://github.com/knowledge-computing/mapkurator-system README: text spotting only, no code licence file, dataset CC BY-NC
+- https://arxiv.org/abs/2410.02250 (2024): historical-map roads, skeleton vectorisation, completeness >94%
+- https://arxiv.org/html/2411.13929 (P&ID Relationformer, v3 2025-12): symbol mAP 73.14 / edge mAP 75.46 OPEN100, 512 px patches, no code
+- https://arxiv.org/html/2604.16513 SynthPID (2026-04): 665 synthetic from 12 real, node mAP 64.2 zero-real vs 71.3 mixed; repo 404
+- https://arxiv.org/abs/2608.27923 PCBnet (2026-08, schematics): YOLOv11 + U-Net wires + skeleton, conn acc 84.47
+- https://arxiv.org/html/2604.06770 FlowExtract (2026-04): arrowhead detector + Hough, edge F1 66.7 vs node F1 98.8, repo MIT per README
+- https://arxiv.org/html/2312.11556v4 + github joanrod/star-vector + HF starvector-8b-im2svg card: StarVector, code and weights Apache-2.0, 224/384 px inputs, no thin-line test, no topology metric
+- https://arxiv.org/html/2206.04655 LIVE + github BachiLi/diffvg: Apache-2.0, optimisation per image, emoji/clipart only
+- https://arxiv.org/html/2606.01910 (2026): single-line drawing, not vectorisation of existing art
+- https://arxiv.org/html/2303.03851 GLSP (floor plan line segments, HAWP-based, 512 px, LRFP 268k plans, no code): learned vs learned only
+- https://arxiv.org/html/2309.00348 MuraNet: door/window AP50 91.2/92.2 at 1536 px (leaky data), no code
+- https://arxiv.org/html/2404.10985 (2024) pixel-wise symbol spotting for CAD images: keypoint F1 0.79, telecom layouts, no code
+- export.arxiv.org API queries (several): no paper found comparing a rule route to a learned one on openings
+- Semantic Scholar API through pwfetch (curl and web-fetch got HTTP 429): 17 citers of SymPoint (2024-2026 incl. TempFit 2610.17776, PolarSym 2608.11793, FUSEPOINT defective CAD, CAGE 2509.15459), 74 citers of Deep Vectorization (2024-2026 incl. 2403.08721, SmartTracer, 2D Gaussian Splatting Bezier line art, MARVEL)
+- licence reads (gh api / HF raw README, 2026-11-14): ScaleLSD weights apache-2.0 (HF card cherubicxn/scalelsd), SAM-Road weights mit (HF), StarVector weights apache-2.0 (HF), VecFormer Apache-2.0, sam_road MIT, star-vector Apache-2.0, Deep-Vectorization MPL-2.0, oemer MIT, M-LSD Apache-2.0, SymPoint NOASSERTION, SymPointV2 no licence file, CAGE NOASSERTION
+- https://arxiv.org/html/2403.08721 (ICDAR 2024 astronomical diagrams, DETR primitives, mAP 0.722 line/circle/arc, real 303 diagrams eval only, code not released) 
+- https://arxiv.org/html/2610.17776 TempFit (2026): vector only, FloorPlanCAD Greedy PQ 86.2
+- https://arxiv.org/abs/2608.11793 PolarSym, https://arxiv.org/abs/2509.15459 CAGE (density-map raster, not scans)
+- https://arxiv.org/html/2605.19551v2 AnchorFlow (2026): anchor-point SVG, perturbed rasters only, no scans
+- https://arxiv.org/html/2609.25615 SALI-FP (2026): rule/palette vectorisation vs CubiCasa5K nets: room F1 0.4450 vs 0.6305, mIoU 0.3596 vs 0.7390 (learned wins)
+- https://arxiv.org/html/2608.17237 (2026) training-free structural plans: rules on vector PDFs, recall 0.92 columns, no raster results
+- https://arxiv.org/html/2408.01526 (2024) CNN+polygon, CubiCasa subset 560 imgs F1 0.86, pixel metrics only
+- https://arxiv.org/html/2508.10449 SkeySpot (2025): YOLOv8 mAP50 81.12 on 13 test plans, counts not scored
+- https://arxiv.org/html/2607.12678 and 2510.11091: text-aided symbol spotting, vector input
+- https://ai.meta.com/datasets/segment-anything/: SA-1B "Research purposes only"; ScaleLSD trained on SA-1B (weights card says apache-2.0, inheritance unresolved)
+- https://github.com/ant-research/scalelsd/issues: 0 open, 2 closed (training script), nothing on drawings
+- https://ufal.mff.cuni.cz/muscima (via pwfetch; fetch agent had refused): MUSCIMA++ CC BY-NC-SA 4.0, CVC-MUSCIMA images NC
+- https://arxiv.org/html/1804.00525 DeepScores, https://arxiv.org/html/1805.10548 Deep Watershed Detector + github tuggeluk/DeepWatershedDetection (MIT, TF1.4, no weights): no staff removal, interline rescaling to 10 px, AP@1/2 noteheadBlack 0.8619, no counts
+- https://arxiv.org/html/2508.19742 ADLA, https://arxiv.org/html/2608.22086 SweepLSD (summaries): no drawing tests
+- Semantic Scholar via pwfetch: ScaleLSD citers (7, none on drawings); Relationformer P&ID citers 429
+- https://arxiv.org/html/2205.14311 MolScribe + github thomas0809/MolScribe (MIT) + HF yujieq/MolScribe (mit): rule-based OSRA/MolVec vs learned on real scans; Staker blurry low-res rule-based 0.0/0.8 vs learned 86.9
+- https://arxiv.org/html/2604.23546v2 COMO (2026-04, rev 2026-11-10): OSRA Staker 0.0, COMO 87.5; licences not stated
+- https://github.com/Kohulan/DECIMER-Image_Transformer (MIT) + zenodo 8300489 weights CC-BY-4.0
+- https://arxiv.org/abs/2312.13620 (via pwfetch; HTML/PDF unreadable): low-quality engineering drawings, ESRGAN+Faster R-CNN, 98.98% acc on electrical diagrams (abstract only; SR belongs to sheet scope)
+- https://arxiv.org/html/2604.16513v1 read in full by second fetch (SynthPID): confirms Table 3/4, 1500 px patches stride 750, no exact counts
+- export.arxiv.org queries (2025-2026 mechanical drawings, GD&T): 2505.01530, 2506.17374, 2510.21862 abstract only (HTML 404): YOLOv11-OBB annotation detection + Donut, no exact counts, no scan test
+- icdar2025.com DNS failure, dblp blocked by Anubis, iapr-tc10 site: TC10 merged into TC11 (no GREC list)
+- Semantic Scholar via pwfetch: DeepLSD citers (126; 2025-2026 incl. "Vectorization Method Based on Improved DeepLSD", "Lightweight Geometric Consistency Enhancement for One-Stage Architectural Line Segment Detection", Wireframe-Former, PolyLayout 2608.03323); those titles not found by search; S2 429 on follow-ups
+- https://arxiv.org/html/2311.09103 + mathworks fileexchange 166441: Guided SSRT thick-line detector, synthetic only, MATLAB, licence not shown, no drawings
+- https://arxiv.org/html/2205.14311v2 re-read in full through pwfetch: Table 2 verbatim (Staker MolVec 0.8, OSRA 0.0, MolScribe 86.9; perturbed USPTOp OSRA 4.0 vs MolScribe 92.5); numbers corrected from summary to verified
+- https://arxiv.org/html/2609.08305 FPicker (2026, ECCV): cryo-EM filament tracing in noise; code GPL-3.0, weights CC BY-NC (out); Table 1 U-Net/SegFormer baselines; topology note: segmenters merge crossing filaments
+- https://arxiv.org/html/2601.05508 HieroSA (2026): stroke segments via VLM+GRPO; Table 1 ELSED/DeepLSD stroke coverage 0.5%/1.4% vs HieroSA 63.3% on glyph bitmaps (line detectors fail on thin-stroke bitmaps), MIT code
+- https://arxiv.org/abs/2606.31353 RCL-Mamba (PCB laminography restoration, abstract only): not trace extraction; no board-image trace paper found
+- gh api (2026-11-14): cvg/DeepLSD and ant-research/scalelsd requirements list pytlsd; iago-suarez/pytlsd LICENSE MIT but src/lsd.cpp header is AGPL (original LSD); HAWP issue #45 licence; Deep-Vectorization issues #33 #10 #25; MolScribe issue #41 training time
+- https://lre.epita.fr/dload/papers/geraud.14.icip.pdf (downloaded to scratch, read as text with pypdf): ICDAR 2013 staff removal winner, mean F 0.97, Table 1 competitor scores; code needs GPL-2 Milena
+- https://www.cs.rit.edu/~rlaz/files/DAS_2018_paper_59.pdf (same method): Pacha et al., Faster R-CNN mAP 80% on MUSCIMA++, staff-line removal minimal impact, strips with 15% overlap
+- https://github.com/ericrihm/retrace (README + LICENSE, MIT): classical PCB photo tracing (LAB/HSV segmentation, Zhang-Suen skeleton, BFS graph) plus YOLOv8 components; no accuracy numbers on real boards
+- web search (standard): no head-to-head rule-vs-learned door study on scanned plans found; no SymPoint-on-raster paper found; mdpi 2079-9292/13/12/2353 refused (403)
+- https://arxiv.org/html/2411.11098v4 MolParser (2025) + HF dataset card (cc-by-nc-sa-4.0): synthetic-only 51.9 vs +real fine-tune 76.9 (WildMol-10K); augmentation 40.1 to 69.5; OSRA 93.4 beats it on CLEF
+- https://arxiv.org/html/2511.17300v1 MolSight (2025) + github hustvl/MolSight (Apache-2.0) + HF Robert-zwr/MolSight (apache-2.0): Table 6 rotation/shear: rule tools collapse (OSRA USPTOp 6.7), Staker rule 0.0-0.7 vs 82.1
+- https://cragl.cs.gmu.edu/sketchvector/ (via pwfetch; fetch agent got certificate error) + PDF downloaded to scratch and read with pypdf: Deep Sketch Vectorization, Tables 1, 2, 4, 63k synthetic sketches, 72 A100-hours
+- github Nauhcnay/Deep-Sketch-Vectorization (MIT, README + issues #1-#4) + HF waterheater/deepsketch (mit): 8 GB / 4 GB VRAM models, issue #2 technical sketch domain
+- web search: cadastral parcel vectorisation 2025-2026 (remote sensing parcels, CadNet): not scanned maps, no code read; line-art cleanup search led to Deep Sketch Vectorization
+- https://arxiv.org/pdf/2003.05471 downloaded to scratch and read as text: Table 1 confirmed; real-scan eval is 15 hold-out images with hand-cleaned truth
+- pypi.org JSON for aabbtree, edge_distance_aabb, ndjson, eel, svgpathtools, rdp: ndjson GPL-3, rest MIT/CC0
+- Semantic Scholar via pwfetch: MolScribe citers 121 (85 from 2025-2026); OpenAlex refused (free daily budget used up, key needed, not requested)
+- https://arxiv.org/html/2608.09100 (2026, ~80k chars verbatim): synthetic-only .122-.522 on real sets, 9.5% real lifts USPTO to .698
+- https://arxiv.org/html/2608.22183 VERDICT (2026): 4-engine agreement AUROC 0.916, a>=3 precision .985 at 52% coverage; pixel round-trip AUROC 0.547
+- https://arxiv.org/html/2609.33603 ViCoR (2026): side-by-side render verify + edit, ACS 71.9 to 89.7
+- https://aaltodoc.aalto.fi/items/c96a32f6-f9b0-4732-8759-415c4060fa4d (via pwfetch, abstract only, PDF not read): 2021 thesis, CNN 90% vs reference 93% label accuracy, "huge benefit over the traditional methods evaluated"
+- web search: no paper titled "Advancements in Learning-Based Techniques for Automated Floor Plan Analysis on Raster Images"; 2022 review in Automation in Construction pointer (L1 scope)
+- https://arxiv.org/html/2601.05508 re-read via pwfetch: ELSED/DeepLSD rows in Table 1 and 2 confirmed; metric is the paper's own reward (caveat added)
+- DAS 2018 PDF Table II re-read: noteheadFull AP 99.89 (21,333 samples) with staff lines; caveat staff lines synthetic
+- gh issues: VecFormer #4 #5 (weights lost, 8x80GB), SymPointV2 #6 #14 (licence unanswered), ScaleLSD HF card v1 vs v2
+- molscribe.txt (arxiv html via pwfetch) re-read for abbreviation and Pix2Seq-style coordinate tokens
+- dblp search API: Anubis challenge page (not circumvented); GREC 2025 list not obtained
+- https://arxiv.org/html/2610.20843 MARS (2026): token-sequence map vectorisation, Cityscale TOPO F1 82.88, uses Deep Sketch Vectorization stroke split; Semantic Scholar DOI:10.1145/3658197 citers (12)
+- https://diglib.eg.org/handle/10.1111/cgf70079 (pwfetch abstract) + open PDF 103 MB read as text: STAR sketch processing 2025: vectorisers need clean raster, cleanup is preprocessing
+- https://arxiv.org/html/2411.13929 re-read via pwfetch: Table III row OPEN100 verified (modular 76.99/52.14/45.89; Relationformer stitched 73.14/83.63/75.46)
+- https://arxiv.org/html/2604.23546v2 re-read via pwfetch: Table 1 verified (OSRA Indigo 95.2, Staker 0.0, WildMol-10K 24.9; OSRA = binarise+vectorise+heuristics)
+- export.arxiv.org via pwfetch, 3 further queries (small/tiny line drawings, symbol detection scanned drawings, floor plan door count): nothing new (AECV-Bench known)
+- https://arxiv.org/html/2609.05880 (2026), 2511.08609 (2025), https://arxiv.org/abs/2505.11976 (abstract only): hybrid P&ID: fixed 10 px snap edge F1 0.193 vs adaptive 0.742 (verbatim)
+- gh code search: ScaleLSD imports pytlsd only in line_matching/wireframe.py; DeepLSD in deeplsd/models/deeplsd.py and deeplsd_inference.py
+- jurnal.unmer.ac.id YOLOv12 pitch-inference OMR paper (2025): 403 for fetch, Cloudflare challenge for curl; not circumvented, search-snippet only
+- https://arxiv.org/html/2608.22183 re-read via pwfetch: AUROC 0.916 / 0.666 / 0.547 and precision .985 verified
+- https://arxiv.org/html/2609.25615 and https://arxiv.org/html/1805.10548 re-read via pwfetch: SALI-FP values and DWD 'no preprocessing besides interline normalization' verified
+- gh: Anime2Sketch MIT, line_thinning NOASSERTION; Deep Sketch repo utils/texture_syn.py, issues #2 #3
+- https://arxiv.org/html/2606.11320 (2026): node-link diagram FCN, 93.7% pixel accuracy on synthetic 128 px patches; nothing exact-count
+- https://arxiv.org/abs/2210.12971 and hawp docs/HAWPv3.md: v3 checkpoints trained on Wireframe or 100k ImageNet images
+- https://studios.disneyresearch.com/?p=44033 (pwfetch, abstract only; PDF link 404): 2D Gaussian Splatting Bezier line art, SIGGRAPH 2026; SmartTracer lab page via search snippet only
+- https://arxiv.org/html/2601.13299 Enginuity (2026-01): workshop proposal for 50K annotated engineering diagrams, no baselines, no released data; 'DSC Containment-Aware ... Railway Signal-Layout' not found on arXiv (S2 title only); Relationformer P&ID has 12 citers (2025-2026 incl. SynthPID, FlowExtract, Enginuity, 2607.19568)
+- gh api repos: CADspotting, TempFit, LineGraph2Road, SymPointV2, completeOMR exist with no licence file (all rights reserved by default)
+- Deep Sketch PDF re-read: scope and limitation quotes, 441k training rasters, 369 test sketches
+- web search: FUSEPOINT not found by name; snippets for few-shot symbol detection (Applied AI 2024) and GD&T detector comparison (JIM 2025), pointed to L2
+- web search (extended): staff removal touching-symbol evaluation, 2020-2023: no paper with separate overlap F-measure found; background only (pixel classification papers 2012-2017, survey 2006.07885 not opened)

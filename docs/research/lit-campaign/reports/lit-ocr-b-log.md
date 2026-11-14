@@ -1,0 +1,112 @@
+# lit-ocr-b reading log (one line per source opened; date = 2026-11-14)
+- https://weinman.cs.grinnell.edu/~weinman/pubs/lin25icdar.pdf (downloaded, text extracted locally) : ICDAR 2025 MapText report; winners DeepSolo-based; Task 3 Rumsey HMean 91.1 / char acc 94.0.
+- https://arxiv.org/html/2506.15010 (via web-fetch; first 40k chars verbatim, rest summarised) : PaLeTTe + SynthMap+ ; E2E None 69.8 on Rumsey-309; synthetic data lifts 55.9 -> 69.8.
+- https://arxiv.org/abs/2608.10684 + html (web-fetch, part summarised) : RISTER rotation-invariant STR, MO 96.0 vs PARSeq 88.3; no code found.
+- https://arxiv.org/pdf/2207.06966 (downloaded, pypdf) appendix J, Tables 17-18 : PARSeq orientation robustness.
+- gh api licence for DeepSolo (AdelaiDet NC text), TESTR Apache-2.0, PARSeq Apache-2.0, CLIP4STR Apache-2.0, OpenOCR Apache-2.0, PaddleOCR Apache-2.0, docTR Apache-2.0, CRAFT MIT, donut MIT, mapkurator-palette-doc (PolyForm NC modified weights licence; file read).
+- https://arxiv.org/html/2411.15858v2 (web-fetch, tables verbatim, sections 10-12 summarised) : SVTRv2 (arXiv v2 Jul 2025, ICCV 2025 per search): Union14M MO 89.0, 19.8M params, 143 FPS 1080Ti; input buckets; SGM train-only.
+- https://arxiv.org/pdf/2607.08896 (downloaded, pypdf; 2 pages) : XLPSR plate entry, 9 Jul 2026; HAT SR +2.00 wECR at 12-20 px plates; PARSeq+CLIP4STR vote; abstention tau 0.33; third CTC model (SVTRv2) hurt the vote; 200K synthetic plates.
+- https://arxiv.org/html/2601.09116 (web-fetch, full) : LP-LLM Qwen3-VL+slot queries 89.4% on Real-Blur-LP; weak baselines; no code.
+- https://research.chalmers.se/en/publication/545752 (abstract only; IEEE page blocked 202) : P&ID line numbers, recall >90%, no detail. arXiv 2411.13929 is a different paper (Relationformer), body not read.
+- https://arxiv.org/html/2602.04030 (web-fetch, verbatim passes) : TiCLS (WACV 2026): char-level PLM inside DeepSolo-style spotter; IC15 None 79.1 vs 73.8; 98.5M params; code github.com/knowledge-computing/TiCLS.
+- api.semanticscholar.org citations of 2506.15010 (14 citing, 2024-2026) and 2411.15858 (63 citing): list scanned, titles only.
+- licences via gh: HAT Apache-2.0, BSRGAN Apache-2.0, icdar-maptext/analysis GPL-3.0.
+- https://arxiv.org/html/2604.22506 (web-fetch; 40k verbatim, rest summarised) : ICPR 2026 low-res licence plate competition; 20k tracks; winner 82.13%; 3rd place OpenOCR SVTRv2-AR no SR + char voting; mean team RR 61.3%.
+- https://arxiv.org/html/2602.06450 (web-fetch; tables verbatim) : UnionST synthetic STR engine (CVPR 2026): synth-only U14M avg 83.00 vs real 87.22; MO 94.45 vs 94.74; 1% real + synth = 87.26.
+- https://arxiv.org/html/2512.21095 (web-fetch; 40k verbatim) : UniRec-0.1B; 960x1408 cap; 8xA800 80h; code OpenOCR.
+- https://arxiv.org/html/2609.20064 : HTTP 404 via web-fetch (not read).
+- https://huggingface.co/topdu/unirec-0.1b raw README : licence apache-2.0 (front matter). OpenOCR LICENSE file: Apache 2.0. PARSeq GitHub release v1.0.0 lists weights.
+- https://www.paddleocr.ai/latest/en/version3.x/algorithm/PP-OCRv5/PP-OCRv5_multi_languages.html (web-fetch) : latin_PP-OCRv5_mobile_rec lists Finnish, Swedish, Estonian; accuracy 84.7% on private 3,111-image Latin set.
+- https://arxiv.org/html/2607.23194 (web-fetch, 80k verbatim) : out-of-length STR, no short-string numbers; chunk-decode-stitch.
+- https://arxiv.org/html/2608.29268 (web-fetch, 40k verbatim) : PCB engineering-drawing VLM parsing; eDOCr2 baseline localisation F1 0.21, content EM 0; axis-aligned boxes only.
+- https://arxiv.org/html/2510.21862 : HTTP 404 (not read).
+- https://arxiv.org/html/2305.14014 (web-fetch, 40k verbatim) : CLIP4STR; 158M (B) 224x224; B trained 12.8 h on 8 A6000; no rotation experiment in read part.
+- https://arxiv.org/pdf/2609.20064 (downloaded, pypdf, full) : PP-OCRv6 historical adaptation (17 Sep 2026): line height 48->96 px gave 8.3-11.5 pts CER gain; trained A40; compact CTC beats Qwen3.5 VLM after fine-tune.
+- https://github.com/PaddlePaddle/PaddleOCR README + HF PaddlePaddle/PP-OCRv6_medium_rec card : PP-OCRv6 (3.7.0, 11 Jun 2026) 50 languages incl 46 Latin, tiny 1.5M/small 7.7M/medium 34.5M, Apache-2.0 weights; tech report arXiv 2606.13108 not opened.
+- https://arxiv.org/html/2608.10684 via pwfetch (full text) : RISTER tables 5-7 verified: MO 96.0 (S) 96.6 (B); 128x128 input lifts MO of SVTRv2 89.5->90.2; no code link.
+- https://arxiv.org/html/2506.15010 via pwfetch (full text) : PaLeTTe tables 2-4 verified: Rumsey-309 E2E None 69.82 / Full 78.75; 60-90 deg recall 55.22; ~25% of instances at 30-90 deg.
+- https://zenodo.org/api/records/14480731 : SynthMap+ English synthetic set licence cc-by-4.0, 38.6 GB.
+- gh: chunk-decode-stitch MIT; UnionST and TiCLS repos have no LICENSE file in root (unlicensed); TESTR README Apache-2.0.
+- https://arxiv.org/pdf/2607.12678 TextCAD (downloaded, abstract read; no CubiCasa string in text), https://ec-3.org/.../EC32026_212.pdf (downloaded, partial): dimension OCR 90.2% in-domain; both belong to other scopes (L11, L6): one line each.
+- arxiv 1811.11938 mismatch (a different paper); tore.tuhh.de download was the shaft-location site-plan paper (Santehanser/Schoenfelder): legend OCR + YOLOv8 + homography template; precision 82 recall 78. Schoenfelder AutCon 2024 floor plan text paper: sciencedirect blocked; only search snippet (YOLOv7 97.5 wmAP, PARSeq CER 85.2 per snippet) = NOT a read.
+- https://arxiv.org/pdf/2604.22506 (downloaded, pypdf, full) : LRLPR conclusions verbatim: no single dominant design (explicit SR, direct LR, light and heavy backbones); common factor is using the five-frame track by voting/fusion; confidence gap matters for manual verification.
+- https://arxiv.org/html/2611.04874 (web-fetch; 40k verbatim, rest summary) : OCR foundation-model survey; nothing on short strings or rotation; not used for numbers.
+- https://arxiv.org/html/2507.11730 (web-fetch, full) : edge OCR survey ICCVW 2025: cropped SVT PaddleOCRv4 rec 86.84 vs Qwen2.5-VL-3B 92.89; IC15 76.83 vs 80.31; no rotation or size test; belongs mainly to L7.
+- https://arxiv.org/html/2608.29970 (web-fetch, 40k verbatim) : ensemble of SVTRv2+PARSeq+MAERec, whole-hypothesis selection by min-confidence, +1.77 pp on WordArt Test B, no abstention, no CTC-vs-AR ablation.
+- https://arxiv.org/html/2611.03339 (web-fetch, 40k verbatim) : ArabGeoText (Nov 2026): YOLO26 text mask -> oriented rectangle -> rectify -> bicubic upscale to min height 48 px -> Qwen3.5-4B LoRA reader; exact 69.9 zero-shot -> 84.3 adapted on 20.5k crops; direct VLM 37.2.
+- gh: clovaai/synthtiger MIT; XPixelGroup/HAT Apache-2.0, Real_HAT_GAN weights on Google Drive/Baidu (licence not stated in README).
+- https://arxiv.org/pdf/2606.13108 (downloaded, pypdf, full text searched) : PP-OCRv6 tech report: rec input 3x48xW; medium/small list Finnish and Swedish explicitly (46 Latin languages, +~200 diacritic characters); Latin benchmark (in-house) medium 88.0, small 84.0, tiny 63.8; rotated text a reported gain category; training data not disclosed beyond categories.
+- api.semanticscholar.org DOI 10.1016/j.autcon.2023.105156 : Schoenfelder AutCon 2024 floor-plan text paper: openAccessPdf status CLOSED -> cannot be read here.
+- https://github.com/baudm/parseq/issues/9 and /56 (gh api, comments read) : PARSeq fine-tune: new charset yaml needed for non-default characters; good after about 40k iterations at batch 384; trained-on-short-word models repeat characters on much longer inputs (issue 56).
+- https://arxiv.org/html/2602.06450 via pwfetch (full text, Table 6 ablation) : UnionST ablation: global rotation 33.31 -> 87.29 on Multi-Oriented; DTAug +2.8 avg; corpus incl. random strings +6.8; fonts font collection of 113,788 files said to be free for commercial use.
+- https://arxiv.org/html/2510.26339 via pwfetch (full text) : GLYPH-SR: DiffBIR text hallucination, OpenOCR F1 38.73 on SVT x4 despite MANIQA 47.82 / MUSIQ 71.18; method needs VLM + latent diffusion.
+- https://raw.githubusercontent.com/Topdu/OpenOCR/main/configs/rec/svtrv2/readme.md and releases listing : SVTRv2 checkpoints on Google Drive, no licence statement.
+- https://arxiv.org/html/2306.17059v2 via pwfetch (full) + mapkurator-system README (curl) : mapKurator: 1000x1000 tiles, TESTR-based spotter, post-OCR edit-distance vocabulary with frequency tie-break; no accuracy numbers for post-OCR; output dataset CC BY-NC 2.0.
+- https://www.paddleocr.ai/latest/en/version3.x/module_usage/doc_img_orientation_classification.html (web-fetch) : PP-LCNet_x1_0_doc_ori 4-class 0/90/180/270, 99.06% top-1 (set unnamed), 7 MB; belongs to L9.
+- web search on closed-lexicon keyword spotting vs recognition: nothing comparable to our case (snippets only, not used).
+- https://raw.githubusercontent.com/mindee/doctr/main/doctr/models/classification/mobilenet/pytorch.py + README (curl) : docTR crop orientation classifier classes [0,-90,180,90], input 256x256; page variant 512x512; rotated-box predictor option.
+- https://www.frontiersin.org/articles/10.3389/fbuil.2026.1839808/full via pwfetch (full page, CC BY) : rebar drawing text recogniser: 5,054 train crops; Table 8: PARSeq 92.4, SVTR 94.6, CRNN 74.7, TrOCR-base 91.2, own 96.3; vertical text rotated 90 deg; data on request only.
+- api.semanticscholar.org citations of the Schoenfelder floor-plan text paper (57 citing, listed) and of PARSeq (337 listed, filtered): 2026 engineering-drawing text papers found; Results in Engineering 2026 bridge-drawing OCR comparison (doi 10.1016/j.rineng.2026.110186): Elsevier redirect page, NOT read.
+- requirements files via curl: PARSeq core.txt, OpenOCR requirements.txt, PaddleOCR requirements.txt, doctr pyproject : no AGPL/GPL listed; PaddleOCR lists albumentations.
+- api.openalex.org cited-by of MapText 2025 report: 2 citing works (LIGHT, DFF-AUNet).
+- https://arxiv.org/html/2506.15010 via pwfetch Table 4: TESTR 53.0 -> 65.9 with SynthMap+; PaLeTTe 55.9 -> 69.8; no-human-data 61.0 / 64.6.
+- idunn.no CADAiD: HTTP 403; Elsevier bridge-drawing paper: redirect page; both not read.
+- https://arxiv.org/html/2407.12317v3 via pwfetch (full) : SMTR/LTB (AAAI 2025): Figure 1 caption: attention models good on short text, CTC models worse on short text; no per-length table found.
+- Note: one web search query of mine contained a teammate's gh login by mistake; no personal data came back; not repeated.
+- gh api repo metadata: SPTSv2 Apache-2.0 archived 2023; DPText-DETR NOASSERTION; ESTextSpotter and SwinTextSpotter no licence file.
+- raw TESTR files (adet/*): no AdelaiDet headers in 5 sampled files; README installs AdelaiDet; DPText-DETR LICENSE = AdelaiDet non-commercial.
+- https://ar5iv.labs.arxiv.org/html/2111.06738 (web-fetch, full) : regex/WFST biasing: names error 36.0 -> 15.7 with 37-name list; MRZ CER 8.5 -> 5.4. Google custom-vocabulary OCR: abstract only (Springer login).
+- lrlpr.txt pp 10-11 (full): 1st place joint SR+OCR teacher-student, logits summed over 5 frames, 3-model ensemble; 2nd place CTC with STN and layout constraints, 81.73%.
+- https://arxiv.org/html/2605.14885 (web-fetch, full): masked next-scale SSL STR: no label-efficiency experiment; not useful. Chart-text search: nothing usable (snippets only).
+- pwfetch arxiv.org/html/2611.03339 (full): re-read; 20,494 training crops (2 views x 10,247), 69.9 -> 84.3 exact, CER 4.6 confirmed; row upgraded to full-text V.
+- pwfetch arxiv.org/html/2512.21095 (full): re-read; 80 h on 8 A800 40GB, from scratch confirmed; row upgraded to full-text V.
+- pwfetch arxiv.org/html/2305.14014 and 2608.29268 (full): CLIP4STR-B 158M, 12.8 h confirmed. PCB: eDOCr2 loc F1 .2099, EM 0/78 on 78 content refs in 20 drawings (validation 26 drawings); report wording corrected.
+- pwfetch arxiv.org/html/2511.04161 (full): ORB page orientation classifier, 96.81/92.68 4-class, page level only; added to section 6. arxiv 2510.21862 has no HTML; not read. WebSearch industrial serial-code OCR: only snippets (rail sleeper, MDPI VIN few-shot SSL, slider serials); not opened yet.
+- pwfetch arxiv.org/html/2503.22513 (full): SSL pretraining needs 50M unlabeled lines; not transferable. MDPI Electronics 14(24) 4886: Access Denied via pwfetch (snippet only). Added to section 6.
+- pwfetch arxiv.org/html/2609.00816 (full): lexical snap in AR decoders; rare/rare corner -10..-18 pt; scaling does not help; CTC+AR routed ensemble only fix. Added to 3.2. WebSearch SR hallucination (TEXTS-Diff 2601.17340, TeReDiff via secondary summary): no substitution-rate measurement found; not opened.
+- pwfetch arxiv.org/html/2601.17340 (full): TEXTS-Diff scored by OCR accuracy not substitution rate; SR gap retried and stands. Added section 5b first-test protocol.
+- pwfetch arxiv.org/html/2602.06450 (full, re-read for item 1): 87.26 vs 87.22 (1% real), Multi-Oriented 94.45 vs 94.74 confirmed. Extra: self-evolution learning (pseudo-labels on unlabeled real data) reaches 89.81 avg; fine-tuning on the ~9% hardest samples is within 0.16 of SOTA (R). OpenAlex free budget exhausted today (no key requested: would send user email); Semantic Scholar 429; WebSearch found no paper citing UnionST.
+- github baudm/parseq README + releases + gh api (V): code Apache-2.0, weights in release v1.0.0 (parseq, small, tiny) with no weights licence line; fine-tune from pretrained supported; pushed 2024-05-29, 51 open issues. Added to open question 3.
+- gh api mlpc-ucsd/TESTR issues (V): #15 Licenses (AdelaiDet lineage question) open since 2023-01-03, 0 comments; #18 OOM on 32 GB V100 (reply: lower IMS_PER_BATCH). Added to TESTR row.
+- gh api Topdu/OpenOCR repo + issues #178, #204 (V): Apache-2.0, pushed 2026-09-21, 107 open issues; no English-only SVTRv2 checkpoint; synth-only config TODO, reproduction fell short. Added to SVTRv2 row.
+- sibgrapi.pdf (sol.sbc.org.br 27464, full): OCR post-processing for technical docs, Tesseract, detection 88.24%, CER -14.2%; not ranked, added to section 6. gh api PaddlePaddle/PaddleOCR (Apache-2.0, pushed 2026-09-16, 262 open issues); issue search returned nothing useful; SynthTIGER README: MIT, has a vertical-text config (V).
+- tyre.pdf (publications.aston.ac.uk 41147, Kazmi et al., full): synthetic ~700K char images, 86% mean over six real sets, 0/8 and J/I confusions; added as 3.7; not ranked.
+- pwfetch arxiv.org/html/2610.41426 (FlexReader), 2511.08133 (OTSNet), 2609.24058 (ScriptMoE multilingual STR) (read abstract + grep of full text): architecture/efficiency papers trained on Union14M-Filter; no rotation, low-res or closed-vocabulary result beyond the standard benchmark; not ranked, no code licence read.
+- XPixelGroup/HAT README + gh api (V): Apache-2.0 code, no weights licence line; Real_HAT_GAN_SRx4 (fidelity) vs _sharper (perceptual). Added to section 6 end.
+- pwfetch arxiv.org/html/2605.18173 (SAME-Net; abstract + grep): no code link or licence in text; spotter gap retried and stands.
+- ppv6.txt (full, re-read): Table 11 English/Latin rec accuracy medium 88.4/88.0, small 86.3/84.0, tiny 77.3/63.8 added before section 3b; per-category rot/industrial detection table not quoted (column mapping uncertain, in-house, Chinese-heavy).
+- informatica.pdf (50(2026) 293-304, full): grid blueprints, PP-OCRv3, text F1 90.5/93.2/95.4, data promised, no code; added to section 6; not ranked. Springer electrical-diagram PP-OCRv3 chapter: login wall, snippet only.
+- frontiersin.org fmtec.2023.1154132 (eDOCr, full page via pwfetch) + gh api javvi51/eDOCr (MIT, pushed 2025-01): synthetic-only per-alphabet recognisers, 10k-50k samples, 2 GB RTX 2060, F1 94 / CER 8% on real drawings (R). Added to 3.4; supports item 1.
+- pwfetch arxiv.org/html/2602.04030 (TiCLS, full, re-read): ICDAR15 None 79.1, Strong 90.1 confirmed; strong = per-image lexicon, edit-distance threshold 2 (added to item 2).
+- maptext25.txt, plate.txt, lrlpr.txt, rister.txt (re-read tables): MapText Table 5 Rumsey rank 3 of 11, TESTR 89.5 / 92.9 vs winner 91.1 (1.6 gap); plate Table I 7.27 / 9.27 / 9.62 / 9.73; LRLPR 82.13 vs 81.73; RISTER rotation-equivariant columns equal at 0/90/180/270 (e.g. 98.6 x4 for the large variant): all match the report.
+- WebSearch retries: short-string accuracy (only out-of-length remark, already read) and text/graphics separation (classical + 2024 thesis, snippets only, S). Both gaps updated in section 6.
+- WebSearch (extended) Schonfelder: same abstract claims, still S; ResearchGate access restricted (not worked around). pwfetch arxiv.org/html/2609.25615 (SALI-FP; abstract + grep): image-model floor-plan parsing, CubiCasa5K eval, no OCR content; pointer to L1/L4.
+- crossref API: 2022 precursor 10.1088/1755-1315/1101/8/082017 is CC-BY but IOP serves a captcha to curl and pwfetch; stopped. aminer pages load via JS only (empty).
+- full read of report lines 1-70 for accuracy and public safety: no home paths, personal data or dataset file names; fixed row 'Voting ensemble' to reference the lexical-snap result (CTC cross-check conflict).
+- full read of report lines 71-180 for accuracy, consistency and public safety: fixed stale PCB wording in 3.4, garbled sentence in section 6, mislabelled PP-OCRv6 note (now 3.8), CTC cross-reference in 3.2. No home paths, personal data or dataset file names found.
+- pwfetch arxiv.org/html/2512.14050 (SELECT, abstract + tables): label-error detector, small accuracy gains; noted in section 4; not ranked.
+- pwfetch arxiv.org/html/2606.15886 (astronomical diagrams text regions, full): TESTR 30.6 zero-shot -> 80.4 fine-tuned; synthetic-pretrained Poly-DETR 79.7; DeepSolo++ 80.0 (0.0 without pretraining); added as 3.9.
+- chalmers.pdf (research.chalmers.se 548692, full, 2026 Comput. Chem. Eng. 204:109436): P&ID pipeline numbers, hybrid DL + correction rules, 91.1% e2e, 95.7% recognition, no-rules 40% on project A; added as 3.10; section 6 entry updated.
+- re-checked PARSeq Table 17/18 (CRNN 9.6, ViTSTR-S 82.4, TRBA 82.3, ABINet 69.6, 90.6 to 91.3 upright, 8.4 vs 80.7 rotated) in parseq.txt and RISTER SVTRv2 89.5 to 90.2 at 128 px: all match the report.
+- gh api + raw yyyyyxie/MapTextPipeline (V): LICENSE = AdelaiDet non-commercial; ViTAEv2 + Detectron2 map spotter, OneDrive/Drive weights; updated DeepSolo row.
+- pwfetch arxiv.org/html/2610.41254 (Hawkeye/BSTRB, full): VLM degradation ~20 px real blurry text, ~5 px clean rendered text; 3x bicubic upscaling at train and test; added to 3.5. Found via Semantic Scholar citations of UnionST (2 hits; the other, 2606.24484 WordArt-oriented STR datasets and methods, not opened).
+- pwfetch arxiv.org/html/2606.24484 (WATER-S WordArt STR, abstract + grep): artistic text; not relevant; section 4 updated with UnionST forward walk.
+- ijsdr.pdf (IJSDR 11(5) 2026, floor plan symbols RF-DETR + PaddleOCR, full 4 pages): reports symbol mAP50 79.23 on FloorPlanCAD but no OCR accuracy at all; nothing for L5; not added to report.
+- pwfetch arxiv.org/html/2503.16184 (CSD, abstract + grep): label noise self-distillation; no code link; noted in section 6; not ranked.
+- huggingface.co blog nvidia/nemotron-ocr-v2 (pwfetch, full) + model card raw README + dataset card (V): NVIDIA Open Model License weights, 'Additional information: Apache 2.0', FOTS-style oriented spotter 53.8M/83.9M params, synthetic CC-BY-4.0 dataset 12.2M, no fine-tune instructions, needs NVIDIA GPU + CUDA ext build. Added table row; item 5 cell mentions it.
+- HF papers page 2510.21862 (abstract V): Donut letters F1 0.672 vs numbers 0.963; YOLO11 licence flag from own knowledge. pwfetch arxiv.org/html/2602.13345 (Blueprint, abstract + grep): region-restricted VLM OCR for retrieval; no recogniser numbers. 2505.01530: pwfetch returned nothing (502 bytes), not read.
+- gh api ultralytics/ultralytics (V): license AGPL-3.0, pushed 2026-11-13; report line updated from 'own knowledge' to verified.
+- Semantic Scholar citations RISTER (1: FlexReader) and TiCLS (2: OCR survey 2611.04874 skimmed, 2607.16117 not opened). Section 4 updated.
+- Semantic Scholar citations of eDOCr (44): listing added to section 4; text-recognition ones mostly paywalled/blocked.
+- digitalcommons.odu.edu emse_fac_pubs/222 (abstract V via pwfetch): Khallouli et al. 2025; PDF download blocked by Cloudflare challenge, not bypassed; MDPI blocked; numbers not read. Added to section 6.
+- docTR docs (mindee.github.io/doctr models page via pwfetch): crop/page orientation classifiers listed, no accuracy figure; row stays 'accuracy not read'.
+- palette.txt Table 3 re-read: 60-90 deg E2E recall PaLeTTe 55.22 (Rumsey) / 47.17 (Grinnell), TESTR 53.38 / 46.18, DeepSolo 44.84 / 36.14; fixed dataset naming. fbuil.txt rebar Table 8 (CRNN 74.7 ... own 96.3) and glyph.txt (DiffBIR 38.73, 47.82, 71.18) match the report.
+- pwfetch arxiv.org/html/2507.11730 (edge OCR survey, full): Table 4 (SVT) PaddleOCRv4 86.84 vs Qwen2.5-VL-3B 92.89; Table 5 (IC15) 76.83 vs 80.31, caption-above-table order checked; matches the report.
+- WebSearch PCB silkscreen/designator OCR: survey (2021) and FPIC (2202.08414) found; no open full text of the survey; UF dataset page abstract only; arXiv API query returned no entries. Added to section 6 (unranked, S).
+- pwfetch arxiv.org/abs/2202.08414 (FPIC): abstract page only; semantic-segmentation dataset for PCBs, no OCR numbers found; not opened further.
+- WebSearch container-code (ISO 6346) OCR: snippets only; preprints.org 202508.0232 Access Denied (not bypassed). Added to section 6 as S.
+- added section 5c ship table from the licences recorded above (no new sources).
+- Semantic Scholar citations: 2609.20064 (0), 2611.03339 (0), 2606.15886 (1: HistGramBench, off topic).
+- pwfetch arxiv.org/html/2411.15858 (SVTRv2, full, re-read): FRM +2.46 on Multi-Oriented (ablation), MSR and doubled feature height in ablations; row upgraded from tables-only to full-text V.
+- ppv6hist.txt Table 2 re-read: macro CER 48 -> 96 px: tiny 24.05->12.57, small 19.28->10.54, medium 18.35->10.10 (fine-tuned models on historical lines); range 8.3-11.5 confirmed; clarified 'not zero-shot' in item 1.
+- 2205.02659.pdf (Schlagenhauf, full): generated-drawing training detection rate 81.87 vs 4.67 (9 real) vs 77.19 (Keras-OCR), recognition 79.33 vs 47.91 vs 46.75; added to 3.4. 2601.04819 AECV-Bench (keyword search): big VLMs, not ranked. Osaka AutomConstr 181:106584: synthetic BIM generation, no OCR content, not used. FINAL: reading stopped on the orchestrator's new deadline; no new sources started.
