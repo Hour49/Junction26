@@ -217,7 +217,8 @@
         <div class="panel-fig">${body.fig}</div>
         <div class="panel-txt"><span data-slot="now"></span><h2>${HEAD[r.panel]}</h2>
           <p class="say" aria-live="polite" data-slot="say"></p><ol class="log" aria-label="Log" data-slot="log"></ol></div>
-      </div><dl class="stats" data-slot="stats"></dl><div data-slot="done"></div></section></main>`;
+      </div><dl class="stats" data-slot="stats"></dl><div data-slot="done"></div></section>
+      ${progress().done ? conflictsBlock() + issuesBlock() + chatCta() : ''}</main>`;
   }
 
   function unpackPanel() {
@@ -478,7 +479,7 @@
     const rapNow = Object.keys(S.p.rap).map((p) => window.VTriage.rapState(p, ctx())).join();
     const rapMoved = rapNow !== S.p.rapSeen;
     S.p.rapSeen = rapNow;
-    if (window.VFiles.tick() || (was !== S.p.doneLogged && ['workspaces', 'ingest', 'documents', 'file'].includes(route().name)) || (rapMoved && route().name === 'file')) render(); else fill();
+    if (window.VFiles.tick() || (was !== S.p.doneLogged && ['workspaces', 'ingest', 'advanced', 'documents', 'file'].includes(route().name)) || (rapMoved && route().name === 'file')) render(); else fill();
   }, 250);
 
   window.VApp = { S, render, log, picks, esc, hhmm, progress, ctx };
