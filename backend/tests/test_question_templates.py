@@ -186,6 +186,30 @@ def test_a_subset_breakdown_or_unquoted_place_is_unsupported_not_the_whole_count
     assert isinstance(PARSE(text), Unsupported)
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors and windows are there?",
+        "How many doors are there near the window?",
+        "How many doors does the kitchen have?",
+        '<img src=x onerror="window.x=1">How many doors are there?',
+    ],
+)
+def test_a_count_never_drops_part_of_the_question(text: str) -> None:
+    """R1-5-2: these were answered as "door count" (or "window count") with no caveat."""
+    assert isinstance(PARSE(text), Unsupported)
+
+
+def test_room_types_and_rooms_named_as_included_still_count() -> None:
+    assert PARSE("How many separate WC rooms (toilet rooms marked WC) are there?") == Query(
+        subject="room:wc"
+    )
+    assert PARSE("How many sinks are there, kitchen and bathrooms included?") == Query(
+        subject="sink"
+    )
+    assert PARSE("<b>How many doors are there?</b>") == Query(subject="door")
+
+
 def test_a_question_about_the_building_is_about_the_model_not_the_sheet() -> None:
     assert PARSE("How many doors are there in this building?") == Query(subject="door", model=True)
 

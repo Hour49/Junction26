@@ -31,7 +31,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.adapters.question_tables import is_table_question, parse_table
-from app.core.answering.model import Query, TableQuery, Unsupported
+from app.core.answering.model import (
+    IN_ONE_ROOM,
+    SEVERAL_THINGS,
+    Query,
+    TableQuery,
+    Unsupported,
+)
 from app.core.pipeline.model import Measure
 
 # Quoted names, as eval/stoa_eval/families.py masks them: an apostrophe inside a word (d'escalier)
@@ -241,6 +247,10 @@ PLACE = re.compile(
 CONDITION = re.compile(  # "rooms that have...": a subset we can't pick
     r"\b(?:rooms?|spaces?|doors?|windows?|walls?)\s+(?:have|has|with|that|containing)\b"
 )
+INCLUDING = re.compile(  # rooms named to say they count too ("sinks, kitchen included")
+    r"\bincluding\b|\bincluded\b|\bmukaan lukien\b|\bmukaan\b|\beinschlie\w*|\binklusive\b"
+    r"|\by compris\b|\bincluid\w*|\bcompres[aoie]\b|\binclus\w*|\btogether\b|\bzusammen\b"
+)
 BUILDING = re.compile(r"\bbuilding\b|\bproject\b")  # the whole model, not this sheet
 # In English the counted thing comes right after these words ("how many X-ray rooms" is not a
 # count of rooms); the words in FILLER may come between.
@@ -313,7 +323,17 @@ class TemplateParser:
         if largest and measure != "area":
             return Unsupported(reason="only the largest room by area is taken off")
         if measure == "count":
-            subject = "shower+bathtub" if {"shower", "bathtub"} <= set(subjects) else subjects[0]
+            if {"shower", "bathtub"} == set(subjects):
+                return Query(measure="count", subject="shower+bathtub", **common)
+            # Never drop part of a question: two element classes ("doors and windows", "doors
+            # near the window"), or elements counted in one room ("doors the kitchen has"), are
+            # not one count of the sheet. Room types name the same rooms ("WC rooms").
+            things = [s for s in subjects if not s.startswith("room")]
+            if len(things) > 1:
+                return Unsupported(reason=SEVERAL_THINGS)
+            if things and len(subjects) > 1 and INCLUDING.search(lower) is None:
+                return Unsupported(reason=IN_ONE_ROOM)
+            subject = subjects[0]
             if label is not None and subject.startswith("room"):
                 return Query(measure="count", subject="room", label=label, **common)
             return Query(measure="count", subject=subject, **common)

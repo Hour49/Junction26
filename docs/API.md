@@ -1100,7 +1100,8 @@ project that does not hold the drawing is 404.
 ```
 
 - `reader`: how the drawing was read: the route, the file it was read from (`source`), that route's reader
-  (`extractor`; `hello` reads nothing), the second counter and the question parser.
+  (`extractor`; `hello` reads nothing), the second counter (`"none"` when nothing on the drawing was
+  measured twice) and the question parser.
 - `credit`: the licence credit to show under every page of the drawing, or null. A file of the Stoa
   dataset or a Commons demo photo is recognised by its content (whatever its upload name) and gets
   its line from the dataset's `data/<source>/LICENSE.md` or the photos' manifest; a user's own
@@ -1529,7 +1530,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
     "route": "raster",
     "source": "plan.png",
     "extractor": "composite",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
@@ -1941,7 +1942,7 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     "route": "bim",
     "source": "model/house.ifc",
     "extractor": "ifc",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
@@ -2642,7 +2643,7 @@ rests on:
     "route": "vector",
     "source": "doors.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
