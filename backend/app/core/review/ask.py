@@ -217,7 +217,7 @@ def ask(
         if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
         elif query is not None and query in unlocated:
-            code, words = "no-reader", _unlocated_text(unlocated[query], flags)
+            code, words = "no-reader", _unlocated_text(unlocated[query], flags, drawing)
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
@@ -338,7 +338,10 @@ def _flagged(
     read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b.
     On a flagged page a room count with no located mark ("0 bathrooms", "37 bedrooms" with
     nothing marked) is a guess too: it is left out and returned in `unlocated` by key, so the
-    question is refused the same way (brief r8 BM); a class Carbon read keeps its 0."""
+    question is refused the same way (brief r8 BM); a class Carbon read keeps its 0. A 0 of a
+    room type has nothing to mark, so it is a read 0 when the reader told room types apart (two
+    or more types besides "other": a page can have 0 saunas, F4-4) and a guess when it put every
+    room under one type (the hotel photo: 37 "bedrooms", then 0 bathrooms; #285 review)."""
     empty: set[str] = set()
     if flags and not drawing.elements:
         empty.update(ELEMENT_CLASSES)
@@ -351,6 +354,7 @@ def _flagged(
     carbon: set[str] = set(drawing.read or ()) if CARBON_FLAG in flags else set()
     kept: dict[str, Quantity] = {}
     unlocated: dict[str, Quantity] = {}
+    told = len(_types(drawing)) >= 2
     note = f"read from a page flagged at upload: {'; '.join(flags)}"
     for key, found in quantities.items():
         if _groups(key) <= empty:
@@ -358,7 +362,8 @@ def _flagged(
         if not flags:
             kept[key] = found
             continue
-        if _room_count(found) and not found.marks and not _groups(key) <= carbon:
+        guess = found.value > 0 or not told
+        if _room_count(found) and not found.marks and guess and not _groups(key) <= carbon:
             unlocated[key] = found
             continue
         said = note if found.estimate is None else f"{found.estimate}; {note}"
@@ -400,10 +405,24 @@ def _unplaced(found: Quantity, drawing: Drawing) -> bool:
     return bool(drawing.pages) and found.unit == "count" and found.value > 0 and not found.marks
 
 
-def _unlocated_text(found: Quantity, flags: Sequence[str]) -> str:
+def _types(drawing: Drawing) -> set[str]:
+    """The room types the reader told apart ("other" is no type)."""
+    return {room.type for room in drawing.rooms if room.type != "other"}
+
+
+def _unlocated_text(found: Quantity, flags: Sequence[str], drawing: Drawing) -> str:
+    flagged = f"This drawing was flagged at upload ({'; '.join(flags)})"
+    if found.value == 0:
+        types = _types(drawing)
+        why = (
+            f"read every room as a {words(next(iter(types)))}"
+            if types
+            else "did not tell room types apart"
+        )
+        return f"{flagged}, and its reader {why}, so 0 would be a guess, not a count."
     return (
-        f"This drawing was flagged at upload ({'; '.join(flags)}), and none of what its reader "
-        f"counted here is located on it, so {found.value:g} would be a guess, not a count."
+        f"{flagged}, and none of what its reader counted here is located on it, so "
+        f"{found.value:g} would be a guess, not a count."
     )
 
 

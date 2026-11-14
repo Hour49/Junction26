@@ -20,7 +20,7 @@ def test_a_room_count_with_no_mark_on_a_flagged_page_is_refused() -> None:
     drawing = photo(KITCHEN, elements=(DOOR,))
     found = asked_flagged("How many bathrooms are there?", drawing, (PHOTO_FLAG,))
     assert found.refusal is not None and found.refusal.code == "no-reader"
-    assert "none of what its reader counted here is located on it" in found.refusal.text
+    assert "its reader read every room as a kitchen" in found.refusal.text
     assert "0 would be a guess" in found.refusal.text
     kitchens = asked_flagged("How many kitchens are there?", drawing, (PHOTO_FLAG,))
     assert kitchens.refusal is None and kitchens.answer.answer == 1  # marked: still a count
@@ -59,3 +59,49 @@ def test_a_door_count_including_closet_doors_says_the_rule() -> None:
     assert found.answer.answer == 1 and CLOSET_RULE in (found.answer.explanation or "")
     plain = asked_flagged("How many doors are there?", drawing, ())
     assert CLOSET_RULE not in (plain.answer.explanation or "")
+
+
+SCAN_FLAG = "a scanned PDF, read as an image"
+BEDROOM = Room(id="r2", type="bedroom", page=1, box=BOX_A)
+
+
+def test_a_0_of_a_type_is_a_read_0_on_a_flagged_page_whose_reader_told_types_apart() -> None:
+    """Since #280 every scan is flagged, and a page can have 0 saunas (F4-4): on the golden dev
+    and val120 CubiCasa pages with the scan flag forced, 196 of the 206 room-type 0s the first
+    version refused were right (every one on a page with >= 2 room types read)."""
+    drawing = photo(KITCHEN, BEDROOM, elements=(DOOR,))
+    for text in ("How many balconies are there?", "How many bathrooms are there?"):
+        found = asked_flagged(text, drawing, (SCAN_FLAG,), raster=True)
+        assert found.refusal is None and found.answer.answer == 0
+
+
+def test_a_0_of_a_type_is_refused_when_the_reader_put_every_room_under_one_type() -> None:
+    """think-acc's hotel photo: 37 rooms all read as bedrooms, then "0 bathrooms" (truth 40-52):
+    a reader that tells no types apart did not read a 0 of another type."""
+    rooms = tuple(Room(id=f"r{i}", type="bedroom", page=1, box=BOX_A) for i in range(3))
+    found = asked_flagged("How many bathrooms are there?", photo(*rooms), (PHOTO_FLAG,))
+    assert found.refusal is not None and found.refusal.code == "no-reader"
+    assert "its reader read every room as a bedroom" in found.refusal.text
+    bedrooms = asked_flagged("How many bedrooms are there?", photo(*rooms), (PHOTO_FLAG,))
+    assert bedrooms.refusal is None and bedrooms.answer.answer == 3
+
+
+def test_a_room_count_above_0_with_no_mark_on_a_flagged_page_is_still_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Types told apart or not, a count above 0 that marks nothing can't be checked: a guess."""
+    known = review_ask.known_quantities
+
+    def unmarked_bedrooms(drawing):  # type: ignore[no-untyped-def]
+        found = dict(known(drawing))
+        found["room:bedroom"] = Quantity(
+            key="room:bedroom", value=37, unit="count", marks=(), rule="count"
+        )
+        return found
+
+    monkeypatch.setattr(review_ask, "known_quantities", unmarked_bedrooms)
+    drawing = photo(KITCHEN, BEDROOM, elements=(DOOR,))
+    found = asked_flagged("How many bedrooms are there?", drawing, (SCAN_FLAG,), raster=True)
+    assert found.refusal is not None and found.refusal.code == "no-reader"
+    assert "none of what its reader counted here is located on it" in found.refusal.text
+    assert "37 would be a guess" in found.refusal.text
