@@ -80,6 +80,7 @@ from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
 from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
+from app.adapters.raster_scale.carbon_doors import CarbonDoorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
@@ -732,6 +733,8 @@ def build_ingest(
     }
     if settings.raster_scale != "off":  # named only when on: the default keeps its cache keys
         names["raster_scale"] = settings.raster_scale
+    if settings.scale_carbon_doors != "off":  # the same
+        names["scale_carbon_doors"] = settings.scale_carbon_doors
     if settings.raster_printed_scale != "off":  # the same
         names["raster_printed_scale"] = settings.raster_printed_scale
     if settings.raster_photo_components:  # the same
@@ -807,6 +810,12 @@ def _raster(
     took: set[str] | None = None,
 ) -> Extractor:
     photo = settings.raster_photo_components
+    if settings.scale_carbon_doors == "on" and (
+        settings.raster_scale != "priors" or settings.carbon_reader != "large"
+    ):  # it changes PriorScale's no-door refusal, using CarbonThings' doors
+        raise InvalidInputError(
+            "SCALE_CARBON_DOORS=on needs RASTER_SCALE=priors and CARBON_READER=large"
+        )
     match settings.extractor_raster:
         case "hello":
             if photo:
@@ -840,6 +849,8 @@ def _raster(
             read = shipped
             if use_carbon is not None and settings.carbon_reader == "large":  # things drawn
                 read = CarbonThings(shipped, _carbon(settings, files), use_carbon, FEW_THINGS, took)
+                if settings.scale_carbon_doors == "on":  # outside CarbonThings: Carbon's doors
+                    read = CarbonDoorScale(read)
             elif use_carbon is not None:
                 read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
             if settings.carbon_levels != "off":  # Carbon reading on its own, as integ's test
