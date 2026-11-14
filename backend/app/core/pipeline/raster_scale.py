@@ -22,7 +22,9 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   door (MIN_SIDE_M at the sheet's scale) is a label; so is every box on a page whose room boxes
   (MIN_COVER_ROOMS or more) cover under MIN_COVER of the box around them all, as scattered labels
   do. The room stays, its area unknown, the reason in a note; never a smaller number. The
-  thresholds are starting values (scripts/fit_label_boxes.py sweeps them on cached replies).
+  thresholds are harmless guards, not fitted values: on golden v2 they refuse 5 of 873 box rooms,
+  0 of them right (eu-big's fit, #14 c6883029882); untested on scans (golden v2 has no scanned PDF
+  with gold room areas). scripts/fit_label_boxes.py sweeps them per half on cached replies.
 """
 
 import itertools
@@ -39,8 +41,8 @@ SPREAD_FEW = 0.158  # 68% relative scale error with 1-4 doors, val two-way
 SPREAD_MANY = 0.0795  # with 5 or more doors
 BOX_RATIO = 1.104  # a room's box area over its outline area, val median
 OUTLINE_SPREAD = 0.157  # 68% |log| of that ratio around its median, val
-MIN_SIDE_M = 0.7  # a room box narrower than a door is its label (starting value, not fitted)
-MIN_COVER = 0.2  # rooms tile their plan; labels cover a few % of it (starting value, not fitted)
+MIN_SIDE_M = 0.7  # a room box narrower than a door is its label (a guard, not fitted)
+MIN_COVER = 0.2  # rooms tile their plan; labels cover a few % of it (a guard, not fitted)
 MIN_COVER_ROOMS = 3  # fewer boxes on a page say nothing about coverage
 REFUSED_NOTE = "room area: "  # how the note on a room the box does not measure starts
 
