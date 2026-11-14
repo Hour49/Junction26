@@ -71,12 +71,13 @@ export function cookieValue(header, name) {
   return null;
 }
 
-/** The Cookie header without cookie `name`, or null when nothing else is left. */
+/** The Cookie header without cookie `name` (a name, or a test of names), or null when nothing else is left. */
 export function withoutCookie(header, name) {
+  const dropped = typeof name === "function" ? name : (given) => given === name;
   const kept = (header || "")
     .split(";")
     .map((part) => part.trim())
-    .filter((part) => part && part.slice(0, Math.max(part.indexOf("="), 0)).trim() !== name);
+    .filter((part) => part && !dropped(part.slice(0, Math.max(part.indexOf("="), 0)).trim()));
   return kept.length ? kept.join("; ") : null;
 }
 

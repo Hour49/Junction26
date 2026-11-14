@@ -2,7 +2,7 @@
 // assets) and a small "Have an access code?" form. The right code sets a signed 24 h cookie; with it every request
 // is proxied to the tunnel origin, which is only reachable with the Cloudflare Access service token this Worker adds.
 //
-// Secrets (wrangler secret put): ACCESS_CODE, COOKIE_KEY, ORIGIN_URL, ACCESS_CLIENT_ID, ACCESS_CLIENT_SECRET.
+// Secrets (wrangler deploy --secrets-file): ACCESS_CODE, COOKIE_KEY, ORIGIN_URL, ACCESS_CLIENT_ID, ACCESS_CLIENT_SECRET.
 // With ACCESS_CODE or COOKIE_KEY missing nothing unlocks (fail closed).
 
 import { COOKIE, TTL_S, codeMatches, cookieValue, setCookie, sign, verify, withoutCookie } from "./gate.js";
@@ -18,6 +18,10 @@ const FORM =
 
 // what Cloudflare or the local server answers when the tunnel or the backend is down
 const OFFLINE = new Set([502, 503, 530]);
+
+// Cloudflare Access's own session cookies (CF_Authorization, CF_AppSession, ...) for the origin's hostname: a
+// visitor holding one could keep it after /__lock or a new COOKIE_KEY, so none passes this Worker in either direction
+const accessCookie = (name) => /^CF_/i.test(name);
 
 function page(body, status = 200) {
   const html =
@@ -76,9 +80,13 @@ async function proxy(request, env) {
   target.search = url.search;
   const wantsPage = request.method === "GET" && (request.headers.get("accept") || "").includes("text/html");
   const headers = new Headers(request.headers);
-  const rest = withoutCookie(headers.get("cookie"), COOKIE); // the gate cookie never leaves this Worker
+  // the gate cookie never leaves this Worker
+  const rest = withoutCookie(headers.get("cookie"), (name) => name === COOKIE || accessCookie(name));
   if (rest) headers.set("cookie", rest);
   else headers.delete("cookie");
+  headers.delete("host"); // the origin's address decides it, not the visitor's
+  headers.delete("cf-access-token");
+  headers.delete("cf-access-jwt-assertion");
   headers.set("cf-access-client-id", env.ACCESS_CLIENT_ID);
   headers.set("cf-access-client-secret", env.ACCESS_CLIENT_SECRET);
   headers.set("x-forwarded-host", url.host);
@@ -107,6 +115,11 @@ async function proxy(request, env) {
   }
   if (!reply) return Response.json({ error: "the app is offline" }, { status: 502 });
   const out = new Response(reply.body, reply);
+  const cookies = out.headers.getSetCookie();
+  out.headers.delete("set-cookie");
+  for (const cookie of cookies) {
+    if (!accessCookie(cookie.slice(0, Math.max(cookie.indexOf("="), 0)).trim())) out.headers.append("set-cookie", cookie);
+  }
   const location = reply.headers.get("location");
   if (location && location.startsWith(target.origin)) {
     out.headers.set("location", url.origin + location.slice(target.origin.length));

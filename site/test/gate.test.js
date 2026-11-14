@@ -337,3 +337,93 @@ test("the app offline: a page that says so with the way back to the demo; API ca
     }
   }
 });
+
+test("the origin's Access session never reaches the visitor, and a visitor's own Access credentials never reach the origin", async () => {
+  const origin = fakeOrigin(() => {
+    const reply = new Response("ok");
+    reply.headers.append("set-cookie", "CF_Authorization=eyJ.jwt.sig; Path=/; Secure; HttpOnly");
+    reply.headers.append("set-cookie", "theme=dark; Path=/");
+    reply.headers.append("set-cookie", "CF_AppSession=abc; Path=/; Secure; HttpOnly");
+    return reply;
+  });
+  try {
+    const answer = await worker.fetch(
+      new Request("https://junction.example.test/api/info", {
+        headers: {
+          cookie: `CF_Authorization=mine; ${await cookieFor()}; theme=dark; CF_AppSession=mine`,
+          "cf-access-token": "mine",
+          "cf-access-jwt-assertion": "mine",
+        },
+      }),
+      env(),
+    );
+    assert.deepEqual(answer.headers.getSetCookie(), ["theme=dark; Path=/"]); // the app's own cookies pass
+    const [sent] = origin.seen;
+    assert.equal(sent.headers.get("cookie"), "theme=dark");
+    assert.equal(sent.headers.get("cf-access-token"), null);
+    assert.equal(sent.headers.get("cf-access-jwt-assertion"), null);
+  } finally {
+    origin.restore();
+  }
+});
+
+test("the visitor's Host header is not copied to the origin request: its address decides the host", async () => {
+  const origin = fakeOrigin();
+  try {
+    await worker.fetch(
+      new Request("https://junction.example.test/api/info", {
+        headers: { cookie: await cookieFor(), host: "junction.example.test" },
+      }),
+      env(),
+    );
+    assert.equal(origin.seen[0].headers.get("host"), null);
+    assert.equal(origin.seen[0].url, `${ORIGIN}/api/info`);
+  } finally {
+    origin.restore();
+  }
+});
+
+test("an upload is passed on as a stream: the origin is called before the body has been read to its end", async () => {
+  let originCalled = false;
+  let calledWhenBodyEnded = null;
+  let pulls = 0;
+  const body = new ReadableStream({
+    pull(controller) {
+      if (pulls++ === 0) return controller.enqueue(new TextEncoder().encode("part one, "));
+      calledWhenBodyEnded = originCalled; // the last part is asked for only by whoever reads the body
+      controller.enqueue(new TextEncoder().encode("part two"));
+      controller.close();
+    },
+  });
+  const original = globalThis.fetch;
+  let received = "";
+  globalThis.fetch = async (request) => {
+    originCalled = true;
+    received = await request.text();
+    return new Response("stored", { status: 201 });
+  };
+  try {
+    const answer = await worker.fetch(
+      new Request("https://junction.example.test/api/projects", {
+        method: "POST",
+        headers: { cookie: await cookieFor(), "content-type": "application/zip" },
+        body,
+        duplex: "half",
+      }),
+      env(),
+    );
+    assert.equal(answer.status, 201);
+    assert.equal(received, "part one, part two");
+    assert.equal(calledWhenBodyEnded, true);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("the code check compares the whole digest: a wrong code whose digest starts with the same byte is refused", async () => {
+  const first = async (text) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))[0];
+  const want = await first(CODE);
+  const twins = [];
+  for (let n = 0; twins.length < 3; n++) if ((await first(`wrong-${n}`)) === want) twins.push(`wrong-${n}`);
+  for (const twin of twins) assert.equal(await codeMatches(CODE, twin), false, twin);
+});
