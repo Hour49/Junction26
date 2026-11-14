@@ -77,6 +77,80 @@
       "title": "ArbiterReading",
       "type": "object"
     },
+    "CarbonCheck": {
+      "additionalProperties": false,
+      "description": "What Gemini Carbon read of the sheet beside the extraction's reader (the backend's\nCARBON_LEVELS). Never scored, never counted.",
+      "properties": {
+        "read": {
+          "description": "what it counted; of another class it says nothing",
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "door",
+                  "window",
+                  "toilet",
+                  "sink",
+                  "shower",
+                  "bathtub",
+                  "sauna_stove",
+                  "stair",
+                  "wall",
+                  "column",
+                  "beam",
+                  "slab",
+                  "railing",
+                  "furniture"
+                ],
+                "type": "string"
+              },
+              {
+                "const": "room",
+                "type": "string"
+              }
+            ]
+          },
+          "title": "Read",
+          "type": "array"
+        },
+        "plans": {
+          "items": {
+            "$ref": "#/$defs/Plan"
+          },
+          "title": "Plans",
+          "type": "array"
+        },
+        "elements": {
+          "items": {
+            "$ref": "#/$defs/Element"
+          },
+          "title": "Elements",
+          "type": "array"
+        },
+        "rooms": {
+          "items": {
+            "$ref": "#/$defs/Room"
+          },
+          "title": "Rooms",
+          "type": "array"
+        },
+        "failed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "why it checked nothing; null: it read",
+          "title": "Failed"
+        }
+      },
+      "title": "CarbonCheck",
+      "type": "object"
+    },
     "Conflict": {
       "additionalProperties": false,
       "description": "One quantity two independent methods measured on this file (ingestion stage 8).",
@@ -1066,7 +1140,7 @@
               "type": "null"
             }
           ],
-          "description": "a room or apartment id in this file, an element class, or null for sheet",
+          "description": "a room or apartment id in this file, an element class or room:<type> for class, or null for sheet",
           "title": "Ref"
         }
       },
@@ -1436,6 +1510,18 @@
       "default": null,
       "description": "what the local count arbiter read, by count family (door, room:wc, sauna_stove...), for the answer's local gate; never scored; null: it did not run",
       "title": "Count Arbiter"
+    },
+    "carbon_check": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CarbonCheck"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "what Gemini Carbon read beside the reader, for the answer's level; never scored; null: it did not run"
     },
     "notes": {
       "items": {
