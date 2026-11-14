@@ -264,8 +264,12 @@ def _printed(room: Room) -> str | None:
 
 
 def _room_name(room: Room) -> str:
+    """By its printed name, else by its kind alone ("a hall"): the id is ours, not the sheet's,
+    and the mark shows which room it is."""
     noun, printed = room_noun(room.type), _printed(room)
-    return f'the {noun} "{printed}"' if printed else f"the {noun} {room.id}"
+    if printed:
+        return f'the {noun} "{printed}"'
+    return f"{'an' if noun[:1] in 'aeiou' else 'a'} {noun}"
 
 
 def mark_id(quantity: Quantity | None, page: int, box: Box) -> str | None:
@@ -293,7 +297,7 @@ def _room_row(room: Room, quantities: Quantities) -> Quantity | None:
 
 
 def _room_subject(room: Room, quantities: Quantities) -> tuple[CheckSubject, CheckMark]:
-    shown = _printed(room) or f"{room_noun(room.type)} {room.id}"
+    shown = _printed(room) or room_noun(room.type)  # the id is in `ref`, not shown
     row = _room_row(room, quantities)
     mark = CheckMark(
         page=room.page,

@@ -3,6 +3,7 @@ clause, and each op gives pass, fail or cannot tell, never a guess. On the TEST 
 (tests/fixtures/rules/test.json): its rules are made up, its clauses point nowhere real."""
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -759,3 +760,19 @@ def test_a_building_model_checked_on_its_sheets_is_not_applicable() -> None:
     assert {(check.status, check.why) for check in sheets} == {
         ("not_applicable", "The building model is checked on its sheets in this project.")
     }
+
+
+def test_a_room_with_no_printed_name_is_named_by_its_kind_not_its_id() -> None:
+    """fail-5 (2026-11-14): CubiCasa's rooms carry no name; "the hall r5" showed our own id. The
+    mark shows which room it is."""
+    bedroom = room(1, label=None, area_m2=6.0)
+    hall = {**HALL, "label": None}
+    door = element(1, "door", (0.2, 0.38, 0.27, 0.42))  # 0.7 m, on the bedroom/hall wall
+    plan = drawing(rooms=[bedroom, hall], elements=[door])
+    (shut,) = check_rule(plan, rule("door-width")).results
+    assert shut.subject.label == "the door between a bedroom and a hall"
+    (small,) = check_rule(plan, rule("bedroom-area")).results
+    assert small.subject.label == "bedroom"
+    assert small.why.startswith("A bedroom is 6 m2;")
+    for why in (shut.why, small.why):
+        assert re.search(r"\b[re]\d+\b", why) is None, why
