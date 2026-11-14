@@ -46,12 +46,35 @@ def test_record_forwards_a_miss_with_its_key_and_answers_the_same_body_from_the_
     assert "k-123" not in stored.read_text()
 
 
-def test_replay_answers_a_miss_503_and_never_calls_upstream(tmp_path: Path) -> None:
+def test_replay_answers_a_miss_503_keeps_its_body_and_never_calls_upstream(tmp_path: Path) -> None:
     up = Upstream()
     proxy = replay.Replay(tmp_path, "replay", "https://up.example/v1", up)
     status, data = proxy.answer("/chat/completions", json.dumps(BODY).encode(), "Bearer k")
     assert status == 503 and "no recorded reply" in json.loads(data)["error"]["message"]
     assert up.calls == [] and list(tmp_path.glob("*.json")) == []
+    [miss] = (tmp_path / "misses").glob("*.json")  # kept to diff against what was recorded
+    assert json.loads(miss.read_text()) == BODY
+
+
+def tool_body(answer: int, latency: float) -> bytes:
+    result = json.dumps({"answer": answer, "latency_s": latency, "line": {"latency_s": latency}})
+    return json.dumps(
+        {**BODY, "messages": [*BODY["messages"], {"role": "tool", "content": result}]}
+    ).encode()
+
+
+def test_the_key_ignores_measured_latency_but_not_the_answer() -> None:
+    same = replay.key_of("/c", tool_body(6, 0.00024)) == replay.key_of("/c", tool_body(6, 1.5e-05))
+    assert same and replay.key_of("/c", tool_body(6, 0.1)) != replay.key_of("/c", tool_body(7, 0.1))
+
+
+def test_rekey_moves_a_recorded_call_to_its_current_key(tmp_path: Path) -> None:
+    record = {"path": "/c", "request": json.loads(tool_body(6, 0.5)), "status": 200, "reply": REPLY}
+    (tmp_path / "old-key.json").write_text(json.dumps(record))
+    assert replay.rekey(tmp_path) == 1
+    [moved] = tmp_path.glob("*.json")
+    assert moved.stem == replay.key_of("/c", tool_body(6, 0.9))
+    assert replay.rekey(tmp_path) == 0
 
 
 def test_a_failed_upstream_call_is_passed_on_and_not_recorded(tmp_path: Path) -> None:

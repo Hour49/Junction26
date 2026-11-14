@@ -47,5 +47,12 @@ Replay serves a call only when its body is exactly one it has seen: the same bui
 data replays the whole run at 0 USD (a frontend-only change, a scorer change, a re-check), and a
 backend change replays every model step up to the first one whose prompt it changed, then pays
 from there (`record`) or fails that turn with a 503 (`replay`). A replayed turn reports the cost
-it had when recorded; `GET /stats` on the proxy says how many calls were served from the cache.
+it had when recorded, so the backend's own `GEMINI_BUDGET_USD` counts it: start a replay env with a
+budget well over the run's recorded cost (the proxy cannot spend in `replay` mode). `GET /stats`
+on the proxy says how many calls were served from the cache, and a miss's body is kept in
+`<cache>/misses/` to diff against the recorded call. The key blanks the `latency_s` timings the
+backend puts in tool results; after a change to the key, `--rekey` renames the cache.
+
+Checked 2026-11-14 on main 11a089e: the full set recorded (64 turns, 1.245 USD), then replayed:
+64/64 replies word for word the same, 176 calls from the cache, 0 misses, 0 USD.
 Model answers vary run to run, so a live A/B arm that matters gets two runs.

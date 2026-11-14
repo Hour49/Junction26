@@ -1,10 +1,12 @@
 """Record and replay the agent chat's model calls, so a chat run that repeats costs 0 USD.
 
   python3 -m chat.replay --cache ../data/stoa/chat-eval/replay --mode record|replay [--port 0]
+  python3 -m chat.replay --cache ... --rekey     # after a change to key_of
 
 An OpenAI-compatible endpoint on 127.0.0.1 for the backend's AGENT_BASE_URL. Each POST is keyed
-by its path and its JSON body (keys sorted). A key in the cache is answered from it, with the
-recorded status, body and usage (so the turn's cost_usd is what the call cost when recorded).
+by its path and its JSON body (keys sorted, measured timings blanked: VOLATILE). A key in the
+cache is answered from it, with the recorded status, body and usage (so the turn's cost_usd is
+what the call cost when recorded).
 A miss: `record` forwards it to --upstream with the request's own Authorization header (the key
 is passed on, never stored or printed) and stores a 200 reply; `replay` answers 503 and spends
 nothing. GET /stats gives the counts. The cache holds request and reply bodies, which carry
@@ -14,6 +16,7 @@ drawing text: keep it under data/ (gitignored).
 import argparse
 import hashlib
 import json
+import re
 import threading
 import urllib.error
 import urllib.request
@@ -25,6 +28,9 @@ from typing import Any
 GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai"
 # (url, body, headers) -> (status, body); urllib by default, a fake in tests
 Upstream = Callable[[str, bytes, dict[str, str]], tuple[int, bytes]]
+# A field that differs run to run in what the backend sends (tool results carry their measured
+# latency_s), also inside a tool message's JSON-in-a-string; its number is blanked in the key.
+VOLATILE = re.compile(r'((?:\\)*"latency_s(?:\\)*":\s*)-?[0-9.eE+-]+')
 
 
 def urllib_upstream(url: str, body: bytes, headers: dict[str, str]) -> tuple[int, bytes]:
@@ -37,13 +43,27 @@ def urllib_upstream(url: str, body: bytes, headers: dict[str, str]) -> tuple[int
 
 
 def key_of(path: str, body: bytes) -> str:
-    """The cache key: the path and the body's JSON with keys sorted (a body that is not JSON is
-    keyed as sent)."""
+    """The cache key: the path and the body's JSON with keys sorted and VOLATILE numbers blanked
+    (a body that is not JSON is keyed as sent)."""
     try:
-        canon = json.dumps(json.loads(body), sort_keys=True, separators=(",", ":")).encode()
+        text = json.dumps(json.loads(body), sort_keys=True, separators=(",", ":"))
+        canon = VOLATILE.sub(r"\g<1>0", text).encode()
     except ValueError:
         canon = body
     return hashlib.sha256(path.encode() + b"\n" + canon).hexdigest()[:32]
+
+
+def rekey(cache: Path) -> int:
+    """Rename every recorded call to its key under today's key_of; the count renamed."""
+    moved = 0
+    for stored in cache.glob("*.json"):
+        got: dict[str, Any] = json.loads(stored.read_text())
+        body = json.dumps(got["request"]).encode()
+        target = cache / f"{key_of(got['path'], body)}.json"
+        if target != stored:
+            stored.replace(target)
+            moved += 1
+    return moved
 
 
 class Replay:
@@ -69,6 +89,9 @@ class Replay:
             return int(got["status"]), json.dumps(got["reply"]).encode()
         self._count("misses")
         if self.mode == "replay":
+            # kept so a miss can be diffed against the recorded call it should have matched
+            (self.cache / "misses").mkdir(exist_ok=True)
+            (self.cache / "misses" / f"{key}.json").write_bytes(body)
             error = {"error": {"message": f"replay: no recorded reply for {key}", "code": 503}}
             return 503, json.dumps(error).encode()
         headers = {"Content-Type": "application/json", **({"Authorization": auth} if auth else {})}
@@ -120,10 +143,14 @@ def serve(replay: Replay, port: int) -> ThreadingHTTPServer:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--cache", required=True, type=Path)
-    ap.add_argument("--mode", choices=["record", "replay"], required=True)
+    ap.add_argument("--mode", choices=["record", "replay"], default="replay")
     ap.add_argument("--port", type=int, default=0, help="0: a free port, printed")
     ap.add_argument("--upstream", default=GEMINI)
+    ap.add_argument("--rekey", action="store_true", help="re-key the cache after a key_of change")
     args = ap.parse_args()
+    if args.rekey:
+        print(f"replay: re-keyed {rekey(args.cache)} recorded calls")
+        return
     server = serve(Replay(args.cache, args.mode, args.upstream, urllib_upstream), args.port)
     print(f"replay: {args.mode} on http://127.0.0.1:{server.server_address[1]}", flush=True)
     server.serve_forever()
