@@ -163,6 +163,13 @@ class Overrule(Frozen):
     at: str  # ISO 8601, UTC
 
 
+class ReadAsPlan(Frozen):
+    """A person's call that a file triage set aside is a floor plan: it was read as one."""
+
+    by: str
+    at: str  # ISO 8601, UTC
+
+
 class Triage(_Classed):
     """FileStatus.triage: what triage made of an image file (decision 0010). Build a changed one
     with `model_validate`, not `model_copy`, so `verdict` follows `overruled` and `relevance`."""
@@ -173,6 +180,8 @@ class Triage(_Classed):
     description: Description | None = None  # only for a file that is not a floor plan
     relevance: Relevance | None = None  # set when the project's ingest finishes
     overruled: Overrule | None = None
+    # A person had it read as a floor plan; `class` stays the classifier's (POST …/triage)
+    read_as_plan: ReadAsPlan | None = None
     # What counts now: the person's call, else the judge's; None while not judged
     verdict: Verdict | None = None
     # Why `description` or `relevance` is null, in a plain sentence; None when both are set

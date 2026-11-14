@@ -10,7 +10,7 @@ from typing import Annotated, Literal, NamedTuple
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.page_render import render_upload
 from app.api.deps import FileId, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep, now
@@ -29,7 +29,14 @@ from app.api.views import (
     skipped_of,
 )
 from app.core.errors import NotFoundError
-from app.core.ingest.model import FileStatus, FileTrace, Overrule, ProjectStatus, SecondCount
+from app.core.ingest.model import (
+    FileStatus,
+    FileTrace,
+    Overrule,
+    ProjectStatus,
+    ReadAsPlan,
+    SecondCount,
+)
 from app.core.pipeline.model import QuantityConflict
 from app.core.review.model import ReviewState, Settled, SignOff
 from app.core.review.ports import ReviewStore
@@ -85,6 +92,16 @@ class RelevanceRequest(View):
         if self.undo and self.verdict is not None:
             raise ValueError("undo takes no verdict")
         return self
+
+
+class TriageRequest(View):
+    """A person's call that a file triage set aside is a floor plan (decision 0010): it is read
+    as one. `by` as a sign-off's."""
+
+    model_config = ConfigDict(extra="forbid", serialize_by_alias=True)
+
+    class_: Literal["floor_plan"] = Field(alias="class")
+    by: str = Field(min_length=1, max_length=100)
 
 
 class ProjectList(View):
@@ -315,6 +332,17 @@ def relevance(
     assert body.verdict is not None and body.by is not None  # checked by the model
     call = Overrule(verdict=body.verdict, by=body.by, at=now())
     return ingest.overrule(project_id, file_id, call)
+
+
+@router.post("/{project_id}/files/{file_id}/triage", status_code=202)
+def triage(
+    project_id: ProjectId, file_id: FileId, body: TriageRequest, ingest: IngestDep
+) -> FileStatus:
+    """A person has a file triage set aside read as a floor plan: it is read in the background,
+    alone, while the project stays done. Returns the file, queued; poll the project. 409 until
+    the project is done or while a file of it is read again; 422 `not-triaged` for a file triage
+    did not set aside as not a floor plan. No undo: a reading is not unread."""
+    return ingest.read_as_plan(project_id, file_id, ReadAsPlan(by=body.by, at=now()))
 
 
 @router.get("/{project_id}/files/{file_id}/trace")

@@ -29,7 +29,7 @@ from app.core.drawing.model import Box, Drawing, Polygon
 from app.core.errors import UnknownPackError
 from app.core.ingest.judge import read_nothing
 from app.core.ingest.model import FileStatus, ProjectStatus
-from app.core.ingest.triage import CLASS_WORDS, is_not_plan
+from app.core.ingest.triage import CLASS_WORDS, called_not_plan, is_not_plan
 from app.core.review.model import MarkView, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import NO_PROOF, PALETTE, ClassKey, check
@@ -495,13 +495,15 @@ def _set_aside(status: ProjectStatus, where: _Files) -> Iterator[Issue]:
 def _unrelated_files(status: ProjectStatus) -> Iterator[Issue]:
     """One issue per file triage called not a floor plan whose verdict is not `related`
     (unjudged and undescribed ones too), and per such file a person made a call on (decision
-    0010, board #152). The severity is the judge's (`unsure` needs a person), so a person's call
-    settles the issue in place: same id, same place in the list."""
+    0010, board #152), or a person had read as a floor plan. The severity is the judge's
+    (`unsure` needs a person), so a person's call settles the issue in place: same id, same place
+    in the list, also once the file is read and has a drawing."""
     for file in status.files:
         triage = file.triage
-        if triage is None or not is_not_plan(file):
+        if triage is None or not called_not_plan(file):
             continue
-        if triage.verdict == "related" and triage.overruled is None:
+        called = triage.overruled is not None or triage.read_as_plan is not None
+        if triage.verdict == "related" and not called:
             continue
         judged = triage.relevance.verdict if triage.relevance is not None else None
         what = CLASS_WORDS[triage.class_]
@@ -514,6 +516,8 @@ def _unrelated_files(status: ProjectStatus) -> Iterator[Issue]:
             why += f" {triage.note[0].upper()}{triage.note[1:]}."
         if triage.overruled is not None:
             why += f" {triage.overruled.by} says it is {triage.overruled.verdict}."
+        if triage.read_as_plan is not None:
+            why += f" {triage.read_as_plan.by} had it read as a floor plan."
         yield _issue(
             "unrelated_file",
             status.id,
@@ -521,7 +525,7 @@ def _unrelated_files(status: ProjectStatus) -> Iterator[Issue]:
             None,
             file.path,
             severity="needs_person" if judged == "unsure" else "note",
-            state="open" if triage.overruled is None else "settled",
+            state="settled" if called else "open",
             why=why,
             reason=triage.verdict,
         )

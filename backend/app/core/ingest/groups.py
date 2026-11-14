@@ -10,7 +10,7 @@ import hashlib
 import logging
 from collections.abc import Callable, Mapping
 
-from app.core.drawing.model import Drawing
+from app.core.drawing.model import Drawing, Page
 from app.core.ingest.judge import judge, pipeline_stages, reading_flags
 from app.core.ingest.model import Normalised, Outcome, SheetKind, StageTrace
 from app.core.ingest.ports import Clock, ProjectStore, Readers
@@ -25,7 +25,7 @@ from app.core.ingest.timing import (
 from app.core.pipeline.group import group, key_of
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, DrawingGroup, FileKind, Route
-from app.core.pipeline.ports import Extractor
+from app.core.pipeline.ports import Extractor, PageReader
 from app.core.pipeline.route import route
 from app.core.wording import count, route_words
 
@@ -88,7 +88,9 @@ class Groups:
         route_name = routed.route
         given = {file.path for file in asked}
         content = sorted(
-            f"{file.sha256}:{'given' if file.path in given else 'found'}" for file in members.files
+            f"{file.sha256}:{'given' if file.path in given else 'found'}"
+            + (":page 1" if file.path in run.split else "")  # not a reading of every page
+            for file in members.files
         )
         group_key = _hash(*content, *self._names)
         spent = _ms(self._clock, started) / len(asked)
@@ -132,7 +134,7 @@ class Groups:
                 [file.path for file in asked],
                 files=readers.files,
                 finder=readers.finder,
-                pages=TimedPages(readers.pages, timer),
+                pages=TimedPages(PageOne(readers.pages, frozenset(run.split)), timer),
                 extractors=extractors,
                 second_counter=TimedCounter(readers.second_counter, timer),
                 sink=sink,
@@ -286,6 +288,18 @@ def _with_frame(stages: list[StageTrace], frame: Normalised | None, ms: float) -
 
 def _ms(clock: Clock, started: float) -> float:
     return max(0.0, (clock() - started) * 1000)
+
+
+class PageOne:
+    """The pages of each sheet file, but only page 1 of a PDF whose later drawn pages are read as
+    files of their own (`<name>#p<n>.pdf`), so the set's drawing does not show them again."""
+
+    def __init__(self, inner: PageReader, split: frozenset[str]) -> None:
+        self._inner, self._split = inner, split
+
+    def pages(self, file: DrawingFile) -> tuple[Page, ...]:
+        found = self._inner.pages(file)
+        return found[:1] if file.path in self._split else found
 
 
 def _hash(*parts: str) -> str:
