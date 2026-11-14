@@ -27,6 +27,8 @@ QuestionParserName = Literal["hello", "templates"]  # templates: words to a take
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
 TablesName = Literal["off", "pdf"]
+# off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
+RasterScaleName = Literal["off", "priors"]
 
 
 class Settings(BaseSettings):
@@ -40,6 +42,10 @@ class Settings(BaseSettings):
     tables: TablesName = "pdf"
     # part=source pairs for EXTRACTOR_RASTER=composite (app/adapters/raster/__init__.py)
     raster_components: str = ""
+    # priors: the raster route estimates a missing scale from its detected doors (else the page
+    # size) and gives each room its outline area at it, both `estimated`
+    # (app/adapters/raster_scale/)
+    raster_scale: RasterScaleName = "off"
     # The Gemini room reader of the raster route (app/adapters/raster_ocr/gemini.py), built only
     # when RASTER_COMPONENTS names it: its key (never logged), model, time limit per page, and
     # the folder its replies are cached in (gitignored)

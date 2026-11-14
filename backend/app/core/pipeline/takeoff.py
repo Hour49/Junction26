@@ -488,13 +488,17 @@ def _reads(key: str) -> set[str]:
 
 def rooms_estimate(rooms: Sequence[Room], scale: str | None) -> str | None:
     """What a sum of room areas rests on, when that is an estimate: the rooms whose own area is
-    estimated; else the sheet's estimated scale, unless every room's area is printed (exact)."""
+    estimated (and the sheet's estimated scale an outline was measured at); else the sheet's
+    estimated scale, unless every room's area is printed (exact)."""
     estimated = [room for room in rooms if room.area_status == "estimated"]
     if estimated:
         how = sorted({room.area_source or "an unnamed method" for room in estimated})
         spread = max((room.area_uncertainty or 0.0 for room in estimated), default=0.0)
         worst = f", uncertainty up to {spread:g}" if spread else ""
-        return f"{len(estimated)} of {len(rooms)} room areas estimated ({', '.join(how)}{worst})"
+        at = f", at {scale}" if scale and "geometry_x_estimate" in how else ""
+        return (
+            f"{len(estimated)} of {len(rooms)} room areas estimated ({', '.join(how)}{worst}){at}"
+        )
     if rooms and all(room.area_status == "exact" for room in rooms):
         return None
     return scale
