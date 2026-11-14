@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { formatTime, formatValue, readerName } from './format';
+import { formatTime, formatValue, methodName, readerName } from './format';
 import { projectList } from './fixtures';
 
 const zone = process.env.TZ;
@@ -22,10 +22,34 @@ it('R2-qa-3-1 (SH-47) readerName turns reader ids into plain labels', () => {
   expect(readerName('composite')).toBe('image reader');
   expect(readerName('pdf')).toBe('PDF vector reader');
   expect(readerName('ifc')).toBe('IFC model');
+  expect(readerName('ifc_sheet')).toBe('IFC sheet reader'); // R3-qa-5-1
   expect(readerName('templates')).toBe('question templates');
   expect(readerName('hello')).toBe('not read');
   expect(readerName('False')).toBe('off');
   expect(readerName('none')).toBe('none');
   for (const missing of [null, undefined]) expect(readerName(missing)).toBe('no reader');
   expect(readerName('somethingnew')).toBe('somethingnew');
+});
+
+it('R3-method (SH-49) methodName turns measuring-method ids into plain labels', () => {
+  const labels: Record<string, string> = {
+    printed_label: 'printed room areas',
+    polygon_x_scale: 'room outlines × sheet scale',
+    plan_drawing: 'sheet',
+    parser: 'sheet text',
+    detector: 'detector',
+    ifc_model: 'IFC model',
+    schedule: 'schedule',
+    printed_total: 'printed total',
+    summed_rooms: 'sum of rooms',
+    scale_text: 'printed scale',
+    scale_bar: 'scale bar',
+    dimension_lines: 'dimension lines',
+    annotation: 'annotation',
+    other: 'other method',
+  };
+  expect(Object.keys(labels)).toHaveLength(14);
+  for (const [id, label] of Object.entries(labels)) expect(methodName(id)).toBe(label);
+  for (const missing of [null, undefined]) expect(methodName(missing)).toBe('no method');
+  expect(methodName('lidar')).toBe('lidar');
 });

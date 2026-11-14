@@ -108,7 +108,6 @@ function Answer(props: {
         <p>
           <b>I can't answer that from this drawing.</b> {a.refusal.text}
         </p>
-        <p className="en-small">code: {a.refusal.code}</p>
         <Suggestions items={a.refusal.can_answer} busy={busy} onAsk={onAsk} />
       </div>
     );
@@ -182,7 +181,7 @@ function Answer(props: {
         <span>Time {formatLatency(a.latency_s)}</span>
         <details className="en-details">
           <summary style={MARKER}>Details</summary>
-          {row && <p>Query: {row.key}</p>}
+          {row && <p>Query: {row.label || row.key}</p>}
           <p>Method: {a.method}</p>
           {score && <p>Signal: {score.signal}</p>}
           {a.explanation && <p>How: {a.explanation}</p>}

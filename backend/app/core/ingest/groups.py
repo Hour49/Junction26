@@ -11,7 +11,7 @@ import logging
 from collections.abc import Callable, Mapping
 
 from app.core.drawing.model import Drawing
-from app.core.ingest.judge import judge, pipeline_stages
+from app.core.ingest.judge import judge, pipeline_stages, reading_flags
 from app.core.ingest.model import Normalised, Outcome, SheetKind, StageTrace
 from app.core.ingest.ports import Clock, ProjectStore, Readers
 from app.core.ingest.progress import Run
@@ -138,6 +138,7 @@ class Groups:
             drawing = sink.drawings.get(file.path)
             stages: list[StageTrace] = []
             takeoff: dict[str, int | float] = {}
+            flags: tuple[str, ...] = ()
             if file.path in sheets and drawing is not None:
                 stages = pipeline_stages(
                     sheets[file.path].trace,
@@ -155,6 +156,7 @@ class Groups:
                     self._frames.get(file.path),
                 )
                 takeoff = sheets[file.path].takeoff
+                flags = reading_flags(run.kinds[file.path], self._frames.get(file.path))
             elif file.path in aside:
                 state, reason = "set_aside", aside[file.path]
             elif file == source:
@@ -167,7 +169,7 @@ class Groups:
             run.add_stages(file.path, stages)
             self._store_outcome(run, file, drawing, keys[file.path], source, route_name,
                                 state=state, reason=reason, takeoff=takeoff,
-                                stages=stages)  # fmt: skip
+                                stages=stages, flags=flags)  # fmt: skip
 
     def _store_outcome(
         self,

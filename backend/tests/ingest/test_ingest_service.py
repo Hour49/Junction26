@@ -235,6 +235,23 @@ def test_drawing_info_says_route_and_source_and_a_model_has_no_sheet(
         ingest.status("nope")
 
 
+def test_drawing_info_carries_how_a_photo_was_read_and_a_reuse_keeps_it(
+    make_service: MakeService,
+) -> None:
+    """R3-qa4-1: the photo flag judge() wrote into the file's reason was lost on the way to the
+    answer; the drawing's info now carries it (a clean sheet has none), also when reused."""
+    ingest = make_service()
+    for name in ("a.zip", "b.zip"):
+        status = ingest.status(ingest.start(name, build_archive()))
+        files = {file.path: file for file in status.files}
+        photo, png = files["photos/plan-photo.jpg"], files["plans/flat-a.png"]
+        assert photo.state == "flagged" and photo.drawing_id is not None
+        flags = ingest.drawing_info(photo.drawing_id).flags
+        assert flags == ("a phone photo, read without perspective correction",)
+        assert flags[0] in photo.reason
+        assert png.drawing_id is not None and ingest.drawing_info(png.drawing_id).flags == ()
+
+
 def test_a_dxf_with_no_reader_does_not_take_its_plan_away_from_the_vector_reader(
     make_service: MakeService,
 ) -> None:

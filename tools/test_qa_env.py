@@ -64,3 +64,14 @@ def test_the_demo_config_estimates_raster_areas() -> None:
 def test_the_backend_starts_with_the_printed_config() -> None:
     script = SCRIPT.read_text()
     assert 'env "${DEMO_ENV[@]}" uv run --locked uvicorn' in script
+
+
+def test_the_demo_config_ships_config_c() -> None:
+    """integ Task 3 (2026-11-14): the Decisions S1536 swap over the C-yolo26l detector for elements
+    and plans, rooms from regionrooms, beat the earlier demo (region C-yolo26s-1536) on val by
+    +1.1 pp [+0.1, +2.0] with no family lower; the orchestrator shipped it (07:31)."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    swap = "decisions-s1536:detector:C-yolo26l"
+    shipped = f"RASTER_COMPONENTS=elements={swap},plans={swap},rooms=regionrooms"
+    assert shipped in found.stdout.split()

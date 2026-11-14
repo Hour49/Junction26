@@ -30,7 +30,7 @@ from app.core.answering.model import (
 )
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table
+from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table, words
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
@@ -52,8 +52,12 @@ RULES: dict[str, str] = {
     found.id: found.text for found in vars(rule_pack).values() if isinstance(found, CountingRule)
 }
 SUGGESTIONS = 6
+# Parser reasons (question_templates.py) for a supported kind of question about a subject it
+# didn't recognise, or one without that quantity ("no area is taken off for door")
+NO_SUBJECT = "no element, room or apartment named"
+NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)")
 # Plurals plain English rules don't give (a kind's id is not always the word a person uses)
-PLURALS = {"sauna_stove": "sauna stoves", "living": "living rooms"}
+PLURALS = {"living": "living rooms"}
 SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
 NO_SCALE = ("no_scale", "not_to_scale")
 ROOM_NUMBER = re.compile(r"U?\d+\.\d+")  # a room number the parser reads without quotes
@@ -109,10 +113,14 @@ def ask(
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
     sure_at: Mapping[str, float] | None = None,
+    flags: Sequence[str] = (),
+    raster: bool = False,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
-    score is on the answer line only, never in the proof (it is not a calibrated probability)."""
-    quantities = known_quantities(drawing)
+    score is on the answer line only, never in the proof (it is not a calibrated probability).
+    `flags`: how ingest read the page (judge.reading_flags: a phone photo, a scan). `raster`: the
+    page was read on the raster route (an image, a photo, a scanned PDF)."""
+    quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
@@ -156,6 +164,8 @@ def ask(
     refusal = None
     if answer.method not in (TAKEOFF, SCHEDULE):
         code, words = _refusal(answer.method, parsed, query, drawing)
+        if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
+            code, words = "no-reader", _unread_text(query, flags)
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
         if code == "not-in-drawing" and isinstance(parsed, Query):
             rooms = rooms_of_type(parsed, drawing)
@@ -168,6 +178,51 @@ def ask(
                 can_answer = each
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     return Asked(answer=answer, query=query, row=shown, marks=marks, refusal=refusal, proof=proof)
+
+
+def _flagged(
+    quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
+) -> tuple[dict[str, Quantity], set[str]]:
+    """On a page ingest flagged (a phone photo, a scan), a group its reader found nothing of
+    (no element at all, no room at all) is unknown, not 0: its keys are left out and the group
+    is returned as `unread`, so any question on it is refused, its key in the takeoff or not
+    (F4-4b). Every other quantity carries the flag as its estimate, so the answer says what it
+    rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
+    page can have 0 saunas, but not 0 rooms (F4-4)."""
+    empty: set[str] = set()
+    if flags and not drawing.elements:
+        empty.update(ELEMENT_CLASSES)
+    if (flags or raster) and not drawing.rooms:
+        empty.add("room")
+    if not flags and not empty:
+        return dict(quantities), set()
+    kept: dict[str, Quantity] = {}
+    note = f"read from a page flagged at upload: {'; '.join(flags)}"
+    for key, found in quantities.items():
+        if _groups(key) <= empty:
+            continue
+        if not flags:
+            kept[key] = found
+            continue
+        said = note if found.estimate is None else f"{found.estimate}; {note}"
+        kept[key] = found.model_copy(update={"estimate": said})
+    return kept, empty
+
+
+def _groups(key: str) -> set[str]:
+    """The groups a quantity key rests on: "area:room|indoor" -> {"room"}, "door+window" ->
+    {"door", "window"}."""
+    return {part.split(":", 1)[0] for part in parse_key(key)[1].split("+")}
+
+
+def _unread_text(query: str, flags: Sequence[str]) -> str:
+    if not flags:  # only rooms are unread on a page that wasn't flagged (_flagged)
+        return "No rooms were read on this drawing, so 0 would be a guess, not a count."
+    things = "rooms" if parse_key(query)[1].startswith("room") else "elements"
+    return (
+        f"This drawing was flagged at upload ({'; '.join(flags)}), and its reader found no "
+        f"{things} on it, so 0 would be a guess, not a count."
+    )
 
 
 def suggestions(
@@ -227,6 +282,7 @@ def plural(kind: str) -> str:
     """The English plural of a kind of element or room ("balcony" → "balconies")."""
     if kind in PLURALS:
         return PLURALS[kind]
+    kind = words(kind)
     if kind.endswith("y") and kind[-2:-1] not in ("a", "e", "i", "o", "u"):
         return f"{kind[:-1]}ies"
     if kind.endswith(("s", "x", "z", "ch", "sh")):
@@ -266,6 +322,24 @@ def _phrasings(key: str) -> Iterable[str]:
         yield "What is the total area of all rooms?"
 
 
+def _unknown_subject(reason: str) -> str | None:
+    """The words for a question of a kind the takeoff answers (a count, area, length or volume)
+    whose room or element wasn't recognised, or that has no such quantity (R3-qa-1-1): saying the
+    kind is unsupported would be false."""
+    if reason == NO_SUBJECT:
+        return (
+            "I can see what this asks to measure, but not which room or element it is about. "
+            "Name a room type (kitchen, sauna...), a room label printed on the drawing, a room "
+            "number, or an element (doors, windows...). Try one of these instead."
+        )
+    if found := NO_QUANTITY.fullmatch(reason):
+        measure, subject = found.groups()
+        kind = subject.split(":", 1)[-1]
+        things = plural(kind) if not kind.endswith("s") else words(kind)
+        return f"The takeoff has no {measure} for {things}. Try one of these instead."
+    return None
+
+
 def _refusal(
     method: str,
     parsed: Query | TableQuery | Unsupported,
@@ -281,6 +355,8 @@ def _refusal(
             return "not-in-drawing", "No schedule on this sheet answers this question."
         if isinstance(parsed, Unsupported) and parsed.reason in PARTS:
             return "unsupported-question", PARTS[parsed.reason]
+        if isinstance(parsed, Unsupported) and (words := _unknown_subject(parsed.reason)):
+            return "unsupported-question", words
         return "unsupported-question", TEXTS["unsupported-question"]
     if drawing.read == () and not drawing.model_objects:
         return "no-reader", TEXTS["no-reader"]
@@ -296,6 +372,6 @@ def _refusal(
         return (
             "not-read",
             f"The reader of this drawing doesn't look for {', '.join(missing)}, so it has no "
-            f"{label(query)}.",
+            f"{label(query, drawing)}.",
         )
-    return "not-in-drawing", f"This drawing doesn't give the {label(query)}."
+    return "not-in-drawing", f"This drawing doesn't give the {label(query, drawing)}."

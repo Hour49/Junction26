@@ -1,4 +1,4 @@
-import { formatTime, formatValue, type Row } from '../api';
+import { formatTime, formatValue, methodName, type Row } from '../api';
 import { statusWord } from './format';
 
 /** The row's review state in words: status, the second method or the conflict, estimate, edits. */
@@ -16,7 +16,7 @@ export function ChecksPanel({ row }: { row: Row }) {
           <ul className="en-conflict">
             {conflict.values.map((v, i) => (
               <li key={i}>
-                {formatValue(v.value, v.unit ?? row.unit)} by {v.method}
+                {formatValue(v.value, v.unit ?? row.unit)} by {methodName(v.method)}
               </li>
             ))}
           </ul>
@@ -35,10 +35,10 @@ export function ChecksPanel({ row }: { row: Row }) {
         </>
       ) : first && second ? (
         <p>
-          Second method ({second.method}): {value(second.value)}, agrees
+          Second method ({methodName(second.method)}): {value(second.value)}, agrees
         </p>
       ) : (
-        <p>Measured by one method; no second check.</p>
+        <p>{row.estimate ? 'Estimated' : 'Measured'} by one method; no second check.</p>
       )}
       {row.estimate && <p className="en-warn">Estimate: {row.estimate}</p>}
       {settled && (

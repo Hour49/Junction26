@@ -13,6 +13,7 @@ import {
 import type { AnswerView, MarkView, QuantityConflict, Row } from '../api/types';
 
 type LegendEntry = AnswerView['proof']['legend'][number];
+import { methodName } from '../api/format';
 import { PageViewer } from './PageViewer';
 
 const badges = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('.vw-badge')];
@@ -300,8 +301,15 @@ describe('PageViewer: conflict readings', () => {
     expect(parseFloat(tags[1]?.style.left ?? '')).toBeCloseTo(bx0 * 100, 1);
     expect(parseFloat(tags[1]?.style.top ?? '')).toBeCloseTo(by0 * 100, 1);
     const legend = container.querySelector('.vw-legend')?.textContent ?? '';
-    expect(legend).toContain('A: polygon_x_scale read 22.40 m²');
-    expect(legend).toContain('B: printed_label read 30.00 m²');
+    expect(legend).toContain(`A: ${methodName('polygon_x_scale')} read 22.40 m²`);
+    expect(legend).toContain(`B: ${methodName('printed_label')} read 30.00 m²`);
+  });
+
+  it('R3 VW-19 conflict readings name the method in words, never the API id', () => {
+    const { container } = viewer(answerArea, { marks: conflictRow.marks, conflict, unit: 'm2' });
+    const legend = container.querySelector('.vw-legend')?.textContent ?? '';
+    expect(legend).not.toMatch(/polygon_x_scale|printed_label/);
+    expect(methodName('polygon_x_scale')).not.toBe('polygon_x_scale');
   });
 
   it('VW-20 a reading with no box draws no tag but stays in the legend', () => {
@@ -312,7 +320,7 @@ describe('PageViewer: conflict readings', () => {
     const { container } = viewer(answerArea, { marks: [], conflict: noBox, unit: 'm2' });
     expect([...container.querySelectorAll('.vw-tag')].map((t) => t.textContent)).toEqual(['A']);
     expect(container.querySelector('.vw-legend')?.textContent).toContain(
-      'B: printed_label read 30.00 m²',
+      `B: ${methodName('printed_label')} read 30.00 m²`,
     );
   });
 });

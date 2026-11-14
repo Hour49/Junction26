@@ -104,6 +104,11 @@ SUBJECTS: Sequence[tuple[str, str]] = (
         r"|\bséjours?\b",
     ),
     (
+        "room:hall",
+        r"\bhall(?:way)?s?\b|\bcorridors?\b|\bentrance halls?\b|\beteis\w*|\beteinen\b",
+    ),
+    ("room:outdoor", r"\bterraces?\b|\bpatios?\b|\bterassi\w*"),
+    (
         "room:storage",
         r"\bstorage(?: rooms?)?\b|\bstore ?rooms?\b|\bvarasto\w*|\babstellr(?:aum|äume)\w*",
     ),
@@ -259,6 +264,8 @@ PARENTHESES = re.compile(r"\([^()]*\)")
 CLAUSES = re.compile(r"[,;:.?!¿¡]")
 WORD = re.compile(r"[^\W\d_]+")
 
+# Element words that name a room when an area or length is asked ("the area of the toilet").
+ROOM_NAMED = {"sauna": "room:sauna", "toilet": "room:wc"}
 AREA_SUBJECTS = frozenset({"room", "apartment", "wall"})
 ELEMENT_SUBJECTS = frozenset({"wall", "slab", "column", "beam", "stair", "door", "window"})
 # The element classes a sum of lengths, areas or volumes is taken off for (rules.MEASURED).
@@ -323,6 +330,9 @@ class TemplateParser:
         if hits and not _counted_thing_named(body, hits):
             return Unsupported(reason="the thing counted is not an element, room or apartment")
         subjects = list(dict.fromkeys(subject for _, subject in hits)) or ["room"]
+        if measure in ("area", "length") and subjects[0] in ROOM_NAMED:
+            # the area of the sauna (or "the sauna room", "the toilet") is that room's
+            subjects = [ROOM_NAMED[subjects[0]], *(s for s in subjects[1:] if s != "room")]
         label = next((q.text for q in quoted if q.role == "label"), None)
         name = next((q.text for q in quoted if q.role == "name"), None)
         storey = next((q.text for q in quoted if q.role == "storey"), None)

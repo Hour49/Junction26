@@ -17,10 +17,11 @@ and a conflict no rule decides is settled by a person before it can be signed of
 
 from collections.abc import Mapping, Sequence
 
-from app.core.drawing.model import Box, Drawing, Polygon
+from app.core.drawing.model import Box, Drawing, Polygon, words
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
 from app.core.pipeline.model import Measure, Quantity
-from app.core.pipeline.takeoff import quantity_key
+from app.core.pipeline.rules import ROOM_NAMES, ROOM_NUMBERS
+from app.core.pipeline.takeoff import normalised, quantity_key
 from app.core.review.model import (
     Added,
     Edit,
@@ -73,15 +74,32 @@ def parse_key(key: str) -> tuple[Measure, str, Scope]:
     return measure, subject, scope
 
 
-def label(key: str) -> str:
-    """A readable name for a takeoff key: `area:room|indoor` is "area of room (indoor)"."""
+def label(key: str, drawing: Drawing | None = None) -> str:
+    """A readable name for a takeoff key: `area:room|indoor` is "area of room (indoor)". With
+    the drawing, a room's name or label is shown as printed ("MH1"), not as the key keeps it."""
     _, *filters = key.split("|")
     measure, subject, _ = parse_key(key)
-    name = subject.replace(":", " ")
+    name = " ".join(words(part) for part in subject.split(":"))
     text = f"{name} count" if measure == "count" else f"{measure} of {name}"
+    printed = {} if drawing is None else _printed_names(drawing)
     if filters:
-        text += " (" + ", ".join(part.replace("=", " ") for part in filters) + ")"
+        shown: list[str] = []
+        for part in filters:
+            kind, equals, value = part.partition("=")
+            shown.append(f"{kind} {printed.get(value, value)}" if equals else kind)
+        text += " (" + ", ".join(shown) + ")"
     return text
+
+
+def _printed_names(drawing: Drawing) -> dict[str, str]:
+    """Each room name as a takeoff key keeps it (normalised), and as the drawing prints it."""
+    found: dict[str, str] = {}
+    for room in drawing.rooms:
+        texts = [room.label, *(room.attrs.get(key) for key in (*ROOM_NUMBERS, *ROOM_NAMES))]
+        for text in texts:
+            if isinstance(text, str) and text:
+                found.setdefault(normalised(text), text)
+    return found
 
 
 def mark_views(quantity: Quantity, drawing: Drawing, state: ReviewState) -> tuple[MarkView, ...]:
@@ -198,7 +216,7 @@ def row(quantity: Quantity, drawing: Drawing, state: ReviewState, rules: Mapping
         first, second = (MethodValue(method=v.method, value=v.value) for v in measured.values[:2])
     return Row(
         key=quantity.key,
-        label=label(quantity.key),
+        label=label(quantity.key, drawing),
         measure=measure,
         subject=subject,
         scope=scope,
@@ -398,7 +416,12 @@ def unsign(state: ReviewState, key: str) -> ReviewState:
 def _items(drawing: Drawing) -> dict[tuple[int, Box], Item]:
     found: dict[tuple[int, Box], Item] = {}
     for element in drawing.elements:
-        found[element.page, element.box] = (element.id, element.class_, element.polygon, None)
+        found[element.page, element.box] = (
+            element.id,
+            words(element.class_),
+            element.polygon,
+            None,
+        )
     for room in drawing.rooms:
         name = room.label if room.label else room.type
         found[room.page, room.box] = (room.id, name, room.polygon, room.area_m2)

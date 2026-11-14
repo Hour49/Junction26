@@ -14,6 +14,7 @@ from test_schedule_check import itself, joined
 from test_window_check import ELEVATION, PLAN, SCHEDULE
 
 from app import composition
+from app.adapters.archive.store import DiskProjectStore
 from app.adapters.decisions.g1main import FAMILIES
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer
 from app.adapters.raster import CompositeRasterExtractor, assemble, parse_components
@@ -23,6 +24,7 @@ from app.composition import build_pipeline
 from app.core.answering.model import Answer, Question
 from app.core.drawing.model import Box, Drawing, Element, Page, Plan, ReadClass, Room, Scale
 from app.core.errors import InvalidInputError
+from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
 from app.core.pipeline.takeoff import known_quantities
@@ -486,10 +488,11 @@ def test_the_region_source_is_built_from_the_detector_arm_and_region_model_dir(
     monkeypatch.setenv("RASTER_COMPONENTS", "elements=region:arm-x,plans=region:arm-x")
     monkeypatch.setenv("REGION_MODEL_DIR", str(tmp_path / "unet"))
     build_pipeline(Settings(), tmp_path)
-    assert FakeRegion.built == [(composition.DETECTOR_DIR / "arm-x", tmp_path / "unet")]  # once
+    arm = (composition.DETECTOR_DIR / "arm-x").resolve()  # inside() resolves (data/ may be a link)
+    assert FakeRegion.built == [(arm, tmp_path / "unet")]  # once
     monkeypatch.setenv("REGION_MODEL_DIR", "")  # no region filter
     build_pipeline(Settings(), tmp_path)
-    assert FakeRegion.built[-1] == (composition.DETECTOR_DIR / "arm-x", None)
+    assert FakeRegion.built[-1] == (arm, None)
     monkeypatch.setenv("RASTER_COMPONENTS", "elements=region:../x,plans=one-plan")
     with pytest.raises(InvalidInputError, match="not a path inside"):
         build_pipeline(Settings(), tmp_path)
@@ -596,3 +599,109 @@ def test_every_source_that_calls_a_keyed_service_counts_as_using_keys(
     monkeypatch.setenv("EXTRACTOR_RASTER", "composite")
     monkeypatch.setenv("RASTER_COMPONENTS", spec)
     assert composition.uses_keys(Settings()) is keyed
+
+
+def photo_setup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_png: Callable[[int, int], bytes]
+) -> Path:
+    """A dataset with one PNG; the shipped reader finds a door (verda), the photo reader only
+    the whole page as a plan."""
+    dataset = tmp_path / "dataset"
+    (dataset / "data" / "cubicasa5k").mkdir(parents=True)
+    (dataset / PNG).write_bytes(make_png(40, 30))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(composition, "HttpReaderClient", FakeVerda)
+    monkeypatch.setenv("EXTRACTOR_RASTER", "composite")
+    monkeypatch.setenv("RASTER_COMPONENTS", "elements=verda,plans=verda")
+    monkeypatch.setenv("VERDA_READER_URL", "https://reader.example")
+    monkeypatch.setenv("RASTER_PHOTO_COMPONENTS", "plans=one-plan")
+    return dataset
+
+
+def read_as(dataset: Path, out: Path, kinds: Callable[[str], str | None] | None) -> dict[str, Any]:
+    pipeline = build_pipeline(Settings(), dataset, kinds)
+    return dict(pipeline.ingest([PNG], ExtractionV1Writer(out, {PNG: "dev"})).sheets[0].takeoff)
+
+
+@pytest.mark.parametrize("kind", ["png_plan", "jpeg_plan", "pdf_scan", None])
+def test_every_raster_but_a_photo_keeps_the_shipped_reader(
+    kind: str | None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    make_png: Callable[[int, int], bytes],
+) -> None:
+    dataset = photo_setup(tmp_path, monkeypatch, make_png)
+    assert read_as(dataset, tmp_path / "out", lambda path: kind)["door"] == 1
+
+
+def test_a_photo_of_a_plan_gets_the_photo_reader(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_png: Callable[[int, int], bytes]
+) -> None:
+    dataset = photo_setup(tmp_path, monkeypatch, make_png)
+    found = read_as(dataset, tmp_path / "out", {PNG: "photo_plan"}.get)
+    assert "door" not in found  # the photo reader (one-plan) looked for no element
+
+
+def test_without_given_kinds_the_content_probe_decides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_png: Callable[[int, int], bytes]
+) -> None:
+    dataset = photo_setup(tmp_path, monkeypatch, make_png)
+    assert read_as(dataset, tmp_path / "out", None)["door"] == 1  # a plain PNG is no photo
+
+
+def test_with_the_setting_off_the_kind_is_never_asked_and_photos_read_as_before(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_png: Callable[[int, int], bytes]
+) -> None:
+    dataset = photo_setup(tmp_path, monkeypatch, make_png)
+    monkeypatch.setenv("RASTER_PHOTO_COMPONENTS", "")
+    asked: list[str] = []
+
+    def photo(path: str) -> str:
+        asked.append(path)
+        return "photo_plan"
+
+    read_as(dataset, tmp_path / "photo", photo)
+    read_as(dataset, tmp_path / "png", lambda path: "png_plan")
+    assert asked == []
+    name = "colorful-1.png.json"
+    written = [(tmp_path / run / "cubicasa5k" / name).read_bytes() for run in ("photo", "png")]
+    assert written[0] == written[1]
+
+
+def test_ingest_gives_the_raster_route_the_kind_it_recorded(tmp_path: Path) -> None:
+    store = DiskProjectStore(tmp_path)
+    files = (
+        FileStatus(id="f1", path="plan.jpg", size=1, kind="photo_plan"),
+        FileStatus(id="f2", path="scan.png", size=1, kind="png_plan"),
+    )
+    created = "2026-11-14T07:00:00+00:00"
+    status = ProjectStatus(id="p1", name="u.zip", state="running", created_at=created, files=files)
+    store.save_project(status, {})
+    kind_of = composition._stored_kinds(store, "p1")  # pyright: ignore[reportPrivateUsage]
+    assert [kind_of(path) for path in ("plan.jpg", "scan.png", "other.png")] == [
+        "photo_plan",
+        "png_plan",
+        None,
+    ]
+
+
+def test_the_photo_source_reads_the_photo_models_folder_and_needs_a_composite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_png: Callable[[int, int], bytes]
+) -> None:
+    dataset = photo_setup(tmp_path, monkeypatch, make_png)
+    built: list[Path] = []
+
+    def from_folder(files: object, folder: Path, thresholds: Path | None = None) -> Extractor:
+        built.append(folder)
+        return WholePagePlan()
+
+    monkeypatch.setattr(composition.OnnxDetector, "from_folder", from_folder)
+    monkeypatch.setenv("RASTER_PHOTO_COMPONENTS", "elements=photo:PSy,plans=one-plan")
+    build_pipeline(Settings(), dataset)
+    assert built == [(composition.PHOTO_DIR / "PSy").resolve()]
+    monkeypatch.setenv("RASTER_PHOTO_COMPONENTS", "elements=photo:../detector/x,plans=one-plan")
+    with pytest.raises(InvalidInputError, match="not a path inside"):
+        build_pipeline(Settings(), dataset)
+    monkeypatch.setenv("EXTRACTOR_RASTER", "hello")
+    with pytest.raises(InvalidInputError, match="needs EXTRACTOR_RASTER=composite"):
+        build_pipeline(Settings(), dataset)

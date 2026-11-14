@@ -188,7 +188,7 @@ def test_a_row_carries_its_parsed_scope(client: TestClient, drawing_id: str) -> 
     takeoff = client.get(f"/api/drawings/{drawing_id}/takeoff").json()
     found = row(takeoff, "area:room|name=küche")
     assert (found["measure"], found["subject"], found["label"]) == (
-        "area", "room", "area of room (name küche)",
+        "area", "room", "area of room (name Küche)",
     )  # fmt: skip
     assert found["scope"]["name"] == "küche"
 
@@ -388,7 +388,7 @@ def test_a_settled_room_area_shows_the_settled_value_on_its_mark_and_in_its_sum(
     before = ask(client, drawing_id, "What is the net floor area of room 1.01?")
     assert before["quantity"]["key"] == key
     assert [mark["value"] for mark in before["marks"]] == [30.0]
-    assert before["proof"]["arithmetic"] == "30 = 30 m²"
+    assert before["proof"]["arithmetic"] is None  # one part: no "30 = 30 m²" (R3 qa-2)
     outline = before["quantity"]["first"]
     assert outline["method"] == "polygon_x_scale"
 
@@ -396,7 +396,7 @@ def test_a_settled_room_area_shows_the_settled_value_on_its_mark_and_in_its_sum(
     after = ask(client, drawing_id, "What is the net floor area of room 1.01?")
     assert after["answer"] == pytest.approx(22.40, abs=0.01)
     assert [mark["value"] for mark in after["marks"]] == [outline["value"]]
-    assert after["proof"]["arithmetic"] == "22.4 = 22.4 m²; settled by a person, was 30 m²"
+    assert after["proof"]["arithmetic"] == "settled by a person, was 30 m²"
 
 
 class PaidRated(Rated):

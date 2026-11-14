@@ -224,7 +224,7 @@ numbers.
 extraction, every real adapter of the commit turned on. Each point runs from a clean export of a merge commit, not
 the shared tree, by `eval/pipeline-run.sh <commit> [NAME=VALUE ...]` and scored by the same eval on the frozen
 set, so the numbers compare. Its records say `dirty: false` with that commit, the settings it ran with, and the
-scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02):
+scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02; 2e1c0b0 recorded 07:14):
 
 | commit | code time | settings that change | P1 element F1 cubi | P1 element F1 ifc | P1 element F1 open | P1 element F1 swiss | P2 accuracy | P2 dev | P2 holdout | abstained |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -233,6 +233,7 @@ scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfil
 | 6e9a2df | 2026-11-14 00:39 | answer_prior=dev extractor_bim=hello extractor_raster=hello extractor_vector=pdf question_parser=templates second_counter=pdf | 0.0% | 80.4% | 0.0% | 100.0% | 2109/2948 (71.5%) | 71.1% † | 73.2% | 50.8% |
 | bdfae08 | 2026-11-14 01:43 | answer_prior=dev extractor_bim=ifc extractor_raster=hello extractor_vector=pdf question_parser=templates second_counter=ifc | 0.0% | 100.0% | 0.0% | 100.0% | 2201/2948 (74.7%) | 73.4% † | 80.0% | 47.7% |
 | 5331dab | 2026-11-14 04:56 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=False decisions_kind=False decisions_timeout_s=30.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:c0dec542627d rectifier=none region_model_dir=sha256:4b197e641e7f sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2701/2948 (91.6%) | 91.3% † | 92.9% | 1.0% |
+| 2e1c0b0 | 2026-11-14 06:58 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_timeout_s=30.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:c0dec542627d raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2701/2948 (91.6%) | 91.3% † | 92.9% | 1.0% |
 
 Code time is the commit time (Europe/Helsinki); `*` marks a run recorded with uncommitted changes, timed when recorded. Abstained: share of golden answers marked `abstain` (n/a: no answer_v1.1 fields).
 
@@ -251,6 +252,22 @@ came from the precomputed `exp:ocr/G4-regpred-golden` (cached Gemini replies), n
 note says so. CubiCasa count 1124 of 1342 (bdfae08: 656). The record is public, so since 5331dab
 `pipeline-record.sh` keeps a setting whose value the record's rule refuses (a path, a long `raster_components`)
 as `name=sha256:<12 hex>`, and puts the given NAME=VALUE pairs verbatim in the run's note.
+
+2e1c0b0 (golden, 2026-11-14 07:14) is the demo config after QA F1/F2 (#70-#91), from `tools/qa-env.sh config`:
+the same detector and S1536 swap, `RECTIFIER=r3`, `DECISIONS_CONFIDENCE=true`, `DECISIONS_KIND=true`,
+`RASTER_SCALE=priors`, with no API key (cached replies only, no spend). Rooms came from
+`exp:ocr/G4-regpred-golden` as at 5331dab, because the demo's `rooms=regionrooms` reads Gemini at runtime and
+the gemini-rooms cache holds only 9 of the 79 CubiCasa golden pages: run that way, the other 70 read no rooms
+(HTTP 400 on the placeholder key) and the headline falls to 2605/2948 on room questions alone, a run condition,
+not a code change. Against 5331dab, by cause:
+
+- Headline 2701/2948, unchanged: no headline answer changed its value; Part 1 unchanged.
+- `DECISIONS_CONFIDENCE=true` (config): 1342 raster answers now carry the raw g1main score in `confidence` (not
+  scored; the API shows it as an uncalibrated signal).
+- `RASTER_SCALE=priors` (#81, #82): 7 CubiCasa area extras are answered on an estimated scale (labelled
+  `estimate`, ±8-16% stated) instead of refused: estimate extras 0/13 to 5/13 right, labelled 0/13 to 7/13.
+- Typo parsing (#80, #83): 2 typo paraphrase extras gain a "read X as Y" note; same value, same pass/fail.
+- Conflict wording (#78): 6 IFC conflict extras' rule text drops the dataset's name; same value, still pass.
 
 ## Experiments (CubiCasa raster, 2026-11-14)
 

@@ -106,6 +106,7 @@ def asked_on(
 ) -> Asked:
     """The question on the drawing, with the surveyor's edits of it in `project_id` applied (a
     checked id: deps.project_of)."""
+    info = ingest.drawing_info(drawing_id)
     return ask(
         question,
         drawing,
@@ -115,6 +116,8 @@ def asked_on(
         state=reviews.get(project_id, drawing_id),
         prior_families=answering.prior_families,
         confidence=confidence_of(drawing, drawing_id, ingest, answering),
+        flags=info.flags,
+        raster=info.route == "raster",
     )
 
 

@@ -84,7 +84,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `quantity.key` | "Query: `<key>`" in the details |
 | `quantity.status` | the status in words (table in States); never colour alone |
 | `quantity.rule.text`, `quantity.rule.id` | "Counting rule: <text>", the id in small text |
-| `quantity.first`, `quantity.second`, `quantity.conflict`, `quantity.needs_person`, `quantity.settled`, `quantity.estimate`, `quantity.original_value`, `quantity.signed` | the checks panel (States) |
+| `quantity.first`, `quantity.second`, `quantity.conflict`, `quantity.needs_person`, `quantity.settled`, `quantity.estimate`, `quantity.original_value`, `quantity.signed` | the checks panel; measuring methods (`second.method`, `conflict.values[].method`: API ids such as `polygon_x_scale`) shown by the shared `methodName()`, never raw; the Details "Method: <method>" line (the answer's `takeoff`/`schedule`/`refused:…`) stays as sent (States) |
 | `quantity.measure` | the viewer's `measure` prop (badges carry values unless `count`) |
 | `quantity.conflict` | the viewer's `conflict` prop (tags A, B on the page, viewer.md) and the checks panel |
 | `quantity` null with `refusal` null | a schedule answer: no rule or checks panel; the proof's schedule table shows instead |
@@ -96,7 +96,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `proof.objects[]` | `ModelProof` table: `name`, `class`, `storey`, `global_id` |
 | `proof.storeys[]` | `ModelProof` table: one row per storey, one column per class in `counts` |
 | `proof.schedule` | table `title`, `columns` as header, `rows[].cells` (null cell = empty), "<rows> of <of> rows" |
-| `refusal.text`, `refusal.code`, `refusal.can_answer[]` | the refusal turn (States) |
+| `refusal.text`, `refusal.can_answer[]` | the refusal turn (States). `refusal.code` is not shown: the text explains the refusal (error views keep their codes) |
 | `method`, `explanation` | the details (collapsed by default): "Method: <method>", "How: <explanation>" when not null. A misspelt question's `explanation` starts with how it was read (backend #80): "read 'mnay' as 'many'" (several joined by ", "), then "; " and the answer's own explanation when it has one. The How line shows it in full, as text, and wraps at 390 px (long words break: `overflow-wrap: anywhere` from the page). The note is also on the card itself (R2-2-1: the typo reader can rewrite a real word into another question): when `explanation` starts with `read '`, its text up to the first `; ` (or all of it) shows right under the question bubble, first letter capitalised, quotes kept ("Read 'mnay' as 'many'"), on answers and on refusals |
 | `reader` | "Where this came from": `<extractor>` read `<source>` (`<route>` route), second count by `<second_counter>`, the reader ids through `readerName()` ("PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model"); with `second_counter` `none`: "…(vector route), no second count" |
 | `cost_usd`, `latency_s` | the card footer: "Cost $0" / "Time 0.2 ms" (format below) |
@@ -149,18 +149,18 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | No suggestions | `drawing.json` with `suggestions: []` | instead of the buttons: "No ready questions for this drawing."; with extractor `hello` also "Its route has no reader yet, so questions will be refused." Ask box stays usable. |
 | Asking | a mocked `POST /api/ask` that never resolves | the question bubble, "Reading <file>…" with a spinner, Ask disabled, input kept for the next question |
 | Ask error | mocked `POST /api/ask` with 404 `error.json`, 422 `validation` or 500 `internal` | in that turn: "The question could not be answered: <detail>" and the `code` in small text, a "Try again" button that sends the same question; Ask re-enabled |
-| Refused | `answer_refused.json` | bold "I can't answer that from this drawing.", `refusal.text`, the code in small text, one button per `can_answer[].question`; no number, no viewer marks, no "Send to surveyor", no picture link |
+| Refused | `answer_refused.json` | bold "I can't answer that from this drawing.", `refusal.text` (no code line), one button per `can_answer[].question`; no number, no viewer marks, no "Send to surveyor", no picture link |
 | Answer, count | `answer.json` | value `2`, title "door count", viewer with marks 1 and 2, mark list "1 door", "2 door", rule "every element, room and plan the drawing lists counts once", status "One method" |
 | Answer, sum | `answer_area.json` | value `52.27 m²`, rooms shaded, mark list with "Küche 22.40 m²"…, the arithmetic line with what was left out, the viewer's colour key |
 | Answer with a model score | `answer_confidence.json` (`confidence: {"signal": "g1main", "score": 0.87, "calibrated": false}`) | as count plus "Second reader's score 0.87 (not a probability)"; Details has "Signal: g1main"; no "Picture of this answer" link |
 | Answer, building model | `answer_model.json` | value `2`, no viewer; `ModelProof` with "Door 1", "Door 2", their storey and GlobalId, the storey table, the arithmetic line |
 | Answer, schedule | see Open points (no fixture yet) | the string answer, the schedule table, no rule or checks panel |
 | Verified | derived: `answer.json` with `quantity.status: "signed"`, `quantity.signed: {"by": "Ana", "at": "2026-11-14T01:40:00Z", "value": 2}` | status "Verified", "Verified by Ana, 2026-11-14 01:40 UTC" next to the value |
-| Methods disagree, rule decides | derived: `answer.json` with `quantity` = `takeoff.json` `quantities[0]`, `answer` 30.0, `unit` "m2" | status "Methods disagree"; both values "22.40 m² by polygon_x_scale", "30.00 m² by printed_label"; "Kept 30.00 m²: the printed label over the outline at the sheet's scale" |
+| Methods disagree, rule decides | derived: `answer.json` with `quantity` = `takeoff.json` `quantities[0]`, `answer` 30.0, `unit` "m2" | status "Methods disagree"; both values "22.40 m² by <methodName(polygon_x_scale)>", "30.00 m² by <methodName(printed_label)>"; "Kept 30.00 m²: the printed label over the outline at the sheet's scale" |
 | Methods disagree, nobody decided | the above with `conflict.resolution: null`, `needs_person: true` | as above, and instead of "Kept": "No rule decides. A surveyor has to settle it before this value can be used." |
-| Methods agree | derived: `answer.json` with `status: "agree"`, `first: {"method": "plan_drawing", "value": 2}`, `second: {"method": "ifc_model", "value": 2}` | status "Two methods agree"; "Second method (ifc_model): 2, agrees" |
+| Methods agree | derived: `answer.json` with `status: "agree"`, `first: {"method": "plan_drawing", "value": 2}`, `second: {"method": "ifc_model", "value": 2}` | status "Two methods agree"; "Second method (<methodName(ifc_model)>): 2, agrees" |
 | One method | `answer.json` (`first`/`second` null) | "Measured by one method; no second check." |
-| Estimate | derived: `answer.json` with `status: "estimate"`, `estimate: "scale estimated from a door width"` | status "Estimate"; "Estimate: scale estimated from a door width" |
+| Estimate | derived: `answer.json` with `status: "estimate"`, `estimate: "scale estimated from a door width"` | status "Estimate"; "Estimate: scale estimated from a door width"; with `first`/`second` null "Estimated by one method; no second check." |
 | Edited in review | derived: `answer.json` with `status: "edited"`, `value`/`answer` 1, `original_value` 2, mark m2 `state: "rejected"`, `n: null` | status "Changed in review"; "Changed in review, was 2"; mark list row "× door rejected by a surveyor" |
 | Settled | derived: conflict case with `settled: {"value": 22.401, "at": "2026-11-14T01:30:00Z"}` | "Settled by a surveyor at 2026-11-14 01:30 UTC: 22.40 m²" |
 | Excluded item | derived: `answer_area.json` with one more mark `{"id": "x1", "n": null, "state": "excluded", "reason": "outdoor room", "label": "Balkon", …}` (box/polygon copied from m2) | mark list row "– Balkon left out by the rule: outdoor room" |
@@ -227,7 +227,7 @@ Answers
 - EN-24 The footer shows "Cost $0" and "Time 2.0 ms" for `answer.json`. [component]
 - EN-25 `engineer/format.ts` gives: cost 0 → "$0", 0.0004 → "$0.0004", 0.123 → "$0.12"; latency 0.0001622 → "0.2 ms", 0.002 → "2.0 ms", 1.25 → "1.25 s"; score 0.87 → "0.87". Values and times on screen come from the shared `formatValue`/`formatTime` (their criteria are in shared.md). [unit]
 - EN-26 "Where this came from" shows "PDF vector reader read plans/flat-a.pdf (vector route), no second count" for `answer.json` (`second_counter: "none"`), and "PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model" with `second_counter: "ifc"`. [component, `answer.json`, derived `answer.json`]
-- EN-27 "Details" is collapsed by default, its summary in the footer row with Drawing, Cost and Time (the row aligns items on the baseline); opened it shows "Query: door" and "Method: takeoff"; with `explanation` null no "How:" line. [component, `answer.json`]
+- EN-27 "Details" is collapsed by default, its summary in the footer row with Drawing, Cost and Time (the row aligns items on the baseline); opened it shows "Query: door count" (the quantity's printed `label`, e.g. "Query: area of room (indoor)", never the internal key like `area:room|indoor`; the key only when the label is empty) and "Method: takeoff"; with `explanation` null no "How:" line. [component, `answer.json`, `answer_area.json`]
 - EN-28 A building-model answer shows no viewer; it shows a table with "Door 1", "Ground floor", "000000000000000000000K", a storey table row "Ground floor" with door 2, window 3, and the line "2 door objects in the model on Ground floor". Each table sits in a wrapper that scrolls sideways (`overflow-x: auto`), and its cells do not break inside words (`overflow-wrap: normal`, `word-break: normal`). [component, `answer_model.json`]
 - EN-29 "Picture of this answer" links to `/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600&project=5e0c1a2b3d4f` (the route's project) and opens a new tab when `confidence` is null; with the `confidence` object set there is no "Picture of this answer" link. [component, `answer.json`, `answer_confidence.json` or its derived form]
 - EN-30 "Send to surveyor" links to `#/p/<project_id>/d/adeefbbcc17559fc/surveyor?q=door` (built with the shared `routeHref`; derived conflict: `?q=area%3Aroom%7Cname%3D1.01`), surveyor.md Open point 4. Absent when `quantity` is null. [component, `answer.json`, derived conflict]
@@ -235,15 +235,15 @@ Answers
 Checks and review state
 - EN-31 Each status shows its word: signed "Verified", conflict "Methods disagree", estimate "Estimate", edited "Changed in review", agree "Two methods agree", single "One method". [component, `answer.json` and its derived variants]
 - EN-32 A signed answer shows "Verified by Ana, 2026-11-14 01:40 UTC" next to the value. [component, derived signed `answer.json`]
-- EN-33 A conflict shows both values with their methods, "22.40 m² by polygon_x_scale" and "30.00 m² by printed_label", and "Kept 30.00 m²: the printed label over the outline at the sheet's scale". [component, derived conflict]
+- EN-33 A conflict shows both values with their methods' plain names from the shared `methodName()`, "22.40 m² by <methodName("polygon_x_scale")>" and "30.00 m² by <methodName("printed_label")>", never the raw ids, and "Kept 30.00 m²: the printed label over the outline at the sheet's scale". [component, derived conflict]
 - EN-34 With `conflict.resolution` null and `needs_person` true it shows "No rule decides. A surveyor has to settle it before this value can be used." and no "Kept" line. [component, derived conflict]
-- EN-35 `status: "agree"` shows "Second method (ifc_model): 2, agrees"; `first`/`second` null shows "Measured by one method; no second check.". [component, derived agree, `answer.json`]
-- EN-36 An estimate shows "Estimate: scale estimated from a door width". [component, derived estimate]
+- EN-35 `status: "agree"` shows "Second method (<methodName("ifc_model")>): 2, agrees" (not the raw id); `first`/`second` null shows "Measured by one method; no second check.", or "Estimated by one method; no second check." when `estimate` is set. [component, derived agree, `answer.json`]
+- EN-36 An estimate shows "Estimate: scale estimated from a door width" and, measured once, "Estimated by one method; no second check." (not "Measured by …"). [component, derived estimate]
 - EN-37 An edited answer shows "Changed in review, was 2" and the rejected mark row "× door rejected by a surveyor"; an added mark (derived: `{"id": "a1", "n": 3, "state": "added", "label": null, "ref": null, "polygon": null, …}`) shows "+3 item added by a surveyor". [component, derived edited]
 - EN-38 A settled value shows "Settled by a surveyor at 2026-11-14 01:30 UTC: 22.40 m²". [component, derived settled]
 
 Refusals and errors
-- EN-39 A refusal shows "I can't answer that from this drawing.", the text "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.", the code "unsupported-question", and no number, marks, picture link or takeoff link. [component, `answer_refused.json`]
+- EN-39 A refusal shows "I can't answer that from this drawing.", the text "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.", no "code:" line and not the code "unsupported-question", and no number, marks, picture link or takeoff link. [component, `answer_refused.json`]
 - EN-40 The refusal shows one button per `can_answer` ("How many doors are there?", "How many windows are there?"); clicking one sends `POST /api/ask` with that question. [component, `answer_refused.json`]
 - EN-41 An ask that fails with 422 shows "The question could not be answered:" with the server's `detail` and "validation"; "Try again" sends the same question again; Ask is enabled again. [component, mocked 422]
 - EN-42 Strings from the server render as text: a `quantity.label`, `marks[].label`, `refusal.text` and `question` of `<img src=x onerror=alert(1)>` appear literally and add no element. [component, derived `answer.json`]
@@ -273,7 +273,6 @@ Thread and pages
   the model score as a probability or percent, or a "sure" cutoff (the score is uncalibrated).
 - Editing marks, settling or signing off from this screen: the surveyor view does that.
 - The mock's "Where this came from" list of several files per drawing: API v1 gives one `reader.source`.
-- Readable names for method slugs (`polygon_x_scale`): shown as sent.
 - A model-object 3D view, or fetching `GET /api/drawings/{id}/model`.
 
 ## Open points

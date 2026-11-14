@@ -142,6 +142,13 @@ surveyor.md):
   `templates` "question templates", `hello` "not read", `dev` "best estimate from dev answers", `r3` "photo
   rectifier", `gemini` "Gemini", `off` and `False` "off", `True` "on", `none` "none", null and undefined "no reader" (a sentence like "none read …" would mislead); any other
   id as is (as text). QA R2 qa-3.
+- `methodName(id: string | null | undefined): string`: a measuring-method id (backend `MeasureMethod`, e.g. a
+  conflict's `values[].method`) as a plain label, in the backend's own words (`app/core/review/proof.py`
+  `METHODS`) without the article: `printed_label` "printed room areas", `polygon_x_scale` "room outlines × sheet
+  scale", `plan_drawing` "sheet", `parser` "sheet text", `detector` "detector", `ifc_model` "IFC model",
+  `schedule` "schedule", `printed_total` "printed total", `summed_rooms` "sum of rooms", `scale_text` "printed
+  scale", `scale_bar` "scale bar", `dimension_lines` "dimension lines", `annotation` "annotation", `other` "other
+  method"; null and undefined "no method"; any other id as is (as text). QA R3.
 - `formatTime(iso: string): string`: `YYYY-MM-DD HH:MM UTC`, read in UTC whatever the browser's zone
   (`2026-11-14T08:00:00+00:00` → `2026-11-14 08:00 UTC`). Used for `created_at`, `signed.at`, `settled.at`.
 - Cost, latency, score and status words stay in the screens' own `format.ts` / `words.ts` (engineer, surveyor),
@@ -232,7 +239,8 @@ surveyor" buttons. The header replaces those with one place for the role switch.
   top.
 - `Credit` (props `{credit: string | null}`, from `GET /api/drawings/{id}` `credit`) renders one line of small
   text under every page of the drawing (API.md: "the licence credit to show under every page"): `Credit: <credit>`,
-  as text, when it is a string (a Stoa dataset file or a Commons demo photo, recognised by content); `Credit: none
+  as text, when it is a string, with "Credit:" exactly once (a field that already starts with "Credit:", any case,
+  has that prefix stripped first) (a Stoa dataset file or a Commons demo photo, recognised by content); `Credit: none
   recorded for this file` when it is null (a user's own drawing, the synthetic sample): the line is always there,
   so a missing credit is visible, never silent. The viewer places it
   directly under each page image (viewer spec owns the placement); any screen that shows a drawing's page shows it.
@@ -374,6 +382,14 @@ QA round 2 (qa-3 notes)
 - SH-48 `ErrorView` for a 404 (an `ApiError` with `status` 404, whatever its `code`) shows no Retry even when the
   screen passes `onRetry`, and a "Back to projects" link to `#/`; any other error keeps Retry and has no such link.
   Ingest's project screen answered 404 shows it. [component, R2-qa-3-2]
+
+QA round 3
+
+- SH-49 `methodName` gives each label of "Formatting" for all fourteen `MeasureMethod` ids, "no method" for null
+  and undefined, and an unknown id as is. [unit, R3-method]
+- SH-50 `Credit` with "Credit: Plan © Example, CC BY 4.0" and with "Plan © Example, CC BY 4.0" both read
+  "Credit: Plan © Example, CC BY 4.0" (also for a lower-case "credit:" prefix); null still reads "Credit: none
+  recorded for this file". [component, R3-credit]
 
 ## Out of scope
 
