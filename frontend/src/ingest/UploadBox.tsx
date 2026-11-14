@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS } from '../shell/tips-ingest';
 
 const ACCEPT = '.zip,.pdf,.png,.jpg,.jpeg,.ifc,.dxf,.svg,image/*';
 // What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader.
@@ -170,17 +172,19 @@ export function UploadBox() {
               e.target.value = '';
             }}
           />
-          <Button
-            variant="secondary"
-            size="pill"
-            className="font-medium"
-            disabled={busy !== null || sending !== null}
-            onClick={() => {
-              void start('Starting the sample…', () => startSample({ fresh: true }));
-            }}
-          >
-            Try the sample project
-          </Button>
+          <Tip text={INGEST_TIPS.sample} wrap={busy !== null || sending !== null}>
+            <Button
+              variant="secondary"
+              size="pill"
+              className="font-medium"
+              disabled={busy !== null || sending !== null}
+              onClick={() => {
+                void start('Starting the sample…', () => startSample({ fresh: true }));
+              }}
+            >
+              Try the sample project
+            </Button>
+          </Tip>
         </div>
         <p className="v-caption">The sample starts from scratch each time.</p>
         {busy && (
@@ -226,18 +230,20 @@ export function UploadBox() {
         {note && <p role="alert">{note}</p>}
         {error !== null && <ErrorView error={error} />}
       </div>
-      <ul className="flex flex-wrap justify-center gap-2" aria-label="Formats">
-        {FORMATS.map((f) => (
-          <Badge
-            asChild
-            key={f}
-            variant="secondary"
-            className="px-[11px] py-[5px] text-xs text-text-2"
-          >
-            <li>{f}</li>
-          </Badge>
-        ))}
-      </ul>
+      <Tip text={INGEST_TIPS.formats}>
+        <ul className="flex flex-wrap justify-center gap-2" tabIndex={0} aria-label="Formats">
+          {FORMATS.map((f) => (
+            <Badge
+              asChild
+              key={f}
+              variant="secondary"
+              className="px-[11px] py-[5px] text-xs text-text-2"
+            >
+              <li>{f}</li>
+            </Badge>
+          ))}
+        </ul>
+      </Tip>
     </Card>
   );
 }

@@ -1,4 +1,6 @@
 import type { Proof } from '../api';
+import { Tip } from '@/components/ui/tip';
+import { TIPS } from '../shell/tips';
 
 // Inline so the tests can see them: a wide table scrolls in its wrapper and never breaks inside a word
 // (the page itself wraps long paths with overflow-wrap: anywhere).
@@ -19,9 +21,21 @@ export function ModelProof({ proof }: { proof: Proof }) {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Class</th>
-                <th>Storey</th>
-                <th>GlobalId</th>
+                <th>
+                  <Tip text={TIPS.colClass} wrap>
+                    <span>Class</span>
+                  </Tip>
+                </th>
+                <th>
+                  <Tip text={TIPS.colStorey} wrap>
+                    <span>Storey</span>
+                  </Tip>
+                </th>
+                <th>
+                  <Tip text={TIPS.colGlobalId} wrap>
+                    <span>GlobalId</span>
+                  </Tip>
+                </th>
               </tr>
             </thead>
             <tbody>

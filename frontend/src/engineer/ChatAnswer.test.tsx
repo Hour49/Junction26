@@ -420,7 +420,7 @@ it('CH-48 a printed-table answer (no quantity) still shows its own answer', () =
   expect(row.textContent).toContain(`${LA}: 12`);
 });
 
-it('CH-49 a partial room total: one tag beside that row value with the counts, none on the other rows', () => {
+it('CH-49 a partial room total: one tag beside that row value with the counts, none on the other rows', async () => {
   const partial = {
     ...flatA,
     answer: { ...flatA.answer, partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] },
@@ -435,10 +435,14 @@ it('CH-49 a partial room total: one tag beside that row value with the counts, n
     [
       'May be partial',
       'May be partial: sums 7 rooms; 2 not in it',
-      'May be partial: sums 7 rooms; 2 not in it',
+      null, // the words are the shared Tip's now, not a native title
     ],
   ]);
   expect(rows()[0]?.textContent).not.toContain('Sauna'); // the names are the explanation's to give
+  (rows()[0]?.querySelector('.en-partial')?.closest('[tabindex]') as HTMLElement).focus();
+  expect(
+    (await screen.findAllByText('May be partial: sums 7 rooms; 2 not in it')).length,
+  ).toBeGreaterThan(0);
 });
 
 it('CH-49 nothing when no part is partial', () => {

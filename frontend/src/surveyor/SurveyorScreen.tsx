@@ -1,3 +1,6 @@
+import { LockTip } from '../shell/LockTip';
+import { Tip } from '@/components/ui/tip';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import { useEffect, useRef, useState } from 'react';
 import {
   drawingLabel,
@@ -225,7 +228,11 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
         {rows.length === 0 ? (
           <>
             <header className="sv-panel-head">
-              <h2>Takeoff: {title}</h2>
+              <h2>
+                <Tip text={REVIEW_TIPS.takeoff} wrap>
+                  <span>Takeoff: {title}</span>
+                </Tip>
+              </h2>
             </header>
             <p>Nothing was counted on this drawing.</p>
             {drawing.reader.extractor === 'hello' && (
@@ -239,7 +246,11 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
         ) : (
           <>
             <header className="sv-panel-head">
-              <h2>Takeoff: {title}</h2>
+              <h2>
+                <Tip text={REVIEW_TIPS.takeoff} wrap>
+                  <span>Takeoff: {title}</span>
+                </Tip>
+              </h2>
               <div className="sv-tools">
                 <Button asChild variant="secondary" className={`${HEAD} no-underline`}>
                   <a href={takeoffCsvUrl(drawingId, zq)} download>
@@ -247,17 +258,19 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
                   </a>
                 </Button>
                 {zerosToggle}
-                <Button
-                  variant="secondary"
-                  className={`${HEAD} ${DANGER}`}
-                  disabled={saving}
-                  onClick={() => {
-                    if (window.confirm('Reset every edit and sign-off of this drawing?'))
-                      void send(() => postReview(drawingId, { action: 'reset' }, zq));
-                  }}
-                >
-                  Reset all edits
-                </Button>
+                <LockTip text={REVIEW_TIPS.resetAll} locked={saving}>
+                  <Button
+                    variant="secondary"
+                    className={`${HEAD} ${DANGER}`}
+                    disabled={saving}
+                    onClick={() => {
+                      if (window.confirm('Reset every edit and sign-off of this drawing?'))
+                        void send(() => postReview(drawingId, { action: 'reset' }, zq));
+                    }}
+                  >
+                    Reset all edits
+                  </Button>
+                </LockTip>
               </div>
               <p>
                 {signedCount} of {rows.length} quantities signed off

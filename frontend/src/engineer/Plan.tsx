@@ -1,7 +1,9 @@
 import type { ComponentProps, ReactNode } from 'react';
 import { drawingLabel, type DrawingView, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
+import { Tip } from '@/components/ui/tip';
 import { routeHref } from '../shell/route';
+import { TIPS } from '../shell/tips';
 import { PageViewer } from '../viewer/PageViewer';
 import { kindName } from './format';
 
@@ -72,17 +74,21 @@ export function DrawingNav({ place }: { place: Place | null }) {
   return (
     <nav className="en-drawnav" aria-label="Drawings">
       {place.prev && (
-        <a className="en-nav" href={place.prev} aria-label="Previous drawing">
-          <Chevron d="M15 5l-7 7 7 7" />
-        </a>
+        <Tip text={TIPS.prevDrawing}>
+          <a className="en-nav" href={place.prev} aria-label="Previous drawing">
+            <Chevron d="M15 5l-7 7 7 7" />
+          </a>
+        </Tip>
       )}
       <span className="en-pos" aria-live="polite">
         {place.pos}
       </span>
       {place.next && (
-        <a className="en-nav" href={place.next} aria-label="Next drawing">
-          <Chevron d="M9 5l7 7-7 7" />
-        </a>
+        <Tip text={TIPS.nextDrawing}>
+          <a className="en-nav" href={place.next} aria-label="Next drawing">
+            <Chevron d="M9 5l7 7-7 7" />
+          </a>
+        </Tip>
       )}
     </nav>
   );
@@ -121,14 +127,18 @@ export function Plan(props: {
       <div className="en-planbox">
         <PageViewer {...viewer} meta={place?.meta} />
         {place?.prev && (
-          <a className="en-nav en-nav--prev" href={place.prev} aria-label="Previous drawing">
-            <Chevron d="M15 5l-7 7 7 7" />
-          </a>
+          <Tip text={TIPS.prevDrawing}>
+            <a className="en-nav en-nav--prev" href={place.prev} aria-label="Previous drawing">
+              <Chevron d="M15 5l-7 7 7 7" />
+            </a>
+          </Tip>
         )}
         {place?.next && (
-          <a className="en-nav en-nav--next" href={place.next} aria-label="Next drawing">
-            <Chevron d="M9 5l7 7-7 7" />
-          </a>
+          <Tip text={TIPS.nextDrawing}>
+            <a className="en-nav en-nav--next" href={place.next} aria-label="Next drawing">
+              <Chevron d="M9 5l7 7-7 7" />
+            </a>
+          </Tip>
         )}
         {overlay}
       </div>

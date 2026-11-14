@@ -24,6 +24,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS } from '../shell/tips-ingest';
 
 const CARD = cn(PANEL, 'grid gap-2');
 const H3 = 'mt-3 mb-0 text-base';
@@ -67,7 +69,11 @@ export function TriageCard(props: {
       <Card role="region" aria-label="Is it a floor plan?" className={CARD}>
         <h2 className="v-h3">{classLine(t)}</h2>
         <p className={MUTED}>
-          Chance of a floor plan {planChance(t.p_plan)} ({t.method})
+          <Tip text={INGEST_TIPS.chance} wrap>
+            <span>
+              Chance of a floor plan {planChance(t.p_plan)} ({t.method})
+            </span>
+          </Tip>
         </p>
       </Card>
     );
@@ -107,6 +113,8 @@ export function TriageCard(props: {
   const offerCall = !said && canCall(file);
   const offerRead = canReadAsPlan(file);
   const blocked = sending !== null || name.trim() === '';
+  // the reason a call button is off (ui-tooltips P2); none while a call is on its way
+  const why = sending === null && name.trim() === '' ? INGEST_TIPS.needName : '';
 
   return (
     <Card role="region" aria-label="Is it a floor plan?" className={CARD}>
@@ -121,7 +129,11 @@ export function TriageCard(props: {
         <>
           <h2 className="v-h3">{classLine(t)}</h2>
           <p className={MUTED}>
-            Chance of a floor plan {planChance(t.p_plan)} ({t.method})
+            <Tip text={INGEST_TIPS.chance} wrap>
+              <span>
+                Chance of a floor plan {planChance(t.p_plan)} ({t.method})
+              </span>
+            </Tip>
           </p>
         </>
       )}
@@ -175,7 +187,11 @@ export function TriageCard(props: {
         </div>
       )}
       {t.read_as_plan && <p>{readLine(t.read_as_plan)}</p>}
-      {offerCall && <h3 className={H3}>Your call</h3>}
+      {offerCall && (
+        <Tip text={INGEST_TIPS.yourCall} wrap className="justify-self-start">
+          <h3 className={H3}>Your call</h3>
+        </Tip>
+      )}
       {(offerCall || offerRead) && (
         <div className={ROW}>
           <Label className="grid gap-1 text-sm leading-normal font-normal">
@@ -192,38 +208,44 @@ export function TriageCard(props: {
           </Label>
           {offerCall && (
             <>
-              <Button
-                size="pill"
-                disabled={blocked}
-                onClick={() => {
-                  call('related');
-                }}
-              >
-                It is related
-              </Button>
+              <Tip text={why} wrap={blocked}>
+                <Button
+                  size="pill"
+                  disabled={blocked}
+                  onClick={() => {
+                    call('related');
+                  }}
+                >
+                  It is related
+                </Button>
+              </Tip>
+              <Tip text={why} wrap={blocked}>
+                <Button
+                  variant="secondary"
+                  size="pill"
+                  className="font-medium"
+                  disabled={blocked}
+                  onClick={() => {
+                    call('unrelated');
+                  }}
+                >
+                  It is not related
+                </Button>
+              </Tip>
+            </>
+          )}
+          {offerRead && (
+            <Tip text={why} wrap={blocked}>
               <Button
                 variant="secondary"
                 size="pill"
                 className="font-medium"
                 disabled={blocked}
-                onClick={() => {
-                  call('unrelated');
-                }}
+                onClick={read}
               >
-                It is not related
+                Read it as a floor plan
               </Button>
-            </>
-          )}
-          {offerRead && (
-            <Button
-              variant="secondary"
-              size="pill"
-              className="font-medium"
-              disabled={blocked}
-              onClick={read}
-            >
-              Read it as a floor plan
-            </Button>
+            </Tip>
           )}
           {offerCall && (
             <p className={MUTED}>

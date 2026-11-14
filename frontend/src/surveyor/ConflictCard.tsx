@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import {
   ApiError,
   errorText,
@@ -10,6 +10,8 @@ import {
   type DrawingView,
 } from '../api';
 import { SourceFigure, type Place, type Source } from '../viewer/SourceFigure';
+import { Tip } from '@/components/ui/tip';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -236,26 +238,26 @@ export function ConflictCard({
       <div className="cf-card-top">
         <div className="cf-card-head">
           <p className="cf-kicker">
-            Conflict {index + 1} of {total} · {kicker ?? 'settled by you'}
+            <Tip text={REVIEW_TIPS.conflictKicker} wrap>
+              <span>
+                Conflict {index + 1} of {total} · {kicker ?? 'settled by you'}
+              </span>
+            </Tip>
           </p>
           <h2 id={`${id}-t`} ref={title} tabIndex={focused ? -1 : undefined}>
             {c.title || sentence(c.label)}
           </h2>
           <p className="cf-file">{drawingName}</p>
         </div>
-        <span className="cf-pill-wrap">
+        <Tip text={tip} className="flex-none">
           <Badge
             variant={pillClass}
-            className="cf-pill px-2.5 py-[5px] text-xs font-semibold data-[variant=secondary]:text-text-2"
+            className="cf-pill flex-none px-2.5 py-[5px] text-xs font-semibold data-[variant=secondary]:text-text-2"
             tabIndex={0}
-            aria-describedby={`${id}-tip`}
           >
             {pillWords}
           </Badge>
-          <span role="tooltip" id={`${id}-tip`} className="cf-tip">
-            {tip}
-          </span>
-        </span>
+        </Tip>
       </div>
 
       {drawing === undefined ? (
@@ -285,43 +287,53 @@ export function ConflictCard({
       )}
 
       <div className="cf-tiles">
-        {values.map((v, i) => (
-          <button
-            key={i}
-            type="button"
-            className="cf-tile"
-            aria-label={[
-              `Variant ${String(i + 1)}: ${formatValue(v.value, v.unit ?? null)}`,
-              methodName(v.method),
-              v.page ? `page ${String(v.page)}` : null,
-              i === rule ? "the rule's choice" : null,
-              i === inUse ? 'in use' : null,
-            ]
-              .filter(Boolean)
-              .join(', ')}
-            aria-pressed={i === inUse}
-            disabled={busy || !!signed || mode !== 'choosing'}
-            onClick={() => {
-              pick(i);
-            }}
-          >
-            <span className="cf-tile-kicker">
-              Variant {i + 1}
-              {i === rule ? " · the rule's choice" : ''}
-              {i === inUse && (
-                <svg className="cf-check" viewBox="0 0 20 20" aria-hidden="true">
-                  <circle cx="10" cy="10" r="10" />
-                  <path d="M5.5 10.5l3 3 6-6.5" />
-                </svg>
-              )}
-            </span>
-            <span className="cf-tile-value">{formatValue(v.value, v.unit ?? null)}</span>
-            <span className="cf-tile-source">
-              {methodName(v.method)}
-              {v.page ? `, page ${String(v.page)}` : ''}
-            </span>
-          </button>
-        ))}
+        {values.map((v, i) => {
+          const locked = busy || !!signed || mode !== 'choosing';
+          const tile = (
+            <button
+              type="button"
+              className="cf-tile"
+              aria-label={[
+                `Variant ${String(i + 1)}: ${formatValue(v.value, v.unit ?? null)}`,
+                methodName(v.method),
+                v.page ? `page ${String(v.page)}` : null,
+                i === rule ? "the rule's choice" : null,
+                i === inUse ? 'in use' : null,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              aria-pressed={i === inUse}
+              disabled={locked}
+              onClick={() => {
+                pick(i);
+              }}
+            >
+              <span className="cf-tile-kicker">
+                Variant {i + 1}
+                {i === rule ? " · the rule's choice" : ''}
+                {i === inUse && (
+                  <svg className="cf-check" viewBox="0 0 20 20" aria-hidden="true">
+                    <circle cx="10" cy="10" r="10" />
+                    <path d="M5.5 10.5l3 3 6-6.5" />
+                  </svg>
+                )}
+              </span>
+              <span className="cf-tile-value">{formatValue(v.value, v.unit ?? null)}</span>
+              <span className="cf-tile-source">
+                {methodName(v.method)}
+                {v.page ? `, page ${String(v.page)}` : ''}
+              </span>
+            </button>
+          );
+          // a disabled button gets no hover: the tip sits on a focusable wrapper then (ui-tooltips P1)
+          return locked && (!!signed || busy) ? (
+            <Tip key={i} text={REVIEW_TIPS.choiceLocked} wrap className="flex">
+              {tile}
+            </Tip>
+          ) : (
+            <Fragment key={i}>{tile}</Fragment>
+          );
+        })}
       </div>
 
       {shown && who && (
