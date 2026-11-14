@@ -15,7 +15,7 @@ from PIL import Image
 
 from app.adapters.beside import beside
 from app.adapters.carbon.reader import CarbonClient, CarbonExtractor, CarbonReader
-from app.core.drawing.model import Box, CarbonCheck, Plan, ReadClass
+from app.core.drawing.model import Box, CarbonCheck, Element, Plan, ReadClass
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
 
@@ -122,7 +122,7 @@ class CarbonThings:
             plans=plans,
             elements=tuple(
                 e.model_copy(update={"plan": _plan_of(plans, e.page, e.box)})
-                for e in carbon.elements
+                for e in _snapped_doors(carbon.elements, shipped.elements)
             ),
             rooms=tuple(
                 r.model_copy(update={"plan": _plan_of(plans, r.page, r.box)})
@@ -180,6 +180,65 @@ def _why(notes: Sequence[str]) -> str:
     """Why Carbon read nothing, from its first note (contract.assemble puts the reason first)."""
     first = notes[0] if notes else "carbon: no usable reply"
     return first.removeprefix("carbon: ")
+
+
+def _snapped_doors(carbon: Sequence[Element], shipped: Sequence[Element]) -> list[Element]:
+    """Carbon's elements, each door on the box of a shipped door whose centre lies inside it. Carbon
+    boxes a door with its swing arc, a square about five times the opening the detector and the
+    gold box mark: on golden's two CubiCasa pages over 4,000 px its 19 door boxes matched 0 of 22
+    gold doors at IoU 0.5, snapped 18, as the detector (answer, 2026-11-14; .agents/exp/answer.md).
+    The pairs are a maximum matching (each shipped door once, as many Carbon doors snapped as can
+    be, whatever the reply's order; codecheck, review-310 S1). Overlap only breaks ties: a Carbon
+    door takes its best-overlap free candidate and moves an earlier door only when none is free.
+    Windows are not snapped (Carbon's matched 25, snapped 21). A door left without a shipped door
+    keeps Carbon's box; no element is added or dropped, so every count stays Carbon's."""
+    doors = [e for e in shipped if e.class_ == "door"]
+    options = {
+        i: sorted(
+            (k for k, d in enumerate(doors) if d.page == e.page and _holds(e.box, d.box)),
+            key=lambda k: -_iou(e.box, doors[k].box),
+        )
+        for i, e in enumerate(carbon)
+        if e.class_ == "door"
+    }
+    owner: dict[int, int] = {}  # shipped door -> the Carbon element on its box
+
+    def take(i: int, seen: set[int]) -> bool:  # an augmenting path from Carbon door i
+        for k in options[i]:
+            if k not in seen:
+                seen.add(k)
+                if k not in owner or take(owner[k], seen):
+                    owner[k] = i
+                    return True
+        return False
+
+    for i in options:  # a free shipped door first, best overlap first; else an augmenting path
+        free = next((k for k in options[i] if k not in owner), None)
+        if free is not None:
+            owner[free] = i
+        else:
+            take(i, set())
+    box = {i: doors[k].box for k, i in owner.items()}
+    return [
+        e.model_copy(update={"box": box[i], "attrs": {**e.attrs, "box_from": "detector"}})
+        if i in box
+        else e
+        for i, e in enumerate(carbon)
+    ]
+
+
+def _holds(box: Box, other: Box) -> bool:
+    """Whether `other`'s centre lies inside `box`."""
+    x, y = (other[0] + other[2]) / 2, (other[1] + other[3]) / 2
+    return box[0] <= x <= box[2] and box[1] <= y <= box[3]
+
+
+def _iou(a: Box, b: Box) -> float:
+    width = min(a[2], b[2]) - max(a[0], b[0])
+    height = min(a[3], b[3]) - max(a[1], b[1])
+    inter = max(0.0, width) * max(0.0, height)
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union > 0 else 0.0
 
 
 def _plan_of(plans: Sequence[Plan], page: int, box: Box) -> str | None:

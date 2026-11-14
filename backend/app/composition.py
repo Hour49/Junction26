@@ -84,7 +84,7 @@ from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
 from app.adapters.resolver.carbon import CarbonResolver
-from app.adapters.scan_images import ScanImages
+from app.adapters.scan_images import ScanImages, ScanRenders
 from app.adapters.triage.gemini_describer import (
     CARBON_MIN_TIMEOUT_S,
     DESCRIBERS,
@@ -247,7 +247,7 @@ def build_pipeline(
     files = DatasetFiles(dataset)
     unruled = _unruled(settings)
     as_image = _as_image(unruled)  # the PDFs the raster route reads: scans, and unruled ones
-    scans = ScanImages(files, as_image)  # what the raster side reads: such a PDF as its page
+    scans = ScanImages(files, ScanRenders(as_image))  # the raster side: such a PDF as its page
     kind_of = kinds or _probed_kinds(settings, files)
     use_carbon = _carbon_read(settings, advanced, scans)
     took: set[str] = set()  # CARBON_READER=large: the files read by Carbon for few things found
@@ -568,8 +568,10 @@ def build_answering(settings: Settings) -> Answering:
     signal: str | None = None
     if settings.decisions_confidence:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
-        render = _as_image(_unruled(settings))
-        confidence = partial(_scan_confidence, reader=reader, render=render)
+        # one cache for every answer: each answer on a scan re-rendered its page (review-280 S2);
+        # it renders what ingest's raster readers read as images (scans, and unruled PDFs)
+        renders = ScanRenders(_as_image(_unruled(settings)))
+        confidence = partial(_scan_confidence, reader=reader, renders=renders)
         signal = DECISIONS_SIGNAL
     # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
     scorers = _scorers(settings.local_gates) if settings.check_policy else {}
@@ -594,12 +596,13 @@ def build_answering(settings: Settings) -> Answering:
 
 
 def _scan_confidence(
-    files: DrawingFiles, reader: G1MainReader, render: Callable[[bytes], bool]
+    files: DrawingFiles, reader: G1MainReader, renders: ScanRenders
 ) -> AnswerConfidence:
     """The answer confidence over a raster drawing's file as ingest's readers read it: a scanned
     PDF (or an unruled one, VECTOR_FALLBACK) as the image of its page (scan_images.py), so Gemini
-    is asked about the same image."""
-    return DecisionsConfidence(ScanImages(files, render), reader)
+    is asked about the same image. The page is rendered once in `renders`, shared by every
+    answer."""
+    return DecisionsConfidence(ScanImages(files, renders), reader)
 
 
 def _resolver(settings: Settings) -> Resolver | None:
@@ -744,7 +747,7 @@ def build_ingest(
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         rule = (
-            f"large+few{FEW_THINGS}"
+            f"large+few{FEW_THINGS}+snap"  # +snap: door boxes on the detector's (#310)
             if settings.carbon_reader == "large"
             else settings.carbon_reader
         )
