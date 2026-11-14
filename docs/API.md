@@ -132,6 +132,8 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
 | `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
 | `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
+| `POST /api/projects/{project_id}/chat` | One turn of the agent chat: tools called, cited sources, plan-edit proposals | 0013 |
+| `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}` | Accept or reject a plan-edit proposal | 0013 |
 | `GET /api/laws` | The building-law knowledge base: each pack's laws (table of contents) | 0014 |
 | `GET /api/laws/{pack}/search?q=&topic=&limit=` | Search one pack's law clauses, best first | 0014 |
 | `GET /api/laws/clauses/{clause_id}` | One clause, verbatim and in our English, with its law | 0014 |
@@ -259,7 +261,12 @@ An edit of a signed-off quantity (409):
       ]
     }
   ],
-  "commit": null
+  "commit": null,
+  "chat": {
+    "model": "rules",
+    "available": true,
+    "reason": null
+  }
 }
 ```
 
@@ -3448,7 +3455,7 @@ tell, and an uncertain answer with the model's check:
 <!-- fixture: project_resolved.json -->
 ```json
 {
-  "id": "5e0c1a2b3d54",
+  "id": "5e0c1a2b3d55",
   "name": "flat-b.pdf",
   "state": "done",
   "created_at": "2026-11-14T08:00:00+00:00",
@@ -7823,6 +7830,1697 @@ rests on:
 }
 ```
 
+## Chat (decision 0013)
+
+The project chat as a tool-calling agent: it calls the pipeline tools (`list_drawings`, `ask_drawings`,
+`get_takeoff`, `list_conflicts`, `list_issues`, `run_checks`, `get_plan_geometry`) and the plan tools (`list_walls`,
+`propose_remove_wall`, `propose_room`), and ends each turn with an answer the server checked: every evidence id and
+every number in `text` came from a tool result of this turn, else the turn is `dont_know`. The model never writes
+coordinates: places are evidence ids the server resolves. `CHAT_MODEL` picks the model: `rules` (default, no key,
+deterministic), `gemini` (`AGENT_MODEL`, every call charged to the Gemini spend guard), `off` (503).
+`GET /api/info` `chat` says which, and whether a turn can run now.
+
+### `POST /api/projects/{project_id}/chat`
+
+Body: `chat_id` (12 hex, omit to start a chat), `message` (1-2,000 characters), `selection` (at most 8, optional):
+what the user pointed at, `{id: "sel_<n>", kind: "room" | "region", drawing_id, page, ref?, box?}` with `box` in
+page fractions. A sync call: a turn takes up to `AGENT_TURN_USD` dollars and 60 s.
+
+<!-- fixture: chat_request.json -->
+```json
+{
+  "message": "How many doors are there?"
+}
+```
+
+Response `ChatTurn`: `kind` is `answer`, `dont_know`, `conflict`, `needs_input` (which room or wall: 2-4
+`options`) or `edit` (with `edit`, the proposal). `options` may come with any kind (a `dont_know` carries the
+questions the drawings can answer): each is a chip whose `message` the client sends as the next message.
+`evidence[].name`, the step labels and the text use the drawing's plain name ("Drawn plan 1"). `evidence` lists
+only the places `text` cites, numbered in the order it cites them. `answers` (last) holds the `ask_drawings`
+results the answer rests on, each exactly a `POST /api/projects/{project_id}/ask` response: those whose places the
+text cites, or for a `dont_know` or `needs_input` citing none, those in which a drawing refused; `[]` otherwise. `text` cites sources as
+`[n]`, the `n` of an `evidence` item: a place on a page (`drawing_id`, `name`, `page`, `box` in page fractions,
+`label`, `sure`, and `level`, the confidence level of the `ask_drawings` answer it comes from, or null). `steps`
+lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
+`latency_s` are the turn's.
+
+<!-- fixture: chat_answer.json -->
+```json
+{
+  "chat_id": "c4a7c0000001",
+  "turn": 1,
+  "kind": "answer",
+  "text": "The drawings answer this below [1][2].",
+  "evidence": [
+    {
+      "n": 1,
+      "id": "ev_3",
+      "drawing_id": "adeefbbcc17559fc",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 2,
+      "id": "ev_9",
+      "drawing_id": "44cc9f0d991eafe3",
+      "name": "Drawn plan 2",
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    }
+  ],
+  "edit": null,
+  "options": null,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "ask_drawings",
+      "label": "Asked the drawings: How many doors are there?",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "answers": [
+    {
+      "question": "How many doors are there?",
+      "parts": [
+        {
+          "drawing_id": "adeefbbcc17559fc",
+          "name": "plans/flat-a.pdf",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "adeefbbcc17559fc",
+            "file": "plans/flat-a.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": 2,
+            "unit": "count",
+            "confidence": null,
+            "quantity": {
+              "key": "door",
+              "label": "door count",
+              "measure": "count",
+              "subject": "door",
+              "scope": {
+                "storey": null,
+                "label": null,
+                "name": null,
+                "apartment": null,
+                "indoor": false,
+                "model": false,
+                "largest": false
+              },
+              "value": 2,
+              "unit": "count",
+              "original_value": 2,
+              "status": "single",
+              "needs_person": false,
+              "rule": {
+                "id": "each-once",
+                "text": "every element, room and plan the drawing lists counts once"
+              },
+              "estimate": null,
+              "first": null,
+              "second": null,
+              "conflict": null,
+              "settled": null,
+              "marks": [
+                {
+                  "id": "m1",
+                  "n": 1,
+                  "page": 1,
+                  "box": [
+                    0.49333,
+                    0.225,
+                    0.50667,
+                    0.275
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e1",
+                  "reason": null,
+                  "room_type": null
+                },
+                {
+                  "id": "m2",
+                  "n": 2,
+                  "page": 1,
+                  "box": [
+                    0.66,
+                    0.225,
+                    0.67333,
+                    0.275
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e2",
+                  "reason": null,
+                  "room_type": null
+                }
+              ],
+              "signed": null,
+              "unlocated": {},
+              "noun": "doors"
+            },
+            "marks": [
+              {
+                "id": "m1",
+                "n": 1,
+                "page": 1,
+                "box": [
+                  0.49333,
+                  0.225,
+                  0.50667,
+                  0.275
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e1",
+                "reason": null,
+                "room_type": null
+              },
+              {
+                "id": "m2",
+                "n": 2,
+                "page": 1,
+                "box": [
+                  0.66,
+                  0.225,
+                  0.67333,
+                  0.275
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e2",
+                "reason": null,
+                "room_type": null
+              }
+            ],
+            "refusal": null,
+            "method": "takeoff",
+            "explanation": null,
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-a.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": 2,
+              "unit": "count",
+              "evidence": [
+                {
+                  "file": "plans/flat-a.pdf",
+                  "page": 1,
+                  "box": [
+                    0.49333,
+                    0.225,
+                    0.50667,
+                    0.275
+                  ]
+                },
+                {
+                  "file": "plans/flat-a.pdf",
+                  "page": 1,
+                  "box": [
+                    0.66,
+                    0.225,
+                    0.67333,
+                    0.275
+                  ]
+                }
+              ],
+              "method": "takeoff",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": null,
+              "explanation": null,
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "count",
+              "legend": [
+                {
+                  "label": "door",
+                  "colour": "#d62728",
+                  "count": 2,
+                  "unlocated": 0,
+                  "note": null
+                }
+              ],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "44cc9f0d991eafe3",
+          "name": "plans/flat-b.pdf",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "44cc9f0d991eafe3",
+            "file": "plans/flat-b.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": 2,
+            "unit": "count",
+            "confidence": null,
+            "quantity": {
+              "key": "door",
+              "label": "door count",
+              "measure": "count",
+              "subject": "door",
+              "scope": {
+                "storey": null,
+                "label": null,
+                "name": null,
+                "apartment": null,
+                "indoor": false,
+                "model": false,
+                "largest": false
+              },
+              "value": 2,
+              "unit": "count",
+              "original_value": 2,
+              "status": "single",
+              "needs_person": false,
+              "rule": {
+                "id": "each-once",
+                "text": "every element, room and plan the drawing lists counts once"
+              },
+              "estimate": null,
+              "first": null,
+              "second": null,
+              "conflict": null,
+              "settled": null,
+              "marks": [
+                {
+                  "id": "m1",
+                  "n": 1,
+                  "page": 1,
+                  "box": [
+                    0.49333,
+                    0.225,
+                    0.50667,
+                    0.275
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e1",
+                  "reason": null,
+                  "room_type": null
+                },
+                {
+                  "id": "m2",
+                  "n": 2,
+                  "page": 1,
+                  "box": [
+                    0.66,
+                    0.225,
+                    0.67333,
+                    0.275
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e2",
+                  "reason": null,
+                  "room_type": null
+                }
+              ],
+              "signed": null,
+              "unlocated": {},
+              "noun": "doors"
+            },
+            "marks": [
+              {
+                "id": "m1",
+                "n": 1,
+                "page": 1,
+                "box": [
+                  0.49333,
+                  0.225,
+                  0.50667,
+                  0.275
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e1",
+                "reason": null,
+                "room_type": null
+              },
+              {
+                "id": "m2",
+                "n": 2,
+                "page": 1,
+                "box": [
+                  0.66,
+                  0.225,
+                  0.67333,
+                  0.275
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e2",
+                "reason": null,
+                "room_type": null
+              }
+            ],
+            "refusal": null,
+            "method": "takeoff",
+            "explanation": null,
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-b.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": 2,
+              "unit": "count",
+              "evidence": [
+                {
+                  "file": "plans/flat-b.pdf",
+                  "page": 1,
+                  "box": [
+                    0.49333,
+                    0.225,
+                    0.50667,
+                    0.275
+                  ]
+                },
+                {
+                  "file": "plans/flat-b.pdf",
+                  "page": 1,
+                  "box": [
+                    0.66,
+                    0.225,
+                    0.67333,
+                    0.275
+                  ]
+                }
+              ],
+              "method": "takeoff",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": null,
+              "explanation": null,
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "count",
+              "legend": [
+                {
+                  "label": "door",
+                  "colour": "#d62728",
+                  "count": 2,
+                  "unlocated": 0,
+                  "note": null
+                }
+              ],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "1db9bcf1e67e27a3",
+          "name": "model/house.ifc",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "1db9bcf1e67e27a3",
+            "file": "model/house.ifc",
+            "pages": [],
+            "answer": 2,
+            "unit": "count",
+            "confidence": null,
+            "quantity": {
+              "key": "door",
+              "label": "door count",
+              "measure": "count",
+              "subject": "door",
+              "scope": {
+                "storey": null,
+                "label": null,
+                "name": null,
+                "apartment": null,
+                "indoor": false,
+                "model": false,
+                "largest": false
+              },
+              "value": 2,
+              "unit": "count",
+              "original_value": 2,
+              "status": "single",
+              "needs_person": false,
+              "rule": {
+                "id": "model-objects",
+                "text": "every object of the building model counts once, whether this sheet draws it or not"
+              },
+              "estimate": null,
+              "first": null,
+              "second": null,
+              "conflict": null,
+              "settled": null,
+              "marks": [],
+              "signed": null,
+              "unlocated": {},
+              "noun": "doors"
+            },
+            "marks": [],
+            "refusal": null,
+            "method": "takeoff",
+            "explanation": null,
+            "reader": {
+              "route": "bim",
+              "source": "model/house.ifc",
+              "extractor": "ifc",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": 2,
+              "unit": "count",
+              "evidence": [],
+              "method": "takeoff",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": null,
+              "explanation": null,
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "model",
+              "legend": [],
+              "arithmetic": "2 door objects in the model",
+              "objects": [
+                {
+                  "id": "m1",
+                  "class": "door",
+                  "name": "Door 1",
+                  "storey": "Ground floor",
+                  "global_id": "000000000000000000000K"
+                },
+                {
+                  "id": "m2",
+                  "class": "door",
+                  "name": "Door 2",
+                  "storey": "Ground floor",
+                  "global_id": "000000000000000000000M"
+                }
+              ],
+              "storeys": [
+                {
+                  "storey": "Ground floor",
+                  "counts": {
+                    "door": 2,
+                    "slab": 1,
+                    "space": 2,
+                    "wall": 4,
+                    "window": 3
+                  }
+                }
+              ],
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "3b3ce7db34257f63",
+          "name": "scans/ground-floor.png",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "3b3ce7db34257f63",
+            "file": "scans/ground-floor.png",
+            "pages": [
+              {
+                "page": 1,
+                "width": 1200.0,
+                "height": 850.0,
+                "unit": "px",
+                "url": "/api/drawings/3b3ce7db34257f63/pages/1.png",
+                "normalised": {
+                  "exif": null,
+                  "rotated": 0,
+                  "deskew_deg": 0.0,
+                  "rectified": false,
+                  "quad": null,
+                  "width": 1200,
+                  "height": 850,
+                  "rectifier": null
+                },
+                "scale": {
+                  "status": "no_scale",
+                  "text": null,
+                  "ratio": null,
+                  "source": null
+                },
+                "scale_text": null,
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "no-reader",
+              "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+              "can_answer": []
+            },
+            "method": "refused:not-in-drawing",
+            "explanation": "the drawing model does not give door",
+            "reader": {
+              "route": "raster",
+              "source": "scans/ground-floor.png",
+              "extractor": "hello",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:not-in-drawing",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "the drawing model does not give door",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "37f6819bd17d65d9",
+          "name": "photos/plan-photo.jpg",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "37f6819bd17d65d9",
+            "file": "photos/plan-photo.jpg",
+            "pages": [
+              {
+                "page": 1,
+                "width": 1600.0,
+                "height": 1200.0,
+                "unit": "px",
+                "url": "/api/drawings/37f6819bd17d65d9/pages/1.png",
+                "normalised": {
+                  "exif": null,
+                  "rotated": 0,
+                  "deskew_deg": 0.0,
+                  "rectified": false,
+                  "quad": null,
+                  "width": 1600,
+                  "height": 1200,
+                  "rectifier": null
+                },
+                "scale": {
+                  "status": "no_scale",
+                  "text": null,
+                  "ratio": null,
+                  "source": null
+                },
+                "scale_text": null,
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "no-reader",
+              "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+              "can_answer": []
+            },
+            "method": "refused:not-in-drawing",
+            "explanation": "the drawing model does not give door",
+            "reader": {
+              "route": "raster",
+              "source": "photos/plan-photo.jpg",
+              "extractor": "hello",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:not-in-drawing",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "the drawing model does not give door",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        }
+      ],
+      "total": null,
+      "total_unit": null,
+      "total_sure": false,
+      "total_level": null,
+      "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+      "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+      "refused_note": "2 drawings have no reader for it."
+    }
+  ]
+}
+```
+
+Something no tool can answer is `dont_know` with the reason; a cap (8 steps, `AGENT_TURN_USD`, 60 s, the Gemini
+budget, the same call a third time) ends a turn the same way.
+
+<!-- fixture: chat_dont_know.json -->
+```json
+{
+  "chat_id": "c4a7c0000001",
+  "turn": 2,
+  "kind": "dont_know",
+  "text": "This question isn't one I can turn into a count, area, length or volume.",
+  "evidence": [],
+  "edit": null,
+  "options": [
+    {
+      "label": "area of room (indoor)",
+      "message": "What is the net floor area of all indoor rooms in m²?"
+    },
+    {
+      "label": "door count",
+      "message": "How many doors are there?"
+    },
+    {
+      "label": "window count",
+      "message": "How many windows are there?"
+    },
+    {
+      "label": "toilet count",
+      "message": "How many toilets are there?"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "tool": "ask_drawings",
+      "label": "Asked the drawings: What is the fire rating of the doors?",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "answers": [
+    {
+      "question": "What is the fire rating of the doors?",
+      "parts": [
+        {
+          "drawing_id": "adeefbbcc17559fc",
+          "name": "plans/flat-a.pdf",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "adeefbbcc17559fc",
+            "file": "plans/flat-a.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": [
+                {
+                  "quantity": "area:room|indoor",
+                  "label": "area of room (indoor)",
+                  "question": "What is the net floor area of all indoor rooms in m²?"
+                },
+                {
+                  "quantity": "door",
+                  "label": "door count",
+                  "question": "How many doors are there?"
+                },
+                {
+                  "quantity": "window",
+                  "label": "window count",
+                  "question": "How many windows are there?"
+                },
+                {
+                  "quantity": "toilet",
+                  "label": "toilet count",
+                  "question": "How many toilets are there?"
+                },
+                {
+                  "quantity": "sink",
+                  "label": "sink count",
+                  "question": "How many sinks are there?"
+                },
+                {
+                  "quantity": "bathtub",
+                  "label": "bathtub count",
+                  "question": "How many bathtubs are there?"
+                }
+              ]
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-a.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "44cc9f0d991eafe3",
+          "name": "plans/flat-b.pdf",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "44cc9f0d991eafe3",
+            "file": "plans/flat-b.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": [
+                {
+                  "quantity": "area:room|indoor",
+                  "label": "area of room (indoor)",
+                  "question": "What is the net floor area of all indoor rooms in m²?"
+                },
+                {
+                  "quantity": "door",
+                  "label": "door count",
+                  "question": "How many doors are there?"
+                },
+                {
+                  "quantity": "window",
+                  "label": "window count",
+                  "question": "How many windows are there?"
+                },
+                {
+                  "quantity": "toilet",
+                  "label": "toilet count",
+                  "question": "How many toilets are there?"
+                },
+                {
+                  "quantity": "sink",
+                  "label": "sink count",
+                  "question": "How many sinks are there?"
+                },
+                {
+                  "quantity": "bathtub",
+                  "label": "bathtub count",
+                  "question": "How many bathtubs are there?"
+                }
+              ]
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-b.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "3b3ce7db34257f63",
+          "name": "scans/ground-floor.png",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "3b3ce7db34257f63",
+            "file": "scans/ground-floor.png",
+            "pages": [
+              {
+                "page": 1,
+                "width": 1200.0,
+                "height": 850.0,
+                "unit": "px",
+                "url": "/api/drawings/3b3ce7db34257f63/pages/1.png",
+                "normalised": {
+                  "exif": null,
+                  "rotated": 0,
+                  "deskew_deg": 0.0,
+                  "rectified": false,
+                  "quad": null,
+                  "width": 1200,
+                  "height": 850,
+                  "rectifier": null
+                },
+                "scale": {
+                  "status": "no_scale",
+                  "text": null,
+                  "ratio": null,
+                  "source": null
+                },
+                "scale_text": null,
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": []
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "raster",
+              "source": "scans/ground-floor.png",
+              "extractor": "hello",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "37f6819bd17d65d9",
+          "name": "photos/plan-photo.jpg",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "37f6819bd17d65d9",
+            "file": "photos/plan-photo.jpg",
+            "pages": [
+              {
+                "page": 1,
+                "width": 1600.0,
+                "height": 1200.0,
+                "unit": "px",
+                "url": "/api/drawings/37f6819bd17d65d9/pages/1.png",
+                "normalised": {
+                  "exif": null,
+                  "rotated": 0,
+                  "deskew_deg": 0.0,
+                  "rectified": false,
+                  "quad": null,
+                  "width": 1600,
+                  "height": 1200,
+                  "rectifier": null
+                },
+                "scale": {
+                  "status": "no_scale",
+                  "text": null,
+                  "ratio": null,
+                  "source": null
+                },
+                "scale_text": null,
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": []
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "raster",
+              "source": "photos/plan-photo.jpg",
+              "extractor": "hello",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "1db9bcf1e67e27a3",
+          "name": "model/house.ifc",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "1db9bcf1e67e27a3",
+            "file": "model/house.ifc",
+            "pages": [],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": [
+                {
+                  "quantity": "area:room|indoor",
+                  "label": "area of room (indoor)",
+                  "question": "What is the net floor area of all indoor rooms in m²?"
+                },
+                {
+                  "quantity": "door|model",
+                  "label": "door count (model)",
+                  "question": "How many doors are there in the building model?"
+                },
+                {
+                  "quantity": "door",
+                  "label": "door count",
+                  "question": "How many doors are there?"
+                },
+                {
+                  "quantity": "window|model",
+                  "label": "window count (model)",
+                  "question": "How many windows are there in the building model?"
+                },
+                {
+                  "quantity": "window",
+                  "label": "window count",
+                  "question": "How many windows are there?"
+                },
+                {
+                  "quantity": "wall|model",
+                  "label": "wall count (model)",
+                  "question": "How many walls are there in the building model?"
+                }
+              ]
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "bim",
+              "source": "model/house.ifc",
+              "extractor": "ifc",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        }
+      ],
+      "total": null,
+      "total_unit": null,
+      "total_sure": false,
+      "total_level": null,
+      "total_note": "No drawing answered it: 5 drawings can't answer this question.",
+      "why_no_total": "No drawing answered it.",
+      "refused_note": "5 drawings can't answer this question."
+    }
+  ]
+}
+```
+
+A plan edit is a proposal computed from the drawn geometry (decision 0013 §4): `removed` and `added` geometry and
+each changed room's `polygon` in page fractions, `area_before_m2` → `area_after_m2`, `unknowns` (whether a wall
+carries load) and `flags`. No drawing is changed. A plan whose walls are not drawn as geometry (a scan, a sheet
+without wall fills) gets `dont_know` saying so.
+
+<!-- fixture: chat_edit.json -->
+```json
+{
+  "chat_id": "c4a7c0000002",
+  "turn": 1,
+  "kind": "edit",
+  "text": "Proposed: Bagno 1.01 + Stanza 1.02: 20.66 → 21.02 m². Removed: Wall W1, 2.5 m, 0.1 m thick; door, no longer needed. Whether wall W1 is load-bearing: this drawing does not say.",
+  "evidence": [
+    {
+      "n": 1,
+      "id": "ev_1",
+      "drawing_id": "5c4ed01e00000003",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.2999,
+        0.25,
+        0.32257,
+        0.4626
+      ],
+      "label": "W1",
+      "sure": null,
+      "level": null
+    }
+  ],
+  "edit": {
+    "proposal_id": "p1",
+    "drawing_id": "5c4ed01e00000003",
+    "page": 1,
+    "state": "proposed",
+    "removed": [
+      {
+        "id": "W1",
+        "polygon": [
+          [
+            0.3084,
+            0.25
+          ],
+          [
+            0.3084,
+            0.32087
+          ],
+          [
+            0.3084,
+            0.39173
+          ],
+          [
+            0.3084,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.39173
+          ],
+          [
+            0.31407,
+            0.32087
+          ],
+          [
+            0.31407,
+            0.25
+          ]
+        ],
+        "label": "Wall W1, 2.5 m, 0.1 m thick"
+      },
+      {
+        "id": "e1",
+        "polygon": [
+          [
+            0.3174,
+            0.32087
+          ],
+          [
+            0.3174,
+            0.39173
+          ],
+          [
+            0.30507,
+            0.39173
+          ],
+          [
+            0.30507,
+            0.32087
+          ]
+        ],
+        "label": "door, no longer needed"
+      }
+    ],
+    "added": [],
+    "rooms": [
+      {
+        "id": "r1+r2",
+        "label": "Bagno 1.01 + Stanza 1.02",
+        "polygon": [
+          [
+            0.16667,
+            0.25
+          ],
+          [
+            0.16667,
+            0.25002
+          ],
+          [
+            0.16667,
+            0.46258
+          ],
+          [
+            0.16667,
+            0.4626
+          ],
+          [
+            0.16668,
+            0.4626
+          ],
+          [
+            0.49774,
+            0.4626
+          ],
+          [
+            0.49775,
+            0.4626
+          ],
+          [
+            0.49775,
+            0.46258
+          ],
+          [
+            0.49775,
+            0.25002
+          ],
+          [
+            0.49775,
+            0.25
+          ],
+          [
+            0.49774,
+            0.25
+          ],
+          [
+            0.16668,
+            0.25
+          ]
+        ],
+        "area_before_m2": 20.66,
+        "area_after_m2": 21.02,
+        "was": [
+          "r1",
+          "r2"
+        ]
+      }
+    ],
+    "unknowns": [
+      "Whether wall W1 is load-bearing: this drawing does not say."
+    ],
+    "flags": [
+      {
+        "code": "structural",
+        "text": "Before removing a wall, a structural engineer has to confirm it does not carry load."
+      },
+      {
+        "code": "wet_room",
+        "text": "A wet room changes: its waterproofing is redone and inspected."
+      }
+    ],
+    "law": null
+  },
+  "options": null,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "list_drawings",
+      "label": "Listed the project's drawings",
+      "status": "ok",
+      "ms": 12.5
+    },
+    {
+      "n": 2,
+      "tool": "list_walls",
+      "label": "Listed the walls of Drawn plan 1, page 1",
+      "status": "ok",
+      "ms": 12.5
+    },
+    {
+      "n": 3,
+      "tool": "propose_remove_wall",
+      "label": "Proposed removing wall W1",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "answers": []
+}
+```
+
+Errors: 404 unknown project or chat, 409 project not done or a turn of this chat still running, 422 a bad body,
+503 `CHAT_MODEL=off`.
+
+### `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`
+
+Body `{"action": "accept" | "reject"}`. Returns the proposal with its new `state` (`accepted` or `rejected`); 404 an
+unknown chat or proposal, 409 a proposal already decided. Accepting records the person's call; the drawing file is
+unchanged.
+
+<!-- fixture: chat_proposal_accepted.json -->
+```json
+{
+  "proposal_id": "p1",
+  "drawing_id": "5c4ed01e00000003",
+  "page": 1,
+  "state": "accepted",
+  "removed": [
+    {
+      "id": "W1",
+      "polygon": [
+        [
+          0.3084,
+          0.25
+        ],
+        [
+          0.3084,
+          0.32087
+        ],
+        [
+          0.3084,
+          0.39173
+        ],
+        [
+          0.3084,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.39173
+        ],
+        [
+          0.31407,
+          0.32087
+        ],
+        [
+          0.31407,
+          0.25
+        ]
+      ],
+      "label": "Wall W1, 2.5 m, 0.1 m thick"
+    },
+    {
+      "id": "e1",
+      "polygon": [
+        [
+          0.3174,
+          0.32087
+        ],
+        [
+          0.3174,
+          0.39173
+        ],
+        [
+          0.30507,
+          0.39173
+        ],
+        [
+          0.30507,
+          0.32087
+        ]
+      ],
+      "label": "door, no longer needed"
+    }
+  ],
+  "added": [],
+  "rooms": [
+    {
+      "id": "r1+r2",
+      "label": "Bagno 1.01 + Stanza 1.02",
+      "polygon": [
+        [
+          0.16667,
+          0.25
+        ],
+        [
+          0.16667,
+          0.25002
+        ],
+        [
+          0.16667,
+          0.46258
+        ],
+        [
+          0.16667,
+          0.4626
+        ],
+        [
+          0.16668,
+          0.4626
+        ],
+        [
+          0.49774,
+          0.4626
+        ],
+        [
+          0.49775,
+          0.4626
+        ],
+        [
+          0.49775,
+          0.46258
+        ],
+        [
+          0.49775,
+          0.25002
+        ],
+        [
+          0.49775,
+          0.25
+        ],
+        [
+          0.49774,
+          0.25
+        ],
+        [
+          0.16668,
+          0.25
+        ]
+      ],
+      "area_before_m2": 20.66,
+      "area_after_m2": 21.02,
+      "was": [
+        "r1",
+        "r2"
+      ]
+    }
+  ],
+  "unknowns": [
+    "Whether wall W1 is load-bearing: this drawing does not say."
+  ],
+  "flags": [
+    {
+      "code": "structural",
+      "text": "Before removing a wall, a structural engineer has to confirm it does not carry load."
+    },
+    {
+      "code": "wet_room",
+      "text": "A wet room changes: its waterproofing is redone and inspected."
+    }
+  ],
+  "law": null
+}
+```
+
 ## Takeoff and review (surveyor)
 
 ### `GET /api/drawings/{drawing_id}/takeoff?zeros=<bool>&project=<project_id>`
@@ -9175,6 +10873,13 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0013, agent chat): `POST /api/projects/{project_id}/chat` and
+  `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`; `GET /api/info` gains `chat`
+  (`model`, `available`, `reason`; last). Settings `CHAT_MODEL`, `AGENT_MODEL`, `AGENT_BASE_URL`,
+  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_TURN_USD`, `AGENT_MAX_STEPS`. Fixtures `chat_request`,
+  `chat_answer`, `chat_dont_know`, `chat_edit`, `chat_proposal_accepted`.
+- 2026-11-14, additive (decision 0013): `ChatTurn.answers` (last), the `ProjectAnswer`s a turn rests on;
+  `ChatTurn.evidence` lists only the cited places; `options` may come with any kind.
 - 2026-11-14, behaviour (brief r8 BQ, Bogdan "make them high"): `CARBON_LEVELS=ladder`. As `demote`, and a Medium
   raster answer Gemini Carbon counted the same gets `level` high with basis `carbon` and no `check`; `line.sure`
   stays false. Off and `demote` are unchanged. No shape change.

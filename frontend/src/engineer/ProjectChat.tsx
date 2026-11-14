@@ -7,7 +7,9 @@ import {
   type ProjectView,
   type Suggestion,
 } from '../api';
+import { AgentChat } from '../agent/AgentChat';
 import { ErrorView } from '../shell/ErrorView';
+import { useInfo } from '../shell/info';
 import { Loading } from '../shell/Loading';
 import { AnswerCard, type Turn } from './AnswerCard';
 import { ChatAnswer } from './ChatAnswer';
@@ -26,9 +28,17 @@ type Load =
   | { state: 'error'; error: unknown }
   | { state: 'ready'; project: ProjectView };
 
-/** The project-wide chat at #/p/<pid>/chat (docs/specs/frontend/chat.md): empty until asked, no drawing shown.
- * `query`: `ask` is asked on open (chat.md "Opening with a question"). */
-export function ProjectChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
+/** The project-wide chat at #/p/<pid>/chat (docs/specs/frontend/chat.md): the agent chat (decision 0013) when
+ * `GET /api/info` says it is available (CH-43), else the ask chat below. */
+export function ProjectChat(props: { projectId: string; query?: URLSearchParams }) {
+  // shortcut: until /api/info answers this is the ask chat; a cold deep link with ?ask= can then ask twice (once
+  // per chat). Wait for info here if that bites.
+  return useInfo().info?.chat?.available ? <AgentChat {...props} /> : <AskChat {...props} />;
+}
+
+/** The ask chat: empty until asked, no drawing shown. `query`: `ask` is asked on open (chat.md "Opening with a
+ * question"). */
+function AskChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const nextId = useRef(1);
