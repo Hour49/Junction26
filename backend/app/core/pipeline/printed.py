@@ -42,7 +42,7 @@ from app.core.drawing.model import (
 )
 from app.core.model import Frozen
 from app.core.pipeline.model import Extracted, Measurement
-from app.core.pipeline.raster_scale import rooms_with_areas
+from app.core.pipeline.raster_scale import LABEL_NOTE, label_area_checks, rooms_with_areas
 from app.core.pipeline.second_count import ESTIMATE_RANGE, far_apart, mm_per_px
 
 INCH_M = 0.0254
@@ -246,7 +246,8 @@ def with_printed(
 ) -> Extracted:
     """`found` with what the sheet prints: its printed scale in place of an estimated one (or of
     none), every room area the estimate gave measured again at it, and the printed scale and
-    counts as stage-8 values against the reading. A scale the reading measured itself is kept."""
+    counts as stage-8 values against the reading. A scale the reading measured itself is kept.
+    Every area printed in a room's label is then checked at the sheet's final scale."""
     notes = [*found.notes, *printed.notes]
     measurements = [
         *_room_types_counted(found, printed.printed_facts),
@@ -303,7 +304,23 @@ def with_printed(
             "printed": (*found.printed, *measurements),
             "notes": (*notes, f"scale: {scale.source}"),
         }
-    return found.model_copy(update=update)
+    return _label_checked(found.model_copy(update=update), pages)
+
+
+def _label_checked(found: Extracted, pages: Sequence[Page]) -> Extracted:
+    """`found` with its printed room areas checked at its (final) scale: an earlier check, at
+    the scale it replaced, goes (`label_area_checks`)."""
+    checks, said = label_area_checks(found.rooms, found.scale, pages)
+    earlier = [
+        m for m in found.printed
+        if m.quantity == "room_area" and m.value.method in ("printed_label", "detector")
+    ]  # fmt: skip
+    return found.model_copy(
+        update={
+            "printed": (*(m for m in found.printed if m not in earlier), *checks),
+            "notes": (*(n for n in found.notes if not n.startswith(LABEL_NOTE)), *said),
+        }
+    )
 
 
 def _room_types_counted(found: Extracted, facts: Sequence[PrintedFact]) -> list[Measurement]:
