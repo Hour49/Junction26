@@ -13,6 +13,7 @@ GlobalIds and the storey table.
 
 import io
 import math
+import unicodedata
 from collections.abc import Callable, Sequence
 from typing import NamedTuple
 
@@ -35,6 +36,14 @@ def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         return ImageFont.truetype(FONT, size)
     except OSError:
         return ImageFont.load_default(size=size)
+
+
+def _one_line(text: str) -> str:
+    """`text` on one line with every word kept: a line break, tab or other run of white space
+    becomes one space and other control characters go. A room name read off a plan can carry a
+    line break ("VARDAGSRUM\n24 M2"), and raqm cannot measure one (judge-fresh jf05)."""
+    kept = "".join(c for c in text if c.isspace() or unicodedata.category(c) != "Cc")
+    return " ".join(kept.split())
 
 
 def _rgb(hex_colour: str) -> tuple[int, int, int]:
@@ -105,7 +114,7 @@ def _draw_marks(picture: Image.Image, marks: Sequence[MarkView], proof: Proof) -
         if mark.state in ("rejected", "excluded"):
             draw.polygon(points, outline=_rgb(GREY), width=1)
             if mark.reason:
-                labels.append(Label(mark.reason, points, size - 2))
+                labels.append(Label(_one_line(mark.reason), points, size - 2))
                 tinted.append((110, 110, 110))
             continue
         tint = (200, 150, 0) if schedule else _rgb(tint_of(mark))
@@ -320,8 +329,9 @@ def _tables(proof: Proof) -> Image.Image:
     if objects:
         lines += ["Objects (GlobalId, class, name, storey)"]
         lines += [
-            f"  {item.global_id or '-'}  {item.class_}  {item.name or '-'}  {item.storey or '-'}"
+            "  " + "  ".join(_one_line(text or "-") for text in fields)
             for item in objects[:MAX_OBJECTS]
+            for fields in [(item.global_id, item.class_, item.name, item.storey)]
         ]
         if len(objects) > MAX_OBJECTS:
             lines.append(f"  ... and {len(objects) - MAX_OBJECTS} more")
@@ -329,8 +339,8 @@ def _tables(proof: Proof) -> Image.Image:
     if proof.storeys:
         lines.append("Storeys (objects per class)")
         for row in proof.storeys:
-            counts = ", ".join(f"{name} {count}" for name, count in row.counts.items())
-            lines.append(f"  {row.storey}: {counts}")
+            counts = ", ".join(f"{_one_line(name)} {count}" for name, count in row.counts.items())
+            lines.append(f"  {_one_line(row.storey)}: {counts}")
     if not lines:
         lines = ["No page and no model objects to show."]
     font = _font(18)
@@ -395,8 +405,9 @@ def _legend_lines(
     for key in proof.legend:
         if not key.count:
             continue
-        text = key.label if proof.kind == "sum" else f"{key.label} {key.count}"  # sum: values
-        text += f" ({key.note})" if key.note else ""  # are on the page
+        label = _one_line(key.label)
+        text = label if proof.kind == "sum" else f"{label} {key.count}"  # sum: values
+        text += f" ({_one_line(key.note)})" if key.note else ""  # are on the page
         wide = size + 6 + int(font.getlength(text))
         if not lines or (x > MARGIN and x + wide > MARGIN + room):
             lines.append([])

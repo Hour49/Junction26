@@ -15,6 +15,7 @@ import { AnswerCard, type Turn } from './AnswerCard';
 import { ChatAnswer } from './ChatAnswer';
 import { AskBox } from './AskBox';
 import { Suggestions } from './DrawingHeader';
+import { usePhotoAdd } from './photoAdd';
 import { askable, followUps, starters } from './projectAsk';
 import './engineer.css';
 
@@ -47,6 +48,9 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
   // The drawings' own suggestions, for the starter and follow-up chips; not blocking, failures leave fewer (or none).
   const [lists, setLists] = useState<Suggestion[][]>([]);
   const openAsk = query?.get('ask')?.trim() ?? '';
+  const photo = usePhotoAdd(projectId, (project) => {
+    setLoad({ state: 'ready', project });
+  });
 
   const send = useCallback(
     (id: number, question: string) => {
@@ -176,7 +180,15 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
   };
 
   const box = (
-    <AskBox file="the project's drawings" busy={busy || n === 0} asked={turns.length} onAsk={ask} />
+    <AskBox
+      file="the project's drawings"
+      busy={busy || n === 0}
+      asked={turns.length}
+      onAsk={ask}
+      onAttach={photo.attach}
+      short="the drawings"
+      attaching={photo.attaching}
+    />
   );
   const chips = starters(lists);
   // CH-36: hidden while the newest turn is a refusal (its own chips are the choice then).
@@ -194,6 +206,7 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
     return (
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
+        {photo.line}
         {box}
         {n === 0 ? (
           <p className="en-empty">No drawing in this project can be asked yet.</p>
@@ -206,6 +219,7 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
   return (
     <div className="en-page en-chat">
       <h1 className="en-sr">{project.name}</h1>
+      {photo.line}
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {turns.map(card)}
       </section>

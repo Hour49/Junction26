@@ -39,7 +39,7 @@ function urlOf(input: RequestInfo | URL): string {
   return input instanceof URL ? input.href : input.url;
 }
 
-/** Stubs `fetch` for this test; a request no route matches fails the test when it ends. */
+/** Stubs `fetch` (and `XMLHttpRequest`) for this test; a request no route matches fails the test when it ends. */
 export function mockApi(routes: Record<string, Route>) {
   const calls: Call[] = [];
   const unmatched: string[] = [];
@@ -80,6 +80,54 @@ export function mockApi(routes: Record<string, Route>) {
     return new Response(text, { status, headers: { 'Content-Type': 'application/json' } });
   });
   vi.stubGlobal('fetch', fetchMock);
+  // The upload goes over XHR (its progress, client.ts uploadProject): the same routes answer it, all bytes at once.
+  class MockXhr {
+    status = 0;
+    responseText = '';
+    upload: { onprogress: ((e: ProgressEvent) => void) | null } = { onprogress: null };
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    onabort: (() => void) | null = null;
+    private method = 'GET';
+    private url = '';
+    private readonly headers: Record<string, string> = {};
+    private readonly stop = new AbortController();
+    open(method: string, url: string) {
+      this.method = method;
+      this.url = url;
+    }
+    setRequestHeader(name: string, value: string) {
+      this.headers[name] = value;
+    }
+    abort() {
+      this.stop.abort();
+    }
+    send(body?: Blob | null) {
+      const size = body instanceof Blob ? body.size : 0;
+      this.upload.onprogress?.({
+        lengthComputable: true,
+        loaded: size,
+        total: size,
+      } as ProgressEvent);
+      fetchMock(this.url, {
+        method: this.method,
+        body: body ?? null,
+        headers: this.headers,
+        signal: this.stop.signal,
+      }).then(
+        async (r) => {
+          this.status = r.status;
+          this.responseText = await r.text();
+          this.onload?.();
+        },
+        (e: unknown) => {
+          if ((e as { name?: unknown } | null)?.name === 'AbortError') this.onabort?.();
+          else this.onerror?.();
+        },
+      );
+    }
+  }
+  vi.stubGlobal('XMLHttpRequest', MockXhr);
   onTestFinished(() => {
     vi.unstubAllGlobals();
     if (unmatched.length)

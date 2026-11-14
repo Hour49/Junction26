@@ -501,3 +501,34 @@ describe('ProjectScreen', () => {
     expect(gets(api)).toBe(2);
   });
 });
+
+// Bogdan 2026-11-15: after an upload the extraction view says what the server received, with its file count.
+describe('the upload received (UploadBox keeps it for this tab)', () => {
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  it('says the name, size and that the server received it, then the files the server found', async () => {
+    sessionStorage.setItem(
+      `uploaded:${ID}`,
+      JSON.stringify({ name: 'site.zip', bytes: 2 * 2 ** 20 }),
+    );
+    mockApi({ [GET]: sequence({ ...projectRunning, files: [] }, project) });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const line = () => screen.getByRole('status', { name: 'Upload received' }).textContent;
+    expect(line()).toBe('Uploaded: site.zip, 2.0 MB, received by the server. Unpacking…');
+    await act(() => new Promise((r) => setTimeout(r, 600)));
+    await flush();
+    expect(line()).toBe(
+      `Uploaded: site.zip, 2.0 MB, received by the server. ${String(project.files.length)} files found.`,
+    );
+  });
+
+  it('nothing kept (the sample, another tab): no upload line', async () => {
+    mockApi({ [GET]: project });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.queryByRole('status', { name: 'Upload received' })).toBeNull();
+  });
+});

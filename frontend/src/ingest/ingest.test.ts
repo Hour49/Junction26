@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { project, projectFailed, projectRunning } from '../api/fixtures';
 import type { StageTrace } from '../api';
 import {
+  amount,
+  sizeText,
   STEPS,
   activeStep,
   elapsedMs,
@@ -183,4 +185,13 @@ describe('ingest.ts', () => {
     expect(plural(1, 'quantity', 'quantities')).toBe('1 quantity');
     expect(plural(2, 'quantity', 'quantities')).toBe('2 quantities');
   });
+});
+
+it('IN-89 sizes: KB under 1 MB (never 0 KB for a total), MB with one decimal above; a part in its total unit', () => {
+  expect(sizeText(30_000)).toBe('29 KB');
+  expect(sizeText(10)).toBe('1 KB');
+  expect(sizeText(2.5 * 2 ** 20)).toBe('2.5 MB');
+  expect(amount(15_000, 30_000)).toBe('15');
+  expect(amount(0, 30_000)).toBe('0');
+  expect(amount(2 ** 19, 2 ** 21)).toBe('0.5');
 });

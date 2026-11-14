@@ -130,8 +130,9 @@ class Readers(Protocol):
     @property
     def unruled(self) -> Callable[[bytes], bool] | None:
         """Whether a drawn PDF has no sheet style the vector reader has rules for
-        (VECTOR_FALLBACK=raster): stage 5 routes it to the raster reader, and such a drawing is
-        flagged. None: off, every drawn PDF stays on the vector route."""
+        (VECTOR_FALLBACK=raster): when the vector route reads nothing of page 1 of an upload, it is
+        read again as an image on the raster route, kept when that finds an element or a room, and
+        such a drawing is flagged. None: off, every drawn PDF stays on the vector route."""
         ...
 
 

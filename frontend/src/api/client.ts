@@ -56,7 +56,7 @@ function isAbort(error: unknown): boolean {
 async function call<T>(
   method: 'GET' | 'POST',
   url: string,
-  opts: Opts & { body?: BodyInit; type?: string } = {},
+  opts: Opts & { body?: BodyInit; type?: string; bytes?: boolean } = {},
 ): Promise<T> {
   let response: Response;
   try {
@@ -71,7 +71,7 @@ async function call<T>(
     throw new ApiError(0, 'network', 'cannot reach the server');
   }
   if (!response.ok) throw await errorOf(response);
-  return (await response.json()) as T;
+  return (opts.bytes ? await response.arrayBuffer() : await response.json()) as T;
 }
 
 function postJson<T>(url: string, body: unknown, opts: Opts = {}): Promise<T> {
@@ -80,12 +80,40 @@ function postJson<T>(url: string, body: unknown, opts: Opts = {}): Promise<T> {
 
 export const getInfo = (opts?: Opts) => call<Info>('GET', '/api/info', opts);
 
-export const uploadProject = (file: File, opts?: Opts) =>
-  call<Started>('POST', withQuery('/api/projects', { name: file.name }), {
-    ...opts,
-    body: file,
-    type: 'application/octet-stream',
+/** POST /api/projects with the file as body, over XHR because fetch reports no upload progress: `onProgress`
+ * gets the bytes sent so far and the total as they go out. Errors as `call`'s: an HTTP error is its ApiError, no
+ * answer at all is a network ApiError, an abort rejects with an AbortError. */
+export function uploadProject(
+  file: File,
+  opts: Opts & { onProgress?: (sent: number, total: number) => void } = {},
+): Promise<Started> {
+  return new Promise<Started>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', withQuery('/api/projects', { name: file.name }));
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) opts.onProgress?.(e.loaded, e.total);
+    };
+    xhr.onload = () => {
+      const response = new Response(xhr.responseText, { status: xhr.status });
+      if (response.ok)
+        void response.json().then((body) => {
+          resolve(body as Started);
+        }, reject);
+      else void errorOf(response).then(reject);
+    };
+    xhr.onerror = () => {
+      reject(new ApiError(0, 'network', 'the connection was lost while sending the file'));
+    };
+    xhr.onabort = () => {
+      reject(new DOMException('aborted', 'AbortError'));
+    };
+    opts.signal?.addEventListener('abort', () => {
+      xhr.abort();
+    });
+    xhr.send(file);
   });
+}
 
 export const startSample = (opts: Opts & { fresh?: boolean } = {}) =>
   call<Started>('POST', withQuery('/api/projects/sample', { fresh: opts.fresh }), opts);
@@ -116,6 +144,13 @@ export const getDrawing = (drawingId: string, opts: Opts & { project?: string } 
     withQuery(`/api/drawings/${seg(drawingId)}`, { project: opts.project }),
     opts,
   );
+
+/** The file's building model as one GLB (model-3d.md): 409 `converting`, 422 `too_big` / `no_geometry`. */
+export const getModelGlb = (projectId: string, fileId: string, opts?: Opts) =>
+  call<ArrayBuffer>('GET', `/api/projects/${seg(projectId)}/files/${seg(fileId)}/model.glb`, {
+    ...opts,
+    bytes: true,
+  });
 
 /** extraction_v1, not typed in the OpenAPI document. */
 export const getModel = (drawingId: string, opts?: Opts) =>
@@ -195,6 +230,14 @@ export const readAsPlan = (projectId: string, fileId: string, by: string, opts?:
     `/api/projects/${seg(projectId)}/files/${seg(fileId)}/triage`,
     { class: 'floor_plan', by } satisfies TriageRequest,
     opts,
+  );
+
+/** A photo added to a done project from the chat (#203, chat.md CH-18): 202 with the new file, queued. */
+export const addProjectFile = (projectId: string, file: File, opts?: Opts) =>
+  call<FileStatus>(
+    'POST',
+    withQuery(`/api/projects/${seg(projectId)}/files`, { name: file.name }),
+    { ...opts, body: file, type: 'application/octet-stream' },
   );
 
 /** A person's answer to an issue, or `{undo: true}` (#223); answers the issue as it now stands. Answering does

@@ -23,17 +23,27 @@ then every question is answered from it. Same three outputs.
         --dataset ../data/stoa/full/junction-dataset --out ../data/stoa/runs/<name>
 
 The sealed eval side of the split is refused unless `--milestone` is given.
+
+`glb` builds the 3D views (MODEL_3D) ahead, for a deploy: of every IFC file of each project given
+by id, and of each IFC file given by path (cached by content, so the same file uploaded later is
+served at once). A view that was unavailable is tried again. Exit 1 when one is not ready.
+
+    uv run python -m app.cli glb <project id or file.ifc> ...
 """
 
 import argparse
+import hashlib
 import logging
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from functools import partial
 from pathlib import Path
 
 from app.adapters.answer_v1 import AnswerV1Writer
+from app.adapters.archive.store import DiskProjectStore
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer, Split
 from app.adapters.golden_dir import GoldenDir
+from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.questions_file import QuestionsFile
 from app.composition import Pipeline, build_pipeline
 from app.core.answering.model import Question
@@ -75,6 +85,39 @@ def run_answer(args: argparse.Namespace, settings: Settings) -> None:
     _answer(pipeline, questions, _ingest(pipeline, files, out), out, f"about {len(files)} files")
 
 
+def run_glb(args: argparse.Namespace, settings: Settings) -> int:
+    models = GlbModels(
+        settings.projects_dir / "models-3d",
+        settings.model_3d_memory_mb,
+        settings.model_3d_timeout_s,
+    )
+    store = DiskProjectStore(settings.projects_dir)
+    known = set(store.project_ids())
+    files: list[tuple[str, Callable[[], bytes]]] = []
+    for given in args.targets:
+        if given in known:
+            status = store.load_project(given)[0]
+            files += [
+                (f"{given}/{file.path}", partial(store.read_upload, given, file.path))
+                for file in status.files
+                if file.kind == "ifc"
+            ]
+        elif Path(given).is_file():
+            files.append((given, Path(given).read_bytes))
+        else:
+            raise InvalidInputError(f"{given} is no project id and no file")
+    ready = True
+    for name, read in files:
+        data = read()
+        found = models.convert(hashlib.sha256(data).hexdigest(), data)
+        if found.state == "ready":
+            print(f"{name}: ready, {found.elements} elements")
+        else:
+            print(f"{name}: unavailable ({found.code}): {found.reason}")
+            ready = False
+    return 0 if ready else 1
+
+
 def _new_folder(out: Path) -> Path:
     if out.exists() and any(out.iterdir()):
         raise InvalidInputError(f"{out} is not empty: give each run its own --out folder")
@@ -103,6 +146,36 @@ def _answer(
     print(f"answering: {sum(methods.values())} answers in {answers}, {what}")
     for method, count in sorted(methods.items()):
         print(f"  {count:6d}  {method}")
+
+
+def run_services_build(args: argparse.Namespace, settings: Settings) -> None:
+    from app.adapters.services_store import ServicesStore  # ifcopenshell only when asked
+
+    building = args.architecture.read_bytes() if args.architecture else None
+    store = ServicesStore(args.cache)
+    model = store.build(args.model.name, args.model.read_bytes(), building)
+    if model is None:
+        raise InvalidInputError(f"{args.model}: not an IFC file ifcopenshell can read")
+    print(
+        f"{len(model.elements)} elements, {len(model.connections)} connections, "
+        f"{len(model.rooms)} rooms, {len(model.walls)} walls, {len(model.openings)} openings; "
+        f"connectivity {model.connectivity.state}"
+        + (f" ({model.connectivity.reason})" if model.connectivity.reason else "")
+        + f"; stored as {store.path(model.source.sha256)}"
+    )
+
+
+def run_disc_render(args: argparse.Namespace, settings: Settings) -> None:
+    from app.adapters.ifc_model import plan_picture  # ifcopenshell only when asked
+
+    sheets = plan_picture.read_plans(args.model, args.background)
+    for dpi in args.dpi:
+        for variant in args.variant:
+            out = args.out / f"{variant}-{dpi}"
+            pictures = plan_picture.draw_plans(
+                sheets, out, dpi=dpi, variant=variant, seed=args.seed
+            )
+            print(f"{len(pictures)} pictures in {out}")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -139,6 +212,35 @@ def parser() -> argparse.ArgumentParser:
         "--split-dir", type=Path, default=SPLIT_DIR, help="the sealed split (its manifest.json)"
     )
     answer.set_defaults(run=run_answer)
+    services = commands.add_parser("services", help="services models").add_subparsers(
+        dest="step", required=True
+    )
+    build = services.add_parser("build", help="build and store the services model of an IFC file")
+    build.add_argument("--model", type=Path, required=True, help="a services model (.ifc)")
+    build.add_argument("--architecture", type=Path, help="the same building's architecture (.ifc)")
+    build.add_argument("--cache", type=Path, required=True, help="where models are kept")
+    build.set_defaults(run=run_services_build)
+    bench = commands.add_parser("disc-bench", help="discipline picture bench").add_subparsers(
+        dest="step", required=True
+    )
+    render = bench.add_parser("render", help="plan pictures and their truth from an IFC model")
+    render.add_argument("--model", type=Path, required=True, help="a services model (.ifc)")
+    render.add_argument("--background", type=Path, help="the same building's architecture")
+    render.add_argument(
+        "--out", type=Path, required=True, help="pictures and truth go to <out>/<variant>-<dpi>/"
+    )
+    render.add_argument("--dpi", type=int, nargs="+", default=[150])
+    render.add_argument(
+        "--variant",
+        nargs="+",
+        default=["clean"],
+        choices=["clean", "scan", "photo", "no-legend", "no-scale"],
+    )
+    render.add_argument("--seed", type=int, default=0)
+    render.set_defaults(run=run_disc_render)
+    glb = commands.add_parser("glb", help="build the 3D views of IFC files ahead (MODEL_3D)")
+    glb.add_argument("targets", nargs="+", help="project ids (data/projects) or IFC file paths")
+    glb.set_defaults(run=run_glb)
     return root
 
 
@@ -147,11 +249,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     settings = Settings()
     logging.basicConfig(level=settings.log_level)
     try:
-        args.run(args, settings)
+        failed = args.run(args, settings)
     except DomainError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
-    return 0
+    return failed or 0
 
 
 if __name__ == "__main__":

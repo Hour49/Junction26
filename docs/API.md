@@ -86,6 +86,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
+| A file added to a project (`POST …/files`) that is not a png or jpeg | 415 `unsupported` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
 | A method the path does not take (`GET /api/ask`) | 405 `method-not-allowed` |
 | An unexpected error | 500 `internal` |
@@ -113,11 +114,13 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects` | All projects, newest first | #27 |
 | `GET /api/projects/{project_id}` | Project status: every file with its state and reason, one drawing per plan | #27 |
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
+| `POST /api/projects/{project_id}/files?name=` | Add a photo (png or jpeg) to a done project; read in the background | #203 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
 | `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
 | `GET /api/projects/{project_id}/evidence/search?q=&k=&include_unrelated=` | Search the project's non-plan files by what they show and say (one hit per file) | 0012 |
 | `GET /api/projects/{project_id}/evidence/{evidence_id}` | One hit's passage with its file's description | 0012 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
+| `GET /api/projects/{project_id}/files/{file_id}/model.glb` | An IFC file's 3D view (GLB, nodes named by GlobalId); `MODEL_3D` | #14 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
 | `GET /api/drawings/{drawing_id}` | How the drawing was read, its pages, questions it can answer | #31 |
@@ -265,7 +268,8 @@ An edit of a signed-off quantity (409):
   "chat": {
     "model": "rules",
     "available": true,
-    "reason": null
+    "reason": null,
+    "stream": true
   }
 }
 ```
@@ -1216,8 +1220,12 @@ the `identify` stage's line.
   its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
   issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
   drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
-  plan."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
-  sheet), `title`, `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
+  plan."; `read`: also a camera photo (`photo_plan`) it calls no floor plan while `takeoff_possible` is true, under
+  the cut: a posted fire exit plan keeps the kind it was given and gets no sheet-kind doubt (the photo's own reading
+  flag stays)), `takeoff_possible`, `confidence` (of a floor plan on the
+  sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`,
+  `electrical`, `fire`, `site` or `other`, from the kind, title and number; null when unsure; a display hint, no
+  client shows or reads it yet), `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
   than a clean scan of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet),
   `seen`, `model`. A call that fails leaves the file as triage would have it without the step ("triage not
   available: ...; read as today" with no classifier). A model answer alone; never a certified value.
@@ -1666,6 +1674,47 @@ photo of an elevation sheet with its register, showing a building that matches n
   "conflicts_open": 0,
   "issues_open": 2,
   "issues_to_answer": 1
+}
+```
+
+### `POST /api/projects/{project_id}/files?name=<file name>`
+
+A photo added to a finished project, from the chat (board #203). The body is the image's bytes (png or jpeg,
+up to the upload limit); `name` its file name. 202 with the new file's `FileStatus`, `queued`, id `f<n+1>`, at
+its own name, the folders dropped (a name the project has gets `-2`, `-3`... before the extension). It is read
+in the background, alone, as at upload: identified (a camera photo of a plan as `photo_plan`, EXIF and
+rectifier applied), triaged when triage is on, then its group, route and readers; with
+`EVIDENCE_SCOPE=all_non_plan` it alone is then described for the evidence index. Poll
+`GET /api/projects/{project_id}`: the file goes `running`, then `ready`, `flagged`, `set_aside` or `text_only`;
+once read as a plan it has a `drawing_id` and is in `drawings`. The project stays `done` throughout; the issues
+already there keep their ids and order, the new drawing's issues join the list.
+
+- 404 `not-found` for an unknown project; 409 `not-allowed` until the project is `done` or while one of its files
+  is read; 413 `too-large` over the upload limit; 415 `unsupported` for anything but png or jpeg (an empty body
+  too); 422 `invalid` for a name that is not a file name (`..`); 422 `validation` with no `name`.
+- A failure sets the file aside with why ("not ingested: ..."); the project stays `done`.
+- While queued its `reason` is "added to the project, queued to be read".
+
+<!-- fixture: file_added.json -->
+```json
+{
+  "id": "f6",
+  "path": "phone.png",
+  "size": 2000,
+  "sha256": null,
+  "kind": null,
+  "state": "queued",
+  "reason": "added to the project, queued to be read",
+  "group": null,
+  "route": null,
+  "source": null,
+  "drawing_id": null,
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": null,
+  "cost_usd": 0.0,
+  "normalised": null
 }
 ```
 
@@ -4479,7 +4528,7 @@ tell, and an uncertain answer with the model's check:
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -4487,7 +4536,7 @@ tell, and an uncertain answer with the model's check:
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -4844,6 +4893,11 @@ Each issue:
 - `answer`: a person's answer, `{text, by, at}` (`POST …/issues/{id}/answer` below), or null. It is a note on the
   issue: it settles nothing and does not change `state` (settle a conflict with `POST …/review`, make a call on a
   file with `POST …/relevance`).
+- `model_file_id` and `highlight` (added 2026-11-14, board #14 c6883948897; only while `MODEL_3D` is on, each left
+  out when there is none): for a failed code check on a drawing with an IFC model, the IFC file whose 3D view shows it (its own file, or the model
+  a sheet was read from: `…/files/{model_file_id}/model.glb`) and the checked room or door by GlobalId,
+  `[{global_id, role: "affected"}]`, when the model lists it as drawn on the sheet. The check's `subject` carries
+  the same `global_id` (left out when none, and always while `MODEL_3D` is off) in `GET /api/drawings/{id}/checks`.
 
 A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
 
@@ -5337,6 +5391,21 @@ The file as uploaded with only its EXIF turn applied, so the screen can show a p
 normalisation. Images and a PDF's first page; 404 for any other file, 422 `invalid` for an image or PDF that cannot be
 decoded (cut off or damaged). `width` as for pages.
 
+### `GET /api/projects/{project_id}/files/{file_id}/model.glb`
+
+Only while `MODEL_3D` is on (off: 404, and no payload changes). An IFC file's 3D view: one GLB of the whole model,
+each node named by its element's GlobalId (openings and rooms left out), `model/gltf-binary`, gzipped
+(`Content-Encoding: gzip`) when the request accepts it. The first request starts the conversion: 409 `converting`
+until it is built (poll this route or the file's `model_3d`). 422 with `code` `too_big` (over the memory budget,
+the CPU-time limit or 60 MB of GLB), `no_geometry` (nothing to draw) or `failed` (the file could not be read, or the
+server was too busy: that one is not kept, the next request tries again), and the reason as `detail`. 404 for a
+file that is not IFC.
+
+`FileStatus.model_3d` in `GET /api/projects/{project_id}` (IFC files only, left out otherwise and when off):
+`state` (`not_started`, `converting`, `ready`, `unavailable`), `code` (as the 422's, when unavailable), `reason`
+(one sentence, when unavailable), `elements` (when ready: the elements drawn). A deploy builds the views ahead
+with `uv run python -m app.cli glb` (backend/README.md).
+
 ## Answering
 
 ### `POST /api/ask`
@@ -5611,7 +5680,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "2b4e04cde84fbbef",
+  "drawing_id": "ac22309c691d645d",
   "file": "plan.png",
   "pages": [
     {
@@ -5619,7 +5688,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/2b4e04cde84fbbef/pages/1.png",
+      "url": "/api/drawings/ac22309c691d645d/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -5915,7 +5984,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -5923,7 +5992,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -6138,7 +6207,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -6146,7 +6215,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -6399,7 +6468,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many bedrooms are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -6407,7 +6476,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -6666,14 +6735,21 @@ that call gives, the project's review edits applied. An unknown project is 404; 
 
 - `parts`: one per drawing, `{drawing_id, name, answer}`: `name` is the drawing's file as the project uploaded it
   and `answer` is the full `POST /api/ask` response. The drawings that answered come first, then those that
-  refused (with their `answer.refusal`), each group in the project's order.
+  refused (with their `answer.refusal`), each group in the project's order. Also `file_id` (the drawing's file,
+  its `FileStatus.id`); only while `MODEL_3D` is on (off: left out, the payload as before), `model_file_id` (left
+  out when none): the IFC file whose 3D view shows the drawing
+  (`…/files/{model_file_id}/model.glb`), its own file when that is IFC, else the model a sheet was read from;
+  `highlight` (left out when empty): the elements the answer counted, by IFC GlobalId, `[{global_id, role}]`, role
+  `affected` here (`moved`, `removed`, `added` are for edit proposals); and while `MODEL_3D` is on, `model_3d`: that
+  file's `FileStatus.model_3d`, read at response time. A chat turn's `answers` carry the same parts.
 - `total`, `total_unit`: when exactly one drawing answered, its value. When several did, their values added up, but
   only when the backend knows the drawings show different parts of the building: sheets of the same IFC model,
   each showing a different storey. A flat drawn twice (a PDF and its IFC model, as in the sample) would otherwise be
   counted twice. The question must also be a count, or an area or length over each whole drawing, in one unit.
   Null otherwise: no drawing answered, the drawings may show the same rooms, the question is about one room (two
   kitchens on two drawings are two parts, not one sum), the answer came from a printed table, or the units differ.
-  The total only adds the parts' `answer` values.
+  The total adds the parts' measured values (`answer.quantity.value`). When one of them is an area on an estimated
+  scale, the total is that sum in whole m², as such a part's `answer` is (#294).
 - `total_sure`: true only when there is a total and every part in it is sure (`answer.line.sure`); false
   otherwise.
 - `total_level`: the lowest confidence level among the total's parts that have one (`answer.level.level`): `high`,
@@ -6903,7 +6979,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f1"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -7109,7 +7186,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f3"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -7193,7 +7271,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f4"
     }
   ],
   "total": null,
@@ -7730,7 +7809,7 @@ A question the drawing cannot answer:
 | `unsupported-question` | the question is not one the parser turns into a count, area, length or volume |
 | `not-in-drawing` | the drawing does not give this quantity (or no schedule on the sheet answers it) |
 | `not-read` | the reader of this drawing does not look for that class, so it has no count of it |
-| `no-reader` | nothing was read from the sheet (no reader for its route yet: the text says so; a reader that found nothing says that instead), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
+| `no-reader` | nothing was read from the sheet (this setup has no reader for its route: the text says so; a reader that found nothing says that instead), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
 | `no-scale` | an area or length on a sheet without a scale |
 | `no-drawing` | the file has no drawing model |
 
@@ -8468,7 +8547,8 @@ The project chat as a tool-calling agent: it calls the pipeline tools (`list_dra
 every number in `text` came from a tool result of this turn, else the turn is `dont_know`. The model never writes
 coordinates: places are evidence ids the server resolves. `CHAT_MODEL` picks the model: `rules` (default, no key,
 deterministic), `gemini` (`AGENT_MODEL`, every call charged to the Gemini spend guard), `off` (503).
-`GET /api/info` `chat` says which, and whether a turn can run now.
+`GET /api/info` `chat` says which, whether a turn can run now, and (`stream`) whether `POST
+.../chat/stream` exists: a client streams only when it is true.
 
 ### `POST /api/projects/{project_id}/chat`
 
@@ -8494,6 +8574,30 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 `label`, `sure`, and `level`, the confidence level of the `ask_drawings` answer it comes from, or null). `steps`
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
+
+Levels only where measured (added 2026-11-14): when a number in an `answer` or `conflict` turn's `text` comes only from
+`get_plan_geometry`, `get_takeoff` or `list_walls` (no confidence level) and from no `ask_drawings` answer or the
+user's message, the server appends one sentence saying it is not rated.
+
+"Are you sure?" (added 2026-11-14): the agent calls `review_answer`, which gives back the chat's latest `ask_drawings`
+answer as its readers judged it (value, level and why, the check's reason, the disputed marks with their evidence
+ids), so the turn answers from the level and the disputed marks, cites them, and returns that answer in `answers`.
+
+`view` (added 2026-11-14) is the plan the turn wants on screen, or null when it has no place: `{drawing_id, name,
+page, box, marks: [{n, label, box, polygon}], caption, source}`, all in page fractions. `source: "show_on_plan"`:
+the agent called the `show_on_plan` tool (places of this chat by evidence id, or every mark, or the disputed ones,
+of the chat's latest `ask_drawings` answer, which then comes back in `answers`); its marks are added to `evidence`
+after the cited ones. `source: "evidence"`: the page of `[1]` with every cited place on it; an `edit` turn's view is
+the proposal's page around its geometry. `box` is the marks' union with a margin, the box to focus; each mark's `n`
+is its `evidence` item. Places minted in earlier turns stay citable: a follow-up may cite them (numbers in `text`
+still come from this turn's tool results).
+
+`next` (added 2026-11-14) is 0 to 3 follow-up chips after a complete `answer` or `conflict` turn, `[{label,
+message}]` like `options`; a click sends `message` as the next message. The server builds them from the turn's tool
+results, never from the model's text, in this order: "Show them on the plan" (`message` "Show me where they are")
+when the answer has more marks than the view shows; "Are you sure?" when an answer is rated Medium or Low or has
+disputed marks, not after a review; "How big is <label>?" when the answer names a room `find_rooms` returned without
+an area. `next` is `[]` on a turn with `options` and on every other kind.
 
 <!-- fixture: chat_answer.json -->
 ```json
@@ -8758,7 +8862,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f1"
         },
         {
           "drawing_id": "44cc9f0d991eafe3",
@@ -8964,7 +9069,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f3"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -9076,7 +9182,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f8"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -9160,7 +9267,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f4"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -9244,7 +9352,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f6"
         }
       ],
       "total": null,
@@ -9254,6 +9363,38 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
       "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
       "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
       "refused_note": "2 drawings give no reliable number for it."
+    }
+  ],
+  "view": {
+    "drawing_id": "adeefbbcc17559fc",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.4633,
+      0.195,
+      0.5367,
+      0.305
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "door",
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  },
+  "next": [
+    {
+      "label": "Show them on the plan",
+      "message": "Show me where they are"
     }
   ]
 }
@@ -9409,7 +9550,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f1"
         },
         {
           "drawing_id": "44cc9f0d991eafe3",
@@ -9515,7 +9657,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f3"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -9599,7 +9742,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f4"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -9683,7 +9827,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f6"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -9772,7 +9917,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f8"
         }
       ],
       "total": null,
@@ -9783,7 +9929,9 @@ budget, the same call a third time) ends a turn the same way.
       "why_no_total": "No drawing answered it.",
       "refused_note": "5 drawings can't answer this question."
     }
-  ]
+  ],
+  "view": null,
+  "next": []
 }
 ```
 
@@ -9960,7 +10108,8 @@ without wall fills) gets `dont_know` saying so.
         "text": "A wet room changes: its waterproofing is redone and inspected."
       }
     ],
-    "law": null
+    "law": null,
+    "services": null
   },
   "options": null,
   "steps": [
@@ -9989,12 +10138,54 @@ without wall fills) gets `dont_know` saying so.
   "model": "rules",
   "cost_usd": 0.0,
   "latency_s": 0.002,
-  "answers": []
+  "answers": [],
+  "view": {
+    "drawing_id": "5c4ed01e00000003",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.1367,
+      0.22,
+      0.5278,
+      0.4926
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "W1",
+        "box": [
+          0.2999,
+          0.25,
+          0.32257,
+          0.4626
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  },
+  "next": []
 }
 ```
 
 Errors: 404 unknown project or chat, 409 project not done or a turn of this chat still running, 422 a bad body,
 503 `CHAT_MODEL=off`.
+
+### `POST /api/projects/{project_id}/chat/stream`
+
+The same body and the same turn as `POST .../chat`, sent as Server-Sent Events while the turn runs (added
+2026-11-14). Read it with `fetch` and the response body's reader (`EventSource` cannot POST). Errors known before the
+turn starts (404, 409, 422, 503) are plain JSON responses as on `POST .../chat`. After a 200, each event is
+`event: <type>` and one line of JSON `data`; `: ping` comes when nothing else was sent for 10 s. Events in order:
+`turn` `{chat_id, turn}` (first); per model step `thinking` `{step}`, `plan` `{step, calls: [{n, tool, label}]}`
+(the step's tool calls, in the server's words), and per call `tool_call` `{n, tool, label}` then `tool_result` (a
+`steps` item plus `summary`, a server-written line of what the tool found, or null); `view` (a `View`, when
+`show_on_plan` ran; its mark numbers may change in the final turn); `checking` `{status: "ok" | "retry", reason}`
+when the agent hands in its answer (`retry`: the server sent it back, the reason in plain words); last, exactly
+one of `answer` (the `ChatTurn`, as `POST .../chat` returns it) or `error` `{status, detail}`. Nothing the model
+writes is streamed except through the checked `answer`. A client that goes away does not stop the turn: it runs to
+its end and is stored.
 
 ### `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`
 
@@ -10147,7 +10338,8 @@ unchanged.
       "text": "A wet room changes: its waterproofing is redone and inspected."
     }
   ],
-  "law": null
+  "law": null,
+  "services": null
 }
 ```
 
@@ -11503,7 +11695,22 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
-- 2026-11-15, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
+- 2026-11-14, behaviour (docs refresh of the evening's merges; no shape change): the vector reader's printed scale
+  reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones and
+  has no scale bar (#282); a scale bar needs one unit, metres or feet (#301). `VECTOR_FALLBACK=raster` (default
+  `off`) reads a drawn PDF that matches no sheet style on the raster route, flagged and never certified (#283); a
+  scanned PDF's page is rendered once and shared by its readers and its answers (#280, #295). Under
+  `CARBON_READER=large` (default off) Carbon's door boxes take the detector's door box where one lies inside (#310,
+  `attrs.box_from` is `detector`), and the independent Carbon reads of a raster sheet run at the same time (#306).
+  An area (or length) question with a room type or a printed label and a room number ("bathroom 1.01", "Bagno 1.01")
+  names that room (#313); a count question does not take the room. A stage's cost in a trace is exact to the
+  pico-dollar (#314).
+- 2026-11-14, additive (#311): `sheet.discipline` on a file's triage, one of the nine values above or null, from
+  the sheet-kind reply's kind, title and number. `docs/api/openapi-v1.json` already carries it.
+- 2026-11-14, value only (keycheck review-315, chat-ux): `POST /api/projects/{project_id}/ask`'s `total` is in
+  whole m² when a summed part is an area on an estimated scale, as that part's `answer` already was (#294): the
+  Finnish flat's kitchen gave `answer` 5 and `total` 4.88, now 5 and 5 (`total_note` too). Shapes unchanged.
+- 2026-11-14, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
   missing feature say what was and wasn't read. A `no-reader` refusal on a route with no reader: "This sheet wasn't
   read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask
   about the project's other drawings."; the policy refusal: "On sheets like this one, our reader got this kind of
@@ -11511,10 +11718,13 @@ unofficial translation. An unknown id is 404 `not-found`.
   read: this setup has no reader for the image route"; a DWG: "DWG files can't be opened here; export it as a PDF
   and upload that"; `total_note`/`refused_note` and issue `why`: "gives/give no reliable number for it" (was
   "has/have no reader for it"). Shapes unchanged.
+- 2026-11-14, additive (board #203): new `POST /api/projects/{project_id}/files?name=`, a png or jpeg added to a
+  done project and read alone in the background; 202 `FileStatus`. New error 415 `unsupported`. New fixture
+  `file_added.json`.
 - 2026-11-14, additive (decision 0013, agent chat): `POST /api/projects/{project_id}/chat` and
   `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`; `GET /api/info` gains `chat`
   (`model`, `available`, `reason`; last). Settings `CHAT_MODEL`, `AGENT_MODEL`, `AGENT_BASE_URL`,
-  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_TURN_USD`, `AGENT_MAX_STEPS`. Fixtures `chat_request`,
+  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_PRICE_CACHED_PER_M` (prompt tokens read from cache), `AGENT_TURN_USD`, `AGENT_MAX_STEPS`, `AGENT_THINKING` (the model's `reasoning_effort`, default `low`). Fixtures `chat_request`,
   `chat_answer`, `chat_dont_know`, `chat_edit`, `chat_proposal_accepted`.
 - 2026-11-14, additive (decision 0013): `ChatTurn.answers` (last), the `ProjectAnswer`s a turn rests on;
   `ChatTurn.evidence` lists only the cited places; `options` may come with any kind.

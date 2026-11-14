@@ -3,7 +3,8 @@
 import type { ComponentProps } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { drawing, project } from '../api/fixtures';
+import { drawing, info, project } from '../api/fixtures';
+import { InfoProvider } from '../shell/info';
 import { mockApi } from '../test/mockApi';
 import type { PageViewer } from '../viewer/PageViewer';
 import { AgentChat } from './AgentChat';
@@ -107,7 +108,7 @@ const pane = () => screen.getByRole('complementary', { name: 'Plan' });
 describe('viewOf', () => {
   it("returns the server's view as sent, null included", () => {
     expect(viewOf(viewTurn)).toBe(shownView);
-    expect(viewOf({ ...answerTurn, view: null } as ChatTurn)).toBeNull();
+    expect(viewOf({ ...answerTurn, view: null })).toBeNull();
   });
 
   it('without a view field: the page of [1] and every source on it, the box their union with a margin', () => {
@@ -327,5 +328,63 @@ describe('a narrow window: the plan as a sheet (chat-ux #9)', () => {
     await within(pane()).findByText('Bagno 1.01 on the plan');
     expect(screen.queryByRole('button', { name: 'Show the plan' })).toBeNull();
     expect(within(pane()).queryByRole('button', { name: 'Close' })).toBeNull();
+  });
+});
+
+describe('the plan beside the chat, from the step stream (chat-ux #2, contract C)', () => {
+  it("show_on_plan's view event moves the plan while the turn still runs; the answer's view has the last word", async () => {
+    const enc = new TextEncoder();
+    let ctl!: ReadableStreamDefaultController<Uint8Array>;
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const routes: Record<string, unknown> = {
+      'GET /api/info': info, // chat.stream true, as the backend's fixture
+      [`GET /api/projects/${PID}`]: project,
+    };
+    for (const d of project.drawings) {
+      routes[`GET /api/drawings/${d.drawing_id}`] = { ...drawing, id: d.drawing_id };
+      routes[`GET /api/drawings/${d.drawing_id}/model`] = model;
+    }
+    const api = mockApi(routes);
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) =>
+      url.endsWith('/chat/stream')
+        ? Promise.resolve(
+            new Response(
+              new ReadableStream<Uint8Array>({
+                start(c) {
+                  ctl = c;
+                },
+              }),
+              { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+            ),
+          )
+        : api.fetch(url, init),
+    );
+    render(
+      <InfoProvider>
+        <AgentChat projectId={PID} />
+      </InfoProvider>,
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    const push = async (event: string, data: unknown) => {
+      await act(async () => {
+        ctl.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    };
+    await send('Where is Bagno 1.01?');
+    await push('turn', { chat_id: 'c1', turn: 1 });
+    await push('view', shownView);
+    expect(screen.getByText('Working on it…')).toBeTruthy();
+    expect(within(pane()).getByText('Bagno 1.01 on the plan')).toBeTruthy();
+    expect(viewer().focus).toEqual({ page: 1, box: shownView.box });
+    const last = { ...shownView, caption: 'Bagno 1.01, as answered' };
+    await push('answer', { ...answerTurn, view: last });
+    expect(await within(pane()).findByText('Bagno 1.01, as answered')).toBeTruthy();
   });
 });
