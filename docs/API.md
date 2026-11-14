@@ -3000,8 +3000,9 @@ second method measured the value (`Checked twice, ...`), shown with the proof. R
   count, with `page` and `box`, which a person can `add`. `why` is one sentence; `readers` maps each reader to
   what it says there (`nothing` when it sees nothing), the answer's own reading included.
 
-`check` is null when the answer is certified (on the raster route: its `g1main` score at or above its family's
-threshold on a page ingest did not flag; on another route: the route was certified on golden v2's holdout), once
+`check` is null when the answer is certified (on the raster route: its score at or above its family's threshold on
+a page ingest did not flag, the score being `g1main`'s or, for a family whose threshold was chosen on a local gate's
+signal, that gate's from `LOCAL_GATES`; on another route: the route was certified on golden v2's holdout), once
 a person settled or signed the quantity off, on a refusal, and when `CHECK_POLICY` is off. Never certified,
 whatever the score or route, and the `reason` says why: two methods disagree, also when a rule picked one value
 (`Please double-check the doors: two methods disagree: 2 vs 3; we show 3.`; areas with two decimals and m²);

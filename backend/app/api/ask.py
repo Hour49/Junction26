@@ -131,6 +131,7 @@ def asked_on(
         route=info.route,
         disputes=answering.disputes,
         no_reader=no_reader,
+        scorers=answering.scorers,
     )
 
 

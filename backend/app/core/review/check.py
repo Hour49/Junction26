@@ -5,7 +5,10 @@ An answer is certified when golden's check policy (chosen on val by D455: per fa
 threshold that maximises answers certified - 10 x wrong ones) clears it: on the raster route its
 score is at or above its family's threshold on a page ingest did not flag (a phone photo, a scan:
 the policy was chosen on CubiCasa scans); on another route the route itself was certified on
-golden v2's holdout. Every other answer, a family the policy has no threshold for included, gets
+golden v2's holdout. A family's score is the answer confidence's (DECISIONS_CONFIDENCE) or, when
+its threshold was chosen on a local gate's signal (local-dec's lgate models, LOCAL_GATES), that
+gate's score of the answered count (`Scorer`). Every other answer, a family the policy has no
+threshold for included, gets
 `Check`: a sentence and the disputed places (`Disputes`, at most a few), each pointing at the
 review mark a person can reject or settle (`mark_id`) or, with no mark, at a place the answer did
 not count, which a person can add; a mark the person rejected is never pointed at again.
@@ -20,7 +23,11 @@ person settled or signed off is theirs, not ours, so neither gets one.
 """
 
 from collections.abc import Callable, Mapping, Sequence
+from types import MappingProxyType
 
+from pydantic import Field
+
+from app.core.answering.local_gate import LocalGateModel, reading_of, score
 from app.core.drawing.model import Box, Drawing, Room
 from app.core.model import Frozen
 from app.core.review.model import MarkView, Row
@@ -40,6 +47,51 @@ class CheckPolicy(Frozen):
 
     thresholds: dict[str, float]  # family -> lowest score certified, raster route
     routes: frozenset[str] = frozenset()  # routes whose answers are certified as they are
+    # family -> the local scorer (LOCAL_GATES) its threshold is on, by signal name; a family not
+    # here is on the answer confidence's signal
+    signals: dict[str, str] = Field(default_factory=dict[str, str])
+
+
+# (the drawing, the family, the answered count) -> the signal's P(the count is exact); None: it
+# can't score this answer
+Scorer = Callable[[Drawing, str, int], float | None]
+NO_SCORERS: Mapping[str, Scorer] = MappingProxyType({})
+# What a local gate model may read that the stored drawing does not keep yet (L1's
+# probabilities, the count arbiter's P): a model reading one scores nothing, so its families ask
+NOT_KEPT = frozenset({"l1", "arbiter_p"})
+
+
+def gate_scorer(model: LocalGateModel) -> Scorer:
+    """The local gate `model` as a scorer: None for a family it was not fit on, and for every
+    answer while it reads an input the drawing does not keep (`NOT_KEPT`)."""
+
+    def scored(drawing: Drawing, family: str, answer: int) -> float | None:
+        if model.blocks & NOT_KEPT:
+            return None
+        return score(model, family, reading_of(drawing, family, answer))
+
+    return scored
+
+
+def score_of(
+    policy: CheckPolicy,
+    family: str,
+    *,
+    confidence: float | None,
+    drawing: Drawing,
+    value: object,
+    scorers: Mapping[str, Scorer],
+) -> float | None:
+    """The score `policy` reads for an answer of `family`: the answer `confidence`, or, for a
+    family whose threshold is on a local scorer, that scorer's score of the answered count
+    (None: the scorer is not configured, or the value is not a count)."""
+    signal = policy.signals.get(family)
+    if signal is None:
+        return confidence
+    scorer = scorers.get(signal)
+    if scorer is None or isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return scorer(drawing, family, value)
 
 
 class Place(Frozen):

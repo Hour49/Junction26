@@ -2,13 +2,18 @@
 double-check it, at the places the readers disagree (app/core/review/check.py)."""
 
 import json
+import math
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
 
 from app.adapters.answer_prior import NoPrior
 from app.adapters.check_policy import load_check
+from app.adapters.local_gate import load_local_gate
 from app.adapters.question_templates import TemplateParser
+from app.composition import build_answering
+from app.core.answering.local_gate import reading_of, score
 from app.core.drawing.model import (
     Conflict,
     Drawing,
@@ -24,8 +29,17 @@ from app.core.drawing.model import (
 )
 from app.core.errors import InvalidInputError
 from app.core.review.ask import Asked, ask
-from app.core.review.check import CheckPolicy, Found, Place, certified
+from app.core.review.check import (
+    NO_SCORERS,
+    CheckPolicy,
+    Found,
+    Place,
+    Scorer,
+    certified,
+    gate_scorer,
+)
 from app.core.review.model import ReviewState, Row, Settled, SignOff
+from app.settings import Settings
 
 SHA = "9c762d68a698dd45a6c1ca4fa7fae39f19199aae470d1b195ed82a873d8c48e9"
 PAGE = Page(page=1, width=100, height=100, unit="pt")
@@ -80,11 +94,13 @@ def asked(
     route: str = "raster",
     flags: tuple[str, ...] = (),
     state: ReviewState | None = None,
+    scorers: Mapping[str, Scorer] = NO_SCORERS,
 ) -> Asked:
     return ask(
         text, SCAN, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
         state=state or ReviewState(), confidence=Scored(score), flags=flags,
         raster=route == "raster", check=check, route=route, disputes=readers_say,
+        scorers=scorers,
     )  # fmt: skip
 
 
@@ -181,6 +197,97 @@ def test_the_loader_keeps_the_thresholds_on_the_answer_confidence_s_signal(tmp_p
     policy = load_check(policy_file(tmp_path), "g1main")
     assert policy == CheckPolicy(thresholds={"toilet": 0.31}, routes=frozenset({"bim"}))
     assert load_check(policy_file(tmp_path), None).thresholds == {}  # no confidence: none
+
+
+def test_the_loader_keeps_a_family_on_a_configured_local_gate_s_signal(tmp_path: Path) -> None:
+    families = {
+        "toilet": {"signal": "g1main", "threshold": 0.31},
+        "sink": {"signal": "lgate-rt-nol1", "threshold": 0.7},  # local-dec's signal file's name
+        "door": {"signal": "lgate2-rt", "threshold": 0.9},  # no model configured for it
+    }
+    path = policy_file(tmp_path, families=families)
+    policy = load_check(path, "g1main", ["lgate-rt-noL1"])  # its model's name: case differs
+    assert policy.thresholds == {"toilet": 0.31, "sink": 0.7}
+    assert policy.signals == {"sink": "lgate-rt-nol1"}  # toilet: on the answer confidence
+    assert load_check(path, None, ["lgate-rt-noL1"]).thresholds == {"sink": 0.7}
+
+
+def test_a_family_on_a_local_gate_is_certified_on_the_gate_s_score() -> None:
+    policy = CheckPolicy(thresholds={"door": 0.8}, signals={"door": "lgate-rt-nol1"})
+    seen: list[tuple[str, str, int]] = []
+
+    def gate_says(p: float | None) -> dict[str, Scorer]:
+        def scorer(drawing: Drawing, family: str, answer: int) -> float | None:
+            seen.append((drawing.file, family, answer))
+            return p
+
+        return {"lgate-rt-nol1": scorer}
+
+    # the answer confidence (0.1, then 0.9) has no say on this family: the gate's score does
+    assert asked(score=0.1, check=policy, scorers=gate_says(0.8)).check is None
+    assert seen == [("plan.png", "door", 2)]
+    assert asked(score=0.9, check=policy, scorers=gate_says(0.79)).check is not None
+    assert asked(score=0.9, check=policy, scorers=gate_says(None)).check is not None
+    assert asked(score=0.9, check=policy).check is not None  # the gate is not configured
+
+
+def gate_file(tmp_path: Path, *blocks: str, name: str = "lgate-rt-noL1") -> Path:
+    """A local gate on doors (local_gate_v1) whose score is sigmoid(the answered count - 1):
+    every other feature has a 0 coefficient."""
+    width = {"l1": 3, "extras": 4, "rooms": 4, "arbiter_p": 1}
+    n = 2 + sum(width[b] for b in blocks) + 1
+    doc = {
+        "schema": "local_gate_v1", "name": name, "families": ["door"], "readers": [],
+        "blocks": list(blocks), "prior": {"door": {"2": 0.5}},
+        "mu": [0.0] * n, "sd": [1.0] * n, "coef": [1.0] + [0.0] * (n - 1), "intercept": -1.0,
+    }  # fmt: skip
+    path = tmp_path / f"{name}.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    return path
+
+
+def sigmoid(z: float) -> float:
+    return 1.0 / (1.0 + math.exp(-z))
+
+
+def test_a_local_gate_scores_the_answered_count_on_the_stored_drawing(tmp_path: Path) -> None:
+    model = load_local_gate(gate_file(tmp_path, "extras"))
+    scorer = gate_scorer(model)
+    assert scorer(SCAN, "door", 2) == score(model, "door", reading_of(SCAN, "door", 2))
+    assert scorer(SCAN, "door", 2) == pytest.approx(sigmoid(1.0))
+    assert scorer(SCAN, "door", 3) == pytest.approx(sigmoid(2.0))  # the count it is given
+    assert scorer(SCAN, "sink", 2) is None  # a family it was not fit on
+
+
+@pytest.mark.parametrize("blocks", [("l1",), ("extras", "arbiter_p")])
+def test_a_local_gate_reading_what_the_drawing_does_not_keep_scores_nothing(
+    tmp_path: Path, blocks: tuple[str, ...]
+) -> None:
+    """L1's probabilities and the arbiter's P are not stored with the drawing yet: a model
+    reading them would fail (l1) or read 0 for the arbiter's P, so it scores nothing and the
+    family asks."""
+    assert gate_scorer(load_local_gate(gate_file(tmp_path, *blocks)))(SCAN, "door", 2) is None
+
+
+def test_local_gates_are_built_by_signal_name_and_a_name_twice_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)  # so a developer's backend/.env can't change the result
+    gate = gate_file(tmp_path)
+    families = {"door": {"signal": "lgate-rt-nol1", "threshold": 0.7}}
+    monkeypatch.setenv("CHECK_POLICY", str(policy_file(tmp_path, families=families)))
+    monkeypatch.setenv("LOCAL_GATES", f" {gate} ,")
+    answering = build_answering(Settings())
+    assert answering.check is not None and answering.check.signals == {"door": "lgate-rt-nol1"}
+    assert list(answering.scorers) == ["lgate-rt-nol1"]
+    assert answering.scorers["lgate-rt-nol1"](SCAN, "door", 2) == pytest.approx(sigmoid(1.0))
+    monkeypatch.setenv("LOCAL_GATES", f"{gate},{gate_file(tmp_path, name='LGATE-RT-NOL1')}")
+    with pytest.raises(InvalidInputError, match="two models are named LGATE-RT-NOL1"):
+        build_answering(Settings())
+    monkeypatch.delenv("LOCAL_GATES")
+    assert build_answering(Settings()).check == CheckPolicy(  # nothing scores it
+        thresholds={}, routes=frozenset({"bim"})
+    )
 
 
 @pytest.mark.parametrize(

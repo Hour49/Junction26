@@ -36,14 +36,17 @@ from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
 from app.core.pipeline.takeoff import known_quantities, room_names
 from app.core.review.check import (
+    NO_SCORERS,
     Check,
     CheckPolicy,
     Disputes,
+    Scorer,
     certified,
     double_check,
     held,
     no_disputes,
     schedule_check,
+    score_of,
 )
 from app.core.review.model import (
     MarkView,
@@ -133,6 +136,7 @@ def ask(
     route: str | None = None,
     disputes: Disputes = no_disputes,
     no_reader: bool = False,
+    scorers: Mapping[str, Scorer] = NO_SCORERS,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -140,7 +144,8 @@ def ask(
     page was read on the raster route (an image, a photo, a scanned PDF). `no_reader`: the
     sheet's route has no reader (the stand-in), so a "no-reader" refusal says so, not that a
     reader found nothing. `check` (CHECK_POLICY): a takeoff answer it does not certify on `route`
-    (ingest's) gets a double-check request with the places `disputes` finds
+    (ingest's) gets a double-check request with the places `disputes` finds; a family whose
+    threshold is on a local gate's signal is scored by `scorers` (LOCAL_GATES), by signal name
     (app/core/review/check.py)."""
     quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
@@ -204,8 +209,13 @@ def ask(
     request = None
     if check is not None and shown is not None and isinstance(parsed, Query):
         reason = held(shown, drawing)
+        family = parsed.family()
+        score = score_of(
+            check, family, confidence=answer.confidence, drawing=drawing, value=answer.answer,
+            scorers=scorers,
+        )  # fmt: skip
         sure = reason is None and certified(
-            check, route=route, family=parsed.family(), score=answer.confidence, flags=flags
+            check, route=route, family=family, score=score, flags=flags
         )
         if not sure:
             request = double_check(shown, marks, disputes(drawing, shown), reason)

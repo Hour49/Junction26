@@ -113,6 +113,9 @@ class Settings(BaseSettings):
     # golden's check policy (check_policy_v1): the answers certified as they are; every other
     # takeoff answer asks for a double-check (app/core/review/check.py); "" off
     check_policy: str = ""
+    # local-dec's local gate models (local_gate_v1, comma separated): a check policy family whose
+    # threshold is on one of their signals is scored by it (app/core/review/check.py); "" none
+    local_gates: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
