@@ -63,7 +63,8 @@ const header = (hash: string) => render(<Header route={parseRoute(hash)} />);
 
 describe('ExportButton in the header', () => {
   it('EX-1 sits right after Workspaces on project routes, not on home or account', () => {
-    mockApi({ 'GET /api/projects': projectList });
+    // The header's Documents badge (useIssuesToAnswer) asks the project, then its issues.
+    mockApi(routes());
     const { unmount } = header(`#/p/${pid}/conflicts`);
     const button = screen.getByRole('button', { name: NAME });
     const workspaces = screen.getByRole('link', { name: 'Workspaces' });
