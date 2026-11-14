@@ -60,7 +60,7 @@ from app.core.review.model import (
     Suggestion,
 )
 from app.core.review.proof import NO_PROOF, Proof, schedule_proof, takeoff_proof
-from app.core.review.review import label, parse_key, row, storey_twins, with_twins
+from app.core.review.review import label, parse_key, pluralise, row, storey_twins, with_twins
 
 # Every counting rule's text by id, as the answer shows it.
 RULES: dict[str, str] = {
@@ -349,12 +349,7 @@ def plural(kind: str) -> str:
     """The English plural of a kind of element or room ("balcony" → "balconies")."""
     if kind in PLURALS:
         return PLURALS[kind]
-    kind = words(kind)
-    if kind.endswith("y") and kind[-2:-1] not in ("a", "e", "i", "o", "u"):
-        return f"{kind[:-1]}ies"
-    if kind.endswith(("s", "x", "z", "ch", "sh")):
-        return f"{kind}es"
-    return f"{kind}s"
+    return pluralise(words(kind))
 
 
 def _phrasings(key: str) -> Iterable[str]:

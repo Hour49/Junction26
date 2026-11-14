@@ -282,6 +282,15 @@ ROOM_NOUNS: dict[str, str] = {
 }
 
 
+def pluralise(name: str) -> str:
+    """The English plural of a noun phrase ("balcony" → "balconies", "WC" → "WCs")."""
+    if name.endswith("y") and name[-2:-1] not in ("a", "e", "i", "o", "u"):
+        return f"{name[:-1]}ies"
+    if name.endswith(("s", "x", "z", "ch", "sh")):
+        return f"{name}es"
+    return f"{name}s"
+
+
 def noun(measure: str, subject: str, value: int | float) -> str | None:
     """ "doors" for a count of 14 doors, "door" for 1, "kitchens" for a count of the rooms of
     type kitchen; None unless it counts one element class or one room type."""
@@ -293,7 +302,7 @@ def noun(measure: str, subject: str, value: int | float) -> str | None:
         name = ROOM_NOUNS.get(kind, words(kind))
     else:
         return None
-    return name if value == 1 or subject in UNCOUNTED else f"{name}s"
+    return name if value == 1 or subject in UNCOUNTED else pluralise(name)
 
 
 def status(quantity: Quantity, state: ReviewState) -> RowStatus:
