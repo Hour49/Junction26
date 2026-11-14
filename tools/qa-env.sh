@@ -51,7 +51,12 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   SHEET_KIND=carbon  # demo/sheet-kind: Carbon names what each sheet looks like (warn only, #265)
   SHEET_KIND_SET_ASIDE=false  # a sheet that may not be a floor plan is read and flagged, never set aside
   CARBON_LEVELS=ladder  # Carbon reads every raster drawing; Medium it disagrees with -> Low, Medium it agrees with -> High (Bogdan, "Make them High", 2026-11-14)
-  CHAT_MODEL=gemini)  # the Chat tab answers with Gemini: chat-eval 14/18 right vs 11/18 for rules, follow-ups 26/42 vs 5/42
+  CHAT_MODEL=gemini  # the Chat tab answers with Gemini: chat-eval 14/18 right vs 11/18 for rules, follow-ups 26/42 vs 5/42
+  IFC_FACTS=true  # all-on: an IFC model's fact sheet answers what the takeoff does not (#327; golden PASS, no differences)
+  MODEL_3D=true  # all-on: the 3D view of IFC files (#356/#366/#374/#375); precompute: uv run python -m app.cli glb <ifc>
+  TRIAGE_DESCRIBER=carbon  # all-on: an image set aside is described by Carbon for the evidence index (about 0.005 USD an image)
+  TRIAGE_JUDGE=rules  # all-on: the judge's rules say whether a set-aside file relates to the project
+  EVIDENCE_SCOPE=all_non_plan)  # all-on: the evidence index also holds every other non-plan file and PDF page (decision 0012)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
