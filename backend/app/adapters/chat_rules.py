@@ -571,7 +571,12 @@ def _named(words: str, rooms: list[Json]) -> list[tuple[int, set[str]]]:
         numbers = [w for w in label.split(" ") if any(c.isdigit() for c in w)]
         unique = [first] if len(first) > 2 and firsts.count(first) == 1 else []
         for name in [label, *numbers, *unique]:
-            at = re.search(rf"(?<![\w.]){re.escape(name)}(?![\w]|\.\d)", words) if name else None
+            # "1" is not read inside "1-3" or "1.01": a room number ends where its digits do
+            at = (
+                re.search(rf"(?<![\w.])(?<!\d-){re.escape(name)}(?![\w]|[.-]\d)", words)
+                if name
+                else None
+            )
             if at:
                 found.append((at.start(), {room["id"]}))
                 break
