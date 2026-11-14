@@ -118,7 +118,8 @@ def project_ask(
             entry.drawing_id,
             entry.file,
             file_ids.get(entry.file),
-            ifc_ids.get(entry.source or entry.file),  # a sheet read from its model: the model
+            # a sheet read from its model: the model; MODEL_3D off: none, nor a highlight
+            ifc_ids.get(entry.source or entry.file) if settings.model_3d else None,
             answer_view(
                 body.question, entry.drawing_id, project_id, ingest, reviews, answering, settings
             ),
@@ -164,7 +165,8 @@ def project_ask(
 def _part(
     drawing_id: str, file: str, file_id: str | None, model_file_id: str | None, answer: AnswerView
 ) -> ProjectAnswerPart:
-    counted = answer.proof.objects or () if answer.refusal is None else ()
+    # the 3D view's fields only with a model file (MODEL_3D on): off, the payload as before
+    counted = answer.proof.objects or () if answer.refusal is None and model_file_id else ()
     return ProjectAnswerPart(
         drawing_id=drawing_id,
         name=file,

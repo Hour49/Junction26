@@ -14,7 +14,10 @@ from app.adapters.counting_rules import TOOLS as COUNTING_TOOLS
 from app.adapters.counting_rules import run_counting_tool
 from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
+from app.api.views import drawings_of
+from app.core.agent.rooms import FIND_ROOMS, TOKEN, name_words
 from app.core.checks.model import RulePack
+from app.core.errors import DomainError
 from app.core.plan_edit.law_check import ROOM_WORDS
 from app.core.plan_edit.model import Proposal, Selection
 
@@ -25,6 +28,27 @@ Runner = Callable[[str, str], str]  # (tool name, arguments JSON) -> result JSON
 # measurement ("7.50 m2"). The pipeline's parser reads the type word and drops the number, but
 # answers "room 1.01" (QA smoke-1; the parser is app/core/answering's, so worked around here)
 ROOM_NUMBER = re.compile(r"\b([^\W\d_]+)\s+(\d+\.\d{2})\b(?!\s*(?:m\b|m2|m²|cm|mm|%))")
+ROOMS_LISTED = 12
+FIND_TOOLS: list[Json] = [
+    {
+        "type": "function",
+        "function": {
+            "name": FIND_ROOMS,
+            "description": (
+                "The rooms whose label printed on the drawings contains every word of `query` "
+                "(e.g. 'office', 'open office 102'), with their places (ev ids). Use it when "
+                "ask_drawings refuses a question that names a room: offer the printed labels "
+                "as options, or read the one room with get_plan_geometry. Labels only."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 120}},
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        },
+    }
+]
 
 
 class AgentToolbox:
@@ -72,7 +96,10 @@ def project_toolbox(
     turn's plan edits are checked against (LC-6), None: not checked."""
     pipeline = PipelineStore.of_app(app, project_id)
     pipe: Runner = partial(run_pipeline_tool, pipeline)
-    sets: list[tuple[list[Json], Runner]] = [(PIPELINE_TOOLS, partial(_by_number, pipe))]
+    sets: list[tuple[list[Json], Runner]] = [
+        (PIPELINE_TOOLS, partial(_by_number, pipe)),
+        (FIND_TOOLS, partial(_find_rooms, pipeline)),
+    ]
     sets.append((COUNTING_TOOLS, run_counting_tool))  # read-only conventions, no project state
     describe: Callable[[Selection], str] = _plain
     made: Callable[[], list[Proposal]] = list
@@ -122,6 +149,38 @@ def project_toolbox(
                 (TOOLS, run_law if pack is None else partial(_pack_default, run_law, pack.id))
             )  # pyright: ignore
     return AgentToolbox(sets, describe, made)
+
+
+def _find_rooms(store: PipelineStore, name: str, arguments: str) -> str:
+    """find_rooms: the project's rooms whose printed label (and number) holds every word."""
+    given: Any = json.loads(arguments)
+    query: Any = given.get("query") if isinstance(given, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    words = set(name_words(query)) if isinstance(query, str) else set[str]()
+    if not words:
+        return _error("give the room's words as printed, e.g. 'office' or 'open office 102'")
+    found: list[Json] = []
+    for entry in drawings_of(store.ingest.status(store.project_id)):
+        try:
+            rooms = store.ingest.drawing(entry.drawing_id).rooms
+        except DomainError:
+            continue  # not read
+        for room in rooms:
+            printed = _printed(room.label, room.attrs.get("number"))
+            if printed and words <= set(TOKEN.findall(printed.lower())):
+                place = {"drawing_id": entry.drawing_id, "page": room.page, "box": list(room.box)}
+                found.append({"room": room.id, "label": printed, "name": entry.name, **place})
+    if not found:
+        reason = f"no room label printed on the drawings holds {' '.join(sorted(words))}"
+        return json.dumps({"status": "unknown", "reason": reason}, ensure_ascii=False)
+    out: Json = {"status": "ok", "count": len(found), "rooms": found[:ROOMS_LISTED]}
+    return json.dumps(out, ensure_ascii=False)
+
+
+def _printed(label: str | None, number: Any) -> str | None:
+    """A room's label as printed, with its number when the label does not hold it."""
+    if not label:
+        return None
+    return f"{label} {number}" if number and str(number) not in label else label
 
 
 def room_by_number(question: str) -> str:

@@ -142,3 +142,18 @@ def test_the_demo_config_warns_about_sheet_kinds_without_setting_sheets_aside() 
     config = found.stdout.split()
     assert "SHEET_KIND=carbon" in config and "SHEET_KIND_SET_ASIDE=false" in config
     assert "CARBON_LEVELS=ladder" in config
+
+
+def test_the_demo_config_turns_on_the_all_on_features() -> None:
+    """demo/all-on (2026-11-14, Bogdan): the merged features that were off in the demo config:
+    IFC facts, the 3D view, and the evidence index over every non-plan file (set-aside images
+    described, judged by rules). RASTER_TILES, SCALE_CARBON_DOORS, VECTOR_FALLBACK and RESOLVER stay
+    off (measured cost or owner's call), so the config must not name them."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    config = found.stdout.split()
+    for line in ("IFC_FACTS=true", "MODEL_3D=true", "TRIAGE_DESCRIBER=carbon",
+                 "TRIAGE_JUDGE=rules", "EVIDENCE_SCOPE=all_non_plan"):
+        assert line in config, line
+    names = {entry.split("=")[0] for entry in config}
+    assert not names & {"RASTER_TILES", "SCALE_CARBON_DOORS", "VECTOR_FALLBACK", "RESOLVER"}

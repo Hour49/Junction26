@@ -46,7 +46,9 @@ from app.core.review.check import (
     Check,
     CheckPolicy,
     Disputes,
+    Found,
     Level,
+    RoomWords,
     Scorer,
     carbon_checked,
     certified,
@@ -56,9 +58,14 @@ from app.core.review.check import (
     held,
     level_of,
     no_disputes,
+    no_room_words,
+    only_room_word,
+    room_word_doubt,
+    room_word_refusal,
     schedule_check,
     score_of,
     summed_check,
+    unmeasured_room,
 )
 from app.core.review.check import SCHEDULE as SCHEDULE_ROUTE
 from app.core.review.model import (
@@ -155,6 +162,7 @@ def ask(
     no_reader: bool = False,
     scorers: Mapping[str, Scorer] = NO_SCORERS,
     carbon_ladder: bool = False,
+    room_words: RoomWords = no_room_words,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -171,8 +179,15 @@ def ask(
     about at once. The answer's `level` comes from the same verdict (check.level_of): High
     exactly when sure; none on a value a person signed or settled, which is theirs. With
     `carbon_ladder` (CARBON_LEVELS=ladder) a Medium answer Carbon read the same is High and asks
-    nothing, yet stays not `sure`: Carbon never certifies an answer."""
+    nothing, yet stays not `sure`: Carbon never certifies an answer. On the raster route a count
+    `room_words` doubts (check.room_word_doubt: its rooms' printed labels) is not certified
+    and gets no High from Carbon either; its level is otherwise the score's, except Low on an image
+    printing words of a plan kind the policy was not measured on (check.unmeasured_room). A 0
+    count of a room type whose only candidates are labelled just "room" is refused
+    (check.only_room_word)."""
     quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
+    unsaid = _unsaid(quantities, drawing)
+    quantities = {key: found for key, found in quantities.items() if key not in unsaid}
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
@@ -228,6 +243,9 @@ def ask(
             code, words = "no-reader", _unread_text(query, flags)
         elif query is not None and query in unlocated:
             code, words = "no-reader", _unlocated_text(unlocated[query], flags, drawing)
+        elif query is not None and query in unsaid:
+            kind = parse_key(query)[1].split(":", 1)[1]
+            code, words = "not-in-drawing", room_word_refusal(kind, unsaid[query])
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
@@ -274,28 +292,34 @@ def ask(
         if family in AGREEING_FAMILIES and confidence is not None and route == "raster":
             agrees = confidence.probability(drawing.file, family, answer.answer).agrees
         blank = found_nothing(drawing)
-        sure = reason is None and certified(
+        doubt = room_word_doubt(shown, drawing, room_words) if route == "raster" else None
+        unmeasured = shown.measure == "count" and unmeasured_room(drawing, room_words) is not None
+        sure = reason is None and doubt is None and certified(
             check, route=route, family=family, score=score, flags=flags, agrees=agrees,
             blank=blank,
         )  # fmt: skip
         if shown.signed is None and shown.settled is None:
             level = level_of(
                 check, sure=sure, route=route, family=family, score=score, flags=flags,
-                held=reason is not None, blank=blank,
+                held=reason is not None, blank=blank, unmeasured=unmeasured,
             )  # fmt: skip
             if level is not None and drawing.carbon_check is not None:
                 carbon = carbon_answer(
                     question, drawing, drawing.carbon_check, parser, clock, prior, prior_families
                 )
                 # a disagreement the gate found (`agrees`) is not settled by Carbon agreeing
-                ladder = carbon_ladder and agrees is not False
+                ladder = carbon_ladder and agrees is not False and doubt is None
                 level = carbon_checked(
                     level, drawing.carbon_check, carbon, answer.answer, ladder=ladder
                 )
         if not sure and not (level is not None and level.level == "high"):
+            found = disputes(drawing, shown)
+            if reason is None and doubt is not None:
+                reason = doubt.reason
+                found = Found(places=(*doubt.places, *found.places), reason=found.reason)
             if reason is None and agrees is False:
                 reason = disagree(shown)
-            request = double_check(shown, marks, disputes(drawing, shown), reason)
+            request = double_check(shown, marks, found, reason)
     elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
         request, level = summed_check(check)
         sure = False
@@ -402,6 +426,19 @@ def _flagged(
         said = note if found.estimate is None else f"{found.estimate}; {note}"
         kept[key] = found.model_copy(update={"estimate": said})
     return kept, empty, unlocated
+
+
+def _unsaid(quantities: Mapping[str, Quantity], drawing: Drawing) -> dict[str, tuple[Room, ...]]:
+    """The 0 counts of a room type the drawing does not say (check.only_room_word), by key, with
+    the rooms that are why: the question is refused, not answered 0."""
+    found: dict[str, tuple[Room, ...]] = {}
+    for key, quantity in quantities.items():
+        measure, subject = parse_key(key)[:2]
+        if measure != "count" or not subject.startswith("room:") or quantity.value != 0:
+            continue
+        if rooms := only_room_word(subject.split(":", 1)[1], drawing):
+            found[key] = rooms
+    return found
 
 
 def _groups(key: str) -> set[str]:

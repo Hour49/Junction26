@@ -108,3 +108,27 @@ def test_sheet_kind_reply_gives_the_discipline_without_a_new_call() -> None:
     kind = "architectural_floor_plan"
     assert discipline_from_sheet(kind, "POST OFFICE - FIRST FLOOR PLAN", None) == "architecture"
     assert discipline_from_sheet(kind, "PUMP HOUSE FLOOR PLAN", None) == "architecture"
+
+
+@pytest.mark.parametrize(
+    ("kind", "title", "number", "discipline"),
+    [
+        # weak words never pick a discipline on their own, even when the kind says nothing
+        ("detail", "POST OFFICE DETAIL", None, None),
+        ("detail", "PUMP HOUSE DETAIL", None, None),
+        ("detail", "Heizung Detail", None, "heating"),
+        ("detail", "Detail 4", "S-301", "structural"),
+        # a service room on a floor plan names a room, not a service drawing
+        ("architectural_floor_plan", "ELECTRICAL ROOM - FLOOR PLAN", None, "architecture"),
+        ("architectural_floor_plan", "Plant room and boiler room", None, "architecture"),
+        ("architectural_floor_plan", "Sähköhuone 1. krs", None, "architecture"),
+        ("architectural_floor_plan", "Elektroraum EG", None, "architecture"),
+        # ... but the room does not hide a service the title also names, nor a sheet code
+        ("architectural_floor_plan", "HEATING PLAN - BOILER ROOM", None, "heating"),
+        ("architectural_floor_plan", "ELECTRICAL ROOM", "E-101", "electrical"),
+    ],
+)
+def test_only_strong_words_or_codes_name_a_sheet_discipline(
+    kind: str, title: str, number: str | None, discipline: str | None
+) -> None:
+    assert discipline_from_sheet(kind, title, number) == discipline

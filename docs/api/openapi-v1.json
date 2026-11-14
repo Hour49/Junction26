@@ -1039,6 +1039,15 @@
             "title": "Model",
             "type": "string"
           },
+          "next": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "maxItems": 3,
+            "title": "Next",
+            "type": "array"
+          },
           "options": {
             "anyOf": [
               {
@@ -1324,6 +1333,17 @@
       "CheckSubject": {
         "additionalProperties": false,
         "properties": {
+          "global_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Global Id"
+          },
           "kind": {
             "enum": [
               "room",
@@ -4021,6 +4041,13 @@
             ],
             "title": "Floor"
           },
+          "highlight": {
+            "items": {
+              "$ref": "#/components/schemas/Highlight"
+            },
+            "title": "Highlight",
+            "type": "array"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -4062,6 +4089,17 @@
               }
             ],
             "title": "Mark Id"
+          },
+          "model_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model File Id"
           },
           "page": {
             "anyOf": [
