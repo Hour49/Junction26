@@ -20,9 +20,10 @@ from app.adapters.raster_ocr.gemini import (
     parse_rooms,
     reply_text,
 )
-from app.core.drawing.model import Page
+from app.core.drawing.model import Page, Scale
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Sheet
+from app.core.pipeline.raster_scale import rooms_with_areas
 from app.settings import Settings
 
 KEY = "test-key-0123456789"
@@ -172,6 +173,20 @@ def test_the_extractor_reads_rooms_only() -> None:
         ("r2", "hall", None, False),
     ]
     assert "2 rooms" in found.notes[0]
+
+
+def test_an_area_printed_in_the_label_is_the_rooms_area_and_a_number_without_m2_is_not() -> None:
+    # label-area (fable-rooms item 2): the printed area wins over the box estimate
+    labels = ["MH 9,7 m²", "K 12.5 m2", "WC 1.3M2", "OH9.7m²", "KPH 1.01", "MH 2,6", "ET 0 m²"]
+    found = extract(FakeModel(reply(*(room("other", t, [0, 0, 10 + i, 10]) for i, t in
+                                      enumerate(labels)))))  # fmt: skip
+    assert [r.area_m2 for r in found.rooms] == [9.7, 12.5, 1.3, 9.7, None, None, None]
+    assert (found.rooms[0].area_status, found.rooms[0].area_source) == ("exact", "printed")
+    assert found.rooms[4].area_status is None
+    scale = Scale(status="estimated", m_per_unit=0.01, uncertainty=0.1)
+    kept = rooms_with_areas(found.rooms, scale, [Page(page=1, width=300, height=200, unit="px")])
+    assert kept[0] == found.rooms[0]
+    assert kept[4].area_source == "geometry_x_estimate"
 
 
 def test_a_failed_call_leaves_the_rooms_unread_and_says_why() -> None:
