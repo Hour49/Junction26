@@ -147,7 +147,7 @@ class CarbonReader:
     def _ask(self, kind: str, image: Image.Image) -> Asked:
         """One call's checked reply (from the cache or paid for), or None and why not; and what
         it cost on this thread."""
-        before = cost.spent()
+        before = cost.mark()
         name = contract.cache_name(kind, pixel_digest(image))
         path = None if self._cache is None else self._cache / name
         shared = path if kind == "page" else None  # the printed-scale reader asks it too
@@ -167,15 +167,15 @@ class CarbonReader:
                 answer = self._model.generate(jpeg(image), prompt, schema, tokens)
                 form = check(json.loads(reply_text(answer)))
             except GeminiError as error:
-                return None, f"the {kind} call failed: {error}", cost.spent() - before
+                return None, f"the {kind} call failed: {error}", cost.since(before)
             except ValueError as error:  # not JSON, or not the form (contract.ReplyError)
-                return None, f"the {kind} reply is not the form: {error}", cost.spent() - before
+                return None, f"the {kind} reply is not the form: {error}", cost.since(before)
             except (AttributeError, TypeError, KeyError, IndexError) as error:  # an odd envelope
                 said = type(error).__name__
-                return None, f"the {kind} reply is not the form: {said}", cost.spent() - before
+                return None, f"the {kind} reply is not the form: {said}", cost.since(before)
             if path is not None:
                 write_whole(path, json.dumps(answer, ensure_ascii=False))
-            return form, None, cost.spent() - before
+            return form, None, cost.since(before)
 
 
 def _plans(form: Form) -> list[contract.Frac]:

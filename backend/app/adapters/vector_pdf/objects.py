@@ -116,6 +116,29 @@ def _read_page(data: bytes, index: int) -> PdfPage:
         document.close()
 
 
+def any_filled_path(data: bytes, wanted: Callable[[PdfPath], bool], index: int = 0) -> bool:
+    """Whether page `index` draws a filled path `wanted` says yes to, judging a path by its style
+    alone (its `rings` are left empty), among the paths `read_page` keeps (one with a point).
+    Cheaper than `read_page` (review-283 S2: up to 5 s under the PDFium lock on a Revit plot):
+    no text, and a path drawn without a fill is passed after one call (opening_design's 605
+    drawn PDFs: 39 s in all against 147 s, at most 1.2 s against 5.0 s)."""
+    with PDFIUM:  # pdfium is not thread-safe (app/adapters/pdfium_lock.py)
+        document = pypdfium2.PdfDocument(data)
+        try:
+            fill_mode, stroked = ctypes.c_int(), ctypes.c_int()
+            for obj in document[index].get_objects(max_depth=1):
+                if raw.FPDFPageObj_GetType(obj.raw) != raw.FPDF_PAGEOBJ_PATH:
+                    continue
+                raw.FPDFPath_GetDrawMode(obj.raw, fill_mode, stroked)
+                if fill_mode.value == FILL_NONE:
+                    continue
+                if wanted(_path(obj, ())) and _rings(obj, lambda x, y: (x, y)):
+                    return True
+            return False
+        finally:
+            document.close()
+
+
 def _rgb(obj: pypdfium2.PdfObject, getter: Callable[..., object]) -> Rgb:
     r, g, b, a = (ctypes.c_uint() for _ in range(4))
     getter(obj.raw, r, g, b, a)

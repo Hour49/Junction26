@@ -344,7 +344,15 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     const { credit } = (await (await page.request.get(`/api/drawings/${flatB.id}`)).json()) as {
       credit: string | null;
     };
-    const credits = page.getByRole('main').getByRole('listitem').filter({ hasText: flatB.label });
+    // The hash changes before the About screen replaces the surveyor, whose drawing list and
+    // conflict lines also name flat-b: wait for the page, then read its credits list only.
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { level: 1, name: 'About Vellum' })).toBeVisible();
+    const credits = main
+      .locator('ul.about-credits')
+      .getByRole('listitem')
+      .filter({ hasText: flatB.label });
+    await expect(credits).toHaveCount(1);
     await expect(credits).toContainText(
       (credit ?? 'No credit recorded for this file').replace(/^Credit:\s*/, ''),
     );

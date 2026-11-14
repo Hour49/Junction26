@@ -6836,6 +6836,28 @@
             "title": "Decision",
             "type": "string"
           },
+          "discipline": {
+            "anyOf": [
+              {
+                "enum": [
+                  "architecture",
+                  "structural",
+                  "plumbing",
+                  "heating",
+                  "ventilation",
+                  "electrical",
+                  "fire",
+                  "site",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discipline"
+          },
           "kind": {
             "enum": [
               "architectural_floor_plan",
