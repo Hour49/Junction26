@@ -7,6 +7,7 @@ Stages 4-10 are the pipeline's own, one drawing group at a time (groups.py). A g
 (by content) were ingested before with the same readers is reused, unless the upload is fresh.
 """
 
+import functools
 import hashlib
 import logging
 import threading
@@ -22,8 +23,9 @@ from app.core.errors import (
     NotFoundError,
     NotTriagedError,
 )
-from app.core.evidence.pictures import EvidenceSteps, is_picture, picture_evidence
+from app.core.evidence.pictures import EvidenceSteps
 from app.core.evidence.ports import EvidenceIndex
+from app.core.evidence.step import file_evidence
 from app.core.ingest.groups import Groups
 from app.core.ingest.model import (
     DRAWING_KINDS,
@@ -627,8 +629,9 @@ class IngestService:
             run.set(file.path, triage=triage, cost_usd=file.cost_usd + paid)
 
     def _describe_for_index(self, run: Run) -> None:
-        """EVIDENCE_SCOPE=all_non_plan (decision 0012 sources v2): every picture triage did not
-        set aside is asked its kind and, when it is not a floor plan sheet, described, a few side
+        """EVIDENCE_SCOPE=all_non_plan (decision 0012 sources v2): every file triage did not set
+        aside gets its record for the index (`file_evidence`: a picture asked its kind and
+        described, a text document by its own text, an unread file listed by name), a few side
         by side. It runs after the readers, so plans are never held back, and writes only
         `evidence` and the cost: a file's state, route and takeoff stay as they are. One file's
         failure is its `why`, never the project's."""
@@ -638,19 +641,18 @@ class IngestService:
 
         def one(file: FileStatus) -> None:
             try:
-                if not is_picture(file, lambda: self._store.read_upload(run.id, file.path)):
+                read = functools.cache(lambda: self._store.read_upload(run.id, file.path))
+                found = file_evidence(file, read, steps)
+                if found is None:
                     return
-                data = self._store.read_upload(run.id, file.path)
-                found = picture_evidence(data, steps.kinds, steps.describer)
             except Exception as error:
                 logger.warning("the evidence step on %s failed", file.path, exc_info=True)
                 why = f"the evidence step failed: {type(error).__name__}: {error}"
                 found = FileEvidence(indexed=False, why=why)
             run.set(file.path, evidence=found, cost_usd=file.cost_usd + found.cost_usd)
 
-        files = [file for file in run.status().files if file.sha256 is not None]
         with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="evidence") as pool:
-            for done in [pool.submit(one, file) for file in files]:
+            for done in [pool.submit(one, file) for file in run.status().files]:
                 done.result()
 
     def _shown(self) -> dict[str, str]:

@@ -17,6 +17,7 @@ from app.core.evidence.model import (
     EvidenceSearch,
     EvidenceSource,
     HitWhy,
+    Passage,
 )
 from app.core.evidence.search import parsed, passage_id, snippet, terms
 from app.core.ingest.model import ProjectStatus
@@ -106,7 +107,7 @@ class ProjectEvidence:
                     id=passage_id(file_id, passage),
                     file_id=file_id,
                     file=source.path,
-                    page=source.page,
+                    page=_page(passage, source),
                     part=passage.part,
                     how=source.how,
                     kind=source.kind,
@@ -143,7 +144,7 @@ class ProjectEvidence:
             id=wanted,
             file_id=file_id,
             file=source.path,
-            page=source.page,
+            page=_page(passage, source),
             part=passage.part,
             how=source.how,
             text=passage.text,
@@ -206,3 +207,8 @@ class ProjectEvidence:
 def _rank(ranking: FileRanking, file_id: str) -> int | None:
     """The file's rank in a retriever's pool; None when the pool doesn't hold it."""
     return next((rank for rank, (found, _) in enumerate(ranking, 1) if found == file_id), None)
+
+
+def _page(passage: Passage, source: EvidenceSource) -> int:
+    """A `text` passage's own PDF page; any other passage's page is its file's."""
+    return passage.page if passage.part == "text" else source.page

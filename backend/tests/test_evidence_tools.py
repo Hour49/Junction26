@@ -226,7 +226,7 @@ def test_a_sync_that_fails_after_the_schema_leaves_no_half_made_index(tmp_path: 
     back, so a reader never sees tables without their rows."""
 
     class Dying(SqliteEvidenceIndex):
-        def _write(self, db: sqlite3.Connection, current: dict[str, Any]) -> None:
+        def _write(self, db: sqlite3.Connection, project_id: str, current: dict[str, Any]) -> None:
             raise RuntimeError("killed mid-sync")
 
     with pytest.raises(RuntimeError):
@@ -439,3 +439,21 @@ def test_the_prompt_lists_kinds_languages_and_files_or_says_there_is_nothing(
     empty = evidence_prompt(open_index(tmp_path / "b", project(("plan.png", None))))
     assert empty == f"Project evidence: none. {NOTHING} Do not call search_evidence."
     assert "EVIDENCE_SCOPE" in NOTHING  # the setting that decides, not "triage was off"
+
+
+def test_an_index_written_before_passage_pages_is_migrated_on_its_next_sync(
+    tmp_path: Path,
+) -> None:
+    """Schema 1 (#235) had no passages.page: the next sync adds it, as a write, and searches
+    answer from it (a reader selecting the page would fail on the old file)."""
+    SqliteEvidenceIndex(tmp_path / "projects", passages, None).update(SITE)
+    path = tmp_path / "projects" / "p1" / "evidence.sqlite"
+    with sqlite3.connect(path) as db:
+        db.execute("alter table passages drop column page")
+        db.execute("delete from meta where key = 'schema'")
+    index = open_index(tmp_path)
+    assert [hit.file for hit in index.search("brick").hits] == ["facade.jpg"]
+    with sqlite3.connect(path) as db:
+        columns = {row[1] for row in db.execute("pragma table_info(passages)")}
+        schema = db.execute("select value from meta where key = 'schema'").fetchone()
+    assert "page" in columns and schema == (store_module.SCHEMA_VERSION,)

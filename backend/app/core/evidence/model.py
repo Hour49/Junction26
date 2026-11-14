@@ -21,7 +21,7 @@ from app.core.ingest.model import (
 )
 from app.core.model import Frozen
 
-PartName = Literal["summary", "detail", "visible_text"]
+PartName = Literal["summary", "detail", "visible_text", "text"]
 
 
 class EvidenceSource(Frozen):
@@ -40,13 +40,19 @@ class EvidenceSource(Frozen):
     sheet_register: Register | None  # what the classifier read off the sheet, if it read one
     relevance: Relevance | None
     content: str  # sha256 of what its passages are made from: changes mean re-index
+    # sources v2: the probe's kind, and whether `text-n` passages come from the stored file's own
+    # text (a text document, or a described drawn PDF's text pages)
+    file_kind: str | None = None
+    texts: bool = False
 
 
-def content_of(description: Description, kind: str | None) -> str:
-    """What the passages are made of: the description and the register's (or the sheet's) kind.
-    Not the judge's verdict or why, so judging a file or overruling it never re-cuts or re-embeds
-    it."""
-    body = {"description": description.model_dump(mode="json"), "kind": kind}
+def content_of(description: Description, kind: str | None, file_sha256: str | None = None) -> str:
+    """What the passages are made of: the description and the register's (or the sheet's) kind,
+    and for a source with `text` passages the file they are read from. Not the judge's verdict or
+    why, so judging a file or overruling it never re-cuts or re-embeds it."""
+    body: dict[str, object] = {"description": description.model_dump(mode="json"), "kind": kind}
+    if file_sha256 is not None:  # only then: the hashes of described-only sources stay
+        body["file"] = file_sha256
     return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
 
 
@@ -56,7 +62,7 @@ def sources(status: ProjectStatus) -> tuple[EvidenceSource, ...]:
     one the evidence step indexed (EVIDENCE_SCOPE=all_non_plan, decision 0012 sources v2)."""
     found: list[EvidenceSource] = []
     for file in status.files:
-        source = _set_aside(file) or _described(file)
+        source = _set_aside(file) or _indexed(file)
         if source is not None:
             found.append(source)
     return tuple(found)
@@ -89,17 +95,20 @@ def _set_aside(file: FileStatus) -> EvidenceSource | None:
     )
 
 
-def _described(file: FileStatus) -> EvidenceSource | None:
-    """A picture the evidence step described. Its kind is the sheet kind that made it a source
-    (a register beside it may come from a triage that called the file a plan). No verdict: the
-    judge works on triage records."""
+def _indexed(file: FileStatus) -> EvidenceSource | None:
+    """A file the evidence step indexed: a picture it described (its kind is the sheet kind that
+    made it a source; a register beside it may come from a triage that called the file a plan), a
+    text document, or a file listed by name. Text and listed files carry a description made by
+    rule. No verdict: the judge works on triage records."""
     evidence = file.evidence
-    if evidence is None or not evidence.indexed or evidence.how != "described":
+    if evidence is None or not evidence.indexed or evidence.how is None:
         return None
     description = evidence.description
-    assert description is not None  # FileEvidence: how described has its description
+    assert description is not None  # FileEvidence: an indexed file has its description
     kind = evidence.kind
+    texts = evidence.text_pages is not None
     return EvidenceSource(
+        how=evidence.how,
         file_id=file.id,
         path=file.path,
         page=_page(file),
@@ -109,7 +118,9 @@ def _described(file: FileStatus) -> EvidenceSource | None:
         description=description,
         sheet_register=None,
         relevance=None,
-        content=content_of(description, kind),
+        content=content_of(description, kind, file.sha256 if texts else None),
+        file_kind=file.kind,
+        texts=texts,
     )
 
 
@@ -119,6 +130,7 @@ class Passage(Frozen):
     part: PartName  # which field it comes from
     n: int = Field(ge=1)  # its place among the source's passages of that part, from 1
     text: str
+    page: int = Field(default=1, ge=1)  # a `text` passage: the PDF page it comes from
 
 
 # ---------------------------------------------------------------- what the tools and REST return

@@ -41,6 +41,7 @@ from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
 from app.adapters.evidence.store import SqliteEvidenceIndex
+from app.adapters.evidence.texts import FileTextReader, StoredTexts
 from app.adapters.gate_policy import load_gate
 from app.adapters.hello import (
     HelloExtractor,
@@ -417,7 +418,7 @@ def _evidence_steps(settings: Settings) -> EvidenceSteps | None:
     if settings.evidence_scope == "set_aside":
         return None
     kinds = SheetKindPictures(_sheet_kind_reader(settings), settings.sheet_kind_cut)
-    return EvidenceSteps(kinds=kinds, describer=_describer(settings))
+    return EvidenceSteps(kinds=kinds, describer=_describer(settings), texts=FileTextReader())
 
 
 def _rectifier(name: RectifierName) -> Rectifier:
@@ -565,7 +566,8 @@ def build_evidence(settings: Settings, root: Path) -> SqliteEvidenceIndex:
         raise InvalidInputError(f"EVIDENCE_EMBEDDER_MANIFEST={manifest}: {error}") from error
     if embedder is None:
         logger.info("evidence index: no embedder manifest, BM25 only")
-    return SqliteEvidenceIndex(root, passages, embedder)
+    texts = StoredTexts(DiskProjectStore(root), FileTextReader())
+    return SqliteEvidenceIndex(root, passages, embedder, texts)
 
 
 class EvidenceIndexes:
