@@ -88,6 +88,19 @@ def test_drawings_that_may_show_the_same_flat_are_not_added_up(client: TestClien
     )
 
 
+def test_an_ifc_model_answers_an_area_and_is_not_added_to_the_sheets_of_its_flat(
+    client: TestClient,
+) -> None:
+    """R4b-4: the model file used to be refused with "the sheet has no scale"."""
+    project = sample(client)
+    found = ask(client, project["id"], "What is the net floor area of all indoor rooms in m²?")
+    parts = {part["name"]: part["answer"] for part in found["parts"]}
+    model = parts["model/house.ifc"]
+    assert model["refusal"] is None and (model["answer"], model["unit"]) == (48.0, "m2")
+    assert (found["total"], found["total_unit"]) == (None, None)  # never the model + its sheets
+    assert SAME_FLAT in found["total_note"]
+
+
 def test_one_answering_drawing_is_the_total(client: TestClient, plan_pdf: bytes) -> None:
     found = ask(client, upload(client, plan_pdf), DOORS)
     (part,) = found["parts"]
@@ -141,7 +154,8 @@ def test_parts_in_different_units_have_no_total(
     changed(monkeypatch, in_feet)
     found = ask(client, project["id"], "What is the total indoor area?")
     assert found["total"] is None
-    assert "2 drawings answered in different units, so there is no total" in found["total_note"]
+    # the sample's IFC model answers an area too (R4b-4), so three drawings answered
+    assert "3 drawings answered in different units, so there is no total" in found["total_note"]
 
 
 def test_a_total_is_sure_only_when_every_summed_part_is(
