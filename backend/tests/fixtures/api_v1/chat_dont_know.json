@@ -517,5 +517,6 @@
       "why_no_total": "No drawing answered it.",
       "refused_note": "5 drawings can't answer this question."
     }
-  ]
+  ],
+  "view": null
 }
