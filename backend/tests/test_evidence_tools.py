@@ -426,7 +426,9 @@ def test_the_prompt_lists_kinds_languages_and_files_or_says_there_is_nothing(
     tmp_path: Path,
 ) -> None:
     prompt = evidence_prompt(open_index(tmp_path))
-    assert prompt.startswith("Project evidence: 4 files that are not floor plans (4 described;")
+    assert prompt.startswith(
+        "Project evidence: 4 files or pages that are not floor plans (4 described;"
+    )
     assert "3 photograph, 1 text_page" in prompt
     assert "text document" not in prompt and "listed by name" not in prompt  # none of either
     assert "printed text in fi" in prompt

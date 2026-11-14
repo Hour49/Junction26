@@ -22,7 +22,8 @@ class FileTextReader:
             return None
         pages = [page for page in pdf_pages(data) if not page.drawn]
         whole = kind in TEXT_KINDS
-        return text_source(path, KIND_WORDS["text_document"], pages, whole=whole)
+        words = KIND_WORDS["text_document" if whole else "text_pages"]
+        return text_source(path, words, pages, whole=whole)
 
 
 class StoredTexts:

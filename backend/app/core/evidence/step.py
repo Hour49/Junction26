@@ -36,6 +36,8 @@ def file_evidence(
     read only when needed."""
     if file.triage is not None and file.triage.class_ != "floor_plan":
         return None
+    if file.state in ("queued", "running"):  # not a finished record (a path given twice)
+        return None
     kind = file.kind
     if kind in ("dxf", "svg"):
         return FileEvidence(indexed=False, why=CAD)
@@ -64,7 +66,7 @@ def file_evidence(
 
 def listed(file: FileStatus) -> FileEvidence:
     """A file whose content nothing in this path reads, listed by name with why."""
-    kind = file.kind or "unknown"  # a refused entry has no probe kind
+    kind = file.kind or "not_read"  # a refused entry, or one identify could not read
     reason = IFC_REASON if kind == "ifc" else file.reason or "nothing reads this kind of file"
     passage = listed_piece(file.path, KIND_WORDS[kind], reason)
     described = _rule_made(file.path, passage.text, "other", LISTED_MODEL)
@@ -77,7 +79,7 @@ def _text_only(
 ) -> FileEvidence | None:
     if found is None:
         return FileEvidence(indexed=False, why="no text to index: no page holds text")
-    text_kind = "text_file" if kind == "text" else "text_document"
+    text_kind = {"text": "text_file", "pdf_text": "text_document"}.get(kind, "text_pages")
     summary = found.pieces[0].text
     first = summary.removeprefix(f"{KIND_WORDS[text_kind]}. {name_words(file.path)}. ")
     pages = "page" if found.pages == 1 else "pages"

@@ -4,7 +4,10 @@ pages are searched too; a file nothing reads is listed by name; a DXF is not a s
 read again from the stored file when the index is built, so the index is a function of the status
 and the stored files."""
 
+import sqlite3
+import warnings
 import zipfile
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -16,16 +19,18 @@ from test_ingest_triage import file_of, zipped
 from test_vector_pdf import swiss_sheet
 from triage_fakes import FakeDescriber
 
+import app.core.evidence.model as evidence_model
 from app.adapters.archive import DiskProjectStore
 from app.adapters.evidence.project import ProjectEvidence
 from app.adapters.evidence.store import SqliteEvidenceIndex
 from app.adapters.evidence.texts import FileTextReader, StoredTexts
+from app.core.evidence import file_sources
 from app.core.evidence.chunks import passages
 from app.core.evidence.file_sources import TEXT_CHARS
 from app.core.evidence.model import sources
 from app.core.evidence.pictures import EvidenceSteps
-from app.core.evidence.step import CAD
-from app.core.ingest.model import ProjectStatus
+from app.core.evidence.step import CAD, file_evidence
+from app.core.ingest.model import FileStatus, ProjectStatus
 
 PLAN = swiss_sheet().pdf()
 
@@ -118,6 +123,99 @@ def test_a_drawn_pdfs_text_page_is_a_source_though_its_drawing_is_a_plan(
     assert (hit.part, hit.page) == ("text", 2)
 
 
+def test_a_plan_files_text_pages_are_not_called_a_text_document(
+    make_service: MakeService, tmp_path: Path
+) -> None:
+    """rag's review of #272, S1: its own kind, and its summary on the text page, not page 1."""
+    projects = tmp_path / "projects"
+    name = "A101 - FLOOR PLAN - 1ST FLOOR.pdf"
+    status = ingest(make_service, projects, {name: DRAWN_WITH_NOTES, "spec.pdf": SPEC})
+    found = file_of(status, name).evidence
+    assert found is not None and (found.how, found.kind) == ("text", "text_pages")
+    evidence = evidence_of(tmp_path / "index", projects, status)
+    (hit, *_) = evidence.search("floor plan 1st floor", k=1).hits
+    assert (hit.file, hit.part, hit.kind, hit.page) == (name, "summary", "text_pages", 2)
+    detail = evidence.get(hit.id)
+    assert detail is not None and detail.text.startswith("text pages of a drawing file. A101")
+    first = evidence.prompt().splitlines()[0]
+    assert first.startswith(
+        "Project evidence: 2 files or pages that are not floor plans "
+        "(1 text document, 1 drawing file's text pages;"
+    )
+
+
+def test_a_file_name_with_contact_data_is_in_nothing_the_index_shows(
+    make_service: MakeService, tmp_path: Path
+) -> None:
+    """rag's review of #272, M1: the name is scrubbed (name_words) everywhere it is shown."""
+    files = {
+        "offers/offer matti.virtanen@example.fi +358 40 123 4567.pdf": SPEC,
+        "cad/plan anna@example.com tel 09-123 4567.dwg": DWG,
+    }
+    projects = tmp_path / "projects"
+    status = ingest(make_service, projects, files)
+    evidence = evidence_of(tmp_path / "index", projects, status)
+    hits = evidence.search("offer plan clause doors", k=5).hits
+    assert len(hits) == 2
+    (database,) = (tmp_path / "index").rglob("evidence.sqlite")
+    with sqlite3.connect(database) as db:
+        rows = db.execute("select subject, text from passages").fetchall()
+    shown = [
+        *(f"{subject} {text}" for subject, text in rows),
+        *(f"{hit.subject} {hit.snippet}" for hit in hits),
+        evidence.prompt(),
+        *(
+            f"{file.evidence.description.subject} {file.evidence.description.text}"
+            for file in status.files
+            if file.evidence is not None and file.evidence.description is not None
+        ),
+        *(
+            f"{d.description.subject} {d.text}"
+            for d in map(evidence.get, (h.id for h in hits))
+            if d
+        ),
+    ]
+    leaks = [text for text in shown for mark in ("@", "4567", "example") if mark in text]
+    assert not leaks, leaks
+
+
+def test_a_path_given_twice_gives_one_source_from_the_finished_record(
+    make_service: MakeService, tmp_path: Path
+) -> None:
+    """rag's review of #272, S2: ingest keeps its records by path, so the second entry's record
+    (never finished) must not be given evidence that lands on the real one."""
+    buffer = BytesIO()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # zipfile warns about the duplicate name
+        with zipfile.ZipFile(buffer, "w") as archive:
+            archive.writestr("docs/spec.pdf", SPEC)
+            archive.writestr("docs/spec.pdf", SPEC)
+    service = make_service(root=tmp_path / "projects", evidence_steps=steps())
+    status = service.wait(service.start("site.zip", buffer.getvalue()))
+    found = sources(status)
+    assert [(source.path, source.how) for source in found] == [("docs/spec.pdf", "text")]
+    unfinished = [file for file in status.files if file.state in ("queued", "running")]
+    assert all(file.evidence is None for file in unfinished)
+
+
+def test_a_changed_text_rule_re_cuts_an_index_already_built(
+    make_service: MakeService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """rag's review of #272, S4: the text rules' version is in the re-index hash."""
+    projects = tmp_path / "projects"
+    status = ingest(make_service, projects, {"docs/specification.pdf": SPEC, "x.dwg": DWG})
+    store = index(tmp_path / "index", projects)
+    store.update(status)
+    before = {source.file_id: source.content for source in store.indexed(status.id)}
+    monkeypatch.setattr(evidence_model, "TEXT_RULES", "test-stricter")
+    monkeypatch.setattr(file_sources, "without_contacts", lambda text: text.replace("doors", ""))
+    store.update(status)
+    after = {source.file_id: source.content for source in store.indexed(status.id)}
+    assert all(after[file_id] != before[file_id] for file_id in before)
+    with store.reader(status.id) as reader:
+        assert reader.bm25("doors", frozenset({None})) == []  # cut again with the new rule
+
+
 def test_a_described_drawn_pdf_also_gets_its_text_pages(
     make_service: MakeService, tmp_path: Path
 ) -> None:
@@ -200,7 +298,9 @@ def test_a_refused_entry_is_listed_with_its_refusal(
     refused = [file for file in status.files if file.sha256 is None]
     assert refused, "the zip has an entry ingest refuses"
     found = refused[0].evidence
-    assert found is not None and (found.how, found.kind) == ("listed", "unknown")
+    assert found is not None and (found.how, found.kind) == ("listed", "not_read")
+    assert found.description is not None
+    assert found.description.text.startswith("file that was not read. escape. Its content")
     assert found.why == f"listed by name only: {refused[0].reason.rstrip('.')}"
 
 
@@ -244,3 +344,14 @@ def test_a_text_pdfs_drawn_page_is_its_own_file_and_not_in_the_texts_passages(
     assert any(file.path.startswith("set#p2") for file in status.files)  # the drawn page
     evidence = evidence_of(tmp_path / "index", projects, status)
     assert [hit.file for hit in evidence.search("Küche Balkon").hits] == []
+
+
+def test_a_record_that_never_finished_gets_no_evidence() -> None:
+    """The deterministic half of the case above: whatever the threads' order, an unfinished record
+    (the path's first entry) is given nothing to write onto the path's real record."""
+    ghost = FileStatus(id="f1", path="docs/spec.pdf", size=0, state="queued")
+
+    def read() -> bytes:
+        raise AssertionError("an unfinished record is not read")
+
+    assert file_evidence(ghost, read, steps()) is None

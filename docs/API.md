@@ -1393,8 +1393,10 @@ before, and is also described.
 
 - `indexed`: whether the file is a source of the evidence index; `how`: `described`, `text` (its own text) or
   `listed` (by name only; its content is not read); null when not indexed. `kind`: the hit's kind (null when not
-  indexed): the sheet kind for a described picture, `text_document` or `text_file`, or the probe's kind for a
-  listed file (`dwg`, `office`, `archive`, `pdf_encrypted`, `ifc`, `unknown`).
+  indexed): the sheet kind for a described picture, `text_document` or `text_file`, `text_pages` (a drawn or
+  scanned PDF searched by its own text pages only: its drawing is not a source), or the probe's kind for a
+  listed file (`dwg`, `office`, `archive`, `pdf_encrypted`, `ifc`, `unknown`; `not_read` for an entry that was
+  refused or could not be identified).
 - `why`: one plain sentence, always set: `not a floor plan: an elevation (Gemini sheet kind, ...)`, `a floor
   plan: it is read, so it is not in the evidence index`, `the kind call failed: ...` (a spent Gemini budget
   included), `not described: ...` (`no description model is set up` without `TRIAGE_DESCRIBER`), `the evidence
@@ -1406,7 +1408,9 @@ before, and is also described.
   file name in words, `text` the first 300 characters (or the "not read" sentence), `model` `no model: ...`.
   `text_pages`, `text_chars`: the pages that gave text and the characters indexed; null when none (a described
   drawn PDF with text pages has both). The text itself is not in the status: the index reads it from the stored
-  file.
+  file. The rule-made `description` is made at ingest, so a change to the text rules (contacts, addresses, the
+  cut) shows in it only when the project is ingested again; the index's passages are cut again on its next
+  sync.
 - `cost_usd`: the kind call and the description, also counted in the file's and the project's `cost_usd`; 0 from
   the caches.
 
@@ -1609,7 +1613,7 @@ described so far; a project with nothing indexed has `indexed_files: 0` and a `n
 - Files whose verdict (a person's call over the judge's) is `unrelated` are searched only with
   `include_unrelated=true`; `unrelated_left_out` counts the ones skipped.
 - A hit: `id` (`f7-summary`, `f7-detail-2`, `f7-visible_text-1`, `f7-text-12`), `file_id`, `file` (as uploaded; the picture is
-  `…/files/{file_id}/preview.png`), `page` (a `text` passage: the PDF page it comes from; else the PDF page of a page entry `<name>#p<n>.pdf`, else 1), `part`, `how` (`described`, `text`, `listed`; see Evidence scope), `kind` (the register's kind, else
+  `…/files/{file_id}/preview.png`), `page` (a `text` passage: the PDF page it comes from, and a text source's summary: its first text page; else the PDF page of a page entry `<name>#p<n>.pdf`, else 1), `part`, `how` (`described`, `text`, `listed`; see Evidence scope), `kind` (the register's kind, else
   the sheet kind of the evidence step, else the description's `what_it_is`), `subject`, `snippet` (at most 300 characters around the matched words), `language`, `verdict`,
   `credit`, `score` (orders one result's hits only) and `why` (`terms`: query words in the passage; `bm25_rank`,
   `dense_rank`: the file's rank by each retriever, null when it did not rank it or did not run).
@@ -9157,7 +9161,7 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 - 2026-11-14, additive (decision 0012 Amendment 1, contract v1.3): text documents and unread files in the
   evidence index: `how` `text` and `listed`, the part `text` (ids `f7-text-12`; a hit's `page` is the passage's
-  page), the kinds `text_document`, `text_file` and the listed probe kinds, and `FileStatus.evidence.text_pages`
+  page), the kinds `text_document`, `text_file`, `text_pages`, `not_read` and the listed probe kinds, and `FileStatus.evidence.text_pages`
   and `text_chars` filled.
 - 2026-11-14, additive (decision 0012 Amendment 1, contract v1.3): `FileStatus.evidence` (left out unless
   `EVIDENCE_SCOPE=all_non_plan`); evidence hits and details gain `how` (`described`, later `text` and `listed`),

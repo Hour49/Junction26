@@ -22,6 +22,10 @@ from app.core.ingest.model import (
 from app.core.model import Frozen
 
 PartName = Literal["summary", "detail", "visible_text", "text"]
+# The version of the rules that cut and scrub a file's own text and a listed file's passage
+# (app/core/contacts.py, file_sources.py's without_addresses and its cut): raise it with any change
+# to them, so an index built before re-cuts those sources (rag's review of #272, S4)
+TEXT_RULES = "1"
 
 
 class EvidenceSource(Frozen):
@@ -46,13 +50,18 @@ class EvidenceSource(Frozen):
     texts: bool = False
 
 
-def content_of(description: Description, kind: str | None, file_sha256: str | None = None) -> str:
+def content_of(
+    description: Description, kind: str | None, file_sha256: str | None = None, rules: bool = False
+) -> str:
     """What the passages are made of: the description and the register's (or the sheet's) kind,
-    and for a source with `text` passages the file they are read from. Not the judge's verdict or
-    why, so judging a file or overruling it never re-cuts or re-embeds it."""
+    for a source with `text` passages the file they are read from, and for those and listed files
+    the text rules' version. Not the judge's verdict or why, so judging a file or overruling it
+    never re-cuts or re-embeds it."""
     body: dict[str, object] = {"description": description.model_dump(mode="json"), "kind": kind}
     if file_sha256 is not None:  # only then: the hashes of described-only sources stay
         body["file"] = file_sha256
+    if rules:
+        body["text_rules"] = TEXT_RULES
     return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
 
 
@@ -118,7 +127,9 @@ def _indexed(file: FileStatus) -> EvidenceSource | None:
         description=description,
         sheet_register=None,
         relevance=None,
-        content=content_of(description, kind, file.sha256 if texts else None),
+        content=content_of(
+            description, kind, file.sha256 if texts else None, texts or evidence.how == "listed"
+        ),
         file_kind=file.kind,
         texts=texts,
     )

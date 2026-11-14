@@ -23,5 +23,9 @@ def source_passages(
     found = list(chunker(source)) if source.how == "described" else []
     if text is not None:
         pieces = text.pieces if source.how == "text" else text.pieces[1:]  # one summary
-        found += [Passage(part=p.part, n=p.n, text=p.text, page=p.page) for p in pieces]
+        first = next((p.page for p in text.pieces if p.part == "text"), 1)
+        found += [
+            Passage(part=p.part, n=p.n, text=p.text, page=first if p.part == "summary" else p.page)
+            for p in pieces
+        ]  # a text source's summary is on its first text page, not on a drawing's page 1
     return found
