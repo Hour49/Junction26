@@ -7,8 +7,9 @@ data never goes into the repo). The default out is data/demo/demo-project.zip (g
 
 Each file's licence is checked when the zip is built: it must match the source's own record
 (the row for the file in its LICENSE.md table, the LICENSE.md "All files:" line, or the
-manifest.jsonl next to a Commons photo) and be CC BY, CC BY-SA, CC0 or MIT, or CubiCasa's
-CC BY-NC-SA 4.0 for this prototype. The zip carries a CREDITS.md with each file's credit.
+manifest.jsonl next to a Commons photo) and be CC BY, CC BY-SA, CC0, MIT or public domain (PDM).
+Nothing non-commercial (CubiCasa5K is CC BY-NC-SA 4.0): the zip is served by the public demo.
+The zip carries a CREDITS.md with each file's credit.
 """
 
 import argparse
@@ -25,8 +26,7 @@ REPO = Path(__file__).resolve().parents[2]
 LIST = Path(__file__).with_name("demo_archive.json")
 DEFAULT_OUT = REPO / "data" / "demo" / "demo-project.zip"
 ZIP_TIME = (2026, 11, 14, 0, 0, 0)
-OPEN = re.compile(r"CC-BY(-SA)?-\d\.\d|CC0-1\.0|MIT")
-PROTOTYPE_ONLY = frozenset({"CC-BY-NC-SA-4.0"})
+OPEN = re.compile(r"CC-BY(-SA)?-\d\.\d|CC0-1\.0|MIT|PDM")
 ALL_FILES = re.compile(r"^All files: (\S+)\. Credit: (.+)$", re.MULTILINE)
 TAG = re.compile(r"<[^>]+>")
 
@@ -44,7 +44,7 @@ class Credit:
 
 
 def allowed(licence: str) -> bool:
-    return bool(OPEN.fullmatch(licence)) or licence in PROTOTYPE_ONLY
+    return bool(OPEN.fullmatch(licence))
 
 
 def credit_of(path: Path) -> Credit:
@@ -107,7 +107,8 @@ def credits_md(files: list[tuple[dict[str, Any], Credit]]) -> str:
         "# Credits",
         "",
         "Files collected for a demo of a hackathon prototype; none was edited for this archive.",
-        "Each keeps its own licence. CC BY-NC-SA 4.0 files (CubiCasa5K): non-commercial use only.",
+        "Each keeps its own licence. CC BY-SA files: adaptations you share must use CC BY-SA.",
+        "PDM files (HABS, Library of Congress) are public domain; the credit is a courtesy.",
         "",
     ]
     for entry, credit in files:
