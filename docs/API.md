@@ -253,7 +253,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
       "kind": "pdf_vector",
       "state": "ready",
-      "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
+      "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
       "group": "plans/flat-a",
       "route": "vector",
       "source": "plans/flat-a.pdf",
@@ -344,7 +344,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
       "kind": "png_plan",
       "state": "ready",
-      "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
+      "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
       "group": "plans/flat-a",
       "route": "vector",
       "source": "plans/flat-a.pdf",
@@ -783,7 +783,7 @@ after a restart cut that run off:
     "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
     "kind": "pdf_vector",
     "state": "ready",
-    "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
+    "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
     "group": "plans/flat-a",
     "route": "vector",
     "source": "plans/flat-a.pdf",
@@ -902,7 +902,7 @@ after a restart cut that run off:
     },
     {
       "stage": "route",
-      "did": "vector, read from plans/flat-a.pdf",
+      "did": "drawn PDF route, read from plans/flat-a.pdf",
       "ms": 12.5,
       "output": "vector",
       "failure": null,
@@ -1023,7 +1023,7 @@ upload lists the files, instead of one request per file.
         "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
         "kind": "pdf_vector",
         "state": "ready",
-        "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
+        "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
         "group": "plans/flat-a",
         "route": "vector",
         "source": "plans/flat-a.pdf",
@@ -1142,7 +1142,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "route",
-          "did": "vector, read from plans/flat-a.pdf",
+          "did": "drawn PDF route, read from plans/flat-a.pdf",
           "ms": 12.5,
           "output": "vector",
           "failure": null,
@@ -1203,7 +1203,7 @@ upload lists the files, instead of one request per file.
         "sha256": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
         "kind": "png_plan",
         "state": "ready",
-        "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
+        "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
         "group": "plans/flat-a",
         "route": "vector",
         "source": "plans/flat-a.pdf",
@@ -1331,7 +1331,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "route",
-          "did": "vector, read from plans/flat-a.pdf",
+          "did": "drawn PDF route, read from plans/flat-a.pdf",
           "ms": 12.5,
           "output": "vector",
           "failure": null,
@@ -1511,7 +1511,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "route",
-          "did": "vector, read from plans/flat-b.pdf",
+          "did": "drawn PDF route, read from plans/flat-b.pdf",
           "ms": 12.5,
           "output": "vector",
           "failure": null,
@@ -1572,7 +1572,7 @@ upload lists the files, instead of one request per file.
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
         "kind": "png_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
+        "reason": "no reader for the image route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
         "group": "scans/ground-floor",
         "route": "raster",
         "source": "scans/ground-floor.png",
@@ -1628,7 +1628,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "route",
-          "did": "raster, read from scans/ground-floor.png",
+          "did": "image route, read from scans/ground-floor.png",
           "ms": 12.5,
           "output": "raster",
           "failure": null,
@@ -1686,7 +1686,7 @@ upload lists the files, instead of one request per file.
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
         "kind": "png_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
+        "reason": "no reader for the image route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
         "group": "scans/ground-floor-copy",
         "route": "raster",
         "source": "scans/ground-floor-copy.png",
@@ -1742,7 +1742,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "route",
-          "did": "raster, read from scans/ground-floor-copy.png",
+          "did": "image route, read from scans/ground-floor-copy.png",
           "ms": 12.5,
           "output": "raster",
           "failure": null,
@@ -1808,7 +1808,7 @@ upload lists the files, instead of one request per file.
         "sha256": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
         "kind": "photo_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read; a phone photo, read without perspective correction (0 elements, 0 rooms, no scale on the sheet)",
+        "reason": "no reader for the image route yet: nothing was read; a phone photo, read without perspective correction (0 elements, 0 rooms, no scale on the sheet)",
         "group": "photos/plan-photo",
         "route": "raster",
         "source": "photos/plan-photo.jpg",
@@ -1864,7 +1864,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "route",
-          "did": "raster, read from photos/plan-photo.jpg",
+          "did": "image route, read from photos/plan-photo.jpg",
           "ms": 12.5,
           "output": "raster",
           "failure": null,
@@ -1971,7 +1971,7 @@ upload lists the files, instead of one request per file.
         "sha256": "951a9027130b1b3a7a86e1c1b1292a582fb01c988a189f406078ed8b7cac0047",
         "kind": "ifc",
         "state": "ready",
-        "reason": "read on the bim route: 12 model objects",
+        "reason": "read on the BIM model route: 12 model objects",
         "group": "model/house",
         "route": "bim",
         "source": "model/house.ifc",
@@ -2066,7 +2066,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "route",
-          "did": "bim, read from model/house.ifc",
+          "did": "BIM model route, read from model/house.ifc",
           "ms": 12.5,
           "output": "bim",
           "failure": null,
@@ -2163,7 +2163,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "route",
-          "did": "cad, read from cad/detail.dxf",
+          "did": "CAD route, read from cad/detail.dxf",
           "ms": 12.5,
           "output": "cad",
           "failure": null,
@@ -2526,10 +2526,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "No reader for the raster route yet: nothing was read.",
+      "why": "No reader for the image route yet: nothing was read.",
       "quantity": null,
       "question": null,
-      "reason": "no reader for the raster route yet: nothing was read",
+      "reason": "no reader for the image route yet: nothing was read",
       "check": null,
       "links": {
         "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
@@ -2576,10 +2576,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "A phone photo, read without perspective correction; no reader for the raster route yet: nothing was read.",
+      "why": "A phone photo, read without perspective correction; no reader for the image route yet: nothing was read.",
       "quantity": null,
       "question": null,
-      "reason": "a phone photo, read without perspective correction; no reader for the raster route yet: nothing was read",
+      "reason": "a phone photo, read without perspective correction; no reader for the image route yet: nothing was read",
       "check": null,
       "links": {
         "drawing": "/api/drawings/37f6819bd17d65d9?project=5e0c1a2b3d4f",
@@ -5721,6 +5721,10 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, text only (QA R4-a-10): a file's `reason` and the route stage's `did` name the route in the words the
+  screens use ("read on the drawn PDF route: …", "no reader for the image route yet", "BIM model route, read from
+  …"; was "vector", "raster", "bim"), from `ROUTE_WORDS` in `app/core/wording.py`. The fields `route` and the route
+  stage's `output` keep the id.
 - 2026-11-14, additive (QA R4-a-8): `Takeoff.disputes`, the keys of the rows where two methods disagree, one per
   disagreement, the same ones the project review lists. Behaviour (QA R4-a-1): `ProjectView.expected_drawings` is
   null while a running project's files are not grouped yet, then final (it overshot, 0/19 then 13/13 on the demo
