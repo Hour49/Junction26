@@ -4,7 +4,7 @@ plan tools refuse an edit with (plan_tools.plan_page), so the two never disagree
 
 import dataclasses
 import json
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -195,3 +195,25 @@ def test_review_407_a_drawing_read_again_at_another_scale_reads_its_walls_again(
     stored.write_text(json.dumps(body))
     client.get(f"/api/projects/{pid}")
     assert len(reads) == 1
+
+
+def test_review_407b_the_memo_keeps_a_yes_or_no_not_the_wall_fills(client: TestClient) -> None:
+    """Whole wall-fill results (up to 189 KB each, 4096 kept) could hold most of a GB."""
+    listed(client, walled_flat())
+    kept = cast(Any, client.app).state.drawable_fills
+    assert kept and all(isinstance(walled, bool) for walled in kept.values())
+
+
+class _ClearedByAnotherRequest(dict[Any, Any]):
+    """A memo another request empties right after this one writes to it (KEPT reached)."""
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        super().__setitem__(key, value)
+        self.clear()
+
+
+def test_review_407b_a_memo_emptied_meanwhile_does_not_fail_the_list(client: TestClient) -> None:
+    pid, drawing = listed(client, walled_flat())
+    store = PipelineStore.of_app(client.app, pid)
+    entry = entry_of(store, drawing["drawing_id"])
+    assert not_drawable(store, entry, _ClearedByAnotherRequest()) is None
