@@ -61,6 +61,8 @@ OLD_TOOL_CHARS = 1000  # a tool message of an earlier turn is cut to this
 # ~6,800 compact, so 8,000 keeps every drawing's answer); the full result stays in the chat
 TOOL_CHARS = 8000
 GEOMETRY = frozenset({"box", "polygon", "holes"})  # the model cites ev ids, never coordinates
+# Run timings say nothing about the drawing, and their numbers could back a wrong claim
+NOT_FOR_MODEL = GEOMETRY | {"latency_s"}
 NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
 # Levels only where measured (item 4): these tools' numbers are read from the drawing as it is,
@@ -338,7 +340,10 @@ class _Run:
             if name in ("final_answer", SHOW_ON_PLAN, REVIEW_ANSWER) or name.startswith("propose_"):
                 break
             given: Any = function.get("arguments") or "{}"
-            lead.append((name, given if isinstance(given, str) else json.dumps(given)))
+            found = (name, given if isinstance(given, str) else json.dumps(given))
+            if self.seen[found] + lead.count(found) >= 2:
+                break  # its third time ends the turn (_calls): it must not run
+            lead.append(found)
         if len(lead) < 2 or self.caps.parallel < 2:
             return {}
         for at, (name, arguments) in enumerate(lead):
@@ -538,16 +543,14 @@ class _Run:
                 return self._show_failed(call, start, f"the latest answer has no {which}")
         if not ids:
             return self._show_failed(call, start, "give evidence_ids or answer: latest")
-        if unknown := [ev for ev in ids if ev not in places]:
+        # lenient: unknown ids are named back and the known ones shown; several pages show the
+        # page with the most places and name the others (a retry once showed 1 door of 19)
+        unknown = [ev for ev in ids if ev not in places]
+        if not (known := [ev for ev in ids if ev in places]):
             missing = ", ".join(unknown)
-            return self._show_failed(call, start, f"no place in this chat has id {missing}")
-        groups = pages(ids, places)
-        if len(groups) > 1 and entry is None:
-            listed = "; ".join(
-                f"{self._name(drawing, places[evs[0]])} page {page}: {', '.join(evs)}"
-                for (drawing, page), evs in groups.items()
-            )
-            return self._show_failed(call, start, f"show one page at a time: {listed}")
+            why = f"no place in this chat has id {missing}; answer: latest shows the last answer"
+            return self._show_failed(call, start, why)
+        groups = pages(known, places)
         (drawing, page), ids = max(groups.items(), key=lambda group: len(group[1]))
         ids = ids[:MARKS]
         name = self._name(drawing, places[ids[0]])
@@ -570,6 +573,8 @@ class _Run:
         result: Json = {"status": "ok", "shown": len(ids), "drawing": name, "page": page}
         if others:
             result["other_pages"] = others
+        if unknown:
+            result["unknown"] = unknown
         text = json.dumps(result, ensure_ascii=False)
         # what it showed backs the answer's numbers: a tool result, and the answer it shows
         self.sources.append(text)
@@ -943,7 +948,7 @@ def _slim(found: Any) -> Any:
         return {
             key: _slim(value)
             for key, value in found.items()  # pyright: ignore[reportUnknownVariableType]
-            if key not in GEOMETRY and value not in (None, "", [], {})
+            if key not in NOT_FOR_MODEL and value not in (None, "", [], {})
         }
     return found
 
