@@ -73,8 +73,9 @@ def test_areas_sum_and_reads_name_their_columns() -> None:
 
 def test_what_a_schedule_cannot_answer_in_one_lookup_is_refused() -> None:
     for text in (
-        "Which room in the finish room schedule has the largest area?",
-        "How many rooms have floor finish F0, and what is their total area?",
+        "Which office in the finish room schedule has the largest area?",  # no kind of row
+        "Which door in the door schedule has the longest frame?",
+        "How many doors are listed in the door schedule, and what is their total width?",
         "How many doors of each type are listed in the door schedule?",
         "What is the hardware group in the door schedule?",  # no row named
     ):
@@ -175,3 +176,22 @@ def test_a_count_names_rows_by_a_printed_name_a_floor_or_a_description_start() -
     )
     assert isinstance(swing, TableQuery) and swing.op == "count" and swing.kind == "door"
     assert swing.filters == (TableFilter(values=("SWING",), match="starts"),)
+
+
+def test_the_row_with_the_largest_or_smallest_area_is_asked_of_a_kind_of_row() -> None:
+    largest = PARSE(SHEET + "which room in the finish room schedule has the largest area?")
+    assert largest == TableQuery(
+        op="max", kind="room", table=("finish", "room"), column=(("area",),)
+    )
+    smallest = PARSE("Which room has the smallest area in the finish room schedule?")
+    assert isinstance(smallest, TableQuery) and (smallest.op, smallest.kind) == ("min", "room")
+
+
+def test_a_count_and_the_total_area_of_the_same_rows_is_one_query() -> None:
+    both = PARSE(
+        SHEET + "how many rooms have floor finish F0 (unfinished concrete slab), and what is"
+        " their total area?"
+    )
+    assert isinstance(both, TableQuery)
+    assert (both.op, both.kind, both.column) == ("count_sum", "room", (("area",),))
+    assert [f.values for f in both.filters] == [("F0",)]
