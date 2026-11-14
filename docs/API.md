@@ -253,7 +253,8 @@ An edit of a signed-off quantity (409):
         }
       ]
     }
-  ]
+  ],
+  "commit": null
 }
 ```
 
@@ -8195,6 +8196,9 @@ unknown pack, `not-found` for an unknown project.
   route and a `levels` block; a file without them loads as before and gives `level` null. Every answer fixture
   gains `level`; `answer_certified`, `answer_double_check` and `answer_double_check_rooms` show high, medium and
   low. `line` (answer_v1.1) is unchanged.
+- 2026-11-14, additive (QA R9 area 4, `tools/smoke.py`): `GET /api/info` gains `commit`, the git commit the backend
+  was started from (setting `APP_COMMIT`, which `tools/qa-env.sh` sets to the exported commit), or null when
+  unset. Fixture `info.json` gains it (last).
 - 2026-11-14, behaviour: `GET /api/info` `no_keys` is false also when a keyed source is in
   `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`, or when `TRIAGE_DESCRIBER=gemini` runs (a triage
   classifier on); it said true for these. No shape change.

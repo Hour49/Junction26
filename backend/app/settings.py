@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    # The git commit this backend was started from, as GET /api/info `commit` shows it, so a
+    # smoke test can tell which build it talks to (tools/qa-env.sh sets the exported commit).
+    # Unset: null. Never read from git at request time
+    app_commit: str | None = None
     extractor_bim: ExtractorName = "ifc"
     extractor_cad: ExtractorName = "hello"
     extractor_vector: ExtractorName = "pdf"

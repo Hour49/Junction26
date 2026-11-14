@@ -1115,6 +1115,8 @@ export interface components {
         };
         /** Info */
         Info: {
+            /** Commit */
+            commit?: string | null;
             /** Gemini */
             gemini?: ("ok" | "budget_exhausted") | null;
             limits: components["schemas"]["Limits"];
