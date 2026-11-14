@@ -2039,6 +2039,15 @@
             "title": "File Id",
             "type": "string"
           },
+          "how": {
+            "enum": [
+              "described",
+              "text",
+              "listed"
+            ],
+            "title": "How",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -2107,6 +2116,7 @@
           "file",
           "page",
           "part",
+          "how",
           "text",
           "kind",
           "verdict",
@@ -2138,6 +2148,15 @@
           },
           "file_id": {
             "title": "File Id",
+            "type": "string"
+          },
+          "how": {
+            "enum": [
+              "described",
+              "text",
+              "listed"
+            ],
+            "title": "How",
             "type": "string"
           },
           "id": {
@@ -2210,6 +2229,7 @@
           "file",
           "page",
           "part",
+          "how",
           "kind",
           "subject",
           "snippet",
@@ -2271,6 +2291,101 @@
         "title": "EvidenceSearch",
         "type": "object"
       },
+      "FileEvidence": {
+        "additionalProperties": false,
+        "description": "FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence\nindex, and from what (decision 0012 sources v2). Written by the evidence step for every file it\nlooked at; a file today's triage path set aside and described keeps its record in `triage`.",
+        "properties": {
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Description"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "how": {
+            "anyOf": [
+              {
+                "enum": [
+                  "described",
+                  "text",
+                  "listed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "How"
+          },
+          "indexed": {
+            "title": "Indexed",
+            "type": "boolean"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sheet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text_chars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Chars"
+          },
+          "text_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Pages"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "indexed",
+          "why"
+        ],
+        "title": "FileEvidence",
+        "type": "object"
+      },
       "FileStatus": {
         "additionalProperties": false,
         "properties": {
@@ -2290,6 +2405,16 @@
               }
             ],
             "title": "Drawing Id"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "group": {
             "anyOf": [

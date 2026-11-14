@@ -36,6 +36,10 @@ SheetKindName = Literal["off", "carbon"]
 TriageDescriberName = Literal["off", "gemini", "carbon"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
+# What the evidence index holds (decision 0012). set_aside: the images triage set aside and
+# described. all_non_plan: also every other file and PDF page that is not a floor plan (a picture
+# asked the sheet-kind model, then described; a text document by its own text; others by name)
+EvidenceScopeName = Literal["set_aside", "all_non_plan"]
 # RESOLVER: a model picks a value for a conflict no rule decides,
 # or checks an answer CHECK_POLICY does not certify; never a person's word. off: as before.
 # carbon: Google Carbon (the adapter is not built yet: startup refuses it until it is).
@@ -212,3 +216,4 @@ class Settings(BaseSettings):
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")
+    evidence_scope: EvidenceScopeName = "set_aside"

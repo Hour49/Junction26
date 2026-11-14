@@ -426,8 +426,9 @@ def test_the_prompt_lists_kinds_languages_and_files_or_says_there_is_nothing(
     tmp_path: Path,
 ) -> None:
     prompt = evidence_prompt(open_index(tmp_path))
-    assert prompt.startswith("Project evidence: 4 described files that are not floor plans")
+    assert prompt.startswith("Project evidence: 4 files that are not floor plans (4 described;")
     assert "3 photograph, 1 text_page" in prompt
+    assert "text document" not in prompt and "listed by name" not in prompt  # none of either
     assert "printed text in fi" in prompt
     assert "1 judged unrelated, searched only on request" in prompt
     assert "f2 photograph: old stone barn" in prompt
@@ -437,3 +438,4 @@ def test_the_prompt_lists_kinds_languages_and_files_or_says_there_is_nothing(
     assert len(capped) == 6000 and capped.endswith("...")
     empty = evidence_prompt(open_index(tmp_path / "b", project(("plan.png", None))))
     assert empty == f"Project evidence: none. {NOTHING} Do not call search_evidence."
+    assert "EVIDENCE_SCOPE" in NOTHING  # the setting that decides, not "triage was off"

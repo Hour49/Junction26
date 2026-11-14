@@ -1377,6 +1377,28 @@ photo of an elevation sheet with its register, showing a building that matches n
 }
 ```
 
+### Evidence scope (decision 0012, Amendment 1)
+
+`EVIDENCE_SCOPE=set_aside` (the default) indexes only what triage set aside and described, as above.
+`EVIDENCE_SCOPE=all_non_plan` also asks every picture triage did not set aside (a PNG or JPEG, a scanned or drawn
+PDF page) its sheet kind, once the plans are read, and describes every one that is not a floor plan sheet, for
+the evidence index. It never changes a file's `state`, `reason`, `route`, `group`, `drawing_id` or `takeoff`: a
+drawn elevation is still read as before, and is also described.
+
+`FileStatus.evidence` (left out when that step did not look at the file, so always with the default scope):
+
+- `indexed`: whether the file is a source of the evidence index; `how`: `described` (null when not indexed;
+  `text` and `listed` come with text documents and unread files); `kind`: the hit's kind, the sheet kind for a
+  described picture (null when not indexed).
+- `why`: one plain sentence, always set: `not a floor plan: an elevation (Gemini sheet kind, ...)`, `a floor
+  plan: it is read, so it is not in the evidence index`, `the kind call failed: ...` (a spent Gemini budget
+  included), `not described: ...` (`no description model is set up` without `TRIAGE_DESCRIBER`), `the evidence
+  step failed: ...`.
+- `sheet`: the kind reply, the same object as `triage.sheet`; null when not asked. `description`: the same
+  object as `triage.description`, when `how` is `described`. `text_pages`, `text_chars`: null for a picture.
+- `cost_usd`: the kind call and the description, also counted in the file's and the project's `cost_usd`; 0 from
+  the caches.
+
 ### `POST /api/projects/{project_id}/files/{file_id}/relevance`
 
 A person's call on a triaged file. The body is `{verdict: "related"|"unrelated", by}`, or `{undo: true}` to take
@@ -1568,15 +1590,16 @@ nobody read as a plan (photos, elevations, sections, site plans, maps, text page
 The same JSON as the chat agent's `search_evidence` tool (`backend/app/adapters/evidence_tools.py`). Local only:
 SQLite FTS5 BM25 and a multilingual embedder on CPU, fused by reciprocal rank fusion; with no embedder model on the
 machine it searches with BM25 alone and `method` says so. Works in any project state: it answers from what is
-described so far; a project with triage off has `indexed_files: 0` and a `note`.
+described so far; a project with nothing indexed has `indexed_files: 0` and a `note`. With
+`EVIDENCE_SCOPE=all_non_plan` (Evidence scope, above) the pictures the evidence step described are searched too.
 
 - `q` 1-500 characters, not blank; `k` 1-20 (default 5) counts files: a file appears once, with its best-matching
   passage. 422 `validation` otherwise; 404 `not-found` for an unknown project.
 - Files whose verdict (a person's call over the judge's) is `unrelated` are searched only with
   `include_unrelated=true`; `unrelated_left_out` counts the ones skipped.
 - A hit: `id` (`f7-summary`, `f7-detail-2`, `f7-visible_text-1`), `file_id`, `file` (as uploaded; the picture is
-  `…/files/{file_id}/preview.png`), `page` (the PDF page of a page entry `<name>#p<n>.pdf`, else 1), `part`, `kind` (the register's kind, else the description's
-  `what_it_is`), `subject`, `snippet` (at most 300 characters around the matched words), `language`, `verdict`,
+  `…/files/{file_id}/preview.png`), `page` (the PDF page of a page entry `<name>#p<n>.pdf`, else 1), `part`, `how` (`described`; see Evidence scope), `kind` (the register's kind, else
+  the sheet kind of the evidence step, else the description's `what_it_is`), `subject`, `snippet` (at most 300 characters around the matched words), `language`, `verdict`,
   `credit`, `score` (orders one result's hits only) and `why` (`terms`: query words in the passage; `bm25_rank`,
   `dense_rank`: the file's rank by each retriever, null when it did not rank it or did not run).
 - A hit is the closest file, not proof: read the snippet, then get the passage.
@@ -1596,6 +1619,7 @@ described so far; a project with triage off has `indexed_files: 0` and a `note`.
       "file": "photos/sheet.jpg",
       "page": 1,
       "part": "visible_text",
+      "how": "described",
       "kind": "elevation",
       "subject": "a photographed elevation of a church",
       "snippet": "Kirche St. Anna",
@@ -1631,6 +1655,7 @@ that is not an evidence id. `description.detail` is a model's description no per
   "file": "photos/sheet.jpg",
   "page": 1,
   "part": "visible_text",
+  "how": "described",
   "text": "Kirche St. Anna",
   "kind": "elevation",
   "verdict": "unsure",
@@ -9119,6 +9144,9 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0012 Amendment 1, contract v1.3): `FileStatus.evidence` (left out unless
+  `EVIDENCE_SCOPE=all_non_plan`); evidence hits and details gain `how` (`described`, later `text` and `listed`),
+  and a hit's `kind` may be a sheet kind. The empty-index `note` names `EVIDENCE_SCOPE`.
 - 2026-11-14, additive (RESOLVER): `POST /api/projects/{project_id}/resolve`;
   `resolved` on takeoff rows, conflicts (`ConflictEntry`) and answers (`AnswerView`, with `resolver_note` when the
   model gave no reply), each absent while `RESOLVER` is off. No enum value changes. An answer's `resolved`

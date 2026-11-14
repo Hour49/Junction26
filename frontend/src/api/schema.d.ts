@@ -1245,6 +1245,11 @@ export interface components {
             file: string;
             /** File Id */
             file_id: string;
+            /**
+             * How
+             * @enum {string}
+             */
+            how: "described" | "text" | "listed";
             /** Id */
             id: string;
             /** Kind */
@@ -1271,6 +1276,11 @@ export interface components {
             file: string;
             /** File Id */
             file_id: string;
+            /**
+             * How
+             * @enum {string}
+             */
+            how: "described" | "text" | "listed";
             /** Id */
             id: string;
             /** Kind */
@@ -1309,6 +1319,33 @@ export interface components {
             /** Unrelated Left Out */
             unrelated_left_out: number;
         };
+        /**
+         * FileEvidence
+         * @description FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence
+         *     index, and from what (decision 0012 sources v2). Written by the evidence step for every file it
+         *     looked at; a file today's triage path set aside and described keeps its record in `triage`.
+         */
+        FileEvidence: {
+            /**
+             * Cost Usd
+             * @default 0
+             */
+            cost_usd: number;
+            description?: components["schemas"]["Description"] | null;
+            /** How */
+            how?: ("described" | "text" | "listed") | null;
+            /** Indexed */
+            indexed: boolean;
+            /** Kind */
+            kind?: string | null;
+            sheet?: components["schemas"]["Sheet"] | null;
+            /** Text Chars */
+            text_chars?: number | null;
+            /** Text Pages */
+            text_pages?: number | null;
+            /** Why */
+            why: string;
+        };
         /** FileStatus */
         FileStatus: {
             /**
@@ -1318,6 +1355,7 @@ export interface components {
             cost_usd: number;
             /** Drawing Id */
             drawing_id?: string | null;
+            evidence?: components["schemas"]["FileEvidence"] | null;
             /** Group */
             group?: string | null;
             /** Id */
