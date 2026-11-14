@@ -388,7 +388,7 @@ def test_a_model_that_is_asked_about_gets_a_drawing_of_its_objects_without_a_pag
         "takeoff",
     ]
     assert entry.trace[3:6] == (
-        f"route: bim, read from {MODEL}",
+        f"route: BIM model route, read from {MODEL}",
         "normalise: no page, a building model",
         "extract: 2 model objects",
     )

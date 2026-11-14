@@ -221,7 +221,8 @@ export function historyEvents(
         at: lines.reduce((at, l) => (l.at < at ? l.at : at), q.at),
         title: `Asked: ${q.question}`,
         detail: n
-          ? `answered on ${String(n)} of ${plural(lines.length, 'drawing')}`
+          ? // The backend logs no line for a drawing it skipped (unscaled IFC); the ask still went to it.
+            `answered on ${String(n)} of ${plural(Math.max(lines.length, project.drawings.length), 'drawing')}`
           : 'not answered',
       });
       continue;

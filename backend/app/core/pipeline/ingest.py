@@ -32,7 +32,7 @@ from app.core.pipeline.route import RICHEST_FIRST, route
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, resolved_rooms, second_count
 from app.core.pipeline.takeoff import take_off
-from app.core.wording import SCALE_WORDS, count, kind_words
+from app.core.wording import SCALE_WORDS, count, kind_words, route_words
 
 NO_SHEET = "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
 MODEL_ROUTE: Route = "bim"  # the one route whose source can be asked about without a page
@@ -158,7 +158,7 @@ def _found(file: DrawingFile, members: DrawingGroup, routed: Routed) -> tuple[st
         f"inventory: {file.size} bytes, sha256 {file.sha256[:12]}",
         f"identify: {kind_words(file.kind)}",
         f"group: {members.key}, {count(len(members.files), 'file')}",
-        f"route: {routed.route}, read from {routed.source.path}",
+        f"route: {route_words(routed.route)}, read from {routed.source.path}",
     )
 
 
@@ -191,6 +191,7 @@ def _ingest_sheet(
         read=found.read,
         model_objects=found.model_objects,
         double_check=found.double_check,
+        count_arbiter=found.count_arbiter,
         notes=found.notes,
     )
     counted = apply_rules(drawing.marks_by_quantity())

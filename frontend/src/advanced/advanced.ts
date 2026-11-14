@@ -179,6 +179,8 @@ export interface Pair {
   row: Row;
   file: string;
   drawingId: string;
+  /** One of the takeoff's `disputes` (a disagreement counted once); without `disputes`, `status === 'conflict'`. */
+  disputed: boolean;
 }
 
 /**
@@ -193,17 +195,25 @@ export function fileName(project: ProjectView, drawingId: string): string {
   );
 }
 
-/** Every quantity measured twice, conflicts first, then takeoff order; named by this project's files. */
+/**
+ * Every quantity measured twice, disagreements first, then takeoff order; named by this project's files. A
+ * conflict row not in `Takeoff.disputes` repeats another row's disagreement (a storey or a room's other name) and is
+ * left out (AV-34); a takeoff without `disputes` (older backend) keeps every conflict row.
+ */
 export function pairsOf(takeoffs: readonly Takeoff[], project: ProjectView): Pair[] {
-  const pairs = takeoffs.flatMap((t) =>
-    t.quantities
+  const pairs = takeoffs.flatMap((t) => {
+    const disputes = t.disputes as readonly string[] | undefined;
+    return t.quantities
       .filter((row) => row.second != null)
-      .map((row) => ({ row, file: fileName(project, t.drawing_id), drawingId: t.drawing_id })),
-  );
-  return [
-    ...pairs.filter((p) => p.row.status === 'conflict'),
-    ...pairs.filter((p) => p.row.status !== 'conflict'),
-  ];
+      .map((row) => ({
+        row,
+        file: fileName(project, t.drawing_id),
+        drawingId: t.drawing_id,
+        disputed: disputes ? disputes.includes(row.key) : row.status === 'conflict',
+      }))
+      .filter((p) => p.disputed || !disputes || p.row.conflict == null);
+  });
+  return [...pairs.filter((p) => p.disputed), ...pairs.filter((p) => !p.disputed)];
 }
 
 /** Elapsed: the run's `ms` once done or failed; now - `started_at` while it runs; null before it starts. */

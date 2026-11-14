@@ -2,6 +2,7 @@
 with its noun in the right number, a content kind and a scale status in plain words."""
 
 from app.core.drawing.model import ConflictQuantity, ScaleStatus
+from app.core.pipeline.model import Route
 
 KIND_WORDS = {
     "pdf_vector": "drawn PDF",
@@ -20,6 +21,13 @@ KIND_WORDS = {
     "office": "Office file",
     "archive": "archive inside an archive",
     "unknown": "unknown file type",
+}
+# The route's name, as the screens say it ("drawn PDF route"; frontend ingest.ts ROUTE_LABEL)
+ROUTE_WORDS: dict[Route, str] = {
+    "bim": "BIM model",
+    "cad": "CAD",
+    "vector": "drawn PDF",
+    "raster": "image",
 }
 SCALE_WORDS: dict[ScaleStatus, str] = {
     "scaled": "scale read from the sheet",
@@ -47,3 +55,8 @@ def count(n: int, one: str, many: str | None = None) -> str:
 
 def kind_words(kind: str) -> str:
     return KIND_WORDS.get(kind, kind)
+
+
+def route_words(route: Route) -> str:
+    """ "drawn PDF route": a route in the words a person reads; the field `route` keeps the id."""
+    return f"{ROUTE_WORDS[route]} route"

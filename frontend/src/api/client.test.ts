@@ -24,6 +24,15 @@ import {
   uploadProject,
 } from '.';
 import * as fx from './fixtures';
+import * as hx from './testing';
+import {
+  getDrawingChecks,
+  getIssues,
+  getProjectChecks,
+  issuesCsvUrl,
+  issuesZipUrl,
+  rulePacksOf,
+} from '.';
 import type { Edit, SignOffRequest } from './types';
 
 const pid = fx.project.id;
@@ -311,5 +320,45 @@ describe('API client', () => {
     expect(takeoffCsvUrl(tid, { zeros: true, project: pid })).toBe(
       `/api/drawings/${tid}/takeoff.csv?zeros=true&project=${pid}`,
     );
+  });
+
+  it('SH-65 the checks and issues functions send their rows and resolve with the fixtures', async () => {
+    const signal = new AbortController().signal;
+    const api = mockApi({
+      [`GET /api/drawings/${did}/checks`]: hx.drawingChecks,
+      [`GET /api/projects/${pid}/checks`]: hx.projectChecks,
+      [`GET /api/projects/${pid}/issues`]: fx.projectIssues,
+    });
+    expect(await getDrawingChecks(did, { pack: 'fi', project: pid, signal })).toEqual(
+      hx.drawingChecks,
+    );
+    expect(await getProjectChecks(pid, { pack: 'fi', signal })).toEqual(hx.projectChecks);
+    expect(await getIssues(pid, { signal })).toEqual(fx.projectIssues);
+    expect(await getIssues(pid, { pack: 'fi' })).toEqual(fx.projectIssues);
+    expect(await getDrawingChecks(did, { pack: 'a b' })).toEqual(hx.drawingChecks);
+    expect(api.calls.map((c) => c.url)).toEqual([
+      `/api/drawings/${did}/checks?pack=fi&project=${pid}`,
+      `/api/projects/${pid}/checks?pack=fi`,
+      `/api/projects/${pid}/issues`,
+      `/api/projects/${pid}/issues?pack=fi`,
+      `/api/drawings/${did}/checks?pack=a%20b`,
+    ]);
+    const signals = api.fetch.mock.calls.slice(0, 3).map(([, init]) => init?.signal);
+    expect(signals.every((s) => s === signal)).toBe(true);
+  });
+
+  it('SH-65 issues CSV and zip URLs, with and without a pack', () => {
+    expect(issuesCsvUrl(pid)).toBe(`/api/projects/${pid}/issues.csv`);
+    expect(issuesCsvUrl(pid, 'fi')).toBe(`/api/projects/${pid}/issues.csv?pack=fi`);
+    expect(issuesZipUrl(pid)).toBe(`/api/projects/${pid}/issues.zip`);
+    expect(issuesZipUrl(pid, 'a b')).toBe(`/api/projects/${pid}/issues.zip?pack=a%20b`);
+  });
+
+  it('SH-65 rulePacksOf reads Info.rule_packs, [] when absent or before info', () => {
+    expect(rulePacksOf(null)).toEqual([]);
+    expect(rulePacksOf(fx.info)).toEqual([]);
+    expect(rulePacksOf({ ...fx.info, rule_packs: [hx.rulePackFi] } as typeof fx.info)).toEqual([
+      hx.rulePackFi,
+    ]);
   });
 });

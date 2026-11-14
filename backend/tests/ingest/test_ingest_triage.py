@@ -6,12 +6,15 @@ import io
 import zipfile
 
 from conftest import MakeService
+from test_ingest_multipage import pdf_of
+from test_ingest_probe import ink_sketch_pdf
 from test_vector_pdf import swiss_sheet
 from triage_fakes import FakeClassifier, FakeDescriber, WordJudge, steps
 
+from app.adapters.archive import FileProbe
 from app.core.ingest.model import FileStatus, Probed, ProjectStatus
 from app.core.ingest.triage import NO_PLAN, NOTE_NO_DESCRIBER, NOTE_NO_JUDGE
-from scripts.make_sample_archive import jpeg_bytes, png_bytes, raster_plan, site_photo
+from scripts.make_sample_archive import jpeg_bytes, png_bytes, raster_plan, site_photo, text_pdf
 
 PLAN = swiss_sheet().pdf()  # a vector plan with room labels (Küche, Bad, Balkon...)
 SCAN = png_bytes(raster_plan())  # a drawing as an image
@@ -176,3 +179,20 @@ def test_description_and_judge_costs_count_in_the_file_and_the_project(
     status = ingested(make_service, {"plan.pdf": PLAN, "elevation.png": SCAN}, triage=found)
     assert file_of(status, "elevation.png").cost_usd == 0.003
     assert status.cost_usd == 0.003
+
+
+def test_a_later_scanned_page_of_a_pdf_is_triaged_like_an_image_file(
+    make_service: MakeService,
+) -> None:
+    """Triage is per file entry (amendment 4): a drawn page unpacked as `<name>#p<n>.pdf` is
+    asked like any file; a scanned page called not a plan is set aside, a vector one is read."""
+    drawing_set = pdf_of(text_pdf(), PLAN, ink_sketch_pdf())
+    scanned = FileProbe().probe(drawing_set).pages[1].data
+    classifier = FakeClassifier({scanned: "other_drawing"})
+    ingest = make_service(triage=steps(classifier))
+    status = ingest.wait(ingest.start("set.pdf", drawing_set))
+    sketch, plan = file_of(status, "set#p3.pdf"), file_of(status, "set#p2.pdf")
+    assert (sketch.kind, sketch.state, sketch.drawing_id) == ("pdf_scan", "set_aside", None)
+    assert sketch.triage is not None and sketch.triage.class_ == "other_drawing"
+    assert (plan.triage, plan.state) == (None, "ready")
+    assert classifier.asked == ["pdf_scan"]

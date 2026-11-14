@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   ApiError,
   errorText,
@@ -19,6 +19,8 @@ interface Props {
   index: number;
   total: number;
   projectId: string;
+  pack?: string | null; // carried on the card's link (conflicts.md CF-33)
+  focused?: boolean; // the card an issue link named (`?d=&q=`, CF-29)
   drawing: DrawingLoad;
   /** Asks the screen for the drawing (it fetches each drawing once); `retry` asks again after an error. */
   onNeedDrawing: (retry?: boolean) => void;
@@ -42,6 +44,8 @@ export function ConflictCard({
   index,
   total,
   projectId,
+  pack = null,
+  focused = false,
   drawing,
   onNeedDrawing,
   onEdit,
@@ -58,7 +62,14 @@ export function ConflictCard({
     setMode(state === 'open' ? 'choosing' : 'idle');
   }
   const [error, setError] = useState<unknown>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(focused);
+  const article = useRef<HTMLElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!focused) return;
+    article.current?.scrollIntoView({ block: 'center' });
+    title.current?.focus();
+  }, [focused]);
   const values = c.conflict.values;
   const unit = values[0]?.unit ?? null;
   const rule = ruleIndex(c);
@@ -128,7 +139,7 @@ export function ConflictCard({
     projectId,
     drawingId: c.drawing_id,
     role: 'surveyor',
-    query: new URLSearchParams({ q: c.quantity }),
+    query: new URLSearchParams(pack ? { q: c.quantity, pack } : { q: c.quantity }),
   });
   const why = [c.conflict.resolution?.rule, c.conflict.note, c.conflict.derived].filter(
     (x): x is string => !!x,
@@ -137,13 +148,20 @@ export function ConflictCard({
   const loaded = drawing && !('error' in drawing) ? drawing : null;
 
   return (
-    <article className="cf-card" aria-labelledby={`${id}-t`}>
+    <article
+      ref={article}
+      className={`cf-card${focused ? ' cf-focused' : ''}`}
+      aria-labelledby={`${id}-t`}
+      aria-current={focused ? 'true' : undefined}
+    >
       <div className="cf-card-top">
         <div className="cf-card-head">
           <p className="cf-kicker">
             Conflict {index + 1} of {total} · {kicker ?? 'settled by you'}
           </p>
-          <h2 id={`${id}-t`}>{c.label}</h2>
+          <h2 id={`${id}-t`} ref={title} tabIndex={focused ? -1 : undefined}>
+            {c.label}
+          </h2>
           <p className="cf-file">{c.file}</p>
         </div>
         <span className="cf-pill-wrap">
