@@ -38,6 +38,7 @@ from dataclasses import dataclass
 
 from app.core.drawing.model import (
     ELEMENT_CLASSES,
+    ArbiterReading,
     Box,
     Element,
     ElementClass,
@@ -215,6 +216,10 @@ class CompositeRasterExtractor:
                 )
                 for index, room in enumerate(typed, start=1)
             ]
+        arbiter: dict[str, ArbiterReading] = {}  # what a count arbiter among them read, kept
+        for component in self._elements.values():
+            for family, reading in (read_by(component).count_arbiter or {}).items():
+                arbiter.setdefault(family, reading)
         scale = Scale(status="no_scale") if self._scale is None else read_by(self._scale).scale
         seen = {
             name: _view(read_by(component), plans, component.name)
@@ -236,6 +241,7 @@ class CompositeRasterExtractor:
             rooms=tuple(rooms),
             read=tuple(read),
             double_check=seen or None,
+            count_arbiter=arbiter or None,
             notes=tuple(notes),
         )
 

@@ -14,6 +14,7 @@ from app.core.ingest.model import (
     ContentKind,
     DrawingInfo,
     FileState,
+    FileStatus,
     FileTrace,
     Normalised,
     ProjectStatus,
@@ -209,3 +210,50 @@ def expected_drawings_of(status: ProjectStatus) -> int | None:
 class ProjectTrace(View):
     project_id: str
     files: list[FileTrace]
+
+
+# The sheet a plan is shown on, in order of preference, after the file it was read from.
+SHEET_KINDS = ("pdf_vector", "pdf_scan", "pdf_text", "png_plan", "jpeg_plan", "photo_plan")
+
+
+def drawings_of(status: ProjectStatus) -> tuple[DrawingEntry, ...]:
+    """One entry per group of renderings: the sheet it was read from when that is a sheet, else
+    PDF before PNG before JPEG; the group's other drawings are its other renderings. A group with
+    the same content as one listed before is the same drawing: its files join that entry's other
+    renderings, so every name the drawing was uploaded under is shown."""
+    groups: dict[str, list[FileStatus]] = {}
+    for file in status.files:
+        if file.drawing_id is not None:
+            groups.setdefault(file.group or file.path, []).append(file)
+    entries: dict[str, tuple[str, FileStatus, list[FileStatus]]] = {}  # by drawing id
+    for group, files in groups.items():
+        primary = min(files, key=_preference)
+        assert primary.drawing_id is not None
+        if primary.drawing_id in entries:  # the same content under another name
+            entries[primary.drawing_id][2].extend(files)
+            continue
+        others = [file for file in files if file is not primary]
+        entries[primary.drawing_id] = (group, primary, others)
+    return tuple(
+        DrawingEntry(
+            drawing_id=drawing_id,
+            group=group,
+            file=primary.path,
+            kind=primary.kind,
+            route=primary.route,
+            source=primary.source,
+            state=primary.state,
+            other_renderings=[
+                Rendering(drawing_id=file.drawing_id, file=file.path)
+                for file in others
+                if file.drawing_id is not None
+            ],
+        )
+        for drawing_id, (group, primary, others) in entries.items()
+    )
+
+
+def _preference(file: FileStatus) -> tuple[bool, bool, int]:
+    sheet = file.kind in SHEET_KINDS
+    order = SHEET_KINDS.index(file.kind) if file.kind in SHEET_KINDS else len(SHEET_KINDS)
+    return (not sheet, file.path != file.source, order)
