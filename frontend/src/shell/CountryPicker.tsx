@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { rulePacksOf } from '../api';
 import { useInfo } from './info';
 import { withPack } from './route';
@@ -49,7 +51,7 @@ const Chevron = () => (
 
 const Check = () => (
   <svg
-    className="country-check"
+    className="shrink-0 text-primary"
     width="16"
     height="16"
     viewBox="0 0 24 24"
@@ -70,19 +72,6 @@ export function CountryPicker({ pack }: { pack: string | null }) {
   const { info } = useInfo();
   const packs = rulePacksOf(info);
   const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const outside = (event: MouseEvent) => {
-      if (!wrap.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', outside);
-    return () => {
-      document.removeEventListener('mousedown', outside);
-    };
-  }, [open]);
 
   if (packs.length === 0) return null;
   const chosen = packs.find((p) => p.id === pack) ?? null;
@@ -90,70 +79,66 @@ export function CountryPicker({ pack }: { pack: string | null }) {
     setOpen(false);
     window.location.hash = withPack(window.location.hash || '#/', id);
   };
+  const option =
+    'h-auto min-h-[52px] w-full justify-start gap-3 rounded-xl p-2.5 text-left font-normal whitespace-normal text-foreground hover:bg-secondary';
   return (
-    <div
-      className="country"
-      ref={wrap}
-      onKeyDown={(event) => {
-        if (event.key !== 'Escape' || !open) return;
-        setOpen(false);
-        button.current?.focus();
-      }}
-    >
-      <button
-        ref={button}
-        type="button"
-        className="header-pill country-button v-press"
-        aria-expanded={open}
-        aria-label={`Country rules: ${chosen ? chosen.country_name : 'none'}`}
-        onClick={() => {
-          setOpen(!open);
-        }}
-      >
-        {chosen && <Flag country={chosen.country} />}
-        <span className="country-name">{chosen ? chosen.country_name : 'No checks'}</span>
-        <Chevron />
-      </button>
-      {open && (
-        <div className="country-pop" role="group" aria-label="Building rules the agent follows">
-          <p className="country-pop-title">Building rules the agent follows</p>
-          <button
-            type="button"
-            className="country-option v-press"
+    <div className="country">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          className="header-pill country-button v-press"
+          aria-label={`Country rules: ${chosen ? chosen.country_name : 'none'}`}
+        >
+          {chosen && <Flag country={chosen.country} />}
+          <span className="country-name">{chosen ? chosen.country_name : 'No checks'}</span>
+          <Chevron />
+        </PopoverTrigger>
+        <PopoverContent
+          role="group"
+          aria-label="Building rules the agent follows"
+          align="end"
+          sideOffset={8}
+          className="w-[300px] max-w-[calc(100vw-32px)] rounded-[18px] border-0 p-2 shadow-[var(--v-shadow)]"
+        >
+          <p className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
+            Building rules the agent follows
+          </p>
+          <Button
+            variant="ghost"
+            className={option}
             aria-pressed={chosen === null}
             onClick={() => {
               choose(null);
             }}
           >
-            <span className="country-option-text">
-              <span className="country-option-name">No checks</span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-[15px] font-semibold">No checks</span>
             </span>
             {chosen === null && <Check />}
-          </button>
+          </Button>
           {packs.map((p) => (
-            <button
+            <Button
               key={p.id}
-              type="button"
-              className="country-option v-press"
+              variant="ghost"
+              className={option}
               aria-pressed={p.id === chosen?.id}
               onClick={() => {
                 choose(p.id);
               }}
             >
               <Flag country={p.country} />
-              <span className="country-option-text">
-                <span className="country-option-name">{p.country_name}</span>
-                <span className="country-option-law">{`${p.name} · ${p.version}`}</span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-[15px] font-semibold">{p.country_name}</span>
+                <span className="text-xs text-muted-foreground">{`${p.name} · ${p.version}`}</span>
               </span>
               {p.id === chosen?.id && <Check />}
-            </button>
+            </Button>
           ))}
           {/* The pack's note, verbatim (#142): a pre-check, not a certificate. */}
-          <p className="country-pop-note">
+          <p className="px-2.5 py-1.5 text-xs text-muted-foreground">
             {chosen ? chosen.note : 'Choose a country to pre-check its building rules.'}
           </p>
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

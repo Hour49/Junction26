@@ -2,35 +2,21 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 
-const css = readFileSync(new URL('./account.css', import.meta.url), 'utf8').replace(
-  /\/\*[\s\S]*?\*\//g,
-  '',
-);
-
-/** The declarations of every rule whose selector list names `selector` exactly, joined. */
-function rulesFor(selector: string, source: string): string {
-  const out: string[] = [];
-  for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    const selectors = (match[1] ?? '').split(',').map((s) => s.trim());
-    if (selectors.includes(selector)) out.push(match[2] ?? '');
-  }
-  return out.join(';');
-}
+// The screen is styled with Tailwind classes (shadcn migration): the rules live in the component source.
+const tsx = readFileSync(new URL('./AccountScreen.tsx', import.meta.url), 'utf8');
 
 it('AC-31 "Open workspace" is a soft accent pill', () => {
-  const open = rulesFor('a.account-open', css);
-  expect(open).toMatch(/background:\s*var\(--v-accent-soft\)/);
-  expect(open).toMatch(/color:\s*var\(--v-accent-strong\)/);
-  expect(open).toMatch(/border-radius:\s*980px/);
+  const open = tsx.slice(tsx.lastIndexOf('<Button', tsx.indexOf('Open workspace')));
+  expect(open).toMatch(/size="pill"/);
+  expect(open).toMatch(/bg-accent text-accent-strong/);
 });
 
 it('AC-31 at 720 px and below the fifth stat spans both columns', () => {
-  const phone = css.slice(css.indexOf('@media (max-width: 720px)'));
-  expect(rulesFor('.account-stats > div:nth-child(5)', phone)).toMatch(/grid-column:\s*1 \/ -1/);
+  expect(tsx).toContain('max-[720px]:grid-cols-2');
+  expect(tsx).toContain('max-[720px]:[&>div:nth-child(5)]:col-span-full');
 });
 
 it("SH-81 the account item focus ring is the shell's 3px", () => {
-  expect(rulesFor('.account-item:focus-visible', css)).toMatch(
-    /outline:\s*3px solid var\(--v-accent\)/,
-  );
+  // The item is a plain <button>: shell.css's `button:focus-visible` ring applies, and nothing here removes it.
+  expect(tsx).not.toMatch(/outline-none|outline-hidden/);
 });

@@ -2,16 +2,25 @@ import { drawingLabel, type ProjectView, type Triage } from '../api';
 import { formatSize, isFinished, kindLabel, plural, routeLabel } from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
 import { isNotPlan, looksLike, rowLine, verdictOf } from '../ingest/triage';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { shortReason } from './documents';
+import { CARD, MONO, MUTED, SMALL } from './ui';
+
+const REASON = 'text-[13px] text-muted-foreground [overflow-wrap:anywhere]';
 
 /** A triaged non-plan's row line (file-triage.md flow 1): class, subject, verdict pill, whose call. */
 function TriageLine({ triage }: { triage: Triage }) {
   return (
-    <span className="reason">
+    <span className={REASON}>
       {rowLine(triage)}{' '}
-      <span className={`v-pill${triage.verdict === 'unsure' ? ' v-pill--warn' : ''}`}>
+      <Badge
+        variant={triage.verdict === 'unsure' ? 'warn' : 'secondary'}
+        className="px-[11px] py-[5px] text-xs text-text-2 data-[variant=warn]:text-warn"
+      >
         {verdictOf(triage).pill}
-      </span>
+      </Badge>
       {triage.overruled && ` · ${triage.overruled.by}’s call`}
     </span>
   );
@@ -23,70 +32,75 @@ export function DocumentLists({ project }: { project: ProjectView }) {
   const live = !project.files.every(isFinished) || project.state === 'queued';
   return (
     <>
-      <section aria-label="Drawings" className="doc-section">
-        <h2 className="doc-h">Drawings</h2>
+      <section aria-label="Drawings" className="flex flex-col gap-3">
+        <h2 className="m-0 text-xl">Drawings</h2>
         {project.drawings.length === 0 ? (
-          <p className="doc-muted">
+          <p className={MUTED}>
             {live
               ? 'No drawing ready yet.'
               : 'No drawings: nothing in this upload could be read as a plan.'}
           </p>
         ) : (
-          <ul className="doc-dwgs">
+          <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3 p-0">
             {project.drawings.map((d) => (
-              <li key={d.drawing_id} className="v-card doc-dwg">
-                <b>{drawingLabel(d)}</b>
-                <span className="doc-small doc-mono">{d.file}</span>
-                <span className="doc-small">
-                  {kindLabel(d.kind)}
-                  {d.route && ` · ${routeLabel(d.route)}`}
-                </span>
-                <a
-                  className="v-btn v-btn--secondary v-press"
-                  href={`${base}/d/${d.drawing_id}/engineer`}
-                >
-                  Open
-                </a>
+              <li key={d.drawing_id}>
+                <Card className={`${CARD} h-full items-start gap-1.5 px-[18px] py-4`}>
+                  <b>{drawingLabel(d)}</b>
+                  <span className={`${SMALL} ${MONO}`}>{d.file}</span>
+                  <span className={SMALL}>
+                    {kindLabel(d.kind)}
+                    {d.route && ` · ${routeLabel(d.route)}`}
+                  </span>
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="pill"
+                    className="v-press font-medium no-underline"
+                  >
+                    <a href={`${base}/d/${d.drawing_id}/engineer`}>Open</a>
+                  </Button>
+                </Card>
               </li>
             ))}
           </ul>
         )}
       </section>
-      <section aria-label="Files" className="doc-section">
-        <h2 className="doc-h">Files</h2>
+      <section aria-label="Files" className="flex flex-col gap-3">
+        <h2 className="m-0 text-xl">Files</h2>
         {typeof project.not_plans === 'number' && (
-          <p className="doc-small">
+          <p className={SMALL}>
             {project.not_plans === 0
               ? 'No image set aside as not a floor plan'
               : `${plural(project.not_plans, 'not a floor plan', 'not floor plans')}: kept, not read`}
           </p>
         )}
         {project.files.length === 0 ? (
-          <p className="doc-muted">
-            {live ? 'Waiting for the files…' : 'This upload has no files.'}
-          </p>
+          <p className={MUTED}>{live ? 'Waiting for the files…' : 'This upload has no files.'}</p>
         ) : (
-          <ul className="v-card doc-files">
+          <ul className={`${CARD} m-0 list-none p-0 [&>li+li]:border-t [&>li+li]:border-border`}>
             {project.files.map((f) => (
               <li key={f.id}>
-                <a className="doc-file v-press" href={`${base}/f/${f.id}`}>
-                  <span className="doc-file-main">
-                    <span className="doc-mono">{f.path}</span>
+                <a
+                  className="v-press flex min-h-11 flex-wrap justify-between gap-x-4 gap-y-1.5 px-[18px] py-3 text-inherit no-underline"
+                  href={`${base}/f/${f.id}`}
+                >
+                  <span className="flex min-w-0 flex-[1_1_260px] flex-col gap-1">
+                    <span className={MONO}>{f.path}</span>
                     {f.triage?.read_as_plan ? (
-                      <span className="reason">
+                      <span className={REASON}>
                         Read as a floor plan on {f.triage.read_as_plan.by}’s call
                       </span>
                     ) : f.triage && isNotPlan(f) ? (
                       <TriageLine triage={f.triage} />
                     ) : f.triage && looksLike(f.triage) ? (
-                      <span className="reason">{rowLine(f.triage)}</span>
+                      <span className={REASON}>{rowLine(f.triage)}</span>
                     ) : (
-                      shortReason(f) && <span className="reason">{shortReason(f)}</span>
+                      shortReason(f) && <span className={REASON}>{shortReason(f)}</span>
                     )}
                   </span>
-                  <span className="doc-file-meta">
+                  <span className="flex flex-col items-end gap-1 max-[520px]:flex-row max-[520px]:flex-wrap max-[520px]:items-start">
                     <StateBadge state={f.state} />
-                    <span className="doc-small">
+                    <span className={SMALL}>
                       {kindLabel(f.kind)} · {formatSize(f.size)}
                     </span>
                   </span>

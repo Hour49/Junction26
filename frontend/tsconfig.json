@@ -14,7 +14,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
-    "paths": { "@fixtures/*": ["../backend/tests/fixtures/api_v1/*"] },
+    "paths": { "@fixtures/*": ["../backend/tests/fixtures/api_v1/*"], "@/*": ["./src/*"] },
     "skipLibCheck": true,
     "noEmit": true
   },

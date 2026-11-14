@@ -17,9 +17,21 @@ import { usePoll } from '../ingest/usePoll';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { historyEvents, workspaceKind, workspacePill, workspaceStats } from './history';
-import './account.css';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 const once = () => false;
+const NAME = 'min-w-0 font-mono font-semibold [overflow-wrap:anywhere]';
+const PILL = 'px-[11px] py-[5px] text-xs';
+/** The history glyph's colour by event kind; the rest are accent. */
+const GLYPH: Record<string, string> = {
+  failed: 'bg-warn-soft text-warn',
+  needs: 'bg-warn-soft text-warn',
+  signed: 'bg-ok-soft text-ok',
+  done: 'bg-ok-soft text-ok',
+};
 const loadList = (signal: AbortSignal) => listProjects({ signal });
 
 /** A sign-off made just before Workspaces opened can land after the first answer (AC-36): while something is
@@ -43,32 +55,39 @@ export function AccountScreen() {
   const current = projects.find((p) => p.id === selected) ?? projects[0];
 
   return (
-    <div className="account">
-      <div className="account-top">
+    <div className="account mx-auto max-w-[1280px] px-6 py-10 max-[720px]:px-4 max-[720px]:py-6">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1>Your workspaces</h1>
+          <h1 className="m-0 text-[44px] leading-[1.1] font-bold tracking-[-0.025em] max-[720px]:text-[32px]">
+            Your workspaces
+          </h1>
           {list.data && (
-            <p className="v-caption">
+            <p className="v-caption mt-1.5 mb-0">
               {projects.length === 1 ? '1 workspace' : `${String(projects.length)} workspaces`} on
               this server
             </p>
           )}
         </div>
-        <a className="v-btn account-new" href="#/">
-          <span aria-hidden="true">+</span> New workspace
-        </a>
+        <Button asChild size="pill" className="no-underline hover:text-primary-foreground">
+          <a href="#/">
+            <span aria-hidden="true">+</span> New workspace
+          </a>
+        </Button>
       </div>
       {list.error && !list.data ? (
         <ErrorView error={list.error} onRetry={list.retry} />
       ) : !list.data ? (
         <Loading label="Loading workspaces…" />
       ) : !current ? (
-        <p className="account-empty">
-          No workspaces yet. <a href="#/">Drop files or try a sample</a>
+        <p>
+          No workspaces yet.{' '}
+          <a className="ml-1" href="#/">
+            Drop files or try a sample
+          </a>
         </p>
       ) : (
-        <div className="account-body">
-          <ul className="account-list">
+        <div className="flex items-start gap-6 max-[720px]:flex-col max-[720px]:items-stretch">
+          <ul className="account-list m-0 grid max-w-[400px] min-w-0 flex-[1_1_320px] list-none gap-3 p-0 max-[720px]:max-w-none max-[720px]:flex-none">
             {projects.map((p) => (
               <li key={p.id}>
                 <Item
@@ -102,13 +121,29 @@ function Item({
   // settled as open, while the conflicts screen calls them settled (account.md).
   const toReview = summary.to_review ?? 0;
   return (
-    <button type="button" className="account-item" aria-pressed={pressed} onClick={onSelect}>
-      <span className="account-item-head">
-        <span className="account-name">{summary.name}</span>
-        <span className={`v-pill v-pill--${pill.tone}`}>{pill.word}</span>
-        {toReview > 0 && <span className="v-pill v-pill--warn">{toReview} to review</span>}
+    <button
+      type="button"
+      className={cn(
+        'grid min-h-11 w-full cursor-pointer gap-1 rounded-[18px] border border-border bg-card p-4 text-left text-foreground',
+        pressed && 'border-2 border-primary p-[15px]',
+      )}
+      aria-pressed={pressed}
+      onClick={onSelect}
+    >
+      <span className="flex flex-wrap items-center gap-2">
+        <span className={NAME}>{summary.name}</span>
+        <Badge variant={pill.tone} className={PILL}>
+          {pill.word}
+        </Badge>
+        {toReview > 0 && (
+          <Badge variant="warn" className={PILL}>
+            {toReview} to review
+          </Badge>
+        )}
         {(summary.conflicts_picked ?? 0) > 0 && (
-          <span className="v-pill">{summary.conflicts_picked} picked by Carbon</span>
+          <Badge variant="secondary" className={cn(PILL, 'text-text-2')}>
+            {summary.conflicts_picked} picked by Carbon
+          </Badge>
         )}
       </span>
       <span className="v-caption">{workspaceKind(summary)}</span>
@@ -166,19 +201,23 @@ function Panel({ summary }: { summary: ProjectSummary }) {
     const takeoffError = takeoffs.error ? errorText(takeoffs.error) : null;
     body = (
       <>
-        <div className="account-panel-head">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="v-caption">
+            <p className="v-caption m-0">
               {p.files.length === 1 ? 'Single file' : 'Archive'} · created{' '}
               {formatTime(p.created_at)}
             </p>
-            <h2 className="account-name">{p.name}</h2>
+            <h2 className={cn(NAME, 'mt-1 mb-0 text-2xl')}>{p.name}</h2>
           </div>
-          <a className="v-btn account-open" href={`#/p/${id}`}>
-            Open workspace
-          </a>
+          <Button
+            asChild
+            size="pill"
+            className="bg-accent text-accent-strong no-underline hover:bg-accent hover:text-accent-strong"
+          >
+            <a href={`#/p/${id}`}>Open workspace</a>
+          </Button>
         </div>
-        <dl className="account-stats">
+        <dl className="my-6 grid grid-cols-5 border-y border-border [&>div]:border-border [&>div]:border-l [&>div]:px-4 [&>div]:py-3 [&>div:first-child]:border-l-0 max-[720px]:grid-cols-2 max-[720px]:[&>div]:border-b max-[720px]:[&>div]:border-l-0 max-[720px]:[&>div:nth-child(5)]:col-span-full">
           {workspaceStats(
             p,
             reviewData,
@@ -189,36 +228,52 @@ function Panel({ summary }: { summary: ProjectSummary }) {
               : null,
           ).map((s) => (
             <div key={s.label}>
-              <dt>{s.label}</dt>
-              <dd>{s.value}</dd>
+              <dt className="text-[13px] text-muted-foreground">{s.label}</dt>
+              <dd className="mt-0.5 mb-0 text-2xl font-bold">{s.value}</dd>
             </div>
           ))}
         </dl>
         {reviewError && (
-          <p className="account-note" role="alert">
+          <p className="text-danger" role="alert">
             Review not loaded: {reviewError.detail} ({reviewError.code}){' '}
-            <button type="button" className="v-btn v-btn--secondary" onClick={review.retry}>
+            <Button variant="secondary" size="pill" className="font-medium" onClick={review.retry}>
               Retry
-            </button>
+            </Button>
           </p>
         )}
         {questionsError && (
-          <p className="account-note" role="alert">
+          <p className="text-danger" role="alert">
             Questions not loaded: {questionsError.detail} ({questionsError.code}){' '}
-            <button type="button" className="v-btn v-btn--secondary" onClick={questions.retry}>
+            <Button
+              variant="secondary"
+              size="pill"
+              className="font-medium"
+              onClick={questions.retry}
+            >
               Retry
-            </button>
+            </Button>
           </p>
         )}
-        <h3>History</h3>
-        <ol className="account-history">
+        <h3 className="mt-0 mb-3 text-[17px]">History</h3>
+        <ol className="m-0 grid list-none gap-3.5 p-0">
           {events.map((e, i) => (
-            <li key={`${e.kind}-${String(i)}`} className={`account-event account-event--${e.kind}`}>
-              <time dateTime={e.at}>{e.time}</time>
-              <span className="account-glyph" aria-hidden="true">
+            <li
+              key={`${e.kind}-${String(i)}`}
+              className="grid grid-cols-[52px_28px_minmax(0,1fr)] items-start gap-2.5"
+            >
+              <time className="pt-1 font-mono text-[13px] text-muted-foreground" dateTime={e.at}>
+                {e.time}
+              </time>
+              <span
+                className={cn(
+                  'grid size-7 place-items-center rounded-full text-sm',
+                  GLYPH[e.kind] ?? 'bg-accent text-accent-strong',
+                )}
+                aria-hidden="true"
+              >
                 {e.glyph}
               </span>
-              <span className="account-event-text">
+              <span className="grid gap-0.5 [overflow-wrap:anywhere]">
                 <strong>{e.title}</strong>
                 <span className="v-caption">{e.detail}</span>
               </span>
@@ -226,7 +281,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
           ))}
         </ol>
         {takeoffError && (
-          <p className="account-note" role="alert">
+          <p className="text-danger" role="alert">
             Sign-offs not loaded: {takeoffError.detail} ({takeoffError.code})
           </p>
         )}
@@ -234,8 +289,12 @@ function Panel({ summary }: { summary: ProjectSummary }) {
     );
   }
   return (
-    <section className="v-card account-panel" aria-label="Selected workspace">
+    <Card
+      role="region"
+      aria-label="Selected workspace"
+      className="block min-w-0 flex-[2_1_0] rounded-[22px] border-0 p-6 shadow-[var(--v-shadow)] max-[720px]:p-5"
+    >
       {body}
-    </section>
+    </Card>
   );
 }

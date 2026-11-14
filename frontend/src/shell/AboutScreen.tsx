@@ -39,11 +39,11 @@ export function AboutScreen({ projectId }: { projectId: string | null }) {
   else
     credits = (
       <>
-        <p className="about-project">{state.name}</p>
-        <ul className="about-credits">
+        <p className="m-0 font-semibold">{state.name}</p>
+        <ul className="about-credits m-0 flex list-none flex-col gap-3 p-0">
           {state.drawings.map((d) => (
-            <li key={d.drawing_id}>
-              <span className="about-file">{drawingLabel(d)}</span>
+            <li key={d.drawing_id} className="flex flex-col gap-0.5">
+              <span className="font-semibold [overflow-wrap:anywhere]">{drawingLabel(d)}</span>
               <span className="v-caption">{d.file}</span>
               <span>
                 {d.credit === null
@@ -57,13 +57,13 @@ export function AboutScreen({ projectId }: { projectId: string | null }) {
     );
 
   return (
-    <div className="v-page v-page--narrow about">
+    <div className="v-page v-page--narrow">
       <h1 className="v-title">About Vellum</h1>
       <p>
         Vellum reads a project&apos;s floor plans, models and scans, lists the quantities in them
         and shows where each number comes from.
       </p>
-      <h2>Drawing credits</h2>
+      <h2 className="m-0 text-2xl font-bold">Drawing credits</h2>
       {credits}
     </div>
   );

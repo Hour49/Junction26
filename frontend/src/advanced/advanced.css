@@ -465,16 +465,6 @@
 .adv-now.done {
   color: var(--v-ok);
 }
-.adv-verdict button {
-  font: inherit;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  background: var(--v-surface);
-  color: inherit;
-  cursor: pointer;
-}
 .adv-pair.conflict .adv-verdict {
   background: var(--v-warn-soft);
   color: var(--v-warn);
@@ -580,15 +570,4 @@
   .adv-compare {
     grid-template-columns: 1fr;
   }
-}
-.adv-more {
-  font: inherit;
-  margin-top: 12px;
-  min-height: 44px;
-  padding: 8px 16px;
-  border: 0;
-  border-radius: 980px;
-  background: var(--v-fill);
-  color: var(--v-text);
-  cursor: pointer;
 }

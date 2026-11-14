@@ -68,16 +68,20 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-a {
-  color: var(--v-accent);
-}
-a:hover {
-  color: var(--v-accent-strong);
-}
-button {
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
+/* Element defaults sit in Tailwind's base layer, so a shadcn part's utility classes (text colour, size, weight) win
+   over them; every area's own unlayered CSS still wins too. */
+@layer base {
+  a {
+    color: var(--v-accent);
+  }
+  a:hover {
+    color: var(--v-accent-strong);
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
 }
 
 /* Focus: ours, the designs draw none. */
@@ -433,61 +437,6 @@ main[tabindex='-1']:focus-visible {
 .flag--square {
   margin: 0 4px;
 }
-.country-pop {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  z-index: 3;
-  width: 300px;
-  max-width: calc(100vw - 32px);
-  padding: 8px;
-  background: var(--v-surface);
-  border-radius: 18px;
-  box-shadow: var(--v-shadow);
-}
-.country-pop-title,
-.country-pop-note {
-  margin: 0;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: var(--v-muted);
-}
-.country-pop-title {
-  font-weight: 600;
-}
-.country-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 52px;
-  padding: 10px;
-  text-align: left;
-  color: var(--v-text);
-  background: transparent;
-  border: 0;
-  border-radius: 12px;
-}
-.country-option:hover {
-  background: var(--v-fill);
-}
-.country-option-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-.country-option-name {
-  font-size: 15px;
-  font-weight: 600;
-}
-.country-option-law {
-  font-size: 12px;
-  color: var(--v-muted);
-}
-.country-check {
-  color: var(--v-accent);
-}
 
 /* Info strip, under the header row */
 .info-bar {
@@ -504,24 +453,8 @@ main[tabindex='-1']:focus-visible {
 .info-bar--wide {
   max-width: 1280px;
 }
-.info-bar .offline {
-  font-weight: 600;
-  color: var(--v-warn);
-  background: var(--v-warn-soft);
-  border-radius: 980px;
-  padding: 3px 10px;
-}
 .info-bar-error {
   color: var(--v-danger);
-}
-.info-bar button {
-  font-size: 13px;
-  min-height: 32px;
-  padding: 4px 12px;
-  border: 0;
-  border-radius: 980px;
-  background: var(--v-fill);
-  color: var(--v-text);
 }
 .what-runs {
   margin-left: auto;
@@ -551,45 +484,6 @@ main {
 
 /* Shared views */
 .loading {
-  color: var(--v-muted);
-}
-.error-view,
-.not-found {
-  display: grid;
-  gap: 8px;
-  justify-items: start;
-  background: var(--v-surface);
-  border-radius: var(--v-radius);
-  box-shadow: var(--v-shadow);
-  padding: 24px;
-  overflow-wrap: anywhere;
-}
-.error-view h2,
-.not-found h2 {
-  margin: 0;
-  font-size: 24px;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-.error-view h2 {
-  color: var(--v-danger);
-}
-.error-view p,
-.not-found p {
-  margin: 0;
-}
-.error-view button {
-  min-height: 44px;
-  padding: 10px 20px;
-  border: 0;
-  border-radius: 980px;
-  background: var(--v-fill);
-  color: var(--v-text);
-  font-weight: 500;
-}
-.error-code {
-  font-family: var(--mono);
-  font-size: 13px;
   color: var(--v-muted);
 }
 .credit {
@@ -684,10 +578,6 @@ main {
     margin-left: 0;
     width: 100%;
   }
-  .error-view,
-  .not-found {
-    padding: 20px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -712,29 +602,4 @@ main {
   align-items: center;
   min-height: 44px;
   color: var(--v-muted);
-}
-.about h2 {
-  margin: 0;
-  font-size: 24px;
-}
-.about-project {
-  margin: 0;
-  font-weight: 600;
-}
-.about-credits {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.about-credits li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.about-file {
-  font-weight: 600;
-  overflow-wrap: anywhere;
 }
