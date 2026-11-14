@@ -163,9 +163,9 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
           }
         : turn;
     // K7: when every drawing refuses, each is named under the one refusal with what it lacks. The wrapper is the
-    // thread's turn (.en-turn: its scroll margins), as the scroll to the newest turn takes the last child.
+    // thread's turn (.en-turn-group: .en-turn's scroll margins and gap, the class not nested), as the scroll to the newest turn takes the last child.
     return (
-      <div key={turn.id} className="en-turn">
+      <div key={turn.id} className="en-turn-group">
         <AnswerCard
           turn={shown}
           projectId={projectId}

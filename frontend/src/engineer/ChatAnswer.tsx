@@ -27,8 +27,9 @@ const LACKS: Record<RefusalCode, string> = {
 const GROUP_ABOVE = 3;
 
 /** K7: the drawings that refused, named with what each lacks, in the API's order; none, nothing. Used under a
- * project answer (ChatAnswer) and under the project chat's refusal when every drawing refuses (ProjectChat). */
-export function RefusedLine(props: { parts: Part[]; project: ProjectView }) {
+ * project answer (ChatAnswer) and under the project chat's refusal when every drawing refuses (ProjectChat).
+ * `question` names the ask the line belongs to, for a turn that holds several. */
+export function RefusedLine(props: { parts: Part[]; project: ProjectView; question?: string }) {
   const refused = props.parts.flatMap((p) =>
     p.answer.refusal ? [{ p, code: p.answer.refusal.code }] : [],
   );
@@ -40,10 +41,11 @@ export function RefusedLine(props: { parts: Part[]; project: ProjectView }) {
       )}
     </span>
   );
+  const asked = props.question ? `“${props.question}” — ` : '';
   if (refused.length <= GROUP_ABOVE)
     return (
       <p className="en-refused" data-testid="refused-drawings">
-        Not used:{' '}
+        {asked}Not used:{' '}
         {refused.map(({ p, code }, n) => (
           <span key={p.drawing_id}>
             {n > 0 && '; '}
@@ -57,7 +59,7 @@ export function RefusedLine(props: { parts: Part[]; project: ProjectView }) {
   for (const { p, code } of refused) groups.set(code, [...(groups.get(code) ?? []), p]);
   return (
     <p className="en-refused" data-testid="refused-drawings">
-      Not used.
+      {asked}Not used.
       {[...groups].map(([code, ps]) => (
         <span key={code}>
           {' '}

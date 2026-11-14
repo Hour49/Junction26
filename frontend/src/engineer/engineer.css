@@ -16,7 +16,8 @@
   flex-direction: column;
   gap: 20px;
 }
-.en-turn {
+.en-turn,
+.en-turn-group {
   display: flex;
   flex-direction: column;
   gap: 8px;

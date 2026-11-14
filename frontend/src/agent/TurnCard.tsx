@@ -226,7 +226,12 @@ export function TurnCard(props: {
         <ChatAnswer key={i} ask={a} project={project} projectId={projectId} pack={pack} />
       ))}
       {refused.map((a, i) => (
-        <RefusedLine key={i} parts={a.parts} project={project} />
+        <RefusedLine
+          key={i}
+          parts={a.parts}
+          project={project}
+          question={refused.length > 1 ? a.question : undefined}
+        />
       ))}
       {turn.kind !== 'needs_input' && options.length > 0 && (
         <p className="en-small">{OPTIONS_LABEL}</p>

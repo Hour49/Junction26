@@ -296,6 +296,10 @@ it('K7 nobody answers: each drawing is named with what it lacks; more than 3 are
     `Not used: ${label(two[0] as (typeof two)[number])} has no scale; ` +
       `${label(two[1] as (typeof two)[number])} gives no reliable number for it.`,
   );
+  const turn = screen.getByTestId('refused-drawings').parentElement as HTMLElement;
+  expect(turn.className).toBe('en-turn-group'); // one element carries .en-turn's styles, not two nested
+  expect(turn.querySelector('.en-turn')).toBe(turn.firstElementChild);
+  expect(turn.closest('.en-turn')).toBeNull();
   cleanup();
   const five = [
     refuse(0, 'no-scale'),
