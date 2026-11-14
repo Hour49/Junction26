@@ -257,11 +257,12 @@ An edit of a signed-off quantity (409):
 }
 ```
 
-`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `verda` or `decisions` source
-in `RASTER_COMPONENTS`, `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off, and no Gemini describer in file triage
-(`TRIAGE_DESCRIBER=gemini` with `TRIAGE_CLASSIFIER` on). The screen then shows "running
-offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
-questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `regionrooms`, `verda` or
+`decisions` source in `RASTER_COMPONENTS`, `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`,
+`DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off, and no Gemini describer in file triage
+(`TRIAGE_DESCRIBER=gemini` with `TRIAGE_CLASSIFIER` on). The screen then shows "running offline". A reader
+named `hello` reads nothing: drawings on that route have no counts, and their questions are refused with the
+code `no-reader`. `limits` lets the screen refuse a file before uploading it.
 
 `rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
 below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
@@ -7913,6 +7914,9 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, behaviour: `GET /api/info` `no_keys` is false also when a keyed source is in
+  `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`, or when `TRIAGE_DESCRIBER=gemini` runs (a triage
+  classifier on); it said true for these. No shape change.
 - 2026-11-14, additive (board #14, Tudor's asks 2, 5 and 11): `value_marks` on every conflict and agreement of a
   quantity (`QuantityConflict`, in the takeoff, the review's conflicts and an answer): `value_marks[i]` lists
   `{page, box, label}` for each item of `values[i]`, so a legend can outline them. A count of an element class or
