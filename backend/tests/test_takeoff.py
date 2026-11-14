@@ -801,3 +801,37 @@ def test_the_takeoff_keys_come_in_the_same_order_whatever_the_hash_seed() -> Non
     assert len(orders) == 1
     keys = next(iter(orders)).splitlines()
     assert any("name=" in key for key in keys)  # the names are in it
+
+
+def test_a_room_s_count_takes_its_fixtures_inside_and_the_doors_and_windows_in_its_walls() -> None:
+    """Tudor's chat QA (floor9178): "How many doors does Bagno 1.01 have?" counted the sheet's
+    13. Doors and windows sit in walls, outside every floor outline, so a door is the room's
+    when it touches the outline (both rooms' between two rooms); a fixture when it is inside."""
+
+    def at(n: int, cls: str, box: tuple[float, float, float, float]) -> Element:
+        return Element.model_validate({"id": f"e{n}", "class": cls, "page": 1, "box": box})
+
+    bath_outline = ((0.10, 0.10), (0.30, 0.10), (0.30, 0.30), (0.10, 0.30))
+    hall_outline = ((0.32, 0.10), (0.60, 0.10), (0.60, 0.30), (0.32, 0.30))
+    bath = room(1, "bathroom", 4.0, label="Bagno", polygon=bath_outline, attrs={"number": "1.01"})
+    hall = room(2, "hall", 6.0, label="Corridoio", polygon=hall_outline, attrs={"number": "1.04"})
+    boxed = room(3, "bedroom", 9.0, label="Stanza", attrs={"number": "1.02"})  # no outline
+    items = (
+        at(1, "door", (0.300, 0.18, 0.320, 0.22)),  # in the wall between bath and hall: both
+        at(2, "door", (0.18, 0.090, 0.22, 0.100)),  # in the bath's top wall, up to its outline
+        at(3, "toilet", (0.12, 0.12, 0.16, 0.16)),  # inside the bath
+        at(4, "window", (0.60, 0.18, 0.62, 0.22)),  # in the hall's outer wall
+        at(5, "door", (0.80, 0.80, 0.84, 0.84)),  # far from both
+        at(6, "sink", (0.40, 0.40, 0.44, 0.44)),  # below the hall, outside it
+    )
+    found = known_quantities(drawing(rooms=(bath, hall, boxed), elements=items))
+    count = {key: q.value for key, q in found.items() if "|name=" in key and "|" in key}
+
+    def of(subject: str, name: str) -> int | float | None:
+        return count.get(f"{subject}|name={name}")
+
+    assert (of("door", "1.01"), of("toilet", "1.01"), of("window", "1.01")) == (2, 1, 0)
+    assert of("door", "bagno") == 2  # by its printed label too
+    assert (of("door", "1.04"), of("window", "1.04"), of("sink", "1.04")) == (1, 1, 0)
+    assert of("door", "1.02") is None  # a box is not the room's shape
+    assert found["door"].value == 3  # the sheet's count is unchanged
