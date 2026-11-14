@@ -207,12 +207,14 @@ def test_the_project_list_counts_what_is_left_to_review(client: TestClient) -> N
 
 
 def test_a_project_still_running_has_no_counts() -> None:
-    from app.api.projects import summary_of
+    from app.api.projects import KeptReviews, summary_of
 
     status = ProjectStatus.model_validate(
         {"id": "p", "name": "p", "state": "running", "created_at": "t"}
     )
-    found = summary_of(status, None, None)  # type: ignore[arg-type]  # never read while running
+    review = KeptReviews().review(status, None, None)  # type: ignore[arg-type]  # never read
+    assert review is None
+    found = summary_of(status, review)
     assert (found.to_review, found.conflicts_open) == (None, None)
 
 
