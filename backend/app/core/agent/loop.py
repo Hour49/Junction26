@@ -97,6 +97,7 @@ LABELS = {
     "get_clause": "Read clause {clause_id}",
     "search_evidence": "Searched the evidence for: {query}",
     "get_evidence": "Read evidence {evidence_id}",
+    "find_rooms": "Looked for rooms labelled {query}",
 }
 # A proposal the plan tool refused is no proposal (QA edits-6)
 FAILED_LABELS = {
@@ -121,6 +122,7 @@ PLAIN = {
     "get_evidence": "Read a piece of evidence",
     "show_on_plan": "Showed places on the plan",
     "review_answer": "Reviewed the last answer",
+    "find_rooms": "Looked for rooms by their printed labels",
 }
 FAILED_PLAIN = {
     "propose_remove_wall": "Could not remove a wall",
@@ -856,6 +858,9 @@ def _summary(name: str, found: Any, names: Mapping[str, str]) -> str | None:
         return f"{len(walls)} walls, {len(rooms)} rooms"
     if name.startswith("propose_"):
         return "Proposal ready"
+    if name == "find_rooms":
+        count = result.get("count") or 0
+        return f"{count} room{'' if count == 1 else 's'} found"
     return None
 
 

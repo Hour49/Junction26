@@ -10,6 +10,7 @@ from typing import Any
 
 from app.core.agent.loop import NUDGE, UNBACKED
 from app.core.agent.ports import Reply
+from app.core.agent.rooms import name_words
 
 Json = dict[str, Any]
 
@@ -135,7 +136,53 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     found = turn.result("ask_drawings")
     if found is None:
         return "ask_drawings", {"question": turn.message[:500]}
+    words = name_words(turn.message)
+    if "find_rooms" in offered and words and _refused_room(found):
+        rooms = turn.result("find_rooms")
+        if rooms is None:
+            return "find_rooms", {"query": " ".join(words)}
+        if (picked := _rooms(rooms)) is not None:
+            return picked
     return _answer(found)
+
+
+# the parser's words for a measure it found without a room or element (app/core/review/ask.py)
+NO_SUBJECT = "not which room or element"
+
+
+def _refused_room(found: Json) -> bool:
+    """Whether every drawing refused the question as one it can't parse or whose room it lacks
+    (item 6: the drawings may still print a room by that name)."""
+    parts: list[Json] = [p for p in found.get("parts") or [] if isinstance(p, dict)]
+    answers: list[Json] = [p.get("answer") or {} for p in parts]
+    if not answers or any(a.get("answer") is not None for a in answers):
+        return False
+    refusals: list[Json] = [a.get("refusal") or {} for a in answers]
+    return all(_no_subject(r) for r in refusals)
+
+
+def _no_subject(refusal: Json) -> bool:
+    """A refusal that could not tell which room the question means: the type is not on the
+    drawing, or the parser found a measure without a room or element (its own words)."""
+    code, text = refusal.get("code"), str(refusal.get("text") or "")
+    return code == "not-in-drawing" or (code == "unsupported-question" and NO_SUBJECT in text)
+
+
+def _rooms(found: Json) -> tuple[str, Json] | None:
+    """The printed rooms find_rooms gave: one is shown, several are asked about; None: none."""
+    rooms: list[Json] = [r for r in found.get("rooms") or [] if isinstance(r, dict) and "ev" in r]
+    count = found.get("count") or 0
+    if found.get("status") != "ok" or not rooms:
+        return None
+    if count == 1:
+        room = rooms[0]
+        text = f"The drawings can't measure that as asked, but {room['label']} is printed here"
+        return _final("answer", f"{text} [{room['ev']}].", [room["ev"]])
+    options = [{"label": str(r["label"])[:60], "message": f"Where is {r['label']}?"[:300]}
+               for r in rooms[:4]]  # fmt: skip
+    cites = " ".join(f"[{r['ev']}]" for r in rooms[:4])
+    text = f"The drawings print {count} rooms with that name: which one do you mean? {cites}"
+    return _final("needs_input", text, [str(r["ev"]) for r in rooms[:4]], options=options)
 
 
 def _sure(turn: _Turn) -> tuple[str, Json]:
