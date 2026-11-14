@@ -38,6 +38,8 @@ KIND_WORDS = {
     # text and listed sources
     "text_document": "text document",
     "text_file": "text file",
+    "text_pages": "text pages of a drawing file",  # a drawn or scanned PDF's own text pages
+    "not_read": "file that was not read",  # a refused entry, or one identify could not read
     "dwg": "DWG drawing, not converted",
     "office": "office document",
     "ifc": "building model (IFC)",
