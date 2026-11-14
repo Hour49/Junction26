@@ -393,7 +393,11 @@ def uses_keys(settings: Settings) -> bool:
 def build_evidence(settings: Settings, root: Path) -> SqliteEvidenceIndex:
     """The projects' evidence index (decision 0012), `evidence.sqlite` in each project's folder
     under `root`: hybrid with the manifest's embedder, BM25 alone without a manifest."""
-    embedder = load_embedder(settings.evidence_embedder_manifest)
+    manifest = settings.evidence_embedder_manifest
+    try:
+        embedder = load_embedder(manifest)
+    except DomainError as error:  # a broken model folder stops startup, naming the setting
+        raise InvalidInputError(f"EVIDENCE_EMBEDDER_MANIFEST={manifest}: {error}") from error
     if embedder is None:
         logger.info("evidence index: no embedder manifest, BM25 only")
     return SqliteEvidenceIndex(root, passages, embedder)

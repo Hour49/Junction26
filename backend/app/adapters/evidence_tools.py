@@ -82,7 +82,7 @@ EVIDENCE_TOOLS: list[dict[str, Any]] = [
 
 
 class SearchArguments(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+    model_config = ConfigDict(extra="forbid")
 
     query: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
     k: Annotated[int, Field(ge=K_MIN, le=K_MAX)] = K_DEFAULT
@@ -90,7 +90,7 @@ class SearchArguments(BaseModel):
 
 
 class GetArguments(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+    model_config = ConfigDict(extra="forbid")
 
     id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
 
@@ -147,7 +147,15 @@ def run_evidence_tool(index: ProjectEvidence, name: str, arguments: str | dict[s
         return _error("internal error")
 
 
+UNAVAILABLE = "Project evidence: unavailable right now. Do not call search_evidence."
+
+
 def evidence_prompt(index: ProjectEvidence) -> str:
     """A paragraph for the agent's system prompt: what the project's evidence index holds (at
-    most 6,000 characters, as the law tools' prompt)."""
-    return index.prompt()
+    most 6,000 characters, as the law tools' prompt). Never raises: an index that fails to open
+    is said to be unavailable, so the chat goes on without it."""
+    try:
+        return index.prompt()
+    except Exception:
+        logger.exception("the evidence index of project %s failed to open", index.project_id)
+        return UNAVAILABLE

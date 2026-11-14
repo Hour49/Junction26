@@ -8,8 +8,9 @@ text alone (5.9 ms a passage on dev1 against 4.9 batched by 16).
 The model folder is described by `manifest.json` (rag's, under data/models/rag/): the model id,
 revision, and each file's name and sha256. No manifest on the machine is the declared no-models
 mode (`load_embedder` gives None: BM25 alone). A manifest whose files are missing or do not match
-their sha256 is an error, raised when the model is first used. The session loads on first use and
-is kept for the life of the process."""
+their sha256 is a misconfiguration, raised when the embedder is built (at startup), never a
+silent fall back to BM25. The files are hashed once per process; the session loads on first use
+and is kept for the life of the process."""
 
 import hashlib
 import json
@@ -21,12 +22,26 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from app.core.errors import InvalidInputError, NotFoundError
+
 MAX_TOKENS = 512
 THREADS = 4
 
 
-class EmbedderModelError(RuntimeError):
-    """The manifest names model files that are missing or not the pinned bytes."""
+_CHECKED: set[tuple[Path, int, int, str]] = set()  # (file, size, mtime, sha256) hashed already
+
+
+def _checked(path: Path, sha256: str) -> None:
+    """`path` is there and holds the pinned bytes (hashed once per process while unchanged)."""
+    if not path.is_file():
+        raise NotFoundError(f"embedder file {path} is missing")
+    stat = path.stat()
+    key = (path.resolve(), stat.st_size, stat.st_mtime_ns, sha256)
+    if key in _CHECKED:
+        return
+    if _sha256(path) != sha256:
+        raise InvalidInputError(f"embedder file {path} does not match the sha256 in its manifest")
+    _CHECKED.add(key)
 
 
 def _sha256(path: Path) -> str:
@@ -47,6 +62,8 @@ class OnnxSentenceEmbedder:
         self._label = found["model"].rsplit("/", 1)[-1]
         self._lock = threading.Lock()
         self._loaded: tuple[Any, Any, set[str]] | None = None
+        for name, sha256 in self._files.items():
+            _checked(self._folder / name, sha256)
 
     @property
     def name(self) -> str:
@@ -63,12 +80,6 @@ class OnnxSentenceEmbedder:
                 import onnxruntime
                 from tokenizers import Tokenizer
 
-                for name, expected in self._files.items():
-                    path = self._folder / name
-                    if not path.is_file():
-                        raise EmbedderModelError(f"embedder file {path} is missing")
-                    if _sha256(path) != expected:
-                        raise EmbedderModelError(f"embedder file {path} is not the pinned one")
                 tokenizer = Tokenizer.from_file(str(self._folder / "tokenizer.json"))
                 tokenizer.enable_truncation(max_length=MAX_TOKENS)
                 options = onnxruntime.SessionOptions()

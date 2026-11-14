@@ -5,6 +5,7 @@ OpenAI-format tools with their dispatcher, which answers every call with JSON an
 import json
 import sqlite3
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -12,9 +13,15 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
+import app.adapters.evidence.store as store_module
 from app.adapters.evidence.project import NOTHING, ProjectEvidence
 from app.adapters.evidence.store import SqliteEvidenceIndex
-from app.adapters.evidence_tools import EVIDENCE_TOOLS, evidence_prompt, run_evidence_tool
+from app.adapters.evidence_tools import (
+    EVIDENCE_TOOLS,
+    UNAVAILABLE,
+    evidence_prompt,
+    run_evidence_tool,
+)
 from app.core.evidence.chunks import passages
 from app.core.ingest.model import FileStatus, ProjectStatus
 
@@ -186,19 +193,76 @@ def test_with_an_embedder_search_is_hybrid_and_reports_both_ranks(tmp_path: Path
     assert all(hit.why.terms == () for hit in found.hits[1:])  # found by meaning only
 
 
-def test_opening_and_searching_an_unchanged_index_writes_nothing(tmp_path: Path) -> None:
-    """Every tool call and REST request opens the index; with the status unchanged that must be a
-    read. A search then answers while another connection holds the write lock (ingest saving),
-    instead of waiting for it and failing with "database is locked"."""
-    open_index(tmp_path)  # built
+def test_searches_answer_while_another_connection_holds_the_write_lock(tmp_path: Path) -> None:
+    """Every tool call and REST request opens the index; with the status unchanged that is a
+    read. So while ingest holds the write lock (embedding a project), 8 concurrent searches all
+    answer instead of waiting for it and failing with "database is locked" (codecheck B1)."""
+    open_index(tmp_path).prompt()  # built
     writer = sqlite3.connect(tmp_path / "projects" / "p1" / "evidence.sqlite", timeout=0)
-    writer.execute("begin immediate")  # the write lock, held
+    writer.execute("begin immediate")  # the write lock, held until every search is back
     try:
-        found = open_index(tmp_path).search("brick")
-        assert [hit.file for hit in found.hits] == ["facade.jpg"]
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            found = list(pool.map(lambda _: open_index(tmp_path).search("brick"), range(8)))
+        assert [[hit.file for hit in result.hits] for result in found] == [["facade.jpg"]] * 8
     finally:
         writer.rollback()
         writer.close()
+
+
+def test_an_index_in_step_is_read_through_one_connection_and_never_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    open_index(tmp_path, embedder=Letters()).prompt()  # built
+    statements: list[str] = []
+    connect = sqlite3.connect
+
+    def counted(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        db = connect(*args, **kwargs)
+        db.set_trace_callback(statements.append)
+        statements.append("-- connect")
+        return db
+
+    monkeypatch.setattr(store_module.sqlite3, "connect", counted)
+    found = open_index(tmp_path, embedder=Letters()).search("brick", k=4)
+    assert len(found.hits) == 3  # BM25, dense and three passages read
+    assert statements.count("-- connect") == 1
+    written = [s for s in statements if s.split()[0].lower() in WRITES or "journal_mode" in s]
+    assert written == []  # no schema, no journal pragma, no transaction (FTS5 reads data_version)
+
+
+WRITES = {"begin", "insert", "update", "delete", "replace", "create", "commit"}
+
+
+def test_a_page_entry_keeps_its_page_in_search_and_get(tmp_path: Path) -> None:
+    index = open_index(
+        tmp_path, project(("scans/set#p3.pdf", described("a site map", "", "related")))
+    )
+    (hit,) = index.search("site map").hits
+    assert hit.page == 3
+    detail = index.get(hit.id)
+    assert detail is not None and detail.page == 3
+
+
+def test_nothing_indexed_embeds_no_query(tmp_path: Path) -> None:
+    class Refusing(Letters):
+        def embed_query(self, text: str) -> NDArray[np.float32]:
+            raise AssertionError("embedded a query with nothing to search")
+
+    index = open_index(tmp_path, project(("plan.png", None)), embedder=Refusing())
+    assert index.search("anything").hits == ()
+
+
+def test_a_failed_open_is_a_tool_error_and_the_prompt_says_evidence_is_unavailable(
+    tmp_path: Path,
+) -> None:
+    class Broken(SqliteEvidenceIndex):
+        def sync(self, status: ProjectStatus, reader: Any) -> None:
+            raise sqlite3.OperationalError("database is locked")
+
+    index = ProjectEvidence(Broken(tmp_path, passages, None), SITE, lambda size, sha: None)
+    assert call(index, "search_evidence", {"query": "brick"}) == {"error": "internal error"}
+    assert call(index, "get_evidence", {"id": "f1"}) == {"error": "internal error"}
+    assert evidence_prompt(index) == UNAVAILABLE
 
 
 # ---------------------------------------------------------------- get
@@ -257,6 +321,14 @@ def test_arguments_may_come_as_json_text_or_as_a_dict(tmp_path: Path) -> None:
     assert as_text == as_dict and json.loads(as_dict)["hits"][0]["file"] == "facade.jpg"
 
 
+@pytest.mark.parametrize("k", [5.0, "5"])
+def test_k_as_a_whole_float_or_a_numeral_is_taken(tmp_path: Path, k: Any) -> None:
+    """A function-call serialiser may write 5 as 5.0 (Gemini's carry doubles); contract v1.1
+    forbids unknown arguments, not lax types."""
+    found = call(open_index(tmp_path), "search_evidence", {"query": "brick barn letter", "k": k})
+    assert len(found["hits"]) == 3
+
+
 @pytest.mark.parametrize("k", [1, 20])
 def test_k_at_the_ends_of_its_range_is_taken(tmp_path: Path, k: int) -> None:
     found = call(open_index(tmp_path), "search_evidence", {"query": "brick barn letter", "k": k})
@@ -288,9 +360,9 @@ def test_include_unrelated_must_be_true_to_count(tmp_path: Path) -> None:
             "k: Input should be greater than or equal to 1",
         ),
         ("search_evidence", {"query": "x", "k": 21}, "k: Input should be less than or equal to 20"),
-        ("search_evidence", {"query": "x", "k": "2"}, "k: Input should be a valid integer"),
-        ("search_evidence", {"query": "x", "k": True}, "k: Input should be a valid integer"),
-        ("search_evidence", {"query": "x", "include_unrelated": "yes"}, "include_unrelated"),
+        ("search_evidence", {"query": "x", "k": 2.5}, "k: Input should be a valid integer"),
+        ("search_evidence", {"query": "x", "k": "two"}, "k: Input should be a valid integer"),
+        ("search_evidence", {"query": "x", "include_unrelated": "maybe"}, "include_unrelated"),
         (
             "search_evidence",
             {"query": "x", "kind": "photo"},

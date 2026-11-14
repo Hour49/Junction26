@@ -1,5 +1,5 @@
 """The evidence index's embedder (decision 0012): no manifest is the no-models mode, a manifest
-whose files are not the pinned bytes is an error, and the real model (where the machine has it)
+whose files are not the pinned bytes stops startup, and the real model (where the machine has it)
 gives unit-length 384-number rows that carry a Finnish question to an English description."""
 
 import hashlib
@@ -9,7 +9,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from app.adapters.evidence.embedder import EmbedderModelError, load_embedder
+from app.adapters.evidence.embedder import load_embedder
+from app.composition import build_evidence
+from app.core.errors import InvalidInputError, NotFoundError
+from app.settings import Settings
 
 MANIFEST = Path(__file__).resolve().parents[2] / "data" / "models" / "rag" / "manifest.json"
 
@@ -37,29 +40,35 @@ def test_no_manifest_is_the_no_models_mode(tmp_path: Path) -> None:
     assert load_embedder(tmp_path / "manifest.json") is None
 
 
-def test_the_name_carries_model_revision_and_file_and_nothing_loads_for_it(
+def test_the_name_carries_model_revision_and_file_and_the_session_waits_for_use(
     tmp_path: Path,
 ) -> None:
     pinned = {"model.onnx": b"weights", "tokenizer.json": b"{}"}
-    embedder = load_embedder(manifest(tmp_path, {}, pinned))  # files missing: still no error
+    embedder = load_embedder(manifest(tmp_path, pinned, pinned))  # not a real model: never run
     assert embedder is not None
     assert embedder.name == "test/model@0123456789ab/model.onnx"
     assert embedder.label == "model"
 
 
-def test_files_missing_or_not_the_pinned_bytes_are_an_error_when_first_used(
+def test_files_missing_or_not_the_pinned_bytes_fail_when_the_embedder_is_built(
     tmp_path: Path,
 ) -> None:
     pinned = {"model.onnx": b"weights", "tokenizer.json": b"{}"}
-    missing = load_embedder(manifest(tmp_path / "a", {"model.onnx": b"weights"}, pinned))
-    assert missing is not None
-    with pytest.raises(EmbedderModelError, match="missing"):
-        missing.embed(["a wall"])
+    with pytest.raises(NotFoundError, match="missing"):
+        load_embedder(manifest(tmp_path / "a", {"model.onnx": b"weights"}, pinned))
     changed = {"model.onnx": b"other weights", "tokenizer.json": b"{}"}
-    swapped = load_embedder(manifest(tmp_path / "b", changed, pinned))
-    assert swapped is not None
-    with pytest.raises(EmbedderModelError, match="not the pinned one"):
-        swapped.embed_query("a wall")
+    with pytest.raises(InvalidInputError, match="does not match the sha256"):
+        load_embedder(manifest(tmp_path / "b", changed, pinned))
+
+
+def test_a_broken_model_folder_stops_startup_naming_the_setting(tmp_path: Path) -> None:
+    pinned = {"model.onnx": b"weights", "tokenizer.json": b"{}"}
+    broken = manifest(tmp_path, {"tokenizer.json": b"{}"}, pinned)
+    settings = Settings(projects_dir=tmp_path / "projects", evidence_embedder_manifest=broken)
+    with pytest.raises(InvalidInputError, match=r"EVIDENCE_EMBEDDER_MANIFEST=.*missing"):
+        build_evidence(settings, settings.projects_dir)
+    none = Settings(evidence_embedder_manifest=tmp_path / "absent.json")
+    assert build_evidence(none, tmp_path).embedder_label is None  # no manifest: BM25, as before
 
 
 @pytest.mark.skipif(not MANIFEST.is_file(), reason="data/models/rag/ is local only")
