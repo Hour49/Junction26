@@ -97,12 +97,13 @@ def asked(
     flags: tuple[str, ...] = (),
     state: ReviewState | None = None,
     scorers: Mapping[str, Scorer] = NO_SCORERS,
+    sure_at: Mapping[str, float] | None = None,
 ) -> Asked:
     return ask(
         text, SCAN, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
         state=state or ReviewState(), confidence=Scored(score), flags=flags,
         raster=route == "raster", check=check, route=route, disputes=readers_say,
-        scorers=scorers,
+        scorers=scorers, sure_at=sure_at,
     )  # fmt: skip
 
 
@@ -172,6 +173,20 @@ def test_without_a_dispute_finder_the_request_points_nowhere() -> None:
         "Please double-check the doors: on drawings like this one we can't be sure enough to "
         "give it without a look."
     )
+
+
+def test_with_the_check_policy_on_an_answer_is_sure_exactly_when_it_is_certified() -> None:
+    """GATE_POLICY (door at 0.5) would call a 0.6 door count sure; the check policy (0.8) asks
+    about it, so it is not sure: the screen never shows Sure next to a double-check request."""
+    gate = {"door": 0.5}
+    assert asked(score=0.6, sure_at=gate, check=None).answer.sure is True  # the gate alone
+    asking = asked(score=0.6, sure_at=gate)
+    assert asking.check is not None and asking.answer.sure is False
+    certified_ = asked(score=0.9, sure_at={"door": 0.95})  # the gate would say not sure
+    assert certified_.check is None and certified_.answer.sure is True
+    assert asked("How many doors?", route="bim").answer.sure is True  # a certified route
+    refused = asked("What colour is the roof?", score=0.9)
+    assert refused.refusal is not None and refused.answer.sure is None
 
 
 def test_certified_reads_the_threshold_at_or_above() -> None:

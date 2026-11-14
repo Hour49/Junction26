@@ -186,7 +186,7 @@
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": 0.87,
-    "sure": null,
+    "sure": false,
     "abstain": null,
     "explanation": null,
     "estimate": null,

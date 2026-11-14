@@ -146,7 +146,9 @@ def ask(
     reader found nothing. `check` (CHECK_POLICY): a takeoff answer it does not certify on `route`
     (ingest's) gets a double-check request with the places `disputes` finds; a family whose
     threshold is on a local gate's signal is scored by `scorers` (LOCAL_GATES), by signal name
-    (app/core/review/check.py)."""
+    (app/core/review/check.py). With `check` on, it alone sets `sure`, in place of `sure_at`'s:
+    true exactly when it certifies the answer, None on an answer it does not rate (a refusal),
+    so an answer is never shown sure and asked about at once."""
     quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
@@ -207,6 +209,7 @@ def ask(
                 can_answer = each
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
+    sure: bool | None = None  # CHECK_POLICY's verdict
     if check is not None and shown is not None and isinstance(parsed, Query):
         reason = held(shown, drawing)
         family = parsed.family()
@@ -221,6 +224,9 @@ def ask(
             request = double_check(shown, marks, disputes(drawing, shown), reason)
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
+        sure = request is None
+    if check is not None:
+        answer = answer.model_copy(update={"sure": sure})
     return Asked(
         answer=answer,
         query=query,

@@ -3280,6 +3280,10 @@ policy has no threshold for (or a null one) is never certified. The examples use
 for the dispute finders: a door count certified at threshold 0.8, the same count at 0.9, and a bedroom count at
 0.9 (`marks` trimmed to two):
 
+With `CHECK_POLICY` on, the answer's `sure` follows it instead of `GATE_POLICY`: true exactly when the answer is
+certified, false when it is not (whether or not a person has since settled or signed it off), null on a refusal.
+So the screen never shows Sure next to a double-check request.
+
 <!-- fixture: answer_certified.json -->
 ```json
 {
@@ -3470,7 +3474,7 @@ for the dispute finders: a door count certified at threshold 0.8, the same count
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": 0.87,
-    "sure": null,
+    "sure": true,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -3688,7 +3692,7 @@ for the dispute finders: a door count certified at threshold 0.8, the same count
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": 0.87,
-    "sure": null,
+    "sure": false,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -3944,7 +3948,7 @@ for the dispute finders: a door count certified at threshold 0.8, the same count
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": 0.87,
-    "sure": null,
+    "sure": false,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -6501,7 +6505,8 @@ formula in a spreadsheet.
   value stays; not a refusal). Null for every answer while `CHECK_POLICY` is off (the default). New fixtures
   `answer_certified`, `answer_double_check`, `answer_double_check_rooms`. A disagreement between two methods,
   an estimate or a person's unsigned edit always asks; a settle or sign-off lifts the request. Not
-  `proof.check` (unchanged: how a second method measured the value).
+  `proof.check` (unchanged: how a second method measured the value). Behaviour: with `CHECK_POLICY` on, `sure`
+  is true exactly when the answer is certified (`GATE_POLICY` no longer sets it), null on a refusal.
 - 2026-11-14, text only (QA R4-a-10): a file's `reason` and the route stage's `did` name the route in the words the
   screens use ("read on the drawn PDF route: …", "no reader for the image route yet", "BIM model route, read from
   …"; was "vector", "raster", "bim"), from `ROUTE_WORDS` in `app/core/wording.py`. The fields `route` and the route
