@@ -30,8 +30,10 @@ RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normali
 TriageClassifierName = Literal["off", "rules", "siglip"]
 SheetKindName = Literal["off", "carbon"]
 # gemini: gemini-3.5-flash fills the description form and its long text, GEMINI_API_KEY's
-# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/)
-TriageDescriberName = Literal["off", "gemini"]
+# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/).
+# carbon: the same with gemini-4-carbon at thinking low (rag's pilot), 4 / 20 USD per M tokens;
+# it needs GEMINI_TIMEOUT_S of 45 s or more
+TriageDescriberName = Literal["off", "gemini", "carbon"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
@@ -46,6 +48,9 @@ RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile b
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
+# The Carbon reader of raster drawings (app/adapters/carbon/). off; all: every raster drawing;
+# advanced: the drawings the sheet-kind step (SHEET_KIND=carbon) called advanced
+CarbonReaderName = Literal["off", "advanced", "all"]
 # Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
     Annotated[float, Field(ge=0)] | None,
@@ -114,6 +119,16 @@ class Settings(BaseSettings):
     # The sheet-kind signal at ingest (app/adapters/decisions_kind/, same key, timeout and cache
     # folder): Gemini's photo-of-a-plan flag and P(floor plan) for each uploaded image or PDF
     decisions_kind: bool = False
+    # The Carbon reader (app/adapters/carbon/; brief r8 AS-2, .agents/exp/carbon-reader.md):
+    # gemini-4-carbon reads page 1 of a raster drawing whole and in full-resolution tiles, with
+    # GEMINI_API_KEY and the spend guard (charged at 4/20 USD per million tokens). CARBON_READER
+    # routes raster drawings to it alone instead of RASTER_COMPONENTS' reader (needs
+    # EXTRACTOR_RASTER=composite); ingest flags each such drawing, so none of its answers is
+    # certified. As a source it is `carbon` in RASTER_COMPONENTS or DOUBLE_CHECK_READERS.
+    # Seconds per call, and the folder replies are cached in (gitignored)
+    carbon_reader: CarbonReaderName = "off"
+    carbon_timeout_s: float = 120.0
+    carbon_cache_dir: Path = Path("../data/cache/carbon-reader")
     # EU open models (app/adapters/openvlm/): our vLLM server on Verda (Finland), reached by an SSH
     # tunnel. Each Gemini step picks its provider; "eu" sends it to this server instead (no
     # fallback to Gemini on an error). URL, key (never logged), model, seconds per request

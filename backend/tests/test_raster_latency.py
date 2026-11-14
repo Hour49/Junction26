@@ -75,6 +75,21 @@ def test_the_memo_forgets_the_oldest_input_and_never_a_failed_run() -> None:
     assert network.runs == 5
 
 
+def test_the_memo_also_forgets_the_oldest_input_past_its_bytes() -> None:
+    """A model with large raw outputs must not fill the box: past `memo_bytes` of outputs the
+    oldest inputs go, whatever the entry cap."""
+    network = Network()
+    session = SharedSession(network, memo=1024, memo_bytes=400)  # one output: 192 bytes
+    session.run(None, x(1.0))
+    session.run(None, x(2.0))  # 384 bytes held
+    session.run(None, x(3.0))  # 576 > 400: x(1.0) goes
+    session.run(None, x(3.0))
+    session.run(None, x(2.0))  # both still remembered
+    assert network.runs == 3
+    session.run(None, x(1.0))  # forgotten: runs again
+    assert network.runs == 4
+
+
 def test_a_run_for_an_input_being_computed_waits_for_it() -> None:
     network = Network()
     network.release.clear()
@@ -130,7 +145,7 @@ def test_the_sources_read_a_sheet_at_the_same_time_and_their_cost_is_the_caller_
     }
     before = cost.spent()
     found = composite({"plans": "a", "door": "b", "window": "c"}, readers).extract(FILE, SHEET)
-    assert cost.spent() - before == 0.875
+    assert cost.spent() - before == pytest.approx(0.875)  # a charge left on the thread rounds it
     assert [e.class_ for e in found.elements] == ["door", "window"]
     assert [n for n in found.notes if n.endswith("fake")] == ["a: fake", "b: fake", "c: fake"]
 
@@ -169,4 +184,4 @@ def test_every_source_s_spend_is_the_caller_s_also_when_a_source_fails() -> None
     before = cost.spent()
     with pytest.raises(RuntimeError, match="no answer"):
         composite({"plans": "a", "door": "b"}, readers).extract(FILE, SHEET)
-    assert cost.spent() - before == 0.75
+    assert cost.spent() - before == pytest.approx(0.75)
