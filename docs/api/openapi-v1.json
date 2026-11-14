@@ -586,6 +586,266 @@
         "title": "AskedQuestion",
         "type": "object"
       },
+      "ChatEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Level"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "sure": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sure"
+          }
+        },
+        "required": [
+          "n",
+          "id",
+          "drawing_id",
+          "name",
+          "page",
+          "box",
+          "label",
+          "sure"
+        ],
+        "title": "ChatEvidence",
+        "type": "object"
+      },
+      "ChatInfo": {
+        "additionalProperties": false,
+        "description": "The project chat agent (decision 0013): CHAT_MODEL, and whether a turn can run now.",
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "model": {
+            "enum": [
+              "gemini",
+              "rules",
+              "off"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "model",
+          "available",
+          "reason"
+        ],
+        "title": "ChatInfo",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Id"
+          },
+          "message": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "selection": {
+            "items": {
+              "$ref": "#/components/schemas/Selection"
+            },
+            "maxItems": 8,
+            "title": "Selection",
+            "type": "array"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
+      "ChatTurn": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_id": {
+            "title": "Chat Id",
+            "type": "string"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "edit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Proposal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ChatEvidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "answer",
+              "dont_know",
+              "conflict",
+              "needs_input",
+              "edit"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "latency_s": {
+            "title": "Latency S",
+            "type": "number"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Option"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Step"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "turn": {
+            "title": "Turn",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "chat_id",
+          "turn",
+          "kind",
+          "text",
+          "model",
+          "cost_usd",
+          "latency_s"
+        ],
+        "title": "ChatTurn",
+        "type": "object"
+      },
       "Check": {
         "additionalProperties": false,
         "description": "The double-check request on an answer that is not certified.",
@@ -1142,6 +1402,24 @@
           "file"
         ],
         "title": "ConflictValue",
+        "type": "object"
+      },
+      "Decision": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "accept",
+              "reject"
+            ],
+            "title": "Action",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "Decision",
         "type": "object"
       },
       "Description": {
@@ -1956,6 +2234,25 @@
         "title": "FileTrace",
         "type": "object"
       },
+      "Flag": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "Flag",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1986,6 +2283,16 @@
       "Info": {
         "additionalProperties": false,
         "properties": {
+          "chat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "commit": {
             "anyOf": [
               {
@@ -2401,6 +2708,86 @@
           "checks"
         ],
         "title": "IssueLinks",
+        "type": "object"
+      },
+      "Item": {
+        "additionalProperties": false,
+        "description": "A removed or added piece of geometry (a wall strip, a door, a new partition).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "polygon": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Polygon",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "polygon",
+          "label"
+        ],
+        "title": "Item",
+        "type": "object"
+      },
+      "Level": {
+        "additionalProperties": false,
+        "description": "An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').",
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "level": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "Level",
         "type": "object"
       },
       "Limits": {
@@ -2911,6 +3298,29 @@
           "height"
         ],
         "title": "Normalised",
+        "type": "object"
+      },
+      "Option": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "message"
+        ],
+        "title": "Option",
         "type": "object"
       },
       "Overrule": {
@@ -3692,6 +4102,81 @@
         "title": "Proof",
         "type": "object"
       },
+      "Proposal": {
+        "additionalProperties": false,
+        "properties": {
+          "added": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "flags": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Flag"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "removed": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "rooms": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RoomChange"
+            },
+            "title": "Rooms",
+            "type": "array"
+          },
+          "state": {
+            "default": "proposed",
+            "enum": [
+              "proposed",
+              "accepted",
+              "rejected"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "unknowns": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "drawing_id",
+          "page"
+        ],
+        "title": "Proposal",
+        "type": "object"
+      },
       "QuantityConflict": {
         "additionalProperties": false,
         "description": "Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in\nthat quantity's unit: every method's value, and the rule that picked one (None: no rule\ndecides). `derived`: how the values were carried over from another entry, when they were.",
@@ -4072,6 +4557,61 @@
           "value"
         ],
         "title": "Resolution",
+        "type": "object"
+      },
+      "RoomChange": {
+        "additionalProperties": false,
+        "properties": {
+          "area_after_m2": {
+            "title": "Area After M2",
+            "type": "number"
+          },
+          "area_before_m2": {
+            "title": "Area Before M2",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "polygon": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Polygon",
+            "type": "array"
+          },
+          "was": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Was",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "polygon",
+          "area_before_m2",
+          "area_after_m2"
+        ],
+        "title": "RoomChange",
         "type": "object"
       },
       "Row": {
@@ -4764,6 +5304,91 @@
         "title": "SecondCount",
         "type": "object"
       },
+      "Selection": {
+        "additionalProperties": false,
+        "description": "What the user pointed at on a plan: a room (`ref` its id) or a dragged rectangle (`box`).",
+        "properties": {
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Box"
+          },
+          "drawing_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^sel_\\d+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "room",
+              "region"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "drawing_id",
+          "page"
+        ],
+        "title": "Selection",
+        "type": "object"
+      },
       "Settled": {
         "additionalProperties": false,
         "description": "The value a surveyor chose to keep for a quantity (the `settle` action).",
@@ -5005,6 +5630,44 @@
           "url"
         ],
         "title": "Started",
+        "type": "object"
+      },
+      "Step": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "ms": {
+            "title": "Ms",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "n",
+          "tool",
+          "label",
+          "status",
+          "ms"
+        ],
+        "title": "Step",
         "type": "object"
       },
       "StoreyRow": {
@@ -6162,6 +6825,125 @@
           }
         },
         "summary": "Project Ask"
+      }
+    },
+    "/api/projects/{project_id}/chat": {
+      "post": {
+        "operationId": "chat_api_projects__project_id__chat_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatTurn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "CHAT_MODEL=off"
+          }
+        },
+        "summary": "Chat"
+      }
+    },
+    "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {
+      "post": {
+        "operationId": "decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chat_id",
+            "required": true,
+            "schema": {
+              "title": "Chat Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Proposal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide"
       }
     },
     "/api/projects/{project_id}/checks": {

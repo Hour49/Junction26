@@ -1,0 +1,38 @@
+{
+  "chat_id": "c4a7c0000001",
+  "turn": 2,
+  "kind": "dont_know",
+  "text": "I don't know: this question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+  "evidence": [],
+  "edit": null,
+  "options": [
+    {
+      "label": "area of room (indoor)",
+      "message": "What is the net floor area of all indoor rooms in m²?"
+    },
+    {
+      "label": "door count",
+      "message": "How many doors are there?"
+    },
+    {
+      "label": "window count",
+      "message": "How many windows are there?"
+    },
+    {
+      "label": "toilet count",
+      "message": "How many toilets are there?"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "tool": "ask_drawings",
+      "label": "Asked the drawings: What is the fire rating of the doors?",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002
+}

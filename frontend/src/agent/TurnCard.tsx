@@ -94,13 +94,16 @@ function Steps({ turn }: { turn: ChatTurn }) {
   );
 }
 
+const OPTIONS_LABEL = 'Try one of these instead';
+
 const HEADLINE: Partial<Record<ChatTurn['kind'], string>> = {
   dont_know: "I don't know.",
   conflict: 'The sources disagree.',
 };
 
 /** One agent reply (AC-31): text with `[n]` source links, sources, the steps disclosure, and per kind the
- * refusal look, the conflict headline, option chips (needs_input) or the edit card (AC-32). */
+ * refusal look, the conflict headline or the edit card (AC-32); option chips on any kind (needs_input's question,
+ * or other questions to try after a dont_know). */
 export function TurnCard(props: {
   turn: ChatTurn;
   projectId: string;
@@ -110,6 +113,7 @@ export function TurnCard(props: {
 }) {
   const { turn, projectId, busy, onAsk } = props;
   const headline = HEADLINE[turn.kind];
+  const options = turn.options ?? [];
   return (
     <div className={`v-card ag-card ag-card--${turn.kind}`}>
       {headline && (
@@ -118,9 +122,16 @@ export function TurnCard(props: {
         </p>
       )}
       <Text turn={turn} projectId={projectId} />
-      {turn.kind === 'needs_input' && turn.options && (
-        <div className="en-suggest" role="group" aria-label="Choose one">
-          {turn.options.map((o) => (
+      {turn.kind !== 'needs_input' && options.length > 0 && (
+        <p className="en-small">{OPTIONS_LABEL}</p>
+      )}
+      {options.length > 0 && (
+        <div
+          className="en-suggest"
+          role="group"
+          aria-label={turn.kind === 'needs_input' ? 'Choose one' : OPTIONS_LABEL}
+        >
+          {options.map((o) => (
             <button
               key={o.label}
               type="button"

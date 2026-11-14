@@ -55,6 +55,17 @@ export const dontKnowTurn: ChatTurn = {
   ],
 };
 
+/** A dont_know with the pipeline's suggested questions as options. */
+export const dontKnowOptionsTurn: ChatTurn = {
+  ...dontKnowTurn,
+  turn: 7,
+  text: 'The drawings do not say how high the ceilings are.',
+  options: [
+    { label: 'How many doors are there?', message: 'How many doors are there?' },
+    { label: 'How big is Bagno 1.01?', message: 'How big is Bagno 1.01?' },
+  ],
+};
+
 export const conflictTurn: ChatTurn = {
   ...base,
   turn: 4,

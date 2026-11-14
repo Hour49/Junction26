@@ -44,6 +44,7 @@ from make_sample_archive import (  # noqa: E402  # pyright: ignore[reportMissing
     site_photo,
 )
 from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
+from swiss_walls import walled_flat  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_api_checks import checks_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports]
@@ -156,12 +157,15 @@ def responses() -> dict[str, Any]:
     others.append(code_checks(client, found))  # checks, project checks, their issues
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
     found.update(issue_answered(client, started["id"], found["project_issues"]))  # appended
+    chats, chat_ids = agent_chat(client, started["id"], found)  # appended
+    others += chats
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
         found["checks"]["drawing_id"]: "5c4ed01e00000002",
         # an issue's id hashes its drawing's: the first failed check's, the one the fixture keeps
         found["project_issues_checks"]["issues"][0]["id"]: "code_check_failed-5c4ed01e0002",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
+        **chat_ids,
     }
     return stable(trimmed(found), [started["id"], *others], variable)
 
@@ -215,6 +219,33 @@ def issue_answered(client: TestClient, project_id: str, listed: dict[str, Any]) 
     reply = client.post(url, json=request)
     assert reply.status_code == 200, reply.text
     return {"issue_answer_request": request, "issue_answered": reply.json()}
+
+
+def agent_chat(
+    client: TestClient, project_id: str, found: dict[str, Any]
+) -> tuple[list[str], dict[str, str]]:
+    """The agent chat (decision 0013) with CHAT_MODEL=rules: an answer, a dont_know in the same
+    chat, and an edit on a swiss sheet whose walls are grey fills, its proposal accepted. Back:
+    the new project's id, and the chat and drawing ids with their stand-ins."""
+    url = f"/api/projects/{project_id}/chat"
+    found["chat_request"] = {"message": "How many doors are there?"}
+    answer = client.post(url, json=found["chat_request"]).json()
+    found["chat_answer"] = answer
+    unknown = {"chat_id": answer["chat_id"], "message": "What is the fire rating of the doors?"}
+    found["chat_dont_know"] = client.post(url, json=unknown).json()
+    flat = client.post("/api/projects", params={"name": "flat.pdf"}, content=walled_flat())
+    flat_id = flat.json()["id"]
+    message = "Remove the wall between the bathroom and the bedroom"
+    edit = client.post(f"/api/projects/{flat_id}/chat", json={"message": message}).json()
+    assert edit["kind"] == "edit", edit
+    found["chat_edit"] = edit
+    decided = f"/api/projects/{flat_id}/chat/{edit['chat_id']}/proposals/p1"
+    found["chat_proposal_accepted"] = client.post(decided, json={"action": "accept"}).json()
+    return [flat_id], {
+        answer["chat_id"]: "c4a7c0000001",
+        edit["chat_id"]: "c4a7c0000002",
+        edit["edit"]["drawing_id"]: "5c4ed01e00000003",
+    }
 
 
 def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:

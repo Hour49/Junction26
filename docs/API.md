@@ -130,6 +130,8 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
 | `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
 | `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
+| `POST /api/projects/{project_id}/chat` | One turn of the agent chat: tools called, cited sources, plan-edit proposals | 0013 |
+| `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}` | Accept or reject a plan-edit proposal | 0013 |
 
 ## `GET /api/info`
 
@@ -254,7 +256,12 @@ An edit of a signed-off quantity (409):
       ]
     }
   ],
-  "commit": null
+  "commit": null,
+  "chat": {
+    "model": "rules",
+    "available": true,
+    "reason": null
+  }
 }
 ```
 
@@ -6848,6 +6855,534 @@ rests on:
 }
 ```
 
+## Chat (decision 0013)
+
+The project chat as a tool-calling agent: it calls the pipeline tools (`list_drawings`, `ask_drawings`,
+`get_takeoff`, `list_conflicts`, `list_issues`, `run_checks`, `get_plan_geometry`) and the plan tools (`list_walls`,
+`propose_remove_wall`, `propose_room`), and ends each turn with an answer the server checked: every evidence id and
+every number in `text` came from a tool result of this turn, else the turn is `dont_know`. The model never writes
+coordinates: places are evidence ids the server resolves. `CHAT_MODEL` picks the model: `rules` (default, no key,
+deterministic), `gemini` (`AGENT_MODEL`, every call charged to the Gemini spend guard), `off` (503).
+`GET /api/info` `chat` says which, and whether a turn can run now.
+
+### `POST /api/projects/{project_id}/chat`
+
+Body: `chat_id` (12 hex, omit to start a chat), `message` (1-2,000 characters), `selection` (at most 8, optional):
+what the user pointed at, `{id: "sel_<n>", kind: "room" | "region", drawing_id, page, ref?, box?}` with `box` in
+page fractions. A sync call: a turn takes up to `AGENT_TURN_USD` dollars and 60 s.
+
+<!-- fixture: chat_request.json -->
+```json
+{
+  "message": "How many doors are there?"
+}
+```
+
+Response `ChatTurn`: `kind` is `answer`, `dont_know`, `conflict`, `needs_input` (which room or wall: 2-4
+`options`) or `edit` (with `edit`, the proposal). `options` may come with any kind (a `dont_know` carries the
+questions the drawings can answer): each is a chip whose `message` the client sends as the next message.
+`evidence[].name` and the step labels use the drawing's plain name ("Drawn plan 1"). `text` cites sources as
+`[n]`, the `n` of an `evidence` item: a place on a page (`drawing_id`, `name`, `page`, `box` in page fractions,
+`label`, `sure`, and `level`, the confidence level of the `ask_drawings` answer it comes from, or null). `steps`
+lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
+`latency_s` are the turn's.
+
+<!-- fixture: chat_answer.json -->
+```json
+{
+  "chat_id": "c4a7c0000001",
+  "turn": 1,
+  "kind": "answer",
+  "text": "plans/flat-a.pdf: 2 doors [1]; plans/flat-b.pdf: 2 doors [3]; model/house.ifc: 2 doors.",
+  "evidence": [
+    {
+      "n": 1,
+      "id": "ev_3",
+      "drawing_id": "adeefbbcc17559fc",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 2,
+      "id": "ev_4",
+      "drawing_id": "adeefbbcc17559fc",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.66,
+        0.225,
+        0.67333,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 3,
+      "id": "ev_9",
+      "drawing_id": "44cc9f0d991eafe3",
+      "name": "Drawn plan 2",
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 4,
+      "id": "ev_10",
+      "drawing_id": "44cc9f0d991eafe3",
+      "name": "Drawn plan 2",
+      "page": 1,
+      "box": [
+        0.66,
+        0.225,
+        0.67333,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    }
+  ],
+  "edit": null,
+  "options": null,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "ask_drawings",
+      "label": "Asked the drawings: How many doors are there?",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002
+}
+```
+
+Something no tool can answer is `dont_know` with the reason; a cap (8 steps, `AGENT_TURN_USD`, 60 s, the Gemini
+budget, the same call a third time) ends a turn the same way.
+
+<!-- fixture: chat_dont_know.json -->
+```json
+{
+  "chat_id": "c4a7c0000001",
+  "turn": 2,
+  "kind": "dont_know",
+  "text": "I don't know: this question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+  "evidence": [],
+  "edit": null,
+  "options": [
+    {
+      "label": "area of room (indoor)",
+      "message": "What is the net floor area of all indoor rooms in m²?"
+    },
+    {
+      "label": "door count",
+      "message": "How many doors are there?"
+    },
+    {
+      "label": "window count",
+      "message": "How many windows are there?"
+    },
+    {
+      "label": "toilet count",
+      "message": "How many toilets are there?"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "tool": "ask_drawings",
+      "label": "Asked the drawings: What is the fire rating of the doors?",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002
+}
+```
+
+A plan edit is a proposal computed from the drawn geometry (decision 0013 §4): `removed` and `added` geometry and
+each changed room's `polygon` in page fractions, `area_before_m2` → `area_after_m2`, `unknowns` (whether a wall
+carries load) and `flags`. No drawing is changed. A plan whose walls are not drawn as geometry (a scan, a sheet
+without wall fills) gets `dont_know` saying so.
+
+<!-- fixture: chat_edit.json -->
+```json
+{
+  "chat_id": "c4a7c0000002",
+  "turn": 1,
+  "kind": "edit",
+  "text": "Proposed: Bagno 1.01 + Stanza 1.02: 20.66 → 21.02 m². Removed: Wall W1, 2.5 m, 0.1 m thick; door, no longer needed. Whether wall W1 is load-bearing: this drawing does not say.",
+  "evidence": [
+    {
+      "n": 1,
+      "id": "ev_1",
+      "drawing_id": "5c4ed01e00000003",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.2999,
+        0.25,
+        0.32257,
+        0.4626
+      ],
+      "label": "W1",
+      "sure": null,
+      "level": null
+    }
+  ],
+  "edit": {
+    "proposal_id": "p1",
+    "drawing_id": "5c4ed01e00000003",
+    "page": 1,
+    "state": "proposed",
+    "removed": [
+      {
+        "id": "W1",
+        "polygon": [
+          [
+            0.3084,
+            0.25
+          ],
+          [
+            0.3084,
+            0.32087
+          ],
+          [
+            0.3084,
+            0.39173
+          ],
+          [
+            0.3084,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.39173
+          ],
+          [
+            0.31407,
+            0.32087
+          ],
+          [
+            0.31407,
+            0.25
+          ]
+        ],
+        "label": "Wall W1, 2.5 m, 0.1 m thick"
+      },
+      {
+        "id": "e1",
+        "polygon": [
+          [
+            0.3174,
+            0.32087
+          ],
+          [
+            0.3174,
+            0.39173
+          ],
+          [
+            0.30507,
+            0.39173
+          ],
+          [
+            0.30507,
+            0.32087
+          ]
+        ],
+        "label": "door, no longer needed"
+      }
+    ],
+    "added": [],
+    "rooms": [
+      {
+        "id": "r1+r2",
+        "label": "Bagno 1.01 + Stanza 1.02",
+        "polygon": [
+          [
+            0.16667,
+            0.25
+          ],
+          [
+            0.16667,
+            0.25002
+          ],
+          [
+            0.16667,
+            0.46258
+          ],
+          [
+            0.16667,
+            0.4626
+          ],
+          [
+            0.16668,
+            0.4626
+          ],
+          [
+            0.49774,
+            0.4626
+          ],
+          [
+            0.49775,
+            0.4626
+          ],
+          [
+            0.49775,
+            0.46258
+          ],
+          [
+            0.49775,
+            0.25002
+          ],
+          [
+            0.49775,
+            0.25
+          ],
+          [
+            0.49774,
+            0.25
+          ],
+          [
+            0.16668,
+            0.25
+          ]
+        ],
+        "area_before_m2": 20.66,
+        "area_after_m2": 21.02,
+        "was": [
+          "r1",
+          "r2"
+        ]
+      }
+    ],
+    "unknowns": [
+      "Whether wall W1 is load-bearing: this drawing does not say."
+    ],
+    "flags": [
+      {
+        "code": "structural",
+        "text": "Before removing a wall, a structural engineer has to confirm it does not carry load."
+      },
+      {
+        "code": "wet_room",
+        "text": "A wet room changes: its waterproofing is redone and inspected."
+      }
+    ]
+  },
+  "options": null,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "list_drawings",
+      "label": "Listed the project's drawings",
+      "status": "ok",
+      "ms": 12.5
+    },
+    {
+      "n": 2,
+      "tool": "list_walls",
+      "label": "Listed the walls of Drawn plan 1, page 1",
+      "status": "ok",
+      "ms": 12.5
+    },
+    {
+      "n": 3,
+      "tool": "propose_remove_wall",
+      "label": "Proposed removing wall W1",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002
+}
+```
+
+Errors: 404 unknown project or chat, 409 project not done or a turn of this chat still running, 422 a bad body,
+503 `CHAT_MODEL=off`.
+
+### `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`
+
+Body `{"action": "accept" | "reject"}`. Returns the proposal with its new `state` (`accepted` or `rejected`); 404 an
+unknown chat or proposal, 409 a proposal already decided. Accepting records the person's call; the drawing file is
+unchanged.
+
+<!-- fixture: chat_proposal_accepted.json -->
+```json
+{
+  "proposal_id": "p1",
+  "drawing_id": "5c4ed01e00000003",
+  "page": 1,
+  "state": "accepted",
+  "removed": [
+    {
+      "id": "W1",
+      "polygon": [
+        [
+          0.3084,
+          0.25
+        ],
+        [
+          0.3084,
+          0.32087
+        ],
+        [
+          0.3084,
+          0.39173
+        ],
+        [
+          0.3084,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.39173
+        ],
+        [
+          0.31407,
+          0.32087
+        ],
+        [
+          0.31407,
+          0.25
+        ]
+      ],
+      "label": "Wall W1, 2.5 m, 0.1 m thick"
+    },
+    {
+      "id": "e1",
+      "polygon": [
+        [
+          0.3174,
+          0.32087
+        ],
+        [
+          0.3174,
+          0.39173
+        ],
+        [
+          0.30507,
+          0.39173
+        ],
+        [
+          0.30507,
+          0.32087
+        ]
+      ],
+      "label": "door, no longer needed"
+    }
+  ],
+  "added": [],
+  "rooms": [
+    {
+      "id": "r1+r2",
+      "label": "Bagno 1.01 + Stanza 1.02",
+      "polygon": [
+        [
+          0.16667,
+          0.25
+        ],
+        [
+          0.16667,
+          0.25002
+        ],
+        [
+          0.16667,
+          0.46258
+        ],
+        [
+          0.16667,
+          0.4626
+        ],
+        [
+          0.16668,
+          0.4626
+        ],
+        [
+          0.49774,
+          0.4626
+        ],
+        [
+          0.49775,
+          0.4626
+        ],
+        [
+          0.49775,
+          0.46258
+        ],
+        [
+          0.49775,
+          0.25002
+        ],
+        [
+          0.49775,
+          0.25
+        ],
+        [
+          0.49774,
+          0.25
+        ],
+        [
+          0.16668,
+          0.25
+        ]
+      ],
+      "area_before_m2": 20.66,
+      "area_after_m2": 21.02,
+      "was": [
+        "r1",
+        "r2"
+      ]
+    }
+  ],
+  "unknowns": [
+    "Whether wall W1 is load-bearing: this drawing does not say."
+  ],
+  "flags": [
+    {
+      "code": "structural",
+      "text": "Before removing a wall, a structural engineer has to confirm it does not carry load."
+    },
+    {
+      "code": "wet_room",
+      "text": "A wet room changes: its waterproofing is redone and inspected."
+    }
+  ]
+}
+```
+
 ## Takeoff and review (surveyor)
 
 ### `GET /api/drawings/{drawing_id}/takeoff?zeros=<bool>&project=<project_id>`
@@ -8125,6 +8660,11 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0013, agent chat): `POST /api/projects/{project_id}/chat` and
+  `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`; `GET /api/info` gains `chat`
+  (`model`, `available`, `reason`; last). Settings `CHAT_MODEL`, `AGENT_MODEL`, `AGENT_BASE_URL`,
+  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_TURN_USD`, `AGENT_MAX_STEPS`. Fixtures `chat_request`,
+  `chat_answer`, `chat_dont_know`, `chat_edit`, `chat_proposal_accepted`.
 - 2026-11-14, additive (QA R9 area 4, `tools/smoke.py`): `GET /api/info` gains `commit`, the git commit the backend
   was started from (setting `APP_COMMIT`, which `tools/qa-env.sh` sets to the exported commit), or null when
   unset. Fixture `info.json` gains it (last).

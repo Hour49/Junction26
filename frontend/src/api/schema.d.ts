@@ -276,6 +276,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat */
+        post: operations["chat_api_projects__project_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/checks": {
         parameters: {
             query?: never;
@@ -684,6 +718,88 @@ export interface components {
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };
+        /** ChatEvidence */
+        ChatEvidence: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Drawing Id */
+            drawing_id: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string | null;
+            level?: components["schemas"]["Level"] | null;
+            /** N */
+            n: number;
+            /** Name */
+            name: string | null;
+            /** Page */
+            page: number;
+            /** Sure */
+            sure: boolean | null;
+        };
+        /**
+         * ChatInfo
+         * @description The project chat agent (decision 0013): CHAT_MODEL, and whether a turn can run now.
+         */
+        ChatInfo: {
+            /** Available */
+            available: boolean;
+            /**
+             * Model
+             * @enum {string}
+             */
+            model: "gemini" | "rules" | "off";
+            /** Reason */
+            reason: string | null;
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            /** Chat Id */
+            chat_id?: string | null;
+            /** Message */
+            message: string;
+            /** Selection */
+            selection?: components["schemas"]["Selection"][];
+        };
+        /** ChatTurn */
+        ChatTurn: {
+            /** Chat Id */
+            chat_id: string;
+            /** Cost Usd */
+            cost_usd: number;
+            edit?: components["schemas"]["Proposal"] | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: components["schemas"]["ChatEvidence"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "answer" | "dont_know" | "conflict" | "needs_input" | "edit";
+            /** Latency S */
+            latency_s: number;
+            /** Model */
+            model: string;
+            /** Options */
+            options?: components["schemas"]["Option"][] | null;
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["Step"][];
+            /** Text */
+            text: string;
+            /** Turn */
+            turn: number;
+        };
         /**
          * Check
          * @description The double-check request on an answer that is not certified.
@@ -856,6 +972,14 @@ export interface components {
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
             /** Value */
             value: number;
+        };
+        /** Decision */
+        Decision: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "accept" | "reject";
         };
         /**
          * Description
@@ -1099,6 +1223,13 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageTrace"][];
         };
+        /** Flag */
+        Flag: {
+            /** Code */
+            code: string;
+            /** Text */
+            text: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1114,6 +1245,7 @@ export interface components {
         };
         /** Info */
         Info: {
+            chat?: components["schemas"]["ChatInfo"] | null;
             /** Commit */
             commit?: string | null;
             /** Gemini */
@@ -1212,6 +1344,36 @@ export interface components {
             takeoff: string | null;
             /** Trace */
             trace: string | null;
+        };
+        /**
+         * Item
+         * @description A removed or added piece of geometry (a wall strip, a door, a new partition).
+         */
+        Item: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Polygon */
+            polygon: [
+                number,
+                number
+            ][];
+        };
+        /**
+         * Level
+         * @description An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').
+         */
+        Level: {
+            /** Basis */
+            basis?: string | null;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /** Text */
+            text?: string | null;
         };
         /** Limits */
         Limits: {
@@ -1358,6 +1520,13 @@ export interface components {
             rotated: number;
             /** Width */
             width: number;
+        };
+        /** Option */
+        Option: {
+            /** Label */
+            label: string;
+            /** Message */
+            message: string;
         };
         /**
          * Overrule
@@ -1586,6 +1755,46 @@ export interface components {
             /** Storeys */
             storeys: components["schemas"]["StoreyRow"][] | null;
         };
+        /** Proposal */
+        Proposal: {
+            /**
+             * Added
+             * @default []
+             */
+            added: components["schemas"]["Item"][];
+            /** Drawing Id */
+            drawing_id: string;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: components["schemas"]["Flag"][];
+            /** Page */
+            page: number;
+            /** Proposal Id */
+            proposal_id: string;
+            /**
+             * Removed
+             * @default []
+             */
+            removed: components["schemas"]["Item"][];
+            /**
+             * Rooms
+             * @default []
+             */
+            rooms: components["schemas"]["RoomChange"][];
+            /**
+             * State
+             * @default proposed
+             * @enum {string}
+             */
+            state: "proposed" | "accepted" | "rejected";
+            /**
+             * Unknowns
+             * @default []
+             */
+            unknowns: string[];
+        };
         /**
          * QuantityConflict
          * @description Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in
@@ -1736,6 +1945,27 @@ export interface components {
             rule: string;
             /** Value */
             value: number;
+        };
+        /** RoomChange */
+        RoomChange: {
+            /** Area After M2 */
+            area_after_m2: number;
+            /** Area Before M2 */
+            area_before_m2: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Polygon */
+            polygon: [
+                number,
+                number
+            ][];
+            /**
+             * Was
+             * @default []
+             */
+            was: string[];
         };
         /**
          * Row
@@ -1968,6 +2198,32 @@ export interface components {
             measured: number;
         };
         /**
+         * Selection
+         * @description What the user pointed at on a plan: a room (`ref` its id) or a dragged rectangle (`box`).
+         */
+        Selection: {
+            /** Box */
+            box?: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
+            /** Drawing Id */
+            drawing_id: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "room" | "region";
+            /** Page */
+            page: number;
+            /** Ref */
+            ref?: string | null;
+        };
+        /**
          * Settled
          * @description The value a surveyor chose to keep for a quantity (the `settle` action).
          */
@@ -2062,6 +2318,22 @@ export interface components {
             state: "queued" | "running" | "done" | "failed";
             /** Url */
             url: string;
+        };
+        /** Step */
+        Step: {
+            /** Label */
+            label: string;
+            /** Ms */
+            ms: number;
+            /** N */
+            n: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Tool */
+            tool: string;
         };
         /** StoreyRow */
         StoreyRow: {
@@ -2690,6 +2962,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectAnswer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_api_projects__project_id__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatTurn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description CHAT_MODEL=off */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+                proposal_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Decision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
                 };
             };
             /** @description Validation Error */

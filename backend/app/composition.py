@@ -26,6 +26,7 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
+from app.adapters.chat_rules import RulesChatModel
 from app.adapters.check_policy import load_check
 from app.adapters.count_arbiter import ArbiterCountExtractor
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
@@ -42,6 +43,7 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
 from app.adapters.openvlm.client import OpenVlmClient
 from app.adapters.openvlm.decider import OpenVlmDecider
@@ -67,6 +69,8 @@ from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
+from app.core.agent.model import Caps
+from app.core.agent.ports import ChatModel
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
 from app.core.answering.ports import (
@@ -720,3 +724,28 @@ def _prior(name: AnswerPriorName) -> AnswerPrior:
             return NoPrior()
         case "dev":
             return TablePrior(DEV_PRIOR)
+
+
+def chat_model(settings: Settings) -> tuple[ChatModel | None, str | None]:
+    """The project chat's model by CHAT_MODEL, or None and why the chat is not available."""
+    match settings.chat_model:
+        case "off":
+            return None, "the agent chat is off (CHAT_MODEL=off)"
+        case "rules":
+            return RulesChatModel(), None
+        case "gemini":
+            key = settings.gemini_api_key.get_secret_value()
+            if not key:
+                return None, "the agent chat needs GEMINI_API_KEY"
+            model = OpenAiChatModel(
+                settings.agent_base_url,
+                key,
+                settings.agent_model,
+                settings.agent_price_in_per_m,
+                settings.agent_price_out_per_m,
+            )
+            return model, None
+
+
+def chat_caps(settings: Settings) -> Caps:
+    return Caps(max_steps=settings.agent_max_steps, turn_usd=settings.agent_turn_usd)

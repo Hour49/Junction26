@@ -18,6 +18,7 @@ import {
   answerTurn,
   conflictTurn,
   DID,
+  dontKnowOptionsTurn,
   dontKnowTurn,
   editTurn,
   model,
@@ -157,6 +158,19 @@ describe('TurnCard', () => {
     const onAsk = card(needsInputTurn);
     fireEvent.click(screen.getByRole('button', { name: 'Bagno 1.05' }));
     expect(onAsk).toHaveBeenCalledWith('Remove the wall between Bagno 1.05 and the bedroom');
+  });
+
+  it('AC-31 options on any kind: a dont_know offers questions to try that send option.message', () => {
+    const onAsk = card(dontKnowOptionsTurn);
+    expect(screen.getByText("I don't know.")).toBeTruthy();
+    const group = screen.getByRole('group', { name: 'Try one of these instead' });
+    expect(within(group).getAllByRole('button')).toHaveLength(2);
+    fireEvent.click(within(group).getByRole('button', { name: 'How big is Bagno 1.01?' }));
+    expect(onAsk).toHaveBeenCalledWith('How big is Bagno 1.01?');
+    cleanup();
+    card(dontKnowTurn); // options null: no chips, no label
+    expect(screen.queryByRole('group', { name: 'Try one of these instead' })).toBeNull();
+    expect(screen.queryByText('Try one of these instead')).toBeNull();
   });
 
   it('AC-32 edit turn renders the edit card', () => {

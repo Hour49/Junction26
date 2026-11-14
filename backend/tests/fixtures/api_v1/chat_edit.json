@@ -1,0 +1,195 @@
+{
+  "chat_id": "c4a7c0000002",
+  "turn": 1,
+  "kind": "edit",
+  "text": "Proposed: Bagno 1.01 + Stanza 1.02: 20.66 → 21.02 m². Removed: Wall W1, 2.5 m, 0.1 m thick; door, no longer needed. Whether wall W1 is load-bearing: this drawing does not say.",
+  "evidence": [
+    {
+      "n": 1,
+      "id": "ev_1",
+      "drawing_id": "5c4ed01e00000003",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.2999,
+        0.25,
+        0.32257,
+        0.4626
+      ],
+      "label": "W1",
+      "sure": null,
+      "level": null
+    }
+  ],
+  "edit": {
+    "proposal_id": "p1",
+    "drawing_id": "5c4ed01e00000003",
+    "page": 1,
+    "state": "proposed",
+    "removed": [
+      {
+        "id": "W1",
+        "polygon": [
+          [
+            0.3084,
+            0.25
+          ],
+          [
+            0.3084,
+            0.32087
+          ],
+          [
+            0.3084,
+            0.39173
+          ],
+          [
+            0.3084,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.39173
+          ],
+          [
+            0.31407,
+            0.32087
+          ],
+          [
+            0.31407,
+            0.25
+          ]
+        ],
+        "label": "Wall W1, 2.5 m, 0.1 m thick"
+      },
+      {
+        "id": "e1",
+        "polygon": [
+          [
+            0.3174,
+            0.32087
+          ],
+          [
+            0.3174,
+            0.39173
+          ],
+          [
+            0.30507,
+            0.39173
+          ],
+          [
+            0.30507,
+            0.32087
+          ]
+        ],
+        "label": "door, no longer needed"
+      }
+    ],
+    "added": [],
+    "rooms": [
+      {
+        "id": "r1+r2",
+        "label": "Bagno 1.01 + Stanza 1.02",
+        "polygon": [
+          [
+            0.16667,
+            0.25
+          ],
+          [
+            0.16667,
+            0.25002
+          ],
+          [
+            0.16667,
+            0.46258
+          ],
+          [
+            0.16667,
+            0.4626
+          ],
+          [
+            0.16668,
+            0.4626
+          ],
+          [
+            0.49774,
+            0.4626
+          ],
+          [
+            0.49775,
+            0.4626
+          ],
+          [
+            0.49775,
+            0.46258
+          ],
+          [
+            0.49775,
+            0.25002
+          ],
+          [
+            0.49775,
+            0.25
+          ],
+          [
+            0.49774,
+            0.25
+          ],
+          [
+            0.16668,
+            0.25
+          ]
+        ],
+        "area_before_m2": 20.66,
+        "area_after_m2": 21.02,
+        "was": [
+          "r1",
+          "r2"
+        ]
+      }
+    ],
+    "unknowns": [
+      "Whether wall W1 is load-bearing: this drawing does not say."
+    ],
+    "flags": [
+      {
+        "code": "structural",
+        "text": "Before removing a wall, a structural engineer has to confirm it does not carry load."
+      },
+      {
+        "code": "wet_room",
+        "text": "A wet room changes: its waterproofing is redone and inspected."
+      }
+    ]
+  },
+  "options": null,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "list_drawings",
+      "label": "Listed the project's drawings",
+      "status": "ok",
+      "ms": 12.5
+    },
+    {
+      "n": 2,
+      "tool": "list_walls",
+      "label": "Listed the walls of Drawn plan 1, page 1",
+      "status": "ok",
+      "ms": 12.5
+    },
+    {
+      "n": 3,
+      "tool": "propose_remove_wall",
+      "label": "Proposed removing wall W1",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002
+}

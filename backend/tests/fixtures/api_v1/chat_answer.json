@@ -1,0 +1,86 @@
+{
+  "chat_id": "c4a7c0000001",
+  "turn": 1,
+  "kind": "answer",
+  "text": "plans/flat-a.pdf: 2 doors [1]; plans/flat-b.pdf: 2 doors [3]; model/house.ifc: 2 doors.",
+  "evidence": [
+    {
+      "n": 1,
+      "id": "ev_3",
+      "drawing_id": "adeefbbcc17559fc",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 2,
+      "id": "ev_4",
+      "drawing_id": "adeefbbcc17559fc",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.66,
+        0.225,
+        0.67333,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 3,
+      "id": "ev_9",
+      "drawing_id": "44cc9f0d991eafe3",
+      "name": "Drawn plan 2",
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 4,
+      "id": "ev_10",
+      "drawing_id": "44cc9f0d991eafe3",
+      "name": "Drawn plan 2",
+      "page": 1,
+      "box": [
+        0.66,
+        0.225,
+        0.67333,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    }
+  ],
+  "edit": null,
+  "options": null,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "ask_drawings",
+      "label": "Asked the drawings: How many doors are there?",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002
+}
