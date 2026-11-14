@@ -10,7 +10,6 @@ import json
 import logging
 import threading
 import time
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -41,16 +40,6 @@ PAGE_FORM = {
 }  # fmt: skip
 TILE_FORM = {"elements": [], "rooms_seen": [], "unreadable": []}
 BARS_FORM = {"printed_scale": None, "scale_bars": []}
-
-
-@pytest.fixture(autouse=True)
-def _cost_put_back() -> Iterator[None]:
-    """These reads charge this thread's running cost total, which nothing resets; put back after
-    each test, so a later test comparing a cost exactly (test_cost) is not off by a float
-    rounding (as in tests/test_evidence_pictures.py)."""
-    before = cost.spent()
-    yield
-    cost._local.usd = before  # pyright: ignore[reportPrivateUsage]
 
 
 def envelope(form: object) -> dict[str, Any]:
@@ -93,9 +82,9 @@ def test_beside_returns_both_in_order_and_charges_the_other_threads_cost() -> No
         cost.charge(0.02)
         return "there"
 
-    before = cost.spent()
+    before = cost.mark()
     assert beside(here, there) == ("here", "there")
-    assert cost.spent() - before == pytest.approx(0.03)
+    assert cost.since(before) == pytest.approx(0.03)
 
 
 def test_when_this_read_fails_the_other_is_not_waited_for() -> None:
@@ -156,10 +145,10 @@ def test_the_printed_scale_is_read_at_the_same_time_as_the_raster_reader() -> No
     meet = threading.Barrier(2, timeout=WAIT_S)
     printed = PrintedSheet(printed_scale=None)
     reader = PrintedScale(Meets(meet, NOTHING, 0.01), Meets(meet, printed, 0.02), Files())
-    before = cost.spent()
+    before = cost.mark()
     found = reader.extract(FILE, SHEET)
     assert "shipped" in found.notes
-    assert cost.spent() - before == pytest.approx(0.03)  # both reads land in the trace
+    assert cost.since(before) == pytest.approx(0.03)  # both reads land in the trace
 
 
 def test_carbon_things_reads_carbon_at_the_same_time_as_the_shipped_reader() -> None:

@@ -290,11 +290,11 @@ def _charged(
 ) -> Extracted:
     """The reader's result, read on this (worker) thread; what its calls cost goes in
     `spent[name]` also when it fails."""
-    before = cost.spent()
+    before = cost.mark()
     try:
         return reader.extract(source, sheet)
     finally:
-        spent[name] = cost.spent() - before
+        spent[name] = cost.since(before)
 
 
 def _looked_for(read: Sequence[ReadClass] | None, kind: ReadClass) -> bool:

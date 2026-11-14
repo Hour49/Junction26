@@ -369,7 +369,7 @@ def test_a_count_naming_a_printed_room_label_never_answers_the_sheet_silently() 
     def at(x0: float, x1: float) -> tuple[tuple[float, float], ...]:
         return ((x0, 0.1), (x1, 0.1), (x1, 0.3), (x0, 0.3))
 
-    def made(n: int, kind: str, label: str, x0: float, x1: float, number: str) -> Room:
+    def made(n: int, kind: RoomType, label: str, x0: float, x1: float, number: str) -> Room:
         return Room(id=f"r{n}", type=kind, label=label, page=1, box=(x0, 0.1, x1, 0.3),
                     polygon=at(x0, x1), area_m2=5.0 + n, attrs={"number": number})  # fmt: skip
 
@@ -402,6 +402,8 @@ def test_a_count_naming_a_printed_room_label_never_answers_the_sheet_silently() 
         "How many doors are in room 1.09?",
     ]
     assert asked("How many toilets (WC) are there?", drawing).answer.answer == 2  # the sheet's
+    # the WC label as the counted thing's own word, outside parentheses: still the sheet's
+    assert asked("How many WC toilets are there?", drawing).answer.answer == 2
     assert asked("How many doors does the WC have?", drawing).answer.answer == 0  # the room's
     assert asked("How many doors are there?", drawing).answer.answer == 2
     # a name in a parenthesised hint is a gloss, not a place (golden's Finnish sinks question)
