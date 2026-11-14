@@ -2,6 +2,10 @@
 
 Static HTML, CSS and JS. No build step, no network, no dependencies. Open `index.html` in a browser.
 
+v2 adds file triage as a preview (decision 0010: four synthetic images set aside as not floor plans, with their
+register kind, description, the relevance rule, a person's call and "Read it as a floor plan"; all in `triage.js`),
+the project's Drawings and Files lists, the issues list (`issues.js`), and a multi-page PDF split into page files.
+
 The whole product story in the Vellum look (Tudor's canvas, boards 1-5 and 9-12): drop files, watch them being read
 (simple and advanced views), settle the conflicts, start a new chat over all the drawings, ask with proof and double-check
 uncertain answers, see the workspace history. Spec and click map: `../../docs/specs/frontend/clicky-demo.md`.
@@ -16,7 +20,7 @@ no answer grade.
 
 Routes: `#/` drop, `#/ingest` reading (`/unpack`, `/identify`, `/normalise`, `/extract`, `/check` for the advanced panels),
 `#/conflicts` (its "Start a new chat" unlocks once every conflict is settled), `#/chat` (the empty project chat with 3 suggested questions;
-each answer's "Show it on <file>" opens `#/ask` on that drawing), `#/ask` (no header tab), `#/workspaces`. Opening a later route directly starts the sample already read.
+each answer's "Show it on <file>" opens `#/ask` on that drawing), `#/ask` (no header tab), `#/issues` (the issues list, filters, CSV), `#/file/<n>` (a file's trace; on a file triage set aside, the triage card with its call, undo and "Read it as a floor plan"), `#/workspaces`. Opening a later route directly starts the sample already read.
 
 Check: `node --test demo/vellum/*.test.cjs` (the counts derived from the data).
 
