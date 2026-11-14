@@ -393,7 +393,9 @@ def _triage(settings: Settings) -> TriageSteps | None:
     name = f"classifier={settings.triage_classifier}, "
     if settings.sheet_kind == "carbon":
         reader = _sheet_kind_reader(settings)
-        classifier: Classifier = SheetKindClassifier(inner, reader, settings.sheet_kind_cut)
+        classifier: Classifier = SheetKindClassifier(
+            inner, reader, settings.sheet_kind_cut, settings.sheet_kind_set_aside
+        )
         name += f"sheet_kind={settings.sheet_kind}, "  # named only when on: the same keys as before
     elif inner is None:
         return None

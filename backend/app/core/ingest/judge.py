@@ -84,7 +84,8 @@ def reading_flags(
     """The flags about how the page itself was read (a phone photo, a scan, by Gemini Carbon
     alone): every answer on the drawing carries them, none of its answers is certified, and a
     group the reader found nothing of is not a count of 0 (review/ask.py). A conflict or an
-    empty read is said where it shows (its row, no-reader)."""
+    empty read is said where it shows (its row, no-reader). They are part of the stored reading;
+    the sheet-kind step's flag is the project's (triage.sheet_flag, with_sheet_flag)."""
     flags: tuple[str, ...] = ()
     if kind == "pdf_scan":
         flags = ("a scanned PDF, read as an image",)
@@ -97,6 +98,15 @@ def reading_flags(
     elif carbon == "part":
         flags += (CARBON_PART_FLAG,)
     return flags
+
+
+def with_sheet_flag(state: FileState, reason: str, flag: str | None) -> tuple[FileState, str]:
+    """A read file's state and reason in its project: the stored reading's, flagged when the
+    project's triage doubts the sheet is a floor plan (triage.sheet_flag). The flag is not in the
+    stored reading, which is shared by content across projects and triage settings."""
+    if flag is None:
+        return state, reason
+    return "flagged", f"{flag}; {reason}"
 
 
 def pipeline_stages(
