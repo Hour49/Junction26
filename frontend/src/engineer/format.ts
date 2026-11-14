@@ -71,6 +71,15 @@ export function gradeOf(a: { level?: AnswerView['level'] }): Grade | null {
 /** `ProjectAnswer.total_level` in words (CH-42). */
 export const levelWord = (level: keyof typeof LEVEL_WORD): Grade => LEVEL_WORD[level];
 
+/** A value as the answer shows it: `formatValue`, except that a whole number that is an estimate drops the ".00"
+ * ("5 m²", not "5.00 m²"): the backend says an area on an estimated scale in whole m² (#294, ask.shown_value), and
+ * two decimals would claim a precision the estimate has not. One helper for the chat's lead and rows and the
+ * engineer's answer card, so the same answer reads the same everywhere. */
+export function shownValue(value: number, unit: string | null, estimated: boolean): string {
+  const text = formatValue(value, unit);
+  return estimated && Number.isInteger(value) ? text.replace(/\.00 /, ' ') : text;
+}
+
 /** EN-88/CH-44: "about 180 m², <why the value is an estimate>" for a measured number with `quantity.estimate`;
  * for a count only the caveat ("Counted by …"): a count is whole, never "about" (Bogdan c6881747518); else null. */
 export function estimateLine(a: AnswerView): string | null {
@@ -81,5 +90,5 @@ export function estimateLine(a: AnswerView): string | null {
   // "about 0 m²" says nothing: a measure that rounds to 0 is shown as it is
   if (n === 0) return `${formatValue(a.answer, a.unit)}, ${why}`;
   // a whole number: formatValue's two decimals would claim a precision the estimate has not
-  return `about ${formatValue(n, a.unit).replace(/\.00 /, ' ')}, ${why}`;
+  return `about ${shownValue(n, a.unit, true)}, ${why}`;
 }

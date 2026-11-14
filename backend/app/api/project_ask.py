@@ -158,6 +158,10 @@ def _total(parts: list[ProjectAnswerPart], drawing_of: Callable[[str], Drawing])
     total = sum(row.value for row in found)
     total = total if isinstance(total, int) else round(total, 6)  # no float noise
     unit = answered[0].unit
+    # A sum with an area measured on an estimated scale is said in whole m², as its part is
+    # (ask.shown_value, #294): two decimals would claim a precision the estimate does not have.
+    if unit == "m2" and isinstance(total, float) and any(row.estimate for row in found):
+        total = round(total)
     first = found[0]
     said = noun(first.measure, first.subject, total)
     shown = f"{total} {said}" if said else f"{first.label}: {total}{_shown(unit)}"

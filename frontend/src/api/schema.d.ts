@@ -344,6 +344,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/chat/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat Stream
+         * @description One turn as a step stream (.agents/chat/contract.md C). Errors known before the turn are
+         *     plain HTTP, as on POST .../chat; the turn runs to its end even when the client goes away.
+         */
+        post: operations["chat_stream_api_projects__project_id__chat_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {
         parameters: {
             query?: never;
@@ -433,6 +454,28 @@ export interface paths {
          *     description, register and relevance.
          */
         get: operations["get_evidence_api_projects__project_id__evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/files/{file_id}/model.glb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Model Glb
+         * @description An IFC file's 3D view: one GLB of the whole model, each node named by its element's
+         *     GlobalId. The first request starts its conversion (409 `converting` until it is built; poll
+         *     it or the project's `model_3d`); gzipped when the client takes gzip.
+         */
+        get: operations["model_glb_api_projects__project_id__files__file_id__model_glb_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -960,6 +1003,11 @@ export interface components {
             model: "gemini" | "rules" | "off";
             /** Reason */
             reason: string | null;
+            /**
+             * Stream
+             * @default true
+             */
+            stream: boolean;
         };
         /** ChatRequest */
         ChatRequest: {
@@ -1012,6 +1060,7 @@ export interface components {
             text: string;
             /** Turn */
             turn: number;
+            view?: components["schemas"]["View"] | null;
         };
         /**
          * Check
@@ -1436,6 +1485,20 @@ export interface components {
             /** Value */
             value?: number | null;
         };
+        /**
+         * ErrorBody
+         * @description Every error: one sentence, a code, and FastAPI's list for a request that fails validation.
+         */
+        ErrorBody: {
+            /** Code */
+            code: string;
+            /** Detail */
+            detail: string;
+            /** Errors */
+            errors?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
         /** Evidence */
         Evidence: {
             /** Box */
@@ -1579,6 +1642,7 @@ export interface components {
             id: string;
             /** Kind */
             kind?: ("pdf_vector" | "pdf_scan" | "png_plan" | "jpeg_plan" | "photo_plan" | "ifc" | "dxf" | "svg" | "pdf_text" | "text" | "photo" | "pdf_encrypted" | "dwg" | "office" | "archive" | "unknown") | null;
+            model_3d?: components["schemas"]["Model3d"] | null;
             /**
              * Ms
              * @default 0
@@ -1963,6 +2027,27 @@ export interface components {
             method: string;
             /** Value */
             value: number;
+        };
+        /**
+         * Model3d
+         * @description FileStatus.model_3d (MODEL_3D setting): the 3D view of an IFC file, a GLB converted once
+         *     on its first request (GET .../files/{file_id}/model.glb) or ahead by `python -m app.cli glb`.
+         */
+        Model3d: {
+            /** Code */
+            code?: ("too_big" | "no_geometry" | "failed") | null;
+            /** Elements */
+            elements?: number | null;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_started" | "converting" | "ready" | "unavailable";
         };
         /** ModelItem */
         ModelItem: {
@@ -3067,6 +3152,59 @@ export interface components {
             page: number;
         };
         /**
+         * View
+         * @description The plan the turn wants on screen: one drawing page, its marks, the box to focus.
+         */
+        View: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Caption */
+            caption?: string | null;
+            /** Drawing Id */
+            drawing_id: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ViewMark"][];
+            /** Name */
+            name: string | null;
+            /** Page */
+            page: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "show_on_plan" | "evidence";
+        };
+        /**
+         * ViewMark
+         * @description One place on the plan the turn shows (.agents/chat/contract.md A).
+         */
+        ViewMark: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label: string | null;
+            /** N */
+            n: number;
+            /** Polygon */
+            polygon?: [
+                number,
+                number
+            ][] | null;
+        };
+        /**
          * Level
          * @description An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').
          */
@@ -3767,6 +3905,48 @@ export interface operations {
             };
         };
     };
+    chat_stream_api_projects__project_id__chat_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Server-Sent Events: turn, thinking, plan, tool_call, tool_result, view, checking, then answer (the ChatTurn of POST .../chat) or error */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description CHAT_MODEL=off */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post: {
         parameters: {
             query?: never;
@@ -3948,6 +4128,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    model_glb_api_projects__project_id__files__file_id__model_glb_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the model's GLB */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "model/gltf-binary": unknown;
+                };
+            };
+            /** @description no such file, no IFC file, or MODEL_3D off */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description code converting: being built, ask again */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description code too_big, no_geometry or failed: no view */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
