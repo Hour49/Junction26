@@ -630,12 +630,12 @@ class _Run:
     def _titled(self, drawings: list[Any]) -> list[Any]:
         """list_drawings with each drawing's plain name as `title`: the name the user sees
         ("Drawn plan 2") and may name it by, which the result gives only as its file."""
-        return [
-            {**d, "title": self.names[d["drawing_id"]]}
-            if isinstance(d, dict) and d.get("drawing_id") in self.names
-            else d
-            for d in drawings
-        ]
+        out: list[Any] = []
+        for drawing in drawings:
+            given: Json = drawing if isinstance(drawing, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+            title = self.names.get(str(given.get("drawing_id")))
+            out.append({**given, "title": title} if title else drawing)
+        return out
 
     def _name(self, drawing_id: str, place: Json) -> str:
         """A drawing's plain name ("Drawn plan 1"), else the name its place came with."""
