@@ -9,8 +9,8 @@ case below (docs/decisions/0005-pipeline-core.md).
 import logging
 import secrets
 import time
-from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Collection, Iterable, Mapping
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from functools import cache, partial
 from pathlib import Path
@@ -59,6 +59,7 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
 from app.adapters.openvlm.client import OpenVlmClient
@@ -80,6 +81,7 @@ from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
 from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
+from app.adapters.raster_scale.carbon_doors import CarbonDoorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
@@ -197,14 +199,18 @@ class Pipeline:
     # a part from the `carbon` source; ingest flags those drawings. None: no file is
     carbon_read: Callable[[str], CarbonRead | None] | None = None
     # VECTOR_FALLBACK=raster: whether a drawn PDF has no sheet style the vector reader has rules
-    # for; stage 5 routes it to the raster route (in `scanned` too) and ingest flags it. None: off
+    # for; when the vector route reads nothing of it, ingest reads it again on the raster route
+    # (pipeline/ingest.py `fallback`) and flags it. None: off
     unruled: Callable[[bytes], bool] | None = None
     # How ingest read a file's page, by path (judge.reading_flags: a scan, a photo, Carbon): no
     # answer on a flagged page is sure, on this path as in the product's ask. None: none is
     flags: Callable[[str], tuple[str, ...]] | None = None
+    # The drawn PDFs `ingest` read as an image (VECTOR_FALLBACK), by path; `flags` reads it, so a
+    # PDF the vector route read keeps its answers' level here as in the product (review-348 S1)
+    read_as_image: set[str] = field(default_factory=set[str])
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
-        return ingest(
+        report = ingest(
             paths,
             files=self.files,
             finder=self.finder,
@@ -214,7 +220,26 @@ class Pipeline:
             sink=sink,
             readable=self.readable,
             scanned=self.scanned,
+            fallback=None if self.unruled is None else self._unruled_file,
         )
+        if self.unruled is not None:
+            self.read_as_image.update(
+                sheet.file for sheet in report.sheets if self._fell_back(sheet.route, sheet.source)
+            )
+        return report
+
+    def _unruled_file(self, path: str) -> bool:
+        """VECTOR_FALLBACK on a file the vector route read nothing of. Every file the CLI reads is
+        its own page 1: it splits no PDF into pages (the service's later pages, which do not fall
+        back, are files ingest split off: groups._fallback)."""
+        return self.unruled is not None and self.unruled(self.files.read(path))
+
+    def _fell_back(self, route: str, source: str) -> bool:
+        """A PDF source read on the raster route that is not a scan was read by the fallback."""
+        if route != "raster":
+            return False
+        data = self.files.read(source)
+        return data.startswith(b"%PDF") and not (self.scanned is not None and self.scanned(data))
 
     def answer_questions(
         self, questions: Iterable[Question], drawings: DrawingSource, sink: AnswerSink
@@ -257,6 +282,7 @@ def build_pipeline(
     # One Decisions reader for the count swap and the confidence, made only when one is used.
     decisions = cache(lambda: decisions_reader(settings))
     carbon_read = _carbon_counted(settings, _or_took(use_carbon, took), kind_of)
+    images: set[str] = set()  # the drawn PDFs ingest read as an image (Pipeline.read_as_image)
     return Pipeline(
         files=files,
         finder=DatasetSheetModels(dataset) if with_models else HelloSourceFinder(),
@@ -286,16 +312,15 @@ def build_pipeline(
         clock=time.perf_counter,
         prior_families=_policy(settings.answer_policy),
         readable=_readable(settings),
-        scanned=as_image,
+        scanned=is_scanned_pdf,
         confidence=DecisionsConfidence(scans, decisions())
         if settings.decisions_confidence
         else None,
         sure_at=_gate(settings),
         carbon_read=carbon_read,
         unruled=unruled,
-        flags=partial(
-            _page_flags, kind_of=kind_of, carbon_read=carbon_read, unruled=unruled, files=files
-        ),
+        flags=partial(_page_flags, kind_of=kind_of, carbon_read=carbon_read, images=images),
+        read_as_image=images,
     )
 
 
@@ -325,18 +350,18 @@ def _page_flags(
     path: str,
     kind_of: Callable[[str], str | None],
     carbon_read: Callable[[str], CarbonRead | None] | None,
-    unruled: Callable[[bytes], bool] | None,
-    files: DrawingFiles,
+    images: Collection[str],
 ) -> tuple[str, ...]:
     """The reading flags ingest stores for a file's page (judge.reading_flags), for the CLI's
     answers (review-283 M1: without them a scanned or Carbon-read page could come back sure). A
     photo's flag is worded as if not rectified (the CLI keeps no frame); only whether there is a
-    flag is used here. Carbon's flag, and VECTOR_FALLBACK's on a drawn PDF the vector reader has
-    no rules for, are given whatever the route: a page another route read has no Decisions
-    probability, so it is not sure either way."""
+    flag is used here. Carbon's flag is given whatever the route: a page another route read has no
+    Decisions probability, so it is not sure either way. VECTOR_FALLBACK's only on a drawn PDF
+    `images` says ingest read as an image (Pipeline.read_as_image), not on one the vector route
+    read (review-348 S1)."""
     kind = kind_of(path)
     carbon = None if carbon_read is None else carbon_read(path)
-    as_image = kind == "pdf_vector" and unruled is not None and unruled(files.read(path))
+    as_image = kind == "pdf_vector" and path in images
     return reading_flags(cast(ContentKind, kind), None, carbon, as_image)
 
 
@@ -703,6 +728,17 @@ class EvidenceIndexes:
         return ProjectEvidence(self._store, self._status_of(project_id), self._credit_of)
 
 
+def build_models_3d(settings: Settings) -> GlbModels | None:
+    """MODEL_3D: the 3D views of IFC files, cached beside the projects' drawing models; None off."""
+    if not settings.model_3d:
+        return None
+    return GlbModels(
+        settings.projects_dir / "models-3d",
+        settings.model_3d_memory_mb,
+        settings.model_3d_timeout_s,
+    )
+
+
 def build_ingest(
     settings: Settings,
     root: Path,
@@ -732,6 +768,8 @@ def build_ingest(
     }
     if settings.raster_scale != "off":  # named only when on: the default keeps its cache keys
         names["raster_scale"] = settings.raster_scale
+    if settings.scale_carbon_doors != "off":  # the same
+        names["scale_carbon_doors"] = settings.scale_carbon_doors
     if settings.raster_printed_scale != "off":  # the same
         names["raster_printed_scale"] = settings.raster_printed_scale
     if settings.raster_photo_components:  # the same
@@ -742,8 +780,9 @@ def build_ingest(
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
         names["raster_tiles"] = settings.raster_tiles
-    if settings.vector_fallback != "off":  # the same
-        names["vector_fallback"] = settings.vector_fallback
+    if settings.vector_fallback != "off":  # the same; v2 reads the page only when the vector
+        # reader read nothing, and keeps that reading only when it found something (r10)
+        names["vector_fallback"] = f"{settings.vector_fallback}:v2"
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         rule = (
@@ -807,6 +846,12 @@ def _raster(
     took: set[str] | None = None,
 ) -> Extractor:
     photo = settings.raster_photo_components
+    if settings.scale_carbon_doors == "on" and (
+        settings.raster_scale != "priors" or settings.carbon_reader != "large"
+    ):  # it changes PriorScale's no-door refusal, using CarbonThings' doors
+        raise InvalidInputError(
+            "SCALE_CARBON_DOORS=on needs RASTER_SCALE=priors and CARBON_READER=large"
+        )
     match settings.extractor_raster:
         case "hello":
             if photo:
@@ -840,6 +885,8 @@ def _raster(
             read = shipped
             if use_carbon is not None and settings.carbon_reader == "large":  # things drawn
                 read = CarbonThings(shipped, _carbon(settings, files), use_carbon, FEW_THINGS, took)
+                if settings.scale_carbon_doors == "on":  # outside CarbonThings: Carbon's doors
+                    read = CarbonDoorScale(read)
             elif use_carbon is not None:
                 read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
             if settings.carbon_levels != "off":  # Carbon reading on its own, as integ's test
@@ -1138,6 +1185,8 @@ def chat_model(settings: Settings) -> tuple[ChatModel | None, str | None]:
                 settings.agent_model,
                 settings.agent_price_in_per_m,
                 settings.agent_price_out_per_m,
+                thinking=settings.agent_thinking,
+                price_cached=settings.agent_price_cached_per_m,
             )
             return model, None
 
