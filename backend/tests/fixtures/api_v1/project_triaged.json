@@ -325,7 +325,9 @@
       "route": "vector",
       "source": "plans/flat-a.pdf",
       "state": "ready",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     }
   ],
   "skipped": [
