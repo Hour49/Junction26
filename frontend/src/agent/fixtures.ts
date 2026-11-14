@@ -3,7 +3,14 @@ import type { ChatTurn, Proposal } from './agent';
 
 export const DID = 'adeefbbcc17559fc';
 
-const base = { chat_id: 'c3f9a1b2c4d5', turn: 1, model: 'rules', cost_usd: 0, latency_s: 0.3 };
+const base = {
+  chat_id: 'c3f9a1b2c4d5',
+  turn: 1,
+  model: 'rules',
+  cost_usd: 0,
+  latency_s: 0.3,
+  answers: [],
+};
 
 export const answerTurn: ChatTurn = {
   ...base,

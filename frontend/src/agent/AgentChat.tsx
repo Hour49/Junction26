@@ -173,7 +173,14 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         </div>
       )}
       {r.status === 'done' && (
-        <TurnCard turn={r.turn} projectId={projectId} busy={busy} onAsk={ask} />
+        <TurnCard
+          turn={r.turn}
+          projectId={projectId}
+          project={project}
+          pack={query?.get('pack') ?? null}
+          busy={busy}
+          onAsk={ask}
+        />
       )}
     </article>
   );

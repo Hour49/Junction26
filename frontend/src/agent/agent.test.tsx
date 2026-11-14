@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { drawing, project } from '../api/fixtures';
+import { answerRefused, drawing, project, projectAsk } from '../api/fixtures';
 import { mockApi, never, reply } from '../test/mockApi';
 import {
   changeLines,
@@ -38,7 +38,16 @@ afterEach(() => {
 });
 
 function card(turn = answerTurn, onAsk = vi.fn()) {
-  render(<TurnCard turn={turn} projectId={PID} busy={false} onAsk={onAsk} />);
+  render(
+    <TurnCard
+      turn={turn}
+      projectId={PID}
+      project={project}
+      pack={null}
+      busy={false}
+      onAsk={onAsk}
+    />,
+  );
   return onAsk;
 }
 
@@ -136,7 +145,14 @@ describe('TurnCard', () => {
 
   it('AC-31 dont_know: the refusal look, "I don\'t know" headline and the reason; a failed step is marked', () => {
     const { container } = render(
-      <TurnCard turn={dontKnowTurn} projectId={PID} busy={false} onAsk={vi.fn()} />,
+      <TurnCard
+        turn={dontKnowTurn}
+        projectId={PID}
+        project={project}
+        pack={null}
+        busy={false}
+        onAsk={vi.fn()}
+      />,
     );
     expect(container.querySelector('.ag-card--dont_know')).toBeTruthy();
     expect(screen.getByText("I don't know.")).toBeTruthy();
@@ -171,6 +187,29 @@ describe('TurnCard', () => {
     card(dontKnowTurn); // options null: no chips, no label
     expect(screen.queryByRole('group', { name: 'Try one of these instead' })).toBeNull();
     expect(screen.queryByText('Try one of these instead')).toBeNull();
+  });
+
+  it('AC-31 a turn resting on ask results shows the ask chat card for them, without a second sources list', () => {
+    mockApi({});
+    card({ ...answerTurn, answers: [projectAsk] });
+    expect(screen.getByText(/is 7.56 m²/)).toBeTruthy(); // the agent's text stays
+    expect(screen.getByRole('list', { name: 'Per drawing' })).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'References' })).toBeTruthy();
+    expect(screen.queryByRole('list', { name: 'Sources' })).toBeNull();
+    expect(screen.getByText('2 steps · 0.3 s · $0')).toBeTruthy();
+  });
+
+  it("AC-31 ask results no drawing answered: no ask card, the agent's sources stay", () => {
+    const refused = {
+      ...projectAsk,
+      parts: projectAsk.parts.map((p) => ({
+        ...p,
+        answer: { ...answerRefused, drawing_id: p.drawing_id },
+      })),
+    };
+    card({ ...answerTurn, answers: [refused] });
+    expect(screen.queryByRole('list', { name: 'Per drawing' })).toBeNull();
+    expect(screen.getByRole('list', { name: 'Sources' })).toBeTruthy();
   });
 
   it('AC-32 edit turn renders the edit card', () => {

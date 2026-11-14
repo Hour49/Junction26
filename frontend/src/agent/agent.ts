@@ -6,6 +6,7 @@ type Schemas = components['schemas'];
 export type Box = [number, number, number, number];
 export type Point = [number, number];
 
+/** `answers`: the exact POST /ask results the turn rests on ([] otherwise); the chat shows them as the ask chat does. */
 export type ChatTurn = Schemas['ChatTurn'];
 export type ChatRequest = Schemas['ChatRequest'];
 export type Evidence = Schemas['ChatEvidence'];

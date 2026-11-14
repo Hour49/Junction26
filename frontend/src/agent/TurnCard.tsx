@@ -1,3 +1,5 @@
+import type { ProjectView } from '../api';
+import { ChatAnswer } from '../engineer/ChatAnswer';
 import { routeHref } from '../shell/route';
 import {
   LEVEL_WORD,
@@ -109,11 +111,16 @@ const HEADLINE: Partial<Record<ChatTurn['kind'], string>> = {
 export function TurnCard(props: {
   turn: ChatTurn;
   projectId: string;
+  /** For the pipeline's own answers (ChatAnswer): the project's drawings and the chat's rule pack. */
+  project: ProjectView;
+  pack: string | null;
   busy: boolean;
   onAsk: (message: string) => void;
   onDecided?: (p: Proposal) => void;
 }) {
-  const { turn, projectId, busy, onAsk } = props;
+  const { turn, projectId, project, pack, busy, onAsk } = props;
+  // The ask chat's card for each answer some drawing answered; it lists the references, so no sources list then.
+  const answers = turn.answers.filter((a) => a.parts.some((p) => p.answer.refusal === null));
   const headline = HEADLINE[turn.kind];
   const options = turn.options ?? [];
   return (
@@ -124,6 +131,9 @@ export function TurnCard(props: {
         </p>
       )}
       <Text turn={turn} projectId={projectId} />
+      {answers.map((a, i) => (
+        <ChatAnswer key={i} ask={a} project={project} projectId={projectId} pack={pack} />
+      ))}
       {turn.kind !== 'needs_input' && options.length > 0 && (
         <p className="en-small">{OPTIONS_LABEL}</p>
       )}
@@ -157,7 +167,9 @@ export function TurnCard(props: {
           onDecided={props.onDecided}
         />
       )}
-      {turn.evidence.length > 0 && <Sources turn={turn} projectId={projectId} />}
+      {turn.evidence.length > 0 && answers.length === 0 && (
+        <Sources turn={turn} projectId={projectId} />
+      )}
       <Steps turn={turn} />
     </div>
   );

@@ -255,3 +255,9 @@
     padding: 16px;
   }
 }
+
+/* The ask chat's answer inside an agent turn: its card as a bordered panel, not a card in a card. */
+.ag-card .en-chatcard {
+  box-shadow: none;
+  border: 1px solid var(--v-line);
+}
