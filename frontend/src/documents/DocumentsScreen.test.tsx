@@ -14,7 +14,7 @@ import issueAnsweredJson from '@fixtures/issue_answered.json';
 import type { FileStatus, Issue, IssueList, ProjectView } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { SourceFigure } from '../viewer/SourceFigure';
-import { flush, must } from '../ingest/testing';
+import { flush, must, sheet } from '../ingest/testing';
 import { issuesChanged } from '../shell/issueCount';
 import { DocumentsScreen } from './DocumentsScreen';
 
@@ -311,6 +311,25 @@ describe('DocumentsScreen (documents.md)', () => {
         card.getByRole<HTMLButtonElement>('button', { name: 'It does not belong' }).disabled,
       ).toBe(false);
     });
+  });
+
+  it('FT-25 a file read as a plan whose sheet the model doubts: its row says what it looks like', async () => {
+    const f = must(projectTriaged.files[1]);
+    const doubted: FileStatus = {
+      ...f,
+      state: 'ready',
+      triage: {
+        ...must(f.triage),
+        class: 'floor_plan',
+        verdict: null,
+        sheet: { ...sheet, decision: 'doubt' },
+      },
+    };
+    const body = { ...projectTriaged, files: [doubted] };
+    show(body, { ...projectIssues, project_id: body.id, issues: [] });
+    await flush();
+    const files = screen.getByRole('region', { name: 'Files' });
+    expect(files.textContent).toContain('A floor plan · Looks like: an elevation');
   });
 
   it('DOC-10 drawings and files: names, route words, Open and file links', async () => {

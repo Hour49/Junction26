@@ -1,7 +1,7 @@
 import { drawingLabel, type ProjectView, type Triage } from '../api';
 import { formatSize, isFinished, kindLabel, plural, routeLabel } from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
-import { isNotPlan, rowLine, verdictOf } from '../ingest/triage';
+import { isNotPlan, looksLike, rowLine, verdictOf } from '../ingest/triage';
 import { shortReason } from './documents';
 
 /** A triaged non-plan's row line (file-triage.md flow 1): class, subject, verdict pill, whose call. */
@@ -78,6 +78,8 @@ export function DocumentLists({ project }: { project: ProjectView }) {
                       </span>
                     ) : f.triage && isNotPlan(f) ? (
                       <TriageLine triage={f.triage} />
+                    ) : f.triage && looksLike(f.triage) ? (
+                      <span className="reason">{rowLine(f.triage)}</span>
                     ) : (
                       shortReason(f) && <span className="reason">{shortReason(f)}</span>
                     )}
