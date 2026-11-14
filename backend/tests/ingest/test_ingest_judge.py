@@ -32,7 +32,7 @@ def test_a_schedule_sheet_whose_tables_were_read_is_not_said_to_have_read_nothin
     state, reason = judge(sheet((DOORS,)), "pdf_vector", "vector", "pdf")
     assert (state, reason) == (
         "ready",
-        "read on the vector route: 0 elements, 0 rooms, 1 schedule, scale no_scale",
+        "read on the vector route: 0 elements, 0 rooms, 1 schedule, no scale on the sheet",
     )
 
 

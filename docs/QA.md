@@ -15,7 +15,7 @@ demo show.
 | --- | --- | --- | --- |
 | 1 | Open the app at `http://127.0.0.1:4173/#/` | Home: drop zone, "Choose a file", "Try the sample project", earlier projects; the strip "Running offline: no API keys, no models" | yes |
 | 2 | Click "Try the sample project" | `#/p/<id>`: "sample-project.zip", files finish one by one, then "Done", "11 of 11 files finished", cost $0.00; every file row has its state in words (no keys: 3 ready, 4 flagged, 2 set aside, 2 text only; with keys the raster reader reads the two scans: 5 ready, 2 flagged, 2 set aside, 2 text only); 5 drawings | yes |
-| 3 | Click the file `plans/flat-b.pdf` | Its trace: "flagged", "1 conflict(s) between the two methods (room_area) ...", stages unpack to write, `second_count` "5 quantities measured twice, 1 conflict(s)" | yes |
+| 3 | Click the file `plans/flat-b.pdf` | Its trace: "flagged", "1 conflict between the two methods (room_area) ...", stages unpack to write, `second_count` "5 quantities measured twice, 1 conflict" | yes |
 | 4 | Click "Open the drawing" | Engineer: "plans/flat-b.pdf", how it was read, page 1 of the plan, suggested questions | yes |
 | 5 | Click "How many doors are there?" | `2`, "door count", marks 1 and 2 on the doors, the counting rule, "One method", cost $0 | yes |
 | 6 | Ask "What is the net floor area of room 1.01?" | `30.00 m²`, the kitchen shaded, "Methods disagree": "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas", and the rule that kept 30.00 | yes |

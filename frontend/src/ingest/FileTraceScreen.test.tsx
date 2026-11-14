@@ -4,7 +4,7 @@ import { drawing, error, trace } from '../api/fixtures';
 import type { FileTrace } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { FileTraceScreen } from './FileTraceScreen';
-import { formatMs, normalisedSteps } from './ingest';
+import { formatMs, kindLabel, normalisedSteps } from './ingest';
 import { flush, must, traceVariants } from './testing';
 
 const PID = trace.project_id;
@@ -43,9 +43,9 @@ describe('FileTraceScreen', () => {
     expect(screen.getByRole('heading', { name: f.path })).toBeTruthy();
     for (const s of [
       f.reason,
-      must(f.kind),
+      kindLabel(f.kind),
       must(f.route),
-      `read from ${must(f.source)}`,
+      must(f.source),
       must(f.group),
       '$0.00',
     ])
@@ -54,6 +54,9 @@ describe('FileTraceScreen', () => {
     expect(text).toContain(must(f.sha256).slice(0, 12));
     expect(must(document.querySelector('.ingest-facts')).textContent).not.toContain(must(f.sha256));
     expect(text).toMatch(/\d\.\d KB/);
+    // pre-QA: the Read from fact holds the path only, and the eyebrow has one marker (the badge, no dot)
+    expect(must(document.querySelector('.ingest-facts')).textContent).not.toContain('read from');
+    expect(document.querySelector('.ingest-head .ingest-dot')).toBeNull();
   });
 
   it('IN-33 every stage in order with label, did, ms; output only when it adds something', async () => {
@@ -112,7 +115,7 @@ describe('FileTraceScreen', () => {
     const failed = must(document.querySelector('.ingest-trace li.failed'));
     expect(must(failed.querySelector('b')).textContent).toBe('Extract');
     expect(failed.textContent).toContain('Failed: no page could be read');
-    expect(failed.querySelector('[aria-hidden="true"]')).toBeTruthy();
+    expect(failed.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('failed');
     expect(screen.getByText('set aside')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Open the drawing' })).toBeNull();
   });
@@ -250,5 +253,31 @@ describe('FileTraceScreen', () => {
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     expect(must(document.querySelector('summary')).textContent).toBe('What it ends as: 1 quantity');
+  });
+
+  it('IN-65 the restyled trace keeps its names; done stages carry "done", a failed one "failed"', async () => {
+    mockApi({ [GET]: trace });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(screen.getByRole('link', { name: 'Back to the project' }).getAttribute('href')).toBe(
+      `#/p/${PID}`,
+    );
+    expect(screen.getByRole('heading', { level: 1, name: trace.file.path })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open the drawing' })).toBeTruthy();
+    const items = [...document.querySelectorAll('.ingest-trace > li')];
+    expect(items).toHaveLength(trace.stages.length);
+    items.forEach((li, i) => {
+      const s = must(trace.stages[i]);
+      expect(li.textContent).toContain(s.did);
+      expect(li.textContent).toContain(formatMs(s.ms));
+      expect(li.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('done');
+    });
+    cleanup();
+    mockApi({ [GET]: traceVariants.failed });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const failed = must(document.querySelectorAll('.ingest-trace > li')[6]);
+    expect(failed.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('failed');
+    expect(failed.textContent).toContain('Failed: no page could be read');
   });
 });

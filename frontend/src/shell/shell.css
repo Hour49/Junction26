@@ -1,21 +1,44 @@
-/* Tokens from the mock (demo/style.css); every screen's CSS may use them. */
+/* Vellum tokens (docs/specs/frontend/shared.md "Design tokens"); every screen's CSS uses only these. */
 :root {
-  --paper: #f4f1ea;
-  --panel: #fffdf8;
-  --ink: #1b2230;
-  --mute: #667085;
-  --line: #d8d2c4;
-  --line-soft: #e8e3d7;
-  --accent: #c8402a;
-  --accent-soft: #f6ddd6;
-  --ok: #2c7a4b;
-  --ok-soft: #dcefe2;
-  --warn: #a8690f;
-  --warn-soft: #f7e7c6;
-  --blue: #24588f;
-  --blue-soft: #dbe7f3;
+  --v-bg: #f5f5f7;
+  --v-surface: #ffffff;
+  --v-text: #1d1d1f;
+  --v-muted: #6e6e73;
+  --v-line: #d2d2d7;
+  --v-accent: #3d5a4f;
+  --v-accent-strong: #2a3f37;
+  --v-warn: #8a4b00;
+  --v-warn-soft: #fff3e0;
+  --v-ok: #1f6b3b;
+  --v-danger: #a1302a;
+  --v-radius: 24px;
+  --v-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px rgba(0, 0, 0, 0.06);
+  --v-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif;
+  --v-text-2: #48484a;
+  --v-ok-soft: #e8f5ec;
+  --v-danger-soft: #fdecea;
+  --v-accent-soft: #e6eeea;
+  --v-fill: #f0f1f0;
+  /* What the sticky header covers at the top of the viewport: other sticky elements use `top: var(--v-header-h)`.
+     76px = row padding 14 + 14 and the 48 px pills; 0 on the phone, where the header is not sticky. */
+  --v-header-h: 76px;
+  /* Round-1 names, kept as aliases until every screen is restyled (shared.md Open points 13). */
+  --paper: var(--v-bg);
+  --panel: var(--v-surface);
+  --ink: var(--v-text);
+  --mute: var(--v-muted);
+  --line: var(--v-line);
+  --line-soft: var(--v-fill);
+  --accent: var(--v-accent);
+  --accent-soft: var(--v-accent-soft);
+  --ok: var(--v-ok);
+  --ok-soft: var(--v-ok-soft);
+  --warn: var(--v-warn);
+  --warn-soft: var(--v-warn-soft);
+  --blue: var(--v-accent);
+  --blue-soft: var(--v-accent-soft);
   --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --sans: var(--v-font);
 }
 * {
   box-sizing: border-box;
@@ -25,10 +48,17 @@ body {
   margin: 0;
 }
 body {
-  background: var(--paper);
-  color: var(--ink);
-  font: 14px/1.45 var(--sans);
+  background: var(--v-bg);
+  color: var(--v-text);
+  font: 16px/1.5 var(--v-font);
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+}
+a {
+  color: var(--v-accent);
+}
+a:hover {
+  color: var(--v-accent-strong);
 }
 button {
   font: inherit;
@@ -36,20 +66,268 @@ button {
   cursor: pointer;
 }
 
-.app-header {
+/* Focus: ours, the designs draw none. */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 2px;
+}
+/* App focuses <main tabindex=-1> on a route change so screen readers start there; it is not a control, so no
+   ring around the whole page. */
+main[tabindex='-1']:focus,
+main[tabindex='-1']:focus-visible {
+  outline: none;
+}
+
+/* Type */
+.v-hero {
+  margin: 0;
+  max-width: 16ch;
+  font-size: 64px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.v-title {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.v-h2 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.v-h3 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.v-caption {
+  font-size: 13px;
+  color: var(--v-muted);
+}
+
+/* Page frame: main is full width; each screen wraps its content in one .v-page. */
+.v-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 72px 24px 80px;
+}
+.v-page--narrow {
+  max-width: 820px;
+  padding: 48px 24px 72px;
+}
+.v-page--mid {
+  max-width: 1040px;
+  padding: 40px 24px 72px;
+}
+.v-page--wide {
+  max-width: 1280px;
+  padding: 40px 24px 72px;
+}
+
+/* Cards */
+.v-card {
+  background: var(--v-surface);
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  padding: 24px;
+}
+.v-card--hero {
+  border-radius: calc(var(--v-radius) + 4px);
+  padding: 48px 32px;
+}
+
+/* Buttons */
+.v-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--v-surface);
+  background: var(--v-accent);
+  border: 0;
+  border-radius: 980px;
+  padding: 12px 22px;
+  min-height: 44px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.v-btn:hover {
+  color: var(--v-surface);
+  background: var(--v-accent-strong);
+}
+.v-btn[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+.v-btn--secondary {
+  color: var(--v-text);
+  background: var(--v-fill);
+  font-weight: 500;
+}
+.v-btn--secondary:hover {
+  color: var(--v-text);
+  background: var(--v-line);
+}
+.v-btn--round {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+.v-press {
+  transition:
+    transform 100ms ease-out,
+    box-shadow 160ms ease-out;
+}
+.v-press:active {
+  transform: scale(0.97);
+}
+
+/* Pills: a pill always says its state in words; the colour only repeats it. */
+.v-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--v-text-2);
+  background: var(--v-fill);
+  border-radius: 980px;
+  padding: 5px 11px;
+}
+.v-pill--ok {
+  color: var(--v-ok);
+  background: var(--v-ok-soft);
+}
+.v-pill--warn {
+  color: var(--v-warn);
+  background: var(--v-warn-soft);
+}
+.v-pill--danger {
+  color: var(--v-danger);
+  background: var(--v-danger-soft);
+}
+.v-pill--accent {
+  color: var(--v-accent-strong);
+  background: var(--v-accent-soft);
+}
+
+/* Segmented control: the header's view links, Ingest's Simple/Advanced. */
+.v-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--v-fill);
+  border-radius: 10px;
+}
+.v-segmented > a,
+.v-segmented > button {
   display: flex;
   align-items: center;
-  gap: 24px;
-  min-height: 56px;
-  padding: 0 16px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--v-text-2);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.v-segmented > [aria-current='page'],
+.v-segmented > [aria-pressed='true'] {
+  font-weight: 600;
+  color: var(--v-text);
+  background: var(--v-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* Header */
+.app-header {
+  position: sticky;
+  top: 0;
+  /* Opaque and above every screen layer (engineer.css goes up to 5): scrolled content never shows through. */
+  z-index: 10;
+  background: var(--v-surface);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+.app-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 14px 24px;
+}
+.app-header-row--wide {
+  max-width: 1280px;
 }
 .brand {
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--v-text);
   text-decoration: none;
+}
+.brand:hover {
+  color: var(--v-text);
+}
+.brand-logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--v-text);
+}
+.brand-name {
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.header-pill,
+.project-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 16px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--v-text);
+  background: var(--v-fill);
+  border: 0;
+  border-radius: 980px;
+  text-decoration: none;
+}
+.header-pill:hover {
+  color: var(--v-text);
+}
+.workspaces-link[aria-current='page'] {
+  color: var(--v-accent-strong);
+  background: var(--v-accent-soft);
 }
 /* A native <select> sizes to its longest option: cap it so a long project name never widens the page
    (R1-5-4). The open list still shows each option in full. */
@@ -57,49 +335,142 @@ button {
   flex: 0 1 320px;
   min-width: 0;
   max-width: 100%;
-  min-height: 32px;
+  margin-left: auto;
+  padding-right: 36px;
+  appearance: none;
+  text-overflow: ellipsis;
+  /* The chevron, from two token-coloured triangles (no image, no hard-coded colour). */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--v-muted) 50%),
+    linear-gradient(135deg, var(--v-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) 50%,
+    calc(100% - 15px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.project-picker:disabled {
+  color: var(--v-muted);
 }
 .project-picker-error {
+  flex-wrap: wrap;
   overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 500;
+  background-image: none;
+  padding-right: 16px;
 }
 .view-links {
-  display: flex;
-  gap: 4px;
-  margin: 0 auto;
-}
-.view-links a {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 14px;
-  color: var(--ink);
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-}
-.view-links a.current {
-  font-weight: 700;
-  border-bottom-color: var(--ink);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 6px;
+  flex: 0 0 auto;
 }
 
+/* Country picker: shows a name only; the rules are not applied yet (shared.md "Pending fields"). */
+.country {
+  position: relative;
+}
+.country-button {
+  padding: 4px 14px 4px 12px;
+}
+.country-button svg:last-child {
+  color: var(--v-muted);
+}
+.flag {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+.flag--square {
+  margin: 0 4px;
+}
+.country-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 3;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 8px;
+  background: var(--v-surface);
+  border-radius: 18px;
+  box-shadow: var(--v-shadow);
+}
+.country-pop-title,
+.country-pop-note {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--v-muted);
+}
+.country-pop-title {
+  font-weight: 600;
+}
+.country-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px;
+  text-align: left;
+  color: var(--v-text);
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+}
+.country-option:hover {
+  background: var(--v-fill);
+}
+.country-option-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.country-option-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.country-option-law {
+  font-size: 12px;
+  color: var(--v-muted);
+}
+.country-check {
+  color: var(--v-accent);
+}
+
+/* Info strip, under the header row */
 .info-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 16px;
-  min-height: 32px;
-  padding: 4px 16px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 8px 24px;
   font-size: 13px;
-  background: var(--warn-soft);
-  border-bottom: 1px solid var(--line);
+  color: var(--v-muted);
+}
+.info-bar--wide {
+  max-width: 1280px;
 }
 .info-bar .offline {
   font-weight: 600;
+  color: var(--v-warn);
+  background: var(--v-warn-soft);
+  border-radius: 980px;
+  padding: 3px 10px;
 }
 .info-bar-error {
-  background: var(--accent-soft);
+  color: var(--v-danger);
+}
+.info-bar button {
+  font-size: 13px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 980px;
+  background: var(--v-fill);
+  color: var(--v-text);
 }
 .what-runs {
   margin-left: auto;
@@ -123,66 +494,144 @@ button {
 
 /* File strings (names, paths) can be one unbreakable word: let them wrap rather than widen the page (R1-5-4). */
 main {
-  max-width: 1440px;
   min-width: 0;
-  margin: 0 auto;
-  padding: 16px;
-  outline: none;
   overflow-wrap: anywhere;
 }
+
+/* Shared views */
 .loading {
-  color: var(--mute);
+  color: var(--v-muted);
 }
 .error-view,
 .not-found {
   display: grid;
   gap: 8px;
   justify-items: start;
-  padding: 16px;
-  background: var(--panel);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
+  background: var(--v-surface);
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  padding: 24px;
   overflow-wrap: anywhere;
 }
-.not-found {
-  border-color: var(--line);
+.error-view h2,
+.not-found h2 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.error-view h2 {
+  color: var(--v-danger);
+}
+.error-view p,
+.not-found p {
+  margin: 0;
+}
+.error-view button {
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 980px;
+  background: var(--v-fill);
+  color: var(--v-text);
+  font-weight: 500;
 }
 .error-code {
   font-family: var(--mono);
-  color: var(--mute);
+  font-size: 13px;
+  color: var(--v-muted);
 }
 .credit {
-  font-size: 12px;
-  color: var(--mute);
+  font-size: 13px;
+  color: var(--v-muted);
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 720px) {
+  :root {
+    --v-header-h: 0px;
+  }
+  /* Three rows (about 190 px) would cover a quarter of the screen: on the phone the header scrolls away. */
   .app-header {
-    flex-wrap: wrap;
-    gap: 0;
-    padding: 8px 16px 0;
+    position: static;
   }
-  .brand {
-    width: 100%;
-    padding-bottom: 8px;
+  .v-hero {
+    font-size: 40px;
   }
-  .project-picker {
-    flex-basis: 100%;
-    width: 100%;
-    max-width: 100%;
+  .v-title {
+    font-size: 32px;
+  }
+  .v-page {
+    padding: 40px 16px 56px;
+  }
+  .v-page--narrow,
+  .v-page--mid,
+  .v-page--wide {
+    padding: 24px 16px 56px;
+  }
+  .v-card {
+    padding: 20px;
+  }
+  .v-segmented > a,
+  .v-segmented > button {
     min-height: 44px;
   }
+  .app-header-row {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+  }
+  /* Line 1: logo, name, Workspaces; line 2: project and country pickers; line 3: the view links. */
+  .brand {
+    order: 1;
+  }
+  .workspaces-link {
+    order: 2;
+    margin-left: auto;
+  }
+  .project-picker {
+    order: 3;
+    flex: 1 1 180px;
+    max-width: 100%;
+    margin-left: 0;
+  }
+  .country {
+    order: 4;
+  }
+  .country-name {
+    display: none;
+  }
   .view-links {
-    width: 100%;
-    margin: 0;
+    order: 5;
+    display: flex;
+    flex: 1 1 100%;
+  }
+  .view-links {
+    min-width: 0;
   }
   .view-links a {
     flex: 1;
-    justify-content: center;
+    min-width: 0;
+    padding: 8px 6px;
+  }
+  .info-bar {
+    padding: 8px 16px;
   }
   .what-runs {
     margin-left: 0;
     width: 100%;
+  }
+  .error-view,
+  .not-found {
+    padding: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+  .v-press:active {
+    transform: none;
   }
 }

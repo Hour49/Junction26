@@ -3,9 +3,9 @@ import type { MarkView, Normalised, PageView } from '../api/types';
 export type PageWidth = 400 | 1600 | 3200;
 const WIDTHS: readonly PageWidth[] = [400, 1600, 3200];
 
-export const ACCENT = '#c8402a';
-export const INK = '#1b1f27';
-export const GREY = '#8a909c';
+// Shell tokens (shared.md); a mark's colour reaches viewer.css as the custom property --vw-c.
+export const ACCENT = 'var(--v-accent)';
+export const MUTED = 'var(--v-muted)';
 
 /** The smallest served page width that covers the frame's device pixels; 3200 when none does. */
 export function pickWidth(cssWidth: number, dpr: number, zoom: number): PageWidth {

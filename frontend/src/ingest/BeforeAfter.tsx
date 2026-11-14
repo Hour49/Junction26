@@ -39,7 +39,7 @@ export function BeforeAfter({
   const { data: drawing, error } = usePoll(load, once);
   const steps = normalisedSteps(normalised);
   return (
-    <section aria-label="Before and after" className="ingest-before-after">
+    <section aria-label="Before and after" className="v-card ingest-before-after">
       <div className="ingest-pair">
         <figure>
           <Picture

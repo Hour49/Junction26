@@ -1,16 +1,11 @@
 import { formatTime, formatValue, methodName, type Row } from '../api';
-import { statusWord } from './format';
 
-/** The row's review state in words: status, the second method or the conflict, estimate, edits. */
+/** The row's review state in words (the status is the pill beside it): the second method or the conflict, estimate, edits. */
 export function ChecksPanel({ row }: { row: Row }) {
   const { conflict, first, second, settled } = row;
   const value = (v: number) => formatValue(v, row.unit);
   return (
     <div className="en-checks">
-      <h4>Checks</h4>
-      <p>
-        Status: <b className={`en-status en-status-${row.status}`}>{statusWord(row.status)}</b>
-      </p>
       {conflict ? (
         <>
           <ul className="en-conflict">

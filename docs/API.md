@@ -249,7 +249,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
       "kind": "pdf_vector",
       "state": "ready",
-      "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+      "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
       "group": "plans/flat-a",
       "route": "vector",
       "source": "plans/flat-a.pdf",
@@ -340,7 +340,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
       "kind": "png_plan",
       "state": "ready",
-      "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+      "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
       "group": "plans/flat-a",
       "route": "vector",
       "source": "plans/flat-a.pdf",
@@ -440,7 +440,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict(s) between the two methods (room_area) (7 elements, 5 rooms, scale scaled)",
+      "reason": "1 conflict between the two methods (room_area) (7 elements, 5 rooms, scale read from the sheet)",
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",
@@ -775,7 +775,7 @@ after a restart cut that run off:
     "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
     "kind": "pdf_vector",
     "state": "ready",
-    "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+    "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
     "group": "plans/flat-a",
     "route": "vector",
     "source": "plans/flat-a.pdf",
@@ -880,7 +880,7 @@ after a restart cut that run off:
       "stage": "identify",
       "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
       "ms": 12.5,
-      "output": "pdf_vector",
+      "output": "drawn PDF",
       "failure": null,
       "cost_usd": 0.0
     },
@@ -888,7 +888,7 @@ after a restart cut that run off:
       "stage": "group",
       "did": "plans/flat-a: flat-a.pdf, flat-a.png",
       "ms": 12.5,
-      "output": "2 file(s)",
+      "output": "2 files",
       "failure": null,
       "cost_usd": 0.0
     },
@@ -902,25 +902,25 @@ after a restart cut that run off:
     },
     {
       "stage": "normalise",
-      "did": "1 page(s), page 1 is 600 x 400 pt",
+      "did": "1 page, page 1 is 600 x 400 pt",
       "ms": 12.5,
-      "output": "1 page(s), page 1 is 600 x 400 pt",
+      "output": "1 page, page 1 is 600 x 400 pt",
       "failure": null,
       "cost_usd": 0.0
     },
     {
       "stage": "extract",
-      "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+      "did": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "ms": 12.5,
-      "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+      "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "failure": null,
       "cost_usd": 0.0
     },
     {
       "stage": "second_count",
-      "did": "5 quantities measured twice, 0 conflict(s)",
+      "did": "5 quantities measured twice, 0 conflicts",
       "ms": 12.5,
-      "output": "5 quantities measured twice, 0 conflict(s)",
+      "output": "5 quantities measured twice, 0 conflicts",
       "failure": null,
       "cost_usd": 0.0
     },
@@ -1015,7 +1015,7 @@ upload lists the files, instead of one request per file.
         "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
         "kind": "pdf_vector",
         "state": "ready",
-        "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+        "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
         "group": "plans/flat-a",
         "route": "vector",
         "source": "plans/flat-a.pdf",
@@ -1120,7 +1120,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
           "ms": 12.5,
-          "output": "pdf_vector",
+          "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1128,7 +1128,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "plans/flat-a: flat-a.pdf, flat-a.png",
           "ms": 12.5,
-          "output": "2 file(s)",
+          "output": "2 files",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1142,25 +1142,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 600 x 400 pt",
+          "did": "1 page, page 1 is 600 x 400 pt",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 600 x 400 pt",
+          "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "did": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "ms": 12.5,
-          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "5 quantities measured twice, 0 conflict(s)",
+          "did": "5 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "5 quantities measured twice, 0 conflict(s)",
+          "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1195,7 +1195,7 @@ upload lists the files, instead of one request per file.
         "sha256": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
         "kind": "png_plan",
         "state": "ready",
-        "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+        "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
         "group": "plans/flat-a",
         "route": "vector",
         "source": "plans/flat-a.pdf",
@@ -1309,7 +1309,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawing as a PNG (1200x800 px, 93% white, 99% paper, 0.0% ink)",
           "ms": 12.5,
-          "output": "png_plan",
+          "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1317,7 +1317,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "plans/flat-a: flat-a.pdf, flat-a.png",
           "ms": 12.5,
-          "output": "2 file(s)",
+          "output": "2 files",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1331,25 +1331,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 1200 x 800 px",
+          "did": "1 page, page 1 is 1200 x 800 px",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 1200 x 800 px",
+          "output": "1 page, page 1 is 1200 x 800 px",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "did": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "ms": 12.5,
-          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "5 quantities measured twice, 0 conflict(s)",
+          "did": "5 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "5 quantities measured twice, 0 conflict(s)",
+          "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1384,7 +1384,7 @@ upload lists the files, instead of one request per file.
         "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
         "kind": "pdf_vector",
         "state": "flagged",
-        "reason": "1 conflict(s) between the two methods (room_area) (7 elements, 5 rooms, scale scaled)",
+        "reason": "1 conflict between the two methods (room_area) (7 elements, 5 rooms, scale read from the sheet)",
         "group": "plans/flat-b",
         "route": "vector",
         "source": "plans/flat-b.pdf",
@@ -1489,7 +1489,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
           "ms": 12.5,
-          "output": "pdf_vector",
+          "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1497,7 +1497,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "plans/flat-b: flat-b.pdf",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1511,25 +1511,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 600 x 400 pt",
+          "did": "1 page, page 1 is 600 x 400 pt",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 600 x 400 pt",
+          "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "did": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "ms": 12.5,
-          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "5 quantities measured twice, 1 conflict(s)",
+          "did": "5 quantities measured twice, 1 conflict",
           "ms": 12.5,
-          "output": "5 quantities measured twice, 1 conflict(s)",
+          "output": "5 quantities measured twice, 1 conflict",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1564,7 +1564,7 @@ upload lists the files, instead of one request per file.
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
         "kind": "png_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, scale no_scale)",
+        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
         "group": "scans/ground-floor",
         "route": "raster",
         "source": "scans/ground-floor.png",
@@ -1606,7 +1606,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
           "ms": 12.5,
-          "output": "png_plan",
+          "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1614,7 +1614,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "scans/ground-floor: ground-floor.png",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1628,25 +1628,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 1200 x 850 px",
+          "did": "1 page, page 1 is 1200 x 850 px",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 1200 x 850 px",
+          "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "did": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "ms": 12.5,
-          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "0 quantities measured twice, 0 conflict(s)",
+          "did": "0 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "0 quantities measured twice, 0 conflict(s)",
+          "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1678,7 +1678,7 @@ upload lists the files, instead of one request per file.
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
         "kind": "png_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, scale no_scale)",
+        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
         "group": "scans/ground-floor-copy",
         "route": "raster",
         "source": "scans/ground-floor-copy.png",
@@ -1720,7 +1720,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
           "ms": 12.5,
-          "output": "png_plan",
+          "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1728,7 +1728,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "scans/ground-floor-copy: ground-floor-copy.png",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1750,25 +1750,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 1200 x 850 px",
+          "did": "1 page, page 1 is 1200 x 850 px",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 1200 x 850 px",
+          "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "did": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "ms": 12.5,
-          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "0 quantities measured twice, 0 conflict(s)",
+          "did": "0 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "0 quantities measured twice, 0 conflict(s)",
+          "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1800,7 +1800,7 @@ upload lists the files, instead of one request per file.
         "sha256": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
         "kind": "photo_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read; a phone photo, read without perspective correction (0 elements, 0 rooms, scale no_scale)",
+        "reason": "no reader for the raster route yet: nothing was read; a phone photo, read without perspective correction (0 elements, 0 rooms, no scale on the sheet)",
         "group": "photos/plan-photo",
         "route": "raster",
         "source": "photos/plan-photo.jpg",
@@ -1842,7 +1842,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink, camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
-          "output": "photo_plan",
+          "output": "photo of a drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1850,7 +1850,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "photos/plan-photo: plan-photo.jpg",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1864,25 +1864,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 1600 x 1200 px",
+          "did": "1 page, page 1 is 1600 x 1200 px",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 1600 x 1200 px",
+          "output": "1 page, page 1 is 1600 x 1200 px",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "did": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "ms": 12.5,
-          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "0 quantities measured twice, 0 conflict(s)",
+          "did": "0 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "0 quantities measured twice, 0 conflict(s)",
+          "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2044,7 +2044,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "first bytes: an IFC building model (STEP)",
           "ms": 12.5,
-          "output": "ifc",
+          "output": "IFC model",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2052,7 +2052,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "model/house: house.ifc",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2141,7 +2141,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "first bytes: a DXF drawing",
           "ms": 12.5,
-          "output": "dxf",
+          "output": "DXF drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2149,7 +2149,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "cad/detail: detail.dxf",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2206,7 +2206,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
           "ms": 12.5,
-          "output": "pdf_text",
+          "output": "text PDF",
           "failure": null,
           "cost_usd": 0.0
         }
@@ -2255,7 +2255,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "plain text, 80 bytes",
           "ms": 12.5,
-          "output": "text",
+          "output": "text file",
           "failure": null,
           "cost_usd": 0.0
         }
@@ -5460,6 +5460,13 @@ formula in a spreadsheet.
   (`needs_person`: the methods disagree, no rule decides, nobody settled it), no longer those a rule decided or a
   person settled; `to_review` is unchanged. A `no-reader` refusal on a route with no reader (the stand-in) says
   "there is no reader for this kind of sheet yet", not that a reader found no elements.
+- 2026-11-14, text only (board #14 c6875409494): the human text of a file's `reason` and of the stage lines in
+  its trace (`did`, `output`) reads in plain words, no field changes. Counts agree with their number ("1 conflict",
+  "2 files", "1 page", "1 plan", "1 quantity"; was "1 conflict(s)", "2 file(s)", "1 page(s)", "1 plans",
+  "1 quantities"). The scale in them is a sentence by its status ("scale read from the sheet", "no scale on the
+  sheet", "sheet says it is not to scale", "scale estimated"; was "scale scaled"); `scale.status` is unchanged. The
+  `identify` stage's `output` is the kind in words ("drawn PDF", "scanned PDF", "PNG drawing", "photo of a
+  drawing"...; was "pdf_vector"); `FileStatus.kind` is unchanged.
 - 2026-11-14, additive (board #14): `POST /api/drawings/{id}/signoff` takes an optional `settle: true`: the
   quantity's current value is settled and signed off in one call (same 409 rules; with `undo` it is 422).
 - 2026-11-14, additive (the Vellum redesign's fields, part 2, board #14): review action `unsettle` (drops the settled

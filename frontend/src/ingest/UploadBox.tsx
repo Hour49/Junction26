@@ -5,6 +5,14 @@ import { useInfo } from '../shell/info';
 import { uploadTooLarge } from '../shell/limits';
 
 const ACCEPT = '.zip,.pdf,.png,.jpg,.jpeg,.ifc,.dxf,.svg,image/*';
+// What a route reads today; no DWG (no reader).
+const FORMATS = [
+  'IFC models',
+  'DXF',
+  'Vector PDF · SVG',
+  'PNG · JPG scans and photos',
+  'ZIP archives',
+];
 
 /** Start a project: drop or pick one file, or the sample archive. On 202 the app goes to the project. */
 export function UploadBox() {
@@ -56,55 +64,67 @@ export function UploadBox() {
 
   return (
     <section
-      className="ingest-drop"
-      aria-label="Start a project"
+      className="v-card v-card--hero ingest-drop"
+      aria-label="Drop drawings or an archive"
       onDragOver={(e) => {
         e.preventDefault();
       }}
       onDrop={onDrop}
     >
-      <h1>Drop a project here: one .zip, or one plan as PDF, image, IFC, DXF or SVG</h1>
-      <div className="ingest-actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={busy !== null}
-          onClick={() => {
-            picker.current?.click();
-          }}
-        >
-          Choose a file
-        </button>
-        <input
-          ref={picker}
-          type="file"
-          accept={ACCEPT}
-          hidden
-          disabled={busy !== null}
-          onChange={(e) => {
-            upload(e.target.files);
-            e.target.value = '';
-          }}
-        />
-        <button
-          type="button"
-          className="btn primary"
-          disabled={busy !== null}
-          onClick={() => {
-            void start('Starting the sample…', () => startSample({ fresh: true }));
-          }}
-        >
-          Try the sample project
-        </button>
+      <div className="ingest-zone">
+        <svg className="ingest-upload-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 16V4m0 0-5 5m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+        </svg>
+        <p className="v-h3">Drop a drawing or a .zip here</p>
+        <div className="ingest-actions">
+          <button
+            type="button"
+            className="v-btn v-press"
+            disabled={busy !== null}
+            onClick={() => {
+              picker.current?.click();
+            }}
+          >
+            Choose a file
+          </button>
+          <input
+            ref={picker}
+            type="file"
+            accept={ACCEPT}
+            hidden
+            disabled={busy !== null}
+            onChange={(e) => {
+              upload(e.target.files);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            className="v-btn v-btn--secondary v-press"
+            disabled={busy !== null}
+            onClick={() => {
+              void start('Starting the sample…', () => startSample({ fresh: true }));
+            }}
+          >
+            Try the sample project
+          </button>
+        </div>
+        <p className="v-caption">The sample starts from scratch each time.</p>
+        {busy && (
+          <p role="status" aria-live="polite">
+            {busy}
+          </p>
+        )}
+        {note && <p role="alert">{note}</p>}
+        {error !== null && <ErrorView error={error} />}
       </div>
-      <p className="ingest-hint">The sample starts from scratch each time.</p>
-      {busy && (
-        <p role="status" aria-live="polite">
-          {busy}
-        </p>
-      )}
-      {note && <p role="alert">{note}</p>}
-      {error !== null && <ErrorView error={error} />}
+      <ul className="ingest-chips" aria-label="Formats">
+        {FORMATS.map((f) => (
+          <li key={f} className="v-pill">
+            {f}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

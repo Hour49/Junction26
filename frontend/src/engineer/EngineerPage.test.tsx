@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { methodName, type AnswerView } from '../api';
+import { evidenceUrl, methodName, previewUrl, type AnswerView, type Row } from '../api';
 import {
   answer,
   answerArea,
@@ -10,6 +10,7 @@ import {
   drawing,
   error,
   info,
+  project,
 } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
 import { mockApi, never } from '../test/mockApi';
@@ -19,22 +20,27 @@ import {
   answerAgree,
   answerAreaExcluded,
   answerConflict,
+  answerLowScore,
   answerEdited,
   answerEstimate,
   answerNeedsPerson,
   answerSettled,
   answerSigned,
+  answerSure,
   answerUnlocated,
   answerWithMarkup,
   drawingHello,
   drawingNoSuggestions,
   markup,
+  projectNoFiles,
+  projectOneDrawing,
   refusalWithMarkup,
 } from './testing';
 
 const PROJECT = '5e0c1a2b3d4f';
 const DRAWING = drawing.id;
 const DRAWING_ROUTE = `GET /api/drawings/${DRAWING}`;
+const PROJECT_ROUTE = `GET /api/projects/${PROJECT}`;
 
 /** Answers POST /api/ask with the given responses in order. */
 function answers(...bodies: AnswerView[]) {
@@ -47,7 +53,8 @@ function answers(...bodies: AnswerView[]) {
 }
 
 function open(routes: Parameters<typeof mockApi>[0]) {
-  const api = mockApi(routes);
+  // The project (position, arrows, original file) loads beside the drawing; a test may override it.
+  const api = mockApi({ [PROJECT_ROUTE]: project, ...routes });
   render(<EngineerPage projectId={PROJECT} drawingId={DRAWING} />);
   return api;
 }
@@ -83,7 +90,8 @@ describe('drawing header and ask box', () => {
   it('R1-PS-1 EN-49 the drawing is requested in the route project', async () => {
     const api = open({ [DRAWING_ROUTE]: drawing });
     await screen.findByRole('heading', { name: drawing.file });
-    expect(api.calls.map((c) => c.url)).toEqual([`/api/drawings/${DRAWING}?project=${PROJECT}`]);
+    const drawings = api.calls.filter((c) => c.url.startsWith('/api/drawings/'));
+    expect(drawings.map((c) => c.url)).toEqual([`/api/drawings/${DRAWING}?project=${PROJECT}`]);
   });
 
   it('R1-PS-2 EN-50 every ask body carries the route project', async () => {
@@ -149,7 +157,7 @@ describe('drawing header and ask box', () => {
     expect(await screen.findByRole('heading', { name: 'plans/flat-a.pdf' })).toBeTruthy();
     expect(
       screen.getByText(
-        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count: PDF vector reader; questions: question templates',
+        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count where a question has one: PDF vector reader; questions: question templates',
       ),
     ).toBeTruthy();
   });
@@ -168,8 +176,8 @@ describe('drawing header and ask box', () => {
   it('EN-6 one button per suggestion, in order', async () => {
     open({ [DRAWING_ROUTE]: drawing });
     await screen.findByRole('heading', { name: 'plans/flat-a.pdf' });
-    const header = screen.getByRole('region', { name: 'Drawing' });
-    const names = within(header)
+    const row = screen.getByRole('group', { name: 'Suggested questions' });
+    const names = within(row)
       .getAllByRole('button')
       .map((b) => b.textContent);
     expect(names).toEqual(drawing.suggestions.map((s) => s.question));
@@ -237,7 +245,10 @@ describe('answers', () => {
   it('EN-13 a count shows its value with no unit and the label', async () => {
     const t = await shown(answer);
     expect(within(t).getByTestId('answer-value').textContent).toBe('2');
-    expect(within(t).getByText('door count')).toBeTruthy();
+    // Vellum: the sentence, composed from the answer, the noun and the label (#14 c6874945888).
+    expect(t.querySelector('.en-sentence')?.textContent).toBe(
+      'There are 2 doors. Every element, room and plan the drawing lists counts once.',
+    );
   });
 
   it('EN-14 a sum shows 52.27 m²', async () => {
@@ -355,7 +366,12 @@ describe('refusals and errors', () => {
     expect(t.textContent).not.toContain(answerRefused.refusal?.code ?? 'unsupported-question');
     expect(within(t).queryByTestId('answer-value')).toBeNull();
     expect(within(t).queryByRole('button', { name: /^Mark / })).toBeNull();
-    expect(within(t).queryByRole('link')).toBeNull();
+    // The answer's own links (surveyor, picture) are absent; the drawing arrows stay (preqa-b, EN-56).
+    expect(
+      within(t)
+        .queryAllByRole('link')
+        .filter((l) => !l.closest('nav')),
+    ).toEqual([]);
   });
 
   it('EN-40 a can_answer button asks that question', async () => {
@@ -459,31 +475,36 @@ describe('thread', () => {
     expect(scroll.mock.contexts.at(-1)).toBe(t);
   });
 
-  it('R2 qa-3 EN-52 the folded suggestions and Details keep the disclosure marker', async () => {
+  it('R2 qa-3 EN-52 the footer Details keeps the disclosure marker', async () => {
     open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer) });
     await askSuggestion(answer.question);
     const t = await turn(answer.question);
     await within(t).findByTestId('answer-value');
-    const header = screen.getByRole('region', { name: 'Drawing' });
-    const fold = within(header).getByText('Suggested questions');
-    expect(fold.tagName).toBe('SUMMARY');
-    expect(fold.style.display).toBe('list-item');
     const details = within(t).getByText('Details');
     expect(details.tagName).toBe('SUMMARY');
     expect(details.style.display).toBe('list-item');
   });
 
-  it('review fix 2: after the first answer the suggestions fold into a closed details', async () => {
-    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer) });
-    const header = await screen.findByRole('region', { name: 'Drawing' });
-    expect(within(header).queryByText('Suggested questions')).toBeNull();
-    await askSuggestion('How many doors are there?');
-    await within(await turn('How many doors are there?')).findByTestId('answer-value');
-    const fold = within(header).getByText('Suggested questions').closest('details');
-    expect(fold?.open).toBe(false);
-    expect(within(fold as HTMLElement).getAllByRole('button', { hidden: true })).toHaveLength(
-      drawing.suggestions.length,
-    );
+  it('EN-60 suggestion chips sit after the thread; after a refusal they show once, in the refusal card', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused, answer) });
+    const before = await screen.findByRole('group', { name: 'Suggested questions' });
+    expect(before.closest('article')).toBeNull();
+    await typeAndAsk(answerRefused.question);
+    const t = await turn(answerRefused.question);
+    await within(t).findByText("I can't answer that from this drawing.");
+    // orch 12:20 (testers): no second row of the same questions right under the refusal
+    for (const q of answerRefused.refusal?.can_answer ?? []) {
+      expect(screen.getAllByRole('button', { name: q.question })).toHaveLength(1);
+      expect(within(t).getByRole('button', { name: q.question })).toBeTruthy();
+    }
+    expect(screen.queryByRole('group', { name: 'Suggested questions' })).toBeNull();
+    // the next answer brings the row back after the thread
+    fireEvent.click(within(t).getByRole('button', { name: answer.question }));
+    await within(await turn(answer.question)).findByTestId('answer-value');
+    const row = screen.getByRole('group', { name: 'Suggested questions' });
+    expect(row.closest('article')).toBeNull();
+    expect(screen.queryByText('Suggested questions')).toBeNull();
+    expect(document.querySelector('details:not(.en-details)')).toBeNull();
   });
 });
 
@@ -777,9 +798,10 @@ describe('extended answers', () => {
 describe('drawing header states', () => {
   it('EN-5 a hello reader: not read, never "by hello"', async () => {
     open({ [DRAWING_ROUTE]: drawingHello });
-    const header = await screen.findByRole('region', { name: 'Drawing' });
-    expect(header.textContent).toContain('not read (no reader for this route yet)');
-    expect(header.textContent).not.toContain('by hello');
+    await screen.findByText('No ready questions for this drawing.');
+    const page = document.body.textContent;
+    expect(page).toContain('not read (no reader for this route yet)');
+    expect(page).not.toContain('by hello');
     expect(
       screen.getByText('Its route has no reader yet, so questions will be refused.'),
     ).toBeTruthy();
@@ -792,7 +814,7 @@ describe('drawing header states', () => {
   });
 
   it('EN-11 the question length limit from /api/info', async () => {
-    mockApi({ 'GET /api/info': info, [DRAWING_ROUTE]: drawing });
+    mockApi({ 'GET /api/info': info, [DRAWING_ROUTE]: drawing, [PROJECT_ROUTE]: project });
     render(
       <InfoProvider>
         <EngineerPage projectId={PROJECT} drawingId={DRAWING} />
@@ -805,5 +827,239 @@ describe('drawing header states', () => {
     fireEvent.change(input(), { target: { value: 'x'.repeat(2001) } });
     expect(await screen.findByText('Questions are at most 2000 characters.')).toBeTruthy();
     expect(askButton().disabled).toBe(true);
+  });
+});
+
+describe('Vellum (screen 4)', () => {
+  it('EN-54 the turn: bubble, sentence with the rule, then the card: plan left, value, checks, rule, references right', async () => {
+    const t = await shownTurn(answer);
+    const parts = [...t.children].map((e) => e.className);
+    expect(parts).toEqual(['en-bubble', 'en-sentence', 'v-card en-card']);
+    expect(within(t).getByRole('figure', { name: 'Drawing' }).closest('.en-left')).toBeTruthy();
+    const side = t.querySelector('.en-side') as HTMLElement;
+    expect(within(side).getByTestId('answer-value').textContent).toBe('2');
+    const order = ['Checks', 'One method', 'Counting rule:', 'References'].map((x) =>
+      side.textContent.indexOf(x),
+    );
+    expect(order.every((at, i) => at >= 0 && (i === 0 || at > (order[i - 1] ?? 0)))).toBe(true);
+    for (const word of ['Confidence', 'High', 'Medium', 'Low', 'Finland', 'Switzerland']) {
+      expect(t.textContent).not.toContain(word);
+    }
+  });
+
+  it('EN-55 page meta: kind and route on the viewer, Also as links, the position', async () => {
+    const t = await shownTurn(answer);
+    const fig = within(t).getByRole('figure', { name: 'Drawing' });
+    expect(fig.textContent).toContain('PDF vector · vector route');
+    const also = within(t).getByRole('link', { name: 'plans/flat-a.png' });
+    expect(also.getAttribute('href')).toBe(`#/p/${PROJECT}/d/c9b719f715357201/engineer`);
+    expect(within(t).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('EN-56 previous and next drawing wrap round; none for one drawing or before the project', async () => {
+    open({ [DRAWING_ROUTE]: drawing });
+    const next = await screen.findByRole('link', { name: 'Next drawing' });
+    expect(next.getAttribute('href')).toBe(
+      `#/p/${PROJECT}/d/${project.drawings[1]?.drawing_id ?? ''}/engineer`,
+    );
+    expect(screen.getByRole('link', { name: 'Previous drawing' }).getAttribute('href')).toBe(
+      `#/p/${PROJECT}/d/1db9bcf1e67e27a3/engineer`,
+    );
+  });
+
+  it('PREQA-B EN-56 a drawing with no page (building model) has the arrows and position', async () => {
+    open({ [DRAWING_ROUTE]: { ...drawing, pages: [] } });
+    const nav = await screen.findByRole('navigation', { name: 'Drawings' });
+    expect(within(nav).getByRole('link', { name: 'Next drawing' })).toBeTruthy();
+    expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
+    expect(within(nav).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+  });
+
+  it.each([
+    ['a building-model answer', answerModel],
+    ['a refusal', answerRefused],
+  ])('PREQA-B EN-56 %s card has the arrows and position', async (_, a) => {
+    const t = await shownTurn(a);
+    const nav = await within(t).findByRole('navigation', { name: 'Drawings' });
+    expect(within(nav).getByRole('link', { name: 'Next drawing' }).getAttribute('href')).toBe(
+      `#/p/${PROJECT}/d/${project.drawings[1]?.drawing_id ?? ''}/engineer`,
+    );
+    expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
+    expect(within(nav).getByText('1 / 5')).toBeTruthy();
+  });
+
+  it.each([
+    ['one drawing', projectOneDrawing],
+    ['pending', () => never()],
+    ['failed', { status: 500, body: { detail: 'internal error', code: 'internal' } }],
+  ])('EN-56 %s project: no arrows, no position; the screen works', async (_, body) => {
+    open({ [DRAWING_ROUTE]: drawing, [PROJECT_ROUTE]: body });
+    await screen.findByText('Ask a question about this drawing.');
+    expect(screen.queryByRole('link', { name: /drawing$/ })).toBeNull();
+    expect(screen.queryByText(/^\d+ \/ \d+$/)).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Question' })).toBeTruthy();
+  });
+
+  it.each([
+    [answer, 'One method', 'Only one method measured this; there is no second check.'],
+    [
+      answerAgree,
+      'Two methods agree',
+      'Two independent methods measured this and got the same value.',
+    ],
+    [
+      answerConflict,
+      'Methods disagree',
+      'Two methods measured different values; the checks below say which one is kept and why.',
+    ],
+    [
+      answerEstimate,
+      'Estimate',
+      'Measured with an estimated scale or method; treat it as approximate.',
+    ],
+    [answerEdited, 'Changed in review', 'A surveyor changed this value in review.'],
+    [answerSigned, 'Verified', 'A surveyor checked this value and signed it off.'],
+  ])('EN-57 the status pill %#: words, and its tooltip on focus', async (a, word, tip) => {
+    const t = await shownTurn(a);
+    const pill = within(t).getByText(word, { selector: '.en-pill' });
+    expect(within(t).queryByRole('tooltip')).toBeNull();
+    fireEvent.focus(pill);
+    const tooltip = within(t).getByRole('tooltip');
+    expect(tooltip.textContent).toBe(tip);
+    expect(pill.getAttribute('aria-describedby')).toBe(tooltip.id);
+    fireEvent.blur(pill);
+    expect(within(t).queryByRole('tooltip')).toBeNull();
+  });
+
+  const chips = (t: HTMLElement) => [...t.querySelectorAll<HTMLElement>('.en-refs li')];
+
+  it('EN-58 references: original file, the server proof, the second count; which are buttons', async () => {
+    const t = await shownTurn(answer);
+    const [one, two, three] = chips(t);
+    expect(one?.textContent).toBe(
+      '1Original fileplans/flat-a.pdfPDF vector reader read plans/flat-a.pdf (vector route), no second count',
+    );
+    expect(two?.textContent).toBe('2Proof drawn by the serverplans/flat-a.pdfPage 1 · marks 1–2');
+    expect(three?.textContent).toBe('3Second countno second count');
+    expect(one?.querySelector('button')).toBeTruthy();
+    expect(two?.querySelector('button')).toBeTruthy();
+    expect(three?.querySelector('button')).toBeNull();
+  });
+
+  it('EN-58 with a score the proof is no button; without the upload the original is none', async () => {
+    const t = await shownTurn(answerConfidence);
+    expect(chips(t)[1]?.querySelector('button')).toBeNull();
+    cleanup();
+    open({
+      [DRAWING_ROUTE]: drawing,
+      [PROJECT_ROUTE]: projectNoFiles,
+      'POST /api/ask': answers(answer),
+    });
+    await typeAndAsk(answer.question);
+    const u = await turn(answer.question);
+    await within(u).findByTestId('answer-value');
+    expect(chips(u)[0]?.querySelector('button')).toBeNull();
+  });
+
+  it('EN-59 the overlay: original file preview, focus to Close, Esc back to the chip; one at a time', async () => {
+    const t = await shownTurn(answer);
+    // The project arrives beside the drawing; the chip is a button once it has.
+    const original = await within(t).findByRole('button', { name: /^1Original file/ });
+    fireEvent.click(original);
+    const dialog = within(t).getByRole('dialog', { name: 'Original file: plans/flat-a.pdf' });
+    expect(within(dialog).getByRole('img').getAttribute('src')).toBe(previewUrl(PROJECT, 'f1'));
+    expect(original.getAttribute('aria-pressed')).toBe('true');
+    const close = within(dialog).getByRole('button', { name: 'Close the original' });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(within(t).queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(original);
+    fireEvent.click(original);
+    fireEvent.click(within(t).getByRole('button', { name: /^2Proof drawn/ }));
+    const dialogs = within(t).getAllByRole('dialog');
+    expect(dialogs).toHaveLength(1);
+    expect(
+      within(dialogs[0] as HTMLElement)
+        .getByRole('img')
+        .getAttribute('src'),
+    ).toBe(evidenceUrl(DRAWING, answer.question, { project: PROJECT }));
+  });
+
+  it('EN-61 the ask box: Question, placeholder with the file, Ask; no edit-plan link', async () => {
+    open({ [DRAWING_ROUTE]: drawing });
+    await screen.findByRole('textbox', { name: 'Question' });
+    expect(input().placeholder).toBe('Ask about plans/flat-a.pdf');
+    expect(askButton()).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Edit a house plan/ })).toBeNull();
+  });
+
+  it('EN-62 a refusal is a card: sentence, text, chips; no figure, value, references or footer', async () => {
+    const t = await shownTurn(answerRefused);
+    const card = t.querySelector('.v-card.en-refusal') as HTMLElement;
+    expect(card.textContent).toContain("I can't answer that from this drawing.");
+    expect(card.textContent).toContain(answerRefused.refusal?.text ?? '');
+    expect(within(card).getAllByRole('button')).toHaveLength(
+      answerRefused.refusal?.can_answer.length ?? 0,
+    );
+    expect(within(t).queryByRole('figure')).toBeNull();
+    expect(within(t).queryByTestId('answer-value')).toBeNull();
+    expect(within(t).queryByText('References')).toBeNull();
+    expect(t.querySelector('footer')).toBeNull();
+  });
+
+  it.each([
+    ['sure', answerSure, 'High'],
+    ['score 0.87', answerConfidence, 'Medium'],
+    ['score 0.5', answerLowScore, 'Low'],
+  ])('EN-67 grade: %s reads %s, with where it comes from', async (_, a, grade) => {
+    const t = await shownTurn(a);
+    const block = t.querySelector('.en-grade') as HTMLElement;
+    expect(within(block).getByText(grade)).toBeTruthy();
+    expect(block.textContent).toContain("From the Sure check and the second reader's score");
+  });
+
+  it('EN-67 grade: no Sure check and no score, no grade', async () => {
+    const t = await shownTurn(answer);
+    expect(t.querySelector('.en-grade')).toBeNull();
+  });
+
+  it('EN-68 Row.noun: "There are 2 doors." with the noun after the value; null keeps the label sentence', async () => {
+    const t = await shownTurn(answer);
+    expect(t.querySelector('.en-noun')?.textContent).toBe('doors');
+    expect(t.querySelector('[data-pending]')).toBeNull();
+    cleanup();
+    const none: AnswerView = { ...answer, quantity: { ...(answer.quantity as Row), noun: null } };
+    const u = await shownTurn(none);
+    expect(u.querySelector('.en-noun')).toBeNull();
+    expect(u.querySelector('.en-sentence')?.textContent).toMatch(/^Door count: 2\. /);
+  });
+
+  it('EN-68 a sum has no noun: the label sentence', async () => {
+    const t = await shownTurn(answerArea);
+    expect(t.querySelector('.en-noun')).toBeNull();
+    expect(t.querySelector('.en-sentence')?.textContent).toMatch(
+      /^Area of room \(indoor\): 52\.27 m²\. /,
+    );
+  });
+
+  it('EN-69 a check reason (#14 c6875035654) shows as a warning under the value; none without', async () => {
+    const reason = 'Please double-check: the readers disagree on 2 doors, marked on the drawing';
+    const t = await shownTurn({ ...answer, check: { reason, disputed: [] } } as AnswerView);
+    const line = within(t).getByRole('status');
+    expect(line.textContent).toBe(reason);
+    expect(line.getAttribute('data-pending')).toBe('AnswerView.check');
+    expect(line.previousElementSibling?.className).toBe('en-value-row');
+    cleanup();
+    const u = await shownTurn(answer);
+    expect(within(u).queryByRole('status')).toBeNull();
+  });
+
+  it("EN-55 the meta passed to the viewer is kind and route only: storey and scale are the viewer's", async () => {
+    const page = { ...(answer.pages[0] as AnswerView['pages'][number]), storey: 'Ground floor' };
+    const t = await shownTurn({ ...answer, pages: [page] });
+    const text = within(t).getByRole('figure', { name: 'Drawing' }).textContent;
+    expect(text).toContain('PDF vector · vector route');
+    expect(text.split('Ground floor')).toHaveLength(2);
+    expect(text.split('1:100')).toHaveLength(2);
   });
 });

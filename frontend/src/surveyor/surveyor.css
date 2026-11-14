@@ -1,4 +1,9 @@
-.sv-screen {
+/* the shell's .v-page frame (shared.md "Page frame"), kept a grid: the class pair outranks .v-page's flex */
+.v-page.sv-screen {
+  gap: 16px;
+}
+.sv-screen,
+.v-page.sv-screen {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 16px;
@@ -21,14 +26,21 @@
 }
 .sv-side h2 {
   font-size: 13px;
+  font-weight: 600;
+  color: var(--v-muted);
 }
 @media (max-width: 760px) {
-  .sv-screen {
-    grid-template-columns: minmax(0, 1fr);
+  .sv-screen,
+  .v-page.sv-screen {
+    grid-template-columns: minmax(
+      0,
+      1fr
+    ); /* also the loading and error states: stacked, not side by side */
   }
 }
 .sv-screen.sv-work {
-  grid-template-columns: 240px minmax(0, 1fr) 420px;
+  /* R1-4-2: a fixed 420 px left labels ~150 px, wrapping rows to 2-5 lines; the takeoff now outgrows the plan */
+  grid-template-columns: 200px minmax(0, 1fr) minmax(0, 1.25fr);
 }
 .sv-panel {
   display: grid;
@@ -43,15 +55,18 @@
 @media (min-width: 761px) {
   .sv-work .sv-panel {
     position: sticky;
-    top: 0;
-    max-height: 100vh;
+    top: var(--v-header-h, 0px); /* under the sticky site header, not behind it */
+    /* Sticky cannot move the tallest item of its grid row, so the panel ends at the viewport's bottom from where it
+       starts. shortcut: 82px is the info strip and page padding above it; if the shell changes those, the panel
+       ends a little high or low. */
+    max-height: calc(100vh - var(--v-header-h, 0px) - 82px);
     overflow-y: auto;
   }
   .sv-panel-head {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: var(--panel, #fff);
+    background: var(--v-surface);
   }
 }
 .sv-panel-head {
@@ -86,7 +101,7 @@
 .sv-table td {
   text-align: left;
   padding: 2px 6px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--v-line);
   vertical-align: top;
   overflow-wrap: anywhere;
 }
@@ -99,7 +114,8 @@
   display: block;
 }
 .sv-table tr[aria-current='true'] {
-  background: #e8f0fb;
+  background: var(--v-accent-soft);
+  box-shadow: inset 2px 0 0 var(--v-accent);
 }
 /* fixed columns: auto layout gave Value and State the width and wrapped every label (R1-4-2) */
 .sv-table thead th:nth-child(2) {
@@ -115,19 +131,20 @@
 }
 .sv-num s,
 .sv-value s {
-  color: #6b7280;
+  color: var(--v-muted);
   margin-right: 4px;
 }
 .sv-detail {
-  border-top: 1px solid #d1d5db;
+  border-top: 1px solid var(--v-line);
   padding-top: 8px;
   display: grid;
   gap: 6px;
   overflow-wrap: anywhere;
 }
 .sv-value {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 32px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .sv-tools {
   display: flex;
@@ -153,7 +170,7 @@
 }
 .sv-marks li.sv-hot,
 .sv-marks li.sv-sel {
-  outline: 2px solid #24588f;
+  outline: 2px solid var(--v-accent);
 }
 .sv-sign {
   font-weight: 700;
@@ -175,4 +192,209 @@
   .sv-panel-head .sv-tools button {
     min-height: 40px; /* phone tap targets; desktop rows stay compact so 10+ fit (R1-4-2) */
   }
+}
+
+/* Vellum look (surveyor.md "Vellum look"): cards, pills and buttons from the --v-* tokens only (SV-50) */
+.sv-screen {
+  font-family: var(--v-font);
+  color: var(--v-text);
+}
+.sv-side,
+.sv-panel {
+  background: var(--v-surface);
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  padding: 16px 20px;
+}
+.sv-side li a,
+.sv-panel-head a {
+  color: var(--v-accent);
+}
+.sv-side li a:hover,
+.sv-panel-head a:hover {
+  color: var(--v-accent-strong);
+}
+.sv-side small,
+.sv-panel-head p {
+  color: var(--v-muted);
+}
+.sv-settle {
+  display: inline-block;
+  margin: 0 0 8px;
+  color: var(--v-accent);
+  font-weight: 600;
+}
+.sv-table {
+  font-size: 14px;
+}
+.sv-status {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 5px 10px;
+  border-radius: 980px;
+  color: var(--v-muted);
+}
+.sv-status[data-status='signed'] {
+  color: var(--v-ok);
+  background: var(--v-ok-soft);
+}
+.sv-status[data-status='conflict'],
+.sv-status[data-status='needs'] {
+  color: var(--v-warn);
+  background: var(--v-warn-soft);
+}
+.sv-status[data-status='estimate'],
+.sv-status[data-status='edited'] {
+  color: var(--v-text-2);
+  background: var(--v-fill);
+}
+.sv-detail h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v-muted);
+}
+.sv-signed {
+  color: var(--v-ok);
+}
+.sv-screen button {
+  border: 0;
+  border-radius: 980px;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 600;
+  background: var(--v-fill);
+  color: var(--v-text);
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.sv-table th button {
+  background: none;
+  font-weight: 400;
+}
+.sv-screen button.sv-primary {
+  background: var(--v-accent);
+  color: var(--v-surface);
+}
+.sv-screen button.sv-primary:hover:not(:disabled) {
+  background: var(--v-accent-strong);
+}
+.sv-screen button.sv-danger {
+  color: var(--v-danger);
+}
+.sv-screen button:disabled {
+  color: var(--v-muted);
+  background: var(--v-fill);
+  cursor: not-allowed;
+}
+.sv-screen button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.sv-detail .sv-tools button {
+  min-height: 44px;
+}
+.sv-panel-head progress {
+  appearance: none;
+  height: 6px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--v-line);
+}
+.sv-panel-head progress::-webkit-progress-bar {
+  background: var(--v-line);
+  border-radius: 3px;
+}
+.sv-panel-head progress::-webkit-progress-value {
+  background: var(--v-accent);
+  border-radius: 3px;
+}
+.sv-panel-head progress::-moz-progress-bar {
+  background: var(--v-accent);
+  border-radius: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sv-screen button {
+    transition: none;
+  }
+  .sv-screen button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* pre-QA fixes (2026-11-14) */
+/* the sticky header starts at the card's top edge: no card padding above it for rows to show through */
+.sv-panel {
+  padding-top: 0;
+}
+.sv-panel-head {
+  padding-top: 16px;
+  background: var(--v-surface);
+}
+.sv-table th,
+.sv-table td {
+  vertical-align: middle;
+}
+.sv-value {
+  margin: 0;
+  line-height: 1.1;
+}
+.sv-detail h3,
+.sv-detail p {
+  margin: 0;
+}
+.sv-in-use {
+  color: var(--v-accent);
+}
+.sv-screen input[type='text'],
+.sv-screen input[type='number'] {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--v-line);
+  border-radius: 12px;
+  background: var(--v-surface);
+  color: var(--v-text);
+  font: inherit;
+  font-size: 16px; /* no iOS zoom on focus */
+}
+.sv-screen input[type='text']:focus-visible,
+.sv-screen input[type='number']:focus-visible {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 1px;
+}
+.sv-screen input[type='number'] {
+  width: 8em;
+}
+.sv-panel-head a[download] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 980px;
+  background: var(--v-fill);
+  color: var(--v-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.sv-panel-head label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 760px) {
+  .sv-panel-head a[download],
+  .sv-panel-head label,
+  .sv-side li a,
+  .sv-settle {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .sv-panel-head input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+  }
+}
+.sv-detail {
+  scroll-margin-top: 88px; /* the shell's sticky header: the scrolled-to detail is not hidden under it */
 }

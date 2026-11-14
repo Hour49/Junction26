@@ -1,11 +1,11 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { error, info, projectList, projectStarted } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
 import { uploadTooLarge } from '../shell/limits';
 import { mockApi, never, reply } from '../test/mockApi';
 import { HomeScreen } from './HomeScreen';
-import { flush, must, variants } from './testing';
+import { flush, must } from './testing';
 
 const LIST = 'GET /api/projects';
 const UPLOAD = 'POST /api/projects';
@@ -28,7 +28,7 @@ describe('HomeScreen', () => {
   it('IN-1 renders the drop zone, "Choose a file" and "Try the sample project"', async () => {
     mockApi({ [LIST]: projectList });
     render(<HomeScreen />);
-    expect(screen.getByRole('region', { name: 'Start a project' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Drop drawings or an archive' })).toBeTruthy();
     expect(screen.getByText('Choose a file')).toBeTruthy();
     expect(sampleButton()).toBeTruthy();
     await flush();
@@ -114,46 +114,6 @@ describe('HomeScreen', () => {
     expect(input().disabled).toBe(false);
   });
 
-  it('IN-11 requests GET /api/projects once on mount and shows "Loading projects…" until it answers', async () => {
-    const api = mockApi({ [LIST]: never() });
-    render(<HomeScreen />);
-    await flush();
-    expect(screen.getByText('Loading projects…')).toBeTruthy();
-    expect(api.calls.filter((c) => c.url === '/api/projects')).toHaveLength(1);
-  });
-
-  it('IN-12 each project is a row with name, state, <time datetime>, counts, linking to #/p/<id>', async () => {
-    mockApi({ [LIST]: projectList });
-    render(<HomeScreen />);
-    await flush();
-    const p = must(projectList.projects[0]);
-    const link = must(screen.getByText(p.name).closest('a'));
-    expect(link.getAttribute('href')).toBe(`#/p/${p.id}`);
-    expect(link.textContent).toContain(p.state);
-    expect(link.querySelector('time')?.getAttribute('datetime')).toBe(p.created_at);
-    expect(link.textContent).toContain(`${String(p.files)} files · ${String(p.drawings)} drawings`);
-  });
-
-  it('IN-13 an empty list says so', async () => {
-    mockApi({ [LIST]: variants.listEmpty });
-    render(<HomeScreen />);
-    await flush();
-    expect(screen.getByText('No projects yet. Upload a file or try the sample.')).toBeTruthy();
-  });
-
-  it('IN-14 a failed list shows detail and code; Retry requests the list again', async () => {
-    let n = 0;
-    const api = mockApi({ [LIST]: () => (n++ === 0 ? reply(500, error) : projectList) });
-    render(<HomeScreen />);
-    await flush();
-    expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
-    await flush();
-    expect(api.calls.filter((c) => c.url === '/api/projects')).toHaveLength(2);
-    expect(screen.getByText(must(projectList.projects[0]).name)).toBeTruthy();
-  });
-
   it('"Choose a file" is a focusable button that opens the hidden file input', async () => {
     mockApi({ [LIST]: projectList });
     render(<HomeScreen />);
@@ -208,23 +168,35 @@ describe('HomeScreen', () => {
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
-  it('R1-1-1 the project row counts are singular for 1 and plural for 0 and 2', async () => {
-    const one = must(projectList.projects[0]);
-    mockApi({
-      [LIST]: {
-        projects: [
-          { ...one, id: 'aaaaaaaaaaaa', name: 'one.zip', files: 1, drawings: 1 },
-          { ...one, id: 'bbbbbbbbbbbb', name: 'two.zip', files: 0, drawings: 2 },
-        ],
-      },
-    });
+  it('IN-52 home: the hero, the five format chips and no edit-plan link', async () => {
+    mockApi({});
+    render(<HomeScreen />);
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Every answer, pointed at the drawing.' }),
+    ).toBeTruthy();
+    const chips = screen.getByRole('list', { name: 'Formats' });
+    expect(
+      within(chips)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
+      'IFC models',
+      'DXF',
+      'Vector PDF · SVG',
+      'PNG · JPG scans and photos',
+      'ZIP archives',
+    ]);
+    expect(screen.queryByText(/house plan/i)).toBeNull();
+    await flush();
+  });
+
+  it('IN-53 a link "Earlier uploads are in Workspaces" to #/workspaces, and no GET /api/projects', async () => {
+    const api = mockApi({});
     render(<HomeScreen />);
     await flush();
-    expect(must(screen.getByText('one.zip').closest('a')).textContent).toContain(
-      '1 file · 1 drawing',
-    );
-    expect(must(screen.getByText('two.zip').closest('a')).textContent).toContain(
-      '0 files · 2 drawings',
-    );
+    expect(
+      screen.getByRole('link', { name: 'Earlier uploads are in Workspaces' }).getAttribute('href'),
+    ).toBe('#/workspaces');
+    expect(api.calls.filter((c) => c.url === '/api/projects')).toHaveLength(0);
   });
 });

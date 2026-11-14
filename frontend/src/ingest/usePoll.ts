@@ -10,8 +10,16 @@ export const POLL_MS = 500;
 export function usePoll<T>(
   load: (signal: AbortSignal) => Promise<T>,
   again: (data: T) => boolean,
-): { data: T | null; error: unknown; failedAt: string | null; retry: () => void } {
+): {
+  data: T | null;
+  /** Browser time (ms) the data arrived: the clock a screen shows "now" by. */
+  at: number;
+  error: unknown;
+  failedAt: string | null;
+  retry: () => void;
+} {
   const [data, setData] = useState<T | null>(null);
+  const [at, setAt] = useState(0);
   const [error, setError] = useState<unknown>(null);
   const [failedAt, setFailedAt] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -24,6 +32,7 @@ export function usePoll<T>(
         const next = await load(controller.signal);
         if (controller.signal.aborted) return;
         setData(next);
+        setAt(Date.now());
         setError(null);
         if (again(next))
           timer = setTimeout(() => {
@@ -45,5 +54,5 @@ export function usePoll<T>(
   const retry = useCallback(() => {
     setAttempt((a) => a + 1);
   }, []);
-  return { data, error, failedAt, retry };
+  return { data, at, error, failedAt, retry };
 }

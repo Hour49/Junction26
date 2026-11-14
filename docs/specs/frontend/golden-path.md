@@ -1,5 +1,5 @@
 # Golden demo path and its end-to-end test (spec, frontend v1)
-Status: draft, 2026-11-14 04:52 (round-1 fixes applied), by fe-spec-golden-path.  Story: #33.  API: docs/API.md (v1).
+Status: draft, 2026-11-14 11:20 (Vellum section added; round-1 fixes applied), by fe-spec-golden-path.  Story: #33.  API: docs/API.md (v1).
 
 ## Purpose
 
@@ -11,6 +11,76 @@ screenshots at 390x844 and 1440x900 of every screen on the path.
 
 Every step was run by hand on the no-keys backend of main 5092dc3 (sample archive from
 `backend/scripts/make_sample_archive.py`, 2026-11-14): the values below are what it returns.
+
+## Vellum redesign: how the path walks the new screens
+
+Round 2 (frontend-orch, 2026-11-14 11:00): the app is restyled to Tudor's Vellum canvas, screens 1-5 and 9-12. The
+story of the path does not change (one drawing, flat-b, from upload to a signed-off value and its CSV); it now
+passes through the new screens and ends on the workspace history. Same harness (no-keys backend from
+`e2e/start-backend.sh`, production build, `desktop` 1440x900 and `phone` 390x844, `workers: 1`, `fresh=true`), same
+checks on every screenshot (offline strip, no horizontal scroll, no console error).
+
+| # | Screen (canvas no.) | Action | Expected (what the screen shows) |
+| --- | --- | --- | --- |
+| V1 | Start, `#/` (1) | open the app | the drop zone, the file picker, the sample button, the offline strip |
+| V2 | Reading the drawings, `#/p/<id>` Simple (2) | press the sample button | the project name; progress reaches done; the Simple / Advanced control |
+| V3 | Advanced, `#/p/<id>?view=advanced` (9-12) | choose Advanced, then Simple | the step rail (navigation "Steps"); back on Simple, `plans/flat-b.pdf` reads "flagged" |
+| V4 | File trace, `#/p/<id>/f/<fid>` | open `plans/flat-b.pdf` | as GP-4: "flagged", "1 conflict(s) between the two methods", the second-count line, the write stage |
+| V5 | Settle the conflicts, `#/p/<id>/conflicts` (3) | header "Conflicts"; on the 1.01 card Modify, tap A, then "Use the rule's value" (CF-22) | "2 conflicts found"; the 1.01 card on `plans/flat-b.pdf` "Settled by rule", then "Your choice", then "Settled by rule" again |
+| V6 | Ask, with proof, `…/d/<did>/engineer` (4) | the 1.01 card's "Open in the surveyor workspace", then the Engineer view link | as GP-5: the page, its credit, the suggested questions |
+| V7-V9 | (4) | the door count, the room 1.01 area, the roof refusal | as GP-6, GP-7, GP-8 |
+| V10-V12 | Surveyor, `…/surveyor` (restyle) | settle 1.01 on 22.40 m², sign off as "Ana" | as GP-9, GP-10, GP-11 |
+| V13 | (4) | ask the 1.01 area again | as GP-12: "22.40 m²", "Verified by Ana, …" |
+| V14 | Surveyor | Export CSV | as GP-13 |
+| V15 | Workspaces, `#/workspaces` (5) | follow "Workspaces" in the header | the sample workspace first and selected; stats Files 11, Drawings 5, To review 1, Signed off "1 of <n>"; history in order: "Uploaded sample-project.zip", "Analysis done", "Decided by rule: area of room (name Küche)", "Conflict settled: area of room (name 1.01)" (kept 22.40 m²), "Signed off: area of room (name 1.01)" (… by Ana) |
+
+Screenshots per width (`frontend/screenshots/<desktop|phone>/`): `01-home`, `02-project`, `03-advanced`,
+`04-trace`, `05-conflicts`, `06-engineer`, `07-count`, `08-area-conflict`, `09-refusal`, `10-surveyor-queue`,
+`11-signed`, `12-verified`, `13-workspaces`. Each is opened and looked at against its canvas screen (QA.md §3).
+
+Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the new screens):
+
+- GP-29 V2: after the sample button the URL is `#/p/<12 hex>` and the Simple view reaches its done state (the
+  wording ingest.md gives it), with the Simple / Advanced control present. [e2e]
+- GP-30 V3: choosing Advanced sets `?view=advanced` and shows the step rail; "Simple" goes back, and the file's trace
+  is reached from Simple's file list (V4, GP-4; the Advanced view has no per-file trace link). [e2e]
+- GP-31 V5: `#/p/<id>/conflicts` shows "2 conflicts found" and both conflicts with "22.40 m² vs 30.00 m²"; no
+  conflict "needs you" on the sample. [e2e]
+- GP-32 V6: the 1.01 card's "Open in the surveyor workspace" (CF-18) reaches flat-b's
+  `#/p/<id>/d/<16 hex>/surveyor?q=…`, and the Engineer view link there reaches `…/engineer`. "Open the workspace"
+  (CF-17) goes to the first drawing with quantities, which need not be flat-b, so the path does not use it. [e2e]
+- GP-33 V15: "Workspaces" in the header reaches `#/workspaces`; the first workspace is "sample-project.zip" with
+  `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 1 and Signed off matching `/^1 of \d+$/`.
+  [e2e]
+- GP-34 V15: the history holds, in this order, "Uploaded sample-project.zip", "Analysis done", "Conflict settled:
+  area of room (name 1.01)" and "Signed off: area of room (name 1.01)" (with "by Ana"), and
+  "Decided by rule: area of room (name küche)" (case-insensitive, #108) before the settled one. [e2e]
+- GP-35 Thirteen screenshots per width, named as above, each with the offline strip and no horizontal scroll.
+  [e2e]
+- GP-36 No screen on the path shows a user name, initials, avatar or country picker, and no mock value from the
+  canvas ("harbour-block-archive.zip", "Beatrice", "Hour49"). [e2e: text checks on every screenshot step]
+
+Names the test needs from the round-2 specs (it uses what each spec settles; until a spec changes a name, the
+current one stays, and the e2e worker updates the test in the same round as the rename):
+
+| Spec | What | Current name in the e2e | Canvas wording |
+| --- | --- | --- | --- |
+| ingest | sample button | "Try the sample project" (kept, ingest.md open point 11) | "Try a sample" |
+| ingest | done state on the project screen | "Done" and the stats cell Files through "11 / 11" (`dd` after `dt` "Files through"; replaces "11 of 11 files finished", ingest.md open point 10, also in `qa-r1.spec.ts`) | "Step 8 of 8", "Drawings ready 5" (Simple) |
+| ingest | Simple / Advanced control | group "View" with links "Simple" / "Advanced" (IN-54) | segmented "Simple" / "Advanced" |
+| advanced | file row link to the trace | `a[href*="/f/f"]` with the path | a row per file |
+| conflicts | heading, way into the workspace | h1 "2 conflicts found", link "Open the workspace" to the first drawing with quantities (CF-2, CF-17) | "<n> conflicts found", "Open the workspace" |
+| shared | header link to the history | link "Workspaces", `aria-current="page"` on `#/workspaces` (shared.md header) | "Workspaces" (fe-vellum-common.md) |
+| account | list item, stats, history | — (new) | account.md AC-2, AC-10, AC-11, history titles |
+
+Open points (Vellum):
+
+- V-1 On the canvas, Ingest's Simple view has no file list, so "follow one file" goes through Advanced (V3). If
+  ingest.md keeps the file list on Simple, V3 is skipped and V4 is reached from Simple; the test follows the spec.
+  Settled (ingest.md, 11:30): Simple keeps the file list, so V4 can be reached from Simple; the test still walks V3
+  (Advanced) for its screenshot and reaches V4 from there.
+- V-2 The pitch is 3 minutes: V3, V4 and V14 can be cut live; the test still walks them.
+- V-3 After V10-V12 the sample's flat-b has one conflict left (Küche), decided by rule, so "To review" is 1 in V15.
 
 ## Scope for the 06:00 merge
 
@@ -68,7 +138,7 @@ reads the scans); the e2e always runs on no keys (`start-backend.sh` forces ever
 | --- | --- | --- | --- |
 | 1 | Open the app at `/#/` | Home: drop zone, "Choose a file", "Try the sample project", the list of earlier projects; the strip "Running offline: no API keys, no models" | yes |
 | 2 | Click "Try the sample project" | `#/p/<id>`: "sample-project.zip", the files turn finished one by one, then "Done", "11 of 11 files finished", cost $0.00; every file row has its state in words (no keys: 3 ready, 4 flagged, 2 set aside, 2 text only; with keys the raster reader reads the two scans: 5 ready, 2 flagged, 2 set aside, 2 text only); 5 drawings listed | yes |
-| 3 | Click the file `plans/flat-b.pdf` | `#/p/<id>/f/<file_id>` (`f3` today): state "flagged", reason "1 conflict(s) between the two methods (room_area) …"; ten stages unpack → write, `second_count` reading "5 quantities measured twice, 1 conflict(s)" | yes |
+| 3 | Click the file `plans/flat-b.pdf` | `#/p/<id>/f/<file_id>` (`f3` today): state "flagged", reason "1 conflict between the two methods (room_area) …"; ten stages unpack → write, `second_count` reading "5 quantities measured twice, 1 conflict" | yes |
 | 4 | Click "Open the drawing" | `#/p/<id>/d/<drawing_id>/engineer`: "plans/flat-b.pdf", "vector route, read from plans/flat-b.pdf by pdf …", page 1 of the plan, six suggested questions | yes |
 | 5 | Click "How many doors are there?" | Answer `2`, "door count", two numbered marks 1 and 2 on the doors, "Counting rule: every element, room and plan the drawing lists counts once", "One method", Cost $0 | yes |
 | 6 | Type "What is the net floor area of room 1.01?", Ask | Answer `30.00 m²`, the kitchen shaded, status "Methods disagree": "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas", "Kept 30.00 m²: the printed label over the outline at the sheet's scale" | yes |
@@ -249,7 +319,7 @@ The path
   the rows of `plans/flat-b.pdf`, `photos/site.jpg` and `docs/notes.txt` show "flagged", "set aside" and
   "text only" as words. [e2e]
 - GP-4 Step 3: clicking the `plans/flat-b.pdf` row reaches `#/p/<id>/f/f<digits>`, which shows "flagged", the text
-  "1 conflict(s) between the two methods", the stage `write`, and "5 quantities measured twice, 1 conflict(s)". [e2e]
+  "1 conflict between the two methods", the stage `write`, and "5 quantities measured twice, 1 conflict". [e2e]
 - GP-5 Step 4: "Open the drawing" reaches `#/p/<id>/d/<16 hex>/engineer`, shows "plans/flat-b.pdf", a page image
   that loaded (`naturalWidth > 0`), the line "Credit: none recorded for this file" and the suggestion button
   "How many doors are there?". [e2e]

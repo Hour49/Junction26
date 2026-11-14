@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import ContentKind, FileState, Normalised, Stage, StageTrace
 from app.core.pipeline.model import Route
+from app.core.wording import SCALE_WORDS, count
 
 # The pipeline's trace line prefixes (app/core/pipeline/ingest.py) after stage 5, by stage.
 # The counting rules and the takeoff run together, so they are one timed stage.
@@ -28,19 +29,19 @@ def judge(
     with every reason a person should look at it. `reader`: the route's adapter name; `frame`:
     how an image was normalised."""
     if drawing.model_objects is not None and not drawing.pages:
-        found = f"{len(drawing.model_objects)} model objects"
+        found = count(len(drawing.model_objects), "model object")
     else:
         tables = len(drawing.tables or ())
-        schedules = f"{tables} schedule{'s' if tables > 1 else ''}, " if tables else ""
+        schedules = f"{count(tables, 'schedule')}, " if tables else ""
         found = (
-            f"{len(drawing.elements)} elements, {len(drawing.rooms)} rooms, {schedules}"
-            f"scale {drawing.scale.status}"
+            f"{count(len(drawing.elements), 'element')}, {count(len(drawing.rooms), 'room')}, "
+            f"{schedules}{SCALE_WORDS[drawing.scale.status]}"
         )
     flags: list[str] = []
     conflicts = [entry for entry in drawing.conflicts or () if entry.status == "conflict"]
     if conflicts:
         what = ", ".join(sorted({entry.quantity for entry in conflicts}))
-        flags.append(f"{len(conflicts)} conflict(s) between the two methods ({what})")
+        flags.append(f"{count(len(conflicts), 'conflict')} between the two methods ({what})")
     read_nothing = drawing.read == () and not drawing.tables  # a schedule sheet reads tables
     if read_nothing and reader == "hello":
         flags.append(f"no reader for the {route} route yet: nothing was read")
