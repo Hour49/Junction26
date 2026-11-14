@@ -16,7 +16,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from app.adapters.raster_detector import post
-from app.adapters.raster_region import RegionDetector, RegionFacts, load_arm, steps
+from app.adapters.raster_region import RegionDetector, RegionFacts, load_arm, predict_mask, steps
 from app.adapters.raster_region.steps import Det, Frame, Window
 from app.core.drawing.model import Page
 from app.core.errors import InvalidInputError
@@ -167,6 +167,22 @@ def test_doors_of_the_neighbouring_flat_are_not_counted() -> None:
     assert len(found.plans) == 1
     assert detector.calls == 8  # one plan: the whole page in eight views, no windows
     assert found.elements[0].attrs["score"] == pytest.approx(0.8)  # every view saw it
+
+
+def test_the_mask_is_on_the_segmenters_canvas_and_leaves_the_neighbour_out() -> None:
+    mask, frame = predict_mask(flat_with_neighbour(), FACTS, FakeSegmenter())
+    assert mask.shape == (64, 64)
+    assert (frame.side, frame.new_width, frame.new_height, frame.dx, frame.dy) == (
+        64,
+        64,
+        32,
+        0,
+        16,
+    )
+    flat = frame.to_canvas(47, 47)  # the flat's door, page pixels
+    neighbour = frame.to_canvas(157, 47)  # the neighbour's door
+    assert mask[int(flat[1]), int(flat[0])]
+    assert not mask[int(neighbour[1]), int(neighbour[0])]
 
 
 def test_without_a_segmenter_the_whole_page_counts() -> None:

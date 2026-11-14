@@ -7,14 +7,18 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, ClassVar
 
+import numpy as np
 import pytest
 from jsonschema import Draft202012Validator
+from test_schedule_check import itself, joined
+from test_window_check import ELEVATION, PLAN, SCHEDULE
 
 from app import composition
 from app.adapters.decisions.g1main import FAMILIES
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer
 from app.adapters.raster import CompositeRasterExtractor, assemble, parse_components
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
+from app.adapters.raster_region.steps import Frame
 from app.composition import build_pipeline
 from app.core.answering.model import Answer, Question
 from app.core.drawing.model import Box, Drawing, Element, Page, Plan, ReadClass, Room, Scale
@@ -489,3 +493,106 @@ def test_the_region_source_is_built_from_the_detector_arm_and_region_model_dir(
     monkeypatch.setenv("RASTER_COMPONENTS", "elements=region:../x,plans=one-plan")
     with pytest.raises(InvalidInputError, match="not a path inside"):
         build_pipeline(Settings(), tmp_path)
+
+
+def test_a_pdf_routed_to_raster_gets_the_schedule_check_notes_as_on_the_vector_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A set whose page 1 is not a vector plan (Bay Creek) is read on the raster route, and stage
+    # 8's second counter checks its schedules on every route: the note naming the types must come
+    # with it there too.
+    pdf = joined(PLAN, ELEVATION, SCHEDULE)
+    source, sheet = itself(pdf)
+    (tmp_path / source.path).parent.mkdir(parents=True)
+    (tmp_path / source.path).write_bytes(pdf)
+    monkeypatch.chdir(tmp_path)  # so a developer's backend/.env can't change the result
+    pipeline = build_pipeline(Settings(), tmp_path)
+    differs = "types whose count differs (schedule vs tags): 03 1 vs 0"
+    for route in ("vector", "raster"):
+        notes = pipeline.extractors[route].extract(source, sheet).notes
+        assert any(differs in note for note in notes), route
+
+
+class FakeSegmenter:
+    """Stands in for SegmenterRegion: records what it was built from; the drawn flat is the
+    right part of the page, so gemini's bedroom (left) is off it."""
+
+    built: ClassVar[list[tuple[object, ...]]] = []
+
+    def __init__(self, *loaded: object) -> None:
+        FakeSegmenter.built.append(loaded)
+
+    def mask(self, page: Any) -> tuple[Any, Frame]:
+        flat = np.zeros((64, 64), dtype=bool)
+        flat[:, 40:] = True
+        return flat, Frame.fit(page.width, page.height, 64)
+
+
+def test_regionrooms_cuts_geminis_rooms_to_the_drawn_flat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_png: Callable[[int, int], bytes]
+) -> None:
+    dataset, out = tmp_path / "dataset", tmp_path / "out"
+    (dataset / "data" / "cubicasa5k").mkdir(parents=True)
+    (dataset / PNG).write_bytes(make_png(40, 30))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(composition, "GeminiClient", FakeGemini)
+    monkeypatch.setattr(composition, "SegmenterRegion", FakeSegmenter)
+    monkeypatch.setattr(composition, "load_region", lambda folder: ("facts", folder))
+    monkeypatch.setenv("EXTRACTOR_RASTER", "composite")
+    monkeypatch.setenv("RASTER_COMPONENTS", "rooms=regionrooms,plans=one-plan")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("REGION_MODEL_DIR", "")
+    with pytest.raises(InvalidInputError, match="REGION_MODEL_DIR"):  # no model: fails at startup
+        build_pipeline(Settings(), dataset)
+
+    monkeypatch.setenv("REGION_MODEL_DIR", str(tmp_path / "unet"))
+    pipeline = build_pipeline(Settings(), dataset)
+    assert FakeSegmenter.built[-1] == ("facts", tmp_path / "unet")
+    report = pipeline.ingest([PNG], ExtractionV1Writer(out, {PNG: "dev"}))
+    assert report.sheets[0].takeoff["room:bedroom"] == 0  # gemini's bedroom is off the flat
+    drawing = ExtractionV1Reader(out).drawing(PNG)
+    assert drawing is not None and drawing.read == ("room",) and drawing.rooms == ()
+
+
+def test_decisions_s1536_swaps_only_its_own_families(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_png: Callable[[int, int], bytes]
+) -> None:
+    dataset, out = tmp_path / "dataset", tmp_path / "out"
+    (dataset / "data" / "cubicasa5k").mkdir(parents=True)
+    (dataset / PNG).write_bytes(make_png(40, 30))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(composition, "HttpReaderClient", FakeVerdaNoToilet)
+    monkeypatch.setattr(composition, "DecisionsClient", FakeDecisions)
+    monkeypatch.setenv("EXTRACTOR_RASTER", "composite")
+    spec = "elements=decisions-s1536:verda,plans=decisions-s1536:verda"
+    monkeypatch.setenv("RASTER_COMPONENTS", spec)
+    monkeypatch.setenv("VERDA_READER_URL", "https://reader.example")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("DECISIONS_CACHE_DIR", str(tmp_path / "cache"))
+    report = build_pipeline(Settings(), dataset).ingest(
+        [PNG], ExtractionV1Writer(out, {PNG: "dev"})
+    )
+    # F1main would raise the toilets to Gemini's 1 (the test above); S1536 never swaps toilets
+    assert report.sheets[0].takeoff["toilet"] == 0
+    drawing = ExtractionV1Reader(out).drawing(PNG)
+    assert drawing is not None
+    assert any("decisions S1536: counts kept" in note for note in drawing.notes)
+
+
+@pytest.mark.parametrize(
+    ("spec", "keyed"),
+    [
+        ("rooms=regionrooms,plans=one-plan", True),  # Gemini's rooms, cut by the region model
+        ("elements=decisions-s1536:region:C,plans=decisions-s1536:region:C", True),
+        ("elements=decisions:detector:C,plans=decisions:detector:C", True),
+        ("elements=region:C,plans=region:C,rooms=exp:ocr/G4-golden", False),
+    ],
+)
+def test_every_source_that_calls_a_keyed_service_counts_as_using_keys(
+    spec: str, keyed: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("EXTRACTOR_RASTER", "composite")
+    monkeypatch.setenv("RASTER_COMPONENTS", spec)
+    assert composition.uses_keys(Settings()) is keyed

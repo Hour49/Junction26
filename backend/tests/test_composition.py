@@ -30,7 +30,9 @@ def test_default_settings_wire_the_real_readers_and_hello_on_the_cad_and_raster_
     assert isinstance(vector._inner, PdfVectorExtractor)  # pyright: ignore[reportPrivateUsage]
     assert isinstance(pipeline.extractors["bim"], IfcModelExtractor)
     assert isinstance(pipeline.extractors["cad"], HelloExtractor)
-    assert isinstance(pipeline.extractors["raster"], HelloExtractor)
+    raster = pipeline.extractors["raster"]  # a PDF can route here too: same schedules wrapper
+    assert isinstance(raster, PdfTables)
+    assert isinstance(raster._inner, HelloExtractor)  # pyright: ignore[reportPrivateUsage]
     counter = pipeline.second_counter  # with the door schedule vs plan tags check around it
     assert isinstance(counter, ScheduleTagCounter)
     assert isinstance(counter._inner, IfcSecondCounter)  # pyright: ignore[reportPrivateUsage]

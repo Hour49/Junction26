@@ -271,6 +271,28 @@ certificate comes from test. Test is run once for the arm we ship (`--certify`, 
 `data/stoa/exp/test-certified.json`; a second run of the same arm needs a written reason). The plan is the unit:
 a plan marked sure counts as exact when every sure answer on it is. The result is always one sentence: "of the
 plans marked sure, at least X% have every sure answer exact (N plans, 95% bound); the gate opens on Y% of plans".
+Other signals plug in as files (`--signal-file`, gate_signal_v1), for example decide's `g1main`, Gemini's
+probability for the answered count. `--pool` sets one threshold per family group (elements, plans, rooms) instead:
+on val, the loosest whose 95% Clopper-Pearson bound on the plans meets the target, then tightened until all groups
+together meet it, because the certificate counts a plan wrong when any of its sure answers is. Every val number is
+printed as "chosen on val, not a guarantee".
+
+`stoa_eval gate-policy --gate data/stoa/exp/ab/gate-<arm>-val.json` writes `data/stoa/exp/gate.json`
+(gate_policy_v1), the file the backend reads to mark answers sure:
+
+```json
+{"schema": "gate_policy_v1", "generated": "2026-11-14T04:37:50+02:00", "part": "val",
+ "split_sha256": "<sha256 of data/stoa/exp/split.json>", "arm": "detector-C-yolo26s-v8", "second": "seg-C-val",
+ "target": 0.95, "source": "data/stoa/exp/ab/gate-detector-C-yolo26s-v8-val.json", "certified": false,
+ "families": {"toilet": {"signal": "g1main", "threshold": 0.7625, "group": "elements",
+   "val": {"note": "chosen on val, not a guarantee", "answers": 188, "sure": 117, "exact": 116,
+           "coverage": 0.622, "bound": 0.960}}}}
+```
+
+An answer is sure when its family is listed and its `signal` is at or above `threshold`. Only families whose gate
+opens and marks at least one val answer sure are listed. `split_sha256` is required (the loader refuses a file
+without it). `certified` stays false until the one test run; `arm` is the arm the thresholds were set on, so a
+product that answers a family with another arm uses an untested threshold there.
 
 ## What the answer should show
 

@@ -7,14 +7,13 @@ from functools import partial
 from typing import Any, cast
 
 import pytest
-from conftest import upload
+from conftest import plan_png, upload
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from test_api_projects import plan_png
 
 from app.adapters.decisions.uses import Confidence
 from app.api.takeoff import _cell
-from app.composition import build_ingest
+from app.composition import DECISIONS_SIGNAL, build_ingest
 from app.core.pipeline.ports import DrawingFiles
 from app.main import create_app
 from app.settings import Settings
@@ -310,18 +309,35 @@ class Rated:
         return Confidence(0.87, "decisions: test")
 
 
-def test_an_answer_carries_the_pipeline_s_confidence_on_its_line_and_proof(
-    client: TestClient, plan_pdf: bytes
+def test_an_answer_carries_the_pipeline_s_score_named_and_uncalibrated_never_in_its_proof(
+    client: TestClient, plan_pdf: bytes, raster: tuple[TestClient, str]
 ) -> None:
-    project = client.get(f"/api/projects/{upload(client, plan_pdf)}").json()
-    drawing_id = project["drawings"][0]["drawing_id"]
-    assert ask(client, drawing_id, DOORS)["confidence"] is None  # DECISIONS_CONFIDENCE off
+    images, drawing_id = raster
+    assert ask(images, drawing_id, DOORS)["confidence"] is None  # DECISIONS_CONFIDENCE off
     seen: list[tuple[str, str, object, bytes]] = []
-    answering = cast(FastAPI, client.app).state.answering
-    cast(FastAPI, client.app).state.answering = replace(answering, confidence=partial(Rated, seen))
-    answer = ask(client, drawing_id, DOORS)
-    assert (answer["answer"], answer["confidence"]) == (2, 0.87)
-    assert (answer["line"]["confidence"], answer["proof"]["confidence"]) == (0.87, 0.87)
-    assert seen == [(project["files"][0]["path"], "door", 2, plan_pdf)]  # the sheet as read
-    refused = ask(client, drawing_id, "What colour is the roof?")
-    assert (refused["confidence"], refused["proof"]["confidence"]) == (None, None)
+    for app in (images, client):
+        state = cast(FastAPI, app.app).state
+        state.answering = replace(
+            state.answering, confidence=partial(Rated, seen), signal=DECISIONS_SIGNAL
+        )
+    answer = ask(images, drawing_id, DOORS)
+    assert answer["answer"] == 2
+    assert answer["confidence"] == {"signal": "g1main", "score": 0.87, "calibrated": False}
+    assert answer["line"]["confidence"] == 0.87  # the scorer's answer_v1.1 line, unchanged
+    assert "confidence" not in answer["proof"]  # the proof never presents it as a probability
+    assert seen == [("plan.png", "door", 2, plan_png())]  # the sheet as the pipeline read it
+    refused = ask(images, drawing_id, "What colour is the roof?")
+    assert refused["confidence"] is None
+    vector = client.get(f"/api/projects/{upload(client, plan_pdf)}").json()["drawings"][0]
+    answer = ask(client, vector["drawing_id"], DOORS)  # read on the vector route: not rated
+    assert (answer["answer"], answer["confidence"], len(seen)) == (2, None, 1)
+    assert "decisions" not in (answer["explanation"] or "")
+
+
+def test_a_count_of_rooms_has_one_key_whatever_each_room_is_called(
+    raster: tuple[TestClient, str],
+) -> None:
+    client, drawing_id = raster
+    proof = ask(client, drawing_id, "How many bedrooms are there?")["proof"]
+    assert [(key["label"], key["count"]) for key in proof["legend"]] == [("bedroom", 2)]
+    assert proof["arithmetic"] is None  # not "1 Makuuhuone 1 + 1 Makuuhuone 2 = 2"

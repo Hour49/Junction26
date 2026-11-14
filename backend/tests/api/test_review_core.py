@@ -2,9 +2,21 @@
 
 import pytest
 
-from app.core.drawing.model import Drawing, Element, Mark, MeasuredValue, Page, Room, Scale
+from app.adapters.question_templates import TemplateParser
+from app.core.drawing.model import (
+    Drawing,
+    Element,
+    Mark,
+    MeasuredValue,
+    Page,
+    Room,
+    Scale,
+    Table,
+    TableRow,
+)
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import Quantity, QuantityConflict
+from app.core.review.ask import suggestions
 from app.core.review.model import Edit, MethodValue, ReviewState
 from app.core.review.review import NotAllowedError, apply, label, mark_views, row, sign
 
@@ -155,3 +167,24 @@ def test_a_second_reader_s_unlocated_marks_are_counted_but_never_drawn() -> None
     assert (shown.value, shown.unlocated) == (3, {"toilet": 2})
     edit = Edit(quantity="toilet", action="reject", mark="m1")
     assert row(toilets, drawing, apply(ReviewState(), edit, toilets, drawing, AT), {}).value == 2
+
+
+def test_suggestions_offer_a_schedule_an_area_and_the_building_model_s_totals_first() -> None:
+    door_rows = tuple(TableRow(cells=(f"10{at}",), box=(0.1, 0.1 * at, 0.3, 0.1 * at + 0.05))
+                      for at in range(1, 4))  # fmt: skip
+    schedule = Table(id="t1", page=1, box=(0.1, 0.1, 0.3, 0.5), title="Door Schedule",
+                     columns=("Door Number",), rows=door_rows)  # fmt: skip
+    found = {
+        "door": quantity("door", 3, "count", BOX_A),
+        "window|model": quantity("window|model", 70, "count"),
+        "volume:slab|model": quantity("volume:slab|model", 41.5, "m3"),
+        "area:room|indoor": quantity("area:room|indoor", 52.3, "m2", BOX_A),
+    }
+    asked = [found.question for found in suggestions(found, TemplateParser(), 6, (schedule,))]
+    assert asked == [
+        "How many doors are listed in the door schedule?",
+        "What is the total volume of all floor slabs in the building model?",
+        "What is the net floor area of all indoor rooms in m²?",
+        "How many doors are there?",
+        "How many windows are there in the building model?",
+    ]

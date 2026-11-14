@@ -1,0 +1,3645 @@
+{
+  "components": {
+    "schemas": {
+      "Answer": {
+        "additionalProperties": false,
+        "properties": {
+          "abstain": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abstain"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "conflicts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ConflictValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts"
+          },
+          "cost_usd": {
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "id": {
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "latency_s": {
+            "minimum": 0.0,
+            "title": "Latency S",
+            "type": "number"
+          },
+          "method": {
+            "minLength": 1,
+            "title": "Method",
+            "type": "string"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "count",
+                  "m",
+                  "m2",
+                  "m3",
+                  "ft",
+                  "ft2"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "id",
+          "answer",
+          "unit",
+          "evidence",
+          "method",
+          "cost_usd",
+          "latency_s"
+        ],
+        "title": "Answer",
+        "type": "object"
+      },
+      "AnswerView": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Signal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "latency_s": {
+            "title": "Latency S",
+            "type": "number"
+          },
+          "line": {
+            "$ref": "#/components/schemas/Answer"
+          },
+          "marks": {
+            "items": {
+              "$ref": "#/components/schemas/MarkView"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageView"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
+          "proof": {
+            "$ref": "#/components/schemas/Proof"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Row"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "reader": {
+            "$ref": "#/components/schemas/Reader"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Refusal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "count",
+                  "m",
+                  "m2",
+                  "m3",
+                  "ft",
+                  "ft2"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "question",
+          "drawing_id",
+          "file",
+          "pages",
+          "answer",
+          "unit",
+          "confidence",
+          "quantity",
+          "marks",
+          "refusal",
+          "method",
+          "explanation",
+          "reader",
+          "cost_usd",
+          "latency_s",
+          "line",
+          "proof"
+        ],
+        "title": "AnswerView",
+        "type": "object"
+      },
+      "AskRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "question"
+        ],
+        "title": "AskRequest",
+        "type": "object"
+      },
+      "ClassKey": {
+        "additionalProperties": false,
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "unlocated": {
+            "default": 0,
+            "title": "Unlocated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "colour",
+          "count"
+        ],
+        "title": "ClassKey",
+        "type": "object"
+      },
+      "ConflictEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "conflict": {
+            "$ref": "#/components/schemas/QuantityConflict"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "needs_person": {
+            "title": "Needs Person",
+            "type": "boolean"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          },
+          "settled": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Settled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "drawing_id",
+          "file",
+          "quantity",
+          "label",
+          "conflict",
+          "settled",
+          "needs_person"
+        ],
+        "title": "ConflictEntry",
+        "type": "object"
+      },
+      "ConflictValue": {
+        "additionalProperties": false,
+        "description": "answer_v1.1: one of the values two methods measured for the answer, with its evidence.",
+        "properties": {
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Box"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "method": {
+            "minLength": 1,
+            "title": "Method",
+            "type": "string"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "count",
+                  "m",
+                  "m2",
+                  "m3",
+                  "ft",
+                  "ft2"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value",
+          "unit",
+          "method",
+          "file"
+        ],
+        "title": "ConflictValue",
+        "type": "object"
+      },
+      "DrawingEntry": {
+        "additionalProperties": false,
+        "description": "One drawing of a project: one per group of renderings of the same plan.",
+        "properties": {
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "other_renderings": {
+            "items": {
+              "$ref": "#/components/schemas/Rendering"
+            },
+            "title": "Other Renderings",
+            "type": "array"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bim",
+                  "cad",
+                  "vector",
+                  "raster"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "ready",
+              "flagged",
+              "text_only",
+              "set_aside"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "group",
+          "file",
+          "kind",
+          "route",
+          "source",
+          "state",
+          "other_renderings"
+        ],
+        "title": "DrawingEntry",
+        "type": "object"
+      },
+      "DrawingReview": {
+        "additionalProperties": false,
+        "properties": {
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "quantities": {
+            "title": "Quantities",
+            "type": "integer"
+          },
+          "signed": {
+            "title": "Signed",
+            "type": "integer"
+          },
+          "to_review": {
+            "title": "To Review",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "file",
+          "to_review",
+          "signed",
+          "quantities"
+        ],
+        "title": "DrawingReview",
+        "type": "object"
+      },
+      "DrawingView": {
+        "additionalProperties": false,
+        "properties": {
+          "credit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageView"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
+          "reader": {
+            "$ref": "#/components/schemas/Reader"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/Suggestion"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "file",
+          "reader",
+          "credit",
+          "pages",
+          "suggestions"
+        ],
+        "title": "DrawingView",
+        "type": "object"
+      },
+      "Edit": {
+        "additionalProperties": false,
+        "description": "One review edit (POST /drawings/{id}/review). `reset` without a quantity resets them all.",
+        "properties": {
+          "action": {
+            "enum": [
+              "reject",
+              "restore",
+              "add",
+              "settle",
+              "reset"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Box"
+          },
+          "mark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "Edit",
+        "type": "object"
+      },
+      "Evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file",
+          "page",
+          "box"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "FileStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "drawing_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing Id"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pdf_vector",
+                  "pdf_scan",
+                  "png_plan",
+                  "jpeg_plan",
+                  "photo_plan",
+                  "ifc",
+                  "dxf",
+                  "svg",
+                  "pdf_text",
+                  "text",
+                  "photo",
+                  "pdf_encrypted",
+                  "dwg",
+                  "office",
+                  "archive",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Ms",
+            "type": "number"
+          },
+          "normalised": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Normalised"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "reused": {
+            "default": false,
+            "title": "Reused",
+            "type": "boolean"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bim",
+                  "cad",
+                  "vector",
+                  "raster"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "size": {
+            "minimum": 0.0,
+            "title": "Size",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unpack",
+                  "hash",
+                  "identify",
+                  "group",
+                  "route",
+                  "cache",
+                  "normalise",
+                  "extract",
+                  "second_count",
+                  "takeoff",
+                  "write"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "state": {
+            "default": "queued",
+            "enum": [
+              "queued",
+              "running",
+              "ready",
+              "flagged",
+              "text_only",
+              "set_aside"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "takeoff": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "title": "Takeoff",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "size"
+        ],
+        "title": "FileStatus",
+        "type": "object"
+      },
+      "FileTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/FileStatus"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageTrace"
+            },
+            "title": "Stages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "file",
+          "stages"
+        ],
+        "title": "FileTrace",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "Info": {
+        "additionalProperties": false,
+        "properties": {
+          "limits": {
+            "$ref": "#/components/schemas/Limits"
+          },
+          "no_keys": {
+            "title": "No Keys",
+            "type": "boolean"
+          },
+          "readers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Readers",
+            "type": "object"
+          }
+        },
+        "required": [
+          "no_keys",
+          "readers",
+          "limits"
+        ],
+        "title": "Info",
+        "type": "object"
+      },
+      "Limits": {
+        "additionalProperties": false,
+        "properties": {
+          "file_mb": {
+            "title": "File Mb",
+            "type": "integer"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "question_chars": {
+            "title": "Question Chars",
+            "type": "integer"
+          },
+          "unpacked_mb": {
+            "title": "Unpacked Mb",
+            "type": "integer"
+          },
+          "upload_mb": {
+            "title": "Upload Mb",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "upload_mb",
+          "file_mb",
+          "unpacked_mb",
+          "files",
+          "question_chars"
+        ],
+        "title": "Limits",
+        "type": "object"
+      },
+      "MarkView": {
+        "additionalProperties": false,
+        "description": "One mark as the screen draws it. `n`: its number on the drawing, None when not counted.\n`value`: its share of the quantity (1 in a count, the room's m2 in an area), None: unknown.\n`label`: the room's printed label, else the element class; `ref`: the element or room id in\nthe drawing model; both None when the mark is no item of the model (an added mark).",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "maximum": 1.0,
+                      "minimum": 0.0,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 1.0,
+                      "minimum": 0.0,
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "minItems": 3,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "state": {
+            "enum": [
+              "counted",
+              "rejected",
+              "added",
+              "excluded"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "id",
+          "n",
+          "page",
+          "box",
+          "polygon",
+          "state",
+          "value",
+          "label",
+          "ref",
+          "reason"
+        ],
+        "title": "MarkView",
+        "type": "object"
+      },
+      "MeasuredValue": {
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Box"
+          },
+          "method": {
+            "enum": [
+              "printed_label",
+              "printed_total",
+              "polygon_x_scale",
+              "summed_rooms",
+              "scale_text",
+              "scale_bar",
+              "dimension_lines",
+              "ifc_model",
+              "plan_drawing",
+              "schedule",
+              "detector",
+              "parser",
+              "annotation",
+              "other"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "method"
+        ],
+        "title": "MeasuredValue",
+        "type": "object"
+      },
+      "MethodValue": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "method",
+          "value"
+        ],
+        "title": "MethodValue",
+        "type": "object"
+      },
+      "ModelItem": {
+        "additionalProperties": false,
+        "properties": {
+          "class": {
+            "title": "Class",
+            "type": "string"
+          },
+          "global_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Global Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "storey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storey"
+          }
+        },
+        "required": [
+          "id",
+          "class",
+          "name",
+          "storey",
+          "global_id"
+        ],
+        "title": "ModelItem",
+        "type": "object"
+      },
+      "Normalised": {
+        "additionalProperties": false,
+        "description": "How an image was brought into the frame every page size, box and served page is in:\nEXIF orientation applied, then any turn, deskew or perspective correction. The pipeline\nreads the normalised image, never the upload's bytes.",
+        "properties": {
+          "deskew_deg": {
+            "default": 0.0,
+            "title": "Deskew Deg",
+            "type": "number"
+          },
+          "exif": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exif"
+          },
+          "height": {
+            "minimum": 1.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "quad": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quad"
+          },
+          "rectified": {
+            "default": false,
+            "title": "Rectified",
+            "type": "boolean"
+          },
+          "rectifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rectifier"
+          },
+          "rotated": {
+            "default": 0,
+            "title": "Rotated",
+            "type": "integer"
+          },
+          "width": {
+            "minimum": 1.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "title": "Normalised",
+        "type": "object"
+      },
+      "PageView": {
+        "additionalProperties": false,
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "number"
+          },
+          "normalised": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Normalised"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "unit": {
+            "enum": [
+              "px",
+              "pt"
+            ],
+            "title": "Unit",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "page",
+          "width",
+          "height",
+          "unit",
+          "url",
+          "normalised"
+        ],
+        "title": "PageView",
+        "type": "object"
+      },
+      "ProjectList": {
+        "additionalProperties": false,
+        "properties": {
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "projects"
+        ],
+        "title": "ProjectList",
+        "type": "object"
+      },
+      "ProjectReview": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/ConflictEntry"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "drawings": {
+            "items": {
+              "$ref": "#/components/schemas/DrawingReview"
+            },
+            "title": "Drawings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "drawings",
+          "conflicts"
+        ],
+        "title": "ProjectReview",
+        "type": "object"
+      },
+      "ProjectSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "drawings": {
+            "title": "Drawings",
+            "type": "integer"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "state",
+          "created_at",
+          "files",
+          "drawings"
+        ],
+        "title": "ProjectSummary",
+        "type": "object"
+      },
+      "ProjectView": {
+        "additionalProperties": false,
+        "description": "Ingest's project status, plus the project's drawings, one per plan.",
+        "properties": {
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "queued",
+                "running",
+                "ready",
+                "flagged",
+                "text_only",
+                "set_aside"
+              ]
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "drawings": {
+            "items": {
+              "$ref": "#/components/schemas/DrawingEntry"
+            },
+            "title": "Drawings",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "files": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FileStatus"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Ms",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "readers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Readers",
+            "type": "object"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "state",
+          "created_at",
+          "drawings"
+        ],
+        "title": "ProjectView",
+        "type": "object"
+      },
+      "Proof": {
+        "additionalProperties": false,
+        "properties": {
+          "arithmetic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arithmetic"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check"
+          },
+          "kind": {
+            "enum": [
+              "count",
+              "sum",
+              "model",
+              "schedule",
+              "none"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "legend": {
+            "items": {
+              "$ref": "#/components/schemas/ClassKey"
+            },
+            "title": "Legend",
+            "type": "array"
+          },
+          "objects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objects"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Schedule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "storeys": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StoreyRow"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storeys"
+          }
+        },
+        "required": [
+          "kind",
+          "legend",
+          "arithmetic",
+          "objects",
+          "storeys",
+          "schedule"
+        ],
+        "title": "Proof",
+        "type": "object"
+      },
+      "QuantityConflict": {
+        "additionalProperties": false,
+        "description": "Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in\nthat quantity's unit: every method's value, and the rule that picked one (None: no rule\ndecides). `derived`: how the values were carried over from another entry, when they were.",
+        "properties": {
+          "derived": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Derived"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "default": "conflict",
+            "enum": [
+              "conflict",
+              "agree"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/MeasuredValue"
+            },
+            "minItems": 2,
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "values",
+          "resolution"
+        ],
+        "title": "QuantityConflict",
+        "type": "object"
+      },
+      "Reader": {
+        "additionalProperties": false,
+        "description": "How a drawing was read: its route, the file it was read from and that route's reader.",
+        "properties": {
+          "extractor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extractor"
+          },
+          "question_parser": {
+            "title": "Question Parser",
+            "type": "string"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bim",
+                  "cad",
+                  "vector",
+                  "raster"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          },
+          "second_counter": {
+            "title": "Second Counter",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "route",
+          "source",
+          "extractor",
+          "second_counter",
+          "question_parser"
+        ],
+        "title": "Reader",
+        "type": "object"
+      },
+      "Refusal": {
+        "additionalProperties": false,
+        "description": "Why a question gets no number, for a person, with questions this drawing can answer.",
+        "properties": {
+          "can_answer": {
+            "items": {
+              "$ref": "#/components/schemas/Suggestion"
+            },
+            "title": "Can Answer",
+            "type": "array"
+          },
+          "code": {
+            "enum": [
+              "unsupported-question",
+              "not-in-drawing",
+              "not-read",
+              "no-reader",
+              "no-scale",
+              "no-drawing"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "text",
+          "can_answer"
+        ],
+        "title": "Refusal",
+        "type": "object"
+      },
+      "Rendering": {
+        "additionalProperties": false,
+        "properties": {
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "file"
+        ],
+        "title": "Rendering",
+        "type": "object"
+      },
+      "Resolution": {
+        "additionalProperties": false,
+        "properties": {
+          "rule": {
+            "minLength": 1,
+            "title": "Rule",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rule",
+          "value"
+        ],
+        "title": "Resolution",
+        "type": "object"
+      },
+      "Row": {
+        "additionalProperties": false,
+        "description": "One quantity of the takeoff with its review state.",
+        "properties": {
+          "conflict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuantityConflict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MethodValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "marks": {
+            "items": {
+              "$ref": "#/components/schemas/MarkView"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "measure": {
+            "enum": [
+              "count",
+              "area",
+              "length",
+              "volume",
+              "text"
+            ],
+            "title": "Measure",
+            "type": "string"
+          },
+          "needs_person": {
+            "title": "Needs Person",
+            "type": "boolean"
+          },
+          "original_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Original Value"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/RuleText"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "second": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MethodValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "settled": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Settled"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "signed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignOff"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "signed",
+              "conflict",
+              "estimate",
+              "edited",
+              "agree",
+              "single"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "count",
+              "m",
+              "m2",
+              "m3"
+            ],
+            "title": "Unit",
+            "type": "string"
+          },
+          "unlocated": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Unlocated",
+            "type": "object"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "measure",
+          "subject",
+          "scope",
+          "value",
+          "unit",
+          "original_value",
+          "status",
+          "needs_person",
+          "rule",
+          "estimate",
+          "first",
+          "second",
+          "conflict",
+          "settled",
+          "marks",
+          "signed"
+        ],
+        "title": "Row",
+        "type": "object"
+      },
+      "RuleText": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "RuleText",
+        "type": "object"
+      },
+      "Schedule": {
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "of": {
+            "title": "Of",
+            "type": "integer"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "table": {
+            "title": "Table",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "table",
+          "title",
+          "page",
+          "box",
+          "columns",
+          "rows",
+          "of"
+        ],
+        "title": "Schedule",
+        "type": "object"
+      },
+      "ScheduleRow": {
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "cells": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "n",
+          "box",
+          "cells"
+        ],
+        "title": "ScheduleRow",
+        "type": "object"
+      },
+      "Scope": {
+        "additionalProperties": false,
+        "description": "The filters of a takeoff key, parsed, so the screen can group rows without parsing keys.",
+        "properties": {
+          "apartment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apartment"
+          },
+          "indoor": {
+            "default": false,
+            "title": "Indoor",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "largest": {
+            "default": false,
+            "title": "Largest",
+            "type": "boolean"
+          },
+          "model": {
+            "default": false,
+            "title": "Model",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "storey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storey"
+          }
+        },
+        "title": "Scope",
+        "type": "object"
+      },
+      "Settled": {
+        "additionalProperties": false,
+        "description": "The value a surveyor chose to keep for a quantity (the `settle` action).",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value",
+          "at"
+        ],
+        "title": "Settled",
+        "type": "object"
+      },
+      "SignOff": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "by",
+          "at",
+          "value"
+        ],
+        "title": "SignOff",
+        "type": "object"
+      },
+      "SignOffRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "by": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "quantity": {
+            "minLength": 1,
+            "title": "Quantity",
+            "type": "string"
+          },
+          "undo": {
+            "default": false,
+            "title": "Undo",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "quantity",
+          "by"
+        ],
+        "title": "SignOffRequest",
+        "type": "object"
+      },
+      "Signal": {
+        "additionalProperties": false,
+        "description": "A raw score a reader gives an answer, named for what it is. Not a probability that the\nanswer is right: `calibrated` says whether it was checked against right answers (never yet).",
+        "properties": {
+          "calibrated": {
+            "title": "Calibrated",
+            "type": "boolean"
+          },
+          "score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "signal": {
+            "title": "Signal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "signal",
+          "score",
+          "calibrated"
+        ],
+        "title": "Signal",
+        "type": "object"
+      },
+      "StageTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "did": {
+            "title": "Did",
+            "type": "string"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure"
+          },
+          "ms": {
+            "minimum": 0.0,
+            "title": "Ms",
+            "type": "number"
+          },
+          "output": {
+            "default": "",
+            "title": "Output",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "unpack",
+              "hash",
+              "identify",
+              "group",
+              "route",
+              "cache",
+              "normalise",
+              "extract",
+              "second_count",
+              "takeoff",
+              "write"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "did",
+          "ms"
+        ],
+        "title": "StageTrace",
+        "type": "object"
+      },
+      "Started": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "state",
+          "url"
+        ],
+        "title": "Started",
+        "type": "object"
+      },
+      "StoreyRow": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "storey": {
+            "title": "Storey",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storey",
+          "counts"
+        ],
+        "title": "StoreyRow",
+        "type": "object"
+      },
+      "Suggestion": {
+        "additionalProperties": false,
+        "description": "A question the parser is checked to map to `quantity`, so asking it is never refused.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quantity",
+          "label",
+          "question"
+        ],
+        "title": "Suggestion",
+        "type": "object"
+      },
+      "Takeoff": {
+        "additionalProperties": false,
+        "properties": {
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "quantities": {
+            "items": {
+              "$ref": "#/components/schemas/Row"
+            },
+            "title": "Quantities",
+            "type": "array"
+          },
+          "review_queue": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Review Queue",
+            "type": "array"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "file",
+          "quantities",
+          "review_queue"
+        ],
+        "title": "Takeoff",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Hour49 backend",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/ask": {
+      "post": {
+        "operationId": "ask_route_api_ask_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ask Route"
+      }
+    },
+    "/api/drawings/{drawing_id}": {
+      "get": {
+        "operationId": "drawing_api_drawings__drawing_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drawing"
+      }
+    },
+    "/api/drawings/{drawing_id}/evidence.png": {
+      "get": {
+        "description": "The answer to `question` with its proof drawn on its page (docs/GOLDEN.md), as POST /api/ask\ngives it, edits applied. Not cached: a review edit changes it.",
+        "operationId": "evidence_png_api_drawings__drawing_id__evidence_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "question",
+            "required": true,
+            "schema": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Question",
+              "type": "string"
+            }
+          },
+          {
+            "description": "400, 1600 or 3200",
+            "in": "query",
+            "name": "width",
+            "required": false,
+            "schema": {
+              "default": 1600,
+              "description": "400, 1600 or 3200",
+              "title": "Width",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {}
+            },
+            "description": "the answer's proof drawn"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evidence Png"
+      }
+    },
+    "/api/drawings/{drawing_id}/model": {
+      "get": {
+        "description": "The drawing model as an extraction_v1 document (decision 0004).",
+        "operationId": "model_api_drawings__drawing_id__model_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Model Api Drawings  Drawing Id  Model Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Model"
+      }
+    },
+    "/api/drawings/{drawing_id}/pages/{page}.png": {
+      "get": {
+        "operationId": "page_png_api_drawings__drawing_id__pages__page__png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "400, 1600 or 3200",
+            "in": "query",
+            "name": "width",
+            "required": false,
+            "schema": {
+              "default": 1600,
+              "description": "400, 1600 or 3200",
+              "title": "Width",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {}
+            },
+            "description": "the page as PNG"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Page Png"
+      }
+    },
+    "/api/drawings/{drawing_id}/review": {
+      "post": {
+        "operationId": "review_api_drawings__drawing_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "also list the rows whose value is 0 and nothing happened to",
+            "in": "query",
+            "name": "zeros",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "also list the rows whose value is 0 and nothing happened to",
+              "title": "Zeros",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Edit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Takeoff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review"
+      }
+    },
+    "/api/drawings/{drawing_id}/signoff": {
+      "post": {
+        "operationId": "signoff_api_drawings__drawing_id__signoff_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "also list the rows whose value is 0 and nothing happened to",
+            "in": "query",
+            "name": "zeros",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "also list the rows whose value is 0 and nothing happened to",
+              "title": "Zeros",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignOffRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Takeoff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Signoff"
+      }
+    },
+    "/api/drawings/{drawing_id}/takeoff": {
+      "get": {
+        "operationId": "takeoff_api_drawings__drawing_id__takeoff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "also list the rows whose value is 0 and nothing happened to",
+            "in": "query",
+            "name": "zeros",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "also list the rows whose value is 0 and nothing happened to",
+              "title": "Zeros",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Takeoff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Takeoff"
+      }
+    },
+    "/api/drawings/{drawing_id}/takeoff.csv": {
+      "get": {
+        "operationId": "takeoff_csv_api_drawings__drawing_id__takeoff_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "also list the rows whose value is 0 and nothing happened to",
+            "in": "query",
+            "name": "zeros",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "also list the rows whose value is 0 and nothing happened to",
+              "title": "Zeros",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {}
+            },
+            "description": "the takeoff as CSV"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Takeoff Csv"
+      }
+    },
+    "/api/info": {
+      "get": {
+        "operationId": "info_api_info_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Info"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Info"
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "description": "Every project, newest first.",
+        "operationId": "project_list_api_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Project List"
+      },
+      "post": {
+        "description": "The request body is the file's bytes (a zip or one drawing file); `name` its file name.",
+        "operationId": "upload_api_projects_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Started"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload"
+      }
+    },
+    "/api/projects/sample": {
+      "post": {
+        "description": "The synthetic sample archive. `fresh`: the review edits of the last sample run are reset.",
+        "operationId": "sample_api_projects_sample_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fresh",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Fresh",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Started"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sample"
+      }
+    },
+    "/api/projects/{project_id}": {
+      "get": {
+        "operationId": "project_api_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project"
+      }
+    },
+    "/api/projects/{project_id}/files/{file_id}/preview.png": {
+      "get": {
+        "description": "The file as uploaded, EXIF turn applied only: an image, or a PDF's first page.",
+        "operationId": "preview_api_projects__project_id__files__file_id__preview_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "title": "File Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "400, 1600 or 3200",
+            "in": "query",
+            "name": "width",
+            "required": false,
+            "schema": {
+              "default": 1600,
+              "description": "400, 1600 or 3200",
+              "title": "Width",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {}
+            },
+            "description": "the upload as PNG"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview"
+      }
+    },
+    "/api/projects/{project_id}/files/{file_id}/trace": {
+      "get": {
+        "operationId": "trace_api_projects__project_id__files__file_id__trace_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "title": "File Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileTrace"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trace"
+      }
+    },
+    "/api/projects/{project_id}/review": {
+      "get": {
+        "description": "Per drawing what is left to review and what is signed, and every conflict of the project.",
+        "operationId": "project_review_api_projects__project_id__review_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Review"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    }
+  }
+}

@@ -5,7 +5,9 @@ review and sign off a takeoff. It serves stories #27, #31, #32 and #33. The serv
 decision 0001), routes in `backend/app/api/`. Decision record: [0007](decisions/0007-http-api.md).
 
 **One source of truth.** Every route declares a pydantic response model, so `/openapi.json` describes every
-response (`npx openapi-typescript http://localhost:8000/openapi.json -o src/api.d.ts` gives the TypeScript types).
+response. The same document is committed as [`docs/api/openapi-v1.json`](api/openapi-v1.json), so the frontend
+generates its types without a running server (`npx openapi-typescript ../docs/api/openapi-v1.json -o
+src/api.d.ts`); `tests/api/test_api_openapi.py` fails when the app's schema and that file differ.
 Every JSON example below is a file in `backend/tests/fixtures/api_v1/`, made from real responses on the synthetic
 sample archive (`backend/tests/api/make_fixtures.py`) and trimmed to a few rows. `tests/api/test_api_fixtures.py`
 fails when a fixture no longer fits its model or this page no longer quotes it as it is. The frontend can use the
@@ -14,6 +16,20 @@ on every run.
 
 Items marked **waits on core** are agreed, and the field is in the shape already, but it is null or empty until
 core's part lands.
+
+## Changing the contract
+
+The API is the line between the pipeline and the frontend: anything behind it may change; what is on this page,
+in `docs/api/openapi-v1.json` and in `backend/tests/fixtures/api_v1/` may not, except as below.
+
+- v1 changes are **additive only**: a new optional field, a new endpoint, a new value of a string the screen
+  shows as text. Old clients keep working.
+- A rename, a removal, a type change or a new required request field needs `/api/v2`, or one announced PR that
+  updates this page, `openapi-v1.json` and the fixtures together and says so in the changelog below.
+- The tests hold it: `tests/api/test_api_openapi.py` (the schema is the committed file; regenerate it with
+  `cd backend && uv run python tests/api/make_openapi.py`) and `tests/api/test_api_fixtures.py` (every example
+  fits its response model and is quoted here as it is; regenerate with
+  `cd backend && uv run python tests/api/make_fixtures.py --doc`).
 
 ## Conventions
 
@@ -120,8 +136,9 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 }
 ```
 
-`no_keys: true` when no reader needs an API key or a model server (true for every reader today): the screen
-shows "running offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
+`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `verda` or `decisions` source
+in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The screen then shows "running
+offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
 questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
 
 ## Projects and ingest
@@ -902,6 +919,11 @@ a rule ("AI decision") or settled by a surveyor.
   ],
   "suggestions": [
     {
+      "quantity": "area:room|indoor",
+      "label": "area of room (indoor)",
+      "question": "What is the net floor area of all indoor rooms in m²?"
+    },
+    {
       "quantity": "door",
       "label": "door count",
       "question": "How many doors are there?"
@@ -910,11 +932,6 @@ a rule ("AI decision") or settled by a surveyor.
       "quantity": "window",
       "label": "window count",
       "question": "How many windows are there?"
-    },
-    {
-      "quantity": "toilet",
-      "label": "toilet count",
-      "question": "How many toilets are there?"
     }
   ]
 }
@@ -930,8 +947,10 @@ a rule ("AI decision") or settled by a surveyor.
   `{"exif": 6, "rotated": 0, "deskew_deg": 0.0, "rectified": false, "quad": null, "width": 3024, "height": 4032}`:
   the EXIF orientation of the upload, the turn and deskew made after it, and `quad`, the paper's four corners in
   the upload as fractions of it, once the photo rectifier is plugged in (null today).
-- `suggestions`: questions this drawing answers, one per quantity with a value. Each is checked against the
-  question parser when it is made, so asking it is never refused.
+- `suggestions`: questions this drawing answers, up to six: a count of each schedule the sheet prints first,
+  then areas, lengths and volumes (the building model's totals included), then counts, one per quantity with a
+  value. Each is checked against the question parser when it is made, so asking it is never refused. A
+  schedule's suggestion has the schedule query as `quantity` (`table:count:door`).
 
 ### `GET /api/drawings/{drawing_id}/model`
 
@@ -1154,17 +1173,22 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "objects": null,
     "storeys": null,
     "schedule": null,
-    "confidence": null
+    "check": null
   }
 }
 ```
 
 - `answer`, `unit`: the value to show. It is the row's current `value`, so a surveyor's edits show here
   (`quantity.original_value` is what ingest computed). Null on a refusal: the screen shows no number.
-- `confidence`: the probability, 0 to 1, that the answer is right, from the pipeline's answer confidence
-  (Gemini Decisions, on when the server runs with `DECISIONS_CONFIDENCE=true`; counts of the families it asks
-  about). Null when it is off, gives no probability (the reason is in `explanation`), or on a refusal. There is
-  no cutoff for "sure" yet (golden sets it), so show the number.
+- `confidence`: a raw score the pipeline gives the answer, named for what it is: `signal` (`g1main`: Gemini
+  Decisions' choice distribution for the answered count, on when the server runs with
+  `DECISIONS_CONFIDENCE=true`), `score` (0 to 1) and `calibrated` (false: the score was not checked against
+  right answers, so it is **not** a probability that the answer is right; a correct 4-bedroom answer scored
+  0.38). Don't show it as one: the proof and `evidence.png` leave it out. A "sure" badge comes later from
+  golden's gate thresholds. Only a drawing read on the raster route is scored (Decisions reads images). Null
+  when it is off, for other routes, when there is no score (the reason is in `explanation`), or on a
+  refusal. `line.confidence` carries the same raw score, because the scorer's answer_v1.1 line has that
+  field.
 - `quantity`: the takeoff row (see below), with its `rule`, `status`, `first`/`second`, `conflict`, `estimate`,
   `settled` and `signed` (the engineer view shows "verified by Ana" from `signed`). Null for a refusal and for an
   answer read from a schedule.
@@ -1186,36 +1210,52 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     null when there are none).
   - `arithmetic`: how the parts make the answer, in one line: the classes of a count of several
     (`2 shower + 1 bathtub = 3`), a sum's parts and what the rule left out, a model fact's object count, a
-    schedule's rows. Null for a count of one class (its numbered marks say it) and on a refusal.
+    schedule's rows. Null for a count of one class (its numbered marks say it) and on a refusal. A count of
+    rooms has one key named by what is counted (`bedroom`), not one per printed room name, and no arithmetic.
   - `objects` (kind `model`): the building model's objects the answer counted or summed, with `global_id`,
     `name` and `storey`. Null when the list would not be exactly what was counted.
   - `storeys` (kind `model`): the model's storeys in its order, with how many objects of each class each has.
   - `schedule` (kind `schedule`): the table (`table` id, `title`, `page`, `box`, `columns`), the `rows` the answer
     rests on with their `cells` and `n`, and `of`, the rows the table has.
-  - `confidence`: the answer's probability, as `line.confidence`; null on a refusal (kind `none`).
+  - `check`: how a second, independent method checked the value, in one line, e.g. `Checked twice, they
+    disagree: the sheet 72, the IFC model 86; kept 72: count what the sheet draws`, or `Checked twice, both
+    agree: …`. Null when one method measured it.
 
-The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes from a stand-in, not Gemini;
-`marks` trimmed to two):
+A door count on an image read on the raster route, with `DECISIONS_CONFIDENCE` on (the example's score comes
+from a stand-in, not Gemini; `marks` trimmed to two):
 
 <!-- fixture: answer_confidence.json -->
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "adeefbbcc17559fc",
-  "file": "plans/flat-a.pdf",
+  "drawing_id": "2b4e04cde84fbbef",
+  "file": "plan.png",
   "pages": [
     {
       "page": 1,
-      "width": 600.0,
+      "width": 800.0,
       "height": 400.0,
-      "unit": "pt",
-      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "unit": "px",
+      "url": "/api/drawings/2b4e04cde84fbbef/pages/1.png",
+      "normalised": {
+        "exif": null,
+        "rotated": 0,
+        "deskew_deg": 0.0,
+        "rectified": false,
+        "quad": null,
+        "width": 800,
+        "height": 400,
+        "rectifier": null
+      }
     }
   ],
   "answer": 2,
   "unit": "count",
-  "confidence": 0.87,
+  "confidence": {
+    "signal": "g1main",
+    "score": 0.87,
+    "calibrated": false
+  },
   "quantity": {
     "key": "door",
     "label": "door count",
@@ -1250,10 +1290,10 @@ The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes f
         "n": 1,
         "page": 1,
         "box": [
-          0.49333,
-          0.225,
-          0.50667,
-          0.275
+          0.05,
+          0.1,
+          0.1,
+          0.2
         ],
         "polygon": null,
         "state": "counted",
@@ -1267,10 +1307,10 @@ The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes f
         "n": 2,
         "page": 1,
         "box": [
-          0.66,
-          0.225,
-          0.67333,
-          0.275
+          0.6,
+          0.1,
+          0.65,
+          0.2
         ],
         "polygon": null,
         "state": "counted",
@@ -1289,10 +1329,10 @@ The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes f
       "n": 1,
       "page": 1,
       "box": [
-        0.49333,
-        0.225,
-        0.50667,
-        0.275
+        0.05,
+        0.1,
+        0.1,
+        0.2
       ],
       "polygon": null,
       "state": "counted",
@@ -1306,10 +1346,10 @@ The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes f
       "n": 2,
       "page": 1,
       "box": [
-        0.66,
-        0.225,
-        0.67333,
-        0.275
+        0.6,
+        0.1,
+        0.65,
+        0.2
       ],
       "polygon": null,
       "state": "counted",
@@ -1323,9 +1363,9 @@ The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes f
   "method": "takeoff",
   "explanation": null,
   "reader": {
-    "route": "vector",
-    "source": "plans/flat-a.pdf",
-    "extractor": "pdf",
+    "route": "raster",
+    "source": "plan.png",
+    "extractor": "composite",
     "second_counter": "ifc",
     "question_parser": "templates"
   },
@@ -1337,23 +1377,23 @@ The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes f
     "unit": "count",
     "evidence": [
       {
-        "file": "plans/flat-a.pdf",
+        "file": "plan.png",
         "page": 1,
         "box": [
-          0.49333,
-          0.225,
-          0.50667,
-          0.275
+          0.05,
+          0.1,
+          0.1,
+          0.2
         ]
       },
       {
-        "file": "plans/flat-a.pdf",
+        "file": "plan.png",
         "page": 1,
         "box": [
-          0.66,
-          0.225,
-          0.67333,
-          0.275
+          0.6,
+          0.1,
+          0.65,
+          0.2
         ]
       }
     ],
@@ -1382,7 +1422,7 @@ The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes f
     "objects": null,
     "storeys": null,
     "schedule": null,
-    "confidence": 0.87
+    "check": null
   }
 }
 ```
@@ -1392,7 +1432,7 @@ The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes f
 The answer to `question` (as `POST /api/ask` gives it, edits applied) with its `proof` drawn on the page the marks
 are on: counted marks outlined in their class colour and numbered, a sum's rooms filled with their values,
 excluded items greyed with their reason, a schedule's rows highlighted; under the page the question and answer,
-the `arithmetic`, the answer's probability when it has one, the colour key (with the legend's `note`) and the
+the `arithmetic`, the `check` line, the colour key (with the legend's `note`) and the
 licence `credit`. A model fact with no page is drawn as its objects
 (GlobalIds) and storey table. A refusal is drawn with its text. It is the fallback when a screen can't draw the
 proof itself, and a picture to share. `Cache-Control: no-store`, since a review edit changes it. Errors as
@@ -1681,7 +1721,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "objects": null,
     "storeys": null,
     "schedule": null,
-    "confidence": null
+    "check": null
   }
 }
 ```
@@ -1791,7 +1831,7 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
       }
     ],
     "schedule": null,
-    "confidence": null
+    "check": null
   }
 }
 ```
@@ -1824,14 +1864,14 @@ A question the drawing cannot answer:
     "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
     "can_answer": [
       {
+        "quantity": "area:room|indoor",
+        "label": "area of room (indoor)",
+        "question": "What is the net floor area of all indoor rooms in m²?"
+      },
+      {
         "quantity": "door",
         "label": "door count",
         "question": "How many doors are there?"
-      },
-      {
-        "quantity": "window",
-        "label": "window count",
-        "question": "How many windows are there?"
       }
     ]
   },
@@ -1868,7 +1908,7 @@ A question the drawing cannot answer:
     "objects": null,
     "storeys": null,
     "schedule": null,
-    "confidence": null
+    "check": null
   }
 }
 ```
@@ -2303,3 +2343,12 @@ formula in a spreadsheet.
 - A question on a whole project: ask one drawing at a time.
 - Free page widths, CORS, server push (progress is polled).
 - Editing a room's outline or label.
+
+## Changelog
+
+- 2026-11-14, breaking: `POST /api/ask` `confidence` was a number and is now an object `{signal, score,
+  calibrated}` (or null), and `proof.confidence` is removed. The number was Gemini's raw choice score, not a
+  probability that the answer is right, so it is kept only under a name that says so. `line.confidence`
+  (answer_v1.1) is unchanged.
+- 2026-11-14, additive: `proof.check`, `proof.legend[].unlocated` and `.note`, takeoff rows' `unlocated`,
+  schedule and building-model `suggestions`, `info.no_keys` computed from the readers.
