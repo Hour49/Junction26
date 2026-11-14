@@ -169,10 +169,10 @@ Panel
 History
 - AC-16 `historyEvents(project.json, project_review.json, [])` gives, in order: "Uploaded sample-project.zip" with
   detail "3 files · <formatSize of 26513>", "Analysis done" with "5 drawings · 3 ready, 4 flagged, 2 set aside,
-  2 text only · 12.5 ms", and "Settled by a rule: area of room (name 1.01)" with "plans/flat-b.pdf · kept 30.00 m² ·
+  2 text only · 12.5 ms", and "Settled by a rule: area of room (name Küche · 1.01)" with "plans/flat-b.pdf · kept 30.00 m² ·
   the printed label over the outline at the sheet's scale". [unit]
 - AC-17 A derived conflict with `settled: {"value": 22.401, "at": "2026-11-14T09:30:00Z"}` gives "Conflict settled:
-  area of room (name 1.01)", "plans/flat-b.pdf · kept 22.40 m²", time "09:30", and no "Decided by rule" event for
+  area of room (name Küche · 1.01)", "plans/flat-b.pdf · kept 22.40 m²", time "09:30", and no "Decided by rule" event for
   it. [unit]
 - AC-18 A derived conflict with `needs_person: true` and `resolution: null` gives "Conflict waiting for you: …" with
   "plans/flat-b.pdf · 22.40 m² vs 30.00 m²". [unit]

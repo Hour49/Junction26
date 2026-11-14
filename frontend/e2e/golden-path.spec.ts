@@ -62,7 +62,7 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await expect(
       page.getByRole('heading', { level: 1, name: /^\d+ conflicts? found$/ }),
     ).toBeVisible();
-    const card = page.getByRole('article', { name: 'area of room (name 1.01)' });
+    const card = page.getByRole('article', { name: 'area of room (name Küche · 1.01)' });
     await expect(card).toContainText('plans/flat-b.pdf');
     await expect(card).toContainText('Settled by rule');
     await expect(page.getByText('Needs you')).toHaveCount(0);
@@ -77,7 +77,7 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
   let drawingUrl = '';
   await test.step('GP-32 V6 GP-5: flat-b through its conflict card, as engineer', async () => {
     await page
-      .getByRole('article', { name: 'area of room (name 1.01)' })
+      .getByRole('article', { name: 'area of room (name Küche · 1.01)' })
       .getByRole('link', { name: 'Open in the surveyor workspace' })
       .click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/d\/[0-9a-f]{16}\/surveyor\?q=/);
@@ -216,20 +216,20 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     const stat = (label: string) => panel.locator('dt', { hasText: label }).locator('+ dd');
     await expect(stat('Files')).toHaveText('11');
     await expect(stat('Drawings')).toHaveText('5');
-    await expect(stat('To review')).toHaveText('1');
-    await expect(stat('Signed off')).toHaveText(/^1 of \d+$/);
+    // #131: the sample's one conflict (Küche · 1.01) is settled and signed off: nothing left to review.
+    await expect(stat('To review')).toHaveText('0');
+    // #131: the sign-off on the room's row also signs its twin row (the room's other name).
+    await expect(stat('Signed off')).toHaveText(/^2 of \d+$/);
     const titles = panel.locator('ol li strong');
     await expect(titles.first()).toHaveText('Uploaded sample-project.zip');
     const all = await titles.allTextContents();
     const at = (pattern: RegExp) => all.findIndex((t) => pattern.test(t));
     expect(at(/^Analysis done$/)).toBe(1);
-    expect(at(/^Settled by a rule: area of room \(name küche\)$/i)).toBeGreaterThan(1);
-    expect(at(/^Conflict settled: area of room \(name 1\.01\)$/)).toBeGreaterThan(
-      at(/^Settled by a rule: area of room \(name küche\)$/i),
-    );
-    expect(at(/^Signed off: area of room \(name 1\.01\)$/)).toBeGreaterThan(
-      at(/^Conflict settled: area of room \(name 1\.01\)$/),
-    );
+    // #131: one conflict per room ("Küche · 1.01"); settled by a person, so no rule event is left.
+    const settled = at(/^Conflict settled: area of room \(name Küche · 1\.01\)$/);
+    expect(settled).toBeGreaterThan(1);
+    expect(at(/^Signed off: area of room \(name Küche · 1\.01\)$/)).toBeGreaterThan(settled);
+    expect(at(/^Settled by a rule: /)).toBe(-1);
     await expect(panel).toContainText('by Ana');
     // GP-36: no user, no canvas sample data (the drawing credit names the team, so not 'Hour49').
     await expect(page.locator('body')).not.toContainText(/Beatrice|harbour-block-archive/);

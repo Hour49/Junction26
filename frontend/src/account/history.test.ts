@@ -79,7 +79,7 @@ describe('historyEvents', () => {
         `5 drawings · 3 ready, 4 flagged, 2 set aside, 2 text only · ${formatMs(project.ms)}`,
       ],
       [
-        'Settled by a rule: area of room (name 1.01)',
+        `Settled by a rule: ${conflict.label}`,
         "plans/flat-b.pdf · kept 30.00 m² · the printed label over the outline at the sheet's scale",
       ],
     ]);
@@ -97,7 +97,7 @@ describe('historyEvents', () => {
     const events = historyEvents(project, review, []);
     const settled = events.find((e) => e.kind === 'settled');
     expect(settled).toMatchObject({
-      title: 'Conflict settled: area of room (name 1.01)',
+      title: `Conflict settled: ${conflict.label}`,
       detail: 'plans/flat-b.pdf · kept 22.40 m²',
       time: '09:30',
     });
@@ -111,7 +111,7 @@ describe('historyEvents', () => {
     });
     const needs = historyEvents(project, review, []).find((e) => e.kind === 'needs');
     expect(needs).toMatchObject({
-      title: 'Conflict waiting for you: area of room (name 1.01)',
+      title: `Conflict waiting for you: ${conflict.label}`,
       detail: 'plans/flat-b.pdf · 22.40 m² vs 30.00 m²',
     });
   });
