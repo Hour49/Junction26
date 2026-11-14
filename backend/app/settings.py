@@ -61,6 +61,9 @@ RoomPolicyName = Literal["furniture", "gold-labels"]
 # large: on raster images over 4,000 px on their long side (from the file's header), Carbon counts
 # the things drawn and the shipped reader the rooms
 CarbonReaderName = Literal["off", "advanced", "all", "large"]
+# The Carbon check of the levels (CARBON_LEVELS): off; demote: Carbon reads every raster drawing
+# beside its reader, and a Medium answer it counts differently becomes Low
+CarbonLevelsName = Literal["off", "demote"]
 # Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
     Annotated[float, Field(ge=0)] | None,
@@ -137,6 +140,11 @@ class Settings(BaseSettings):
     # certified. As a source it is `carbon` in RASTER_COMPONENTS or DOUBLE_CHECK_READERS.
     # Seconds per call, and the folder replies are cached in (gitignored)
     carbon_reader: CarbonReaderName = "off"
+    # CARBON_LEVELS=demote (brief r8 BG; integ's pre-registered rule, .agents/exp/integ.md): the
+    # Carbon reader (same key, timeout, cache and spend guard) reads every raster drawing beside
+    # its reader, never counted; CHECK_POLICY's Medium answer whose question Carbon answers with
+    # another value becomes Low. Needs EXTRACTOR_RASTER=composite
+    carbon_levels: CarbonLevelsName = "off"
     carbon_timeout_s: float = 120.0
     carbon_cache_dir: Path = Path("../data/cache/carbon-reader")
     # EU open models (app/adapters/openvlm/): our vLLM server on Verda (Finland), reached by an SSH

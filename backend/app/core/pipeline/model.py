@@ -8,6 +8,7 @@ from app.core.drawing.model import (
     Apartment,
     ArbiterReading,
     Box,
+    CarbonCheck,
     ConflictQuantity,
     Element,
     Mark,
@@ -96,6 +97,8 @@ class Extracted(Frozen):
     double_check: dict[str, ReaderView] | None = None
     # what the local count arbiter read, by count family, never counted; None: it did not run
     count_arbiter: dict[str, ArbiterReading] | None = None
+    # what Gemini Carbon read beside it (CARBON_LEVELS=demote), never counted; None: it did not run
+    carbon_check: CarbonCheck | None = None
     notes: tuple[str, ...] = ()
 
 
