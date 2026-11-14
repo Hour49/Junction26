@@ -276,6 +276,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Questions
+         * @description The questions asked in the project (`project_id` in POST /api/ask), newest first.
+         */
+        get: operations["project_questions_api_projects__project_id__questions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/review": {
         parameters: {
             query?: never;
@@ -408,6 +428,21 @@ export interface components {
             /** Question */
             question: string;
         };
+        /** AskedQuestion */
+        AskedQuestion: {
+            /** Answer */
+            answer: number | string | null;
+            /** At */
+            at: string;
+            /** Drawing Id */
+            drawing_id: string;
+            /** Question */
+            question: string;
+            /** Refused */
+            refused: boolean;
+            /** Unit */
+            unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+        };
         /** ClassKey */
         ClassKey: {
             /** Colour */
@@ -526,7 +561,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "reject" | "restore" | "add" | "settle" | "reset";
+            action: "reject" | "restore" | "add" | "settle" | "unsettle" | "reset";
             /** Box */
             box?: [
                 number,
@@ -816,6 +851,13 @@ export interface components {
             /** Projects */
             projects: components["schemas"]["ProjectSummary"][];
         };
+        /** ProjectQuestions */
+        ProjectQuestions: {
+            /** Project Id */
+            project_id: string;
+            /** Questions */
+            questions: components["schemas"]["AskedQuestion"][];
+        };
         /** ProjectReview */
         ProjectReview: {
             /** Conflicts */
@@ -825,6 +867,8 @@ export interface components {
         };
         /** ProjectSummary */
         ProjectSummary: {
+            /** Conflicts Open */
+            conflicts_open: number | null;
             /** Created At */
             created_at: string;
             /** Drawings */
@@ -840,6 +884,8 @@ export interface components {
              * @enum {string}
              */
             state: "queued" | "running" | "done" | "failed";
+            /** To Review */
+            to_review: number | null;
         };
         /** ProjectTrace */
         ProjectTrace: {
@@ -1791,6 +1837,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FileTrace"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_questions_api_projects__project_id__questions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectQuestions"];
                 };
             };
             /** @description Validation Error */

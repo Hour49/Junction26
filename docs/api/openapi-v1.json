@@ -344,6 +344,73 @@
         "title": "AskRequest",
         "type": "object"
       },
+      "AskedQuestion": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "refused": {
+            "title": "Refused",
+            "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "count",
+                  "m",
+                  "m2",
+                  "m3",
+                  "ft",
+                  "ft2"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "question",
+          "answer",
+          "unit",
+          "drawing_id",
+          "at",
+          "refused"
+        ],
+        "title": "AskedQuestion",
+        "type": "object"
+      },
       "ClassKey": {
         "additionalProperties": false,
         "properties": {
@@ -739,6 +806,7 @@
               "restore",
               "add",
               "settle",
+              "unsettle",
               "reset"
             ],
             "title": "Action",
@@ -1772,6 +1840,28 @@
         "title": "ProjectList",
         "type": "object"
       },
+      "ProjectQuestions": {
+        "additionalProperties": false,
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/AskedQuestion"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "questions"
+        ],
+        "title": "ProjectQuestions",
+        "type": "object"
+      },
       "ProjectReview": {
         "additionalProperties": false,
         "properties": {
@@ -1800,6 +1890,17 @@
       "ProjectSummary": {
         "additionalProperties": false,
         "properties": {
+          "conflicts_open": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts Open"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -1829,6 +1930,17 @@
             ],
             "title": "State",
             "type": "string"
+          },
+          "to_review": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Review"
           }
         },
         "required": [
@@ -1837,7 +1949,9 @@
           "state",
           "created_at",
           "files",
-          "drawings"
+          "drawings",
+          "to_review",
+          "conflicts_open"
         ],
         "title": "ProjectSummary",
         "type": "object"
@@ -3971,6 +4085,46 @@
           }
         },
         "summary": "Trace"
+      }
+    },
+    "/api/projects/{project_id}/questions": {
+      "get": {
+        "description": "The questions asked in the project (`project_id` in POST /api/ask), newest first.",
+        "operationId": "project_questions_api_projects__project_id__questions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectQuestions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Questions"
       }
     },
     "/api/projects/{project_id}/review": {

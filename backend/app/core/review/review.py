@@ -404,6 +404,8 @@ def apply(
             if edit.value is None:
                 raise InvalidInputError("settle needs the value to keep")
             settled[key] = Settled(value=_typed(quantity, edit.value), at=at)
+        case "unsettle":
+            settled.pop(key, None)  # only the settled value: mark edits stay
     return ReviewState(
         rejected={name: marks for name, marks in rejected.items() if marks},
         added={name: marks for name, marks in added.items() if marks},

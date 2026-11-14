@@ -118,7 +118,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/evidence.png?question=&width=` | An answer with its proof drawn on its page | #31 |
 | `POST /api/ask` | Answer a question with its takeoff row, marks, rule, conflicts, cost | #31 |
 | `GET /api/drawings/{drawing_id}/takeoff?zeros=` | Every quantity with its marks, both methods' values and review state | #32 |
-| `POST /api/drawings/{drawing_id}/review` | Reject, restore or add a mark; settle; reset. Returns the takeoff | #32 |
+| `POST /api/drawings/{drawing_id}/review` | Reject, restore or add a mark; settle, unsettle; reset. Returns the takeoff | #32 |
 | `POST /api/drawings/{drawing_id}/signoff` | Sign off one quantity, or undo it. Returns the takeoff | #32 |
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
 
@@ -214,7 +214,9 @@ Every project, newest first: open one ingested earlier when a live ingest is slo
       "state": "done",
       "created_at": "2026-11-14T08:00:00+00:00",
       "files": 11,
-      "drawings": 5
+      "drawings": 5,
+      "to_review": 2,
+      "conflicts_open": 2
     }
   ]
 }
@@ -2253,6 +2255,36 @@ upload lists the files, instead of one request per file.
         }
       ],
       "second_count": null
+    }
+  ]
+}
+```
+
+### `GET /api/projects/{project_id}/questions`
+
+The questions asked in the project, newest first (the last 200): every `POST /api/ask` that names the project in
+`project_id` is kept. An ask without a `project_id` is not kept.
+
+<!-- fixture: project_questions.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d4f",
+  "questions": [
+    {
+      "question": "What colour is the roof?",
+      "answer": null,
+      "unit": null,
+      "drawing_id": "adeefbbcc17559fc",
+      "at": "2026-11-14T08:05:00Z",
+      "refused": true
+    },
+    {
+      "question": "How many doors are there?",
+      "answer": 2,
+      "unit": "count",
+      "drawing_id": "adeefbbcc17559fc",
+      "at": "2026-11-14T08:05:00Z",
+      "refused": false
     }
   ]
 }
@@ -4507,6 +4539,10 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
   },
   {
     "quantity": "door",
+    "action": "unsettle"
+  },
+  {
+    "quantity": "door",
     "action": "reset"
   },
   {
@@ -4520,6 +4556,9 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
 - `add`: a missed item, on a count only. The new mark gets an id `a1`, `a2`…
 - `settle`: the value to keep (one of the conflict's values, or any value the surveyor counted). It holds until
   the next mark edit of that quantity.
+- `unsettle`: drop the settled value of the quantity and nothing else: mark edits and the rest of the drawing stay
+  (`reset` also drops them and the sign-off). Needs `quantity`; nothing settled is not an error; a signed-off
+  quantity is 409 as for any edit.
 - `reset`: undo every edit, settled value and sign-off of the quantity; without `quantity`, of every quantity of
   the drawing.
 - Recount: the ingest value minus the rejected marks' values plus the added ones'. A sum with a mark of unknown
@@ -4857,6 +4896,11 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (the Vellum redesign's fields, part 2, board #14): review action `unsettle` (drops the settled
+  value only, `Edit.action` gains the value). `ProjectSummary.to_review` and `conflicts_open`: quantities left to
+  review over the project's drawings, and conflicts nobody settled or signed off; null unless the project is `done`.
+  `GET /api/projects/{id}/questions`: `{project_id, questions: [{question, answer, unit, drawing_id, at, refused}]}`,
+  the asks that named the project, newest first; a new store in `<projects_dir>/api/questions/<project id>.jsonl`.
 - 2026-11-14, additive (the Vellum redesign's fields, board #14), all optional:
   - `ProjectView.started_at` / `finished_at`: ISO 8601 UTC, when the run began (after the queue) and ended,
     done or failed; null until then. Elapsed is `now - started_at`; there is no `eta_ms` (file times differ too much to
