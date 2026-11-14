@@ -20,6 +20,10 @@ plan does), so plan ids stay consistent whichever source an item came from. Ids 
 (`p1`, `e1`, `r1`...) and each item keeps its source's attrs (`attrs.score`) plus
 `attrs.component`, the source name.
 
+A plan box with no labelled room on a page where another box has one is not a floor plan
+(app/core/pipeline/plan_rooms.py: an elevation beside the plans); what was read inside it stays,
+on no plan.
+
 `room_policy` (ROOM_POLICY, app/core/pipeline/room_policy.py) retypes the rooms' source's rooms
 before they are placed, whichever source that is; None keeps the reader's types.
 
@@ -57,6 +61,7 @@ from app.core.drawing.model import (
 from app.core.errors import InvalidInputError
 from app.core.pipeline.disputed_marks import ANSWER
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.plan_rooms import floor_plans
 from app.core.pipeline.ports import Extractor
 
 RoomPolicy = Callable[[Sequence[Room]], Sequence[Room]]
@@ -197,9 +202,14 @@ class CompositeRasterExtractor:
                 found[component.name] = pending[component.name].result()
             return found[component.name]
 
+        boxed = read_by(self._plans).plans
+        seen_rooms: Sequence[Room] = ()  # asked of the future itself: `found` keeps its order
+        if self._rooms is not None:
+            by_rooms = pending[self._rooms.name].result()
+            seen_rooms = by_rooms.rooms if _looked_for(by_rooms.read, "room") else ()
+        kept = floor_plans(boxed, seen_rooms)
         plans = tuple(
-            plan.model_copy(update={"id": f"p{index}"})
-            for index, plan in enumerate(read_by(self._plans).plans, start=1)
+            plan.model_copy(update={"id": f"p{index}"}) for index, plan in enumerate(kept, start=1)
         )
         read: list[ReadClass] = []
         elements: list[Element] = []
@@ -262,6 +272,11 @@ class CompositeRasterExtractor:
             notes.extend(f"{name}: {note}" for note in got.notes)
         if retyped is not None:
             notes.append(retyped)
+        if len(kept) < len(boxed):
+            notes.append(
+                f"raster composite: {len(boxed) - len(kept)} of {len(boxed)} plan boxes hold no "
+                "room beside ones with labelled rooms: not floor plans"
+            )
         return Extracted(
             method="detector",
             scale=scale,

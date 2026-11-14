@@ -42,6 +42,7 @@ from app.core.plan_edit.edit import EditRefusedError, place_room, remove_wall
 from app.core.plan_edit.law_check import check_proposal, related_query
 from app.core.plan_edit.model import Proposal, Selection
 from app.core.plan_edit.walls import Opening, PlanPage, PlanRoom, walls_of
+from app.core.services.model import ServicesFollow
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,8 @@ class PlanStore:
     proposals: list[Proposal] = field(default_factory=list[Proposal])
     pack: RulePack | None = None  # the rule pack proposals are checked against (LC-6); None: none
     laws: LawIndex | None = None  # where the law clauses related to a change are found (LC-9)
+    # SERVICES_FOLLOW=on: follows a proposal through the service models (service_tools.py)
+    services: Callable[[Proposal], tuple[ServicesFollow, dict[str, Any]]] | None = None
     made_before: int = field(init=False, default=0)  # proposals of earlier turns
 
     def __post_init__(self) -> None:
@@ -371,6 +374,9 @@ def _proposed(store: PlanStore, proposal: Proposal) -> dict[str, Any]:
             if (at := boxes.get(finding.subject_ref or "")) is not None:
                 given["box"] = list(at)
         shown["law"] = {"drawing_id": proposal.drawing_id, "page": proposal.page, **view}
+    if store.services is not None:  # the model reads the lines, the proposal keeps the overlay
+        followed, shown["services"] = store.services(proposal)
+        proposal = proposal.model_copy(update={"services": followed})
     store.proposals.append(proposal)
     return shown
 

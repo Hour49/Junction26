@@ -31,6 +31,7 @@ from app.api import (
     laws,
     project_ask,
     projects,
+    services,
     takeoff,
 )
 from app.api.deps import Ingest
@@ -151,6 +152,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
         checks,
         evidence,
         laws,
+        services,
     )
     for router in routers:
         app.include_router(router.router)

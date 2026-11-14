@@ -10,7 +10,7 @@ should look, and this lists those places:
   room's own label is not a label of the type, or it was typed from its furniture alone;
 - a place the answer does not count (`mark_id` None) where both other readers see the type, or
   which the label policy retyped (`attrs.retyped_from`): a bedroom drawn with a bed and no
-  printed label.
+  printed label, or one whose printed label does not name a bedroom.
 
 Nothing is fitted: every rule is one reader against another. Measured on CubiCasa val with this
 function (993 room answers of config C1, 63 wrong; readers: the segmentation's rooms and the text
@@ -227,19 +227,15 @@ def _missed(
             "segmentation": None,
             "printed_label": None,
         }
-        found.append(
-            (
-                4,
-                Disputed(
-                    None,
-                    room.page,
-                    room.box,
-                    f"Not counted: this room looks like a {noun} from what is drawn in it, but no "
-                    "printed label was read in it.",
-                    readers,
-                ),
-            )
+        label = _first_line(room)
+        why = (
+            f"Not counted: the room reader typed this room a {noun}, but its printed label "
+            f'"{label}" does not name one.'
+            if label
+            else f"Not counted: this room looks like a {noun} from what is drawn in it, but no "
+            "printed label was read in it."
         )
+        found.append((4, Disputed(None, room.page, room.box, why, readers)))
     return found
 
 

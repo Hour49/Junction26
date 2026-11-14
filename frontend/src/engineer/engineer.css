@@ -588,6 +588,11 @@ button.en-ref:hover,
 .en-send:disabled {
   cursor: default; /* filled accent even when empty, as the demo (EN-81) */
 }
+/* While a photo is read the paperclip is off, and looks it (qa-a r10 item 3). */
+.en-attach:disabled {
+  color: var(--v-muted);
+  opacity: 0.4;
+}
 .en-limit {
   text-align: center;
   font-size: 12px;

@@ -16,6 +16,7 @@ import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { DocumentLists } from './DocumentLists';
 import { IssueCard } from './IssueCard';
+import { issueModel } from '../model3d/model3d';
 import { documentIssues, needsYou } from './documents';
 import './documents.css';
 
@@ -162,6 +163,7 @@ export function DocumentsScreen({
                 n={n}
                 drawing={issue.drawing_id ? drawings[issue.drawing_id] : null}
                 file={project.files.find((f) => f.id === issue.file_id)}
+                model={issueModel(issue, project.files)}
                 onFile={onFile}
                 pack={pack}
                 onIssue={onIssue}

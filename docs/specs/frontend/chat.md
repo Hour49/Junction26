@@ -127,12 +127,13 @@ agent chat's next turn sees the new drawing because the backend reads the projec
 - CH-17 With `onAttach` the ask bar shows a button named "Add a photo" whose input accepts png and jpeg; without
   it (the engineer page) there is none. [component]
 - CH-18 Picking `plan.jpg` posts its bytes to `/api/projects/{pid}/files?name=plan.jpg`; "Reading plan.jpg…" shows
-  and the paperclip is disabled; once a poll answers the file `ready` the line says "plan.jpg is read: you can ask
-  about it (<reason>)." and the next ask is sent while N includes its drawing. [component]
-- CH-19 The line uses the backend's own state and reason (amended 2026-11-14 after review r9, S1): `flagged`:
-  "plan.jpg is flagged: <reason>." (the reason may say nothing was read, "not read: this setup has no reader ...",
-  so a flagged file never gets "you can ask"); `text_only`, `set_aside` or missing: "plan.jpg was not read as a plan:
-  <reason>." [unit `readLine` + component]
+  and the paperclip is disabled and dimmed; once a poll answers the file `ready` the line says "plan.jpg is read:
+  you can ask about it." and the next ask is sent while N includes its drawing. [component; e2e chat-photo]
+- CH-19 The line uses the backend's own state; its reason, word for word, is behind a "Why" disclosure under the
+  line (amended 2026-11-14 after review r9, S1, and qa-a r10 live-add-photo item 2: the line itself stays short):
+  `flagged`: "plan.jpg is flagged." (the reason may say nothing was read, "not read: this setup has no reader ...",
+  so a flagged file never gets "you can ask"); `text_only`, `set_aside` or missing: "plan.jpg was not read as a
+  plan." [unit `readLine` + component]
 - CH-20 The post fails (409 project not done, 413, 415 not png/jpeg, network): "Could not add plan.jpg: <detail>";
   nothing is polled and the paperclip works again. [component]
 - CH-21 A poll that fails after the post succeeded is retried on the next tick (the file is added either way); after
@@ -263,6 +264,12 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   number that is an estimate without ".00" ("5 m²", as `estimateLine` says "about 5 m²"), anything else as
   `formatValue`. Before: the row printed a rounded 5 as "5.00 m²" beside a "4.88 m²" lead. [component, the API's
   shape with `quantity.estimate` set; `test_api_project_ask.py` for the total]
+- CH-49 (#350, partial room totals) A part whose `answer.partial` is true (a room total that may leave rooms out)
+  shows a small "May be partial" tag (warn pill) beside its value, named and titled with the counts: "May be partial:
+  sums 7 rooms; 2 not in it" (`partialTip`; without `rooms_missing` only the first clause). No room list: the
+  backend's explanation and double-check reason (the row's "why" line) already name the missing rooms, so they show
+  once. Nothing when `partial` is absent or false. The engineer's answer card shows the same tag (EN-90). [unit
+  `partialTip`; component; browser 1440/390 with the fixture's fields and the backend's sentence]
 
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 

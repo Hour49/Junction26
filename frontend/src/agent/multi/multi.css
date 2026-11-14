@@ -1,0 +1,199 @@
+/* The edit card's discipline tabs (docs/specs/backend/services-follow.md), on the shell's Vellum tokens. Status
+   by icon and word in the list and by glyph and dash on the plan, colour never alone. */
+/* Five tabs do not fit the plan column or a phone: they wrap onto a second row, none is hidden. */
+.ms-tabs {
+  align-self: flex-start;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.ms-tabs > button {
+  gap: 6px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+.ms-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 980px;
+  background: var(--v-warn-mark);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.ms-off {
+  color: var(--v-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* On the plan. Lines are in page fractions with a px stroke; dots are px-sized elements at a page fraction. */
+.ms-run,
+.ms-path,
+.ms-halo {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ms-run {
+  stroke: #2b5f9e;
+  stroke-width: 2px;
+}
+.ms-run.ms--stays {
+  stroke-width: 3.5px;
+}
+.ms-run.ms--follows {
+  stroke: var(--v-ok);
+  stroke-width: 4px;
+}
+.ms-run.ms--needs_decision {
+  stroke: var(--v-warn-mark);
+  stroke-width: 4px;
+  stroke-dasharray: 7 4;
+}
+.ms-run.ms--cut_off {
+  stroke: var(--v-danger);
+  stroke-width: 4px;
+  stroke-dasharray: 2 5;
+}
+.ms-halo {
+  stroke: #fff;
+  stroke-width: 11px;
+  stroke-opacity: 0.9;
+}
+.ms-run.ms--picked {
+  stroke-width: 5px;
+}
+.ms-path {
+  stroke: var(--v-ok);
+  stroke-width: 3px;
+  stroke-dasharray: 6 4;
+}
+.ms-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2b5f9e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ms-dot--terminal {
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #2b5f9e;
+}
+.ms-dot.ms--follows,
+.ms-dot.ms--needs_decision,
+.ms-dot.ms--cut_off {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #fff;
+  z-index: 1;
+}
+.ms-dot.ms--follows {
+  background: var(--v-ok);
+  box-shadow: 0 0 0 1px var(--v-ok);
+}
+.ms-dot.ms--needs_decision {
+  background: var(--v-warn-mark);
+  box-shadow: 0 0 0 1px var(--v-warn-mark);
+}
+.ms-dot.ms--cut_off {
+  background: var(--v-danger);
+  box-shadow: 0 0 0 1px var(--v-danger);
+}
+/* Where a re-seated terminal was: an empty dashed ring. */
+.ms-dot.ms-dot--old {
+  width: 18px;
+  height: 18px;
+  background: none;
+  border: 2px dashed var(--v-text);
+  box-shadow: none;
+}
+.ms-dot.ms--picked {
+  outline: 3px solid var(--v-text);
+  outline-offset: 3px;
+}
+
+/* Under the plan. */
+.ms-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.ms-panel p {
+  margin: 0;
+}
+.ms-line {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ms-key .ms-dot {
+  position: static;
+  transform: none;
+  flex-shrink: 0;
+}
+.ms-key-run {
+  width: 22px;
+  border-top: 2px solid #2b5f9e;
+}
+.ms-key-run--path {
+  border-top: 3px dashed var(--v-ok);
+}
+.ms-actions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ms-action {
+  border-left: 4px solid var(--v-line);
+}
+.ms-action--follows {
+  border-left-color: var(--v-ok);
+}
+.ms-action--needs_decision {
+  border-left-color: var(--v-warn-mark);
+}
+.ms-action--cut_off {
+  border-left-color: var(--v-danger);
+}
+.ms-status {
+  font-weight: 700;
+}
+.ms-action--follows .ms-status {
+  color: var(--v-ok);
+}
+.ms-action--needs_decision .ms-status {
+  color: var(--v-warn);
+}
+.ms-action--cut_off .ms-status {
+  color: var(--v-danger);
+}
+.ms-action--stays .ms-status {
+  color: var(--v-text-2);
+}
+.ms-system {
+  font-weight: 400;
+  color: var(--v-text-2);
+}
+
+/* Under a discipline tab the plan is the services': the room badges of the edit would cover the marks and the
+   proposed connections. The rooms and their areas stay in the change list. */
+.ag-planbox:has(.ms-layer) .ag-badges {
+  display: none;
+}

@@ -77,11 +77,16 @@ Outcome = tuple[list[CheckResult], str, RuleStatus]
 
 
 def check_drawing(
-    drawing: Drawing, pack: RulePack, route: Route | None = None, on_sheets: bool = False
+    drawing: Drawing,
+    pack: RulePack,
+    route: Route | None = None,
+    on_sheets: bool = False,
+    model_ids: bool = False,
 ) -> tuple[RuleCheck, ...]:
     """`route`: the route that read the drawing (DrawingInfo.route); None: not known, taken as
     read off a picture. `on_sheets`: the drawing is a building model whose sheets are in the same
-    project, so its rules are checked there and not on the model (N3, 2026-11-14)."""
+    project, so its rules are checked there and not on the model (N3, 2026-11-14). `model_ids`:
+    put the model's GlobalIds on the subjects (the 3D view, MODEL_3D on)."""
     if on_sheets and not drawing.pages:
         return tuple(
             RuleCheck(
@@ -96,7 +101,8 @@ def check_drawing(
         )
     quantities = known_quantities(drawing)
     return tuple(
-        check_rule(drawing, rule, quantities, pack.fail_means, route) for rule in pack.rules
+        check_rule(drawing, rule, quantities, pack.fail_means, route, model_ids)
+        for rule in pack.rules
     )
 
 
@@ -106,11 +112,13 @@ def check_rule(
     quantities: Quantities | None = None,
     fail_means: str | None = None,
     route: Route | None = None,
+    model_ids: bool = False,
 ) -> RuleCheck:
     """`fail_means`: the pack's sentence on what a fail means, put after each fail's why.
     `route` raster or None: the drawing was (or may have been) read off a picture, whose
     outlines, windows and door boxes a reader can get wrong, so they never make a fail on their
-    own."""
+    own. `model_ids`: each subject the drawing's model lists as drawn gets its GlobalId
+    (MODEL_3D)."""
     ops: dict[str, Callable[[Drawing, CodeRule, Quantities, bool], Outcome]] = {
         "room_area": _room_area,
         "room_windows": _room_windows,
@@ -119,6 +127,8 @@ def check_rule(
     }
     found = known_quantities(drawing) if quantities is None else quantities
     results, why, status = ops[rule.op](drawing, rule, found, route not in MEASURED)
+    if model_ids:
+        results = _with_global_ids(results, drawing)
     if fail_means is not None:
         results = [
             result.model_copy(update={"why": f"{result.why} {fail_means}"})
@@ -329,6 +339,21 @@ def _element_mark(element: Element, role: str, quantities: Quantities) -> CheckM
     )
 
 
+def _with_global_ids(results: Sequence[CheckResult], drawing: Drawing) -> list[CheckResult]:
+    """Each result whose room or element the drawing's model lists as drawn here, with that
+    object's GlobalId on its subject."""
+    objects = drawing.model_objects or ()
+    ids = {o.element: o.global_id for o in objects if o.element and o.global_id}
+    return [
+        result.model_copy(
+            update={"subject": result.subject.model_copy(update={"global_id": ids[ref]})}
+        )
+        if (ref := result.subject.ref) in ids
+        else result
+        for result in results
+    ]
+
+
 def _result(
     rule: CodeRule,
     subject: CheckSubject,
@@ -372,7 +397,13 @@ def _room_area(drawing: Drawing, rule: CodeRule, quantities: Quantities, picture
         shown = _num(area, "m2")
         if room.area_status != "estimated":
             status: CheckStatus = "pass" if holds(area, rule.comparison, rule.limit) else "fail"
-            why = f"{name} is {shown} m2; the rule asks {_limit(rule)}."
+            # a printed area on a picture was read by a label reader: say so (review-341-level)
+            read = (
+                " (read from its label on the image)"
+                if picture and room.area_source == "printed"
+                else ""
+            )
+            why = f"{name} is {shown} m2{read}; the rule asks {_limit(rule)}."
         elif room.area_uncertainty is None:
             status = "cannot_tell"
             why = (

@@ -1,6 +1,6 @@
 # Advanced ingest: the pipeline stage by stage (spec, Vellum round)
 
-Status: draft, 2026-11-14, by fe-scaffold for frontend-orch. Screens 9-12 of Tudor's "Vellum redesign" canvas
+Status: draft, 2026-11-14, by fe-scaffold for frontend-orch; v4 steps (9, named after the backend's stages, per-route lines, AV-45..AV-48) by m3d-front for w3:p1, 2026-11-14 23:55 (ingest.md "Pipeline steps v4"). Screens 9-12 of Tudor's "Vellum redesign" canvas
 (`IngestUnpack`, `IngestIdentify`, `IngestExtract`, `IngestCheck`). API: docs/API.md (v1, main eb3552c).
 
 Names from the shared spec (`docs/specs/frontend/shared.md`) and the ingest spec used here: client functions
@@ -13,7 +13,7 @@ not edited); `StateBadge` (`src/ingest/ProjectScreen.tsx`); test helpers `mockAp
 ## Purpose
 
 The Advanced tab of the project screen shows what the pipeline did to the upload, step by step, for a reader who
-wants to see the machinery: a rail of eight steps, and for the chosen step a "Now" panel that explains the step in
+wants to see the machinery: a rail of nine steps, and for the chosen step a "Now" panel that explains the step in
 one sentence, shows what it is working on (or worked on), lists the trace lines it wrote, and four numbers. The four
 designs are one component: the rail picks the panel. Everything shown comes from the polled `ProjectView`, the
 per-file traces, and (for the last steps) each drawing's takeoff and suggestions. No animation pretends to work
@@ -26,8 +26,8 @@ All under `frontend/src/advanced/` (new folder); each file with logic has a `*.t
 | File | What |
 | --- | --- |
 | `AdvancedIngest.tsx` | `export function AdvancedIngest(props: { projectId: string; project: ProjectView }): JSX.Element` (signature fixed by the common brief). The rail (`<nav aria-label="Steps">`), the panel (heading, status, explanation, live line, log, visual) and the stats; owns the selected step. |
-| `visuals.tsx` | the four visuals: `FileStrip` (Unpack), `RouteLanes` (Identify, Route), `PlanMarks` (Normalise, Extract, Drawing model), `CheckPairs` (Cross-check), `ReadyList` (Index) |
-| `advanced.ts` | pure: `STEP_VIEW` (heading, visual, explanation per step), `stepStatus`, `currentStep`, `defaultStep`, `stepLines`, `stepStats`, `planCounts`, `pairsOf`, `elapsedMs`, `scaleChip`; `STEPS`, `stepOf`, `activeStep` come from `src/ingest/ingest.ts` |
+| `visuals.tsx` | the visuals: `FileStrip` (Unpack, Index), `RouteLanes` (Identify, Route), `PlanMarks` (Normalise, Extract, Store), `CheckPairs` (Second count), `ReadyList` (Takeoff) |
+| `advanced.ts` | pure: `STEP_VIEW` (heading, visual, explanation and per-route lines per step), `routeLines`, `stepStatus`, `currentStep`, `defaultStep`, `stepLines`, `stepStats`, `planCounts`, `pairsOf`, `elapsedMs`, `scaleChip`; `STEPS`, `stepOf`, `activeStep` come from `src/ingest/ingest.ts` |
 | `useProjectTrace.ts` | fetch the project's one trace when any file changes, aborted on unmount |
 | `useDrawingData.ts` | fetch each drawing's takeoff and `DrawingView` once, when a step that needs them is shown |
 | `advanced.css` | layout from the designs, `--v-*` tokens only |
@@ -37,23 +37,36 @@ All under `frontend/src/advanced/` (new folder); each file with logic has a `*.t
 
 ## The steps
 
-The rail is the same 8 steps as screen 2's step list: `STEPS` and `stepOf` from `src/ingest/ingest.ts` (fe-ingest,
-ingest.md IN-56, imported, not redefined), in the API's stage order, so the two views never disagree. This spec adds
-per step only the heading, the visual and a longer explanation:
+The rail is the same 9 steps as screen 2's step list: `STEPS` and `stepOf` from `src/ingest/ingest.ts` (fe-ingest,
+ingest.md IN-56 and "Pipeline steps v4", imported, not redefined), in the backend's stage order, so the two views never
+disagree. This spec adds per step only the heading, the visual, a longer explanation and, where the routes differ,
+one line per route:
 
 | # | Step (`STEPS`) | API stages (`stepOf`) | Heading | Visual | Explanation (fixed text, true for the backend today) |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Unpack | `unpack`, `hash`, null | Unpacking | `FileStrip` | "Every file in the upload is listed with its size and sha256, and every path is checked to stay inside the project folder." |
-| 2 | Identify | `identify`, `group` | Identifying | `RouteLanes` | "The format comes from each file's first bytes, not its name. Files with the same folder and name are one plan." |
-| 3 | Route | `route`, `cache` | Routing | `RouteLanes` | "Each plan is read from its richest file: a BIM model, then CAD, then a drawn PDF, then an image. A file read before is reused." |
+| 1 | Unpack | `unpack`, `hash`, null | Unpacking | `FileStrip` | "Every file in the upload is listed with its size and sha256, and every path is checked to stay inside the project folder. Each drawn page of a PDF set becomes a file of its own." |
+| 2 | Identify | `identify` | Identifying | `RouteLanes` | "The format comes from each file's first bytes, not its name. A picture is asked whether it is a floor plan: a doubtful sheet is read and flagged, anything else is set aside with a description." |
+| 3 | Route | `group`, `route`, `cache` | Routing | `RouteLanes` | "Files of the same plan are grouped, and each plan is read once from its richest file: an IFC model, then CAD, then a drawn PDF, then an image. A scanned PDF is read as an image. A plan read before is reused." |
 | 4 | Normalise | `normalise` | Normalising | `PlanMarks` | "Each sheet gets one page frame, and every mark and box is placed in it." |
 | 5 | Extract | `extract` | Extracting | `PlanMarks` | "Rooms, doors, windows and fixtures are read from the drawing, with its scale. A class the reader does not read gets no count, not a zero." |
-| 6 | Cross-check | `second_count` | Cross-checking | `CheckPairs` | "Quantities that can be measured a second way are measured again by an independent method. When the two disagree, it goes to you as a conflict." |
-| 7 | Index | `takeoff` | Indexing | `ReadyList` | "The counting rules are applied and every quantity of the plan is computed in advance, so questions are answered from it straight away." |
-| 8 | Drawing model | `write` | Storing the drawing model | `PlanMarks` | "One drawing model per plan is stored, with the marks that show where each quantity comes from." |
+| 6 | Second count | `second_count` | Counting a second way | `CheckPairs` | "Quantities that can be measured a second way are measured again by an independent method. When the two disagree, it goes to you as a conflict." |
+| 7 | Takeoff | `takeoff` | Working out the quantities | `ReadyList` | "The counting rules are applied and every quantity of the plan is computed in advance, with the marks it comes from, so questions are answered from it straight away." |
+| 8 | Store | `write` | Storing the drawing model | `PlanMarks` | "One drawing model per plan is stored, with the marks that show where each quantity comes from." |
+| 9 | Index | none (the project's last phase) | Indexing for questions | `FileStrip` | "Once every file is through, each set-aside file is judged against the project, the files that are not plans are described or their text read, and everything goes into the project's search index for the chat." |
 
-The design puts Drawing model before Cross-check and Index; the backend runs `second_count`, `takeoff`, `write`.
+Per-route lines (`STEP_VIEW[k].routes`), shown under the explanation as a list, "**<routeLabel>:** <line>", only for routes
+some file of the project is on (`files[].route`), in the order BIM model, CAD, drawn PDF, image:
+
+| Step | BIM model (`bim`) | Drawn PDF (`vector`) | Image (`raster`) |
+| --- | --- | --- | --- |
+| Normalise | "A model has no page: nothing to place." | "Pages are taken as the PDF gives them." | "Turned upright by its EXIF tag; a phone photo is flattened to its paper's corners." |
+| Extract | "Every object is listed with its GlobalId: spaces, storeys, doors, windows, fixtures." | "Read from the PDF's text and lines: rooms with areas, doors, windows, fixtures, the printed scale and schedule tables." | "A symbol detector and room readers read it; a large or sparse sheet is also counted by Gemini Carbon and flagged; more readers count again to set each count's level." |
+| Second count | "A model is what the sheets are checked against; it has no second count of its own." | "The scale text against the scale bar, the room areas printed on the sheet, and the sheet against its IFC model." | "The printed scale and any printed totals against what was read." |
+
+(CAD has no line: no CAD reader runs today.)
+
 Following the backend (ingest.md open point 12) keeps a step from reading "waiting" after a later one is "done".
+Not steps (they do not run at ingest): the conflict resolver, the IFC fact sheet, the 3D view's GLB.
 
 ### Step status (from `project.files` alone, no trace needed)
 
@@ -67,13 +80,16 @@ Following the backend (ingest.md open point 12) keeps a step from reading "waiti
 - `done`: neither, and at least one file has `n(f) >= k` with a non-null `stage`.
 - `none`: neither, the project is `done` or `failed`, and no file got to step `k`: "No file got here" (e.g. Normalise when every file was set aside at
   Route). This is the one status screen 2 does not have; its list shows such a step as done once the project is.
+- Index (no stage): `working` while the project is `queued`/`running`, has files and every file is finished;
+  `waiting` while it runs otherwise; `done` when the project is `done` with files; `none` when `failed` or done with
+  no file; `setAside` 0.
 - A step also carries `setAside`: the number of `set_aside` files whose `stage` is one of its stages ("2 set aside
   here"); text, not only colour.
 
 `currentStep`: while `project.state` is `queued` or `running`, ingest.md's `activeStep(files)` (the lowest `n(f)` among
 unfinished files, 1 with no files); `null` when `done` or `failed`.
 
-`defaultStep`: `currentStep` when set, else Index (step 7, what is ready to ask). The user's pick (a click on the rail) overrides it and stays
+`defaultStep`: `currentStep` when set, else Takeoff (step 7, what is ready to ask). The user's pick (a click on the rail) overrides it and stays
 while the project updates; the panel does not follow the pipeline after a click (no jumping under the reader).
 
 ## API calls
@@ -91,12 +107,12 @@ Read per `files[]` entry: `file.id`, `stages[]` (`stage`, `did`, `output`, `ms`,
 `second_count` (`measured`, `conflicts`, null when that file had no second count).
 
 **`GET /api/drawings/{drawing_id}/takeoff`** (`getTakeoff`; fixture `takeoff.json`). Once per entry of
-`project.drawings` whose file is finished, the first time Normalise, Extract, Cross-check or Drawing model is
-shown (Index needs no takeoff: its counts come from `files[].takeoff`). Read: `quantities[]` `key`, `label`, `unit`, `status`, `first`, `second` (`method`, `value`), `marks[]`
+`project.drawings` whose file is finished, the first time Normalise, Extract, Second count or Store is
+shown (Takeoff needs no takeoff request: its counts come from `files[].takeoff`). Read: `quantities[]` `key`, `label`, `unit`, `status`, `first`, `second` (`method`, `value`), `marks[]`
 (`box`, `page`, `label`, `state`, `room_type`).
 
 **`GET /api/drawings/{drawing_id}`** (`getDrawing`; fixture `drawing.json`). Once per drawing, the first time
-Index is shown. Read: `suggestions[].label`, `pages.length`, `pages[0].scale`
+Takeoff is shown. Read: `suggestions[].label`, `pages.length`, `pages[0].scale`
 (Identify chip; requested when Identify or Route is shown).
 
 **`pageUrl(drawingId, 1)`**, **`previewUrl(projectId, fileId)`**: plain `<img src>`; a failed load shows "Page not
@@ -106,7 +122,7 @@ available" / "Preview not available" in its place, as the ingest screens do.
 
 Common to all four: page title and Simple/Advanced toggle belong to `ProjectScreen` (not drawn here). Below them:
 
-1. **Rail** (`<nav aria-label="Steps">`, 8 columns on a `--v-line`-tinted track, 4 × 2 under 760 px): each step a
+1. **Rail** (`<nav aria-label="Steps">`, 9 columns on a `--v-line`-tinted track, 3 × 3 under 760 px): each step a
    `<button>` with a status ring and its label. Status shown by icon and a visually hidden word: done ✓ ("done"),
    working pulsing dot ("working", pulse off under reduced motion), waiting empty ring ("waiting"), none dash ("no
    file got here"), and "· N set aside" when `setAside > 0`. The selected step is raised (white, shadow) with
@@ -160,7 +176,7 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
 - Stats: **Elapsed**, **Exact geometry** (count), **From the image** (count), **Set aside** (all set-aside files).
   Each lane lists its readers as `<route>: <readerName>`. A file not finished and not routed reads "Not routed yet."
 
-### Screen 11, Normalise, Extract, Drawing model (`IngestExtract`)
+### Screen 11, Normalise, Extract, Store (`IngestExtract`)
 
 - Visual `PlanMarks`: a `<select aria-label="Drawing">` over `project.drawings` (default the first; label `file`).
   For a drawing with pages: `pageUrl(drawing_id, 1)` in a `position: relative` box, an SVG overlay `viewBox="0 0 1
@@ -175,21 +191,21 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   **Drawings ready** (`"<finished drawings> / <expected_drawings>"`, finished drawings alone while `expected_drawings` is null). A key no drawing has shows "–",
   never 0.
 
-### Screen 12, Cross-check and Index (`IngestCheck`)
+### Screen 12, Second count and Takeoff (`IngestCheck`)
 
-- Visual `CheckPairs` (Cross-check): `pairsOf(takeoffs)`, every row with `second` set, conflicts first, then the rest
+- Visual `CheckPairs` (Second count): `pairsOf(takeoffs)`, every row with `second` set, conflicts first, then the rest
   in takeoff order. Each pair as the design's card: left "From the drawing" `formatValue(first.value, unit)` and
   `methodName(first.method)`; right "Second count" `formatValue(second.value, unit)` and
   `methodName(second.method)`; above, `label` and the drawing's `file`; below, the verdict: `agree` → "They agree.
   Kept as the answer."; `conflict` → AV-38's words and "Show the conflict" button; any other `status` → its word (`signed`, `edited`, `estimate`, `single`). Verdicts
   carry an icon and words, colour (`--v-ok`, `--v-warn-soft`) only adds. No pairs: "Nothing on these drawings can be
   measured a second way yet." Shown: every conflict and the first 4 other pairs, then a "Show all N pairs" button.
-- Visual `ReadyList` (Index): "Questions ready to ask" (never "answers ready", Bogdan), per drawing: its `file`,
+- Visual `ReadyList` (Takeoff): "Questions ready to ask" (never "answers ready", Bogdan), per drawing: its `file`,
   "<n> questions ready to ask" with `n` = keys of its file's `takeoff` (one question per quantity), then the `suggestions[].label` of its `DrawingView` as a
   list, each with a filled dot when the drawing's file is `ready` or `flagged` (no link: AV-39). No drawings: "No drawing to ask yet."
-- Stats, Cross-check: **Elapsed**, **Measured twice** (pairs), **Agree** (`status === 'agree'`), **Conflicts**
+- Stats, Second count: **Elapsed**, **Measured twice** (pairs), **Agree** (`status === 'agree'`), **Conflicts**
   (`status === 'conflict'`), from the takeoffs, once every finished drawing's takeoff has loaded or failed; "–" until then (AV-31); Conflicts
-  counts `Takeoff.disputes` (AV-34). Index: **Elapsed**, **Drawings** (`drawings.length`), **Questions ready** (keys of the drawings' files'
+  counts `Takeoff.disputes` (AV-34). Takeoff: **Elapsed**, **Drawings** (`drawings.length`), **Questions ready** (keys of the drawings' files'
   `takeoff`, summed over `project.drawings`), **Cost** (`formatCost(project.cost_usd)`).
 
 ## States
@@ -197,7 +213,7 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
 | State | What shows | Reach it on purpose |
 | --- | --- | --- |
 | Running | rail with `currentStep` marked and selected; panel "Now"; log grows as traces come | `project_running.json`; mocked traces per stage |
-| Done | every reached step ✓; Index selected; Time = `project.ms` | `project.json` + `trace.json` |
+| Done | every reached step ✓; Takeoff selected; Time = `project.ms` | `project.json` + `trace.json` |
 | Failed project | rail statuses as computed; panel as for done; `project.error` is shown by `ProjectScreen`, not here | `project_failed.json` |
 | No files | `files: []`: rail all "waiting" while queued/running, all "no file got here" when done; panel log "Nothing yet." | `queued` with `files: []` |
 | Trace loading | log "Loading the trace…" | pending `getProjectTrace` |
@@ -211,15 +227,15 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
 
 Rail and steps
 
-- AV-1: The rail shows 8 buttons in a `nav` named "Steps", with the names of `STEPS` in its order: Unpack, Identify,
-  Route, Normalise, Extract, Cross-check, Index, Drawing model. [component]
-- AV-2: `STEP_VIEW` has a heading, visual and explanation for each of the 8 steps, and `advanced.ts` defines no
+- AV-1: The rail shows 9 buttons in a `nav` named "Steps", with the names of `STEPS` in its order: Unpack, Identify,
+  Route, Normalise, Extract, Second count, Takeoff, Store, Index. [component]
+- AV-2: `STEP_VIEW` has a heading, visual and explanation for each of the 9 steps, and `advanced.ts` defines no
   stage-to-step table of its own (it imports `stepOf`). [unit]
 - AV-3: `stepStatus` gives working / waiting / done / none per the rules above, including: a finished file whose
   `stage` is `route` (set aside there) does not make later steps `waiting`; a reused file with `stage: write` marks
   every step done. [unit, `project.json`, `project_running.json`]
 - AV-4: With `project_running.json`, the current step's button has `aria-current="step"` and is selected; no other
-  button has `aria-current`. With `project.json` (done), no button has it and Index is selected. [component]
+  button has `aria-current`. With `project.json` (done), no button has it and Takeoff is selected. [component]
 - AV-5: A click on a step selects it (`aria-pressed="true"`), shows its heading, and the selection stays when a new
   `project` prop arrives with a different current step. [component, rerender]
 - AV-6: Each step's status is readable without colour: its accessible name includes "done", "working", "waiting" or
@@ -256,10 +272,10 @@ Visuals and stats
 - AV-18: The plan view draws one rect per non-rejected page-1 mark of the `room`, `door` and `window` rows of the
   selected drawing's takeoff, at `box` fractions in a `0 0 1 1` viewBox. [component, `takeoff.json`: the `door` row's
   2 marks]
-- AV-19: Cross-check lists every takeoff row with `second` set, conflicts first; a conflict's way to its card is
+- AV-19: Second count lists every takeoff row with `second` set, conflicts first; a conflict's way to its card is
   AV-38 (the `#/p/<projectId>/conflicts` link is gone: that route now lands on Ingest); Agree and Conflicts stats count `status` `agree` and `conflict`. [unit + component,
   `takeoff.json`: one pair, `area:room|name=1.01`, 22.4 vs 30.0, conflict]
-- AV-20: Index lists each drawing with its quantity count and its `suggestions[].label`; no "Ask this drawing"
+- AV-20: Takeoff lists each drawing with its quantity count and its `suggestions[].label`; no "Ask this drawing"
   link (AV-39). [component, `drawing.json`]
 - AV-21: Takeoffs and drawings are requested once per drawing, only after a step that needs them is first shown;
   a failure shows its error line with Retry and "–" in the dependent stats. [component]
@@ -276,7 +292,7 @@ Layout and access
 - AV-26: Every step renders from what the user uploaded, by kind (Tudor 12:03): Unpack and Identify/Route show each
   file's own `preview.png` for images and PDFs and the kind's line for the rest (ifc, dxf, text, unidentified), so
   no request can 404 and no image breaks; Normalise shows the drawing's upload beside its normalised page 1; Extract
-  its page 1 with the marks (ifc: "A model, no sheet to show."); Cross-check and Index the takeoffs' own values.
+  its page 1 with the marks (ifc: "A model, no sheet to show."); Second count and Takeoff the takeoffs' own values.
   [unit `previewNote`; component: mixed kinds; browser: a real upload (zip of photo, PDF, PNG scan, IFC; and one
   photo alone) at 1440 and 390, 0 console errors]
 - AV-27: Trace lines show a sha256 as its first 12 characters and "…" (`shortHashes`); mark keys are
@@ -285,7 +301,7 @@ Layout and access
 - AV-28: Every file name in src/advanced comes from THIS project (`fileName(project, drawingId)`: `project.files` by
   `drawing_id`, else `project.drawings[].file`), never `Takeoff.file` or `DrawingView.file`: drawings are
   content-addressed and shared, so those may be another project's path for the same bytes. Kinds show as
-  `kindLabel` words ("photo of a plan"), never raw ids. [unit `pairsOf` with a shared drawing; component Cross-check]
+  `kindLabel` words ("photo of a plan"), never raw ids. [unit `pairsOf` with a shared drawing; component Second count]
 - AV-29 (R4-a-4): No raw id or doubled path in Advanced text: a file with no preview reads "<kindLabel>: no
   preview" ("SVG: no preview", no "a SVG"); a log line whose `output` is the file's own path uses `did` instead (never
   "Unpack a.pdf a.pdf"); an Identify line's output shows as `kindLabel`, a Route line's and the route chip as
@@ -293,7 +309,7 @@ Layout and access
 - AV-30 (R4-a-5): The "File" and "Drawing" picker labels never break inside the word at 390 or 1440: `.adv-pick`
   sets `overflow-wrap: normal` and the select `min-width: 0` (the page's `overflow-wrap: anywhere` let the select
   squeeze the label to one letter per line). [unit: CSS text; browser 1440 and 390]
-- AV-31 (R4-a-8): Cross-check's Measured twice, Agree and Conflicts show "–" until every finished drawing's takeoff
+- AV-31 (R4-a-8): Second count's Measured twice, Agree and Conflicts show "–" until every finished drawing's takeoff
   has loaded or failed, then the counts; they never show a partial sum that changes as takeoffs arrive (QA saw
   100/8, 27/0, 61/8). [component: one takeoff pending -> "–"; all loaded -> counts]
 - AV-32 (R4-a-9): As in Simple (IN-49, IN-71), Unpack leaves the counts out while nothing is opened: no file with a
@@ -303,7 +319,7 @@ Layout and access
   ("drawn PDF route: PDF vector reader", "image route: not read"), never "bim:", "cad:", "vector:", "raster:". The
   Unpack live line is "<path>: <formatSize(size)>" of the file of its last line; hashes stay in the mono log only.
   [component]
-- AV-34 (R4-a-8, API `Takeoff.disputes`, #149): Cross-check counts one conflict per entry of `Takeoff.disputes` (the
+- AV-34 (R4-a-8, API `Takeoff.disputes`, #149): Second count counts one conflict per entry of `Takeoff.disputes` (the
   keys the project review lists): a `conflict` row whose key is not in `disputes` (a storey or room-name twin of
   another row's disagreement) is not listed or counted; Conflicts = disputed pairs. A takeoff without `disputes`
   (older backend) keeps the old rule (`status === 'conflict'`). [unit `pairsOf`; component]
@@ -338,12 +354,12 @@ ProjectScreen, as now). A done project with no drawings: whatever `IngestFinishe
   renders. [component]
 - AV-37: AdvancedIngest makes no review or issues request of its own (the finished block makes them): the
   `mockApi` call log for a done project with the block mocked has no `/review` and no `/issues` call. [component]
-- AV-38: Cross-check verdicts: `conflict` reads "They disagree. It goes to the conflicts below." while the project
+- AV-38: Second count verdicts: `conflict` reads "They disagree. It goes to the conflicts below." while the project
   is done, and "They disagree. It goes to the conflicts when reading ends." while it is not; a done project's
   conflict pair has a button "Show the conflict" that scrolls the finished block's conflicts list into view
   (`scrollIntoView`, `behavior: 'auto'` under reduced motion) and moves focus to it (`tabIndex=-1` target). No link
   to `#/p/<pid>/conflicts`. [component: text per state, button present only when done, `scrollIntoView` called]
-- AV-39: Index has no "Ask this drawing" link and no `/engineer` link anywhere in `src/advanced/` (chat is project
+- AV-39: Takeoff has no "Ask this drawing" link and no `/engineer` link anywhere in `src/advanced/` (chat is project
   wide; "Start a new chat" in the finished block is the way in, as in the demo). [component + grep of the folder]
 - AV-40: Plain words: no text in `src/advanced/` names a screen that no longer exists ("Settle the conflicts",
   "Engineer", "Issues" tab) and no credit, licence, source note or "refused" line. [component: done project, assert
@@ -374,6 +390,20 @@ is the Simple view's. The issue count of the done line ("issues still to answer"
 `state: open`, notes not counted) is computable from `GET /api/projects/{id}/issues`; one count function should
 serve the done line and the Documents badge (fe-shared / preqa-a), not two.
 
+Pipeline steps v4 (ingest.md "Pipeline steps v4")
+
+- AV-45: `STEP_VIEW` has a `routes` line for bim, vector and raster on Normalise, Extract and Second count, and none
+  on the other steps; `routeLines(view, project)` returns only the routes some file is on, in the order bim, cad,
+  vector, raster, as `{route: routeLabel, line}` ("drawn PDF route", "Pages are taken as the PDF gives them."). [unit]
+- AV-46: The panel shows those lines as a list under the explanation; a project with only a drawn PDF shows one line on
+  Extract and none on Takeoff. [component]
+- AV-47: Index (step 9): `stepStatus` is working while the project runs with every file finished, waiting while a
+  file is still open, done when the project is done with files, none when it failed or has no file; its log lists each file's
+  `evidence.why` as "Index <path> <why>" (files without `evidence` are left out), "Nothing yet." when none has one.
+  [unit + component]
+- AV-48: The rail is 9 columns wide at 1440 px and 3 × 3 at 390 px, with no horizontal scroll and no step name
+  broken inside a word (`overflow-wrap: normal`). [e2e screenshot]
+
 ## Not in the API
 
 Not added, per Bogdan's triage (11:07, #14 c6874945888); shown as nothing:
@@ -382,13 +412,15 @@ Not added, per Bogdan's triage (11:07, #14 c6874945888); shown as nothing:
 2. **Order of events in time** (design: the log is "newest first"): no `StageTrace.at`; the log is in file order.
 3. **Identify medium, year, language** (design: "Pencil on paper · 1948", "Labels in Swedish"): no
    `FileStatus.identified`; the chip shows the kind only.
-4. **An "Index" stage**: the backend has none; screen 2 and this spec show `takeoff` as Index and the drawing's
-   `suggestions` as "questions ready to ask". Bogdan (11:07): "Index" is fine.
+4. **An "Index" stage**: the backend has no stage id for its last phase (triage's judge, the evidence step, the
+   evidence index). v4 shows it as step 9, Index, from the project still running with every file finished, and its
+   log from `files[].evidence.why`; `takeoff` is now shown as Takeoff (it was "Index" before v4). A
+   `ProjectStatus.phase` would let the backend name it.
 
 ## Fields added by #120 (were mocked, now real)
 
 `ProjectView.started_at` (Elapsed), `expected_drawings` (Drawings ready), `skipped` (Unpack log), the project trace
-`GET /api/projects/{id}/trace` (one request for the log), `FileTrace.second_count` (Cross-check stats before the
+`GET /api/projects/{id}/trace` (one request for the log), `FileTrace.second_count` (Second count stats before the
 takeoffs), `PageView.scale` (Identify chip), `MarkView.room_type` (room pill title). Read as typed fields; null shows
 the empty state above. No mock and no `data-pending` is left in `src/advanced/`.
 
@@ -406,5 +438,5 @@ real list instead).
   must exist before AV-1/AV-2 can pass; until then AdvancedIngest tests import it from the same path and fail red.
 - **Status `none`**: the Advanced rail has a fourth status, "No file got here", that screen 2's list lacks. Fine, or
   should both show it?
-- **Request load**: Index needs one `GET /api/drawings/{id}` per drawing and Extract/Cross-check one takeoff per
+- **Request load**: Takeoff needs one `GET /api/drawings/{id}` per drawing and Extract/Second count one takeoff per
   drawing; with the sample (≤ 10 drawings) that is fine; a large zip would want item 4 above.

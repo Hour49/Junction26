@@ -12,6 +12,7 @@ import {
   planCounts,
   previewNote,
   quantityCount,
+  routeLines,
   scaleChip,
   shortHashes,
   stepLines,
@@ -21,9 +22,9 @@ import {
 const statuses = (p: ProjectView) => STEPS.map((_, i) => stepStatus(p, i + 1).status);
 
 describe('advanced.ts', () => {
-  it('AV-2 STEP_VIEW has a heading, visual and explanation for each of the 8 steps', () => {
-    expect(STEPS).toHaveLength(8);
-    expect(STEP_VIEW).toHaveLength(8);
+  it('AV-2 STEP_VIEW has a heading, visual and explanation for each of the 9 steps', () => {
+    expect(STEPS).toHaveLength(9);
+    expect(STEP_VIEW).toHaveLength(9);
     for (const v of STEP_VIEW) {
       expect(v.heading).not.toBe('');
       expect(v.explain.length).toBeGreaterThan(20);
@@ -31,7 +32,7 @@ describe('advanced.ts', () => {
   });
 
   it('AV-3 a done project: every step done', () => {
-    expect(statuses(project)).toEqual(Array(8).fill('done'));
+    expect(statuses(project)).toEqual(Array(9).fill('done'));
   });
 
   it('AV-3 running: steps before the working one done, it working, after it waiting', () => {
@@ -45,14 +46,15 @@ describe('advanced.ts', () => {
       'waiting',
       'waiting',
       'waiting',
+      'waiting',
     ]);
   });
 
   it('AV-3 queued with no stages: Unpack working, the rest waiting; no files while queued: all waiting', () => {
     expect(statuses(variants.queued)[0]).toBe('working');
-    expect(statuses(variants.queued).slice(1)).toEqual(Array(7).fill('waiting'));
+    expect(statuses(variants.queued).slice(1)).toEqual(Array(8).fill('waiting'));
     const queuedEmpty: ProjectView = { ...project, state: 'queued', files: [], drawings: [] };
-    expect(statuses(queuedEmpty)).toEqual(Array(8).fill('waiting'));
+    expect(statuses(queuedEmpty)).toEqual(Array(9).fill('waiting'));
   });
 
   it('AV-3 a file set aside at Route makes no later step waiting; with no other file they are "none"', () => {
@@ -60,19 +62,73 @@ describe('advanced.ts', () => {
       ...project,
       files: [{ ...must(project.files[0]), state: 'set_aside', stage: 'route', drawing_id: null }],
     };
-    expect(statuses(p)).toEqual(['done', 'done', 'done', 'none', 'none', 'none', 'none', 'none']);
+    // Index is the project's own phase: it ran, though no file got past Route
+    expect(statuses(p)).toEqual([
+      'done',
+      'done',
+      'done',
+      'none',
+      'none',
+      'none',
+      'none',
+      'none',
+      'done',
+    ]);
     expect(stepStatus(p, 3).setAside).toBe(1);
     expect(stepStatus(p, 2).setAside).toBe(0);
-    expect(statuses({ ...project, files: [], drawings: [] })).toEqual(Array(8).fill('none'));
+    expect(statuses({ ...project, files: [], drawings: [] })).toEqual(Array(9).fill('none'));
   });
 
-  it('currentStep / defaultStep: the active step while running, none and Index when done', () => {
+  it('currentStep / defaultStep: the active step while running, none and Takeoff when done', () => {
     expect(currentStep(variants.running)).toBe(5);
     expect(defaultStep(variants.running)).toBe(5);
     expect(currentStep(variants.queued)).toBe(1);
     expect(currentStep(project)).toBeNull();
     expect(defaultStep(project)).toBe(7);
     expect(currentStep(variants.failed)).toBeNull();
+  });
+
+  it('AV-45 routeLines: only the routes the project is on, as "<route>: <line>"', () => {
+    const extract = must(STEP_VIEW[4]);
+    expect(routeLines(extract, project)).toEqual([
+      { route: 'drawn PDF route', line: must(extract.routes?.vector) },
+    ]);
+    const mixed: ProjectView = {
+      ...project,
+      files: [
+        { ...must(project.files[0]), route: 'raster' },
+        { ...must(project.files[1]), route: 'bim' },
+      ],
+    };
+    expect(routeLines(extract, mixed).map((l) => l.route)).toEqual([
+      'BIM model route',
+      'image route',
+    ]);
+    expect(routeLines(must(STEP_VIEW[6]), mixed)).toEqual([]);
+    for (const k of [3, 4, 5]) expect(Object.keys(must(STEP_VIEW[k]).routes ?? {})).toHaveLength(3);
+  });
+
+  it("AV-47 Index: working once every file is finished while running; its log is each file's evidence", () => {
+    const index = STEPS.length;
+    expect(stepStatus(variants.running, index).status).toBe('waiting');
+    expect(stepStatus({ ...variants.running, files: project.files }, index).status).toBe('working');
+    expect(stepStatus(project, index).status).toBe('done');
+    expect(stepStatus(variants.failed, index).status).toBe('none');
+    const why = 'described as a site photo';
+    const files = [
+      { ...must(project.files[0]), evidence: { indexed: true, why, cost_usd: 0.005 } },
+      must(project.files[1]),
+    ];
+    expect(stepLines(files, new Map(), index)).toEqual([
+      {
+        key: `${must(files[0]).id}-index`,
+        path: must(files[0]).path,
+        what: why,
+        text: `Index ${must(files[0]).path} ${why}`,
+        failure: null,
+        cost: 0.005,
+      },
+    ]);
   });
 
   it('AV-8 stepLines: one line per trace entry of the step, file order, failures and cache marked', () => {

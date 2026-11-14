@@ -31,7 +31,7 @@ from app.core.answering.ports import (
 from app.core.answering.tables import TableAnswer, answer_table, why_none
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.ifc_facts import FactSheet
-from app.core.pipeline.model import Quantity
+from app.core.pipeline.model import Partial, Quantity
 from app.core.pipeline.second_count import METHODS
 from app.core.pipeline.takeoff import known_quantities, normalised, room_names
 
@@ -224,7 +224,7 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
     """The takeoff's value with its marks. An estimated reading says what it rests on. A value
     two methods measured differently shows both, with the rule that kept one; when no rule
     decides, it keeps the takeoff's own reading and abstains."""
-    notes = [] if found.estimate is None else [found.estimate]  # the card's Estimate line too
+    notes = [text for text in (found.source, found.estimate) if text]  # estimate: the card's too
     conflicts, resolution, abstain = None, None, None
     if (disputed := found.conflict) is not None:
         count = found.unit == "count"
@@ -261,17 +261,74 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
         cost_usd=0.0,  # a lookup: no model is called on the drawing
         latency_s=latency,
         abstain=abstain,
-        explanation="; ".join(notes) or None,
+        explanation=_with_partial("; ".join(notes), found.partial) or None,
         estimate=None if found.estimate is None else True,
         conflicts=conflicts,
         resolution=resolution,
     )
 
 
+NAMED_MISSING = 3  # rooms named in a partial total's sentence; the rest are counted
+
+
+def _with_partial(said: str, partial: Partial | None) -> str:
+    """The other notes, then a partial total's sentence as a sentence of its own."""
+    if partial is None:
+        return said
+    sentence = partial_text(partial)
+    return f"{said.rstrip('.')}. {sentence}" if said else sentence
+
+
+def partial_text(partial: Partial) -> str:
+    """One plain sentence: a room total is the sum of the rooms found, and which it misses."""
+    rooms = f"{partial.counted} room{'' if partial.counted == 1 else 's'}"
+    named = _named(partial.missing)
+    table = f"the {partial.schedule}" if partial.schedule else "a schedule on the sheet"
+    if partial.refused:  # rooms found, their box areas refused (raster_scale.refused_boxes)
+        why = (
+            "its box cannot be the room"
+            if len(partial.refused) == 1
+            else ("their boxes cannot be the rooms")
+        )
+        said = (
+            f"This is the sum of the {rooms} with a measured area; not measured: "
+            f"{_named(partial.refused)} ({why})"
+        )
+        if partial.read:
+            said += "; rooms the reader missed are not in it either"
+        return said + (f"; {table} lists more: {named}." if partial.missing else ".")
+    if not partial.read:  # a vector or IFC sheet has no reader: only a schedule makes it partial
+        said = f"This is the sum of the {rooms} drawn on the sheet"
+        return f"{said}; {table} lists more: {named}."
+    said = f"This is the sum of the {rooms} the reader found; rooms it missed are not in it"
+    return said + (f". Not in it: {named}." if partial.missing else ".")
+
+
+def _named(rooms: Sequence[str]) -> str:
+    """The first NAMED_MISSING of `rooms`, and how many more."""
+    named = ", ".join(rooms[:NAMED_MISSING])
+    if (more := len(rooms) - NAMED_MISSING) > 0:
+        named += f" and {more} more"
+    return named
+
+
 HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates' PARENTHESES
 BARE_NUMBER = re.compile(r"-?U?\d+\.\d+", re.IGNORECASE)  # as question_templates' ROOM_NUMBER
 SHORT_LABEL = re.compile(r"[^\W\d_a-zäöå]{2}")  # MH, OH, KT: two capitals
 CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
+WHOLE_NUMBER = re.compile(r"\d{2,4}")  # a room number of whole digits ("104"; takeoff's)
+LETTERS = re.compile(r"[^\W\d_]{3}")
+DOTTED = re.compile(r"\d[.,]\d")
+# A count asked as "how many <noun>" / "the number of <noun>", English (vocab-nouns P2)
+COUNT_NOUN = re.compile(
+    r"^\s*(?:how\s+many|(?:what\s+is\s+)?the\s+number\s+of|number\s+of)\s+"
+    r"(?P<noun>[^\W\d_][\w'\u2019 .-]*?)\s*"
+    r"(?:\b(?:are|is|do|does|can|there|on|in|at|shown|printed|have|has)\b|[?.!]|$)",
+    re.IGNORECASE,
+)
+# What may stand before a room number in a question: "No 2", "no. 2", "Nr 2", "#2", "№ 2"
+NUMBER_SIGN = r"(?:(?:№|no\.?|nr\.?|#)\s*)?"
+NUMBER_SIGNS = frozenset({"№", "no", "no.", "nr", "nr.", "#"})
 
 
 class RoomByType:
@@ -349,7 +406,76 @@ class RoomByType:
         again, rooms = named
         if len(rooms) != 1:
             return Unsupported(reason=SEVERAL_PRINTED)
-        return self._area_of(rooms[0], again) if again.measure == "area" else again
+        if again.measure != "area":
+            return again
+        # a room with no area keeps the question about it: the drawing doesn't give its area
+        # (review-349 S3), never "not which room"
+        return self._area_of(rooms[0], again) or again.model_copy(
+            update={"name": normalised(rooms[0].label or again.name or "")}
+        )
+
+
+def _printed_names(room: Room) -> list[tuple[str, re.Pattern[str]]]:
+    """The names of a room a question may hold without quotes, each with how it is found (its
+    group "name" is what the question is read with). A name of 3 letters or more in any case,
+    with a whole number in it or not ("lobby", "open office 102"); a dotted room number stays
+    the parser's ("1.07"). A 2-letter label (MH, OH) or one of letters and digits (MH1) only as
+    printed, case-sensitive: never a word ("of", "is"). A whole room number alone ("104") only
+    after "room" ("room 104"): never any number in the question."""
+    found: list[tuple[str, re.Pattern[str]]] = []
+    for name in room_names(room):
+        if WHOLE_NUMBER.fullmatch(name):
+            words = rf"(?<!\w)(?:room|rm\.?)\s+(?P<name>{re.escape(name)})(?![\w.])"
+            found.append((name, re.compile(words, re.IGNORECASE)))
+        elif len(name) > 2 and LETTERS.search(name) and not DOTTED.search(name):
+            words = rf"(?<!\w)(?P<name>{_name_pattern(name)})(?!\w)"
+            found.append((name, re.compile(words, re.IGNORECASE)))
+    if room.label and (SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)):
+        words = rf"(?<!\w)(?P<name>{re.escape(room.label)})(?!\w)"
+        found.append((normalised(room.label), re.compile(words)))
+    return found
+
+
+def _name_pattern(name: str) -> str:
+    """How a printed name is found in a question: its words as printed, and a room number in it
+    with "№", "No", "No.", "Nr" or "#" before it or nothing ("BED ROOM № 2" is "Bed Room No 2",
+    "Bed Room #2" and "Bed Room 2"; vocab-nouns P3)."""
+    tokens = name.split()
+    parts: list[str] = []
+    for at, token in enumerate(tokens):
+        if token in NUMBER_SIGNS and at + 1 < len(tokens) and tokens[at + 1].isdigit():
+            continue  # the number after it says it
+        parts.append(NUMBER_SIGN + token if token.isdigit() else re.escape(token))
+    return r"\s+".join(parts)
+
+
+def counted_noun(text: str) -> str | None:
+    """The noun of an English count question ("How many porches are there?" → "porches"), as
+    written; None when the question is not one."""
+    found = COUNT_NOUN.match(text)
+    return None if found is None else " ".join(found.group("noun").split()) or None
+
+
+def noun_forms(noun: str) -> set[str]:
+    """The printed labels a counted noun can mean: as written and in the singular, with or
+    without a trailing "room" ("guard rooms" → "guard room"; "music rooms" → "music")."""
+    words = normalised(noun).split()
+    forms = {" ".join(words), " ".join([*words[:-1], _singular(words[-1])])}
+    for form in list(forms):
+        for tail in (" rooms", " room"):
+            if form.endswith(tail) and len(form) > len(tail):
+                forms.add(form[: -len(tail)])
+    return forms
+
+
+def _singular(word: str) -> str:
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith(("ches", "shes", "sses", "xes", "zes")):
+        return word[:-2]
+    if word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
 
 
 def printed_rooms(
@@ -362,23 +488,30 @@ def printed_rooms(
     found: dict[str, list[Room]] = {}
     at: dict[str, re.Match[str]] = {}
     for room in drawing.rooms:
-        names = [(name, name, re.IGNORECASE) for name in room_names(room) if len(name) > 2]
-        # a 2-letter label (MH, OH) or one of letters and digits (MH1) only as printed,
-        # case-sensitive: never a word ("of", "is"); a room number stays the parser's
-        if room.label and (SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)):
-            names.append((normalised(room.label), room.label, re.NOFLAG))
-        for name, printed, flags in names:
-            if flags and any(char.isdigit() for char in name):
-                continue
-            match = re.search(rf"(?<!\w){re.escape(printed)}(?!\w)", text, flags)
+        for name, pattern in _printed_names(room):
+            match = pattern.search(text)
             if match is not None:
                 found.setdefault(name, []).append(room)
                 at[name] = match
+    # "open office 102" holds "open office" too (three rooms print it): the longer name is meant
+    inside = {
+        name
+        for name, match in at.items()
+        for other in at.values()
+        if other is not match
+        and other.start() <= match.start()
+        and match.end() <= other.end()
+        and other.end() - other.start() > match.end() - match.start()
+    }
+    found = {name: rooms for name, rooms in found.items() if name not in inside}
     if len(found) != 1:
         return None
     ((name, rooms),) = found.items()
     match = at[name]
-    again = parser.parse(f"{text[: match.start()]}room '{match.group()}'{text[match.end() :]}")
+    named = match.group("name")
+    if normalised(named) != name:  # asked as "Bed Room No 2": the room's own name keys it
+        named = name
+    again = parser.parse(f"{text[: match.start()]}room '{named}'{text[match.end() :]}")
     if not (isinstance(again, Query) and again.name is not None):
         return None
     if again.measure == "area":

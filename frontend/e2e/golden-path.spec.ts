@@ -25,7 +25,7 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
     pid = /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
     await expect(filesThrough(page)).toHaveText('11 / 11', { timeout: 30_000 });
-    await expect(page.getByText('All 8 steps done').first()).toBeVisible();
+    await expect(page.getByText('All 9 steps done').first()).toBeVisible();
     await expect(page.locator('dt', { hasText: 'Drawings ready' }).locator('+ dd')).toHaveText(
       '5 / 5',
     );
