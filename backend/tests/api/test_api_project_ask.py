@@ -1,15 +1,20 @@
 """POST /api/projects/{id}/ask: a question on every drawing of a project (board #14, Tudor's
-project chat). Each part is what POST /api/ask gives; the total adds up only what adds up."""
+project chat). Each part is what POST /api/ask gives; a total only for one answering drawing, or
+for drawings known to show different storeys of one building model."""
 
 from typing import Any
 
 import pytest
+from conftest import upload
 from fastapi.testclient import TestClient
 
 from app.api import project_ask
 from app.api.ask import AnswerView, answer_view
+from app.core.drawing.model import Drawing
+from app.core.review.model import Row, Scope
 
 DOORS = "How many doors are there?"
+SAME_FLAT = "they may show the same rooms, so the numbers are not added up"
 
 
 def sample(client: TestClient) -> dict[str, Any]:
@@ -37,6 +42,12 @@ def changed(monkeypatch: pytest.MonkeyPatch, change: Any) -> None:
     monkeypatch.setattr(project_ask, "answer_view", changed_view)
 
 
+def disjoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The sample's drawings as if they were sheets of different storeys of one model (the
+    sample has no such sheets; test_disjoint_* check that rule on drawings that are)."""
+    monkeypatch.setattr(project_ask, "_disjoint", lambda drawings, rows: True)
+
+
 def test_an_unknown_project_is_404(client: TestClient) -> None:
     for project_id in ("0123456789ab", "not-an-id"):
         reply = client.post(f"/api/projects/{project_id}/ask", json={"question": DOORS})
@@ -52,9 +63,7 @@ def test_a_project_not_done_is_409(client: TestClient, monkeypatch: pytest.Monke
     assert reply.status_code == 409 and reply.json()["code"] == "not-allowed"
 
 
-def test_a_count_is_summed_over_the_drawings_that_answer_refused_ones_last(
-    client: TestClient,
-) -> None:
+def test_each_part_is_the_drawings_answer_refused_ones_last(client: TestClient) -> None:
     project = sample(client)
     found = ask(client, project["id"], DOORS)
     names = {entry["drawing_id"]: entry["file"] for entry in project["drawings"]}
@@ -65,24 +74,55 @@ def test_a_count_is_summed_over_the_drawings_that_answer_refused_ones_last(
         assert timeless(part["answer"]) == timeless(client.post("/api/ask", json=body).json())
     refused = [part["answer"]["refusal"] is not None for part in found["parts"]]
     assert refused == sorted(refused) and True in refused and False in refused
-    answered = [part["answer"]["answer"] for part in found["parts"] if part["answer"]["answer"]]
-    assert len(answered) >= 2
-    assert (found["total"], found["total_unit"]) == (sum(answered), "count")
-    assert found["total_sure"] is False  # the sample's answers have no sure verdict
+
+
+def test_drawings_that_may_show_the_same_flat_are_not_added_up(client: TestClient) -> None:
+    # the sample's flat-a.pdf and model/house.ifc draw the same flat: a sum says 6 doors, not 4
+    project = sample(client)
+    found = ask(client, project["id"], DOORS)
+    answered = [part for part in found["parts"] if part["answer"]["refusal"] is None]
+    assert {part["name"] for part in answered} >= {"plans/flat-a.pdf", "model/house.ifc"}
+    assert (found["total"], found["total_unit"], found["total_sure"]) == (None, None, False)
     assert found["total_note"] == (
-        f"{sum(answered)} doors over {len(answered)} drawings; "
-        f"{refused.count(True)} drawings have no reader for it."
+        f"{len(answered)} drawings answered; {SAME_FLAT}; 2 drawings have no reader for it."
     )
 
 
-def test_a_question_about_one_room_has_no_total(client: TestClient) -> None:
+def test_one_answering_drawing_is_the_total(client: TestClient, plan_pdf: bytes) -> None:
+    found = ask(client, upload(client, plan_pdf), DOORS)
+    (part,) = found["parts"]
+    assert (found["total"], found["total_unit"]) == (part["answer"]["answer"], "count") == (
+        2, "count",
+    )  # fmt: skip
+    assert found["total_note"] == "2 doors from 1 drawing."
+
+
+def test_drawings_known_to_be_disjoint_are_summed(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     project = sample(client)
+    disjoint(monkeypatch)
+    found = ask(client, project["id"], DOORS)
+    values = [part["answer"]["answer"] for part in found["parts"] if not part["answer"]["refusal"]]
+    assert len(values) >= 2
+    assert (found["total"], found["total_unit"]) == (sum(values), "count")
+    assert found["total_sure"] is False  # the sample's answers have no sure verdict
+    assert found["total_note"] == (
+        f"{sum(values)} doors over {len(values)} drawings; 2 drawings have no reader for it."
+    )
+
+
+def test_a_question_about_one_room_has_no_total(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = sample(client)
+    disjoint(monkeypatch)  # even then: two kitchens are two rooms
     found = ask(client, project["id"], "What is the area of the kitchen?")
     answered = [part for part in found["parts"] if part["answer"]["refusal"] is None]
-    assert len(answered) == 2  # the kitchen of flat-a and of flat-b: two rooms
+    assert len(answered) == 2  # the kitchen of flat-a and of flat-b
     assert (found["total"], found["total_unit"], found["total_sure"]) == (None, None, False)
     assert found["total_note"].startswith(
-        "2 drawings answered; each answer is about its own room or table, so they are not added up"
+        "2 drawings answered, each about its own room, so there is no total;"
     )
 
 
@@ -90,6 +130,7 @@ def test_parts_in_different_units_have_no_total(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     project = sample(client)
+    disjoint(monkeypatch)
     seen: list[str] = []
 
     def in_feet(view: AnswerView) -> AnswerView:  # the second drawing that answers is in ft²
@@ -100,13 +141,14 @@ def test_parts_in_different_units_have_no_total(
     changed(monkeypatch, in_feet)
     found = ask(client, project["id"], "What is the total indoor area?")
     assert found["total"] is None
-    assert "they answered in different units, so they are not added up" in found["total_note"]
+    assert "2 drawings answered in different units, so there is no total" in found["total_note"]
 
 
 def test_a_total_is_sure_only_when_every_summed_part_is(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     project = sample(client)
+    disjoint(monkeypatch)
 
     def sure(view: AnswerView) -> AnswerView:
         return view.model_copy(update={"line": view.line.model_copy(update={"sure": True})})
@@ -122,6 +164,7 @@ def test_a_summed_part_that_needs_a_double_check_says_so(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     project = sample(client)
+    disjoint(monkeypatch)
     first = project["drawings"][0]["drawing_id"]
 
     def disputed(view: AnswerView) -> AnswerView:
@@ -136,11 +179,13 @@ def test_a_summed_part_that_needs_a_double_check_says_so(
     assert "; 1 of them needs a double-check;" in found["total_note"]
 
 
-def test_a_project_question_is_logged_once_with_no_drawing(client: TestClient) -> None:
-    project = sample(client)
-    found = ask(client, project["id"], DOORS)
-    ask(client, project["id"], "What colour is the roof?")
-    listed = client.get(f"/api/projects/{project['id']}/questions").json()["questions"]
+def test_a_project_question_is_logged_once_with_no_drawing(
+    client: TestClient, plan_pdf: bytes
+) -> None:
+    project_id = upload(client, plan_pdf)
+    found = ask(client, project_id, DOORS)
+    ask(client, project_id, "What colour is the roof?")
+    listed = client.get(f"/api/projects/{project_id}/questions").json()["questions"]
     assert len(listed) == 2  # one line per project question, not one per drawing
     roof, doors = listed
     assert (doors["question"], doors["answer"], doors["unit"], doors["drawing_id"]) == (
@@ -149,3 +194,43 @@ def test_a_project_question_is_logged_once_with_no_drawing(client: TestClient) -
     assert (roof["answer"], roof["unit"], roof["drawing_id"], roof["refused"]) == (
         None, None, None, True,
     )  # fmt: skip
+
+
+def sheet(storeys: tuple[str | None, ...], model: tuple[str, ...] = ("g1", "g2")) -> Drawing:
+    """A sheet of a building model: one plan per storey, the model's objects by global id."""
+    return Drawing.model_validate(
+        {
+            "file": "sheet.pdf",
+            "pages": [{"page": 1, "width": 100, "height": 100, "unit": "pt"}],
+            "scale": {"status": "no_scale"},
+            "plans": [
+                {"id": f"p{at}", "page": 1, "box": [0, 0, 1, 1], "storey": storey}
+                for at, storey in enumerate(storeys)
+            ],
+            "model_objects": [
+                {"id": f"o{at}", "class": "door", "global_id": gid} for at, gid in enumerate(model)
+            ],
+        }
+    )
+
+
+def row(model: bool = False) -> Row:
+    return Row.model_construct(scope=Scope(model=model))
+
+
+def test_disjoint_sheets_are_different_storeys_of_one_model() -> None:
+    rows = [row(), row()]
+    assert project_ask._disjoint([sheet(("Ground",)), sheet(("First",))], rows)
+    # the same storey twice, a sheet of two storeys, no storey, another model, no model
+    assert not project_ask._disjoint([sheet(("Ground",)), sheet(("Ground",))], rows)
+    assert not project_ask._disjoint([sheet(("Ground", "First")), sheet(("Roof",))], rows)
+    assert not project_ask._disjoint([sheet((None,)), sheet(("First",))], rows)
+    assert not project_ask._disjoint([sheet(("Ground",)), sheet(("First",), ("g9",))], rows)
+    assert not project_ask._disjoint([sheet(("Ground",), ()), sheet(("First",), ())], rows)
+    # a question "in the model" asks the whole model on each sheet
+    assert not project_ask._disjoint([sheet(("Ground",)), sheet(("First",))], [row(True), row()])
+
+
+def test_a_model_file_is_never_disjoint_from_its_sheets() -> None:
+    model = sheet(("Ground",)).model_copy(update={"pages": (), "plans": ()})
+    assert not project_ask._disjoint([model, sheet(("First",))], [row(), row()])

@@ -492,8 +492,8 @@
       }
     }
   ],
-  "total": 6,
-  "total_unit": "count",
+  "total": null,
+  "total_unit": null,
   "total_sure": false,
-  "total_note": "6 doors over 3 drawings; 2 drawings have no reader for it."
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
 }

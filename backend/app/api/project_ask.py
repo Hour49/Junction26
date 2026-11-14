@@ -1,7 +1,10 @@
 """POST /api/projects/{project_id}/ask: a question on every drawing of a project (docs/API.md
-"Answering"). Each part is exactly what POST /api/ask gives on that drawing in the project; the
-total only adds those parts up, and only where adding them means something."""
+"Answering"). Each part is exactly what POST /api/ask gives on that drawing in the project. A
+total is given only when one drawing answers, or when the drawings that answer are known to show
+different parts of the building: the same building drawn twice (a sheet and its model) would
+otherwise be counted twice (board #14, Tudor)."""
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from fastapi import APIRouter
@@ -13,6 +16,7 @@ from app.api.projects import drawings_of
 from app.api.questions import AskedQuestion, record
 from app.api.views import View
 from app.core.answering.model import Unit
+from app.core.drawing.model import Drawing
 from app.core.review.model import RefusalCode, Row
 from app.core.review.proof import SHOWN_UNITS
 from app.core.review.review import NotAllowedError, noun
@@ -44,8 +48,9 @@ class ProjectAnswerPart(View):
 class ProjectAnswer(View):
     question: str
     parts: list[ProjectAnswerPart]  # the drawings that answered, then those that refused
-    # The answering parts added up: a count, or an area or length over the whole of each
-    # drawing, in one unit; None when there is nothing to add up or adding means nothing
+    # One answering part's value, or several parts added up when they are known to show
+    # different storeys of one model (a count, or an area or length of each whole drawing, in
+    # one unit); None otherwise: the drawings may show the same rooms twice
     total: int | float | None
     total_unit: Unit | None  # the unit of `total`; None with it
     total_sure: bool  # every part in the total is sure (`line.sure`); False with no total
@@ -84,7 +89,7 @@ def project_ask(
     ]
     answered = [part for part in parts if part.answer.refusal is None]
     refused = [part for part in parts if part.answer.refusal is not None]
-    total = _total(parts)
+    total = _total(parts, ingest.drawing)
     record(
         settings.projects_dir,
         project_id,
@@ -107,35 +112,62 @@ def project_ask(
     )
 
 
-def _total(parts: list[ProjectAnswerPart]) -> Total:
+def _total(parts: list[ProjectAnswerPart], drawing_of: Callable[[str], Drawing]) -> Total:
     answered = [part.answer for part in parts if part.answer.refusal is None]
     left_out = _refused([part.answer for part in parts if part.answer.refusal is not None])
     if not answered:
         said = f"No drawing answered it: {left_out}" if left_out else "The project has no drawing"
         return Total(note=f"{said}.")
     rows = [view.quantity for view in answered]
-    summed = [row for row in rows if row is not None and _summed(row)]
-    units = {view.unit for view in answered}
-    if len(summed) < len(rows) or len(units) != 1:
-        why = (
-            "each answer is about its own room or table"
-            if len(summed) < len(rows)
-            else "they answered in different units"
-        )
-        return Total(note=_sentence(f"{_drawings(len(answered))} answered; {why}, so they are "
-                                    "not added up", left_out))  # fmt: skip
-    total = sum(row.value for row in summed)
+    found = [row for row in rows if row is not None]
+    many = _drawings(len(answered))
+    if len(found) < len(rows):
+        return Total(note=_sentence(f"{many} answered from a printed table, so there is no total",
+                                    left_out))  # fmt: skip
+    if len(found) > 1:
+        if not all(_summed(row) for row in found):
+            return Total(note=_sentence(f"{many} answered, each about its own room, so there is "
+                                        "no total", left_out))  # fmt: skip
+        if len({view.unit for view in answered}) != 1:
+            return Total(note=_sentence(f"{many} answered in different units, so there is no "
+                                        "total", left_out))  # fmt: skip
+        if not _disjoint([drawing_of(view.drawing_id) for view in answered], found):
+            return Total(note=_sentence(f"{many} answered; they may show the same rooms, so the "
+                                        "numbers are not added up", left_out))  # fmt: skip
+    total = sum(row.value for row in found)
     total = total if isinstance(total, int) else round(total, 6)  # no float noise
     unit = answered[0].unit
-    first = summed[0]
+    first = found[0]
     said = noun(first.measure, first.subject, total)
     shown = f"{total} {said}" if said else f"{first.label}: {total}{_shown(unit)}"
-    note = f"{shown} over {_drawings(len(answered))}"
-    checks = sum(_double_check(row) for row in summed)
+    note = f"{shown} {'from' if len(found) == 1 else 'over'} {many}"
+    checks = sum(_double_check(row) for row in found)
     if checks:
         note += f"; {checks} of them {'needs' if checks == 1 else 'need'} a double-check"
     sure = all(view.line.sure is True for view in answered)
     return Total(total=total, unit=unit, sure=sure, note=_sentence(note, left_out))
+
+
+def _disjoint(drawings: Sequence[Drawing], rows: Sequence[Row]) -> bool:
+    """The drawings are known to show different parts of one building: sheets of the same
+    building model (the same objects by IFC global id, as the IFC second counter links a sheet
+    to its model), each showing one storey, no two the same. A model file shows every storey, a
+    question "in the model" asks the whole model on each sheet, and drawings with no model may
+    be the same flat drawn twice: none of them is known to be disjoint."""
+    if any(row.scope.model for row in rows):
+        return False
+    models = {
+        frozenset(item.global_id for item in drawing.model_objects or () if item.global_id)
+        for drawing in drawings
+    }
+    storeys = [{plan.storey for plan in drawing.plans} for drawing in drawings]
+    return (
+        len(models) == 1
+        and frozenset() not in models
+        and all(drawing.pages for drawing in drawings)
+        and all(len(shown) == 1 and None not in shown for shown in storeys)
+        and len(set.union(*storeys)) == len(drawings)
+    )
 
 
 def _shown(unit: Unit | None) -> str:

@@ -2990,22 +2990,26 @@ that call gives, the project's review edits applied. An unknown project is 404; 
 - `parts`: one per drawing, `{drawing_id, name, answer}`: `name` is the drawing's file as the project uploaded it
   and `answer` is the full `POST /api/ask` response. The drawings that answered come first, then those that
   refused (with their `answer.refusal`), each group in the project's order.
-- `total`, `total_unit`: the answering parts' values added up, only for a count, or an area or length over the whole
-  of each drawing, when every answering part is one of those in the same unit. Null otherwise: no part answered,
-  the question is about one room (by name or printed label: two kitchens on two drawings are two parts, not one
-  sum), the largest of several, a schedule cell, or the parts' units differ. The total adds the parts' `answer`
-  values and nothing else.
+- `total`, `total_unit`: when exactly one drawing answered, its value. When several did, their values added up, but
+  only when the backend knows the drawings show different parts of the building: sheets of the same IFC model,
+  each showing a different storey. A flat drawn twice (a PDF and its IFC model, as in the sample) would otherwise be
+  counted twice. The question must also be a count, or an area or length over each whole drawing, in one unit.
+  Null otherwise: no drawing answered, the drawings may show the same rooms, the question is about one room (two
+  kitchens on two drawings are two parts, not one sum), the answer came from a printed table, or the units differ.
+  The total only adds the parts' `answer` values.
 - `total_sure`: true only when there is a total and every part in it is sure (`answer.line.sure`); false
   otherwise.
 - `total_note`: one plain sentence to show with the total, or instead of it: what was added over how many drawings,
-  how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), and
-  which drawings gave no answer and why, e.g. `6 doors over 3 drawings; 2 drawings have no reader for it.`
+  how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), or
+  why there is no total, and which drawings gave no answer and why, e.g. `2 doors from 1 drawing.` or `3 drawings
+  answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.`
 - The question is kept once in the project's question list (`GET /api/projects/{id}/questions`) with
   `drawing_id: null`, `answer` and `unit` the total's (null with no total) and `refused` true when no drawing
   answered.
 
 The door count on the sample project, trimmed to three of its five parts (two that answered, one refused) with two
-marks each; the total and its note are over all five:
+marks each; the note is over all five (the sample's flat-a.pdf and model/house.ifc draw the same flat, so there
+is no total):
 
 <!-- fixture: project_ask.json -->
 ```json
@@ -3503,10 +3507,10 @@ marks each; the total and its note are over all five:
       }
     }
   ],
-  "total": 6,
-  "total_unit": "count",
+  "total": null,
+  "total_unit": null,
   "total_sure": false,
-  "total_note": "6 doors over 3 drawings; 2 drawings have no reader for it."
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
 }
 ```
 
@@ -5445,7 +5449,8 @@ formula in a spreadsheet.
 
 - 2026-11-14, additive (board #14, the project chat): `POST /api/projects/{project_id}/ask` with `{question}`
   returns `{question, parts: [{drawing_id, name, answer}], total, total_unit, total_sure, total_note}`, each part
-  the `POST /api/ask` answer on one drawing of the project. `AskedQuestion.drawing_id` (in
+  the `POST /api/ask` answer on one drawing of the project; a total only for one answering drawing or for drawings
+  known to show different storeys of one model. `AskedQuestion.drawing_id` (in
   `GET /api/projects/{id}/questions`) is null for a question asked on the whole project.
 - 2026-11-14, text and behaviour (board #14, pre-QA sweep): a room the takeoff keys under several names (number,
   name, "name (number)") is one conflict in `GET /api/projects/{id}/review`, one entry in `review_queue` and one
