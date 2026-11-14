@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Tip } from '@/components/ui/tip';
 import {
   errorText,
   evidenceUrl,
@@ -123,33 +124,29 @@ const TONE: Record<Row['status'], string> = {
 
 /** The status in words, with its explanation as a tooltip on hover and focus. */
 export function StatusPill({ status }: { status: Row['status'] }) {
-  const id = useId();
-  const [tip, setTip] = useState(false);
-  const show = () => {
-    setTip(true);
-  };
-  const hide = () => {
-    setTip(false);
-  };
+  // ui-bugs 7c: the app's one tooltip (components/ui/tip), as every pill
   return (
-    <span className="en-pillwrap">
-      <span
-        className={`v-pill${TONE[status]} en-pill`}
-        tabIndex={0}
-        aria-describedby={id}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-      >
-        {statusWord(status)}
-      </span>
-      <span role="tooltip" id={id} className="en-tip" hidden={!tip}>
-        {statusTip(status)}
-      </span>
-    </span>
+    <Tip text={statusTip(status)} wrap>
+      <span className={`v-pill${TONE[status]} en-pill`}>{statusWord(status)}</span>
+    </Tip>
   );
 }
+
+/** A pill with the shared tooltip when there is text for it, else the bare pill. */
+export const TipIf = ({
+  text,
+  children,
+}: {
+  text?: string | null;
+  children: React.ReactElement;
+}) =>
+  text ? (
+    <Tip text={text} wrap>
+      {children}
+    </Tip>
+  ) : (
+    children
+  );
 
 /** The confidence sentence ("High confidence: on our reference drawings…") behind a "Why?" toggle, closed by
  * default (ui-bugs 7); a refusal or flag reason is never put here: it stays on screen. */
@@ -419,9 +416,9 @@ function Answer(props: {
         <div className="en-grade">
           <div className="en-labelrow">
             <h4 className="en-label">Confidence</h4>
-            <span className={`v-pill${GRADE_TONE[grade]}`} title={a.level?.text}>
-              {grade}
-            </span>
+            <TipIf text={a.level?.text}>
+              <span className={`v-pill${GRADE_TONE[grade]}`}>{grade}</span>
+            </TipIf>
           </div>
           <span className="en-bar" aria-hidden="true">
             {[1, 2, 3].map((s) => (

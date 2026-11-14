@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
-import { GRADE_TONE, PartialTag, StatusPill, WhyToggle } from './AnswerCard';
+import { GRADE_TONE, PartialTag, StatusPill, TipIf, WhyToggle } from './AnswerCard';
 import { ResolverLines } from './Resolver';
 import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
 import { Plan } from './Plan';
@@ -11,11 +11,11 @@ import { canShow3d } from '../model3d/model3d';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-/** "<Level> confidence" (CH-42), the backend's sentence as its tooltip when there is one. */
+/** "<Level> confidence" (CH-42), the backend's sentence as its tooltip (the shared Tip) when there is one. */
 const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
-  <span className={`v-pill${GRADE_TONE[grade]}`} title={text}>
-    {grade} confidence
-  </span>
+  <TipIf text={text}>
+    <span className={`v-pill${GRADE_TONE[grade]}`}>{grade} confidence</span>
+  </TipIf>
 );
 
 /** A project answer from one or more drawings (chat.md "Demo parity", CH-30..CH-35; ui-bugs 4-9): the lead line,

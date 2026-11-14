@@ -1,7 +1,7 @@
 // chat.md "Demo parity": the chat's answer card (CH-30..CH-35), PageViewer mocked to read what it gets.
 import type { ComponentProps } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
 import { drawingLabel } from '../api';
 import { answer, answerArea, answerResolved, project, projectAsk } from '../api/fixtures';
@@ -70,6 +70,16 @@ const rowAt = (n: number) => {
   return rows()[0] as HTMLElement;
 };
 const figure = () => screen.getByRole('figure', { name: /^Reference / });
+
+beforeAll(() => {
+  // Radix (the shared Tip) measures with ResizeObserver, which jsdom lacks; set directly, since mockApi's
+  // cleanup unstubs vi.stubGlobal after each test.
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+});
 
 afterEach(() => {
   cleanup();
@@ -229,7 +239,7 @@ it('CH-40 drawings by their plain name (#224), files by their path; a part not i
   expect(rows()[0]?.textContent).toContain('flat-a.pdf: 2 doors');
 });
 
-it('CH-42 one pill per row: Signed off, else the level with its text, else the status; the total level', () => {
+it('CH-42 one pill per row: Signed off, else the level with its text, else the status; the total level', async () => {
   const signed = { ...flatB.answer, level: answerHigh.level };
   if (!signed.quantity) throw new Error('flat-b has a quantity');
   signed.quantity = { ...signed.quantity, status: 'signed' };
@@ -243,7 +253,10 @@ it('CH-42 one pill per row: Signed off, else the level with its text, else the s
   const a = rows()[0] as HTMLElement;
   const pill = a.querySelector('.v-pill') as HTMLElement;
   expect(pill.textContent).toBe('Medium confidence');
-  expect(pill.getAttribute('title')).toBe(answerMedium.level?.text);
+  expect(pill.getAttribute('title')).toBeNull();
+  // ui-bugs 7c: the level's sentence is the shared Tip's, on focus or hover
+  (pill.parentElement as HTMLElement).focus();
+  expect((await screen.findByRole('tooltip')).textContent).toBe(answerMedium.level?.text);
   expect(rowAt(1).querySelector('.v-pill')?.textContent).toBe('Signed off');
   expect(document.body.textContent).not.toMatch(/Sure/);
   cleanup();

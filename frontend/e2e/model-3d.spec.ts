@@ -98,8 +98,11 @@ test("M3-22 the agent chat's plan pane opens the model with the newest answer's 
   const errors = watchErrors(page);
   const id = await uploaded(page, testInfo);
   await page.goto(`/#/p/${id}/chat?ask=${encodeURIComponent('How many walls are there?')}`);
+  // ui-bugs 5: one round "3D" button in the answer figure's header (no longer in References).
   await expect(
-    page.getByRole('list', { name: 'References' }).getByRole('button', { name: /^View in 3D: / }),
+    page
+      .getByRole('figure', { name: /^Reference / })
+      .getByRole('button', { name: /^View in 3D: / }),
   ).toBeVisible({ timeout: 30_000 });
   // Beside the chat at 1440; a sheet over it on a phone, opened by "Show the plan".
   if (testInfo.project.name === 'phone')

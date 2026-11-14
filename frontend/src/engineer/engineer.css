@@ -304,28 +304,8 @@
   gap: 6px;
   font-size: 14px;
 }
-.en-pillwrap {
-  position: relative;
-}
 .en-pill {
   cursor: default;
-}
-.en-tip {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 4;
-  width: max-content;
-  max-width: 240px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--v-text);
-  color: var(--v-surface);
-  font-size: 12.5px;
-  line-height: 1.4;
-}
-.en-tip[hidden] {
-  display: none;
 }
 .en-bar {
   display: flex;
