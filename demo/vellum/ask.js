@@ -6,7 +6,7 @@
   const A = () => window.VApp;
   const ROLE = { read: 'Read: the value comes from this file', shown: 'Shown: the rendering the marks are drawn on',
     second: 'Checked: an independent second count', source: 'Asked about: the answer key\'s question is on this file',
-    same: 'The same floor in another format' };
+    same: 'The same floor in another format', sheet: 'Another sheet of the same set' };
   const SUGGEST = ['How many doors are on this floor?', 'How many windows?', 'What is the net floor area?', 'How many rooms?',
     'What fire rating do the stair doors need?'];
   const KEY_TIP = 'Answer key: the value the Stoa dataset gives for this question. Vellum did not read it from the drawing here.';

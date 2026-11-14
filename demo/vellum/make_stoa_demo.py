@@ -114,6 +114,33 @@ def render_pdf(pdf, out):
     return {"image": small}
 
 
+# A second, real drawing set (OpeningDesign, CC BY-SA 4.0): a house getting a second floor. Its elevations and section
+# are the non-floor-plan references the chat combines with its floor plan (Tudor, 16:05).
+OD_DIR = "New_2nd_Story/Transfer/20180920 - markups for regis/PDF SHEET"
+OD_SHEETS = [("A200 - ELEVATION SOUTH.pdf", "elevation"), ("A200 - ELEVATION EAST.pdf", "elevation"),
+             ("A200 - ELEVATION NORTH.pdf", "elevation"), ("A202 - ELEVATION WEST.pdf", "elevation"),
+             ("A300 - BUILDING SECTION.pdf", "section"), ("A101 - FLOOR PLAN - 1ST FLOOR.pdf", "floor_plan")]
+
+
+def house_set(dataset, out):
+    """The house's sheets rendered to web images in out/house/; [] without the folder or pypdfium2."""
+    src = dataset / "data" / "opening_design" / OD_DIR
+    if not src.is_dir():
+        return []
+    (out / "house").mkdir(exist_ok=True)
+    files = []
+    for name, kind in OD_SHEETS:
+        try:
+            rendered = render_pdf(src / name, out / "house")
+        except Exception:  # pypdfium2 can't open every sheet (A202 west): leave that one out
+            continue
+        if not rendered:
+            return []
+        files.append({"path": f"house/{name}", "size": size_text((src / name).stat().st_size), "kind": "Vector PDF",
+                      "sheet": kind, "image": "house/" + rendered["image"]})
+    return files
+
+
 KINDS = {".pdf":("Vector PDF", "CAD"), ".dxf": ("DXF", "CAD"), ".png": ("PNG rendering", "Vision")}
 
 
@@ -144,6 +171,7 @@ def build(dataset, out, stem, picks):
         "files": files,
         "questions": [{k: q[k] for k in ("question", "answer", "unit", "type")} for q in mine],
         "archive_files": archive(dataset, out, picks),
+        "house_files": house_set(dataset, out),
     }
     (out / "data.js").write_text("window.VStoaData = " + json.dumps(data, indent=1) + ";\n", encoding="utf-8")
     # stoa/index.html: the demo's page one folder down (no <base>: it would send the #/ links back to ../index.html)
