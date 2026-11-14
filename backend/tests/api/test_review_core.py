@@ -862,30 +862,35 @@ def labelled(n: int, label: str, area: float | None = 5.0, kind: RoomType = "oth
                 attrs={"reader": "gemini"})  # fmt: skip
 
 
-def test_a_plain_noun_counts_the_rooms_printed_with_it() -> None:
-    """vocab-nouns P1 (judge-fresh jf03/jf04): "How many porches are there?" was refused as "not
-    which room or element", though two rooms are printed Porch and the takeoff counts them under
-    the label. A whole printed label only; the count is the label's own row."""
+def test_a_plain_noun_that_is_a_printed_label_points_at_the_label_count() -> None:
+    """vocab-nouns P2 without P1 (line 3 failed): "How many porches are there?" with rooms printed
+    Porch is not answered from the label, and the refusal doesn't say no room is printed porches;
+    it names the label and the question that counts it. A label that only starts with the noun
+    ("CLASSROOM 104") is not it."""
     drawing = scaled(
         labelled(1, "CLOSET"), labelled(2, "CLOSET"), labelled(3, "Closet"),
         labelled(4, "Porch", kind="outdoor"), labelled(5, "PORCH", kind="outdoor"),
-        labelled(6, "VAULT"), labelled(7, "GUARD ROOM"), labelled(8, "MUSIC"),
-        labelled(9, "LIBRARY"), labelled(10, "CLASSROOM 104"),
+        labelled(6, "GUARD ROOM"), labelled(7, "MUSIC"), labelled(8, "LIBRARY"),
+        labelled(9, "CLASSROOM 104"),
     )  # fmt: skip
-    for question, value in (
-        ("How many closets are there?", 3),
-        ("How many porches are there?", 2),
-        ("How many vaults are there?", 1),
-        ("How many guard rooms are there?", 1),
-        ("How many music rooms are there?", 1),
-        ("How many libraries are there?", 1),
-        ("What is the number of porches on this floor?", 2),
+    for question, printed, value in (
+        ("How many closets are there?", "CLOSET", 3),
+        ("How many porches are there?", "Porch", 2),
+        ("How many guard rooms are there?", "GUARD ROOM", 1),
+        ("How many music rooms are there?", "MUSIC", 1),
+        ("How many libraries are there?", "LIBRARY", 1),
+        ("What is the number of porches on this floor?", "Porch", 2),
     ):
         got = asked(question, drawing)
-        assert got.answer.answer == value, question
-        assert got.query is not None and got.query.startswith("room|label="), question
-    # a label that only starts with the noun is not counted as it ("CLASSROOM 104")
-    assert asked("How many classrooms are there?", drawing).answer.answer is None
+        assert got.answer.answer is None and got.refusal is not None, question
+        assert "no room on this drawing is printed" not in got.refusal.text, question
+        pointed = f"How many rooms labelled '{printed}' are there?"
+        assert got.refusal.text.endswith(f'ask "{pointed}"'), question
+        assert asked(pointed, drawing).answer.answer == value, question
+    classrooms = asked("How many classrooms are there?", drawing).refusal
+    assert classrooms is not None and "no room on this drawing is printed classrooms" in (
+        classrooms.text
+    )
 
 
 def test_a_noun_no_room_is_printed_with_is_refused_by_name() -> None:

@@ -7,7 +7,6 @@ from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
 from app.core.answering.model import (
     NO_SUBJECT,
-    NOT_COUNTED,
     SEVERAL_PRINTED,
     Answer,
     ConflictValue,
@@ -268,7 +267,7 @@ CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
 WHOLE_NUMBER = re.compile(r"\d{2,4}")  # a room number of whole digits ("104"; takeoff's)
 LETTERS = re.compile(r"[^\W\d_]{3}")
 DOTTED = re.compile(r"\d[.,]\d")
-# A count asked as "how many <noun>" / "the number of <noun>", English (vocab-nouns P1, P2)
+# A count asked as "how many <noun>" / "the number of <noun>", English (vocab-nouns P2)
 COUNT_NOUN = re.compile(
     r"^\s*(?:how\s+many|(?:what\s+is\s+)?the\s+number\s+of|number\s+of)\s+"
     r"(?P<noun>[^\W\d_][\w'\u2019 .-]*?)\s*"
@@ -303,10 +302,7 @@ class RoomByType:
     def parse(self, text: str) -> Query | TableQuery | Unsupported:
         parsed = self._parser.parse(text)
         if isinstance(parsed, Unsupported):
-            found = self._printed(text)
-            if found is None and parsed.reason in (NO_SUBJECT, NOT_COUNTED):
-                found = self._label_count(text)
-            return found or parsed
+            return self._printed(text) or parsed
         if isinstance(parsed, Query) and (unnamed := self._not_a_room(text, parsed)):
             return unnamed
         if isinstance(parsed, Query) and _sheet_count(parsed) and (inside := self._printed(text)):
@@ -346,21 +342,6 @@ class RoomByType:
             if query.key() in self._quantities:
                 return query
         return None
-
-    def _label_count(self, text: str) -> Query | None:
-        """A count the parser has no subject for, asked by a plain noun that is one printed label
-        of the drawing as a whole ("How many porches are there?" with rooms printed Porch): the
-        count of the rooms printed with it, the takeoff's label row (vocab-nouns P1). A label that
-        only starts with the noun ("CLASSROOM 104") is not it."""
-        noun = counted_noun(text)
-        if noun is None:
-            return None
-        forms = noun_forms(noun)
-        hits = {normalised(r.label) for r in self._drawing.rooms if r.label} & forms
-        if len(hits) != 1:
-            return None
-        query = Query(measure="count", subject="room", label=hits.pop())
-        return query if query.key() in self._quantities else None
 
     def _printed(self, text: str) -> Query | Unsupported | None:
         """The question read with the one room name of the drawing it holds as that room's name

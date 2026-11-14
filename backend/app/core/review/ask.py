@@ -19,6 +19,7 @@ from app.core.answering.answer import (
     RoomByType,
     answer_question,
     counted_noun,
+    noun_forms,
     printed_rooms,
     rooms_of_type,
 )
@@ -606,8 +607,22 @@ LABELS_LISTED = 12  # printed labels a refusal names, the rest counted
 
 
 def _noun_refusal(noun: str, drawing: Drawing) -> str:
-    """A count of a thing no reader counts and no room is printed with (vocab-nouns P2): says
-    the noun, and the labels the drawing does print, so the person can ask by one of them."""
+    """A count of a thing no reader counts (vocab-nouns P2): says the noun, and the labels the
+    drawing does print, so the person can ask by one of them. A noun that is one room's whole
+    printed label points at the count of that label instead: a plain noun is not taken as a
+    label (vocab-nouns line 3 failed: 5 of 16 right on the held-out sheets)."""
+    forms = noun_forms(noun)
+    printed = dict.fromkeys(
+        " ".join(r.label.split()) for r in drawing.rooms if r.label and normalised(r.label) in forms
+    )
+    if printed:
+        label = next(iter(printed))
+        return (
+            f"I don't count {noun} by that word: they are not one of the things the readers count "
+            "(doors, windows, toilets, sinks, showers, bathtubs, sauna stoves and rooms). Rooms "
+            f"on this drawing are printed {label}: ask \"How many rooms labelled '{label}' are "
+            'there?"'
+        )
     words = (
         f"I don't count {noun}: they are not one of the things the readers count (doors, "
         "windows, toilets, sinks, showers, bathtubs, sauna stoves and rooms), and no room on this "
