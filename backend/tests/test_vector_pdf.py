@@ -177,6 +177,40 @@ def test_a_label_written_one_character_per_line_is_not_a_ratio() -> None:
     assert scale.status == "no_scale"
 
 
+@pytest.mark.parametrize(
+    ("texts", "ratio"),
+    [
+        ([("FOUNDATION PLAN - SLAB ON GRADE 1:50", 100)], 50),
+        ([("RAMP LEVEL PLAN 1:100", 100)], 100),
+        ([("ROOF PLAN 1:100  PITCH 30", 100)], 100),
+        ([("SCALE 1:100 MAX SHEET SIZE A1", 100)], 100),
+        # a slope word far off on the same baseline: the page text joins it to the scale's line
+        ([("FLOOR PLAN 1:50", 100), ("RAMP", 400)], 50),
+        ([("GROUND FLOOR PLAN", 100), ("1:50", 250), ("RAMP UP", 400)], 50),
+    ],
+)
+def test_a_slope_word_away_from_the_ratio_leaves_the_scale(
+    texts: list[tuple[str, float]], ratio: int
+) -> None:
+    sheet = SheetPdf()
+    for text, x in texts:
+        sheet.text(text, x, 380)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text) == ("scaled", f"1:{ratio}")
+    assert scale.m_per_unit == pytest.approx(ratio * M_PER_PT_ON_PAPER)
+
+
+@pytest.mark.parametrize(
+    "label", ['LEVEL 2 1/4" = 1\'-0"', 'A-301 1/4" = 1\'-0"', 'FLOOR PLAN 1 1/4" = 1\'-0"']
+)
+def test_a_view_or_level_number_before_the_scale_is_not_inches(label: str) -> None:
+    sheet = SheetPdf()
+    sheet.text(label, 100, 380)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text) == ("scaled", '1/4" = 1\'-0"')
+    assert scale.m_per_unit == pytest.approx(48 * M_PER_PT_ON_PAPER)
+
+
 @pytest.mark.parametrize(("first", "second"), [("1:100", "1:50"), (IMPERIAL_EIGHTH, '3" = 1\'-0"')])
 def test_a_sheet_that_prints_different_scales_has_no_one_scale(first: str, second: str) -> None:
     sheet = SheetPdf()

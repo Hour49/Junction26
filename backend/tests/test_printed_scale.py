@@ -61,6 +61,13 @@ BAR = ScaleBar(page=1, start=(0.1, 0.9), end=(0.225, 0.9), length_m=5.0, text="0
         ('1 1/2" = 1\'-0"', 8.0),  # a mixed number of inches
         ('1-1/2" = 1\'-0"', 8.0),
         ('1/8" = 1\'-6"', 144.0),  # feet and inches
+        # a view, level or sheet number before a fraction is not whole inches
+        ('LEVEL 2 1/4" = 1\'-0"', 48.0),
+        ('A-301 1/8" = 1\'-0"', 96.0),
+        ('FLOOR PLAN 1 1/8" = 1\'-0"', 96.0),
+        ('6" = 1\'-0"', 2.0),  # half size
+        ('12" = 1\'-0"', None),  # more than 6" of paper to the foot
+        ('6" = 0\'-3"', None),  # a drawing larger than the building
     ],
 )
 def test_a_printed_ratio_is_read_in_metric_and_imperial(
@@ -75,6 +82,7 @@ def test_imperial_scales_lists_each_scale_with_its_text() -> None:
         (8.0, '1 1/2" = 1\' - 0"'),
     ]
     assert imperial_scales("1:100") == []
+    assert imperial_scales('LEVEL 2 1/4" = 1\'-0"') == [(48.0, '1/4" = 1\'-0"')]
 
 
 def test_only_a_resolution_a_file_states_on_purpose_is_trusted() -> None:

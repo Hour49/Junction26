@@ -49,6 +49,7 @@ INCH_M = 0.0254
 MIN_BAR_PX = 20.0  # a bar shorter than this on the image is not measured: a few px off is 10%
 DPI_RANGE = (100.0, 1200.0)  # a stated resolution outside it is not a scan's or an export's
 DEFAULT_DPI = (72.0, 96.0)  # what software writes when it knows nothing: never trusted
+MAX_PAPER_INCHES = 6.0  # an imperial scale draws at most half size, 6" to the foot
 COUNT_UNIT = "count"
 
 
@@ -87,8 +88,10 @@ _GROUPED = "[ \u00a0\u202f,.]"  # a thousands separator: space, no-break spaces,
 _RATIO = re.compile(
     rf"(?<![\d.])1\s*:\s*(?:(\d{{1,3}}(?:{_GROUPED}\d{{3}})+)|(\d+(?:[.,]\d+)?))(?![\d.])"
 )
-# an optional whole inch before a fraction: 1 1/2" or 1-1/2"
-_FRACTION = r"(?:(\d+)[\s-]+(?=\d+\s*/))?(\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?"
+# A whole inch before a fraction only in 1 1/2" (or 1-1/2"), the one mixed number on an
+# architect's scale: any other number there is a view, level or sheet number ("LEVEL 2 1/4\"",
+# "A-301 1/8\""), not inches.
+_FRACTION = r"(?<![\d.])(?:(1)[\s-]+(?=1\s*/\s*2(?!\d)))?(\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?"
 _INCHES = r"(?:\"|''|\u201d|in(?:ch(?:es)?)?\b)"  # ", '', a right double quote, in, inch
 _FEET = r"(?:'|\u2019|ft\b|feet\b|foot\b)"  # ', a right single quote, ft, feet
 _IMPERIAL = re.compile(
@@ -113,17 +116,21 @@ def ratio_of(text: str | None) -> float | None:
 
 def imperial_scales(text: str) -> list[tuple[float, str]]:
     """Every imperial scale `text` prints, as `ratio_of` reads it, with the scale as printed:
-    "1/4\" = 1'-0\"" is (48, "1/4\" = 1'-0\""). The text should be one label: the number before
-    a fraction is read as whole inches, so a view number or a ZIP code next to it would be."""
+    "1/4\" = 1'-0\"" is (48, "1/4\" = 1'-0\""). The text should be one label: a 1 before 1/2" is
+    read as a whole inch, so a view number 1 next to a 1/2" scale would be."""
     found = ((_imperial_ratio(match), match.group(0).strip()) for match in _IMPERIAL.finditer(text))
     return [(ratio, printed) for ratio, printed in found if ratio is not None]
 
 
 def _imperial_ratio(found: re.Match[str]) -> float | None:
+    """The ratio of an imperial scale; None for no scale: more than MAX_PAPER_INCHES of paper per
+    foot or a drawing larger than the building is a misread number, not a scale."""
     whole, numerator, denominator, feet, inches = found.groups()
     paper = float(whole or 0) + float(numerator) / (float(denominator) if denominator else 1.0)
     real = float(feet) * 12 + (float(inches) if inches else 0.0)
-    return real / paper if paper > 0 and real > 0 else None
+    if not 0 < paper <= MAX_PAPER_INCHES or real < paper:
+        return None
+    return real / paper
 
 
 def trusted_dpi(dpi: tuple[float, float] | None) -> float | None:
