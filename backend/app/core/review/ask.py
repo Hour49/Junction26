@@ -41,15 +41,18 @@ from app.core.review.check import (
     Check,
     CheckPolicy,
     Disputes,
+    Level,
     Scorer,
     certified,
     disagree,
     double_check,
     held,
+    level_of,
     no_disputes,
     schedule_check,
     score_of,
 )
+from app.core.review.check import SCHEDULE as SCHEDULE_ROUTE
 from app.core.review.model import (
     MarkView,
     Refusal,
@@ -106,6 +109,9 @@ class Asked(Frozen):
     refusal: Refusal | None
     proof: Proof  # what the screen draws as the answer's proof
     check: Check | None = None  # CHECK_POLICY's double-check request; None: certified or off
+    # CHECK_POLICY's confidence level; None: a refusal, a value a person signed or settled, the
+    # policy off, or a policy file without levels
+    level: Level | None = None
 
 
 class _Once:
@@ -152,7 +158,8 @@ def ask(
     answered one (`agrees`), else it asks. With `check` on, it alone sets `sure`, in place of
     `sure_at`'s: true exactly when it certifies the answer, None on every answer it does not rate
     (a refusal, a question with no takeoff row), so an answer is never shown sure and asked
-    about at once."""
+    about at once. The answer's `level` comes from the same verdict (check.level_of): High
+    exactly when sure; none on a value a person signed or settled, which is theirs."""
     quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
@@ -213,6 +220,7 @@ def ask(
                 can_answer = each
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
+    level = None
     sure: bool | None = None  # CHECK_POLICY's verdict
     if check is not None and shown is not None and isinstance(parsed, Query):
         reason = held(shown, drawing)
@@ -227,6 +235,11 @@ def ask(
         sure = reason is None and certified(
             check, route=route, family=family, score=score, flags=flags, agrees=agrees
         )
+        if shown.signed is None and shown.settled is None:
+            level = level_of(
+                check, sure=sure, route=route, family=family, score=score, flags=flags,
+                held=reason is not None,
+            )  # fmt: skip
         if not sure:
             if reason is None and agrees is False:
                 reason = disagree(shown)
@@ -234,6 +247,9 @@ def ask(
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
         sure = request is None
+        level = level_of(
+            check, sure=sure, route=SCHEDULE_ROUTE, family=None, score=None, flags=flags
+        )
     if check is not None:
         answer = answer.model_copy(update={"sure": sure})
     return Asked(
@@ -244,6 +260,7 @@ def ask(
         refusal=refusal,
         proof=proof,
         check=request,
+        level=level,
     )
 
 

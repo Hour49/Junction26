@@ -57,7 +57,7 @@ from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.drawing.model import Drawing  # noqa: E402
 from app.core.ingest.model import Register  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
-from app.core.review.check import CheckPolicy, Found, Place  # noqa: E402
+from app.core.review.check import CheckPolicy, Counts, Found, LevelName, Place  # noqa: E402
 from app.core.review.model import Row  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
@@ -406,6 +406,14 @@ def rated(root: Path, settings: Settings) -> dict[str, Any]:
         os.chdir(here)
 
 
+# The val cross-fit counts of the levels at the time of decision 0011, as a policy file gives them
+EXAMPLE_COUNTS: dict[LevelName, Counts] = {
+    "high": Counts(units=1517, exact=1501),
+    "medium": Counts(units=1185, exact=1084),
+    "low": Counts(units=680, exact=397),
+}
+
+
 def example_disputes(drawing: Drawing, row: Row) -> Found:
     """A dispute finder's stand-in (core/pipeline/disputed_marks, room_disputes give these): on
     the arm's sheet, the second door or bedroom is disputed and one place was not counted."""
@@ -434,9 +442,10 @@ def example_disputes(drawing: Drawing, row: Row) -> Found:
 
 def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
     """CHECK_POLICY on the raster arm, with DECISIONS_CONFIDENCE's stand-in (0.87): a door count
-    certified (threshold 0.8: `check` null), the same count and a bedroom count not certified
-    (0.9), with the places `example_disputes` lists: a counted mark, a counted room, and a
-    place each answer did not count (`mark_id` null)."""
+    certified (threshold 0.8: `check` null, level high), the same count and a bedroom count not
+    certified (0.9), with the places `example_disputes` lists: a counted mark, a counted room,
+    and a place each answer did not count (`mark_id` null). The doors are Medium from 0.5 (level
+    medium); the bedrooms have no Medium (level low)."""
     raster_arm(root / "arm", "plan.png")
     settings = settings.model_copy(
         update={
@@ -459,7 +468,11 @@ def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
             ("answer_double_check", 0.9, "How many doors are there?"),
             ("answer_double_check_rooms", 0.9, "How many bedrooms are there?"),
         ):
-            policy = CheckPolicy(thresholds={"door": threshold, "room:bedroom": threshold})
+            policy = CheckPolicy(
+                thresholds={"door": threshold, "room:bedroom": threshold},
+                medium={"door": 0.5},
+                counts=EXAMPLE_COUNTS,
+            )
             app.state.answering = replace(
                 app.state.answering, confidence=ExampleConfidence, signal=DECISIONS_SIGNAL,
                 check=policy, disputes=example_disputes,
