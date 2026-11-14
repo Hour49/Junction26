@@ -13,12 +13,24 @@ demo show.
 
 | # | Action | Expected (what the screen shows) | Runs on fakes? |
 | --- | --- | --- | --- |
-| 1 | `<open the app at ...>` | `<...>` | yes / no |
-| 2 | `<...>` | `<...>` | |
+| 1 | Open the app at `http://127.0.0.1:4173/#/` | Home: drop zone, "Choose a file", "Try the sample project", earlier projects; the strip "Running offline: no API keys, no models" | yes |
+| 2 | Click "Try the sample project" | `#/p/<id>`: "sample-project.zip", files finish one by one, then "Done", "11 of 11 files finished", cost $0.00; every file row has its state in words (3 ready, 4 flagged, 2 set aside, 2 text only); 5 drawings | yes |
+| 3 | Click the file `plans/flat-b.pdf` | Its trace: "flagged", "1 conflict(s) between the two methods (room_area) ...", stages unpack to write, `second_count` "5 quantities measured twice, 1 conflict(s)" | yes |
+| 4 | Click "Open the drawing" | Engineer: "plans/flat-b.pdf", how it was read, page 1 of the plan, suggested questions | yes |
+| 5 | Click "How many doors are there?" | `2`, "door count", marks 1 and 2 on the doors, the counting rule, "One method", cost $0 | yes |
+| 6 | Ask "What is the net floor area of room 1.01?" | `30.00 m²`, the kitchen shaded, "Methods disagree": "22.40 m² by polygon_x_scale", "30.00 m² by printed_label", and the rule that kept 30.00 | yes |
+| 7 | Ask "What colour is the roof?" | "I can't answer that from this drawing.", the reason, code `unsupported-question`, questions it can answer; no number | yes |
+| 8 | Click "Surveyor" | The project's conflicts: "area of room (name 1.01)" and "area of room (name küche)", each "plans/flat-b.pdf", "22.40 m² vs 30.00 m²", "decided by rule" | yes |
 
-- Demo data: `<sample file or seeded account>`
-- Start command: `<command>`
-- Offline fallback: `<how to start it without keys, and what the screen says>`
+Steps after the QA blitz (surveyor settle, sign-off, verified answer, CSV export) are in
+[golden-path.md](specs/frontend/golden-path.md) "User flow", steps 8-12.
+
+- Demo data: the synthetic sample archive (`cd backend && uv run python scripts/make_sample_archive.py`, writes
+  `data/samples/sample-project.zip`, gitignored). No partner data.
+- Start command: `cd backend && uv run uvicorn app.main:create_app --factory`, then
+  `cd frontend && npm ci && npm run build && npm run preview`; open `http://127.0.0.1:4173/#/`.
+- Offline fallback: the same commands with no keys in `backend/.env`; every step works and the strip reads "Running
+  offline: no API keys, no models".
 - Demo machine and its owner: `<name>` (one owner at a time)
 
 An automated end-to-end test runs this path on the fakes in CI (Playwright for a web UI). Run it against the real
