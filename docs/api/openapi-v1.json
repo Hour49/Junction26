@@ -268,6 +268,16 @@
             "title": "Latency S",
             "type": "number"
           },
+          "level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Level"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "line": {
             "$ref": "#/components/schemas/Answer"
           },
@@ -357,7 +367,8 @@
           "latency_s",
           "line",
           "proof",
-          "check"
+          "check",
+          "level"
         ],
         "title": "AnswerView",
         "type": "object"
@@ -2403,6 +2414,44 @@
         "title": "IssueLinks",
         "type": "object"
       },
+      "Level": {
+        "additionalProperties": false,
+        "description": "How far to trust an answer: one of three levels, what it rests on, and one plain sentence\nwith the measured counts behind it.",
+        "properties": {
+          "basis": {
+            "enum": [
+              "certified",
+              "route",
+              "score",
+              "page",
+              "held",
+              "unrated"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "basis",
+          "text"
+        ],
+        "title": "Level",
+        "type": "object"
+      },
       "Limits": {
         "additionalProperties": false,
         "properties": {
@@ -3058,6 +3107,22 @@
             ],
             "title": "Total"
           },
+          "total_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Level"
+          },
           "total_note": {
             "title": "Total Note",
             "type": "string"
@@ -3103,6 +3168,7 @@
           "total",
           "total_unit",
           "total_sure",
+          "total_level",
           "total_note",
           "why_no_total",
           "refused_note"

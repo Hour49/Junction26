@@ -1,4 +1,4 @@
-// File triage end to end (file-triage.md FT-21, FT-14 at 390) on the sample's site photo. It needs a backend with
+// File triage end to end (file-triage.md FT-21, FT-22, FT-14 at 390) on the sample's site photo. It needs a backend with
 // triage on: `TRIAGE_CLASSIFIER=rules npx playwright test e2e/triage.spec.ts`; with triage off (the default run) it
 // skips itself and the other specs see the sample as before.
 import { expect, test } from '@playwright/test';
@@ -27,8 +27,8 @@ test('FT-21: the site photo is set aside as not a floor plan, its trace and issu
   const fid = site?.id ?? '';
   expect(project.cost_usd).toBe(0);
 
-  // The project screen: the row says what triage thinks, not the reason line.
-  await page.goto(`/#/p/${pid}`);
+  // Documents' file list (parity: Ingest has no file list): the row says what triage thinks, not the reason.
+  await page.goto(`/#/p/${pid}/documents`);
   const files = page.getByRole('region', { name: 'Files' });
   await expect(files).toContainText('1 not a floor plan: kept, not read');
   const row = files.locator(`a[href$="/f/${fid}"]`);
@@ -38,27 +38,35 @@ test('FT-21: the site photo is set aside as not a floor plan, its trace and issu
   await row.scrollIntoViewIfNeeded();
   await shot(page, testInfo, 'ft-row', offline);
 
-  // The issues list: one "Not a floor plan" row for it, linking to its trace.
-  await page.goto(`/#/p/${pid}/issues`);
-  const issue = page.locator('.is-row').filter({ hasText: 'photos/site.jpg' });
+  // Documents' issues: one for it, "Not a floor plan" in its words, linking to its file page.
+  const issue = page
+    .getByRole('region', { name: 'Issues' })
+    .locator('ul > li, ol > li')
+    .filter({ has: page.getByRole('link', { name: 'Open the file' }), hasText: 'photos/site.jpg' });
   await expect(issue).toHaveCount(1);
   await expect(issue).toContainText('Not a floor plan');
-  const call = issue.getByRole('link', { name: 'Make a call' });
+  const call = issue.getByRole('link', { name: 'Open the file' });
   await expect(call).toHaveAttribute('href', `#/p/${pid}/f/${fid}`);
   await issue.scrollIntoViewIfNeeded();
   await shot(page, testInfo, 'ft-issue', offline);
   await call.click();
 
-  // The trace: not described, so the note once and no call form; nothing was paid for.
+  // The trace: not described, so the note once; nothing was paid for.
   await expect(page).toHaveURL(new RegExp(`#/p/${pid}/f/${fid}$`));
   const card = page.getByRole('region', { name: 'Is it a floor plan?' });
   await expect(
     card.getByRole('heading', { name: 'Not a floor plan: not a drawing' }),
   ).toBeVisible();
   await expect(card.getByText(NOTE, { exact: true })).toHaveCount(1);
-  await expect(card.getByText('– Not judged')).toBeVisible();
-  await expect(card.getByRole('button', { name: /^It is (not )?related$/ })).toHaveCount(0);
-  await expect(card).not.toContainText('Your call replaces the suggestion');
+  // FT-22 (parity): no "Does it belong to this project?" block and no verdict pill on the file page.
+  await expect(card.getByText('Does it belong to this project?')).toHaveCount(0);
+  await expect(card.getByText('– Not judged')).toHaveCount(0);
+  // FT-5 (#183) and FT-23: an undescribed non-plan gets the call too, under "Your call".
+  await expect(card.getByRole('heading', { name: 'Your call' })).toBeVisible();
+  await expect(card.getByRole('button', { name: /^It is (not )?related$/ })).toHaveCount(2);
+  await expect(card).toContainText(
+    "Your call replaces the suggestion and settles this file's issue. It does not read the file as a plan.",
+  );
   await expect(page.locator('dt', { hasText: /^Cost$/ }).locator('+ dd')).toHaveText('$0.00');
   const open = page.getByRole('link', { name: 'Open the drawing' });
   await expect(open).toHaveCount(0);
@@ -96,7 +104,7 @@ test('FT-21: the site photo is set aside as not a floor plan, its trace and issu
   await expect(read).toHaveCount(0);
   await shot(page, testInfo, 'ft-read-as-plan', offline);
 
-  await page.goto(`/#/p/${pid}`);
+  await page.goto(`/#/p/${pid}/documents`);
   await expect(files).toContainText('No image set aside as not a floor plan');
   await expect(row).toContainText(/Read as a floor plan on Ana.s call/);
   expect(errors, 'no console or page errors').toEqual([]);

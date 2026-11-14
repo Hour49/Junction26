@@ -1,4 +1,4 @@
-// Where an issue of the two kinds that land on fe-surveyor's / the ask screens goes (conflicts.md CF-34).
+// Where an issue of the two kinds that land on fe-surveyor's / the ask screens goes (conflicts.md CF-34, CF-44).
 // fe-ingest's issues screen calls this for `conflict` and `refused_answer` and builds the other kinds itself.
 import { routeHref } from '../shell/route';
 
@@ -23,7 +23,7 @@ export function issueRoute(
   if (issue.kind === 'conflict') {
     const card: Record<string, string> =
       drawingId !== null && quantity !== null ? { d: drawingId, q: quantity } : {};
-    return routeHref({ name: 'conflicts', projectId, query: withPack(card, pack) });
+    return routeHref({ name: 'project', projectId, query: withPack(card, pack) }); // the finished ingest embeds the list
   }
   if (issue.kind === 'refused_answer') {
     const query = withPack({ ask: question ?? '' }, pack); // the target asks it on open (EN-72, CH-14)

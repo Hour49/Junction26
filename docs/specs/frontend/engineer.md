@@ -468,6 +468,14 @@ Thread and pages
   (the viewer pads 20 px, so the name ends at the plan's middle and the place row starts 12 px right of it); at
   ≤900 px the place row is in flow above the viewer. [unit on the CSS text; browser: a long file name with "Also
   as" at 1440x900 and 390x844, the two boxes do not intersect]
+- EN-81 (demo parity look, orch 17:15; CSS only, AskBox markup and its "asked" counter unchanged for #208) The ask
+  bar takes the demo's `.askbar` look: the pill is translucent (`background: color-mix(in srgb, var(--v-surface)
+  86%, transparent)`, `backdrop-filter: blur(20px) saturate(180%)`, padding `6px 6px 6px 20px`, the demo's two-layer
+  shadow from `--v-text`); the send button stays filled accent when disabled (no opacity drop, default cursor). The
+  band behind it (`.en-ask`) stays solid `--v-bg`, so EN-71 holds (nothing on the page shows through; the pill's
+  translucency only shows the band). The arrows on plans and chat references (`.en-nav`) are 92% surface with the
+  demo's `0 2px 10px` shadow at 18% `--v-text`. Amends EN-71's "the pill uses no transparent or backdrop-filter".
+  [unit on the CSS text; browser 1440 and 390]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)
