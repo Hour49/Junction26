@@ -1,0 +1,144 @@
+{
+ "recorded_at": "2026-11-14T20:56:53+02:00",
+ "commit": "f88abb0",
+ "dirty": true,
+ "name": "services refuse all",
+ "note": "every question refused with one fixed reason: the floor",
+ "split": "dev",
+ "questions_sha256": "fd3bd2962deff73e15dccca33d2a545a130b2e804ad4350d1a2ef66145fe3922",
+ "report": {
+  "overall": {
+   "n": 1036,
+   "right": 188,
+   "rate": 0.18146718146718147
+  },
+  "refusal": {
+   "unanswerable": 188,
+   "refused": 188,
+   "reason_right": 72,
+   "false_refusals": 848
+  },
+  "by": {
+   "template": {
+    "circuit_of": {
+     "n": 68,
+     "right": 20,
+     "rate": 0.29411764705882354
+    },
+    "controllers_between": {
+     "n": 52,
+     "right": 0,
+     "rate": 0.0
+    },
+    "cut_off": {
+     "n": 36,
+     "right": 0,
+     "rate": 0.0
+    },
+    "dead_ends": {
+     "n": 60,
+     "right": 0,
+     "rate": 0.0
+    },
+    "farthest_terminal": {
+     "n": 80,
+     "right": 0,
+     "rate": 0.0
+    },
+    "feeds": {
+     "n": 120,
+     "right": 72,
+     "rate": 0.6
+    },
+    "run_length_source": {
+     "n": 72,
+     "right": 0,
+     "rate": 0.0
+    },
+    "run_length_system": {
+     "n": 96,
+     "right": 0,
+     "rate": 0.0
+    },
+    "system_storeys": {
+     "n": 80,
+     "right": 0,
+     "rate": 0.0
+    },
+    "systems_crossing_storeys": {
+     "n": 52,
+     "right": 0,
+     "rate": 0.0
+    },
+    "terminals_served": {
+     "n": 176,
+     "right": 96,
+     "rate": 0.5454545454545454
+    },
+    "trace": {
+     "n": 72,
+     "right": 0,
+     "rate": 0.0
+    },
+    "unconnected": {
+     "n": 72,
+     "right": 0,
+     "rate": 0.0
+    }
+   },
+   "anchor": {
+    "descriptive": {
+     "n": 208,
+     "right": 32,
+     "rate": 0.15384615384615385
+    },
+    "id": {
+     "n": 468,
+     "right": 156,
+     "rate": 0.3333333333333333
+    },
+    "none": {
+     "n": 360,
+     "right": 0,
+     "rate": 0.0
+    }
+   },
+   "phrasing": {
+    "held-out": {
+     "n": 518,
+     "right": 94,
+     "rate": 0.18146718146718147
+    },
+    "seen": {
+     "n": 518,
+     "right": 94,
+     "rate": 0.18146718146718147
+    }
+   },
+   "hops": {
+    "2": {
+     "n": 796,
+     "right": 188,
+     "rate": 0.23618090452261306
+    },
+    "3": {
+     "n": 240,
+     "right": 0,
+     "rate": 0.0
+    }
+   },
+   "answerable": {
+    "answerable": {
+     "n": 848,
+     "right": 0,
+     "rate": 0.0
+    },
+    "unanswerable": {
+     "n": 188,
+     "right": 188,
+     "rate": 1.0
+    }
+   }
+  }
+ }
+}

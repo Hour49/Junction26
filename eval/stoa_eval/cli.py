@@ -1,6 +1,7 @@
 """Command line: `python -m stoa_eval <command>` (from eval/): split, select, select-plans,
 baseline, baseline-extraction, score, score-extraction, history, series, validate-extraction,
-schema, exp-split, ab, gate, leaderboard, annotated-region, hard-questions, hard, disc-pictures."""
+schema, exp-split, ab, gate, leaderboard, annotated-region, hard-questions, hard, disc-pictures,
+services-gen, services-score."""
 
 import argparse
 import fnmatch
@@ -203,6 +204,7 @@ from .run_store import Part, Record, run_stem, slug, write_record
 from .scale_scoring import ScaleCase, case_of
 from .scoring import format_table, score
 from .selection import CellKey, Manifest, SelectionParams, annotate, select
+from .services_cli import add_parsers as add_services
 from .split import (
     DEFAULT_EVAL_SHARE,
     DEFAULT_SEED,
@@ -2660,6 +2662,7 @@ def parser() -> argparse.ArgumentParser:
     schema = commands.add_parser("schema", help="write the JSON Schemas into eval/schemas/")
     schema.add_argument("--check", action="store_true", help="fail if a committed one is stale")
     schema.set_defaults(run=run_schema)
+    add_services(commands, _git_commit)
     return root
 
 

@@ -38,6 +38,8 @@ uv run python -m stoa_eval leaderboard          # every arm under data/stoa/exp 
 uv run python -m stoa_eval annotated-region     # the region each train/val image's gold annotates
 uv run python -m stoa_eval hard-questions <labels.json> --root .. --out q.jsonl   # hard slice questions
 uv run python -m stoa_eval hard <labels.json> --run <answer out> --questions q.jsonl [--run ... --questions ...] [--pred P.jsonl]
+uv run python -m stoa_eval services-gen <model.ifc>... --manifest M.json   # hard services questions (below)
+uv run python -m stoa_eval services-score <questions.jsonl> <answers.jsonl> --name <method>
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
 ```
 
@@ -152,6 +154,33 @@ arm, for information only.
 Test is used once per arm: `ab --part test` and `gate --part test` need `--certify`, append the run (arm,
 time, result, result file sha256) to `data/stoa/exp/test-certified.json`, and refuse an arm already run on
 test by the same command unless `--recertify-reason "<why>"` is given.
+
+## Hard services questions (IFC graph, 2026-11-14)
+
+Multi-hop questions over an IFC services model's port graph with programmatic truth (research slice 5):
+equipment served, farthest terminal, which equipment feeds an element, branch size and run length, system
+run length and storeys, systems crossing floors, open ends, unconnected elements, valves between two
+elements, what closing a valve cuts off, the panel and circuit of a device. Code: `stoa_eval/services.py`
+(truth, generator, scorer; each template's meaning in `MEANINGS`), `services_cli.py`, and
+`services_backend.py`, which reads each model in backend/'s environment (the backend's element reader;
+edges from raw IfcRelConnectsPorts) into a plain JSON graph. The truth is computed in eval and shares no
+code with the backend's graph operations.
+
+- Anchors: an element by Revit family and id (`id`), or by a description that fits exactly one element:
+  family on the top floor, on a storey, or in a system (`descriptive`). Questions with no element have
+  `none`. These are scored apart.
+- Unanswerable questions: the truth is a refusal with a reason (`no_connectivity`, `unconnected`,
+  `no_source`, `no_circuit_data`). Refusing is right; refusing an answerable question is wrong.
+- Four phrasings per question: s1, s2 `seen` (a parser may be tuned on them), h1, h2 `held-out`.
+- Split by building (the model stem minus its `_<discipline>`), from a manifest
+  `{"dev": [...], "heldout": [...]}`. Held-out buildings are scored only with `--milestone`.
+- `services-gen` writes `questions.jsonl` and `oracle.jsonl` (the truth as answers) into `--out`
+  (default `data/stoa/services/`, gitignored: rows name the dataset's models and elements), with graphs
+  cached in `graphs/`. A model that fails to parse is skipped and named.
+- Answers: one `{"id", "value", "refused", "reason"}` line per question. Lengths must be within 2%;
+  counts and ids must be exact; id lists are compared as sets.
+- `services-score --name` records aggregates only (per template, anchor, phrasing, hops, answerable;
+  refusals) in `results/services/runs/`. Commit the record with your PR.
 
 ## Answer format (answer_v1)
 
