@@ -172,8 +172,9 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
     """What the building model behind the drawing gives (`Drawing.model_objects`), over every
     object whether the sheet draws it or not: counts in the model (all of it and per storey),
     and per storey the sums of MODEL_MEASURED and the spaces' areas, total and by name. A
-    drawing without a page (a question on the model file itself) shows nothing, so its
-    storeys' plain counts are the model's too. Only drawn objects have a mark."""
+    drawing without a page (a question on the model file itself) shows nothing, so its plain
+    counts, of the whole file and of each storey, are the model's too ("How many windows are
+    there?" on a .ifc file). Only drawn objects have a mark."""
     objects = drawing.model_objects or ()
     drawn = {item.id: _mark(item) for item in (*drawing.elements, *drawing.rooms)}
     rooms = {room.id: room for room in drawing.rooms}
@@ -192,7 +193,7 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
         for cls in (*ELEMENT_CLASSES, SPACE):
             same = [item for item in items if item.class_ == cls]
             subject = "room" if cls == SPACE else cls
-            for model in (True, False) if storey is not None and not drawing.pages else (True,):
+            for model in (True, False) if not drawing.pages else (True,):
                 key = quantity_key("count", subject, storey=storey, model=model)
                 _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
     for storey, items in sorted(by_storey.items()):

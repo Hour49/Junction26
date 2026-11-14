@@ -162,7 +162,7 @@ class RegionDetector:
                 whole, frame, [self._window(page, w) for w in windows], config.plan_class
             )
         if self._region is not None:
-            mask, mask_frame = self._mask(page)
+            mask, mask_frame = predict_mask(page, *self._region)
             found = steps.keep_in_region(
                 found, frame, mask, mask_frame, config.plan_class, MIN_SHARE
             )
@@ -228,27 +228,30 @@ class RegionDetector:
         canvas, box = post.letterbox(page.crop(window.crop), self._config.side)
         return window, _frame(box), self._read(canvas)
 
-    def _mask(self, page: Image.Image) -> tuple[np.ndarray, Frame]:
-        """The annotated flat on the segmenter's own canvas: the eight-view mean probability,
-        stored as 0-255 like the prototype's mask files, region where it is at least 128."""
-        assert self._region is not None
-        facts, session = self._region
-        canvas, box = post.letterbox(page, facts.side)
-        x = np.asarray(canvas, dtype=np.float32) / 255.0
-        x = (x - np.asarray(facts.mean, np.float32)) / np.asarray(facts.std, np.float32)
-        x = x.transpose(2, 0, 1)[None]
-        name = session.get_inputs()[0].name
-        total = np.zeros((facts.side, facts.side), dtype=np.float32)
-        for flip in (False, True):
-            for k in range(4):
-                v = np.rot90(x, k, axes=(2, 3))
-                v = v[..., ::-1] if flip else v
-                logits = np.asarray(session.run(None, {name: np.ascontiguousarray(v)})[0])
-                p = 1.0 / (1.0 + np.exp(-logits))
-                p = p[..., ::-1] if flip else p
-                total += np.rot90(p, -k, axes=(2, 3))[0, 0]
-        stored = np.round(total / 8 * 255).astype(np.uint8)
-        return stored >= 128, _frame(box)
+
+def predict_mask(
+    page: Image.Image, facts: RegionFacts, session: Session
+) -> tuple[np.ndarray, Frame]:
+    """The annotated flat of an RGB page (`post.open_rgb`): a bool mask on the segmenter's own
+    side x side canvas, and how the page sits on that canvas. The eight-view mean probability is
+    stored as 0-255 like the prototype's mask files; region where it is at least 128. `facts`
+    and `session` as `load_region` returns them."""
+    canvas, box = post.letterbox(page, facts.side)
+    x = np.asarray(canvas, dtype=np.float32) / 255.0
+    x = (x - np.asarray(facts.mean, np.float32)) / np.asarray(facts.std, np.float32)
+    x = x.transpose(2, 0, 1)[None]
+    name = session.get_inputs()[0].name
+    total = np.zeros((facts.side, facts.side), dtype=np.float32)
+    for flip in (False, True):
+        for k in range(4):
+            v = np.rot90(x, k, axes=(2, 3))
+            v = v[..., ::-1] if flip else v
+            logits = np.asarray(session.run(None, {name: np.ascontiguousarray(v)})[0])
+            p = 1.0 / (1.0 + np.exp(-logits))
+            p = p[..., ::-1] if flip else p
+            total += np.rot90(p, -k, axes=(2, 3))[0, 0]
+    stored = np.round(total / 8 * 255).astype(np.uint8)
+    return stored >= 128, _frame(box)
 
 
 def _frame(box: post.Letterbox) -> Frame:

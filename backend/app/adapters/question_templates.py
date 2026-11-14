@@ -14,9 +14,11 @@ dropped hint or a typo still parses:
    out. Showers and bathtubs named together are their combined count.
 4. Filters: a room number (4.01, U1.05), an apartment letter, "indoor"/"numbered" rooms.
 
-5. Three forms that are not dataset templates: the largest room of a type or printed label by
-   area, how long a room is (its longer side), and "the apartment" with no letter (the sheet's
-   one dwelling).
+5. Four forms that are not dataset templates: the largest room of a type or printed label by
+   area, how long a room is (its longer side), "the apartment" with no letter (the sheet's one
+   dwelling), and the sheet's floor area asked plainly ("the total floor area", "the total area
+   of all rooms"): Stoa's one sheet total, the net area of its indoor rooms. A gross area, a
+   footprint or a building's area is not that, and stays unsupported.
 
 A question it can't place (no measure, no subject, a measure the subject has no quantity for,
 any other superlative) is `Unsupported` with the reason, never a guess.
@@ -211,6 +213,11 @@ APARTMENT = re.compile(
     r"|mieszkani[ae]))\s+([A-Z])\b"
 )
 INDOOR = re.compile(r"indoor|innenr|intérieur|interni|numbered|nummeriert|numérot|numerat")
+# The sheet's floor area asked plainly: the total of its indoor rooms, as Stoa's sheet template
+# ("total net floor area ... of all numbered indoor rooms on this floor").
+FLOOR_TOTAL = re.compile(r"\bfloor area\b|\btotal (?:\w+ )?area\b")
+ALL_ROOMS = re.compile(r"\b(?:all|every) (?:the |of the )?(?:indoor )?rooms\b")
+NOT_NET = re.compile(r"\bgross\b|\bfootprint\b|\bbrutto")
 SUPERLATIVE = re.compile(r"\b(?:longest|smallest|shortest|längste|kleinste|plus petit|pisin)")
 # The one superlative taken off: the largest room by area (of a type, or of a printed label).
 LARGEST = re.compile(r"\b(?:largest|biggest|grösste|größte|plus grand|maggiore|suurin)")
@@ -282,15 +289,21 @@ class TemplateParser:
         if measure is None:
             return Unsupported(reason="no count, area, length or volume asked for")
         body, hits = _subjects(lower)
-        if not hits:
+        model = any(q.role == "model" for q in quoted) or BUILDING.search(lower) is not None
+        floor_total = (
+            measure == "area"
+            and not model
+            and NOT_NET.search(lower) is None
+            and (FLOOR_TOTAL.search(lower) is not None or ALL_ROOMS.search(lower) is not None)
+        )
+        if not hits and not floor_total:
             return Unsupported(reason="no element, room or apartment named")
-        if not _counted_thing_named(body, hits):
+        if hits and not _counted_thing_named(body, hits):
             return Unsupported(reason="the thing counted is not an element, room or apartment")
-        subjects = list(dict.fromkeys(subject for _, subject in hits))
+        subjects = list(dict.fromkeys(subject for _, subject in hits)) or ["room"]
         label = next((q.text for q in quoted if q.role == "label"), None)
         name = next((q.text for q in quoted if q.role == "name"), None)
         storey = next((q.text for q in quoted if q.role == "storey"), None)
-        model = any(q.role == "model" for q in quoted) or BUILDING.search(lower) is not None
         if name is None and (number := ROOM_NUMBER.search(bare)):
             name = number.group(1)
         apartment = APARTMENT.search(bare)
@@ -328,6 +341,8 @@ class TemplateParser:
                 return Query(measure="area", subject="room", indoor=True, **common)
             if storey is not None:
                 return Query(measure="area", subject="room", **common)
+            if floor_total and (not hits or ALL_ROOMS.search(lower)):
+                return Query(measure="area", subject="room", indoor=True, **common)
             return Unsupported(reason="an area of rooms without saying which rooms")
         if subject in ELEMENT_MEASURES.get(measure, ()):
             return Query(measure=measure, subject=subject, **common)

@@ -13,21 +13,34 @@ by position (core's dict and list order follows the hash seed today). tests/api/
 test_api_fixtures.py runs it twice under different hash seeds and compares.
 """
 
+import hashlib
+import io
 import json
+import os
 import sys
 import tempfile
+import threading
+import zipfile
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 BACKEND = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(BACKEND), str(BACKEND / "tests"), str(BACKEND / "scripts")]
+sys.path[:0] = [
+    str(BACKEND / "tests" / "api"),  # its conftest (the raster arm), before tests/conftest.py
+    str(BACKEND),
+    str(BACKEND / "tests"),
+    str(BACKEND / "scripts"),
+]
 
-from fastapi import FastAPI  # noqa: E402
+import test_pdf_tables as tables  # noqa: E402  # pyright: ignore[reportMissingImports]
+from conftest import plan_png, raster_arm  # noqa: E402  # pyright: ignore[reportMissingImports]
 from fastapi.testclient import TestClient  # noqa: E402
 from make_sample_archive import build_archive  # noqa: E402  # pyright: ignore[reportMissingImports]
+from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
+from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 
-from app.composition import build_ingest  # noqa: E402
+from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
@@ -35,6 +48,7 @@ from app.settings import Settings  # noqa: E402
 # Stand-ins for what changes on every run
 PROJECT_ID = "5e0c1a2b3d4f"
 CREATED_AT = "2026-11-14T08:00:00+00:00"
+EDITED_AT = "2026-11-14T08:05:00Z"
 DURATIONS = {"ms": 12.5, "latency_s": 0.002}
 FIXTURES = BACKEND / "tests" / "fixtures" / "api_v1"
 DOC = BACKEND.parent / "docs" / "API.md"
@@ -88,10 +102,7 @@ def responses() -> dict[str, Any]:
     found["answer_area"] = client.post(
         "/api/ask", json={"drawing_id": flat_a["drawing_id"], "question": area}
     ).json()
-    answering = cast(FastAPI, client.app).state.answering
-    cast(FastAPI, client.app).state.answering = replace(answering, confidence=ExampleConfidence)
-    found["answer_confidence"] = client.post("/api/ask", json=ask).json()
-    cast(FastAPI, client.app).state.answering = answering
+    found["answer_confidence"] = rated(root / "raster", settings)
     storey = "How many doors are shown on the floor plan of 'Ground Floor'?"
     house = files["model/house.ifc"]
     found["answer_model"] = client.post(
@@ -109,13 +120,147 @@ def responses() -> dict[str, Any]:
     ]
     found["signoff_request"] = {"quantity": "door", "by": "Ana"}
     found["error"] = client.get("/api/drawings/0123456789abcdef").json()
-    return stable(trimmed(found), started["id"])
+    others = reviewed(client, flat_b["drawing_id"], found)
+    found["answer_schedule"] = schedule_answer(client)
+    others.append(set_aside(client, found))
+    others += in_flight(root / "flight", settings, found)
+    variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
+        found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
+        found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
+    }
+    return stable(trimmed(found), [started["id"], *others], variable)
 
 
-def stable(found: dict[str, Any], project_id: str) -> dict[str, Any]:
-    """The run's project id, times and durations replaced by fixed stand-ins, and each file's
-    takeoff (key -> number) in key order."""
-    return json.loads(json.dumps(_fixed(found)).replace(project_id, PROJECT_ID))
+ROOM = "area:room|name=1.01"  # flat-b's conflict: printed label against the drawn outline
+
+
+def ask_on(client: TestClient, drawing_id: str, question: str) -> dict[str, Any]:
+    return client.post("/api/ask", json={"drawing_id": drawing_id, "question": question}).json()
+
+
+def reviewed(client: TestClient, drawing_id: str, found: dict[str, Any]) -> list[str]:
+    """flat-b through the review flow: its conflict answered, marks rejected and added, a value
+    settled, the conflict signed off, then an edit of the signed quantity refused (409)."""
+    question = "What is the area of room 1.01?"
+    found["answer_conflict"] = ask_on(client, drawing_id, question)
+    url = f"/api/drawings/{drawing_id}"
+    for edit in (
+        {"quantity": "door", "action": "reject", "mark": "m1"},
+        {"quantity": "door", "action": "add", "page": 1, "box": [0.2, 0.5, 0.23, 0.53]},
+        {"quantity": "window", "action": "settle", "value": 3},
+    ):
+        assert client.post(f"{url}/review", json=edit).status_code == 200
+    signed = client.post(f"{url}/signoff", json={"quantity": ROOM, "by": "Ana"})
+    assert signed.status_code == 200, signed.text
+    found["takeoff_edited"] = client.get(f"{url}/takeoff").json()
+    found["answer_signed"] = ask_on(client, drawing_id, question)
+    refused = client.post(f"{url}/review", json={"quantity": ROOM, "action": "settle", "value": 1})
+    assert refused.status_code == 409, refused.text
+    found["error_not_allowed"] = refused.json()
+    return []
+
+
+def door_schedule_pdf() -> bytes:
+    """A sheet that prints a door schedule (tests/test_pdf_tables.py's, with door numbers as
+    real schedules write them)."""
+    rows = (
+        ("101.A", "3'-0\"", "7'-0\"", "WD-1", "A"),
+        ("102.A", "3'-0\"", "7'-0\"", "WD-1", None),
+        ("111.B", "2'-8\"", "7'-0\"", "AL-1", "A, B"),
+    )
+    sheet = SheetPdf()
+    with_rows = tables.DOOR_ROWS
+    tables.DOOR_ROWS = rows
+    try:
+        tables.door_schedule(sheet)
+    finally:
+        tables.DOOR_ROWS = with_rows
+    return sheet.pdf()
+
+
+def schedule_answer(client: TestClient) -> dict[str, Any]:
+    """A cell read from a schedule: a string answer, its row as the proof."""
+    upload = client.post("/api/projects", params={"name": "doors.pdf"}, content=door_schedule_pdf())
+    drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
+    return ask_on(client, drawing_id, "What are the width and height of door 111.B?")
+
+
+def set_aside(client: TestClient, found: dict[str, Any]) -> str:
+    """A zip whose one entry would be written outside the project: set aside at unpack."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr(zipfile.ZipInfo("../outside.pdf", (2026, 11, 14, 0, 0, 0)), b"%PDF-1.7")
+    upload = client.post("/api/projects", params={"name": "unsafe.zip"}, content=buffer.getvalue())
+    found["trace_set_aside"] = client.get(f"{upload.json()['url']}/files/f1/trace").json()
+    return upload.json()["id"]
+
+
+def in_flight(root: Path, settings: Settings, found: dict[str, Any]) -> list[str]:
+    """A project caught while it runs (held after unpacking, before its files are read), and the
+    same project as a restarted server finds it: failed, its unread files set aside."""
+    settings = settings.model_copy(update={"projects_dir": root / "projects"})
+    ingest = build_ingest(settings, settings.projects_dir, background=True)
+    reached, release = threading.Event(), threading.Event()
+    readers = ingest._readers  # pyright: ignore[reportPrivateUsage]
+
+    def held(project_id: str) -> Any:
+        reached.set()
+        release.wait(60)
+        return readers(project_id)
+
+    ingest._readers = held  # pyright: ignore[reportPrivateUsage]
+    client = TestClient(create_app(settings, ingest))
+    upload = client.post("/api/projects", params={"name": "plan.pdf"}, content=swiss_sheet().pdf())
+    url = upload.json()["url"]
+    assert reached.wait(60), "the run never reached its readers"
+    found["project_running"] = client.get(url).json()
+    restarted = TestClient(create_app(settings, build_ingest(settings, settings.projects_dir)))
+    found["project_failed"] = restarted.get(url).json()
+    release.set()
+    ingest.close()
+    return [upload.json()["id"]]
+
+
+def rated(root: Path, settings: Settings) -> dict[str, Any]:
+    """A door count on an image read on the raster route (a precomputed arm: the only route the
+    confidence rates), with DECISIONS_CONFIDENCE's stand-in."""
+    raster_arm(root / "arm", "plan.png")
+    settings = settings.model_copy(
+        update={
+            "projects_dir": root / "projects",
+            "extractor_raster": "composite",
+            # relative, so the reader names (part of the drawing id) are the same on every run
+            "raster_components": "elements=dir:arm,plans=dir:arm",
+        }
+    )
+    here = Path.cwd()
+    os.chdir(root)
+    try:
+        ingest = build_ingest(settings, settings.projects_dir, background=False)
+        app = create_app(settings, ingest)
+        app.state.answering = replace(
+            app.state.answering, confidence=ExampleConfidence, signal=DECISIONS_SIGNAL
+        )
+        client = TestClient(app)
+        upload = client.post("/api/projects", params={"name": "plan.png"}, content=plan_png())
+        drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
+        ask = {"drawing_id": drawing_id, "question": "How many doors are there?"}
+        return client.post("/api/ask", json=ask).json()
+    finally:
+        os.chdir(here)
+
+
+def stable(
+    found: dict[str, Any], project_ids: list[str], variable: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """The run's project ids, times, durations and the `variable` values replaced by fixed
+    stand-ins, and each file's takeoff (key -> number) in key order."""
+    text = json.dumps(_fixed(found))
+    for value, stand_in in (variable or {}).items():
+        text = text.replace(value, stand_in)
+    for at, project_id in enumerate(project_ids):
+        text = text.replace(project_id, f"{int(PROJECT_ID, 16) + at:012x}")
+    return json.loads(text)
 
 
 def _fixed(value: Any) -> Any:
@@ -129,6 +274,8 @@ def _fixed(value: Any) -> Any:
             out[key] = DURATIONS[key]
         elif key == "created_at":
             out[key] = CREATED_AT
+        elif key == "at" and isinstance(item, str):  # when an edit or sign-off was made
+            out[key] = EDITED_AT
         elif key == "takeoff" and isinstance(item, dict) and "quantities" not in item:
             out[key] = dict(sorted(item.items()))
         else:
@@ -160,6 +307,12 @@ def trimmed(found: dict[str, Any]) -> dict[str, Any]:
     by_key = sorted(found["project_review"]["conflicts"], key=lambda c: (c["file"], c["quantity"]))
     found["project_review"]["conflicts"] = by_key[:1]
     found["drawing"]["suggestions"] = found["drawing"]["suggestions"][:3]
+    edited = found["takeoff_edited"]
+    edited["quantities"] = [row for key in ("door", "window", ROOM) for row in edited["quantities"]
+                            if row["key"] == key]  # fmt: skip
+    edited["review_queue"] = sorted(edited["review_queue"])
+    for answer in (found["answer_conflict"], found["answer_signed"], found["answer_schedule"]):
+        _marks(answer)
     return found
 
 

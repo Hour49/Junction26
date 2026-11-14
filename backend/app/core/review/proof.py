@@ -17,7 +17,7 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 
-from app.core.drawing.model import Box, Drawing, ModelObject, Table
+from app.core.drawing.model import ELEMENT_CLASSES, Box, Drawing, ModelObject, Table
 from app.core.model import Frozen
 from app.core.pipeline.rules import MODEL_COUNT, MODEL_QUANTITY, MODEL_SPACES
 from app.core.pipeline.takeoff import SPACE, normalised
@@ -83,13 +83,22 @@ class Proof(Frozen):
     objects: tuple[ModelItem, ...] | None  # a fact of the building model: what it counted
     storeys: tuple[StoreyRow, ...] | None  # the model's objects per storey and class
     schedule: Schedule | None
-    # The answer's probability of being right (answer_v1.1 `confidence`), None: none given. A
-    # "sure" badge waits for golden's cutoff; the screen shows the number for now
-    confidence: float | None = None
+    # How a second, independent method checked the value, in one line; None: measured once
+    check: str | None = None
 
 
 NO_PROOF = Proof(kind="none", legend=(), arithmetic=None, objects=None, storeys=None, schedule=None)
 UNLOCATED = "counted without a mark (second reader)"
+# What each method that measures a value is, in words, for the check line
+METHODS = {
+    "plan_drawing": "the sheet",
+    "parser": "the sheet",
+    "detector": "the detector",
+    "ifc_model": "the IFC model",
+    "schedule": "the schedule",
+    "printed_label": "the printed room areas",
+    "polygon_x_scale": "the room outlines at the sheet's scale",
+}
 
 
 def number(value: float) -> str:
@@ -121,10 +130,16 @@ def legend(
 
 
 def takeoff_proof(found: Row, drawing: Drawing) -> Proof:
+    return _takeoff_proof(found, drawing).model_copy(update={"check": check(found)})
+
+
+def _takeoff_proof(found: Row, drawing: Drawing) -> Proof:
     keys = legend(found.marks, fixed=found.measure == "count", unlocated=found.unlocated)
     if found.rule.id in MODEL_RULES:
         return _model(found, drawing, keys)
     if found.measure == "count":
+        if not set(found.subject.split("+")) <= set(ELEMENT_CLASSES):  # rooms: one key, not
+            keys = _one_key(found)  # one per printed name
         terms = [f"{key.count} {key.label}" for key in keys if key.count]
         sums = " + ".join(terms) + f" = {number(found.value)}" if len(terms) > 1 else None
         return Proof(
@@ -138,6 +153,30 @@ def takeoff_proof(found: Row, drawing: Drawing) -> Proof:
         storeys=None,
         schedule=None,
     )
+
+
+def _one_key(found: Row) -> tuple[ClassKey, ...]:
+    """A count of rooms (or apartments) in one key, named by what is counted (`bedroom`)."""
+    name = found.subject.split(":", 1)[-1].replace("_", " ")
+    counted = sum(mark.state in ("counted", "added") for mark in found.marks)
+    return (ClassKey(label=name, colour=colour(name), count=counted),)
+
+
+def check(found: Row) -> str | None:
+    """How a second method checked the value: both values, and the rule that kept one."""
+    if found.first is None or found.second is None:
+        return None
+    unit = "" if found.unit == "count" else f" {found.unit}"
+    shown = [f"{METHODS.get(v.method, v.method)} {number(v.value)}{unit}"
+             for v in (found.first, found.second)]  # fmt: skip
+    if found.conflict is None:
+        return f"Checked twice, both agree: {shown[0]}, {shown[1]}"
+    text = f"Checked twice, they disagree: {shown[0]}, {shown[1]}"
+    if found.settled is not None:
+        return f"{text}; settled by a person: {number(found.settled.value)}{unit}"
+    if (rule := found.conflict.resolution) is not None:
+        return f"{text}; kept {number(rule.value)}{unit}: {rule.rule}"
+    return f"{text}; no rule decides, a person must settle it"
 
 
 def _sum(found: Row) -> str | None:

@@ -1,6 +1,7 @@
 """stoa_eval gate (E5): calibration, signals, AUROC, Learn-then-Test, Clopper-Pearson, and the
 command on a made-up split with a fake backend."""
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,7 @@ import pytest
 from stoa_eval import backend, cli
 from stoa_eval.gate import (
     SignalFile,
+    UnionStep,
     Unit,
     binom_cdf,
     calibrated,
@@ -21,6 +23,7 @@ from stoa_eval.gate import (
     halves,
     isotonic,
     learn_then_test,
+    load_gate_policy,
     min_accepted,
     modal_probability,
     nothing_found_rates,
@@ -250,7 +253,7 @@ def test_a_pooled_group_passes_where_its_families_alone_cannot() -> None:
     window = [unit(n, True, 0.9, "window") for n in range(65)]
     by_family = {"door": door, "window": window}
     assert family_gates(by_family, "top3")["door"].threshold is None
-    groups, families = pooled_gates(by_family, {"elements": ("door", "window")}, "top3")
+    groups, families, _ = pooled_gates(by_family, {"elements": ("door", "window")}, "top3")
     assert list(groups) == ["elements"] and groups["elements"].families == ["door", "window"]
     gate = groups["elements"]
     assert (gate.threshold, gate.plans, gate.accepted, gate.exact) == (0.9, 65, 65, 65)
@@ -264,7 +267,7 @@ def test_a_pooled_group_has_the_plan_as_unit() -> None:
     window = [unit(n, n != 0, 0.9, "window") for n in range(60)]
     answers = learn_then_test(door + window, "top3")
     assert (answers.threshold, answers.accepted, answers.steps[-1].errors) == (0.9, 120, 1)
-    groups, _ = pooled_gates({"door": door, "window": window}, {"e": ("door", "window")}, "top3")
+    groups, _, _ = pooled_gates({"door": door, "window": window}, {"e": ("door", "window")}, "top3")
     assert groups["e"].threshold is None
     assert (groups["e"].steps[0].accepted, groups["e"].steps[0].errors) == (60, 1)
 
@@ -275,7 +278,7 @@ def test_pooled_gates_do_not_split_delta_over_groups() -> None:
     door = [unit(n, True, 0.9) for n in range(65)]
     plan = [unit(n, True, 0.9, "plan") for n in range(65)]
     groups = {"elements": ("door", "window")}
-    both, families = pooled_gates({"door": door, "plan": plan}, groups, "top3")
+    both, families, _ = pooled_gates({"door": door, "plan": plan}, groups, "top3")
     assert set(both) == {"elements", "plan"} and both["plan"].families == ["plan"]
     assert both["elements"].families == ["door"]
     assert both["elements"].threshold == 0.9 and families["plan"].threshold == 0.9
@@ -288,7 +291,7 @@ def test_a_pooled_group_takes_the_loosest_threshold_that_meets_the_target() -> N
     door = [unit(n, n != 0, 0.9) for n in range(80)]
     door += [unit(100 + n, True, 0.8) for n in range(40)]
     door += [unit(200 + n, False, 0.5) for n in range(30)]
-    groups, families = pooled_gates({"door": door}, {"elements": ("door",)}, "top3")
+    groups, families, _ = pooled_gates({"door": door}, {"elements": ("door",)}, "top3")
     gate = groups["elements"]
     assert (gate.threshold, gate.accepted, gate.exact) == (0.8, 120, 119)
     assert [(s.threshold, s.accepted, s.errors) for s in gate.steps] == [
@@ -296,6 +299,26 @@ def test_a_pooled_group_takes_the_loosest_threshold_that_meets_the_target() -> N
     ]  # fmt: skip
     assert families["door"].threshold == 0.8
     assert (cp_lower(79, 80) or 0) < 0.95 <= (cp_lower(119, 120) or 0)  # the bound, as stated
+
+
+def test_groups_are_tightened_until_all_groups_together_meet_the_target() -> None:
+    """Doors: 95 plans, 1 wrong (plan 0, the least sure door); plans: 105 plans, 1 wrong (plan 1).
+    Each group alone meets 95%, but together 2 wrong of 105 plans don't. Tightening doors past
+    the wrong door removes a wrong plan and loses none (plan 0 stays sure through its plan
+    answer); shutting plans would lose 10 plans for 1. So doors move to 0.9 and the union passes."""
+    door = [unit(n, n != 0, 0.8 if n == 0 else 0.9) for n in range(95)]
+    plan = [unit(n, n != 1, 0.9, "plan") for n in range(105)]
+    groups = {"elements": ("door",), "plans": ("plan",)}
+    gates, families, steps = pooled_gates({"door": door, "plan": plan}, groups, "top3")
+    assert (gates["elements"].alone_threshold, gates["elements"].alone_accepted) == (0.8, 95)
+    assert (gates["elements"].threshold, gates["elements"].accepted) == (0.9, 94)
+    assert gates["plans"].threshold == gates["plans"].alone_threshold == 0.9
+    assert [(s.group, s.threshold, s.plans, s.wrong) for s in steps] == [
+        ("elements", 0.9, 105, 1)
+    ]  # fmt: skip
+    assert families["door"].threshold == 0.9
+    assert certificate(door + plan, "top3", {"door": 0.8, "plan": 0.9}, "x").exact_plans == 103
+    assert (cp_lower(103, 105) or 0) < 0.95 <= (cp_lower(104, 105) or 0)
 
 
 def signal_file(
@@ -411,9 +434,19 @@ def test_gate_pools_families_on_val_and_reuses_the_groups_on_test(
     scored_arm(dataset, exp / "core" / "a")
     common = ("--exp-dir", exp, "--gold", dataset / "gold", "--arm", exp / "core/a")
     loose = ("--delta", "1")  # every threshold passes (the made-up answers are wrong): it opens
+    real = cli.pooled_gates
+    step = UnionStep(group="elements", threshold=None, plans=0, wrong=0, p=1.0)
+
+    def with_a_step(*args: Any) -> Any:  # delta 1 never tightens: check that steps are kept
+        gates, families, _ = real(*args)
+        return gates, families, [step]
+
+    monkeypatch.setattr(cli, "pooled_gates", with_a_step)
     assert run("gate", *common, *loose, "--pool") == 0
-    assert "| elements | door, window |" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "| elements | door, window |" in out and "tightened" in out
     val = json.loads((exp / "ab/gate-core-a-val.json").read_text())
+    assert val["union_steps"] == [step.model_dump()]
     group = val["groups"]["elements"]
     assert list(val["groups"]) == ["elements"] and group["families"] == ["door", "window"]
     assert val["family_delta"] is None  # groups: delta is not split
@@ -436,3 +469,41 @@ def test_gate_pools_families_on_val_and_reuses_the_groups_on_test(
     assert {g["threshold"] for g in test["families"].values()} == {123.0}
     assert run("gate", *common, *loose, "--part", "test", "--certify") == 1  # test is used once
     assert "already run on test" in capsys.readouterr().err
+
+
+def test_gate_policy_round_trips_and_refuses_a_missing_split_sha(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(backend, "run", fake_backend)
+    exp = dataset / "exp"
+    assert exp_split(dataset, exp) == 0
+    scored_arm(dataset, exp / "core" / "a")
+    common = ("--exp-dir", exp, "--gold", dataset / "gold", "--arm", exp / "core/a")
+    assert run("gate", *common, "--delta", "1", "--pool") == 0  # delta 1: the gate opens
+    val_path = exp / "ab/gate-core-a-val.json"
+    val = json.loads(val_path.read_text())
+    sha = hashlib.sha256((exp / "split.json").read_bytes()).hexdigest()
+    assert val["split_sha256"] == sha
+    val["families"]["window"]["accepted"] = 0  # open, but no val answer was marked sure
+    val_path.write_text(json.dumps(val), "utf-8")
+    out = exp / "gate.json"
+    assert run("gate-policy", "--gate", val_path, "--out", out) == 0
+    made = load_gate_policy(out)
+    assert made.model_dump(by_alias=True) == json.loads(out.read_text())  # round trip
+    assert made.split_sha256 == sha and made.part == "val" and made.certified is False
+    assert list(made.families) == ["door"]  # no evidence for window's threshold: no entry
+    door = made.families["door"]
+    assert (door.signal, door.threshold, door.group) == (
+        val["signal"], val["families"]["door"]["threshold"], "elements"
+    )  # fmt: skip
+    assert door.val.note == "chosen on val, not a guarantee"
+    assert door.val.sure == val["families"]["door"]["accepted"]
+    body = json.loads(out.read_text())
+    del body["split_sha256"]
+    out.write_text(json.dumps(body), "utf-8")
+    with pytest.raises(ValueError, match="split_sha256"):
+        load_gate_policy(out)
+    del val["split_sha256"]  # a gate made before the sha was recorded
+    val_path.write_text(json.dumps(val), "utf-8")
+    assert run("gate-policy", "--gate", val_path, "--out", out) == 1
+    assert "no split_sha256" in capsys.readouterr().err

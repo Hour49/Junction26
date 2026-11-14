@@ -1,0 +1,121 @@
+{
+  "question": "What are the width and height of door 111.B?",
+  "drawing_id": "5c4ed01e00000001",
+  "file": "doors.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/5c4ed01e00000001/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": "2'-8\" wide x 7'-0\" high",
+  "unit": null,
+  "confidence": null,
+  "quantity": null,
+  "marks": [
+    {
+      "id": "e1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.03333,
+        0.2225,
+        0.53333,
+        0.2525
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": null,
+      "label": null,
+      "ref": null,
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "schedule",
+  "explanation": null,
+  "reader": {
+    "route": "vector",
+    "source": "doors.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": "2'-8\" wide x 7'-0\" high",
+    "unit": null,
+    "evidence": [
+      {
+        "file": "doors.pdf",
+        "page": 1,
+        "box": [
+          0.03333,
+          0.2225,
+          0.53333,
+          0.2525
+        ]
+      }
+    ],
+    "method": "schedule",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "schedule",
+    "legend": [],
+    "arithmetic": "1 of the 3 rows of DOOR SCHEDULE",
+    "objects": null,
+    "storeys": null,
+    "schedule": {
+      "table": "t1",
+      "title": "DOOR SCHEDULE",
+      "page": 1,
+      "box": [
+        0.03333,
+        0.05,
+        0.53333,
+        0.2525
+      ],
+      "columns": [
+        "Mark",
+        "Door Width",
+        "Door Height",
+        "Matl",
+        "Notes"
+      ],
+      "rows": [
+        {
+          "n": 1,
+          "box": [
+            0.03333,
+            0.2225,
+            0.53333,
+            0.2525
+          ],
+          "cells": [
+            "111.B",
+            "2'-8\"",
+            "7'-0\"",
+            "AL-1",
+            "A, B"
+          ]
+        }
+      ],
+      "of": 3
+    },
+    "check": null
+  }
+}

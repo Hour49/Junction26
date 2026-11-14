@@ -453,6 +453,23 @@ class GroupGate(BaseModel):
     accepted: int = Field(description="plans with a sure answer of the group")
     exact: int = Field(description="of those, plans whose every sure answer of the group is exact")
     steps: list[LttStep]
+    alone_threshold: float | None = Field(
+        default=None, description="val: the group's own pick, before the all-groups check"
+    )
+    alone_accepted: int | None = Field(default=None, description="sure plans at alone_threshold")
+    alone_exact: int | None = None
+
+
+class UnionStep(BaseModel):
+    """One tightening of the all-groups check: a group moves to its next stricter threshold."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group: str
+    threshold: float | None = Field(description="the group's new threshold; null: shut")
+    plans: int = Field(description="sure plans of all groups together after the step")
+    wrong: int
+    p: float
 
 
 def group_members(
@@ -512,26 +529,88 @@ def group_gate(
     return apply_group(units, signal, families, chosen, steps)
 
 
+def meet_on_union(
+    units_of: Mapping[str, Sequence[Unit]],
+    members: Mapping[str, Sequence[str]],
+    picked: Mapping[str, float | None],
+    signal: str,
+    target: float = TARGET,
+    delta: float = DELTA,
+) -> tuple[dict[str, float | None], list[UnionStep]]:
+    """The certificate counts a plan wrong when any of its sure answers is, over every group at
+    once. While that all-groups bound misses the target (exact binomial p above delta, the same
+    as the one-sided 1 - delta Clopper-Pearson bound under it), move one group to its next
+    stricter threshold (shut when there is none): the move that removes the most wrong plans per
+    sure plan lost (a move that loses none ranks first when it removes one), then fewer plans
+    lost, then the group's name. Stops when the bound meets the target or every group is shut."""
+    alpha = 1.0 - target
+    every = [u for units in units_of.values() for u in units]
+    values = {
+        name: sorted({v for u in units if (v := u.signals[signal]) is not None})
+        for name, units in units_of.items()
+    }
+
+    def union(thresholds: Mapping[str, float | None]) -> tuple[int, int]:
+        by_family = {f: thresholds[name] for name, of in members.items() for f in of}
+        sure = sure_plans(every, signal, by_family)
+        return len(sure), sum(not exact for exact in sure.values())
+
+    current = dict(picked)
+    plans, wrong = union(current)
+    steps: list[UnionStep] = []
+    while plans and binom_cdf(wrong, plans, alpha) > delta:
+        moves: list[tuple[tuple[float, int, str], dict[str, float | None], int, int]] = []
+        for name in sorted(current):
+            threshold = current[name]
+            if threshold is None:
+                continue
+            stricter = [v for v in values[name] if v > threshold]
+            trial = {**current, name: stricter[0] if stricter else None}
+            after, still = union(trial)
+            lost, removed = plans - after, wrong - still
+            ratio = removed / lost if lost else (math.inf if removed else 0.0)
+            moves.append(((-ratio, lost, name), trial, after, still))
+        (_, _, name), current, plans, wrong = min(moves, key=lambda move: move[0])
+        p = binom_cdf(wrong, plans, alpha) if plans else 1.0
+        steps.append(UnionStep(group=name, threshold=current[name], plans=plans, wrong=wrong, p=p))
+    return current, steps
+
+
 def pooled_gates(
     by_family: Mapping[str, Sequence[Unit]],
     groups: Mapping[str, Sequence[str]],
     signal: str,
     target: float = TARGET,
     delta: float = DELTA,
-) -> tuple[dict[str, GroupGate], dict[str, FamilyGate]]:
-    """One threshold per group (group_gate, delta not split: a val choice, not a guarantee);
-    each family gets its group's."""
+) -> tuple[dict[str, GroupGate], dict[str, FamilyGate], list[UnionStep]]:
+    """One threshold per group (group_gate, delta not split: a val choice, not a guarantee),
+    then tightened until all groups together meet the target (meet_on_union); each family gets
+    its group's threshold."""
     members = group_members(by_family, groups)
+    units_of = {name: [u for f in of for u in by_family[f]] for name, of in members.items()}
+    alone = {
+        name: group_gate(units_of[name], signal, of, target, delta) for name, of in members.items()
+    }
+    final, union_steps = meet_on_union(
+        units_of, members, {name: gate.threshold for name, gate in alone.items()}, signal,
+        target, delta,
+    )  # fmt: skip
     gates = {
-        name: group_gate([u for f in of for u in by_family[f]], signal, of, target, delta)
+        name: apply_group(units_of[name], signal, of, final[name], alone[name].steps).model_copy(
+            update={
+                "alone_threshold": alone[name].threshold,
+                "alone_accepted": alone[name].accepted,
+                "alone_exact": alone[name].exact,
+            }
+        )
         for name, of in members.items()
     }
     families = {
-        family: apply_gate(by_family[family], signal, gates[name].threshold)
+        family: apply_gate(by_family[family], signal, final[name])
         for name, of in members.items()
         for family in of
     }
-    return gates, dict(sorted(families.items()))
+    return gates, dict(sorted(families.items())), union_steps
 
 
 def apply_gate(
@@ -619,6 +698,7 @@ class GateResult(BaseModel):
     part: str
     images: int = Field(description="the images the signals are compared and the gate set on")
     seed: int
+    split_sha256: str | None = Field(default=None, description="data/stoa/exp/split.json's sha256")
     target: float
     delta: float
     family_delta: float | None = Field(
@@ -639,7 +719,90 @@ class GateResult(BaseModel):
         default_factory=dict[str, GroupResult],
         description="--pool: one threshold per group of families, the plan as the unit",
     )
+    union_steps: list[UnionStep] = Field(
+        default_factory=list[UnionStep],
+        description="--pool on val: the tightenings that made all groups together meet the target",
+    )
     certificate: Certificate
+
+
+class GateVal(BaseModel):
+    """A family's val numbers in the gate policy: what the threshold did on val."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: Literal["chosen on val, not a guarantee"] = ON_VAL
+    answers: int
+    sure: int = Field(description="answers at or above the threshold")
+    exact: int = Field(description="of those, exact")
+    coverage: float | None = Field(description="sure / answers")
+    bound: float | None = Field(description="one-sided 95% Clopper-Pearson of exact / sure")
+
+
+class GateFamily(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    signal: str = Field(description="the signal the threshold is on: g1main, agree_pb, ...")
+    threshold: float = Field(description="an answer whose signal is at or above it is sure")
+    group: str | None = Field(description="the --pool group it was chosen with; null: alone")
+    val: GateVal
+
+
+class GatePolicy(BaseModel):
+    """gate_policy_v1 (data/stoa/exp/gate.json): per family, when an answer may be marked sure.
+    Only families whose gate opens on val and marks at least one val answer sure are listed (a
+    family the arm never answered, such as rooms for a detector, has no evidence for its group's
+    threshold)."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_: Literal["gate_policy_v1"] = Field(alias="schema")
+    generated: str
+    part: Literal["val"]
+    split_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    arm: str = Field(description="the arm whose answers the thresholds were set on")
+    second: str | None
+    target: float
+    source: str = Field(description="the val gate JSON it was made from")
+    certified: bool = Field(description="false until the single test run certifies the gate")
+    families: dict[str, GateFamily]
+
+
+def gate_policy(result: GateResult, source: str, generated: str) -> GatePolicy:
+    """The product's gate file from a val gate: the families whose gate opens on val answers."""
+    if result.part != "val":
+        raise ValueError(f"{source}: a gate policy is made from the val gate, not {result.part}")
+    if result.split_sha256 is None:
+        raise ValueError(f"{source}: no split_sha256 (made before it was recorded): rerun the gate")
+    group_of = {f: name for name, gate in result.groups.items() for f in gate.families}
+    families = {
+        family: GateFamily(
+            signal=result.signal,
+            threshold=gate.threshold,
+            group=group_of.get(family),
+            val=GateVal(
+                answers=gate.answers,
+                sure=gate.accepted,
+                exact=gate.exact,
+                coverage=gate.accepted / gate.answers if gate.answers else None,
+                bound=gate.lower_bound,
+            ),
+        )
+        for family, gate in result.families.items()
+        if gate.threshold is not None and gate.accepted > 0
+    }
+    return GatePolicy(
+        schema="gate_policy_v1", generated=generated, part="val",
+        split_sha256=result.split_sha256, arm=result.arm, second=result.second,
+        target=result.target, source=source, certified=False, families=families,
+    )  # fmt: skip
+
+
+def load_gate_policy(path: Path) -> GatePolicy:
+    try:
+        return GatePolicy.model_validate_json(path.read_text("utf-8"))
+    except ValidationError as error:
+        raise ValueError(f"{path}: not a gate_policy_v1 file: {error}") from error
 
 
 def compare_signals(
@@ -751,14 +914,35 @@ def format_gate(result: GateResult) -> str:
             "of the group is, and exact when every sure one is.",
             "",
             "| group | families | threshold | plans | sure plans | exact plans | 95% lower bound "
-            f"| {opens} |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            f"| {opens} | alone: threshold, sure plans (exact) |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for group, gate in result.groups.items():
+            alone = (
+                "-"
+                if gate.alone_accepted is None
+                else f"{_cell(gate.alone_threshold, pct=False)}, {gate.alone_accepted} "
+                f"({gate.alone_exact})"
+            )
             lines.append(
                 f"| {group} | {', '.join(gate.families)} | {_cell(gate.threshold, pct=False)} "
                 f"| {gate.plans} | {gate.accepted} | {gate.exact} | {_cell(gate.lower_bound)} "
-                f"| {_cell(gate.accepted / gate.plans if gate.plans else None)} |"
+                f"| {_cell(gate.accepted / gate.plans if gate.plans else None)} | {alone} |"
             )
+        if result.union_steps:
+            last = result.union_steps[-1]
+            moved = sorted({step.group for step in result.union_steps})
+            lines += [
+                "",
+                "All groups together missed the target at the groups' own picks, so groups were "
+                "tightened, most wrong plans removed per sure plan lost first: "
+                + ", ".join(
+                    f"{group} {_cell(result.groups[group].alone_threshold, pct=False)} -> "
+                    f"{_cell(result.groups[group].threshold, pct=False)}"
+                    for group in moved
+                )
+                + f" ({len(result.union_steps)} steps; together {last.plans} sure plans, "
+                f"{last.wrong} wrong).",
+            ]
     lines += ["", result.certificate.sentence + "."]
     return "\n".join(lines)

@@ -165,6 +165,11 @@ class Answer(BaseModel):
         description="v1.1: the value rests on an estimated scale or reading; `explanation` says "
         "from what",
     )
+    sure: StrictBool | None = Field(
+        default=None,
+        description="v1.1: the answer passed the confidence gate (data/stoa/exp/gate.json); null: "
+        "not gated",
+    )
     excluded: list[Excluded] | None = Field(default=None, description="v1.1: regions not counted")
     inputs: list[str] | None = Field(default=None, description="v1.1: the files read")
 

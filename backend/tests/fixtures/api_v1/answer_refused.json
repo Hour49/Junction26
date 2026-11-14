@@ -22,14 +22,14 @@
     "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
     "can_answer": [
       {
+        "quantity": "area:room|indoor",
+        "label": "area of room (indoor)",
+        "question": "What is the net floor area of all indoor rooms in m²?"
+      },
+      {
         "quantity": "door",
         "label": "door count",
         "question": "How many doors are there?"
-      },
-      {
-        "quantity": "window",
-        "label": "window count",
-        "question": "How many windows are there?"
       }
     ]
   },
@@ -66,6 +66,6 @@
     "objects": null,
     "storeys": null,
     "schedule": null,
-    "confidence": null
+    "check": null
   }
 }

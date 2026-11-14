@@ -4,25 +4,15 @@ import io
 import zipfile
 
 import pytest
-from conftest import upload
+from conftest import plan_png, upload
 from fastapi.testclient import TestClient
-from PIL import Image, ImageDraw
+from PIL import Image
 from test_vector_pdf import swiss_sheet
 
 from app.api import projects
+from app.api.info import info
 from app.main import create_app
 from app.settings import Settings
-
-
-def plan_png() -> bytes:
-    """A drawing as an image: dark outlines on white paper (a blank page is set aside)."""
-    image = Image.new("RGB", (800, 400), "white")
-    draw = ImageDraw.Draw(image)
-    for x in range(50, 750, 100):
-        draw.rectangle((x, 50, x + 80, 350), outline="black", width=3)
-    buffer = io.BytesIO()
-    image.save(buffer, "PNG")
-    return buffer.getvalue()
 
 
 def test_an_upload_starts_a_project_and_says_where_to_poll(
@@ -210,6 +200,25 @@ def test_info_names_the_readers_and_the_limits(client: TestClient) -> None:
         "files": 5000,
         "question_chars": 2000,
     }
+
+
+@pytest.mark.parametrize(
+    ("keyed", "no_keys"),
+    [
+        ({"raster_components": "elements=region:C,plans=region:C,rooms=gemini"}, False),
+        ({"raster_components": "elements=decisions:region:C,plans=one-plan"}, False),
+        ({"raster_components": "elements=exp:detector/A,plans=one-plan"}, True),
+        (
+            {"raster_components": "elements=dir:arm,plans=dir:arm", "decisions_confidence": True},
+            False,
+        ),
+    ],
+)
+def test_info_says_when_a_reader_calls_a_keyed_service(
+    settings: Settings, keyed: dict[str, object], no_keys: bool
+) -> None:
+    settings = settings.model_copy(update={"extractor_raster": "composite", **keyed})
+    assert info(settings).no_keys is no_keys
 
 
 def test_info_names_every_reader_a_project_was_read_with(

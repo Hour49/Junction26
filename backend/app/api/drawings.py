@@ -25,8 +25,9 @@ from app.core.drawing.model import Drawing
 from app.core.errors import InvalidInputError
 from app.core.ingest.model import DrawingInfo
 from app.core.pipeline.takeoff import known_quantities
-from app.core.review.ask import SUGGESTIONS, suggestions
+from app.core.review.ask import SUGGESTIONS, Asked, suggestions
 from app.core.review.model import Suggestion
+from app.core.review.proof import number
 
 router = APIRouter(prefix="/api/drawings")
 
@@ -84,7 +85,9 @@ def drawing(
         reader=reader_of(info, readers(settings)),
         credit=credit_of(info, ingest, credits),
         pages=page_views(drawing_id, found.pages, info.normalised),
-        suggestions=list(suggestions(known_quantities(found), answering.parser, SUGGESTIONS)),
+        suggestions=list(
+            suggestions(known_quantities(found), answering.parser, SUGGESTIONS, found.tables or ())
+        ),
     )
 
 
@@ -107,6 +110,17 @@ def page_png(
 ) -> Response:
     png = render_png(ingest.sheet(drawing_id), page, checked_width(width))
     return Response(content=png, media_type="image/png", headers={"Cache-Control": IMMUTABLE})
+
+
+def headline(question: str, asked: Asked) -> str:
+    """The question and its answer as evidence.png writes them: a value as the arithmetic
+    rounds it, or the refusal's text."""
+    if asked.refusal is not None:
+        return f"{question}  ->  no answer: {asked.refusal.text}"
+    value = shown_value(asked)
+    unit = asked.answer.unit if asked.answer.unit not in (None, "count") else ""
+    shown = number(value) if isinstance(value, float) else value
+    return f"{question}  ->  {shown} {unit}".rstrip()
 
 
 @router.get(
@@ -134,12 +148,7 @@ def evidence_png(
     # a schedule is zoomed to its table, so its page is drawn at the largest width first
     drawn = WIDTHS[-1] if asked.proof.schedule is not None else width
     sheet = render_png(ingest.sheet(drawing_id), page, drawn) if drawing.pages else None
-    value = shown_value(asked)
-    if asked.refusal is not None:
-        headline = f"{question}  ->  no answer: {asked.refusal.text}"
-    else:
-        unit = asked.answer.unit if asked.answer.unit not in (None, "count") else ""
-        headline = f"{question}  ->  {value} {unit}".rstrip()
     credit = credit_of(ingest.drawing_info(drawing_id), ingest, credits)
-    png = render_evidence(sheet, page, asked.marks, asked.proof, headline, credit, width)
+    shown = headline(question, asked)
+    png = render_evidence(sheet, page, asked.marks, asked.proof, shown, credit, width)
     return Response(content=png, media_type="image/png", headers={"Cache-Control": "no-store"})

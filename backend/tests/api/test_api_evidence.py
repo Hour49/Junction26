@@ -1,10 +1,14 @@
 """GET /api/drawings/{id}/evidence.png: the answer's proof drawn on its page (docs/GOLDEN.md)."""
 
 import io
+from dataclasses import replace
+from typing import cast
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from app.adapters.decisions.uses import Confidence
 from app.adapters.evidence_render import (
     MARGIN,
     Label,
@@ -17,9 +21,13 @@ from app.adapters.evidence_render import (
     place_labels,
     render,
 )
+from app.api.ask import asked_on
+from app.api.drawings import headline
+from app.composition import DECISIONS_SIGNAL
 from app.core.drawing.model import Table, TableRow
+from app.core.review.ask import Asked
 from app.core.review.model import MarkView
-from app.core.review.proof import NO_PROOF, ClassKey, colour, schedule_proof
+from app.core.review.proof import NO_PROOF, ClassKey, colour, number, schedule_proof
 from app.settings import Settings
 from scripts.make_sample_archive import build_archive
 
@@ -203,12 +211,54 @@ def test_marks_counted_without_a_position_are_named_in_the_legend_and_it_wraps_t
     assert len(wide) == 1  # both keys on one line where they fit
 
 
-def test_an_answer_s_probability_is_written_under_it() -> None:
-    page = Image.new("RGB", (800, 600), "white")
-    buffer = io.BytesIO()
-    page.save(buffer, format="PNG")
-    proof = NO_PROOF.model_copy(update={"kind": "count"})
-    plain = Image.open(io.BytesIO(render(buffer.getvalue(), 1, [], proof, "Q", None, 400)))
-    rated = proof.model_copy(update={"confidence": 0.87})
-    shown = Image.open(io.BytesIO(render(buffer.getvalue(), 1, [], rated, "Q", None, 400)))
-    assert shown.height > plain.height  # one more footer line: the probability
+def test_the_picture_never_prints_the_answer_s_score(raster: tuple[TestClient, str]) -> None:
+    """The score is Gemini's raw choice score, not a probability the answer is right: evidence.png
+    is the same with DECISIONS_CONFIDENCE on as off."""
+    client, drawing_id = raster
+    url = f"/api/drawings/{drawing_id}/evidence.png"
+    plain = client.get(url, params={"question": DOORS}).content
+    state = cast(FastAPI, client.app).state
+    state.answering = replace(state.answering, confidence=Scored, signal=DECISIONS_SIGNAL)
+    assert client.post("/api/ask", json={"drawing_id": drawing_id, "question": DOORS}).json()[
+        "confidence"
+    ] == {"signal": "g1main", "score": 0.87, "calibrated": False}
+    assert client.get(url, params={"question": DOORS}).content == plain
+
+
+class Scored:
+    def __init__(self, files: object) -> None:
+        pass
+
+    def probability(self, path: str, family: str, value: object) -> Confidence:
+        return Confidence(0.87, "decisions: test")
+
+
+def test_a_room_s_label_sits_in_its_corner_clear_of_its_printed_name() -> None:
+    room = [(100.0, 100.0), (500.0, 100.0), (500.0, 400.0), (100.0, 400.0)]
+    door = [(600.0, 100.0), (620.0, 100.0), (620.0, 110.0), (600.0, 110.0)]
+    big, small = place_labels([Label("1", room, 20), Label("2", door, 20)], fixed_size, 800, 600)
+    assert big.rect is not None and big.leader is None
+    assert big.rect[2] < 300 and big.rect[3] < 250  # the top-left quarter, not the middle
+    assert small.rect is not None  # a small outline is labelled as before
+
+
+def test_a_sum_s_headline_is_rounded_as_its_arithmetic_and_its_key_has_no_count(
+    client: TestClient, drawing_id: str
+) -> None:
+    question = "What is the net floor area of all indoor rooms in m²?"
+    asked = ask_core(client, drawing_id, question)
+    assert asked.proof.kind == "sum"
+    total = number(float(asked.answer.answer or 0))
+    assert headline(question, asked) == f"{question}  ->  {total} m2"
+    assert asked.proof.arithmetic is not None and f"= {total} m2" in asked.proof.arithmetic
+    lines = _legend_lines(asked.proof, _font(14), 14, 1600)
+    texts = [text for line in lines for _, _, text in line]
+    assert texts == [key.label for key in asked.proof.legend if key.count]
+
+
+def ask_core(client: TestClient, drawing_id: str, question: str) -> Asked:
+    """The use case behind POST /api/ask, as evidence.png runs it."""
+    app = cast(FastAPI, client.app)
+    ingest = app.state.ingest
+    drawing = ingest.drawing(drawing_id)
+    return asked_on(question, drawing, drawing_id, app.state.reviews, app.state.answering, ingest)

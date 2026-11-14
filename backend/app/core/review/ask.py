@@ -6,7 +6,7 @@ Suggestions are built from the takeoff's rows that have a value, and a phrasing 
 when the parser maps it back to that row's key, so asking a suggestion is never refused.
 """
 
-from collections.abc import Iterable, Mapping, Set
+from collections.abc import Iterable, Mapping, Sequence, Set
 
 from app.core.answering.answer import (
     NO_DRAWING,
@@ -18,7 +18,8 @@ from app.core.answering.answer import (
 )
 from app.core.answering.model import Answer, Query, Question, TableQuery, Unsupported
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
-from app.core.drawing.model import ELEMENT_CLASSES, Drawing
+from app.core.answering.tables import answer_table
+from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Table
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
@@ -29,6 +30,7 @@ from app.core.review.model import (
     RefusalCode,
     ReviewState,
     Row,
+    Scope,
     Suggestion,
 )
 from app.core.review.proof import NO_PROOF, Proof, schedule_proof, takeoff_proof
@@ -40,6 +42,7 @@ RULES: dict[str, str] = {
 }
 SUGGESTIONS = 6
 PLURALS = {"bathtub": "bathtubs", "stair": "stairs", "sauna_stove": "sauna stoves"}
+SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
 NO_SCALE = ("no_scale", "not_to_scale")
 TEXTS = {
     "unsupported-question": "This question isn't one I can turn into a count, area, length or "
@@ -87,8 +90,8 @@ def ask(
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
 ) -> Asked:
-    """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its
-    probability is on the answer and its proof."""
+    """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
+    score is on the answer line only, never in the proof (it is not a calibrated probability)."""
     once = _Once(parser)
     quantities = known_quantities(drawing)
     question = Question(id=1, file=drawing.file, text=text)
@@ -129,26 +132,30 @@ def ask(
         proof = takeoff_proof(shown, drawing)
     elif answer.method == SCHEDULE:
         proof = schedule_proof(marks, tables, answer.answer)
-    if proof.kind != "none":
-        proof = proof.model_copy(update={"confidence": answer.confidence})
     refusal = None
     if answer.method not in (TAKEOFF, SCHEDULE):
         code, words = _refusal(answer.method, parsed, query, drawing)
         refusal = Refusal(
-            code=code, text=words, can_answer=suggestions(quantities, parser, SUGGESTIONS)
+            code=code, text=words, can_answer=suggestions(quantities, parser, SUGGESTIONS, tables)
         )
     return Asked(answer=answer, query=query, row=shown, marks=marks, refusal=refusal, proof=proof)
 
 
 def suggestions(
-    quantities: Mapping[str, Quantity], parser: QuestionParser, limit: int
+    quantities: Mapping[str, Quantity],
+    parser: QuestionParser,
+    limit: int,
+    tables: Sequence[Table] = (),
 ) -> tuple[Suggestion, ...]:
-    """Up to `limit` questions, one per row with a value, that the parser maps to the row."""
-    found: list[Suggestion] = []
-    for key, quantity in quantities.items():
+    """Up to `limit` questions the parser maps to a row with a value (or to a schedule the sheet
+    prints): schedules first, then areas, lengths and volumes, then counts, so a sheet offers
+    more than counts."""
+    found: list[Suggestion] = list(_schedule_suggestions(parser, tables))[:limit]
+    order = sorted(quantities, key=lambda key: parse_key(key)[0] == "count")  # stable
+    for key in order:
         if len(found) == limit:
             break
-        if quantity.value == 0:
+        if quantities[key].value == 0:
             continue
         for text in _phrasings(key):
             parsed = parser.parse(text)
@@ -158,10 +165,31 @@ def suggestions(
     return tuple(found)
 
 
+def _schedule_suggestions(parser: QuestionParser, tables: Sequence[Table]) -> Iterable[Suggestion]:
+    """A count of each kind of schedule the sheet prints, when it resolves on one table."""
+    for kind in SCHEDULE_KINDS:
+        text = f"How many {kind}s are listed in the {kind} schedule?"
+        parsed = parser.parse(text)
+        if isinstance(parsed, TableQuery) and answer_table(parsed, tables) is not None:
+            name = f"{kind}s in the {kind} schedule"
+            yield Suggestion(quantity=parsed.family(), label=name, question=text)
+
+
 def _phrasings(key: str) -> Iterable[str]:
     measure, subject, scope = parse_key(key)
+    if scope == Scope(model=True):  # the building model's own total
+        if measure == "count" and subject in ELEMENT_CLASSES:
+            yield f"How many {PLURALS.get(subject, f'{subject}s')} are there in the building model?"
+        elif measure == "count" and subject == "room":
+            yield "How many rooms are there in the building model?"
+        elif (measure, subject) == ("volume", "slab"):
+            yield "What is the total volume of all floor slabs in the building model?"
+        elif (measure, subject) == ("length", "wall"):
+            yield "What is the total length of all walls in the building model?"
+        return
     if scope != type(scope)():  # filtered rows (a storey, a room's name...) get no suggestion
         if measure == "area" and subject == "room" and scope.indoor and not scope.model:
+            yield "What is the net floor area of all indoor rooms in m²?"
             yield "What is the total indoor floor area?"
             yield "What is the indoor area of this floor?"
         return

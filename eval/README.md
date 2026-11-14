@@ -31,6 +31,7 @@ uv run python -m stoa_eval schema               # rewrite schemas/ after changin
 uv run python -m stoa_eval exp-split            # data/stoa/exp/split.json: CubiCasa train/val/test
 uv run python -m stoa_eval ab --a <arm> --b <arm>   # A/B two arms on val (Experiments, below)
 uv run python -m stoa_eval gate --arm <arm>        # E5 confidence gate on val (--second <arm>)
+uv run python -m stoa_eval gate-policy --gate <val gate JSON>   # data/stoa/exp/gate.json for the backend
 uv run python -m stoa_eval leaderboard          # every arm under data/stoa/exp against prior on val
 uv run python -m stoa_eval annotated-region     # the region each train/val image's gold annotates
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
@@ -78,10 +79,17 @@ failure AUROC and risk-coverage per signal, and per family the loosest threshold
 with a sure answer of the group is wrong when any of them is): the loosest threshold whose one-sided 95%
 Clopper-Pearson bound on the val plans meets the target, every threshold tested, delta not split, because a val
 pick is a choice and not a guarantee (the output says "chosen on val, not a guarantee" wherever it prints val
-numbers). Families too small to open alone can open together; `--part test` reuses the val file's groups and
-thresholds unchanged. Val only picks thresholds. `--part test --certify` applies the val calibration and thresholds and prints "of
+numbers). The certificate counts a plan wrong when any of its sure answers is, over all groups at once, so if
+the groups' own picks miss the target together, groups are tightened one threshold at a time (the move that
+removes the most wrong plans per sure plan lost) until they meet it; the output shows each group's own pick
+beside the final one (`alone_*`, `union_steps` in the JSON). Families too small to open alone can open
+together; `--part test` reuses the val file's groups and thresholds unchanged. Val only picks thresholds. `--part test --certify` applies the val calibration and thresholds and prints "of
 the plans marked sure, at least X% have every sure answer exact (N plans, 95% bound); the gate opens on Y% of
 plans" (one-sided Clopper-Pearson, the plan as the unit). JSON goes to `data/stoa/exp/ab/gate-<arm>-<part>.json`.
+
+`gate-policy` turns a val gate JSON into `data/stoa/exp/gate.json` (gate_policy_v1, schema in
+docs/GOLDEN.md): per family whose gate opens on val answers, the signal, threshold, group and val numbers
+("chosen on val, not a guarantee"), the split sha256 (required) and `certified: false` until the test run.
 
 `annotated-region` writes `data/stoa/exp/labels/annotated_region.json` for every train and val image (never
 test, eval or golden v2; it stops on one): the region the dev gold annotates, as outer rings in pixels (gold

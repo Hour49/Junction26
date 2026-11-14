@@ -417,6 +417,19 @@
       "description": "v1.1: the value rests on an estimated scale or reading; `explanation` says from what",
       "title": "Estimate"
     },
+    "sure": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "v1.1: the answer passed the confidence gate (data/stoa/exp/gate.json); null: not gated",
+      "title": "Sure"
+    },
     "excluded": {
       "anyOf": [
         {

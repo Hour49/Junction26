@@ -5,8 +5,11 @@
   below that family's threshold, the count becomes Gemini's own count: elements are dropped (the
   lowest `attrs.score` first) or added. An added element has no location of its own: it gets the
   box of the component's first plan (else the whole page) and `attrs.located` false, so a viewer
-  can tell it from a detection. Thresholds: fitted on all of val, frozen (decide task 2,
-  data/stoa/exp/decide/thresholds-F1main-v8.json); a family not listed is never swapped.
+  can tell it from a detection. Thresholds per named arm (`SWAP_ARMS`), fitted on all of val
+  and frozen; a family an arm does not list is never swapped. F1main-v8 (decide-2, fitted on
+  C-yolo26s-v8 counts) is the default; S1536 (decide-4, fitted on region:C-yolo26s-1536's val
+  counts, data/stoa/exp/decide/thresholds-S1536.json) swaps only the families whose val interval
+  was above 0 against that detector alone.
 - `DecisionsConfidence` (confidence): Gemini's probability that a family's answer on a page is
   the given count. The answering side decides what probability counts as sure.
 
@@ -20,11 +23,19 @@ from dataclasses import dataclass
 from app.adapters.decisions.client import DecisionsError
 from app.adapters.decisions.g1main import FAMILIES, G1MainReader, PageCounts
 from app.core.drawing.model import Element, ElementClass
+from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles, Extractor
 
-# family -> swap when P_gemini(component's count) < this (val, frozen from all 376 pages)
-SWAP_BELOW: Mapping[str, float] = {"toilet": 0.05, "shower+bathtub": 0.25, "sauna": 0.05}
+# arm -> family -> swap when P_gemini(component's count) < this (val, frozen from all 376 pages)
+SWAP_ARMS: Mapping[str, Mapping[str, float]] = {
+    "F1main-v8": {"toilet": 0.05, "shower+bathtub": 0.25, "sauna": 0.05},
+    # val vs region:C-yolo26s-1536 alone: shower+bathtub +4.4 pp [+0.9, +7.9], sauna +1.5
+    # [+0.4, +3.0], all +0.6 [+0.2, +0.9]; sink, toilet, plan dropped (intervals reach 0)
+    "S1536": {"shower+bathtub": 0.15, "sauna": 0.05},
+}
+DEFAULT_ARM = "F1main-v8"
+SWAP_BELOW = SWAP_ARMS[DEFAULT_ARM]
 # family -> (the element classes it counts, the class an added element gets)
 CLASSES: Mapping[str, tuple[tuple[ElementClass, ...], ElementClass]] = {
     "toilet": (("toilet",), "toilet"),
@@ -34,10 +45,12 @@ CLASSES: Mapping[str, tuple[tuple[ElementClass, ...], ElementClass]] = {
 UNAVAILABLE = "confidence not available"
 
 
-def swapped(count: int, page: PageCounts, family: str) -> int:
+def swapped(
+    count: int, page: PageCounts, family: str, below: Mapping[str, float] = SWAP_BELOW
+) -> int:
     """F1main's rule: Gemini's own count when it gives `count` less than the threshold."""
     dist = page.families[family]
-    return dist.top if dist.p(count) < SWAP_BELOW.get(family, 0.0) else count
+    return dist.top if dist.p(count) < below.get(family, 0.0) else count
 
 
 def _score(element: Element) -> float:
@@ -46,10 +59,23 @@ def _score(element: Element) -> float:
 
 
 class DecisionsCountExtractor:
-    def __init__(self, inner: Extractor, files: DrawingFiles, reader: G1MainReader) -> None:
+    def __init__(
+        self,
+        inner: Extractor,
+        files: DrawingFiles,
+        reader: G1MainReader,
+        *,
+        arm: str = DEFAULT_ARM,
+    ) -> None:
+        if arm not in SWAP_ARMS:
+            raise InvalidInputError(
+                f"decisions: unknown swap arm {arm!r}; arms are {', '.join(SWAP_ARMS)}"
+            )
         self._inner = inner
         self._files = files
         self._reader = reader
+        self._below = SWAP_ARMS[arm]
+        self.arm = arm
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         found = self._inner.extract(source, sheet)
@@ -65,7 +91,7 @@ class DecisionsCountExtractor:
                 continue  # the component did not look for it: no count to check
             mine = [e for e in elements if e.class_ in classes]
             count = len(mine)
-            target = swapped(count, page, family)
+            target = swapped(count, page, family, self._below)
             if target == count:
                 continue
             p = page.families[family].p(count)
@@ -87,7 +113,7 @@ class DecisionsCountExtractor:
                                    "p": round(page.families[family].p(target), 4)},
                         )
                     )  # fmt: skip
-        note = "decisions: " + ("; ".join(changes) if changes else "counts kept")
+        note = f"decisions {self.arm}: " + ("; ".join(changes) if changes else "counts kept")
         return found.model_copy(
             update={"elements": tuple(elements), "notes": (*found.notes, f"{note} ({page.note})")}
         )

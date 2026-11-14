@@ -27,6 +27,15 @@ class AskRequest(View):
     question: str = Field(min_length=1, max_length=QUESTION_CHARS)
 
 
+class Signal(View):
+    """A raw score a reader gives an answer, named for what it is. Not a probability that the
+    answer is right: `calibrated` says whether it was checked against right answers (never yet)."""
+
+    signal: str  # which score: `g1main` (Gemini Decisions' choice distribution)
+    score: float = Field(ge=0.0, le=1.0)
+    calibrated: bool
+
+
 class AnswerView(View):
     question: str
     drawing_id: str
@@ -34,8 +43,8 @@ class AnswerView(View):
     pages: list[PageView]
     answer: int | float | str | None  # None on a refusal: the screen shows no number
     unit: Unit | None
-    # The probability the answer is right (DECISIONS_CONFIDENCE), None: not rated, or a refusal
-    confidence: float | None
+    # A raw score for the answer (DECISIONS_CONFIDENCE), None: not rated, or a refusal
+    confidence: Signal | None
     quantity: Row | None  # the takeoff row; None for a refusal or a schedule answer
     marks: list[MarkView]
     refusal: Refusal | None
@@ -66,11 +75,12 @@ def confidence_of(
     drawing: Drawing, drawing_id: str, ingest: Ingest, answering: Answering
 ) -> AnswerConfidence | None:
     """The pipeline's answer confidence over the sheet the drawing was read from; None when it
-    is off, or the drawing has no sheet of its own (a building model)."""
+    is off, or the drawing was not read on the raster route (Gemini Decisions reads images, and
+    a vector or model reading has no probability to give)."""
     if answering.confidence is None:
         return None
     info = ingest.drawing_info(drawing_id)
-    if info.kind == "ifc" or info.path != drawing.file:
+    if info.route != "raster" or info.path != drawing.file:
         return None
     return answering.confidence(_SheetFiles(ingest, drawing_id, info.path))
 
@@ -94,6 +104,15 @@ def asked_on(
         prior_families=answering.prior_families,
         confidence=confidence_of(drawing, drawing_id, ingest, answering),
     )
+
+
+def signal_of(asked: Asked, answering: Answering) -> Signal | None:
+    """The answer's raw score with its name; none on a refusal (its line may carry the prior's
+    hit rate, which is another number)."""
+    score = asked.answer.confidence
+    if asked.refusal is not None or score is None or answering.signal is None:
+        return None
+    return Signal(signal=answering.signal, score=score, calibrated=False)
 
 
 def shown_value(asked: Asked) -> int | float | str | None:
@@ -124,7 +143,7 @@ def ask_route(
         pages=page_views(drawing_id, drawing.pages, info.normalised),
         answer=value,
         unit=None if asked.refusal is not None else line.unit,
-        confidence=None if asked.refusal is not None else line.confidence,
+        confidence=signal_of(asked, answering),
         quantity=shown,
         marks=list(asked.marks),
         refusal=asked.refusal,

@@ -1,5 +1,6 @@
 """The answering use cases: one question (the API) and a batch of them (the CLI)."""
 
+import logging
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence, Set
 
@@ -24,6 +25,8 @@ from app.core.answering.tables import answer_table
 from app.core.drawing.model import Table
 from app.core.pipeline.model import Quantity
 from app.core.pipeline.takeoff import known_quantities
+
+logger = logging.getLogger(__name__)
 
 # `method` of an answer: how it was answered, or "refused:<why>" (the reason in words goes in
 # answer_v1.1 `explanation`).
@@ -53,8 +56,8 @@ def answer_question(
     refusal has the reason in `method`, `abstain` true and the reason in words in `explanation`
     (answer_v1.1). Its `answer` is the prior's value for the question's family when there is one
     (with the prior's `confidence`), else None. With `confidence` (DECISIONS_CONFIDENCE), a
-    takeoff answer gets its probability as `confidence`, or, when there is none, the reason
-    added to its `explanation`."""
+    takeoff answer gets its probability as `confidence`; when there is none, the reason is
+    logged, never added to the answer."""
     start = clock()
     parsed = parser.parse(question.text)
     found: Quantity | None = None
@@ -104,10 +107,10 @@ def answer_question(
         if confidence is None or isinstance(parsed, Unsupported | TableQuery):
             return answer
         rated = confidence.probability(question.file, parsed.family(), answer.answer)
-        if rated.value is not None:
-            return answer.model_copy(update={"confidence": rated.value})
-        notes = "; ".join(text for text in (answer.explanation, rated.note) if text)
-        return answer.model_copy(update={"explanation": notes})
+        if rated.value is None:  # why goes to the log: nothing a reader of the answer can act on
+            logger.info("question %d: no confidence: %s", question.id, rated.note)
+            return answer
+        return answer.model_copy(update={"confidence": rated.value})
     estimate = None
     if not isinstance(parsed, Unsupported):
         source, family = source_of(question.file), parsed.family()
