@@ -74,7 +74,8 @@ def test_ac10_posts_tools_and_sends_the_assistant_message_back_verbatim() -> Non
     assert url == BASE + "/chat/completions" and key == KEY
     assert first["model"] == "gemini-4-hydrogen" and first["tool_choice"] == "auto"
     assert first["reasoning_effort"] == "low"
-    assert [t["function"]["name"] for t in first["tools"]] == ["list_drawings", "final_answer"]
+    names = [t["function"]["name"] for t in first["tools"]]
+    assert names == ["list_drawings", "show_on_plan", "final_answer"]
     second = transport.sent[1][1]["messages"]
     assert second[2] == SIGNED  # extra_content (the thought signature) round-trips unchanged
 
@@ -160,3 +161,89 @@ def test_r7_usage_never_prices_below_zero_or_free() -> None:
 def test_r7_an_http_error_costs_nothing() -> None:
     got = turn_on((400, {"error": {"type": "BadRequestError"}}))
     assert got.kind == "dont_know" and got.cost_usd == 0
+
+
+@pytest.mark.parametrize(
+    ("thinking", "sent"),
+    [("low", "low"), ("none", "none"), ("high", "high"), ("default", None)],
+)
+def test_the_thinking_level_is_sent_as_reasoning_effort(thinking: str, sent: str | None) -> None:
+    """AGENT_THINKING (pi-spike borrow 4): "default" leaves the model's own level."""
+    transport = Transport((200, reply(FINAL)))
+    OpenAiChatModel(BASE, KEY, "gemini-4-hydrogen", 1.50, 9.00, 5.0, transport,
+                    sleep=lambda _: None, thinking=thinking).complete([], [])  # fmt: skip
+    assert transport.sent[0][1].get("reasoning_effort") == sent
+
+
+def test_the_thinking_setting_reaches_the_model() -> None:
+    from pydantic import SecretStr
+
+    from app.composition import chat_model
+    from app.settings import Settings
+
+    settings = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]
+        chat_model="gemini",
+        gemini_api_key=SecretStr(KEY),
+        agent_thinking="none",
+    )
+    made, why = chat_model(settings)
+    assert why is None and isinstance(made, OpenAiChatModel) and made.thinking == "none"
+    # unchanged until chat-eval says otherwise
+    assert Settings(_env_file=None).agent_thinking == "low"  # pyright: ignore[reportCallIssue]
+
+
+def test_minimal_thinking_is_refused_at_startup() -> None:
+    """The chat model answers reasoning_effort "minimal" with a 400 (review 335 c)."""
+    from pydantic import ValidationError
+
+    from app.settings import Settings
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, agent_thinking="minimal")  # pyright: ignore[reportCallIssue, reportArgumentType]
+
+
+def test_cached_prompt_tokens_are_priced_at_the_cached_rate() -> None:
+    """pi-spike borrow 5. The compat endpoint's usage, as a live call gave it (2026-11-14):
+    `prompt_tokens_details.cached_tokens` counts the part of `prompt_tokens` read from cache."""
+    priced = OpenAiChatModel(BASE, KEY, "gemini-4-hydrogen", 1.50, 9.00, 5.0, Transport(),
+                             sleep=lambda _: None, price_cached=0.375)  # fmt: skip
+    usage = {"completion_tokens": 5, "prompt_tokens": 15115, "total_tokens": 15120,
+             "prompt_tokens_details": {"cached_tokens": 13061}}  # fmt: skip
+    want = (2054 * 1.50 + 13061 * 0.375 + 5 * 9.00) / 1e6
+    assert priced.usd(usage, 0) == pytest.approx(want)
+    # a cached count that can't be right is ignored: the prompt at the full price, never less
+    full = (15115 * 1.50 + 5 * 9.00) / 1e6
+    for odd in (-1, "13061", 20_000, None, True):
+        given = {**usage, "prompt_tokens_details": {"cached_tokens": odd}}
+        assert priced.usd(given, 0) == pytest.approx(full), odd
+    assert priced.usd({**usage, "prompt_tokens_details": "x"}, 0) == pytest.approx(full)
+
+
+def test_a_cached_count_is_not_discounted_when_the_prompt_count_is_missing() -> None:
+    """Review 336 S1: the prompt estimated from the request's size is priced in full; a cached
+    count can't be taken out of a number the endpoint never gave."""
+    priced = OpenAiChatModel(BASE, KEY, "gemini-4-hydrogen", 1.50, 9.00, 5.0, Transport(),
+                             sleep=lambda _: None, price_cached=0.375)  # fmt: skip
+    usage = {"completion_tokens": 5, "prompt_tokens_details": {"cached_tokens": 900}}
+    estimated = 4000 // 3 + 1  # CHARS_PER_TOKEN
+    assert priced.usd(usage, 4000) == pytest.approx((estimated * 1.50 + 5 * 9.00) / 1e6)
+
+
+def test_the_cached_price_setting_reaches_the_model() -> None:
+    from pydantic import SecretStr
+
+    from app.composition import chat_model
+    from app.settings import Settings
+
+    given = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]
+        chat_model="gemini",
+        gemini_api_key=SecretStr(KEY),
+        agent_price_cached_per_m=0.2,
+    )
+    made, _ = chat_model(given)
+    assert isinstance(made, OpenAiChatModel) and made.price_cached == 0.2
+    # deliberately above the listed 0.075/M cache read: a guard overestimates, never under
+    cached = Settings(_env_file=None).agent_price_cached_per_m  # pyright: ignore[reportCallIssue]
+    assert cached == pytest.approx(0.375)

@@ -918,6 +918,11 @@
               }
             ],
             "title": "Reason"
+          },
+          "stream": {
+            "default": true,
+            "title": "Stream",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1063,6 +1068,16 @@
           "turn": {
             "title": "Turn",
             "type": "integer"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -7729,6 +7744,159 @@
         "title": "ValueMark",
         "type": "object"
       },
+      "View": {
+        "additionalProperties": false,
+        "description": "The plan the turn wants on screen: one drawing page, its marks, the box to focus.",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "marks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ViewMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "show_on_plan",
+              "evidence"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "name",
+          "page",
+          "box",
+          "source"
+        ],
+        "title": "View",
+        "type": "object"
+      },
+      "ViewMark": {
+        "additionalProperties": false,
+        "description": "One place on the plan the turn shows (.agents/chat/contract.md A).",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          }
+        },
+        "required": [
+          "n",
+          "label",
+          "box"
+        ],
+        "title": "ViewMark",
+        "type": "object"
+      },
       "app__core__agent__model__Level": {
         "additionalProperties": false,
         "description": "An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').",
@@ -8864,6 +9032,59 @@
           }
         },
         "summary": "Chat"
+      }
+    },
+    "/api/projects/{project_id}/chat/stream": {
+      "post": {
+        "description": "One turn as a step stream (.agents/chat/contract.md C). Errors known before the turn are\nplain HTTP, as on POST .../chat; the turn runs to its end even when the client goes away.",
+        "operationId": "chat_stream_api_projects__project_id__chat_stream_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-Sent Events: turn, thinking, plan, tool_call, tool_result, view, checking, then answer (the ChatTurn of POST .../chat) or error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "CHAT_MODEL=off"
+          }
+        },
+        "summary": "Chat Stream"
       }
     },
     "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {

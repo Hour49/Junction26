@@ -9,8 +9,8 @@ Json = dict[str, Any]
 def mint(found: Any, ledger: dict[str, Json], first: int) -> None:
     """Gives every object in `found` (decoded tool JSON, changed in place) that has a `box` and,
     its own or its nearest parent's, a `page` and a `drawing_id` an `"ev"` field, numbered from
-    `first + len(ledger)`, and records `{drawing_id, name, page, box, label, sure, level}` under
-    it in `ledger`."""
+    `first + len(ledger)`, and records `{drawing_id, name, page, box, label, sure, level,
+    polygon}` under it in `ledger` (`polygon`: the object's outline in page fractions, or None)."""
     _walk(found, ledger, first, {})
 
 
@@ -39,6 +39,7 @@ def _walk(found: Any, ledger: dict[str, Json], first: int, context: Json) -> Non
             "label": str(label) if label is not None else None,
             "sure": context.get("sure"),
             "level": context.get("level"),
+            "polygon": _polygon(here.get("polygon")),
         }
     for value in list(here.values()):
         if isinstance(value, dict | list):
@@ -71,3 +72,17 @@ def _box(value: Any) -> tuple[float, float, float, float] | None:
         return None
     x0, y0, x1, y1 = (float(v) for v in value)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
     return (x0, y0, x1, y1)
+
+
+def _polygon(value: Any) -> list[list[float]] | None:
+    """An outline as [[x, y], ...] of at least 3 numeric points, else None."""
+    if not isinstance(value, list) or len(value) < 3:  # pyright: ignore[reportUnknownArgumentType]
+        return None
+    points: list[list[float]] = []
+    for point in value:  # pyright: ignore[reportUnknownVariableType]
+        if not isinstance(point, list | tuple) or len(point) != 2:  # pyright: ignore[reportUnknownArgumentType]
+            return None
+        if not all(isinstance(v, int | float) and not isinstance(v, bool) for v in point):  # pyright: ignore[reportUnknownVariableType]
+            return None
+        points.append([float(v) for v in point])  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+    return points

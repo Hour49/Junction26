@@ -266,7 +266,8 @@ An edit of a signed-off quantity (409):
   "chat": {
     "model": "rules",
     "available": true,
-    "reason": null
+    "reason": null,
+    "stream": true
   }
 }
 ```
@@ -436,7 +437,27 @@ Ingest's project status, plus `drawings`:
         "area:room|name=reduit": 2.489,
         "area:room|name=zimmer": 14.934,
         "bathtub": 1,
+        "bathtub|name=1.01": 0,
+        "bathtub|name=1.02": 0,
+        "bathtub|name=1.03": 1,
+        "bathtub|name=1.04": 0,
+        "bathtub|name=1.05": 0,
+        "bathtub|name=bad": 1,
+        "bathtub|name=balkon": 0,
+        "bathtub|name=küche": 0,
+        "bathtub|name=reduit": 0,
+        "bathtub|name=zimmer": 0,
         "door": 2,
+        "door|name=1.01": 1,
+        "door|name=1.02": 0,
+        "door|name=1.03": 2,
+        "door|name=1.04": 0,
+        "door|name=1.05": 1,
+        "door|name=bad": 2,
+        "door|name=balkon": 0,
+        "door|name=küche": 1,
+        "door|name=reduit": 0,
+        "door|name=zimmer": 1,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
         "length:room:bedroom": 4.233,
@@ -473,9 +494,59 @@ Ingest's project status, plus `drawings`:
         "room|label=zimmer": 1,
         "shower": 0,
         "shower+bathtub": 1,
+        "shower+bathtub|name=1.01": 0,
+        "shower+bathtub|name=1.02": 0,
+        "shower+bathtub|name=1.03": 1,
+        "shower+bathtub|name=1.04": 0,
+        "shower+bathtub|name=1.05": 0,
+        "shower+bathtub|name=bad": 1,
+        "shower+bathtub|name=balkon": 0,
+        "shower+bathtub|name=küche": 0,
+        "shower+bathtub|name=reduit": 0,
+        "shower+bathtub|name=zimmer": 0,
+        "shower|name=1.01": 0,
+        "shower|name=1.02": 0,
+        "shower|name=1.03": 0,
+        "shower|name=1.04": 0,
+        "shower|name=1.05": 0,
+        "shower|name=bad": 0,
+        "shower|name=balkon": 0,
+        "shower|name=küche": 0,
+        "shower|name=reduit": 0,
+        "shower|name=zimmer": 0,
         "sink": 1,
+        "sink|name=1.01": 0,
+        "sink|name=1.02": 0,
+        "sink|name=1.03": 1,
+        "sink|name=1.04": 0,
+        "sink|name=1.05": 0,
+        "sink|name=bad": 1,
+        "sink|name=balkon": 0,
+        "sink|name=küche": 0,
+        "sink|name=reduit": 0,
+        "sink|name=zimmer": 0,
         "toilet": 1,
-        "window": 2
+        "toilet|name=1.01": 0,
+        "toilet|name=1.02": 0,
+        "toilet|name=1.03": 1,
+        "toilet|name=1.04": 0,
+        "toilet|name=1.05": 0,
+        "toilet|name=bad": 1,
+        "toilet|name=balkon": 0,
+        "toilet|name=küche": 0,
+        "toilet|name=reduit": 0,
+        "toilet|name=zimmer": 0,
+        "window": 2,
+        "window|name=1.01": 1,
+        "window|name=1.02": 0,
+        "window|name=1.03": 0,
+        "window|name=1.04": 0,
+        "window|name=1.05": 1,
+        "window|name=bad": 0,
+        "window|name=balkon": 0,
+        "window|name=küche": 1,
+        "window|name=reduit": 0,
+        "window|name=zimmer": 1
       },
       "ms": 12.5,
       "stage": "write",
@@ -527,7 +598,27 @@ Ingest's project status, plus `drawings`:
         "area:room|name=reduit": 2.489,
         "area:room|name=zimmer": 14.934,
         "bathtub": 1,
+        "bathtub|name=1.01": 0,
+        "bathtub|name=1.02": 0,
+        "bathtub|name=1.03": 1,
+        "bathtub|name=1.04": 0,
+        "bathtub|name=1.05": 0,
+        "bathtub|name=bad": 1,
+        "bathtub|name=balkon": 0,
+        "bathtub|name=küche": 0,
+        "bathtub|name=reduit": 0,
+        "bathtub|name=zimmer": 0,
         "door": 2,
+        "door|name=1.01": 1,
+        "door|name=1.02": 0,
+        "door|name=1.03": 2,
+        "door|name=1.04": 0,
+        "door|name=1.05": 1,
+        "door|name=bad": 2,
+        "door|name=balkon": 0,
+        "door|name=küche": 1,
+        "door|name=reduit": 0,
+        "door|name=zimmer": 1,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
         "length:room:bedroom": 4.233,
@@ -564,9 +655,59 @@ Ingest's project status, plus `drawings`:
         "room|label=zimmer": 1,
         "shower": 0,
         "shower+bathtub": 1,
+        "shower+bathtub|name=1.01": 0,
+        "shower+bathtub|name=1.02": 0,
+        "shower+bathtub|name=1.03": 1,
+        "shower+bathtub|name=1.04": 0,
+        "shower+bathtub|name=1.05": 0,
+        "shower+bathtub|name=bad": 1,
+        "shower+bathtub|name=balkon": 0,
+        "shower+bathtub|name=küche": 0,
+        "shower+bathtub|name=reduit": 0,
+        "shower+bathtub|name=zimmer": 0,
+        "shower|name=1.01": 0,
+        "shower|name=1.02": 0,
+        "shower|name=1.03": 0,
+        "shower|name=1.04": 0,
+        "shower|name=1.05": 0,
+        "shower|name=bad": 0,
+        "shower|name=balkon": 0,
+        "shower|name=küche": 0,
+        "shower|name=reduit": 0,
+        "shower|name=zimmer": 0,
         "sink": 1,
+        "sink|name=1.01": 0,
+        "sink|name=1.02": 0,
+        "sink|name=1.03": 1,
+        "sink|name=1.04": 0,
+        "sink|name=1.05": 0,
+        "sink|name=bad": 1,
+        "sink|name=balkon": 0,
+        "sink|name=küche": 0,
+        "sink|name=reduit": 0,
+        "sink|name=zimmer": 0,
         "toilet": 1,
-        "window": 2
+        "toilet|name=1.01": 0,
+        "toilet|name=1.02": 0,
+        "toilet|name=1.03": 1,
+        "toilet|name=1.04": 0,
+        "toilet|name=1.05": 0,
+        "toilet|name=bad": 1,
+        "toilet|name=balkon": 0,
+        "toilet|name=küche": 0,
+        "toilet|name=reduit": 0,
+        "toilet|name=zimmer": 0,
+        "window": 2,
+        "window|name=1.01": 1,
+        "window|name=1.02": 0,
+        "window|name=1.03": 0,
+        "window|name=1.04": 0,
+        "window|name=1.05": 1,
+        "window|name=bad": 0,
+        "window|name=balkon": 0,
+        "window|name=küche": 1,
+        "window|name=reduit": 0,
+        "window|name=zimmer": 1
       },
       "ms": 12.5,
       "stage": "write",
@@ -627,7 +768,27 @@ Ingest's project status, plus `drawings`:
         "area:room|name=reduit": 2.489,
         "area:room|name=zimmer": 8.064,
         "bathtub": 1,
+        "bathtub|name=1.01": 0,
+        "bathtub|name=1.02": 0,
+        "bathtub|name=1.03": 1,
+        "bathtub|name=1.04": 0,
+        "bathtub|name=1.05": 0,
+        "bathtub|name=bad": 1,
+        "bathtub|name=balkon": 0,
+        "bathtub|name=küche": 0,
+        "bathtub|name=reduit": 0,
+        "bathtub|name=zimmer": 0,
         "door": 2,
+        "door|name=1.01": 1,
+        "door|name=1.02": 0,
+        "door|name=1.03": 2,
+        "door|name=1.04": 0,
+        "door|name=1.05": 1,
+        "door|name=bad": 2,
+        "door|name=balkon": 0,
+        "door|name=küche": 1,
+        "door|name=reduit": 0,
+        "door|name=zimmer": 1,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
         "length:room:bedroom": 4.233,
@@ -664,9 +825,59 @@ Ingest's project status, plus `drawings`:
         "room|label=zimmer": 1,
         "shower": 0,
         "shower+bathtub": 1,
+        "shower+bathtub|name=1.01": 0,
+        "shower+bathtub|name=1.02": 0,
+        "shower+bathtub|name=1.03": 1,
+        "shower+bathtub|name=1.04": 0,
+        "shower+bathtub|name=1.05": 0,
+        "shower+bathtub|name=bad": 1,
+        "shower+bathtub|name=balkon": 0,
+        "shower+bathtub|name=küche": 0,
+        "shower+bathtub|name=reduit": 0,
+        "shower+bathtub|name=zimmer": 0,
+        "shower|name=1.01": 0,
+        "shower|name=1.02": 0,
+        "shower|name=1.03": 0,
+        "shower|name=1.04": 0,
+        "shower|name=1.05": 0,
+        "shower|name=bad": 0,
+        "shower|name=balkon": 0,
+        "shower|name=küche": 0,
+        "shower|name=reduit": 0,
+        "shower|name=zimmer": 0,
         "sink": 1,
+        "sink|name=1.01": 0,
+        "sink|name=1.02": 0,
+        "sink|name=1.03": 1,
+        "sink|name=1.04": 0,
+        "sink|name=1.05": 0,
+        "sink|name=bad": 1,
+        "sink|name=balkon": 0,
+        "sink|name=küche": 0,
+        "sink|name=reduit": 0,
+        "sink|name=zimmer": 0,
         "toilet": 1,
-        "window": 2
+        "toilet|name=1.01": 0,
+        "toilet|name=1.02": 0,
+        "toilet|name=1.03": 1,
+        "toilet|name=1.04": 0,
+        "toilet|name=1.05": 0,
+        "toilet|name=bad": 1,
+        "toilet|name=balkon": 0,
+        "toilet|name=küche": 0,
+        "toilet|name=reduit": 0,
+        "toilet|name=zimmer": 0,
+        "window": 2,
+        "window|name=1.01": 1,
+        "window|name=1.02": 0,
+        "window|name=1.03": 0,
+        "window|name=1.04": 0,
+        "window|name=1.05": 1,
+        "window|name=bad": 0,
+        "window|name=balkon": 0,
+        "window|name=küche": 1,
+        "window|name=reduit": 0,
+        "window|name=zimmer": 1
       },
       "ms": 12.5,
       "stage": "write",
@@ -1008,7 +1219,9 @@ the `identify` stage's line.
   issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
   drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
   plan."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
-  sheet), `title`, `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
+  sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`,
+  `electrical`, `fire`, `site` or `other`, from the kind, title and number; null when unsure; a display hint, no
+  client shows or reads it yet), `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
   than a clean scan of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet),
   `seen`, `model`. A call that fails leaves the file as triage would have it without the step ("triage not
   available: ...; read as today" with no classifier). A model answer alone; never a certified value.
@@ -1085,7 +1298,27 @@ photo of an elevation sheet with its register, showing a building that matches n
         "area:room|name=reduit": 2.489,
         "area:room|name=zimmer": 14.934,
         "bathtub": 1,
+        "bathtub|name=1.01": 0,
+        "bathtub|name=1.02": 0,
+        "bathtub|name=1.03": 1,
+        "bathtub|name=1.04": 0,
+        "bathtub|name=1.05": 0,
+        "bathtub|name=bad": 1,
+        "bathtub|name=balkon": 0,
+        "bathtub|name=küche": 0,
+        "bathtub|name=reduit": 0,
+        "bathtub|name=zimmer": 0,
         "door": 2,
+        "door|name=1.01": 1,
+        "door|name=1.02": 0,
+        "door|name=1.03": 2,
+        "door|name=1.04": 0,
+        "door|name=1.05": 1,
+        "door|name=bad": 2,
+        "door|name=balkon": 0,
+        "door|name=küche": 1,
+        "door|name=reduit": 0,
+        "door|name=zimmer": 1,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
         "length:room:bedroom": 4.233,
@@ -1122,9 +1355,59 @@ photo of an elevation sheet with its register, showing a building that matches n
         "room|label=zimmer": 1,
         "shower": 0,
         "shower+bathtub": 1,
+        "shower+bathtub|name=1.01": 0,
+        "shower+bathtub|name=1.02": 0,
+        "shower+bathtub|name=1.03": 1,
+        "shower+bathtub|name=1.04": 0,
+        "shower+bathtub|name=1.05": 0,
+        "shower+bathtub|name=bad": 1,
+        "shower+bathtub|name=balkon": 0,
+        "shower+bathtub|name=küche": 0,
+        "shower+bathtub|name=reduit": 0,
+        "shower+bathtub|name=zimmer": 0,
+        "shower|name=1.01": 0,
+        "shower|name=1.02": 0,
+        "shower|name=1.03": 0,
+        "shower|name=1.04": 0,
+        "shower|name=1.05": 0,
+        "shower|name=bad": 0,
+        "shower|name=balkon": 0,
+        "shower|name=küche": 0,
+        "shower|name=reduit": 0,
+        "shower|name=zimmer": 0,
         "sink": 1,
+        "sink|name=1.01": 0,
+        "sink|name=1.02": 0,
+        "sink|name=1.03": 1,
+        "sink|name=1.04": 0,
+        "sink|name=1.05": 0,
+        "sink|name=bad": 1,
+        "sink|name=balkon": 0,
+        "sink|name=küche": 0,
+        "sink|name=reduit": 0,
+        "sink|name=zimmer": 0,
         "toilet": 1,
-        "window": 2
+        "toilet|name=1.01": 0,
+        "toilet|name=1.02": 0,
+        "toilet|name=1.03": 1,
+        "toilet|name=1.04": 0,
+        "toilet|name=1.05": 0,
+        "toilet|name=bad": 1,
+        "toilet|name=balkon": 0,
+        "toilet|name=küche": 0,
+        "toilet|name=reduit": 0,
+        "toilet|name=zimmer": 0,
+        "window": 2,
+        "window|name=1.01": 1,
+        "window|name=1.02": 0,
+        "window|name=1.03": 0,
+        "window|name=1.04": 0,
+        "window|name=1.05": 1,
+        "window|name=bad": 0,
+        "window|name=balkon": 0,
+        "window|name=küche": 1,
+        "window|name=reduit": 0,
+        "window|name=zimmer": 1
       },
       "ms": 12.5,
       "stage": "write",
@@ -1774,7 +2057,27 @@ that is not an evidence id. `description.detail` is a model's description no per
       "area:room|name=reduit": 2.489,
       "area:room|name=zimmer": 14.934,
       "bathtub": 1,
+      "bathtub|name=1.01": 0,
+      "bathtub|name=1.02": 0,
+      "bathtub|name=1.03": 1,
+      "bathtub|name=1.04": 0,
+      "bathtub|name=1.05": 0,
+      "bathtub|name=bad": 1,
+      "bathtub|name=balkon": 0,
+      "bathtub|name=küche": 0,
+      "bathtub|name=reduit": 0,
+      "bathtub|name=zimmer": 0,
       "door": 2,
+      "door|name=1.01": 1,
+      "door|name=1.02": 0,
+      "door|name=1.03": 2,
+      "door|name=1.04": 0,
+      "door|name=1.05": 1,
+      "door|name=bad": 2,
+      "door|name=balkon": 0,
+      "door|name=küche": 1,
+      "door|name=reduit": 0,
+      "door|name=zimmer": 1,
       "length:room:balcony": 7.056,
       "length:room:bathroom": 3.528,
       "length:room:bedroom": 4.233,
@@ -1811,9 +2114,59 @@ that is not an evidence id. `description.detail` is a model's description no per
       "room|label=zimmer": 1,
       "shower": 0,
       "shower+bathtub": 1,
+      "shower+bathtub|name=1.01": 0,
+      "shower+bathtub|name=1.02": 0,
+      "shower+bathtub|name=1.03": 1,
+      "shower+bathtub|name=1.04": 0,
+      "shower+bathtub|name=1.05": 0,
+      "shower+bathtub|name=bad": 1,
+      "shower+bathtub|name=balkon": 0,
+      "shower+bathtub|name=küche": 0,
+      "shower+bathtub|name=reduit": 0,
+      "shower+bathtub|name=zimmer": 0,
+      "shower|name=1.01": 0,
+      "shower|name=1.02": 0,
+      "shower|name=1.03": 0,
+      "shower|name=1.04": 0,
+      "shower|name=1.05": 0,
+      "shower|name=bad": 0,
+      "shower|name=balkon": 0,
+      "shower|name=küche": 0,
+      "shower|name=reduit": 0,
+      "shower|name=zimmer": 0,
       "sink": 1,
+      "sink|name=1.01": 0,
+      "sink|name=1.02": 0,
+      "sink|name=1.03": 1,
+      "sink|name=1.04": 0,
+      "sink|name=1.05": 0,
+      "sink|name=bad": 1,
+      "sink|name=balkon": 0,
+      "sink|name=küche": 0,
+      "sink|name=reduit": 0,
+      "sink|name=zimmer": 0,
       "toilet": 1,
-      "window": 2
+      "toilet|name=1.01": 0,
+      "toilet|name=1.02": 0,
+      "toilet|name=1.03": 1,
+      "toilet|name=1.04": 0,
+      "toilet|name=1.05": 0,
+      "toilet|name=bad": 1,
+      "toilet|name=balkon": 0,
+      "toilet|name=küche": 0,
+      "toilet|name=reduit": 0,
+      "toilet|name=zimmer": 0,
+      "window": 2,
+      "window|name=1.01": 1,
+      "window|name=1.02": 0,
+      "window|name=1.03": 0,
+      "window|name=1.04": 0,
+      "window|name=1.05": 1,
+      "window|name=bad": 0,
+      "window|name=balkon": 0,
+      "window|name=küche": 1,
+      "window|name=reduit": 0,
+      "window|name=zimmer": 1
     },
     "ms": 12.5,
     "stage": "write",
@@ -1887,9 +2240,9 @@ that is not an evidence id. `description.detail` is a model's description no per
     },
     {
       "stage": "takeoff",
-      "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 71 quantities, 63 above zero",
+      "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 141 quantities, 81 above zero",
       "ms": 12.5,
-      "output": "takeoff: 71 quantities, 63 above zero",
+      "output": "takeoff: 141 quantities, 81 above zero",
       "failure": null,
       "cost_usd": 0.0
     },
@@ -1897,7 +2250,7 @@ that is not an evidence id. `description.detail` is a model's description no per
       "stage": "write",
       "did": "drawing model adeefbbcc17559fc stored",
       "ms": 12.5,
-      "output": "71 quantities",
+      "output": "141 quantities",
       "failure": null,
       "cost_usd": 0.0
     }
@@ -2014,7 +2367,27 @@ upload lists the files, instead of one request per file.
           "area:room|name=reduit": 2.489,
           "area:room|name=zimmer": 14.934,
           "bathtub": 1,
+          "bathtub|name=1.01": 0,
+          "bathtub|name=1.02": 0,
+          "bathtub|name=1.03": 1,
+          "bathtub|name=1.04": 0,
+          "bathtub|name=1.05": 0,
+          "bathtub|name=bad": 1,
+          "bathtub|name=balkon": 0,
+          "bathtub|name=küche": 0,
+          "bathtub|name=reduit": 0,
+          "bathtub|name=zimmer": 0,
           "door": 2,
+          "door|name=1.01": 1,
+          "door|name=1.02": 0,
+          "door|name=1.03": 2,
+          "door|name=1.04": 0,
+          "door|name=1.05": 1,
+          "door|name=bad": 2,
+          "door|name=balkon": 0,
+          "door|name=küche": 1,
+          "door|name=reduit": 0,
+          "door|name=zimmer": 1,
           "length:room:balcony": 7.056,
           "length:room:bathroom": 3.528,
           "length:room:bedroom": 4.233,
@@ -2051,9 +2424,59 @@ upload lists the files, instead of one request per file.
           "room|label=zimmer": 1,
           "shower": 0,
           "shower+bathtub": 1,
+          "shower+bathtub|name=1.01": 0,
+          "shower+bathtub|name=1.02": 0,
+          "shower+bathtub|name=1.03": 1,
+          "shower+bathtub|name=1.04": 0,
+          "shower+bathtub|name=1.05": 0,
+          "shower+bathtub|name=bad": 1,
+          "shower+bathtub|name=balkon": 0,
+          "shower+bathtub|name=küche": 0,
+          "shower+bathtub|name=reduit": 0,
+          "shower+bathtub|name=zimmer": 0,
+          "shower|name=1.01": 0,
+          "shower|name=1.02": 0,
+          "shower|name=1.03": 0,
+          "shower|name=1.04": 0,
+          "shower|name=1.05": 0,
+          "shower|name=bad": 0,
+          "shower|name=balkon": 0,
+          "shower|name=küche": 0,
+          "shower|name=reduit": 0,
+          "shower|name=zimmer": 0,
           "sink": 1,
+          "sink|name=1.01": 0,
+          "sink|name=1.02": 0,
+          "sink|name=1.03": 1,
+          "sink|name=1.04": 0,
+          "sink|name=1.05": 0,
+          "sink|name=bad": 1,
+          "sink|name=balkon": 0,
+          "sink|name=küche": 0,
+          "sink|name=reduit": 0,
+          "sink|name=zimmer": 0,
           "toilet": 1,
-          "window": 2
+          "toilet|name=1.01": 0,
+          "toilet|name=1.02": 0,
+          "toilet|name=1.03": 1,
+          "toilet|name=1.04": 0,
+          "toilet|name=1.05": 0,
+          "toilet|name=bad": 1,
+          "toilet|name=balkon": 0,
+          "toilet|name=küche": 0,
+          "toilet|name=reduit": 0,
+          "toilet|name=zimmer": 0,
+          "window": 2,
+          "window|name=1.01": 1,
+          "window|name=1.02": 0,
+          "window|name=1.03": 0,
+          "window|name=1.04": 0,
+          "window|name=1.05": 1,
+          "window|name=bad": 0,
+          "window|name=balkon": 0,
+          "window|name=küche": 1,
+          "window|name=reduit": 0,
+          "window|name=zimmer": 1
         },
         "ms": 12.5,
         "stage": "write",
@@ -2127,9 +2550,9 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "takeoff",
-          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 71 quantities, 63 above zero",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 141 quantities, 81 above zero",
           "ms": 12.5,
-          "output": "takeoff: 71 quantities, 63 above zero",
+          "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2137,7 +2560,7 @@ upload lists the files, instead of one request per file.
           "stage": "write",
           "did": "drawing model adeefbbcc17559fc stored",
           "ms": 12.5,
-          "output": "71 quantities",
+          "output": "141 quantities",
           "failure": null,
           "cost_usd": 0.0
         }
@@ -2194,7 +2617,27 @@ upload lists the files, instead of one request per file.
           "area:room|name=reduit": 2.489,
           "area:room|name=zimmer": 14.934,
           "bathtub": 1,
+          "bathtub|name=1.01": 0,
+          "bathtub|name=1.02": 0,
+          "bathtub|name=1.03": 1,
+          "bathtub|name=1.04": 0,
+          "bathtub|name=1.05": 0,
+          "bathtub|name=bad": 1,
+          "bathtub|name=balkon": 0,
+          "bathtub|name=küche": 0,
+          "bathtub|name=reduit": 0,
+          "bathtub|name=zimmer": 0,
           "door": 2,
+          "door|name=1.01": 1,
+          "door|name=1.02": 0,
+          "door|name=1.03": 2,
+          "door|name=1.04": 0,
+          "door|name=1.05": 1,
+          "door|name=bad": 2,
+          "door|name=balkon": 0,
+          "door|name=küche": 1,
+          "door|name=reduit": 0,
+          "door|name=zimmer": 1,
           "length:room:balcony": 7.056,
           "length:room:bathroom": 3.528,
           "length:room:bedroom": 4.233,
@@ -2231,9 +2674,59 @@ upload lists the files, instead of one request per file.
           "room|label=zimmer": 1,
           "shower": 0,
           "shower+bathtub": 1,
+          "shower+bathtub|name=1.01": 0,
+          "shower+bathtub|name=1.02": 0,
+          "shower+bathtub|name=1.03": 1,
+          "shower+bathtub|name=1.04": 0,
+          "shower+bathtub|name=1.05": 0,
+          "shower+bathtub|name=bad": 1,
+          "shower+bathtub|name=balkon": 0,
+          "shower+bathtub|name=küche": 0,
+          "shower+bathtub|name=reduit": 0,
+          "shower+bathtub|name=zimmer": 0,
+          "shower|name=1.01": 0,
+          "shower|name=1.02": 0,
+          "shower|name=1.03": 0,
+          "shower|name=1.04": 0,
+          "shower|name=1.05": 0,
+          "shower|name=bad": 0,
+          "shower|name=balkon": 0,
+          "shower|name=küche": 0,
+          "shower|name=reduit": 0,
+          "shower|name=zimmer": 0,
           "sink": 1,
+          "sink|name=1.01": 0,
+          "sink|name=1.02": 0,
+          "sink|name=1.03": 1,
+          "sink|name=1.04": 0,
+          "sink|name=1.05": 0,
+          "sink|name=bad": 1,
+          "sink|name=balkon": 0,
+          "sink|name=küche": 0,
+          "sink|name=reduit": 0,
+          "sink|name=zimmer": 0,
           "toilet": 1,
-          "window": 2
+          "toilet|name=1.01": 0,
+          "toilet|name=1.02": 0,
+          "toilet|name=1.03": 1,
+          "toilet|name=1.04": 0,
+          "toilet|name=1.05": 0,
+          "toilet|name=bad": 1,
+          "toilet|name=balkon": 0,
+          "toilet|name=küche": 0,
+          "toilet|name=reduit": 0,
+          "toilet|name=zimmer": 0,
+          "window": 2,
+          "window|name=1.01": 1,
+          "window|name=1.02": 0,
+          "window|name=1.03": 0,
+          "window|name=1.04": 0,
+          "window|name=1.05": 1,
+          "window|name=bad": 0,
+          "window|name=balkon": 0,
+          "window|name=küche": 1,
+          "window|name=reduit": 0,
+          "window|name=zimmer": 1
         },
         "ms": 12.5,
         "stage": "write",
@@ -2316,9 +2809,9 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "takeoff",
-          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 71 quantities, 63 above zero",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 141 quantities, 81 above zero",
           "ms": 12.5,
-          "output": "takeoff: 71 quantities, 63 above zero",
+          "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2326,7 +2819,7 @@ upload lists the files, instead of one request per file.
           "stage": "write",
           "did": "drawing model c9b719f715357201 stored",
           "ms": 12.5,
-          "output": "71 quantities",
+          "output": "141 quantities",
           "failure": null,
           "cost_usd": 0.0
         }
@@ -2383,7 +2876,27 @@ upload lists the files, instead of one request per file.
           "area:room|name=reduit": 2.489,
           "area:room|name=zimmer": 8.064,
           "bathtub": 1,
+          "bathtub|name=1.01": 0,
+          "bathtub|name=1.02": 0,
+          "bathtub|name=1.03": 1,
+          "bathtub|name=1.04": 0,
+          "bathtub|name=1.05": 0,
+          "bathtub|name=bad": 1,
+          "bathtub|name=balkon": 0,
+          "bathtub|name=küche": 0,
+          "bathtub|name=reduit": 0,
+          "bathtub|name=zimmer": 0,
           "door": 2,
+          "door|name=1.01": 1,
+          "door|name=1.02": 0,
+          "door|name=1.03": 2,
+          "door|name=1.04": 0,
+          "door|name=1.05": 1,
+          "door|name=bad": 2,
+          "door|name=balkon": 0,
+          "door|name=küche": 1,
+          "door|name=reduit": 0,
+          "door|name=zimmer": 1,
           "length:room:balcony": 7.056,
           "length:room:bathroom": 3.528,
           "length:room:bedroom": 4.233,
@@ -2420,9 +2933,59 @@ upload lists the files, instead of one request per file.
           "room|label=zimmer": 1,
           "shower": 0,
           "shower+bathtub": 1,
+          "shower+bathtub|name=1.01": 0,
+          "shower+bathtub|name=1.02": 0,
+          "shower+bathtub|name=1.03": 1,
+          "shower+bathtub|name=1.04": 0,
+          "shower+bathtub|name=1.05": 0,
+          "shower+bathtub|name=bad": 1,
+          "shower+bathtub|name=balkon": 0,
+          "shower+bathtub|name=küche": 0,
+          "shower+bathtub|name=reduit": 0,
+          "shower+bathtub|name=zimmer": 0,
+          "shower|name=1.01": 0,
+          "shower|name=1.02": 0,
+          "shower|name=1.03": 0,
+          "shower|name=1.04": 0,
+          "shower|name=1.05": 0,
+          "shower|name=bad": 0,
+          "shower|name=balkon": 0,
+          "shower|name=küche": 0,
+          "shower|name=reduit": 0,
+          "shower|name=zimmer": 0,
           "sink": 1,
+          "sink|name=1.01": 0,
+          "sink|name=1.02": 0,
+          "sink|name=1.03": 1,
+          "sink|name=1.04": 0,
+          "sink|name=1.05": 0,
+          "sink|name=bad": 1,
+          "sink|name=balkon": 0,
+          "sink|name=küche": 0,
+          "sink|name=reduit": 0,
+          "sink|name=zimmer": 0,
           "toilet": 1,
-          "window": 2
+          "toilet|name=1.01": 0,
+          "toilet|name=1.02": 0,
+          "toilet|name=1.03": 1,
+          "toilet|name=1.04": 0,
+          "toilet|name=1.05": 0,
+          "toilet|name=bad": 1,
+          "toilet|name=balkon": 0,
+          "toilet|name=küche": 0,
+          "toilet|name=reduit": 0,
+          "toilet|name=zimmer": 0,
+          "window": 2,
+          "window|name=1.01": 1,
+          "window|name=1.02": 0,
+          "window|name=1.03": 0,
+          "window|name=1.04": 0,
+          "window|name=1.05": 1,
+          "window|name=bad": 0,
+          "window|name=balkon": 0,
+          "window|name=küche": 1,
+          "window|name=reduit": 0,
+          "window|name=zimmer": 1
         },
         "ms": 12.5,
         "stage": "write",
@@ -2496,9 +3059,9 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "takeoff",
-          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 71 quantities, 63 above zero",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 141 quantities, 81 above zero",
           "ms": 12.5,
-          "output": "takeoff: 71 quantities, 63 above zero",
+          "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2506,7 +3069,7 @@ upload lists the files, instead of one request per file.
           "stage": "write",
           "did": "drawing model 44cc9f0d991eafe3 stored",
           "ms": 12.5,
-          "output": "71 quantities",
+          "output": "141 quantities",
           "failure": null,
           "cost_usd": 0.0
         }
@@ -3280,14 +3843,14 @@ many quantities are left to review and how many are signed off, and every confli
       "file": "plans/flat-a.pdf",
       "to_review": 0,
       "signed": 0,
-      "quantities": 63
+      "quantities": 81
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
       "file": "plans/flat-b.pdf",
       "to_review": 1,
       "signed": 0,
-      "quantities": 63
+      "quantities": 81
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -3508,7 +4071,27 @@ tell, and an uncertain answer with the model's check:
         "area:room|name=reduit": 2.489,
         "area:room|name=zimmer": 8.064,
         "bathtub": 1,
+        "bathtub|name=1.01": 0,
+        "bathtub|name=1.02": 0,
+        "bathtub|name=1.03": 1,
+        "bathtub|name=1.04": 0,
+        "bathtub|name=1.05": 0,
+        "bathtub|name=bad": 1,
+        "bathtub|name=balkon": 0,
+        "bathtub|name=küche": 0,
+        "bathtub|name=reduit": 0,
+        "bathtub|name=zimmer": 0,
         "door": 2,
+        "door|name=1.01": 1,
+        "door|name=1.02": 0,
+        "door|name=1.03": 2,
+        "door|name=1.04": 0,
+        "door|name=1.05": 1,
+        "door|name=bad": 2,
+        "door|name=balkon": 0,
+        "door|name=küche": 1,
+        "door|name=reduit": 0,
+        "door|name=zimmer": 1,
         "length:room:balcony": 7.056,
         "length:room:bathroom": 3.528,
         "length:room:bedroom": 4.233,
@@ -3545,9 +4128,59 @@ tell, and an uncertain answer with the model's check:
         "room|label=zimmer": 1,
         "shower": 0,
         "shower+bathtub": 1,
+        "shower+bathtub|name=1.01": 0,
+        "shower+bathtub|name=1.02": 0,
+        "shower+bathtub|name=1.03": 1,
+        "shower+bathtub|name=1.04": 0,
+        "shower+bathtub|name=1.05": 0,
+        "shower+bathtub|name=bad": 1,
+        "shower+bathtub|name=balkon": 0,
+        "shower+bathtub|name=küche": 0,
+        "shower+bathtub|name=reduit": 0,
+        "shower+bathtub|name=zimmer": 0,
+        "shower|name=1.01": 0,
+        "shower|name=1.02": 0,
+        "shower|name=1.03": 0,
+        "shower|name=1.04": 0,
+        "shower|name=1.05": 0,
+        "shower|name=bad": 0,
+        "shower|name=balkon": 0,
+        "shower|name=küche": 0,
+        "shower|name=reduit": 0,
+        "shower|name=zimmer": 0,
         "sink": 1,
+        "sink|name=1.01": 0,
+        "sink|name=1.02": 0,
+        "sink|name=1.03": 1,
+        "sink|name=1.04": 0,
+        "sink|name=1.05": 0,
+        "sink|name=bad": 1,
+        "sink|name=balkon": 0,
+        "sink|name=küche": 0,
+        "sink|name=reduit": 0,
+        "sink|name=zimmer": 0,
         "toilet": 1,
-        "window": 2
+        "toilet|name=1.01": 0,
+        "toilet|name=1.02": 0,
+        "toilet|name=1.03": 1,
+        "toilet|name=1.04": 0,
+        "toilet|name=1.05": 0,
+        "toilet|name=bad": 1,
+        "toilet|name=balkon": 0,
+        "toilet|name=küche": 0,
+        "toilet|name=reduit": 0,
+        "toilet|name=zimmer": 0,
+        "window": 2,
+        "window|name=1.01": 1,
+        "window|name=1.02": 0,
+        "window|name=1.03": 0,
+        "window|name=1.04": 0,
+        "window|name=1.05": 1,
+        "window|name=bad": 0,
+        "window|name=balkon": 0,
+        "window|name=küche": 1,
+        "window|name=reduit": 0,
+        "window|name=zimmer": 1
       },
       "ms": 12.5,
       "stage": "write",
@@ -3604,7 +4237,7 @@ tell, and an uncertain answer with the model's check:
       "file": "flat-b.pdf",
       "to_review": 1,
       "signed": 0,
-      "quantities": 63
+      "quantities": 81
     }
   ],
   "conflicts": [
@@ -3729,7 +4362,7 @@ tell, and an uncertain answer with the model's check:
         "file": "flat-b.pdf",
         "to_review": 1,
         "signed": 0,
-        "quantities": 63
+        "quantities": 81
       }
     ],
     "conflicts": [
@@ -6063,7 +6696,8 @@ that call gives, the project's review edits applied. An unknown project is 404; 
   counted twice. The question must also be a count, or an area or length over each whole drawing, in one unit.
   Null otherwise: no drawing answered, the drawings may show the same rooms, the question is about one room (two
   kitchens on two drawings are two parts, not one sum), the answer came from a printed table, or the units differ.
-  The total only adds the parts' `answer` values.
+  The total adds the parts' measured values (`answer.quantity.value`). When one of them is an area on an estimated
+  scale, the total is that sum in whole m², as such a part's `answer` is (#294).
 - `total_sure`: true only when there is a total and every part in it is sure (`answer.line.sure`); false
   otherwise.
 - `total_level`: the lowest confidence level among the total's parts that have one (`answer.level.level`): `high`,
@@ -7123,7 +7757,7 @@ A question the drawing cannot answer:
 | `unsupported-question` | the question is not one the parser turns into a count, area, length or volume |
 | `not-in-drawing` | the drawing does not give this quantity (or no schedule on the sheet answers it) |
 | `not-read` | the reader of this drawing does not look for that class, so it has no count of it |
-| `no-reader` | nothing was read from the sheet (no reader for its route yet: the text says so; a reader that found nothing says that instead), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
+| `no-reader` | nothing was read from the sheet (this setup has no reader for its route: the text says so; a reader that found nothing says that instead), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
 | `no-scale` | an area or length on a sheet without a scale |
 | `no-drawing` | the file has no drawing model |
 
@@ -7861,7 +8495,8 @@ The project chat as a tool-calling agent: it calls the pipeline tools (`list_dra
 every number in `text` came from a tool result of this turn, else the turn is `dont_know`. The model never writes
 coordinates: places are evidence ids the server resolves. `CHAT_MODEL` picks the model: `rules` (default, no key,
 deterministic), `gemini` (`AGENT_MODEL`, every call charged to the Gemini spend guard), `off` (503).
-`GET /api/info` `chat` says which, and whether a turn can run now.
+`GET /api/info` `chat` says which, whether a turn can run now, and (`stream`) whether `POST
+.../chat/stream` exists: a client streams only when it is true.
 
 ### `POST /api/projects/{project_id}/chat`
 
@@ -7887,6 +8522,15 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 `label`, `sure`, and `level`, the confidence level of the `ask_drawings` answer it comes from, or null). `steps`
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
+
+`view` (added 2026-11-14) is the plan the turn wants on screen, or null when it has no place: `{drawing_id, name,
+page, box, marks: [{n, label, box, polygon}], caption, source}`, all in page fractions. `source: "show_on_plan"`:
+the agent called the `show_on_plan` tool (places of this chat by evidence id, or every mark, or the disputed ones,
+of the chat's latest `ask_drawings` answer, which then comes back in `answers`); its marks are added to `evidence`
+after the cited ones. `source: "evidence"`: the page of `[1]` with every cited place on it; an `edit` turn's view is
+the proposal's page around its geometry. `box` is the marks' union with a margin, the box to focus; each mark's `n`
+is its `evidence` item. Places minted in earlier turns stay citable: a follow-up may cite them (numbers in `text`
+still come from this turn's tool results).
 
 <!-- fixture: chat_answer.json -->
 ```json
@@ -8664,7 +9308,33 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
       "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
       "refused_note": "2 drawings give no reliable number for it."
     }
-  ]
+  ],
+  "view": {
+    "drawing_id": "adeefbbcc17559fc",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.4633,
+      0.195,
+      0.5367,
+      0.305
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "door",
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  }
 }
 ```
 
@@ -9198,7 +9868,8 @@ budget, the same call a third time) ends a turn the same way.
       "why_no_total": "No drawing answered it.",
       "refused_note": "5 drawings can't answer this question."
     }
-  ]
+  ],
+  "view": null
 }
 ```
 
@@ -9404,12 +10075,53 @@ without wall fills) gets `dont_know` saying so.
   "model": "rules",
   "cost_usd": 0.0,
   "latency_s": 0.002,
-  "answers": []
+  "answers": [],
+  "view": {
+    "drawing_id": "5c4ed01e00000003",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.1367,
+      0.22,
+      0.5278,
+      0.4926
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "W1",
+        "box": [
+          0.2999,
+          0.25,
+          0.32257,
+          0.4626
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  }
 }
 ```
 
 Errors: 404 unknown project or chat, 409 project not done or a turn of this chat still running, 422 a bad body,
 503 `CHAT_MODEL=off`.
+
+### `POST /api/projects/{project_id}/chat/stream`
+
+The same body and the same turn as `POST .../chat`, sent as Server-Sent Events while the turn runs (added
+2026-11-14). Read it with `fetch` and the response body's reader (`EventSource` cannot POST). Errors known before the
+turn starts (404, 409, 422, 503) are plain JSON responses as on `POST .../chat`. After a 200, each event is
+`event: <type>` and one line of JSON `data`; `: ping` comes when nothing else was sent for 10 s. Events in order:
+`turn` `{chat_id, turn}` (first); per model step `thinking` `{step}`, `plan` `{step, calls: [{n, tool, label}]}`
+(the step's tool calls, in the server's words), and per call `tool_call` `{n, tool, label}` then `tool_result` (a
+`steps` item plus `summary`, a server-written line of what the tool found, or null); `view` (a `View`, when
+`show_on_plan` ran; its mark numbers may change in the final turn); `checking` `{status: "ok" | "retry", reason}`
+when the agent hands in its answer (`retry`: the server sent it back, the reason in plain words); last, exactly
+one of `answer` (the `ChatTurn`, as `POST .../chat` returns it) or `error` `{status, detail}`. Nothing the model
+writes is streamed except through the checked `answer`. A client that goes away does not stop the turn: it runs to
+its end and is stored.
 
 ### `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`
 
@@ -10918,7 +11630,22 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
-- 2026-11-15, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
+- 2026-11-14, behaviour (docs refresh of the evening's merges; no shape change): the vector reader's printed scale
+  reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones and
+  has no scale bar (#282); a scale bar needs one unit, metres or feet (#301). `VECTOR_FALLBACK=raster` (default
+  `off`) reads a drawn PDF that matches no sheet style on the raster route, flagged and never certified (#283); a
+  scanned PDF's page is rendered once and shared by its readers and its answers (#280, #295). Under
+  `CARBON_READER=large` (default off) Carbon's door boxes take the detector's door box where one lies inside (#310,
+  `attrs.box_from` is `detector`), and the independent Carbon reads of a raster sheet run at the same time (#306).
+  An area (or length) question with a room type or a printed label and a room number ("bathroom 1.01", "Bagno 1.01")
+  names that room (#313); a count question does not take the room. A stage's cost in a trace is exact to the
+  pico-dollar (#314).
+- 2026-11-14, additive (#311): `sheet.discipline` on a file's triage, one of the nine values above or null, from
+  the sheet-kind reply's kind, title and number. `docs/api/openapi-v1.json` already carries it.
+- 2026-11-14, value only (keycheck review-315, chat-ux): `POST /api/projects/{project_id}/ask`'s `total` is in
+  whole m² when a summed part is an area on an estimated scale, as that part's `answer` already was (#294): the
+  Finnish flat's kitchen gave `answer` 5 and `total` 4.88, now 5 and 5 (`total_note` too). Shapes unchanged.
+- 2026-11-14, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
   missing feature say what was and wasn't read. A `no-reader` refusal on a route with no reader: "This sheet wasn't
   read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask
   about the project's other drawings."; the policy refusal: "On sheets like this one, our reader got this kind of
@@ -10929,7 +11656,7 @@ unofficial translation. An unknown id is 404 `not-found`.
 - 2026-11-14, additive (decision 0013, agent chat): `POST /api/projects/{project_id}/chat` and
   `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`; `GET /api/info` gains `chat`
   (`model`, `available`, `reason`; last). Settings `CHAT_MODEL`, `AGENT_MODEL`, `AGENT_BASE_URL`,
-  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_TURN_USD`, `AGENT_MAX_STEPS`. Fixtures `chat_request`,
+  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_PRICE_CACHED_PER_M` (prompt tokens read from cache), `AGENT_TURN_USD`, `AGENT_MAX_STEPS`, `AGENT_THINKING` (the model's `reasoning_effort`, default `low`). Fixtures `chat_request`,
   `chat_answer`, `chat_dont_know`, `chat_edit`, `chat_proposal_accepted`.
 - 2026-11-14, additive (decision 0013): `ChatTurn.answers` (last), the `ProjectAnswer`s a turn rests on;
   `ChatTurn.evidence` lists only the cited places; `options` may come with any kind.

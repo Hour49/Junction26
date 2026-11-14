@@ -153,7 +153,7 @@ describe('advanced.ts', () => {
       files: project.files.map((f) => ({ ...f, takeoff: { room: 1 } })),
     };
     expect(planCounts(noWindows).window).toBeNull();
-    expect(quantityCount(project)).toBe(142);
+    expect(quantityCount(project)).toBe(282);
   });
 
   it('AV-19 pairsOf: rows measured twice, conflicts first', () => {

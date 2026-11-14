@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
-import { drawingLabel, formatValue, type ProjectAnswer, type ProjectView } from '../api';
+import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
 import { GRADE_TONE, StatusPill } from './AnswerCard';
 import { ResolverLines } from './Resolver';
-import { estimateLine, gradeOf, kindName, levelWord, type Grade } from './format';
+import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
 import { ModelDialog } from '../model3d/ModelDialog';
@@ -47,10 +47,14 @@ export function ChatAnswer(props: {
   const query = new URLSearchParams(pack ? { ask: ask.question, pack } : { ask: ask.question });
   // "2 doors" (EN-68's noun), as the demo's "11 doors"
   const noun = (n: string | null | undefined) => (n ? ` ${n}` : '');
+  // The value the server shows (`answer`: an estimated area in whole m², #294), as the answer card says it (CH-48).
   const value = (p: (typeof parts)[number]) =>
     typeof p.answer.answer === 'number'
-      ? formatValue(p.answer.answer, p.answer.unit) + noun(p.answer.quantity?.noun)
+      ? shownValue(p.answer.answer, p.answer.unit, Boolean(p.answer.quantity?.estimate)) +
+        noun(p.answer.quantity?.noun)
       : (p.answer.answer ?? '');
+  // The total is in whole m² when a part in it is an estimate (the backend's _total), so it reads as they do.
+  const estimated = parts.some((p) => p.answer.refusal === null && p.answer.quantity?.estimate);
   // CH-40: a drawing by its plain name (#224), else its file name; files keep their path
   const labelOf = (p: (typeof parts)[number]) =>
     drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
@@ -71,7 +75,8 @@ export function ChatAnswer(props: {
         // The demo's lead: the value only (CH-39); total_note is never shown, it can name refused drawings.
         <p className="en-lead">
           <strong className="en-value" data-testid="answer-value">
-            {formatValue(ask.total, ask.total_unit) + noun(parts[0]?.answer.quantity?.noun)}
+            {shownValue(ask.total, ask.total_unit, estimated) +
+              noun(parts[0]?.answer.quantity?.noun)}
           </strong>
           {ask.total_level && (
             <>

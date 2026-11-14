@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 from conftest import upload
 from fastapi.testclient import TestClient
+from test_api_chat import stream
 from test_ifc_glb import flat, house, node_names
 from test_ifc_model import MODEL, SHEET, TWIN, demo
 
@@ -193,3 +194,20 @@ def test_a_sheet_read_from_its_model_points_at_the_model_file(on: TestClient) ->
     assert sheet["file_id"] == file_of(on, project_id, SHEET)["id"] != model_id
     assert sheet["model_file_id"] == parts[MODEL]["model_file_id"] == model_id
     assert sheet["model_3d"]["state"] == "not_started"
+
+
+def test_the_chat_stream_answer_has_the_view_state_and_keeps_none(
+    on: TestClient, settings: Settings
+) -> None:
+    data, walls = house()
+    project_id = upload(on, data, "house.ifc")
+    events = stream(on, project_id, WALLS["question"])
+    kind, turn = events[-1]
+    assert kind == "answer"
+    part = parts_of(turn["answers"][0])
+    assert (part["model_file_id"], part["model_3d"]["state"]) == ("f1", "not_started")
+    assert {item["global_id"] for item in part["highlight"]} == set(walls[:2])
+    kept = [
+        path for path in settings.projects_dir.rglob("*.json") if b"model_3d" in path.read_bytes()
+    ]
+    assert kept == []
