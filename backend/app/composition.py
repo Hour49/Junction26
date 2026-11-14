@@ -26,6 +26,7 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
+from app.adapters.check_policy import load_check
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
 from app.adapters.decisions.client import DecisionsClient
 from app.adapters.decisions.g1main import G1MainReader
@@ -85,6 +86,7 @@ from app.core.pipeline.ports import (
 )
 from app.core.pipeline.room_policy import gold_label_rooms
 from app.core.pipeline.route import RICHEST_FIRST
+from app.core.review.check import CheckPolicy, Disputes, no_disputes
 from app.settings import (
     AnswerPriorName,
     ExtractorName,
@@ -272,6 +274,8 @@ class Answering:
     confidence: Callable[[DrawingFiles], AnswerConfidence] | None = None
     signal: str | None = None  # what that confidence's score is, by name (`g1main`)
     sure_at: Mapping[str, float] | None = None  # GATE_POLICY on that signal; None: ungated
+    check: CheckPolicy | None = None  # CHECK_POLICY; None: off, no answer asks for a check
+    disputes: Disputes = no_disputes  # where a double-check request points
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -289,6 +293,7 @@ def build_answering(settings: Settings) -> Answering:
         confidence=confidence,
         signal=signal,
         sure_at=_gate(settings),
+        check=load_check(Path(settings.check_policy), signal) if settings.check_policy else None,
     )
 
 

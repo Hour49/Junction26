@@ -24,6 +24,7 @@ from app.core.answering.ports import AnswerConfidence
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
 from app.core.review.ask import Asked, ask
+from app.core.review.check import Check
 from app.core.review.model import MarkView, Refusal, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
@@ -67,6 +68,9 @@ class AnswerView(View):
     latency_s: float
     line: Answer  # the answer_v1.1 line as the scorer reads it
     proof: Proof  # what to draw as the proof: colour key, arithmetic, model objects, schedule
+    # CHECK_POLICY: the answer is not certified, so a person is asked to double-check it at the
+    # places where the readers disagree; None: certified, signed off, a refusal, or the policy off
+    check: Check | None
 
 
 class _SheetFiles:
@@ -121,6 +125,9 @@ def asked_on(
         sure_at=answering.sure_at,
         flags=info.flags,
         raster=info.route == "raster",
+        check=answering.check,
+        route=info.route,
+        disputes=answering.disputes,
     )
 
 
@@ -189,4 +196,5 @@ def ask_route(
         latency_s=line.latency_s,
         line=line,
         proof=asked.proof,
+        check=asked.check,
     )

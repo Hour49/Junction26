@@ -35,6 +35,15 @@ from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
 from app.core.pipeline.takeoff import known_quantities, room_names
+from app.core.review.check import (
+    Check,
+    CheckPolicy,
+    Disputes,
+    certified,
+    double_check,
+    no_disputes,
+    schedule_check,
+)
 from app.core.review.model import (
     MarkView,
     Refusal,
@@ -87,6 +96,7 @@ class Asked(Frozen):
     marks: tuple[MarkView, ...]  # the row's marks, or a schedule answer's cells
     refusal: Refusal | None
     proof: Proof  # what the screen draws as the answer's proof
+    check: Check | None = None  # CHECK_POLICY's double-check request; None: certified or off
 
 
 class _Once:
@@ -115,11 +125,16 @@ def ask(
     sure_at: Mapping[str, float] | None = None,
     flags: Sequence[str] = (),
     raster: bool = False,
+    check: CheckPolicy | None = None,
+    route: str | None = None,
+    disputes: Disputes = no_disputes,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
     `flags`: how ingest read the page (judge.reading_flags: a phone photo, a scan). `raster`: the
-    page was read on the raster route (an image, a photo, a scanned PDF)."""
+    page was read on the raster route (an image, a photo, a scanned PDF). `check` (CHECK_POLICY):
+    a takeoff answer it does not certify on `route` (ingest's) gets a double-check request with
+    the places `disputes` finds (app/core/review/check.py)."""
     quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
@@ -177,7 +192,24 @@ def ask(
                 )
                 can_answer = each
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
-    return Asked(answer=answer, query=query, row=shown, marks=marks, refusal=refusal, proof=proof)
+    request = None
+    if check is not None and shown is not None and isinstance(parsed, Query):
+        sure = certified(
+            check, route=route, family=parsed.family(), score=answer.confidence, flags=flags
+        )
+        if not sure:
+            request = double_check(shown, marks, disputes(drawing, shown))
+    elif check is not None and answer.method == SCHEDULE:
+        request = schedule_check(check)
+    return Asked(
+        answer=answer,
+        query=query,
+        row=shown,
+        marks=marks,
+        refusal=refusal,
+        proof=proof,
+        check=request,
+    )
 
 
 def _flagged(

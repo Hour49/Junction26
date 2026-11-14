@@ -41,7 +41,10 @@ from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingIm
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
+from app.core.drawing.model import Drawing  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
+from app.core.review.check import CheckPolicy, Place  # noqa: E402
+from app.core.review.model import Row  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
 
@@ -132,6 +135,7 @@ def responses() -> dict[str, Any]:
     found["answer_schedule"] = schedule_answer(client)
     others.append(set_aside(client, found))
     others += in_flight(root / "flight", settings, found)
+    found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
@@ -254,6 +258,71 @@ def rated(root: Path, settings: Settings) -> dict[str, Any]:
         drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
         ask = {"drawing_id": drawing_id, "question": "How many doors are there?"}
         return client.post("/api/ask", json=ask).json()
+    finally:
+        os.chdir(here)
+
+
+def example_disputes(drawing: Drawing, row: Row) -> list[Place]:
+    """A dispute finder's stand-in (core/pipeline/disputed_marks, room_disputes give these): on
+    the arm's sheet, the second door or bedroom is disputed and one place was not counted."""
+    if row.key == "door":
+        return [
+            Place(item_id="e2", page=1, box=(0.6, 0.1, 0.65, 0.2),
+                  why="Counted as a door, but 2 of the 3 other readers see nothing here.",
+                  readers={"answer": "door, score 0.41", "L one view": None,
+                           "M one view": None, "seg": "door, score 0.62"}),
+            Place(item_id=None, page=1, box=(0.3, 0.85, 0.36, 0.9),
+                  why="Not counted, but 2 of the 3 other readers see a door here.",
+                  readers={"answer": None, "L one view": "door, score 0.55",
+                           "M one view": "door, score 0.48", "seg": None}),
+        ]  # fmt: skip
+    return [
+        Place(item_id="r2", page=1, box=(0.55, 0.1, 0.9, 0.9),
+              why="Counted as a bedroom; the segmentation reader sees a living room here.",
+              readers={"reader": "bedroom", "label": "Makuuhuone 2", "segmentation": "living",
+                       "printed_label": None}),
+        Place(item_id=None, page=1, box=(0.46, 0.1, 0.54, 0.4),
+              why="Not counted, but the segmentation reader and the printed label see a bedroom.",
+              readers={"reader": None, "label": None, "segmentation": "bedroom",
+                       "printed_label": "bedroom"}),
+    ]  # fmt: skip
+
+
+def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
+    """CHECK_POLICY on the raster arm, with DECISIONS_CONFIDENCE's stand-in (0.87): a door count
+    certified (threshold 0.8: `check` null), the same count and a bedroom count not certified
+    (0.9), with the places `example_disputes` lists: a counted mark, a counted room, and a
+    place each answer did not count (`mark_id` null)."""
+    raster_arm(root / "arm", "plan.png")
+    settings = settings.model_copy(
+        update={
+            "projects_dir": root / "projects",
+            "extractor_raster": "composite",
+            "raster_components": "elements=dir:arm,plans=dir:arm,rooms=dir:arm",
+        }
+    )
+    here = Path.cwd()
+    os.chdir(root)
+    try:
+        ingest = build_ingest(settings, settings.projects_dir, background=False)
+        app = create_app(settings, ingest)
+        client = TestClient(app)
+        upload = client.post("/api/projects", params={"name": "plan.png"}, content=plan_png())
+        drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
+        found: dict[str, Any] = {}
+        for name, threshold, question in (
+            ("answer_certified", 0.8, "How many doors are there?"),
+            ("answer_double_check", 0.9, "How many doors are there?"),
+            ("answer_double_check_rooms", 0.9, "How many bedrooms are there?"),
+        ):
+            policy = CheckPolicy(thresholds={"door": threshold, "room:bedroom": threshold})
+            app.state.answering = replace(
+                app.state.answering, confidence=ExampleConfidence, signal=DECISIONS_SIGNAL,
+                check=policy, disputes=example_disputes,
+            )  # fmt: skip
+            ask = {"drawing_id": drawing_id, "question": question}
+            found[name] = client.post("/api/ask", json=ask).json()
+        return found
     finally:
         os.chdir(here)
 

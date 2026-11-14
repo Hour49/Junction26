@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from collections.abc import Iterator, Mapping, Sequence, Set
+from collections.abc import Iterable, Iterator, Mapping, Sequence, Set
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -39,6 +39,17 @@ from .ab import (
     hits_of,
     orientation_label,
     paired,
+)
+from .check import (
+    FLOOR,
+    LAMBDA,
+    CheckFamily,
+    CheckPolicyFile,
+    crossfit,
+    fit,
+    point,
+    pooled,
+    route_verdict,
 )
 from .coverage import format_coverage_table, load_answers, score_all
 from .exp_split import (
@@ -1056,6 +1067,135 @@ def run_gate_policy(args: argparse.Namespace) -> None:
     tested = "" if made.test is None else f"; {made.test.certificate.sentence}"
     print(f"wrote {args.out}: {len(made.families)} families ({names}), certified {made.certified}"
           f"{tested}")  # fmt: skip
+
+
+def _family_signals(
+    pairs: Sequence[str], families: Iterable[str]
+) -> dict[str, tuple[str, float | None]]:
+    """--family-signal FAMILY=NAME[:CUT] over the default (g1main, fitted) for every family."""
+    made: dict[str, tuple[str, float | None]] = dict.fromkeys(families, (G1MAIN, None))
+    for pair in pairs:
+        family, _, spec = pair.partition("=")
+        name, _, cut = spec.partition(":")
+        if family not in made or not name:
+            raise ValueError(f"--family-signal {pair}: FAMILY=NAME[:CUT] for one of {sorted(made)}")
+        made[family] = (name, float(cut) if cut else None)
+    return made
+
+
+def _route_answers(run: Path) -> dict[str, list[bool]]:
+    """Golden v2's holdout answers of a pipeline run (its out/ folder) by the route the check
+    certifies whole: the ingest route of a takeoff answer not on the raster route, `schedule`
+    for a schedule answer; refusals and raster answers are left out."""
+    golden = [item for _, item in read_jsonl(DEFAULT_GOLDEN, GoldenItem)]
+    holdout = [item for item in golden if item.split == "holdout"]
+    lines = [json.loads(line) for line in (run / "answers.jsonl").read_text("utf-8").splitlines()]
+    answers = {a.id: a for _, a in read_jsonl(run / "answers.jsonl", Answer)}
+    method = {line["id"]: line.get("method") for line in lines}
+    sheets = json.loads((run / "ingest.json").read_text("utf-8"))["sheets"]
+    route_of = {sheet["file"]: sheet["route"] for sheet in sheets}
+    hits = hits_of(holdout, answers)
+    by: dict[str, list[bool]] = {}
+    for item in holdout:
+        how = method.get(item.id)
+        route = "schedule" if how == "schedule" else route_of.get(item.path)
+        if how in ("takeoff", "schedule") and route not in (None, "raster"):
+            by.setdefault(str(route), []).append(hits[item.id])
+    return by
+
+
+def run_check_policy(args: argparse.Namespace) -> None:
+    """The double-check policy (check_policy_v1) from a runtime config's val output: D455's
+    thresholds on all of val, the cross-fit estimate, and the route verdicts from golden v2's
+    holdout part of a pipeline run."""
+    split, questions_path, questions = _exp_part(args.exp_dir, "val")
+    files = split.parts["val"].files
+    wanted = set(files)
+    gold_dir = args.gold / EXP_SOURCE
+    golds = {f: e for f, (_, e) in _extractions(gold_dir).items() if f in wanted}
+    extra = [load_signal_file(path) for path in args.signal_file]
+    for path, made in zip(args.signal_file, extra, strict=True):
+        if made.arm is not None and (REPO / "eval" / made.arm).resolve() != args.arm.resolve():
+            raise ValueError(f"{path}: judges {made.arm}'s answers, not {args.arm}'s")
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        backend.run("families", "--questions", str(questions_path), "--out", str(work / "f.json"))
+        families = {int(k): v for k, v in json.loads((work / "f.json").read_text()).items()}
+        _, answers, preds = _answer_arm(
+            str(args.arm), questions_path, golds, gold_dir, None, work / "a"
+        )
+        backend.run(
+            "g1main", "--replies", str(args.g1main), "--questions", str(questions_path),
+            "--dataset", str(DATASET), "--out", str(work / "g1.json"),
+        )  # fmt: skip
+        extra.append(
+            g1main_signal(_said(questions, families, answers), _g1main_dists(work / "g1.json"))
+        )
+    units = _units(questions, families, answers, None, preds or {}, {}, extra)
+    by_family: dict[str, list[Unit]] = {}
+    for unit in units:
+        by_family.setdefault(unit.family, []).append(unit)
+    signals = _family_signals(args.family_signal, by_family)
+    known = {made.name for made in extra}
+    if missing := sorted({name for name, _ in signals.values()} - known):
+        raise ValueError(f"no values for the signals {missing}: give their --signal-file")
+    chosen = fit(by_family, signals, args.lam, args.floor)
+    first = set(halves(files, args.seed)[0])
+    held = crossfit(by_family, signals, args.lam, args.floor, lambda file: file in first)
+    made_families = {
+        family: CheckFamily(
+            signal=signals[family][0],
+            threshold=chosen[family],
+            fixed=signals[family][1] is not None,
+            val=point(units_of, signals[family][0], chosen[family]),
+            crossfit=held[family],
+        )
+        for family, units_of in sorted(by_family.items())
+    }
+    routes = {}
+    if args.golden_run is not None:
+        routes = {
+            route: route_verdict(exact, args.lam, args.floor)
+            for route, exact in sorted(_route_answers(args.golden_run).items())
+        }
+    made = CheckPolicyFile(
+        generated=datetime.now(HELSINKI).isoformat(timespec="seconds"),
+        split_sha256=_sha256(args.exp_dir / "split.json"),
+        arm=_arm_name(str(args.arm), args.exp_dir),
+        lambda_=args.lam,
+        floor=args.floor,
+        families=made_families,
+        routes=routes,
+        pooled_val=pooled({f: c.val for f, c in made_families.items()}),
+        pooled_crossfit=pooled(held),
+    )
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(made.model_dump_json(by_alias=True, indent=2) + "\n", "utf-8")
+    print("| family | signal | threshold | val certified (exact) | cross-fit certified (exact) |")
+    print("| --- | --- | --- | --- | --- |")
+    rows = [*made_families.items(), ("pooled", None)]
+    for family, entry in rows:
+        val = made.pooled_val if entry is None else entry.val
+        held_point = made.pooled_crossfit if entry is None else entry.crossfit
+        cells = [_share(p) for p in (val, held_point)]
+        what = (
+            ""
+            if entry is None
+            else f"{entry.signal} | {entry.threshold}{' (fixed)' if entry.fixed else ''}"
+        )
+        print(f"| {family} | {what or ' | '} | {cells[0]} | {cells[1]} |")
+    for route, verdict in routes.items():
+        h = verdict.holdout
+        print(f"route {route}: {h.exact}/{h.certified} exact on golden v2 holdout, bound "
+              f"{verdict.lower_bound}, certified {verdict.certified}")  # fmt: skip
+    print(f"wrote {args.out}")
+
+
+def _share(p: object) -> str:
+    units, sure, exact = (getattr(p, name) for name in ("units", "certified", "exact"))
+    if not sure:
+        return "0%"
+    return f"{sure / units:.1%} ({exact / sure:.1%})"
 
 
 def _code_digest() -> str:
@@ -2088,6 +2228,31 @@ def parser() -> argparse.ArgumentParser:
     )
     policy.add_argument("--out", type=Path, default=EXP_DIR / "gate.json")
     policy.set_defaults(run=run_gate_policy)
+
+    check = commands.add_parser(
+        "check-policy",
+        help="the double-check policy (check_policy_v1, CHECK_POLICY) from a runtime config's val "
+        "output by D455",
+    )
+    check.add_argument("--arm", type=Path, required=True, help="the runtime config's val output")
+    check.add_argument("--g1main", type=Path, required=True, help="the backend's Decisions cache")
+    check.add_argument("--signal-file", type=Path, action="append", default=[])
+    check.add_argument(
+        "--family-signal", action="append", default=[], metavar="FAMILY=NAME[:CUT]",
+        help="the signal a family is gated on (default g1main), with a fixed cut instead of the "
+        "rule's",
+    )  # fmt: skip
+    check.add_argument("--lambda", dest="lam", type=float, default=LAMBDA)
+    check.add_argument("--floor", type=float, default=FLOOR)
+    check.add_argument(
+        "--golden-run", type=Path,
+        help="a pipeline run's out/ folder: the routes certified from golden v2's holdout answers",
+    )  # fmt: skip
+    check.add_argument("--out", type=Path, required=True)
+    check.add_argument("--exp-dir", type=Path, default=EXP_DIR)
+    check.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
+    check.add_argument("--seed", type=int, default=GATE_SEED)
+    check.set_defaults(run=run_check_policy)
 
     board = commands.add_parser("leaderboard", help="every experiment arm on val against prior")
     board.add_argument("--exp-dir", type=Path, default=EXP_DIR)

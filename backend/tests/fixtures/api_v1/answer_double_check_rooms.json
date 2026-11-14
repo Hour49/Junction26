@@ -1,0 +1,252 @@
+{
+  "question": "How many bedrooms are there?",
+  "drawing_id": "c592bb6c7e3273ca",
+  "file": "plan.png",
+  "pages": [
+    {
+      "page": 1,
+      "width": 800.0,
+      "height": 400.0,
+      "unit": "px",
+      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "normalised": {
+        "exif": null,
+        "rotated": 0,
+        "deskew_deg": 0.0,
+        "rectified": false,
+        "quad": null,
+        "width": 800,
+        "height": 400,
+        "rectifier": null
+      },
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": null
+      },
+      "scale_text": null,
+      "storey": null
+    }
+  ],
+  "answer": 2,
+  "unit": "count",
+  "confidence": {
+    "signal": "g1main",
+    "score": 0.87,
+    "calibrated": false
+  },
+  "quantity": {
+    "key": "room:bedroom",
+    "label": "room bedroom count",
+    "measure": "count",
+    "subject": "room:bedroom",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "each-once",
+      "text": "every element, room and plan the drawing lists counts once"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.1,
+          0.1,
+          0.45,
+          0.9
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "Makuuhuone 1",
+        "ref": "r1",
+        "reason": null,
+        "room_type": "bedroom"
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.55,
+          0.1,
+          0.9,
+          0.9
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "Makuuhuone 2",
+        "ref": "r2",
+        "reason": null,
+        "room_type": "bedroom"
+      }
+    ],
+    "signed": null,
+    "unlocated": {},
+    "noun": null
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.1,
+        0.1,
+        0.45,
+        0.9
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "Makuuhuone 1",
+      "ref": "r1",
+      "reason": null,
+      "room_type": "bedroom"
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.55,
+        0.1,
+        0.9,
+        0.9
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "Makuuhuone 2",
+      "ref": "r2",
+      "reason": null,
+      "room_type": "bedroom"
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "raster",
+    "source": "plan.png",
+    "extractor": "composite",
+    "second_counter": "none",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.1,
+          0.1,
+          0.45,
+          0.9
+        ]
+      },
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.55,
+          0.1,
+          0.9,
+          0.9
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": 0.87,
+    "sure": null,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "bedroom",
+        "colour": "#1f77b4",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": null
+  },
+  "check": {
+    "reason": "Please double-check the room bedroom count: the readers disagree at 2 places, marked on the drawing.",
+    "disputed": [
+      {
+        "mark_id": "m2",
+        "page": 1,
+        "box": [
+          0.55,
+          0.1,
+          0.9,
+          0.9
+        ],
+        "why": "Counted as a bedroom; the segmentation reader sees a living room here.",
+        "readers": {
+          "reader": "bedroom",
+          "label": "Makuuhuone 2",
+          "segmentation": "living",
+          "printed_label": "nothing"
+        }
+      },
+      {
+        "mark_id": null,
+        "page": 1,
+        "box": [
+          0.46,
+          0.1,
+          0.54,
+          0.4
+        ],
+        "why": "Not counted, but the segmentation reader and the printed label see a bedroom.",
+        "readers": {
+          "reader": "nothing",
+          "label": "nothing",
+          "segmentation": "bedroom",
+          "printed_label": "bedroom"
+        }
+      }
+    ]
+  }
+}
