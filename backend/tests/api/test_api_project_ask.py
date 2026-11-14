@@ -86,6 +86,9 @@ def test_drawings_that_may_show_the_same_flat_are_not_added_up(client: TestClien
     assert found["total_note"] == (
         f"{len(answered)} drawings answered; {SAME_FLAT}; 2 drawings have no reader for it."
     )
+    # the same note in its two parts: why there is no total, and what was left out
+    assert found["why_no_total"] == f"{len(answered)} drawings answered; {SAME_FLAT}."
+    assert found["refused_note"] == "2 drawings have no reader for it."
 
 
 def test_an_ifc_model_answers_an_area_and_is_not_added_to_the_sheets_of_its_flat(
@@ -108,6 +111,7 @@ def test_one_answering_drawing_is_the_total(client: TestClient, plan_pdf: bytes)
         2, "count",
     )  # fmt: skip
     assert found["total_note"] == "2 doors from 1 drawing."
+    assert (found["why_no_total"], found["refused_note"]) == (None, None)
 
 
 def test_drawings_known_to_be_disjoint_are_summed(

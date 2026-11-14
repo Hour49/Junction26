@@ -7,6 +7,7 @@ from pydantic import Field
 from app.core.drawing.model import (
     Apartment,
     ArbiterReading,
+    Box,
     ConflictQuantity,
     Element,
     Mark,
@@ -127,6 +128,14 @@ Measure = Literal["count", "area", "length", "volume", "text"]
 QuantityUnit = Literal["count", "m", "m2", "m3"]
 
 
+class ValueMark(Frozen):
+    """Where one item a conflicting value counted or measured is on the drawing, named."""
+
+    page: int = Field(ge=1)
+    box: Box
+    label: str
+
+
 class QuantityConflict(Frozen):
     """Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in
     that quantity's unit: every method's value, and the rule that picked one (None: no rule
@@ -137,6 +146,10 @@ class QuantityConflict(Frozen):
     note: str | None = None
     derived: str | None = None
     status: Literal["conflict", "agree"] = "conflict"  # the stage-8 entry's own status
+    # `value_marks[i]` is where the items of `values[i]` are on the drawing (the doors a plan
+    # counted, the rooms a model lists that the sheet draws), so a legend can outline them. A
+    # value with no position has an empty tuple; () as a whole: no value has one.
+    value_marks: tuple[tuple[ValueMark, ...], ...] = ()
 
 
 class Quantity(Frozen):
