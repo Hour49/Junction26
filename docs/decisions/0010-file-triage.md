@@ -130,11 +130,12 @@ Description = {
   not block a plan's reading.
 - Cost: only non-plans are described. Description and judge costs count in `FileStatus.cost_usd` and
   `ProjectView.cost_usd` (#152 item 11); the offline demo stays at 0.00 USD (no model set up).
-  - Assumed price: about 2.2 USD per 1,000 described files at the average Gemini call price we measured (6.7 USD
-    per 1,000 pages for three calls, `docs/EXPERIMENTS.md`). eu-big measures the real per-call price of Gemini and
-    of the EU options before anything is chosen.
-  - For the archive (214 of the 374 preview files, 57%, are non-plans) that is about 1.3 USD per 1,000 uploaded
-    archive images, or roughly 8.4 USD for all 6,701.
+  - Measured price: 8.0 USD per 1,000 described files (gemini-3.5-flash, the shipped describe-4 prompt: 86 calls,
+    0.0080 USD per image, about 1,930 input and 570 output tokens; worker describe, 2026-11-14). It replaces the
+    2.2 USD first assumed: the long `visible_text` and `detail` are output tokens. eu-big measures the EU options
+    before anything is chosen.
+  - For the archive (214 of the 374 preview files, 57%, are non-plans) that is about 4.6 USD per 1,000 uploaded
+    archive images, or roughly 31 USD for all 6,701.
   - Cap and pilot rules as in COMMON.
 
 ### 4. Relevance (step 3): once the project's plans are read

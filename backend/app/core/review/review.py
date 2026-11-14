@@ -272,11 +272,27 @@ def row(quantity: Quantity, drawing: Drawing, state: ReviewState, rules: Mapping
 UNCOUNTED = frozenset({"furniture"})  # no plural
 
 
+# A room type said as a person names the room, where the type id alone would read oddly
+ROOM_NOUNS: dict[str, str] = {
+    "living": "living room",
+    "storage": "storage room",
+    "other": "other room",
+    "wc": "WC",
+    "outdoor": "outdoor space",
+}
+
+
 def noun(measure: str, subject: str, value: int | float) -> str | None:
-    """ "doors" for a count of 14 doors, "door" for 1; None unless it counts one element class."""
-    if measure != "count" or subject not in get_args(ElementClass):
+    """ "doors" for a count of 14 doors, "door" for 1, "kitchens" for a count of the rooms of
+    type kitchen; None unless it counts one element class or one room type."""
+    if measure != "count":
         return None
-    name = words(subject)
+    if subject in get_args(ElementClass):
+        name = words(subject)
+    elif (kind := subject.removeprefix("room:")) != subject and kind in get_args(RoomType):
+        name = ROOM_NOUNS.get(kind, words(kind))
+    else:
+        return None
     return name if value == 1 or subject in UNCOUNTED else f"{name}s"
 
 
