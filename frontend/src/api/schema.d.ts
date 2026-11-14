@@ -899,6 +899,8 @@ export interface components {
          * @description One drawing of a project: one per group of renderings of the same plan.
          */
         DrawingEntry: {
+            /** Credit */
+            credit: string | null;
             /** Drawing Id */
             drawing_id: string;
             /** File */
@@ -907,6 +909,8 @@ export interface components {
             group: string;
             /** Kind */
             kind: string | null;
+            /** Name */
+            name: string;
             /** Other Renderings */
             other_renderings: components["schemas"]["Rendering"][];
             /** Route */
@@ -1333,6 +1337,8 @@ export interface components {
             parts: components["schemas"]["ProjectAnswerPart"][];
             /** Question */
             question: string;
+            /** Refused Note */
+            refused_note: string | null;
             /** Total */
             total: number | null;
             /** Total Note */
@@ -1341,6 +1347,8 @@ export interface components {
             total_sure: boolean;
             /** Total Unit */
             total_unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+            /** Why No Total */
+            why_no_total: string | null;
         };
         /** ProjectAnswerPart */
         ProjectAnswerPart: {
@@ -1523,6 +1531,11 @@ export interface components {
              * @enum {string}
              */
             status: "conflict" | "agree";
+            /**
+             * Value Marks
+             * @default []
+             */
+            value_marks: components["schemas"]["ValueMark"][][];
             /** Values */
             values: components["schemas"]["MeasuredValue"][];
         };
@@ -2060,6 +2073,23 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * ValueMark
+         * @description Where one item a conflicting value counted or measured is on the drawing, named.
+         */
+        ValueMark: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label: string;
+            /** Page */
+            page: number;
         };
     };
     responses: never;
