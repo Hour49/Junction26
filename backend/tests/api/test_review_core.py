@@ -1271,6 +1271,12 @@ def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:
     assert found.refusal is None, found.refusal
     assert found.answer.answer == 23.16
     assert asked("How many living rooms are there?", scaled(living, dining)).answer.answer == 2
+    # a number or letter the label lacks names another room: refused, as before (review-415)
+    for text in ("What is the area of the living room 1?", "What is the area of the living room B?",
+                 "What is the area of the living room no. 2?"):  # fmt: skip
+        assert asked(text, scaled(living, dining)).refusal is not None, text
+    found = asked("What is the area of the living room in m2?", scaled(living, dining))
+    assert found.answer.answer == 23.16, found.refusal
     twice = dining.model_copy(update={"label": "LIVING ROOM"})
     assert asked("What is the area of the living room?", scaled(living, twice)).refusal is not None
     unlabelled = dining.model_copy(update={"label": None})

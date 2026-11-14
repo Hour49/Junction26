@@ -387,6 +387,10 @@ class RoomByType:
         named = printed_rooms(self._parser, self._drawing, text)
         if named is None or len(named[1]) != 1 or named[1][0] not in rooms:
             return None
+        for _, pattern in _printed_names(named[1][0]):
+            # "the living room 1" names a room the label doesn't: refused, as before (review-415)
+            if (at := pattern.search(text)) is not None and AFTER_ID.match(text, at.end()):
+                return None
         return self._area_of(named[1][0], named[0])
 
     def _not_a_room(self, text: str, parsed: Query) -> Unsupported | None:
@@ -474,6 +478,11 @@ class RoomByType:
         return self._area_of(rooms[0], again) or again.model_copy(
             update={"name": normalised(rooms[0].label or again.name or "")}
         )
+
+
+# A number or a one-letter identifier right after a room's label ("living room 1", "living room
+# B", "living room no. 2"): it names a room the label alone doesn't
+AFTER_ID = re.compile(r"\s*(?:(?:no|nr|num(?:ber)?)\.?\s*|#\s*)?(?:\d|[a-z]\b(?!'))", re.IGNORECASE)
 
 
 def _printed_names(room: Room) -> list[tuple[str, re.Pattern[str]]]:
