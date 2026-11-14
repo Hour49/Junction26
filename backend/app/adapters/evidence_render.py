@@ -13,6 +13,7 @@ GlobalIds and the storey table.
 
 import io
 import math
+import unicodedata
 from collections.abc import Callable, Sequence
 from typing import NamedTuple
 
@@ -35,6 +36,14 @@ def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         return ImageFont.truetype(FONT, size)
     except OSError:
         return ImageFont.load_default(size=size)
+
+
+def _one_line(text: str) -> str:
+    """`text` on one line with every word kept: a line break, tab or other run of white space
+    becomes one space and other control characters go. A room name read off a plan can carry a
+    line break ("VARDAGSRUM\n24 M2"), and raqm cannot measure one (judge-fresh jf05)."""
+    kept = "".join(c for c in text if c.isspace() or unicodedata.category(c) != "Cc")
+    return " ".join(kept.split())
 
 
 def _rgb(hex_colour: str) -> tuple[int, int, int]:
@@ -105,7 +114,7 @@ def _draw_marks(picture: Image.Image, marks: Sequence[MarkView], proof: Proof) -
         if mark.state in ("rejected", "excluded"):
             draw.polygon(points, outline=_rgb(GREY), width=1)
             if mark.reason:
-                labels.append(Label(mark.reason, points, size - 2))
+                labels.append(Label(_one_line(mark.reason), points, size - 2))
                 tinted.append((110, 110, 110))
             continue
         tint = (200, 150, 0) if schedule else _rgb(tint_of(mark))
@@ -395,8 +404,9 @@ def _legend_lines(
     for key in proof.legend:
         if not key.count:
             continue
-        text = key.label if proof.kind == "sum" else f"{key.label} {key.count}"  # sum: values
-        text += f" ({key.note})" if key.note else ""  # are on the page
+        label = _one_line(key.label)
+        text = label if proof.kind == "sum" else f"{label} {key.count}"  # sum: values
+        text += f" ({_one_line(key.note)})" if key.note else ""  # are on the page
         wide = size + 6 + int(font.getlength(text))
         if not lines or (x > MARGIN and x + wide > MARGIN + room):
             lines.append([])

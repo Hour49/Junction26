@@ -291,3 +291,32 @@ def ask_core(client: TestClient, drawing_id: str, question: str) -> Asked:
     drawing = ingest.drawing(drawing_id)
     reviews, answering = app.state.reviews, app.state.answering
     return asked_on(question, drawing, drawing_id, reviews, answering, ingest, None)
+
+
+def test_a_label_or_reason_with_a_line_break_is_drawn_on_one_line() -> None:
+    """judge-fresh jf05 (2026-11-14): a room name read as "VARDAGSRUM\\n24 M2" made evidence.png a
+    500 (raqm cannot measure a line break). The picture keeps every word, on one line."""
+    keys = (
+        ClassKey(label="VARDAGSRUM\n24 M2", colour=colour("VARDAGSRUM"), count=1),
+        ClassKey(label="KÖK\r\n9\tM2\x07", colour=colour("KÖK"), count=1),
+    )
+    proof = NO_PROOF.model_copy(update={"kind": "sum", "legend": keys})
+    lines = _legend_lines(proof, _font(14), 14, 1600)
+    assert [text for line in lines for _, _, text in line] == ["VARDAGSRUM 24 M2", "KÖK 9 M2"]
+    page = Image.new("RGB", (800, 600), "white")
+    buffer = io.BytesIO()
+    page.save(buffer, format="PNG")
+    left_out = MarkView(
+        id="r2",
+        n=None,
+        page=1,
+        box=(0.1, 0.1, 0.5, 0.5),
+        polygon=None,
+        state="excluded",
+        value=None,
+        label="BALKONG\n6 M2",
+        ref=None,
+        reason="a balcony\nis not indoors",
+    )
+    png = render(buffer.getvalue(), 1, [left_out], proof, "What is the area?  ->  24 m2", None, 800)
+    assert Image.open(io.BytesIO(png)).width == 800
