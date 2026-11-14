@@ -21,7 +21,7 @@ page → a refusal → the project's conflicts list. That is steps 1-7 of the ta
 
 | # | Action | Expected | Runs on fakes? |
 | --- | --- | --- | --- |
-| 8a | Click the "Surveyor" view link | the side panel's project conflicts list: "area of room (name 1.01)" and "area of room (name küche)", each with "plans/flat-b.pdf", "22.40 m² vs 30.00 m²" and "decided by rule" | yes |
+| 8a | Click the "Surveyor" view link | the side panel's project conflicts list: "area of room (name 1.01)" and "area of room (name Küche)", each with "plans/flat-b.pdf", "22.40 m² vs 30.00 m²" and "decided by rule" | yes |
 
 Steps 8-12 (takeoff table, settle, sign-off, verified, CSV) are after QA. The e2e stays in the 06:00 scope: Playwright
 on the live no-keys backend at 390x844 and 1440x900 with screenshots, run locally with `npm run e2e`; the CI `e2e`
@@ -71,10 +71,10 @@ reads the scans); the e2e always runs on no keys (`start-backend.sh` forces ever
 | 3 | Click the file `plans/flat-b.pdf` | `#/p/<id>/f/<file_id>` (`f3` today): state "flagged", reason "1 conflict(s) between the two methods (room_area) …"; ten stages unpack → write, `second_count` reading "5 quantities measured twice, 1 conflict(s)" | yes |
 | 4 | Click "Open the drawing" | `#/p/<id>/d/<drawing_id>/engineer`: "plans/flat-b.pdf", "vector route, read from plans/flat-b.pdf by pdf …", page 1 of the plan, six suggested questions | yes |
 | 5 | Click "How many doors are there?" | Answer `2`, "door count", two numbered marks 1 and 2 on the doors, "Counting rule: every element, room and plan the drawing lists counts once", "One method", Cost $0 | yes |
-| 6 | Type "What is the net floor area of room 1.01?", Ask | Answer `30.00 m²`, the kitchen shaded, status "Methods disagree": "22.40 m² by polygon_x_scale", "30.00 m² by printed_label", "Kept 30.00 m²: the printed label over the outline at the sheet's scale" | yes |
+| 6 | Type "What is the net floor area of room 1.01?", Ask | Answer `30.00 m²`, the kitchen shaded, status "Methods disagree": "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas", "Kept 30.00 m²: the printed label over the outline at the sheet's scale" | yes |
 | 7 | Type "What colour is the roof?", Ask | "I can't answer that from this drawing.", the reason in words (no code shown), question buttons it can answer; no number | yes |
-| 8 | Switch to Surveyor | `#/…/surveyor`: "Takeoff: plans/flat-b.pdf", the "To review" group first: "area of room (name 1.01)" and "area of room (name küche)", each "Methods disagree"; the first is selected, its detail shows both values | yes |
-| 9 | Press "Keep A: 22.40 m² (polygon_x_scale)" (the drawn outline) | The row reads 22.40 m², "Changed in review", "Settled at 22.40 m² …" | yes |
+| 8 | Switch to Surveyor | `#/…/surveyor`: "Takeoff: plans/flat-b.pdf", the "To review" group first: "area of room (name 1.01)" and "area of room (name Küche)", each "Methods disagree"; the first is selected, its detail shows both values | yes |
+| 9 | Press "Keep A: 22.40 m² (room outlines × sheet scale)" (the drawn outline) | The row reads 22.40 m², "Changed in review", "Settled at 22.40 m² …" | yes |
 | 10 | Type "Ana" in "Signing as", press "Sign off 22.40 m²" | The row reads "Verified"; "Signed off by Ana, <date time> UTC: 22.40 m². Engineers see this value as verified." | yes |
 | 11 | Switch to Engineer, ask "What is the net floor area of room 1.01?" again | Answer `22.40 m²`, "Verified", "Verified by Ana, <date time> UTC" | yes |
 | 12 | Switch to Surveyor, "Export CSV" | A download `flat-b-takeoff.csv`; its row `area:room|name=1.01` has value 22.401, status signed, original 30.0, signed by Ana | yes |
@@ -256,13 +256,13 @@ The path
 - GP-6 Step 5: the turn for "How many doors are there?" shows the value "2", "One method", and exactly two mark
   buttons named `Mark <n>: door, counted`. [e2e]
 - GP-7 Step 6: the turn for "What is the net floor area of room 1.01?" shows "30.00 m²", "Methods disagree",
-  "22.40 m² by polygon_x_scale", "30.00 m² by printed_label" and one mark named `Mark 1: Küche, counted`. [e2e]
+  "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas" and one mark named `Mark 1: Küche, counted`. [e2e]
 - GP-8 Step 7: the turn for "What colour is the roof?" shows "I can't answer that from this drawing." and
   the reason "This question isn't one I can turn into a count…", no "code:" line, at least one question button,
   and no answer value. [e2e]
 - GP-9 Step 8: the "Surveyor" link reaches `#/p/<id>/d/<same drawing id>/surveyor`, whose "To review" group lists
-  "area of room (name 1.01)" and "area of room (name küche)", each with "Methods disagree". [e2e]
-- GP-10 Step 9: with "area of room (name 1.01)" selected, "Keep A: 22.40 m² (polygon_x_scale)" makes its row read
+  "area of room (name 1.01)" and "area of room (name Küche)", each with "Methods disagree". [e2e]
+- GP-10 Step 9: with "area of room (name 1.01)" selected, "Keep A: 22.40 m² (room outlines × sheet scale)" makes its row read
   22.40 m² and "Changed in review", and the detail "Settled at 22.40 m²". [e2e]
 - GP-11 Step 10: "Ana" in "Signing as" and "Sign off 22.40 m²" make the row read "Verified" and the detail
   "Signed off by Ana". [e2e]
@@ -273,7 +273,7 @@ The path
 - GP-14 Every step from 1 to 12 passes in both projects; the `phone` project uses no other steps or selectors than
   `desktop`. [e2e]
 - GP-28 Step 8a (06:00 scope): the "Surveyor" link reaches `#/p/<id>/d/<same drawing id>/surveyor`, whose side
-  panel lists the conflicts "area of room (name 1.01)" and "area of room (name küche)", each with "plans/flat-b.pdf",
+  panel lists the conflicts "area of room (name 1.01)" and "area of room (name Küche)", each with "plans/flat-b.pdf",
   "22.40 m² vs 30.00 m²" and "decided by rule". [e2e]
 - GP-15 Running `npm run e2e` twice in a row passes both times (a new temp data dir, and `fresh=true` resets the
   sign-off of the first run). [e2e, by hand once before merge]
@@ -344,10 +344,10 @@ Selectors
    | engineer | ask | button "Ask"; the question input labelled "Question" | EN-10 (the label is a proposal) |
    | engineer | one turn | each thread turn an `<article>` named by its question (`aria-label`) | proposal |
    | engineer | value | `data-testid="answer-value"` on the big value inside a turn | proposal |
-   | engineer | words | "One method", "Methods disagree", "22.40 m² by polygon_x_scale", "Verified by Ana, …", "I can't answer that from this drawing." | EN-31…EN-33, EN-39 |
+   | engineer | words | "One method", "Methods disagree", "22.40 m² by room outlines × sheet scale", "Verified by Ana, …", "I can't answer that from this drawing." | EN-31…EN-33, EN-39 |
    | viewer | marks | buttons named `Mark <n>: <label>, counted` | viewer badge `aria-label` |
    | surveyor | queue | group "To review", rows with `label` and status words | SV-3, status table |
-   | surveyor | settle | button "Keep A: 22.40 m² (polygon_x_scale)" | SV-30 |
+   | surveyor | settle | button "Keep A: 22.40 m² (room outlines × sheet scale)" | SV-30 |
    | surveyor | sign-off | textbox "Signing as", a button whose name starts "Sign off" | SV-35, SV-36 |
    | surveyor | signed | "Verified", "Signed off by Ana, …" | SV-38 |
    | surveyor | export | link "Export CSV" with `download` | API calls table |
