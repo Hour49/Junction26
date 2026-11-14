@@ -260,7 +260,7 @@ export function ConflictCard({
                 setMode('choosing');
               }}
             >
-              {state === 'rule' ? 'Modify' : 'Change'}
+              Modify
             </button>
           )}
           {!signed && state === 'yours' && mode === 'idle' && c.conflict.resolution && (

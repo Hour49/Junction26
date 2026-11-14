@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { never, mockApi, reply } from '../test/mockApi';
 import {
   ApiError,
+  askProject,
   askQuestion,
   getDrawing,
   getInfo,
@@ -93,6 +94,16 @@ describe('API client', () => {
     expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
     mockApi({ 'POST /api/ask': fx.answerRefused });
     await expect(askQuestion(fx.askRequest)).resolves.toEqual(fx.answerRefused);
+  });
+
+  it('CH-9 askProject posts {question} to the project and resolves project_ask.json; a 409 rejects', async () => {
+    const api = mockApi({ [`POST /api/projects/${pid}/ask`]: fx.projectAsk });
+    expect(await askProject(pid, fx.projectAsk.question)).toEqual(fx.projectAsk);
+    expect(api.calls[0]?.body).toEqual({ question: fx.projectAsk.question });
+    const init = api.fetch.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+    mockApi({ [`POST /api/projects/${pid}/ask`]: reply(409, fx.errorNotAllowed) });
+    await expect(askProject(pid, 'q')).rejects.toMatchObject({ status: 409 });
   });
 
   it('SH-29 pageUrl builds the fixture page URL with the width', () => {

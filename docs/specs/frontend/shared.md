@@ -68,11 +68,15 @@ As in every design's `<header>`, without the avatar (common brief: not built). T
   | Route | Links (current one marked) |
   | --- | --- |
   | home, account, not-found | none |
-  | project, file | Ingest (current), Conflicts |
-  | conflicts | Ingest, Conflicts (current) |
-  | workspace | Ingest, Conflicts, Engineer, Surveyor (the route's role current) |
+  | project, file | Ingest (current), Conflicts, Chat |
+  | conflicts | Ingest, Conflicts (current), Chat |
+  | chat | Ingest, Conflicts, Chat (current) |
+  | workspace | Ingest, Conflicts, Chat, Surveyor (Surveyor current on the surveyor route; on the engineer route none: no Engineer tab, Tudor 12:46 "remove the engineer tab") |
 
-  Hrefs: Ingest `#/p/<pid>`, Conflicts `#/p/<pid>/conflicts`, Engineer and Surveyor as SH-13 (keep `?q=`).
+  The chat is project-level, so Chat shows wherever a project is in the route (frontend-orch 13:06); Surveyor only
+  on drawing routes. Hrefs: Ingest `#/p/<pid>`, Conflicts `#/p/<pid>/conflicts`, Chat `#/p/<pid>/chat`, Surveyor as SH-13 (keeps
+  `?q=`). The engineer route itself stays (the chat's "Show it on <file>" and drawing links go there); only its tab is
+  gone.
 - Right (`margin-left: auto`): the project picker, the country picker, then a "Workspaces" link to `#/workspaces`.
   All three are pills as
   the design's header controls: `background: var(--v-fill)`, `border-radius: 980px`, `min-height: 48px`,
@@ -165,13 +169,15 @@ All are `margin: 0 auto`, flex column, `gap: 24px`. `main` keeps `min-width: 0; 
 | `account` | `#/workspaces` | `AccountScreen()` from `src/account/AccountScreen.tsx` (`ComponentType<Record<string, never>>`) |
 | `project` | `#/p/<pid>` (`?view=advanced` kept in `query`) | `ProjectScreen({projectId})`; it reads and writes `?view` itself with `useHash`, `parseRoute` and `routeHref` from `src/shell/route.ts` |
 | `conflicts` | `#/p/<pid>/conflicts` | `ConflictsScreen({projectId})` from `src/surveyor/ConflictsScreen.tsx` |
+| `chat` | `#/p/<pid>/chat` | `ProjectChat({projectId})` from `src/engineer/ProjectChat.tsx` (fe-engineer; chat.md, fe-chat brief 12:06) |
 | `file` | `#/p/<pid>/f/<fid>` | `FileTraceScreen({projectId, fileId})` |
 | `workspace` | `#/p/<pid>/d/<did>/engineer` / `surveyor` | `EngineerPage` / `SurveyorScreen({projectId, drawingId, query})` |
 
-`parseRoute` returns `{name: 'account', query}` and `{name: 'conflicts', projectId, query}`; ids keep their
+`parseRoute` returns `{name: 'account', query}`, `{name: 'conflicts', projectId, query}` and `{name: 'chat',
+projectId, query}`; ids keep their
 patterns, one trailing `/` is accepted, anything else is not-found. `routePath` gives `/workspaces` and
-`/p/<pid>/conflicts`; each screen is keyed by its path (a `?view` or `?q` change does not remount).
-`App`'s `Screens` gains `AccountScreen` and `ConflictsScreen`.
+`/p/<pid>/conflicts` and `/p/<pid>/chat`; each screen is keyed by its path (a `?view` or `?q` change does not
+remount). `App`'s `Screens` gains `AccountScreen`, `ConflictsScreen` and `ProjectChat`.
 
 ## Files owned
 
@@ -443,8 +449,9 @@ Header and project picker
   [component]
 - SH-12 A project name `<img src=x onerror=alert(1)>` shows as that literal text in the picker, and no `img`
   element is created. [component]
-- SH-13 On a drawing route the view links Ingest, Engineer, Surveyor point to `#/p/<pid>`, `#/p/<pid>/d/<did>/engineer`,
-  `#/p/<pid>/d/<did>/surveyor`; any `?q=` on the current route is kept on the Engineer and Surveyor links.
+- SH-13 On a drawing route the view links Ingest, Conflicts, Chat, Surveyor point to `#/p/<pid>`,
+  `#/p/<pid>/conflicts`, `#/p/<pid>/chat`, `#/p/<pid>/d/<did>/surveyor`; any `?q=` on the current route is kept on
+  the Surveyor link. No link is named "Engineer" (Tudor 12:46).
   [component]
 - SH-14 (superseded in the Vellum round by SH-56) The current view link has `aria-current="page"`, the others do not; on project and file routes only Ingest
   shows, current; on home and not-found no view links show. [component]
@@ -576,9 +583,9 @@ Vellum round (round 2)
 - SH-55 The header has one link named "Vellum" to `#/` holding the logo image (`alt=""`, `src` the bundled
   `vellum-logo.png`) and the text "Vellum"; a "Workspaces" link to `#/workspaces` with `aria-current="page"` only
   on that route; the project picker; the country picker; no user name or avatar. [component]
-- SH-56 The view links per route are those of the Header table (none on home, account and not-found; Ingest and
-  Conflicts on project, file and conflicts; all four on workspace), with the hrefs given, and exactly the current
-  one has `aria-current="page"`. Supersedes SH-14. [component]
+- SH-56 The view links per route are those of the Header table (none on home, account and not-found; Ingest,
+  Conflicts and Chat on project, file, conflicts and chat; Ingest, Conflicts, Chat, Surveyor on workspace), with the
+  hrefs given, and at most the current one has `aria-current="page"` (Chat on chat; none on the engineer route). Supersedes SH-14. [component]
 - SH-57 Base classes exist in `shell.css` with the designs' values: `.v-card` (radius `var(--v-radius)`, shadow
   `var(--v-shadow)`), `.v-btn` (accent background, `border-radius: 980px`, `min-height: 44px`),
   `.v-btn--secondary` (`--v-fill`), `.v-pill` and its four tones, `.v-segmented`, `.v-page` and its three widths,
@@ -595,6 +602,9 @@ Vellum round (round 2)
   background) and no `backdrop-filter`, and `z-index` ≥ 10; `:root` has `--v-header-h: 76px`; at ≤720 px the header is
   `position: static` and `--v-header-h` is `0px`. In the browser: at 1440 the header is 76 px high and scrolled
   engineer content does not show through it; at 390 the header scrolls away. [unit: parse the CSS; live check]
+- SH-64 (fe-chat) `parseRoute('#/p/5e0c1a2b3d4f/chat')` (and with a trailing `/`) → `chat` with that `projectId`;
+  `#/p/XYZ/chat` and `#/p/5e0c1a2b3d4f/chat/x` → not-found; `routeHref` round-trips it. `App` mounts `ProjectChat`
+  with `projectId` on it; the header shows Ingest, Conflicts and Chat there, Chat marked current. [unit + component]
 - SH-63 `index.html`'s `<title>` equals `PRODUCT_NAME` ("Vellum"). [unit]
 - SH-61 The country picker: a button "Country rules: Finland" with `data-pending="country-rules"` and
   `aria-expanded="false"`; clicking opens the group "Building rules the agent follows" with Finland
