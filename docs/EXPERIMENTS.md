@@ -3,7 +3,7 @@
 On the night of 13-14 November the team ran about a dozen experiment tracks on the CubiCasa5K raster sheets (the
 part of the Stoa dataset where we read a drawing from pixels). This page lists every arm worth naming, what it
 changed, what it scored, whether it shipped, and what it cost. It is the "how we improved" record that
-[GOLDEN.md](GOLDEN.md) points at. Final as of 2026-11-14 09:15: every track is closed (the last arm, integ-5, closed at
+[GOLDEN.md](GOLDEN.md) points at. Final as of 2026-11-14 09:14: every track is closed (the last arm, integ-5, closed at
 08:59) and no GPU machine is running.
 
 ## Protocol
@@ -79,10 +79,10 @@ Full schedule (val, family exact; differences are paired against the named paren
 | C-yolo26s | YOLO26 S, 1024 px | 62.7 / 44.7 | n/a (every family above the prior except shower+bathtub, -4.1 pp, p 0.07) | first leader | 0.27 |
 | A-rfdetr-s | RF-DETR S, 1024 px | 60.6 / 49.7 | -2.2 [-3.5, -0.9] vs C-yolo26s | **no-ship**; windows +5.1 pp, sinks -11.1 pp | 1.03 |
 | C-yolo26s-1536 | S at 1536 px | 64.9 / 50.5 | +1.9 [+0.9, +2.9] vs C-yolo26s | shipped in the QA build (cut-off 05:25); replaced by L in config C | 0.60 |
-| C-yolo26m | M, 1024 px | 68.5 / 51.3 | +2.7 [+1.7, +3.6] vs C-yolo26s; +0.7 [-0.2, +1.8] vs 1536 | wins over S; next-checkpoint candidate | 0.9 |
+| C-yolo26m | M, 1024 px | 68.5 / 51.3 | +2.7 [+1.7, +3.6] vs C-yolo26s; +0.7 [-0.2, +1.8] vs 1536 | wins over S at half the compute of L | 0.9 |
 | C-yolo26m-seed1 | the M recipe, seed 1 | 64.5 / 47.9 | -1.6 [-2.5, -0.6] vs M seed 0 | the measure of seed noise | 0.9 |
 | C-yolo26l | L, 1024 px, one view | 71.3 / 52.9 | +1.0 [+0.1, +1.9] vs M; **+1.8 [+0.7, +2.8] vs shipped 1536** | best one-view checkpoint | 1.1 |
-| C-yolo26l-v8 | L, eight views | 72.0 / 54.8 | +2.8 [+1.8, +3.8] vs shipped 1536 | **best row**; candidate for the next checkpoint (3 s per page on 4 CPU threads) | (weights of L) |
+| C-yolo26l-v8 | L, eight views | 72.0 / 54.8 | +2.8 [+1.8, +3.8] vs shipped 1536 | **best row**, but precomputed only: the runtime has no eight-view path for L (3 s per page on 4 CPU threads) | (weights of L) |
 | C-yolo26x | X, 1024 px | 70.3 / 46.3 | -0.1 [-1.0, +0.8] vs L | no-ship: twice L's forward pass for the same score | 1.8 |
 | C-yolo26l-1536 | L at 1536 px | 69.2 / 51.3 | -0.2 [-1.2, +0.8] vs L | no-ship | 2.5 |
 | C-yolo26m-1536 | M at 1536 px | 68.8 / 46.0 | -0.0 [-1.0, +1.0] vs M | no-ship | 2.0 |
@@ -239,7 +239,7 @@ trained on train only.
 | **G3** | detector for doors and plans, Bl for every other element and rooms (classes picked on val) | **82.4%**; +26.5 [+24.0, +28.9] vs prior | +1.4 [+0.4, +2.4] vs G2 | best end-to-end seg arm; not shipped: Gemini rooms beat it | 0 |
 
 Golden v2 (CubiCasa, full pipeline): seg Bl alone 1022/1342, seg G3 alone 1104/1342, seg G (detector C + seg C rooms)
-1006/1342, against 1124/1342 for the shipped config. The window family stayed the weak one at about 45%; counting rules,
+1006/1342, against 1124/1342 for the demo config before config C (1132/1342 for C). The window family stayed the weak one at about 45%; counting rules,
 test-time augmentation, centre heatmaps and shrunk masks did not move it. Total spend: about 8.3 EUR of 30.
 
 ---
@@ -261,7 +261,7 @@ Task: can a vision-language model count elements directly? Qwen3-VL-4B was fine-
 | B1-tta4 | four-turn median vote | - | +1.6 [+0.3, +2.9] vs B1 | better | ~0.4 |
 | B3 | 90 minutes of training | - | +4.7 pp vs B1 (door +7.9 [+1.8, +14.0], window +8.0 [+2.9, +13.0]) | more training is the biggest lever | ~1.8 |
 | B7 | continued to 1.07 epochs | - | -0.0 [-1.1, +1.0] vs B3 | plateau | ~1.0 |
-| **B3-tta4** | B3 plus four-turn vote | **52.6%** | +0.6 vs B3 (n.s.); **-4.4 [-6.2, -2.6] vs the shipped detector** | best VLM; behind on every element family | ~0.4 |
+| **B3-tta4** | B3 plus four-turn vote | **52.6%** | +0.6 vs B3 (n.s.); **-4.4 [-6.2, -2.6] vs the 1536 detector shipped at the time** | best VLM; behind on every element family | ~0.4 |
 
 Recommendation recorded in the log: do not use a VLM as a counter. The one use with evidence is a second count for the
 gate: where B3-tta4 and the detector agree the detector is exact far more often (doors 0.64 against 0.43, windows 0.70
@@ -367,7 +367,7 @@ constant is fitted on val. Median error of the scale, val:
 | areas-3 | doors from the shipped 1536 detector | val 5.7% (no difference); golden median 29.4% to 8.1% | golden within 10% 27.1% to 56.2% | shipped |
 
 Golden v2 (79 CubiCasa files, run once with the frozen config): estimated room areas, 177 matched rooms, median error
-44.5% (no doors) to 23.6% (with doors). In the backend (`RASTER_SCALE=priors`, off by default) the Part 2 score is
+44.5% (no doors) to 23.6% (with doors). In the backend (`RASTER_SCALE=priors`; on in the demo config, off as the code default) the Part 2 score is
 unchanged (2701/2948) but estimate questions go from 0/13 to 5/13 within 20%. The printed uncertainty was recalibrated
 per door-count group (PR #82): on val the stated band covers the error 0.69 of the time at 1x and 0.88 at 2x, and
 sheets with no detected door (5 of 376) now get no estimate.
@@ -438,9 +438,9 @@ pick" it was made from golden and is for reference only.
 | C-yolo26s + G4 Gemini rooms | 2647 | 1070 | |
 | C-yolo26s-1536 + G4 | 2685 | 1108 | |
 | region:C-yolo26s-1536 + G4 | 2691 | 1114 | |
-| **`decisions-s1536:region:C-yolo26s-1536` + G4-regpred** | **2701 (91.6%)** | **1124** | **the val-chosen demo config**; holdout 92.9% |
+| **`decisions-s1536:region:C-yolo26s-1536` + G4-regpred** | **2701 (91.6%)** | **1124** | the demo config before config C; holdout 92.9% |
 | golden's val-picked per-family policy | 2717 | 1140 | families chosen on val per family; includes arms with no runtime source |
-| C-yolo26m-v8 + G4-regpred (precomputed) | 2713 | 1136 | val-chosen detector, no runtime path for eight views |
+| C-yolo26m-v8 + G4-regpred (precomputed) | 2713 | 1136 | val-chosen detector; the runtime `region:` source has no M or L entry |
 | C-yolo26l-v8 + G4-regpred (precomputed) | 2719 | 1142 | not a val pick over M (+0.6 [-0.2, +1.4]) |
 | gold as the arm (dev gold for 69 of 79) | 2795 | 1250 | upper bound |
 
@@ -497,11 +497,13 @@ All of it is selected by settings, so each piece can be switched off:
 - **Rooms:** the Gemini whole-page reader (G4) with rooms outside the region model's predicted flat dropped (`regionrooms`). Kitchen
   questions stay with the prior, which beats every reader there.
 - **Ingest signal:** Gemini's photo flag at P >= 0.9, with the probe as the fallback if the call fails.
-- **Scale:** `RASTER_SCALE=priors` (door-width prior, page-size prior), off by default; estimates are always labelled.
+- **Scale:** `RASTER_SCALE=priors` (door-width prior, page-size prior) is on in the demo config (PR #82; `tools/qa-env.sh config`) and off only as the code default. Estimates are always labelled.
 - **Behind a setting, default off:** the EU open-model route (PR #103, -1.9 pp [-2.8, -1.0] on val), the photo switch
-  (PR #95, no better than C on photos with gold), the eight-view and region-window detector (the runtime reads one view).
-- **Not built:** eight views of L (+2.8 pp [+1.8, +3.8] against the old shipped 1536 arm on val; precomputed on golden at
-  2719 with the precomputed rooms), which needs the runtime to read eight views.
+  (PR #95, no better than C on photos with gold).
+- **Multi-view and region windows at runtime:** the `region:<arm>` source runs eight views with per-plan windows for
+  `C-yolo26s-nms` and one view for `C-yolo26s-1536`; those are the only two arms in `raster_region/arms.json`, so
+  `region:` refuses the M and L detectors. The `detector:` source reads one view. Eight views of L (+2.8 pp [+1.8, +3.8]
+  against the old 1536 arm on val; 2719/2948 on golden with precomputed rooms) therefore exist only as precomputed rows.
 
 ## What didn't work and why
 
@@ -529,9 +531,10 @@ All of it is selected by settings, so each piece can be switched off:
   worse than the OCR vote; the answerability and conflict-triage gates add only false refusals.
 - **Template matching** (normalised cross-correlation, with and without DINOv2) cannot count doors and windows because
   lengths vary and the symbols fire along walls.
-- **Confidence gates certified on test.** The Learn-then-Test certificate opens only for plans at val size, because the
-  95% bound needs about 60 plans per error. Elements and rooms stay shut, because Gemini is at least 0.95 sure of a few
-  wrong counts.
+- **Confidence gates at val size.** The Learn-then-Test certificate opens only for plans, because the 95% bound needs
+  about 60 plans per error. On the first gate (S1536) elements and rooms stayed shut, because Gemini is at least 0.95 sure
+  of a few wrong counts. The refit for config C opens elements on val at 0.771, but the test certificate is on plans, the
+  unit, and rooms stay shut.
 
 ## Gaps and caveats (final)
 
@@ -541,11 +544,14 @@ All of it is selected by settings, so each piece can be switched off:
   rare classes (29 bathtubs, 14 saunas).
 - **Missing intervals.** Rows with no interval are marked as such or give per-family exact rates from the log: the first
   OCR and seg rows, the cvx template-matching rows (task closed before `ab` ran) and the pass-12 detector rows. Where a number has only a question-level p (McNemar), it is marked and not used.
-- **Missing costs.** The D-FINE arm and the photo arms have no per-arm cost (photo: 3.05 EUR for the whole track); areas costs nothing. GPU rental, summed from the ledger's
-  per-track lines (the ledger has no grand total), is about 55.8 EUR (detector 20.2, seg 8.3, vlm 7.6, eu 10.2, photo 3.05,
-  rl 2.2, serve 1.8, cvx 1.6, ocr 0.6, region 0.2); the Verda balance was 146.24 EUR at 08:58. Hosted-model calls: decide 1.81
-  USD, decide2 0.97, ocr about 3.1, agent 13.31, the test read of config C about 2.47, the live photo tests about 0.68 (about
-  22.4 USD in all; the integ golden runs reuse cached replies).
+- **Missing costs.** The D-FINE arm and the photo arms have no per-arm cost (photo: 3.05 EUR for the whole track); areas costs nothing. GPU rental in all: 53.76 EUR, from the provider's
+  balance (200.00 EUR at the first check at 02:08, 146.24 EUR at 08:58). The ledger's per-track lines sum to about 55.8 EUR
+  (detector 20.2, seg 8.3, vlm 7.6, eu 10.2, photo 3.05, rl 2.2, serve 1.8, cvx 1.6, ocr 0.6, region 0.2), so they overstate
+  the bill by about 2 EUR; they are estimates. Hosted-model calls, summed from the lines the logs give: decide 1.81 USD,
+  decide2 0.97, ocr (including the arm G rooms reader on val, about 2.35, and its golden reads) about 3.1, agent 13.31, the
+  test read of config C about 2.47, the live photo tests about 0.68, golden-18's runtime rooms reads about 0.44, integ-6's
+  cache-race check about 0.31: about 23.1 USD in all. The EU track logs no Gemini spend, and the integ golden runs reuse
+  cached replies.
 - **Where logs disagree.** (1) The leaderboard and the track logs score different denominators (see "How to read the
   numbers"). (2) C-yolo26s-1536 is 57.0% in the leaderboard (torch) and 57.1% in region's re-run on the ONNX export; the
   runtime reads the ONNX file. (3) The areas log carried -20.9 [-26.5, -15.6] for C-tot against C; a re-run, and the
