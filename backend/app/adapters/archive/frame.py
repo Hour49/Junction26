@@ -4,7 +4,8 @@ and the served page are then in one frame, whatever a later reader does with EXI
 applies it on load, Pillow does not).
 
 An image with no EXIF turn (orientation 1 or none) keeps its bytes. A turned one is written
-again: a PNG as PNG, a JPEG as JPEG at quality 95, without the orientation tag. The photo
+again: a PNG as PNG, a JPEG as JPEG at quality 95, without the orientation tag. A 16-bit greyscale
+PNG is written again as 8-bit (`eight_bit`), so no later reader clips it to white. The photo
 rectifier (prototypes/photo/) is the `Rectifier` port, applied to the upright image after this.
 """
 
@@ -12,6 +13,7 @@ import io
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from app.adapters.eight_bit import eight_bit
 from app.core.ingest.model import ContentKind, Normalised, Rectified
 
 ORIENTATION = 0x0112
@@ -24,10 +26,12 @@ class ExifFrame:
             with Image.open(io.BytesIO(data)) as image:
                 image_format = image.format
                 exif = image.getexif().get(ORIENTATION)
-                if exif in (None, 1) or image_format not in ("PNG", "JPEG"):
+                turned = exif not in (None, 1) and image_format in ("PNG", "JPEG")
+                deep = image_format == "PNG" and image.mode.startswith("I;16")
+                if not turned and not deep:
                     width, height = image.size
                     return data, Normalised(exif=exif, width=width, height=height)
-                upright = ImageOps.exif_transpose(image)
+                upright = eight_bit(ImageOps.exif_transpose(image) if turned else image)
         except (UnidentifiedImageError, OSError):
             return None
         buffer = io.BytesIO()
