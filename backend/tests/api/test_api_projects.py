@@ -478,21 +478,27 @@ def test_a_fresh_sample_is_ingested_again_not_reused(
     assert [file["reused"] for file in client.get(fresh["url"]).json()["files"]] == [False]
 
 
-def test_the_reader_names_a_second_counter_only_when_one_measured_the_drawing(
+def test_the_reader_names_a_second_counter_only_for_what_it_measured(
     client: TestClient, plan_pdf: bytes
 ) -> None:
-    """R1-5-3: a raster plan with no second count read "second count: ifc" next to "no second
-    check"; the reader names the second counter only when the drawing was measured twice."""
+    """R1-5-3 / R1-2-1: a raster plan, and a door count on a lone swiss PDF, read "second count
+    by ifc" next to "no second check". The drawing names its second counter only when it measured
+    something on it; an answer only when it measured the answered quantity."""
 
-    def reader(data: bytes, name: str) -> dict[str, object]:
+    def drawing_of(data: bytes, name: str) -> str:
         project = client.get(f"/api/projects/{upload(client, data, name)}").json()
-        drawing_id = project["drawings"][0]["drawing_id"]
-        asked = client.post(
-            "/api/ask", json={"drawing_id": drawing_id, "question": "How many doors are there?"}
-        )
-        shown = client.get(f"/api/drawings/{drawing_id}").json()["reader"]
-        assert asked.json()["reader"] == shown
-        return shown
+        return project["drawings"][0]["drawing_id"]
 
-    assert reader(plan_png(), "plan.png")["second_counter"] == "none"
-    assert reader(plan_pdf, "plan.pdf")["second_counter"] == "ifc"
+    def counter(drawing_id: str, question: str | None = None) -> object:
+        if question is None:
+            return client.get(f"/api/drawings/{drawing_id}").json()["reader"]["second_counter"]
+        body = {"drawing_id": drawing_id, "question": question}
+        return client.post("/api/ask", json=body).json()["reader"]["second_counter"]
+
+    png = drawing_of(plan_png(), "plan.png")
+    assert (counter(png), counter(png, "How many doors are there?")) == ("none", "none")
+    pdf = drawing_of(plan_pdf, "plan.pdf")  # its printed room areas are measured twice
+    assert counter(pdf) == "ifc"
+    assert counter(pdf, "What is the net floor area of room 2.01?") == "ifc"
+    assert counter(pdf, "How many doors are there?") == "none"  # one method
+    assert counter(pdf, "What colour is the roof?") == "none"

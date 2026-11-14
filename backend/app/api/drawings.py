@@ -85,7 +85,7 @@ def drawing(
     return DrawingView(
         id=drawing_id,
         file=found.file if project is None else named.path,
-        reader=reader_of(named, found, readers(settings)),
+        reader=reader_of(named, found.conflicts is not None, readers(settings)),
         credit=credit_of(named, ingest, credits),
         pages=page_views(drawing_id, found.pages, info.normalised),
         suggestions=list(

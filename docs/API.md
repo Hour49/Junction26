@@ -1100,8 +1100,8 @@ project that does not hold the drawing is 404.
 ```
 
 - `reader`: how the drawing was read: the route, the file it was read from (`source`), that route's reader
-  (`extractor`; `hello` reads nothing), the second counter (`"none"` when nothing on the drawing was
-  measured twice) and the question parser.
+  (`extractor`; `hello` reads nothing), the second counter (`"none"` when it measured nothing on the
+  drawing; in an answer, `"none"` unless it measured the answered quantity) and the question parser.
 - `credit`: the licence credit to show under every page of the drawing, or null. A file of the Stoa
   dataset or a Commons demo photo is recognised by its content (whatever its upload name) and gets
   its line from the dataset's `data/<source>/LICENSE.md` or the photos' manifest; a user's own
@@ -1281,7 +1281,7 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "route": "vector",
     "source": "plans/flat-a.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
@@ -1801,7 +1801,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "route": "vector",
     "source": "plans/flat-a.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
@@ -2045,7 +2045,7 @@ A question the drawing cannot answer:
     "route": "vector",
     "source": "plans/flat-a.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,

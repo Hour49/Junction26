@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.core.drawing.model import Drawing, Page
+from app.core.drawing.model import Page
 from app.core.ingest.model import DrawingInfo, FileState, Normalised, ProjectStatus
 from app.core.pipeline.model import Route
 
@@ -58,15 +58,15 @@ class Reader(View):
     question_parser: str
 
 
-def reader_of(info: DrawingInfo, drawing: Drawing, names: dict[str, str]) -> Reader:
-    """`names`: composition.readers(settings), the adapter of each route and port. The second
-    counter is named only when it measured this drawing (stage 8 wrote its conflicts), else
-    "none"."""
+def reader_of(info: DrawingInfo, twice: bool, names: dict[str, str]) -> Reader:
+    """`names`: composition.readers(settings), the adapter of each route and port. `twice`: the
+    second counter measured what is shown (a drawing: anything on it, stage 8 wrote its
+    conflicts; an answer: the answered quantity); else it is named "none"."""
     return Reader(
         route=info.route,
         source=info.source,
         extractor=None if info.route is None else names[info.route],
-        second_counter="none" if drawing.conflicts is None else names["second_counter"],
+        second_counter=names["second_counter"] if twice else "none",
         question_parser=names["question_parser"],
     )
 

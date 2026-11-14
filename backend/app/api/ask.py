@@ -159,7 +159,7 @@ def ask_route(
         refusal=asked.refusal,
         method=line.method,
         explanation=line.explanation,
-        reader=reader_of(named, drawing, readers(settings)),
+        reader=reader_of(named, shown is not None and shown.second is not None, readers(settings)),
         cost_usd=line.cost_usd,
         latency_s=line.latency_s,
         line=line,
