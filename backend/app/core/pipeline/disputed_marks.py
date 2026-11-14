@@ -18,12 +18,16 @@ detector's first view, a second detector in one view, the segmentation network's
 k = 1: an error of 93 of the 170 wrong answers is among the places listed, 1.39 places per answer
 that is not sure (docs/EXPERIMENTS.md section 13, "Double-check marks"). Errors that every reader
 makes alike are not found this way.
+
+At ask time the two sides come from the drawing: `counted_elements(drawing, family)` and
+`reader_elements(drawing, family)`, the second filled at ingest by DOUBLE_CHECK_READERS.
 """
 
 from collections.abc import Mapping, Sequence
 
-from app.core.drawing.model import Box, Element
+from app.core.drawing.model import ELEMENT_CLASSES, Box, Drawing, Element
 from app.core.model import Frozen
+from app.core.pipeline.rules import COMBINED
 
 ANSWER = "answer"
 OVERLAP = 0.3  # of the smaller box: from here two boxes are one place
@@ -79,6 +83,34 @@ def disputed_marks(
         found.append((against, strength, item))
     found.sort(key=lambda entry: (-entry[0], -entry[1]))
     return tuple(item for _, _, item in found[:limit])
+
+
+def counted_elements(drawing: Drawing, family: str) -> tuple[Element, ...]:
+    """The drawing's elements of `family`: an element class, or a count of several (`sauna`,
+    `shower+bathtub`), which gives the elements of each class in it. For `sauna` these are the
+    stoves, also when the count took the sauna rooms."""
+    classes = _classes(family)
+    return tuple(element for element in drawing.elements if element.class_ in classes)
+
+
+def reader_elements(drawing: Drawing, family: str) -> dict[str, tuple[Element, ...]]:
+    """What each double-check reader of the drawing saw of `family`, by the reader's name, to
+    set against `counted_elements`. A reader that did not look for every class of the family is
+    left out: it has no say, which is not the same as seeing nothing. Empty when no reader ran,
+    and for a family with no element class (a room type)."""
+    classes = _classes(family)
+    if not classes:
+        return {}
+    return {
+        name: tuple(element for element in view.elements if element.class_ in classes)
+        for name, view in (drawing.double_check or {}).items()
+        if all(kind in view.read for kind in classes)
+    }
+
+
+def _classes(family: str) -> tuple[str, ...]:
+    parts = next((count.parts for count in COMBINED if count.key == family), (family,))
+    return tuple(part for part in parts if part in ELEMENT_CLASSES)
 
 
 def _places(boxes: Mapping[str, Sequence[Element]]) -> list[tuple[Element, dict[str, Element]]]:

@@ -614,6 +614,48 @@
       "title": "Plan",
       "type": "object"
     },
+    "ReaderView": {
+      "additionalProperties": false,
+      "description": "What one double-check reader saw on the sheet. Never scored, never counted.",
+      "properties": {
+        "read": {
+          "description": "the element classes it looked for",
+          "items": {
+            "enum": [
+              "door",
+              "window",
+              "toilet",
+              "sink",
+              "shower",
+              "bathtub",
+              "sauna_stove",
+              "stair",
+              "wall",
+              "column",
+              "beam",
+              "slab",
+              "railing",
+              "furniture"
+            ],
+            "type": "string"
+          },
+          "title": "Read",
+          "type": "array"
+        },
+        "elements": {
+          "items": {
+            "$ref": "#/$defs/Element"
+          },
+          "title": "Elements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "read"
+      ],
+      "title": "ReaderView",
+      "type": "object"
+    },
     "Resolution": {
       "additionalProperties": false,
       "properties": {
@@ -1325,6 +1367,22 @@
       "default": null,
       "description": "every object of the BIM model the file comes from, all storeys, drawn here or not; null: the source has no model",
       "title": "Model Objects"
+    },
+    "double_check": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/ReaderView"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "what other readers saw on the sheet, by reader name, for marking where they disagree with a count; never scored; null: none ran",
+      "title": "Double Check"
     },
     "notes": {
       "items": {

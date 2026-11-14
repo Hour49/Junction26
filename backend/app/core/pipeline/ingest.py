@@ -189,6 +189,7 @@ def _ingest_sheet(
         conflicts=tuple(compared) if again else None,
         read=found.read,
         model_objects=found.model_objects,
+        double_check=found.double_check,
         notes=found.notes,
     )
     counted = apply_rules(drawing.marks_by_quantity())
