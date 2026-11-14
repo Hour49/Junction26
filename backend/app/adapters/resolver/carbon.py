@@ -44,8 +44,11 @@ log = logging.getLogger(__name__)
 MODEL = "gemini-4-carbon"
 USD_PER_M_INPUT = 4.00
 USD_PER_M_OUTPUT = 20.00
-PROMPT_VERSION = "carbon-1"  # change it with PROMPT, SCHEMA or the images: the cache key holds it
+PROMPT_VERSION = "carbon-2"  # change it with PROMPT, SCHEMA or the images: the cache key holds it
 TEMPERATURE = 0.0
+# carbon-first (.agents/exp/carbon-first.md): thinking high cost 22x, took minutes and mostly
+# ran out of output; low read 36 of 40 counts at under a cent a page
+THINKING = "low"
 MAX_TOKENS = 8192
 PAGE_SIDE = 1536  # px: a whole page, long side
 CROP_SIDE = 1024  # px: a crop, long side at most (never enlarged past the rendered page)
@@ -134,6 +137,7 @@ class CarbonClient:
                 "maxOutputTokens": MAX_TOKENS,
                 "responseMimeType": "application/json",
                 "responseSchema": SCHEMA,
+                "thinkingConfig": {"thinkingLevel": THINKING},
             },
         }
         request = urllib.request.Request(
@@ -210,7 +214,8 @@ def _looked(spot: Spot) -> ValueMark:
 
 
 def request_parts(request: ResolveRequest, page: Page) -> list[dict[str, Any]]:
-    """The prompt and the images: each page the spots are on, then a crop per spot."""
+    """The prompt and the images: each page the spots or the values' marks are on (page 1 when
+    none is), then a crop per spot."""
     unit = "" if request.unit == "count" else f" {request.unit}"
     lines = [
         PROMPT[request.kind],
@@ -227,7 +232,8 @@ def request_parts(request: ResolveRequest, page: Page) -> list[dict[str, Any]]:
     ]
     parts: list[dict[str, Any]] = [{"text": "\n".join(lines)}]
     rendered: dict[int, Image.Image] = {}
-    for number in sorted({spot.page for spot in request.spots}):
+    marked = {mark.page for candidate in request.candidates for mark in candidate.marks}
+    for number in sorted({spot.page for spot in request.spots} | marked or {1}):
         rendered[number] = Image.open(io.BytesIO(page(number))).convert("RGB")
         parts += [{"text": f"The whole page {number}:"}, _jpeg(_fit(rendered[number], PAGE_SIDE))]
     for at, spot in enumerate(request.spots, 1):

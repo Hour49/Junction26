@@ -185,6 +185,28 @@ def test_a_page_that_cannot_be_rendered_is_no_reply(tmp_path: Path) -> None:
     assert transport.sent == []
 
 
+def test_with_no_spot_or_mark_the_first_page_is_shown(tmp_path: Path) -> None:
+    from app.adapters.resolver.carbon import request_parts
+
+    bare = door_request().model_copy(
+        update={"spots": (), "candidates": (Candidate(value=2, source="the answer"),)}
+    )
+    pages: list[int] = []
+
+    def page(number: int) -> bytes:
+        pages.append(number)
+        return page_png(number)
+
+    parts = request_parts(bare, page)
+    assert pages == [1] and sum("inlineData" in part for part in parts) == 1
+
+
+def test_thinking_is_low(tmp_path: Path) -> None:
+    transport = Transport(answer(PICK))
+    resolver(tmp_path, transport).resolve(door_request(), page_png)
+    assert transport.sent[0]["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "low"}
+
+
 def test_an_answer_check_says_so_in_the_prompt(tmp_path: Path) -> None:
     transport = Transport(answer(PICK))
     resolver(tmp_path, transport).resolve(door_request("answer"), page_png)
