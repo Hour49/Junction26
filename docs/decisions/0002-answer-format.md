@@ -86,3 +86,14 @@ whole words. answer_v1 itself does not change: the answer stays a string, and th
 exact match. Gold makers write the claims file: review agents write the lines (holdout ones included, as for the
 counts-only gold of the eval files). The system that answers, and the agents who build it, never read it. Rules:
 [docs/GOLDEN.md](../GOLDEN.md) "Text claims".
+
+## Amendment, 2026-11-14 08:37: `sure`
+
+- Decided by: the orchestrator (golden-15 brief, golden-19 messages of 2026-11-14 08:20 and ~08:35); written by agent
+  golden (worker).
+
+answer_v1.1 gets one more optional field, `sure` (bool or null): true or false only when golden's gate
+(`GATE_POLICY`, `eval/results/gate/gate-C-L-swap.json`) covers the answer's family and the answer has a g1main
+score (at or above the family's threshold, or below it), null otherwise; the gate was chosen on val and certified
+once on test: of the plans marked sure, at least 96.2% have every sure answer exact (374 of 376 test plans, 366
+exact, one-sided 95% bound).

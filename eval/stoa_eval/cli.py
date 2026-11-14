@@ -7,6 +7,7 @@ import fnmatch
 import hashlib
 import json
 import multiprocessing
+import os
 import re
 import shutil
 import subprocess
@@ -1061,7 +1062,11 @@ def _modified(folder: Path) -> str:
 
 
 def _repo_path(path: Path) -> str:
-    """Repo-relative when the path is inside the repo, else absolute."""
+    """Repo-relative when the path is inside the repo (also through a linked data/, as in a
+    worktree), else absolute: a record that may be committed never holds a home path."""
+    given = Path(os.path.normpath(path.absolute()))
+    if given.is_relative_to(REPO):
+        return given.relative_to(REPO).as_posix()
     resolved = path.resolve()
     return (resolved.relative_to(REPO) if resolved.is_relative_to(REPO) else resolved).as_posix()
 

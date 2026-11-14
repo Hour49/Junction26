@@ -344,7 +344,8 @@ kept in `test` (its file and certificate). `arm` (with `family_arms`) is what th
 product that answers a family with another arm uses an untested threshold there.
 
 The current file (2026-11-14 08:25, golden-19) is config C's, the shipped demo config (#102,
-`tools/qa-env.sh config`, which now passes `GATE_POLICY=../data/stoa/exp/gate.json`). Arm
+`tools/qa-env.sh config`, which passes a frozen, committed copy:
+`GATE_POLICY=../eval/results/gate/gate-C-L-swap.json`, so a refit changes the demo only with a commit). Arm
 `ab/runtime-C-L-swap`: integ's runs of the whole config through the backend runtime, val
 (`integ/val/C-L-swap`) and its single test run (`integ/test/C-L-swap`) linked into one folder so both name the
 same arm; signal g1main from the backend's own Decisions caches (`integ/decisions-cache-val`, `-test`).

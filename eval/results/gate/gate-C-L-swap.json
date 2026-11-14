@@ -1,0 +1,104 @@
+{
+  "schema": "gate_policy_v1",
+  "generated": "2026-11-14T08:36:28+02:00",
+  "part": "val",
+  "split_sha256": "9c762d68a698dd45a6c1ca4fa7fae39f19199aae470d1b195ed82a873d8c48e9",
+  "arm": "ab-runtime-C-L-swap",
+  "second": null,
+  "family_arms": {},
+  "swap": null,
+  "target": 0.95,
+  "source": "data/stoa/exp/ab/gate-ab-runtime-C-L-swap-val.json",
+  "certified": true,
+  "test": {
+    "source": "data/stoa/exp/ab/gate-ab-runtime-C-L-swap-test.json",
+    "certificate": {
+      "plans": 374,
+      "of_plans": 376,
+      "exact_plans": 366,
+      "lower_bound": 0.9617363906297525,
+      "opens": 0.9946808510638298,
+      "sentence": "test: of the plans marked sure, at least 96.2% have every sure answer exact (374 plans, 95% bound); the gate opens on 99.5% of plans"
+    }
+  },
+  "families": {
+    "door": {
+      "signal": "g1main",
+      "threshold": 0.7713326850605093,
+      "group": "elements",
+      "val": {
+        "note": "chosen on val, not a guarantee",
+        "answers": 145,
+        "sure": 1,
+        "exact": 1,
+        "coverage": 0.006896551724137931,
+        "bound": 0.04999999999999998
+      }
+    },
+    "plan": {
+      "signal": "g1main",
+      "threshold": 0.014388684120728277,
+      "group": "plans",
+      "val": {
+        "note": "chosen on val, not a guarantee",
+        "answers": 188,
+        "sure": 188,
+        "exact": 185,
+        "coverage": 1.0,
+        "bound": 0.9592759752773029
+      }
+    },
+    "shower+bathtub": {
+      "signal": "g1main",
+      "threshold": 0.7713326850605093,
+      "group": "elements",
+      "val": {
+        "note": "chosen on val, not a guarantee",
+        "answers": 179,
+        "sure": 43,
+        "exact": 43,
+        "coverage": 0.24022346368715083,
+        "bound": 0.9327032465861372
+      }
+    },
+    "sink": {
+      "signal": "g1main",
+      "threshold": 0.7713326850605093,
+      "group": "elements",
+      "val": {
+        "note": "chosen on val, not a guarantee",
+        "answers": 186,
+        "sure": 25,
+        "exact": 25,
+        "coverage": 0.13440860215053763,
+        "bound": 0.8870718549931552
+      }
+    },
+    "toilet": {
+      "signal": "g1main",
+      "threshold": 0.7713326850605093,
+      "group": "elements",
+      "val": {
+        "note": "chosen on val, not a guarantee",
+        "answers": 188,
+        "sure": 117,
+        "exact": 116,
+        "coverage": 0.6223404255319149,
+        "bound": 0.9600971178719362
+      }
+    },
+    "window": {
+      "signal": "g1main",
+      "threshold": 0.7713326850605093,
+      "group": "elements",
+      "val": {
+        "note": "chosen on val, not a guarantee",
+        "answers": 188,
+        "sure": 1,
+        "exact": 1,
+        "coverage": 0.005319148936170213,
+        "bound": 0.04999999999999998
+      }
+    }
+  }
+}

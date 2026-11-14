@@ -368,6 +368,24 @@ def test_an_answer_carries_the_pipeline_s_score_named_and_uncalibrated_never_in_
     assert "decisions" not in (answer["explanation"] or "")
 
 
+def test_an_answer_is_sure_by_golden_s_gate_and_has_no_verdict_without_a_score(
+    client: TestClient, plan_pdf: bytes, raster: tuple[TestClient, str]
+) -> None:
+    images, drawing_id = raster
+    seen: list[tuple[str, str, object, bytes]] = []
+    for gate, sure in (({"door": 0.8}, True), ({"door": 0.9}, False), ({"window": 0.1}, None)):
+        for app in (images, client):
+            state = cast(FastAPI, app.app).state
+            state.answering = replace(
+                state.answering, confidence=partial(Rated, seen), signal=DECISIONS_SIGNAL,
+                sure_at=gate,
+            )  # fmt: skip
+        assert ask(images, drawing_id, DOORS)["line"]["sure"] is sure  # Rated says 0.87
+    vector = client.get(f"/api/projects/{upload(client, plan_pdf)}").json()["drawings"][0]
+    line = ask(client, vector["drawing_id"], DOORS)["line"]  # vector route: no score
+    assert (line["answer"], line["sure"]) == (2, None)
+
+
 def test_a_count_of_rooms_has_one_key_whatever_each_room_is_called(
     raster: tuple[TestClient, str],
 ) -> None:

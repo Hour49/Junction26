@@ -27,7 +27,9 @@ dataset=$repo/data/stoa/full/junction-dataset
 short=$(git -C "$repo" rev-parse --verify --short "$commit^{commit}")
 work=$repo/data/stoa/runs/pipeline-$short-$(date +%Y%m%d-%H%M%S)
 mkdir -p "$work/export"
-git -C "$repo" archive "$short" backend | tar -x -C "$work/export"
+parts=(backend)  # and the committed demo gate, which GATE_POLICY names as ../eval/results/gate/...
+git -C "$repo" cat-file -e "$short:eval/results/gate" 2>/dev/null && parts+=(eval/results/gate)
+git -C "$repo" archive "$short" "${parts[@]}" | tar -x -C "$work/export"
 ln -s "$repo/data" "$work/export/data"  # the backend's defaults read data/ next to backend/
 echo "export of $short in $work/export"
 

@@ -3453,7 +3453,7 @@ formula in a spreadsheet.
 - 2026-11-14, additive: `line.sure` (answer_v1.1): true when the answer's `g1main` score is at or above
   its family's threshold in golden's gate file (`GATE_POLICY`, chosen on val and certified once on test),
   false below it, null when there is no score (a vector or IFC page), the family is not gated or the gate is
-  off. `POST /api/ask` leaves it null for now.
+  off. `POST /api/ask` sets it too.
 - 2026-11-14, text: a dataset drawing's `credit` is the attribution once, with its licence named once and no
   "<licence>. Credit:" of its own (the screen writes "Credit: "; R3-qa2-1). `proof.arithmetic` is null for a sum of
   one part (was "30 = 30 m²"; a settled one keeps "settled by a person, was …"). `explanation` names the two

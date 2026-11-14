@@ -547,6 +547,21 @@ def test_gate_policy_is_certified_only_by_the_same_gates_test_run(
     assert load_gate_policy(out).certified is False and load_gate_policy(out).test is None
 
 
+def test_a_record_names_a_file_under_a_linked_data_folder_by_its_repo_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A worktree links data/ to the main clone's: resolving the link made gate.json's `source` a
+    home path, and the frozen demo gate is committed."""
+    repo, elsewhere = tmp_path / "repo", tmp_path / "main-clone-data"
+    (elsewhere / "stoa").mkdir(parents=True)
+    (repo / "eval").mkdir(parents=True)
+    (repo / "data").symlink_to(elsewhere)
+    monkeypatch.setattr(cli, "REPO", repo)
+    monkeypatch.chdir(repo / "eval")  # where stoa_eval runs, with paths like ../data/...
+    assert cli._repo_path(Path("../data/stoa/gate.json")) == "data/stoa/gate.json"
+    assert cli._repo_path(elsewhere / "stoa" / "x.json") == (elsewhere / "stoa/x.json").as_posix()
+
+
 def test_g1main_is_gemini_s_probability_for_the_answered_count() -> None:
     file, other = "data/cubicasa5k/p-1.png", "data/cubicasa5k/p-2.png"
     dists = {file: {"door": {3: 0.8, 2: 0.2}}}
