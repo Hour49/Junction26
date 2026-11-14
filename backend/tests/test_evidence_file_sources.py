@@ -21,6 +21,7 @@ from app.core.evidence.file_sources import (
     listed_piece,
     name_words,
     text_source,
+    without_addresses,
 )
 
 LINE = "The contractor keeps the site fenced and lit at night during the works."  # 72 chars
@@ -206,6 +207,20 @@ def test_a_home_address_loses_its_house_number_and_postal_code() -> None:
                  "Huone 12 m2, korkeus 2600 mm, 10000 kg", "Mannerheimintie kulma",
                  "text file. Esimerkkitie."):  # fmt: skip
         assert kept in every, kept
+
+
+def test_an_all_caps_us_title_block_address_loses_its_number_and_zip() -> None:
+    """rag's review-272 M2: the house set's title block, all capitals with ST and the ZIP after
+    the state, and the same in mixed case; the street and town stay."""
+    for line, kept in (
+        ("1021 HIGH ST - MADISON, WI 53715", "HIGH ST - MADISON, WI"),
+        ("1021 High St - Madison, WI 53715", "High St - Madison, WI"),
+        ("220 W 5TH AVE., DENVER, CO 80204", "W 5TH AVE., DENVER, CO"),
+        ("Unit 4, 77 N Lake Shore Dr, Chicago, IL 60611", "Unit 4, N Lake Shore Dr, Chicago, IL"),
+    ):
+        assert without_addresses(line) == kept, line
+    for line in ("2 HR RATED DOOR", "12 x 2 ST BEAMS", "SHEET 3 OF 12", "1 FIRST FLOOR PLAN"):
+        assert without_addresses(line) == line, line
 
 
 def test_a_long_drawn_page_is_not_a_source() -> None:
