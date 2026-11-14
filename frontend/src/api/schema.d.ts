@@ -577,6 +577,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve
+         * @description RESOLVER: a model looks at each conflict no rule decides and no person settled, and picks
+         *     a value or says it can't tell; one call per conflict, replies kept with the project's review,
+         *     so a second POST asks only about what changed. 409 when RESOLVER is off or before `done`.
+         *     It also runs on its own when an upload's ingest is done (`_resolve_when_done`).
+         */
+        post: operations["resolve_api_projects__project_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/review": {
         parameters: {
             query?: never;
@@ -714,6 +737,9 @@ export interface components {
             question: string;
             reader: components["schemas"]["Reader"];
             refusal: components["schemas"]["Refusal"] | null;
+            resolved?: components["schemas"]["Resolved"] | null;
+            /** Resolver Note */
+            resolver_note?: string | null;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };
@@ -967,6 +993,7 @@ export interface components {
             needs_person: boolean;
             /** Quantity */
             quantity: string;
+            resolved?: components["schemas"]["Resolved"] | null;
             settled: components["schemas"]["Settled"] | null;
             signed: components["schemas"]["SignOff"] | null;
             /** Suggestions */
@@ -1469,6 +1496,7 @@ export interface components {
             question: string | null;
             /** Reason */
             reason: string | null;
+            resolved?: components["schemas"]["Resolved"] | null;
             /**
              * Severity
              * @enum {string}
@@ -1829,6 +1857,8 @@ export interface components {
         ProjectSummary: {
             /** Conflicts Open */
             conflicts_open: number | null;
+            /** Conflicts Picked */
+            conflicts_picked?: number | null;
             /** Created At */
             created_at: string;
             /** Drawings */
@@ -1867,6 +1897,8 @@ export interface components {
         ProjectView: {
             /** Conflicts Open */
             conflicts_open?: number | null;
+            /** Conflicts Picked */
+            conflicts_picked?: number | null;
             /**
              * Cost Usd
              * @default 0
@@ -2091,6 +2123,47 @@ export interface components {
             value: number;
         };
         /**
+         * Resolved
+         * @description What the resolver (RESOLVER, app/core/review/resolve.py) said about a conflict or an answer
+         *     that is not certified: a value it picked, or that it can't tell, why, and where it looked.
+         *     Checked by a model: never a person's settle or sign-off, never certified.
+         */
+        Resolved: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ValueMark"][];
+            /**
+             * Of
+             * @default []
+             */
+            of: (number)[];
+            /** Reason */
+            reason: string;
+            /** Value */
+            value: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "picked" | "cannot_tell";
+        };
+        /**
+         * Resolving
+         * @description POST /api/projects/{id}/resolve: the review after the resolver's replies, and a note for
+         *     each conflict it gave no reply on (the budget used up, a timeout...).
+         */
+        Resolving: {
+            /** Notes */
+            notes: string[];
+            review: components["schemas"]["ProjectReview"];
+        };
+        /**
          * Row
          * @description One quantity of the takeoff with its review state.
          */
@@ -2116,6 +2189,7 @@ export interface components {
             noun?: string | null;
             /** Original Value */
             original_value: number;
+            resolved?: components["schemas"]["Resolved"] | null;
             rule: components["schemas"]["RuleText"];
             scope: components["schemas"]["Scope"];
             second: components["schemas"]["MethodValue"] | null;
@@ -3614,6 +3688,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectQuestions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_api_projects__project_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resolving"];
                 };
             };
             /** @description Validation Error */

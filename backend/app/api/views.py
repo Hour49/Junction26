@@ -175,6 +175,7 @@ class ProjectView(ProjectStatus):
     not_plans: int | None = Field(default=None, exclude_if=lambda value: value is None)
     # As in GET /api/projects (same numbers); None until `done`
     conflicts_open: int | None = None
+    conflicts_picked: int | None = Field(default=None, exclude_if=lambda value: value is None)
     issues_open: int | None = None
     issues_to_answer: int | None = None
 
