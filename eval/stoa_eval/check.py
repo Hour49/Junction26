@@ -26,6 +26,13 @@ with D23 and 47.9% fitting each family alone).
 
 Routes the raster gate does not see (vector, IFC model, schedules) are certified whole or not from
 golden v2's holdout answers: certified when they reach the floor and the same utility is positive.
+
+Levels (confidence's scheme B, `.agents/exp/confidence-levels.md` section 5): High = certified;
+Medium = asks, with the calibrated P(wrong) at or under a second cut (`medium`, a second threshold
+per family read from the same all-val calibration); Low = every other answer. A calibration group
+whose cross-fit Medium holds fewer than `min_units` answers or is under `min_exact` exact gets no
+Medium. A route certified whole is High; another is Medium when its golden v2 dev answers reach
+`min_units` at `min_exact`, else Low.
 """
 
 import math
@@ -52,6 +59,10 @@ RIDGE = 0.01  # keeps a half with only right answers finite
 EPS = 1e-6  # a probability's logit is taken on [EPS, 1 - EPS]
 POOL_BELOW = 10  # D23: a family with fewer wrong answers on val is not calibrated alone
 PoolWith = Literal["small", "signal"]  # D23: all such families together; or its signal's families
+Level = Literal["high", "medium", "low"]
+LEVELS: tuple[Level, ...] = ("high", "medium", "low")
+MEDIUM_MIN_UNITS = 30  # a Medium band rests on at least this many cross-fit answers
+MEDIUM_MIN_EXACT = 0.80  # and at least this share of them exact
 
 
 class Point(BaseModel):
@@ -112,6 +123,16 @@ class CheckFamily(BaseModel):
     group: str | None = Field(
         default=None, description="D476: the families its calibration is fit on, if not itself"
     )
+    medium: float | None = Field(
+        default=None, description="levels: lowest Medium value (asks, P(wrong) <= levels.cut)"
+    )
+
+
+class LevelPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    units: int
+    exact: int
 
 
 class RouteVerdict(BaseModel):
@@ -120,6 +141,23 @@ class RouteVerdict(BaseModel):
     certified: bool
     holdout: Point = Field(description="golden v2 holdout questions answered on the route")
     lower_bound: float | None = Field(description="95% Clopper-Pearson bound on the exact share")
+    level: Level | None = Field(default=None, description="levels: the route's answers' level")
+    dev: LevelPoint | None = Field(
+        default=None, description="levels: golden v2 dev questions answered on the route"
+    )
+
+
+class Levels(BaseModel):
+    """High = certified; Medium = asks, P(wrong) at or under `cut`; Low = the rest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    cut: float = Field(description="Medium up to this calibrated P(wrong)")
+    min_units: int = Field(description="a calibration group's cross-fit Medium needs this many")
+    min_exact: float = Field(description="and this share of them exact, or it has no Medium")
+    crossfit: dict[Level, LevelPoint] = Field(
+        description="val, each gate half under the other half's fit, pooled"
+    )
 
 
 class CheckPolicyFile(BaseModel):
@@ -151,6 +189,7 @@ class CheckPolicyFile(BaseModel):
     pooled_val: Point
     pooled_crossfit: Point
     test: dict[str, object] | None = None
+    levels: Levels | None = None
 
 
 def _value(unit: Unit, signal: str) -> float | None:
@@ -378,6 +417,24 @@ def recall_cut(scored: Sequence[tuple[float, bool]], need: int) -> float:
     return 0.0
 
 
+def _folds(
+    by_family: Mapping[str, Sequence[Unit]],
+    signals: Signals,
+    in_first: Callable[[str], bool],
+    groups: Mapping[str, tuple[str, ...]] | None,
+) -> list[tuple[dict[str, Calibration | None], dict[str, list[Unit]]]]:
+    """Each gate half's units with the calibrations fit on the other half."""
+    halves = [
+        {f: [u for u in us if in_first(u.file) == first] for f, us in by_family.items()}
+        for first in (True, False)
+    ]
+    logit = probabilities(by_family, signals)
+    return [
+        (calibrations(fit_on, signals, logit, groups), score)
+        for fit_on, score in zip(halves[::-1], halves, strict=True)
+    ]
+
+
 def recall_fit(
     by_family: Mapping[str, Sequence[Unit]],
     signals: Signals,
@@ -388,15 +445,7 @@ def recall_fit(
     """D476's cut, chosen on the cross-fit P(wrong) (each half calibrated on the other, `groups`
     as in `calibrations`), and the cross-fit points at that cut per family. Units a fixed cut or a
     missing value flags count toward the recall before any cut is chosen."""
-    halves = [
-        {f: [u for u in us if in_first(u.file) == first] for f, us in by_family.items()}
-        for first in (True, False)
-    ]
-    logit = probabilities(by_family, signals)
-    folds = [
-        (calibrations(fit_on, signals, logit, groups), score)
-        for fit_on, score in zip(halves[::-1], halves, strict=True)
-    ]
+    folds = _folds(by_family, signals, in_first, groups)
     wrong = sum(not u.exact for us in by_family.values() for u in us)
     caught, scored = 0, list[tuple[float, bool]]()
     for calibrated, score in folds:
@@ -441,3 +490,76 @@ def route_verdict(exact: Sequence[bool], lam: float, floor: float) -> RouteVerdi
     )
     ok = bool(exact) and p.exact / p.certified >= floor and utility(p, lam) > 0
     return RouteVerdict(certified=ok, holdout=p, lower_bound=cp_lower(p.exact, p.certified))
+
+
+def level(value: float | None, threshold: float | None, medium: float | None) -> Level:
+    """High at or above the certified threshold, Medium at or above `medium`, else Low."""
+    if value is not None and threshold is not None and value >= threshold:
+        return "high"
+    if value is not None and medium is not None and value >= medium:
+        return "medium"
+    return "low"
+
+
+def medium_fit(
+    by_family: Mapping[str, Sequence[Unit]],
+    signals: Signals,
+    cut: float,
+    medium_cut: float,
+    in_first: Callable[[str], bool],
+    groups: Mapping[str, tuple[str, ...]] | None = None,
+    min_units: int = MEDIUM_MIN_UNITS,
+    min_exact: float = MEDIUM_MIN_EXACT,
+) -> tuple[dict[str, float | None], dict[str, dict[Level, LevelPoint]]]:
+    """Each family's Medium threshold, read from its all-val calibration at `medium_cut` as the
+    certified one is at `cut`, and the cross-fit level counts per family. A family with a fixed
+    cut has no calibration and no Medium; nor has a calibration group whose cross-fit Medium
+    holds fewer than `min_units` answers or under `min_exact` exact (its Medium answers count as
+    Low)."""
+    seen: list[tuple[str, Level, bool]] = []
+    for calibrated, score in _folds(by_family, signals, in_first, groups):
+        high = thresholds_at(calibrated, signals, cut)
+        medium = thresholds_at(calibrated, signals, medium_cut)
+        for family, units in score.items():
+            signal, fixed = signals[family]
+            for unit in units:
+                low = None if fixed is not None else medium[family]
+                seen.append((family, level(_value(unit, signal), high[family], low), unit.exact))
+    in_medium: dict[tuple[str, ...], list[bool]] = {}
+    for family, made, exact in seen:
+        if made == "medium":
+            in_medium.setdefault((groups or {}).get(family, (family,)), []).append(exact)
+    kept = {
+        on
+        for on, exact in in_medium.items()
+        if len(exact) >= min_units and sum(exact) / len(exact) >= min_exact
+    }
+    logit = probabilities(by_family, signals)
+    all_val = thresholds_at(calibrations(by_family, signals, logit, groups), signals, medium_cut)
+    chosen = {
+        f: all_val[f] if signals[f][1] is None and (groups or {}).get(f, (f,)) in kept else None
+        for f in by_family
+    }
+    counts: dict[str, dict[Level, LevelPoint]] = {
+        f: {lv: LevelPoint(units=0, exact=0) for lv in LEVELS} for f in by_family
+    }
+    for family, made, exact in seen:
+        if made == "medium" and chosen[family] is None:
+            made = "low"
+        cell = counts[family][made]
+        counts[family][made] = LevelPoint(units=cell.units + 1, exact=cell.exact + exact)
+    return chosen, counts
+
+
+def route_level(
+    verdict: RouteVerdict,
+    dev: Sequence[bool],
+    min_units: int = MEDIUM_MIN_UNITS,
+    min_exact: float = MEDIUM_MIN_EXACT,
+) -> RouteVerdict:
+    """The verdict with its level: High when certified; else Medium when its golden v2 dev
+    answers reach `min_units` at `min_exact` exact; else Low."""
+    p = LevelPoint(units=len(dev), exact=sum(dev))
+    medium = p.units >= min_units and p.exact / p.units >= min_exact
+    made: Level = "high" if verdict.certified else "medium" if medium else "low"
+    return verdict.model_copy(update={"level": made, "dev": p})

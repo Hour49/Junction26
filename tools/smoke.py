@@ -94,8 +94,9 @@ def health_check(status: int, body: object) -> Check:
 
 
 def info_checks(status: int, info: object) -> list[Check]:
-    """/api/info: readers and limits must be there; the commit and the Gemini status are reported
-    when present (a budget_exhausted true fails)."""
+    """/api/info: readers and limits must be there. The commit (APP_COMMIT; null when the backend
+    was started without it) and the Gemini status (`gemini`: "ok", or "budget_exhausted", which
+    fails; left out when no budget is set) are reported."""
     if status != 200 or not isinstance(info, dict):
         return [Check("info", "GET /api/info", False, f"{status} {info}")]
     readers = info.get("readers")
@@ -108,24 +109,23 @@ def info_checks(status: int, info: object) -> list[Check]:
             + ", ".join(f"{k}={v}" for k, v in (readers or {}).items()),
         )
     ]
-    commit = info.get("commit") or info.get("version")
-    out.append(
-        Check("info", "commit", True, str(commit) if commit else "absent (not in /api/info)")
-    )
-    gemini = {k: v for k, v in info.items() if "gemini" in k.lower() or "budget" in k.lower()}
-    if isinstance(info.get("gemini"), dict):
-        gemini = info["gemini"]
+    out.append(Check("info", "commit", True, commit_of(info)))
+    gemini = info.get("gemini")
     budget = _find(info, "budget_exhausted")
-    detail = json.dumps(gemini, sort_keys=True) if gemini else "absent (not in /api/info)"
-    out.append(
-        Check(
-            "info",
-            "gemini status",
-            budget is not True,
-            detail + ("" if budget is None else f"; budget_exhausted {budget}"),
-        )
-    )
+    exhausted = gemini == "budget_exhausted" or budget is True
+    if gemini is None:
+        detail = "no budget set (no `gemini` in /api/info)"
+    else:
+        detail = json.dumps(gemini, sort_keys=True)
+    out.append(Check("info", "gemini status", not exhausted, detail))
     return out
+
+
+def commit_of(info: object) -> str:
+    """The commit /api/info names, or why there is none."""
+    if not isinstance(info, dict) or "commit" not in info:
+        return "absent (not in /api/info)"
+    return str(info["commit"]) if info["commit"] else "null (the backend has no APP_COMMIT)"
 
 
 def _find(data: object, key: str) -> object:
@@ -493,8 +493,10 @@ def main(argv: list[str] | None = None) -> int:
         args.base_url, None if args.no_upload else args.zip, args.paid, args.timeout, headers
     )
     print(table(checks))
+    commit = next((c.detail for c in checks if c.name == "commit"), "unknown (no /api/info)")
     print(
-        f"{args.base_url} · {'paid calls allowed' if args.paid else 'no paid calls'} · "
+        f"{args.base_url} · commit {commit} · "
+        f"{'paid calls allowed' if args.paid else 'no paid calls'} · "
         f"{time.monotonic() - started:.0f} s"
     )
     return 0 if all(c.ok for c in checks) else 1

@@ -253,7 +253,8 @@ An edit of a signed-off quantity (409):
         }
       ]
     }
-  ]
+  ],
+  "commit": null
 }
 ```
 
@@ -269,7 +270,8 @@ code `no-reader`. `limits` lets the screen refuse a file before uploading it.
 and answer confidence, sheet-kind signal, describer) answers as when Gemini fails: nothing new is read, the
 answer stays unknown or unchanged, and the file's trace or the answer's note says "Gemini budget used up".
 Replies cached earlier still serve. With the hourly limit it clears as the last hour's spend ages out; with the
-total limit only a restart clears it. The screen can say so instead of showing empty readings.
+total limit only a restart clears it. A limit of 0 refuses every Gemini call from the first one. The screen can
+say so instead of showing empty readings.
 
 `rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
 below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
@@ -4013,7 +4015,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -4023,8 +4026,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
   Decisions' choice distribution for the answered count, on when the server runs with
   `DECISIONS_CONFIDENCE=true`), `score` (0 to 1) and `calibrated` (false: the score was not checked against
   right answers, so it is **not** a probability that the answer is right; a correct 4-bedroom answer scored
-  0.38). Don't show it as one: the proof and `evidence.png` leave it out. A "sure" badge comes later from
-  golden's gate thresholds. Only a drawing read on the raster route is scored (Decisions reads images). Null
+  0.38). Don't show it as one: the proof and `evidence.png` leave it out. What to show is `level` (below), which
+  is measured. Only a drawing read on the raster route is scored (Decisions reads images). Null
   when it is off, for other routes, when there is no score (the reason is in `explanation`), or on a
   refusal. `line.confidence` carries the same raw score, because the scorer's answer_v1.1 line has that
   field.
@@ -4278,7 +4281,8 @@ from a stand-in, not Gemini; `marks` trimmed to two):
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -4324,6 +4328,41 @@ So the screen never shows Sure next to a double-check request. The policy is fit
 `ROOM_POLICY=gold-labels`; under `furniture` (the demo) room counts are certified outside those conditions, except
 that a bedroom count including a bedroom with no printed label always asks (docs/GOLDEN.md, "The double-check
 policy").
+
+#### Confidence level: `level`
+
+With `CHECK_POLICY` set to a policy file that carries levels (decision 0011; `stoa_eval check-policy --medium`
+writes them), every answer the policy rates also carries `level`: `{level, basis, text}`. The backend computes it,
+so every client shows the same one: show `level` as the pill and `text` with it, and don't derive a level from
+`confidence.score`.
+
+- `level`: `high`, `medium` or `low`.
+  - `high`: the answer is certified. It is high exactly when `line.sure` is true and `check` is null, so a level
+    never contradicts the request.
+  - `medium`: the answer asks for a double-check, and its score is at or above its family's Medium threshold: the
+    calibrated chance that it is wrong is at most the policy's cut (0.20).
+  - `low`: every other rated answer. It asks for a double-check too.
+- `basis`: what the level rests on.
+  - `certified`: the policy's certificate on a raster answer (high).
+  - `score`: the answer's score against its family's Medium threshold (medium or low). A family with no Medium
+    threshold, because its Medium answers were too few or too often wrong on validation, is low.
+  - `route`: the drawing's route, from its own reference answers. A certified route (vector PDF, IFC model) is
+    high; a value read from a printed schedule takes the `schedule` route's level.
+  - `page`: the page was flagged at upload (a phone photo, a scan). Low: levels are not measured on such pages.
+  - `held`: the value is held for a check whatever its score (two methods disagree, an estimate, edited and not
+    signed off, a bedroom with no printed label). Low; `check.reason` says why.
+  - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
+    route with no level). Low.
+- `text`: one plain sentence to show with the pill. For `certified` and `score` it quotes the validation counts of
+  that level from the policy file, e.g. `Medium confidence: on our validation plans, 91% of the answers rated this
+  way were exact (1084 of 1185). Please double-check it.`; for `route`, the route's reference counts.
+
+`level` is null on a refusal, on a value a person signed off or settled (it is theirs: show the sign-off and no
+level), when `CHECK_POLICY` is off, and with a policy file that has no `levels` block: an older file still
+certifies and asks, and gives no level instead of calling every answer low. `line` (answer_v1.1) is unchanged.
+What each level measured on validation, on golden v2 and on the test read is in
+[decision 0011](decisions/0011-confidence-levels.md). The three examples show `check` and `level` together: high,
+medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Medium threshold here).
 
 <!-- fixture: answer_certified.json -->
 ```json
@@ -4539,7 +4578,12 @@ policy").
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": {
+    "level": "high",
+    "basis": "certified",
+    "text": "High confidence: on our validation plans, 99% of the answers rated this way were exact (1501 of 1517)."
+  }
 }
 ```
 
@@ -4795,6 +4839,11 @@ policy").
         }
       }
     ]
+  },
+  "level": {
+    "level": "medium",
+    "basis": "score",
+    "text": "Medium confidence: on our validation plans, 91% of the answers rated this way were exact (1084 of 1185). Please double-check it."
   }
 }
 ```
@@ -5051,6 +5100,11 @@ policy").
         }
       }
     ]
+  },
+  "level": {
+    "level": "low",
+    "basis": "score",
+    "text": "Low confidence: on our validation plans, 58% of the answers rated this way were exact (397 of 680). Check it before you use it."
   }
 }
 ```
@@ -5075,6 +5129,8 @@ that call gives, the project's review edits applied. An unknown project is 404; 
   The total only adds the parts' `answer` values.
 - `total_sure`: true only when there is a total and every part in it is sure (`answer.line.sure`); false
   otherwise.
+- `total_level`: the lowest confidence level among the total's parts that have one (`answer.level.level`): `high`,
+  `medium` or `low`. Null with no total, or when no part has a level.
 - `total_note`: one plain sentence to show with the total, or instead of it: what was added over how many drawings,
   how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), or
   why there is no total, and which drawings gave no answer and why, e.g. `2 doors from 1 drawing.` or `3 drawings
@@ -5298,7 +5354,8 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     },
     {
@@ -5503,7 +5560,8 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     },
     {
@@ -5586,13 +5644,15 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     }
   ],
   "total": null,
   "total_unit": null,
   "total_sure": false,
+  "total_level": null,
   "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
   "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
   "refused_note": "2 drawings have no reader for it."
@@ -5909,7 +5969,8 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6022,7 +6083,8 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6109,7 +6171,8 @@ A question the drawing cannot answer:
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6412,7 +6475,8 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "schedule": null,
     "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6704,7 +6768,8 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "schedule": null,
     "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6843,7 +6908,8 @@ rests on:
     },
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -8124,6 +8190,16 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0011, Bogdan: "the confidence levels should be high medium low"): `level` on
+  `POST /api/ask`'s answer: `{level: high|medium|low, basis, text}` or null, computed by the backend from the
+  check policy; high exactly when the answer is certified (`check` null). `total_level` on the project ask: the
+  lowest level among the total's parts. `CHECK_POLICY`'s file may carry `medium` per family, `level` and `dev` per
+  route and a `levels` block; a file without them loads as before and gives `level` null. Every answer fixture
+  gains `level`; `answer_certified`, `answer_double_check` and `answer_double_check_rooms` show high, medium and
+  low. `line` (answer_v1.1) is unchanged.
+- 2026-11-14, additive (QA R9 area 4, `tools/smoke.py`): `GET /api/info` gains `commit`, the git commit the backend
+  was started from (setting `APP_COMMIT`, which `tools/qa-env.sh` sets to the exported commit), or null when
+  unset. Fixture `info.json` gains it (last).
 - 2026-11-14, behaviour: `GET /api/info` `no_keys` is false also when a keyed source is in
   `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`, or when `TRIAGE_DESCRIBER=gemini` runs (a triage
   classifier on); it said true for these. No shape change.

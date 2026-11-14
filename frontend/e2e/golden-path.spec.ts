@@ -3,11 +3,11 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { methodName } from '../src/api/format';
-import { filesThrough, noKeys, shot, watchErrors } from './support';
+import { drawingOf, filesThrough, noKeys, shot, watchErrors } from './support';
 
 const AREA = 'What is the net floor area of room 1.01?';
 
-test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
+test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const turn = (question: string) => page.getByRole('article', { name: question }).last();
@@ -18,82 +18,171 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await shot(page, testInfo, '01-home', offline);
   });
 
-  await test.step('GP-3 step 2: the sample project ingests', async () => {
+  let pid = '';
+  let flatB = { id: '', label: '' };
+  await test.step('GP-3 GP-41 GP-42 GP-45 P2: the sample ingests; the finished screen', async () => {
     await page.getByRole('button', { name: 'Try the sample project' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
+    pid = /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
     await expect(filesThrough(page)).toHaveText('11 / 11', { timeout: 30_000 });
     await expect(page.getByText('All 8 steps done').first()).toBeVisible();
     await expect(page.locator('dt', { hasText: 'Drawings ready' }).locator('+ dd')).toHaveText(
       '5 / 5',
     );
-    const row = (file: string) => page.locator('a[href*="/f/f"]').filter({ hasText: file });
-    await expect(row('plans/flat-b.pdf')).toContainText('flagged');
-    await expect(row('photos/site.jpg')).toContainText('set aside');
-    await expect(row('docs/notes.txt')).toContainText('text only');
+    flatB = await drawingOf(page, pid, 'plans/flat-b.pdf');
+    // GP-41: exactly Ingest, Chat, Documents (no Conflicts, Issues, Checks or Surveyor tab).
     await expect(
-      page.getByRole('banner').getByRole('link', { name: 'Chat', exact: true }),
-    ).toBeVisible();
-    await shot(page, testInfo, '02-project', offline);
-  });
-
-  await test.step('GP-30 V3: the Advanced view, then back to Simple', async () => {
-    const view = page.getByRole('group', { name: 'View' });
-    await view.getByRole('link', { name: 'Advanced' }).click();
-    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\?view=advanced$/);
-    await expect(page.getByRole('navigation', { name: 'Steps' })).toBeVisible();
-    await shot(page, testInfo, '03-advanced', offline);
-    await view.getByRole('link', { name: 'Simple' }).click();
-    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
-  });
-
-  await test.step('GP-4 step 3: the trace of plans/flat-b.pdf', async () => {
-    await page.locator('a[href*="/f/f"]').filter({ hasText: 'plans/flat-b.pdf' }).click();
-    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/f\/f\d+$/);
-    await expect(page.getByText('flagged').first()).toBeVisible();
-    await expect(page.getByText('1 conflict between the two methods').first()).toBeVisible();
-    await expect(page.getByText('5 quantities measured twice, 1 conflict').first()).toBeVisible();
-    // the write stage's `did`
-    await expect(page.getByText(/drawing model [0-9a-f]{16} stored/).first()).toBeVisible();
-    await shot(page, testInfo, '04-trace', offline);
-  });
-
-  await test.step('GP-31 V5 CF-22: settle the conflicts screen, then back to the rule', async () => {
-    await page.getByRole('banner').getByRole('link', { name: 'Conflicts', exact: true }).click();
-    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/conflicts$/);
+      page.getByRole('banner').getByRole('navigation', { name: 'Views' }).getByRole('link'),
+    ).toHaveText(['Ingest', 'Chat', /^Documents/]);
+    const main = page.getByRole('main');
+    await expect(main.getByText(/^5 drawings ready\. Conflicts are below\./)).toBeVisible();
+    // GP-42: the conflicts under the progress card; the sample's one conflict is settled by the rule.
+    const conflicts = main.getByRole('region', { name: 'Conflicts' });
     await expect(
-      page.getByRole('heading', { level: 1, name: /^\d+ conflicts? found$/ }),
+      conflicts.getByRole('heading', { level: 2, name: '1 conflict found' }),
     ).toBeVisible();
-    const card = page.getByRole('article', { name: 'area of room (name Küche · 1.01)' });
-    await expect(card).toContainText('plans/flat-b.pdf');
+    const card = kitchenCard(conflicts);
+    await expect(card).toContainText(flatB.label);
     await expect(card).toContainText('Settled by rule');
-    await expect(page.getByText('Needs you')).toHaveCount(0);
-    await shot(page, testInfo, '05-conflicts', offline);
+    await expect(card).toContainText('22.40 m²');
+    await expect(card).toContainText('30.00 m²');
+    // No issues and no file list on Ingest: they are in Documents.
+    await expect(main.getByRole('region', { name: 'Issues' })).toHaveCount(0);
+    await expect(main.locator('a[href*="/f/f"]')).toHaveCount(0);
+    // GP-45: nothing needs a person, so the chat is open; the workspace link is there.
+    await expect(main.getByRole('link', { name: 'Start a new chat' })).toBeVisible();
+    await expect(main.getByRole('link', { name: 'Open the workspace' })).toBeVisible();
+    await shot(page, testInfo, '02-ingest-done', offline);
+  });
+
+  await test.step('GP-43 GP-44 P2a P2b: the source figure, minimized, expanded, previewed', async () => {
+    const card = kitchenCard(page);
+    const figure = card.getByRole('figure', { name: 'Source of conflict 1' });
+    // Starts minimized: the thumbnail beside the legend.
+    await expect(figure.getByRole('button', { name: 'Expand the drawing' })).toBeVisible();
+    await expect(figure.getByRole('list').first()).toBeVisible();
+    await figure.getByRole('button', { name: 'Expand', exact: true }).click();
+    await expect(figure.getByRole('button', { name: 'Minimize', exact: true })).toBeVisible();
+    await expect(figure.getByRole('img').first()).toBeVisible();
+    await shot(page, testInfo, '02a-conflict-expanded', offline);
+    await figure.getByRole('button', { name: 'Minimize', exact: true }).click();
+    await expect(figure.getByRole('button', { name: 'Expand', exact: true })).toBeVisible();
+
+    const show = figure.getByRole('button', { name: 'Show source' });
+    await show.click();
+    const dialog = page.getByRole('dialog', { name: `Source: ${flatB.label}` });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
+    await shot(page, testInfo, '02b-show-source', offline);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(show).toBeFocused();
+  });
+
+  await test.step('GP-37 CF-22 CF-41: Modify, a variant, then back to the rule', async () => {
+    const card = kitchenCard(page);
     await card.getByRole('button', { name: 'Modify' }).click();
-    await card.getByRole('button', { name: /^A\b/ }).click();
+    await expect(card.getByRole('textbox', { name: 'Or type your own answer' })).toBeVisible();
+    await card.getByRole('button', { name: /^Variant 1:/ }).click();
     await expect(card).toContainText('Your choice');
     // GP-37 (Tudor): a person's choice keeps "Modify", never "Change".
     await expect(card.getByRole('button', { name: 'Modify' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Change', exact: true })).toHaveCount(0);
     await card.getByRole('button', { name: "Use the rule's value" }).click();
     await expect(card).toContainText('Settled by rule');
-    // GP-38: nothing needs a person, so "Start a new chat" (below the cards) is a link; the workspace a quiet link.
-    await expect(page.getByRole('link', { name: 'Start a new chat' })).toBeVisible();
-    await expect(page.getByText(/^Ask anything about/)).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Open the workspace' })).toBeVisible();
+  });
+
+  await test.step('GP-30 GP-46 P3: the Advanced view has the same finished layout', async () => {
+    const view = page.getByRole('group', { name: 'View' });
+    await view.getByRole('link', { name: 'Advanced' }).click();
+    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\?view=advanced$/);
+    await expect(page.getByRole('navigation', { name: 'Steps' })).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(kitchenCard(main.getByRole('region', { name: 'Conflicts' }))).toBeVisible();
+    await expect(main.getByRole('link', { name: 'Start a new chat' })).toBeVisible();
+    await shot(page, testInfo, '03-advanced', offline);
+    await view.getByRole('link', { name: 'Simple' }).click();
+    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
+  });
+
+  await test.step('GP-47 P4: the old Conflicts and Issues routes land on Ingest', async () => {
+    for (const old of ['conflicts', 'issues?pack=fi']) {
+      await page.goto(`/#/p/${pid}/${old}`);
+      await expect(
+        page.getByRole('banner').getByRole('link', { name: 'Ingest', exact: true }),
+      ).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByRole('main').getByRole('region', { name: 'Conflicts' })).toBeVisible();
+    }
+  });
+
+  await test.step('GP-48 P5: Documents: issues, then drawings, then files', async () => {
+    await page.goto(`/#/p/${pid}`);
+    await page
+      .getByRole('banner')
+      .getByRole('link', { name: /^Documents/ })
+      .click();
+    await expect(page).toHaveURL(new RegExp(`#/p/${pid}/documents$`));
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
+    const sections = main.getByRole('region');
+    await expect(sections).toHaveText([/^Issues/, /^Drawings/, /^Files/]);
+    const issues = (await (await page.request.get(`/api/projects/${pid}/issues`)).json()) as {
+      issues: { severity: string; state: string }[];
+    };
+    const toAnswer = issues.issues.filter(
+      (i) => i.state === 'open' && ['needs_person', 'fails_rule'].includes(i.severity),
+    ).length;
+    // SH-78: the tab's name carries the count; none on the sample.
+    await expect(
+      page.getByRole('banner').getByRole('link', { name: /^Documents/ }),
+    ).toHaveAccessibleName(
+      toAnswer ? new RegExp(`^Documents, ${String(toAnswer)} issues? to answer$`) : 'Documents',
+    );
+    await expect(main.getByRole('region', { name: 'Drawings' }).getByRole('listitem')).toHaveCount(
+      5,
+    );
+    const files = main.getByRole('region', { name: 'Files' }).getByRole('link');
+    await expect(files).toHaveCount(11);
+    // A note is shown, never answered.
+    await expect(main.getByRole('region', { name: 'Issues' }).getByRole('textbox')).toHaveCount(
+      toAnswer ? toAnswer : 0,
+    );
+    await shot(page, testInfo, '05-documents', offline);
+  });
+
+  await test.step('GP-4 GP-49 step 3: the trace of plans/flat-b.pdf, from Documents', async () => {
+    await page
+      .getByRole('region', { name: 'Files' })
+      .getByRole('link')
+      .filter({ hasText: 'plans/flat-b.pdf' })
+      .click();
+    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/f\/f\d+$/);
+    await expect(page.getByRole('link', { name: 'Back to Documents' })).toBeVisible();
+    await expect(page.getByText('flagged').first()).toBeVisible();
+    await expect(page.getByText('1 conflict between the two methods').first()).toBeVisible();
+    // IN-83: the stages are folded under "How it was read" like the demo's trace.
+    await page
+      .getByRole('region', { name: 'Stages' })
+      .getByText(/^How it was read/)
+      .click();
+    await expect(page.getByText('5 quantities measured twice, 1 conflict').first()).toBeVisible();
+    // the write stage's `did`
+    await expect(page.getByText(/drawing model [0-9a-f]{16} stored/).first()).toBeVisible();
+    await expect(page.getByText('Does it belong to this project?')).toHaveCount(0);
+    await shot(page, testInfo, '04-trace', offline);
   });
 
   const DOORS = 'How many doors are there?';
-  await test.step('GP-39 GP-40: a new, empty chat over the project, then one question', async () => {
+  await test.step('GP-39 GP-40 GP-50 P7 P8: a new chat over the project, one question', async () => {
+    await page.goto(`/#/p/${pid}`);
     await page.getByRole('link', { name: 'Start a new chat' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/chat$/);
-    // The Chat tab shows on every project route; here it is the current one.
     await expect(
       page.getByRole('banner').getByRole('link', { name: 'Chat', exact: true }),
     ).toHaveAttribute('aria-current', 'page');
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: 'sample-project.zip' })).toBeVisible();
-    // Empty (chat.md, Tudor 12:58): the heading, the ask bar and 3 suggestion chips; no plan, image or marks.
-    await expect(main.getByText(/^Ask anything about/)).toHaveCount(0);
+    // Empty (chat.md): the heading, the ask bar and 3 suggestion chips; no plan, image or marks.
     await expect(main.locator('img, figure, canvas, svg image')).toHaveCount(0);
     await expect(main.getByRole('textbox', { name: 'Question' })).toBeVisible();
     await expect(main.getByRole('button', { name: 'Ask' })).toBeVisible();
@@ -105,40 +194,39 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     ]);
     await shot(page, testInfo, '05a-chat', offline);
 
-    // A chip asks its question of the project; after the first ask the chips are gone.
     await chips.filter({ hasText: DOORS }).click();
     const answer = turn(DOORS);
-    // Several drawings answer: no total (they may show the same rooms), a note, then one line per drawing.
+    // Several drawings answer: no total (they may show the same rooms), then one line per drawing.
     await expect(answer.getByTestId('answer-value')).toHaveCount(0);
-    // The backend's note (#135, one project ask), e.g. "3 drawings answered; they may show the same rooms, …".
-    await expect(answer).toContainText(/may show the same rooms, so the numbers are not added up/);
-    await expect(answer).toContainText('plans/flat-b.pdf: 2');
-    await expect(answer.getByRole('link', { name: 'Show it on plans/flat-b.pdf' })).toBeVisible();
-    await expect(answer.locator('img, figure')).toHaveCount(0);
+    await expect(answer).toContainText(/may show the same rooms/);
+    const perDrawing = answer.getByRole('list', { name: 'Per drawing' });
+    await expect(perDrawing).toContainText(`${flatB.label}: 2`);
+    await expect(perDrawing.getByRole('link', { name: `Show it on ${flatB.label}` })).toBeVisible();
+    // GP-50: the reference image with its name above, the references list, follow-up chips.
+    await expect(answer.getByRole('figure', { name: /^Reference 1 of \d+$/ })).toBeVisible();
+    await expect(answer.getByRole('list', { name: 'References' })).toBeVisible();
     await expect(main.getByRole('group', { name: 'Suggested questions' })).toHaveCount(0);
+    const followUps = main.getByRole('group', { name: 'Follow-up questions' }).getByRole('button');
+    await expect(followUps.first()).toBeVisible();
     await shot(page, testInfo, '05b-chat-answer', offline);
   });
 
   let drawingUrl = '';
-  await test.step('GP-32 V6 GP-5: "Show it on plans/flat-b.pdf" opens flat-b as engineer', async () => {
-    await turn(DOORS).getByRole('link', { name: 'Show it on plans/flat-b.pdf' }).click();
+  await test.step('GP-32 GP-51 V6: "Show it on" the flat-b drawing opens it as engineer', async () => {
+    await turn(DOORS)
+      .getByRole('link', { name: `Show it on ${flatB.label}` })
+      .click();
     // QA R4b: the link carries the chat's question (engineer?ask=<question>[&pack=]).
-    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/d\/[0-9a-f]{16}\/engineer(\?.*)?$/);
+    await expect(page).toHaveURL(new RegExp(`#/p/${pid}/d/${flatB.id}/engineer(\\?.*)?$`));
     expect(new URLSearchParams(page.url().split('?')[1] ?? '').get('ask')).toBe(DOORS);
     drawingUrl = page.url().replace(/\/engineer(\?.*)?$/, '');
-    await expect(page.getByText('plans/flat-b.pdf').first()).toBeVisible();
-    const image = page.getByRole('img', { name: /Page 1 of plans\/flat-b\.pdf/ }).first();
+    const image = page.getByRole('img', { name: /^Page 1 of / }).first();
     await expect(image).toBeVisible();
     await expect
       .poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth))
       .toBeGreaterThan(0);
-    // The credit the backend gives this drawing (story #33: every drawing on screen carries its credit).
-    const drawingId = /\/d\/([0-9a-f]{16})\//.exec(page.url())?.[1] ?? '';
-    const drawing = await page.request.get(`/api/drawings/${drawingId}`);
-    const { credit } = (await drawing.json()) as { credit: string | null };
-    await expect(
-      page.getByText(`Credit: ${credit ?? 'none recorded for this file'}`, { exact: true }).first(),
-    ).toBeVisible();
+    // GP-51: no credit line on screens (they are on the About page, GP-52).
+    await expect(page.getByText(/^Credit:/)).toHaveCount(0);
     await shot(page, testInfo, '06-engineer', offline);
   });
 
@@ -185,7 +273,8 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
   });
 
   await test.step('GP-9, GP-28 step 8: the surveyor queue and the conflicts list', async () => {
-    await page.getByRole('link', { name: 'Surveyor', exact: true }).click();
+    // No Surveyor tab (SH-75) and no surveyor link on the conflict card (CF-47): the area answer sends it there.
+    await turn(AREA).getByRole('link', { name: 'Send to surveyor' }).click();
     await expect(page).toHaveURL(new RegExp(`^${escape(drawingUrl)}/surveyor(\\?.*)?$`));
     for (const text of [
       'area of room (name Küche · 1.01)',
@@ -238,7 +327,7 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
   });
 
   await test.step('GP-13 step 12: export the takeoff as CSV', async () => {
-    await page.getByRole('link', { name: 'Surveyor', exact: true }).click();
+    await page.goto(`${drawingUrl}/surveyor`);
     const download = page.waitForEvent('download');
     await page.getByRole('link', { name: 'Export CSV' }).click();
     const file = await download;
@@ -247,6 +336,19 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     const line = csv.split('\n').find((l) => l.startsWith('plans/flat-b.pdf,area:room|name=1.01,'));
     expect(line).toMatch(/,22\.401,m2,signed,30\.0,/);
     expect(line).toMatch(/,Ana,/);
+  });
+
+  await test.step("GP-52 P14: the About page holds the drawings' credits", async () => {
+    await page.getByRole('contentinfo').getByRole('link', { name: 'About and credits' }).click();
+    await expect(page).toHaveURL(new RegExp(`#/about\\?project=${pid}$`));
+    const { credit } = (await (await page.request.get(`/api/drawings/${flatB.id}`)).json()) as {
+      credit: string | null;
+    };
+    const credits = page.getByRole('main').getByRole('listitem').filter({ hasText: flatB.label });
+    await expect(credits).toContainText(
+      (credit ?? 'No credit recorded for this file').replace(/^Credit:\s*/, ''),
+    );
+    await shot(page, testInfo, '14-about', offline);
   });
 
   await test.step('GP-33 GP-34 V15: the workspace history', async () => {
@@ -306,6 +408,15 @@ test('GP-20: the service is down, then back', async ({ page }) => {
     main.getByText(/workspaces? on this server|No workspaces yet\./).first(),
   ).toBeVisible();
 });
+
+/** The sample's one conflict card (Küche · 1.01), by its heading (sentence case, CF-46). */
+function kitchenCard(scope: Page | Locator): Locator {
+  // `has` is matched inside each article, so it starts from the page (as in `row`).
+  const page = 'page' in scope && typeof scope.page === 'function' ? scope.page() : (scope as Page);
+  return scope.getByRole('article').filter({
+    has: page.getByRole('heading', { name: /^area of room \(name Küche · 1\.01\)/i }),
+  });
+}
 
 /** The table row whose label button is `label` (rows move between the two tables as their state changes). */
 function row(page: Page, label: string | RegExp, scope: Page | Locator = page): Locator {

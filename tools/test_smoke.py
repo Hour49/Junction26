@@ -68,18 +68,17 @@ def test_health_needs_status_ok() -> None:
 def test_info_tolerates_no_commit_and_no_gemini_status() -> None:
     checks = smoke.info_checks(200, {"no_keys": False, "readers": {"raster": "x"}, "limits": {}})
     assert all(c.ok for c in checks)
-    assert [c.detail for c in checks[1:]] == ["absent (not in /api/info)"] * 2
+    assert checks[1].detail == "absent (not in /api/info)"
+    assert checks[2].detail == "no budget set (no `gemini` in /api/info)"
+    unset = smoke.info_checks(200, {"readers": {"raster": "x"}, "limits": {}, "commit": None})
+    assert unset[1].ok and unset[1].detail == "null (the backend has no APP_COMMIT)"
 
 
-def test_info_reports_the_gemini_status_and_fails_on_an_exhausted_budget() -> None:
-    info = {"readers": {"raster": "x"}, "limits": {}, "commit": "abc123"}
-    ok = smoke.info_checks(200, {**info, "gemini": {"status": "ok", "budget_exhausted": False}})
-    assert (
-        all(c.ok for c in ok)
-        and ok[1].detail == "abc123"
-        and "budget_exhausted False" in ok[2].detail
-    )
-    spent = smoke.info_checks(200, {**info, "gemini": {"budget_exhausted": True}})
+def test_info_reports_the_commit_and_fails_on_an_exhausted_gemini_budget() -> None:
+    info = {"readers": {"raster": "x"}, "limits": {}, "commit": "4bc4405e1a2b"}
+    ok = smoke.info_checks(200, {**info, "gemini": "ok"})
+    assert all(c.ok for c in ok) and ok[1].detail == "4bc4405e1a2b" and ok[2].detail == '"ok"'
+    spent = smoke.info_checks(200, {**info, "gemini": "budget_exhausted"})
     assert not spent[2].ok
 
 
@@ -187,6 +186,8 @@ class FakeEnv(BaseHTTPRequestHandler):
                 "readers": {"raster": "c"},
                 "limits": {},
                 "rule_packs": [{"id": "fi"}],
+                "commit": "4bc4405e1a2b",
+                "gemini": "ok",
             },
             "/api/projects/p1": project(cost=self.cost),
             "/api/projects/p1/trace": trace(cost=self.cost),
@@ -233,10 +234,13 @@ def env() -> Iterator[str]:
     server.shutdown()
 
 
-def test_a_whole_run_passes_on_a_healthy_env(env: str, tmp_path: Path) -> None:
+def test_a_whole_run_passes_on_a_healthy_env(
+    env: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     upload = tmp_path / "demo.zip"
     upload.write_bytes(b"PK")
     assert smoke.main([env, "--zip", str(upload), "--timeout", "5"]) == 0
+    assert "· commit 4bc4405e1a2b ·" in capsys.readouterr().out
     assert "POST /api/projects?name=demo.zip" in FakeEnv.seen
     assert "GET /api/drawings/d1/checks?pack=fi&project=p1" in FakeEnv.seen
 

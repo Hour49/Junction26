@@ -5,11 +5,11 @@ export type Role = 'engineer' | 'surveyor';
 export type Route =
   | { name: 'home'; query: URLSearchParams }
   | { name: 'account'; query: URLSearchParams }
+  | { name: 'about'; query: URLSearchParams }
   | { name: 'project'; projectId: string; query: URLSearchParams }
-  | { name: 'conflicts'; projectId: string; query: URLSearchParams }
   | { name: 'chat'; projectId: string; query: URLSearchParams }
   | { name: 'checks'; projectId: string; query: URLSearchParams }
-  | { name: 'issues'; projectId: string; query: URLSearchParams }
+  | { name: 'documents'; projectId: string; query: URLSearchParams }
   | { name: 'file'; projectId: string; fileId: string; query: URLSearchParams }
   | { name: 'workspace'; projectId: string; drawingId: string; role: Role; query: URLSearchParams }
   | { name: 'not-found'; hash: string; query: URLSearchParams };
@@ -18,10 +18,11 @@ const PROJECT = '([0-9a-f]{12})';
 const FILE = new RegExp(`^/p/${PROJECT}/f/(f\\d+)$`);
 const WORKSPACE = new RegExp(`^/p/${PROJECT}/d/([0-9a-f]{16})/(engineer|surveyor)$`);
 const PROJECT_ONLY = new RegExp(`^/p/${PROJECT}$`);
-const CONFLICTS = new RegExp(`^/p/${PROJECT}/conflicts$`);
+// The old Conflicts and Issues tabs (shared.md "Demo parity"): both land on the project's Ingest, query kept.
+const OLD_TABS = new RegExp(`^/p/${PROJECT}/(conflicts|issues)$`);
 const CHAT = new RegExp(`^/p/${PROJECT}/chat$`);
 // Project-level screens that take only the project id: `#/p/<pid>/<name>`.
-const SECTION = new RegExp(`^/p/${PROJECT}/(checks|issues)$`);
+const SECTION = new RegExp(`^/p/${PROJECT}/(checks|documents)$`);
 
 /** The route of a location hash (`#/p/<id>/d/<id>/engineer?q=door`); ids off their pattern are not found. */
 export function parseRoute(hash: string): Route {
@@ -32,14 +33,15 @@ export function parseRoute(hash: string): Route {
   const path = pathPart === '' ? '/' : pathPart.replace(/(.)\/$/, '$1');
   if (path === '/') return { name: 'home', query };
   if (path === '/workspaces') return { name: 'account', query };
+  if (path === '/about') return { name: 'about', query };
   let m = PROJECT_ONLY.exec(path);
   if (m?.[1]) return { name: 'project', projectId: m[1], query };
-  m = CONFLICTS.exec(path);
-  if (m?.[1]) return { name: 'conflicts', projectId: m[1], query };
+  m = OLD_TABS.exec(path);
+  if (m?.[1]) return { name: 'project', projectId: m[1], query };
   m = CHAT.exec(path);
   if (m?.[1]) return { name: 'chat', projectId: m[1], query };
   m = SECTION.exec(path);
-  if (m?.[1] && (m[2] === 'checks' || m[2] === 'issues'))
+  if (m?.[1] && (m[2] === 'checks' || m[2] === 'documents'))
     return { name: m[2], projectId: m[1], query };
   m = FILE.exec(path);
   if (m?.[1] && m[2]) return { name: 'file', projectId: m[1], fileId: m[2], query };
@@ -58,13 +60,13 @@ export function routePath(route: Route): string {
       return '/';
     case 'account':
       return '/workspaces';
+    case 'about':
+      return '/about';
     case 'project':
       return `/p/${route.projectId}`;
-    case 'conflicts':
-      return `/p/${route.projectId}/conflicts`;
     case 'chat':
     case 'checks':
-    case 'issues':
+    case 'documents':
       return `/p/${route.projectId}/${route.name}`;
     case 'file':
       return `/p/${route.projectId}/f/${route.fileId}`;

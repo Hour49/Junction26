@@ -9,6 +9,8 @@ import {
   getProjectReview,
   getTakeoff,
   listProjects,
+  type ProjectList,
+  type ProjectReview,
   type ProjectSummary,
 } from '../api';
 import { usePoll } from '../ingest/usePoll';
@@ -20,8 +22,21 @@ import './account.css';
 const once = () => false;
 const loadList = (signal: AbortSignal) => listProjects({ signal });
 
+/** A sign-off made just before Workspaces opened can land after the first answer (AC-36): while something is
+ * still to review, ask again (usePoll's 500 ms) for at most this long after the screen opened. */
+const SETTLE_MS = 5000;
+function useUntilSettled<T>(toReview: (data: T) => number): (data: T) => boolean {
+  const [opened] = useState(() => Date.now());
+  return useCallback(
+    (data: T) => toReview(data) > 0 && Date.now() - opened < SETTLE_MS,
+    [opened, toReview],
+  );
+}
+const listToReview = (l: ProjectList) => l.projects.reduce((n, p) => n + (p.to_review ?? 0), 0);
+const reviewToReview = (r: ProjectReview) => r.drawings.reduce((n, d) => n + d.to_review, 0);
+
 export function AccountScreen() {
-  const list = usePoll(loadList, once);
+  const list = usePoll(loadList, useUntilSettled(listToReview));
   const [selected, setSelected] = useState<string | null>(null);
 
   const projects = list.data?.projects ?? [];
@@ -107,7 +122,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
   );
   const review = usePoll(
     useCallback((signal: AbortSignal) => getProjectReview(id, { signal }), [id]),
-    once,
+    useUntilSettled(reviewToReview),
   );
   const questions = usePoll(
     useCallback((signal: AbortSignal) => getProjectQuestions(id, { signal }), [id]),
@@ -115,15 +130,17 @@ function Panel({ summary }: { summary: ProjectSummary }) {
   );
   const questionsData = questions.error ? null : questions.data;
   const reviewData = review.error ? null : review.data;
+  // A review asked again (AC-36) is a new object with the same content: only new content asks for the takeoffs.
+  const reviewKey = reviewData ? JSON.stringify(reviewData) : null;
   // Every drawing with rows: the Signed off stat counts disagreements over them (account.md).
   const measured = reviewData?.drawings.filter((d) => d.quantities > 0) ?? [];
   const takeoffs = usePoll(
     useCallback(
       (signal: AbortSignal) =>
         Promise.all(measured.map((d) => getTakeoff(d.drawing_id, { project: id, signal }))),
-      // Only a new review changes which drawings are asked for.
+      // Only a review with new content changes which drawings are asked for, and what they hold.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [id, reviewData],
+      [id, reviewKey],
     ),
     once,
   );
