@@ -50,6 +50,7 @@ def answer_question(
     tables: Sequence[Table] = (),
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
+    sure_at: Mapping[str, float] | None = None,
 ) -> Answer:
     """`quantities` is the takeoff of the question's drawing (`known_quantities`), or None when
     the file has no drawing model; `tables` the schedules it prints. `prior_families` holds the
@@ -59,7 +60,9 @@ def answer_question(
     (answer_v1.1). Its `answer` is the prior's value for the question's family when there is one
     (with the prior's `confidence`), else None. With `confidence` (DECISIONS_CONFIDENCE), a
     takeoff answer gets its probability as `confidence`; when there is none, the reason is
-    logged, never added to the answer."""
+    logged, never added to the answer. `sure_at` (GATE_POLICY: family -> threshold on that
+    confidence's signal) sets `sure`: true at or above the family's threshold, false below it or
+    without a probability, None for a family it doesn't gate."""
     start = clock()
     parsed = parser.parse(question.text)
     read = _read(parsed)
@@ -114,10 +117,11 @@ def answer_question(
         if confidence is None or isinstance(parsed, Unsupported | TableQuery):
             return read(answer)
         rated = confidence.probability(question.file, parsed.family(), answer.answer)
+        sure = _sure(sure_at, parsed.family(), rated.value)
         if rated.value is None:  # why goes to the log: nothing a reader of the answer can act on
             logger.info("question %d: no confidence: %s", question.id, rated.note)
-            return read(answer)
-        return read(answer.model_copy(update={"confidence": rated.value}))
+            return read(answer.model_copy(update={"sure": sure}))
+        return read(answer.model_copy(update={"confidence": rated.value, "sure": sure}))
     estimate = None
     if not isinstance(parsed, Unsupported):
         source, family = source_of(question.file), parsed.family()
@@ -137,6 +141,12 @@ def answer_question(
             explanation=why,
         )
     )
+
+
+def _sure(sure_at: Mapping[str, float] | None, family: str, value: float | None) -> bool | None:
+    if sure_at is None or family not in sure_at:
+        return None
+    return value is not None and value >= sure_at[family]
 
 
 def _read(parsed: Query | TableQuery | Unsupported) -> Callable[[Answer], Answer]:
@@ -287,6 +297,7 @@ def answer_questions(
     prior: AnswerPrior,
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
+    sure_at: Mapping[str, float] | None = None,
 ) -> dict[str, int]:
     """Answers every question, file by file so each drawing model is loaded once, and writes the
     answers to the sink. Returns how many answers each method gave."""
@@ -305,7 +316,15 @@ def answer_questions(
         )
         for question in asked:
             answer = answer_question(
-                question, quantities, reads, clock, prior, tables, prior_families, confidence
+                question,
+                quantities,
+                reads,
+                clock,
+                prior,
+                tables,
+                prior_families,
+                confidence,
+                sure_at,
             )
             sink.write(answer)
             methods[answer.method] += 1

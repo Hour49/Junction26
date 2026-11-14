@@ -1324,6 +1324,7 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1574,6 +1575,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": 0.87,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1845,6 +1847,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1965,6 +1968,7 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -2068,6 +2072,7 @@ A question the drawing cannot answer:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": true,
     "explanation": "no count, area, length or volume asked for",
     "estimate": null,
@@ -2297,6 +2302,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
@@ -2550,6 +2556,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
@@ -2677,6 +2684,7 @@ rests on:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -3440,6 +3448,10 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive: `line.sure` (answer_v1.1): true when the answer's `g1main` score is at or above
+  its family's threshold in golden's gate file (`GATE_POLICY`, chosen on val, not certified), false below it
+  or when there is no score, null when the family is not gated or the gate is off. `POST /api/ask` leaves it
+  null for now.
 - 2026-11-14, additive (behaviour): review edits and sign-offs belong to the project (R1b-4-1). With `project`
   (takeoff, review, signoff, takeoff.csv, the new optional `project` on `evidence.png`) or `project_id` (ask)
   they are that project's; without one, a drawing-level state no project sees. Edits stored before this change

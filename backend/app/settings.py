@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when
     # the drawing gives a value (app/adapters/answer_policy.py); "" none
     answer_policy: str = ""
+    # golden's gate.json (gate_policy_v1): per family, the confidence at or above which an answer
+    # is marked sure (app/adapters/gate_policy.py); needs DECISIONS_CONFIDENCE; "" none
+    gate_policy: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample

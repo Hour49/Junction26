@@ -727,6 +727,9 @@ class GateResult(BaseModel):
         description="--family-arm: family -> the arm (folder under data/stoa/exp) answering it "
         "instead of `arm`",
     )
+    swap: str | None = Field(
+        default=None, description="--swap: the Decisions count swap arm applied to `arm`'s answers"
+    )
     part: str
     images: int = Field(description="the images the signals are compared and the gate set on")
     seed: int
@@ -798,6 +801,9 @@ class GatePolicy(BaseModel):
         default_factory=dict[str, str],
         description="family -> the arm that answered it instead of `arm` (a runtime combination)",
     )
+    swap: str | None = Field(
+        default=None, description="the Decisions count swap applied to `arm`'s answers (S1536)"
+    )
     target: float
     source: str = Field(description="the val gate JSON it was made from")
     certified: bool = Field(description="false until the single test run certifies the gate")
@@ -830,7 +836,8 @@ def gate_policy(result: GateResult, source: str, generated: str) -> GatePolicy:
     return GatePolicy(
         schema="gate_policy_v1", generated=generated, part="val",
         split_sha256=result.split_sha256, arm=result.arm, second=result.second,
-        family_arms=result.family_arms, target=result.target, source=source, certified=False,
+        family_arms=result.family_arms, swap=result.swap, target=result.target, source=source,
+        certified=False,
         families=families,
     )  # fmt: skip
 
@@ -901,6 +908,7 @@ def format_gate(result: GateResult) -> str:
         f"## Gate on {result.part}: {result.arm}"
         + (f" (second arm {result.second})" if result.second else ""),
         "",
+        *([f"Answers after the Decisions swap {result.swap}", ""] if result.swap else []),
         *(
             [
                 "Answered by another arm: "

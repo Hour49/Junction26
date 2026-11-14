@@ -108,6 +108,7 @@ def ask(
     state: ReviewState,
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
+    sure_at: Mapping[str, float] | None = None,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability)."""
@@ -116,7 +117,7 @@ def ask(
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
     answer = answer_question(
-        question, quantities, once, clock, prior, tables, prior_families, confidence
+        question, quantities, once, clock, prior, tables, prior_families, confidence, sure_at
     )
     parsed = once.parse(text)
     query: str | None = None

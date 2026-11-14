@@ -32,6 +32,7 @@ uv run python -m stoa_eval exp-split            # data/stoa/exp/split.json: Cubi
 uv run python -m stoa_eval ab --a <arm> --b <arm>   # A/B two arms on val (Experiments, below)
 uv run python -m stoa_eval gate --arm <arm>        # E5 confidence gate on val (--second <arm>)
 uv run python -m stoa_eval gate-policy --gate <val gate JSON>   # data/stoa/exp/gate.json for the backend
+uv run python -m stoa_eval gate-refit [--detector <val output>]  # gate.json refit on a runtime config
 uv run python -m stoa_eval leaderboard          # every arm under data/stoa/exp against prior on val
 uv run python -m stoa_eval annotated-region     # the region each train/val image's gold annotates
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
@@ -94,13 +95,17 @@ family (they read `--arm`'s extraction), and a signal file about one arm is refu
 signal `g1main`, the backend's DECISIONS_CONFIDENCE on the gate's own answers: decide's cached G1main replies
 (`data/stoa/exp/decide/G1main-high/raw`, checked against the backend's question set) read by the backend's parser
 (`ab_backend.py g1main`), Gemini's probability for each answered count, the lowest over a family's questions on an
-image, none for an answer that is not a whole count. Runtime gate (2026-11-14, golden-16):
+image, none for an answer that is not a whole count. `--swap S1536` (needs `--g1main`) applies the runtime's
+Decisions count swap to `--arm`'s answers with the backend's own rule and frozen thresholds (`ab_backend.py
+swap`: `app.adapters.decisions.uses.swapped`, `SWAP_ARMS`), so the gate judges the counts the product gives; the
+built-in signals then have no value (they read the unswapped extraction).
 
-```bash
-uv run python -m stoa_eval gate --arm ../data/stoa/exp/decide/S1536 \
-  --family-arm 'room:*=../data/stoa/exp/ocr/G4' --g1main ../data/stoa/exp/decide/G1main-high/raw \
-  --signal g1main --pool
-```
+`gate-refit` is all of that in one command for a runtime config: the pooled g1main gate on val with the swap and
+the rooms arm the runtime has, then `data/stoa/exp/gate.json` from it, printing the file before and after.
+Defaults are the demo config (`tools/qa-env.sh config`, 2026-11-14): `--detector data/stoa/exp/region/L1536-R1`
+(region:C-yolo26s-1536's val output), `--swap S1536` (decisions-s1536), `--rooms data/stoa/exp/ocr/G4-regpred`
+(regionrooms), `--g1main data/stoa/exp/decide/G1main-high/raw`. A new detector: give its val output folder
+(`--detector`), and `--swap none` or another `SWAP_ARMS` arm if the runtime changes the swap.
 
 `gate-policy` turns a val gate JSON into `data/stoa/exp/gate.json` (gate_policy_v1, schema in
 docs/GOLDEN.md): per family whose gate opens on val answers, the signal, threshold, group and val numbers

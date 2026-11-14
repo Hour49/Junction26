@@ -626,6 +626,7 @@ def test_gate_answers_a_family_from_another_arm_and_reads_g1main(
         (("--family-arm", "w*=ocr/b", "--family-arm", "window=core/a"), "window is routed twice"),
         (("--family-arm", "window=ocr/b", "--signal-file", "<arm>"), "can't judge a combination"),
         (("--g1main", "<g1>", "--signal-file", "<g1main>"), "both named g1main"),
+        (("--swap", "S1536"), "--swap needs --g1main"),
     ],
 )
 def test_gate_refuses_a_bad_combination(
@@ -652,3 +653,50 @@ def test_gate_refuses_a_bad_combination(
     assert run("gate", *common, *args) == 1
     assert reason in capsys.readouterr().err
     assert not list((exp / "ab").glob("gate-*.json")) if (exp / "ab").exists() else True
+
+
+def test_gate_refit_is_one_command_from_a_runtime_config_to_gate_json(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The detector's val output, the runtime's swap (the fake makes every window 3) and no rooms
+    arm: the gate sees the swapped answers, g1main judges them, gate.json says how it was set."""
+    monkeypatch.setattr(backend, "run", fake_backend)
+    exp = dataset / "exp"
+    assert exp_split(dataset, exp) == 0
+    scored_arm(dataset, exp / "core" / "a")
+    replies = g1main_replies(dataset / "g1", exp, 3)
+    seen: list[tuple[dict[int, Any], set[str]]] = []
+    units = cli._units
+
+    def spy(*args: Any, **kwargs: Any) -> list[Unit]:
+        given: list[Any] = list(args)
+        own = given[8] if len(given) > 8 else kwargs.get("own", frozenset())
+        seen.append(({k: v.answer for k, v in given[2].items()}, set(own)))
+        return units(*args, **kwargs)
+
+    monkeypatch.setattr(cli, "_units", spy)
+    out = dataset / "gate.json"
+    refit = ("gate-refit", "--detector", exp / "core/a", "--rooms", "none", "--g1main", replies,
+             "--exp-dir", exp, "--gold", dataset / "gold", "--out", out)  # fmt: skip
+    assert run(*refit) == 0
+    printed = capsys.readouterr().out
+    assert "Answers after the Decisions swap S1536" in printed
+    assert "gate.json was no file" in printed and "now core-a+swap-S1536:" in printed
+    val_qs = [json.loads(line) for line in (exp / "val_questions.jsonl").read_text().splitlines()]
+    windows = {q["id"] for q in val_qs if q["question"] == WINDOWS}
+    answers, own = seen[-1]
+    assert {answers[i] for i in windows} == {3}  # the swap's answers, not the detector's 0
+    assert own == {"door", "window"}  # the detector's built-in signals don't judge swapped answers
+    val = json.loads((exp / "ab/gate-core-a+swap-S1536-val.json").read_text())
+    assert val["swap"] == "S1536" and val["signal"] == G1MAIN and val["groups"]
+    made = json.loads(out.read_text())
+    assert made["arm"] == "core-a+swap-S1536" and made["swap"] == "S1536"
+    assert made["family_arms"] == {} and made["certified"] is False
+    assert run(*refit) == 0
+    assert "gate.json was core-a+swap-S1536:" in capsys.readouterr().out
+    certify = ("--part", "test", "--certify", "--g1main", replies, "--signal", G1MAIN)
+    common = ("--exp-dir", exp, "--gold", dataset / "gold", "--arm", exp / "core/a")
+    assert run("gate", *common, *certify) == 1  # no swap: another arm's val gate
+    assert "gate-core-a-val.json" in capsys.readouterr().err
+    assert run("gate", *common, *certify, "--swap", "S1536") == 0
+    assert json.loads((exp / "ab/gate-core-a+swap-S1536-test.json").read_text())["swap"] == "S1536"

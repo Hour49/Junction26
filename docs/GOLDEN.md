@@ -306,12 +306,18 @@ opens and marks at least one val answer sure are listed. `split_sha256` is requi
 without it). `certified` stays false until the one test run; `arm` (with `family_arms`) is what the thresholds
 were set on, so a product that answers a family with another arm uses an untested threshold there.
 
-The current file (2026-11-14, golden-16) is set on what the QA build runs: region:C-yolo26s-1536 with the S1536
-swap for elements and plans (val arm `decide/S1536`), Gemini rooms (`ocr/G4`), signal g1main. On val only plans
-open: elements and rooms stay shut, because Gemini is at least 0.95 sure of a few wrong counts (a toilet count,
+The current file (2026-11-14, golden-17) is set by `stoa_eval gate-refit` on the demo config
+(`tools/qa-env.sh config`): region:C-yolo26s-1536's val output with the backend's S1536 swap (frozen thresholds)
+for elements and plans, regionrooms rooms (`ocr/G4-regpred`), signal g1main. The golden-16 file (decide's
+cross-fit `decide/S1536`, `ocr/G4` rooms) gave the same gate. On val only plans open: elements and rooms stay shut, because Gemini is at least 0.95 sure of a few wrong counts (a toilet count,
 G4 kitchen, bedroom and balcony counts), and with the plan as the unit the 95% bound needs about 60 plans per
 error. The earlier file, set on detector C-yolo26s-v8 alone, also opened elements (0.7625) and sauna (0.664);
 those thresholds were never valid for the arms the product answers with.
+
+When the runtime config changes (a new detector), `uv run python -m stoa_eval gate-refit --detector <its val
+output>` refits gate.json in one command (eval/README.md). Then, once, at the freeze, the test certificate:
+`gate --part test --certify` with the same arm, swap, rooms and `--g1main` replies for the test images (decide
+holds val and golden replies only, so that run needs G1main calls on test: spend, the orchestrator's OK).
 
 ## What the answer should show
 
