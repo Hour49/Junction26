@@ -11,6 +11,10 @@ One request per uploaded image or PDF (page 1): a `choice` over floor plan / ele
   on 117 labelled drawings. `p_plan_sheet` adds P(photo of a plan), since a photo of a plan is a
   plan: below 0.2 it marked 72 of 73 elevation/section/site/schedule/text sheets and 0 of 452
   plans (46 labelled, 30 phone photos, all 376 CubiCasa val pages).
+- `not_drawing`: P(not a drawing) >= 0.5 (QA R2-qa5-1). On decide2's 523 labelled drawings
+  (floor plans, elevations, sections, site plans, schedules, phone photos) it is 0.12 at most
+  (floor plans 0.033); a solid black, a white and a noise JPEG got 0.56-0.60, a text sheet
+  0.96. Ingest sets such an image aside.
 
 Replies are cached on disk by the file's sha256, the question version and the model, so a file is
 paid for once. On a Decisions error nothing is guessed: `read` returns `KindUnavailable` with
@@ -46,6 +50,7 @@ KEY = "kind"
 RESOLUTION = "high"
 MAX_SIDE = 3072  # long side of the image sent, in pixels (a PDF page is rendered to it)
 PHOTO_AT = 0.9  # P(photo_plan) that flags a photo: 0/376 CubiCasa val scans, 26/30 real photos
+NOT_DRAWING_AT = 0.5  # P(not_drawing): <= 0.12 on 523 labelled drawings, 0.56-0.60 on blank/noise
 UNAVAILABLE = "kind signal not available"
 
 
@@ -69,6 +74,10 @@ class KindSignal:
     @property
     def photo(self) -> bool:
         return self.probs.get("photo_plan", 0.0) >= PHOTO_AT
+
+    @property
+    def not_drawing(self) -> bool:
+        return self.probs.get("not_drawing", 0.0) >= NOT_DRAWING_AT
 
     @property
     def p_plan(self) -> float:

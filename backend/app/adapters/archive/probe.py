@@ -22,7 +22,19 @@ The format comes from the first bytes (`sniff`, app/core/pipeline/identify.py). 
   between the two kinds of camera image: `paper` >= 30% and `ink` between 0.3% and 35% is a
   photo of a drawing (`photo_plan`), else a photo that is not of a drawing (`photo`). A phone
   photo with its EXIF stripped passes as a drawing: it takes the same raster route, unflagged.
-  An image under 64 px a side is too small to read.
+  An image under 64 px a side is too small to read. An image with no drawing in it is not a
+  drawing (`unknown`, set aside), whatever its EXIF says (QA R2-qa5-1: these were "ready" plans
+  whose counts read a measured 0):
+  - no sharp line: the 99.9th percentile of the step between neighbouring pixels, on the image
+    at 1024 px, under 10 grey levels. A blank page, a black frame or a photo blurred past
+    reading. Drawings measured: 18 or more (old faint scans), 55 or more on CubiCasa.
+  - no structure: neighbouring pixels of the 256 px thumbnail unrelated both across and down
+    (correlation under 0.3, from their mean squared step and the variance): noise.
+  Checked 2026-11-14 with this code on 13,560 images, none set aside: CubiCasa 4,787, swiss
+  1,040, the 30 Commons phone photos, the demo archive's 9 images, 6,566 historic scans
+  (wikimedia, habs, finna, europeana, opening_design) and 1,128 synthetic phone photos of plans.
+  Set aside: black, white, noise, and a plan or photo blurred by 15 or 25 px (8 px and less
+  are kept). Both checks add about 26 ms per image.
 - Text: UTF-8 with next to no control characters. A DWG, an office file and a zip that was not
   unpacked are named, and set aside by the service.
 
@@ -38,7 +50,7 @@ import zipfile
 from typing import Any
 
 import pypdfium2
-from PIL import Image, ImageChops, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageStat, UnidentifiedImageError
 from pypdfium2 import raw
 
 from app.adapters.pdfium_lock import PDFIUM
@@ -57,6 +69,10 @@ SCAN_PATHS = 50  # a scan with more paths than this has a drawn layer on it
 TEXT_CHARS = 200
 MAX_OBJECTS = 20000  # page objects looked at; a drawing has passed the bar long before
 TEXT_HEAD = 65536
+SHARP_SIDE = 1024  # long side the sharpness is measured at
+SHARP_AT = 0.999  # the share of neighbour steps below the image's sharpest
+SHARP_STEP = 10  # grey levels: an image whose sharpest steps are smaller has no line in it
+NOISE_CORRELATION = 0.3  # neighbouring pixels less related than this: noise, no drawing
 
 
 class FileProbe:
@@ -164,12 +180,52 @@ def _image(data: bytes, image_format: str) -> Probed:
     seen = f"{width}x{height} px, {white:.0%} white, {paper:.0%} paper, {ink:.1%} ink" + (
         f", camera EXIF ({camera})" if camera else ""
     )
+    empty = _no_drawing(data, grey)
+    if empty is not None:
+        return Probed(kind="unknown", did=f"not a drawing: {empty} ({seen})")
     if not camera:
         kind = "png_plan" if image_format == "png" else "jpeg_plan"
         return Probed(kind=kind, did=f"a drawing as a {name} ({seen})")
     if paper >= PAPER_PHOTO and INK_PHOTO[0] <= ink <= INK_PHOTO[1]:
         return Probed(kind="photo_plan", did=f"a photo of a drawing ({seen})")
     return Probed(kind="photo", did=f"a photo, not of a drawing ({seen})")
+
+
+def _no_drawing(data: bytes, thumb: Image.Image) -> str | None:
+    """Why an image holds no drawing (no sharp line, or no structure), or None. `thumb`: the
+    probe's white-balanced grey thumbnail."""
+    with Image.open(io.BytesIO(data)) as image:
+        image.draft("L", (SHARP_SIDE, SHARP_SIDE))
+        grey = image.convert("L")
+    grey.thumbnail((SHARP_SIDE, SHARP_SIDE))
+    across, down = _steps(grey)
+    levels = ImageChops.lighter(across, down).histogram()
+    seen, total, sharpest = 0, sum(levels), 0
+    for level, count in enumerate(levels):
+        seen += count
+        if seen >= SHARP_AT * total:
+            sharpest = level
+            break
+    if sharpest < SHARP_STEP:
+        return f"no sharp line in it (sharpest step {sharpest} grey levels): blank or blurred"
+    variance = ImageStat.Stat(thumb).var[0]
+    related = 1.0
+    if variance:  # the better of the two directions: a thin upright line only relates downwards
+        squares = [sum(level * level * count for level, count in enumerate(step.histogram()))
+                   / (step.width * step.height) for step in _steps(thumb)]  # fmt: skip
+        related = 1 - min(squares) / (2 * variance)
+    if related < NOISE_CORRELATION:
+        return f"no structure in it (neighbouring pixels correlate {related:.2f}): noise"
+    return None
+
+
+def _steps(grey: Image.Image) -> tuple[Image.Image, Image.Image]:
+    """|step| to the right neighbour and to the one below, for every pixel that has both."""
+    width, height = grey.size
+    here = grey.crop((0, 0, width - 1, height - 1))
+    right = grey.crop((1, 0, width, height - 1))
+    below = grey.crop((0, 1, width - 1, height))
+    return ImageChops.difference(here, right), ImageChops.difference(here, below)
 
 
 def _balanced(image: Image.Image) -> Image.Image:

@@ -19,6 +19,7 @@ from app.adapters.decisions.client import MODEL, DecisionsError
 from app.adapters.decisions_kind import (
     KINDS,
     MAX_SIDE,
+    NOT_DRAWING_AT,
     PHOTO_AT,
     UNAVAILABLE,
     KindReader,
@@ -193,3 +194,23 @@ def test_only_drawing_images_are_sent() -> None:
         probed = kind_probe(kind, decider).probe(png(20, 20))
         assert probed == Probed(kind=kind, did="the probe's words")  # type: ignore[arg-type]
     assert not decider.bodies
+
+
+def kind_reply(probs: dict[str, float]) -> dict[str, Any]:
+    return {"answers": {"kind": {"probabilities": probs}}}
+
+
+def test_not_drawing_flag_is_at_the_threshold() -> None:
+    probs = dict.fromkeys(KINDS, 0.0)
+    assert not KindSignal(probs | {"not_drawing": NOT_DRAWING_AT - 1e-9}, "").not_drawing
+    assert KindSignal(probs | {"not_drawing": NOT_DRAWING_AT}, "").not_drawing
+
+
+def test_a_not_drawing_verdict_sets_the_image_aside() -> None:
+    # QA R2-qa5-1: a black JPEG, P(not_drawing) 0.56 (523 labelled drawings: 0.12 at most)
+    probs = {"not_drawing": 0.564, "floor_plan": 0.151, "photo_plan": 0.109,
+             "elevation_section": 0.085, "site_plan": 0.047, "schedule": 0.045}  # fmt: skip
+    probed = kind_probe("jpeg_plan", FakeDecider(reply=kind_reply(probs))).probe(png(20, 20))
+    assert probed.kind == "unknown"
+    assert probed.did.startswith("not a drawing: sheet kind not_drawing (0.56)")
+    assert probed.did.endswith("(the pixels alone: the probe's words)")

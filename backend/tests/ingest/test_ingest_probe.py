@@ -1,10 +1,11 @@
 """Identify by content: what each kind of file is called, from its bytes alone."""
 
 import io
+import random
 import zipfile
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageFilter
 from test_vector_pdf import swiss_sheet
 
 from app.adapters.archive import FileProbe
@@ -51,6 +52,28 @@ def test_images_drawings_and_photos() -> None:
     # without camera EXIF nothing is called a photo: setting a file aside needs evidence
     assert kind(jpeg(site_photo())) == "jpeg_plan"
     assert kind(png_bytes(Image.new("RGB", (40, 300), "white"))) == "unknown"  # too small to read
+
+
+def noise(width: int, height: int) -> Image.Image:
+    """Random grey pixels, seeded: an image with no structure at all."""
+    return Image.frombytes("L", (width, height), random.Random(0).randbytes(width * height))
+
+
+def test_images_with_no_drawing_in_them_are_set_aside_as_not_drawings() -> None:
+    # QA R2-qa5-1: these were "ready" plans whose questions answered a measured 0
+    size = (1600, 1200)
+    for image in (
+        Image.new("RGB", size, "black"),
+        Image.new("RGB", size, "white"),
+        noise(*size).convert("RGB"),
+        raster_plan().filter(ImageFilter.GaussianBlur(25)),  # a plan blurred past reading
+    ):
+        probed = FileProbe().probe(jpeg(image))
+        assert probed.kind == "unknown", probed.did
+        assert probed.did.startswith("not a drawing: "), probed.did
+    # the same plan a little soft is still a drawing, and so is a camera photo of it
+    assert kind(jpeg(raster_plan().filter(ImageFilter.GaussianBlur(2)))) == "jpeg_plan"
+    assert kind(jpeg_bytes(phone_photo(raster_plan()))) == "photo_plan"
 
 
 @pytest.mark.parametrize(
