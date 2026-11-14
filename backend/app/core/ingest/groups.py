@@ -57,15 +57,26 @@ class Groups:
             path: [drawings[found] for found in readers.finder.sources(path) if found in drawings]
             for path in drawings
         }
-        for members in group(drawings.values(), sources):
-            asked = [
-                file
-                for file in members.files
-                if file.path in drawings and key_of(file) == members.key
-            ]
-            if asked:
-                self._group(run, readers, members, asked)
-                saved()
+        groups = [
+            (members, asked)
+            for members in group(drawings.values(), sources)
+            if (
+                asked := [
+                    file
+                    for file in members.files
+                    if file.path in drawings and key_of(file) == members.key
+                ]
+            )
+        ]
+        # Every file's group is known now: publish it before the first group is read, so a poll
+        # counts the drawings to expect from the groups, not from the files (QA R4-a-1)
+        for members, asked in groups:
+            for file in asked:
+                run.set(file.path, group=members.key)
+        saved()
+        for members, asked in groups:
+            self._group(run, readers, members, asked)
+            saved()
 
     def _group(
         self, run: Run, readers: Readers, members: DrawingGroup, asked: list[DrawingFile]
