@@ -427,7 +427,7 @@ def test_a_conflicted_count_answers_the_resolved_value_and_shows_both_values() -
     ]
     assert answer.resolution == "kept 5: count what the sheet draws"
     assert answer.explanation == (
-        "two methods disagree (plan_drawing 5, ifc_model 7); kept 5: count what the sheet draws; "
+        "two methods disagree (the sheet 5, the IFC model 7); kept 5: count what the sheet draws; "
         "the undrawn IFC windows sit above the 1.20 m cut"
     )
     assert len(answer.evidence) == 5  # the resolved value is the takeoff's own, so its marks
@@ -444,7 +444,7 @@ def test_an_unresolved_conflict_shows_both_values_and_abstains() -> None:
     assert answer.conflicts is not None and [c.value for c in answer.conflicts] == [5, 7]
     assert answer.explanation is not None
     assert answer.explanation.startswith(
-        "two methods disagree (plan_drawing 5, ifc_model 7) and no rule decides between them"
+        "two methods disagree (the sheet 5, the IFC model 7) and no rule decides between them"
     )
 
 

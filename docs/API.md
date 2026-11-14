@@ -2268,7 +2268,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
   ],
   "refusal": null,
   "method": "takeoff",
-  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
   "reader": {
     "route": "vector",
     "source": "plans/flat-b.pdf",
@@ -2299,7 +2299,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "latency_s": 0.002,
     "confidence": null,
     "abstain": null,
-    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
     "conflicts": [
       {
@@ -2342,7 +2342,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
         "note": null
       }
     ],
-    "arithmetic": "30 = 30 m²",
+    "arithmetic": null,
     "objects": null,
     "storeys": null,
     "schedule": null,
@@ -2521,7 +2521,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
   ],
   "refusal": null,
   "method": "takeoff",
-  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
   "reader": {
     "route": "vector",
     "source": "plans/flat-b.pdf",
@@ -2552,7 +2552,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "latency_s": 0.002,
     "confidence": null,
     "abstain": null,
-    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
     "conflicts": [
       {
@@ -2595,7 +2595,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
         "note": null
       }
     ],
-    "arithmetic": "30 = 30 m²",
+    "arithmetic": null,
     "objects": null,
     "storeys": null,
     "schedule": null,
@@ -3441,6 +3441,10 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, text: a dataset drawing's `credit` is the attribution once, with its licence named once and no
+  "<licence>. Credit:" of its own (the screen writes "Credit: "; R3-qa2-1). `proof.arithmetic` is null for a sum of
+  one part (was "30 = 30 m²"; a settled one keeps "settled by a person, was …"). `explanation` names the two
+  methods of a disagreement in words ("the sheet 4, the IFC model 8", was "plan_drawing 4, ifc_model 8").
 - 2026-11-14, additive (wording): `reader` of a sheet read with its IFC model (bim route, not the model itself)
   is `extractor: "ifc_sheet"` with the sheet as `source` (was `ifc` and the .ifc), so the card names the sheet
   for the shown count and the model as the second count (R3-qa-5-1).

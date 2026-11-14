@@ -388,7 +388,7 @@ def test_a_settled_room_area_shows_the_settled_value_on_its_mark_and_in_its_sum(
     before = ask(client, drawing_id, "What is the net floor area of room 1.01?")
     assert before["quantity"]["key"] == key
     assert [mark["value"] for mark in before["marks"]] == [30.0]
-    assert before["proof"]["arithmetic"] == "30 = 30 m²"
+    assert before["proof"]["arithmetic"] is None  # one part: no "30 = 30 m²" (R3 qa-2)
     outline = before["quantity"]["first"]
     assert outline["method"] == "polygon_x_scale"
 
@@ -396,7 +396,7 @@ def test_a_settled_room_area_shows_the_settled_value_on_its_mark_and_in_its_sum(
     after = ask(client, drawing_id, "What is the net floor area of room 1.01?")
     assert after["answer"] == pytest.approx(22.40, abs=0.01)
     assert [mark["value"] for mark in after["marks"]] == [outline["value"]]
-    assert after["proof"]["arithmetic"] == "22.4 = 22.4 m²; settled by a person, was 30 m²"
+    assert after["proof"]["arithmetic"] == "settled by a person, was 30 m²"
 
 
 class PaidRated(Rated):

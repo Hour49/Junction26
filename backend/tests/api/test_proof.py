@@ -71,8 +71,22 @@ def test_a_sum_writes_out_its_parts_and_names_what_the_rule_left_out() -> None:
 
 def test_every_unit_the_proof_writes_is_the_unit_people_read() -> None:
     for unit, shown in (("m2", "m²"), ("m3", "m³"), ("m", "m")):
-        row = a_row("area:room|indoor", "area", "room", 2.0, unit, mark(1, "Küche", 2.0))
-        assert takeoff_proof(row, SHEET).arithmetic == f"2 = 2 {shown}"
+        row = a_row(
+            "area:room|indoor",
+            "area",
+            "room",
+            3.0,
+            unit,
+            mark(1, "Küche", 2.0),
+            mark(2, "Bad", 1.0),
+        )
+        assert takeoff_proof(row, SHEET).arithmetic == f"2 + 1 = 3 {shown}"
+
+
+def test_a_sum_of_one_part_writes_no_arithmetic() -> None:
+    """R3 qa-2: "30 = 30 m²" says nothing the value and its mark don't."""
+    row = a_row("area:room|name=1.01", "area", "room", 30.0, "m2", mark(1, "Küche", 30.0))
+    assert takeoff_proof(row, SHEET).arithmetic is None
 
 
 def test_a_model_fact_lists_the_objects_with_global_ids_and_the_storey_table() -> None:

@@ -27,6 +27,7 @@ from pathlib import Path, PurePosixPath
 TAG = re.compile(r"<[^>]+>")
 SAMPLE = "Synthetic drawing made for this demo by the Hour49 team; no partner data"
 ALL_FILES = "All files: "
+CREDIT = ". Credit: "
 
 
 def cells(line: str) -> list[str]:
@@ -39,6 +40,13 @@ def with_licence(credit: str, licence: str) -> str:
     return credit if plain in credit.replace("-", " ").lower() else f"{credit} ({licence})"
 
 
+def source_line(text: str) -> str:
+    """`<licence>. Credit: <credit>` as the credit with its licence named once; the screen writes
+    "Credit: " before it."""
+    licence, sep, credit = text.partition(CREDIT)
+    return with_licence(credit, licence) if sep else text
+
+
 def parse_licence(text: str) -> tuple[dict[str, str], str | None]:
     """A source's LICENSE.md: the credit of each file in its table (path relative to the source
     folder), and the line that covers every file, if it has one."""
@@ -47,7 +55,7 @@ def parse_licence(text: str) -> tuple[dict[str, str], str | None]:
     header: list[str] | None = None
     for line in text.splitlines():
         if line.startswith(ALL_FILES):
-            every = line.removeprefix(ALL_FILES).strip()
+            every = source_line(line.removeprefix(ALL_FILES).strip())
         elif not line.startswith("|"):
             header = None
         elif header is None:
@@ -125,15 +133,17 @@ class DatasetCredits:
         return None
 
     def _sampled(self) -> set[tuple[int, str]]:
-        """Size and sha256 of each file in the sample archive (none when it is not built)."""
+        """Size and sha256 of each file in the sample archive (none while it is not built: /sample
+        builds it on its first request, so a lookup before that is not kept)."""
         if self._sample_files is None:
+            if self._sample is None or not self._sample.is_file():
+                return set()
             self._sample_files = set()
-            if self._sample is not None and self._sample.is_file():
-                with zipfile.ZipFile(self._sample) as archive:
-                    for entry in archive.infolist():
-                        if not entry.is_dir():
-                            data = archive.read(entry)
-                            self._sample_files.add((len(data), hashlib.sha256(data).hexdigest()))
+            with zipfile.ZipFile(self._sample) as archive:
+                for entry in archive.infolist():
+                    if not entry.is_dir():
+                        data = archive.read(entry)
+                        self._sample_files.add((len(data), hashlib.sha256(data).hexdigest()))
         return self._sample_files
 
     def _index(self) -> dict[int, list[Path]]:
