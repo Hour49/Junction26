@@ -28,7 +28,9 @@ RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normali
 # siglip: fixed register heads on a SigLIP2 embedding, CPU (data/models/triage/siglip2-512-v2/);
 # with DECISIONS_KIND, a plan when either it or the sheet-kind signal says so.
 TriageClassifierName = Literal["off", "rules", "siglip"]
-TriageDescriberName = Literal["off"]  # eu-big's measured describers are added here
+# gemini: gemini-3.5-flash fills the description form and its long text, GEMINI_API_KEY's
+# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/)
+TriageDescriberName = Literal["off", "gemini"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
@@ -144,4 +146,5 @@ class Settings(BaseSettings):
     # classifier on.
     triage_classifier: TriageClassifierName = "off"
     triage_describer: TriageDescriberName = "off"
+    triage_describer_cache_dir: Path = Path("../data/cache/triage-describer")
     triage_judge: TriageJudgeName = "off"

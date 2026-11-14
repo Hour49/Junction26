@@ -71,9 +71,9 @@ def archive(dataset, out, picks_path):
         if p["source"] not in ARCHIVES or not re.fullmatch(r"[\w.-]+\.(jpg|png)", p["file"]):  # it becomes a path
             sys.exit(f"bad pick {p['source']}/{p['file']}")
         src = dataset / "data" / p["source"] / p["file"]
-        shutil.copyfile(src, out / "archive" / p["file"])
         path = f"archive/{p['file']}"
-        entry = {"path": path, "size": size_text(src.stat().st_size), "kind": "JPG scan", "image": path,
+        entry = {"path": path, "size": size_text(src.stat().st_size), "kind": "JPG scan",
+                 "image": "archive/" + optimized(src, out / "archive", p["file"]),
                  "credit": file_credit(dataset / "data" / p["source"], p["file"])}
         register = {**p["register"], "method": PICK_METHOD}
         if register["kind"] == "floor_plan":
@@ -84,7 +84,64 @@ def archive(dataset, out, picks_path):
     return files
 
 
-KINDS = {".pdf": ("Vector PDF", "CAD"), ".dxf": ("DXF", "CAD"), ".png": ("PNG rendering", "Vision")}
+def optimized(src, dest_dir, name):
+    """A web copy of an image: at most 1600 px on its long side, WebP; a plain copy without Pillow. Returns its name."""
+    try:
+        from PIL import Image
+    except ImportError:
+        shutil.copyfile(src, dest_dir / name)
+        return name
+    webp = Path(name).with_suffix(".webp").name
+    with Image.open(src) as im:
+        im = im.convert("RGBA" if im.mode in ("RGBA", "LA", "P") else "RGB")
+        im.thumbnail((1600, 1600))
+        im.save(dest_dir / webp, "WEBP", quality=80, method=6)
+    return webp
+
+
+def render_pdf(pdf, out):
+    """Page 1 of the PDF as a PNG, so the chat's references can show it; {} without pypdfium2 (the backend venv has it)."""
+    try:
+        import pypdfium2
+    except ImportError:
+        return {}
+    name = pdf.name + ".png"
+    page = pypdfium2.PdfDocument(str(pdf))[0]
+    page.render(scale=2).to_pil().save(out / name)
+    small = optimized(out / name, out, name)
+    if small != name:
+        (out / name).unlink()
+    return {"image": small}
+
+
+# A second, real drawing set (OpeningDesign, CC BY-SA 4.0): a house getting a second floor. Its elevations and section
+# are the non-floor-plan references the chat combines with its floor plan (Tudor, 16:05).
+OD_DIR = "New_2nd_Story/Transfer/20180920 - markups for regis/PDF SHEET"
+OD_SHEETS = [("A200 - ELEVATION SOUTH.pdf", "elevation"), ("A200 - ELEVATION EAST.pdf", "elevation"),
+             ("A200 - ELEVATION NORTH.pdf", "elevation"), ("A202 - ELEVATION WEST.pdf", "elevation"),
+             ("A300 - BUILDING SECTION.pdf", "section"), ("A101 - FLOOR PLAN - 1ST FLOOR.pdf", "floor_plan")]
+
+
+def house_set(dataset, out):
+    """The house's sheets rendered to web images in out/house/; [] without the folder or pypdfium2."""
+    src = dataset / "data" / "opening_design" / OD_DIR
+    if not src.is_dir():
+        return []
+    (out / "house").mkdir(exist_ok=True)
+    files = []
+    for name, kind in OD_SHEETS:
+        try:
+            rendered = render_pdf(src / name, out / "house")
+        except Exception:  # pypdfium2 can't open every sheet (A202 west): leave that one out
+            continue
+        if not rendered:
+            return []
+        files.append({"path": f"house/{name}", "size": size_text((src / name).stat().st_size), "kind": "Vector PDF",
+                      "sheet": kind, "image": "house/" + rendered["image"]})
+    return files
+
+
+KINDS = {".pdf":("Vector PDF", "CAD"), ".dxf": ("DXF", "CAD"), ".png": ("PNG rendering", "Vision")}
 
 
 def build(dataset, out, stem, picks):
@@ -101,8 +158,9 @@ def build(dataset, out, stem, picks):
         entry = {"path": f.name, "size": size_text(f.stat().st_size), "kind": kind, "lane": lane,
                  "role": "source" if f.name in asked else "same"}
         if f.suffix == ".png":  # only the image is copied; the PDF and DXF are listed, not shipped
-            shutil.copyfile(f, out / f.name)
-            entry["image"] = f.name  # relative to stoa/index.html
+            entry["image"] = optimized(f, out, f.name)  # relative to stoa/index.html
+        elif f.suffix == ".pdf":
+            entry.update(render_pdf(f, out))
         files.append(entry)
     if not any("image" in f for f in files):
         sys.exit(f"{stem} has no PNG to show")
@@ -113,6 +171,7 @@ def build(dataset, out, stem, picks):
         "files": files,
         "questions": [{k: q[k] for k in ("question", "answer", "unit", "type")} for q in mine],
         "archive_files": archive(dataset, out, picks),
+        "house_files": house_set(dataset, out),
     }
     (out / "data.js").write_text("window.VStoaData = " + json.dumps(data, indent=1) + ";\n", encoding="utf-8")
     # stoa/index.html: the demo's page one folder down (no <base>: it would send the #/ links back to ../index.html)
