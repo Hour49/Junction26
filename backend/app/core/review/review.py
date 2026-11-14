@@ -426,6 +426,16 @@ def sign(state: ReviewState, quantity: Quantity, drawing: Drawing, by: str, at: 
     return state.model_copy(update={"signed": signed})
 
 
+def settle_and_sign(
+    state: ReviewState, quantity: Quantity, drawing: Drawing, by: str, at: str
+) -> ReviewState:
+    """Keeps the quantity's current value as its settled value, then signs it off: one step for
+    "looks right". A signed-off quantity is refused as for any edit."""
+    value = current_value(quantity, mark_views(quantity, drawing, state), state)
+    edit = Edit(quantity=quantity.key, action="settle", value=value)
+    return sign(apply(state, edit, quantity, drawing, at), quantity, drawing, by, at)
+
+
 def unsign(state: ReviewState, key: str) -> ReviewState:
     signed = {name: found for name, found in state.signed.items() if name != key}
     return state.model_copy(update={"signed": signed})

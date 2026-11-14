@@ -4582,6 +4582,19 @@ Signs off the quantity's current value: its row gets `"status": "signed"` and `"
 Returns the whole takeoff. A row with `needs_person: true` answers 409: settle it first. `"undo": true` removes the
 sign-off.
 
+`"settle": true` (optional) first keeps the quantity's current value as its settled value, then signs it off, for a
+"Looks right" button: a conflict no rule decides is signed in one call, with no `needs_person` 409. The 409 for a
+signed-off quantity is the same; `settle` together with `undo` is 422 `invalid`.
+
+<!-- fixture: signoff_settle_request.json -->
+```json
+{
+  "quantity": "area:room|name=1.01",
+  "by": "Ana",
+  "settle": true
+}
+```
+
 The takeoff of `plans/flat-b.pdf` after review calls (door `m1` rejected and a door added, the window count
 settled at 3, the conflicting room area signed off by Ana), trimmed to those three rows:
 
@@ -4896,6 +4909,8 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (board #14): `POST /api/drawings/{id}/signoff` takes an optional `settle: true`: the
+  quantity's current value is settled and signed off in one call (same 409 rules; with `undo` it is 422).
 - 2026-11-14, additive (the Vellum redesign's fields, part 2, board #14): review action `unsettle` (drops the settled
   value only, `Edit.action` gains the value). `ProjectSummary.to_review` and `conflicts_open`: quantities left to
   review over the project's drawings, and conflicts nobody settled or signed off; null unless the project is `done`.

@@ -52,6 +52,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "takeoff": Takeoff,
     "review_requests": TypeAdapter(list[Edit]),
     "signoff_request": SignOffRequest,
+    "signoff_settle_request": SignOffRequest,
     "error": ErrorBody,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)

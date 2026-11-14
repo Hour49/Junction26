@@ -2978,6 +2978,11 @@
             "title": "Quantity",
             "type": "string"
           },
+          "settle": {
+            "default": false,
+            "title": "Settle",
+            "type": "boolean"
+          },
           "undo": {
             "default": false,
             "title": "Undo",

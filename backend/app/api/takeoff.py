@@ -22,6 +22,7 @@ from app.api.deps import (
     project_of,
 )
 from app.api.views import View
+from app.core.errors import InvalidInputError
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import RULES
 from app.core.review.model import Edit, Row
@@ -31,6 +32,7 @@ from app.core.review.review import (
     reset,
     review_queue,
     row,
+    settle_and_sign,
     sheet_row,
     sign,
     storey_twins,
@@ -64,6 +66,9 @@ class SignOffRequest(View):
     quantity: str = Field(min_length=1)
     by: str = Field(min_length=1, max_length=100)
     undo: bool = False
+    # Settle the quantity's current value first, then sign it off (the conflict no rule decides
+    # included): one call for "looks right". Not with `undo`.
+    settle: bool = False
 
 
 def takeoff_rows(
@@ -132,6 +137,8 @@ def signoff(
     zeros: Annotated[bool, ZEROS] = False,
     project: Annotated[str | None, PROJECT] = None,
 ) -> Takeoff:
+    if body.undo and body.settle:
+        raise InvalidInputError("settle goes with a sign-off, not with undo")
     owner = project_of(ingest, drawing_id, project)
     drawing = ingest.drawing(drawing_id)
     found = sheet_row(known_quantities(drawing), body.quantity)
@@ -139,7 +146,8 @@ def signoff(
         reviews.update(owner, drawing_id, lambda state: unsign(state, found.key))
     else:
         at = now()
-        reviews.update(owner, drawing_id, lambda state: sign(state, found, drawing, body.by, at))
+        signing = settle_and_sign if body.settle else sign
+        reviews.update(owner, drawing_id, lambda state: signing(state, found, drawing, body.by, at))
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 

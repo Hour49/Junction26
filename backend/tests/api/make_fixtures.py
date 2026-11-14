@@ -126,6 +126,7 @@ def responses() -> dict[str, Any]:
         {"quantity": "door", "action": "unsettle"},  # last: the frontend reads the others by index
     ]
     found["signoff_request"] = {"quantity": "door", "by": "Ana"}
+    found["signoff_settle_request"] = {"quantity": ROOM, "by": "Ana", "settle": True}
     found["error"] = client.get("/api/drawings/0123456789abcdef").json()
     others = reviewed(client, flat_b["drawing_id"], found)
     found["answer_schedule"] = schedule_answer(client)

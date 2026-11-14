@@ -4,10 +4,13 @@ import io
 import zipfile
 from typing import Any
 
+import pytest
 from conftest import upload
 from fastapi.testclient import TestClient
+from test_review_core import BOX_A, disputed, quantity
 from test_vector_pdf import swiss_sheet
 
+from app.api import takeoff
 from app.api.views import expected_drawings_of, page_views
 from app.core.drawing.model import Drawing, Page, Plan, Scale
 from app.core.ingest.model import FileStatus, ProjectStatus
@@ -242,3 +245,24 @@ def test_the_questions_asked_in_a_project_are_listed_newest_first(client: TestCl
     )  # fmt: skip
     assert first["drawing_id"] == drawing and first["at"].endswith("Z")
     assert client.get("/api/projects/0123456789ab/questions").status_code == 404
+
+
+def test_signoff_with_settle_signs_a_conflict_in_one_call(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, plan_pdf: bytes
+) -> None:
+    found = {"window": quantity("window", 2, "count", BOX_A, conflict=disputed(False))}
+    monkeypatch.setattr(takeoff, "known_quantities", lambda drawing: found)
+    project = client.get(f"/api/projects/{upload(client, plan_pdf)}").json()
+    drawing = f"/api/drawings/{project['drawings'][0]['drawing_id']}"
+    at = {"project": project["id"]}
+    plain = {"quantity": "window", "by": "Ana"}
+    assert client.post(f"{drawing}/signoff", params=at, json=plain).status_code == 409  # needs you
+    reply = client.post(f"{drawing}/signoff", params=at, json={**plain, "settle": True})
+    assert reply.status_code == 200, reply.text
+    row = next(row for row in reply.json()["quantities"] if row["key"] == "window")
+    assert row["status"] == "signed"
+    assert row["settled"]["value"] == row["signed"]["value"] == row["value"] == 2
+    again = client.post(f"{drawing}/signoff", params=at, json={**plain, "settle": True})
+    assert again.status_code == 409  # signed off already, as for any edit
+    undo = {**plain, "settle": True, "undo": True}
+    assert client.post(f"{drawing}/signoff", params=at, json=undo).status_code == 422

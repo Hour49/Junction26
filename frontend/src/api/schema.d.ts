@@ -1206,6 +1206,11 @@ export interface components {
             /** Quantity */
             quantity: string;
             /**
+             * Settle
+             * @default false
+             */
+            settle: boolean;
+            /**
              * Undo
              * @default false
              */
