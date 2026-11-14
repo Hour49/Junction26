@@ -160,3 +160,25 @@ def test_r7_usage_never_prices_below_zero_or_free() -> None:
 def test_r7_an_http_error_costs_nothing() -> None:
     got = turn_on((400, {"error": {"type": "BadRequestError"}}))
     assert got.kind == "dont_know" and got.cost_usd == 0
+
+
+@pytest.mark.parametrize(
+    ("thinking", "sent"),
+    [("low", "low"), ("none", "none"), ("high", "high"), ("default", None)],
+)
+def test_the_thinking_level_is_sent_as_reasoning_effort(thinking: str, sent: str | None) -> None:
+    """AGENT_THINKING (pi-spike borrow 4): "default" leaves the model's own level."""
+    transport = Transport((200, reply(FINAL)))
+    OpenAiChatModel(BASE, KEY, "gemini-4-hydrogen", 1.50, 9.00, 5.0, transport,
+                    sleep=lambda _: None, thinking=thinking).complete([], [])  # fmt: skip
+    assert transport.sent[0][1].get("reasoning_effort") == sent
+
+
+def test_the_thinking_setting_reaches_the_model() -> None:
+    from app.composition import chat_model
+    from app.settings import Settings
+
+    settings = Settings(chat_model="gemini", gemini_api_key=KEY, agent_thinking="none")  # pyright: ignore[reportCallIssue]
+    made, why = chat_model(settings)
+    assert why is None and isinstance(made, OpenAiChatModel) and made.thinking == "none"
+    assert Settings().agent_thinking == "low"  # unchanged until chat-eval says otherwise

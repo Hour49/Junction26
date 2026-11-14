@@ -1108,6 +1108,7 @@ def chat_model(settings: Settings) -> tuple[ChatModel | None, str | None]:
                 settings.agent_model,
                 settings.agent_price_in_per_m,
                 settings.agent_price_out_per_m,
+                thinking=settings.agent_thinking,
             )
             return model, None
 
