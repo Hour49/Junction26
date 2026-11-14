@@ -384,6 +384,31 @@ output>` refits gate.json in one command (eval/README.md). Then, once, the test 
 --certify` with the same arm, swap, rooms and `--g1main` replies for the test images, and `gate-policy
 --certificate` to put it in gate.json. A refit for another config starts uncertified again.
 
+### The double-check policy (CHECK_POLICY)
+
+The gate says which answers are sure; the double-check policy says which ones ask a person to look. Bogdan's goal
+(D476, 2026-11-14): even at 92% overall accuracy, flag at least 95% of the wrong answers and ask for feedback on
+them, never refuse. `stoa_eval check-policy --recall 0.96` fits it on val: each family's signal is turned into
+P(wrong) by logistic regression, cross-fit on the val halves (on the logit when the signal is a probability;
+families with fewer than 10 wrong answers share one calibration, `--pool-below 10`), and one P(wrong) cut over all
+families flags at least 96% of val's wrong answers. The file holds one threshold per family on its signal
+(check_policy_v1); `--always-flag` adds units flagged whatever their signal. Only signals the backend computes are
+used: `g1main` (DECISIONS_CONFIDENCE) and local-dec's local gates (LOCAL_GATES). Routes are certified on golden v2's
+holdout (vector and BIM yes, schedules no).
+
+The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json`, fit on config
+C1-T1's val answers: door, plan, sauna and shower+bathtub on `lgate2-rt`, toilet on `lgate-rt-nol1`, the rest on
+`g1main`. Cross-fit on val: 55.1% of the answers flagged, 96.0% of the wrong ones among them, 98.95% of the
+unflagged answers exact. The local gates read the count arbiter's L1 probabilities and P and the double-check
+readers, so the config needs `arbiter-t1` in RASTER_COMPONENTS and DOUBLE_CHECK_READERS `l1,m1`; on a drawing
+without them those families always ask.
+
+Known limitation: the policy is fit on ROOM_POLICY=gold-labels (rooms typed by their printed label, as the
+reference answers are), and the demo runs ROOM_POLICY=furniture (a room with a bed is a bedroom). Room families
+are therefore certified outside the conditions they were fit on. The main case is covered by a rule: a bedroom
+count that includes a bedroom with no printed label always asks. The test certificate (integ's single test read)
+is still to come; until then the val numbers are estimates chosen on val.
+
 ## What the answer should show
 
 An answer line (answer_v1.1) carries the value and unit, evidence boxes on the drawing, the method, cost and
