@@ -34,6 +34,8 @@ from app.adapters.decisions.g1main import G1MainReader
 from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtractor
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
+from app.adapters.evidence.project import CreditOf, ProjectEvidence
+from app.adapters.evidence.store import SqliteEvidenceIndex
 from app.adapters.gate_policy import load_gate
 from app.adapters.hello import (
     HelloExtractor,
@@ -77,6 +79,8 @@ from app.core.answering.ports import (
     QuestionParser,
 )
 from app.core.errors import DomainError, InvalidInputError
+from app.core.evidence.chunks import passages
+from app.core.ingest.model import ProjectStatus
 from app.core.ingest.ports import ContentProbe, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
@@ -372,6 +376,29 @@ def uses_keys(settings: Settings) -> bool:
     return raster or settings.decisions_confidence or settings.decisions_kind
 
 
+def build_evidence(root: Path) -> SqliteEvidenceIndex:
+    """The projects' evidence index (decision 0012), `evidence.sqlite` in each project's folder
+    under `root`. BM25 only until rag's embedder lands (contract v1: no embedder, BM25)."""
+    return SqliteEvidenceIndex(root, passages, None)
+
+
+class EvidenceIndexes:
+    """Opens one project's evidence index for the agent's tools and the REST routes. The
+    agent loop calls `evidence_index(project_id)` once per chat; NotFoundError for an unknown
+    project."""
+
+    def __init__(
+        self,
+        store: SqliteEvidenceIndex,
+        status_of: Callable[[str], ProjectStatus],
+        credit_of: CreditOf,
+    ) -> None:
+        self._store, self._status_of, self._credit_of = store, status_of, credit_of
+
+    def evidence_index(self, project_id: str) -> ProjectEvidence:
+        return ProjectEvidence(self._store, self._status_of(project_id), self._credit_of)
+
+
 def build_ingest(
     settings: Settings,
     root: Path,
@@ -420,6 +447,7 @@ def build_ingest(
         now=lambda: datetime.now(UTC).isoformat(timespec="seconds"),
         new_id=lambda: secrets.token_hex(6),
         triage=triage or _triage(settings),
+        evidence=build_evidence(root),
     )
     service.recover()  # a project a restart cut off is marked failed, not left running
     return service

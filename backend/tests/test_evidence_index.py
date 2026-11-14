@@ -128,10 +128,10 @@ def test_rrf_sums_one_over_k_plus_rank_and_keeps_first_seen_order_on_ties() -> N
 
 
 def chunker(source: EvidenceSource) -> list[Passage]:
-    found = [Passage(part="summary", n=0, text=source.description.subject)]
+    found = [Passage(part="summary", n=1, text=source.description.subject)]
     found += [
         Passage(part="detail", n=n, text=text)
-        for n, text in enumerate(source.description.detail.split("\n\n"))
+        for n, text in enumerate(source.description.detail.split("\n\n"), start=1)
     ]
     return found
 
@@ -152,6 +152,9 @@ class Embedder:
                     rows[i, ord(char) - 97] += 1
         norms = np.maximum(np.linalg.norm(rows, axis=1, keepdims=True), 1e-9)
         return (rows / norms).astype(np.float32)
+
+    def embed_query(self, text: str) -> NDArray[np.float32]:
+        return self.embed([text])[0]
 
 
 def index(tmp_path: Path, embedder: Embedder | None = None) -> SqliteEvidenceIndex:
@@ -297,8 +300,8 @@ def test_ids_are_stable_across_rebuilds_and_lookup_misses_are_none(tmp_path: Pat
     first.update(SITE)
     second.update(SITE)
     assert first.bm25("p1", "brick", 5, KEPT) == second.bm25("p1", "brick", 5, KEPT)
-    assert first.passage("p1", "ev_000000000000") is None
-    assert first.passage("nope", "ev_000000000000") is None
+    assert first.passage("p1", "f99-summary") is None
+    assert first.passage("nope", "f99-summary") is None
 
 
 def test_stale_words_never_match_a_new_passage_that_reuses_a_rowid(tmp_path: Path) -> None:

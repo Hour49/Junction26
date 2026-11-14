@@ -8,7 +8,6 @@ embedded again; one no longer in the status is dropped. A change of embedder re-
 Each update is one transaction, so a reader sees the index before or after it, never between.
 """
 
-import hashlib
 import json
 import re
 import sqlite3
@@ -22,6 +21,7 @@ from numpy.typing import NDArray
 
 from app.adapters.paths import inside
 from app.core.evidence.model import EvidenceSource, Passage, sources
+from app.core.evidence.search import passage_id
 from app.core.ingest.model import ProjectStatus
 
 FILE = "evidence.sqlite"
@@ -45,13 +45,9 @@ class Embedder(Protocol):
     @property
     def name(self) -> str: ...  # model and revision: a new name re-embeds every passage
 
-    def embed(self, texts: Sequence[str]) -> NDArray[np.float32]: ...
+    def embed(self, texts: Sequence[str]) -> NDArray[np.float32]: ...  # passages
 
-
-def passage_id(source: EvidenceSource, passage: Passage) -> str:
-    """Stable while the file and its description are: `ev_` + 12 hex."""
-    key = f"{source.path}|{passage.part}|{passage.n}|{source.content}"
-    return "ev_" + hashlib.sha256(key.encode()).hexdigest()[:12]
+    def embed_query(self, text: str) -> NDArray[np.float32]: ...  # one row
 
 
 def fts_query(text: str) -> str | None:
@@ -63,6 +59,13 @@ def fts_query(text: str) -> str | None:
 class SqliteEvidenceIndex:
     def __init__(self, root: Path, chunker: Chunker, embedder: Embedder | None) -> None:
         self._root, self._chunker, self._embedder = root, chunker, embedder
+
+    @property
+    def embedder_name(self) -> str | None:
+        return None if self._embedder is None else self._embedder.name
+
+    def query_vector(self, query: str) -> NDArray[np.float32] | None:
+        return None if self._embedder is None else self._embedder.embed_query(query)
 
     def path(self, project_id: str) -> Path:
         return inside(self._root, project_id) / FILE
@@ -81,6 +84,8 @@ class SqliteEvidenceIndex:
 
     def update(self, status: ProjectStatus) -> None:
         current = {source.file_id: source for source in sources(status)}
+        if not current and not self.path(status.id).is_file():
+            return  # nothing described (triage off): no file is made
         embedder = "" if self._embedder is None else self._embedder.name
         with self._db(status.id) as db, db:
             row = db.execute("select value from meta where key = 'embedder'").fetchone()
@@ -128,7 +133,7 @@ class SqliteEvidenceIndex:
             cursor = db.execute(
                 "insert into passages (id, file_id, part, n, text, vector) "
                 "values (?, ?, ?, ?, ?, ?)",
-                (passage_id(source, passage), source.file_id, passage.part, passage.n,
+                (passage_id(source.file_id, passage), source.file_id, passage.part, passage.n,
                  passage.text, vector),
             )  # fmt: skip
             db.execute(
@@ -187,3 +192,12 @@ class SqliteEvidenceIndex:
             return None
         part, n, text, body = row
         return Passage(part=part, n=n, text=text), EvidenceSource.model_validate(json.loads(body))
+
+    def indexed(self, project_id: str) -> list[EvidenceSource]:
+        """The sources in the project's index, in file order."""
+        if not self.path(project_id).is_file():
+            return []
+        with self._db(project_id) as db:
+            rows = db.execute("select body from sources").fetchall()
+        found = [EvidenceSource.model_validate(json.loads(body)) for (body,) in rows]
+        return sorted(found, key=lambda source: int(source.file_id[1:]))

@@ -4,6 +4,9 @@ at any time."""
 
 import hashlib
 import json
+from typing import Literal
+
+from pydantic import ConfigDict, Field
 
 from app.core.ingest.model import (
     PAGE_NUMBER,
@@ -15,6 +18,8 @@ from app.core.ingest.model import (
     WhatItIs,
 )
 from app.core.model import Frozen
+
+PartName = Literal["summary", "detail", "visible_text"]
 
 
 class EvidenceSource(Frozen):
@@ -32,10 +37,15 @@ class EvidenceSource(Frozen):
     content: str  # sha256 of what its passages are made from: changes mean re-index
 
 
-def content_of(description: Description, register: Register | None) -> str:
+def content_of(
+    description: Description, register: Register | None, relevance: Relevance | None
+) -> str:
+    """What the passages are made of: the description, the register's kind and the judge's why
+    (the summary passage says why the file belongs); not the verdict, which is kept apart."""
     body = {
         "description": description.model_dump(mode="json"),
         "kind": None if register is None else register.kind,
+        "why": None if relevance is None else relevance.why,
     }
     return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
 
@@ -63,7 +73,7 @@ def sources(status: ProjectStatus) -> tuple[EvidenceSource, ...]:
                 description=description,
                 sheet_register=register,
                 relevance=triage.relevance,
-                content=content_of(description, register),
+                content=content_of(description, register, triage.relevance),
             )
         )
     return tuple(found)
@@ -72,6 +82,80 @@ def sources(status: ProjectStatus) -> tuple[EvidenceSource, ...]:
 class Passage(Frozen):
     """One searchable piece of a source; how a source is cut is the chunker's (decision 0012)."""
 
-    part: str  # which field it comes from, e.g. "summary", "detail", "visible_text"
-    n: int  # its place among the source's passages of that part, from 0
+    part: PartName  # which field it comes from
+    n: int = Field(ge=1)  # its place among the source's passages of that part, from 1
     text: str
+
+
+# ---------------------------------------------------------------- what the tools and REST return
+# The contract: .agents/exp/rag-evidence.md section 1 (rag, v1). The same JSON for both.
+
+
+class HitWhy(Frozen):
+    terms: tuple[str, ...]  # the query's words found in the passage; empty: by meaning only
+    bm25_rank: int | None  # the file's rank by BM25; None: not returned, or not run
+    dense_rank: int | None  # the file's rank by the embedder; None: not returned, or not run
+
+
+class EvidenceHit(Frozen):
+    id: str  # f7-summary, f7-detail-2, f7-visible_text-1
+    file_id: str
+    file: str  # the path as uploaded
+    page: int
+    part: PartName
+    kind: str  # the register's kind, else what_it_is; never floor_plan
+    subject: str
+    snippet: str  # <= 300 characters of the passage, around the matched words
+    language: str | None
+    verdict: Verdict | None
+    credit: str | None
+    score: float  # orders the hits of one result only
+    why: HitWhy
+
+
+class EvidenceSearch(Frozen):
+    query: str
+    method: str  # which retrieval ran, in plain words
+    indexed_files: int
+    unrelated_left_out: int  # files skipped as unrelated; 0 with include_unrelated
+    note: str | None  # one sentence when nothing is indexed
+    hits: tuple[EvidenceHit, ...]
+
+
+class DescriptionView(Frozen):
+    """The file's description as the tools show it (its cost left out)."""
+
+    subject: str
+    text: str
+    detail: str
+    visible_text: str
+    text_seen: tuple[str, ...]
+    language: str | None
+    what_it_is: WhatItIs
+    shows_building: bool
+    model: str
+
+
+class EvidenceDetail(Frozen):
+    """`register` is a pydantic model attribute, so the field is `register_` under `register`."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        serialize_by_alias=True,
+        validate_by_name=True,
+        validate_by_alias=True,
+    )
+
+    id: str
+    file_id: str
+    file: str
+    page: int
+    part: PartName
+    text: str  # the whole passage
+    kind: str
+    verdict: Verdict | None
+    credit: str | None
+    description: DescriptionView
+    register_: Register | None = Field(alias="register")
+    relevance: Relevance | None

@@ -79,7 +79,7 @@ def test_no_index_is_ingest_as_before(make_service: MakeService) -> None:
 
 
 def summary(source: EvidenceSource) -> list[Passage]:
-    return [Passage(part="summary", n=0, text=source.description.subject)]
+    return [Passage(part="summary", n=1, text=source.description.subject)]
 
 
 def test_end_to_end_the_described_elevation_is_found_in_the_projects_sqlite(
