@@ -10,15 +10,21 @@ another word, and is left as it is.
   outside quotes (a quoted name is read as typed);
 - it is not a word of the vocabulary already, nor a form of one (VOCABULARY, and the stems of
   STEMS with any ending: Finnish inflects, "makuuhuonetta");
+- it is not a real English word (REAL_WORDS: the words of SCOWL's american-english list these
+  rules would otherwise read as another, built by scripts/build_real_words.py; QA R2-2-1:
+  "ports", "widows", "stars" are not typos);
 - it starts with the same letter as the word it becomes, and is at most 1 edit from it (2 for 8
-  letters or more). An edit is a letter left out, added, or swapped with its neighbour, or, in
-  a word of 6 letters or more, a letter replaced by one on the key next to it (QWERTY with the
-  Finnish ö and ä): "walks" is not "walls", "bedroons" is "bedrooms";
+  letters or more). A Finnish stem is read only with a Finnish case ending after it
+  (ENDINGS: "makuhuonetta" is "makuuhuone" + "tta"; "autotallia" is not "asunto" + "tallia").
+  An edit is a letter left out, added, or swapped with its neighbour, or, in a word of 6
+  letters or more, a letter replaced by one on the key next to it (QWERTY with the Finnish ö
+  and ä): "walks" is not "walls", "bedroons" is "bedrooms";
 - exactly one word of the vocabulary is that near (the nearest, alone): otherwise it is not
   guessed.
 """
 
 import re
+from pathlib import Path
 
 # Whole words: the measures' cue words and the subject nouns, English first, then the forms the
 # parser's earlier one-edit list knew (de, fr, es, it).
@@ -40,6 +46,20 @@ STEMS = (
     "makuuhuone", "keittiö", "kylpyhuone", "kylpyamme", "pesuhuone", "parveke", "olohuone",
     "huoneisto", "asunto", "ikkuna", "suihku", "kerros", "huone", "sauna",
 )  # fmt: skip
+# The case endings a misspelt stem may carry (singular and plural; partitive, genitive, the
+# local cases, essive, translative); with no other ending is a word read as a stem.
+ENDINGS = frozenset(
+    """
+    a ä n t ta tä tta ttä na nä ksi ssa ssä sta stä lla llä lle lta ltä an än aan ään ön seen hin
+    en et ella ellä elle essa essä esta estä ita itä iin ihin issa issä ista istä illa illä ille
+    iden jen ja jä
+    """.split()  # noqa: SIM905 (a word list reads better as text)
+) | {""}
+REAL_WORDS = frozenset(
+    line
+    for line in (Path(__file__).with_name("real_words.txt").read_text(encoding="utf-8").split("\n"))
+    if line and not line.startswith("#")
+)
 ROWS = ("qwertyuiopå", "asdfghjklöä", "zxcvbnm")
 NEAR_KEYS = {
     key: {
@@ -77,6 +97,8 @@ def _meant(word: str) -> str | None:
     lower = word.casefold()
     if len(lower) < 4 or (word.isupper() and len(word) > 1) or _known(lower):
         return None
+    if lower in REAL_WORDS:
+        return None
     limit = 1 if len(lower) < 8 else 2
     best: dict[str, tuple[int, str]] = {}  # vocabulary word or stem: (edits, the form read)
     for known in VOCABULARY:
@@ -86,6 +108,8 @@ def _meant(word: str) -> str | None:
         if stem[0] != lower[0]:
             continue
         for cut in range(max(1, len(stem) - limit), min(len(lower), len(stem) + limit) + 1):
+            if lower[cut:] not in ENDINGS:
+                continue
             cost = _distance(lower[:cut], stem)  # equal: the longer stem part, shorter ending
             if cost <= best.get(stem, (TOO_FAR, ""))[0]:
                 best[stem] = (cost, stem + lower[cut:])
