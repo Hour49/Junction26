@@ -11,11 +11,14 @@ same parser and takeoff the pipeline runs. `stoa_eval` starts it; nobody needs t
              questions only (data/stoa/exp/train_questions.jsonl), never val, test or dev.jsonl.
     families --questions Q --out F.json
              question id -> the parser's family (`unsupported` when it can't read the question).
-    g1main   --replies DIR --out D.json
-             dataset path -> family -> {count: probability}: Gemini Decisions' G1main replies cached
-             by decide (one JSON per image: {file, request, response}), read by the backend's own
-             parser (`app.adapters.decisions.g1main.parse`), the distribution DECISIONS_CONFIDENCE
-             reads at runtime. A reply asked with other questions than the backend's is refused.
+    g1main   --replies DIR --questions Q --dataset ROOT --out D.json
+             dataset path -> family -> {count: probability}: Gemini Decisions' G1main replies,
+             read by the backend's own parser (`app.adapters.decisions.g1main.parse`), the
+             distribution DECISIONS_CONFIDENCE reads at runtime. DIR is decide's cache (one JSON
+             per image: {file, request, response}; a reply asked with other questions is refused)
+             or the backend's own DECISIONS_CACHE_DIR (every name <image sha256>-<question
+             set>-...), read for Q's drawings under ROOT by the backend's G1MainReader, which never
+             calls the API here: a page not in that cache gets no distribution.
     swap     --answers A.jsonl --questions Q --replies DIR --arm ARM --out B.jsonl
              the answers after the Decisions count swap of ARM (`SWAP_ARMS`, e.g. S1536) with the
              backend's own rule (`app.adapters.decisions.uses.swapped`): a count of a family the arm
@@ -27,11 +30,20 @@ import argparse
 import dataclasses
 import hashlib
 import json
+import re
+import sys
 from pathlib import Path
 
 from app.adapters.answer_prior import TablePrior, build
 from app.adapters.answer_v1 import AnswerV1Writer
-from app.adapters.decisions.g1main import QUESTIONS_SHA, CountDist, PageCounts, parse
+from app.adapters.decisions.client import MODEL, DecisionsError
+from app.adapters.decisions.g1main import (
+    QUESTIONS_SHA,
+    CountDist,
+    G1MainReader,
+    PageCounts,
+    parse,
+)
 from app.adapters.decisions.uses import SWAP_ARMS, swapped
 from app.adapters.extraction_v1 import ExtractionV1Reader
 from app.adapters.question_templates import TemplateParser
@@ -73,8 +85,33 @@ def families(args: argparse.Namespace) -> None:
     args.out.write_text(json.dumps(found) + "\n", encoding="utf-8")
 
 
-def _replies(folder: Path) -> dict[str, dict[str, CountDist]]:
-    """Dataset path -> family -> Gemini's count distribution, from decide's cached replies."""
+RUNTIME_CACHE = re.compile(rf"[0-9a-f]{{64}}-{QUESTIONS_SHA[:12]}-.+\.json")
+
+
+class _CacheOnly:
+    """The Decisions client's model name, but no API: G1MainReader reads its cache or fails."""
+
+    model = MODEL
+
+    def decide(self, body: object) -> object:
+        raise DecisionsError("not in the cache")
+
+
+def _replies(folder: Path, questions: Path, dataset: Path) -> dict[str, dict[str, CountDist]]:
+    """Dataset path -> family -> Gemini's count distribution, from decide's cached replies or the
+    backend's own cache (see the module's docstring)."""
+    names = [path.name for path in folder.glob("*.json")]
+    if names and all(RUNTIME_CACHE.fullmatch(name) for name in names):
+        reader = G1MainReader(_CacheOnly(), folder)
+        files = sorted({q.file for q in QuestionsFile(questions).questions()})
+        read: dict[str, dict[str, CountDist]] = {}
+        for file in files:
+            try:
+                read[file] = reader.read((dataset / file).read_bytes()).families
+            except DecisionsError:
+                continue
+        print(f"g1main: {len(read)} of {len(files)} drawings in the backend cache", file=sys.stderr)
+        return read
     found: dict[str, dict[str, CountDist]] = {}
     for path in sorted(folder.glob("*.json")):
         cached = json.loads(path.read_text(encoding="utf-8"))
@@ -90,7 +127,7 @@ def _replies(folder: Path) -> dict[str, dict[str, CountDist]]:
 def g1main(args: argparse.Namespace) -> None:
     found = {
         file: {family: dist.probs for family, dist in dists.items()}
-        for file, dists in _replies(args.replies).items()
+        for file, dists in _replies(args.replies, args.questions, args.dataset).items()
     }
     args.out.write_text(json.dumps(found) + "\n", encoding="utf-8")
 
@@ -99,9 +136,8 @@ def swap(args: argparse.Namespace) -> None:
     if args.arm not in SWAP_ARMS:
         raise SystemExit(f"no swap arm {args.arm!r}; arms are {', '.join(SWAP_ARMS)}")
     below = SWAP_ARMS[args.arm]
-    pages = {
-        file: PageCounts(dists, "cached reply") for file, dists in _replies(args.replies).items()
-    }
+    replies = _replies(args.replies, args.questions, args.dataset)
+    pages = {file: PageCounts(dists, "cached reply") for file, dists in replies.items()}
     parser = TemplateParser()
     asked = {q.id: q for q in QuestionsFile(args.questions).questions()}
     lines = args.answers.read_text(encoding="utf-8").splitlines()
@@ -145,11 +181,14 @@ def main() -> None:
     swaps.add_argument("--answers", type=Path, required=True)
     swaps.add_argument("--questions", type=Path, required=True)
     swaps.add_argument("--replies", type=Path, required=True)
+    swaps.add_argument("--dataset", type=Path, required=True)
     swaps.add_argument("--arm", required=True)
     swaps.add_argument("--out", type=Path, required=True)
     swaps.set_defaults(run=swap)
     replies = commands.add_parser("g1main")
     replies.add_argument("--replies", type=Path, required=True)
+    replies.add_argument("--questions", type=Path, required=True)
+    replies.add_argument("--dataset", type=Path, required=True)
     replies.add_argument("--out", type=Path, required=True)
     replies.set_defaults(run=g1main)
     args = root.parse_args()

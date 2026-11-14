@@ -31,7 +31,7 @@ uv run python -m stoa_eval schema               # rewrite schemas/ after changin
 uv run python -m stoa_eval exp-split            # data/stoa/exp/split.json: CubiCasa train/val/test
 uv run python -m stoa_eval ab --a <arm> --b <arm>   # A/B two arms on val (Experiments, below)
 uv run python -m stoa_eval gate --arm <arm>        # E5 confidence gate on val (--second <arm>)
-uv run python -m stoa_eval gate-policy --gate <val gate JSON>   # data/stoa/exp/gate.json for the backend
+uv run python -m stoa_eval gate-policy --gate <val gate JSON> [--certificate <test gate JSON>]  # gate.json
 uv run python -m stoa_eval gate-refit [--detector <val output>]  # gate.json refit on a runtime config
 uv run python -m stoa_eval leaderboard          # every arm under data/stoa/exp against prior on val
 uv run python -m stoa_eval annotated-region     # the region each train/val image's gold annotates
@@ -105,11 +105,22 @@ the rooms arm the runtime has, then `data/stoa/exp/gate.json` from it, printing 
 Defaults are the demo config (`tools/qa-env.sh config`, 2026-11-14): `--detector data/stoa/exp/region/L1536-R1`
 (region:C-yolo26s-1536's val output), `--swap S1536` (decisions-s1536), `--rooms data/stoa/exp/ocr/G4-regpred`
 (regionrooms), `--g1main data/stoa/exp/decide/G1main-high/raw`. A new detector: give its val output folder
-(`--detector`), and `--swap none` or another `SWAP_ARMS` arm if the runtime changes the swap.
+(`--detector`), and `--swap none` or another `SWAP_ARMS` arm if the runtime changes the swap. When the folder is
+the backend's own run of the whole config (swap and rooms already in it), give `--swap none --rooms none`.
+Config C (2026-11-14, golden-19) was refit that way:
+`gate-refit --detector ../data/stoa/exp/ab/runtime-C-L-swap --swap none --rooms none --g1main
+../data/stoa/exp/integ/decisions-cache-val`.
+
+`--g1main` takes decide's cache (`{file, request, response}` per image) or the backend's own
+`DECISIONS_CACHE_DIR` (names `<image sha256>-<question set>-<model>-<resolution>.json`): the backend's
+G1MainReader reads the latter for each drawing of the part from its bytes, as at runtime, and never calls the
+API (a drawing not cached gets no score: never sure). On val the two give identical distributions (376 of 376).
 
 `gate-policy` turns a val gate JSON into `data/stoa/exp/gate.json` (gate_policy_v1, schema in
 docs/GOLDEN.md): per family whose gate opens on val answers, the signal, threshold, group and val numbers
 ("chosen on val, not a guarantee"), the split sha256 (required) and `certified: false` until the test run.
+`--certificate <data/stoa/exp/ab/gate-<arm>-test.json>` adds that test run as `test` and sets `certified` when
+its bound meets the target; a test file of another gate (arm, split, signal or a threshold differs) is refused.
 
 `annotated-region` writes `data/stoa/exp/labels/annotated_region.json` for every train and val image (never
 test, eval or golden v2; it stops on one): the region the dev gold annotates, as outer rings in pixels (gold

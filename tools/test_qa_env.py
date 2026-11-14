@@ -75,3 +75,12 @@ def test_the_demo_config_ships_config_c() -> None:
     swap = "decisions-s1536:detector:C-yolo26l"
     shipped = f"RASTER_COMPONENTS=elements={swap},plans={swap},rooms=regionrooms"
     assert shipped in found.stdout.split()
+
+
+def test_the_demo_config_marks_answers_sure_by_goldens_gate() -> None:
+    """golden-19 (2026-11-14): config C's gate, chosen on val and certified once on test (of the
+    plans marked sure, at least 96.2% have every sure answer exact), marks answers sure only when
+    the backend is given the gate file; the demo reads it from the repo's data/stoa."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    assert "GATE_POLICY=../data/stoa/exp/gate.json" in found.stdout.split()

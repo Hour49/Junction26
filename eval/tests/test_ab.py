@@ -84,6 +84,9 @@ def fake_backend(*args: str) -> None:
     file's extraction, refused (null) without one; the prior says 1 door, 2 windows; g1main
     gives the distributions in <replies>/dists.json; swap makes every window answer 3."""
     command, opts = args[0], dict(zip(args[1::2], args[2::2], strict=True))
+    if command in ("g1main", "swap"):  # the drawings, for the backend's own cache
+        assert Path(opts["--dataset"]).name == "junction-dataset"
+        assert Path(opts["--questions"]).name.endswith("_questions.jsonl")
     if command == "g1main":
         dists = (Path(opts["--replies"]) / "dists.json").read_text("utf-8")
         Path(opts["--out"]).write_text(dists, "utf-8")

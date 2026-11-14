@@ -865,8 +865,8 @@ def run_gate(args: argparse.Namespace) -> Path:
             swapped = work / "swapped.jsonl"
             backend.run(
                 "swap", "--answers", str(work / "a" / "answers.jsonl"), "--questions",
-                str(questions_path), "--replies", str(args.g1main), "--arm", args.swap,
-                "--out", str(swapped),
+                str(questions_path), "--replies", str(args.g1main), "--dataset", str(DATASET),
+                "--arm", args.swap, "--out", str(swapped),
             )  # fmt: skip
             answers = {answer.id: answer for _, answer in read_jsonl(swapped, Answer)}
         for n, folder in enumerate(sorted(set(routed.values()))):
@@ -884,7 +884,10 @@ def run_gate(args: argparse.Namespace) -> Path:
             )
         dists = None
         if args.g1main is not None:
-            backend.run("g1main", "--replies", str(args.g1main), "--out", str(work / "g1.json"))
+            backend.run(
+                "g1main", "--replies", str(args.g1main), "--questions", str(questions_path),
+                "--dataset", str(DATASET), "--out", str(work / "g1.json"),
+            )  # fmt: skip
             dists = _g1main_dists(work / "g1.json")
     preds = preds or {}
     family_arms = {family: _arm_folder(folder, args.exp_dir) for family, folder in routed.items()}
@@ -1012,7 +1015,7 @@ def run_gate_refit(args: argparse.Namespace) -> None:
             family_arm=[] if str(args.rooms) in none else [f"room:*={args.rooms}"],
         )
     )  # fmt: skip
-    run_gate_policy(argparse.Namespace(gate=out, out=args.out))
+    run_gate_policy(argparse.Namespace(gate=out, out=args.out, certificate=None))
     after = load_gate_policy(args.out)
 
     def listed(policy: GatePolicy | None) -> str:
@@ -1027,10 +1030,17 @@ def run_gate_refit(args: argparse.Namespace) -> None:
 def run_gate_policy(args: argparse.Namespace) -> None:
     result = GateResult.model_validate_json(args.gate.read_text("utf-8"))
     generated = datetime.now(HELSINKI).isoformat(timespec="seconds")
-    made = gate_policy(result, _repo_path(args.gate), generated)
+    test = None
+    if args.certificate is not None:
+        tested = GateResult.model_validate_json(args.certificate.read_text("utf-8"))
+        test = (tested, _repo_path(args.certificate))
+    made = gate_policy(result, _repo_path(args.gate), generated, test)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(made.model_dump_json(by_alias=True, indent=2) + "\n", "utf-8")
-    print(f"wrote {args.out}: {len(made.families)} families ({', '.join(made.families) or 'none'})")
+    names = ", ".join(made.families) or "none"
+    tested = "" if made.test is None else f"; {made.test.certificate.sentence}"
+    print(f"wrote {args.out}: {len(made.families)} families ({names}), certified {made.certified}"
+          f"{tested}")  # fmt: skip
 
 
 def _code_digest() -> str:
@@ -1990,8 +2000,9 @@ def parser() -> argparse.ArgumentParser:
     gate.add_argument(
         "--g1main",
         type=Path,
-        help=f"decide's cached G1main replies (data/stoa/exp/decide/G1main-high/raw): adds the "
-        f"signal {G1MAIN}, Gemini's probability for each answer (DECISIONS_CONFIDENCE)",
+        help=f"G1main replies: decide's cache (data/stoa/exp/decide/G1main-high/raw) or the "
+        f"backend's DECISIONS_CACHE_DIR; adds the signal {G1MAIN}, Gemini's probability for each "
+        "answer (DECISIONS_CONFIDENCE)",
     )
     gate.add_argument(
         "--swap",
@@ -2044,6 +2055,12 @@ def parser() -> argparse.ArgumentParser:
         "gate-policy", help="the product's gate file (gate_policy_v1) from a val gate JSON"
     )
     policy.add_argument("--gate", type=Path, required=True, help="data/stoa/exp/ab/gate-*-val.json")
+    policy.add_argument(
+        "--certificate",
+        type=Path,
+        help="the same gate's single test run (data/stoa/exp/ab/gate-*-test.json): certified "
+        "when its bound meets the target",
+    )
     policy.add_argument("--out", type=Path, default=EXP_DIR / "gate.json")
     policy.set_defaults(run=run_gate_policy)
 

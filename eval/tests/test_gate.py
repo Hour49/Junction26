@@ -511,6 +511,42 @@ def test_gate_policy_round_trips_and_refuses_a_missing_split_sha(
     assert "no split_sha256" in capsys.readouterr().err
 
 
+def test_gate_policy_is_certified_only_by_the_same_gates_test_run(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(backend, "run", fake_backend)
+    exp = dataset / "exp"
+    assert exp_split(dataset, exp) == 0
+    scored_arm(dataset, exp / "core" / "a")
+    common = ("--exp-dir", exp, "--gold", dataset / "gold", "--arm", exp / "core/a")
+    assert run("gate", *common, "--delta", "1", "--pool") == 0
+    assert run("gate", *common, "--delta", "1", "--part", "test", "--certify") == 0
+    val_path, test_path = exp / "ab/gate-core-a-val.json", exp / "ab/gate-core-a-test.json"
+    out = exp / "gate.json"
+    assert run("gate-policy", "--gate", val_path, "--certificate", test_path, "--out", out) == 0
+    made = load_gate_policy(out)
+    test = json.loads(test_path.read_text())
+    assert made.test is not None and made.test.certificate.model_dump() == test["certificate"]
+    bound = test["certificate"]["lower_bound"]
+    assert made.certified is (bound is not None and bound >= test["target"])
+    for low in (0.0, None):  # certified follows the test bound, not the run having happened
+        test["certificate"]["lower_bound"] = low
+        test_path.write_text(json.dumps(test), "utf-8")
+        assert run("gate-policy", "--gate", val_path, "--certificate", test_path, "--out", out) == 0
+        assert load_gate_policy(out).certified is (low is not None and low >= test["target"])
+    test["certificate"]["lower_bound"] = 1.0
+    test_path.write_text(json.dumps(test), "utf-8")
+    assert run("gate-policy", "--gate", val_path, "--certificate", test_path, "--out", out) == 0
+    assert load_gate_policy(out).certified is True
+    for family in test["families"].values():  # another threshold: another gate's test run
+        family["threshold"] = 123.0
+    test_path.write_text(json.dumps(test), "utf-8")
+    assert run("gate-policy", "--gate", val_path, "--certificate", test_path, "--out", out) == 1
+    assert "not the test run of the gate" in capsys.readouterr().err
+    assert run("gate-policy", "--gate", val_path, "--out", out) == 0
+    assert load_gate_policy(out).certified is False and load_gate_policy(out).test is None
+
+
 def test_g1main_is_gemini_s_probability_for_the_answered_count() -> None:
     file, other = "data/cubicasa5k/p-1.png", "data/cubicasa5k/p-2.png"
     dists = {file: {"door": {3: 0.8, 2: 0.2}}}
