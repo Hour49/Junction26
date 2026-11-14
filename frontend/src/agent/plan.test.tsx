@@ -7,6 +7,7 @@ import { drawing, project } from '../api/fixtures';
 import { mockApi } from '../test/mockApi';
 import type { PageViewer } from '../viewer/PageViewer';
 import { AgentChat } from './AgentChat';
+import { viewMarks } from './PlanPane';
 import { evidenceView, unionBox, viewOf, type ChatTurn, type View } from './agent';
 import { answerTurn, conflictTurn, DID, dontKnowTurn, model } from './fixtures';
 
@@ -106,6 +107,14 @@ describe('viewOf', () => {
   it('unionBox clamps to the page', () => {
     expect(unionBox([[0, 0.5, 0.99, 1]])).toEqual([0, 0.48, 1, 1]);
   });
+});
+
+it("viewMarks: a mark sent without a polygon (optional in the server's schema) is outlined by its box", () => {
+  const bare = { ...(shownView.marks[0] as View['marks'][number]) };
+  delete bare.polygon;
+  const [m] = viewMarks({ ...shownView, marks: [bare] });
+  expect(m?.polygon).toBeNull();
+  expect(m?.box).toEqual(bare.box);
 });
 
 describe('the plan beside the chat (wide window)', () => {

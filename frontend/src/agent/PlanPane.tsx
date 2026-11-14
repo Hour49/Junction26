@@ -10,7 +10,7 @@ export const viewMarks = (v: View): MarkView[] =>
     n: m.n,
     page: v.page,
     box: m.box,
-    polygon: m.polygon,
+    polygon: m.polygon ?? null,
     label: m.label,
     reason: null,
     ref: null,

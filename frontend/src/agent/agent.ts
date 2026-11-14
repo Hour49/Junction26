@@ -221,7 +221,7 @@ export interface ViewMark {
   n: number;
   label: string | null;
   box: Box;
-  polygon: Point[] | null;
+  polygon?: Point[] | null; // optional in the server's schema (#319)
 }
 /** `ChatTurn.view` (contract A): the drawing page to open, its marks, the box to focus and the server's caption. */
 export interface View {
@@ -230,7 +230,7 @@ export interface View {
   page: number;
   box: Box;
   marks: ViewMark[];
-  caption: string | null;
+  caption?: string | null; // optional in the server's schema (#319)
   source: 'show_on_plan' | 'evidence';
 }
 
