@@ -129,7 +129,11 @@ RULES: dict[str, str] = {
     found.id: found.text for found in vars(rule_pack).values() if isinstance(found, CountingRule)
 }
 SUGGESTIONS = 6
-FACTS_LEVEL = "Low confidence: read from the file's fact sheet, not yet measured."
+FACTS_LEVEL = "Low confidence: read from the file's fact sheet, not yet measured." + ASK["low"]
+FACTS_REASON = (
+    "Please double-check this answer against the file: it is read from its fact sheet, and such "
+    "answers are not yet measured."
+)
 # Parser reason (question_templates.py) for a supported kind of question without that quantity
 # ("no area is taken off for door"); NO_SUBJECT (answering/model.py): a subject it didn't recognise
 NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)")
@@ -408,6 +412,7 @@ def ask(
         sure = False
     elif check is not None and answer.method == FACTS:  # not measured on any gold yet
         level = Level(level="low", basis="unrated", text=FACTS_LEVEL)
+        request = Check(reason=FACTS_REASON, disputed=())  # as every Low answer: it asks
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
         sure = request is None

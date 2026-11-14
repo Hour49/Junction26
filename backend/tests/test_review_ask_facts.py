@@ -10,7 +10,7 @@ from app.adapters.answer_prior import NoPrior
 from app.adapters.question_templates import TemplateParser
 from app.core.answering.facts import FACTS
 from app.core.ifc_facts import Fact, FactSheet, Spot
-from app.core.review.ask import Asked, ask
+from app.core.review.ask import FACTS_REASON, Asked, ask
 from app.core.review.check import CheckPolicy
 from app.core.review.model import ReviewState
 
@@ -72,3 +72,10 @@ def test_without_a_fact_sheet_the_ask_is_as_before() -> None:
     assert before.refusal is not None
     assert asked(OUTLETS, facts=None) == before
     assert asked(OUTLETS, facts=lambda: None) == before
+
+
+def test_a_fact_answer_asks_for_a_double_check_like_every_low_answer() -> None:
+    found = asked(OUTLETS, facts=lambda: SHEET)
+    assert found.check is not None and found.check.reason == FACTS_REASON
+    assert found.check.disputed == ()  # no reader points anywhere
+    assert asked(OUTLETS, check=None, facts=lambda: SHEET).check is None  # the policy off
