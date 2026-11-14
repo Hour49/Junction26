@@ -1,5 +1,5 @@
 // The engineer screen's own words and numbers; values and times use the shared formatValue/formatTime.
-import type { AnswerView, Row } from '../api';
+import { formatValue, type AnswerView, type Row } from '../api';
 
 export function formatCost(usd: number): string {
   if (usd === 0) return '$0';
@@ -70,3 +70,16 @@ export function gradeOf(a: { level?: AnswerView['level'] }): Grade | null {
 
 /** `ProjectAnswer.total_level` in words (CH-42). */
 export const levelWord = (level: keyof typeof LEVEL_WORD): Grade => LEVEL_WORD[level];
+
+/** EN-88/CH-44: "about 180 m², <why the value is an estimate>" for a measured number with `quantity.estimate`;
+ * for a count only the caveat ("Counted by …"): a count is whole, never "about" (Bogdan c6881747518); else null. */
+export function estimateLine(a: AnswerView): string | null {
+  const why = a.quantity?.estimate;
+  if (!why || typeof a.answer !== 'number') return null;
+  if (a.unit === 'count') return why.charAt(0).toUpperCase() + why.slice(1);
+  const n = Math.round(a.answer);
+  // "about 0 m²" says nothing: a measure that rounds to 0 is shown as it is
+  if (n === 0) return `${formatValue(a.answer, a.unit)}, ${why}`;
+  // a whole number: formatValue's two decimals would claim a precision the estimate has not
+  return `about ${formatValue(n, a.unit).replace(/\.00 /, ' ')}, ${why}`;
+}

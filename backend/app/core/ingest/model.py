@@ -22,6 +22,19 @@ ProjectState = Literal["queued", "running", "done", "failed"]
 # What Gemini Carbon read of a raster drawing: its elements (CARBON_READER sent it to Carbon), or
 # another part a composite takes from the `carbon` source (rooms, plans, scale, a class)
 CarbonRead = Literal["elements", "part"]
+# The reading flags (judge.reading_flags) that say Carbon read the page. Carbon counted the
+# drawing's elements (CARBON_READER); review/ask.py reads this flag as "a class Carbon counted and
+# found none of is a read 0" (brief r8 BD), so it is never set for a part
+CARBON_FLAG = "counted by Gemini Carbon, an AI reader: check its marks on the plan"
+# a composite took another part from Carbon (rooms, plans, scale, one class): its elements are not
+# all Carbon's (fail-1's S-D, .agents/qa/r9/review-269.md)
+CARBON_PART_FLAG = "read in part by Gemini Carbon, an AI reader: check its marks on the plan"
+# what the flags said before (brief r8 BS): a stored Outcome is reused by content across code
+# versions, so its flags and reason are read in today's words and ask still finds CARBON_FLAG
+RENAMED_FLAGS = {
+    "counted by Gemini Carbon: its counts are not measured yet": CARBON_FLAG,
+    "read in part by Gemini Carbon: its counts are not measured yet": CARBON_PART_FLAG,
+}
 
 # What a file is, from its content (stage 3). The first eight go into the pipeline.
 ContentKind = Literal[
@@ -522,3 +535,22 @@ class Outcome(Frozen):
     stages: tuple[StageTrace, ...] = ()
     normalised: Normalised | None = None
     flags: tuple[str, ...] = ()  # how the page was read, for every answer (judge.reading_flags)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _renamed(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        fields = dict(cast(dict[str, object], data))
+        flags = fields.get("flags")
+        if isinstance(flags, list | tuple):
+            given = cast(Iterable[object], flags)
+            fields["flags"] = [
+                RENAMED_FLAGS.get(flag, flag) if isinstance(flag, str) else flag for flag in given
+            ]
+        reason = fields.get("reason")
+        if isinstance(reason, str):
+            for before, now in RENAMED_FLAGS.items():
+                reason = reason.replace(before, now)
+            fields["reason"] = reason
+        return fields

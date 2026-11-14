@@ -206,6 +206,19 @@ it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row
   expect(within(turn).queryByText(/^Sure/)).toBeNull();
 });
 
+it('CH-47 an arriving answer: the turn to its top, then its first row just above the ask bar', async () => {
+  const scroll = vi.fn();
+  Element.prototype.scrollIntoView = scroll;
+  open(oneAnswers);
+  const turn = await answered('How many doors are there?');
+  const row = line(turn, label(flatA));
+  await waitFor(() => {
+    expect(scroll.mock.contexts.slice(-2)).toEqual([turn, row]);
+  });
+  expect(scroll.mock.calls.slice(-2)).toEqual([[{ block: 'start' }], [{ block: 'nearest' }]]);
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
 it('CH-5 project_ask.json: two drawings answer, no total, its note, then a line per drawing', async () => {
   open(projectAsk);
   const turn = await answered('How many doors are there?');

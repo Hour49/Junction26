@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import cache, partial
 from pathlib import Path
+from typing import cast
 
 from app.adapters.answer_policy import load_policy
 from app.adapters.answer_prior import DEV_PRIOR, NoPrior, TablePrior
@@ -28,6 +29,7 @@ from app.adapters.archive import (
 )
 from app.adapters.archive.probe import is_scanned_pdf
 from app.adapters.carbon import (
+    CarbonChecked,
     CarbonClient,
     CarbonExtractor,
     CarbonReader,
@@ -47,6 +49,7 @@ from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
 from app.adapters.evidence.store import SqliteEvidenceIndex
+from app.adapters.evidence.texts import FileTextReader, StoredTexts
 from app.adapters.gate_policy import load_gate
 from app.adapters.hello import (
     HelloExtractor,
@@ -79,6 +82,7 @@ from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
 from app.adapters.resolver.carbon import CarbonResolver
+from app.adapters.scan_images import ScanImages
 from app.adapters.triage.gemini_describer import (
     CARBON_MIN_TIMEOUT_S,
     DESCRIBERS,
@@ -109,7 +113,8 @@ from app.core.answering.ports import (
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
-from app.core.ingest.model import CarbonRead, ProjectStatus
+from app.core.ingest.judge import reading_flags
+from app.core.ingest.model import CarbonRead, ContentKind, ProjectStatus
 from app.core.ingest.ports import Classifier, ContentProbe, Describer, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
@@ -182,9 +187,13 @@ class Pipeline:
     # GATE_POLICY: family -> the confidence at or above which an answer is sure; None: ungated
     sure_at: Mapping[str, float] | None = None
     # What Carbon read of the raster route's drawing of a file (by path): "elements" when
-    # CARBON_READER sent it there (the same yes/no its switch uses), "part" when a composite takes
+    # CARBON_READER sent it there (the same yes/no its switch uses, or CarbonThings' record of the
+    # pages it sent for few things found, so asked after reading), "part" when a composite takes
     # a part from the `carbon` source; ingest flags those drawings. None: no file is
     carbon_read: Callable[[str], CarbonRead | None] | None = None
+    # How ingest read a file's page, by path (judge.reading_flags: a scan, a photo, Carbon): no
+    # answer on a flagged page is sure, on this path as in the product's ask. None: none is
+    flags: Callable[[str], tuple[str, ...]] | None = None
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
         return ingest(
@@ -212,6 +221,7 @@ class Pipeline:
             prior_families=self.prior_families,
             confidence=self.confidence,
             sure_at=self.sure_at,
+            flags=self.flags,
         )
 
 
@@ -227,13 +237,16 @@ def build_pipeline(
     sheet-kind step called a file advanced, by its path (CARBON_READER=advanced); None: none
     was."""
     files = DatasetFiles(dataset)
+    scans = ScanImages(files)  # what the raster side reads: a scanned PDF as its page's image
     kind_of = kinds or _probed_kinds(settings, files)
-    use_carbon = _carbon_read(settings, advanced, files)
+    use_carbon = _carbon_read(settings, advanced, scans)
+    took: set[str] = set()  # CARBON_READER=large: the files read by Carbon for few things found
     models = IfcModels(files)
     # A sheet is paired with its building model only when the model route can read it.
     with_models = settings.extractor_bim == "ifc"
     # One Decisions reader for the count swap and the confidence, made only when one is used.
     decisions = cache(lambda: decisions_reader(settings))
+    carbon_read = _carbon_counted(settings, _or_took(use_carbon, took), kind_of)
     return Pipeline(
         files=files,
         finder=DatasetSheetModels(dataset) if with_models else HelloSourceFinder(),
@@ -249,7 +262,9 @@ def build_pipeline(
             # schedule checks noted) as on the vector route.
             "raster": _tables(
                 settings.tables,
-                _printed(settings, _raster(settings, files, decisions, kind_of, use_carbon), files),
+                _printed(
+                    settings, _raster(settings, scans, decisions, kind_of, use_carbon, took), scans
+                ),
                 files,
             ),
         },
@@ -262,12 +277,38 @@ def build_pipeline(
         prior_families=_policy(settings.answer_policy),
         readable=_readable(settings),
         scanned=is_scanned_pdf,
-        confidence=DecisionsConfidence(files, decisions())
+        confidence=DecisionsConfidence(scans, decisions())
         if settings.decisions_confidence
         else None,
         sure_at=_gate(settings),
-        carbon_read=_carbon_counted(settings, use_carbon, kind_of),
+        carbon_read=carbon_read,
+        flags=partial(_page_flags, kind_of=kind_of, carbon_read=carbon_read),
     )
+
+
+def _or_took(
+    use_carbon: Callable[[str], bool] | None, took: set[str]
+) -> Callable[[str], bool] | None:
+    """Whether Carbon counted a file's things: `use_carbon` said so, or CarbonThings sent it there
+    after the shipped reader found few (asked after the file is read, as ingest does)."""
+    if use_carbon is None:
+        return None
+    return lambda path: use_carbon(path) or path in took
+
+
+def _page_flags(
+    path: str,
+    kind_of: Callable[[str], str | None],
+    carbon_read: Callable[[str], CarbonRead | None] | None,
+) -> tuple[str, ...]:
+    """The reading flags ingest stores for a file's page (judge.reading_flags), for the CLI's
+    answers (review-283 M1: without them a scanned or Carbon-read page could come back sure). A
+    photo's flag is worded as if not rectified (the CLI keeps no frame); only whether there is a
+    flag is used here. Carbon's flag is given whatever the route: a page another route read has
+    no Decisions probability, so it is not sure either way."""
+    kind = kind_of(path)
+    carbon = None if carbon_read is None else carbon_read(path)
+    return reading_flags(cast(ContentKind, kind), None, carbon)
 
 
 def _carbon_counted(
@@ -311,6 +352,10 @@ def _carbon_part(spec: str) -> bool:
 # CARBON_READER=large: on a raster image longer than this on its long side Carbon counts the things
 # drawn (the sheet-kind step's size rule, #251); below it the shipped reader stays (CubiCasa pages)
 LARGE_PX = ADVANCED_LONG_SIDE
+# ... and on a smaller raster page where the shipped reader found fewer elements than this (a scan
+# or photo the detector cannot read; confidence, carbon-reader.md 5.8-5.9: K = 3 moves no CubiCasa
+# page of val or golden dev, K = 10 would)
+FEW_THINGS = 3
 
 
 def _carbon_read(
@@ -318,7 +363,8 @@ def _carbon_read(
 ) -> Callable[[str], bool] | None:
     """CARBON_READER's choice of the files Carbon reads alone, by path: all of them, the ones the
     sheet-kind step called advanced (a file without that record: not), the images longer than
-    LARGE_PX (their PNG or JPEG header's size; a PDF or another format: not), or none (None)."""
+    LARGE_PX (their PNG or JPEG header's size; a PDF or another format: not; CarbonThings also
+    sends a page where the shipped reader found few things), or none (None)."""
     match settings.carbon_reader:
         case "off":
             return None
@@ -444,7 +490,7 @@ def _evidence_steps(settings: Settings) -> EvidenceSteps | None:
     if settings.evidence_scope == "set_aside":
         return None
     kinds = SheetKindPictures(_sheet_kind_reader(settings), settings.sheet_kind_cut)
-    return EvidenceSteps(kinds=kinds, describer=_describer(settings))
+    return EvidenceSteps(kinds=kinds, describer=_describer(settings), texts=FileTextReader())
 
 
 def _rectifier(name: RectifierName) -> Rectifier:
@@ -492,7 +538,7 @@ def build_answering(settings: Settings) -> Answering:
     signal: str | None = None
     if settings.decisions_confidence:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
-        confidence = partial(DecisionsConfidence, reader=reader)
+        confidence = partial(_scan_confidence, reader=reader)
         signal = DECISIONS_SIGNAL
     # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
     scorers = _scorers(settings.local_gates) if settings.check_policy else {}
@@ -513,6 +559,12 @@ def build_answering(settings: Settings) -> Answering:
         scorers=scorers,
         resolver=_resolver(settings),
     )
+
+
+def _scan_confidence(files: DrawingFiles, reader: G1MainReader) -> AnswerConfidence:
+    """The answer confidence over a raster drawing's file as ingest's readers read it: a scanned
+    PDF as the image of its page (scan_images.py), so Gemini is asked about the same image."""
+    return DecisionsConfidence(ScanImages(files), reader)
 
 
 def _resolver(settings: Settings) -> Resolver | None:
@@ -565,7 +617,7 @@ def uses_keys(settings: Settings) -> bool:
     )
     sources = [part.partition("=")[2] for spec in specs for part in spec.split(",") if part]
     keyed = any(source.split(":", 1)[0] in KEYED_SOURCES for source in sources)
-    carbon = settings.carbon_reader != "off"
+    carbon = settings.carbon_reader != "off" or settings.carbon_levels != "off"
     raster = settings.extractor_raster == "composite" and (keyed or carbon)
     # the describer is built only when triage is on (`_triage`)
     triage = settings.triage_classifier != "off" or settings.sheet_kind != "off"
@@ -592,7 +644,8 @@ def build_evidence(settings: Settings, root: Path) -> SqliteEvidenceIndex:
         raise InvalidInputError(f"EVIDENCE_EMBEDDER_MANIFEST={manifest}: {error}") from error
     if embedder is None:
         logger.info("evidence index: no embedder manifest, BM25 only")
-    return SqliteEvidenceIndex(root, passages, embedder)
+    texts = StoredTexts(DiskProjectStore(root), FileTextReader())
+    return SqliteEvidenceIndex(root, passages, embedder, texts)
 
 
 class EvidenceIndexes:
@@ -653,7 +706,14 @@ def build_ingest(
         names["raster_tiles"] = settings.raster_tiles
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
-        names["carbon_reader"] = f"{settings.carbon_reader}:{READER_SHA[:12]}"
+        rule = (
+            f"large+few{FEW_THINGS}"
+            if settings.carbon_reader == "large"
+            else settings.carbon_reader
+        )
+        names["carbon_reader"] = f"{rule}:{READER_SHA[:12]}"
+    if settings.carbon_levels != "off":  # the same
+        names["carbon_levels"] = f"{settings.carbon_levels}:{READER_SHA[:12]}"
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -703,6 +763,7 @@ def _raster(
     decisions: Callable[[], G1MainReader],
     kind_of: Callable[[str], str | None],
     use_carbon: Callable[[str], bool] | None = None,
+    took: set[str] | None = None,
 ) -> Extractor:
     photo = settings.raster_photo_components
     match settings.extractor_raster:
@@ -711,6 +772,8 @@ def _raster(
                 raise InvalidInputError("RASTER_PHOTO_COMPONENTS needs EXTRACTOR_RASTER=composite")
             if settings.carbon_reader != "off":
                 raise InvalidInputError("CARBON_READER needs EXTRACTOR_RASTER=composite")
+            if settings.carbon_levels != "off":
+                raise InvalidInputError("CARBON_LEVELS needs EXTRACTOR_RASTER=composite")
             if settings.double_check_readers:
                 raise InvalidInputError("DOUBLE_CHECK_READERS needs EXTRACTOR_RASTER=composite")
             return _scaled(settings, HelloExtractor())
@@ -733,11 +796,14 @@ def _raster(
                     "CARBON_READER=advanced reads the sheet-kind step's `advanced` flag: set "
                     "SHEET_KIND=carbon, or use CARBON_READER=off or all"
                 )
-            if use_carbon is None:
-                return shipped
-            if settings.carbon_reader == "large":  # the things drawn from Carbon, rooms not
-                return CarbonThings(shipped, _carbon(settings, files), use_carbon)
-            return CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
+            read = shipped
+            if use_carbon is not None and settings.carbon_reader == "large":  # things drawn
+                read = CarbonThings(shipped, _carbon(settings, files), use_carbon, FEW_THINGS, took)
+            elif use_carbon is not None:
+                read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
+            if settings.carbon_levels == "demote":  # Carbon reading on its own, as integ's test
+                return CarbonChecked(read, _carbon(settings, files, policy))
+            return read
 
 
 def _room_policy(name: RoomPolicyName) -> RoomPolicy | None:

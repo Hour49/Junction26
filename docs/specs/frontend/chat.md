@@ -212,6 +212,21 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   CH-11 amended: after the first ask the "Suggested questions" group is gone and "Follow-up questions" (CH-36) takes
   its place after the thread.
 
+- CH-43 (judge path, Bogdan #14 c6881316016) Each row prints why under its value: `check.reason`, else
+  `level.text`; nothing when both are missing. Plain text like a refusal's reason (`.en-why`, full row width).
+  [component, `answer_double_check.json` (check), `answer_certified.json` (level only), `answer.json` (none)]
+- CH-44 (judge path) An estimated value (`quantity.estimate` set, a number) adds "about <rounded value> <unit>,
+  <estimate>" under the row's value (`.en-estimate`, `estimateLine`, shared with EN-88). [component]
+- CH-45 (judge path) One name per drawing: rows, figure title, references and "Show it on" use `drawingLabel(d)`
+  (CH-40/41 already); the engineer page uses the same name (EN-87). [component]
+- CH-46 (judge path re-run, Bogdan #14 c6881665988; amends CH-44) The reason once: when the row's why (CH-43)
+  already contains `quantity.estimate` (the backend's "Please double-check the doors: it is an estimate (<estimate>)."),
+  the estimate line is left out; the why line stays. A count is never "about N" (EN-88). [component, unit]
+- CH-47 (judge path re-run) When an answer arrives the turn scrolls to its top (as before), then just enough
+  that its first row (value, estimate and reason, CH-43/44) is fully above the sticky ask bar (`scrollIntoView`
+  `block: 'nearest'`, scroll margin `--en-ask-h`): no line of it under the bar. (The engineer page already has
+  its value block first on phones, EN-86.) [component (the calls); browser 390x844: row bottom <= `.en-ask` top]
+
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 
 1. `ProjectAnswer.total_note` mixes why there is no total with which drawings refused ("…; 2 drawings have no reader

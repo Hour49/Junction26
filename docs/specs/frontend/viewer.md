@@ -832,6 +832,20 @@ above the image and its left/right arrows.
   `.vw-switcher`, `.vw-pagemeta`, `.vw-selection`, `.vw-legend`; `.vw--bare` is set; the page image and the button
   "Mark 1: door, counted" are there. Without `bare` the legend shows as before. [component]
 
+## Crowded pages (carbon flag, Bogdan #14 c6880945211, 2026-11-14)
+
+A flagged large sheet (Gemini Carbon reader) can carry 200 door marks; on a thumbnail or a phone their badges pile
+up. Rule: when more than 50 marks on the page would get a badge and the frame (zoom included) is under 600 px wide,
+the viewer draws the outlines only, keeps the selected mark's badge, and adds one line `.vw-many`: "<n> marks, too
+many to number at this size: zoom in to see their numbers" (bare: without the zoom part). Zooming in to 600 px or
+more brings every badge back; a frame of 600 px or more keeps today's behaviour. No clustering.
+
+- **VW-96** 60 marks, frame 400 px, `selected="d3"`: one badge ("4"), 60 `rect.vw-shape`, `.vw-many` reads "60 marks,
+  too many to number at this size: zoom in to see their numbers"; after "Zoom in" (800 px) 60 badges and no
+  `.vw-many`. `bare`: no badge, "60 marks, too many to number at this size". 50 marks at 400 px: 50 badges.
+  [component]
+- **VW-97** 60 marks in an 800 px frame: 60 badges, no `.vw-many`. [component]
+
 ## Not in the API
 
 What screen 4's plan card shows that API v1 cannot back, asked of Bogdan on board #14.

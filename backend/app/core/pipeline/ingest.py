@@ -192,6 +192,7 @@ def _ingest_sheet(
         model_objects=found.model_objects,
         double_check=found.double_check,
         count_arbiter=found.count_arbiter,
+        carbon_check=found.carbon_check,
         notes=found.notes,
     )
     counted = apply_rules(drawing.marks_by_quantity())

@@ -296,6 +296,11 @@
   font-size: 15px;
 }
 
+/* a model's answer (resolver.md): one quiet line, its name in bold */
+.cf-resolved {
+  margin: 0;
+  color: var(--v-text-2);
+}
 .cf-why {
   background: var(--v-fill);
   border-radius: 14px;

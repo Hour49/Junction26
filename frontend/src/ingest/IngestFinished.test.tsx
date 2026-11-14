@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { project } from '../api/fixtures';
-import type { ProjectView } from '../api';
+import { project, projectResolved, projectReviewResolved, resolving } from '../api/fixtures';
+import type { ProjectReview, ProjectView } from '../api';
 import { useIssuesToAnswer } from '../shell/issueCount';
 import { ConflictsList } from '../surveyor/ConflictsScreen';
 import { CONFLICTS_ID, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
@@ -79,6 +79,27 @@ describe('IngestFinished and DoneLine (ingest.md v3)', () => {
     expect(screen.getByRole('link', { name: 'Open the workspace' }).getAttribute('href')).toBe(
       `#/p/${ID}/d/${must(project.drawings[0]).drawing_id}/engineer`,
     );
+  });
+
+  it('RS-32 a Carbon pick unlocks the chat (it needs nobody); a can-not-tell keeps it locked', () => {
+    // the counts fe-surveyor's ConflictsList reports for a review (ConflictsScreen.tsx `show`)
+    const countsOf = ({ conflicts }: ProjectReview) => ({
+      total: conflicts.length,
+      needsPerson: conflicts.filter((c) => c.needs_person).length,
+    });
+    render(<IngestFinished projectId={projectResolved.id} project={projectResolved} />);
+    report(countsOf(projectReviewResolved));
+    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
+    report(countsOf(resolving.review));
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Start a new chat' }).disabled,
+    ).toBe(true);
+  });
+
+  it('IN-88 withChatRow false: the list only (Simple has the row in its card)', () => {
+    render(<IngestFinished projectId={ID} project={project} withChatRow={false} />);
+    expect(screen.getByText('the conflicts list')).toBeTruthy();
+    expect(screen.queryByText('Start a new chat')).toBeNull();
   });
 
   it('IN-87 no issue count is asked for before the project is done (the API answers 409 until then)', () => {

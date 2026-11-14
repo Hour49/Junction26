@@ -19,6 +19,10 @@ export type StageTrace = Schemas['StageTrace'];
 export type ProjectReview = Schemas['ProjectReview'];
 export type DrawingReview = Schemas['DrawingReview'];
 export type ConflictEntry = Schemas['ConflictEntry'];
+/** A model's pick or "can't tell" on a conflict or uncertain answer (#252, RESOLVER=carbon; absent while off). */
+export type Resolved = Schemas['Resolved'];
+/** POST /api/projects/{id}/resolve: the review after the replies + one note per conflict that got none. */
+export type Resolving = Schemas['Resolving'];
 export type DrawingView = Schemas['DrawingView'];
 export type PageView = Schemas['PageView'];
 export type Normalised = Schemas['Normalised'];

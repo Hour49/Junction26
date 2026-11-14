@@ -3,7 +3,8 @@ import { drawingLabel, formatValue, type ProjectAnswer, type ProjectView } from 
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
 import { GRADE_TONE, StatusPill } from './AnswerCard';
-import { gradeOf, kindName, levelWord, type Grade } from './format';
+import { ResolverLines } from './Resolver';
+import { estimateLine, gradeOf, kindName, levelWord, type Grade } from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
 
@@ -48,6 +49,12 @@ export function ChatAnswer(props: {
   // CH-40: a drawing by its plain name (#224), else its file name; files keep their path
   const labelOf = (p: (typeof parts)[number]) =>
     drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
+  const why = (p: (typeof parts)[number]) => p.answer.check?.reason ?? p.answer.level?.text;
+  // CH-46: the reason already says it is an estimate and why (the backend quotes it): one line, not two
+  const estimate = (p: (typeof parts)[number]) => {
+    const e = p.answer.quantity?.estimate;
+    return e && why(p)?.includes(e) ? null : estimateLine(p.answer);
+  };
   const about = (drawingId: string) => {
     const d = project.drawings.find((x) => x.drawing_id === drawingId);
     return d ? `${kindName(d.kind)} · ${routeLabel(d.route)}` : null;
@@ -147,6 +154,10 @@ export function ChatAnswer(props: {
                 >
                   Show it on {labelOf(p)}
                 </a>
+                {estimate(p) && <p className="en-estimate">{estimate(p)}</p>}
+                {/* CH-43: why, under the value, as a refusal gives its reason */}
+                {why(p) && <p className="en-why">{why(p)}</p>}
+                <ResolverLines a={p.answer} />
               </li>
             ))}
           </ul>

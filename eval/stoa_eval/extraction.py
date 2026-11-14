@@ -234,7 +234,8 @@ ConflictMethod = Literal[
 class Subject(_Strict):
     kind: Literal["room", "apartment", "class", "sheet"]
     ref: str | None = Field(
-        description="a room or apartment id in this file, an element class, or null for sheet"
+        description="a room or apartment id in this file, an element class or room:<type> "
+        "for class, or null for sheet"
     )
 
 
@@ -272,8 +273,10 @@ class Conflict(_Strict):
             raise ValueError(f"conflict {self.id}: each value needs a different method")
         if (self.subject.kind == "sheet") != (self.subject.ref is None):
             raise ValueError(f"conflict {self.id}: subject ref is null for a sheet, else set")
-        if self.subject.kind == "class" and self.subject.ref not in ELEMENT_CLASSES:
-            raise ValueError(f"conflict {self.id}: {self.subject.ref!r} is not an element class")
+        if self.subject.kind == "class" and not _class_ok(self.subject.ref or ""):
+            raise ValueError(
+                f"conflict {self.id}: {self.subject.ref!r} is not an element class or room:<type>"
+            )
         return self
 
 
@@ -307,9 +310,13 @@ class ModelObject(_Strict):
     attrs: dict[str, Attr] = Field(default_factory=dict[str, Attr])
 
 
-def _count_key_ok(key: str) -> bool:
+def _class_ok(key: str) -> bool:
     kind, _, room_type = key.partition(":")
-    return key == "plan" or key in ELEMENT_CLASSES or (kind == "room" and room_type in ROOM_TYPES)
+    return key in ELEMENT_CLASSES or (kind == "room" and room_type in ROOM_TYPES)
+
+
+def _count_key_ok(key: str) -> bool:
+    return key == "plan" or _class_ok(key)
 
 
 class ReaderView(_Strict):
@@ -331,6 +338,20 @@ class ArbiterReading(_Strict):
         description="the arbiter's P that the count it kept or set is right; null: it sets no "
         "count of this family",
     )
+
+
+class CarbonCheck(_Strict):
+    """What Gemini Carbon read of the sheet beside the extraction's reader (the backend's
+    CARBON_LEVELS). Never scored, never counted."""
+
+    read: list[ElementClass | Literal["room"]] = Field(
+        default_factory=list[ElementClass | Literal["room"]],
+        description="what it counted; of another class it says nothing",
+    )
+    plans: list[Plan] = Field(default_factory=list[Plan])
+    elements: list[Element] = Field(default_factory=list[Element])
+    rooms: list[Room] = Field(default_factory=list[Room])
+    failed: str | None = Field(default=None, description="why it checked nothing; null: it read")
 
 
 class Extraction(_Strict):
@@ -381,6 +402,11 @@ class Extraction(_Strict):
         default=None,
         description="what the local count arbiter read, by count family (door, room:wc, "
         "sauna_stove...), for the answer's local gate; never scored; null: it did not run",
+    )
+    carbon_check: CarbonCheck | None = Field(
+        default=None,
+        description="what Gemini Carbon read beside the reader, for the answer's level; never "
+        "scored; null: it did not run",
     )
     notes: list[str] = Field(default_factory=list[str])
 
