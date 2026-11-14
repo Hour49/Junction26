@@ -401,6 +401,9 @@ LOCAL = "elements=region:C,plans=region:C"  # ONNX models on this machine only
         # our EU model server instead of Gemini is still a keyed model server
         ({"raster_components": f"{LOCAL},rooms=gemini", "rooms_provider": "eu"}, False),
         ({"decisions_kind": True, "kind_provider": "eu"}, False),
+        # the SigLIP classifier is a local model, but it turns triage on, so the describer runs
+        ({"triage_classifier": "siglip"}, True),
+        ({"triage_classifier": "siglip", "triage_describer": "gemini"}, False),
         (
             {
                 "raster_components": LOCAL,
