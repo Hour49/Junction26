@@ -27,8 +27,10 @@ OTHER_DRAWING_WHY = (
 
 
 class RulesJudge:
+    reads_description = False  # so it judges files nothing described too
+
     def judge(
-        self, kind: TriageClass, description: Description, context: ProjectContext
+        self, kind: TriageClass, description: Description | None, context: ProjectContext
     ) -> Relevance | Unavailable:
         match kind:
             case "not_drawing":

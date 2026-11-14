@@ -67,12 +67,14 @@ from app.core.ingest.triage import (
     called_not_plan,
     context_of,
     judged,
+    judged_note,
     kind_after,
     overruled,
     plan_kind,
     read_as_plan,
     relevance_of,
     set_aside_reason,
+    to_judge,
     triaged,
 )
 from app.core.pipeline.identify import sniff
@@ -541,9 +543,10 @@ class IngestService:
             run.done.set()
 
     def _judge(self, run: Run, failed: bool) -> None:
-        """Triage step 3, once every file is finished: each described file judged against the
-        project's plans, names and other descriptions. A file that can't be judged gets a note
-        saying why; nothing stops the project. `failed`: the run failed, so nothing is judged."""
+        """Triage step 3, once every file is finished: each described file (and, for a judge
+        that reads no description, each undescribed one) judged against the project's plans,
+        names and other descriptions. A file that can't be judged gets a note saying why;
+        nothing stops the project. `failed`: the run failed, so nothing is judged."""
         if self._triage is None:
             return
         files = run.status().files
@@ -563,20 +566,22 @@ class IngestService:
             if file.drawing_id is not None
         }
         context = context_of(files, drawings)
-        for file in waiting:
-            assert file.triage is not None and file.triage.description is not None
+        for file in to_judge(files, judge):
+            assert file.triage is not None
             spent = cost.spent()
             try:
                 found = relevance_of(judge, file.triage.class_, file.triage.description, context)
             except Exception:  # one file's judging must not stop the project
                 logger.warning("judging the relevance of %s failed", file.path, exc_info=True)
-                run.set(file.path, triage=judged(file.triage, None, NOTE_JUDGE_FAILED))
+                note = judged_note(file.triage, NOTE_JUDGE_FAILED)
+                run.set(file.path, triage=judged(file.triage, None, note))
                 continue
             paid = cost.spent() - spent  # counted in the file's and the project's cost
             if isinstance(found, Unavailable):
-                triage = judged(file.triage, None, f"not judged: {found.note}")
+                note = judged_note(file.triage, f"not judged: {found.note}")
+                triage = judged(file.triage, None, note)
             else:
-                triage = judged(file.triage, found, None)
+                triage = judged(file.triage, found, judged_note(file.triage, None))
             run.set(file.path, triage=triage, cost_usd=file.cost_usd + paid)
 
     def _shown(self) -> dict[str, str]:
