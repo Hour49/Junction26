@@ -143,9 +143,9 @@ def test_the_sources_read_a_sheet_at_the_same_time_and_their_cost_is_the_caller_
         "b": Meeting(barrier, 0.5, elements=(element("door", LEFT),)),
         "c": Meeting(barrier, 0.125, elements=(element("window", LEFT),)),
     }
-    before = cost.spent()
+    before = cost.mark()
     found = composite({"plans": "a", "door": "b", "window": "c"}, readers).extract(FILE, SHEET)
-    assert cost.spent() - before == pytest.approx(0.875)  # a charge left on the thread rounds it
+    assert cost.since(before) == pytest.approx(0.875)  # a charge left on the thread rounds it
     assert [e.class_ for e in found.elements] == ["door", "window"]
     assert [n for n in found.notes if n.endswith("fake")] == ["a: fake", "b: fake", "c: fake"]
 
@@ -181,7 +181,7 @@ def test_every_source_s_spend_is_the_caller_s_also_when_a_source_fails() -> None
     door source; both were paid for, so the file's cost_usd must carry both."""
     door = Paying(0.5, elements=(element("door", LEFT),))
     readers: dict[str, Extractor] = {"a": Failing(0.25, door), "b": door}
-    before = cost.spent()
+    before = cost.mark()
     with pytest.raises(RuntimeError, match="no answer"):
         composite({"plans": "a", "door": "b"}, readers).extract(FILE, SHEET)
-    assert cost.spent() - before == pytest.approx(0.75)
+    assert cost.since(before) == pytest.approx(0.75)

@@ -741,7 +741,9 @@ describe('states', () => {
     });
     expect(await screen.findByText('Nothing was counted on this drawing.')).toBeTruthy();
     expect(
-      screen.getByText("This drawing's route has no reader in this build, so nothing was counted."),
+      screen.getByText(
+        "This drawing wasn't read: this setup has no reader for this kind of sheet, so nothing on it was counted or measured.",
+      ),
     ).toBeTruthy();
     expect(screen.getByLabelText('Show rows with value 0')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Export CSV' })).toBeNull();

@@ -92,8 +92,8 @@ def test_the_sample_lists_its_conflict_reading_flags_and_set_aside_files(
     }
     photo = found[("reading_flag", "photos/plan-photo.jpg")]
     assert photo["why"] == (
-        "A phone photo, read without perspective correction; no reader for the image route "
-        "yet: nothing was read."
+        "A phone photo, read without perspective correction; not read: this setup has no reader "
+        "for the image route."
     )
     assert (photo["page"], photo["box"], photo["state"]) == (1, None, "open")
     dxf = found[("set_aside", "cad/detail.dxf")]
@@ -120,7 +120,9 @@ def test_a_refused_answer_about_the_drawing_is_an_issue_a_parser_miss_is_not(
     assert [(issue["question"], issue["file"], issue["page"]) for issue in refused] == [
         (DOORS, "scans/ground-floor.png", None)
     ]
-    assert refused[0]["why"] == f'No answer to "{DOORS}": the drawing has no reader for it.'
+    assert (
+        refused[0]["why"] == f'No answer to "{DOORS}": the drawing gives no reliable number for it.'
+    )
     lines = client.get(f"/api/projects/{project['id']}/questions").json()["questions"]
     assert [line.get("refusal") for line in lines] == [None, "unsupported-question", "no-reader"]
 

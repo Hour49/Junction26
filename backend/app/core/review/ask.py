@@ -22,6 +22,8 @@ from app.core.answering.answer import (
 )
 from app.core.answering.model import (
     IN_ONE_ROOM,
+    NO_SUBJECT,
+    SEVERAL_ROOMS,
     SEVERAL_THINGS,
     Answer,
     Query,
@@ -74,9 +76,8 @@ RULES: dict[str, str] = {
     found.id: found.text for found in vars(rule_pack).values() if isinstance(found, CountingRule)
 }
 SUGGESTIONS = 6
-# Parser reasons (question_templates.py) for a supported kind of question about a subject it
-# didn't recognise, or one without that quantity ("no area is taken off for door")
-NO_SUBJECT = "no element, room or apartment named"
+# Parser reason (question_templates.py) for a supported kind of question without that quantity
+# ("no area is taken off for door"); NO_SUBJECT (answering/model.py): a subject it didn't recognise
 NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)")
 # Plurals plain English rules don't give (a kind's id is not always the word a person uses)
 PLURALS = {"living": "living rooms"}
@@ -89,19 +90,21 @@ TEXTS = {
     # `read` is empty: the do-nothing stand-in, or a real reader that found nothing on this sheet
     "no-reader": "Nothing was read from this sheet: its reader found no elements or rooms on it.",
     # the route's extractor is the do-nothing stand-in: there is no reader to blame
-    "no-reader-yet": "Nothing was read from this sheet: there is no reader for this kind of sheet "
-    "yet.",
+    "no-reader-yet": "This sheet wasn't read, so nothing on it was counted or measured: this setup "
+    "has no reader for this kind of sheet. You can still ask about the project's other drawings.",
     "no-scale": "The sheet has no scale, so lengths and areas can't be measured. Counts still "
     "work.",
     "no-drawing": "This file has no drawing model.",
-    "policy": "The reader for this kind of sheet is not reliable enough for this question yet, so "
-    "no number is given.",
+    "policy": "On sheets like this one, our reader got this kind of question wrong too often when "
+    "we measured it, so no number is given.",
 }
 PARTS = {  # an unsupported count that would drop part of the question: which part
     SEVERAL_THINGS: "This question names more than one kind of thing, and I count one kind across "
     "the whole drawing. Ask for each one on its own; try one of these.",
     IN_ONE_ROOM: "This question counts what is inside one room, and I count across the whole "
     "drawing. Try one of these instead.",
+    SEVERAL_ROOMS: "This question names more than one room, and I give one room's area or length "
+    "at a time. Ask for each room on its own.",
 }
 
 
