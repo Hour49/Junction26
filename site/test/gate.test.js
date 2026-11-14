@@ -454,3 +454,48 @@ test("the code form is a strip at the top of the demo page, in the page's flow, 
   assert.ok(!html.includes("position:fixed")); // a fixed box covered the demo's own send button
   assert.ok(html.includes('href="/credits.html"'));
 });
+
+test("an event stream from the app is passed on as it arrives: the first event is read before the last is asked for", async () => {
+  let firstRead = false;
+  let readWhenLastWasSent = null;
+  let pulls = 0;
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    pull(controller) {
+      pulls += 1;
+      if (pulls === 1) return controller.enqueue(encoder.encode('event: turn\ndata: {"turn":1}\n\n'));
+      // a stream is asked for one piece ahead of its reader, so the piece after that shows who is reading:
+      if (pulls === 2) return controller.enqueue(encoder.encode('event: thinking\ndata: {"step":1}\n\n'));
+      readWhenLastWasSent = firstRead; // false when the whole reply is read before the visitor gets any of it
+      controller.enqueue(encoder.encode('event: answer\ndata: {"text":"2 doors"}\n\n'));
+      controller.close();
+    },
+  });
+  const original = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(stream, { headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache" } });
+  try {
+    const answer = await worker.fetch(
+      new Request("https://junction.example.test/api/projects/p1/chat/stream", {
+        method: "POST",
+        headers: { cookie: await cookieFor(), "content-type": "application/json", accept: "text/event-stream" },
+        body: '{"message":"doors?"}',
+      }),
+      env(),
+    );
+    assert.equal(answer.status, 200);
+    assert.equal(answer.headers.get("content-type"), "text/event-stream; charset=utf-8");
+    assert.equal(answer.headers.get("cache-control"), "no-cache"); // not no-store: that is for pages
+    const reader = answer.body.getReader();
+    const decoder = new TextDecoder();
+    const first = decoder.decode((await reader.read()).value);
+    firstRead = true;
+    let rest = "";
+    for (let part = await reader.read(); !part.done; part = await reader.read()) rest += decoder.decode(part.value);
+    assert.equal(first, 'event: turn\ndata: {"turn":1}\n\n');
+    assert.equal(rest, 'event: thinking\ndata: {"step":1}\n\nevent: answer\ndata: {"text":"2 doors"}\n\n');
+    assert.equal(readWhenLastWasSent, true);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
