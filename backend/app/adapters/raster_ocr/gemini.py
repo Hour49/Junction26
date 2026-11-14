@@ -34,6 +34,7 @@ from typing import Any, Protocol, cast
 
 from PIL import Image
 
+from app.adapters.whole_file import write_whole
 from app.core.drawing.model import Room, RoomType, Scale
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
@@ -253,10 +254,7 @@ class GeminiRoomReader:
             text = self._model.ask(encode(image), PROMPT)
             how = f"read in {time.monotonic() - start:.1f} s"
             if path is not None:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                part = path.with_suffix(".tmp")
-                part.write_text(json.dumps({"reply": text}, ensure_ascii=False))
-                part.replace(path)
+                write_whole(path, json.dumps({"reply": text}, ensure_ascii=False))
         rooms = tuple(parse_rooms(text))
         return GeminiRooms(rooms, f"{self._model.name}: {len(rooms)} rooms, {how}")
 

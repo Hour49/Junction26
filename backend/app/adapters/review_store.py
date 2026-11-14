@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from app.adapters.paths import inside
+from app.adapters.whole_file import write_whole
 from app.core.review.model import ReviewState
 
 
@@ -32,11 +33,7 @@ class JsonReviewStore:
     ) -> ReviewState:
         with self._lock:
             state = change(self.get(project_id, drawing_id))
-            path = self._path(project_id, drawing_id)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            temporary = path.with_suffix(".tmp")
-            temporary.write_text(state.model_dump_json(indent=2), encoding="utf-8")
-            temporary.replace(path)
+            write_whole(self._path(project_id, drawing_id), state.model_dump_json(indent=2))
             return state
 
     def _path(self, project_id: str | None, drawing_id: str) -> Path:

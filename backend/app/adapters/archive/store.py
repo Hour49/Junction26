@@ -11,13 +11,12 @@ Every JSON file is written to a temporary name and renamed, so a reader never se
 """
 
 import json
-import os
-import threading
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from app.adapters.paths import inside
+from app.adapters.whole_file import write_whole
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
 from app.core.ingest.model import FileTrace, Outcome, ProjectStatus
@@ -83,10 +82,7 @@ class DiskProjectStore:
 
 
 def _write(path: Path, body: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-    temporary.write_text(json.dumps(body, ensure_ascii=False) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    write_whole(path, json.dumps(body, ensure_ascii=False) + "\n")
 
 
 def _read(path: Path, what: str) -> Any:

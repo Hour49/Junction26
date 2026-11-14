@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from app.adapters.decisions.client import Decider, DecisionsError
+from app.adapters.whole_file import write_whole
 
 RESOLUTION = "high"  # val: no gain from ultra_high (G1-ultra_high -1.0 pp vs high)
 MAIN_DWELLING = (
@@ -137,9 +138,6 @@ class G1MainReader:
             how = f"read in {time.monotonic() - start:.1f} s"
             families = parse(reply)  # a reply that does not parse is not cached
             if path is not None:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                part = path.with_suffix(".tmp")
-                part.write_text(json.dumps(reply))
-                part.replace(path)
+                write_whole(path, json.dumps(reply))
             return PageCounts(families, f"{self._decider.model}: 12 count families, {how}")
         return PageCounts(parse(reply), f"{self._decider.model}: 12 count families, {how}")
