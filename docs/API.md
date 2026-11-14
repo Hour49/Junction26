@@ -130,6 +130,9 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
 | `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
 | `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
+| `GET /api/laws` | The building-law knowledge base: each pack's laws (table of contents) | 0011 |
+| `GET /api/laws/{pack}/search?q=&topic=&limit=` | Search one pack's law clauses, best first | 0011 |
+| `GET /api/laws/clauses/{clause_id}` | One clause, verbatim and in our English, with its law | 0011 |
 
 ## `GET /api/info`
 
@@ -7766,6 +7769,78 @@ Every drawing of the project (in `GET /api/projects/{id}` `drawings` order), eac
 project is `done` (a drawing's own checks answer as soon as that drawing exists); 404 `unknown-pack` for an
 unknown pack, `not-found` for an unknown project.
 
+## Building law
+
+The law knowledge base the AI searches instead of carrying the laws in its prompt (decision
+[0011](decisions/0011-law-knowledge-base.md)): one file per law in `backend/app/laws/<pack>/`, one clause per
+subsection, `text` verbatim from the official source and `text_en` our unofficial translation. Packs are `fi` and
+`ch-zh` (Swiss federal law and the Canton of Zürich), the rule packs' ids. The examples are the test laws of
+`backend/tests/fixtures/laws/` (made up).
+
+### `GET /api/laws`
+
+Both packs, always; `laws: []` while a pack has none. `topics`: the topics its clauses use, in the closed list's
+order.
+
+```json
+{
+  "packs": [
+    {
+      "id": "fi",
+      "laws": [
+        {"law_id": "fi-test-1", "number": "1/2026", "title_en": "Test decree on residential spaces",
+         "clauses": 2, "topics": ["rooms", "fire", "escape-routes"]}
+      ]
+    },
+    {"id": "ch-zh", "laws": [...]}
+  ]
+}
+```
+
+### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
+
+`q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. `topic` one of `rooms accessibility fire
+escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
+distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
+-BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.
+
+```json
+{
+  "pack": "fi",
+  "query": "minimum bedroom area",
+  "hits": [
+    {"id": "fi-test-1-4-2", "law_id": "fi-test-1", "ref": "4 § 2 mom.",
+     "title_en": "Test decree on residential spaces",
+     "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+     "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "score": 2.745}
+  ]
+}
+```
+
+### `GET /api/laws/clauses/{clause_id}`
+
+The clause as its file has it, plus its law's `law_id`, `law_number`, `law_title`, `law_title_en`, `url`,
+`language` (of `text`), `checked` and `status_note`. `text_en` is null only for a law in English; show it as an
+unofficial translation. An unknown id is 404 `not-found`.
+
+```json
+{
+  "id": "fi-test-1-4-2", "ref": "4 § 2 mom.", "heading": "Huoneala", "heading_en": "Room area",
+  "text": "Asuintilan huonealan on oltava vähintään 7 neliömetriä.",
+  "text_en": "The room area of a residential space must be at least 7 square metres.",
+  "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+  "keywords": ["room area", "minimum area", "bedroom", "huoneala", "makuuhuone"],
+  "topics": ["rooms"],
+  "limits": [{"what": "habitable room area", "comparison": ">=", "value": 7.0, "unit": "m2"}],
+  "drawing_checkable": true,
+  "law_id": "fi-test-1", "law_number": "1/2026", "law_title": "Testiasetus asuintiloista",
+  "law_title_en": "Test decree on residential spaces",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "language": "fi", "checked": "2026-11-14",
+  "status_note": "A made-up test law: its clauses point nowhere real."
+}
+```
+
 ## What is not in v1
 
 - Contested marks: a conflict is shown per quantity, with both values and, where the method has one, the `box` it
@@ -7776,6 +7851,8 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0011): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
+  `GET /api/laws/clauses/{clause_id}`, the building-law knowledge base. An unknown pack is 404 `unknown-pack`.
 - 2026-11-14, additive (decision 0010 section 8, board #152, PR #183): `Triage.register` (the sheet register:
   kind, has_floor_plan, photo_of_sheet, scale_shown, quality, method; null with no register-reading classifier);
   `Description.what_it_is`, `shows_building`, `visible_text` and `detail`. `TRIAGE_JUDGE=rules` judges a
