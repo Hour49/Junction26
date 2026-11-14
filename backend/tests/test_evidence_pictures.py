@@ -177,8 +177,10 @@ def test_the_scope_never_changes_a_drawing_id_and_a_reused_file_is_still_asked(
     sheet = swiss_sheet().pdf()
 
     def ingested(root: Path, **on: Any) -> ProjectStatus:
-        settings = Settings(  # pyright: ignore[reportCallIssue]
-            _env_file=None, gemini_api_key=SecretStr("test-key-not-real"), **on
+        settings = Settings(
+            _env_file=None,  # pyright: ignore[reportCallIssue]
+            gemini_api_key=SecretStr("test-key-not-real"),
+            **on,
         )
         ingest = build_ingest(settings, root, background=False)
         status = ingest.wait(ingest.start("plan.pdf", sheet))
