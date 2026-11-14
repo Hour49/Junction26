@@ -702,3 +702,63 @@ def test_no_rule_shows_the_user_an_internal_id_or_note() -> None:
     texts = [found.text for found in vars(rules).values() if isinstance(found, CountingRule)]
     for text in texts:
         assert not re.search(r"review-\d|room:|_stove|\(\w+(-\w+)+\)", text), text
+
+
+def _door_count_entry(drawn: int, modelled: int) -> dict[str, object]:
+    return {
+        "id": "c2",
+        "quantity": "element_count",
+        "subject": {"kind": "class", "ref": "door"},
+        "status": "conflict",
+        "tolerance": 0,
+        "values": [
+            {"value": drawn, "unit": "count", "method": "plan_drawing"},
+            {"value": modelled, "unit": "count", "method": "ifc_model"},
+        ],
+        "resolution": None,
+    }
+
+
+def test_a_count_conflict_gives_each_value_the_positions_of_its_items() -> None:
+    doors = (
+        element(1, "door", mark="D1"),
+        element(2, "door"),
+        element(3, "door"),
+        element(4, "window"),
+    )
+    sheet = drawing(
+        plans=(Plan(id="p1", page=1, box=BOX, storey="0"),),
+        elements=doors,
+        model_objects=(
+            ModelObject.model_validate({"id": "m1", "class": "door", "element": "e1"}),
+            ModelObject.model_validate({"id": "m2", "class": "door"}),  # not drawn: no position
+        ),
+        conflicts=(_door_count_entry(3, 2),),
+    )
+    conflict = known_quantities(sheet)[Query(subject="door").key()].conflict
+    assert conflict is not None
+    drawn, modelled = conflict.value_marks
+    assert [mark.label for mark in drawn] == ["D1", "door 2", "door 3"]  # no window
+    assert all(mark.page == 1 and mark.box == BOX for mark in drawn)
+    assert [mark.label for mark in modelled] == ["D1"]
+
+
+def test_a_value_with_a_position_and_no_items_is_marked_where_it_was_read() -> None:
+    sheet = drawing(
+        rooms=(room(1, "other", 10.0, plan="p1"), room(2, "other", 20.0, plan="p1")),
+        conflicts=(_room_count_entry(2, 3, picked=None),),
+    )
+    conflict = known_quantities(sheet)[Query(subject="room").key()].conflict
+    assert conflict is not None
+    drawn, modelled = conflict.value_marks
+    assert [mark.label for mark in drawn] == ["r1", "r2"]  # the rooms the plan counted
+    assert [(mark.label, mark.box) for mark in modelled] == [("ifc_model", OTHER)]
+
+
+def test_a_conflict_with_no_item_or_position_has_no_marks() -> None:
+    sheet = drawing(elements=(element(1, "door"),), conflicts=(_door_count_entry(0, 3),))
+    conflict = known_quantities(sheet)[Query(subject="door").key()].conflict
+    assert conflict is None  # the sheet's one door is not either value: not attached
+    sheet = drawing(elements=(), conflicts=(_door_count_entry(0, 3),))
+    found = known_quantities(sheet)
+    assert all(q.conflict is None or q.conflict.value_marks == () for q in found.values())
