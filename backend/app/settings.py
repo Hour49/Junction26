@@ -44,6 +44,7 @@ RasterScaleName = Literal["off", "priors"]
 # off, or carbon: a raster sheet's printed scale and counts, read by the Carbon reader, replace
 # its estimated scale and check its counts (app/adapters/printed_scale/)
 RasterPrintedScaleName = Literal["off", "carbon"]
+RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
@@ -81,6 +82,12 @@ class Settings(BaseSettings):
     # estimate, kept as a conflict value, and printed counts are checked against the read ones.
     # Off by default; carbon needs the Carbon reader's client (not in this build yet)
     raster_printed_scale: RasterPrintedScaleName = "off"
+    # auto: a raster page whose long side is over 4000 px is read by every detector source of
+    # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
+    # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.
+    # Photo arms are not tiled. off: every page is letterboxed whole (a door on a 14k px sheet
+    # is then a few px)
+    raster_tiles: RasterTilesName = "off"
     # How the raster route types the rooms its rooms source read, whichever source that is.
     # gold-labels is for a source that reads printed labels: it turns every unlabelled bedroom
     # into `other`
@@ -171,3 +178,6 @@ class Settings(BaseSettings):
     triage_describer: TriageDescriberName = "off"
     triage_describer_cache_dir: Path = Path("../data/cache/triage-describer")
     triage_judge: TriageJudgeName = "off"
+    # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
+    # folder's manifest. No file there (or ""): the index searches with BM25 alone
+    evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

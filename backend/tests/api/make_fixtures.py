@@ -97,6 +97,7 @@ def responses() -> dict[str, Any]:
         sample_archive=root / "sample.zip",
         credit_dataset=root / "dataset",  # none: the sample is synthetic, its credit null
         credit_photos=root / "photos",
+        evidence_embedder_manifest=root / "no-model.json",  # BM25: the same on every machine
     )
     settings.sample_archive.write_bytes(build_archive())
     ingest = build_ingest(settings, settings.projects_dir, background=False)
@@ -271,6 +272,11 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
     url = f"/api/projects/{project_id}/files/{site_id}/relevance"
     assert client.post(url, json=found["relevance_request"]).status_code == 200
     found["project_triaged"] = client.get(f"/api/projects/{project_id}").json()
+    # the evidence index (decision 0012): the photographed church elevation by its printed name
+    search = client.get(f"/api/projects/{project_id}/evidence/search", params={"q": "St. Anna"})
+    found["evidence_search"] = search.json()
+    hit = found["evidence_search"]["hits"][0]["id"]
+    found["evidence_detail"] = client.get(f"/api/projects/{project_id}/evidence/{hit}").json()
     # then a person has the elevation read as a floor plan (POST …/triage): queued, then read
     south = next(file["id"] for file in site["files"] if file["path"] == "elevations/south.png")
     found["triage_request"] = {"class": "floor_plan", "by": "Ana"}

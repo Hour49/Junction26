@@ -176,7 +176,7 @@ A pre-check of a few rules, not a compliance certificate. Bogdan reversed the 20
 12:20 ("MUST DO"); the contract is decision [0009](decisions/0009-building-code-checks.md), the API
 `GET /api/drawings/{id}/checks?pack=` (docs/API.md "Building-code checks").
 
-- A pack is data, one per law: `backend/app/rules/<id>.json` (`fi`: Finland, decrees 1008/2017 and 241/2017;
+- A pack is data, one per law: `backend/app/rules/<id>.json` (`fi`: Finland, decrees 631/2024 and 241/2017;
   `ch-zh`: the Canton of Zürich's PBG). `app/adapters/rule_packs.py` loads them at start and refuses a pack with a
   rule that quotes no clause (ref, https URL, sentence), an unknown op or room type, or a repeated id.
 - Each rule is an op over the drawing model (`app/core/checks/check.py`, pure): `room_area` (each room of the
