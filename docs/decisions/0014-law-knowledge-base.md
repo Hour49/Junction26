@@ -56,9 +56,15 @@ Researchers check their files before they hand them in:
 one in-memory SQLite FTS5 table, `tokenize='unicode61 remove_diacritics 2'` (case and accents folded: "Fluchtweg",
 "fluchtweg", "Flüchtweg" match), columns `summary_en`, `keywords`, `heading` (+ `heading_en`), `text_en`, `text`,
 `law` (titles and number), ranked by BM25 with column weights 4, 4, 2, 1, 1, 1: the English summary and keywords
-written for search count above the long statute text. The query is user or model text: each word (`\w+`) becomes
-a quoted prefix term `"word"*`; clauses with every word (AND) come first, then any word (OR) fills the limit
-(a short clause sharing one common word must not outrank the one that has them all; fi-law, 2026-11-14); passed as a bound parameter, so `"`, `*`, `NEAR`, `-`, `AND` are
+written for search count above the long statute text. The query is user or model text: each word (`\w+`) of 3+
+letters, minus a short English stopword list (`a an the do i is to of for in on my we when what how need`) and
+repeats, becomes a quoted prefix term `"word"*`, at most 20 (QA lawkb-3/4, 2026-11-14: `"a"*` matched nearly every
+clause and buried the one the question's key words find, and 250 such terms took a second under the index lock);
+clauses with every word (AND) come first, then any word (OR) fills the limit
+(a short clause sharing one common word must not outrank the one that has them all; fi-law, 2026-11-14). An
+old-wording clause (id with `-anhang-`: a law's Anhang keeps the wording before an amendment, which applies only
+where a commune has not adapted) comes after every current hit of both groups (QA lawkb-1, 2026-11-14). The
+match is passed as a bound parameter, so `"`, `*`, `NEAR`, `-`, `AND` are
 plain words and can neither break nor steer the MATCH syntax; the prefix makes "Fluchtweg" find "Fluchtwege" and
 "bedroom" find "bedrooms". A search covers one pack (the project's country), optionally one topic.
 

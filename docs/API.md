@@ -9101,8 +9101,10 @@ order.
 ### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
 
 `q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
-starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. Clauses with every word come first, then
-clauses with any word fill `limit`, each group by score. `topic` one of `rooms accessibility fire
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored; words of 1-2 letters, a few English stopwords
+("when", "do", "need", ...) and words past the 20th are ignored, so a query of only those has no hits. Clauses with
+every word come first, then clauses with any word fill `limit`, each group by score; old wording (an id with
+`-anhang-`) comes after every current clause. `topic` one of `rooms accessibility fire
 escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
 distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
 -BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.
