@@ -762,3 +762,42 @@ def test_a_conflict_with_no_item_or_position_has_no_marks() -> None:
     sheet = drawing(elements=(), conflicts=(_door_count_entry(0, 3),))
     found = known_quantities(sheet)
     assert all(q.conflict is None or q.conflict.value_marks == () for q in found.values())
+
+
+ORDER_SCRIPT = """
+from app.core.drawing.model import Drawing, ModelObject, Page, Room, Scale
+from app.core.pipeline.takeoff import known_quantities
+
+rooms = tuple(
+    Room(id=f"r{at}", type="bedroom", label=f"Stanza {at}", page=1, area_m2=10.0 + at,
+         box=(0.1 * at, 0.1, 0.1 * at + 0.05, 0.2),
+         attrs={"number": f"1.0{at}", "name": f"Camera {at}"})
+    for at in range(1, 6)
+)
+spaces = tuple(
+    ModelObject(id=f"s{at}", class_="space", storey="EG", name=f"0.0{at}",
+                long_name=f"Raum {at}", quantities={"area_m2": 5.0 + at})
+    for at in range(1, 6)
+)
+drawing = Drawing(file="x.ifc", pages=(Page(page=1, width=9, height=9, unit="px"),),
+                  scale=Scale(status="scaled"), rooms=rooms, model_objects=spaces)
+print("\\n".join(known_quantities(drawing)))
+"""
+
+
+def test_the_takeoff_keys_come_in_the_same_order_whatever_the_hash_seed() -> None:
+    """golden-311: three runs wrote ingest.json's 230 keys in three orders, because room_names
+    and _space_names returned sets, whose order follows PYTHONHASHSEED."""
+    import os
+    import subprocess
+    import sys
+
+    orders = set()
+    for seed in ("1", "2", "3", "4"):
+        env = {**os.environ, "PYTHONHASHSEED": seed}
+        done = subprocess.run([sys.executable, "-c", ORDER_SCRIPT], env=env, capture_output=True,
+                              text=True, check=True)  # fmt: skip
+        orders.add(done.stdout)
+    assert len(orders) == 1
+    keys = next(iter(orders)).splitlines()
+    assert any("name=" in key for key in keys)  # the names are in it

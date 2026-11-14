@@ -302,14 +302,15 @@ def _space_area(space: ModelObject, rooms: Mapping[str, Room]) -> tuple[float | 
     return (None, None) if room is None else (room.area_m2, room)
 
 
-def _space_names(space: ModelObject) -> set[str]:
+def _space_names(space: ModelObject) -> tuple[str, ...]:
     """What a model's space is known by, as `room_names` knows a drawn IFC space: its Name (the
-    number), its LongName, and "<LongName> (<Name>)"."""
+    number), its LongName, and "<LongName> (<Name>)"; sorted, so the takeoff's keys come in the
+    same order on every run (a set's order follows the hash seed; golden-311)."""
     number, long_name = space.name or None, space.long_name or None
     found = {value for value in (number, long_name) if value is not None}
     if number is not None and long_name is not None and number != long_name:
         found.add(f"{long_name} ({number})")
-    return {normalised(value) for value in found}
+    return tuple(sorted({normalised(value) for value in found}))
 
 
 def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Quantity]:
@@ -429,7 +430,8 @@ def _conflict_keys(
             for room in (room for room in drawing.rooms if room.id == ref):
                 own = _storey(room.attrs, room.plan, plans)
                 for name in room_names(room):
-                    keys += [quantity_key("area", "room", name=name, storey=s) for s in {None, own}]
+                    storeys = dict.fromkeys((None, own))  # ordered, unlike a set
+                    keys += [quantity_key("area", "room", name=name, storey=s) for s in storeys]
             return keys
         case "apartment_area", "apartment":
             labels = [a.label for a in drawing.apartments if a.id == ref and a.label is not None]
@@ -749,8 +751,9 @@ def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
     return out
 
 
-def room_names(room: Room) -> set[str]:
-    """Every name a room answers to (its numbers, names, printed label), normalised."""
+def room_names(room: Room) -> tuple[str, ...]:
+    """Every name a room answers to (its numbers, names, printed label), normalised and sorted, so
+    the takeoff's keys come in the same order on every run (golden-311)."""
 
     def texts(keys: Iterable[str]) -> set[str]:
         return {value for key in keys if isinstance(value := room.attrs.get(key), str) and value}
@@ -758,7 +761,7 @@ def room_names(room: Room) -> set[str]:
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
-    return {normalised(value) for value in found}
+    return tuple(sorted({normalised(value) for value in found}))
 
 
 def _add_scope(
