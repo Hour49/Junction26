@@ -4,14 +4,18 @@ then the GLB is served, gzipped when the client takes it."""
 
 import gzip
 import io
+import json
 import time
 import zipfile
+from pathlib import Path
 from typing import Any
 
 import pytest
 from conftest import upload
 from fastapi.testclient import TestClient
 from test_api_chat import stream
+from test_api_checks import RULES, checks_sheet
+from test_api_issues_checks import serving
 from test_ifc_glb import flat, house, node_names
 from test_ifc_model import MODEL, SHEET, TWIN, demo
 
@@ -211,3 +215,53 @@ def test_the_chat_stream_answer_has_the_view_state_and_keeps_none(
         path for path in settings.projects_dir.rglob("*.json") if b"model_3d" in path.read_bytes()
     ]
     assert kept == []
+
+
+def test_a_failed_check_on_a_sheet_with_its_model_highlights_the_element(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """Issue.model_file_id and Issue.highlight (board #14 c6883948897): a failed check of a door
+    the sheet's model lists gets the model file and the door's GlobalId; additive only."""
+    body = json.loads((RULES / "test.json").read_text())
+    door = next(rule for rule in body["rules"] if rule["op"] == "door_width")
+    (tmp_path / "test.json").write_text(json.dumps({**body, "rules": [{**door, "limit": 3.0}]}))
+    on = serving(settings.model_copy(update={"model_3d": True}), tmp_path)
+    built = demo()
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as packed:
+        for path, data in ((SHEET, built.pdf), (TWIN, built.svg), (MODEL, built.ifc)):
+            packed.writestr(path, data)
+    project_id = upload(on, archive.getvalue(), "demo.zip")
+    found = on.get(f"/api/projects/{project_id}/issues", params={"pack": "test"}).json()
+    fails = [issue for issue in found["issues"] if issue["kind"] == "code_check_failed"]
+    assert fails, "the 3 m door rule fails the demo's door"
+    model_id = file_of(on, project_id, MODEL)["id"]
+    drawing = on.get(f"/api/projects/{project_id}").json()["drawings"]
+    sheet = next(d for d in drawing if d["file"] == SHEET)["drawing_id"]
+    checks = on.get(
+        f"/api/drawings/{sheet}/checks", params={"pack": "test", "project": project_id}
+    ).json()
+    ids = {
+        f"test:{result['id']}": result["subject"].get("global_id")
+        for rule in checks["rules"]
+        for result in rule["results"]
+    }
+    on_sheet = [issue for issue in fails if issue["drawing_id"] == sheet]
+    assert on_sheet
+    for issue in on_sheet:
+        assert issue["file"] == SHEET and issue["model_file_id"] == model_id
+        assert ids[issue["check"]]  # the door is one the model lists
+        assert issue["highlight"] == [{"global_id": ids[issue["check"]], "role": "affected"}]
+    # other issues (conflicts) carry neither field
+    for issue in found["issues"]:
+        if issue["kind"] != "code_check_failed":
+            assert "highlight" not in issue and "model_file_id" not in issue
+
+
+def test_a_failed_check_on_a_plain_sheet_has_no_3d_fields(client: TestClient) -> None:
+    project_id = upload(client, checks_sheet(), "flat-fi.pdf")
+    found = client.get(f"/api/projects/{project_id}/issues", params={"pack": "fi"}).json()
+    fails = [issue for issue in found["issues"] if issue["kind"] == "code_check_failed"]
+    assert fails
+    for issue in fails:
+        assert "highlight" not in issue and "model_file_id" not in issue

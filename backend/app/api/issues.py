@@ -42,7 +42,7 @@ from app.core.checks.model import CheckResult, RuleCheck, RulePack
 from app.core.drawing.model import Box, Drawing, Polygon
 from app.core.errors import NotFoundError
 from app.core.ingest.judge import read_nothing
-from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.ingest.model import FileStatus, Highlight, ProjectStatus
 from app.core.ingest.triage import called_not_plan, is_not_plan, not_plan_words, sheet_flag
 from app.core.review.conflict_card import number
 from app.core.review.model import MarkView, Resolved, Row, is_none
@@ -145,6 +145,11 @@ class Issue(View):
     # RESOLVER: what a model said about a conflict issue no person settled or signed (a pick
     # makes it a note, which `issues_to_answer` doesn't count); left out of the JSON when None
     resolved: Resolved | None = Field(default=None, exclude_if=is_none)
+    # The 3D view (added 2026-11-14, board #14 c6883948897): the IFC file whose GLB shows this
+    # issue's drawing (its own file, or the model a sheet was read from) and, for a failed code
+    # check, the checked room or door by GlobalId (`affected`); left out when there is none
+    model_file_id: str | None = Field(default=None, exclude_if=is_none)
+    highlight: list[Highlight] = Field(default_factory=list[Highlight], exclude_if=lambda v: not v)
 
 
 class ProjectIssues(View):
@@ -493,7 +498,9 @@ def _code_checks(
     status: ProjectStatus, where: _Files, ingest: Ingest, pack: RulePack
 ) -> Iterator[Issue]:
     """One issue per failed check of the pack (decision 0009), placed on its room or door: the
-    result's first subject mark, on a page the drawing has. Cannot tell is not an issue."""
+    result's first subject mark, on a page the drawing has. Cannot tell is not an issue. With the
+    drawing's IFC model, its file (`model_file_id`) and the checked element (`highlight`)."""
+    models = {file.path: file.id for file in status.files if file.kind == "ifc"}
     for entry in drawings_of(status):
         file = where.of(entry.drawing_id)
         assert file is not None  # a listed drawing has its file
@@ -524,6 +531,10 @@ def _code_checks(
                     quantity=result.quantity,
                     check=f"{pack.id}:{result.id}",
                     checks=checks,
+                    model_file_id=models.get(entry.source or entry.file),
+                    highlight=[Highlight(global_id=result.subject.global_id, role="affected")]
+                    if result.subject.global_id
+                    else [],
                 )
 
 

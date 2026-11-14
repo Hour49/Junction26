@@ -4893,6 +4893,11 @@ Each issue:
 - `answer`: a person's answer, `{text, by, at}` (`POST …/issues/{id}/answer` below), or null. It is a note on the
   issue: it settles nothing and does not change `state` (settle a conflict with `POST …/review`, make a call on a
   file with `POST …/relevance`).
+- `model_file_id` and `highlight` (added 2026-11-14, board #14 c6883948897; each left out when there is none): for
+  a failed code check on a drawing with an IFC model, the IFC file whose 3D view shows it (its own file, or the model
+  a sheet was read from: `…/files/{model_file_id}/model.glb`) and the checked room or door by GlobalId,
+  `[{global_id, role: "affected"}]`, when the model lists it as drawn on the sheet. The check's `subject` carries
+  the same `global_id` (left out when none) in `GET /api/drawings/{id}/checks`.
 
 A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
 

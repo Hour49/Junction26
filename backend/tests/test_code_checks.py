@@ -189,6 +189,25 @@ def test_room_area_passes_and_fails_per_room_with_its_mark() -> None:
     assert found.why == "Of 2 checked: 1 fail, 1 pass."
 
 
+def test_a_subject_the_model_lists_as_drawn_carries_its_global_id() -> None:
+    """The 3D view (model-3d.md, issues): a room the drawing's model lists as drawn here
+    (ModelObject.element) gets that object's GlobalId on its subject; one it does not list has
+    none, and the JSON leaves the field out then."""
+    objects = [
+        {"id": "m1", "class": "space", "global_id": "2O2Fr$t4X7Zf8NOew3FLOH", "element": "r2"},
+        {"id": "m2", "class": "space", "global_id": "3cUkl32yn9qRSPvBJVyWYp"},  # not drawn
+    ]
+    found = check_rule(
+        drawing(rooms=[room(1, area_m2=9.5), room(2, area_m2=6.1)], model_objects=objects),
+        rule("bedroom-area"),
+    )
+    assert [r.subject.global_id for r in found.results] == [None, "2O2Fr$t4X7Zf8NOew3FLOH"]
+    assert "global_id" not in found.results[0].subject.model_dump()
+    assert found.results[1].subject.model_dump()["global_id"] == "2O2Fr$t4X7Zf8NOew3FLOH"
+    plain = check_rule(drawing(rooms=[room(2, area_m2=6.1)]), rule("bedroom-area"))
+    assert plain.results[0].subject.global_id is None  # no model: as before
+
+
 def test_a_dining_nook_typed_living_is_skipped_by_its_label() -> None:
     """Guard 1: CubiCasa types dining areas `living` (labels R, RT, RUOK...); they are not rooms
     of their own. The pack lists the labels; case and spaces don't matter."""

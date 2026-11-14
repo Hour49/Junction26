@@ -119,6 +119,7 @@ def check_rule(
     }
     found = known_quantities(drawing) if quantities is None else quantities
     results, why, status = ops[rule.op](drawing, rule, found, route not in MEASURED)
+    results = _with_global_ids(results, drawing)
     if fail_means is not None:
         results = [
             result.model_copy(update={"why": f"{result.why} {fail_means}"})
@@ -327,6 +328,21 @@ def _element_mark(element: Element, role: str, quantities: Quantities) -> CheckM
             "mark_id": found,
         }
     )
+
+
+def _with_global_ids(results: Sequence[CheckResult], drawing: Drawing) -> list[CheckResult]:
+    """Each result whose room or element the drawing's model lists as drawn here, with that
+    object's GlobalId on its subject."""
+    objects = drawing.model_objects or ()
+    ids = {o.element: o.global_id for o in objects if o.element and o.global_id}
+    return [
+        result.model_copy(
+            update={"subject": result.subject.model_copy(update={"global_id": ids[ref]})}
+        )
+        if (ref := result.subject.ref) in ids
+        else result
+        for result in results
+    ]
 
 
 def _result(
