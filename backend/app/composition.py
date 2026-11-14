@@ -61,6 +61,7 @@ from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.triage.rules import RulesClassifier
+from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
@@ -252,7 +253,8 @@ def _triage(settings: Settings) -> TriageSteps | None:
         f"classifier={settings.triage_classifier}, describer={settings.triage_describer}, "
         f"judge={settings.triage_judge}"
     )
-    return TriageSteps(classifier=classifier, describer=None, judge=None, name=name)
+    judge = RulesJudge() if settings.triage_judge == "rules" else None
+    return TriageSteps(classifier=classifier, describer=None, judge=judge, name=name)
 
 
 def _rectifier(name: RectifierName) -> Rectifier:

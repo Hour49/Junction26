@@ -27,7 +27,8 @@ RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normali
 # rules: the content probe's kind, no model (sets aside what ingest sets aside today).
 TriageClassifierName = Literal["off", "rules"]
 TriageDescriberName = Literal["off"]  # eu-big's measured describers are added here
-TriageJudgeName = Literal["off"]  # and its relevance judges
+# rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
+TriageJudgeName = Literal["off", "rules"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet

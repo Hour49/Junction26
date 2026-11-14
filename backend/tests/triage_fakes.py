@@ -68,7 +68,9 @@ class WordJudge:
     usd: float = 0.0
     contexts: list[ProjectContext] = field(default_factory=list[ProjectContext])
 
-    def judge(self, description: Description, context: ProjectContext) -> Relevance | Unavailable:
+    def judge(
+        self, kind: TriageClass, description: Description, context: ProjectContext
+    ) -> Relevance | Unavailable:
         self.contexts.append(context)
         cost.charge(self.usd)
         known = " ".join((*context.plan_text, *context.file_names)).lower()
