@@ -27,6 +27,10 @@ NO_PACK = (
     "No country is chosen, so I can't look up its building rules. Pick a country above the chat "
     "and ask again."
 )
+# A doubt about the last answer (item 3): answered from its review, not by asking again
+SURE = re.compile(
+    r"\b(are you sure|you sure|double[- ]?check|how (sure|certain|confident))\b|really\?"
+)
 ROOM = re.compile(r"\broom\b")
 # A word for a room, as Room.type names it
 ROOM_WORDS = {
@@ -126,10 +130,39 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         return _remove_wall(turn, words)
     if LAW.search(words):
         return _law(turn, offered)
+    if SURE.search(words) and "review_answer" in offered:
+        return _sure(turn)
     found = turn.result("ask_drawings")
     if found is None:
         return "ask_drawings", {"question": turn.message[:500]}
     return _answer(found)
+
+
+def _sure(turn: _Turn) -> tuple[str, Json]:
+    """ "Are you sure?": the last answer's level, why, and its disputed marks, cited."""
+    found = turn.result("review_answer")
+    if found is None:
+        return "review_answer", {}
+    drawings: list[Json] = [d for d in found.get("drawings") or [] if isinstance(d, dict)]
+    answered = [d for d in drawings if "answer" in d]
+    if found.get("status") != "ok" or not answered:
+        why = found.get("reason") or "the last answer had no number to check"
+        return _final("dont_know", f"I can't check that: {why}.")
+    first = answered[0]
+    unit = first.get("unit")
+    value = f"{first['answer']}{f' {unit}' if unit and unit != 'count' else ''}"
+    level = first.get("level_text") or f"Confidence: {first.get('level') or 'not given'}."
+    disputed: list[Json] = [d for d in first.get("disputed") or [] if isinstance(d, dict)]
+    cited = [str(d["ev"]) for d in disputed[:4] if d.get("ev")]
+    count = first.get("disputed_count") or 0
+    if count:
+        noun = "mark is" if count == 1 else "marks are"
+        doubt = f" {count} of its {noun} disputed by the other readers: " + " ".join(
+            f"[{ev}]" for ev in cited
+        )
+    else:
+        doubt = " No other reader disputes its marks."
+    return _final("answer", f"Not for certain. {first['drawing']}: {value}. {level}{doubt}", cited)
 
 
 def _law(turn: _Turn, offered: set[str]) -> tuple[str, Json]:

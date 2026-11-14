@@ -75,7 +75,7 @@ def test_ac10_posts_tools_and_sends_the_assistant_message_back_verbatim() -> Non
     assert first["model"] == "gemini-4-hydrogen" and first["tool_choice"] == "auto"
     assert first["reasoning_effort"] == "low"
     names = [t["function"]["name"] for t in first["tools"]]
-    assert names == ["list_drawings", "show_on_plan", "final_answer"]
+    assert names == ["list_drawings", "show_on_plan", "review_answer", "final_answer"]
     second = transport.sent[1][1]["messages"]
     assert second[2] == SIGNED  # extra_content (the thought signature) round-trips unchanged
 

@@ -27,6 +27,7 @@ from app.core.agent.model import (
 )
 from app.core.agent.ports import ChatModel, ChatModelError, Toolbox
 from app.core.agent.prompt import SYSTEM
+from app.core.agent.review import NOTHING, REVIEW_ANSWER, REVIEW_ANSWER_TOOL, review_of
 from app.core.agent.validate import (
     FINAL_ANSWER_TOOL,
     TEXT_CHARS,
@@ -110,6 +111,7 @@ PLAIN = {
     "search_evidence": "Searched the evidence",
     "get_evidence": "Read a piece of evidence",
     "show_on_plan": "Showed places on the plan",
+    "review_answer": "Reviewed the last answer",
 }
 FAILED_PLAIN = {
     "propose_remove_wall": "Could not remove a wall",
@@ -178,7 +180,7 @@ class _Run:
         self.guard, self.clock, self.names = guard, clock, names
         self.system = SYSTEM
         self.emit: Emit = _quiet
-        self.tools = [*toolbox.tools, SHOW_ON_PLAN_TOOL, FINAL_ANSWER_TOOL]
+        self.tools = [*toolbox.tools, SHOW_ON_PLAN_TOOL, REVIEW_ANSWER_TOOL, FINAL_ANSWER_TOOL]
         self.started = clock()
         self.ledger: dict[str, Json] = {}  # this turn's places
         self.known: dict[str, Json] = dict(chat.evidence)  # earlier turns' places
@@ -300,6 +302,9 @@ class _Run:
                 if name == SHOW_ON_PLAN:
                     self._show(call, arguments)
                     continue
+                if name == REVIEW_ANSWER:
+                    self._review(call)
+                    continue
                 self._tool(call, name, arguments)
             except _EndedError:
                 self._skip(calls[at:])
@@ -314,7 +319,7 @@ class _Run:
         for call in calls[: self.caps.calls_per_step]:
             function: Json = call.get("function") or {}
             name = str(function.get("name", ""))
-            if name in ("final_answer", SHOW_ON_PLAN) or name.startswith("propose_"):
+            if name in ("final_answer", SHOW_ON_PLAN, REVIEW_ANSWER) or name.startswith("propose_"):
                 break
             given: Any = function.get("arguments") or "{}"
             lead.append((name, given if isinstance(given, str) else json.dumps(given)))
@@ -552,13 +557,42 @@ class _Run:
             self.sources.append(json.dumps(entry["answer"]))
         self._show_step(call, start, label, "ok", text)
 
+    def _review(self, call: Json) -> None:
+        """review_answer (item 3): the chat's latest ask_drawings result as its readers judged
+        it. It is a tool result of this turn (its numbers back the answer) and its answer card
+        comes back with the turn."""
+        start = self.clock()
+        minted = next(
+            (r["result"] for r in reversed(self.chat.results)
+             if r.get("tool") == ASK and isinstance(r.get("result"), dict)),
+            None,
+        )  # fmt: skip
+        if minted is None:
+            reply = json.dumps({"status": "unknown", "reason": NOTHING})
+            return self._show_step(call, start, "Could not review the last answer", "error",
+                                   reply, REVIEW_ANSWER)  # fmt: skip
+        text = json.dumps(review_of(minted, self.names), ensure_ascii=False)
+        self.sources.append(text)
+        self.reattached.append([*self.chat.asked, *self.asked][-1]["answer"])
+        self._show_step(call, start, "Reviewed the last answer", "ok",
+                        _for_model(json.loads(text)), REVIEW_ANSWER)  # fmt: skip
+
     def _show_failed(self, call: Json, start: float, why: str) -> None:
         self._show_step(call, start, "Could not show that on the plan", "error",
                         _error(f"show_on_plan: {why}"))  # fmt: skip
 
-    def _show_step(self, call: Json, start: float, label: str, status: str, reply: str) -> None:
+    def _show_step(
+        self,
+        call: Json,
+        start: float,
+        label: str,
+        status: str,
+        reply: str,
+        tool: str = SHOW_ON_PLAN,
+    ) -> None:
+        """The step of a tool the loop runs itself (show_on_plan, review_answer)."""
         ms = round((self.clock() - start) * 1000, 1)
-        self.steps.append(Step(n=len(self.steps) + 1, tool=SHOW_ON_PLAN, label=label,
+        self.steps.append(Step(n=len(self.steps) + 1, tool=tool, label=label,
                                status="ok" if status == "ok" else "error", ms=ms))  # fmt: skip
         self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": None})
         self._reply(call, reply)
