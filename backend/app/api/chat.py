@@ -10,8 +10,8 @@ from pydantic import Field, StringConstraints
 from app.adapters.agent_tools import project_toolbox
 from app.adapters.chat_store import JsonChatStore
 from app.api.checks import RulePacksDep, find_pack
-from app.api.deps import IngestDep, ProjectId, SettingsDep
-from app.api.project_ask import ProjectAnswer
+from app.api.deps import IngestDep, Models3dDep, ProjectId, SettingsDep
+from app.api.project_ask import ProjectAnswer, with_models_3d
 from app.api.views import View, drawings_of
 from app.composition import chat_caps, chat_model, spend_guard
 from app.core.agent import model
@@ -67,6 +67,7 @@ def chat(
     settings: SettingsDep,
     chats: ChatsDep,
     packs: RulePacksDep,
+    models_3d: Models3dDep,
 ) -> ChatTurn:
     pack = None if body.pack is None else _pack(packs, body.pack)
     model, why = chat_model(settings)
@@ -89,7 +90,9 @@ def chat(
         turn = run_turn(current, body.message, body.selection, model, tools, caps, guard,
                         names=names, context=_country(request.app, pack))  # fmt: skip
         chats.put(project_id, current)
-        return ChatTurn.model_validate(turn.model_dump(mode="json"))
+        shown = ChatTurn.model_validate(turn.model_dump(mode="json"))
+        answers = tuple(with_models_3d(answer, status, models_3d) for answer in shown.answers)
+        return shown.model_copy(update={"answers": answers})
     finally:
         lock.release()
 

@@ -6051,7 +6051,12 @@ that call gives, the project's review edits applied. An unknown project is 404; 
 
 - `parts`: one per drawing, `{drawing_id, name, answer}`: `name` is the drawing's file as the project uploaded it
   and `answer` is the full `POST /api/ask` response. The drawings that answered come first, then those that
-  refused (with their `answer.refusal`), each group in the project's order.
+  refused (with their `answer.refusal`), each group in the project's order. Also `file_id` (the drawing's file,
+  its `FileStatus.id`); `model_file_id` (left out when none): the IFC file whose 3D view shows the drawing
+  (`…/files/{model_file_id}/model.glb`), its own file when that is IFC, else the model a sheet was read from;
+  `highlight` (left out when empty): the elements the answer counted, by IFC GlobalId, `[{global_id, role}]`, role
+  `affected` here (`moved`, `removed`, `added` are for edit proposals); and while `MODEL_3D` is on, `model_3d`: that
+  file's `FileStatus.model_3d`, read at response time. A chat turn's `answers` carry the same parts.
 - `total`, `total_unit`: when exactly one drawing answered, its value. When several did, their values added up, but
   only when the backend knows the drawings show different parts of the building: sheets of the same IFC model,
   each showing a different storey. A flat drawn twice (a PDF and its IFC model, as in the sample) would otherwise be
@@ -6288,7 +6293,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f1"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -6494,7 +6500,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f3"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -6578,7 +6585,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f4"
     }
   ],
   "total": null,
@@ -8143,7 +8151,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f1"
         },
         {
           "drawing_id": "44cc9f0d991eafe3",
@@ -8349,7 +8358,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f3"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -8461,7 +8471,19 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f8",
+          "model_file_id": "f8",
+          "highlight": [
+            {
+              "global_id": "000000000000000000000K",
+              "role": "affected"
+            },
+            {
+              "global_id": "000000000000000000000M",
+              "role": "affected"
+            }
+          ]
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -8545,7 +8567,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f4"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -8629,7 +8652,8 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f6"
         }
       ],
       "total": null,
@@ -8794,7 +8818,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f1"
         },
         {
           "drawing_id": "44cc9f0d991eafe3",
@@ -8900,7 +8925,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f3"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -8984,7 +9010,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f4"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -9068,7 +9095,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f6"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -9157,7 +9185,9 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f8",
+          "model_file_id": "f8"
         }
       ],
       "total": null,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { drawingLabel, formatValue, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
@@ -7,6 +7,8 @@ import { ResolverLines } from './Resolver';
 import { estimateLine, gradeOf, kindName, levelWord, type Grade } from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
+import { ModelDialog } from '../model3d/ModelDialog';
+import { canShow3d } from '../model3d/model3d';
 
 /** "<Level> confidence" (CH-42), the backend's sentence as its tooltip when there is one. */
 const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
@@ -34,6 +36,9 @@ export function ChatAnswer(props: {
   // Only parts with a page can be drawn; a building model is listed as "no preview".
   const drawn = parts.filter((p) => p.answer.pages.length > 0);
   const [at, setAt] = useState(0);
+  // model-3d.md part 2: the part whose 3D view is open, and the button that opened it (focus goes back)
+  const [model, setModel] = useState<(typeof parts)[number] | null>(null);
+  const opener = useRef<HTMLButtonElement | null>(null);
   const current = drawn[at];
   const step = (by: number) => {
     setAt((i) => (i + by + drawn.length) % drawn.length);
@@ -195,6 +200,19 @@ export function ChatAnswer(props: {
                         {body}
                       </button>
                     )}
+                    {canShow3d(p.model_3d) && p.model_file_id && (
+                      <button
+                        type="button"
+                        className="v-btn v-btn--secondary v-press m3-open3d"
+                        aria-label={`View in 3D: ${labelOf(p)}`}
+                        onClick={(e) => {
+                          opener.current = e.currentTarget;
+                          setModel(p);
+                        }}
+                      >
+                        View in 3D
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -202,6 +220,18 @@ export function ChatAnswer(props: {
           </div>
         </div>
       </div>
+      {model?.model_file_id && (
+        <ModelDialog
+          projectId={projectId}
+          fileId={model.model_file_id}
+          label={labelOf(model)}
+          highlight={model.highlight ?? []}
+          onClose={() => {
+            setModel(null);
+            opener.current?.focus();
+          }}
+        />
+      )}
     </>
   );
 }
