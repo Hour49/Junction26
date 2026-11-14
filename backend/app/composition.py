@@ -109,7 +109,7 @@ from app.core.answering.ports import (
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
-from app.core.ingest.model import ProjectStatus
+from app.core.ingest.model import CarbonRead, ProjectStatus
 from app.core.ingest.ports import Classifier, ContentProbe, Describer, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
@@ -181,9 +181,10 @@ class Pipeline:
     confidence: AnswerConfidence | None = None
     # GATE_POLICY: family -> the confidence at or above which an answer is sure; None: ungated
     sure_at: Mapping[str, float] | None = None
-    # CARBON_READER: whether the raster route's drawing of a file (by path) is read by Carbon
-    # alone, the same yes/no its switch uses; ingest flags those drawings. None: no file is
-    carbon_read: Callable[[str], bool] | None = None
+    # What Carbon read of the raster route's drawing of a file (by path): "elements" when
+    # CARBON_READER sent it there (the same yes/no its switch uses), "part" when a composite takes
+    # a part from the `carbon` source; ingest flags those drawings. None: no file is
+    carbon_read: Callable[[str], CarbonRead | None] | None = None
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
         return ingest(
@@ -273,28 +274,32 @@ def _carbon_counted(
     settings: Settings,
     use_carbon: Callable[[str], bool] | None,
     kind_of: Callable[[str], str | None],
-) -> Callable[[str], bool] | None:
-    """Whether Carbon read a counted part of a file's raster drawing, by path: CARBON_READER sent
-    it there, or the composite that reads it takes a part (elements, a class, rooms, plans or
-    scale) from the `carbon` source. Ingest flags those drawings, so no answer on them is
-    certified (a Carbon answer is never sure, brief r8 AS). A double-check reader counts nothing
-    and is not a part. None: no file is."""
+) -> Callable[[str], CarbonRead | None] | None:
+    """What Carbon read of a file's raster drawing, by path: its elements when CARBON_READER sent
+    it there ("elements"), a part when the composite that reads it takes one (elements, a class,
+    rooms, plans or scale) from the `carbon` source ("part"; the elements are then not known to
+    be all Carbon's), else None. Ingest flags those drawings, so no answer on them is certified
+    (a Carbon answer is never sure, brief r8 AS). A double-check reader counts nothing and is not
+    a part. None: no file is."""
     if settings.extractor_raster != "composite":
-        return use_carbon
+        return None if use_carbon is None else _elements_if(use_carbon)
     main = _carbon_part(settings.raster_components)
     photo = settings.raster_photo_components
     on_photos = _carbon_part(photo) if photo else main
     if use_carbon is None and not main and not on_photos:
         return None
 
-    def counted(path: str) -> bool:
+    def counted(path: str) -> CarbonRead | None:
         if use_carbon is not None and use_carbon(path):
-            return True
-        if main == on_photos:
-            return main
-        return on_photos if kind_of(path) == PHOTO else main
+            return "elements"
+        part = main if main == on_photos else on_photos if kind_of(path) == PHOTO else main
+        return "part" if part else None
 
     return counted
+
+
+def _elements_if(use_carbon: Callable[[str], bool]) -> Callable[[str], CarbonRead | None]:
+    return lambda path: "elements" if use_carbon(path) else None
 
 
 def _carbon_part(spec: str) -> bool:
