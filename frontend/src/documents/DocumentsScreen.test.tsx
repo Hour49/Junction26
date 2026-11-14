@@ -103,8 +103,11 @@ describe('DocumentsScreen (documents.md)', () => {
     const first = must(list[0]);
     expect(first.textContent).toContain('1');
     expect(first.textContent).toContain('Needs a person');
-    expect(first.textContent).toContain(needs.file);
+    expect(first.textContent).toContain('Plan image 1'); // #229 drawing_name, not the path
+    expect(first.textContent).not.toContain(needs.file);
     expect(first.textContent).toContain(needs.why);
+    const asideCard = must(list.find((c) => c.textContent.includes(aside.why)));
+    expect(asideCard.textContent).toContain(aside.file); // no drawing: the file path
     expect(within(first).getByRole('link', { name: 'Open the file' }).getAttribute('href')).toBe(
       `#/p/${PID}/f/${String(needs.file_id)}`,
     );

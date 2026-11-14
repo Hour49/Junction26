@@ -46,7 +46,7 @@ not edited).
    (fails_rule, needs_person, note); `n` = the card's position in this list (Bogdan #14: `n` is a position, `Issue.id`
    the reference).
 4. Each issue card: the number, a pill ("Fails a rule" / "Needs a person" in warn, "Answered" in ok once answered,
-   "Note" in grey), the file path (mono), "Open the file" → `#/p/<pid>/f/<file_id>` when `file_id` is set, the `why`,
+   "Note" in grey), the drawing's plain name `Issue.drawing_name` (#229; the file path in mono only when it is null), "Open the file" → `#/p/<pid>/f/<file_id>` when `file_id` is set, the `why`,
    then the source figure (`SourceFigure`, starts minimized, with "Show source"; DOC-6), then the answer part:
    - a **note** (severity `note`, any kind but `unrelated_file`): nothing to answer, never counted;
    - an **`unrelated_file`** issue (any severity): the call on the file, real and saved by the API (`POST
@@ -130,7 +130,7 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
   the project is read."; drawings and files are shown. [component]
 - DOC-3: Done: the cards follow the API's order with `conflict` issues left out, grouped fails_rule, needs_person,
   note; each card's number is its position in this list. [unit] [component]
-- DOC-4: A card shows its pill, file path, "Open the file" → `#/p/<pid>/f/<file_id>` (none without `file_id`), and
+- DOC-4: A card shows its pill, `drawing_name` ("Plan image 1", not the path; the file path when null), "Open the file" → `#/p/<pid>/f/<file_id>` (none without `file_id`), and
   `why` as text. [component]
 - DOC-5: A note card has no answer form and no chips. [component]
 - DOC-6: `issueSource`: a located issue gives one `Source` with its drawing's page and one `Place` at `box` labelled
