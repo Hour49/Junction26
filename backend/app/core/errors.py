@@ -9,5 +9,10 @@ class NotFoundError(DomainError):
     """The thing asked for doesn't exist."""
 
 
+class UnknownPackError(NotFoundError):
+    """A building-code rule pack that doesn't exist (decision 0009): its own code, so a screen
+    resets its pack choice instead of saying the project is gone."""
+
+
 class InvalidInputError(DomainError):
     """Input the product refuses: a path that leaves its folder, a file that is not what it says."""

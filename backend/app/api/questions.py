@@ -10,6 +10,7 @@ from pydantic import Field
 
 from app.api.views import View
 from app.core.answering.model import Unit
+from app.core.review.model import RefusalCode
 
 _lock = threading.Lock()
 LISTED = 200  # the most recent questions a listing returns
@@ -25,6 +26,9 @@ class AskedQuestion(View):
     # The id of the question asked on the whole project (POST /api/projects/{id}/ask), the same on
     # each of its lines; absent on a POST /api/ask line
     project_ask: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    # Why it got no number (Refusal.code); absent when answered, and on lines written before
+    # the field existed (2026-11-14), which didn't keep it
+    refusal: RefusalCode | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectQuestions(View):
@@ -45,8 +49,12 @@ def record(root: Path, project_id: str, asked: AskedQuestion) -> None:
 
 
 def listed(root: Path, project_id: str) -> list[AskedQuestion]:
+    return asked(root, project_id)[::-1][:LISTED]
+
+
+def asked(root: Path, project_id: str) -> list[AskedQuestion]:
+    """Every question kept for the project, oldest first."""
     path = _file(root, project_id)
     with _lock:
         text = path.read_text(encoding="utf-8") if path.is_file() else ""
-    found = [AskedQuestion(**json.loads(line)) for line in text.splitlines() if line]
-    return found[::-1][:LISTED]
+    return [AskedQuestion(**json.loads(line)) for line in text.splitlines() if line]

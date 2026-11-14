@@ -212,7 +212,7 @@ def test_a_project_still_running_has_no_counts() -> None:
     status = ProjectStatus.model_validate(
         {"id": "p", "name": "p", "state": "running", "created_at": "t"}
     )
-    found = summary_of(status, None, None)  # type: ignore[arg-type]  # never read while running
+    found = summary_of(status, None, None, None)  # type: ignore[arg-type]  # never read while running
     assert (found.to_review, found.conflicts_open) == (None, None)
 
 

@@ -7,7 +7,8 @@
       "unit": null,
       "drawing_id": "adeefbbcc17559fc",
       "at": "2026-11-14T08:05:00Z",
-      "refused": true
+      "refused": true,
+      "refusal": "unsupported-question"
     },
     {
       "question": "How many doors are there?",

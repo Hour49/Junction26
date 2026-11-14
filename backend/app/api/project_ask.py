@@ -13,9 +13,8 @@ from pydantic import Field
 
 from app.api.ask import QUESTION_CHARS, AnswerView, answer_view
 from app.api.deps import AnsweringDep, IngestDep, ProjectId, ReviewsDep, SettingsDep, now
-from app.api.projects import drawings_of
 from app.api.questions import AskedQuestion, record
-from app.api.views import View
+from app.api.views import View, drawings_of
 from app.core.answering.model import Unit
 from app.core.drawing.model import Drawing
 from app.core.review.model import RefusalCode, Row
@@ -103,6 +102,7 @@ def project_ask(
                 drawing_id=part.drawing_id,
                 at=at,
                 refused=part.answer.refusal is not None,
+                refusal=None if part.answer.refusal is None else part.answer.refusal.code,
                 project_ask=asked,
             ),
         )

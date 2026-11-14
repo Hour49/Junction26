@@ -3,7 +3,7 @@ summary (docs/API.md "Projects and ingest")."""
 
 import logging
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Literal
@@ -15,23 +15,25 @@ from pydantic import BaseModel
 from app.adapters.page_render import render_upload
 from app.api.deps import FileId, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep
 from app.api.drawings import IMMUTABLE, checked_width
+from app.api.issues import open_count
 from app.api.questions import ProjectQuestions, listed
-from app.api.takeoff import takeoff_rows
+from app.api.takeoff import Takeoff, takeoff_rows
 from app.api.views import (
-    DrawingEntry,
+    SHEET_KINDS,
     ProjectTrace,
     ProjectView,
-    Rendering,
     View,
+    drawings_of,
     expected_drawings_of,
     skipped_of,
 )
 from app.core.errors import NotFoundError
-from app.core.ingest.model import FileStatus, FileTrace, ProjectStatus, SecondCount
+from app.core.ingest.model import FileTrace, ProjectStatus, SecondCount
 from app.core.pipeline.model import QuantityConflict
 from app.core.review.model import ReviewState, Settled, SignOff
 from app.core.review.ports import ReviewStore
 from app.core.review.review import disputes, reset
+from app.settings import Settings
 from scripts.make_sample_archive import build_archive
 
 log = logging.getLogger(__name__)
@@ -40,8 +42,6 @@ router = APIRouter(prefix="/api/projects")
 MAX_UPLOAD = 200 * 1024 * 1024  # bytes; a larger body is refused with 413 before ingest sees it
 MAX_WAITING = 3  # projects queued or running; one more upload is refused with 429
 SAMPLE_NAME = "sample-project.zip"
-# The sheet a plan is shown on, in order of preference, after the file it was read from.
-SHEET_KINDS = ("pdf_vector", "pdf_scan", "pdf_text", "png_plan", "jpeg_plan", "photo_plan")
 # The files a preview is made of: images, and a PDF's first page.
 PREVIEW_KINDS = (*SHEET_KINDS, "photo", "pdf_encrypted")
 
@@ -62,6 +62,8 @@ class ProjectSummary(View):
     drawings: int
     to_review: int | None  # quantities left to review over all drawings; None until `done`
     conflicts_open: int | None  # conflicts a person still has to settle; None until `done`
+    # Issues in state open (GET …/issues without a pack, decision 0008); None until `done`
+    issues_open: int | None = None
 
 
 class ProjectList(View):
@@ -131,19 +133,23 @@ class _Sample(BaseModel):
 
 
 @router.get("")
-def project_list(ingest: IngestDep, reviews: ReviewsDep) -> ProjectList:
+def project_list(ingest: IngestDep, reviews: ReviewsDep, settings: SettingsDep) -> ProjectList:
     """Every project, newest first."""
     return ProjectList(
-        projects=[summary_of(status, ingest, reviews) for status in ingest.projects()]
+        projects=[summary_of(status, ingest, reviews, settings) for status in ingest.projects()]
     )
 
 
-def summary_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> ProjectSummary:
-    to_review = conflicts_open = None
+def summary_of(
+    status: ProjectStatus, ingest: Ingest, reviews: ReviewStore, settings: Settings
+) -> ProjectSummary:
+    to_review = conflicts_open = issues_open = None
     if status.state == "done":
-        found = review_of(status, ingest, reviews)
+        takeoffs = takeoffs_of(status, ingest, reviews)  # once, for the review and the issues
+        found = review_of(status, ingest, reviews, takeoffs)
         to_review = sum(drawing.to_review for drawing in found.drawings)
         conflicts_open = sum(entry.needs_person for entry in found.conflicts)
+        issues_open = open_count(status, ingest, reviews, settings, takeoffs)
     return ProjectSummary(
         id=status.id,
         name=status.name,
@@ -153,6 +159,7 @@ def summary_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> P
         drawings=len(drawings_of(status)),
         to_review=to_review,
         conflicts_open=conflicts_open,
+        issues_open=issues_open,
     )
 
 
@@ -287,12 +294,28 @@ def project_questions(
     )
 
 
-def review_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> ProjectReview:
-    project_id = status.id
+def takeoffs_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> dict[str, Takeoff]:
+    """Each drawing's takeoff in the project, its edits applied, zero rows left out."""
+    return {
+        entry.drawing_id: takeoff_rows(
+            entry.drawing_id, ingest, reviews, zeros=False, project=status.id
+        )
+        for entry in drawings_of(status)
+    }
+
+
+def review_of(
+    status: ProjectStatus,
+    ingest: Ingest,
+    reviews: ReviewStore,
+    takeoffs: Mapping[str, Takeoff] | None = None,
+) -> ProjectReview:
+    """`takeoffs`: takeoffs_of(status), when the caller has it already."""
+    takeoffs = takeoffs if takeoffs is not None else takeoffs_of(status, ingest, reviews)
     drawings: list[DrawingReview] = []
     conflicts: list[ConflictEntry] = []
     for entry in drawings_of(status):
-        found = takeoff_rows(entry.drawing_id, ingest, reviews, zeros=False, project=project_id)
+        found = takeoffs[entry.drawing_id]
         drawings.append(
             DrawingReview(
                 drawing_id=entry.drawing_id,
@@ -318,49 +341,6 @@ def review_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> Pr
             if row.conflict is not None  # always: narrows the type
         ]
     return ProjectReview(drawings=drawings, conflicts=conflicts)
-
-
-def drawings_of(status: ProjectStatus) -> tuple[DrawingEntry, ...]:
-    """One entry per group of renderings: the sheet it was read from when that is a sheet, else
-    PDF before PNG before JPEG; the group's other drawings are its other renderings. A group with
-    the same content as one listed before is the same drawing: its files join that entry's other
-    renderings, so every name the drawing was uploaded under is shown."""
-    groups: dict[str, list[FileStatus]] = {}
-    for file in status.files:
-        if file.drawing_id is not None:
-            groups.setdefault(file.group or file.path, []).append(file)
-    entries: dict[str, tuple[str, FileStatus, list[FileStatus]]] = {}  # by drawing id
-    for group, files in groups.items():
-        primary = min(files, key=_preference)
-        assert primary.drawing_id is not None
-        if primary.drawing_id in entries:  # the same content under another name
-            entries[primary.drawing_id][2].extend(files)
-            continue
-        others = [file for file in files if file is not primary]
-        entries[primary.drawing_id] = (group, primary, others)
-    return tuple(
-        DrawingEntry(
-            drawing_id=drawing_id,
-            group=group,
-            file=primary.path,
-            kind=primary.kind,
-            route=primary.route,
-            source=primary.source,
-            state=primary.state,
-            other_renderings=[
-                Rendering(drawing_id=file.drawing_id, file=file.path)
-                for file in others
-                if file.drawing_id is not None
-            ],
-        )
-        for drawing_id, (group, primary, others) in entries.items()
-    )
-
-
-def _preference(file: FileStatus) -> tuple[bool, bool, int]:
-    sheet = file.kind in SHEET_KINDS
-    order = SHEET_KINDS.index(file.kind) if file.kind in SHEET_KINDS else len(SHEET_KINDS)
-    return (not sheet, file.path != file.source, order)
 
 
 def _start(ingest: Ingest, name: str, data: bytes, fresh: bool = False) -> Started:
