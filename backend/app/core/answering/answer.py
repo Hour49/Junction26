@@ -282,15 +282,34 @@ def _with_partial(said: str, partial: Partial | None) -> str:
 def partial_text(partial: Partial) -> str:
     """One plain sentence: a room total is the sum of the rooms found, and which it misses."""
     rooms = f"{partial.counted} room{'' if partial.counted == 1 else 's'}"
-    named = ", ".join(partial.missing[:NAMED_MISSING])
-    if (more := len(partial.missing) - NAMED_MISSING) > 0:
-        named += f" and {more} more"
+    named = _named(partial.missing)
+    table = f"the {partial.schedule}" if partial.schedule else "a schedule on the sheet"
+    if partial.refused:  # rooms found, their box areas refused (raster_scale.refused_boxes)
+        why = (
+            "its box cannot be the room"
+            if len(partial.refused) == 1
+            else ("their boxes cannot be the rooms")
+        )
+        said = (
+            f"This is the sum of the {rooms} with a measured area; not measured: "
+            f"{_named(partial.refused)} ({why})"
+        )
+        if partial.read:
+            said += "; rooms the reader missed are not in it either"
+        return said + (f"; {table} lists more: {named}." if partial.missing else ".")
     if not partial.read:  # a vector or IFC sheet has no reader: only a schedule makes it partial
         said = f"This is the sum of the {rooms} drawn on the sheet"
-        table = f"the {partial.schedule}" if partial.schedule else "a schedule on the sheet"
         return f"{said}; {table} lists more: {named}."
     said = f"This is the sum of the {rooms} the reader found; rooms it missed are not in it"
     return said + (f". Not in it: {named}." if partial.missing else ".")
+
+
+def _named(rooms: Sequence[str]) -> str:
+    """The first NAMED_MISSING of `rooms`, and how many more."""
+    named = ", ".join(rooms[:NAMED_MISSING])
+    if (more := len(rooms) - NAMED_MISSING) > 0:
+        named += f" and {more} more"
+    return named
 
 
 HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates' PARENTHESES
