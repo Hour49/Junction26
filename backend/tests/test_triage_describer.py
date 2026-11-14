@@ -478,8 +478,8 @@ def test_triage_describer_gemini_builds_the_gemini_describer(tmp_path: Path) -> 
 
 
 def carbon_settings(tmp_path: Path, **changes: Any) -> Settings:
-    return Settings(  # type: ignore[call-arg]
-        _env_file=None,
+    return Settings(
+        _env_file=None,  # type: ignore[call-arg]
         triage_classifier="rules",
         triage_describer="carbon",
         gemini_api_key=KEY,  # type: ignore[arg-type]
