@@ -319,7 +319,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Project Ask */
+        /**
+         * Project Ask
+         * @description `models_3d`: the 3D views' state to put on IFC parts at response time (MODEL_3D); the chat
+         *     tool calls this without, so a kept chat never keeps a stale state.
+         */
         post: operations["project_ask_api_projects__project_id__ask_post"];
         delete?: never;
         options?: never;
@@ -439,6 +443,30 @@ export interface paths {
         get: operations["get_evidence_api_projects__project_id__evidence__evidence_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add File
+         * @description A photo added to a finished project from the chat (board #203). The body is the image's
+         *     bytes, png or jpeg; `name` its file name. It is read in the background, alone, while the
+         *     project stays done. Returns the new file, queued; poll the project. 404 unknown project,
+         *     409 until the project is done or while a file of it is read, 413 over the upload limit, 415
+         *     not a png or jpeg.
+         */
+        post: operations["add_file_api_projects__project_id__files_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1729,6 +1757,20 @@ export interface components {
              */
             status: "ok";
         };
+        /**
+         * Highlight
+         * @description One element the 3D view highlights, by its IFC GlobalId, and what happens to it: an
+         *     answer's counted elements are `affected`; an edit proposal's are moved, removed or added.
+         */
+        Highlight: {
+            /** Global Id */
+            global_id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "moved" | "removed" | "added" | "affected";
+        };
         /** HitWhy */
         HitWhy: {
             /** Bm25 Rank */
@@ -2165,6 +2207,13 @@ export interface components {
             answer: components["schemas"]["AnswerView"];
             /** Drawing Id */
             drawing_id: string;
+            /** File Id */
+            file_id?: string | null;
+            /** Highlight */
+            highlight?: components["schemas"]["Highlight"][];
+            model_3d?: components["schemas"]["Model3d"] | null;
+            /** Model File Id */
+            model_file_id?: string | null;
             /** Name */
             name: string;
         };
@@ -4055,6 +4104,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_file_api_projects__project_id__files_post: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileStatus"];
                 };
             };
             /** @description Validation Error */

@@ -52,6 +52,8 @@ TablesName = Literal["off", "pdf"]
 ProviderName = Literal["gemini", "eu"]
 # off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
 RasterScaleName = Literal["off", "priors"]
+# on: a sheet whose detector found no door takes the door estimate from Carbon's door boxes
+ScaleCarbonDoorsName = Literal["off", "on"]
 # off, or carbon: a raster sheet's printed scale and counts, read by the Carbon reader, replace
 # its estimated scale and check its counts (app/adapters/printed_scale/)
 RasterPrintedScaleName = Literal["off", "carbon"]
@@ -104,6 +106,11 @@ class Settings(BaseSettings):
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
     raster_scale: RasterScaleName = "off"
+    # on: a raster sheet RASTER_SCALE=priors left without a scale because the detector found no
+    # door takes the estimate from the Carbon reader's door boxes (CARBON_READER=large reads them),
+    # its source saying so; its door width is not fitted on Carbon's boxes yet
+    # (app/adapters/raster_scale/carbon_doors.py)
+    scale_carbon_doors: ScaleCarbonDoorsName = "off"
     # carbon: the printed scale (a bar, or a ratio at a resolution the file states) replaces the
     # estimate, kept as a conflict value, and printed counts are checked against the read ones.
     # Off by default; carbon asks gemini-4-carbon (GEMINI_API_KEY, the spend guard, cached in
@@ -192,6 +199,11 @@ class Settings(BaseSettings):
     second_counter: SecondCounterName = "ifc"
     question_parser: QuestionParserName = "templates"
     answer_prior: AnswerPriorName = "none"
+    # An IFC model's fact sheet (app/adapters/ifc_model/facts_source.py) answers what the takeoff
+    # does not (app/core/answering/facts.py): off until measured. IFC_FACTS_CACHE: a folder that
+    # keeps each sheet as JSON across runs; "" keeps them in memory only
+    ifc_facts: bool = False
+    ifc_facts_cache: str = ""
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when
     # the drawing gives a value (app/adapters/answer_policy.py); "" none
     answer_policy: str = ""

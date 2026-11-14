@@ -441,6 +441,14 @@ class Model3d(Frozen):
     elements: int | None = None  # ready: the elements drawn
 
 
+class Highlight(Frozen):
+    """One element the 3D view highlights, by its IFC GlobalId, and what happens to it: an
+    answer's counted elements are `affected`; an edit proposal's are moved, removed or added."""
+
+    global_id: str
+    role: Literal["moved", "removed", "added", "affected"]
+
+
 class FileStatus(Frozen):
     id: str  # f1, f2... in the order the upload lists the files
     path: str
