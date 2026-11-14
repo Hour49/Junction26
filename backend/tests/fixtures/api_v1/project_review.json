@@ -75,12 +75,44 @@
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "needs_person": false,
       "signed": null,
-      "value": 30.0
+      "value": 30.0,
+      "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+      "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. Settled by a rule (the printed label over the outline at the sheet's scale): 30.00 m² is used.",
+      "suggestions": [
+        "22.40 m²",
+        "30.00 m²"
+      ]
     }
   ]
 }

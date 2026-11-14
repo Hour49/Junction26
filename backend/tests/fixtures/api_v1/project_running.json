@@ -45,5 +45,8 @@
   "cost_usd": 0.0,
   "drawings": [],
   "skipped": [],
-  "expected_drawings": null
+  "expected_drawings": null,
+  "conflicts_open": null,
+  "issues_open": null,
+  "issues_to_answer": null
 }

@@ -484,6 +484,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/issues/{issue_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Issue
+         * @description Save a person's answer to an issue, replacing an earlier one, or take it back (`undo`).
+         *     Returns the issue with its answer. A code check's issue needs its `pack`. 404 for an unknown
+         *     project, pack or issue; 409 until the project is done.
+         */
+        post: operations["answer_issue_api_projects__project_id__issues__issue_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/questions": {
         parameters: {
             query?: never;
@@ -595,6 +617,21 @@ export interface components {
             sure?: boolean | null;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+        };
+        /**
+         * AnswerRequest
+         * @description A person's answer to an issue; `undo` takes it back and needs nothing else.
+         */
+        AnswerRequest: {
+            /** By */
+            by?: string | null;
+            /** Text */
+            text?: string | null;
+            /**
+             * Undo
+             * @default false
+             */
+            undo: boolean;
         };
         /** AnswerView */
         AnswerView: {
@@ -830,8 +867,14 @@ export interface components {
             quantity: string;
             settled: components["schemas"]["Settled"] | null;
             signed: components["schemas"]["SignOff"] | null;
+            /** Suggestions */
+            suggestions: string[];
+            /** Title */
+            title: string;
             /** Value */
             value: number;
+            /** Why */
+            why: string;
         };
         /**
          * ConflictValue
@@ -968,6 +1011,8 @@ export interface components {
          * @description One drawing of a project: one per group of renderings of the same plan.
          */
         DrawingEntry: {
+            /** Credit */
+            credit: string | null;
             /** Drawing Id */
             drawing_id: string;
             /** File */
@@ -976,6 +1021,8 @@ export interface components {
             group: string;
             /** Kind */
             kind: string | null;
+            /** Name */
+            name: string;
             /** Other Renderings */
             other_renderings: components["schemas"]["Rendering"][];
             /** Route */
@@ -1034,6 +1081,8 @@ export interface components {
             ] | null;
             /** Mark */
             mark?: string | null;
+            /** Note */
+            note?: string | null;
             /** Page */
             page?: number | null;
             /** Quantity */
@@ -1219,6 +1268,8 @@ export interface components {
         };
         /** Info */
         Info: {
+            /** Gemini */
+            gemini?: ("ok" | "budget_exhausted") | null;
             limits: components["schemas"]["Limits"];
             /** No Keys */
             no_keys: boolean;
@@ -1231,6 +1282,7 @@ export interface components {
         };
         /** Issue */
         Issue: {
+            answer?: components["schemas"]["IssueAnswer"] | null;
             /** Box */
             box: [
                 number,
@@ -1242,6 +1294,8 @@ export interface components {
             check: string | null;
             /** Drawing Id */
             drawing_id: string | null;
+            /** Drawing Name */
+            drawing_name?: string | null;
             /** File */
             file: string;
             /** File Id */
@@ -1255,6 +1309,8 @@ export interface components {
              * @enum {string}
              */
             kind: "conflict" | "refused_answer" | "set_aside" | "reading_flag" | "code_check_failed" | "double_check" | "unrelated_file";
+            /** Label */
+            label?: string | null;
             links: components["schemas"]["IssueLinks"];
             /** Mark Id */
             mark_id: string | null;
@@ -1281,8 +1337,19 @@ export interface components {
              * @enum {string}
              */
             state: "open" | "settled" | "signed_off";
+            /** Suggestions */
+            suggestions?: string[];
             /** Why */
             why: string;
+        };
+        /** IssueAnswer */
+        IssueAnswer: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /** Text */
+            text: string;
         };
         /**
          * IssueLinks
@@ -1487,6 +1554,8 @@ export interface components {
             parts: components["schemas"]["ProjectAnswerPart"][];
             /** Question */
             question: string;
+            /** Refused Note */
+            refused_note: string | null;
             /** Total */
             total: number | null;
             /** Total Note */
@@ -1495,6 +1564,8 @@ export interface components {
             total_sure: boolean;
             /** Total Unit */
             total_unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+            /** Why No Total */
+            why_no_total: string | null;
         };
         /** ProjectAnswerPart */
         ProjectAnswerPart: {
@@ -1567,6 +1638,8 @@ export interface components {
             id: string;
             /** Issues Open */
             issues_open?: number | null;
+            /** Issues To Answer */
+            issues_to_answer?: number | null;
             /** Name */
             name: string;
             /** Not Plans */
@@ -1591,6 +1664,8 @@ export interface components {
          * @description Ingest's project status, plus the project's drawings, one per plan.
          */
         ProjectView: {
+            /** Conflicts Open */
+            conflicts_open?: number | null;
             /**
              * Cost Usd
              * @default 0
@@ -1617,6 +1692,10 @@ export interface components {
             finished_at?: string | null;
             /** Id */
             id: string;
+            /** Issues Open */
+            issues_open?: number | null;
+            /** Issues To Answer */
+            issues_to_answer?: number | null;
             /**
              * Ms
              * @default 0
@@ -1677,6 +1756,11 @@ export interface components {
              * @enum {string}
              */
             status: "conflict" | "agree";
+            /**
+             * Value Marks
+             * @default []
+             */
+            value_marks: components["schemas"]["ValueMark"][][];
             /** Values */
             values: components["schemas"]["MeasuredValue"][];
         };
@@ -2042,6 +2126,8 @@ export interface components {
         Settled: {
             /** At */
             at: string;
+            /** Note */
+            note?: string | null;
             /** Value */
             value: number;
         };
@@ -2214,6 +2300,23 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * ValueMark
+         * @description Where one item a conflicting value counted or measured is on the drawing, named.
+         */
+        ValueMark: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label: string;
+            /** Page */
+            page: number;
         };
     };
     responses: never;
@@ -3081,6 +3184,45 @@ export interface operations {
                 };
                 content: {
                     "application/zip": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_issue_api_projects__project_id__issues__issue_id__answer_post: {
+        parameters: {
+            query?: {
+                /** @description a building-code rule pack (decision 0009): its failed checks join the list */
+                pack?: string | null;
+            };
+            header?: never;
+            path: {
+                issue_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Issue"];
                 };
             };
             /** @description Validation Error */

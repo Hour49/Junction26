@@ -156,6 +156,7 @@ def responses() -> dict[str, Any]:
     others.append(triaged(root / "triage", settings, found))
     others.append(code_checks(client, found))  # checks, project checks, their issues
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
+    found.update(issue_answered(client, started["id"], found["project_issues"]))  # appended
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
         found["checks"]["drawing_id"]: "5c4ed01e00000002",
@@ -205,6 +206,16 @@ def project_issues(
     body = {"drawing_id": scan, "question": "How many doors are there?", "project_id": project_id}
     assert client.post("/api/ask", json=body).status_code == 200
     return client.get(f"/api/projects/{project_id}/issues").json()
+
+
+def issue_answered(client: TestClient, project_id: str, listed: dict[str, Any]) -> dict[str, Any]:
+    """The sample's conflict answered with its first chip (board #14, Tudor's ask 1)."""
+    conflict = next(issue for issue in listed["issues"] if issue["kind"] == "conflict")
+    request = {"text": conflict["suggestions"][0], "by": "Ana"}
+    url = f"/api/projects/{project_id}/issues/{conflict['id']}/answer"
+    reply = client.post(url, json=request)
+    assert reply.status_code == 200, reply.text
+    return {"issue_answer_request": request, "issue_answered": reply.json()}
 
 
 def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
