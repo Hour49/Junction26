@@ -1,6 +1,8 @@
 """Tudor's asks on board #14 (1, 3, 4): a person's answer to an issue, kept with the project;
 each issue's answer chips and legend label; the open counts on the single-project GET."""
 
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -9,7 +11,8 @@ from fastapi.testclient import TestClient
 from test_api_issues import listed, sample
 from test_review_core import BOX_A, disputed, quantity
 
-from app.api import takeoff
+from app.api import issue_answers, takeoff
+from app.api.issue_answers import IssueAnswer
 from app.composition import build_ingest
 from app.main import create_app
 from app.settings import Settings
@@ -79,21 +82,20 @@ def test_a_code_check_issue_is_answered_with_its_pack(client: TestClient) -> Non
     assert reply.status_code == 200 and reply.json()["answer"]["text"] == "Accepted as drawn"
 
 
-def test_each_issue_has_a_label_and_answer_chips_a_conflict_its_two_values(
+def test_each_issue_has_a_label_and_answer_chips_that_restate_no_value(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, plan_pdf: bytes
 ) -> None:
     window_conflict(monkeypatch)
     (issue,) = listed(client, upload(client, plan_pdf))
     assert issue["label"] == "Window count"  # the takeoff row's label
-    assert issue["suggestions"] == ["2 is right", "3 is right", "Check it on site"]
+    assert issue["suggestions"] == ["Check it on site"]  # not "2 is right" (board #14)
 
 
 def test_the_sample_issues_get_chips_and_a_label_by_kind(client: TestClient) -> None:
     found = {issue["kind"]: issue for issue in listed(client, sample(client)["id"])}
-    room = found["conflict"]  # an area: its values with the unit
+    room = found["conflict"]
     assert room["label"] == "Area of room (name Küche · 1.01)"
-    assert room["suggestions"][-1] == "Check it on site" and len(room["suggestions"]) == 3
-    assert all(chip.endswith(" m² is right") for chip in room["suggestions"][:2])
+    assert room["suggestions"] == ["Check it on site"]
     assert (found["set_aside"]["label"], found["set_aside"]["suggestions"]) == (
         "Set aside",
         ["Not needed", "I'll send a readable copy"],
@@ -134,3 +136,33 @@ def test_a_running_project_has_no_counts(
         None,
         None,
     )
+
+
+def test_the_answers_file_is_replaced_whole_under_the_lock_so_a_crash_keeps_the_last_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first = IssueAnswer(text="fine", by="Ana", at="2026-11-14T08:00:00Z")
+    issue_answers.save(tmp_path, "p1", "conflict-a", first)
+    held: list[bool] = []
+
+    def crash(source: Any, target: Any) -> None:  # the process dies before the rename
+        held.append(issue_answers._lock.locked())  # pyright: ignore[reportPrivateUsage]
+        raise OSError("disk gone")
+
+    monkeypatch.setattr(issue_answers.os, "replace", crash)
+    second = IssueAnswer(text="not fine", by="Bo", at="2026-11-14T08:01:00Z")
+    with pytest.raises(OSError):
+        issue_answers.save(tmp_path, "p1", "conflict-b", second)
+    assert held == [True]  # written while no other answer can be
+    assert issue_answers.answers(tmp_path, "p1") == {"conflict-a": first}  # never half a file
+    monkeypatch.undo()
+    issue_answers.save(tmp_path, "p1", "conflict-b", second)  # the leftover part is overwritten
+    assert issue_answers.answers(tmp_path, "p1") == {"conflict-a": first, "conflict-b": second}
+
+
+def test_answers_saved_at_once_from_many_threads_are_all_kept(tmp_path: Path) -> None:
+    said = IssueAnswer(text="fine", by="Ana", at="2026-11-14T08:00:00Z")
+    ids = [f"conflict-{n:02d}" for n in range(40)]
+    with ThreadPoolExecutor(8) as pool:
+        list(pool.map(lambda issue: issue_answers.save(tmp_path, "p1", issue, said), ids))
+    assert sorted(issue_answers.answers(tmp_path, "p1")) == ids

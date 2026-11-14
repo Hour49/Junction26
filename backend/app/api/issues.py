@@ -46,7 +46,7 @@ from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.ingest.triage import CLASS_WORDS, called_not_plan, is_not_plan
 from app.core.review.model import MarkView, Row
 from app.core.review.ports import ReviewStore
-from app.core.review.proof import NO_PROOF, PALETTE, SHOWN_UNITS, ClassKey, check, number
+from app.core.review.proof import NO_PROOF, PALETTE, ClassKey, check
 from app.core.review.review import NotAllowedError, disputes
 from app.core.wording import count as count_of
 from app.settings import Settings
@@ -91,7 +91,7 @@ LABELS: dict[IssueKind, str] = {
     "double_check": "Double-check",
     "unrelated_file": "Not a floor plan",
 }
-# Answer chips per kind, rule-based (no model call); a conflict's lead with its two values
+# Answer chips per kind, rule-based (no model call); none restates a value (Tudor, board #14)
 SUGGESTIONS: dict[IssueKind, tuple[str, ...]] = {
     "conflict": ("Check it on site",),
     "refused_answer": ("Not needed", "I'll send a drawing that shows it"),
@@ -542,16 +542,7 @@ def _conflicts(
                 why=_conflict_why(row),
                 quantity=row.key,
                 label=f"{row.label[:1].upper()}{row.label[1:]}",
-                suggestions=_conflict_suggestions(row),
             )
-
-
-def _conflict_suggestions(row: Row) -> list[str]:
-    """Each method's value as an answer ("12 is right"), then the kind's own."""
-    unit = "" if row.unit == "count" else f" {SHOWN_UNITS.get(row.unit, row.unit)}"
-    values = [v.value for v in (row.first, row.second) if v is not None]
-    said = [f"{number(value)}{unit} is right" for value in dict.fromkeys(values)]
-    return [*said, *SUGGESTIONS["conflict"]]
 
 
 def _state(row: Row) -> IssueState:

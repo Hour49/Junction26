@@ -46,12 +46,10 @@
   },
   "label": "Area of room (name Küche · 1.01)",
   "suggestions": [
-    "22.4 m² is right",
-    "30 m² is right",
     "Check it on site"
   ],
   "answer": {
-    "text": "22.4 m² is right",
+    "text": "Check it on site",
     "by": "Ana",
     "at": "2026-11-14T08:05:00Z"
   }
