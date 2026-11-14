@@ -1106,7 +1106,8 @@ project that does not hold the drawing is 404.
 ```
 
 - `reader`: how the drawing was read: the route, the file it was read from (`source`), that route's reader
-  (`extractor`; `hello` reads nothing), the second counter that measured (`pdf` for any file that is no IFC
+  (`extractor`; `hello` reads nothing; a sheet read with its IFC model is `ifc_sheet` with the sheet as `source`,
+  since its counts are what the sheet draws and the model's count is the second count), the second counter that measured (`pdf` for any file that is no IFC
   model, since the `ifc` counter passes those on to the PDF one; `"none"` when it measured nothing on the
   drawing; in an answer, `"none"` unless it measured the answered quantity) and the question parser.
 - `credit`: the licence credit to show under every page of the drawing, or null. A file of the Stoa
@@ -1324,6 +1325,7 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1574,6 +1576,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": 0.87,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1653,7 +1656,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "needs_person": false,
     "rule": {
       "id": "indoor-rooms-total",
-      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out (review-4)"
+      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
     },
     "estimate": null,
     "first": null,
@@ -1845,6 +1848,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1965,6 +1969,7 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -2068,6 +2073,7 @@ A question the drawing cannot answer:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": true,
     "explanation": "no count, area, length or volume asked for",
     "estimate": null,
@@ -2093,7 +2099,7 @@ A question the drawing cannot answer:
 | `unsupported-question` | the question is not one the parser turns into a count, area, length or volume |
 | `not-in-drawing` | the drawing does not give this quantity (or no schedule on the sheet answers it) |
 | `not-read` | the reader of this drawing does not look for that class, so it has no count of it |
-| `no-reader` | nothing was read from the sheet (no reader for its route yet), or that reader is less reliable than a guess for this kind of question (`prior:policy`) |
+| `no-reader` | nothing was read from the sheet (no reader for its route yet), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
 | `no-scale` | an area or length on a sheet without a scale |
 | `no-drawing` | the file has no drawing model |
 
@@ -2267,7 +2273,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
   ],
   "refusal": null,
   "method": "takeoff",
-  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
   "reader": {
     "route": "vector",
     "source": "plans/flat-b.pdf",
@@ -2297,8 +2303,9 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
-    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
     "conflicts": [
       {
@@ -2341,7 +2348,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
         "note": null
       }
     ],
-    "arithmetic": "30 = 30 m²",
+    "arithmetic": null,
     "objects": null,
     "storeys": null,
     "schedule": null,
@@ -2520,7 +2527,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
   ],
   "refusal": null,
   "method": "takeoff",
-  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
   "reader": {
     "route": "vector",
     "source": "plans/flat-b.pdf",
@@ -2550,8 +2557,9 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
-    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
     "conflicts": [
       {
@@ -2594,7 +2602,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
         "note": null
       }
     ],
-    "arithmetic": "30 = 30 m²",
+    "arithmetic": null,
     "objects": null,
     "storeys": null,
     "schedule": null,
@@ -2677,6 +2685,7 @@ rests on:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -2941,7 +2950,7 @@ any project, which no project shows. A project that does not hold the drawing is
       "needs_person": false,
       "rule": {
         "id": "indoor-rooms-total",
-        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out (review-4)"
+        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
       },
       "estimate": null,
       "first": null,
@@ -3039,7 +3048,8 @@ any project, which no project shows. A project that does not hold the drawing is
 - `conflict`: every method's value and the rule that kept one (`resolution`; null: no rule decides). Null when the
   methods agree or only one measured it.
 - `status`, ranked: `signed` (signed off), `conflict` (methods disagree, not settled), `estimate` (rests on an
-  estimated scale or reading, not settled), `edited` (a review changed it), `agree` (two methods agree), `single`
+  estimated scale or reading, not settled; on `/api/ask`, every row of a page flagged at upload as a phone photo
+  or a scan, with the flag in `estimate`), `edited` (a review changed it), `agree` (two methods agree), `single`
   (one method).
 - `needs_person`: the methods disagree, no rule decides and nobody settled it. Such a row can't be signed off.
 - `settled`: the value a surveyor chose with `settle`, and when.
@@ -3440,6 +3450,17 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive: `line.sure` (answer_v1.1): true when the answer's `g1main` score is at or above
+  its family's threshold in golden's gate file (`GATE_POLICY`, chosen on val and certified once on test),
+  false below it, null when there is no score (a vector or IFC page), the family is not gated or the gate is
+  off. `POST /api/ask` sets it too.
+- 2026-11-14, text: a dataset drawing's `credit` is the attribution once, with its licence named once and no
+  "<licence>. Credit:" of its own (the screen writes "Credit: "; R3-qa2-1). `proof.arithmetic` is null for a sum of
+  one part (was "30 = 30 m²"; a settled one keeps "settled by a person, was …"). `explanation` names the two
+  methods of a disagreement in words ("the sheet 4, the IFC model 8", was "plan_drawing 4, ifc_model 8").
+- 2026-11-14, additive (wording): `reader` of a sheet read with its IFC model (bim route, not the model itself)
+  is `extractor: "ifc_sheet"` with the sheet as `source` (was `ifc` and the .ifc), so the card names the sheet
+  for the shown count and the model as the second count (R3-qa-5-1).
 - 2026-11-14, additive (behaviour): review edits and sign-offs belong to the project (R1b-4-1). With `project`
   (takeoff, review, signoff, takeoff.csv, the new optional `project` on `evidence.png`) or `project_id` (ask)
   they are that project's; without one, a drawing-level state no project sees. Edits stored before this change

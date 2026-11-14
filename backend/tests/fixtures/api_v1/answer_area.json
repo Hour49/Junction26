@@ -36,7 +36,7 @@
     "needs_person": false,
     "rule": {
       "id": "indoor-rooms-total",
-      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out (review-4)"
+      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
     },
     "estimate": null,
     "first": null,
@@ -228,6 +228,7 @@
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,

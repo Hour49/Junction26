@@ -59,14 +59,22 @@ class Reader(View):
     question_parser: str
 
 
+# The ifc extractor on a sheet of its model: what it gives is what the sheet draws (plan_drawing),
+# the model only names each element; the model's own count is the second count (R3-qa-5-1)
+IFC_SHEET = "ifc_sheet"
+
+
 def reader_of(info: DrawingInfo, twice: bool, names: dict[str, str]) -> Reader:
     """`names`: composition.readers(settings), the adapter of each route and port. `twice`: the
     second counter measured what is shown (a drawing: anything on it, stage 8 wrote its
-    conflicts; an answer: the answered quantity); else it is named "none"."""
+    conflicts; an answer: the answered quantity); else it is named "none". A sheet read with
+    its IFC model is named as read from the sheet, by `IFC_SHEET`."""
+    sheet = info.route == "bim" and info.kind != "ifc" and names["bim"] == "ifc"
+    extractor = None if info.route is None else names[info.route]
     return Reader(
         route=info.route,
-        source=info.source,
-        extractor=None if info.route is None else names[info.route],
+        source=info.path if sheet else info.source,
+        extractor=IFC_SHEET if sheet else extractor,
         second_counter=second_counter_of(names, info.route) if twice else "none",
         question_parser=names["question_parser"],
     )

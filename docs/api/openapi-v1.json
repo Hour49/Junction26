@@ -119,6 +119,17 @@
             ],
             "title": "Resolution"
           },
+          "sure": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sure"
+          },
           "unit": {
             "anyOf": [
               {

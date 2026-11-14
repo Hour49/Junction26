@@ -1,4 +1,4 @@
-import { formatValue, type Row, type Takeoff } from '../api';
+import { formatValue, methodName, type Row, type Takeoff } from '../api';
 import { statusText } from './words';
 
 interface Props {
@@ -21,8 +21,8 @@ function Rows({ rows, selected, onSelect }: { rows: Row[] } & Omit<Props, 'takeo
         </button>
         {row.first && row.second && (
           <small>
-            {row.first.method} {formatValue(row.first.value, row.unit)} · {row.second.method}{' '}
-            {formatValue(row.second.value, row.unit)}
+            {methodName(row.first.method)} {formatValue(row.first.value, row.unit)} ·{' '}
+            {methodName(row.second.method)} {formatValue(row.second.value, row.unit)}
           </small>
         )}
       </th>

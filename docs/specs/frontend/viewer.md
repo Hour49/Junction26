@@ -132,7 +132,7 @@ whose `label` equals `mark.label`, else the accent colour. An excluded mark is a
 | `added` | dashed 2 px outline (6 3) in the colour | `+n` | "added by a surveyor" |
 | `rejected` | dotted 2 px outline (2 3) in the colour, no fill, crossed corner to corner | `×` | "rejected by a surveyor" |
 | `excluded` | dashed grey outline, grey diagonal hatch fill | `–` | "left out by the rule: <reason>" |
-| conflict reading | dashed 2 px outline in the warning colour, not a button | `A`, `B`… in order of `conflict.values` | "<letter>: <method> read <value> <unit>" |
+| conflict reading | dashed 2 px outline in the warning colour, not a button | `A`, `B`… in order of `conflict.values` | "<letter>: <methodName(method)> read <value> <unit>" |
 
 - When `unit` is set and not `count`, a mark with a `value` shows it in its badge as `n · 22.40 m²`, formatted
   by `formatValue(value, unit)` from `src/api/format.ts` (shared.md): exactly 2 decimals, units m² m³ m ft² ft
@@ -240,10 +240,12 @@ Marks
   `added`, `rejected`, `excluded`. With all colours set to the same value, the four looks are still
   distinguishable by text and line style. [unit]
 - **VW-19** With `conflict` from `takeoff.json` row `area:room|name=1.01`, two non-button tags "A" and "B" are
-  drawn at the two `values[].box` centres. The legend reads "A: polygon_x_scale read 22.40 m²" and
-  "B: printed_label read 30.00 m²". [component, `takeoff.json`]
-- **VW-20** A conflict value with `box: null` (derived) draws no tag but is still listed in the legend.
-  [component]
+  drawn at the top-left corners of the two `values[].box`es (a centred tag A would cover the room's badge). The
+  legend reads "A: <methodName("polygon_x_scale")> read 22.40 m²" and "B: <methodName("printed_label")> read
+  30.00 m²". The method is named by `methodName` from `src/api/format.ts` (shared.md), so a measuring-method id
+  such as `polygon_x_scale` never shows (QA R3, #14 c6872280914). [component, `takeoff.json`]
+- **VW-20** A conflict value with `box: null` (derived) draws no tag but is still listed in the legend, with
+  its method named by `methodName`. [component]
 - **VW-21** With `legend` from `answer_area.json`, the Küche polygon's stroke is `#d62728` and the Reduit
   polygon's is `#1f77b4`. Without `legend`, both use the accent colour. With a one-entry legend
   (derived: `[{label: "room", colour: "#1f77b4", …}]`), both polygons and both badge borders are `#1f77b4`

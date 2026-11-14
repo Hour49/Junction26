@@ -2,6 +2,7 @@
 // live backend, at the project's viewport, with a screenshot of every screen.
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { methodName } from '../src/api/format';
 import { noKeys, shot, watchErrors } from './support';
 
 const AREA = 'What is the net floor area of room 1.01?';
@@ -83,8 +84,8 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     const area = turn(AREA);
     await expect(area.getByTestId('answer-value')).toHaveText('30.00 m²');
     await expect(area).toContainText('Methods disagree');
-    await expect(area).toContainText('22.40 m² by polygon_x_scale');
-    await expect(area).toContainText('30.00 m² by printed_label');
+    await expect(area).toContainText(`22.40 m² by ${methodName('polygon_x_scale')}`);
+    await expect(area).toContainText(`30.00 m² by ${methodName('printed_label')}`);
     await expect(area.getByRole('button', { name: 'Mark 1: Küche, counted' })).toHaveCount(1);
     // EN-43: the newest turn is scrolled into view
     await expect(area).toBeInViewport({ ratio: 0.2 });
@@ -96,7 +97,10 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await page.getByRole('button', { name: 'Ask' }).click();
     const roof = turn('What colour is the roof?');
     await expect(roof).toContainText("I can't answer that from this drawing.");
-    await expect(roof).toContainText('unsupported-question');
+    await expect(roof).toContainText("This question isn't one I can turn into a count");
+    // The refusal code is not shown on the card (QA sign-off, #14).
+    await expect(roof).not.toContainText('code:');
+    await expect(roof).not.toContainText('unsupported-question');
     await expect(roof.getByRole('button', { name: 'How many doors are there?' })).toBeVisible();
     await expect(roof.getByTestId('answer-value')).toHaveCount(0);
     // EN-43: the newest turn is scrolled into view
@@ -109,7 +113,7 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await expect(page).toHaveURL(new RegExp(`^${escape(drawingUrl)}/surveyor(\\?.*)?$`));
     for (const text of [
       'area of room (name 1.01)',
-      'area of room (name küche)',
+      /area of room \(name küche\)/i,
       '22.40 m² vs 30.00 m²',
       'decided by rule',
     ]) {
@@ -117,14 +121,19 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     }
     const queue = page.getByRole('table', { name: 'To review' });
     await expect(row(page, 'area of room (name 1.01)', queue)).toContainText('Methods disagree');
-    await expect(row(page, 'area of room (name küche)', queue)).toContainText('Methods disagree');
+    // The room name as printed ('Küche') since #108, lower case before it.
+    await expect(row(page, /^area of room \(name küche\)$/i, queue)).toContainText(
+      'Methods disagree',
+    );
     await shot(page, testInfo, '08-surveyor-queue', offline);
   });
 
   const kitchen = row(page, 'area of room (name 1.01)');
   await test.step('GP-10 step 9: settle on the drawn outline', async () => {
     await kitchen.getByRole('button', { name: 'area of room (name 1.01)', exact: true }).click();
-    await page.getByRole('button', { name: 'Keep A: 22.40 m² (polygon_x_scale)' }).click();
+    await page
+      .getByRole('button', { name: `Keep A: 22.40 m² (${methodName('polygon_x_scale')})` })
+      .click();
     await expect(kitchen).toContainText('22.40 m²');
     await expect(kitchen).toContainText('Changed in review');
     await expect(page.getByText(/Settled at 22\.40 m²/).first()).toBeVisible();
@@ -186,7 +195,7 @@ test('GP-20: the service is down, then back', async ({ page }) => {
 });
 
 /** The table row whose label button is `label` (rows move between the two tables as their state changes). */
-function row(page: Page, label: string, scope: Page | Locator = page): Locator {
+function row(page: Page, label: string | RegExp, scope: Page | Locator = page): Locator {
   // `has` is matched inside each row, so it starts from the page.
   return scope
     .getByRole('row')

@@ -224,7 +224,7 @@ numbers.
 extraction, every real adapter of the commit turned on. Each point runs from a clean export of a merge commit, not
 the shared tree, by `eval/pipeline-run.sh <commit> [NAME=VALUE ...]` and scored by the same eval on the frozen
 set, so the numbers compare. Its records say `dirty: false` with that commit, the settings it ran with, and the
-scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02):
+scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02; 2e1c0b0 recorded 07:14; 5fa8464 recorded 08:20):
 
 | commit | code time | settings that change | P1 element F1 cubi | P1 element F1 ifc | P1 element F1 open | P1 element F1 swiss | P2 accuracy | P2 dev | P2 holdout | abstained |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -233,6 +233,8 @@ scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfil
 | 6e9a2df | 2026-11-14 00:39 | answer_prior=dev extractor_bim=hello extractor_raster=hello extractor_vector=pdf question_parser=templates second_counter=pdf | 0.0% | 80.4% | 0.0% | 100.0% | 2109/2948 (71.5%) | 71.1% † | 73.2% | 50.8% |
 | bdfae08 | 2026-11-14 01:43 | answer_prior=dev extractor_bim=ifc extractor_raster=hello extractor_vector=pdf question_parser=templates second_counter=ifc | 0.0% | 100.0% | 0.0% | 100.0% | 2201/2948 (74.7%) | 73.4% † | 80.0% | 47.7% |
 | 5331dab | 2026-11-14 04:56 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=False decisions_kind=False decisions_timeout_s=30.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:c0dec542627d rectifier=none region_model_dir=sha256:4b197e641e7f sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2701/2948 (91.6%) | 91.3% † | 92.9% | 1.0% |
+| 2e1c0b0 | 2026-11-14 06:58 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_timeout_s=30.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:c0dec542627d raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2701/2948 (91.6%) | 91.3% † | 92.9% | 1.0% |
+| 5fa8464 | 2026-11-14 08:15 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_provider=gemini decisions_timeout_s=30.0 eu_vlm_api_key=sha256:e3b0c44298fc eu_vlm_base_url=sha256:8d629f3b12ac eu_vlm_model=sha256:466b8aaefcdc eu_vlm_timeout_s=300.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 kind_provider=gemini projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:4448f99e9eaa raster_photo_components=sha256:e3b0c44298fc raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f rooms_provider=gemini sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.1% | 100.0% | 0.0% | 100.0% | 2709/2948 (91.9%) | 91.8% † | 92.5% | 1.0% |
 
 Code time is the commit time (Europe/Helsinki); `*` marks a run recorded with uncommitted changes, timed when recorded. Abstained: share of golden answers marked `abstain` (n/a: no answer_v1.1 fields).
 
@@ -251,6 +253,40 @@ came from the precomputed `exp:ocr/G4-regpred-golden` (cached Gemini replies), n
 note says so. CubiCasa count 1124 of 1342 (bdfae08: 656). The record is public, so since 5331dab
 `pipeline-record.sh` keeps a setting whose value the record's rule refuses (a path, a long `raster_components`)
 as `name=sha256:<12 hex>`, and puts the given NAME=VALUE pairs verbatim in the run's note.
+
+2e1c0b0 (golden, 2026-11-14 07:14) is the demo config after QA F1/F2 (#70-#91), from `tools/qa-env.sh config`:
+the same detector and S1536 swap, `RECTIFIER=r3`, `DECISIONS_CONFIDENCE=true`, `DECISIONS_KIND=true`,
+`RASTER_SCALE=priors`, with no API key (cached replies only, no spend). Rooms came from
+`exp:ocr/G4-regpred-golden` as at 5331dab, because the demo's `rooms=regionrooms` reads Gemini at runtime and
+the gemini-rooms cache holds only 9 of the 79 CubiCasa golden pages: run that way, the other 70 read no rooms
+(HTTP 400 on the placeholder key) and the headline falls to 2605/2948 on room questions alone, a run condition,
+not a code change. Against 5331dab, by cause:
+
+- Headline 2701/2948, unchanged: no headline answer changed its value; Part 1 unchanged.
+- `DECISIONS_CONFIDENCE=true` (config): 1342 raster answers now carry the raw g1main score in `confidence` (not
+  scored; the API shows it as an uncalibrated signal).
+- `RASTER_SCALE=priors` (#81, #82): 7 CubiCasa area extras are answered on an estimated scale (labelled
+  `estimate`, ±8-16% stated) instead of refused: estimate extras 0/13 to 5/13 right, labelled 0/13 to 7/13.
+- Typo parsing (#80, #83): 2 typo paraphrase extras gain a "read X as Y" note; same value, same pass/fail.
+- Conflict wording (#78): 6 IFC conflict extras' rule text drops the dataset's name; same value, still pass.
+
+5fa8464 (golden, 2026-11-14 08:20) is the first point with the demo's rooms read at runtime, and the first with
+config C (#102): `tools/qa-env.sh config` as it is, `elements` and `plans` from
+`decisions-s1536:detector:C-yolo26l`, `rooms=regionrooms`. **This is the runtime rooms number**: one Gemini read per
+page (gemini-3.5-flash, thinking low) through the backend's own reader and its pixel-keyed cache
+(`data/cache/gemini-rooms`, #75), the replies the demo reuses for these pages. The cache was filled by one real-key
+run on 11b40a5 (70 pages read, 9 already cached, 0 failures, about 0.44 USD at answer's measured 0.0063 USD a page);
+the recorded run had no key and took every reply from the cache. A page read again can give other rooms (R1-1-5),
+so a re-read can move this number; the precomputed `exp:ocr/G4-regpred-golden` rows above are a separate set of
+reads of the same pages. Against 2e1c0b0, by cause:
+
+- Headline 2701 to 2709/2948 (dev 91.8% †, holdout 92.5%); no answer outside CubiCasa changed.
+- Runtime rooms instead of the precomputed reads (a run on 11b40a5 with config A, not recorded): 2697, -4, room
+  questions only: balcony 46 to 50/50, bedroom 72 to 74/84, bathroom 80 to 72/80, wc 72 to 70/74, kitchen 90/102
+  either way (30 room answers changed value). Estimate extras 5/13 to 4/13 right.
+- Config C's detector (11b40a5 to 5fa8464, same runtime rooms): +12: door 78 to 80/104, sink 120 to 126/150,
+  toilet 134 to 140/154, window 72 to 70/154, shower+bathtub 116/142 either way (24 answers changed value), rooms
+  identical. Part 1 CubiCasa element F1 85.4% to 85.1%. Estimate extras labelled 7/13 to 6/13.
 
 ## Experiments (CubiCasa raster, 2026-11-14)
 
@@ -288,8 +324,8 @@ on val, the loosest whose 95% Clopper-Pearson bound on the plans meets the targe
 together meet it, because the certificate counts a plan wrong when any of its sure answers is. Every val number is
 printed as "chosen on val, not a guarantee".
 
-`stoa_eval gate-policy --gate data/stoa/exp/ab/gate-<arm>-val.json` writes `data/stoa/exp/gate.json`
-(gate_policy_v1), the file the backend reads to mark answers sure:
+`stoa_eval gate-policy --gate data/stoa/exp/ab/gate-<arm>-val.json [--certificate data/stoa/exp/ab/gate-<arm>-test.json]`
+writes `data/stoa/exp/gate.json` (gate_policy_v1), the file the backend reads to mark answers sure:
 
 ```json
 {"schema": "gate_policy_v1", "generated": "2026-11-14T05:02:02+02:00", "part": "val",
@@ -303,15 +339,36 @@ printed as "chosen on val, not a guarantee".
 
 An answer is sure when its family is listed and its `signal` is at or above `threshold`. Only families whose gate
 opens and marks at least one val answer sure are listed. `split_sha256` is required (the loader refuses a file
-without it). `certified` stays false until the one test run; `arm` (with `family_arms`) is what the thresholds
-were set on, so a product that answers a family with another arm uses an untested threshold there.
+without it). `certified` is false until the one test run of the same gate meets the target; that run is then
+kept in `test` (its file and certificate). `arm` (with `family_arms`) is what the thresholds were set on, so a
+product that answers a family with another arm uses an untested threshold there.
 
-The current file (2026-11-14, golden-16) is set on what the QA build runs: region:C-yolo26s-1536 with the S1536
-swap for elements and plans (val arm `decide/S1536`), Gemini rooms (`ocr/G4`), signal g1main. On val only plans
-open: elements and rooms stay shut, because Gemini is at least 0.95 sure of a few wrong counts (a toilet count,
+The current file (2026-11-14 08:25, golden-19) is config C's, the shipped demo config (#102,
+`tools/qa-env.sh config`, which passes a frozen, committed copy:
+`GATE_POLICY=../eval/results/gate/gate-C-L-swap.json`, so a refit changes the demo only with a commit). Arm
+`ab/runtime-C-L-swap`: integ's runs of the whole config through the backend runtime, val
+(`integ/val/C-L-swap`) and its single test run (`integ/test/C-L-swap`) linked into one folder so both name the
+same arm; signal g1main from the backend's own Decisions caches (`integ/decisions-cache-val`, `-test`).
+
+- Val (chosen on val, not a guarantee): plans open at 0.0144 (188 of 188 plans, 185 exact); elements (door,
+  shower+bathtub, sink, toilet, window) at 0.771, after the union rule tightened them from 0.759 (119 sure plans,
+  1 wrong); rooms stay shut. All groups together: 188 sure plans, 4 wrong, bound 95.2%.
+- **Test (once, 08:25, no tuning after): of the plans marked sure, at least 96.2% have every sure answer exact**
+  (374 of 376 plans sure, 366 exact; one-sided 95% bound). Per family on test: plan 372/374 exact, toilet
+  222/224, sink 40/40, shower+bathtub 77/82, door and window 0 sure. `certified: true`.
+
+Before config C, the file (golden-17) was set by `stoa_eval gate-refit` on the then demo config
+(`tools/qa-env.sh config`): region:C-yolo26s-1536's val output with the backend's S1536 swap (frozen thresholds)
+for elements and plans, regionrooms rooms (`ocr/G4-regpred`), signal g1main. The golden-16 file (decide's
+cross-fit `decide/S1536`, `ocr/G4` rooms) gave the same gate. On val only plans open: elements and rooms stay shut, because Gemini is at least 0.95 sure of a few wrong counts (a toilet count,
 G4 kitchen, bedroom and balcony counts), and with the plan as the unit the 95% bound needs about 60 plans per
 error. The earlier file, set on detector C-yolo26s-v8 alone, also opened elements (0.7625) and sauna (0.664);
 those thresholds were never valid for the arms the product answers with.
+
+When the runtime config changes (a new detector), `uv run python -m stoa_eval gate-refit --detector <its val
+output>` refits gate.json in one command (eval/README.md). Then, once, the test certificate: `gate --part test
+--certify` with the same arm, swap, rooms and `--g1main` replies for the test images, and `gate-policy
+--certificate` to put it in gate.json. A refit for another config starts uncertified again.
 
 ## What the answer should show
 

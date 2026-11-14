@@ -34,6 +34,17 @@ from app.core.drawing.model import (
 )
 from app.core.pipeline.model import Extracted, Measurement
 
+# What each method that measures a value is, in words: the check line and the explanation
+METHODS = {
+    "plan_drawing": "the sheet",
+    "parser": "the sheet",
+    "detector": "the detector",
+    "ifc_model": "the IFC model",
+    "schedule": "the schedule",
+    "printed_label": "the printed room areas",
+    "polygon_x_scale": "the room outlines at the sheet's scale",
+}
+
 COUNTS: frozenset[ConflictQuantity] = frozenset({"room_count", "element_count", "storey_count"})
 TOLERANCE = 0.02  # relative, for everything that is not a count (the dataset's 2% rule)
 AGREE = "both methods agree"

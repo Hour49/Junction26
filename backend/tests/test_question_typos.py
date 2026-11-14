@@ -50,7 +50,7 @@ TYPOS = [
 NEAR_MISSES = [
     "how many beds are there?",
     "how many roofs are there?",
-    "how many halls are there?",
+    "how many malls are there?",  # halls are rooms (hall) since R3-qa-1-1
     "how many walks are there?",
     "how many balls are there?",
     "how many dogs are there?",

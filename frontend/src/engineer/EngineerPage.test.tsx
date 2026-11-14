@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { AnswerView } from '../api';
+import { methodName, type AnswerView } from '../api';
 import {
   answer,
   answerArea,
@@ -320,10 +320,13 @@ describe('answers', () => {
     expect(within(c).getByText('Methods disagree')).toBeTruthy();
   });
 
-  it('EN-33 a conflict shows both values with their methods and the kept one', async () => {
+  it('R3 EN-33 a conflict shows both values with plain method names and the kept one', async () => {
     const t = await shown(answerConflict);
-    expect(within(t).getByText('22.40 m² by polygon_x_scale')).toBeTruthy();
-    expect(within(t).getByText('30.00 m² by printed_label')).toBeTruthy();
+    expect(within(t).getByText(`22.40 m² by ${methodName('polygon_x_scale')}`)).toBeTruthy();
+    expect(within(t).getByText(`30.00 m² by ${methodName('printed_label')}`)).toBeTruthy();
+    // The checks panel is this screen's; the viewer's conflict legend is fe-viewer's.
+    const checks = t.querySelector('.en-checks')?.textContent ?? '';
+    expect(checks).not.toMatch(/polygon_x_scale|printed_label/);
     expect(
       within(t).getByText("Kept 30.00 m²: the printed label over the outline at the sheet's scale"),
     ).toBeTruthy();
@@ -342,13 +345,14 @@ describe('answers', () => {
 });
 
 describe('refusals and errors', () => {
-  it('EN-39 a refusal: the sentence, the reason, the code; no number, marks or links', async () => {
+  it('R3-final EN-39 a refusal: the sentence and the reason; no code, number, marks or links', async () => {
     open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused) });
     await typeAndAsk('What colour is the roof?');
     const t = await turn('What colour is the roof?');
     expect(await within(t).findByText("I can't answer that from this drawing.")).toBeTruthy();
     expect(within(t).getByText(/This question isn't one I can turn into a count/)).toBeTruthy();
-    expect(within(t).getByText(/unsupported-question/)).toBeTruthy();
+    expect(t.textContent).not.toContain('code:');
+    expect(t.textContent).not.toContain(answerRefused.refusal?.code ?? 'unsupported-question');
     expect(within(t).queryByTestId('answer-value')).toBeNull();
     expect(within(t).queryByRole('button', { name: /^Mark / })).toBeNull();
     expect(within(t).queryByRole('link')).toBeNull();
@@ -569,9 +573,42 @@ describe('extended answers', () => {
     const details = within(t).getByText('Details').closest('details');
     expect(details?.open).toBe(false);
     const inside = within(details as HTMLElement);
-    expect(inside.getByText('Query: door')).toBeTruthy();
+    expect(inside.getByText('Query: door count')).toBeTruthy();
     expect(inside.getByText('Method: takeoff')).toBeTruthy();
     expect(inside.queryByText(/^How:/)).toBeNull();
+  });
+
+  it('EN-27 printed-names: Query shows the printed label, not the internal key', async () => {
+    const area = within(await shownTurn(answerArea))
+      .getByText('Details')
+      .closest('details');
+    const label = answerArea.quantity?.label ?? '';
+    expect(within(area as HTMLElement).getByText(`Query: ${label}`)).toBeTruthy();
+    expect(within(area as HTMLElement).queryByText(/^Query: area:room/)).toBeNull();
+  });
+
+  it('EN-53 line.sure: true shows a "Sure" badge after the value, with a tooltip and screen-reader text', async () => {
+    const t = await shownTurn({ ...answer, line: { ...answer.line, sure: true } });
+    const tip =
+      'Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact';
+    expect(within(t).getByTestId('answer-value').textContent).toBe('2');
+    const badge = within(t).getByTitle(tip);
+    expect(badge.textContent).toContain('Sure');
+    expect(badge.textContent).toContain(tip);
+    expect(badge.closest('[data-testid="answer-value"]')).toBeNull();
+  });
+
+  it.each([null, false, undefined])('EN-53 line.sure: %s shows no badge', async (sure) => {
+    const t = await shownTurn({ ...answer, line: { ...answer.line, sure } });
+    expect(within(t).queryByTitle(/^Certified:/)).toBeNull();
+    expect(within(t).queryByText(/^Sure/)).toBeNull();
+  });
+
+  it('EN-27 printed-names: Query falls back to the key when the label is empty', async () => {
+    if (!answer.quantity) throw new Error('answer.json has a quantity');
+    const bare = await shownTurn({ ...answer, quantity: { ...answer.quantity, label: '' } });
+    const details = within(bare).getByText('Details').closest('details');
+    expect(within(details as HTMLElement).getByText('Query: door')).toBeTruthy();
   });
 
   it('QA R1 EN-27 the Details summary sits in the footer row, aligned on the baseline', async () => {
@@ -678,15 +715,20 @@ describe('extended answers', () => {
 
   it('EN-35 agree shows the second method; single says one method', async () => {
     const t = await shownTurn(answerAgree);
-    expect(within(t).getByText('Second method (ifc_model): 2, agrees')).toBeTruthy();
+    expect(
+      within(t).getByText(`Second method (${methodName('ifc_model')}): 2, agrees`),
+    ).toBeTruthy();
+    expect(t.querySelector('.en-checks')?.textContent).not.toContain('ifc_model');
     cleanup();
     const s = await shownTurn(answer);
     expect(within(s).getByText('Measured by one method; no second check.')).toBeTruthy();
   });
 
-  it('EN-36 an estimate shows its reason', async () => {
+  it('R3-final EN-36 an estimate shows its reason and says it was estimated once', async () => {
     const t = await shownTurn(answerEstimate);
     expect(within(t).getByText('Estimate: scale estimated from a door width')).toBeTruthy();
+    expect(within(t).getByText('Estimated by one method; no second check.')).toBeTruthy();
+    expect(within(t).queryByText('Measured by one method; no second check.')).toBeNull();
   });
 
   it('EN-37 an edited answer: was 2, the rejected and added rows', async () => {
@@ -705,7 +747,7 @@ describe('extended answers', () => {
 
   it('EN-38 a settled value replaces the Kept line', async () => {
     const t = await shownTurn(answerSettled);
-    expect(within(t).getByText('30.00 m² by printed_label')).toBeTruthy();
+    expect(within(t).getByText(`30.00 m² by ${methodName('printed_label')}`)).toBeTruthy();
     expect(within(t).queryByText(/^Kept /)).toBeNull();
   });
 

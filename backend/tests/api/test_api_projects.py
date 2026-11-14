@@ -1,11 +1,15 @@
 """Projects, traces, drawings, pages, info and errors (docs/API.md)."""
 
 import io
+import json
+import socket
 import threading
+import time
 import zipfile
 from contextlib import ExitStack
 
 import pytest
+import uvicorn
 from conftest import plan_png, upload
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -204,6 +208,40 @@ def test_the_sample_is_never_refused_as_busy(client: TestClient, plan_pdf: bytes
         busy = client.post("/api/projects", params={"name": "plan.pdf"}, content=plan_pdf)
         assert (busy.status_code, busy.json()["code"]) == (429, "busy")
         assert client.post("/api/projects/sample", params={"fresh": True}).status_code == 202
+
+
+def test_a_large_upload_refused_as_busy_gets_the_429_not_a_reset(client: TestClient) -> None:
+    """R3-qa-3-1: the 429 went out before the body was read; uvicorn then closed the socket with
+    megabytes unread, the kernel reset it, and a client still writing (urllib, the QA proxy, Vite
+    sometimes) saw "connection reset" (shown as 502) instead of `busy`. A real server and a client
+    that writes the whole 32 MB body (far over the socket buffers) before it reads."""
+    app = client.app
+    admission: projects.Admission = app.state.admission  # type: ignore[attr-defined]
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning"))
+    serving = threading.Thread(target=server.run, daemon=True)
+    serving.start()
+    while not server.started:
+        time.sleep(0.01)
+    port = server.servers[0].sockets[0].getsockname()[1]
+    body = b"x" * (32 * 2**20)
+    try:
+        with ExitStack() as held:
+            for _ in range(projects.MAX_WAITING):
+                held.enter_context(admission.slot(app.state.ingest))  # type: ignore[attr-defined]
+            with socket.create_connection(("127.0.0.1", port), timeout=30) as sock:
+                sock.sendall(
+                    b"POST /api/projects?name=big.zip HTTP/1.1\r\nHost: test\r\n"
+                    + b"Connection: close\r\n"
+                    + f"Content-Length: {len(body)}\r\n\r\n".encode()
+                    + body
+                )
+                answer = sock.makefile("rb").read()
+    finally:
+        server.should_exit = True
+        serving.join()
+    head, _, payload = answer.partition(b"\r\n\r\n")
+    assert head.startswith(b"HTTP/1.1 429")
+    assert json.loads(payload)["code"] == "busy"
 
 
 @pytest.mark.parametrize(

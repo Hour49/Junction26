@@ -1,6 +1,7 @@
 """tools/qa-env.sh refuses bad input before it exports or starts anything. (Starting a commit's
 backend is checked by hand: it needs the models, uv and a port; see the script's header.)"""
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -64,3 +65,28 @@ def test_the_demo_config_estimates_raster_areas() -> None:
 def test_the_backend_starts_with_the_printed_config() -> None:
     script = SCRIPT.read_text()
     assert 'env "${DEMO_ENV[@]}" uv run --locked uvicorn' in script
+
+
+def test_the_demo_config_ships_config_c() -> None:
+    """integ Task 3 (2026-11-14): the Decisions S1536 swap over the C-yolo26l detector for elements
+    and plans, rooms from regionrooms, beat the earlier demo (region C-yolo26s-1536) on val by
+    +1.1 pp [+0.1, +2.0] with no family lower; the orchestrator shipped it (07:31)."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    swap = "decisions-s1536:detector:C-yolo26l"
+    shipped = f"RASTER_COMPONENTS=elements={swap},plans={swap},rooms=regionrooms"
+    assert shipped in found.stdout.split()
+
+
+def test_the_demo_config_marks_answers_sure_by_goldens_frozen_gate() -> None:
+    """golden-19 (2026-11-14): config C's gate, chosen on val and certified once on test (of the
+    plans marked sure, at least 96.2% have every sure answer exact). The demo reads a committed
+    copy, so a refit of data/stoa/exp/gate.json can't change it without a commit and a fresh
+    machine has it."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    setting = "GATE_POLICY=../eval/results/gate/gate-C-L-swap.json"
+    assert setting in found.stdout.split()
+    frozen = json.loads((SCRIPT.parents[1] / "backend" / setting.split("=")[1]).read_text())
+    assert (frozen["schema"], frozen["certified"]) == ("gate_policy_v1", True)
+    assert frozen["test"]["certificate"]["lower_bound"] >= frozen["target"]

@@ -11,12 +11,14 @@ from app.core.drawing.model import (
     MeasuredValue,
     Page,
     Room,
+    RoomType,
     Scale,
     Table,
     TableRow,
 )
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import Quantity, QuantityConflict
+from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import Asked, ask, suggestions
 from app.core.review.model import Edit, MethodValue, ReviewState
 from app.core.review.review import (
@@ -347,3 +349,190 @@ def test_settling_or_signing_a_one_storey_sheet_s_row_decides_its_storey_twin_to
     # an edit or sign-off sent for the storey's row is made on the sheet's row
     assert sheet_row(found, "window|storey=p1").key == "window"
     assert sheet_row(found, "wall|storey=p1").key == "wall|storey=p1"
+
+
+def test_the_area_of_every_room_type_is_that_room_s_area() -> None:
+    """R3-qa-1-1: "What is the area of the sauna?" was refused as "isn't a count, area, length or
+    volume" although the drawing has one sauna room with an area; so were the WC and the hall."""
+    cases: tuple[tuple[RoomType, str, tuple[str, ...]], ...] = (
+        ("sauna", "S", ("What is the area of the sauna?", "How big is the sauna room?")),
+        ("wc", "WC", ("What is the area of the WC?", "How big is the toilet?")),
+        ("hall", "ET", ("What is the area of the hall?", "How big is the hallway?")),
+        ("outdoor", "TERASSI", ("What is the area of the terrace?",)),
+    )
+    for kind, printed, questions in cases:
+        room = Room(id="r1", type=kind, label=printed, page=1, box=BOX_A, area_m2=5.55)
+        bath = Room(id="r2", type="bathroom", label="KPH", page=1, box=BOX_B, area_m2=4.0)
+        for text in questions:
+            found = asked(text, scaled(room, bath))
+            assert found.refusal is None, (text, found.refusal)
+            assert (found.answer.answer, found.answer.unit) == (5.55, "m2"), text
+
+
+def test_a_two_letter_printed_label_names_its_room_only_as_printed() -> None:
+    """R3-qa-1-1: "What is the area of the MH?" was refused (printed names needed 3 letters). A
+    2-letter name matches only in the drawing's own capitals, never a word ("of", "is")."""
+    mh = Room(id="r1", type="bedroom", label="MH", page=1, box=BOX_A, area_m2=11.5)
+    oh = Room(id="r2", type="living", label="OH", page=1, box=BOX_B, area_m2=20.0)
+    found = asked("What is the area of the MH?", scaled(mh, oh))
+    assert found.refusal is None and found.answer.answer == 11.5
+    assert asked("What is the area of the mh?", scaled(mh, oh)).answer.answer is None
+    is_room = Room(id="r3", type="other", label="IS", page=1, box=BOX_A, area_m2=3.0)
+    assert asked("What is the area of the MH?", scaled(is_room, oh)).answer.answer is None
+
+
+def test_a_refusal_says_the_room_was_not_recognised_not_that_areas_are_unsupported() -> None:
+    """R3-qa-1-1: a supported kind of question whose room or element wasn't recognised said
+    "isn't one I can turn into a count, area, length or volume"."""
+    bath = Room(id="r2", type="bathroom", label="KPH", page=1, box=BOX_B, area_m2=4.0)
+    for text in ("What is the area of the gazebo?", "What is the area of the doors?"):
+        refusal = asked(text, scaled(bath)).refusal
+        assert refusal is not None and refusal.code == "unsupported-question"
+        assert "isn't one I can turn" not in refusal.text, text
+    gazebo = asked("What is the area of the gazebo?", scaled(bath)).refusal
+    assert gazebo is not None and "which room or element" in gazebo.text
+    doors = asked("What is the area of the doors?", scaled(bath)).refusal
+    assert doors is not None and "no area for doors" in doors.text
+
+
+def test_the_area_of_the_one_room_of_a_type_without_a_printed_name_is_answered() -> None:
+    """R3-qa-1-1 on colorful-444: the one sauna room was read from its furniture (no label, no
+    number), so no room name keyed its area, and "the area of the sauna" was not-in-drawing."""
+    sauna = Room(id="r16", type="sauna", page=1, box=BOX_A, area_m2=5.55)
+    bath = Room(id="r2", type="bathroom", label="KPH", page=1, box=BOX_B, area_m2=4.0)
+    for text in ("What is the area of the sauna?", "How big is the sauna room?"):
+        found = asked(text, scaled(sauna, bath))
+        assert found.refusal is None, (text, found.refusal)
+        assert (found.answer.answer, found.answer.unit) == (5.55, "m2")
+        assert len(found.marks) == 1
+
+
+PHOTO_FLAG = "a phone photo, read without perspective correction"
+
+
+def photo(*rooms: Room, elements: tuple[Element, ...] = ()) -> Drawing:
+    """A phone photo of a plan: its raster reader looked for everything (`read` set)."""
+    return Drawing(
+        file="027.jpg",
+        pages=(PAGE,),
+        scale=Scale(status="no_scale"),
+        rooms=rooms,
+        elements=elements,
+        read=("door", "window", "room"),
+    )
+
+
+def asked_flagged(
+    text: str, drawing: Drawing, flags: tuple[str, ...], *, raster: bool = False
+) -> Asked:
+    return ask(
+        text,
+        drawing,
+        parser=TemplateParser(),
+        clock=lambda: 0.0,
+        prior=NoPrior(),
+        state=ReviewState(),
+        flags=flags,
+        raster=raster,
+    )
+
+
+def test_a_flagged_photo_whose_reader_found_nothing_refuses_instead_of_counting_0() -> None:
+    """R3-qa4-1: Commons 027.jpg, flagged at upload and read as 0 elements, 0 rooms, answered
+    "door count 0 · One method". A 0 is a count only when the reader read the page."""
+    for text, what in (("How many doors are there?", "elements"), ("How many rooms?", "rooms")):
+        found = asked_flagged(text, photo(), (PHOTO_FLAG,))
+        assert found.row is None and found.refusal is not None, text
+        assert found.refusal.code == "no-reader"
+        assert PHOTO_FLAG in found.refusal.text and f"no {what}" in found.refusal.text
+    # Not flagged: the reader's 0 stays an answer (a clean scan with no doors has 0 doors)
+    clean = asked_flagged("How many doors are there?", photo(), ())
+    assert clean.refusal is None and clean.answer.answer == 0
+
+
+def test_a_raster_page_with_no_rooms_read_refuses_room_questions_flagged_or_not() -> None:
+    """F4-4 (qa-1's O3): an unflagged photo whose reader found 0 rooms answered "room count 0 ·
+    One method". On a raster page no room read means 0 would be a guess; element counts stay
+    answers (a page can have 0 saunas). A vector page with no rooms still counts 0."""
+    door = Element(id="e1", class_="door", page=1, box=BOX_A)
+    drawing = photo(elements=(door,))
+    for text in ("How many rooms?", "How many bedrooms are there?"):
+        found = asked_flagged(text, drawing, (), raster=True)
+        assert found.row is None and found.refusal is not None, text
+        assert found.refusal.code == "no-reader", text
+        assert found.refusal.text == (
+            "No rooms were read on this drawing, so 0 would be a guess, not a count."
+        )
+    for text, value in (("How many doors are there?", 1), ("How many windows are there?", 0)):
+        found = asked_flagged(text, drawing, (), raster=True)
+        assert found.refusal is None and found.answer.answer == value, text
+        assert found.row is not None and found.row.status == "single"
+    # F4-4b (qa-3): every room question is refused the same way, its key in the takeoff or not
+    estimated = drawing.model_copy(update={"scale": Scale(status="estimated")})
+    for text in (
+        "What is the net floor area of all indoor rooms in m²?",
+        "What is the area of the kitchen?",
+        "How big is room 1.01?",
+    ):
+        for flags in ((), (PHOTO_FLAG,)):
+            found = asked_flagged(text, estimated, flags, raster=True)
+            assert found.refusal is not None and found.refusal.code == "no-reader", (text, flags)
+    vector = asked_flagged("How many rooms?", drawing, (), raster=False)
+    assert vector.refusal is None and vector.answer.answer == 0
+
+
+def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:
+    """R3-qa4-1 (2): any other answer on a flagged drawing says so on the card (status
+    estimate, the flag in `estimate`), and a group it did read still counts 0 as read."""
+    door = Element(id="e1", class_="door", page=1, box=BOX_A)
+    drawing = photo(Room(id="r1", type="kitchen", page=1, box=BOX_B), elements=(door,))
+    for text, value in (("How many doors are there?", 1), ("How many windows are there?", 0)):
+        found = asked_flagged(text, drawing, (PHOTO_FLAG,))
+        assert found.refusal is None and found.row is not None, text
+        assert found.row.value == value and found.row.status == "estimate"
+        assert found.row.estimate is not None and PHOTO_FLAG in found.row.estimate
+        assert found.answer.estimate is True
+    plain = asked_flagged("How many doors are there?", drawing, ())
+    assert plain.row is not None and plain.row.status == "single" and plain.row.estimate is None
+
+
+def test_a_printed_label_with_digits_names_its_room_only_as_printed() -> None:
+    """R3-qa-5-2: "What is the area of the MH1?" on colorful-13019 was refused (printed names
+    with digits were skipped). Letters and digits match as printed, case-sensitive, a whole
+    token, one room only; a room number ("1.01") stays the room-number path."""
+    mh1 = Room(id="r1", type="bedroom", label="MH1", page=1, box=BOX_A, area_m2=11.5)
+    mh2 = Room(id="r2", type="bedroom", label="MH2", page=1, box=BOX_B, area_m2=9.0)
+    found = asked("What is the area of the MH1?", scaled(mh1, mh2))
+    assert found.refusal is None and found.answer.answer == 11.5
+    assert asked("How big is MH2?", scaled(mh1, mh2)).answer.answer == 9.0
+    for text in ("What is the area of the mh1?", "What is the area of the MH12?"):
+        assert asked(text, scaled(mh1, mh2)).answer.answer is None, text
+    twice = Room(id="r3", type="bedroom", label="MH1", page=1, box=BOX_B, area_m2=9.0)
+    assert asked("What is the area of the MH1?", scaled(mh1, twice)).answer.answer is None
+
+
+def test_what_the_user_reads_names_element_classes_in_words() -> None:
+    """R3-qa-5-3: on colorful-444 the sauna card showed the left-out stove as "sauna_stove" and
+    a quantity "sauna_stove count": a class key, not words."""
+    sauna = Room(id="r1", type="sauna", label="S", page=1, box=BOX_A, area_m2=5.55)
+    stove = Element.model_validate(
+        {"id": "e1", "class": "sauna_stove", "page": 1, "box": BOX_B, "attrs": {}}
+    )
+    drawing = Drawing(
+        file="x.pdf", pages=(PAGE,), scale=Scale(status="scaled"), rooms=(sauna,),
+        elements=(stove,),
+    )  # fmt: skip
+    found = asked("How many saunas are there?", drawing)
+    assert found.row is not None
+    assert [mark.label for mark in found.row.marks] == ["S", "sauna stove"]
+    assert label("sauna_stove") == "sauna stove count"
+    assert label("shower+bathtub") == "shower and bathtub count"
+    for key in known_quantities(drawing):
+        assert "_" not in label(key) and "+" not in label(key), key
+
+
+def test_a_room_s_name_in_the_card_title_is_as_printed() -> None:
+    """R3 (F5): "What is the area of the MH1?" was titled "area of room (name mh1)"."""
+    mh1 = Room(id="r1", type="bedroom", label="MH1", page=1, box=BOX_A, area_m2=11.5)
+    found = asked("What is the area of the MH1?", scaled(mh1))
+    assert found.row is not None and found.row.label == "area of room (name MH1)"

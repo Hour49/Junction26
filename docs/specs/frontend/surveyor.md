@@ -52,7 +52,7 @@ views (`frontend/src/shell/`) and the page viewer (`frontend/src/viewer/`).
 6. On a count they press "Add a missed one" and click the missed item on the page; the viewer reports the page
    and a small square box around the point (viewer.md `onPick`), and the screen sends an `add` edit with them.
    Escape or pressing the button again leaves add mode without a request.
-7. On a conflict they keep one method's value ("Keep B: 30.00 m² (printed_label)") or type another value and press
+7. On a conflict they keep one method's value ("Keep B: 30.00 m² (<methodName('printed_label')>)") or type another value and press
    "Settle"; both send a `settle` edit.
 8. "Reset this quantity" undoes every edit of the quantity; "Reset all edits" (after a confirm) undoes every edit
    and sign-off of the drawing.
@@ -102,7 +102,9 @@ Display rules from `words.ts`:
 | `agree` | "Two methods agree" |
 | `single` | "One method" |
 
-These are engineer.md's words (EN-31), so a status reads the same on both screens. Values use shared.md's
+These are engineer.md's words (EN-31), so a status reads the same on both screens. Measuring methods (`first.method`,
+`second.method`, `conflict.values[].method`, backend `MeasureMethod`) show as `methodName(id)` from
+`frontend/src/api/format.ts` (shared), never as the raw id (`polygon_x_scale`; QA R3), as reader ids do. Values use shared.md's
 `formatValue(value, unit)`: a count (or a null unit) as an integer with no unit after it (the label says "count"),
 other units with exactly 2 decimals and `m`, `m²`, `m³` (`59.868` m2 → "59.87 m²", `30` → "30.00 m²"). Times
 (`signed.at`, `settled.at`) use `formatTime`: `YYYY-MM-DD HH:MM UTC`. The screen never computes a total itself; it shows the API's `value`.
@@ -157,7 +159,7 @@ the viewer (at most 50% of the viewport height), the takeoff panel in the page's
 sticky header, no scroll box around the tables). The table keeps its three columns and wraps labels. Buttons and table rows are at least 40px tall. Nothing scrolls sideways.
 
 Table cell content: Quantity = `label`, and under it in small text when `first` and `second` are set:
-"`first.method` `first.value` · `second.method` `second.value`". Value = the original value struck through when it
+"<methodName(first.method)> `first.value` · <methodName(second.method)> `second.value`". Value = the original value struck through when it
 differs, then `value` and unit. State = the status words.
 
 Detail, top to bottom: `label` with the status words; the value large with unit and "was `original_value` at
@@ -202,10 +204,11 @@ Table and detail
 - SV-10: When `value` differs from `original_value`, the Value cell and the detail show the original struck through
   (an `<s>` element) and "was … at ingest"; when equal, neither appears. [component] derived `door`: `value: 3`
 - SV-11: For a row with `first` and `second`, the table shows both methods and values
-  ("polygon_x_scale 22.40 · printed_label 30.00") and the detail shows them too; a row with both null shows neither.
+  (`methodName` of each id, e.g. "<methodName('polygon_x_scale')> 22.40 m² · <methodName('printed_label')> 30.00 m²")
+  and the detail shows them too; a row with both null shows neither; the raw ids never show (QA R3). [component]
   [component] `takeoff.json`
-- SV-12: The conflict block lists each `conflict.values[]` entry as "A: 22.40 m² polygon_x_scale", "B: 30.00 m²
-  printed_label", and the resolution "Kept by rule: the printed label over the outline at the sheet's scale →
+- SV-12: The conflict block lists each `conflict.values[]` entry as "A: 22.40 m² <methodName('polygon_x_scale')>",
+  "B: 30.00 m² <methodName('printed_label')>", and the resolution "Kept by rule: the printed label over the outline at the sheet's scale →
   30.00 m²"; with `resolution: null` it shows
   "No rule decides. Settle a value before signing off." [component] `takeoff.json`, derived
 - SV-13: The viewer receives the selected row's `conflict` (null for `door`) and `unit`, so it tags each reading
@@ -254,7 +257,7 @@ Edits
   (`onPick` unset). Outside add mode `onPick` is not passed. [component]
 - SV-29: In add mode, Escape or pressing the button again ends add mode and sends no request. [component]
 - SV-30: On a conflict row one "Keep" button per `conflict.values[]` entry sends `settle` with that value ("Keep B:
-  30.00 m² (printed_label)" sends `{"quantity":"area:room|name=1.01","action":"settle","value":30}`). [component] `takeoff.json`
+  30.00 m² (<methodName('printed_label')>)" sends `{"quantity":"area:room|name=1.01","action":"settle","value":30}`). [component] `takeoff.json`
 - SV-31: The Settle field sends `settle` with the typed number (`3` on `door` gives `review_requests.json[3]`); the
   Settle button is disabled while the field is empty, not a number, or negative. [component]
 - SV-32: A row with `settled: {"value": 22.401, "at": "2026-11-14T01:30:00Z"}` shows "Settled at 22.40 m²
@@ -332,7 +335,6 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
 - Fetching the CSV by script, or showing an error for a failed download (the drawing was just loaded, so a 404 is
   unlikely; the browser shows the failure).
 - Any confidence number: the takeoff has none, and the answer's confidence is the engineer's (Open point 1).
-- Readable names for method slugs (`polygon_x_scale`): shown as the API sends them.
 - Live updates from another tab or person (no server push in v1); the screen shows the last response.
 
 ## Open points

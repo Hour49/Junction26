@@ -92,6 +92,10 @@ function MarkList(props: {
   );
 }
 
+// Golden's certified gate (backend #98): plan-level, on held-out CubiCasa test plans, 95% bound.
+const SURE_TIP =
+  'Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact';
+
 function Answer(props: {
   a: AnswerView;
   projectId: string;
@@ -108,7 +112,6 @@ function Answer(props: {
         <p>
           <b>I can't answer that from this drawing.</b> {a.refusal.text}
         </p>
-        <p className="en-small">code: {a.refusal.code}</p>
         <Suggestions items={a.refusal.can_answer} busy={busy} onAsk={onAsk} />
       </div>
     );
@@ -153,9 +156,16 @@ function Answer(props: {
       </div>
       <div className="en-side">
         {row && <h3 className="en-title">{row.label}</h3>}
-        <p className="en-value" data-testid="answer-value">
-          {value}
-        </p>
+        <div className="en-value-row">
+          <p className="en-value" data-testid="answer-value">
+            {value}
+          </p>
+          {a.line.sure === true && (
+            <span className="en-sure" title={SURE_TIP}>
+              Sure<span className="en-sr">. {SURE_TIP}</span>
+            </span>
+          )}
+        </div>
         {row?.signed && (
           <p className="en-verified">
             Verified by {row.signed.by}, {formatTime(row.signed.at)}
@@ -182,7 +192,7 @@ function Answer(props: {
         <span>Time {formatLatency(a.latency_s)}</span>
         <details className="en-details">
           <summary style={MARKER}>Details</summary>
-          {row && <p>Query: {row.key}</p>}
+          {row && <p>Query: {row.label || row.key}</p>}
           <p>Method: {a.method}</p>
           {score && <p>Signal: {score.signal}</p>}
           {a.explanation && <p>How: {a.explanation}</p>}

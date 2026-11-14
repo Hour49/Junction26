@@ -18,9 +18,9 @@ demo show.
 | 3 | Click the file `plans/flat-b.pdf` | Its trace: "flagged", "1 conflict(s) between the two methods (room_area) ...", stages unpack to write, `second_count` "5 quantities measured twice, 1 conflict(s)" | yes |
 | 4 | Click "Open the drawing" | Engineer: "plans/flat-b.pdf", how it was read, page 1 of the plan, suggested questions | yes |
 | 5 | Click "How many doors are there?" | `2`, "door count", marks 1 and 2 on the doors, the counting rule, "One method", cost $0 | yes |
-| 6 | Ask "What is the net floor area of room 1.01?" | `30.00 m²`, the kitchen shaded, "Methods disagree": "22.40 m² by polygon_x_scale", "30.00 m² by printed_label", and the rule that kept 30.00 | yes |
-| 7 | Ask "What colour is the roof?" | "I can't answer that from this drawing.", the reason, code `unsupported-question`, questions it can answer; no number | yes |
-| 8 | Click "Surveyor" | The project's conflicts: "area of room (name 1.01)" and "area of room (name küche)", each "plans/flat-b.pdf", "22.40 m² vs 30.00 m²", "decided by rule" | yes |
+| 6 | Ask "What is the net floor area of room 1.01?" | `30.00 m²`, the kitchen shaded, "Methods disagree": "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas", and the rule that kept 30.00 | yes |
+| 7 | Ask "What colour is the roof?" | "I can't answer that from this drawing.", the reason in words (no code shown), questions it can answer; no number | yes |
+| 8 | Click "Surveyor" | The project's conflicts: "area of room (name 1.01)" and "area of room (name Küche)", each "plans/flat-b.pdf", "22.40 m² vs 30.00 m²", "decided by rule" | yes |
 
 Steps after the QA blitz (surveyor settle, sign-off, verified answer, CSV export) are in
 [golden-path.md](specs/frontend/golden-path.md) "User flow", steps 8-12.

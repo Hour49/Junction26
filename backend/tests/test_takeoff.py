@@ -1,6 +1,8 @@
 """Stages 9-10 beyond plain counts: the counting rules as data, areas, lengths and volumes, and
 the filters (label, name, apartment, storey) a query looks a quantity up by."""
 
+import re
+
 from app.core.answering.model import Query
 from app.core.drawing.model import (
     Apartment,
@@ -17,6 +19,8 @@ from app.core.drawing.model import (
     Scale,
     Subject,
 )
+from app.core.pipeline import rules
+from app.core.pipeline.model import CountingRule
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
     ELEMENT_QUANTITY,
@@ -601,7 +605,7 @@ def test_the_items_a_rule_leaves_out_are_listed_with_the_reason() -> None:
     found = sauna[Query(subject="sauna").key()]
     assert found.value == 1
     assert found.excluded == (
-        (Mark(page=1, box=stove_box), f"room:sauna counted instead ({SAUNA_ROOM_ELSE_STOVE.id})"),
+        (Mark(page=1, box=stove_box), "sauna rooms counted instead of sauna stoves"),
     )
     assert known_quantities(drawing(elements=(stove,)))[Query(subject="sauna").key()].excluded == ()
     rooms = (
@@ -670,3 +674,11 @@ def test_a_sheet_s_count_leaves_out_what_another_storey_shows_through_the_cut() 
         (Mark(page=1, box=below), "on storey P1 in the building model, seen through the cut"),
     )
     assert value(found, Query(subject="wall", storey="P1")) == 1
+
+
+def test_no_rule_shows_the_user_an_internal_id_or_note() -> None:
+    """R3 (F4): a card showed "room:sauna counted instead (sauna-room-else-stove)"; rule texts
+    cited internal notes ("review-1 section 7", "(review-4)")."""
+    texts = [found.text for found in vars(rules).values() if isinstance(found, CountingRule)]
+    for text in texts:
+        assert not re.search(r"review-\d|room:|_stove|\(\w+(-\w+)+\)", text), text

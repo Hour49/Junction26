@@ -727,6 +727,9 @@ class GateResult(BaseModel):
         description="--family-arm: family -> the arm (folder under data/stoa/exp) answering it "
         "instead of `arm`",
     )
+    swap: str | None = Field(
+        default=None, description="--swap: the Decisions count swap arm applied to `arm`'s answers"
+    )
     part: str
     images: int = Field(description="the images the signals are compared and the gate set on")
     seed: int
@@ -780,6 +783,15 @@ class GateFamily(BaseModel):
     val: GateVal
 
 
+class GateTest(BaseModel):
+    """The single test run of the same gate (`gate --part test --certify`) and what it showed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(description="the test gate JSON")
+    certificate: Certificate
+
+
 class GatePolicy(BaseModel):
     """gate_policy_v1 (data/stoa/exp/gate.json): per family, when an answer may be marked sure.
     Only families whose gate opens on val and marks at least one val answer sure are listed (a
@@ -798,18 +810,45 @@ class GatePolicy(BaseModel):
         default_factory=dict[str, str],
         description="family -> the arm that answered it instead of `arm` (a runtime combination)",
     )
+    swap: str | None = Field(
+        default=None, description="the Decisions count swap applied to `arm`'s answers (S1536)"
+    )
     target: float
     source: str = Field(description="the val gate JSON it was made from")
-    certified: bool = Field(description="false until the single test run certifies the gate")
+    certified: bool = Field(
+        description="true once the single test run of this gate meets the target (`test`)"
+    )
+    test: GateTest | None = Field(default=None, description="that test run; null before it")
     families: dict[str, GateFamily]
 
 
-def gate_policy(result: GateResult, source: str, generated: str) -> GatePolicy:
-    """The product's gate file from a val gate: the families whose gate opens on val answers."""
+def _same_gate(val: GateResult, test: GateResult) -> bool:
+    """`test` ran the gate `val` chose: same arm, split, signal and thresholds."""
+
+    def setup(r: GateResult) -> tuple[object, ...]:
+        families = {f: g.threshold for f, g in r.families.items()}
+        groups = {name: (g.families, g.threshold) for name, g in r.groups.items()}
+        return (r.arm, r.second, r.family_arms, r.swap, r.split_sha256, r.signal, r.target,
+                families, groups)  # fmt: skip
+
+    return test.part == "test" and setup(val) == setup(test)
+
+
+def gate_policy(
+    result: GateResult,
+    source: str,
+    generated: str,
+    test: tuple[GateResult, str] | None = None,
+) -> GatePolicy:
+    """The product's gate file from a val gate: the families whose gate opens on val answers.
+    With `test` (the test run's result and file), certified when its bound meets the target."""
     if result.part != "val":
         raise ValueError(f"{source}: a gate policy is made from the val gate, not {result.part}")
     if result.split_sha256 is None:
         raise ValueError(f"{source}: no split_sha256 (made before it was recorded): rerun the gate")
+    if test is not None and not _same_gate(result, test[0]):
+        raise ValueError(f"{test[1]}: not the test run of the gate in {source}")
+    bound = None if test is None else test[0].certificate.lower_bound
     group_of = {f: name for name, gate in result.groups.items() for f in gate.families}
     families = {
         family: GateFamily(
@@ -830,7 +869,9 @@ def gate_policy(result: GateResult, source: str, generated: str) -> GatePolicy:
     return GatePolicy(
         schema="gate_policy_v1", generated=generated, part="val",
         split_sha256=result.split_sha256, arm=result.arm, second=result.second,
-        family_arms=result.family_arms, target=result.target, source=source, certified=False,
+        family_arms=result.family_arms, swap=result.swap, target=result.target, source=source,
+        certified=bound is not None and bound >= result.target,
+        test=None if test is None else GateTest(source=test[1], certificate=test[0].certificate),
         families=families,
     )  # fmt: skip
 
@@ -901,6 +942,7 @@ def format_gate(result: GateResult) -> str:
         f"## Gate on {result.part}: {result.arm}"
         + (f" (second arm {result.second})" if result.second else ""),
         "",
+        *([f"Answers after the Decisions swap {result.swap}", ""] if result.swap else []),
         *(
             [
                 "Answered by another arm: "

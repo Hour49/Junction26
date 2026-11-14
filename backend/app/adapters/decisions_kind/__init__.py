@@ -34,6 +34,7 @@ from typing import Any
 
 from app.adapters.decisions.client import Decider, DecisionsError
 from app.adapters.pdfium_lock import PDFIUM
+from app.adapters.whole_file import write_whole
 
 # Option text = prototypes/decide2/kind.py KINDS, word for word (the A/B measured these words)
 KINDS: dict[str, str] = {
@@ -161,10 +162,7 @@ class KindReader:
         except DecisionsError as error:
             return KindUnavailable(f"{UNAVAILABLE}: {error}")
         if path is not None:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            part = path.with_suffix(".tmp")
-            part.write_text(json.dumps(reply))
-            part.replace(path)
+            write_whole(path, json.dumps(reply))
         return KindSignal(probs, f"{self._model} in {time.monotonic() - start:.1f} s")
 
     @property

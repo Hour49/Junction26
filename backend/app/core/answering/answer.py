@@ -26,7 +26,8 @@ from app.core.answering.ports import (
 from app.core.answering.tables import answer_table
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.pipeline.model import Quantity
-from app.core.pipeline.takeoff import known_quantities, room_names
+from app.core.pipeline.second_count import METHODS
+from app.core.pipeline.takeoff import known_quantities, normalised, room_names
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ def answer_question(
     tables: Sequence[Table] = (),
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
+    sure_at: Mapping[str, float] | None = None,
 ) -> Answer:
     """`quantities` is the takeoff of the question's drawing (`known_quantities`), or None when
     the file has no drawing model; `tables` the schedules it prints. `prior_families` holds the
@@ -59,7 +61,9 @@ def answer_question(
     (answer_v1.1). Its `answer` is the prior's value for the question's family when there is one
     (with the prior's `confidence`), else None. With `confidence` (DECISIONS_CONFIDENCE), a
     takeoff answer gets its probability as `confidence`; when there is none, the reason is
-    logged, never added to the answer."""
+    logged, never added to the answer. `sure_at` (GATE_POLICY: family -> threshold on that
+    confidence's signal) sets `sure`: true at or above the family's threshold, false below it,
+    None without a probability or for a family it doesn't gate."""
     start = clock()
     parsed = parser.parse(question.text)
     read = _read(parsed)
@@ -114,10 +118,11 @@ def answer_question(
         if confidence is None or isinstance(parsed, Unsupported | TableQuery):
             return read(answer)
         rated = confidence.probability(question.file, parsed.family(), answer.answer)
+        sure = _sure(sure_at, parsed.family(), rated.value)
         if rated.value is None:  # why goes to the log: nothing a reader of the answer can act on
             logger.info("question %d: no confidence: %s", question.id, rated.note)
-            return read(answer)
-        return read(answer.model_copy(update={"confidence": rated.value}))
+            return read(answer.model_copy(update={"sure": sure}))
+        return read(answer.model_copy(update={"confidence": rated.value, "sure": sure}))
     estimate = None
     if not isinstance(parsed, Unsupported):
         source, family = source_of(question.file), parsed.family()
@@ -137,6 +142,12 @@ def answer_question(
             explanation=why,
         )
     )
+
+
+def _sure(sure_at: Mapping[str, float] | None, family: str, value: float | None) -> bool | None:
+    if sure_at is None or family not in sure_at or value is None:
+        return None  # no score (a vector or IFC page, a failed read): the gate has no verdict
+    return value >= sure_at[family]
 
 
 def _read(parsed: Query | TableQuery | Unsupported) -> Callable[[Answer], Answer]:
@@ -172,7 +183,10 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
             )
             for value in disputed.values
         )
-        shown = ", ".join(f"{value.method} {value.value:g}" for value in disputed.values)
+        shown = ", ".join(  # in words, not method ids (R3 qa-2)
+            f"{METHODS.get(value.method, value.method)} {value.value:g}"
+            for value in disputed.values
+        )
         if (rule := disputed.resolution) is not None:
             resolution = f"kept {rule.value:g}: {rule.rule}"
             notes.append(f"two methods disagree ({shown}); {resolution}")
@@ -198,16 +212,22 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
     )
 
 
+SHORT_LABEL = re.compile(r"[^\W\d_a-zäöå]{2}")  # MH, OH, KT: two capitals
+CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
+
+
 class RoomByType:
     """The parser, with the area of a room asked by its type ("the area of the kitchen") turned
     into that room's own area (the key "room 2.01" answers under) when the drawing has exactly one
-    room of the type and the takeoff has its area: one row, with its conflict and review. Any
-    other question, or a type several rooms (or none) have, stays as parsed.
+    room of the type and the takeoff has its area: one row, with its conflict and review (a room
+    with no name, read from its furniture, by the largest of its type: itself). Any other
+    question, or a type several rooms (or none) have, stays as parsed.
 
     The same for a room asked by a printed label or name the parser has no word for ("the area
     of the Reduit"), when the parser refuses the question as typed: when one room on the drawing
-    carries that name (3 letters or more, no digits), the question is read with it as the room's
-    name, and answers when that is an area (R2-2-3)."""
+    carries that name (3 letters or more, no digits; a 2-letter one or one of letters and digits
+    only as printed, "the MH", "the MH1"), the question is read with it as the room's name, and
+    answers when that is an area (R2-2-3, R3-qa-1-1, R3-qa-5-2)."""
 
     def __init__(
         self, parser: QuestionParser, drawing: Drawing, quantities: Mapping[str, Quantity]
@@ -222,7 +242,13 @@ class RoomByType:
             return self._printed(text) or parsed
         if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
             return parsed
-        return self._area_of(rooms[0], parsed) or parsed
+        return self._area_of(rooms[0], parsed) or self._only_one(parsed) or parsed
+
+    def _only_one(self, parsed: Query) -> Query | None:
+        """The one room of the type has no name to key its area by (read from its furniture):
+        the largest room of that type is that room."""
+        query = parsed.model_copy(update={"largest": True})
+        return query if query.key() in self._quantities else None
 
     def _area_of(self, room: Room, parsed: Query) -> Query | None:
         """The area query of `room` by the first of its names the takeoff has a row for."""
@@ -241,10 +267,17 @@ class RoomByType:
         found: dict[str, list[Room]] = {}
         at: dict[str, re.Match[str]] = {}
         for room in self._drawing.rooms:
-            for name in room_names(room):
-                if len(name) < 3 or any(char.isdigit() for char in name):
+            names = [(name, name, re.IGNORECASE) for name in room_names(room) if len(name) > 2]
+            # a 2-letter label (MH, OH) or one of letters and digits (MH1) only as printed,
+            # case-sensitive: never a word ("of", "is"); a room number stays the parser's
+            if room.label and (
+                SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)
+            ):
+                names.append((normalised(room.label), room.label, re.NOFLAG))
+            for name, printed, flags in names:
+                if flags and any(char.isdigit() for char in name):
                     continue
-                match = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.IGNORECASE)
+                match = re.search(rf"(?<!\w){re.escape(printed)}(?!\w)", text, flags)
                 if match is not None:
                     found.setdefault(name, []).append(room)
                     at[name] = match
@@ -287,6 +320,7 @@ def answer_questions(
     prior: AnswerPrior,
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
+    sure_at: Mapping[str, float] | None = None,
 ) -> dict[str, int]:
     """Answers every question, file by file so each drawing model is loaded once, and writes the
     answers to the sink. Returns how many answers each method gave."""
@@ -305,7 +339,15 @@ def answer_questions(
         )
         for question in asked:
             answer = answer_question(
-                question, quantities, reads, clock, prior, tables, prior_families, confidence
+                question,
+                quantities,
+                reads,
+                clock,
+                prior,
+                tables,
+                prior_families,
+                confidence,
+                sure_at,
             )
             sink.write(answer)
             methods[answer.method] += 1

@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { AnswerView, MarkView, PageView, QuantityConflict } from '../api/types';
-import { formatValue } from '../api/format';
+import { formatValue, methodName } from '../api/format';
 import { Credit } from '../shell/Credit';
 import { PageFrame } from './PageFrame';
 import {
@@ -432,7 +432,7 @@ export function PageViewer({
           ))}
           {readings.map((r) => (
             <li key={`r-${r.tag}`}>
-              {r.tag}: {r.method} read {formatValue(r.value, r.unit ?? unit)}
+              {r.tag}: {methodName(r.method)} read {formatValue(r.value, r.unit ?? unit)}
             </li>
           ))}
           {unplaced > 0 && <li>{unplaced} mark(s) could not be placed</li>}

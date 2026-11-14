@@ -142,6 +142,29 @@
   font-size: 2rem;
   font-weight: 700;
 }
+.en-value-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.en-sure {
+  padding: 0 6px;
+  border: 1px solid #1d6b3a;
+  border-radius: 4px;
+  color: #1d6b3a;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+/* Read by screen readers, not shown. */
+.en-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .en-marks {
   list-style: none;
   padding: 0;

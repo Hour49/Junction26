@@ -167,6 +167,7 @@ class DrawingInfo(Frozen):
     route: Route | None = None
     source: str | None = None  # path of the file it was read from, in that project
     normalised: Normalised | None = None
+    flags: tuple[str, ...] = ()  # how the page was read: a phone photo, a scan (Outcome.flags)
 
 
 class SheetFile(Frozen):
@@ -199,3 +200,4 @@ class Outcome(Frozen):
     takeoff: dict[str, int | float] = Field(default_factory=dict[str, int | float])
     stages: tuple[StageTrace, ...] = ()
     normalised: Normalised | None = None
+    flags: tuple[str, ...] = ()  # how the page was read, for every answer (judge.reading_flags)

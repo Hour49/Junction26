@@ -27,6 +27,8 @@ QuestionParserName = Literal["hello", "templates"]  # templates: words to a take
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
 TablesName = Literal["off", "pdf"]
+# gemini: Google's API. eu: our open model on Verda (app/adapters/openvlm/)
+ProviderName = Literal["gemini", "eu"]
 # off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
 RasterScaleName = Literal["off", "priors"]
 
@@ -42,6 +44,10 @@ class Settings(BaseSettings):
     tables: TablesName = "pdf"
     # part=source pairs for EXTRACTOR_RASTER=composite (app/adapters/raster/__init__.py)
     raster_components: str = ""
+    # The same for the files ingest identified as camera photos of a plan (photo_plan), e.g. a
+    # detector trained on phone photos; empty: photos are read like every other raster
+    # (app/adapters/raster/photo.py)
+    raster_photo_components: str = ""
     # priors: the raster route estimates a missing scale from its detected doors (none detected:
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
@@ -62,6 +68,16 @@ class Settings(BaseSettings):
     # The sheet-kind signal at ingest (app/adapters/decisions_kind/, same key, timeout and cache
     # folder): Gemini's photo-of-a-plan flag and P(floor plan) for each uploaded image or PDF
     decisions_kind: bool = False
+    # EU open models (app/adapters/openvlm/): our vLLM server on Verda (Finland), reached by an SSH
+    # tunnel. Each Gemini step picks its provider; "eu" sends it to this server instead (no
+    # fallback to Gemini on an error). URL, key (never logged), model, seconds per request
+    eu_vlm_base_url: str = "http://127.0.0.1:18431/v1"
+    eu_vlm_api_key: SecretStr = SecretStr("")
+    eu_vlm_model: str = "Qwen/Qwen3.8-27B-FP8"
+    eu_vlm_timeout_s: float = 300.0
+    rooms_provider: ProviderName = "gemini"  # the room reader (sources gemini, regionrooms)
+    decisions_provider: ProviderName = "gemini"  # G1main counts: swap and answer confidence
+    kind_provider: ProviderName = "gemini"  # the sheet-kind signal (DECISIONS_KIND)
     # The detector served on Verda (app/adapters/raster_remote/, source `verda`), built only when
     # RASTER_COMPONENTS names it: endpoint URL, inference key (never logged), requests open at once
     verda_reader_url: str = ""
@@ -76,6 +92,9 @@ class Settings(BaseSettings):
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when
     # the drawing gives a value (app/adapters/answer_policy.py); "" none
     answer_policy: str = ""
+    # golden's gate.json (gate_policy_v1): per family, the confidence at or above which an answer
+    # is marked sure (app/adapters/gate_policy.py); needs DECISIONS_CONFIDENCE; "" none
+    gate_policy: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample

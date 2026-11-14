@@ -188,7 +188,7 @@ def test_a_row_carries_its_parsed_scope(client: TestClient, drawing_id: str) -> 
     takeoff = client.get(f"/api/drawings/{drawing_id}/takeoff").json()
     found = row(takeoff, "area:room|name=küche")
     assert (found["measure"], found["subject"], found["label"]) == (
-        "area", "room", "area of room (name küche)",
+        "area", "room", "area of room (name Küche)",
     )  # fmt: skip
     assert found["scope"]["name"] == "küche"
 
@@ -368,6 +368,24 @@ def test_an_answer_carries_the_pipeline_s_score_named_and_uncalibrated_never_in_
     assert "decisions" not in (answer["explanation"] or "")
 
 
+def test_an_answer_is_sure_by_golden_s_gate_and_has_no_verdict_without_a_score(
+    client: TestClient, plan_pdf: bytes, raster: tuple[TestClient, str]
+) -> None:
+    images, drawing_id = raster
+    seen: list[tuple[str, str, object, bytes]] = []
+    for gate, sure in (({"door": 0.8}, True), ({"door": 0.9}, False), ({"window": 0.1}, None)):
+        for app in (images, client):
+            state = cast(FastAPI, app.app).state
+            state.answering = replace(
+                state.answering, confidence=partial(Rated, seen), signal=DECISIONS_SIGNAL,
+                sure_at=gate,
+            )  # fmt: skip
+        assert ask(images, drawing_id, DOORS)["line"]["sure"] is sure  # Rated says 0.87
+    vector = client.get(f"/api/projects/{upload(client, plan_pdf)}").json()["drawings"][0]
+    line = ask(client, vector["drawing_id"], DOORS)["line"]  # vector route: no score
+    assert (line["answer"], line["sure"]) == (2, None)
+
+
 def test_a_count_of_rooms_has_one_key_whatever_each_room_is_called(
     raster: tuple[TestClient, str],
 ) -> None:
@@ -388,7 +406,7 @@ def test_a_settled_room_area_shows_the_settled_value_on_its_mark_and_in_its_sum(
     before = ask(client, drawing_id, "What is the net floor area of room 1.01?")
     assert before["quantity"]["key"] == key
     assert [mark["value"] for mark in before["marks"]] == [30.0]
-    assert before["proof"]["arithmetic"] == "30 = 30 m²"
+    assert before["proof"]["arithmetic"] is None  # one part: no "30 = 30 m²" (R3 qa-2)
     outline = before["quantity"]["first"]
     assert outline["method"] == "polygon_x_scale"
 
@@ -396,7 +414,7 @@ def test_a_settled_room_area_shows_the_settled_value_on_its_mark_and_in_its_sum(
     after = ask(client, drawing_id, "What is the net floor area of room 1.01?")
     assert after["answer"] == pytest.approx(22.40, abs=0.01)
     assert [mark["value"] for mark in after["marks"]] == [outline["value"]]
-    assert after["proof"]["arithmetic"] == "22.4 = 22.4 m²; settled by a person, was 30 m²"
+    assert after["proof"]["arithmetic"] == "settled by a person, was 30 m²"
 
 
 class PaidRated(Rated):
