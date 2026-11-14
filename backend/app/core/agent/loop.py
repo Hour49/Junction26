@@ -254,6 +254,7 @@ class _Run:
         self.reviewed_refusal = False  # the reviewed answer was a refusal on every drawing
         self.printed: set[str] = set()  # the room labels find_rooms returned this turn
         self.did_review = False  # review_answer ran this turn (no "Are you sure?" chip after it)
+        self.review_text = ""  # what the model read of this turn's review (a repeat call gets it)
         self.review: list[Json] = []  # the reviewed drawings (value, level, range)
         self.pushed: float | None = None  # the number a doubt offers ("could it be 30?")
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
@@ -697,6 +698,8 @@ class _Run:
         """review_answer (item 3): the chat's latest ask_drawings result as its readers judged
         it. It is a tool result of this turn (its numbers back the answer) and its answer card
         comes back with the turn."""
+        if self.did_review:  # review-339b N1: reviewed already this turn: no second step
+            return self._reply(call, self.review_text)
         start = self.clock()
         reviewed = self._reviewed()
         if reviewed is None:
@@ -726,7 +729,8 @@ class _Run:
         drawings: list[Json] = found["drawings"]
         self.review = drawings
         self.reviewed_refusal = bool(drawings) and all("refused" in d for d in drawings)
-        return _for_model(found)
+        self.review_text = _for_model(found)
+        return self.review_text
 
     def _loop_step(self, start: float, label: str, status: str, tool: str) -> None:
         """The step of a tool the loop runs itself: its tool_result event."""
