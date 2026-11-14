@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # gold-labels is for a source that reads printed labels: it turns every unlabelled bedroom
     # into `other`
     room_policy: RoomPolicyName = "furniture"
+    # More readers of each raster sheet, <name>=<source> pairs with RASTER_COMPONENTS' sources,
+    # e.g. l1=detector:C-yolo26l,m1=detector:C-yolo26m. What each saw is kept with the drawing and
+    # never counted: an answer uses it to say where the readers disagree with it
+    # (app/core/pipeline/disputed_marks.py). Empty: none
+    double_check_readers: str = ""
     # The Gemini room reader of the raster route (app/adapters/raster_ocr/gemini.py), built only
     # when RASTER_COMPONENTS names it: its key (never logged), model, time limit per page, and
     # the folder its replies are cached in (gitignored)

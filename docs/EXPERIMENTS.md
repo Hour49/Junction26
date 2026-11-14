@@ -524,6 +524,16 @@ answer. Through the backend function that set lists an error of 93 of the 170 wr
 leaf), which no disagreement shows. Listing the strongest disputes first is worth nothing measurable on val: the first
 five in reading order reach 94 of 170. Log: `think-local.md`.
 
+**Double-check readers at ingest (`DOUBLE_CHECK_READERS`, 2026-11-14, default off).** The setting names more sources
+to read each raster sheet with; what each saw is stored with the drawing (`double_check`) and is never counted.
+Timed through the backend's adapters on the first 20 val pages (ONNX Runtime, 4 CPU threads, nice 19, load average 6
+to 7 on 16 cores, the PNG decode included), median per page: the detector in one view (C-yolo26l) 0.39 s wall and
+1.57 s of CPU; the second detector in one view (C-yolo26m) 0.21 s and 0.85 s; the segmentation network (B-long, one
+pass, rooms) 1.04 s and 3.54 s; for reference the detector's eight views 1.98 s and 7.93 s. All three readers add
+about 1.6 s of wall time per page, or 0.6 s when the segmentation network already gives the rooms, since a source
+that is a part and a reader reads the sheet once. Not measured: the segmentation source turning its icon map into
+elements, which it does not do yet.
+
 ---
 
 ## What shipped (the demo config)

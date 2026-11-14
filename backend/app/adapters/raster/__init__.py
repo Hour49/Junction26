@@ -22,6 +22,15 @@ plan does), so plan ids stay consistent whichever source an item came from. Ids 
 
 `room_policy` (ROOM_POLICY, app/core/pipeline/room_policy.py) retypes the rooms' source's rooms
 before they are placed, whichever source that is; None keeps the reader's types.
+
+`DOUBLE_CHECK_READERS` names more sources to read each sheet with, `<reader name>=<source>` pairs:
+
+    l1=detector:C-yolo26l,m1=detector:C-yolo26m
+
+What a reader saw is kept next to the drawing (`double_check`, by reader name: the classes it
+looked for and its elements, renumbered and put on the plans like a part's) and is never
+counted. It is there for an answer to say where the readers disagree with it
+(app/core/pipeline/disputed_marks.py). A source that is also a part reads the sheet once.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -34,10 +43,12 @@ from app.core.drawing.model import (
     ElementClass,
     Plan,
     ReadClass,
+    ReaderView,
     Room,
     Scale,
 )
 from app.core.errors import InvalidInputError
+from app.core.pipeline.disputed_marks import ANSWER
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
 
@@ -78,13 +89,35 @@ def parse_components(spec: str) -> dict[str, str]:
     return parts
 
 
+def parse_readers(spec: str) -> dict[str, str]:
+    """`DOUBLE_CHECK_READERS` as {reader name: source name}, in the order given. Refuses a pair
+    without a name or a source, a name given twice, and the name the count itself has."""
+    readers: dict[str, str] = {}
+    for item in (piece.strip() for piece in spec.split(",")):
+        if not item:
+            continue
+        name, sep, source = (text.strip() for text in item.partition("="))
+        if not sep or not name or not source:
+            raise InvalidInputError(f"DOUBLE_CHECK_READERS: {item!r} is not <name>=<source>")
+        if name == ANSWER:
+            raise InvalidInputError(
+                f"DOUBLE_CHECK_READERS: {name!r} is the count itself, give the reader another name"
+            )
+        if name in readers:
+            raise InvalidInputError(f"DOUBLE_CHECK_READERS: {name!r} is given twice")
+        readers[name] = source
+    return readers
+
+
 def assemble(
     parts: Mapping[str, str],
     build: Callable[[str], Extractor],
     room_policy: RoomPolicy | None = None,
+    double_check: Mapping[str, str] | None = None,
 ) -> "CompositeRasterExtractor":
-    """The composite for parsed parts; `build` makes the reader of a source name, called once
-    per distinct name, so two parts from one source read the sheet once."""
+    """The composite for parsed parts and parsed double-check readers; `build` makes the reader
+    of a source name, called once per distinct name, so two parts from one source read the sheet
+    once."""
     readers: dict[str, Component] = {}
 
     def component(name: str) -> Component:
@@ -104,6 +137,7 @@ def assemble(
         plans=component(parts["plans"]),
         scale=None if scale is None else component(scale),
         room_policy=room_policy,
+        double_check={name: component(source) for name, source in (double_check or {}).items()},
     )
 
 
@@ -116,7 +150,9 @@ class CompositeRasterExtractor:
         plans: Component,
         scale: Component | None,
         room_policy: RoomPolicy | None = None,
+        double_check: Mapping[str, Component] | None = None,
     ) -> None:
+        self._double_check = dict(double_check or {})
         self._elements = dict(elements)
         self._rooms = rooms
         self._plans = plans
@@ -180,7 +216,14 @@ class CompositeRasterExtractor:
                 for index, room in enumerate(typed, start=1)
             ]
         scale = Scale(status="no_scale") if self._scale is None else read_by(self._scale).scale
+        seen = {
+            name: _view(read_by(component), plans, component.name)
+            for name, component in self._double_check.items()
+        }
         notes = [f"raster composite: {_who(self.parts())}"]
+        if seen:
+            named = (f"{name}: {component.name}" for name, component in self._double_check.items())
+            notes.append(f"double-check readers: {'; '.join(named)}")
         for name, got in found.items():
             notes.extend(f"{name}: {note}" for note in got.notes)
         if retyped is not None:
@@ -192,6 +235,7 @@ class CompositeRasterExtractor:
             elements=tuple(elements),
             rooms=tuple(rooms),
             read=tuple(read),
+            double_check=seen or None,
             notes=tuple(notes),
         )
 
@@ -208,6 +252,28 @@ class CompositeRasterExtractor:
 
 def _looked_for(read: Sequence[ReadClass] | None, kind: ReadClass) -> bool:
     return read is None or kind in read
+
+
+def _view(got: Extracted, plans: Sequence[Plan], source: str) -> ReaderView:
+    """A double-check reader's reading: the element classes it looked for and its elements of
+    them, renumbered, each on the plan that holds its centre."""
+    read: tuple[ElementClass, ...] = tuple(
+        kind for kind in ELEMENT_CLASSES if _looked_for(got.read, kind)
+    )
+    elements = (element for element in got.elements if element.class_ in read)
+    return ReaderView(
+        read=read,
+        elements=tuple(
+            element.model_copy(
+                update={
+                    "id": f"e{index}",
+                    "plan": _plan_of(plans, element.page, element.box),
+                    "attrs": {**element.attrs, "component": source},
+                }
+            )
+            for index, element in enumerate(elements, start=1)
+        ),
+    )
 
 
 def _plan_of(plans: Sequence[Plan], page: int, box: Box) -> str | None:

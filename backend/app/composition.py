@@ -49,7 +49,7 @@ from app.adapters.paths import inside
 from app.adapters.pdf_tables import PdfTables
 from app.adapters.pdf_tables.schedule_check import ScheduleTagCounter
 from app.adapters.question_templates import TemplateParser
-from app.adapters.raster import RoomPolicy, assemble, parse_components
+from app.adapters.raster import RoomPolicy, assemble, parse_components, parse_readers
 from app.adapters.raster.photo import PhotoSwitch
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
 from app.adapters.raster_detector import OnnxDetector
@@ -352,6 +352,8 @@ def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> 
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
         names["room_policy"] = settings.room_policy
+    if settings.double_check_readers:  # the same
+        names["double_check_readers"] = settings.double_check_readers
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -400,15 +402,22 @@ def _raster(
         case "hello":
             if photo:
                 raise InvalidInputError("RASTER_PHOTO_COMPONENTS needs EXTRACTOR_RASTER=composite")
+            if settings.double_check_readers:
+                raise InvalidInputError("DOUBLE_CHECK_READERS needs EXTRACTOR_RASTER=composite")
             return HelloExtractor()
         case "composite":
             built = cache(lambda source: _raster_component(source, settings, files, decisions))
             policy = _room_policy(settings.room_policy)
-            shipped = _composite("RASTER_COMPONENTS", settings.raster_components, built, policy)
+            checks = _double_check(settings.double_check_readers, built)
+            shipped = _composite(
+                "RASTER_COMPONENTS", settings.raster_components, built, policy, checks
+            )
             if not photo:
                 return shipped
             return PhotoSwitch(
-                shipped, _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy), kind_of
+                shipped,
+                _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
+                kind_of,
             )
 
 
@@ -420,12 +429,28 @@ def _room_policy(name: RoomPolicyName) -> RoomPolicy | None:
             return gold_label_rooms
 
 
+def _double_check(readers: str, build: Callable[[str], Extractor]) -> dict[str, str]:
+    """DOUBLE_CHECK_READERS parsed, each source built once here (`build` is cached), so one that
+    does not build is refused under the setting's own name."""
+    try:
+        checks = parse_readers(readers)
+        for source in checks.values():
+            build(source)
+    except DomainError as error:
+        raise InvalidInputError(f"DOUBLE_CHECK_READERS={readers!r}: {error}") from error
+    return checks
+
+
 def _composite(
-    name: str, components: str, build: Callable[[str], Extractor], policy: RoomPolicy | None
+    name: str,
+    components: str,
+    build: Callable[[str], Extractor],
+    policy: RoomPolicy | None,
+    checks: Mapping[str, str],
 ) -> Extractor:
     """A spec's composite; a source both specs name is built once (`build` is cached)."""
     try:
-        return assemble(parse_components(components), build, policy)
+        return assemble(parse_components(components), build, policy, checks)
     except DomainError as error:
         raise InvalidInputError(f"{name}={components!r}: {error}") from error
 
