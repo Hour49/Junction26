@@ -8,7 +8,7 @@ from fastapi.responses import Response
 
 from app.adapters.evidence_render import render as render_evidence
 from app.adapters.page_render import render_png
-from app.api.ask import QUESTION_CHARS, asked_on, shown_value
+from app.api.ask import QUESTION_CHARS, asked_on, no_reader_of, shown_value
 from app.api.deps import (
     AnsweringDep,
     Credits,
@@ -139,6 +139,7 @@ def evidence_png(
     reviews: ReviewsDep,
     answering: AnsweringDep,
     credits: CreditsDep,
+    settings: SettingsDep,
     width: Annotated[int, Query(description="400, 1600 or 3200")] = 1600,
     project: Annotated[str | None, Query(description="the project asked in: its edits")] = None,
 ) -> Response:
@@ -146,7 +147,10 @@ def evidence_png(
     gives it, that project's edits applied. Not cached: a review edit changes it."""
     drawing = ingest.drawing(drawing_id)
     owner = project_of(ingest, drawing_id, project)
-    asked = asked_on(question, drawing, drawing_id, reviews, answering, ingest, owner)
+    asked = asked_on(
+        question, drawing, drawing_id, reviews, answering, ingest, owner,
+        no_reader_of(drawing_id, ingest, settings),
+    )  # fmt: skip
     page = next((mark.page for mark in asked.marks), 1)
     if asked.proof.schedule is not None:
         page = asked.proof.schedule.page

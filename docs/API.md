@@ -204,6 +204,11 @@ Without it a second sample run is all `reused: true`.
 
 Every project, newest first: open one ingested earlier when a live ingest is slow.
 
+`to_review` and `conflicts_open` are null until the project is `done`. `to_review`: the quantities left to review
+over its drawings (the review queue). `conflicts_open`: the conflicts a person still has to settle, that is rows
+with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
+decided ("settled by a rule") or a person settled is not open. A room's several names count once.
+
 <!-- fixture: project_list.json -->
 ```json
 {
@@ -215,8 +220,8 @@ Every project, newest first: open one ingested earlier when a live ingest is slo
       "created_at": "2026-11-14T08:00:00+00:00",
       "files": 11,
       "drawings": 5,
-      "to_review": 2,
-      "conflicts_open": 2
+      "to_review": 1,
+      "conflicts_open": 0
     }
   ]
 }
@@ -2309,7 +2314,7 @@ many quantities are left to review and how many are signed off, and every confli
     {
       "drawing_id": "6d153ea15dca9ab4",
       "file": "plans/flat-b.pdf",
-      "to_review": 2,
+      "to_review": 1,
       "signed": 0,
       "quantities": 63
     },
@@ -2340,7 +2345,7 @@ many quantities are left to review and how many are signed off, and every confli
       "drawing_id": "6d153ea15dca9ab4",
       "file": "plans/flat-b.pdf",
       "quantity": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "conflict": {
         "values": [
           {
@@ -3490,7 +3495,7 @@ A question the drawing cannot answer:
 | `unsupported-question` | the question is not one the parser turns into a count, area, length or volume |
 | `not-in-drawing` | the drawing does not give this quantity (or no schedule on the sheet answers it) |
 | `not-read` | the reader of this drawing does not look for that class, so it has no count of it |
-| `no-reader` | nothing was read from the sheet (no reader for its route yet), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
+| `no-reader` | nothing was read from the sheet (no reader for its route yet: the text says so; a reader that found nothing says that instead), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
 | `no-scale` | an area or length on a sheet without a scale |
 | `no-drawing` | the file has no drawing model |
 
@@ -3529,7 +3534,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
   "confidence": null,
   "quantity": {
     "key": "area:room|name=1.01",
-    "label": "area of room (name 1.01)",
+    "label": "area of room (name Küche · 1.01)",
     "measure": "area",
     "subject": "room",
     "scope": {
@@ -3790,7 +3795,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
   "confidence": null,
   "quantity": {
     "key": "area:room|name=1.01",
-    "label": "area of room (name 1.01)",
+    "label": "area of room (name Küche · 1.01)",
     "measure": "area",
     "subject": "room",
     "scope": {
@@ -4179,7 +4184,7 @@ any project, which no project shows. A project that does not hold the drawing is
   "quantities": [
     {
       "key": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "measure": "area",
       "subject": "room",
       "scope": {
@@ -4462,8 +4467,7 @@ any project, which no project shows. A project that does not hold the drawing is
     }
   ],
   "review_queue": [
-    "area:room|name=1.01",
-    "area:room|name=küche"
+    "area:room|name=1.01"
   ]
 }
 ```
@@ -4767,7 +4771,7 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
     },
     {
       "key": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "measure": "area",
       "subject": "room",
       "scope": {
@@ -4879,9 +4883,7 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
       "noun": null
     }
   ],
-  "review_queue": [
-    "area:room|name=küche"
-  ]
+  "review_queue": []
 }
 ```
 
@@ -4909,6 +4911,14 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, text and behaviour (board #14, pre-QA sweep): a room the takeoff keys under several names (number,
+  name, "name (number)") is one conflict in `GET /api/projects/{id}/review`, one entry in `review_queue` and one
+  decision: settling or signing any of its rows settles and signs them all (the rows stay, each with its own
+  `key`). A room's rows are labelled with its printed name ("area of room (name Küche)"; the row of its
+  number "area of room (name Küche · 1.01)", was "(name 1.01)"). `ProjectSummary.conflicts_open` is the conflicts a person still has to settle
+  (`needs_person`: the methods disagree, no rule decides, nobody settled it), no longer those a rule decided or a
+  person settled; `to_review` is unchanged. A `no-reader` refusal on a route with no reader (the stand-in) says
+  "there is no reader for this kind of sheet yet", not that a reader found no elements.
 - 2026-11-14, additive (board #14): `POST /api/drawings/{id}/signoff` takes an optional `settle: true`: the
   quantity's current value is settled and signed off in one call (same 409 rules; with `undo` it is 422).
 - 2026-11-14, additive (the Vellum redesign's fields, part 2, board #14): review action `unsettle` (drops the settled

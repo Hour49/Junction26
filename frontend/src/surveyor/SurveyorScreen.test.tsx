@@ -140,7 +140,9 @@ describe('loading and routing', () => {
   it('SV-4 selects ?q=, else the first queue row, else the default', async () => {
     show();
     await ready();
-    expect(within(detail()).getByRole('heading').textContent).toContain('area of room (name 1.01)');
+    expect(within(detail()).getByRole('heading').textContent).toContain(
+      'area of room (name Küche · 1.01)',
+    );
     cleanup();
     show(new URLSearchParams({ q: 'door' }).toString());
     await ready();
@@ -148,7 +150,9 @@ describe('loading and routing', () => {
     cleanup();
     show('q=nothing');
     await ready();
-    expect(within(detail()).getByRole('heading').textContent).toContain('area of room (name 1.01)');
+    expect(within(detail()).getByRole('heading').textContent).toContain(
+      'area of room (name Küche · 1.01)',
+    );
   });
 
   it('SV-5 selecting a row replaces ?q= without a history entry', async () => {
