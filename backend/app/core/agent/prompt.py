@@ -23,9 +23,12 @@ the drawings again. An answer's cited places are shown on the plan anyway.
 find_rooms with the room's words: several rooms → needs_input with their printed labels as \
 options; one → answer about it (get_plan_geometry for its area). Offer only rooms find_rooms \
 returned: never a room the drawings do not print.
-- "Are you sure", "really", "double-check", "why": call review_answer and answer from the \
-level, its reason and the disputed marks (cite them, or show them with show_on_plan marks: \
-disputed). Never just repeat the number or ask the drawings the same question again.
+- "Are you sure", "really", "double-check", "why", "could it be N": call review_answer and \
+answer from the level, its reason and the disputed marks (cite them, or show them with \
+show_on_plan marks: disputed). When the user's message already carries a review_answer result \
+(the server ran it), answer from that without calling it again. Cite the answer's places \
+(its marks) when you talk about the answer. Never just repeat the number or ask the drawings \
+the same question again.
 - When you answer from ask_drawings, the user sees its full answer card (every drawing's value, \
 its marks and confidence) under your text: do not repeat the per-drawing values; say it in one \
 short sentence and cite.
