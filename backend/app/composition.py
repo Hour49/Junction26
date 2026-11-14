@@ -48,6 +48,7 @@ from app.adapters.pdf_tables import PdfTables
 from app.adapters.pdf_tables.schedule_check import ScheduleTagCounter
 from app.adapters.question_templates import TemplateParser
 from app.adapters.raster import assemble, parse_components
+from app.adapters.raster.photo import PhotoSwitch
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
 from app.adapters.raster_detector import OnnxDetector
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, GeminiRoomReader
@@ -96,6 +97,8 @@ from app.settings import (
 EXP_DIR = Path(__file__).resolve().parents[2] / "data" / "stoa" / "exp"
 # core's exported detectors: data/models/detector/<arm>/ (RASTER_COMPONENTS detector:<arm>).
 DETECTOR_DIR = Path(__file__).resolve().parents[2] / "data" / "models" / "detector"
+# photo:<arm>: a detector trained on phone photos (photo track), data/models/photo/<arm>/
+PHOTO_DIR = Path(__file__).resolve().parents[2] / "data" / "models" / "photo"
 UVDOC_MODEL = Path(__file__).resolve().parents[2] / "data" / "models" / "photo" / "uvdoc.onnx"
 # core's tune runs (counts.py tune): detector:<arm>:<run> reads <run>.thresholds.json from here.
 DETECTOR_RUNS = EXP_DIR / "detector" / "raw"
@@ -150,9 +153,14 @@ class Pipeline:
         )
 
 
-def build_pipeline(settings: Settings, dataset: Path) -> Pipeline:
-    """`dataset` is the folder that the drawings' paths (`data/<source>/<name>`) are relative to."""
+def build_pipeline(
+    settings: Settings, dataset: Path, kinds: Callable[[str], str | None] | None = None
+) -> Pipeline:
+    """`dataset` is the folder that the drawings' paths (`data/<source>/<name>`) are relative to.
+    `kinds` gives the content kind ingest identified a file as, by its path; None: the content
+    probe is asked (the CLI reads the dataset's files as they are)."""
     files = DatasetFiles(dataset)
+    kind_of = kinds or _probed_kinds(settings, files)
     models = IfcModels(files)
     # A sheet is paired with its building model only when the model route can read it.
     with_models = settings.extractor_bim == "ifc"
@@ -172,7 +180,9 @@ def build_pipeline(settings: Settings, dataset: Path) -> Pipeline:
             # whose page 1 is not a vector plan is read here, so its schedules are read (and its
             # schedule checks noted) as on the vector route.
             "raster": _tables(
-                settings.tables, _scaled(settings, _raster(settings, files, decisions)), files
+                settings.tables,
+                _scaled(settings, _raster(settings, files, decisions, kind_of)),
+                files,
             ),
         },
         second_counter=_checked(
@@ -188,6 +198,23 @@ def build_pipeline(settings: Settings, dataset: Path) -> Pipeline:
         if settings.decisions_confidence
         else None,
     )
+
+
+def _probed_kinds(settings: Settings, files: DrawingFiles) -> Callable[[str], str | None]:
+    """A file's content kind from ingest's probe, made only when asked."""
+    probe = cache(lambda: _probe(settings))
+    return lambda path: probe().probe(files.read(path)).kind
+
+
+def _stored_kinds(store: DiskProjectStore, project_id: str) -> Callable[[str], str | None]:
+    """The content kind ingest recorded for a project's file (saved before the readers run): the
+    file the readers see may be the rectified page, which no longer looks like a photo."""
+
+    def kind_of(path: str) -> str | None:
+        status, _ = store.load_project(project_id)
+        return next((file.kind for file in status.files if file.path == path), None)
+
+    return kind_of
 
 
 def _probe(settings: Settings) -> ContentProbe:
@@ -307,13 +334,17 @@ def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> 
     }
     if settings.raster_scale != "off":  # named only when on: the default keeps its cache keys
         names["raster_scale"] = settings.raster_scale
+    if settings.raster_photo_components:  # the same
+        names["raster_photo_components"] = settings.raster_photo_components
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
         frame=ExifFrame(),
         rectifier=_rectifier(settings.rectifier),
         store=store,
-        readers=lambda project_id: build_pipeline(settings, store.files_dir(project_id)),
+        readers=lambda project_id: build_pipeline(
+            settings, store.files_dir(project_id), _stored_kinds(store, project_id)
+        ),
         reader_names=names,
         runner=ThreadRunner() if background else InlineRunner(),
         clock=time.perf_counter,
@@ -343,20 +374,33 @@ def _tables(name: TablesName, inner: Extractor, files: DrawingFiles) -> Extracto
 
 
 def _raster(
-    settings: Settings, files: DrawingFiles, decisions: Callable[[], G1MainReader]
+    settings: Settings,
+    files: DrawingFiles,
+    decisions: Callable[[], G1MainReader],
+    kind_of: Callable[[str], str | None],
 ) -> Extractor:
-    components = settings.raster_components
+    photo = settings.raster_photo_components
     match settings.extractor_raster:
         case "hello":
+            if photo:
+                raise InvalidInputError("RASTER_PHOTO_COMPONENTS needs EXTRACTOR_RASTER=composite")
             return HelloExtractor()
         case "composite":
-            try:
-                return assemble(
-                    parse_components(components),
-                    lambda source: _raster_component(source, settings, files, decisions),
-                )
-            except DomainError as error:
-                raise InvalidInputError(f"RASTER_COMPONENTS={components!r}: {error}") from error
+            built = cache(lambda source: _raster_component(source, settings, files, decisions))
+            shipped = _composite("RASTER_COMPONENTS", settings.raster_components, built)
+            if not photo:
+                return shipped
+            return PhotoSwitch(
+                shipped, _composite("RASTER_PHOTO_COMPONENTS", photo, built), kind_of
+            )
+
+
+def _composite(name: str, components: str, build: Callable[[str], Extractor]) -> Extractor:
+    """A spec's composite; a source both specs name is built once (`build` is cached)."""
+    try:
+        return assemble(parse_components(components), build)
+    except DomainError as error:
+        raise InvalidInputError(f"{name}={components!r}: {error}") from error
 
 
 def _scaled(settings: Settings, inner: Extractor) -> Extractor:
@@ -405,6 +449,8 @@ def _raster_component(
                 raise InvalidInputError("RASTER_COMPONENTS: regionrooms needs REGION_MODEL_DIR")
             region = SegmenterRegion(*load_region(Path(settings.region_model_dir)))
             return RegionRooms(_gemini_rooms(settings, files), files, region)
+        case "photo" if where:
+            return OnnxDetector.from_folder(files, inside(PHOTO_DIR, where))
         case "region" if where:
             region = Path(settings.region_model_dir) if settings.region_model_dir else None
             return RegionDetector.from_folders(files, inside(DETECTOR_DIR, where), region)
@@ -417,8 +463,9 @@ def _raster_component(
         case _:
             raise InvalidInputError(
                 f"RASTER_COMPONENTS: unknown source {source!r}; sources are "
-                "exp:<track>/<arm>, dir:<path>, detector:<arm>[:<tune run>], region:<arm>, verda, "
-                "gemini, regionrooms, decisions:<source>, decisions-s1536:<source> and one-plan"
+                "exp:<track>/<arm>, dir:<path>, detector:<arm>[:<tune run>], photo:<arm>, "
+                "region:<arm>, verda, gemini, regionrooms, decisions:<source>, "
+                "decisions-s1536:<source> and one-plan"
             )
 
 

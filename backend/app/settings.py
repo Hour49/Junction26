@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     tables: TablesName = "pdf"
     # part=source pairs for EXTRACTOR_RASTER=composite (app/adapters/raster/__init__.py)
     raster_components: str = ""
+    # The same for the files ingest identified as camera photos of a plan (photo_plan), e.g. a
+    # detector trained on phone photos; empty: photos are read like every other raster
+    # (app/adapters/raster/photo.py)
+    raster_photo_components: str = ""
     # priors: the raster route estimates a missing scale from its detected doors (none detected:
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
