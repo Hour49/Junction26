@@ -204,6 +204,27 @@ def test_grounded_counts_a_list_of_things_but_not_digits_inside_ids(tmp_path: Pa
     assert not score.grounded(row("s", 1, "There are 21 doors."), projects)  # inside the hex id
 
 
+def test_grounded_reads_what_the_server_added_to_the_users_message(tmp_path: Path) -> None:
+    """0cf1c3e appends review_answer's result to the user's "are you sure?" message; a reply
+    quoting its range was scored ungrounded (6 of 21 turns)."""
+    chats = tmp_path / "projects" / "pid" / "chats"
+    chats.mkdir(parents=True)
+    review = (
+        'are you sure?\nreview_answer result (the server ran it): {"answer": 19, "range": [14, 24]}'
+    )
+    messages = [{"role": "user", "content": review}, {"role": "tool", "content": '{"count": 3}'},
+                {"role": "assistant", "content": '{"made_up": 99}'}]  # fmt: skip
+    chat = {"results": [], "messages": messages}
+    (chats / "c1.json").write_text(json.dumps(chat))
+    projects = [tmp_path / "projects"]
+    assert score.grounded(row("s", 2, "19 doors, a range of 14 to 24; 3 tools."), projects)
+    assert not score.grounded(row("s", 2, "Maybe 99."), projects)  # the model's own words
+
+
+def test_embedded_finds_each_json_object_in_a_text() -> None:
+    assert score.embedded('a {"x": 1} b {bad} c {"y": [2]}') == [{"x": 1}, {"y": [2]}]
+
+
 def test_grounded_finds_numbers_in_the_stored_chats_tool_results(tmp_path: Path) -> None:
     projects = stored(tmp_path, [{"doors": 6, "area_m2": 14.53}])
     assert score.grounded(row("s", 1, "6 doors, 14.5 m² [1]."), projects)

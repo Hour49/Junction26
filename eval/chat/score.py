@@ -101,6 +101,23 @@ def _known(found: Any, key: str | None, values: set[Decimal], tokens: set[str]) 
         values.add(Decimal(str(found)))
 
 
+def embedded(text: str) -> list[Any]:
+    """The JSON objects inside a message's text: a tool message is one; the server may also add a
+    tool's result to the user's message ("review_answer result (...): {...}")."""
+    found: list[Any] = []
+    decoder = json.JSONDecoder()
+    at = text.find("{")
+    while at != -1:
+        try:
+            obj, end = decoder.raw_decode(text, at)
+        except ValueError:
+            at = text.find("{", at + 1)
+            continue
+        found.append(obj)
+        at = text.find("{", end)
+    return found
+
+
 def grounded(r: Json, chats: list[Path]) -> bool:
     """Every number in the text is backed: a whole number by an equal value (5.8 does not back
     "6"), a decimal by a value that rounds to it at the text's places, either by the same token
@@ -112,10 +129,20 @@ def grounded(r: Json, chats: list[Path]) -> bool:
     raw = dict(r.get("raw") or {})
     text = raw.pop("text", "") or r.get("text", "")
     stored = [f for d in chats for f in d.glob(f"*/chats/{raw.get('chat_id')}.json")]
-    results = json.loads(stored[0].read_text()).get("results", []) if stored else []
+    chat: Json = json.loads(stored[0].read_text()) if stored else {}
+    added = [
+        obj
+        for m in chat.get("messages", [])
+        if m.get("role") in ("user", "tool") and isinstance(m.get("content"), str)
+        for obj in embedded(m["content"])
+    ]
     values: set[Decimal] = set()
     tokens: set[str] = set(NUMBER.findall(r["msg"]))
-    for found in [raw, *results]:  # not the lengths of these wrappers: no reply counts them
+    for found in [
+        raw,
+        *chat.get("results", []),
+        *added,
+    ]:  # not the lengths of these wrappers: no reply counts them
         _known(found, None, values, tokens)
     for n in STANDALONE.findall(PAGE.sub(" ", CITE.sub(" ", text))):
         d = num(n)
