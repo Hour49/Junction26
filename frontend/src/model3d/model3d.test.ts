@@ -52,3 +52,14 @@ describe('model3d', () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
   });
 });
+
+describe('role tokens', () => {
+  it('M3-16 shell.css defines four different --v-3d-* role colours', () => {
+    const css = readFileSync('src/shell/shell.css', 'utf8');
+    const values = ['moved', 'removed', 'added', 'affected'].map(
+      (r) => new RegExp(`--v-3d-${r}:\\s*([^;]+);`).exec(css)?.[1],
+    );
+    expect(values.every(Boolean)).toBe(true);
+    expect(new Set(values).size).toBe(4);
+  });
+});

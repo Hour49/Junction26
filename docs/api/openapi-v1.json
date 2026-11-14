@@ -3317,6 +3317,32 @@
         "title": "Health",
         "type": "object"
       },
+      "Highlight": {
+        "additionalProperties": false,
+        "description": "One element the 3D view highlights, by its IFC GlobalId, and what happens to it: an\nanswer's counted elements are `affected`; an edit proposal's are moved, removed or added.",
+        "properties": {
+          "global_id": {
+            "title": "Global Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "moved",
+              "removed",
+              "added",
+              "affected"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "global_id",
+          "role"
+        ],
+        "title": "Highlight",
+        "type": "object"
+      },
       "HitWhy": {
         "additionalProperties": false,
         "properties": {
@@ -4835,6 +4861,45 @@
           "drawing_id": {
             "title": "Drawing Id",
             "type": "string"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "highlight": {
+            "items": {
+              "$ref": "#/components/schemas/Highlight"
+            },
+            "title": "Highlight",
+            "type": "array"
+          },
+          "model_3d": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Model3d"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model File Id"
           },
           "name": {
             "title": "Name",
@@ -8869,6 +8934,7 @@
     },
     "/api/projects/{project_id}/ask": {
       "post": {
+        "description": "`models_3d`: the 3D views' state to put on IFC parts at response time (MODEL_3D); the chat\ntool calls this without, so a kept chat never keeps a stale state.",
         "operationId": "project_ask_api_projects__project_id__ask_post",
         "parameters": [
           {
