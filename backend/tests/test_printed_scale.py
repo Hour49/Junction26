@@ -512,10 +512,18 @@ def test_a_printed_room_count_that_is_no_flat_type_is_still_a_room_count() -> No
     assert (found.quantity, found.value.value) == ("room_count", 4)
 
 
-def counts(read: float, printed: float, door: bool = False) -> list[Measurement]:
-    """A count read and one printed: of all rooms, or of doors."""
+def counts(
+    read: float, printed: float, door: bool = False, kind: str | None = None
+) -> list[Measurement]:
+    """A count read and one printed: of all rooms, of one room type, or of doors."""
     quantity: Literal["room_count", "element_count"] = "element_count" if door else "room_count"
-    subject = Subject(kind="class", ref="door") if door else Subject(kind="sheet", ref=None)
+    subject = (
+        Subject(kind="class", ref="door")
+        if door
+        else Subject(kind="class", ref=kind)
+        if kind
+        else Subject(kind="sheet", ref=None)
+    )
     return [
         Measurement(
             quantity=quantity,
@@ -554,4 +562,12 @@ def test_rooms_read_more_than_twice_the_printed_count_keep_the_reading_and_ask_n
 def test_other_count_pairs_are_left_to_a_person(read: int, printed: int, door: bool) -> None:
     first, second = counts(read, printed, door)
     (entry,) = second_count([first], [second])
+    assert entry.status == "conflict" and entry.resolution is None
+
+
+def test_a_room_type_count_far_above_the_printed_one_still_asks_a_person() -> None:
+    """qa-a on #385: 120 bedrooms read against a printed '48 DORMS' is a real disagreement about
+    one type, not a flat type; only the sheet's total room count keeps the reading."""
+    read, printed = counts(120, 48, kind="room:bedroom")
+    (entry,) = second_count([read], [printed])
     assert entry.status == "conflict" and entry.resolution is None
