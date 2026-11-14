@@ -38,6 +38,7 @@ from app.adapters.plan_tools import ONE_AT_A_TIME
 from app.adapters.service_tools import _models  # pyright: ignore[reportPrivateUsage]
 from app.adapters.services_store import ServicesStore
 from app.core.errors import DomainError
+from app.core.ingest.model import FileStatus
 from app.core.plan_edit.model import Flag as PlanFlag
 from app.core.plan_edit.model import Proposal, Selection
 from app.core.services.derive import graph
@@ -159,10 +160,16 @@ class _ProjectModels(Mapping[str, ServicesModel]):
         return sum(1 for _ in self)
 
 
+def model_id(file: FileStatus) -> str | None:
+    """The id a services model goes by: its file's drawing id, else (an IFC set aside at upload,
+    which has no drawing) the first 16 characters of its sha256, the same shape as a drawing id."""
+    return file.drawing_id or (file.sha256[:16] if file.sha256 else None)
+
+
 def _project_files(pipeline: PipelineStore) -> dict[str, str]:
-    """Drawing id -> sha256 of the project's IFC files (`service_tools._models`)."""
+    """Model id -> sha256 of the project's IFC files (`service_tools._models`), drawn or not."""
     files, _ = _models(pipeline.ingest.status(pipeline.project_id), None)
-    return {f.drawing_id: f.sha256 for f in files if f.drawing_id and f.sha256}
+    return {i: f.sha256 for f in files if (i := model_id(f)) and f.sha256}
 
 
 def offers_services(pipeline: PipelineStore) -> bool:
@@ -241,7 +248,12 @@ class _DrawingArgs(_Args):
     drawing_id: str = Field(min_length=1, max_length=64, description="the services model's drawing")
 
 
-class _ListArgs(_DrawingArgs):
+class _ListArgs(_Args):
+    drawing_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description="the services model's drawing (default: the only one)",
+    )
     storey: str | None = Field(default=None, max_length=60, description="storey id (L1...) or name")
     system: str | None = Field(default=None, max_length=120, description="a system's name")
     room_id: str | None = Field(default=None, pattern=r"^SR\d{1,5}$", description="a room (SR...)")
@@ -355,6 +367,12 @@ def run_services_tool(store: ServicesToolStore, name: str, arguments: str | dict
 
 
 def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
+    if args.drawing_id is None:  # the project's only model: a set-aside IFC is in no drawing list
+        have = list(store.models)
+        if len(have) != 1:
+            raise ToolError(f"name the drawing_id; the project's services models: "
+                            f"{', '.join(have) or 'none'}")  # fmt: skip
+        args = args.model_copy(update={"drawing_id": have[0]})
     model = store.model(args.drawing_id)
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
     storey = _storey_of(model, args.storey) if args.storey else None

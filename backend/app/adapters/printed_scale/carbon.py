@@ -111,7 +111,8 @@ class CarbonPrinted:
 
     def read(self, source: DrawingFile, sheet: Sheet) -> PrintedSheet:
         with Image.open(io.BytesIO(self._files.read(source.path))) as image:
-            page = eight_bit(image).convert("RGB")
+            page = eight_bit(image)  # converted to RGB per call, not as a full-page copy
+            page.load()
         notes: list[str] = []
         bars_notes: list[str] = []  # after the page call's, as when they ran one after the other
         form, bars_form = beside(

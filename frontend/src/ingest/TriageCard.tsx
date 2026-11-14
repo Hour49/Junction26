@@ -18,6 +18,18 @@ import {
   readError,
   readLine,
 } from './triage';
+import { MUTED, PANEL, SUMMARY } from './ui';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+
+const CARD = cn(PANEL, 'grid gap-2');
+const H3 = 'mt-3 mb-0 text-base';
+/** The call row: wraps on a desktop, one column on a phone. */
+const ROW =
+  'mt-2 flex flex-wrap items-end gap-x-3 gap-y-2 max-[720px]:flex-col max-[720px]:flex-nowrap max-[720px]:items-stretch [&>p]:basis-full';
 
 const NAME_KEY = 'countersign.surveyorName'; // the surveyor's key: one typed name for every call
 
@@ -52,12 +64,12 @@ export function TriageCard(props: {
   if (!t || (t.class === 'floor_plan' && !looksLike(t))) return null;
   if (t.class === 'floor_plan')
     return (
-      <section aria-label="Is it a floor plan?" className="v-card ingest-triage">
+      <Card role="region" aria-label="Is it a floor plan?" className={CARD}>
         <h2 className="v-h3">{classLine(t)}</h2>
-        <p className="output">
+        <p className={MUTED}>
           Chance of a floor plan {planChance(t.p_plan)} ({t.method})
         </p>
-      </section>
+      </Card>
     );
 
   const send = async (
@@ -97,18 +109,18 @@ export function TriageCard(props: {
   const blocked = sending !== null || name.trim() === '';
 
   return (
-    <section aria-label="Is it a floor plan?" className="v-card ingest-triage">
+    <Card role="region" aria-label="Is it a floor plan?" className={CARD}>
       {t.read_as_plan ? (
         <>
           <h2 className="v-h3">Read as a floor plan on {t.read_as_plan.by}’s call</h2>
-          <p className="output">
+          <p className={MUTED}>
             Triage said: {CLASS_LABEL[t.class]} ({planChance(t.p_plan)} chance of a floor plan)
           </p>
         </>
       ) : (
         <>
           <h2 className="v-h3">{classLine(t)}</h2>
-          <p className="output">
+          <p className={MUTED}>
             Chance of a floor plan {planChance(t.p_plan)} ({t.method})
           </p>
         </>
@@ -117,7 +129,7 @@ export function TriageCard(props: {
         <p>Preview not available</p>
       ) : (
         <img
-          className="ingest-triage-preview"
+          className="block h-auto max-w-[min(100%,400px)] rounded-xl border border-border"
           // the API's widths are 400/1600/3200: 400 at 1x, 1600 for dense screens (never 1600 at 1x)
           src={previewUrl(projectId, file.id, 400)}
           srcSet={`${previewUrl(projectId, file.id, 400)} 400w, ${previewUrl(projectId, file.id, 1600)} 1600w`}
@@ -128,14 +140,14 @@ export function TriageCard(props: {
           }}
         />
       )}
-      <h3 className="ingest-triage-h">What is on it</h3>
+      <h3 className={H3}>What is on it</h3>
       {d ? (
         <>
           <p>{d.text}</p>
           <p>Subject: {d.subject}</p>
           {d.text_seen.length > 0 && (
             <details>
-              <summary>Text printed on it ({d.text_seen.length})</summary>
+              <summary className={SUMMARY}>Text printed on it ({d.text_seen.length})</summary>
               <ul>
                 {d.text_seen.map((s, i) => (
                   <li key={String(i)}>{s}</li>
@@ -149,69 +161,72 @@ export function TriageCard(props: {
         <p>{t.note}</p>
       )}
       {said && (
-        <div className="ingest-triage-call">
+        <div className={ROW}>
           <p>{said}</p>
-          <button
-            type="button"
-            className="v-btn v-btn--secondary v-press"
+          <Button
+            variant="secondary"
+            size="pill"
+            className="font-medium"
             disabled={sending !== null}
             onClick={() => void relevance({ undo: true })}
           >
             Undo the call
-          </button>
+          </Button>
         </div>
       )}
       {t.read_as_plan && <p>{readLine(t.read_as_plan)}</p>}
-      {offerCall && <h3 className="ingest-triage-h">Your call</h3>}
+      {offerCall && <h3 className={H3}>Your call</h3>}
       {(offerCall || offerRead) && (
-        <div className="ingest-triage-call">
-          <label>
+        <div className={ROW}>
+          <Label className="grid gap-1 text-sm leading-normal font-normal">
             Your name
-            <input
+            <Input
               type="text"
+              className="h-11 rounded-xl bg-card px-3 text-base md:text-base"
               maxLength={100}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
               }}
             />
-          </label>
+          </Label>
           {offerCall && (
             <>
-              <button
-                type="button"
-                className="v-btn v-press"
+              <Button
+                size="pill"
                 disabled={blocked}
                 onClick={() => {
                   call('related');
                 }}
               >
                 It is related
-              </button>
-              <button
-                type="button"
-                className="v-btn v-btn--secondary v-press"
+              </Button>
+              <Button
+                variant="secondary"
+                size="pill"
+                className="font-medium"
                 disabled={blocked}
                 onClick={() => {
                   call('unrelated');
                 }}
               >
                 It is not related
-              </button>
+              </Button>
             </>
           )}
           {offerRead && (
-            <button
-              type="button"
-              className="v-btn v-btn--secondary v-press"
+            <Button
+              variant="secondary"
+              size="pill"
+              className="font-medium"
               disabled={blocked}
               onClick={read}
             >
               Read it as a floor plan
-            </button>
+            </Button>
           )}
           {offerCall && (
-            <p className="output">
+            <p className={MUTED}>
               Your call replaces the suggestion and settles this file&apos;s issue. It does not read
               the file as a plan.
             </p>
@@ -220,10 +235,10 @@ export function TriageCard(props: {
       )}
       {sending && <p>{sending}</p>}
       {failed && (
-        <p role="alert" className="ingest-error">
+        <p role="alert" className="font-semibold text-danger">
           {failed}
         </p>
       )}
-    </section>
+    </Card>
   );
 }

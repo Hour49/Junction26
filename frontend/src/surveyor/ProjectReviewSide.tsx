@@ -9,6 +9,8 @@ import {
 } from '../api';
 import { routeHref } from '../shell/route';
 import './surveyor.css';
+import { Button } from '@/components/ui/button';
+import { TOOL } from './ui';
 
 interface Props {
   projectId: string;
@@ -77,15 +79,16 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0, names = {}
           ) : (
             <p>{String(error)}</p>
           )}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            className={TOOL}
             onClick={() => {
               setLoad(null);
               setAttempt((n) => n + 1);
             }}
           >
             Retry
-          </button>
+          </Button>
         </div>
       </aside>
     );

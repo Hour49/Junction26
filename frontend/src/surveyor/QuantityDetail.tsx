@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { errorText, formatTime, formatValue, methodName, type Edit, type Row } from '../api';
 import { MarkList } from './MarkList';
 import { statusText } from './words';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { DETAIL, FIELD } from './ui';
 
 interface Props {
   row: Row;
@@ -81,17 +84,16 @@ export function QuantityDetail(props: Props) {
           {conflict.derived && <p>{conflict.derived}</p>}
           <div className="sv-tools">
             {conflict.values.map((v, i) => (
-              <button
+              <Button
                 key={`${v.method} ${String(i)}`}
-                type="button"
-                className="sv-primary"
+                className={DETAIL}
                 disabled={locked}
                 onClick={() => {
                   onEdit({ quantity, action: 'settle', value: v.value });
                 }}
               >
                 Keep {LETTERS[i]}: {fmt(v.value)} ({methodName(v.method)})
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -99,7 +101,8 @@ export function QuantityDetail(props: Props) {
       <div className="sv-tools">
         <label>
           Settle at{' '}
-          <input
+          <Input
+            className={`${FIELD} w-[8em]`}
             type="number"
             min={0}
             step="any"
@@ -110,16 +113,15 @@ export function QuantityDetail(props: Props) {
             }}
           />
         </label>
-        <button
-          type="button"
-          className="sv-primary"
+        <Button
+          className={DETAIL}
           disabled={locked || !canSettle}
           onClick={() => {
             onEdit({ quantity, action: 'settle', value: settleValue });
           }}
         >
           Settle
-        </button>
+        </Button>
       </div>
       {row.settled && (
         <p>
@@ -140,29 +142,36 @@ export function QuantityDetail(props: Props) {
       />
       <div className="sv-tools">
         {row.unit === 'count' && (
-          <button type="button" disabled={locked} onClick={props.onToggleAdd}>
+          <Button
+            variant="secondary"
+            className={DETAIL}
+            disabled={locked}
+            onClick={props.onToggleAdd}
+          >
             {props.addMode
               ? 'Click the missed item on the drawing… (Esc to cancel)'
               : 'Add a missed one'}
-          </button>
+          </Button>
         )}
         {!signed && edited(row) && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            className={DETAIL}
             disabled={locked}
             onClick={() => {
               onEdit({ quantity, action: 'reset' });
             }}
           >
             Reset this quantity
-          </button>
+          </Button>
         )}
       </div>
       {signed && <p>Undo the sign-off to edit.</p>}
       <div className="sv-tools">
         <label>
           Signing as{' '}
-          <input
+          <Input
+            className={`${FIELD} w-48`}
             type="text"
             maxLength={100}
             value={name}
@@ -172,26 +181,26 @@ export function QuantityDetail(props: Props) {
           />
         </label>
         {signed ? (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            className={DETAIL}
             disabled={saving}
             onClick={() => {
               props.onSign(true);
             }}
           >
             Undo sign-off
-          </button>
+          </Button>
         ) : (
-          <button
-            type="button"
-            className="sv-primary"
+          <Button
+            className={DETAIL}
             disabled={saving || row.needs_person || name.trim() === ''}
             onClick={() => {
               props.onSign(false);
             }}
           >
             Sign off {fmt(row.value)}
-          </button>
+          </Button>
         )}
       </div>
       {signed && (
