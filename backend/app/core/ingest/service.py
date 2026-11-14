@@ -90,6 +90,7 @@ PROBES_IN_FLIGHT = 4
 
 IMAGE_KINDS = frozenset({"png_plan", "jpeg_plan", "photo_plan"})
 RESTARTED = "the server restarted during ingest"
+REREAD_CUT = "not read as a floor plan: the server restarted while it was read as a floor plan"
 
 
 class IngestService:
@@ -216,8 +217,9 @@ class IngestService:
     def recover(self) -> list[str]:
         """At startup: a project the store says is queued or running was cut off by a restart.
         It becomes failed, its unfinished files set aside, so no screen polls it for ever. A
-        done project's file cut off while it was read again as a floor plan is set aside, and
-        the project stays done. Returns the ids it marked. Call before the first `start`."""
+        done project's file cut off while it was read again as a floor plan is set aside, back to
+        triage's call so a person can ask again, and the project stays done. Returns the ids it
+        marked. Call before the first `start`."""
         marked: list[str] = []
         for project_id in self._store.project_ids():
             status, traces = self._store.load_project(project_id)
@@ -225,10 +227,8 @@ class IngestService:
             unfinished = any(file.state in ("queued", "running") for file in status.files)
             if not (cut or unfinished) or self._running(project_id):
                 continue
-            done = "not ingested" if cut else "not read as a floor plan"
-            reason = f"{done}: {RESTARTED}"
             files = tuple(
-                file.model_copy(update={"state": "set_aside", "reason": reason})
+                file.model_copy(update=_cut(file, cut))
                 if file.state in ("queued", "running")
                 else file
                 for file in status.files
@@ -502,7 +502,7 @@ class IngestService:
         group, route and readers as at upload. A failure sets the file aside with its reason;
         the project stays done."""
         started = self._clock()
-        run.set(path, state="running")
+        run.set(path, state="running", reason="being read as a floor plan")
         self._save(run)
         try:
             data = self._store.read_file(run.id, path)
@@ -532,15 +532,23 @@ class IngestService:
             groups = Groups(self._store, self._clock, self._names, frames)
             groups.run(run, self._readers(run.id), {path: drawing}, lambda: self._save(run))
         except DomainError as failure:
-            run.finish(path, "set_aside", f"not read as a floor plan: {failure}")
+            self._unread(run, path, f"not read as a floor plan: {failure}")
         except Exception as failure:  # a bug: the file says so, the project stays done
             logger.exception("reading %s of project %s as a floor plan failed", path, run.id)
-            run.finish(path, "set_aside", f"not read as a floor plan: {type(failure).__name__}")
+            self._unread(run, path, f"not read as a floor plan: {type(failure).__name__}")
         finally:
             self._save(run)
             with self._lock:
                 del self._live[run.id]
             run.done.set()
+
+    def _unread(self, run: Run, path: str, reason: str) -> None:
+        """A re-read that failed: the file is set aside with its reason and back to triage's
+        call (no `read_as_plan`), so a person can ask again."""
+        triage = run.file(path).triage
+        if triage is not None:
+            run.set(path, triage=read_as_plan(triage, None))
+        run.finish(path, "set_aside", reason)
 
     def _judge(self, run: Run, failed: bool) -> None:
         """Triage step 3, once every file is finished: each described file (and, for a judge
@@ -598,3 +606,12 @@ class IngestService:
 
     def _save(self, run: Run) -> None:
         self._store.save_project(run.status(), run.traces())
+
+
+def _cut(file: FileStatus, ingesting: bool) -> dict[str, object]:
+    """What `recover` changes on a file a restart cut off: during ingest, or while it was read
+    again as a floor plan (then it is back to triage's call)."""
+    if ingesting:
+        return {"state": "set_aside", "reason": f"not ingested: {RESTARTED}"}
+    triage = None if file.triage is None else read_as_plan(file.triage, None)
+    return {"state": "set_aside", "reason": REREAD_CUT, "triage": triage}
