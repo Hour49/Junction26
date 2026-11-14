@@ -92,7 +92,7 @@ def test_the_sample_lists_its_conflict_reading_flags_and_set_aside_files(
     }
     photo = found[("reading_flag", "photos/plan-photo.jpg")]
     assert photo["why"] == (
-        "A phone photo, read without perspective correction; no reader for the raster route "
+        "A phone photo, read without perspective correction; no reader for the image route "
         "yet: nothing was read."
     )
     assert (photo["page"], photo["box"], photo["state"]) == (1, None, "open")

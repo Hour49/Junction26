@@ -78,3 +78,34 @@ def test_no_counting_rule_text_names_the_dataset() -> None:
     # the rule is still said, where it differs from the question's own wording
     assert "though the question says shafts are left out" in texts["indoor-rooms-total"]
     assert "sauna stoves" in texts["sauna-room-else-stove"]
+
+
+RAW_ROUTE = re.compile(
+    r"\b(vector|raster|bim|cad) (route|reader)\b|^(vector|raster|bim|cad), read from"
+)
+
+
+def test_reasons_and_trace_lines_name_a_route_in_words(make_service: MakeService) -> None:
+    """QA R4-a-10: the drawing cards say "drawn PDF route", "image route", "BIM model route"; the
+    reasons and trace lines said "read on the vector route", "vector, read from …". The route
+    words (ROUTE_WORDS) are the cards'; the field `route` and the stage output keep the id."""
+    from typing import get_args
+
+    from app.core.pipeline.model import Route
+    from app.core.wording import ROUTE_WORDS
+
+    assert set(ROUTE_WORDS) == set(get_args(Route))
+    ingest = make_service()
+    project = ingest.wait(ingest.start("sample.zip", build_archive()))
+    lines = [file.reason for file in project.files]
+    for file in project.files:
+        lines += [stage.did for stage in ingest.trace(project.id, file.id).stages]
+    raw = [line for line in lines if RAW_ROUTE.search(line)]
+    assert raw == []
+    flat_a = by_path(project.files)["plans/flat-a.pdf"]
+    assert flat_a.reason.startswith("read on the drawn PDF route: ")
+    assert flat_a.route == "vector"
+    routed = next(s for s in ingest.trace(project.id, flat_a.id).stages if s.stage == "route")
+    assert (routed.did, routed.output) == ("drawn PDF route, read from plans/flat-a.pdf", "vector")
+    ground = by_path(project.files)["scans/ground-floor.png"]
+    assert "no reader for the image route yet" in ground.reason

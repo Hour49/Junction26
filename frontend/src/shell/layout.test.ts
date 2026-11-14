@@ -23,8 +23,8 @@ it('R1-5-4 the header project picker is constrained to the header width (jsdom h
   const all = rulesFor('.project-picker', css);
   expect(all).toMatch(/min-width:\s*0/);
   expect(all).toMatch(/max-width:\s*100%/);
-  const phone = css.slice(css.indexOf('@media (max-width: 720px)'));
-  expect(rulesFor('.project-picker', phone)).toMatch(/width:\s*100%/);
+  const compact = css.slice(css.indexOf('@media (max-width: 1100px)'));
+  expect(rulesFor('.project-picker', compact)).toMatch(/width:\s*100%/);
 });
 
 it('R1-5-4 long unbreakable file strings wrap inside main instead of widening the page', () => {
@@ -164,13 +164,24 @@ it('SH-62 the sticky header is opaque, above page content, and its height is --v
   expect(declarations(rulesFor(':root', desktop)).get('--v-header-h')).toBe('76px');
   expect(rulesFor('.app-header-row', css)).toMatch(/padding:\s*14px 24px/);
   expect(rulesFor('.header-pill', css)).toMatch(/min-height:\s*48px/);
-  // Phone: three rows would cover a quarter of the screen, so the header scrolls away and covers nothing.
-  const phone = css.slice(css.indexOf('@media (max-width: 720px)'));
-  expect(rulesFor('.app-header', phone)).toMatch(/position:\s*static/);
-  expect(declarations(rulesFor(':root', phone)).get('--v-header-h')).toBe('0px');
+  // Compact (≤1100 px since the checks round, SH-70): the header scrolls away and covers nothing.
+  const compact = css.slice(css.indexOf('@media (max-width: 1100px)'));
+  expect(rulesFor('.app-header', compact)).toMatch(/position:\s*static/);
+  expect(declarations(rulesFor(':root', compact)).get('--v-header-h')).toBe('0px');
 });
 
 it('SH-63 the browser tab title is the product name', () => {
   const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
   expect(/<title>([^<]*)<\/title>/.exec(html)?.[1]).toBe(PRODUCT_NAME);
+});
+
+it('SH-70 the compact header applies up to 1100 px: not sticky, tabs wrap and stay 44 px high', () => {
+  const at = css.indexOf('@media (max-width: 1100px)');
+  expect(at).toBeGreaterThan(0);
+  // The compact block comes before the phone one, so phone rules still win below 720 px.
+  expect(at).toBeLessThan(css.indexOf('@media (max-width: 720px)'));
+  const compact = css.slice(at, css.indexOf('@media (max-width: 720px)'));
+  expect(rulesFor('.app-header', compact)).toMatch(/position:\s*static/);
+  expect(rulesFor('.view-links', compact)).toMatch(/flex-wrap:\s*wrap/);
+  expect(rulesFor('.view-links a', compact)).toMatch(/min-height:\s*44px/);
 });

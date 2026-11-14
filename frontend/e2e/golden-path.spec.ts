@@ -122,7 +122,9 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
   let drawingUrl = '';
   await test.step('GP-32 V6 GP-5: "Show it on plans/flat-b.pdf" opens flat-b as engineer', async () => {
     await turn(DOORS).getByRole('link', { name: 'Show it on plans/flat-b.pdf' }).click();
-    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/d\/[0-9a-f]{16}\/engineer(\?q=.*)?$/);
+    // QA R4b: the link carries the chat's question (engineer?ask=<question>[&pack=]).
+    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/d\/[0-9a-f]{16}\/engineer(\?.*)?$/);
+    expect(new URLSearchParams(page.url().split('?')[1] ?? '').get('ask')).toBe(DOORS);
     drawingUrl = page.url().replace(/\/engineer(\?.*)?$/, '');
     await expect(page.getByText('plans/flat-b.pdf').first()).toBeVisible();
     const image = page.getByRole('img', { name: /Page 1 of plans\/flat-b\.pdf/ }).first();
@@ -137,13 +139,13 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await expect(
       page.getByText(`Credit: ${credit ?? 'none recorded for this file'}`, { exact: true }).first(),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'How many doors are there?' })).toBeVisible();
     await shot(page, testInfo, '06-engineer', offline);
   });
 
   await test.step('GP-6 step 5: a count with its marks', async () => {
-    await page.getByRole('button', { name: 'How many doors are there?' }).click();
-    const doors = turn('How many doors are there?');
+    // ?ask= asked the chat's question on open (EN-72): exactly one turn, no second ask.
+    await expect(page.getByRole('article', { name: DOORS })).toHaveCount(1);
+    const doors = turn(DOORS);
     await expect(doors.getByTestId('answer-value')).toHaveText('2');
     await expect(doors).toContainText('One method');
     await expect(doors.getByRole('button', { name: /^Mark \d+: door, counted$/ })).toHaveCount(2);
