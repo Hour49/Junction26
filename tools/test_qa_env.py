@@ -67,15 +67,17 @@ def test_the_backend_starts_with_the_printed_config() -> None:
     assert 'env "${DEMO_ENV[@]}" uv run --locked uvicorn' in script
 
 
-def test_the_demo_config_ships_config_c() -> None:
-    """integ Task 3 (2026-11-14): the Decisions S1536 swap over the C-yolo26l detector for elements
-    and plans, rooms from regionrooms, beat the earlier demo (region C-yolo26s-1536) on val by
-    +1.1 pp [+0.1, +2.0] with no family lower; the orchestrator shipped it (07:31)."""
+def test_the_demo_config_ships_config_c1() -> None:
+    """integ-8/9 (2026-11-14): C1 = the Decisions S1536 swap over eight views of the C-yolo26l
+    detector (detector-v8, #117) for elements and plans, rooms from regionrooms; on val +1.0 pp
+    [+0.4, +1.6] against config C with every threshold cross-fit (integ-8). ROOM_POLICY stays the
+    default (furniture): Bogdan's choice."""
     found = run("config")
     assert found.returncode == 0, found.stderr
-    swap = "decisions-s1536:detector:C-yolo26l"
+    swap = "decisions-s1536:detector-v8:C-yolo26l"
     shipped = f"RASTER_COMPONENTS=elements={swap},plans={swap},rooms=regionrooms"
     assert shipped in found.stdout.split()
+    assert not any(word.startswith("ROOM_POLICY=") for word in found.stdout.split())
 
 
 def test_the_demo_config_marks_answers_sure_by_goldens_frozen_gate() -> None:

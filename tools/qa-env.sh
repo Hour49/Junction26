@@ -7,8 +7,9 @@
 #   tools/qa-env.sh config                         print the demo config the backend starts with
 #
 # The export goes to data/qa/env-<sha>/ (gitignored; made once, reused after). The backend runs
-# from it with the shippable config (config C, picked on val 2026-11-14): the C-yolo26l detector
-# behind the Decisions S1536 swap for elements and plans, Gemini rooms through the
+# from it with the shippable config (config C1, picked on val 2026-11-14): the C-yolo26l detector
+# read in eight views (detector-v8, its detector-v8.json thresholds) behind the Decisions S1536
+# swap for elements and plans, Gemini rooms through the
 # region room filter (REGION_MODEL_DIR, the settings default), the r3 photo rectifier, the dev
 # prior, the Decisions confidence and the Decisions sheet-kind signal (a photo of a plan without
 # camera EXIF is still rectified), and golden's gate (eval/results/gate/gate-C-L-swap.json, frozen in
@@ -30,7 +31,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QA="$ROOT/data/qa"
-RASTER='elements=decisions-s1536:detector:C-yolo26l,plans=decisions-s1536:detector:C-yolo26l,rooms=regionrooms'
+RASTER='elements=decisions-s1536:detector-v8:C-yolo26l,plans=decisions-s1536:detector-v8:C-yolo26l,rooms=regionrooms'
 DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CONFIDENCE=true
   DECISIONS_KIND=true RASTER_SCALE=priors GATE_POLICY=../eval/results/gate/gate-C-L-swap.json
   ANSWER_POLICY=../eval/results/policy/policy-C-L-swap.json)
