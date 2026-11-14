@@ -283,3 +283,57 @@ test("locking clears the cookie", async () => {
   assert.equal(answer.status, 303);
   assert.ok(answer.headers.get("set-cookie").includes("Max-Age=0"));
 });
+
+test("a path that looks like another host still goes to the origin, never anywhere else", async () => {
+  const origin = fakeOrigin();
+  try {
+    await worker.fetch(
+      new Request("https://junction.example.test//evil.example.test/steal?x=1", { headers: { cookie: await cookieFor() } }),
+      env(),
+    );
+    const [sent] = origin.seen;
+    assert.equal(new URL(sent.url).origin, ORIGIN); // the service token goes only to the origin
+    assert.equal(sent.url, `${ORIGIN}//evil.example.test/steal?x=1`);
+  } finally {
+    origin.restore();
+  }
+});
+
+test("pages are never stored by the browser: the same address is the demo or the app, by cookie", async () => {
+  const demo = await worker.fetch(new Request("https://junction.example.test/"), env());
+  assert.equal(demo.headers.get("cache-control"), "no-store");
+  const origin = fakeOrigin((request) =>
+    new URL(request.url).pathname === "/"
+      ? new Response("<html>app</html>", { headers: { "content-type": "text/html", "last-modified": "Sat, 14 Nov 2026 10:00:00 GMT" } })
+      : new Response("js", { headers: { "content-type": "text/javascript", "cache-control": "max-age=600" } }),
+  );
+  try {
+    const cookie = await cookieFor();
+    const app = await worker.fetch(new Request("https://junction.example.test/", { headers: { cookie } }), env());
+    assert.equal(await app.text(), "<html>app</html>");
+    assert.equal(app.headers.get("cache-control"), "no-store");
+    const script = await worker.fetch(new Request("https://junction.example.test/assets/a.js", { headers: { cookie } }), env());
+    assert.equal(script.headers.get("cache-control"), "max-age=600"); // other files keep the app's own caching
+  } finally {
+    origin.restore();
+  }
+});
+
+test("the app offline: a page that says so with the way back to the demo; API calls get JSON", async () => {
+  const cookie = await cookieFor();
+  const page = { cookie, accept: "text/html,application/xhtml+xml" };
+  for (const reply of [() => new Response("error code: 1033", { status: 530 }), () => new Response("Bad gateway", { status: 502 }), () => { throw new TypeError("fetch failed"); }]) {
+    const origin = fakeOrigin(reply);
+    try {
+      const shown = await worker.fetch(new Request("https://junction.example.test/", { headers: page }), env());
+      assert.equal(shown.status, 503);
+      const html = await shown.text();
+      assert.ok(html.includes("offline") && html.includes('href="/__lock"'), html);
+      const api = await worker.fetch(new Request("https://junction.example.test/api/info", { headers: { cookie } }), env());
+      assert.ok(api.status >= 500, String(api.status));
+      assert.ok(!(await api.text()).includes("<form"));
+    } finally {
+      origin.restore();
+    }
+  }
+});

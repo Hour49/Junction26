@@ -16,6 +16,9 @@ const FORM =
   `<input name="code" type="password" autocomplete="off" required style="font:inherit;width:11em"></label> ` +
   `<button type="submit" style="font:inherit">Open the app</button></form>`;
 
+// what Cloudflare or the local server answers when the tunnel or the backend is down
+const OFFLINE = new Set([502, 503, 530]);
+
 function page(body, status = 200) {
   const html =
     `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
@@ -67,7 +70,11 @@ async function proxy(request, env) {
     return page("<p>The app is not connected.</p>", 503);
   }
   const url = new URL(request.url);
-  const target = new URL(url.pathname + url.search, env.ORIGIN_URL);
+  // set the path on the origin's URL: resolving "//other.host/x" against it would send the token to other.host
+  const target = new URL(env.ORIGIN_URL);
+  target.pathname = url.pathname;
+  target.search = url.search;
+  const wantsPage = request.method === "GET" && (request.headers.get("accept") || "").includes("text/html");
   const headers = new Headers(request.headers);
   const rest = withoutCookie(headers.get("cookie"), COOKIE); // the gate cookie never leaves this Worker
   if (rest) headers.set("cookie", rest);
@@ -77,22 +84,36 @@ async function proxy(request, env) {
   headers.set("x-forwarded-host", url.host);
   headers.set("x-forwarded-proto", "https");
   const bodiless = request.method === "GET" || request.method === "HEAD";
-  const reply = await fetch(
-    new Request(target, {
-      method: request.method,
-      headers,
-      body: bodiless ? undefined : request.body,
-      redirect: "manual",
-      duplex: "half",
-    }),
-  );
-  const location = reply.headers.get("location");
-  if (location && location.startsWith(new URL(env.ORIGIN_URL).origin)) {
-    const out = new Response(reply.body, reply);
-    out.headers.set("location", url.origin + location.slice(new URL(env.ORIGIN_URL).origin.length));
-    return out;
+  let reply = null;
+  try {
+    reply = await fetch(
+      new Request(target, {
+        method: request.method,
+        headers,
+        body: bodiless ? undefined : request.body,
+        redirect: "manual",
+        duplex: "half",
+      }),
+    );
+  } catch {
+    // the origin did not answer
   }
-  return reply;
+  if (wantsPage && (!reply || OFFLINE.has(reply.status))) {
+    return page(
+      `<h1>The app is offline right now</h1><p>It runs on one machine, and that machine is not answering. ` +
+        `Try again in a minute.</p><p><a href="/__lock">See the demo instead</a></p>`,
+      503,
+    );
+  }
+  if (!reply) return Response.json({ error: "the app is offline" }, { status: 502 });
+  const out = new Response(reply.body, reply);
+  const location = reply.headers.get("location");
+  if (location && location.startsWith(target.origin)) {
+    out.headers.set("location", url.origin + location.slice(target.origin.length));
+  }
+  // "/" is the demo without the cookie and the app with it: a stored page would show the wrong one
+  if ((reply.headers.get("content-type") || "").includes("text/html")) out.headers.set("cache-control", "no-store");
+  return out;
 }
 
 async function demo(request, env) {
@@ -110,6 +131,7 @@ async function demo(request, env) {
     const out = new Response(html.includes("</body>") ? html.replace("</body>", `${FORM}</body>`) : html + FORM, asset);
     out.headers.delete("content-length");
     out.headers.delete("etag");
+    out.headers.set("cache-control", "no-store"); // see proxy(): the same address is the app once unlocked
     return out;
   }
   return asset;
