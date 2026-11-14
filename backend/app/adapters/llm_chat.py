@@ -12,6 +12,8 @@ from app.core.agent.ports import ChatModelError, Reply
 
 Json = dict[str, Any]
 M = 1_000_000
+# reasoning_effort low: fewer thinking tokens, a faster turn (Gemini's compat endpoint takes it)
+BODY = {"tool_choice": "auto", "reasoning_effort": "low"}
 
 
 class OpenAiChatModel:
@@ -35,7 +37,7 @@ class OpenAiChatModel:
         return f"OpenAiChatModel({self.name})"
 
     def complete(self, messages: list[Json], tools: list[Json]) -> Reply:
-        body = {"messages": messages, "tools": tools, "tool_choice": "auto"}
+        body = {**BODY, "messages": messages, "tools": tools}
         try:
             reply = self._client.chat(body)
         except OpenVlmError as error:

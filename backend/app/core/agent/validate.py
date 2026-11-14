@@ -36,7 +36,9 @@ def _final_answer_tool() -> dict[str, Any]:
                 "dont_know (the tools do not say; text says why and what would settle it), "
                 "conflict (sources disagree: show both), needs_input (ambiguous: 2-4 options), "
                 "edit (a plan tool's proposal, named by proposal_id). options: chips the user may "
-                "send next, on any kind (e.g. questions the drawings can answer, on dont_know). "
+                "send next, on any kind, only as follow-ups to this question (the rooms to choose "
+                "from, or a rephrased question a tool said it can answer); none when there is no "
+                "such follow-up. "
                 "Cite places as [ev_<k>] in text and list them in evidence_ids."
             ),
             "parameters": schema,

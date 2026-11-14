@@ -247,7 +247,10 @@ def _answer(found: Json) -> tuple[str, Json]:
             and len(rooms) == len(suggested)
         ):  # several rooms of the type asked about: which one
             return _final("needs_input", why, options=options)
-        more: Json = {"options": options} if options else {}
+        # A refusal's suggestions follow up the question only when it could not be parsed at all;
+        # otherwise they are the drawing's generic questions, not answers to this one
+        related = refusal.get("code") == "unsupported-question"
+        more: Json = {"options": options} if options and related else {}
         return _final("dont_know", dont_know(why), **more)
     lines, evidence = [], []
     for part in answering[:3]:

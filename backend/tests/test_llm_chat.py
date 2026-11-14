@@ -70,6 +70,7 @@ def test_ac10_posts_tools_and_sends_the_assistant_message_back_verbatim() -> Non
     url, first, key = transport.sent[0]
     assert url == BASE + "/chat/completions" and key == KEY
     assert first["model"] == "gemini-4-hydrogen" and first["tool_choice"] == "auto"
+    assert first["reasoning_effort"] == "low"
     assert [t["function"]["name"] for t in first["tools"]] == ["list_drawings", "final_answer"]
     second = transport.sent[1][1]["messages"]
     assert second[2] == SIGNED  # extra_content (the thought signature) round-trips unchanged

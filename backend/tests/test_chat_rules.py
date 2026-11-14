@@ -61,6 +61,15 @@ def test_ac11_all_refused_is_dont_know_with_the_reason() -> None:
     assert "options" not in args
 
 
+def test_generic_suggestions_are_not_options_for_another_refusal() -> None:
+    can = [{"quantity": "door", "label": "door count", "question": "How many doors are there?"}]
+    refusal = {"code": "not-in-drawing", "can_answer": can, "text": "No fire rating is drawn."}
+    asked = {"parts": [{"drawing_id": DRAWING, "name": "a.pdf",
+                        "answer": {"answer": None, "refusal": refusal}}]}  # fmt: skip
+    _, args = plan("What is the fire rating?", ("ask_drawings", {}, asked))
+    assert args["kind"] == "dont_know" and "options" not in args
+
+
 def test_ac11_several_rooms_of_the_type_asked_about_ask_which() -> None:
     rooms = [
         {
