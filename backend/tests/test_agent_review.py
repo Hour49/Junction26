@@ -178,14 +178,33 @@ def test_review_339_n1_every_drawing_is_named_with_its_level() -> None:
     assert "other.pdf: 3. Low confidence. No other" in got.text
 
 
-def test_review_339_n2_a_refused_last_answer_is_called_a_refusal() -> None:
-    refused = {"question": "how many doors", "parts": [{"drawing_id": DRAWING, "name": "plan.pdf",
-               "answer": {"answer": None, "refusal": {"text": "Nothing was read."}}}]}  # fmt: skip
-    got = sure(refused)
+REFUSED: Json = {"question": "how big is the kitchen", "parts": [{
+    "drawing_id": DRAWING, "name": "plan.pdf",
+    "answer": {"answer": None, "refusal": {"text": "The drawing has no scale."}}}]}  # fmt: skip
+
+
+def test_review_339_n2_a_refused_last_answer_is_called_a_refusal_that_stands() -> None:
+    """Queue 6 (qa-a live): the card's kind and the text agree: an answer, not 'I don't know'."""
+    got = sure(REFUSED)
     assert (got.kind, got.text) == (
-        "dont_know",
-        "I can't check that: the last answer was a refusal.",
+        "answer",
+        "Yes: the last answer was a refusal, and it stands. plan.pdf: The drawing has no scale.",
     )
+    assert len(got.answers) == 1 and got.answers[0]["question"] == "how big is the kitchen"
+
+
+def test_a_doubt_about_a_refusal_is_an_answer_not_i_dont_know() -> None:
+    """Queue 6: live, Gemini replied kind dont_know with 'Yes, the drawing has no scale ...',
+    so the card read 'I don't know.' over 'Yes, ...' and had no steps."""
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=REFUSED)
+    again(chat, Model(step(call("ask_drawings", question="how big is the kitchen")),
+                      final(kind="dont_know", text="The drawing has no scale.")),
+          tools, "How big is the kitchen?")  # fmt: skip
+    model = Model(final(kind="dont_know", text="Yes, the drawing has no scale, so no area."))
+    got = again(chat, model, tools, "Are you sure?")
+    assert got.kind == "answer" and got.text.startswith("Yes, the drawing has no scale")
+    assert [s.tool for s in got.steps] == ["review_answer"]
+    assert len(got.answers) == 1
 
 
 def test_the_rules_planner_answers_a_pushed_number_from_the_review_and_keeps_the_card() -> None:

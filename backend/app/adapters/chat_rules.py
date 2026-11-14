@@ -196,13 +196,11 @@ def _sure(turn: _Turn) -> tuple[str, Json]:
         return "review_answer", {}
     drawings: list[Json] = [d for d in found.get("drawings") or [] if isinstance(d, dict)]
     answered = [d for d in drawings if "answer" in d]
+    if found.get("status") == "ok" and drawings and not answered:  # a refusal: it stands
+        why = " ".join(f"{d['drawing']}: {d['refused']}" for d in drawings if d.get("refused"))
+        return _final("answer", f"Yes: the last answer was a refusal, and it stands. {why}")
     if found.get("status") != "ok" or not answered:
-        refused = drawings and found.get("status") == "ok"
-        why = (
-            "the last answer was a refusal"
-            if refused
-            else found.get("reason") or "the last answer had no number to check"
-        )
+        why = found.get("reason") or "the last answer had no number to check"
         return _final("dont_know", f"I can't check that: {why}.")
     lines: list[str] = []
     cited: list[str] = []
