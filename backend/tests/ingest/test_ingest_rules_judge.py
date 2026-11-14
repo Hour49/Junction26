@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 from conftest import MakeService
 from test_ingest_triage import PHOTO, PLAN, SCAN, file_of, zipped
-from triage_fakes import FakeClassifier, FakeDescriber
+from triage_fakes import FakeClassifier, FakeDescriber, WordJudge
 
 from app.adapters.triage.rules_judge import JUDGE, RulesJudge
 from app.composition import _triage  # pyright: ignore[reportPrivateUsage]
 from app.core.ingest.model import Description, ProjectContext, Unavailable
-from app.core.ingest.triage import TriageSteps
+from app.core.ingest.triage import NOTE_NO_DESCRIBER, TriageSteps
 from app.settings import Settings
 
 SAID = Description(text="A picture.", subject="a picture", model="fake describer")
@@ -55,3 +55,35 @@ def test_the_setting_wires_the_rules_judge_and_off_wires_none(
     assert on.name == "classifier=rules, describer=off, judge=rules"
     off = _triage(Settings(triage_classifier="rules"))
     assert off is not None and off.judge is None
+
+
+def test_with_no_describer_the_rules_judge_still_judges_each_non_plan_by_its_class(
+    make_service: MakeService,
+) -> None:
+    """TRIAGE_CLASSIFIER=rules + TRIAGE_JUDGE=rules, describer off: the rule never reads a
+    description, so it judges undescribed files too (brief triage-judge-undescribed.md)."""
+    classifier = FakeClassifier({SCAN: "other_drawing", PHOTO: "not_drawing"})
+    steps = TriageSteps(classifier=classifier, describer=None, judge=RulesJudge(), name="t")
+    ingest = make_service(triage=steps)
+    files = {"plan.pdf": PLAN, "elevation.png": SCAN, "cat.jpg": PHOTO}
+    status = ingest.wait(ingest.start("site.zip", zipped(files)))
+    elevation, cat = file_of(status, "elevation.png").triage, file_of(status, "cat.jpg").triage
+    assert elevation is not None and cat is not None
+    assert (elevation.description, cat.description) == (None, None)
+    assert (elevation.verdict, cat.verdict) == ("related", "unrelated")
+    assert cat.relevance is not None and cat.relevance.why.startswith("A picture that is not")
+    assert cat.note == "not described: no description model is set up"  # judged all the same
+
+
+def test_a_judge_that_reads_the_description_still_skips_an_undescribed_file(
+    make_service: MakeService,
+) -> None:
+    judge = WordJudge()
+    steps = TriageSteps(
+        classifier=FakeClassifier({SCAN: "other_drawing"}), describer=None, judge=judge, name="t"
+    )
+    ingest = make_service(triage=steps)
+    status = ingest.wait(ingest.start("site.zip", zipped({"plan.pdf": PLAN, "scan.png": SCAN})))
+    scan = file_of(status, "scan.png").triage
+    assert scan is not None and (scan.relevance, scan.note) == (None, NOTE_NO_DESCRIBER)
+    assert judge.contexts == []

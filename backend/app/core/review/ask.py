@@ -35,6 +35,19 @@ from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
 from app.core.pipeline.takeoff import known_quantities, room_names
+from app.core.review.check import (
+    NO_SCORERS,
+    Check,
+    CheckPolicy,
+    Disputes,
+    Scorer,
+    certified,
+    double_check,
+    held,
+    no_disputes,
+    schedule_check,
+    score_of,
+)
 from app.core.review.model import (
     MarkView,
     Refusal,
@@ -90,6 +103,7 @@ class Asked(Frozen):
     marks: tuple[MarkView, ...]  # the row's marks, or a schedule answer's cells
     refusal: Refusal | None
     proof: Proof  # what the screen draws as the answer's proof
+    check: Check | None = None  # CHECK_POLICY's double-check request; None: certified or off
 
 
 class _Once:
@@ -118,14 +132,24 @@ def ask(
     sure_at: Mapping[str, float] | None = None,
     flags: Sequence[str] = (),
     raster: bool = False,
+    check: CheckPolicy | None = None,
+    route: str | None = None,
+    disputes: Disputes = no_disputes,
     no_reader: bool = False,
+    scorers: Mapping[str, Scorer] = NO_SCORERS,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
     `flags`: how ingest read the page (judge.reading_flags: a phone photo, a scan). `raster`: the
     page was read on the raster route (an image, a photo, a scanned PDF). `no_reader`: the
     sheet's route has no reader (the stand-in), so a "no-reader" refusal says so, not that a
-    reader found nothing."""
+    reader found nothing. `check` (CHECK_POLICY): a takeoff answer it does not certify on `route`
+    (ingest's) gets a double-check request with the places `disputes` finds; a family whose
+    threshold is on a local gate's signal is scored by `scorers` (LOCAL_GATES), by signal name
+    (app/core/review/check.py). With `check` on, it alone sets `sure`, in place of `sure_at`'s:
+    true exactly when it certifies the answer, None on every answer it does not rate (a
+    refusal, a question with no takeoff row), so an answer is never shown sure and asked about
+    at once."""
     quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
@@ -185,7 +209,34 @@ def ask(
                 )
                 can_answer = each
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
-    return Asked(answer=answer, query=query, row=shown, marks=marks, refusal=refusal, proof=proof)
+    request = None
+    sure: bool | None = None  # CHECK_POLICY's verdict
+    if check is not None and shown is not None and isinstance(parsed, Query):
+        reason = held(shown, drawing)
+        family = parsed.family()
+        score = score_of(
+            check, family, confidence=answer.confidence, drawing=drawing, value=answer.answer,
+            scorers=scorers,
+        )  # fmt: skip
+        sure = reason is None and certified(
+            check, route=route, family=family, score=score, flags=flags
+        )
+        if not sure:
+            request = double_check(shown, marks, disputes(drawing, shown), reason)
+    elif check is not None and answer.method == SCHEDULE:
+        request = schedule_check(check)
+        sure = request is None
+    if check is not None:
+        answer = answer.model_copy(update={"sure": sure})
+    return Asked(
+        answer=answer,
+        query=query,
+        row=shown,
+        marks=marks,
+        refusal=refusal,
+        proof=proof,
+        check=request,
+    )
 
 
 def _flagged(

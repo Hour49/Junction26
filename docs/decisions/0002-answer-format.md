@@ -97,3 +97,8 @@ answer_v1.1 gets one more optional field, `sure` (bool or null): true or false o
 score (at or above the family's threshold, or below it), null otherwise; the gate was chosen on val and certified
 once on test: of the plans marked sure, at least 96.2% have every sure answer exact (374 of 376 test plans, 366
 exact, one-sided 95% bound).
+
+2026-11-14 (orchestrator, brief answer-next): a plan count is sure only when g1main's own most likely count is
+the answered one too (`AGREEING_FAMILIES` in `app/core/answering/answer.py`). It only takes `sure` away, so the
+certificate above still holds as a bound. Why: three hand-drawn sketches got sure, wrong plan counts at scores of
+0.04-0.09, over the plan threshold 0.014, with Gemini's own count another.
