@@ -422,8 +422,17 @@ any other is Low. A calibration group whose cross-fit Medium has fewer than 30 a
 no Medium (`--medium-min-units`, `--medium-min-exact`; window on C1-T1, 7 answers). The top-level `levels` block
 keeps the cross-fit counts per level. Each route gets a `level`: High when certified, else Medium when its golden
 v2 dev answers reach 30 at 80% exact (schedules: 35/37), else Low. On C1-T1 val, cross-fit: High 44.9% of the
-answers at 98.9% exact, Medium 34.6% at 91.6%, Low 20.4% at 58.6%. These counts leave out #174's plan agreement
-(3 val plans the backend asks about count as High here) and count the always-flagged bedroom answers as Low.
+answers at 98.9% exact, Medium 34.6% at 91.6%, Low 20.4% at 58.6%. An always-flagged bedroom answer (a bedroom
+with no printed label) is Low whatever its score, in eval and in the backend (orchestrator, 2026-11-14), so the
+Medium figure is what was measured. A known small difference: eval does not model #174's plan agreement, so 3 val
+plans the backend asks about count as High here.
+
+The levels file is `eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json` (sha256
+`bfce5524cd32f3a6aac94307265892ed99251bc1efbee692ba9855e8d11b369a`), made by `check-policy --medium 0.20` on the
+pinned policy's inputs. Every field of the pinned file (sha256
+`a9334da1b908866d57fb4066791011bf5344a0f11471a05dba2f0815dd239def`) has the same value in it, except `generated`;
+it only adds `medium` per family, the `levels` block, and each route's `level` and `dev`. The pinned file stays
+the policy the test certificate below was computed with.
 
 The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json` (committed as
 `eval/results/check/check-C1-T1-recall96-rt-full-small.json`, sha256
