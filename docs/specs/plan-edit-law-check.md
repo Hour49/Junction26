@@ -108,9 +108,8 @@ Zürich** (`?pack=ch-zh`).
 - LC-9 Law lookup, run in code for every proposal (cannot be skipped): the plan tool runs
   `index.search(pack, related_query(drawing, proposal), limit=8)` (law index of 0014; `related_query` is ours, LC-1's
   module: the changed rooms' types and the change in words, in English and the pack's language, e.g. "bedroom room
-  area minimum Schlafzimmer Fläche" or "remove wall bathroom wet room") and passes the hits to `check_proposal(...,
-  related=hits)`. `law.related` = those hits, each with the clause's `limits` and `drawing_checkable` (from
-  `LawIndex.clause`), ordered checkable-with-limits first. `for_model()` includes them (ref, title, summary, limits;
+  area minimum Schlafzimmer Fläche" or "remove wall bathroom wet room") fetches each hit with `index.clause(id)` and passes those
+  ClauseViews to `check_proposal(..., related=...)`. `law.related` = them, ordered checkable-with-limits first. `for_model()` includes them (ref, title, summary, limits;
   no quotes).
 - LC-9a The agent judges them: for each related clause with `limits` that applies to a changed room or door (the
   model reads the summary and decides whether e.g. "habitable room area" fits "Schlafzimmer"), it may call
@@ -205,10 +204,11 @@ def check_proposal(
     proposal: Proposal,          # app/core/plan_edit/model.py on agent/chat
     pack: RulePack,              # from checks' pack_of
     route: Route | None,         # DrawingInfo.route; None = taken as a picture (0009)
-    related: Sequence[SearchHit] = (),  # LawIndex.search hits for related_query(); () = none
+    related: Sequence[ClauseView] = (),  # [index.clause(h.id) for h in index.search(pack.id, related_query(...), limit=8)]
 ) -> LawCheck: ...
 
 def related_query(drawing: Drawing, proposal: Proposal) -> str: ...  # the change in words, for LawIndex.search
+# LawCheck.related keeps these ClauseViews (they carry `limits`, `drawing_checkable`, ref, law title, url)
 
 def validate_law_note(  # LC-9b, pure: the kept finding with the server-filled clause, or None (dropped)
     note: LawNote, law_check: LawCheck, clauses: Mapping[str, ClauseView], tool_values: Collection[float]
@@ -219,11 +219,14 @@ class LawCheck(Frozen):  # pack, pack_name, fail_means, findings, unchanged, rel
 ```
 
 `Finding`, `LawNote`, `AiFinding` and `LawCheck` are pydantic `Frozen` models in the same module; field names as in §2.3.
+`clauses` for `validate_law_note` = every ClauseView of this turn (`law.related` + the model's `get_clause` results,
+by id; a `search_law` hit the model cites is fetched with `index.clause`). The loop keeps the validated notes with
+`law_check.model_copy(update={"ai_findings": (*law_check.ai_findings, *kept)})` (LawCheck is Frozen).
 
 ## 6. Owners (agreed with the agent-chat orchestrator)
 
 - Law-kb fleet: LC-1 to LC-5, LC-9 (`related_query`, `related` with limits), LC-9b's pure validator
-  `validate_law_note(note, law_check, tool_values) -> Finding | None`, + `for_model` (`app/core/plan_edit/law_check.py` + tests), on a
+  `validate_law_note(note, law_check, clauses, tool_values) -> AiFinding | None` (signature in §2.4), + `for_model` (`app/core/plan_edit/law_check.py` + tests), on a
   branch from `agent/chat`; its PR targets main after #261 merges.
 - Agent-chat fleet (w5:p1): LC-6 to LC-8, LC-9a (prompt + `final_answer.law_notes`), LC-9c, LC-10 to LC-16 in its files (`plan_tools.py`, `app/core/agent/`, `app/api/chat.py`,
   `src/agent/`), when Tudor says go.
