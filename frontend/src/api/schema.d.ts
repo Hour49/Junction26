@@ -899,6 +899,8 @@ export interface components {
          * @description One drawing of a project: one per group of renderings of the same plan.
          */
         DrawingEntry: {
+            /** Credit */
+            credit: string | null;
             /** Drawing Id */
             drawing_id: string;
             /** File */
@@ -907,6 +909,8 @@ export interface components {
             group: string;
             /** Kind */
             kind: string | null;
+            /** Name */
+            name: string;
             /** Other Renderings */
             other_renderings: components["schemas"]["Rendering"][];
             /** Route */
