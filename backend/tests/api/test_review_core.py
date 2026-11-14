@@ -27,7 +27,10 @@ from app.core.review.review import (
     mark_views,
     review_queue,
     row,
+    sheet_row,
     sign,
+    storey_twins,
+    with_twins,
 )
 
 AT = "2026-11-14T01:00:00Z"
@@ -232,6 +235,28 @@ def test_the_area_of_the_one_room_of_a_type_is_that_room_s_area() -> None:
         assert found.query == by_number.query  # the same row: its conflict and review go along
 
 
+def test_the_area_of_a_room_asked_by_its_printed_label_is_that_room_s_area() -> None:
+    """R2-2-3: on flat-b "What is the area of the Reduit?" (the room printed "Reduit", whose type
+    the parser has no word for) was refused as "isn't a count, area, length or volume"."""
+    reduit = Room(
+        id="r1", type="storage", label="Reduit", page=1, box=BOX_A, area_m2=2.49,
+        attrs={"number": "1.02"},
+    )  # fmt: skip
+    bath = Room(id="r2", type="bathroom", label="Bad", page=1, box=BOX_B, area_m2=5.0)
+    drawing = scaled(reduit, bath)
+    by_number = asked("What is the net floor area of room 1.02?", drawing)
+    for text in (
+        "What is the area of the Reduit?",
+        "What is the area of the storage room?",
+        "How big is the Reduit?",
+        "How big is room 1.02?",
+    ):
+        found = asked(text, drawing)
+        assert found.refusal is None, (text, found.refusal)
+        assert (found.answer.answer, found.answer.unit) == (2.49, "m2")
+        assert found.query == by_number.query  # the same row: its conflict and review go along
+
+
 def test_an_area_of_a_type_several_rooms_have_names_them_instead_of_guessing() -> None:
     rooms = [
         Room(id=f"r{at}", type="bedroom", label=f"MH {at}", page=1, box=box, area_m2=area)
@@ -292,3 +317,33 @@ def test_a_disagreement_on_a_one_storey_sheet_is_listed_once() -> None:
     ]
     assert review_queue(rows) == ["window", "wall|storey=p1"]
     assert [found.key for found in disputes(rows)] == ["window", "wall|storey=p1"]
+
+
+def test_settling_or_signing_a_one_storey_sheet_s_row_decides_its_storey_twin_too() -> None:
+    """K4: on a one-storey IFC sheet the review lists "window count" once (R1-2-4), but settling,
+    keeping or signing it left "window count (storey p1)" disputed, so a question about the
+    storey still showed the dispute. One disagreement, one decision."""
+    windows, walls = disputed(False), disputed(False)
+    found = {
+        key: quantity(key, value, "count", BOX_A, conflict=conflict)
+        for key, value, conflict in (
+            ("window", 2, windows),
+            ("window|storey=p1", 2, windows),
+            ("wall", 5, None),
+            ("wall|storey=p1", 2, walls),
+        )
+    }
+    twins = storey_twins(found)
+    assert twins == {"window|storey=p1": "window"}  # the walls differ: not twins
+    state = apply(ReviewState(), Edit(quantity="window", action="settle", value=3), found["window"],
+                  DRAWING, AT)  # fmt: skip
+    twin = row(found["window|storey=p1"], DRAWING, with_twins(state, twins), {})
+    assert (twin.value, twin.status, twin.needs_person) == (3, "edited", False)
+    state = sign(state, found["window"], DRAWING, "Ana", AT)
+    twin = row(found["window|storey=p1"], DRAWING, with_twins(state, twins), {})
+    assert twin.status == "signed" and twin.signed is not None and twin.signed.by == "Ana"
+    walls_row = row(found["wall|storey=p1"], DRAWING, with_twins(state, twins), {})
+    assert walls_row.status == "conflict"
+    # an edit or sign-off sent for the storey's row is made on the sheet's row
+    assert sheet_row(found, "window|storey=p1").key == "window"
+    assert sheet_row(found, "wall|storey=p1").key == "wall|storey=p1"

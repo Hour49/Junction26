@@ -45,7 +45,7 @@ from app.core.review.model import (
     Suggestion,
 )
 from app.core.review.proof import NO_PROOF, Proof, schedule_proof, takeoff_proof
-from app.core.review.review import label, parse_key, row
+from app.core.review.review import label, parse_key, row, storey_twins, with_twins
 
 # Every counting rule's text by id, as the answer shows it.
 RULES: dict[str, str] = {
@@ -125,7 +125,8 @@ def ask(
     elif isinstance(parsed, TableQuery):
         query = parsed.family()
     found = quantities.get(query) if query is not None and answer.method == TAKEOFF else None
-    shown = None if found is None else row(found, drawing, state, RULES)
+    shared = with_twins(state, storey_twins(quantities))
+    shown = None if found is None else row(found, drawing, shared, RULES)
     if shown is not None:
         marks = shown.marks
     elif answer.method == SCHEDULE:

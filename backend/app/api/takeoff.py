@@ -18,7 +18,17 @@ from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import RULES
 from app.core.review.model import Edit, Row
 from app.core.review.ports import ReviewStore
-from app.core.review.review import apply, quantity_of, reset, review_queue, row, sign, unsign
+from app.core.review.review import (
+    apply,
+    reset,
+    review_queue,
+    row,
+    sheet_row,
+    sign,
+    storey_twins,
+    unsign,
+    with_twins,
+)
 
 router = APIRouter(prefix="/api/drawings")
 
@@ -61,8 +71,9 @@ def takeoff_rows(
     file = drawing.file
     if project is not None:
         file = as_uploaded(ingest, ingest.drawing_info(drawing_id), project).path
-    state = reviews.get(drawing_id)
-    rows = [row(found, drawing, state, RULES) for found in known_quantities(drawing).values()]
+    quantities = known_quantities(drawing)
+    state = with_twins(reviews.get(drawing_id), storey_twins(quantities))
+    rows = [row(found, drawing, state, RULES) for found in quantities.values()]
     if not zeros:
         rows = [found for found in rows if found.value != 0 or found.status != "single"]
     return Takeoff(
@@ -94,7 +105,7 @@ def review(
         reviews.update(drawing_id, lambda state: reset(state, None))
     else:
         drawing = ingest.drawing(drawing_id)
-        found = quantity_of(known_quantities(drawing), edit.quantity)
+        found = sheet_row(known_quantities(drawing), edit.quantity)
         at = now()
         reviews.update(drawing_id, lambda state: apply(state, edit, found, drawing, at))
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
@@ -110,7 +121,7 @@ def signoff(
     project: Annotated[str | None, PROJECT] = None,
 ) -> Takeoff:
     drawing = ingest.drawing(drawing_id)
-    found = quantity_of(known_quantities(drawing), body.quantity)
+    found = sheet_row(known_quantities(drawing), body.quantity)
     if body.undo:
         reviews.update(drawing_id, lambda state: unsign(state, found.key))
     else:
