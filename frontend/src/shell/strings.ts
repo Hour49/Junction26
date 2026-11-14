@@ -11,7 +11,7 @@ export const READER_LABELS: Record<string, string> = {
   rectifier: 'Photo rectifier',
   question_parser: 'Questions',
   answer_prior: 'Answer prior',
-  decisions_kind: 'Answer decisions',
+  decisions_kind: 'photo/sheet check', // its value is 'True'/'False': readerName shows on/off
 };
 
 export const OFFLINE_TEXT = 'Running offline: no API keys, no models';

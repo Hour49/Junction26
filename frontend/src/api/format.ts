@@ -12,3 +12,25 @@ export function formatTime(iso: string): string {
   if (Number.isNaN(at.getTime())) return iso;
   return `${at.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
+
+// Reader ids as /api/info and DrawingView.reader give them (backend app/settings.py), as plain labels.
+const READERS: Record<string, string> = {
+  composite: 'image reader',
+  pdf: 'PDF vector reader',
+  ifc: 'IFC model',
+  templates: 'question templates',
+  hello: 'not read',
+  dev: 'best estimate from dev answers',
+  r3: 'photo rectifier',
+  gemini: 'Gemini',
+  off: 'off',
+  False: 'off',
+  True: 'on',
+  none: 'none',
+};
+
+/** A reader id as a plain label; no id is "no reader"; an id with no label shows as is. */
+export function readerName(id: string | null | undefined): string {
+  if (id === null || id === undefined) return 'no reader';
+  return READERS[id] ?? id;
+}

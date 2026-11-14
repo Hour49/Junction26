@@ -149,7 +149,7 @@ describe('drawing header and ask box', () => {
     expect(await screen.findByRole('heading', { name: 'plans/flat-a.pdf' })).toBeTruthy();
     expect(
       screen.getByText(
-        'vector route, read from plans/flat-a.pdf by pdf; second count: ifc; questions: templates',
+        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count: IFC model; questions: question templates',
       ),
     ).toBeTruthy();
   });
@@ -160,7 +160,7 @@ describe('drawing header and ask box', () => {
     });
     expect(
       await screen.findByText(
-        'vector route, read from plans/flat-a.pdf by pdf; no second count; questions: templates',
+        'vector route, read from plans/flat-a.pdf by PDF vector reader; no second count; questions: question templates',
       ),
     ).toBeTruthy();
   });
@@ -455,6 +455,20 @@ describe('thread', () => {
     expect(scroll.mock.contexts.at(-1)).toBe(t);
   });
 
+  it('R2 qa-3 EN-52 the folded suggestions and Details keep the disclosure marker', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer) });
+    await askSuggestion(answer.question);
+    const t = await turn(answer.question);
+    await within(t).findByTestId('answer-value');
+    const header = screen.getByRole('region', { name: 'Drawing' });
+    const fold = within(header).getByText('Suggested questions');
+    expect(fold.tagName).toBe('SUMMARY');
+    expect(fold.style.display).toBe('list-item');
+    const details = within(t).getByText('Details');
+    expect(details.tagName).toBe('SUMMARY');
+    expect(details.style.display).toBe('list-item');
+  });
+
   it('review fix 2: after the first answer the suggestions fold into a closed details', async () => {
     open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer) });
     const header = await screen.findByRole('region', { name: 'Drawing' });
@@ -534,7 +548,9 @@ describe('extended answers', () => {
     expect(answer.reader.second_counter).toBe('none');
     const t = await shownTurn(answer);
     expect(
-      within(t).getByText('pdf read plans/flat-a.pdf (vector route), no second count'),
+      within(t).getByText(
+        'PDF vector reader read plans/flat-a.pdf (vector route), no second count',
+      ),
     ).toBeTruthy();
     cleanup();
     const counted = await shownTurn({
@@ -542,7 +558,9 @@ describe('extended answers', () => {
       reader: { ...answer.reader, second_counter: 'ifc' },
     });
     expect(
-      within(counted).getByText('pdf read plans/flat-a.pdf (vector route), second count by ifc'),
+      within(counted).getByText(
+        'PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model',
+      ),
     ).toBeTruthy();
   });
 

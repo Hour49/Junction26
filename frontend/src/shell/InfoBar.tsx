@@ -1,4 +1,4 @@
-import { errorText } from '../api';
+import { errorText, readerName } from '../api';
 import { useInfo } from './info';
 import { OFFLINE_TEXT, READER_LABELS } from './strings';
 
@@ -33,7 +33,7 @@ export function InfoBar() {
           {Object.entries(info.readers).map(([port, reader]) => (
             <div key={port}>
               <dt>{READER_LABELS[port] ?? port}</dt>
-              <dd>{reader === 'hello' ? 'not read' : reader}</dd>
+              <dd>{readerName(reader)}</dd>
             </div>
           ))}
         </dl>

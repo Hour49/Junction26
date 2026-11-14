@@ -4,6 +4,7 @@ import {
   evidenceUrl,
   formatTime,
   formatValue,
+  readerName,
   type AnswerView,
   type MarkView,
   type Reader,
@@ -11,7 +12,7 @@ import {
 import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import { ChecksPanel } from './ChecksPanel';
-import { Suggestions } from './DrawingHeader';
+import { MARKER, Suggestions } from './DrawingHeader';
 import { formatCost, formatLatency, formatScore } from './format';
 import { ModelProof } from './ModelProof';
 
@@ -46,8 +47,10 @@ function readAs(explanation: string | null): string | null {
 function cameFrom(r: Reader): string {
   // `none`: no second count ran for this drawing.
   const second =
-    r.second_counter === 'none' ? 'no second count' : `second count by ${r.second_counter}`;
-  return `${r.extractor ?? 'nothing'} read ${r.source ?? 'no file'} (${r.route ?? 'no'} route), ${second}`;
+    r.second_counter === 'none'
+      ? 'no second count'
+      : `second count by ${readerName(r.second_counter)}`;
+  return `${readerName(r.extractor)} read ${r.source ?? 'no file'} (${r.route ?? 'no'} route), ${second}`;
 }
 
 function MarkList(props: {
@@ -178,7 +181,7 @@ function Answer(props: {
         <span>Cost {formatCost(a.cost_usd)}</span>
         <span>Time {formatLatency(a.latency_s)}</span>
         <details className="en-details">
-          <summary>Details</summary>
+          <summary style={MARKER}>Details</summary>
           {row && <p>Query: {row.key}</p>}
           <p>Method: {a.method}</p>
           {score && <p>Signal: {score.signal}</p>}

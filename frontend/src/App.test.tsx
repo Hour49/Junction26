@@ -281,9 +281,23 @@ describe('info strip', () => {
     expect(rows).toHaveLength(11);
     expect(rows).toContainEqual(['CAD (DXF)', 'not read']);
     expect(rows).toContainEqual(['Scans and photos', 'not read']);
-    expect(rows).toContainEqual(['Vector PDF', 'pdf']);
+    expect(rows).toContainEqual(['Vector PDF', 'PDF vector reader']);
+    expect(rows).toContainEqual(['Questions', 'question templates']);
     expect(rows).toContainEqual(['Photo rectifier', 'none']);
-    expect(rows).toContainEqual(['Answer decisions', 'False']);
+    expect(rows).toContainEqual(['photo/sheet check', 'off']);
     expect(rows).toContainEqual(['new_port', 'thing']);
+  });
+
+  it('R2-qa-3-3 (SH-18) decisions_kind reads photo/sheet check: on / off', async () => {
+    mockApi({
+      'GET /api/info': { ...info, readers: { ...info.readers, decisions_kind: 'True' } },
+      'GET /api/projects': projectList,
+    });
+    const { container } = render(<App screens={stubs} />);
+    await screen.findByText('What runs');
+    const row = Array.from(container.querySelectorAll('.what-runs dl > div')).find(
+      (r) => r.querySelector('dt')?.textContent === 'photo/sheet check',
+    );
+    expect(row?.querySelector('dd')?.textContent).toBe('on');
   });
 });

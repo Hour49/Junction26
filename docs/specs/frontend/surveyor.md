@@ -125,7 +125,7 @@ Mark rows, by `state`:
 | Ready | Side panel, viewer, takeoff panel as in Layout | `takeoff.json` + `drawing.json` + `project_review.json` |
 | Empty | No rows: "Nothing was counted on this drawing." When `reader.extractor` is `hello`: "This drawing's route has no reader in this build, so nothing was counted." When `zeros` is false: also the "Show rows with value 0" control. No sign-off, no CSV link, no reset-all | `takeoff.json` with `quantities: []`, `review_queue: []`; the sample's `scans/` or `photos/` drawing (0 quantities in `project_review.json`) |
 | Nothing to review | The "To review" group says "Nothing left to review." | `takeoff.json` with `review_queue: []` |
-| Load error | The shell's `ErrorView` with `detail`, `code` and Retry, which repeats the failed loads (`ErrorView` adds "Go to the start" for `not-found`) | Mock a 404 `error.json` for the takeoff; an unknown drawing id against the backend |
+| Load error | The shell's `ErrorView` with `detail`, `code` and Retry, which repeats the failed loads (on a 404 `ErrorView` shows "Back to projects" to `#/` instead of Retry) | Mock a 404 `error.json` for the takeoff; an unknown drawing id against the backend |
 | Side-panel error | Only the side panel shows `detail`, `code` and Retry; the takeoff still works | Mock a 500 for `GET …/review` |
 | Saving | "Saving…" in a live region; every edit, settle, sign-off and reset control disabled; the table stays readable | Any edit with a delayed response |
 | Edit refused | An alert in the detail with `detail` and `code` (409 `not-allowed`, 422 `invalid`, 422 `validation`, 404 `not-found`); the takeoff stays as it was; the alert clears on the next successful request | Mock 409/422 bodies shaped as `error.json` |
@@ -298,8 +298,9 @@ States, safety, layout
 - SV-44: An empty takeoff shows "Nothing was counted on this drawing."; with `reader.extractor: "hello"` also the
   no-reader sentence; with zeros off also the zeros toggle; there is no Sign off, CSV link or Reset all.
   [component] derived `takeoff.json` (`quantities: []`), derived `drawing.json`
-- SV-45: A 404 on the takeoff shows `ErrorView` with "no drawing 0123456789abcdef" and "code: not-found", and a
-  Retry that re-sends the loads. [component] `error.json`
+- SV-45: A 404 on the takeoff shows `ErrorView` with "no drawing 0123456789abcdef" and "code: not-found", a link
+  "Back to projects" to `#/` and no Retry (asking again finds nothing, QA qa-3 (b)); any other load error (a 500)
+  shows Retry, which re-sends the loads. [component] `error.json`, derived 500
 - SV-46: A label, mark label, reason, rule text or file name holding `<img src=x onerror=alert(1)>` renders as that
   literal text and adds no element. [component] derived
 - SV-47: At 390x844 and 1440x900 the screen has no horizontal page scroll

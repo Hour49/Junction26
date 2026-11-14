@@ -99,6 +99,10 @@
   border-color: currentColor;
   font-weight: 600;
 }
+.ingest-strip-note {
+  margin: -12px 0 0;
+  font-size: 0.875rem;
+}
 .ingest-working {
   margin-left: 6px;
 }

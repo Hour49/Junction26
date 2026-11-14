@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api';
-import { drawing, error as errorBody } from '../api/fixtures';
+import { drawing, error as errorBody, project } from '../api/fixtures';
+import { ProjectScreen } from '../ingest/ProjectScreen';
+import { mockApi, reply } from '../test/mockApi';
 import { Credit } from './Credit';
 import { ErrorView } from './ErrorView';
 import { Loading } from './Loading';
@@ -15,15 +17,15 @@ describe('common views', () => {
     expect(screen.getByRole('status').textContent).toBe('Loading the project…');
   });
 
-  it('SH-39 ErrorView shows detail, code, status, retry and the start link for not-found', () => {
+  it('SH-39 ErrorView shows detail, code, status and Retry', () => {
     const retry = vi.fn();
-    const notFound = new ApiError(404, errorBody.code, errorBody.detail);
-    const { unmount } = render(<ErrorView error={notFound} onRetry={retry} />);
+    const busy = new ApiError(429, 'busy', 'three projects are being ingested');
+    const { unmount } = render(<ErrorView error={busy} onRetry={retry} />);
     const alert = screen.getByRole('alert');
-    expect(alert.textContent).toContain(errorBody.detail);
-    expect(alert.textContent).toContain('code: not-found');
-    expect(alert.textContent).toContain('404');
-    expect(screen.getByRole('link', { name: 'Go to the start' }).getAttribute('href')).toBe('#/');
+    expect(alert.textContent).toContain('three projects are being ingested');
+    expect(alert.textContent).toContain('code: busy');
+    expect(alert.textContent).toContain('429');
+    expect(screen.queryByRole('link', { name: 'Back to projects' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(retry).toHaveBeenCalledOnce();
     unmount();
@@ -47,5 +49,36 @@ describe('common views', () => {
     const { container: other } = render(<Credit credit="<b>x</b>" />);
     expect(other.textContent).toBe('Credit: <b>x</b>');
     expect(other.querySelector('b')).toBeNull();
+  });
+
+  it('R2-qa-3-2 (SH-48) a 404 offers Back to projects, not Retry', () => {
+    const retry = vi.fn();
+    for (const notFound of [
+      new ApiError(404, errorBody.code, errorBody.detail),
+      new ApiError(404, 'http-404', 'the server answered 404'),
+    ]) {
+      const { unmount } = render(<ErrorView error={notFound} onRetry={retry} />);
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).toContain(notFound.detail);
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+      const back = screen.getByRole('link', { name: 'Back to projects' });
+      expect(back.getAttribute('href')).toBe('#/');
+      unmount();
+    }
+    // the status decides: a 500 keeps Retry whatever its code says
+    render(
+      <ErrorView error={new ApiError(500, errorBody.code, errorBody.detail)} onRetry={retry} />,
+    );
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Back to projects' })).toBeNull();
+  });
+
+  it('R2-qa-3-2 (SH-48) ingest project screen answered 404 shows Back to projects, no Retry', async () => {
+    mockApi({ [`GET /api/projects/${project.id}`]: reply(404, errorBody) });
+    render(<ProjectScreen projectId={project.id} />);
+    const back = await screen.findByRole('link', { name: 'Back to projects' });
+    expect(back.getAttribute('href')).toBe('#/');
+    expect(screen.getByRole('alert').textContent).toContain(errorBody.detail);
+    expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
   });
 });

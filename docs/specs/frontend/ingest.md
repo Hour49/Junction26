@@ -269,6 +269,10 @@ Stage strip
   counted as "waiting" before the first stage. [unit `stageCounts` + component, `project.json`, `queued`]
 - IN-31: With `running`, the `extract` chip shows the word "working" (and its icon); with `project.json` no chip
   does. [component]
+- IN-51 (R2 qa-3 d): When the Cache chip's count is above 0, one line under the strip reads "Each file is counted at
+  its last stage. A reused file stops at Cache: an earlier upload already wrote its drawing."; with a Cache count of
+  0 (`project.json`) the line is absent. [component, `project.json` with every file `stage: "cache"`,
+  `reused: true`]
 
 File trace
 

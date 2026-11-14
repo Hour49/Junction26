@@ -32,9 +32,11 @@
 }
 .en-fold summary,
 .en-details summary {
+  /* list-item keeps the browser's ▶ marker, as the shell's "What runs" (flex would drop it). */
+  display: list-item;
   min-height: 44px;
-  display: flex;
-  align-items: center;
+  padding: 12px 0;
+  box-sizing: border-box;
   cursor: pointer;
 }
 .en-foot a {
