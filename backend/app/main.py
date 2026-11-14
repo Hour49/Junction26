@@ -23,7 +23,6 @@ from app.composition import build_answering, build_ingest
 from app.core.errors import (
     DomainError,
     InvalidInputError,
-    NoDescriptionError,
     NotFoundError,
     NotTriagedError,
     UnknownPackError,
@@ -40,7 +39,6 @@ STATUS_BY_ERROR: dict[type[DomainError], int] = {
 # A domain error with a code of its own, not its status's
 CODE_BY_ERROR: dict[type[DomainError], str] = {
     UnknownPackError: "unknown-pack",
-    NoDescriptionError: "no-description",
     NotTriagedError: "not-triaged",
 }
 CODES = {

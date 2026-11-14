@@ -19,7 +19,6 @@ from app.core.drawing.model import Drawing
 from app.core.errors import (
     DomainError,
     InvalidInputError,
-    NoDescriptionError,
     NotFoundError,
     NotTriagedError,
 )
@@ -282,7 +281,8 @@ class IngestService:
     def overrule(self, project_id: str, file_id: str, overrule: Overrule | None) -> FileStatus:
         """A person's call on a triaged file's relevance (decision 0010), kept in the project's
         status so every view of the file shows it; None takes it back. Only in a finished
-        project, and only for a file that was described (one the judge could look at)."""
+        project, for any file triage called not a floor plan, described and judged or not, so a
+        person can settle every `unrelated_file` issue."""
         with self._lock:
             if project_id in self._live:
                 raise NotAllowedError(f"project {project_id} is still being ingested")
@@ -294,9 +294,9 @@ class IngestService:
             file = traces[file_id].file
             if overrule is None and (file.triage is None or file.triage.overruled is None):
                 return file  # nothing to take back: unchanged
-            if file.triage is None or file.triage.description is None:
-                raise NoDescriptionError(
-                    f"file {file_id} was not described, so there is nothing to overrule"
+            if file.triage is None or not called_not_plan(file):
+                raise NotTriagedError(
+                    f"file {file_id} was not set aside by triage as not a floor plan"
                 )
             changed = file.model_copy(update={"triage": overruled(file.triage, overrule)})
             files = tuple(changed if found.id == file_id else found for found in status.files)
@@ -565,12 +565,14 @@ class IngestService:
             for file in files
             if file.drawing_id is not None
         }
-        context = context_of(files, drawings)
+        context = context_of(run.status().name, files, drawings)
         for file in to_judge(files, judge):
             assert file.triage is not None
             spent = cost.spent()
             try:
-                found = relevance_of(judge, file.triage.class_, file.triage.description, context)
+                found = relevance_of(
+                    judge, file.triage.class_, file.triage.description, context, file.path
+                )
             except Exception:  # one file's judging must not stop the project
                 logger.warning("judging the relevance of %s failed", file.path, exc_info=True)
                 note = judged_note(file.triage, NOTE_JUDGE_FAILED)

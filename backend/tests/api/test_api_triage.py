@@ -196,14 +196,24 @@ def test_a_body_outside_the_shape_is_a_validation_error(
     assert (reply.status_code, reply.json()["code"]) == (422, "validation")
 
 
-def test_a_file_with_no_description_has_its_own_code_and_unknown_or_unfinished_ones_the_usual(
+def test_a_person_can_overrule_a_file_nothing_described_so_its_issue_can_be_settled(
+    triaged: TestClient,
+) -> None:
+    found = site(triaged)
+    reply = call(triaged, found, "photo.jpg", {"verdict": "unrelated", "by": "Ana"})
+    assert reply.status_code == 200, reply.text
+    assert reply.json()["triage"]["description"] is None
+    assert reply.json()["triage"]["verdict"] == "unrelated"
+    photo = next(issue for issue in issues(triaged, found["id"]) if issue["file"] == "photo.jpg")
+    assert photo["state"] == "settled"
+
+
+def test_a_file_triage_did_not_set_aside_is_not_triaged_and_unknown_or_unfinished_the_usual(
     triaged: TestClient, settings: Settings
 ) -> None:
     found = site(triaged)
-    reply = call(triaged, found, "photo.jpg", {"verdict": "related", "by": "Ana"})
-    assert (reply.status_code, reply.json()["code"]) == (422, "no-description")
     plan = call(triaged, found, "plan.pdf", {"verdict": "related", "by": "Ana"})  # never triaged
-    assert plan.json()["code"] == "no-description"
+    assert (plan.status_code, plan.json()["code"]) == (422, "not-triaged")
     url = f"/api/projects/{found['id']}/files/f99/relevance"
     reply = triaged.post(url, json={"verdict": "related", "by": "Ana"})
     assert (reply.status_code, reply.json()["code"]) == (404, "not-found")
