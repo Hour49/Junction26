@@ -210,7 +210,7 @@ def test_sf17_the_model_is_told_in_words_when_a_lane_lists_only_its_first_findin
 
 
 def counting(**files: ServiceFile) -> tuple[ServiceFollower, list[str]]:
-    pipeline, _ = project(**files)
+    pipeline, _ = project("bim", **files)
     read: list[str] = []
     models = {"arch": ARCH, **files}
 
