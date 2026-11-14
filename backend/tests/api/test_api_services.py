@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.adapters.services_store import ServicesStore
 from app.api.deps import get_ingest
 from app.composition import build_ingest
 from app.core.errors import NotFoundError
@@ -38,7 +39,7 @@ def client(settings: Settings, tmp_path: Path) -> TestClient:
     cache = tmp_path / "services"
     cache.mkdir()
     model = two_rooms()
-    (cache / f"{model.source.sha256}.services.v1.json.gz").write_bytes(
+    ServicesStore(cache).path(model.source.sha256).write_bytes(
         gzip.compress(model.model_dump_json().encode())
     )
     settings = settings.model_copy(update={"services_cache_dir": cache})

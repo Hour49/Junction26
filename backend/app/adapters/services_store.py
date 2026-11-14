@@ -1,5 +1,7 @@
 """Where services models are kept (services-model.md SV-2, SV-8): one gzipped JSON per source
-file, `<cache>/<sha256>.services.v1.json.gz`, beside the fact-sheet cache, written atomically.
+file and builder version, `<cache>/<sha256>.services.v1.b<builder>.json.gz`, beside the fact-sheet
+cache, written atomically. A model an older builder wrote is not served: it is rebuilt, with the
+saved id map, so a deploy picks up builder fixes and ids survive.
 
 The id map (GlobalId -> element id) is kept per file name as the project knows it, not per
 content hash, so a re-exported file (new bytes, same name) keeps every old id; the spec's
@@ -13,7 +15,7 @@ import logging
 import tempfile
 from pathlib import Path
 
-from app.adapters.ifc_model.services_model import build_services_model
+from app.adapters.ifc_model import services_model
 from app.core.services.stored import ServicesModel
 
 logger = logging.getLogger(__name__)
@@ -23,8 +25,13 @@ class ServicesStore:
     def __init__(self, cache_dir: Path) -> None:
         self._dir = cache_dir
 
+    def path(self, sha256: str) -> Path:
+        """Where the current builder keeps the model of the file with this content."""
+        version = services_model.BUILDER_VERSION
+        return self._dir / f"{sha256}.services.v1.b{version}.json.gz"
+
     def load(self, sha256: str) -> ServicesModel | None:
-        path = self._dir / f"{sha256}.services.v1.json.gz"
+        path = self.path(sha256)
         if not path.is_file():
             return None
         return ServicesModel.model_validate_json(gzip.decompress(path.read_bytes()))
@@ -47,14 +54,13 @@ class ServicesStore:
                 building = Path(folder) / "architecture.ifc"
                 building.write_bytes(architecture)
             try:
-                model, ids = build_services_model(services, ids, building)
+                model, ids = services_model.build_services_model(services, ids, building)
             except Exception as error:  # ifcopenshell raises its own and plain RuntimeErrors
                 logger.warning("%s: no services model: %s", name, error)
                 return None
         self._write(ids_path, json.dumps(ids, indent=0, sort_keys=True).encode())
         raw = model.model_dump_json().encode()
-        self._write(self._dir / f"{model.source.sha256}.services.v1.json.gz",
-                    gzip.compress(raw, mtime=0))  # fmt: skip
+        self._write(self.path(model.source.sha256), gzip.compress(raw, mtime=0))
         return model
 
     def _write(self, path: Path, data: bytes) -> None:

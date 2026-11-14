@@ -85,15 +85,21 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   any number of ports (*measured*: 8 pipe segments and 99 of 595 duct segments have three or four).
 - SV-2 **Ids**: `E<n>` elements, `E<n>.p<k>` ports, `L<n>` storeys (lowest first), `SR<n>` rooms, `SW<n>` walls,
   `SO<n>` openings; `N<n>` for elements a proposal adds. Prefixes differ from 0013's page ids (`R3`, `W2`) on
-  purpose. Element ids come from an append-only id map (`<sha256>.ids.json`, GlobalId → id): building the same
-  file twice gives byte-identical JSON, and a file re-exported with extra elements keeps every old id.
+  purpose. Element ids come from an append-only id map (`<cache>/<sha256 of the file's name>.ids.json`, GlobalId →
+  id; keyed by the name the project knows the file by, since a re-export has new bytes): building the same file twice
+  gives byte-identical JSON, and a file re-exported with extra elements keeps every old id.
 - SV-3 **Connections** come from `IfcRelConnectsPorts` with ports resolved to their elements through
   `ifcopenshell.util.system` (*measured*: equal to walking the raw relations on 7 models). `state` is `stated` from
   the file, `proposed` when an edit made it, `unknown` when the source cannot say.
 - SV-4 **`connectivity`** is computed at build time: `connected` when every system with equipment has its equipment
   and terminals in one component; `partial` with a reason naming what is loose ("12 distribution boards have no
   connected port"); `none` when the file has no port connections. Graph operations and edits that need the
-  network refuse on `partial` (for the loose part) and `none`, with that reason (Tudor's decision).
+  network refuse on `none`, with that reason (Tudor's decision). On `partial` an operation refuses only when its
+  own answer depends on the loose part (orchestrator, 2026-11-14, following Tudor's "refuse with the reason"): one
+  that needs equipment (feeds, terminals served, trace, run length from an element, farthest terminal) refuses for
+  an element with no connected port or on a piece that reaches no equipment; cut-off needs only the stated flow
+  (SV-11); controllers-between answers when a path joins its two elements and else refuses: "no connection between
+  them in the model"; the other operations answer as on a connected model.
 - SV-5 **Rooms, walls, openings** come from the architectural model of the same group when both models share
   coordinates: equal storey elevations within 0.05 m and plan boxes overlapping by half (the bench renderer's
   rule). Spaces are found through aggregation as well as containment. Otherwise the three lists are empty, `room`
@@ -106,10 +112,13 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   metres and `length_m`; `connections` is empty and `connectivity` is `{"state": "none", "reason": "a picture does
   not show which runs are joined"}`. It is built from the picture readers' `PictureReading`
   ([discipline-pictures.md](discipline-pictures.md)); v1 lists and counts it, and refuses graph questions and edits.
-- SV-8 **Store**: `<cache>/<sha256>.services.v1.json.gz` beside the fact-sheet cache, written atomically, built at
-  ingest in the background and never at question time. *Measured*: 1,795 elements → 1.2 MB JSON, 111 KB gzipped,
-  build 15.7 s (10.5 s of it door and window geometry), 246 MB peak, load 8 ms. Estimated for a 22,600-element
-  model: about 12 MB, 1.3 MB gzipped. A source the reader cannot parse has no model, and tools say so.
+- SV-8 **Store**: `<cache>/<sha256>.services.v1.b<builder>.json.gz` beside the fact-sheet cache, written atomically,
+  built at ingest in the background and never at question time. `<builder>` is `services_model.BUILDER_VERSION`,
+  bumped on any change to what the builder writes (also stored as `source.builder`): a model an older builder wrote
+  is not served but rebuilt with the saved id map, so a deploy picks up builder fixes and ids survive.
+  *Measured*: 1,795 elements → 1.2 MB JSON, 111 KB gzipped, build 15.7 s (10.5 s of it door and window geometry),
+  246 MB peak, load 8 ms. Estimated for a 22,600-element model: about 12 MB, 1.3 MB gzipped. A source the reader
+  cannot parse has no model, and tools say so.
 
 ## 2. Derived, never stored
 
@@ -129,7 +138,8 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   boilers, heaters, coils, heat exchangers and AHUs; water heaters; storage tanks and pressure vessels, not
   expansion vessels); with no such source the answer is every equipment unit reached, and with no equipment
   reached it refuses: "its network reaches no equipment"; adjacent equipment pieces count as one unit; cut-off needs a stated flow direction on at least 90% of
-  the system's ports, else it refuses: "this model does not say which way the water flows here".
+  the ports of the valve's systems (of its connected piece when it has no system), not connected equipment, so it
+  answers on a loose part of a `partial` model too; else it refuses: "this model does not say which way the water flows here".
 - SV-12 A full re-derive (facts, graph, checks) runs after every edit. *Measured*: 6 ms for 1,795 elements.
 
 ## 3. Edit operations (`core/services/edit.py`, pure)

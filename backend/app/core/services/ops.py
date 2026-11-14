@@ -15,8 +15,11 @@ Definitions (SV-11):
 - A junction is any element with three or more ports.
 
 Connectivity (SV-4): with `none`, every question that walks the network is unknown with the
-model's reason; with `partial`, so is one asked about an element of the loose part (no
-connected port, or a piece of network that reaches no equipment).
+model's reason. With `partial`, an operation refuses only when its own answer depends on the
+loose part: one that needs equipment (feeds, terminals served, trace,
+run length from an element, farthest terminal) is
+unknown for an element with no connected port or on a piece reaching no equipment; cut-off needs
+only the stated flow, and controllers-between only a path between its two elements.
 """
 
 import heapq
@@ -144,11 +147,15 @@ class ServicesGraph:
     def reach(self, starts: set[str], keep: Callable[[str], bool] = lambda _: True) -> set[str]:
         return self._walk(starts, keep, self.stops)
 
-    def network(self, element_id: str) -> None:
-        """Unknown when the network the question walks is not in the model (SV-4)."""
+    def walkable(self, element_id: str) -> None:
+        """Unknown when the model has no network at all (SV-4 `none`)."""
         self.element(element_id)
         if self.state == "none":
             raise UnknownAnswerError(self.reason)
+
+    def network(self, element_id: str) -> None:
+        """Unknown when the network the question walks is not in the model (SV-4)."""
+        self.walkable(element_id)
         if self.state == "partial":
             piece = self._walk({element_id})
             if not self.connected_ports(element_id) or not piece & self.equipment:
@@ -270,8 +277,8 @@ def farthest_terminal(g: ServicesGraph, element_id: str) -> Answer:
 
 
 def controllers_between(g: ServicesGraph, element_id: str, to_element_id: str) -> Answer:
-    g.network(element_id)
-    g.network(to_element_id)
+    g.walkable(element_id)  # a path answers it, loose part or not (SV-4)
+    g.walkable(to_element_id)
     prev: dict[str, str | None] = {element_id: None}
     queue = deque([element_id])
     while queue and to_element_id not in prev:
@@ -281,7 +288,7 @@ def controllers_between(g: ServicesGraph, element_id: str, to_element_id: str) -
                 prev[w] = v
                 queue.append(w)
     if to_element_id not in prev:
-        raise UnknownAnswerError(f"{element_id} and {to_element_id} are not connected")
+        raise UnknownAnswerError("no connection between them in the model")
     path: list[str] = []
     v = prev[to_element_id]
     while v is not None and v != element_id:
@@ -292,7 +299,7 @@ def controllers_between(g: ServicesGraph, element_id: str, to_element_id: str) -
 
 
 def cut_off(g: ServicesGraph, element_id: str) -> Answer:
-    g.network(element_id)
+    g.walkable(element_id)  # the stated flow answers it, not connected equipment (SV-4)
     systems = g.el[element_id].get("systems") or ()
     around: set[str] = set()
     for system in systems:

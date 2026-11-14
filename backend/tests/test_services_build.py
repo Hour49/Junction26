@@ -10,6 +10,7 @@ import ifcopenshell.api.root
 import ifcopenshell.guid
 import pytest
 
+from app.adapters.ifc_model import services_model
 from app.adapters.ifc_model.facts_mep import mep_facts
 from app.adapters.ifc_model.services_model import build_services_model
 from app.adapters.services_store import ServicesStore
@@ -311,7 +312,7 @@ def test_sv8_the_store_builds_once_and_keeps_ids_across_versions(tmp_path: Path)
     model = store.build("project/heating.ifc", data)
     assert model is not None
     sha = model.source.sha256
-    stored = tmp_path / "cache" / f"{sha}.services.v1.json.gz"
+    stored = store.path(sha)
     assert json.loads(gzip.decompress(stored.read_bytes())) == _stored(model)
     assert store.load(sha) == model and store.build("project/heating.ifc", data) == model
     assert not list((tmp_path / "cache").glob("*.part"))
@@ -344,6 +345,29 @@ def test_sv2_sv8_a_re_export_keeps_the_ids_the_store_saved(tmp_path: Path) -> No
 def _ids(model: Any) -> dict[str, str]:
     """GlobalId -> element id, in the model's element order."""
     return {e.ref.guid: e.id for e in model.elements if isinstance(e.ref, IfcRef)}
+
+
+def test_sv8_a_model_from_an_older_builder_is_rebuilt_with_the_saved_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, name = ServicesStore(tmp_path / "cache"), "project/heating.ifc"
+    data = _services(tmp_path / "s.ifc").read_bytes()
+    monkeypatch.setattr(services_model, "BUILDER_VERSION", 1)
+    old = store.build(name, data)
+    assert old is not None and old.source.builder == 1
+    sha = old.source.sha256
+    # the saved map renumbered by hand: only a rebuild that reads it gives these ids
+    saved = next((tmp_path / "cache").glob("*.ids.json"))
+    renumbered = {g: f"E{int(i[1:]) + 10}" for g, i in json.loads(saved.read_text()).items()}
+    saved.write_text(json.dumps(renumbered))
+    assert store.build(name, data) == old  # the same builder: served from the cache
+    monkeypatch.setattr(services_model, "BUILDER_VERSION", 2)
+    assert store.load(sha) is None  # an older builder's model is not served
+    new = store.build(name, data)
+    assert new is not None and new.source.builder == 2
+    assert {e.id for e in new.elements} == set(renumbered.values())
+    assert store.path(sha).name == f"{sha}.services.v1.b2.json.gz" and store.path(sha).is_file()
+    assert store.load(sha) == new
 
 
 def test_sv8_a_file_that_is_no_ifc_has_no_model(tmp_path: Path) -> None:

@@ -44,6 +44,7 @@ class Source(Frozen):
     # "schema" in the stored JSON; the attribute name would shadow pydantic's own
     ifc_schema: str | None = Field(default=None, alias="schema")
     architecture_sha256: str | None = None  # the model rooms and walls came from
+    builder: int | None = None  # the builder version that wrote it (a picture model: None)
 
 
 class Connectivity(Frozen):

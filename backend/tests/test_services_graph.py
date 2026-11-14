@@ -281,3 +281,38 @@ def test_sv11_feeds_refuses_when_the_network_reaches_no_equipment() -> None:
     doc["connections"].append({"a": "E16.p2", "b": "E17.p1", "state": "stated"})
     said = ask(derive.graph(doc), "feeds", element_id="E17")
     assert said == {"status": "unknown", "reason": "its network reaches no equipment"}
+
+
+def loose() -> Doc:
+    """A partial model plus a loose part with stated flow and no equipment:
+    E21 pipe -> E20 valve -> E23 pipe -> E22 radiator, in its own system."""
+    doc = model(state="partial", reason="1 heating network reaches no equipment")
+    part = [
+        el("E21", "pipe_segment", "flow_segment", systems=["Heating 2"], length_m=1.0),
+        el("E20", "valve", "flow_controller", systems=["Heating 2"]),
+        el("E23", "pipe_segment", "flow_segment", systems=["Heating 2"], length_m=1.0),
+        el("E22", "space_heater", "flow_terminal", systems=["Heating 2"]),
+    ]
+    for e in part:
+        e["ports"][0]["flow"], e["ports"][1]["flow"] = "sink", "source"
+    doc["elements"] += part
+    doc["connections"] += [
+        {"a": a, "b": b, "state": "stated"}
+        for a, b in [("E21.p2", "E20.p1"), ("E20.p2", "E23.p1"), ("E23.p2", "E22.p1")]
+    ]
+    return doc
+
+
+def test_sv4_cut_off_answers_on_a_loose_part_with_a_stated_flow() -> None:
+    said = run("cut_off", loose(), element_id="E20")
+    assert (said["value"], said["elements"], said["terminals"]) == (2, ["E22", "E23"], 1)
+
+
+def test_sv4_controllers_between_answers_when_a_path_exists_in_a_loose_part() -> None:
+    said = run("controllers_between", loose(), element_id="E21", to_element_id="E22")
+    assert said["value"] == ["E20"]
+
+
+def test_sv4_controllers_between_refuses_when_no_path_joins_them() -> None:
+    said = ask(derive.graph(loose()), "controllers_between", element_id="E6", to_element_id="E22")
+    assert said == {"status": "unknown", "reason": "no connection between them in the model"}

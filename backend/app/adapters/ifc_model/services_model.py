@@ -60,6 +60,9 @@ from app.core.services.stored import (
     Wall,
 )
 
+# Bumped on any change that alters what is built: the store keys models by it, so a deploy
+# rebuilds the models an older builder wrote.
+BUILDER_VERSION = 1
 FLOW = {"SOURCE": "source", "SINK": "sink", "SOURCEANDSINK": "both"}
 SAME_ELEVATION_M = 0.05
 OVERLAP = 0.5  # of the services plan's box that the building's must cover
@@ -119,6 +122,7 @@ def build_services_model(
                 "sha256": _sha256(services),
                 "schema": model.schema,
                 "architecture_sha256": _sha256(architecture) if rooms else None,
+                "builder": BUILDER_VERSION,
             }
         ),
         connectivity=_connectivity(elements, connections),

@@ -109,7 +109,8 @@ def run_services_build(args: argparse.Namespace, settings: Settings) -> None:
     from app.adapters.services_store import ServicesStore  # ifcopenshell only when asked
 
     building = args.architecture.read_bytes() if args.architecture else None
-    model = ServicesStore(args.cache).build(args.model.name, args.model.read_bytes(), building)
+    store = ServicesStore(args.cache)
+    model = store.build(args.model.name, args.model.read_bytes(), building)
     if model is None:
         raise InvalidInputError(f"{args.model}: not an IFC file ifcopenshell can read")
     print(
@@ -117,7 +118,7 @@ def run_services_build(args: argparse.Namespace, settings: Settings) -> None:
         f"{len(model.rooms)} rooms, {len(model.walls)} walls, {len(model.openings)} openings; "
         f"connectivity {model.connectivity.state}"
         + (f" ({model.connectivity.reason})" if model.connectivity.reason else "")
-        + f"; stored as {args.cache / model.source.sha256}.services.v1.json.gz"
+        + f"; stored as {store.path(model.source.sha256)}"
     )
 
 
