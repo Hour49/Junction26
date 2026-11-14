@@ -82,6 +82,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `confidence.signal` | only in Details: "Signal: <signal>" (an internal name, never on the card itself) |
 | `quantity.label` | the card title |
 | `quantity.key` | "Query: `<key>`" in the details |
+| `line.sure` (backend #98: the answer_v1.1 line's `sure`; optional, `true`/`false`/null; not a top-level field) | `true`: a small "Sure" badge right after the value; its tooltip (`title`) and its screen-reader text say "Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact". `false`, null or absent: nothing. `true` only where the golden certified gate covers the question family; null for IFC, vector and rooms answers |
 | `quantity.status` | the status in words (table in States); never colour alone |
 | `quantity.rule.text`, `quantity.rule.id` | "Counting rule: <text>", the id in small text |
 | `quantity.first`, `quantity.second`, `quantity.conflict`, `quantity.needs_person`, `quantity.settled`, `quantity.estimate`, `quantity.original_value`, `quantity.signed` | the checks panel; measuring methods (`second.method`, `conflict.values[].method`: API ids such as `polygon_x_scale`) shown by the shared `methodName()`, never raw; the Details "Method: <method>" line (the answer's `takeoff`/`schedule`/`refused:…`) stays as sent (States) |
@@ -179,7 +180,7 @@ Desktop 1440x900 (mock: `#work/engineer/A`, "chat-mode"): one centred column, ma
 - Middle: the thread. Each turn: the question as a right-aligned bubble, then, when the question was read with a
   typo fixed, the read-as note ("Read 'mnay' as 'many'", answers and refusals alike), then the answer: one sentence
   with the value in bold, then the card: viewer on the left (about 60 %, with its own legend and caption), on the right
-  "The answer" (value, unit, status, model score, verified), "Counting rule", "Checks", "Where this came from";
+  "The answer" (value, unit, the "Sure" badge when `line.sure` is true, status, model score, verified), "Counting rule", "Checks", "Where this came from";
   under the viewer the mark list and the arithmetic line; footer row, one flex row aligned on the text baseline:
   Drawing, Cost, Time, "Details" (its summary inline in the row; opened, its body takes a full line below),
   "Picture of this answer", "Send to surveyor".
@@ -187,7 +188,7 @@ Desktop 1440x900 (mock: `#work/engineer/A`, "chat-mode"): one centred column, ma
   limit.
 
 Phone 390x844: same order, one column, 16 px gutters; in the card the viewer is full width and the right-hand
-blocks follow below it; the footer wraps to two lines; the ask box sticks to the bottom; tap targets at least
+blocks follow below it; the "Sure" badge stays beside the value and wraps under it when the line is full; the footer wraps to two lines; the ask box sticks to the bottom; tap targets at least
 44 px; no horizontal scroll (long file paths and keys wrap, `overflow-wrap: anywhere`). Table cells (the building
 model's objects and storeys) never break inside a word (`overflow-wrap: normal`, `word-break: normal`); a table
 wider than the column scrolls sideways inside its own wrapper.
@@ -259,6 +260,7 @@ Thread and pages
 - EN-50 Every ask body carries `project_id`: a suggestion click, a typed question, a `can_answer` click and "Try again" each send `{"drawing_id", "question", "project_id": "5e0c1a2b3d4f"}`. [component, `answer.json`, `answer_refused.json`]
 - EN-51 The read-as note is visible on the card without opening Details: with `explanation` "read 'mnay' as 'many'; the scale is estimated from a door width" the turn shows "Read 'mnay' as 'many'" under the question, before the value, while Details stays closed; with only the note it shows the same; a refusal whose `explanation` starts with the note shows it too. With `explanation` null, or one that does not start with `read '`, no note shows. Details keeps the full line: "How: read 'mnay' as 'many'; the scale is estimated from a door width" (or "How: read 'mnay' as 'many'"). [component, derived `answer.json`, derived `answer_refused.json`; the 390 px wrap: fe-golden's browser check]
 - EN-52 After the first answer, the "Suggested questions" summary keeps the browser's disclosure marker (its `display` is `list-item`, as the shell's "What runs"), and so does the footer's "Details" summary. [component, `drawing.json` + `answer.json`]
+- EN-53 With `line.sure: true` (derived `answer.json`) the card shows a "Sure" badge after the value, outside the `answer-value` element (so the value text stays "2"); the badge's `title` is "Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact" and the same sentence is in its text for screen readers (visually hidden); with `line.sure` null (`answer.json`), `false` or absent, no badge. At 390 px the badge fits without horizontal scroll (the value row wraps). [component, derived `answer.json`; the 390 px fit: EN-45's e2e check covers the page, the badge row wraps by `flex-wrap`]
 
 [e2e] criteria are built by the e2e worker (golden-path.md); this spec's build worker writes no file in `frontend/e2e/`.
 
