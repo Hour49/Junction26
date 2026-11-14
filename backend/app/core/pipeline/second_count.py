@@ -70,10 +70,12 @@ def differ(a: float, b: float, tolerance: float) -> bool:
 
 
 def element_counts(found: Extracted) -> list[Measurement]:
-    """What the extraction counted on the storey its plan shows, per element class (0 for a
-    class it lists nothing of). An element that names another storey than its plan's is drawn
-    on the sheet without being that storey's (an object of the floor below, seen through the
-    cut), and a second count of the storey does not have it either."""
+    """What the extraction counted on the storey its plan shows, per element class it looked for
+    (0 for a class it looked for and lists nothing of; a class it did not look for has no count,
+    as the Extractor port says, so it is never a 0 against a second count). An element that
+    names another storey than its plan's is drawn on the sheet without being that storey's (an
+    object of the floor below, seen through the cut), and a second count of the storey does not
+    have it either."""
     shown = {plan.id: plan.storey for plan in found.plans}
     numbers = Counter(e.class_ for e in found.elements if _of_its_plans_storey(e, shown))
     return [
@@ -83,6 +85,7 @@ def element_counts(found: Extracted) -> list[Measurement]:
             value=MeasuredValue(value=numbers[name], unit="count", method=found.method),
         )
         for name in ELEMENT_CLASSES
+        if found.read is None or name in found.read
     ]
 
 
@@ -121,8 +124,11 @@ def room_areas(found: Extracted) -> list[Measurement]:
 
 
 def measured(found: Extracted) -> list[Measurement]:
-    """Everything the extraction measured that a second method can be compared with."""
-    return [*element_counts(found), room_count(found), *room_areas(found)]
+    """Everything the extraction measured that a second method can be compared with. No room
+    count when it did not look for rooms (`read`, as for an element class): its 0 would stand
+    against a second count of rooms it never looked for."""
+    rooms = [room_count(found)] if found.read is None or "room" in found.read else []
+    return [*element_counts(found), *rooms, *room_areas(found)]
 
 
 def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) -> list[Conflict]:

@@ -2,10 +2,13 @@
 its reason in `method`, which keeps the prior's best estimate when there is one."""
 
 from collections.abc import Iterator
+from dataclasses import dataclass
 
 from app.core.answering.answer import (
     NO_DRAWING,
     NOT_IN_DRAWING,
+    POLICY_WHY,
+    PRIOR_BY_POLICY,
     SCHEDULE,
     TAKEOFF,
     UNSUPPORTED_QUESTION,
@@ -18,10 +21,12 @@ from app.core.answering.model import (
     Prior,
     Query,
     Question,
+    TableFilter,
     TableQuery,
     Unsupported,
     source_of,
 )
+from app.core.answering.tables import MEANING_WHY
 from app.core.drawing.model import (
     Drawing,
     Element,
@@ -313,6 +318,32 @@ def test_a_schedule_question_is_answered_from_the_sheet_s_tables_with_its_rows_a
         question, quantities, TableParser(), ticking_clock().__next__, NoPrior()
     )
     assert (missing.answer, missing.method, missing.abstain) == (None, NOT_IN_DRAWING, True)
+    assert (answer.abstain, answer.explanation) == (None, None)
+
+
+class FinishParser:
+    def parse(self, text: str) -> Query | TableQuery | Unsupported:
+        room = TableFilter(values=("128",), cue=("room",))
+        return TableQuery(op="read", kind="room", column=(("ceiling", "finish"),), filters=(room,))
+
+
+def test_a_schedule_answer_in_the_sheet_s_key_words_abstains_and_keeps_its_value() -> None:
+    finishes = Table(id="t1", page=1, box=BOX_1, title="FINISH ROOM SCHEDULE",
+                     columns=("Room Number", "Ceiling Finish"),
+                     rows=(TableRow(cells=("128", "C2"), box=BOX_1),))  # fmt: skip
+    key = Table(id="t2", page=1, box=BOX_2, title="FINISH KEY", columns=("Key", "Description"),
+                rows=(TableRow(cells=("C2", "LINER - COLOR: WHITE")),))  # fmt: skip
+    question = Question(id=7, file=FILE, text="What is the ceiling finish of room 128?")
+    answer = answer_question(
+        question,
+        known_quantities(drawing()),
+        FinishParser(),
+        ticking_clock().__next__,
+        NoPrior(),
+        (finishes, key),
+    )
+    assert (answer.answer, answer.method) == ("C2 - LINER - COLOR: WHITE", SCHEDULE)
+    assert (answer.abstain, answer.explanation) == (True, MEANING_WHY)
 
 
 def _windows_on_storey_0(*conflicts: dict[str, object]) -> Drawing:
@@ -422,3 +453,102 @@ def test_a_sheet_that_read_nothing_gets_the_prior_for_its_plan_count_not_zero() 
     assert (unread.answer, unread.method, unread.abstain) == (3, NOT_IN_DRAWING, True)
     swiss = plan_count(("door", "window", "room"))  # what the vector extractor reads
     assert (swiss.answer, swiss.method, swiss.abstain) == (1, TAKEOFF, None)
+
+
+def test_the_answer_policy_sends_a_family_to_the_prior_on_its_source_only() -> None:
+    """ANSWER_POLICY: a (source, family) the reader loses to the prior on val is answered from
+    the prior, abstaining, although the drawing gives a value. Other families, other sources
+    and a family the prior has no value for keep the takeoff's answer."""
+    prior = SaunaPrior()
+    question = Question(id=7, file=FILE, text="How many saunas?")
+    quantities = known_quantities(drawing())
+
+    def answer(pairs: frozenset[tuple[str, str]], q: Question = question) -> Answer:
+        clock = ticking_clock().__next__
+        return answer_question(q, quantities, DoorParser(), clock, prior, (), pairs)
+
+    sent = answer(frozenset({("demo", "room:sauna")}))
+    assert (sent.answer, sent.unit, sent.evidence, sent.method) == (1, "count", (), PRIOR_BY_POLICY)
+    assert (sent.abstain, sent.confidence, sent.explanation) == (True, 0.57, POLICY_WHY)
+    assert answer(frozenset({("other", "room:sauna")})).method == TAKEOFF  # another source
+    assert answer(frozenset()).answer == 0  # no policy: the takeoff's 0
+    doors = Question(id=8, file=FILE, text="How many doors?")
+    no_prior = answer(frozenset({("demo", "door")}), doors)  # the prior has no doors value
+    assert (no_prior.answer, no_prior.method) == (2, TAKEOFF)
+
+
+@dataclass(frozen=True)
+class Rated:
+    value: float | None
+    note: str
+
+
+class FakeConfidence:
+    """DECISIONS_CONFIDENCE's stand-in: a fixed probability, or None with a note."""
+
+    def __init__(self, value: float | None) -> None:
+        self.value = value
+        self.asked: list[tuple[str, str, object]] = []
+
+    def probability(self, path: str, family: str, value: object) -> Rated:
+        self.asked.append((path, family, value))
+        return Rated(self.value, "decisions: P(2) = 0.81" if self.value else "decisions: down")
+
+
+def rated(
+    text: str,
+    source: Drawing | None,
+    confidence: FakeConfidence,
+    parser: DoorParser | AreaParser | None = None,
+) -> Answer:
+    quantities = None if source is None else known_quantities(source)
+    question = Question(id=7, file=FILE, text=text)
+    clock = ticking_clock().__next__
+    return answer_question(
+        question, quantities, parser or DoorParser(), clock, SaunaPrior(), confidence=confidence
+    )
+
+
+def test_a_takeoff_answer_gets_the_probability_of_its_value() -> None:
+    sure = FakeConfidence(0.81)
+    answer = rated("How many doors?", drawing(), sure)
+    assert (answer.answer, answer.method, answer.confidence) == (2, TAKEOFF, 0.81)
+    assert answer.explanation is None  # the note only says why when there is no probability
+    assert sure.asked == [(FILE, "door", 2)]
+
+
+def test_without_a_probability_the_reason_joins_the_explanation() -> None:
+    down = FakeConfidence(None)
+    assert rated("How many doors?", drawing(), down).explanation == "decisions: down"
+    estimated = Drawing(
+        file=FILE,
+        pages=(Page(page=1, width=100, height=50, unit="px"),),
+        scale=Scale(status="estimated", m_per_unit=0.02, source="door widths"),
+        rooms=(Room(id="r1", type="sauna", page=1, box=BOX_1, area_m2=4.0),),
+    )
+    area = rated("How big?", estimated, down, AreaParser())
+    assert (area.confidence, area.explanation) == (
+        None,
+        "rests on an estimated scale (door widths); decisions: down",
+    )
+
+
+def test_refusals_and_prior_answers_are_not_rated() -> None:
+    sure = FakeConfidence(0.81)
+    assert rated("How many doors?", None, sure).confidence is None  # no drawing
+    assert rated("What colour?", drawing(), sure).method == UNSUPPORTED_QUESTION
+    assert sure.asked == []
+
+
+def test_answer_questions_passes_the_confidence_on() -> None:
+    sink, sure = Collected(), FakeConfidence(0.81)
+    answer_questions(
+        [Question(id=1, file=FILE, text="How many doors?")],
+        drawings=Drawings(),
+        parser=DoorParser(),
+        clock=ticking_clock().__next__,
+        sink=sink,
+        prior=NoPrior(),
+        confidence=sure,
+    )
+    assert [a.confidence for a in sink.answers] == [0.81]

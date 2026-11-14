@@ -22,7 +22,7 @@ def get_raising(app: FastAPI, exc: Exception) -> tuple[int, str]:
 def test_mapped_domain_error_becomes_its_status(app: FastAPI) -> None:
     status, body = get_raising(app, NotFoundError("document 7"))
     assert status == 404
-    assert body == '{"detail":"document 7"}'
+    assert body == '{"detail":"document 7","code":"not-found"}'
 
 
 def test_unexpected_exception_is_a_500(app: FastAPI) -> None:

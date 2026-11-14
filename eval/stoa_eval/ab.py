@@ -108,7 +108,9 @@ class AbResult(BaseModel):
     a: ArmResult
     b: ArmResult
     paired: Paired
-    paired_by_family: dict[str, Paired] = Field(description="no bootstrap interval per family")
+    paired_by_family: dict[str, Paired] = Field(
+        description="per family, with its own interval (not corrected for the number of families)"
+    )
     per_image: dict[str, tuple[int, int, int]] = Field(description="file -> questions, A, B hits")
 
 
@@ -337,13 +339,16 @@ def compare(
     seed: int = AB_SEED,
     reps: int = BOOTSTRAP_REPS,
 ) -> tuple[Paired, dict[str, Paired], dict[str, tuple[int, int, int]]]:
-    """The overall paired comparison, one per family (McNemar only), and per-image hits."""
+    """The overall paired comparison, one per family (the same seed and resamples, the family's
+    questions only), and per-image hits."""
     (_, hits_a), (_, hits_b) = a, b
     overall = paired(questions, hits_a, hits_b, seed, reps)
     grouped: dict[str, list[NumberedQuestion]] = defaultdict(list)
     for q in questions:
         grouped[families.get(q.id, "unsupported")].append(q)
-    by_family = {name: paired(grouped[name], hits_a, hits_b, reps=0) for name in sorted(grouped)}
+    by_family = {
+        name: paired(grouped[name], hits_a, hits_b, seed, reps) for name in sorted(grouped)
+    }
     per_image: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])
     for q in questions:
         per_image[q.path][0] += 1
@@ -379,13 +384,18 @@ def format_ab(result: AbResult) -> str:
         f"**{p.verdict}**. McNemar exact p = {p.mcnemar_p:.3g} ({MCNEMAR_NOTE}; only A right "
         f"{p.a_only}, only B right {p.b_only}).",
         "",
-        f"| family | questions | A | B | B - A | McNemar p ({MCNEMAR_NOTE}) |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "Per family: the same bootstrap on the family's questions. Each interval holds for a "
+        "family named in advance; across all families, about 1 in 20 excludes 0 by chance.",
+        "",
+        f"| family | questions | A | B | B - A | 95% interval | verdict | McNemar p "
+        f"({MCNEMAR_NOTE}) |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for name, pair in result.paired_by_family.items():
         ra, rb = a.by_family[name], b.by_family[name]
         lines.append(
             f"| {name} | {ra.n} | {_pct(ra.rate)} | {_pct(rb.rate)} | {_signed(pair.diff)} "
+            f"| [{_signed(pair.ci_low)}, {_signed(pair.ci_high)}] | {pair.verdict} "
             f"| {pair.mcnemar_p:.3g} |"
         )
     lines += ["", "| style | questions | A | B |", "| --- | --- | --- | --- |"]

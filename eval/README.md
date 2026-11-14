@@ -31,6 +31,8 @@ uv run python -m stoa_eval schema               # rewrite schemas/ after changin
 uv run python -m stoa_eval exp-split            # data/stoa/exp/split.json: CubiCasa train/val/test
 uv run python -m stoa_eval ab --a <arm> --b <arm>   # A/B two arms on val (Experiments, below)
 uv run python -m stoa_eval gate --arm <arm>        # E5 confidence gate on val (--second <arm>)
+uv run python -m stoa_eval leaderboard          # every arm under data/stoa/exp against prior on val
+uv run python -m stoa_eval annotated-region     # the region each train/val image's gold annotates
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
 ```
 
@@ -50,22 +52,56 @@ to `data/stoa/priors/exp-train.json`) or `none` (every image read, nothing found
 questions in backend/'s own environment with `build_pipeline(...).answer_questions` over the arm's folder, the
 templates parser and no prior, so the takeoff is the pipeline's. Stoa's rule judges each answer, and an image
 without a file is refused and wrong. The report gives the exact rate overall, per family and per style; B - A
-with a 95% bootstrap interval over images (10,000 resamples, seed 20261114), which alone gives the verdict, and
-an exact McNemar p (over questions: EN/FI pairs on one image are not independent, so it is overconfident); the
+with a 95% bootstrap interval over images (10,000 resamples, seed 20261114), which alone gives the verdict,
+overall and per family (a family's interval holds for a family named in advance; across 12 families about 1 in
+20 excludes 0 by chance), and an exact McNemar p (over questions: EN/FI pairs on one image are not independent, so it is overconfident); the
 count
 per key against the dev gold (exact share, MAE); and each arm's 10 images with the most wrong answers. JSON
 goes to `data/stoa/exp/ab/<a>-vs-<b>-<part>.json`. `--orientation <json>` (file -> label) splits by
 orientation; the gold has none.
 
-`gate` (E5) scores each answer (a family on an image) with three signals: `top3` (mean of the 3 highest
+`gate` (E5) scores each answer (a family on an image) with four built-in signals: `top3` (mean of the 3 highest
 `attrs.score` of the family's detections), `pb_mode` (probability of the modal Poisson-binomial count, scores
 calibrated by isotonic regression against IoU >= 0.5 matches with the gold, on a seeded half of val) and `agree`
-(a second arm gives the same answer). A refused answer gets no signal. On the other half of val it reports
+(a second arm gives the same answer) and `agree_pb` (agree + pb_mode: agreeing answers first, ordered by
+pb_mode). An answer where the arm found nothing gets, as pb_mode, the calibration half's exact rate of such
+answers in its family, (exact + 1) / (n + 2), not 1. `--signal-file f.json` (repeatable) adds any other
+producer's signal: `{"schema": "gate_signal_v1", "name": "decide", "arm": "detector/C-yolo26s-v8" or null,
+"values": [{"file": "data/cubicasa5k/x.png", "family": "door", "value": 0.93}, ...]}`, one value per family
+and image, higher is surer; family names as the gate prints them (door, window, toilet, sink,
+shower+bathtub, sauna, plan, room:<type>). A file for another arm, an unknown family, a built-in name or two
+values for one answer are refused; an answer without a value is never sure; `--part test` needs the same
+`--signal-file` (with test values) when the val gate chose it. A refused answer gets no signal. On the other half of val it reports
 failure AUROC and risk-coverage per signal, and per family the loosest threshold Learn-then-Test certifies
 (fixed sequence strict to loose, exact binomial p of error >= 5%, delta 0.05 divided by the number of families).
-Val only picks thresholds. `--part test --certify` applies the val calibration and thresholds and prints "of
+`--pool` gives each family group (elements, plans, rooms) one threshold instead, with the plan as the unit (a plan
+with a sure answer of the group is wrong when any of them is): the loosest threshold whose one-sided 95%
+Clopper-Pearson bound on the val plans meets the target, every threshold tested, delta not split, because a val
+pick is a choice and not a guarantee (the output says "chosen on val, not a guarantee" wherever it prints val
+numbers). Families too small to open alone can open together; `--part test` reuses the val file's groups and
+thresholds unchanged. Val only picks thresholds. `--part test --certify` applies the val calibration and thresholds and prints "of
 the plans marked sure, at least X% have every sure answer exact (N plans, 95% bound); the gate opens on Y% of
 plans" (one-sided Clopper-Pearson, the plan as the unit). JSON goes to `data/stoa/exp/ab/gate-<arm>-<part>.json`.
+
+`annotated-region` writes `data/stoa/exp/labels/annotated_region.json` for every train and val image (never
+test, eval or golden v2; it stops on one): the region the dev gold annotates, as outer rings in pixels (gold
+rooms, elements and empty plans, each grown 0.5 m, merged), usable as a training ignore mask, and `extends`
+when the drawing visibly goes on beyond it. `ink_outside` is measured on the image alone: dark ink more than
+0.25 m beyond the region over dark ink inside, leaving out a 1% border band, solid fills at least 0.5 m thick
+and rows or columns dark across 90% of the sheet. `extends` is `ink_outside >= 0.2`; on 40 unseen images
+labelled by eye, 17 of 20 flagged ones extend, and 1 of 20 unflagged hq_arch ones clearly does (7 more show
+slivers). Pick another cut on `ink_outside` if you need more recall. About 3.5 minutes on one core.
+
+`leaderboard` scores every arm under `data/stoa/exp` (an arm = a folder of extraction_v1 files with val
+images) against the train prior and writes `.agents/exp/leaderboard.md`, `data/stoa/exp/ab/leaderboard.json`
+and `data/stoa/exp/policy.json`: per family, the best arm on val whose paired interval against the prior lies
+above 0, else the prior. Oracle arms (gold at answer time) are scored but never picked: an `ORACLE` text file in
+the arm folder or a parent (saying what gold it reads), a glob in `data/stoa/exp/oracles.json`
+(`{"schema": "oracle_arms_v1", "arms": {"ocr/*-reg": "why"}}`), or "oracle" / "gold" in the path; policy.json
+lists them under `oracles_never_picked`. `families` applies the rule only to arms with golden v2 output (a
+sibling folder `<arm>-golden`, so the pipeline can run them end to end) and names that folder per family: the
+backend's ANSWER_POLICY reads it and integ runs it on golden v2. `families_any_arm` is the same rule over every
+arm, for information only.
 
 Test is used once per arm: `ab --part test` and `gate --part test` need `--certify`, append the run (arm,
 time, result, result file sha256) to `data/stoa/exp/test-certified.json`, and refuse an arm already run on
@@ -323,7 +359,8 @@ Every scored run is kept, so that at the end we can show how the methods improve
 2026-11-13: "also make sure all the runs of the golden dataset, will be saved somewhere so at the end
 we will be able to show the improvement"). `score` and `score-extraction` record each run against
 `golden` or `dev` and need `--name <method>` for it (`--note "..."` is optional). `--no-record`
-keeps nothing, for scratch checks and tests. The eval split, and `--against all` which contains it,
+keeps nothing, for scratch checks and tests: the full score is written only to `--out <file>`, and
+without it nowhere. The eval split, and `--against all` which contains it,
 is scored only as a recorded `--milestone` run or with `--no-record`.
 
 Each run is one file in `results/runs/`, named `<YYYYMMDD-HHMMSS>-<part>-<name>.json` (`-2`, `-3`

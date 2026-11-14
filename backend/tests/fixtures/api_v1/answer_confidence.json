@@ -1,0 +1,186 @@
+{
+  "question": "How many doors are there?",
+  "drawing_id": "adeefbbcc17559fc",
+  "file": "plans/flat-a.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": 2,
+  "unit": "count",
+  "confidence": 0.87,
+  "quantity": {
+    "key": "door",
+    "label": "door count",
+    "measure": "count",
+    "subject": "door",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "each-once",
+      "text": "every element, room and plan the drawing lists counts once"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e1",
+        "reason": null
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.66,
+          0.225,
+          0.67333,
+          0.275
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e2",
+        "reason": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {}
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e1",
+      "reason": null
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.66,
+        0.225,
+        0.67333,
+        0.275
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e2",
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "vector",
+    "source": "plans/flat-a.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [
+      {
+        "file": "plans/flat-a.pdf",
+        "page": 1,
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ]
+      },
+      {
+        "file": "plans/flat-a.pdf",
+        "page": 1,
+        "box": [
+          0.66,
+          0.225,
+          0.67333,
+          0.275
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": 0.87,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "door",
+        "colour": "#d62728",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "confidence": 0.87
+  }
+}

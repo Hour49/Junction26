@@ -17,6 +17,8 @@ from dataclasses import dataclass
 import pypdfium2
 from pypdfium2 import raw
 
+from app.adapters.pdfium_lock import PDFIUM
+
 FILL_NONE, FILL_EVEN_ODD, FILL_WINDING = 0, 1, 2
 
 Point = tuple[float, float]
@@ -70,6 +72,11 @@ def bounds_of(points: tuple[Point, ...]) -> Bounds:
 
 
 def read_page(data: bytes, index: int = 0) -> PdfPage:
+    with PDFIUM:  # pdfium is not thread-safe (app/adapters/pdfium_lock.py)
+        return _read_page(data, index)
+
+
+def _read_page(data: bytes, index: int) -> PdfPage:
     document = pypdfium2.PdfDocument(data)
     try:
         page = document[index]

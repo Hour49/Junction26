@@ -1,0 +1,22 @@
+{
+  "no_keys": true,
+  "readers": {
+    "bim": "ifc",
+    "cad": "hello",
+    "vector": "pdf",
+    "raster": "hello",
+    "tables": "pdf",
+    "second_counter": "ifc",
+    "rectifier": "none",
+    "question_parser": "templates",
+    "answer_prior": "none",
+    "decisions_kind": "False"
+  },
+  "limits": {
+    "upload_mb": 200,
+    "file_mb": 600,
+    "unpacked_mb": 2048,
+    "files": 5000,
+    "question_chars": 2000
+  }
+}

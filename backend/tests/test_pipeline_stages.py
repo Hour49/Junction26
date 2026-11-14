@@ -231,6 +231,12 @@ def test_element_counts_gives_every_class_with_the_extractors_method() -> None:
     assert {one.quantity for one in first} == {"element_count"}
 
 
+def test_element_counts_give_no_count_for_a_class_the_extractor_did_not_look_for() -> None:
+    looked = two_doors().model_copy(update={"read": ("door",)})
+    assert [one.subject.ref for one in element_counts(looked)] == ["door"]
+    assert element_counts(two_doors().model_copy(update={"read": ()})) == []
+
+
 def on_a_storey(storey_of_the_plan: int | str | None, *storeys: str | None) -> Extracted:
     """Doors on plan p1, each naming the storey the model puts it on (None: it names none)."""
     doors = tuple(
@@ -269,6 +275,13 @@ def test_the_extraction_counts_every_room_it_lists_whatever_storey_it_names() ->
     assert (count.quantity, count.subject) == ("room_count", Subject(kind="sheet", ref=None))
     assert count.value == MeasuredValue(value=2, unit="rooms", method="plan_drawing")
     assert count in measured(found)
+
+
+def test_no_room_count_when_the_extractor_did_not_look_for_rooms() -> None:
+    doors_only = Extracted(method="parser", scale=NO_SCALE, read=("door",))
+    assert [one.quantity for one in measured(doors_only)] == ["element_count"]
+    rooms_only = doors_only.model_copy(update={"read": ("room",)})
+    assert [one.quantity for one in measured(rooms_only)] == ["room_count"]
 
 
 def test_second_count_keeps_both_values_and_says_whether_they_agree() -> None:

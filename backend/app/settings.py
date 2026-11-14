@@ -8,17 +8,25 @@ The adapter of each pipeline port is chosen here by name and built in app/compos
 adapter adds its name to the Literal of its port and a case in composition.py.
 """
 
+from pathlib import Path
 from typing import Literal
 
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # pdf: the vector route's reader of drawn PDFs. ifc: the model route's reader of a plan sheet
 # with its IFC building model, which also makes ingest look for that model next to the sheet
 ExtractorName = Literal["hello", "pdf", "ifc"]
+# composite: the raster route's reader built from the component readers RASTER_COMPONENTS names
+RasterExtractorName = Literal["hello", "composite"]
 # pdf: a drawn PDF sheet's own second readings. ifc: those, and what a sheet's model lists
 SecondCounterName = Literal["hello", "pdf", "ifc"]
+# r3: the paper border (R1c), else UVDoc unless the plan fills the photo (app/adapters/rectifier)
+RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normalise stage
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
+# pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
+TablesName = Literal["off", "pdf"]
 
 
 class Settings(BaseSettings):
@@ -28,7 +36,48 @@ class Settings(BaseSettings):
     extractor_bim: ExtractorName = "ifc"
     extractor_cad: ExtractorName = "hello"
     extractor_vector: ExtractorName = "pdf"
-    extractor_raster: ExtractorName = "hello"
+    extractor_raster: RasterExtractorName = "hello"
+    tables: TablesName = "pdf"
+    # part=source pairs for EXTRACTOR_RASTER=composite (app/adapters/raster/__init__.py)
+    raster_components: str = ""
+    # The Gemini room reader of the raster route (app/adapters/raster_ocr/gemini.py), built only
+    # when RASTER_COMPONENTS names it: its key (never logged), model, time limit per page, and
+    # the folder its replies are cached in (gitignored)
+    gemini_api_key: SecretStr = SecretStr("")
+    gemini_model: str = "gemini-3.5-flash"
+    gemini_timeout_s: float = 60.0
+    gemini_cache_dir: Path = Path("../data/cache/gemini-rooms")
+    # Gemini Decisions count distributions (app/adapters/decisions/, same GEMINI_API_KEY). The
+    # count swap is on when RASTER_COMPONENTS names decisions:<source>; the answer confidence when
+    # DECISIONS_CONFIDENCE is true. Seconds per request, and the folder replies are cached in
+    decisions_confidence: bool = False
+    decisions_timeout_s: float = 30.0
+    decisions_cache_dir: Path = Path("../data/cache/decisions")
+    # The sheet-kind signal at ingest (app/adapters/decisions_kind/, same key, timeout and cache
+    # folder): Gemini's photo-of-a-plan flag and P(floor plan) for each uploaded image or PDF
+    decisions_kind: bool = False
+    # The detector served on Verda (app/adapters/raster_remote/, source `verda`), built only when
+    # RASTER_COMPONENTS names it: endpoint URL, inference key (never logged), requests open at once
+    verda_reader_url: str = ""
+    verda_inference_api_key: SecretStr = SecretStr("")
+    verda_reader_max_in_flight: int = Field(default=4, ge=1)
+    # The region arm (app/adapters/raster_region/, source `region:<detector arm>`), built only when
+    # RASTER_COMPONENTS names it: the annotated-flat segmenter's folder ("" reads the whole page)
+    region_model_dir: str = "../data/models/region/R1-unet34"
     second_counter: SecondCounterName = "ifc"
     question_parser: QuestionParserName = "templates"
     answer_prior: AnswerPriorName = "none"
+    # golden's policy.json (answer_policy_v1): the families answered from the prior even when
+    # the drawing gives a value (app/adapters/answer_policy.py); "" none
+    answer_policy: str = ""
+    # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
+    projects_dir: Path = Path("../data/projects")
+    # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
+    sample_archive: Path = Path("../data/samples/sample-project.zip")
+    # Where a drawing's licence credit is looked up by content (app/adapters/credits.py): the
+    # Stoa dataset (its data/<source>/LICENSE.md) and the Commons demo photos (manifest.jsonl)
+    credit_dataset: Path = Path("../data/stoa/full/junction-dataset")
+    credit_photos: Path = Path("../data/stoa/exp/photo/real/commons")
+    # none: images are read as uploaded (EXIF turned upright); a rectifier undoes a photo's
+    # perspective first (app/core/ingest/ports.py Rectifier)
+    rectifier: RectifierName = "none"

@@ -1,0 +1,187 @@
+{
+ "AEKE": {
+  "type": "balcony",
+  "rooms": 19,
+  "share": 0.947
+ },
+ "AKE": {
+  "type": "balcony",
+  "rooms": 19,
+  "share": 0.895
+ },
+ "BABAEKE": {
+  "type": "balcony",
+  "rooms": 16,
+  "share": 0.938
+ },
+ "BAEKE": {
+  "type": "balcony",
+  "rooms": 29,
+  "share": 0.966
+ },
+ "BAKE": {
+  "type": "balcony",
+  "rooms": 25,
+  "share": 1.0
+ },
+ "BBAEKE": {
+  "type": "balcony",
+  "rooms": 74,
+  "share": 0.986
+ },
+ "BBEKE": {
+  "type": "balcony",
+  "rooms": 16,
+  "share": 1.0
+ },
+ "BVBAEKE": {
+  "type": "balcony",
+  "rooms": 45,
+  "share": 0.956
+ },
+ "BYBAEKE": {
+  "type": "balcony",
+  "rooms": 8,
+  "share": 1.0
+ },
+ "DM": {
+  "type": "bedroom",
+  "rooms": 38,
+  "share": 0.974
+ },
+ "GAEEKE": {
+  "type": "balcony",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "GAEKE": {
+  "type": "balcony",
+  "rooms": 42,
+  "share": 0.929
+ },
+ "GAKE": {
+  "type": "balcony",
+  "rooms": 40,
+  "share": 1.0
+ },
+ "HM": {
+  "type": "bedroom",
+  "rooms": 1195,
+  "share": 0.94
+ },
+ "HW": {
+  "type": "bedroom",
+  "rooms": 1013,
+  "share": 0.962
+ },
+ "LASITETTUPARVEKE": {
+  "type": "balcony",
+  "rooms": 7,
+  "share": 0.857
+ },
+ "MAKUUHUONE": {
+  "type": "bedroom",
+  "rooms": 21,
+  "share": 1.0
+ },
+ "MH": {
+  "type": "bedroom",
+  "rooms": 1288,
+  "share": 0.954
+ },
+ "PAAEKE": {
+  "type": "balcony",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "PAEKE": {
+  "type": "balcony",
+  "rooms": 47,
+  "share": 0.957
+ },
+ "PAKE": {
+  "type": "balcony",
+  "rooms": 38,
+  "share": 1.0
+ },
+ "PAR": {
+  "type": "balcony",
+  "rooms": 7,
+  "share": 0.714
+ },
+ "PARV": {
+  "type": "balcony",
+  "rooms": 18,
+  "share": 0.833
+ },
+ "PARVEKE": {
+  "type": "balcony",
+  "rooms": 237,
+  "share": 0.937
+ },
+ "PARVEKELASITUS": {
+  "type": "balcony",
+  "rooms": 7,
+  "share": 0.857
+ },
+ "PAVEKE": {
+  "type": "balcony",
+  "rooms": 45,
+  "share": 0.933
+ },
+ "PAVKE": {
+  "type": "balcony",
+  "rooms": 12,
+  "share": 0.833
+ },
+ "PAVVEKE": {
+  "type": "balcony",
+  "rooms": 6,
+  "share": 0.833
+ },
+ "PAVVKE": {
+  "type": "balcony",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "RM": {
+  "type": "bedroom",
+  "rooms": 16,
+  "share": 0.938
+ },
+ "SHM": {
+  "type": "bedroom",
+  "rooms": 34,
+  "share": 0.941
+ },
+ "THM": {
+  "type": "bedroom",
+  "rooms": 10,
+  "share": 1.0
+ },
+ "WH": {
+  "type": "bedroom",
+  "rooms": 1057,
+  "share": 0.953
+ },
+ "WHI": {
+  "type": "bedroom",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "WHJ": {
+  "type": "bedroom",
+  "rooms": 14,
+  "share": 0.929
+ },
+ "WHS": {
+  "type": "bedroom",
+  "rooms": 31,
+  "share": 0.935
+ },
+ "WP": {
+  "type": "bedroom",
+  "rooms": 21,
+  "share": 1.0
+ }
+}

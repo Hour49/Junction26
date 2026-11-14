@@ -1,0 +1,104 @@
+{
+  "question": "How many doors are shown on the floor plan of 'Ground Floor'?",
+  "drawing_id": "1db9bcf1e67e27a3",
+  "file": "model/house.ifc",
+  "pages": [],
+  "answer": 2,
+  "unit": "count",
+  "confidence": null,
+  "quantity": {
+    "key": "door|storey=ground floor",
+    "label": "door count (storey ground floor)",
+    "measure": "count",
+    "subject": "door",
+    "scope": {
+      "storey": "ground floor",
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "model-objects",
+      "text": "every object of the building model counts once, whether this sheet draws it or not"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [],
+    "signed": null,
+    "unlocated": {}
+  },
+  "marks": [],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "bim",
+    "source": "model/house.ifc",
+    "extractor": "ifc",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "model",
+    "legend": [],
+    "arithmetic": "2 door objects in the model on Ground floor",
+    "objects": [
+      {
+        "id": "m1",
+        "class": "door",
+        "name": "Door 1",
+        "storey": "Ground floor",
+        "global_id": "000000000000000000000K"
+      },
+      {
+        "id": "m2",
+        "class": "door",
+        "name": "Door 2",
+        "storey": "Ground floor",
+        "global_id": "000000000000000000000M"
+      }
+    ],
+    "storeys": [
+      {
+        "storey": "Ground floor",
+        "counts": {
+          "door": 2,
+          "slab": 1,
+          "space": 2,
+          "wall": 4,
+          "window": 3
+        }
+      }
+    ],
+    "schedule": null,
+    "confidence": null
+  }
+}

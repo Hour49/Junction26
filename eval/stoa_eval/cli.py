@@ -1,16 +1,18 @@
 """Command line: `python -m stoa_eval <command>` (from eval/): split, select, select-plans,
 baseline, baseline-extraction, score, score-extraction, history, series, validate-extraction,
-schema, exp-split, ab, gate, leaderboard."""
+schema, exp-split, ab, gate, leaderboard, annotated-region."""
 
 import argparse
 import hashlib
 import json
+import multiprocessing
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from collections.abc import Iterator, Mapping, Sequence
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Literal, cast, get_args
@@ -56,13 +58,15 @@ from .families import group_of, source_of
 from .gate import (
     DELTA,
     GATE_SEED,
+    ON_VAL,
     SIGNALS,
     TARGET,
     GateResult,
-    Signal,
+    SignalFile,
     SignalReport,
     Unit,
     apply_gate,
+    apply_group,
     calibrate,
     certificate,
     compare_signals,
@@ -70,7 +74,11 @@ from .gate import (
     family_keys,
     family_result,
     format_gate,
+    group_result,
     halves,
+    load_signal_file,
+    nothing_found_rates,
+    pooled_gates,
     signals_of,
 )
 from .history import (
@@ -89,6 +97,7 @@ from .history import (
 )
 from .jsonl import iter_jsonl, read_jsonl, write_jsonl
 from .leaderboard import (
+    GROUPS,
     ArmRun,
     Invalid,
     arm_digest,
@@ -96,11 +105,14 @@ from .leaderboard import (
     combo_hits,
     combo_string,
     digest_files,
+    eligible,
     failure_images,
-    family_policy,
+    family_policies,
     find_arms,
     format_leaderboard,
     kept_block,
+    load_oracles,
+    oracle_reason,
     policy_runs,
 )
 from .models import (
@@ -129,6 +141,7 @@ from .plans import (
     pick_scale_cases,
     strata,
 )
+from .region import REGION_PARTS, AnnotatedRegions, ImageRegion, annotate_file, style_counts
 from .run_store import Part, Record, run_stem, write_record
 from .scale_scoring import ScaleCase, case_of
 from .scoring import format_table, score
@@ -157,11 +170,15 @@ EXTRACTION_GOLD = REPO / "data/stoa/extraction_gold"
 RUNS_DIR = GOLDEN_DIR / "runs"
 SPLIT_MANIFEST = "manifest.json"
 EVAL_WARNING = "warning: sealed split: score at milestones only"
+NOT_WRITTEN = "score not written (--no-record; --out <file> keeps it)"
 RESULTS = Path(__file__).resolve().parents[1] / "results/runs"  # tracked: one file per run
 HELSINKI = ZoneInfo("Europe/Helsinki")
 EXP_DIR = REPO / "data/stoa/exp"  # gitignored: the experiment split, A/B results, arms
 EXP_PRIOR = REPO / "data/stoa/priors/exp-train.json"  # the prior fit on the train part only
 LEADERBOARD = REPO / ".agents/exp/leaderboard.md"  # local: arm names and val numbers only
+ORACLES = "oracles.json"  # under the exp dir: globs of arms that read gold at answer time
+DATASET = REPO / "data/stoa/full/junction-dataset"  # the drawings, at the paths questions use
+REGIONS = EXP_DIR / "labels/annotated_region.json"
 
 
 def manifest_path(golden: Path) -> Path:
@@ -682,8 +699,12 @@ def _units(
     second: Mapping[int, Answer] | None,
     preds: Mapping[str, Extraction],
     steps: Mapping[str, list[tuple[float, float]]],
+    extra: Sequence[SignalFile] = (),
+    empty: Mapping[str, float] | None = None,
 ) -> list[Unit]:
-    """One unit per (image, family) the questions ask; unsupported questions are left out."""
+    """One unit per (image, family) the questions ask; unsupported questions are left out.
+    `extra`: signal files, each adding its value per answer under its name."""
+    looked_up = [(made.name, made.by_answer()) for made in extra]
     hits = hits_of(questions, answers)
     grouped: dict[tuple[str, str], list[NumberedQuestion]] = {}
     for q in questions:
@@ -696,7 +717,8 @@ def _units(
     units: list[Unit] = []
     for (file, family), rows in sorted(grouped.items()):
         agree = None if second is None else said(answers, rows) == said(second, rows)
-        signals = signals_of(preds.get(file), family, steps, agree)
+        signals = signals_of(preds.get(file), family, steps, agree, empty)
+        signals.update((name, values.get((file, family))) for name, values in looked_up)
         if None in said(answers, rows):  # a refused answer is never marked sure
             signals = dict.fromkeys(signals)
         exact = all(hits[q.id] for q in rows)
@@ -704,17 +726,52 @@ def _units(
     return units
 
 
-def _best_signal(compared: Mapping[str, SignalReport], name: str) -> Signal:
+def _best_signal(compared: Mapping[str, SignalReport], name: str) -> str:
     """Of the signals with a value, the highest failure AUROC (none when val has only right or
-    only wrong answers: the earlier one in SIGNALS)."""
-    usable: list[Signal] = [s for s in SIGNALS if compared[s].scored]
+    only wrong answers: the earlier one, built-ins first, then the signal files in order)."""
+    order = list(compared)
+    usable = [s for s in order if compared[s].scored]
     if not usable:
-        raise ValueError(f"{name}: no signal has a value (attrs.score, or a --second arm)")
+        raise ValueError(
+            f"{name}: no signal has a value (attrs.score, a --second arm or a --signal-file)"
+        )
     auroc = {s: -1.0 if compared[s].auroc is None else compared[s].auroc for s in usable}
-    return max(usable, key=lambda s: (auroc[s], -SIGNALS.index(s)))
+    return max(usable, key=lambda s: (auroc[s], -order.index(s)))
+
+
+def _arm_folder(arm: str, exp_dir: Path) -> str:
+    """An arm as a signal file names it: its folder under exp_dir (detector/C-yolo26s-v8), else
+    its path as given (or the reference arm's name)."""
+    if arm in REFERENCE_ARMS:
+        return arm
+    folder = Path(arm).resolve()
+    if folder.is_relative_to(exp_dir.resolve()):
+        return folder.relative_to(exp_dir.resolve()).as_posix()
+    return arm
+
+
+def _signal_files(
+    paths: Sequence[Path], arm: str, families: set[str], exp_dir: Path
+) -> list[SignalFile]:
+    """The --signal-file files, checked: about this arm (or any arm), known family names,
+    distinct names."""
+    made = [load_signal_file(path) for path in paths]
+    mine = _arm_folder(arm, exp_dir)
+    for path, signal in zip(paths, made, strict=True):
+        if signal.arm is not None and signal.arm != mine:
+            raise ValueError(f"{path}: judges {signal.arm}'s answers, not {mine}'s")
+        unknown = sorted({v.family for v in signal.values} - families)
+        if unknown:
+            raise ValueError(f"{path}: unknown families {unknown}; known: {sorted(families)}")
+    names = [signal.name for signal in made]
+    if len(set(names)) != len(names):
+        raise ValueError(f"two signal files share a name: {names}")
+    return made
 
 
 def run_gate(args: argparse.Namespace) -> None:
+    if args.pool and args.part == "test":
+        raise ValueError("--pool: val only; test reuses the val gate's groups")
     _certify_check(args, "gate", [_arm_name(args.arm, args.exp_dir)])
     split, questions_path, questions = _exp_part(args.exp_dir, args.part)
     files = split.parts[args.part].files
@@ -739,6 +796,10 @@ def run_gate(args: argparse.Namespace) -> None:
             )
     preds = preds or {}
     asked = {families.get(q.id, "unsupported") for q in questions} - {"unsupported"}
+    extra = _signal_files(args.signal_file, args.arm, asked, args.exp_dir)
+    names = [*SIGNALS, *(signal.name for signal in extra)]
+    if args.signal is not None and args.signal not in names:
+        raise ValueError(f"--signal {args.signal}: not one of {names}")
     if args.part == "val":
         calibration_files, selection_files = halves(files, args.seed)
         keys = {key for family in asked for key in family_keys(family)}
@@ -747,28 +808,49 @@ def run_gate(args: argparse.Namespace) -> None:
             {f: preds[f] for f in calibration_files if f in preds},
             sorted(keys),
         )
+        calibration_set = set(calibration_files)
+        empty = nothing_found_rates(
+            (
+                u
+                for u in _units(questions, families, answers, second, preds, steps)
+                if u.file in calibration_set
+            ),
+            preds,
+        )
         chosen = set(selection_files)
         thresholds_in: dict[str, float | None] | None = None
-        signal: Signal | None = args.signal
+        groups_in: dict[str, tuple[list[str], float | None]] = {}
+        signal: str | None = args.signal
     else:
         tuned_path = args.thresholds or args.exp_dir / "ab" / f"gate-{name}-val.json"
         tuned = GateResult.model_validate_json(tuned_path.read_text("utf-8"))
         if tuned.part != "val" or tuned.arm != name or tuned.second != second_name:
             raise ValueError(f"{tuned_path} is not the val gate of {name} / {second_name}")
-        steps, chosen = tuned.calibration, wanted
+        steps, empty, chosen = tuned.calibration, tuned.empty_rates, wanted
         thresholds_in = {family: gate.threshold for family, gate in tuned.families.items()}
+        groups_in = {group: (g.families, g.threshold) for group, g in tuned.groups.items()}
         signal = tuned.signal
+        if signal not in names:
+            raise ValueError(f"the val gate used the signal {signal!r}: give its --signal-file")
     units = [
-        u for u in _units(questions, families, answers, second, preds, steps) if u.file in chosen
+        u
+        for u in _units(questions, families, answers, second, preds, steps, extra, empty)
+        if u.file in chosen
     ]
-    compared = compare_signals(units)
+    compared = compare_signals(units, names)
     if signal is None:
         signal = _best_signal(compared, name)
-    label = "test" if args.part == "test" else "val selection half, not a certificate"
+    label = "test" if args.part == "test" else f"val selection half, {ON_VAL}"
     by_family: dict[str, list[Unit]] = {}
     for u in units:
         by_family.setdefault(u.family, []).append(u)
-    if thresholds_in is None:
+    grouped = {
+        group: apply_group([u for f in of for u in by_family.get(f, [])], signal, of, threshold)
+        for group, (of, threshold) in groups_in.items()
+    }
+    if thresholds_in is None and args.pool:
+        grouped, picked = pooled_gates(by_family, GROUPS, signal, args.target, args.delta)
+    elif thresholds_in is None:
         picked = family_gates(by_family, signal, args.target, args.delta)
     else:
         picked = {f: apply_gate(by_family[f], signal, thresholds_in.get(f)) for f in by_family}
@@ -782,11 +864,16 @@ def run_gate(args: argparse.Namespace) -> None:
         seed=args.seed,
         target=args.target,
         delta=args.delta,
-        family_delta=args.delta / max(1, len(by_family)),
+        family_delta=None if grouped else args.delta / max(1, len(by_family)),
         signal=signal,
+        signal_files={
+            made.name: str(path) for made, path in zip(extra, args.signal_file, strict=True)
+        },
         compared=compared,
         calibration={key: list(value) for key, value in steps.items()},
+        empty_rates=empty,
         families=gates,
+        groups={group: group_result(gate, group, label) for group, gate in grouped.items()},
         certificate=certificate(units, signal, thresholds, label),
     )
     print(format_gate(result))
@@ -825,6 +912,16 @@ def _first_line(error: Exception) -> str:
     return " / ".join(lines[:3])[:300]
 
 
+def _golden_folders(exp_dir: Path, names: Sequence[str]) -> dict[str, str]:
+    """Arm -> its golden v2 output, the sibling folder `<arm>-golden` with JSON files in it."""
+    folders = {name: exp_dir / f"{name}-golden" for name in names}
+    return {
+        name: _repo_path(folder)
+        for name, folder in folders.items()
+        if folder.is_dir() and any(folder.rglob("*.json"))
+    }
+
+
 def run_leaderboard(args: argparse.Namespace) -> None:
     part = _part_golds(args.exp_dir, args.gold, "val")
     questions_path, questions, files, _ = part
@@ -841,6 +938,7 @@ def run_leaderboard(args: argparse.Namespace) -> None:
         f"{args.seed}:{args.reps}",
     ):
         base.update(piece.encode())
+    deny = load_oracles(args.exp_dir / ORACLES)
     cache = args.exp_dir / "ab" / "cache"
     cache.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
@@ -886,16 +984,26 @@ def run_leaderboard(args: argparse.Namespace) -> None:
                     Invalid(name=name, reason=f"no val image ({len(found)} files, e.g. {example})")
                 )
                 continue
-            runs.append(scored(str(folder), name, arm_digest(folder), _modified(folder)))
+            run = scored(str(folder), name, arm_digest(folder), _modified(folder))
+            why = oracle_reason(name, folder, args.exp_dir, deny)
+            runs.append(run.model_copy(update={"oracle": why}))
     chosen = best_per_group(questions, families, runs, prior)
     combo = combo_hits(questions, families, chosen, prior)
     hits = sum(combo.values())
     folders = {run.name: _repo_path(args.exp_dir / run.name) for run in runs}
-    policy = family_policy(questions, families, runs, prior, folders, args.seed, args.reps)
+    golden = _golden_folders(args.exp_dir, [run.name for run in runs])
+    ready, policy = family_policies(
+        questions, families, runs, prior, folders, args.seed, args.reps, golden
+    )
     per_family = policy_runs(policy, runs)
     family_combo = combo_hits(questions, families, per_family, prior)
     family_hits = sum(family_combo.values())
     family_string = ",".join(f"{family}={run.name}" for family, run in per_family.items())
+    ready_combo = combo_hits(questions, families, policy_runs(ready, runs), prior)
+    ready_hits = sum(ready_combo.values())
+    ready_string = ",".join(
+        f"{family}={entry.arm}" for family, entry in ready.items() if entry.arm is not None
+    )
     out = args.out
     existing = out.read_text("utf-8") if out.is_file() else ""
     text = format_leaderboard(
@@ -913,17 +1021,27 @@ def run_leaderboard(args: argparse.Namespace) -> None:
         family_rate=Rate(
             hits=family_hits, n=len(family_combo), rate=family_hits / len(family_combo)
         ),
+        ready_combo=f"{ready_string or 'prior'} (others: prior)",
+        ready_pair=paired(questions, prior.hits, ready_combo, args.seed, args.reps),
+        ready_rate=Rate(hits=ready_hits, n=len(ready_combo), rate=ready_hits / len(ready_combo)),
         failures=failure_images(questions, families, runs),
         kept=kept_block(existing),
         orientation=orientation,
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
+    oracles = {
+        run.name: run.oracle or 'its path says "oracle" or "gold"'
+        for run in runs
+        if not eligible(run)
+    }
     summary = {
         "combo": combo_string(chosen),
-        "family_combo": {family: run.name for family, run in per_family.items()},
+        "family_combo": {f: e.arm for f, e in ready.items() if e.arm is not None},
+        "family_combo_any_arm": {family: run.name for family, run in per_family.items()},
         "arms": {run.name: run.result.overall.rate for run in runs},
         "not_scored": {item.name: item.reason for item in invalid},
+        "oracles": oracles,
     }
     (args.exp_dir / "ab" / "leaderboard.json").write_text(json.dumps(summary, indent=2) + "\n")
     policy_file = {
@@ -932,9 +1050,16 @@ def run_leaderboard(args: argparse.Namespace) -> None:
         "part": "val",
         "split_sha256": _sha256(args.exp_dir / "split.json"),
         "prior": _repo_path(args.prior),
-        "rule": "per family the best arm on val whose paired 95% bootstrap interval against the "
-        "train prior lies above 0, else prior",
-        "families": {family: entry.model_dump() for family, entry in policy.items()},
+        "rule": "per family, among the arms with golden v2 output (<arm>-golden, so the pipeline "
+        "can run them end to end), the best arm on val whose paired 95% bootstrap interval against "
+        "the train prior lies above 0, else prior; golden is the folder integ runs",
+        "families": {family: entry.model_dump() for family, entry in ready.items()},
+        "families_any_arm": {
+            "rule": "the same rule over every arm, golden output or not: for information, never "
+            "read by the backend",
+            "families": {family: entry.model_dump() for family, entry in policy.items()},
+        },
+        "oracles_never_picked": oracles,
     }
     (args.exp_dir / "policy.json").write_text(json.dumps(policy_file, indent=2) + "\n", "utf-8")
     print(text)
@@ -1023,10 +1148,11 @@ def _recorded(args: argparse.Namespace) -> bool:
     return True
 
 
-def _detail_path(args: argparse.Namespace, part: Part, default: Path) -> tuple[Path, str | None]:
-    """Where the full score JSON goes, and the run's stem when it is recorded."""
+def _detail_path(args: argparse.Namespace, part: Part) -> tuple[Path | None, str | None]:
+    """Where the full score JSON goes, and the run's stem when it is recorded. A --no-record run
+    writes only to --out: without it, nowhere (None)."""
     if not args.recorded:
-        return args.out or default, None
+        return args.out, None
     stem = run_stem(datetime.now(HELSINKI), part, args.name, [args.results, args.runs_dir])
     return args.runs_dir / f"{stem}.json", stem
 
@@ -1069,7 +1195,7 @@ def run_score(args: argparse.Namespace) -> None:
         slices = format_slices(result)
         if slices:
             print(f"\n{slices}")
-        out, stem = _detail_path(args, "answering", args.answers.with_suffix(".score.json"))
+        out, stem = _detail_path(args, "answering")
     else:
         questions_sha256 = _split_manifest(args.split_dir).questions_sha256
         names = SPLIT_NAMES if args.against == "all" else (args.against,)
@@ -1081,8 +1207,10 @@ def run_score(args: argparse.Namespace) -> None:
         )
         result = score_all(questions, answers)
         print(format_coverage_table(result, args.top))
-        default = args.answers.with_suffix(f".score-{args.against}.json")
-        out, stem = _detail_path(args, "answering", default)
+        out, stem = _detail_path(args, "answering")
+    if out is None:
+        print(NOT_WRITTEN)
+        return
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     print(f"wrote {out}")
@@ -1353,8 +1481,10 @@ def run_score_extraction(args: argparse.Namespace) -> None:
     golds = [extraction for _, extraction in chosen]
     result = score_extraction(golds, preds, args.multiplicity, slice_only)
     print(format_extraction_table(result))
-    default = args.runs_dir / f"{args.pred_dir.name}.extraction-{args.against}.json"
-    out, stem = _detail_path(args, "extraction", default)
+    out, stem = _detail_path(args, "extraction")
+    if out is None:
+        print(NOT_WRITTEN)
+        return
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     print(f"wrote {out}")
@@ -1455,6 +1585,51 @@ def run_validate_extraction(args: argparse.Namespace) -> None:
     print(f"{len(files) - bad} of {len(files)} files are valid {kind}")
     if bad or not files:
         raise ValueError(f"{bad} invalid file(s)" if files else "no .json files found")
+
+
+def run_annotated_region(args: argparse.Namespace) -> None:
+    """golden-13 task 1: the region each train and val image's gold annotates, and whether the
+    drawing visibly extends beyond it (stoa_eval/region.py)."""
+    split_path = args.exp_dir / "split.json"
+    if not split_path.is_file():
+        raise ValueError(f"{split_path} is missing: run `python -m stoa_eval exp-split` first")
+    split = ExpSplit.model_validate_json(split_path.read_text("utf-8"))
+    part_of: dict[str, ExpPart] = {
+        file: part for file, part in split.part_of().items() if part in REGION_PARTS
+    }
+    gold = {
+        file: extraction
+        for file, (_, extraction) in _extractions(args.gold / EXP_SOURCE).items()
+        if file in part_of
+    }
+    sealed = set(_split_manifest(args.split_dir).eval_groups)
+    golden_files = {
+        row.file for _, row in read_jsonl(args.golden_dir / PART1 / "files.jsonl", PlanFile)
+    }
+    files = sorted(part_of)
+    check_dev_only(files, sealed, golden_files, {file: gold[file].split for file in gold})
+    jobs: list[tuple[ExpPart, Extraction, Path]] = [
+        (part_of[file], gold[file], args.dataset / file) for file in files
+    ]
+    if args.workers > 1:
+        spawn = multiprocessing.get_context("spawn")  # fork in a threaded process can deadlock
+        with ProcessPoolExecutor(args.workers, mp_context=spawn) as pool:
+            records = list(pool.map(annotate_file, jobs, chunksize=16))
+    else:
+        records = [annotate_file(job) for job in jobs]
+    images: dict[str, ImageRegion] = dict(zip(files, records, strict=True))
+    result = AnnotatedRegions(
+        split_sha256=_sha256(split_path), styles=style_counts(images), images=images
+    )
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(result.model_dump_json() + "\n", encoding="utf-8")
+    print("| style | part | images | extends | share |")
+    print("| --- | --- | --- | --- | --- |")
+    for style, parts in result.styles.items():
+        for part, count in parts.items():
+            share = count.extends / count.images
+            print(f"| {style} | {part} | {count.images} | {count.extends} | {share:.1%} |")
+    print(f"wrote {args.out}")
 
 
 def run_schema(args: argparse.Namespace) -> None:
@@ -1559,9 +1734,7 @@ def parser() -> argparse.ArgumentParser:
     scored.add_argument("--golden", type=Path, default=DEFAULT_GOLDEN)
     scored.add_argument("--split-dir", type=Path, default=SPLIT_DIR)
     scored.add_argument("--top", type=int, default=20, help="templates printed for all/dev/eval")
-    scored.add_argument(
-        "--out", type=Path, help="--no-record only; default <answers>.score[-<against>].json"
-    )
+    scored.add_argument("--out", type=Path, help="--no-record only; without it nothing is written")
     _recording_args(scored)
     scored.add_argument(
         "--reads",
@@ -1575,7 +1748,7 @@ def parser() -> argparse.ArgumentParser:
     part1.add_argument("--against", choices=["golden", "dev", "eval"], default="golden")
     part1.add_argument("--golden-dir", type=Path, default=GOLDEN_V2, help="for --against golden")
     part1.add_argument("--gold", type=Path, default=EXTRACTION_GOLD, help="for dev/eval")
-    part1.add_argument("--out", type=Path, help="--no-record only")
+    part1.add_argument("--out", type=Path, help="--no-record only; without it nothing is written")
     part1.add_argument(
         "--multiplicity", action="store_true", help="counts weigh elements by attrs.multiplicity"
     )
@@ -1647,11 +1820,26 @@ def parser() -> argparse.ArgumentParser:
     gate.add_argument("--arm", required=True, help="an arm folder, extraction_v1 with attrs.score")
     gate.add_argument("--second", help="a second arm, for the agreement signal")
     gate.add_argument("--part", choices=["val", "test"], default="val")
-    gate.add_argument("--signal", choices=SIGNALS, help="default: the best failure AUROC on val")
+    gate.add_argument(
+        "--signal", help=f"{', '.join(SIGNALS)} or a signal file's name; default: best val AUROC"
+    )
+    gate.add_argument(
+        "--signal-file",
+        type=Path,
+        action="append",
+        default=[],
+        help="a gate_signal_v1 JSON (a value per family and image); repeat for each",
+    )
     gate.add_argument("--certify", action="store_true", help="needed for test: once, shipped arm")
     gate.add_argument("--recertify-reason", help="why an arm already certified runs again")
     gate.add_argument(
         "--thresholds", type=Path, help="test: the val run's gate JSON (default: its usual path)"
+    )
+    gate.add_argument(
+        "--pool",
+        action="store_true",
+        help="val: one threshold per family group (elements, plans, rooms), the plan as the unit, "
+        "delta / groups; test reuses the val gate's groups",
     )
     gate.add_argument("--target", type=float, default=TARGET, help="exact share among sure")
     gate.add_argument("--delta", type=float, default=DELTA)
@@ -1668,6 +1856,18 @@ def parser() -> argparse.ArgumentParser:
     board.add_argument("--seed", type=int, default=AB_SEED)
     board.add_argument("--reps", type=int, default=BOOTSTRAP_REPS, help="bootstrap resamples")
     board.set_defaults(run=run_leaderboard)
+
+    regions = commands.add_parser(
+        "annotated-region", help="the region each train/val image's gold annotates, ink beyond it"
+    )
+    regions.add_argument("--exp-dir", type=Path, default=EXP_DIR)
+    regions.add_argument("--split-dir", type=Path, default=SPLIT_DIR)
+    regions.add_argument("--golden-dir", type=Path, default=GOLDEN_V2)
+    regions.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
+    regions.add_argument("--dataset", type=Path, default=DATASET, help="where data/... resolves")
+    regions.add_argument("--out", type=Path, default=REGIONS)
+    regions.add_argument("--workers", type=int, default=1, help="processes reading images")
+    regions.set_defaults(run=run_annotated_region)
 
     schema = commands.add_parser("schema", help="write the JSON Schemas into eval/schemas/")
     schema.add_argument("--check", action="store_true", help="fail if a committed one is stale")

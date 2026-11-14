@@ -3,7 +3,7 @@ column to sum or read from its header, and anything that does not resolve to one
 column is no answer."""
 
 from app.core.answering.model import TableFilter, TableQuery
-from app.core.answering.tables import answer_table
+from app.core.answering.tables import MEANING_WHY, TableAnswer, answer_table
 from app.core.drawing.model import Table, TableRow
 
 BOX = (0.1, 0.1, 0.5, 0.5)
@@ -104,9 +104,38 @@ def test_reads_give_the_one_printed_text_and_its_meaning_when_asked() -> None:
         "F2 & F3 - ARTIFICIAL TURF and BASKETBALL FLOORING",
         None,
     )
-    assert ask("read", room, column=(("floor", "finish"),)) == ("F2 & F3", None)
     # rows that print different heights have no one height
     both = TableFilter(values=("100.A", "101.A"), cue=("door",))
     assert ask("read", both, column=(("height",),)) is None
     assert ask("read", both, column=(("door", "type"),)) is None
     assert ask("read", room, column=(("colour",),)) is None  # no such column
+
+
+def answer(op: str, *filters: TableFilter, **fields: object) -> TableAnswer | None:
+    return answer_table(TableQuery.model_validate({"op": op, "filters": filters, **fields}), SHEET)
+
+
+def test_a_meaning_asked_of_a_code_no_legend_explains_is_no_answer() -> None:
+    """Door type B2 is explained only by the door type drawings, not by a legend table: the
+    code alone would not answer "and what kind of door is that?"."""
+    door = TableFilter(values=("100.B",), cue=("door",))
+    assert answer("read", door, column=(("door", "type"),), meaning=True) is None
+    assert ask("read", door, column=(("door", "type"),)) == ("B2", None)
+
+
+def test_a_finish_is_read_with_its_key_and_abstains_on_the_wording() -> None:
+    """A finish code means nothing without the finish key, so it is read with it, asked or
+    not; the key's words are the sheet's, which a question may expect in other words."""
+    room = TableFilter(values=("102",), cue=("room",))
+    for meaning in (False, True):
+        found = answer("read", room, column=(("floor", "finish"),), meaning=meaning)
+        assert found is not None
+        assert found.value == "F2 & F3 - ARTIFICIAL TURF and BASKETBALL FLOORING"
+        assert found.abstain_why == MEANING_WHY
+    # a finish code the key does not list is read as printed, and stands
+    plain = answer("read", TableFilter(values=("100",), cue=("room",)), column=(("floor",),))
+    assert plain is not None and (plain.value, plain.abstain_why) == ("F1", None)
+    # a column that is no finish keeps its codes as printed
+    door = TableFilter(values=("100.B",), cue=("door",))
+    material = answer("read", door, column=(("door", "material"),))
+    assert material is not None and (material.value, material.abstain_why) == ("AL-1/GL-1", None)

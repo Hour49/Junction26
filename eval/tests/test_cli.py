@@ -66,8 +66,13 @@ def test_select_baselines_and_score(
     oracle = tmp_path / "runs/oracle.jsonl"
     assert run("baseline", "oracle", "--golden", golden, "--out", oracle) == 0
     assert run("score", oracle, "--golden", golden, "--no-record") == 0
+    assert "score not written" in capsys.readouterr().out
+    assert [p.name for p in (tmp_path / "runs").iterdir()] == ["oracle.jsonl"]  # wrote nothing
+    assert (
+        run("score", oracle, "--golden", golden, "--no-record", "--out", tmp_path / "o.json") == 0
+    )
     n = len(lines(golden))
-    assert read_json(tmp_path / "runs/oracle.score.json")["overall"] == {
+    assert read_json(tmp_path / "o.json")["overall"] == {
         "n": n,
         "correct": n,
         "accuracy": 1.0,
@@ -81,16 +86,20 @@ def test_select_baselines_and_score(
     )
 
     capsys.readouterr()
-    assert run("score", oracle, "--against", "all", "--split-dir", split, "--no-record") == 0
-    result = read_json(tmp_path / "runs/oracle.score-all.json")
+    scratch = tmp_path / "scratch.json"
+    assert run("score", oracle, "--against", "all", "--split-dir", split, "--no-record",
+               "--out", scratch) == 0  # fmt: skip
+    result = read_json(scratch)
     assert set(result["by_split"]) == {"dev", "eval"}
     assert result["questions"]["answered"] == n
     assert "sealed split" in capsys.readouterr().err  # all holds the eval questions too
-    assert run("score", oracle, "--against", "eval", "--split-dir", split, "--no-record") == 0
+    assert run("score", oracle, "--against", "eval", "--split-dir", split, "--no-record",
+               "--out", scratch) == 0  # fmt: skip
     assert "warning: sealed split: score at milestones only" in capsys.readouterr().err
-    held = read_json(tmp_path / "runs/oracle.score-eval.json")
+    held = read_json(scratch)
     assert set(held["by_split"]) == {"eval"}
     assert run("score", oracle, "--against", "dev", "--split-dir", split, "--no-record") == 0
+    assert not list((tmp_path / "runs").glob("*.score*"))  # still nothing
 
 
 def test_refusals(questions_file: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

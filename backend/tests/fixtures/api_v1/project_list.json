@@ -1,0 +1,12 @@
+{
+  "projects": [
+    {
+      "id": "5e0c1a2b3d4f",
+      "name": "sample-project.zip",
+      "state": "done",
+      "created_at": "2026-11-14T08:00:00+00:00",
+      "files": 11,
+      "drawings": 5
+    }
+  ]
+}

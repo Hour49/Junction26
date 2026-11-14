@@ -1,0 +1,39 @@
+{
+  "id": "adeefbbcc17559fc",
+  "file": "plans/flat-a.pdf",
+  "reader": {
+    "route": "vector",
+    "source": "plans/flat-a.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "credit": null,
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "suggestions": [
+    {
+      "quantity": "door",
+      "label": "door count",
+      "question": "How many doors are there?"
+    },
+    {
+      "quantity": "window",
+      "label": "window count",
+      "question": "How many windows are there?"
+    },
+    {
+      "quantity": "toilet",
+      "label": "toilet count",
+      "question": "How many toilets are there?"
+    }
+  ]
+}

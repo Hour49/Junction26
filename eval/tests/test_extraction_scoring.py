@@ -314,3 +314,7 @@ def test_score_extraction_command_records_a_part1_row(
     assert "refused" in capsys.readouterr().err
     assert main([*argv[:-2], "--no-record", "--out", str(tmp_path / "s.json")]) == 0
     assert len(list(results.glob("*.json"))) == 2  # --no-record kept nothing
+    assert main([*argv[:-2], "--no-record"]) == 0  # no --out: no file at all
+    assert "not written" in capsys.readouterr().out
+    assert [p.name for p in runs.iterdir()] == [kept.name]  # only the recorded run's score
+    assert len(list(results.glob("*.json"))) == 2

@@ -8,13 +8,21 @@ key, or `file` with `pages`); folders under a part starting "_" and `ab/` are sk
 does not validate, or has no val image, is listed with the reason. Each arm's scoring is cached
 under `data/stoa/exp/ab/cache/` by a hash of its files, the split, the gold, the prior and the
 code that answers and scores, so a rerun only scores what changed.
+
+An oracle arm reads gold at answer time (gold rooms, gold exemplars, the gold annotated region):
+it is scored and shown, but never picked for a combo, the policy or as a failure judge. An arm is
+an oracle when its folder or a parent below the exp dir holds an `ORACLE` file (its text says what
+gold it reads), when a glob in `data/stoa/exp/oracles.json` matches its name, or when its path
+says "oracle" or "gold" ("golden" excepted).
 """
 
+import fnmatch
 import hashlib
 import json
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -38,10 +46,53 @@ FAILURES = 20
 TAGS_BEGIN, TAGS_END = "<!-- failure-analysis:begin -->", "<!-- failure-analysis:end -->"
 
 
+ORACLE_MARKER = "ORACLE"  # a text file in an arm folder or a parent: what gold the arm reads
+
+
+class OracleList(BaseModel):
+    """oracle_arms_v1 (data/stoa/exp/oracles.json): arms that read gold at answer time."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_: Literal["oracle_arms_v1"] = Field(alias="schema")
+    arms: dict[str, str] = Field(description="glob on track/arm -> what gold it reads")
+
+
+def load_oracles(path: Path) -> dict[str, str]:
+    """The deny list's globs; none when the file is missing."""
+    if not path.is_file():
+        return {}
+    return OracleList.model_validate_json(path.read_text("utf-8")).arms
+
+
+def oracle_name(name: str) -> bool:
+    """The path says "oracle" or "gold" (cvx/A-oracle, region/oracle-gold, photo/val-hard/gold);
+    "golden" is the golden v2 test set, not gold at answer time."""
+    lowered = name.lower()
+    return "oracle" in lowered or "gold" in lowered.replace("golden", "")
+
+
+def oracle_reason(name: str, folder: Path, exp_dir: Path, deny: Mapping[str, str]) -> str | None:
+    """Why the arm reads gold at answer time, or None (see the module docstring)."""
+    root, here = exp_dir.resolve(), folder.resolve()
+    for parent in (here, *here.parents):
+        if parent == root or not parent.is_relative_to(root):
+            break
+        marker = parent / ORACLE_MARKER
+        if marker.is_file():
+            why = " ".join(marker.read_text("utf-8").split())[:160]
+            return f"{ORACLE_MARKER} file in {parent.relative_to(root).as_posix()}: {why}"
+    for pattern, why in deny.items():
+        if fnmatch.fnmatchcase(name, pattern):
+            return f"oracles.json {pattern}: {why}"
+    if oracle_name(name):
+        return 'its path says "oracle" or "gold"'
+    return None
+
+
 def eligible(run: "ArmRun") -> bool:
-    """An arm with "oracle" in its path reads gold at answer time (cvx takes exemplars from the
-    image's own gold): it is shown, never picked for a combo, the policy or as a failure judge."""
-    return "oracle" not in run.name.lower()
+    """Not an oracle: may be picked for a combo, the policy or as a failure judge."""
+    return run.oracle is None and not oracle_name(run.name)
 
 
 def group_of_family(family: str) -> str | None:
@@ -102,6 +153,9 @@ class ArmRun(BaseModel):
     refused: list[int]
     against_prior: Paired | None = None
     modified: str = Field(description="newest file time of the arm, Europe/Helsinki")
+    oracle: str | None = Field(
+        default=None, description="why it reads gold at answer time (set on each run, not cached)"
+    )
 
 
 class Invalid(BaseModel):
@@ -286,6 +340,11 @@ class PolicyEntry(BaseModel):
     diff: float | None = Field(description="arm minus prior on the family's val questions")
     ci_low: float | None
     ci_high: float | None
+    golden: str | None = Field(
+        default=None,
+        description="the arm's golden v2 output (its folder + -golden); null for the prior or "
+        "when the arm has none",
+    )
 
 
 def family_policy(
@@ -296,10 +355,12 @@ def family_policy(
     folders: Mapping[str, str],
     seed: int,
     reps: int,
+    golden: Mapping[str, str] | None = None,
 ) -> dict[str, PolicyEntry]:
     """Per family, the arm with the best val exact rate whose paired bootstrap interval against
     the prior (images as the unit, the family's questions only) lies above 0; else the prior.
-    Arms are tried best first, and only those whose rate beats the prior's."""
+    Arms are tried best first, and only those whose rate beats the prior's. `golden`: arm ->
+    its golden v2 folder, noted on the entry."""
     policy: dict[str, PolicyEntry] = {}
     for family in (f for fams in GROUPS.values() for f in fams):
         mine = [q for q in questions if families.get(q.id) == family]
@@ -326,11 +387,29 @@ def family_policy(
                 entry = PolicyEntry(
                     source=folders[name], arm=name, questions=len(mine), val_exact=rate,
                     prior_exact=floor_rate, diff=pair.diff, ci_low=pair.ci_low,
-                    ci_high=pair.ci_high,
+                    ci_high=pair.ci_high, golden=(golden or {}).get(name),
                 )  # fmt: skip
                 break
         policy[family] = entry
     return policy
+
+
+def family_policies(
+    questions: Sequence[NumberedQuestion],
+    families: Mapping[int, str],
+    runs: Sequence[ArmRun],
+    prior: ArmRun,
+    folders: Mapping[str, str],
+    seed: int,
+    reps: int,
+    golden: Mapping[str, str],
+) -> tuple[dict[str, PolicyEntry], dict[str, PolicyEntry]]:
+    """(shipped, any arm): the family policy over the arms with golden v2 output (`golden`: arm
+    -> folder), which the pipeline can run end to end, and over every arm, for information."""
+    ready = [run for run in runs if run.name in golden]
+    shipped = family_policy(questions, families, ready, prior, folders, seed, reps, golden)
+    any_arm = family_policy(questions, families, runs, prior, folders, seed, reps, golden)
+    return shipped, any_arm
 
 
 def policy_runs(policy: Mapping[str, PolicyEntry], runs: Sequence[ArmRun]) -> dict[str, ArmRun]:
@@ -361,6 +440,9 @@ def format_leaderboard(
     family_combo: str,
     family_pair: Paired,
     family_rate: Rate,
+    ready_combo: str,
+    ready_pair: Paired,
+    ready_rate: Rate,
     failures: Sequence[FailureImage],
     kept: str,
     orientation: Mapping[str, str] | None = None,
@@ -403,7 +485,8 @@ def format_leaderboard(
         covered = run.result.images - run.result.missing_images
         name = run.name if run.name not in references else f"*{run.name}* (reference)"
         if run.name not in references and not eligible(run):
-            name += " (oracle: gold at answer time, never picked)"
+            why = (run.oracle or "its name").replace("|", "/")
+            name += f" (reads gold at answer time, never picked: {why})"
         turned = "-"
         if orientation:
             up, other = orientation_rates(questions, run.hits, orientation)
@@ -441,14 +524,25 @@ def format_leaderboard(
         f"{_pp(combo_pair.ci_high)}]. The arms were picked on val, so this is optimistic; integ's "
         "golden run is the honest number.",
         "",
-        "Per family instead of per group: `data/stoa/exp/policy.json` (ANSWER_POLICY), the best "
-        "arm on each family whose interval against the prior lies above 0, else the prior:",
+        "Per family instead of per group, over every arm: the best arm on each family whose "
+        "interval against the prior lies above 0, else the prior (`families_any_arm` in "
+        "`data/stoa/exp/policy.json`, for information; nothing reads it):",
         "",
         f"`{family_combo}`",
         "",
         f"{_pct(family_rate.rate)} ({family_rate.hits}/{family_rate.n}) on val, "
         f"{_pp(family_pair.diff)} pp against the prior [{_pp(family_pair.ci_low)}, "
         f"{_pp(family_pair.ci_high)}], equally optimistic.",
+        "",
+        "The same rule over the arms that have golden v2 output (a folder `<arm>-golden`), the "
+        "arms the pipeline can run end to end: `families` in policy.json, which ANSWER_POLICY "
+        "reads and integ runs on golden (each family names its golden folder):",
+        "",
+        f"`{ready_combo}`",
+        "",
+        f"{_pct(ready_rate.rate)} ({ready_rate.hits}/{ready_rate.n}) on val, "
+        f"{_pp(ready_pair.diff)} pp against the prior [{_pp(ready_pair.ci_low)}, "
+        f"{_pp(ready_pair.ci_high)}].",
         "",
         "## Arms not scored",
         "",

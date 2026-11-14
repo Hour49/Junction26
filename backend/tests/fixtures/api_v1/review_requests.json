@@ -1,0 +1,35 @@
+[
+  {
+    "quantity": "door",
+    "action": "reject",
+    "mark": "m2"
+  },
+  {
+    "quantity": "door",
+    "action": "restore",
+    "mark": "m2"
+  },
+  {
+    "quantity": "door",
+    "action": "add",
+    "page": 1,
+    "box": [
+      0.2,
+      0.5,
+      0.23,
+      0.53
+    ]
+  },
+  {
+    "quantity": "door",
+    "action": "settle",
+    "value": 3
+  },
+  {
+    "quantity": "door",
+    "action": "reset"
+  },
+  {
+    "action": "reset"
+  }
+]
