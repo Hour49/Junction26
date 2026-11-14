@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { project, projectAsk } from '../api/fixtures';
-import { askable, followUps, orderParts, starters } from './projectAsk';
+import { askable, canDraw, followUps, orderParts, starters } from './projectAsk';
 
 const ids = project.drawings.map((d) => d.drawing_id);
 
@@ -82,4 +82,13 @@ it('CH-36 followUps: up to 3 unasked questions, the first of each kind first, th
   ]);
   expect(q(followUps([flatA, flatB], q(flatA)))).toEqual(['What is the area of the kitchen?']);
   expect(followUps([flatA], q(flatA))).toEqual([]);
+});
+
+it('ui-bugs 1 canDraw: the backend decides, by `drawable`, whatever the route or pages', () => {
+  const [vector, , raster] = project.drawings;
+  if (!vector || !raster) throw new Error('fixture drawings');
+  expect(canDraw({ ...vector, drawable: true })).toBe(true);
+  expect(canDraw({ ...vector, drawable: false })).toBe(false);
+  // not a guess from the route: a scan the backend says is drawable is drawable
+  expect(canDraw({ ...raster, drawable: true })).toBe(true);
 });

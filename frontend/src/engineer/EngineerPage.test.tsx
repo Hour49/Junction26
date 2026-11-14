@@ -91,6 +91,13 @@ const scrollMock = vi.fn();
 beforeAll(() => {
   // jsdom has no layout, so no scrollIntoView.
   Element.prototype.scrollIntoView = scrollMock;
+  // Radix (the shared Tip) measures with ResizeObserver, which jsdom lacks; set directly, since mockApi's
+  // cleanup unstubs vi.stubGlobal after each test.
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
 });
 
 afterEach(() => {
@@ -920,14 +927,16 @@ describe('Vellum (screen 4)', () => {
     [answerSigned, 'Verified', 'A surveyor checked this value and signed it off.'],
   ])('EN-57 the status pill %#: words, and its tooltip on focus', async (a, word, tip) => {
     const t = await shownTurn(a);
+    // ui-bugs 7c: the shared Tip (components/ui/tip) on a focusable wrapper around the pill
     const pill = within(t).getByText(word, { selector: '.en-pill' });
-    expect(within(t).queryByRole('tooltip')).toBeNull();
-    fireEvent.focus(pill);
-    const tooltip = within(t).getByRole('tooltip');
+    const trigger = pill.parentElement as HTMLElement;
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    trigger.focus();
+    const tooltip = await screen.findByRole('tooltip');
     expect(tooltip.textContent).toBe(tip);
-    expect(pill.getAttribute('aria-describedby')).toBe(tooltip.id);
-    fireEvent.blur(pill);
-    expect(within(t).queryByRole('tooltip')).toBeNull();
+    expect(trigger.getAttribute('aria-describedby')).toBe(tooltip.id);
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
   const chips = (t: HTMLElement) => [...t.querySelectorAll<HTMLElement>('.en-refs li')];
@@ -1017,8 +1026,16 @@ describe('Vellum (screen 4)', () => {
     expect(within(block).getByText('Confidence')).toBeTruthy();
     expect(within(block).queryByText('Grade')).toBeNull();
     const pill = within(block).getByText(word);
-    expect(pill.getAttribute('title')).toBe(a.level?.text);
-    expect(block.textContent).toContain(a.level?.text ?? 'x');
+    expect(pill.getAttribute('title')).toBeNull(); // the shared Tip, not a native title (ui-bugs 7c)
+    (pill.parentElement as HTMLElement).focus();
+    expect((await screen.findByRole('tooltip')).textContent).toBe(a.level?.text);
+    fireEvent.keyDown(pill.parentElement as HTMLElement, { key: 'Escape' });
+    // ui-bugs 7: the sentence under the bar is behind "Why?", closed by default
+    const why = within(block).getByRole('button', { name: 'Why?' });
+    expect(why.getAttribute('aria-expanded')).toBe('false');
+    expect(within(block).getByText(a.level?.text ?? 'x').hidden).toBe(true);
+    fireEvent.click(why);
+    expect(within(block).getByText(a.level?.text ?? 'x').hidden).toBe(false);
     expect(t.textContent).not.toMatch(/Certified: on held-out|Sure check/);
     expect(within(t).queryByText(/^Sure/)).toBeNull();
   });

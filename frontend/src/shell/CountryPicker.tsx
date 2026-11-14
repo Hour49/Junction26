@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { rulePacksOf } from '../api';
 import { useInfo } from './info';
+import { Tip } from '@/components/ui/tip';
 import { withPack } from './route';
+import { TIPS } from './tips';
 
 /** By ISO country code ("FI"); none for others. */
 function Flag({ country }: { country: string }) {
@@ -84,14 +86,16 @@ export function CountryPicker({ pack }: { pack: string | null }) {
   return (
     <div className="country">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          className="header-pill country-button v-press"
-          aria-label={`Country rules: ${chosen ? chosen.country_name : 'none'}`}
-        >
-          {chosen && <Flag country={chosen.country} />}
-          <span className="country-name">{chosen ? chosen.country_name : 'No checks'}</span>
-          <Chevron />
-        </PopoverTrigger>
+        <Tip text={TIPS.country}>
+          <PopoverTrigger
+            className="header-pill country-button v-press"
+            aria-label={`Country rules: ${chosen ? chosen.country_name : 'none'}`}
+          >
+            {chosen && <Flag country={chosen.country} />}
+            <span className="country-name">{chosen ? chosen.country_name : 'No checks'}</span>
+            <Chevron />
+          </PopoverTrigger>
+        </Tip>
         <PopoverContent
           role="group"
           aria-label="Building rules the agent follows"

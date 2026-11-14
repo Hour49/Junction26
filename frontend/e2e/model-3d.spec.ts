@@ -73,8 +73,9 @@ test("M3-17 the chat answer's References open the 3D view with the counted door 
   const errors = watchErrors(page);
   const id = await uploaded(page, testInfo);
   await page.goto(`/#/p/${id}/chat?ask=${encodeURIComponent('How many doors are there?')}`);
+  // the 3D button sits in the answer figure's header, beside the drawing's name
   const open = page
-    .getByRole('list', { name: 'References' })
+    .getByRole('figure', { name: /^Reference \d+ of \d+$/ })
     .getByRole('button', { name: /^View in 3D: / });
   await expect(open).toBeVisible({ timeout: 30_000 });
   expect((await open.boundingBox())?.height).toBeGreaterThanOrEqual(44);
@@ -98,8 +99,11 @@ test("M3-22 the agent chat's plan pane opens the model with the newest answer's 
   const errors = watchErrors(page);
   const id = await uploaded(page, testInfo);
   await page.goto(`/#/p/${id}/chat?ask=${encodeURIComponent('How many walls are there?')}`);
+  // ui-bugs 5: one round "3D" button in the answer figure's header (no longer in References).
   await expect(
-    page.getByRole('list', { name: 'References' }).getByRole('button', { name: /^View in 3D: / }),
+    page
+      .getByRole('figure', { name: /^Reference / })
+      .getByRole('button', { name: /^View in 3D: / }),
   ).toBeVisible({ timeout: 30_000 });
   // Beside the chat at 1440; a sheet over it on a phone, opened by "Show the plan".
   if (testInfo.project.name === 'phone')

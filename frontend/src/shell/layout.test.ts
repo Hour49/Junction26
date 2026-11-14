@@ -18,13 +18,11 @@ function rulesFor(selector: string, source: string): string {
   return out.join(';');
 }
 
-it('R1-5-4 the header project picker is constrained to the header width (jsdom has no layout)', () => {
-  // A native <select> is as wide as its longest option unless min-width and max-width stop it.
-  const all = rulesFor('.project-picker', css);
-  expect(all).toMatch(/max-width:\s*100%/);
-  const compact = css.slice(css.indexOf('@media (max-width: 1100px)'));
-  expect(rulesFor('.project-picker', compact)).toMatch(/min-width:\s*0/);
-  expect(rulesFor('.project-picker', compact)).toMatch(/width:\s*100%/);
+it('ui-bugs 11 with no project picker, the country pill starts the right-hand group of the header', () => {
+  expect(css).not.toContain('.project-picker');
+  expect(css).not.toContain('.workspaces-link');
+  const desktop = css.slice(0, css.indexOf('@media (max-width: 1100px)'));
+  expect(rulesFor('.country', desktop)).toMatch(/margin-left:\s*auto/);
 });
 
 it('R1-5-4 long unbreakable file strings wrap inside main instead of widening the page', () => {
@@ -220,11 +218,9 @@ it('SH-81 the demo look: 3px focus ring, a surface ring round the badge, the sma
   expect(rulesFor('.brand-name', phone)).toMatch(/font-size:\s*22px/);
 });
 
-it('SH-84 the project picker gives way first, down to 200px; then the country pill truncates', () => {
+it('SH-84 the country pill truncates rather than widening the header', () => {
   const desktop = css.slice(0, css.indexOf('@media (max-width: 1100px)'));
-  expect(rulesFor('.project-picker', desktop)).toMatch(/min-width:\s*200px/);
   const country = rulesFor('.country', desktop);
-  expect(rulesFor('.project-picker', desktop)).toMatch(/flex:\s*0 1000 320px/);
   expect(country).toMatch(/flex:\s*0 1 auto/);
   expect(country).toMatch(/min-width:\s*0/);
   expect(country).toMatch(/max-width:\s*240px/);
