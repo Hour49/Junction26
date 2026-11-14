@@ -1217,7 +1217,9 @@ the `identify` stage's line.
   issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
   drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
   plan."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
-  sheet), `title`, `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
+  sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`,
+  `electrical`, `fire`, `site` or `other`, from the kind, title and number; null when unsure; a display hint, no
+  client shows or reads it yet), `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
   than a clean scan of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet),
   `seen`, `model`. A call that fails leaves the file as triage would have it without the step ("triage not
   available: ...; read as today" with no classifier). A model answer alone; never a certified value.
@@ -7731,7 +7733,7 @@ A question the drawing cannot answer:
 | `unsupported-question` | the question is not one the parser turns into a count, area, length or volume |
 | `not-in-drawing` | the drawing does not give this quantity (or no schedule on the sheet answers it) |
 | `not-read` | the reader of this drawing does not look for that class, so it has no count of it |
-| `no-reader` | nothing was read from the sheet (no reader for its route yet: the text says so; a reader that found nothing says that instead), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
+| `no-reader` | nothing was read from the sheet (this setup has no reader for its route: the text says so; a reader that found nothing says that instead), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
 | `no-scale` | an area or length on a sheet without a scale |
 | `no-drawing` | the file has no drawing model |
 
@@ -11504,10 +11506,22 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-14, behaviour (docs refresh of the evening's merges; no shape change): the vector reader's printed scale
+  reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones and
+  has no scale bar (#282); a scale bar needs one unit, metres or feet (#301). `VECTOR_FALLBACK=raster` (default
+  `off`) reads a drawn PDF that matches no sheet style on the raster route, flagged and never certified (#283); a
+  scanned PDF's page is rendered once and shared by its readers and its answers (#280, #295). Under
+  `CARBON_READER=large` (default off) Carbon's door boxes take the detector's door box where one lies inside (#310,
+  `attrs.box_from` is `detector`), and the independent Carbon reads of a raster sheet run at the same time (#306).
+  An area (or length) question with a room type or a printed label and a room number ("bathroom 1.01", "Bagno 1.01")
+  names that room (#313); a count question does not take the room. A stage's cost in a trace is exact to the
+  pico-dollar (#314).
+- 2026-11-14, additive (#311): `sheet.discipline` on a file's triage, one of the nine values above or null, from
+  the sheet-kind reply's kind, title and number. `docs/api/openapi-v1.json` already carries it.
 - 2026-11-14, value only (keycheck review-315, chat-ux): `POST /api/projects/{project_id}/ask`'s `total` is in
   whole m² when a summed part is an area on an estimated scale, as that part's `answer` already was (#294): the
   Finnish flat's kitchen gave `answer` 5 and `total` 4.88, now 5 and 5 (`total_note` too). Shapes unchanged.
-- 2026-11-15, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
+- 2026-11-14, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
   missing feature say what was and wasn't read. A `no-reader` refusal on a route with no reader: "This sheet wasn't
   read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask
   about the project's other drawings."; the policy refusal: "On sheets like this one, our reader got this kind of
