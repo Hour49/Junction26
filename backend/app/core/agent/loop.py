@@ -424,16 +424,14 @@ class _Run:
                 return self._show_failed(call, start, f"the latest answer has no {which}")
         if not ids:
             return self._show_failed(call, start, "give evidence_ids or answer: latest")
-        if unknown := [ev for ev in ids if ev not in places]:
+        # lenient: unknown ids are named back and the known ones shown; several pages show the
+        # page with the most places and name the others (a retry once showed 1 door of 19)
+        unknown = [ev for ev in ids if ev not in places]
+        if not (known := [ev for ev in ids if ev in places]):
             missing = ", ".join(unknown)
-            return self._show_failed(call, start, f"no place in this chat has id {missing}")
-        groups = pages(ids, places)
-        if len(groups) > 1 and entry is None:
-            listed = "; ".join(
-                f"{self._name(drawing, places[evs[0]])} page {page}: {', '.join(evs)}"
-                for (drawing, page), evs in groups.items()
-            )
-            return self._show_failed(call, start, f"show one page at a time: {listed}")
+            why = f"no place in this chat has id {missing}; answer: latest shows the last answer"
+            return self._show_failed(call, start, why)
+        groups = pages(known, places)
         (drawing, page), ids = max(groups.items(), key=lambda group: len(group[1]))
         ids = ids[:MARKS]
         name = self._name(drawing, places[ids[0]])
@@ -443,7 +441,7 @@ class _Run:
             backing.append(json.dumps(entry["answer"]))
             self.reattached.append(entry["answer"])
         if given and not unbacked(given, backing):
-            caption, label = given, f"Showed {given} on the plan"
+            caption, label = given, _showed(given)
         else:  # the server's words: a caption with a number no tool gave is not shown
             caption = f"{len(ids)} {'place' if len(ids) == 1 else 'places'} on {name}, page {page}"
             label = f"Showed {caption}"
@@ -453,6 +451,8 @@ class _Run:
         result: Json = {"status": "ok", "shown": len(ids), "drawing": name, "page": page}
         if others:
             result["other_pages"] = others
+        if unknown:
+            result["unknown"] = unknown
         text = json.dumps(result, ensure_ascii=False)
         # what it showed backs the answer's numbers: a tool result, and the answer it shows
         self.sources.append(text)
@@ -664,6 +664,12 @@ def _evs(items: Any) -> list[str]:
         if isinstance(ev, str):
             out.append(ev)
     return out
+
+
+def _showed(caption: str) -> str:
+    """show_on_plan's step label from its checked caption: "Showed the 3 doors on the plan"."""
+    lower = caption[:1].lower() + caption[1:] if caption[1:2].islower() else caption
+    return f"Showed {lower}" if "plan" in caption.lower() else f"Showed {lower} on the plan"
 
 
 def _refused(asked: Json) -> bool:
