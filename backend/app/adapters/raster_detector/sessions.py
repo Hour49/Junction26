@@ -5,7 +5,8 @@ swap and the count arbiter both run `detector-v8:C-yolo26l` (eight identical vie
 arbiter's one-view read and the `l1` double-check reader feed C-yolo26l the same canvas as view 0
 (only their thresholds differ, after the network). A pipeline is also built per project, which
 loaded every model again. So `shared_session` keeps one session per model file (path, size and
-modification time), and that session keeps the outputs of its last `MEMO` distinct inputs: a run
+modification time), and that session keeps the outputs of its last `MEMO` distinct inputs, at
+most `MEMO_BYTES` of them (the oldest go first): a run
 with an input it has seen returns the outputs it computed, so every reader still gets exactly
 the numbers the network gives for its input. Inputs are told apart by a hash of their bytes,
 shape and dtype; the arrays handed out are read-only, so no reader can change another's.
@@ -22,16 +23,25 @@ from typing import Any
 
 import numpy as np
 
-MEMO = 32  # inputs remembered per model: one page's eight views plus its one-view reads
+# inputs remembered per model: a page's eight views plus its one-view reads, and with
+# RASTER_TILES=auto every tile's (48 tiles of an A1 sheet: 48 x 9 inputs), so the second reader of
+# a tiled page reuses the first one's runs. Only outputs are kept (a detector's: about 8 KB a run)
+MEMO = 1024
+# and at most this many bytes of outputs: a model with raw outputs (e.g. 1 x 84 x 8400 float32,
+# 2.8 MB a run) would otherwise hold gigabytes at MEMO entries on a shared box
+MEMO_BYTES = 64 * 2**20
 
 
 class SharedSession:
     """An `onnxruntime.InferenceSession` (or a test's fake) whose `run` is memoised by input."""
 
-    def __init__(self, session: Any, memo: int = MEMO) -> None:
+    def __init__(self, session: Any, memo: int = MEMO, memo_bytes: int = MEMO_BYTES) -> None:
         self._session = session
         self._memo = memo
+        self._memo_bytes = memo_bytes
         self._done: OrderedDict[tuple[Any, ...], Future[tuple[np.ndarray, ...]]] = OrderedDict()
+        self._sizes: dict[tuple[Any, ...], int] = {}  # bytes of each finished run's outputs
+        self._held = 0  # their sum
         self._lock = threading.Lock()
         self.runs = 0  # network runs actually made (the rest came from the memo)
 
@@ -50,7 +60,7 @@ class SharedSession:
                 future = Future()
                 self._done[key] = future
                 while len(self._done) > self._memo:
-                    self._done.popitem(last=False)
+                    self._forget_oldest()
             else:
                 self._done.move_to_end(key)
         if not mine:
@@ -65,8 +75,18 @@ class SharedSession:
             raise
         with self._lock:
             self.runs += 1
+            if self._done.get(key) is future:
+                self._sizes[key] = sum(output.nbytes for output in outputs)
+                self._held += self._sizes[key]
+                while self._held > self._memo_bytes and self._done:
+                    self._forget_oldest()
         future.set_result(outputs)
         return list(outputs)
+
+    def _forget_oldest(self) -> None:
+        """Drops the oldest input (the lock held); a reader already waiting on it still gets it."""
+        key, _ = self._done.popitem(last=False)
+        self._held -= self._sizes.pop(key, 0)
 
 
 def _frozen(value: Any) -> np.ndarray:
