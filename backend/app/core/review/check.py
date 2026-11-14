@@ -12,14 +12,16 @@ not count, which a person can add; a mark the person rejected is never pointed a
 
 Some answers are never certified, whatever their score (`held`; D452 "if it doesn't agree, show it
 to the user", review of #129 B1, 2026-11-14): two methods disagree (also when a rule picked one
-value), the value is an estimate, or a person changed its marks (the score rated the pipeline's
-value, not theirs). A refusal has no value to check; a quantity a person settled or signed off is
-theirs, not ours, so neither gets one.
+value), the value is an estimate, a person changed its marks (the score rated the pipeline's
+value, not theirs), or a bedroom count includes a room typed a bedroom from what is drawn in it,
+with no printed label (orchestrator, golden-22: the demo's ROOM_POLICY=furniture counts those; the
+reference answers type a room by its label alone). A refusal has no value to check; a quantity a
+person settled or signed off is theirs, not ours, so neither gets one.
 """
 
 from collections.abc import Callable, Mapping, Sequence
 
-from app.core.drawing.model import Box, Drawing
+from app.core.drawing.model import Box, Drawing, Room
 from app.core.model import Frozen
 from app.core.review.model import MarkView, Row
 from app.core.review.proof import SHOWN_UNITS
@@ -93,10 +95,27 @@ def certified(
     return threshold is not None and score is not None and score >= threshold
 
 
-def held(row: Row) -> str | None:
+UNLABELLED = "Drawn as a bedroom, no label: please confirm."
+
+
+def unlabelled_bedrooms(row: Row, drawing: Drawing) -> list[Room]:
+    """The bedrooms `row` counts (its marks not rejected) that carry no printed label: typed a
+    bedroom from what is drawn in them."""
+    if row.measure != "count" or row.subject != "room:bedroom":
+        return []
+    counted = {mark.ref for mark in row.marks if mark.state != "rejected" and mark.ref}
+    return [
+        room
+        for room in drawing.rooms
+        if room.id in counted and room.type == "bedroom" and not (room.label or "").strip()
+    ]
+
+
+def held(row: Row, drawing: Drawing) -> str | None:
     """Why `row`'s answer is never certified, whatever its score, as the request's sentence: two
-    methods disagree (a rule's pick included), it is an estimate, or a person changed its marks
-    and has not signed off. None: nothing holds it."""
+    methods disagree (a rule's pick included), it is an estimate, a person changed its marks
+    and has not signed off, or it counts bedrooms with no printed label. None: nothing holds
+    it."""
     what = row.noun or row.label
     if row.conflict is not None:
         if row.first is None or row.second is None:
@@ -111,6 +130,12 @@ def held(row: Row) -> str | None:
         return f"Please double-check the {what}: it is an estimate ({row.estimate})."
     if row.status == "edited":
         return f"Please double-check the {what}: edited by you: sign off to confirm."
+    if unlabelled := unlabelled_bedrooms(row, drawing):
+        some = "1 room is" if len(unlabelled) == 1 else f"{len(unlabelled)} rooms are"
+        return (
+            f"Please double-check the {what}: {some} drawn as a bedroom with no printed label; "
+            "please confirm."
+        )
     return None
 
 

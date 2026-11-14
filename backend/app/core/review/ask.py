@@ -195,7 +195,7 @@ def ask(
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     if check is not None and shown is not None and isinstance(parsed, Query):
-        reason = held(shown)
+        reason = held(shown, drawing)
         sure = reason is None and certified(
             check, route=route, family=parsed.family(), score=answer.confidence, flags=flags
         )

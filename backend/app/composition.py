@@ -87,6 +87,7 @@ from app.core.pipeline.ports import (
 from app.core.pipeline.room_policy import gold_label_rooms
 from app.core.pipeline.route import RICHEST_FIRST
 from app.core.review.check import CheckPolicy, Disputes, no_disputes
+from app.core.review.disputes import find_disputes
 from app.settings import (
     AnswerPriorName,
     ExtractorName,
@@ -294,6 +295,7 @@ def build_answering(settings: Settings) -> Answering:
         signal=signal,
         sure_at=_gate(settings),
         check=load_check(Path(settings.check_policy), signal) if settings.check_policy else None,
+        disputes=find_disputes,
     )
 
 
