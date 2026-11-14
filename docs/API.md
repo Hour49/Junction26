@@ -118,6 +118,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects/{project_id}/evidence/search?q=&k=&include_unrelated=` | Search the project's non-plan files by what they show and say (one hit per file) | 0012 |
 | `GET /api/projects/{project_id}/evidence/{evidence_id}` | One hit's passage with its file's description | 0012 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
+| `GET /api/projects/{project_id}/files/{file_id}/model.glb` | An IFC file's 3D view (GLB, nodes named by GlobalId); `MODEL_3D` | #14 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
 | `GET /api/drawings/{drawing_id}` | How the drawing was read, its pages, questions it can answer | #31 |
@@ -5339,6 +5340,20 @@ drawing does not have.
 The file as uploaded with only its EXIF turn applied, so the screen can show a phone photo before and after
 normalisation. Images and a PDF's first page; 404 for any other file, 422 `invalid` for an image or PDF that cannot be
 decoded (cut off or damaged). `width` as for pages.
+
+### `GET /api/projects/{project_id}/files/{file_id}/model.glb`
+
+Only while `MODEL_3D` is on (off: 404, and no payload changes). An IFC file's 3D view: one GLB of the whole model,
+each node named by its element's GlobalId (openings and rooms left out), `model/gltf-binary`, gzipped
+(`Content-Encoding: gzip`) when the request accepts it. The first request starts the conversion: 409 `converting`
+until it is built (poll this route or the file's `model_3d`). 422 with `code` `too_big` (over the memory budget,
+the time limit or 60 MB of GLB), `no_geometry` (nothing to draw) or `failed`, and the reason as `detail`. 404 for a
+file that is not IFC.
+
+`FileStatus.model_3d` in `GET /api/projects/{project_id}` (IFC files only, left out otherwise and when off):
+`state` (`not_started`, `converting`, `ready`, `unavailable`), `code` (as the 422's, when unavailable), `reason`
+(one sentence, when unavailable), `elements` (when ready: the elements drawn). A deploy builds the views ahead
+with `uv run python -m app.cli glb` (backend/README.md).
 
 ## Answering
 

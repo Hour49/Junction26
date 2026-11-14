@@ -428,6 +428,19 @@ class FileEvidence(Frozen):
     cost_usd: float = Field(default=0.0, ge=0)
 
 
+Model3dCode = Literal["too_big", "no_geometry", "failed"]
+
+
+class Model3d(Frozen):
+    """FileStatus.model_3d (MODEL_3D setting): the 3D view of an IFC file, a GLB converted once
+    on its first request (GET .../files/{file_id}/model.glb) or ahead by `python -m app.cli glb`."""
+
+    state: Literal["not_started", "converting", "ready", "unavailable"]
+    code: Model3dCode | None = None  # unavailable: why, as the route's 422 code
+    reason: str = ""  # unavailable: one plain sentence
+    elements: int | None = None  # ready: the elements drawn
+
+
 class FileStatus(Frozen):
     id: str  # f1, f2... in the order the upload lists the files
     path: str
@@ -453,6 +466,8 @@ class FileStatus(Frozen):
     # What the evidence index made of the file (decision 0012, EVIDENCE_SCOPE=all_non_plan);
     # left out of the JSON when that step did not look at it
     evidence: FileEvidence | None = Field(default=None, exclude_if=lambda value: value is None)
+    # An IFC file's 3D view, set by the API while MODEL_3D is on; left out of the JSON otherwise
+    model_3d: Model3d | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectStatus(Frozen):

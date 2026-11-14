@@ -59,6 +59,7 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
 from app.adapters.openvlm.client import OpenVlmClient
@@ -701,6 +702,17 @@ class EvidenceIndexes:
 
     def evidence_index(self, project_id: str) -> ProjectEvidence:
         return ProjectEvidence(self._store, self._status_of(project_id), self._credit_of)
+
+
+def build_models_3d(settings: Settings) -> GlbModels | None:
+    """MODEL_3D: the 3D views of IFC files, cached beside the projects' drawing models; None off."""
+    if not settings.model_3d:
+        return None
+    return GlbModels(
+        settings.projects_dir / "models-3d",
+        settings.model_3d_memory_mb,
+        settings.model_3d_timeout_s,
+    )
 
 
 def build_ingest(

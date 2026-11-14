@@ -212,6 +212,12 @@ class Settings(BaseSettings):
     local_gates: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
+    # The 3D view of IFC files (GET .../files/{file_id}/model.glb, FileStatus.model_3d): off, the
+    # route is 404 and no payload changes. Each conversion runs alone in a subprocess under this
+    # memory budget and time limit; over either, the model is too_big
+    model_3d: bool = False
+    model_3d_memory_mb: int = Field(default=3000, ge=1)
+    model_3d_timeout_s: float = Field(default=120, gt=0)
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
     sample_archive: Path = Path("../data/samples/sample-project.zip")
     # Where a drawing's licence credit is looked up by content (app/adapters/credits.py): the
