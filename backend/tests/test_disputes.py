@@ -19,6 +19,7 @@ POLICY = CheckPolicy(thresholds={"door": 0.8, "room:bedroom": 0.8})
 class Scored:
     def __init__(self, value: float) -> None:
         self.value, self.note = value, "decisions: stand-in"
+        self.agrees: bool | None = None  # no count of its own (#174)
 
     def probability(self, path: str, family: str, value: object) -> "Scored":
         return self
