@@ -56,7 +56,9 @@ start by `app/adapters/rule_packs.py`, model `app/core/checks/model.py`):
 - `room_area`: each room of the types (indoor, not skipped), its `area_m2` against the limit.
 - `room_windows`: each such room, the windows whose box is within 0.35 m of the room's outline (1% of the page's
   long side without a scale); on a sheet drawn from a building model whose space carries `attrs.windows`, the
-  model's count, with the drawn windows as marks.
+  model's count, with the drawn windows as marks. A count under the limit is cannot tell when a door of the room
+  opens to a balcony or straight outside (it may be glazed), whether the count is drawn or the model's (tuwien's
+  "Zimmer" rooms: no IfcWindow, a 2.36 m door to the outside; orchestrator, 2026-11-14).
 - `door_width`: each door meeting a room of `room_types` and none of `not_room_types`; its width is the long side of
   its symbol's box at the scale, or the model's `width_m`. The symbol bounds the clear opening from above: more
   than 0.03 m (drawing error) under the limit fails; at least 0.10 m (our frame allowance, not the law's) plus

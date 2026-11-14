@@ -386,6 +386,10 @@ def _room_windows(
                 f"{name}: the building model gives it {_windows(count)}, {len(found)} drawn on "
                 f"this sheet; the rule asks {_limit(rule)}."
             )
+            # A door to the outside may be glazed, in a model as on a drawn plan (decision 0009)
+            if status == "fail" and (held := _door_out(drawing, room, pages)) is not None:
+                status = "cannot_tell"
+                why = f"{name}: the building model gives it {_windows(count)}, but {held}."
         else:
             count = len(found)
             status = "pass" if holds(count, rule.comparison, rule.limit) else "fail"
@@ -413,6 +417,19 @@ def _window_hold(
     """Why a room with too few windows on its outline may still have them, or None."""
     if any(window.page == room.page and not _located(window) for window in windows):
         return "some windows on the sheet have no position, so they may be in it"
+    if (held := _door_out(drawing, room, pages)) is not None:
+        return held
+    if picture:
+        # On the dev drawings 1 of 10 window fails read off a picture was real (decision 0009)
+        return "windows read from a picture can be missed"
+    if drawing.model_objects is not None:
+        # The model's IfcWindows without a shape are not drawn on its sheets (decision 0009)
+        return "a sheet drawn from a building model does not draw all its windows"
+    return None
+
+
+def _door_out(drawing: Drawing, room: Room, pages: Mapping[int, Page]) -> str | None:
+    """Why a door of the room may light it (to a balcony or straight outside), or None."""
     outside = [other for other in drawing.rooms if other.type in OUTSIDE or other.outdoor]
     for door in drawing.elements:
         if door.class_ != "door" or not _located(door) or not _meets(door, room, pages, drawing):
@@ -422,12 +439,6 @@ def _window_hold(
             return "a door opens from it to a balcony or the outside, and that door may be glazed"
         if not any(_meets(door, other, pages, drawing) for other in others):
             return "a door opens from it straight to the outside, and that door may be glazed"
-    if picture:
-        # On the dev drawings 1 of 10 window fails read off a picture was real (decision 0009)
-        return "windows read from a picture can be missed"
-    if drawing.model_objects is not None:
-        # The model's IfcWindows without a shape are not drawn on its sheets (decision 0009)
-        return "a sheet drawn from a building model does not draw all its windows"
     return None
 
 

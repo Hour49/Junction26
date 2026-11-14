@@ -391,6 +391,25 @@ def test_a_building_models_window_count_decides(windows: int, status: str) -> No
     )
 
 
+@pytest.mark.parametrize(("doors", "status"), [([], "fail"), ([ON_WALL], "cannot_tell")])
+def test_a_building_models_windowless_room_with_a_door_outside_cannot_tell(
+    doors: list[tuple[float, float, float, float]], status: str
+) -> None:
+    """The model's 0 is held as a drawn 0 is (decision 0009, D511): tuwien's "Zimmer" rooms have
+    no IfcWindow but a 2.36 m door straight to the outside, which may be glazed."""
+    model = [{"id": "m1", "class": "space", "element": "r1", "attrs": {"windows": 0}}]
+    out = [element(1, "door", box) for box in doors]
+    plan = drawing(rooms=[room(1)], elements=out, model_objects=model)
+    found = check_rule(plan, rule("bedroom-window"))
+    assert statuses(found) == [status]
+    assert found.results[0].value == 0
+    if status == "cannot_tell":
+        assert found.results[0].why.endswith(
+            "the building model gives it no window, but a door opens from it straight to the "
+            "outside, and that door may be glazed."
+        )
+
+
 def test_windows_link_to_their_marks_in_the_window_row() -> None:
     plan = drawing(
         rooms=[room(1)],
