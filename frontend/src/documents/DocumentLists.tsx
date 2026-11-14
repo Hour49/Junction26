@@ -2,6 +2,7 @@ import type { ProjectView, Triage } from '../api';
 import { formatSize, isFinished, kindLabel, plural, routeLabel } from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
 import { isNotPlan, rowLine, verdictOf } from '../ingest/triage';
+import { shortReason } from './documents';
 
 /** A triaged non-plan's row line (file-triage.md flow 1): class, subject, verdict pill, whose call. */
 function TriageLine({ triage }: { triage: Triage }) {
@@ -77,7 +78,7 @@ export function DocumentLists({ project }: { project: ProjectView }) {
                     ) : f.triage && isNotPlan(f) ? (
                       <TriageLine triage={f.triage} />
                     ) : (
-                      f.reason && <span className="reason">{f.reason}</span>
+                      shortReason(f) && <span className="reason">{shortReason(f)}</span>
                     )}
                   </span>
                   <span className="doc-file-meta">

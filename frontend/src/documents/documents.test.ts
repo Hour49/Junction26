@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { drawing, projectIssues } from '../api/fixtures';
 import type { Issue } from '../api';
-import { documentIssues, isAnswerable, issueSource, needsYou, pillOf } from './documents';
+import {
+  documentIssues,
+  isAnswerable,
+  issueSource,
+  needsYou,
+  pillOf,
+  shortReason,
+} from './documents';
 
 const PID = projectIssues.project_id;
 const base = projectIssues.issues;
@@ -91,6 +98,26 @@ describe('documents.ts', () => {
     expect(issueSource(aside, PID, null, { kind: 'dxf' })).toBeNull(); // no preview.png for a DXF
     expect(issueSource(aside, PID, null, undefined)).toBeNull();
     expect(issueSource({ ...aside, file_id: null }, PID, null, photo)).toBeNull();
+  });
+
+  it('DOC-17 shortReason: a set-aside reason without its trailing parenthetical; nothing for other states', () => {
+    expect(
+      shortReason({
+        state: 'set_aside',
+        reason: 'a photo, not of a drawing (1600x1200 px, 15% white)',
+      }),
+    ).toBe('a photo, not of a drawing');
+    expect(shortReason({ state: 'set_aside', reason: 'not a drawing' })).toBe('not a drawing');
+    expect(
+      shortReason({ state: 'ready', reason: 'read on the drawn PDF route: 7 elements' }),
+    ).toBeNull();
+    expect(
+      shortReason({ state: 'flagged', reason: 'no reader for the image route yet' }),
+    ).toBeNull();
+    expect(
+      shortReason({ state: 'text_only', reason: 'a text document, not a drawing (page 1)' }),
+    ).toBeNull();
+    expect(shortReason({ state: 'set_aside', reason: '' })).toBeNull();
   });
 
   it('DOC-15 documents.css has no colour literal', () => {

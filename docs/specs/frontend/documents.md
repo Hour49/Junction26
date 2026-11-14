@@ -66,8 +66,11 @@ not edited).
 5. **Drawings**: one card each (`drawings[]`): the drawing's plain name (fe-shared's helper, else `file`), kind,
    `routeLabel`, "Open" → the workspace (`#/p/<pid>/d/<drawing_id>/engineer`). While running, only the drawings
    listed so far; "No drawing ready yet." with none.
-6. **Files**: every `files[]` row, as the Ingest list had it (path, state badge, kind, size, the reason or the triage
-   line), each a link to `#/p/<pid>/f/<id>`. The `not_plans` line above the rows as today.
+6. **Files**: every `files[]` row (path; on the right the state badge over "kind · size"), each a link to
+   `#/p/<pid>/f/<id>`. As the demo, no technical line ("read on the drawn PDF route: 7 elements…"): only a
+   `set_aside` file gets a reason line, its `reason` with a trailing parenthetical cut ("(1600x1200 px, 15% white…)"
+   goes); a triaged non-plan gets the triage line with its pill instead, a file read as a plan "Read as a floor plan
+   on <by>'s call" (re-sweep item 8, 17:30). The `not_plans` line above the rows as today.
 7. "Export" (secondary link, `download`) to `issuesZipUrl(pid, pack)` stays in the Issues heading row: the demo has
    none, but it is a real API feature that we would otherwise lose (open point 1).
 
@@ -151,6 +154,8 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
   the one count rule, used by fe-shared's `useIssuesToAnswer` (the badge) and preqa-a's done line. [unit]
 - DOC-16: The title row has one link "Building-code checks" → `#/p/<pid>/checks`, with `?pack=<id>` when a pack is
   set. [component]
+- DOC-17: A ready, flagged or text-only file row shows no reason text; a `set_aside` row shows its reason without
+  the trailing parenthetical; a triaged non-plan shows its triage line and pill. [unit] [component]
 - DOC-13: The issues request failing shows its `detail (code)` with Retry, and the lists stay. [component]
 - DOC-14: At 390 no sideways scroll, every button, chip, link and input at least 44 px tall; Esc closes the source
   preview and focus returns to "Show source" (fe-viewer's component). [e2e]

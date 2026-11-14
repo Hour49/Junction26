@@ -242,6 +242,8 @@ describe('DocumentsScreen (documents.md)', () => {
     );
     expect(drawings.getByText(d.file)).toBeTruthy();
     const files = within(screen.getByRole('region', { name: 'Files' }));
+    // DOC-17: no technical line on read files
+    for (const f of project.files) expect(files.queryByText(f.reason)).toBeNull();
     for (const f of project.files)
       expect(files.getByText(f.path).closest('a')?.getAttribute('href')).toBe(
         `#/p/${PID}/f/${f.id}`,

@@ -66,3 +66,9 @@ export function issueSource(
     places: [],
   };
 }
+
+/** A file row's reason (DOC-17, as the demo): only a set-aside file's, its trailing technical parenthetical cut. */
+export function shortReason(f: Pick<FileStatus, 'state' | 'reason'>): string | null {
+  if (f.state !== 'set_aside') return null;
+  return f.reason.replace(/\s*\([^()]*\)\s*$/, '') || null;
+}
