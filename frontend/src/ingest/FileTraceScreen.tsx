@@ -16,6 +16,7 @@ import { BeforeAfter } from './BeforeAfter';
 import { StaleNote, StateBadge, TitleRow } from './ProjectScreen';
 import { TriageCard } from './TriageCard';
 import { usePoll } from './usePoll';
+import { ModelCard } from '../model3d/ModelView';
 import './ingest.css';
 
 const live = (t: FileTrace) => !isFinished(t.file);
@@ -82,6 +83,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           ) : null,
         )}
       </dl>
+      <ModelCard projectId={projectId} file={file} />
       <TriageCard
         projectId={projectId}
         file={file}
