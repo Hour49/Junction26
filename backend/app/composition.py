@@ -363,7 +363,9 @@ def _triage(settings: Settings) -> TriageSteps | None:
             budget=spend_guard(settings),
         )
         reader = SheetKindReader(client, settings.sheet_kind_cache_dir)
-        classifier: Classifier = SheetKindClassifier(inner, reader, settings.sheet_kind_cut)
+        classifier: Classifier = SheetKindClassifier(
+            inner, reader, settings.sheet_kind_cut, settings.sheet_kind_set_aside
+        )
         name += f"sheet_kind={settings.sheet_kind}, "  # named only when on: the same keys as before
     elif inner is None:
         return None

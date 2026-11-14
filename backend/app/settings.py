@@ -198,6 +198,10 @@ class Settings(BaseSettings):
     # 0.9: the lowest cut that set aside none of checked-200's 75 plans (0.8 set aside 1; gate
     # run, .agents/exp/vlm-kind.md section 3)
     sheet_kind_cut: float = Field(default=0.9, ge=0, le=1)
+    # false: warn only (Bogdan, 2026-11-14 18:1x: Carbon names sheet kinds as a warning; its
+    # set-aside gate failed, 7 of 227 plans): a sheet it would set aside is read, and every answer
+    # from it says what kind of sheet it looks like
+    sheet_kind_set_aside: bool = True
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

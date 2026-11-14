@@ -185,3 +185,29 @@ def test_off_by_default_changes_nothing_and_on_counts_as_using_keys(tmp_path: Pa
     described = on.model_copy(update={"triage_describer": "gemini"})
     found = _triage(described)
     assert found is not None and found.describer is not None  # triage is on without a classifier
+
+
+def test_warn_only_reads_the_piping_plan_and_its_answers_name_the_kind(
+    settings: Settings, tmp_path: Path, network: list[str]
+) -> None:
+    """SHEET_KIND_SET_ASIDE=false (Bogdan, 2026-11-14): the sheet the step would set aside is
+    read, keeps its sheet record, and every answer with a value says what it looks like."""
+    assert Settings(projects_dir=tmp_path / "default").sheet_kind_set_aside is True
+    client = seeded(settings, tmp_path, sheet_kind_set_aside=False)
+    found = project(client, {"piping.png": PIPING_PNG})
+    (piping,) = found["files"]
+    assert piping["state"] in ("ready", "flagged") and piping["drawing_id"] is not None
+    sheet = piping["triage"]["sheet"]
+    assert (piping["triage"]["class"], sheet["decision"], sheet["kind"]) == (
+        "floor_plan",
+        "doubt",
+        "mep_plan",
+    )
+    assert (sheet["title"], sheet["sheet_number"]) == ("PIPING PLAN", "M-101A")
+    answer = ask(client, found, "piping.png", DOORS)
+    assert answer["answer"] == 1
+    assert answer["explanation"].endswith(
+        "This sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+        "electrical plan."
+    )
+    assert network == []

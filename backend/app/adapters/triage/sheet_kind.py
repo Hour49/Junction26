@@ -396,10 +396,17 @@ class SheetKindReader:
 class SheetKindClassifier:
     """The `Classifier` port (app/core/ingest/ports.py): `inner`, then the sheet-kind model."""
 
-    def __init__(self, inner: Classifier | None, reader: SheetKindReader, cut: float) -> None:
+    def __init__(
+        self,
+        inner: Classifier | None,
+        reader: SheetKindReader,
+        cut: float,
+        set_aside: bool = True,
+    ) -> None:
         self._inner = inner
         self._reader = reader
         self._cut = cut
+        self._set_aside = set_aside  # False (SHEET_KIND_SET_ASIDE): warn only, never set aside
 
     def classify(self, image: bytes, probed: Probed) -> Classified | Unavailable:
         before = None if self._inner is None else self._inner.classify(image, probed)
@@ -409,6 +416,8 @@ class SheetKindClassifier:
         if isinstance(found, Unavailable):
             return before if isinstance(before, Classified) else found
         form, decision = found.form, decide(found.form, self._cut)
+        if decision == "set_aside" and not self._set_aside:  # read it, its answers say the kind
+            decision = "doubt"
         hard, why = advanced(form, long_side(image))
         sheet = Sheet(
             kind=form["sheet_kind"],
