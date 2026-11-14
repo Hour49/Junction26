@@ -591,3 +591,21 @@ def test_every_no_reader_refusal_says_so_when_the_route_has_no_reader() -> None:
         ), (text, flags)
         again = asked_flagged(text, drawing, flags, raster=True)  # a reader that read nothing
         assert again.refusal is not None and "no reader" not in again.refusal.text
+
+
+def test_a_room_s_names_are_one_disagreement_only_when_the_rows_point_at_one_room() -> None:
+    """Two rooms whose readers disagree with the same numbers and that give no mark are two
+    disagreements: merging them would settle one room with the other's decision."""
+    both = disputed(False)
+
+    def rooms(*boxes: tuple[float, float, float, float]) -> dict[str, Quantity]:
+        return {
+            f"area:room|name={name}": quantity(
+                f"area:room|name={name}", 2, "m2", *boxes, conflict=both
+            )
+            for name in ("1.01", "kitchen")
+        }
+
+    assert storey_twins(rooms()) == {}  # no marks: not known to be one room
+    assert len(disputes([row(q, DRAWING, ReviewState(), {}) for q in rooms().values()])) == 2
+    assert storey_twins(rooms(BOX_A)) == {"area:room|name=kitchen": "area:room|name=1.01"}

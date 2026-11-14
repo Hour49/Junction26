@@ -344,8 +344,8 @@ def storey_twins(found: Mapping[str, Quantity] | Mapping[str, Row]) -> dict[str,
     for key in sorted(found):
         item = found[key]
         measure, subject, scope = parse_key(key)
-        if item.conflict is None or scope.name is None:
-            continue
+        if item.conflict is None or scope.name is None or not item.marks:
+            continue  # without marks nothing says two rows are one room: two rooms may agree
         shared = (
             measure,
             subject,
