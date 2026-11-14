@@ -84,7 +84,7 @@ from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
 from app.adapters.resolver.carbon import CarbonResolver
-from app.adapters.scan_images import ScanImages
+from app.adapters.scan_images import ScanImages, ScanRenders
 from app.adapters.triage.gemini_describer import (
     CARBON_MIN_TIMEOUT_S,
     DESCRIBERS,
@@ -102,6 +102,7 @@ from app.adapters.triage.sheet_kind import (
 )
 from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
+from app.adapters.vector_pdf.unruled import Unruled
 from app.core.agent.model import Caps
 from app.core.agent.ports import ChatModel
 from app.core.answering.answer import answer_questions
@@ -195,6 +196,9 @@ class Pipeline:
     # pages it sent for few things found, so asked after reading), "part" when a composite takes
     # a part from the `carbon` source; ingest flags those drawings. None: no file is
     carbon_read: Callable[[str], CarbonRead | None] | None = None
+    # VECTOR_FALLBACK=raster: whether a drawn PDF has no sheet style the vector reader has rules
+    # for; stage 5 routes it to the raster route (in `scanned` too) and ingest flags it. None: off
+    unruled: Callable[[bytes], bool] | None = None
     # How ingest read a file's page, by path (judge.reading_flags: a scan, a photo, Carbon): no
     # answer on a flagged page is sure, on this path as in the product's ask. None: none is
     flags: Callable[[str], tuple[str, ...]] | None = None
@@ -241,7 +245,9 @@ def build_pipeline(
     sheet-kind step called a file advanced, by its path (CARBON_READER=advanced); None: none
     was."""
     files = DatasetFiles(dataset)
-    scans = ScanImages(files)  # what the raster side reads: a scanned PDF as its page's image
+    unruled = _unruled(settings)
+    as_image = _as_image(unruled)  # the PDFs the raster route reads: scans, and unruled ones
+    scans = ScanImages(files, ScanRenders(as_image))  # the raster side: such a PDF as its page
     kind_of = kinds or _probed_kinds(settings, files)
     use_carbon = _carbon_read(settings, advanced, scans)
     took: set[str] = set()  # CARBON_READER=large: the files read by Carbon for few things found
@@ -280,14 +286,29 @@ def build_pipeline(
         clock=time.perf_counter,
         prior_families=_policy(settings.answer_policy),
         readable=_readable(settings),
-        scanned=is_scanned_pdf,
+        scanned=as_image,
         confidence=DecisionsConfidence(scans, decisions())
         if settings.decisions_confidence
         else None,
         sure_at=_gate(settings),
         carbon_read=carbon_read,
-        flags=partial(_page_flags, kind_of=kind_of, carbon_read=carbon_read),
+        unruled=unruled,
+        flags=partial(
+            _page_flags, kind_of=kind_of, carbon_read=carbon_read, unruled=unruled, files=files
+        ),
     )
+
+
+def _unruled(settings: Settings) -> Callable[[bytes], bool] | None:
+    return Unruled() if settings.vector_fallback == "raster" else None
+
+
+def _as_image(unruled: Callable[[bytes], bool] | None) -> Callable[[bytes], bool]:
+    """Whether the raster route reads a PDF as the image of its page: a scan, and with
+    VECTOR_FALLBACK=raster a drawn PDF the vector reader has no rules for."""
+    if unruled is None:
+        return is_scanned_pdf
+    return lambda data: is_scanned_pdf(data) or unruled(data)
 
 
 def _or_took(
@@ -304,15 +325,19 @@ def _page_flags(
     path: str,
     kind_of: Callable[[str], str | None],
     carbon_read: Callable[[str], CarbonRead | None] | None,
+    unruled: Callable[[bytes], bool] | None,
+    files: DrawingFiles,
 ) -> tuple[str, ...]:
     """The reading flags ingest stores for a file's page (judge.reading_flags), for the CLI's
     answers (review-283 M1: without them a scanned or Carbon-read page could come back sure). A
     photo's flag is worded as if not rectified (the CLI keeps no frame); only whether there is a
-    flag is used here. Carbon's flag is given whatever the route: a page another route read has
-    no Decisions probability, so it is not sure either way."""
+    flag is used here. Carbon's flag, and VECTOR_FALLBACK's on a drawn PDF the vector reader has
+    no rules for, are given whatever the route: a page another route read has no Decisions
+    probability, so it is not sure either way."""
     kind = kind_of(path)
     carbon = None if carbon_read is None else carbon_read(path)
-    return reading_flags(cast(ContentKind, kind), None, carbon)
+    as_image = kind == "pdf_vector" and unruled is not None and unruled(files.read(path))
+    return reading_flags(cast(ContentKind, kind), None, carbon, as_image)
 
 
 def _carbon_counted(
@@ -543,7 +568,10 @@ def build_answering(settings: Settings) -> Answering:
     signal: str | None = None
     if settings.decisions_confidence:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
-        confidence = partial(_scan_confidence, reader=reader)
+        # one cache for every answer: each answer on a scan re-rendered its page (review-280 S2);
+        # it renders what ingest's raster readers read as images (scans, and unruled PDFs)
+        renders = ScanRenders(_as_image(_unruled(settings)))
+        confidence = partial(_scan_confidence, reader=reader, renders=renders)
         signal = DECISIONS_SIGNAL
     # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
     scorers = _scorers(settings.local_gates) if settings.check_policy else {}
@@ -567,10 +595,14 @@ def build_answering(settings: Settings) -> Answering:
     )
 
 
-def _scan_confidence(files: DrawingFiles, reader: G1MainReader) -> AnswerConfidence:
+def _scan_confidence(
+    files: DrawingFiles, reader: G1MainReader, renders: ScanRenders
+) -> AnswerConfidence:
     """The answer confidence over a raster drawing's file as ingest's readers read it: a scanned
-    PDF as the image of its page (scan_images.py), so Gemini is asked about the same image."""
-    return DecisionsConfidence(ScanImages(files), reader)
+    PDF (or an unruled one, VECTOR_FALLBACK) as the image of its page (scan_images.py), so Gemini
+    is asked about the same image. The page is rendered once in `renders`, shared by every
+    answer."""
+    return DecisionsConfidence(ScanImages(files, renders), reader)
 
 
 def _resolver(settings: Settings) -> Resolver | None:
@@ -710,6 +742,8 @@ def build_ingest(
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
         names["raster_tiles"] = settings.raster_tiles
+    if settings.vector_fallback != "off":  # the same
+        names["vector_fallback"] = settings.vector_fallback
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         rule = (

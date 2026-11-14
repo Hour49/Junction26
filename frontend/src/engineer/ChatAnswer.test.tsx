@@ -94,8 +94,8 @@ it('CH-31 the lead: why_no_total without a total, never the refused drawings; a 
   cleanup();
   show({
     ...total,
-    total_note: 'Two floors; 1 drawing has no reader for it.',
-    refused_note: '1 drawing has no reader for it.',
+    total_note: 'Two floors; 1 drawing gives no reliable number for it.',
+    refused_note: '1 drawing gives no reliable number for it.',
   });
   expect(screen.getByTestId('answer-value').textContent).toBe('4 doors');
   expect(document.body.textContent).not.toContain('no reader');

@@ -13,12 +13,19 @@ import functools
 import sys
 import urllib.error
 import urllib.request
+from email.message import Message
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 PASSED = ("/api/", "/api?", "/health")
 REQUEST_HEADERS = ("content-type", "accept", "content-length")
-RESPONSE_HEADERS = ("content-type", "cache-control", "content-disposition", "location")
+RESPONSE_HEADERS = (
+    "content-type",
+    "cache-control",
+    "content-disposition",
+    "location",
+    "x-accel-buffering",
+)
 TIMEOUT_S = 600  # an upload is ingested inside the request in tests; uploads can be large
 
 
@@ -58,14 +65,35 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(502, f"backend unreachable: {error.reason}")
             return
         with response:
-            data = response.read()
             self.send_response(response.status)
             for name, value in response.headers.items():
                 if name.lower() in RESPONSE_HEADERS:
                     self.send_header(name, value)
+            if _streamed(response.headers):
+                # an event stream (the chat's steps): each piece goes on as it arrives; the reply has no
+                # length, so it ends when this connection closes
+                self.close_connection = True
+                self.end_headers()
+                try:
+                    while piece := response.read1(65536):
+                        self.wfile.write(piece)
+                        self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass  # the browser left; the backend finishes the turn by itself
+                return
+            data = response.read()
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+
+def _streamed(headers: Message) -> bool:
+    """Whether the backend sends this reply piece by piece: an event stream, or any chunked body."""
+    kind = (headers.get("Content-Type") or "").lower()
+    return (
+        kind.startswith("text/event-stream")
+        or "chunked" in (headers.get("Transfer-Encoding") or "").lower()
+    )
 
 
 def server(dist: Path, port: int, backend: str) -> ThreadingHTTPServer:
