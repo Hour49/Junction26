@@ -620,3 +620,120 @@ def test_carbon_as_a_second_reader_flags_nothing(
     got = api_doors(monkeypatch, tmp_path / "second", RASTER_COMPONENTS="plans=one-plan",
                     DOUBLE_CHECK_READERS="c1=carbon")  # fmt: skip
     assert CARBON_FLAG not in got["file"]["reason"]  # a double-check reader counts nothing
+
+
+# --- codecheck's client review of #254 (.agents/qa/r9/review-254-client.md) --------------------
+
+
+@pytest.mark.parametrize(
+    "junk",
+    [{"rooms": ["x"]}, {"plans": ["p"]}, {"printed_facts": [1]}, {"tables": [None]},
+     {"tables": ["t"]}, {"title_block": "PLAN"}],
+)  # fmt: skip
+def test_a_page_reply_with_an_item_that_is_not_an_object_is_a_failed_call_not_cached(
+    tmp_path: Path, junk: dict[str, Any]
+) -> None:
+    found = CarbonReader(FakeCarbon(page_form(**junk), [tile_form()]), tmp_path).read(
+        page_image(900, 700)
+    )
+    assert found.read == () and "the page reply is not the form" in found.notes[0]
+    assert not any(p.name.startswith("carbon-page-") for p in tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("junk", [{"elements": ["door"]}, {"rooms_seen": [3]}, {"unreadable": [5]}])
+def test_a_tile_reply_with_an_item_that_is_not_an_object_reads_no_element_class(
+    tmp_path: Path, junk: dict[str, Any]
+) -> None:
+    found = CarbonReader(FakeCarbon(page_form(), [tile_form() | junk]), tmp_path).read(
+        page_image(900, 700)
+    )
+    assert found.read == ("room",) and found.elements == ()
+    assert not any(p.name.startswith("carbon-tile-") for p in tmp_path.iterdir())
+
+
+def test_an_odd_reply_envelope_is_a_failed_call(tmp_path: Path) -> None:
+    class Odd:
+        def generate(self, jpeg: bytes, prompt: str, schema: Any, max_tokens: int) -> Any:
+            return {"candidates": [{"content": {"parts": ["just text"]}}]}
+
+    found = CarbonReader(Odd(), tmp_path).read(page_image(900, 700))
+    assert found.read == () and "the page reply is not the form: AttributeError" in found.notes[0]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_the_client_passes_its_timeout_to_urlopen(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[float] = []
+
+    def reply(request: urllib.request.Request, timeout: float) -> Any:
+        seen.append(timeout)
+        return io.BytesIO(json.dumps(answer(tile_form())).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", reply)
+    CarbonClient(KEY, 7.5).generate(b"\xff\xd8", c.TILE_PROMPT, c.TILE_SCHEMA, 8192)
+    assert seen == [7.5]
+
+
+def test_at_most_four_tile_calls_are_in_flight(tmp_path: Path) -> None:
+    """A 12,000 px wide plan is 5 tiles. Each tile call is held until a fifth is in flight (or 2 s
+    pass), so with the limit right the most ever in flight is exactly 4: 1 or 64 workers give 1
+    or 5. The wait only bounds how long the right case takes, not what it measures."""
+    import threading
+
+    lock, everyone = threading.Lock(), threading.Event()
+    state = {"now": 0, "most": 0}
+
+    class Counting(FakeCarbon):
+        def generate(
+            self, jpeg: bytes, prompt: str, schema: dict[str, Any], max_tokens: int
+        ) -> dict[str, Any]:
+            if schema is c.PAGE_SCHEMA:
+                return answer(self.page)
+            with lock:
+                state["now"] += 1
+                state["most"] = max(state["most"], state["now"])
+                if state["now"] >= 5:
+                    everyone.set()
+            everyone.wait(2.0)
+            with lock:
+                state["now"] -= 1
+            return answer(tile_form())
+
+    found = CarbonReader(Counting(page_form(), []), tmp_path).read(page_image(12000, 1000))
+    assert len(c.tile_plan(12000, 1000, [(0.0, 0.0, 1.0, 1.0)]) or []) == 5
+    assert found.read == ("room", *c.CLASSES)
+    assert state["most"] == 4
+
+
+def test_a_cached_reply_is_checked_again_and_one_that_is_not_the_form_is_a_miss(
+    tmp_path: Path,
+) -> None:
+    model = FakeCarbon(page_form(), [tile_form()])
+    CarbonReader(model, tmp_path).read(page_image(900, 700))
+    (page,) = (p for p in tmp_path.iterdir() if p.name.startswith("carbon-page-"))
+    page.write_text(json.dumps(answer({"seen": "half a reply"})))  # JSON, but not the form
+    found = CarbonReader(model, tmp_path).read(page_image(900, 700))
+    assert model.calls.count("page") == 2 and found.read == ("room", *c.CLASSES)
+
+
+def test_the_cache_name_carries_the_prompt_and_the_request_settings() -> None:
+    import hashlib
+
+    request = [c.TEMPERATURE, c.PAGE_MAX_TOKENS, c.TILE_MAX_TOKENS, c.MIN_SIDE, c.MAX_SIDE,
+               c.JPEG_QUALITY]  # fmt: skip
+    assert hashlib.sha256(json.dumps(request).encode()).hexdigest() == c.REQUEST_SHA
+    name = c.cache_name("page", "0" * 64)
+    assert name == (
+        f"carbon-page-{'0' * 64}-{c.PAGE_SHA[:12]}-{c.REQUEST_SHA[:8]}-gemini-4-carbon-low.json"
+    )
+    assert c.cache_name("tile", "0" * 64).split("-")[3] == c.TILE_SHA[:12]
+
+
+def test_when_the_page_call_works_but_nothing_is_countable_the_reason_is_the_first_note(
+    tmp_path: Path,
+) -> None:
+    """Contract 1.2: the judge quotes the first note as why the reader read nothing."""
+    model = FakeCarbon(page_form(rooms_listed="none"), [tile_form(unreadable=c.CLASSES)])
+    found = CarbonReader(model, tmp_path).read(page_image(900, 700))
+    assert found.read == ()
+    assert found.notes[0].startswith("carbon: nothing could be counted on this sheet: ")
+    assert "rooms not read" in found.notes[0]

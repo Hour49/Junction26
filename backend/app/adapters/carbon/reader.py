@@ -167,6 +167,9 @@ class CarbonReader:
             return None, f"the {kind} call failed: {error}", cost.spent() - before
         except ValueError as error:  # not JSON, or not the form (contract.ReplyError)
             return None, f"the {kind} reply is not the form: {error}", cost.spent() - before
+        except (AttributeError, TypeError, KeyError, IndexError) as error:  # an odd envelope
+            said = type(error).__name__
+            return None, f"the {kind} reply is not the form: {said}", cost.spent() - before
         if path is not None:
             write_whole(path, json.dumps(answer, ensure_ascii=False))
         return form, None, cost.spent() - before

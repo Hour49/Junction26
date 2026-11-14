@@ -9,7 +9,7 @@ word for word and pins READER_SHA in a test; the scoring run imports this file, 
 measured is what is built.
 
 Copied from prototypes/carbon-reader/contract.py (confidence, 2026-11-14) without its self-test
-(tests/test_carbon_reader.py has it) and formatted; READER_SHA is pinned in that test.
+(tests/ingest/test_ingest_carbon.py has it) and formatted; READER_SHA is pinned in that test.
 """
 
 import hashlib
@@ -206,11 +206,21 @@ def sent_size(width: int, height: int) -> tuple[int, int]:
     return max(1, round(width * scale)), max(1, round(height * scale))
 
 
+# Backend addition (codecheck S1): what else changes a reply to the same image and prompt, so a
+# changed setting is a new cache name. READER_SHA stays as the contract has it.
+REQUEST_SHA = hashlib.sha256(
+    json.dumps(
+        [TEMPERATURE, PAGE_MAX_TOKENS, TILE_MAX_TOKENS, MIN_SIDE, MAX_SIDE, JPEG_QUALITY]
+    ).encode()
+).hexdigest()
+
+
 def cache_name(kind: str, pixel_sha256: str) -> str:
     """`kind` "page" or "tile"; `pixel_sha256`: of the image as decoded, before it is resized or
-    encoded (the rooms reader's `pixel_digest`: RGB pixels and size), for a tile of its crop."""
+    encoded (the rooms reader's `pixel_digest`: RGB pixels and size), for a tile of its crop.
+    Backend: with REQUEST_SHA[:8] after the prompt's sha (codecheck S1)."""
     sha = PAGE_SHA if kind == "page" else TILE_SHA
-    return f"carbon-{kind}-{pixel_sha256}-{sha[:12]}-{MODEL}-{THINKING}.json"
+    return f"carbon-{kind}-{pixel_sha256}-{sha[:12]}-{REQUEST_SHA[:8]}-{MODEL}-{THINKING}.json"
 
 
 def price(usage: dict) -> float:
@@ -361,6 +371,9 @@ def check_page(form: object) -> dict:
     for name in ("plans", "rooms", "printed_facts", "tables"):
         if not isinstance(form[name], list):
             raise ReplyError(f"{name} is not a list")
+        _objects(form[name], name)  # backend addition (codecheck M1): assemble reads each item
+    if not isinstance(form["title_block"], dict):
+        raise ReplyError("title_block is not an object")
     if len(form["rooms"]) > MAX_ITEMS or len(form["plans"]) > MAX_ITEMS:
         raise ReplyError("more plans or rooms than a sheet can hold: a generation loop")
     return form
@@ -372,9 +385,20 @@ def check_tile(form: object) -> dict:
     for name in TILE_SCHEMA["required"]:
         if not isinstance(form.get(name), list):
             raise ReplyError(f"the tile reply has no list {name}")
+    _objects(form["elements"], "elements")  # backend addition (codecheck M1), as check_page
+    _objects(form["rooms_seen"], "rooms_seen")
+    if not all(isinstance(kind, str) for kind in form["unreadable"]):
+        raise ReplyError("unreadable holds something that is not a class name")
     if len(form["elements"]) > MAX_ITEMS:
         raise ReplyError("more elements than a tile can hold: a generation loop")
     return form
+
+
+def _objects(items: list, name: str) -> None:
+    """Backend addition (codecheck M1): every item of a reply's list is an object, so a reply
+    that is not the form is a failed call (never cached), not an error while it is assembled."""
+    if not all(isinstance(item, dict) for item in items):
+        raise ReplyError(f"{name} holds something that is not an object")
 
 
 def assemble(
@@ -515,5 +539,8 @@ def assemble(
                                                          "revision") if title.get(name))  # fmt: skip
     if said:
         notes.append(f"carbon: title block: {said}")
+    if not read:  # nothing countable: the judge quotes the first note as the reason
+        why = "; ".join(n.removeprefix("carbon: ") for n in notes if "not read" in n)
+        notes.insert(0, f"carbon: nothing could be counted on this sheet: {why}")
     return {"plans": plans, "elements": elements, "rooms": rooms, "scale": scale,
             "tables": tables or None, "read": read, "facts": facts, "notes": notes}  # fmt: skip
