@@ -153,7 +153,8 @@ doors of 0.70-0.76 m on two Swiss plans: real as drawn under the Finnish rule.
 - Fail on every input and say how sure: a fail is what a person acts on, and on picture-read inputs most fails were
   the reader's errors, not the plan's.
 - The door bands without the 0.03 m drawing error (fail under 0.80, pass from 0.90): the box of a drawn symbol is
-  not exact; the error only moves cases to cannot tell, never to a wrong fail.
+  not exact; the error only moves cases to cannot tell, never to a wrong fail. The 0.77/0.93 m bands were accepted
+  by the orchestrator on 2026-11-14: "your door limits 0.77/0.93 m are accepted (they only widen 'cannot tell')".
 
 ## Consequences
 
