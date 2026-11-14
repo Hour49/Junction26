@@ -294,3 +294,15 @@ def test_review_339b_m2_new_questions_are_no_doubt(message: str) -> None:
                                      "could it be 30 doors?"])  # fmt: skip
 def test_review_339b_m2_doubts_still_match(message: str) -> None:
     assert DOUBT.search(message.lower())
+
+
+def test_review_339b_s1_a_fresh_ask_does_not_get_the_reviewed_answers_places() -> None:
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
+    counted(chat, tools)  # ev_1-ev_3 (+ disputed ev_4)
+    windows = {"question": "windows", "parts": [{"drawing_id": DRAWING, "name": "plan.pdf",
+               "answer": {"answer": 1, "marks": [{"id": "w1", "page": 1,
+                                                  "box": [0.5, 0.5, 0.6, 0.6]}]}}]}  # fmt: skip
+    tools.results["ask_drawings"] = windows
+    model = Model(step(call("ask_drawings", question="windows")), final(text="There is one."))
+    got = again(chat, model, tools, "Is that right?")
+    assert not {e.id for e in got.evidence} & {"ev_1", "ev_2", "ev_3"}
