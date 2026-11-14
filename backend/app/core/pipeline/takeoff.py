@@ -222,7 +222,7 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
     objects = drawing.model_objects or ()
     drawn = {item.id: _mark(item) for item in (*drawing.elements, *drawing.rooms)}
     rooms = {room.id: room for room in drawing.rooms}
-    scale = scale_estimate(drawing.scale) or disputed_scale(drawing)
+    scale = scale_estimate(drawing.scale)  # no disputed_scale: a model is never read as a raster
 
     def marks(items: Iterable[ModelObject]) -> list[Mark]:
         return [drawn[item.element] for item in items if item.element in drawn]

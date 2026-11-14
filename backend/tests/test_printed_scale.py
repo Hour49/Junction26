@@ -178,6 +178,10 @@ def test_the_printed_bar_replaces_the_door_estimate_and_measures_the_rooms_again
     assert entry.values[0].value == pytest.approx(0.02 / 1.5)  # the estimate is kept, shown
     assert entry.resolution is not None and entry.resolution.value == pytest.approx(0.02)
     assert "printed scale bar over the scale estimated from the doors" in entry.resolution.rule
+    drawing = drawing_of(found)
+    side = take_off(drawing, apply_rules(drawing.marks_by_quantity()))["length:room:bedroom"]
+    assert side.value == pytest.approx(200 * 0.02)  # within 2x: a length at the bar is not flagged
+    assert side.estimate is None
 
 
 def test_a_printed_ratio_wins_over_the_door_estimate_too(tmp_path: Path) -> None:
