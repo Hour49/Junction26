@@ -80,7 +80,7 @@ def test_a_reply_to_a_doubt_that_cites_nothing_keeps_the_answer_card_and_its_pla
     that cites no place lost the answer card, its number and the plan."""
     chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
     counted(chat, tools)
-    model = Model(final(text="It could be: the count is a low-confidence estimate."))
+    model = Model(final(text="The count is a low-confidence estimate."))
     got = again(chat, model, tools, doubt)
     assert [e.id for e in got.evidence] == ["ev_1", "ev_2", "ev_3"]
     assert len(got.answers) == 1 and got.answers[0]["question"] == "how many doors"
@@ -214,7 +214,7 @@ def test_the_rules_planner_answers_a_pushed_number_from_the_review_and_keeps_the
     got = run_turn(chat, "I count 30. Could it be 30?", (), rules, tools, Caps(), SpendGuard())
     assert [s.tool for s in got.steps] == ["review_answer"]
     assert [name for name, _ in tools.ran] == ["ask_drawings"]  # not asked again
-    assert got.kind == "answer" and "Not for certain." in got.text
+    assert got.kind == "answer" and "30 is outside what the drawings show (2 to 4)" in got.text
     assert len(got.answers) == 1 and got.answers[0]["question"] == "how many doors"
 
 
@@ -228,3 +228,69 @@ def test_a_doubts_review_streams_as_its_first_step() -> None:
     kinds = [(kind, data.get("tool")) for kind, data in got if kind != "thinking"]
     assert kinds[:3] == [("turn", None), ("tool_call", "review_answer"),
                          ("tool_result", "review_answer")]  # fmt: skip
+
+
+# chat-eval #339 t3 (queue, 22:50): "I count 30. Could it be 30?" got "Yes, it could be 30" over a
+# reading of 19 with 5 disputed marks. A pushed number outside what the drawings show is not agreed.
+NINETEEN: Json = json.loads(json.dumps(DOORS))
+NINETEEN["parts"][0]["answer"]["answer"] = 19
+
+
+def test_pushback_the_review_gives_the_range_the_drawings_support() -> None:
+    from app.core.agent.review import review_of
+
+    [drawing] = review_of(NINETEEN, {})["drawings"]
+    assert drawing["range"] == [18, 20]  # 19 with 1 disputed mark either way
+
+
+def test_pushback_rules_mode_does_not_agree_with_a_number_outside_the_range() -> None:
+    chat, tools, rules = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=NINETEEN), RulesChatModel()
+    run_turn(chat, "How many doors are there?", (), rules, tools, Caps(), SpendGuard())
+    got = run_turn(chat, "I count 30. Could it be 30?", (), rules, tools, Caps(), SpendGuard())
+    assert got.kind == "answer" and not got.text.lower().startswith("yes")
+    assert "30 is outside what the drawings show (18 to 20)" in got.text
+    inside = run_turn(chat, "Could it be 20?", (), rules, tools, Caps(), SpendGuard())
+    assert "20 is within what the drawings show (18 to 20)" in inside.text
+
+
+def test_pushback_gemini_text_that_agrees_with_an_unmeasured_number_is_sent_back() -> None:
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=NINETEEN)
+    counted(chat, tools)
+    model = Model(
+        final(text="Yes, it could be 30: the count is a low-confidence estimate."),
+        final(text="The drawings show 19 doors [ev_1], not 30."),
+    )
+    got = again(chat, model, tools, "I count 30. Could it be 30?")
+    assert "30" in model.sent[1][-1]["content"] and "outside" in model.sent[1][-1]["content"]
+    assert got.text.startswith("The drawings show 19 doors")
+
+
+def test_review_339b_m1_a_new_questions_dont_know_stays_dont_know() -> None:
+    """A doubt-looking message after a refusal, then a new ask the model can't answer."""
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=REFUSED)
+    again(chat, Model(step(call("ask_drawings", question="how big is the kitchen")),
+                      final(kind="dont_know", text="No scale.")), tools)  # fmt: skip
+    model = Model(step(call("ask_drawings", question="windows")),
+                  final(kind="dont_know", text="I don't know the windows."))  # fmt: skip
+    got = again(chat, model, tools, "I count 4 windows. Is that right?")
+    assert got.kind == "dont_know"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Is it correct that the kitchen has a window?",
+        "Is that right for the second floor too?",
+        "I count 3 bedrooms. How many bathrooms are there?",
+        "Could it be 2 storeys high?",
+        "Is it right to count the closet doors?",
+    ],
+)
+def test_review_339b_m2_new_questions_are_no_doubt(message: str) -> None:
+    assert not DOUBT.search(message.lower())
+
+
+@pytest.mark.parametrize("message", ["I count 30. Could it be 30?", "Is that right?", "I count 31.",
+                                     "could it be 30 doors?"])  # fmt: skip
+def test_review_339b_m2_doubts_still_match(message: str) -> None:
+    assert DOUBT.search(message.lower())
