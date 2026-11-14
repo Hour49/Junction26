@@ -16,6 +16,7 @@ from pydantic import BaseModel, TypeAdapter
 from app.api.ask import AnswerView, AskRequest
 from app.api.drawings import DrawingView
 from app.api.info import Info
+from app.api.project_ask import ProjectAnswer
 from app.api.projects import ProjectList, ProjectReview, Started
 from app.api.questions import ProjectQuestions
 from app.api.takeoff import SignOffRequest, Takeoff
@@ -54,6 +55,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "signoff_request": SignOffRequest,
     "signoff_settle_request": SignOffRequest,
     "error": ErrorBody,
+    "project_ask": ProjectAnswer,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 

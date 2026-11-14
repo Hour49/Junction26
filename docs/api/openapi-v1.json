@@ -369,8 +369,15 @@
             "type": "string"
           },
           "drawing_id": {
-            "title": "Drawing Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing Id"
           },
           "question": {
             "title": "Question",
@@ -1821,6 +1828,112 @@
           "storey"
         ],
         "title": "PageView",
+        "type": "object"
+      },
+      "ProjectAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectAnswerPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "total_note": {
+            "title": "Total Note",
+            "type": "string"
+          },
+          "total_sure": {
+            "title": "Total Sure",
+            "type": "boolean"
+          },
+          "total_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "count",
+                  "m",
+                  "m2",
+                  "m3",
+                  "ft",
+                  "ft2"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Unit"
+          }
+        },
+        "required": [
+          "question",
+          "parts",
+          "total",
+          "total_unit",
+          "total_sure",
+          "total_note"
+        ],
+        "title": "ProjectAnswer",
+        "type": "object"
+      },
+      "ProjectAnswerPart": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/AnswerView"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "name",
+          "answer"
+        ],
+        "title": "ProjectAnswerPart",
+        "type": "object"
+      },
+      "ProjectAskRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "question": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "ProjectAskRequest",
         "type": "object"
       },
       "ProjectList": {
@@ -3984,6 +4097,55 @@
           }
         },
         "summary": "Project"
+      }
+    },
+    "/api/projects/{project_id}/ask": {
+      "post": {
+        "operationId": "project_ask_api_projects__project_id__ask_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectAskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Ask"
       }
     },
     "/api/projects/{project_id}/files/{file_id}/preview.png": {

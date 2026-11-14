@@ -17,7 +17,7 @@ class AskedQuestion(View):
     question: str
     answer: int | float | str | None  # the value shown; None on a refusal
     unit: Unit | None
-    drawing_id: str
+    drawing_id: str | None  # None: asked on the whole project (POST /api/projects/{id}/ask)
     at: str  # ISO 8601, UTC
     refused: bool
 

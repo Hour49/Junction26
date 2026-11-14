@@ -16,7 +16,7 @@ from starlette.exceptions import HTTPException
 
 from app.adapters.credits import DatasetCredits
 from app.adapters.review_store import JsonReviewStore
-from app.api import ask, drawings, health, info, projects, takeoff
+from app.api import ask, drawings, health, info, project_ask, projects, takeoff
 from app.api.deps import Ingest
 from app.api.views import ErrorBody
 from app.composition import build_answering, build_ingest
@@ -91,7 +91,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
         settings.credit_dataset, settings.credit_photos, settings.sample_archive
     )
     app.state.admission = projects.Admission()  # the 429 limit
-    for router in (health, info, projects, drawings, ask, takeoff):
+    for router in (health, info, projects, drawings, ask, takeoff, project_ask):
         app.include_router(router.router)
     for error in STATUS_BY_ERROR:
         app.add_exception_handler(error, domain_error_response)
