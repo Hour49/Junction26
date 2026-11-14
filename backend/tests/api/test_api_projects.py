@@ -402,6 +402,7 @@ LOCAL = "elements=region:C,plans=region:C"  # ONNX models on this machine only
         ),
         ({"triage_classifier": "rules", "triage_describer": "gemini"}, False),
         ({"triage_describer": "gemini"}, True),  # triage off: the describer is never built
+        ({"triage_classifier": "rules", "triage_describer": "carbon"}, False),
         (
             {"raster_components": LOCAL, "raster_photo_components": "rooms=gemini,plans=one-plan"},
             False,
