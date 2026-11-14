@@ -1,6 +1,10 @@
 """Projects: upload a zip or one file, follow its ingest file by file, and the project's review
 summary (docs/API.md "Projects and ingest")."""
 
+import logging
+import threading
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -19,7 +23,9 @@ from app.core.pipeline.model import QuantityConflict
 from app.core.review.model import ReviewState, Settled
 from app.core.review.ports import ReviewStore
 from app.core.review.review import reset
+from scripts.make_sample_archive import build_archive
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/projects")
 
 MAX_UPLOAD = 200 * 1024 * 1024  # bytes; a larger body is refused with 413 before ingest sees it
@@ -74,6 +80,37 @@ class ProjectReview(View):
     conflicts: list[ConflictEntry]
 
 
+class Admission:
+    """The 429 limit: projects queued or running plus uploads still being received, checked and
+    counted under one lock, so concurrent uploads can't all pass the check (MAX_WAITING)."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._started: list[str] = []  # ids of the uploads this process started
+        self._receiving = 0
+
+    @contextmanager
+    def slot(self, ingest: Ingest) -> Iterator[Callable[[str], None]]:
+        """A place for one upload, or 429; yields the function that records its project id."""
+        with self._lock:
+            self._started[:] = [
+                pid for pid in self._started if ingest.status(pid).state in ("queued", "running")
+            ]
+            waiting = len(self._started) + self._receiving
+            if waiting >= MAX_WAITING:
+                raise HTTPException(429, f"{waiting} projects are still being ingested; try again")
+            self._receiving += 1
+        try:
+            yield self._record
+        finally:
+            with self._lock:
+                self._receiving -= 1
+
+    def _record(self, project_id: str) -> None:
+        with self._lock:
+            self._started.append(project_id)
+
+
 class _Sample(BaseModel):
     """What the API remembers of the sample: the last project made from it (api/sample.json)."""
 
@@ -105,13 +142,16 @@ async def upload(
     name: Annotated[str, Query(min_length=1, max_length=255)],
 ) -> Started:
     """The request body is the file's bytes (a zip or one drawing file); `name` its file name."""
-    _not_busy(request, ingest)
-    data = bytearray()
-    async for chunk in request.stream():
-        data += chunk
-        if len(data) > MAX_UPLOAD:
-            raise HTTPException(413, f"the upload is over {MAX_UPLOAD // 2**20} MB")
-    return _start(request, ingest, name, bytes(data))
+    admission: Admission = request.app.state.admission
+    with admission.slot(ingest) as record:
+        data = bytearray()
+        async for chunk in request.stream():
+            data += chunk
+            if len(data) > MAX_UPLOAD:
+                raise HTTPException(413, f"the upload is over {MAX_UPLOAD // 2**20} MB")
+        started = _start(ingest, name, bytes(data))
+        record(started.id)
+    return started
 
 
 @router.post("/sample", status_code=202)
@@ -123,16 +163,13 @@ def sample(
     fresh: bool = False,
 ) -> Started:
     """The synthetic sample archive. `fresh`: the review edits of the last sample run are reset."""
-    _not_busy(request, ingest)
+    # Built on first use; never refused as busy: it is small, and it is the demo's first click.
     if not settings.sample_archive.is_file():
-        raise NotFoundError(
-            "the sample archive is not built: run `uv run python scripts/make_sample_archive.py` "
-            "in backend/"
-        )
+        _build_sample(settings.sample_archive)
     record = settings.projects_dir / "api" / "sample.json"
     if fresh and record.is_file():
         _reset_project(ingest, reviews, _Sample.model_validate_json(record.read_text()).project_id)
-    started = _start(request, ingest, SAMPLE_NAME, settings.sample_archive.read_bytes(), fresh)
+    started = _start(ingest, SAMPLE_NAME, settings.sample_archive.read_bytes(), fresh)
     _write(record, _Sample(project_id=started.id).model_dump_json())
     return started
 
@@ -243,23 +280,30 @@ def _preference(file: FileStatus) -> tuple[bool, bool, int]:
     return (not sheet, file.path != file.source, order)
 
 
-def _start(
-    request: Request, ingest: Ingest, name: str, data: bytes, fresh: bool = False
-) -> Started:
+def _start(ingest: Ingest, name: str, data: bytes, fresh: bool = False) -> Started:
     project_id = ingest.start(name=name, data=data, fresh=fresh)
-    request.app.state.started.append(project_id)
     status = ingest.status(project_id)
     return Started(
         id=project_id, name=status.name, state=status.state, url=f"/api/projects/{project_id}"
     )
 
 
-def _not_busy(request: Request, ingest: Ingest) -> None:
-    started: list[str] = request.app.state.started
-    waiting = [pid for pid in started if ingest.status(pid).state in ("queued", "running")]
-    started[:] = waiting  # a finished project stays finished
-    if len(waiting) >= MAX_WAITING:
-        raise HTTPException(429, f"{len(waiting)} projects are still being ingested; try again")
+def _build_sample(path: Path) -> None:
+    """The sample is made by code (scripts/make_sample_archive.py, same bytes every time), so a
+    deploy without data/samples builds it here; a temp file and a rename, so a half-written zip
+    never shows."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        part = path.with_name(f"{path.name}.{threading.get_ident()}.part")
+        part.write_bytes(build_archive())
+        part.replace(path)
+    except OSError:
+        log.exception(
+            "can't write the sample archive at %s; build it with `uv run python "
+            "scripts/make_sample_archive.py --out <path>` in backend/",
+            path,
+        )
+        raise NotFoundError("The sample project isn't available on this server") from None
 
 
 def _reset_project(ingest: Ingest, reviews: ReviewStore, project_id: str) -> None:

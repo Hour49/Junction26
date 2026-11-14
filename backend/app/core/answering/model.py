@@ -123,6 +123,12 @@ class Unsupported(Frozen):
     reason: str
 
 
+# Unsupported reasons the answer explains in its own words: a count where answering would drop
+# part of the question (R1-5-2).
+SEVERAL_THINGS = "a count that names more than one kind of thing"
+IN_ONE_ROOM = "a count within one room is not taken off"
+
+
 class Evidence(Frozen):
     file: str
     page: int = Field(ge=1)
