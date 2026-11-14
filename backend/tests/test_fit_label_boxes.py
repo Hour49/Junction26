@@ -39,14 +39,14 @@ def test_label_boxes_selects_no_right_area_lost_on_either_half(
 ) -> None:
     fit = script()
 
-    def counts(rows: Any, side: float, cover: float) -> dict[str, int]:
+    def counts(rows: Any, box: float, cover: float) -> dict[str, int]:
         n = dict.fromkeys(fit.KEYS, 0)
-        n["label"] = round(side * 10 + cover * 10)  # wider guards refuse more labels...
-        n["right"] = int(side >= 0.9 and rows is halves[1])  # ...but lose a right one on half B
+        n["label"] = round(box * 10 + cover * 10)  # wider guards refuse more labels...
+        n["right"] = int(box >= 1.0 and rows is halves[1])  # ...but lose a right one on half B
         return n
 
     halves = fit.halves([row(f"plan-{n}.pdf") for n in range(4)])
     monkeypatch.setattr(fit, "halves", lambda rows: halves)
     monkeypatch.setattr(fit, "counts", counts)
-    assert fit.sweep([]) == (0.7, 0.3)  # 0.9 and 1.2 lose a right area on B
-    assert "selected: MIN_SIDE_M 0.70 MIN_COVER 0.30" in capsys.readouterr().out
+    assert fit.sweep([]) == (0.75, 0.2)  # 1.0 and 1.5 m² lose a right area on B
+    assert "selected: MIN_BOX_M2 0.75 MIN_COVER 0.20" in capsys.readouterr().out

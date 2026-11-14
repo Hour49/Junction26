@@ -18,13 +18,14 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   matched to gold rooms), so a box's area is divided by it; OUTLINE_SPREAD is that ratio's 68%
   log spread, combined with the scale's (twice, for an area) into `area_uncertainty`.
 - A box that cannot be the room gets no area (`refused_boxes`): a room reader sometimes boxes the
-  room's printed label, not the room ("LOBBY 0.18 m²" on a 7.4 m² floor). A box narrower than a
-  door (MIN_SIDE_M at the sheet's scale) is a label; so is every box on a page whose room boxes
-  (MIN_COVER_ROOMS or more) cover under MIN_COVER of the box around them all, as scattered labels
-  do. The room stays, its area unknown, the reason in a note; never a smaller number. The
-  thresholds are harmless guards, not fitted values: on golden v2 they refuse 5 of 873 box rooms,
-  0 of them right (eu-big's fit, #14 c6883029882); untested on scans (golden v2 has no scanned PDF
-  with gold room areas). scripts/fit_label_boxes.py sweeps them per half on cached replies.
+  room's printed label, not the room ("LOBBY 0.18 m²" on a 7.4 m² floor). A box under MIN_BOX_M2
+  at the sheet's scale (a door leaf's footprint) is smaller than any room; and when the box rooms
+  of a page (MIN_COVER_ROOMS or more) cover under MIN_COVER of the box around them all, they box
+  scattered labels. The room stays, its area unknown, the reason in a note; never a smaller
+  number. Always on for a raster sheet with a scale (no setting). The thresholds are guards, not
+  fitted values: on golden v2 the first version refused 5 of 873 box rooms, 0 of them right
+  (eu-big's fit, #14 c6883029882); golden v2 has no scanned PDF with gold room areas.
+  scripts/fit_label_boxes.py sweeps them per half on cached replies.
 """
 
 import itertools
@@ -41,8 +42,15 @@ SPREAD_FEW = 0.158  # 68% relative scale error with 1-4 doors, val two-way
 SPREAD_MANY = 0.0795  # with 5 or more doors
 BOX_RATIO = 1.104  # a room's box area over its outline area, val median
 OUTLINE_SPREAD = 0.157  # 68% |log| of that ratio around its median, val
-MIN_SIDE_M = 0.7  # a room box narrower than a door is its label (a guard, not fitted)
-MIN_COVER = 0.2  # rooms tile their plan; labels cover a few % of it (a guard, not fitted)
+# A box smaller than a door leaf's footprint (0.7 x 0.7 m) holds no room (a guard). The box's
+# area, not its shorter side: real rooms can be narrow (high_quality-11271's kitchen 0.63 x 3 m,
+# 1.9 m², and its utility kitchen APK about 0.6 x 1.8 m, 1.1 m², are kept), while a label is small
+# both ways (USCG's "LOBBY" box, 0.18 m², is refused). A long thin label passes a side rule.
+MIN_BOX_M2 = 0.5
+# Box rooms covering under this share of the box around them all are scattered labels (a guard):
+# USCG page 2's 14 label boxes cover 6%; rooms that tile a plan cover 50-90%, a sparse plan of
+# separate blocks about 25%.
+MIN_COVER = 0.1
 MIN_COVER_ROOMS = 3  # fewer boxes on a page say nothing about coverage
 REFUSED_NOTE = "room area: "  # how the note on a room the box does not measure starts
 
@@ -121,35 +129,37 @@ def refused_boxes(
     rooms: Sequence[Room],
     scale: Scale,
     pages: Sequence[Page],
-    min_side_m: float = MIN_SIDE_M,
+    min_box_m2: float = MIN_BOX_M2,
     min_cover: float = MIN_COVER,
 ) -> dict[str, str]:
     """The rooms (by id) whose area would come from a box that cannot be the room, each with the
-    reason: on a page whose room boxes (at least MIN_COVER_ROOMS) cover under `min_cover` of the
-    box around them all, every box room; else a box narrower than `min_side_m` at `scale`. Only
-    rooms the box would measure count: no polygon, no area yet."""
+    reason: on a page whose box rooms (no polygon; at least MIN_COVER_ROOMS) cover under
+    `min_cover` of the box around them all, every one that has no area yet; else a box under
+    `min_box_m2` at `scale`. Only rooms the box would measure are refused: no polygon, no area
+    yet. Always applied on a raster sheet with a scale (no setting)."""
     if scale.m_per_unit is None:
         return {}
     by_page = {page.page: page for page in pages}
     refused: dict[str, str] = {}
     for number, page in by_page.items():
-        on_page = [room for room in rooms if room.page == number]
-        boxed = [r for r in on_page if r.polygon is None and r.area_m2 is None]
-        cover = _cover([room.box for room in on_page])
-        if len(on_page) >= MIN_COVER_ROOMS and cover < min_cover:
+        boxes = [room for room in rooms if room.page == number and room.polygon is None]
+        boxed = [room for room in boxes if room.area_m2 is None]
+        cover = _cover([room.box for room in boxes])
+        if len(boxes) >= MIN_COVER_ROOMS and cover < min_cover:
             why = (
-                f"the {len(on_page)} room boxes on page {number} cover {cover:.0%} of the area "
+                f"the {len(boxes)} room boxes on page {number} cover {cover:.0%} of the area "
                 f"around them (under {min_cover:.0%}): they box the labels, not the rooms"
             )
             refused |= dict.fromkeys((room.id for room in boxed), why)
             continue
         for room in boxed:
             x0, y0, x1, y1 = room.box
-            side = min((x1 - x0) * page.width, (y1 - y0) * page.height) * scale.m_per_unit
-            if side < min_side_m:
+            width = (x1 - x0) * page.width * scale.m_per_unit
+            height = (y1 - y0) * page.height * scale.m_per_unit
+            if width * height < min_box_m2:
                 refused[room.id] = (
-                    f"its box is {side:.2f} m across, narrower than a door ({min_side_m:g} m): "
-                    "it boxes the label, not the room"
+                    f"its box is {width:.2f} x {height:.2f} m ({width * height:.2f} m²), smaller "
+                    f"than any room (a door leaf's footprint, {min_box_m2:g} m²)"
                 )
     return refused
 

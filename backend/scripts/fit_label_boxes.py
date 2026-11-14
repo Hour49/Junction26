@@ -7,7 +7,7 @@
 reader gives boxes (Gemini rooms; replies from the cache cost 0 USD). Every room whose area the
 box measured (no polygon, area_source geometry_x_*) is measured again from its box at the run's
 scale, the area main would give, and matched to the gold room that holds its box's centre. For
-each (MIN_SIDE_M, MIN_COVER) pair the sweep prints, on each half of the files (seeded halves:
+each (MIN_BOX_M2, MIN_COVER) pair the sweep prints, on each half of the files (seeded halves:
 sha256 of "20261114:gate:<file>", first half A, as stoa_eval's gate cuts val), how many of those
 areas the rule refuses, and of them how many were right (within 10% of gold: a right area lost),
 close (within 20%) or label-sized (under a third of gold), and how many label-sized ones it keeps.
@@ -29,8 +29,8 @@ from app.adapters.extraction_v1 import ExtractionV1Reader
 from app.core.drawing.model import Drawing, Room
 from app.core.pipeline.raster_scale import BOX_RATIO, refused_boxes
 
-SIDES = (0.0, 0.3, 0.5, 0.7, 0.9, 1.2)
-COVERS = (0.0, 0.05, 0.1, 0.2, 0.3)
+BOXES = (0.0, 0.25, 0.5, 0.75, 1.0, 1.5)  # m²
+COVERS = (0.0, 0.05, 0.1, 0.15, 0.2)
 RIGHT, CLOSE, LABEL = 0.10, 0.20, 1 / 3  # right: within 10% of gold
 SEED = 20261114  # stoa_eval gate's halves
 KEYS = ("ref", "right", "close", "label", "kept_label", "p_ref", "p_right", "p_label")
@@ -105,10 +105,10 @@ def halves(rows: Sequence[Row]) -> tuple[list[Row], list[Row]]:
     return ranked[:middle], ranked[middle:]
 
 
-def counts(rows: Sequence[Row], side: float, cover: float) -> dict[str, int]:
+def counts(rows: Sequence[Row], box: float, cover: float) -> dict[str, int]:
     n = dict.fromkeys(KEYS, 0)
     for drawing, rooms, matched in rows:
-        refused = refused_boxes(rooms, drawing.scale, drawing.pages, side, cover)
+        refused = refused_boxes(rooms, drawing.scale, drawing.pages, box, cover)
         printed = drawing.scale.status == "scaled"
         for room in rooms:
             if room.id not in matched:
@@ -144,22 +144,22 @@ def sweep(rows: Sequence[Row]) -> tuple[float, float] | None:
     half_a, half_b = halves(rows)
     print(f"half A {len(half_a)} sheets, half B {len(half_b)} sheets")
     print(
-        "side_m cover half | refused right close label | kept_label | printed: refused right label"
+        "box_m2 cover half | refused right close label | kept_label | printed: refused right label"
     )
     selectable: list[tuple[int, float, float]] = []
-    for side in SIDES:
+    for box in BOXES:
         for cover in COVERS:
-            a, b = counts(half_a, side, cover), counts(half_b, side, cover)
-            print(f"{side:6.2f} {cover:5.2f}    A | {line(a)}")
-            print(f"{side:6.2f} {cover:5.2f}    B | {line(b)}")
+            a, b = counts(half_a, box, cover), counts(half_b, box, cover)
+            print(f"{box:6.2f} {cover:5.2f}    A | {line(a)}")
+            print(f"{box:6.2f} {cover:5.2f}    B | {line(b)}")
             if a["right"] == 0 and b["right"] == 0:
-                selectable.append((a["label"] + b["label"], side, cover))
+                selectable.append((a["label"] + b["label"], box, cover))
     if not selectable:
         print(f"no pair loses no right area (within {RIGHT:.0%} of gold) on both halves")
         return None
-    _, side, cover = max(selectable)
-    print(f"selected: MIN_SIDE_M {side:.2f} MIN_COVER {cover:.2f} (no right area lost on A or B)")
-    return side, cover
+    _, box, cover = max(selectable)
+    print(f"selected: MIN_BOX_M2 {box:.2f} MIN_COVER {cover:.2f} (no right area lost on A or B)")
+    return box, cover
 
 
 def main() -> None:
