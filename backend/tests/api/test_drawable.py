@@ -3,6 +3,7 @@ says per drawing whether a person can draw an edit on it, and why not, with the 
 plan tools refuse an edit with (plan_tools.plan_page), so the two never disagree."""
 
 import dataclasses
+import json
 from typing import Any
 
 import pytest
@@ -123,3 +124,74 @@ def test_the_list_and_plan_page_agree_on_every_fixture(client: TestClient) -> No
                 assert fields(drawing) == (said is None, said), drawing["file"]
             seen.add(said)
     assert len(seen) >= 6  # drawable, and each reason, were all compared
+
+
+def counted_reads(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """Every page read of a stored PDF from now on (pipeline_tools._fills' read_page)."""
+    import app.adapters.pipeline_tools as pipeline_tools
+
+    reads: list[int] = []
+    read_page = pipeline_tools.read_page
+
+    def counting(data: bytes, index: int) -> Any:
+        reads.append(index)
+        return read_page(data, index)
+
+    monkeypatch.setattr(pipeline_tools, "read_page", counting)
+    return reads
+
+
+def test_review_407_polls_read_a_drawings_page_once(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The ingest screens poll the project every 500 ms: each GET read page 1 of every drawable
+    PDF again, under the pdfium lock ingest needs."""
+    pid, _ = listed(client, walled_flat())
+    reads = counted_reads(monkeypatch)
+    for _ in range(3):
+        [again] = client.get(f"/api/projects/{pid}").json()["drawings"]
+        assert fields(again) == (True, None)
+    assert len(reads) <= 1
+
+
+def test_review_407_a_rewritten_drawing_gets_its_new_reason(
+    client: TestClient, settings: Settings
+) -> None:
+    pid, drawing = listed(client, walled_flat())
+    assert fields(drawing) == (True, None)
+    [stored] = settings.projects_dir.rglob(f"drawings/{drawing['drawing_id']}.json")
+    body = json.loads(stored.read_text())
+    body["scale"]["m_per_unit"] = None  # read again, this time without a scale
+    stored.write_text(json.dumps(body))
+    [again] = client.get(f"/api/projects/{pid}").json()["drawings"]
+    assert fields(again) == (False, "this drawing has no scale")
+
+
+def test_review_407_a_pdf_whose_walls_cannot_be_read_does_not_fail_the_project(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.adapters.pipeline_tools as pipeline_tools
+
+    def broken(data: bytes, index: int) -> Any:
+        raise RuntimeError("pdfium: cannot load page")
+
+    monkeypatch.setattr(pipeline_tools, "read_page", broken)  # _fills only: ingest reads its own
+    pid, _ = listed(client, walled_flat())
+    got = client.get(f"/api/projects/{pid}")
+    assert got.status_code == 200
+    [drawing] = got.json()["drawings"]
+    assert fields(drawing) == (False, "the walls of this drawing could not be read")
+
+
+def test_review_407_a_drawing_read_again_at_another_scale_reads_its_walls_again(
+    client: TestClient, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The wall fills are measured in metres: a new scale must not reuse the old ones."""
+    pid, drawing = listed(client, walled_flat())
+    reads = counted_reads(monkeypatch)
+    [stored] = settings.projects_dir.rglob(f"drawings/{drawing['drawing_id']}.json")
+    body = json.loads(stored.read_text())
+    body["scale"]["m_per_unit"] *= 2
+    stored.write_text(json.dumps(body))
+    client.get(f"/api/projects/{pid}")
+    assert len(reads) == 1

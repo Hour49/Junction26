@@ -387,19 +387,22 @@ def project(
     models_3d: Models3dDep,
 ) -> ProjectView:
     # here, not at the top: plan_tools imports this module (through pipeline_tools)
-    from app.adapters.plan_tools import PipelineStore, not_drawable
+    from app.adapters.plan_tools import Kept, PipelineStore, not_drawable
 
     status = ingest.status(project_id)
     files = {file.path: file for file in status.files}
     kept: KeptReviews = request.app.state.kept_reviews
     store = PipelineStore.of_app(request.app, project_id)
+    fills_kept: Kept | None = getattr(request.app.state, "drawable_fills", None)  # review-407
+    if fills_kept is None:
+        fills_kept = request.app.state.drawable_fills = {}
     drawings = drawings_of(status, lambda path: file_credit(path, files, credits))
     return ProjectView(
         **with_models_3d(status, models_3d).model_dump(),
         drawings=tuple(
             entry.model_copy(update={"drawable": why is None, "not_drawable_reason": why})
             for entry in drawings
-            for why in [not_drawable(store, entry)]
+            for why in [not_drawable(store, entry, fills_kept)]
         ),
         skipped=skipped_of(status),
         expected_drawings=expected_drawings_of(status),
