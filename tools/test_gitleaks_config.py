@@ -1,4 +1,5 @@
-"""The extra rule in .gitleaks.toml, checked with Python's re (RE2 reads it the same way)."""
+"""The extra rule and the allowlist in .gitleaks.toml, checked with Python's re (RE2 reads them the
+same way)."""
 import re
 from pathlib import Path
 
@@ -6,6 +7,7 @@ import tomllib
 
 CONFIG = tomllib.loads((Path(__file__).resolve().parent.parent / ".gitleaks.toml").read_text())
 RULE = next(r for r in CONFIG["rules"] if r["id"] == "cloudflare-api-token")
+FAKE_KEY = "test-key-0123456789"  # the one fake key unit tests use (docs/ENGINEERING.md section 5)
 
 
 def found(text):
@@ -27,3 +29,28 @@ def test_cloudflare_token_is_found():
 def test_cloudflare_look_alikes_are_not():
     for text in ["cfat_short", "tokens start with cfat_ then", "see cfat-notes-for-the-format"]:
         assert not found(text), text
+
+
+def allowed(value):
+    # a global allowlist's regexes are matched against the finding's secret (gitleaks' default target)
+    return any(
+        re.search(regex, value)
+        for allowlist in CONFIG.get("allowlists", [])
+        for regex in allowlist.get("regexes", [])
+    )
+
+
+def test_the_fake_test_key_is_allowed():
+    assert allowed(FAKE_KEY)
+
+
+def test_only_that_exact_value_is_allowed():
+    near = [FAKE_KEY + "0", "x" + FAKE_KEY, FAKE_KEY[:-1], FAKE_KEY[:-1] + "8", FAKE_KEY.upper()]
+    for value in near:
+        assert not allowed(value), value
+
+
+def test_the_allowlist_skips_nothing_else():
+    (allowlist,) = CONFIG["allowlists"]
+    assert allowlist.get("regexTarget", "secret") == "secret"  # not the whole line or file
+    assert set(allowlist) <= {"description", "regexTarget", "regexes"}  # no paths, commits, stopwords
