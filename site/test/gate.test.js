@@ -428,21 +428,29 @@ test("the code check compares the whole digest: a wrong code whose digest starts
   for (const twin of twins) assert.equal(await codeMatches(CODE, twin), false, twin);
 });
 
-test("the build: the page for visitors without the code is the synthetic mock, and nothing else is in the assets", async () => {
-  const { execFileSync } = await import("node:child_process");
-  const { readFileSync, readdirSync } = await import("node:fs");
+test("the build: without the dataset it stops with a message and leaves the built assets as they are", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } = await import("node:fs");
   const site = new URL("../", import.meta.url);
-  const root = new URL("../../", import.meta.url);
-  execFileSync("./build-assets.sh", { cwd: site, stdio: "pipe" });
-  const built = (name) => readFileSync(new URL(`assets/${name}`, site));
-  assert.deepEqual(readdirSync(new URL("assets/", site), { recursive: true }).sort(), [
-    "app.js",
-    "favicon.ico",
-    "index.html",
-    "style.css",
-  ]);
-  for (const name of ["index.html", "app.js", "style.css"]) {
-    assert.deepEqual(built(name), readFileSync(new URL(`demo/${name}`, root)), name);
+  const marker = new URL("assets/.build-test-marker", site);
+  mkdirSync(new URL("assets/", site), { recursive: true });
+  writeFileSync(marker, "kept");
+  try {
+    const env = { ...process.env, STOA_DATASET: "" };
+    const run = spawnSync("./build-assets.sh", { cwd: site, env, encoding: "utf8" });
+    assert.notEqual(run.status, 0); // a start page that leads to a page that is not there is never built
+    assert.match(run.stderr, /STOA_DATASET/);
+    assert.equal(existsSync(marker) && readFileSync(marker, "utf8"), "kept");
+  } finally {
+    rmSync(marker, { force: true });
   }
-  assert.match(built("index.html").toString(), /<script src="app\.js">/); // a page, not a redirect to a missing one
+});
+
+test("the code form is a strip at the top of the demo page, in the page's flow, with the link to the credits", async () => {
+  const answer = await worker.fetch(new Request("https://junction.example.test/"), env());
+  const html = await answer.text();
+  const form = html.indexOf('action="/__unlock"');
+  assert.ok(form > html.indexOf("<body>") && form < html.indexOf("<h1>demo</h1>")); // above the page, not over it
+  assert.ok(!html.includes("position:fixed")); // a fixed box covered the demo's own send button
+  assert.ok(html.includes('href="/credits.html"'));
 });
