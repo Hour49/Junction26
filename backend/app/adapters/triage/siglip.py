@@ -9,6 +9,10 @@ Built and measured in prototypes/triage (export.py, export_onnx.py; .agents/exp/
 The heads read the register (decision 0010 section 8): kind (12), has_floor_plan, photo_of_sheet,
 scale_shown, quality. has_floor_plan is the local plan head OR, when the sheet-kind signal is on,
 Gemini's P(a plan, drawn or photographed) >= the manifest's threshold: unsure means a plan.
+The signal is read only for a file ingest's KindProbe already asked about (a drawing image it kept,
+or one the signal made a photo), so the read is a cache hit and never a new call: a scanned PDF or a
+photo the camera EXIF marked gets the local head alone. Vector PDFs, models and CAD never reach a
+classifier (core's triage takes images and scans only).
 Preprocessing is the one the heads were trained on: page 1 of a PDF rendered at 2048 px, an image
 decoded (JPEG draft 2048), transparency on white, long side 1024 LANCZOS, JPEG q90 round trip, then
 512x512 BICUBIC, scaled to [-1, 1]. CPU, onnxruntime.
@@ -28,6 +32,7 @@ from numpy.typing import NDArray
 from PIL import Image
 
 from app.adapters.decisions_kind import KindSignal, KindUnavailable
+from app.adapters.decisions_kind.probe import ASKED
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.errors import InvalidInputError, NotFoundError
 from app.core.ingest.model import Classified, Probed, Unavailable
@@ -36,6 +41,7 @@ MODEL_DIR = Path(__file__).resolve().parents[4] / "data" / "models" / "triage" /
 THREADS = 4
 FIELDS = ("kind", "scale_shown", "quality")
 Vector = NDArray[np.float32]
+SIGNAL_MADE_PHOTO = "-> photo_plan"  # how KindProbe's trace ends when the signal made a photo
 
 
 class Session(Protocol):
@@ -111,6 +117,12 @@ def page_1024(data: bytes) -> Image.Image:
     return Image.open(buffer).convert("RGB")
 
 
+def probe_asked(probed: Probed) -> bool:
+    """Whether ingest's KindProbe read the kind signal for this file (its reply is cached)."""
+    made_photo = probed.kind == "photo_plan" and probed.did.endswith(SIGNAL_MADE_PHOTO)
+    return probed.kind in ASKED or made_photo
+
+
 class SiglipClassifier:
     def __init__(
         self, session: Session, heads: Heads, embedding: dict[str, Any], kind: KindSignals | None
@@ -166,7 +178,7 @@ class SiglipClassifier:
         p_plan = heads.p("plan", x)
         method = heads.method
         has_plan = p_plan >= limits["plan"]
-        if self._kind is not None:
+        if self._kind is not None and probe_asked(probed):
             signal = self._kind.read(image)
             if isinstance(signal, KindSignal):
                 method += f" OR Gemini kind (P(plan) {signal.p_plan_sheet:.2f})"

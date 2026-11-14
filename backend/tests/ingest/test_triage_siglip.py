@@ -13,10 +13,13 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from app.adapters.decisions_kind import KindSignal, KindUnavailable
+from app.adapters.decisions_kind import KindReader, KindSignal, KindUnavailable
+from app.adapters.decisions_kind.probe import KindProbe
 from app.adapters.triage.siglip import MODEL_DIR, Heads, SiglipClassifier, page_1024
 from app.core.errors import InvalidInputError, NotFoundError
-from app.core.ingest.model import Classified, Probed, Unavailable
+from app.core.ingest.model import Classified, ContentKind, Probed, Unavailable
+from app.core.ingest.triage import Triaged, TriageSteps, triaged
+from app.core.pipeline.model import FileKind
 
 PROBED = Probed(kind="jpeg_plan", did="test")
 EMBEDDING = {"size": 512, "mean": [0.5] * 3, "std": [0.5] * 3}
@@ -212,3 +215,92 @@ def test_the_runtime_embedding_is_the_training_embedding() -> None:
 
 def row_path(path: str) -> str:
     return path[path.index("data/stoa/") :]
+
+
+# The kind signal end to end: ingest's KindProbe and the classifier share one cached KindReader
+# (as composition builds them), so the classifier may only read what the probe already paid for.
+@dataclass
+class CountingDecider:
+    """A Gemini stand-in: every call is counted (a paid call, 0.6-2.9 s in production)."""
+
+    probs: dict[str, float]
+    calls: int = 0
+
+    @property
+    def model(self) -> str:
+        return "fake-gemini"
+
+    def decide(self, body: dict[str, Any]) -> dict[str, Any]:
+        self.calls += 1
+        return {"answers": {"kind": {"probabilities": self.probs}}}
+
+
+@dataclass
+class InnerProbe:
+    kind: ContentKind
+
+    def probe(self, data: bytes) -> Probed:
+        return Probed(kind=self.kind, did="the pixels")
+
+
+def scanned_pdf() -> bytes:
+    out = io.BytesIO()
+    Image.new("RGB", (300, 200), "white").save(out, format="PDF")
+    return out.getvalue()
+
+
+def ingest(
+    tmp_path: Path, kind: ContentKind, data: bytes, form: FileKind, probs: dict[str, float]
+) -> tuple[Triaged, CountingDecider, FakeSession, Probed]:
+    decider = CountingDecider(probs)
+    reader = KindReader(decider, tmp_path / "cache")
+    session = FakeSession([0, 1, 0, 0])  # the local head alone: not a plan, not_architecture
+    classifier = SiglipClassifier(session, heads(-5.0), EMBEDDING, reader)
+    probed = KindProbe(InnerProbe(kind), reader).probe(data)
+    steps = TriageSteps(classifier=classifier, describer=None, judge=None, name="test")
+    return triaged(steps, data, probed, form), decider, session, probed
+
+
+@pytest.mark.parametrize(
+    ("kind", "form"),
+    [("pdf_vector", "pdf"), ("ifc", "ifc"), ("dxf", "dxf"), ("svg", "svg")],
+)
+def test_a_vector_pdf_model_or_cad_file_gets_no_register_and_no_kind_call(
+    tmp_path: Path, kind: ContentKind, form: FileKind
+) -> None:
+    found, decider, session, _ = ingest(
+        tmp_path, kind, b"%PDF-1.7 drawn", form, {"floor_plan": 0.9}
+    )
+    assert found.triage is None
+    assert decider.calls == 0
+    assert session.fed == []  # the classifier did not run
+
+
+@pytest.mark.parametrize(
+    ("kind", "data", "form"),
+    [("pdf_scan", scanned_pdf(), "pdf"), ("photo", png(), "png"), ("photo_plan", png(), "png")],
+)
+def test_a_scan_or_exif_photo_gets_the_local_register_and_no_kind_call(
+    tmp_path: Path, kind: ContentKind, data: bytes, form: FileKind
+) -> None:
+    found, decider, _, _ = ingest(tmp_path, kind, data, form, {"floor_plan": 0.9})
+    assert decider.calls == 0
+    assert found.triage is not None
+    assert found.triage.register_ is not None
+    assert found.triage.class_ == "not_drawing"  # Gemini's 0.9 was never asked
+    assert "Gemini" not in found.triage.method
+
+
+@pytest.mark.parametrize(
+    ("probs", "kind_after"),
+    [({"floor_plan": 0.3, "not_drawing": 0.1}, "png_plan"), ({"photo_plan": 0.95}, "photo_plan")],
+)
+def test_a_drawing_image_the_probe_asked_about_reuses_its_reply(
+    tmp_path: Path, probs: dict[str, float], kind_after: ContentKind
+) -> None:
+    found, decider, _, probed = ingest(tmp_path, "png_plan", png(), "png", probs)
+    assert decider.calls == 1  # the probe's call; the classifier's read was a cache hit
+    assert found.triage is not None
+    assert found.triage.class_ == "floor_plan"  # the OR with Gemini's P(plan)
+    assert "OR Gemini kind" in found.triage.method
+    assert probed.kind == kind_after  # kept a drawing, or made a photo by the signal
