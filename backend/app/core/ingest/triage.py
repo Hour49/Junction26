@@ -35,6 +35,8 @@ NO_PLAN = "no floor plan in the project to compare with"
 # Triage.note: why `description` or `relevance` is null, in plain words (decision 0010)
 NOTE_PLAN = "a floor plan: it is read, so it is not described or judged"
 NOTE_NO_DESCRIBER = "not described: no description model is set up, so it is not judged"
+# the same file once a judge that reads no description judged it
+NOTE_NO_DESCRIBER_JUDGED = "not described: no description model is set up"
 NOTE_RUNNING = "not judged yet: the project is still being read"
 NOTE_NO_JUDGE = "not judged: no relevance judge is set up"
 NOTE_FAILED = "not judged: the project's ingest failed"
@@ -106,7 +108,7 @@ def overruled(triage: Triage, overrule: Overrule | None) -> Triage:
     return Triage.model_validate({**triage.model_dump(), "overruled": overrule})
 
 
-def read_as_plan(triage: Triage, call: ReadAsPlan) -> Triage:
+def read_as_plan(triage: Triage, call: ReadAsPlan | None) -> Triage:
     return Triage.model_validate({**triage.model_dump(), "read_as_plan": call})
 
 
@@ -139,8 +141,9 @@ def kind_after(probed: Probed, triage: Triage | None, file_format: FileKind | No
 
 
 def set_aside_reason(triage: Triage) -> str:
-    """The file's reason; after "not a floor plan: " plain words, shown as they are."""
-    return f"not a floor plan: {_how(triage.class_, triage.p_plan, triage.method)}"
+    """The file's reason, in plain words shown as they are; P(plan) and the method are in the
+    triage itself and in the identify stage's line."""
+    return f"not a floor plan: {CLASS_WORDS[triage.class_]}"
 
 
 def _how(found: TriageClass, p_plan: float, method: str) -> str:
@@ -181,14 +184,43 @@ def context_of(files: Iterable[FileStatus], drawings: Mapping[str, Drawing]) -> 
     )
 
 
+def to_judge(files: Iterable[FileStatus], judge: RelevanceJudge) -> list[FileStatus]:
+    """The files step 3 judges: each non-plan described and waiting for its verdict, and, for a
+    judge that reads no description, each non-plan nothing described as well."""
+    return [
+        file
+        for file in files
+        if file.triage is not None
+        and file.triage.class_ != "floor_plan"
+        and file.triage.relevance is None
+        and (
+            file.triage.note == NOTE_RUNNING
+            or (file.triage.description is None and not judge.reads_description)
+        )
+    ]
+
+
+def judged_note(triage: Triage, not_judged: str | None) -> str | None:
+    """The note once step 3 ran: why the description is null (a described file: None), and
+    why there is no verdict when there is none (`not_judged`)."""
+    if triage.description is not None:
+        return not_judged
+    said = NOTE_NO_DESCRIBER_JUDGED if triage.note == NOTE_NO_DESCRIBER else triage.note
+    return said if not_judged is None else f"{said}; {not_judged}"
+
+
 def relevance_of(
-    judge: RelevanceJudge, kind: TriageClass, description: Description, context: ProjectContext
+    judge: RelevanceJudge,
+    kind: TriageClass,
+    description: Description | None,
+    context: ProjectContext,
 ) -> Relevance | Unavailable:
-    """Step 3 for one described file. With no plan in the project there is nothing to compare
-    with, so the verdict is unsure without asking the judge."""
+    """Step 3 for one file. With no plan in the project there is nothing to compare with, so
+    the verdict is unsure without asking the judge."""
     if not context.plans:
         return Relevance(verdict="unsure", why=f"Unsure: {NO_PLAN}.", judge="no judge asked")
-    mine = tuple(said for said in context.descriptions if said != description.subject)
+    own = description.subject if description is not None else None
+    mine = tuple(said for said in context.descriptions if said != own)
     found = judge.judge(kind, description, context.model_copy(update={"descriptions": mine}))
     if isinstance(found, Unavailable):
         return found

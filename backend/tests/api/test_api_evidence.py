@@ -17,6 +17,7 @@ from app.adapters.evidence_render import (
     _in_polygon,
     _legend_lines,
     _overlap,
+    _points,
     _wrap,
     place_labels,
     render,
@@ -185,6 +186,33 @@ def test_a_label_with_no_room_anywhere_is_left_for_the_list_under_the_page() -> 
     tiny = [(1.0, 1.0), (3.0, 1.0), (3.0, 3.0), (1.0, 3.0)]
     (spot,) = place_labels([Label("1234567890", tiny, 20)], fixed_size, 20, 20)
     assert spot.rect is None
+
+
+def test_a_whole_sheet_mark_does_not_take_the_number_off_a_mark_with_a_place() -> None:
+    # QA R6-c-1: three conflicts boxed around the whole sheet and one on a 2 px stair railing
+    sheet = [(245.0, 90.0), (1355.0, 90.0), (1355.0, 1757.0), (245.0, 1757.0)]
+    rail = [(713.0, 1151.0), (715.0, 1151.0), (715.0, 1294.0), (713.0, 1294.0)]
+    labels = [Label(str(n), sheet, 22) for n in (1, 2, 3)] + [Label("4", rail, 22)]
+    placed = place_labels(labels, fixed_size, 1600, 2120)
+    railing = placed[3]
+    assert railing.rect is not None and railing.leader is not None
+    rects = [spot.rect for spot in placed if spot.rect is not None]
+    assert len(rects) == 4
+    assert not any(_overlap(a, b) for at, a in enumerate(rects) for b in rects[at + 1 :])
+    assert not _overlap(railing.rect, _bounds(rail))
+
+
+def test_a_polygon_far_smaller_than_its_box_is_drawn_as_its_box() -> None:
+    # QA R6-c-1: a dashed railing's polygon is its first dash; its box is the whole railing
+    stub = ((0.44684, 0.54399), (0.44559, 0.54399), (0.44559, 0.5431), (0.44684, 0.5431))
+    box = (0.44559, 0.5431, 0.44684, 0.61063)
+    mark = MarkView(id="m1", n=4, page=1, box=box, polygon=stub, state="counted", value=1,
+                    label="railing", ref=None, reason=None)  # fmt: skip
+    ys = [y for _, y in _points(mark, 1000, 1000)]
+    assert (min(ys), max(ys)) == (543.1, 610.63)
+    room = ((0.1, 0.1), (0.5, 0.1), (0.5, 0.3), (0.3, 0.3), (0.3, 0.5), (0.1, 0.5))  # an L
+    l_shape = mark.model_copy(update={"box": (0.1, 0.1, 0.5, 0.5), "polygon": room})
+    assert _points(l_shape, 10, 10) == [(x * 10, y * 10) for x, y in room]
 
 
 def test_marks_counted_without_a_position_are_named_in_the_legend_and_it_wraps_to_fit() -> None:

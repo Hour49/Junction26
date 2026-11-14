@@ -11,11 +11,16 @@ per entry; an entry goes when its fix is merged.
 - K5 · minor · backend · An estimated raster area (RASTER_SCALE=priors) can be far off while printing a narrow band
   when the detector finds the wrong doors: golden colorful-10706 living room +74% at ±24% (13 doors),
   high_quality-17 +100% at ±40% (1 door), colorful-7513 kitchen −37% at ±24% (10 doors, QA R3). The band is a 68% one, honest on val overall (Sat 06:45)
-- K6 · limit · backend · Sketches: we claim no door counting. On 14 hand-drawn sheets (mostly historical, 2026-11-14
+- K6 · minor · backend · An IFC uploaded with its PDF sheets but without their SVG renderings is not linked to
+  them: no sheet-vs-model conflicts (vitoria plan-02-p1.pdf: 4 conflicts beside its SVG, none without; QA R6-c-2)
+  (Sat 15:10)
+- K7 · minor · frontend · The project chat lists only the drawings that answered; refused ones are only counted in
+  the note, not named (ProjectChat.tsx `answering`; QA R6-c-3) (Sat 15:10)
+- K8 · limit · backend · Sketches: we claim no door counting. On 14 hand-drawn sheets (mostly historical, 2026-11-14
   fail test, `prototypes/handdrawn/`) the door count was in range on 0 of 10 sheets with doors; windows 4 of 10, only on
   clean line drawings. Every door, window, room and WC count asked for a check; the exception is plans on a page, sure
   and wrong 3 of 14 times. The gold is one person's ranges, so there is no hand-drawn accuracy number.
-- K7 · cost · backend · The double-check policy asks about many answers: 55.1% of val answers flagged to catch
+- K9 · cost · backend · The double-check policy asks about many answers: 55.1% of val answers flagged to catch
   96.0% of the wrong ones, with 98.95% of the unflagged ones exact (docs/GOLDEN.md, double-check policy; val
   estimates, test certificate still to come).
 

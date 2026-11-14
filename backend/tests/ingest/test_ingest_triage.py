@@ -61,7 +61,10 @@ def test_an_image_that_is_no_floor_plan_is_set_aside_described_and_never_read(
         None,
         None,
     )
-    assert elevation.reason.startswith("not a floor plan: another kind of drawing (an elevation")
+    assert elevation.reason == (  # plain words; the method stays in triage.method (R6-a-3)
+        "not a floor plan: another kind of drawing "
+        "(an elevation, section, site plan, detail or cover)"
+    )
     assert elevation.triage is not None and elevation.triage.class_ == "other_drawing"
     assert elevation.triage.description is not None
     assert elevation.triage.description.subject == "the south elevation of a house"

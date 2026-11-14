@@ -102,8 +102,8 @@ proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a 
 ### Limits
 
 - Sketches: we claim no door counting. On 14 hand-drawn sheets the door count was in range on 0 of 10, and every
-  door, window and room count asked for a check (K6 in [docs/KNOWN.md](docs/KNOWN.md)).
-- The double-check policy flags 55% of answers to catch 96% of the wrong ones, so a person reviews many right answers too (K7).
+  door, window and room count asked for a check (K8 in [docs/KNOWN.md](docs/KNOWN.md)).
+- The double-check policy flags 55% of answers to catch 96% of the wrong ones, so a person reviews many right answers too (K9).
 - On an image, areas come from an estimated scale (`RASTER_SCALE=priors`) and are labelled estimates. One can be
   far off while printing a narrow band (K5: +74%, +100% and -37% on three golden rooms).
 - On plans without printed room labels the reader types rooms by furniture, while the gold labels only count
