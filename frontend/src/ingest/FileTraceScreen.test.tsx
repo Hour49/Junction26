@@ -167,7 +167,7 @@ describe('FileTraceScreen', () => {
     expect(values).toEqual(entries.map(([, v]) => String(v)));
   });
 
-  it('IN-40 before/after only for a normalised image with a drawing', async () => {
+  it('R1-3-5 IN-40 before/after for a normalised image claims no rotation check', async () => {
     mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
@@ -186,7 +186,12 @@ describe('FileTraceScreen', () => {
     );
     expect(screen.getByText('As uploaded')).toBeTruthy();
     expect(screen.getByText('After normalisation')).toBeTruthy();
-    expect(screen.getByText('Nothing to correct: the upload was already upright')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'No turn, deskew or perspective correction applied (rotation is not checked)',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/already upright/)).toBeNull();
     expect(screen.getByText('1200 × 800 px')).toBeTruthy();
   });
 

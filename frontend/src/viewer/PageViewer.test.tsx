@@ -11,6 +11,8 @@ import {
   takeoff,
 } from '../api/fixtures';
 import type { AnswerView, MarkView, QuantityConflict, Row } from '../api/types';
+
+type LegendEntry = AnswerView['proof']['legend'][number];
 import { PageViewer } from './PageViewer';
 
 const badges = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('.vw-badge')];
@@ -162,6 +164,19 @@ describe('PageViewer: marks', () => {
       legend: answerArea.proof.legend.map((e) => ({ ...e, colour: 'url(x)' })),
     }).container;
     expect(stroke(bad, 0)).toBe(accent);
+  });
+
+  it('R1-3-2 a one-entry legend colours every mark, whatever its label', () => {
+    const [entry] = answerArea.proof.legend as [LegendEntry];
+    const { container } = viewer(answerArea, {
+      legend: [{ ...entry, label: 'room', colour: '#1f77b4', count: 2 }],
+    });
+    const polys = [...container.querySelectorAll('svg polygon')];
+    expect(polys.map((p) => p.getAttribute('stroke'))).toEqual(['#1f77b4', '#1f77b4']);
+    expect(badges(container).map((b) => b.style.borderColor)).toEqual([
+      'rgb(31, 119, 180)',
+      'rgb(31, 119, 180)',
+    ]);
   });
 
   it('VW-23 badges: white background, ink text, border in the mark colour', () => {

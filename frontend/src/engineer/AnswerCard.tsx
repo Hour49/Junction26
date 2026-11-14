@@ -35,7 +35,10 @@ function stateWords(m: MarkView): string | null {
 }
 
 function cameFrom(r: Reader): string {
-  return `${r.extractor ?? 'nothing'} read ${r.source ?? 'no file'} (${r.route ?? 'no'} route), second count by ${r.second_counter}`;
+  // `none`: no second count ran for this drawing.
+  const second =
+    r.second_counter === 'none' ? 'no second count' : `second count by ${r.second_counter}`;
+  return `${r.extractor ?? 'nothing'} read ${r.source ?? 'no file'} (${r.route ?? 'no'} route), ${second}`;
 }
 
 function MarkList(props: {

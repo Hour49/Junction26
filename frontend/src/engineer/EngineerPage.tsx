@@ -29,7 +29,7 @@ export function EngineerPage(props: {
 
   useEffect(() => {
     const abort = new AbortController();
-    getDrawing(drawingId, { signal: abort.signal }).then(
+    getDrawing(drawingId, { project: projectId, signal: abort.signal }).then(
       (drawing) => {
         setLoad({ state: 'ready', drawing });
       },
@@ -40,7 +40,7 @@ export function EngineerPage(props: {
     return () => {
       abort.abort();
     };
-  }, [drawingId]);
+  }, [drawingId, projectId]);
 
   // Again when the answer arrives: the card is taller than the pending line. CSS scroll-margin keeps it
   // clear of the sticky header and ask box.
@@ -63,7 +63,7 @@ export function EngineerPage(props: {
 
   function send(id: number, question: string) {
     pending.current = true;
-    askQuestion({ drawing_id: drawingId, question }).then(
+    askQuestion({ drawing_id: drawingId, question, project_id: projectId }).then(
       (answer) => {
         pending.current = false;
         setTurns((ts) =>

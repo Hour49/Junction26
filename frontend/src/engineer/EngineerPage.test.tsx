@@ -80,6 +80,48 @@ afterEach(() => {
 });
 
 describe('drawing header and ask box', () => {
+  it('R1-PS-1 EN-49 the drawing is requested in the route project', async () => {
+    const api = open({ [DRAWING_ROUTE]: drawing });
+    await screen.findByRole('heading', { name: drawing.file });
+    expect(api.calls.map((c) => c.url)).toEqual([`/api/drawings/${DRAWING}?project=${PROJECT}`]);
+  });
+
+  it('R1-PS-2 EN-50 every ask body carries the route project', async () => {
+    const can = (answerRefused.refusal?.can_answer ?? []).map((s) => s.question);
+    const failed = { status: 500, body: { detail: 'internal error', code: 'internal' } };
+    let n = 0;
+    const api = open({
+      [DRAWING_ROUTE]: drawing,
+      // 1 suggestion, 2 typed (refused), 3 can_answer (fails), 4 Try again.
+      'POST /api/ask': (c: { body: unknown }) => {
+        const { question } = c.body as { question: string };
+        n += 1;
+        if (n === 2) return answerRefused;
+        if (n === 3) return failed;
+        return { ...answer, question };
+      },
+    });
+    const suggested = drawing.suggestions[0]?.question ?? '';
+    await askSuggestion(suggested);
+    await within(await turn(suggested)).findByTestId('answer-value');
+    await typeAndAsk(answerRefused.question);
+    const refused = await turn(answerRefused.question);
+    const first = can[0] ?? '';
+    fireEvent.click(await within(refused).findByRole('button', { name: first }));
+    // The newest turn: the first can_answer question may also be the first suggestion.
+    const t = (await screen.findAllByRole('article', { name: first })).at(-1) as HTMLElement;
+    fireEvent.click(await within(t).findByRole('button', { name: 'Try again' }));
+    await within(t).findByTestId('answer-value');
+    const bodies = asks(api).map((c) => c.body);
+    expect(bodies).toEqual(
+      [suggested, answerRefused.question, first, first].map((question) => ({
+        drawing_id: DRAWING,
+        question,
+        project_id: PROJECT,
+      })),
+    );
+  });
+
   it('EN-1 opening the route requests the drawing once', async () => {
     const api = open({ [DRAWING_ROUTE]: drawing });
     await screen.findByRole('heading', { name: 'plans/flat-a.pdf' });
@@ -112,6 +154,17 @@ describe('drawing header and ask box', () => {
     ).toBeTruthy();
   });
 
+  it('QA #76 EN-4 a header without a second count says so', async () => {
+    open({
+      [DRAWING_ROUTE]: { ...drawing, reader: { ...drawing.reader, second_counter: 'none' } },
+    });
+    expect(
+      await screen.findByText(
+        'vector route, read from plans/flat-a.pdf by pdf; no second count; questions: templates',
+      ),
+    ).toBeTruthy();
+  });
+
   it('EN-6 one button per suggestion, in order', async () => {
     open({ [DRAWING_ROUTE]: drawing });
     await screen.findByRole('heading', { name: 'plans/flat-a.pdf' });
@@ -135,7 +188,11 @@ describe('drawing header and ask box', () => {
     await askSuggestion('How many doors are there?');
     await turn('How many doors are there?');
     expect(asks(api).map((c) => c.body)).toEqual([
-      { drawing_id: 'adeefbbcc17559fc', question: 'How many doors are there?' },
+      {
+        drawing_id: 'adeefbbcc17559fc',
+        question: 'How many doors are there?',
+        project_id: PROJECT,
+      },
     ]);
   });
 
@@ -147,7 +204,7 @@ describe('drawing header and ask box', () => {
     await typeAndAsk('  How many doors are there?  ');
     await turn('How many doors are there?');
     expect(asks(api).map((c) => c.body)).toEqual([
-      { drawing_id: DRAWING, question: 'How many doors are there?' },
+      { drawing_id: DRAWING, question: 'How many doors are there?', project_id: PROJECT },
     ]);
   });
 
@@ -473,10 +530,19 @@ describe('extended answers', () => {
     expect(within(s).queryByRole('link', { name: 'Picture of this answer' })).toBeNull();
   });
 
-  it('EN-26 where this came from', async () => {
+  it('QA #76 EN-26 where this came from: no second count, or the counter by name', async () => {
+    expect(answer.reader.second_counter).toBe('none');
     const t = await shownTurn(answer);
     expect(
-      within(t).getByText('pdf read plans/flat-a.pdf (vector route), second count by none'),
+      within(t).getByText('pdf read plans/flat-a.pdf (vector route), no second count'),
+    ).toBeTruthy();
+    cleanup();
+    const counted = await shownTurn({
+      ...answer,
+      reader: { ...answer.reader, second_counter: 'ifc' },
+    });
+    expect(
+      within(counted).getByText('pdf read plans/flat-a.pdf (vector route), second count by ifc'),
     ).toBeTruthy();
   });
 

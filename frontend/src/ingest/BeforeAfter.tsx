@@ -61,7 +61,8 @@ export function BeforeAfter({
       </div>
       <ul>
         {steps.length === 0 ? (
-          <li>Nothing to correct: the upload was already upright</li>
+          // No stage checks rotation, so the screen never claims the upload was upright (R1-3-5).
+          <li>No turn, deskew or perspective correction applied (rotation is not checked)</li>
         ) : (
           steps.map((step) => <li key={step}>{step}</li>)
         )}
