@@ -785,6 +785,14 @@ Fixtures: `project_review.json`'s conflict (two values with page 1 boxes) and `d
 - **VW-92** A source with `page: null`, `image: "/api/files/abc/preview.png"` and a place with a box: the figure
   shows that image (thumbnail button "Expand the drawing", no "No picture of this file"), no `.vw-hl`, the legend
   lists the place; the preview shows the same image with no outlines. [component]
+- **VW-94** (re-sweep 6, demo `.btn-plain`/`.btn-soft`/`.c-plan`) "Expand"/"Minimize" carries `vw-btn-plain`
+  (`--v-grey`, 14px/500, padding 10px 18px) and "Show source" (and the preview's "Close") `vw-btn-soft`
+  (`--v-accent-soft`, `--v-accent` text, 14px/600); both win over `.v-btn--secondary` (`.v-btn.vw-btn-*`). The
+  thumbnail and the expanded drawing sit on cream `var(--v-plan, #fbf8ef)` (radius 12 / padding 8 minimized, 16 /
+  16 expanded); that fallback is the one literal VW-53 allows until fe-shared adds `--v-plan`. The buttons are the
+  figure's own row (`.vw-src-btns`, not in the caption): beside the legend at desktop; under 520 px the minimized
+  figure wraps and the two buttons sit in one row under the thumbnail and legend (`flex: 1 0 100%`, gap 8).
+  [component + css]
 - **VW-90** `viewer.css` `.vw-src*`, `.vw-hl*`, `.vw-modal*` rules use only `--v-*` tokens (VW-53 still passes).
   [unit]
 - **VW-91** At 390x844 and 1440x900, on a conflict card and an issue with a box: minimized thumbnail beside the
@@ -807,6 +815,17 @@ Fixtures: `project_review.json`'s conflict (two values with page 1 boxes) and `d
 
 - `--v-warn-mark` (demo `#d9860b`, the outline and disc colour, with `--v-warn-soft`-like 12 % fill
   `--v-warn-mark-soft`). Until it lands the outlines use `--v-warn`.
+
+## Bare viewer (chat reference image, re-sweep, 2026-11-14)
+
+`bare?: boolean` (default false), asked by frontend-orch for fe-engineer's chat answer card: the viewer renders only
+the page image with its marks (`.vw--bare`). No `.vw-name`, class line, toolbar (page switcher, zoom), page meta,
+mark line or legend; badges, outlines and their names, hover/select and focus still work. The chat owns the name
+above the image and its left/right arrows.
+
+- **VW-93** With `bare`, two pages and `selected="m1"`: no `.vw-name`, `.vw-classes`, `.vw-bar`, `.vw-zoom`,
+  `.vw-switcher`, `.vw-pagemeta`, `.vw-selection`, `.vw-legend`; `.vw--bare` is set; the page image and the button
+  "Mark 1: door, counted" are there. Without `bare` the legend shows as before. [component]
 
 ## Not in the API
 

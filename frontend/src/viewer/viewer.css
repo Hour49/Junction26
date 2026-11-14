@@ -410,7 +410,7 @@
   padding: 16px;
   border: 0;
   border-radius: 16px;
-  background: var(--v-plan, var(--v-fill));
+  background: var(--v-plan, #fbf8ef); /* fe-shared adds --v-plan; VW-53 allows this one fallback */
   cursor: zoom-out;
   font: inherit;
 }
@@ -436,9 +436,7 @@
 .vw-src figcaption {
   display: flex;
   flex: 1;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   min-width: 0;
   font-size: 13px;
@@ -449,14 +447,24 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.vw-btn-plain,
-.vw-btn-plain:hover {
+.v-btn.vw-btn-plain {
+  color: var(--v-text);
   background: var(--v-grey);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 18px;
 }
-.vw-btn-soft,
-.vw-btn-soft:hover {
+.v-btn.vw-btn-soft {
   color: var(--v-accent);
   background: var(--v-accent-soft);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 18px;
+}
+.v-btn.vw-btn-plain:hover,
+.v-btn.vw-btn-soft:hover {
+  color: var(--v-text);
+  background: var(--v-line);
 }
 .vw-src-frame {
   position: relative;
@@ -608,9 +616,17 @@
 }
 @media (max-width: 520px) {
   .vw-src--min {
+    flex-wrap: wrap;
     align-items: flex-start;
+  }
+  .vw-src--min .vw-src-btns {
+    flex: 1 0 100%;
   }
   .vw-src--min .vw-src-thumb {
     width: 104px;
   }
+}
+.vw--bare {
+  padding: 0;
+  background: none;
 }

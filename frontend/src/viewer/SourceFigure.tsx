@@ -297,31 +297,33 @@ export function SourceFigure({ sources, label, defaultOpen = false }: SourceFigu
       ) : (
         <span className="vw-src-thumb vw-src-thumb--none">No picture of this file</span>
       )}
-      <figcaption>
-        <Legend places={places} first={1} />
-        <span className="vw-src-btns">
-          {pictured && (
-            <button
-              type="button"
-              className="v-btn v-btn--secondary v-press vw-btn-plain"
-              aria-expanded={open}
-              onClick={toggle}
-            >
-              {open ? 'Minimize' : 'Expand'}
-            </button>
-          )}
+      {places.length > 0 && (
+        <figcaption>
+          <Legend places={places} first={1} />
+        </figcaption>
+      )}
+      <div className="vw-src-btns">
+        {pictured && (
           <button
-            ref={show}
             type="button"
-            className="v-btn v-btn--secondary v-press vw-btn-soft"
-            onClick={() => {
-              setPreview(true);
-            }}
+            className="v-btn v-btn--secondary v-press vw-btn-plain"
+            aria-expanded={open}
+            onClick={toggle}
           >
-            Show source
+            {open ? 'Minimize' : 'Expand'}
           </button>
-        </span>
-      </figcaption>
+        )}
+        <button
+          ref={show}
+          type="button"
+          className="v-btn v-btn--secondary v-press vw-btn-soft"
+          onClick={() => {
+            setPreview(true);
+          }}
+        >
+          Show source
+        </button>
+      </div>
       {preview && (
         <SourcePreview
           sources={sources}

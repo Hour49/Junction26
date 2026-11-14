@@ -87,6 +87,7 @@ export interface PageViewerProps {
   tones?: Record<string, Tone> | null; // mark id → check outcome; replaces that mark's state look
   disputedLegend?: string; // legend count words for `disputed`; default "to double-check"
   focus?: Focus | null; // jump-to-place: open the page, zoom and scroll to the box
+  bare?: boolean; // image and marks only: no name, class line, toolbar, page meta, mark line, legend (chat)
 }
 
 interface Drag {
@@ -195,6 +196,7 @@ export function PageViewer({
   tones,
   disputedLegend = 'to double-check',
   focus,
+  bare = false,
 }: PageViewerProps) {
   const uid = useId().replace(/[^\w-]/g, '');
   const hatch = `vw-hatch-${uid}`;
@@ -424,7 +426,7 @@ export function PageViewer({
 
   return (
     <figure
-      className="vw"
+      className={bare ? 'vw vw--bare' : 'vw'}
       onPointerDownCapture={moved}
       onWheelCapture={moved}
       onKeyDown={(e) => {
@@ -435,8 +437,8 @@ export function PageViewer({
         else onSelect?.(null);
       }}
     >
-      <p className="vw-name">{file}</p>
-      {classes.length > 0 && (
+      {!bare && <p className="vw-name">{file}</p>}
+      {!bare && classes.length > 0 && (
         <ul className="vw-classes">
           {classes.map((e) => (
             <li key={e.label}>
@@ -445,67 +447,69 @@ export function PageViewer({
           ))}
         </ul>
       )}
-      <div className="vw-bar">
-        {pages.length > 1 && (
-          <div className="vw-switcher">
+      {!bare && (
+        <div className="vw-bar">
+          {pages.length > 1 && (
+            <div className="vw-switcher">
+              <button
+                type="button"
+                aria-label="Previous page"
+                disabled={index === 0}
+                onClick={() => {
+                  setCurrent(pages[index - 1]?.page);
+                }}
+              >
+                ‹
+              </button>
+              <span>
+                Page {index + 1} of {pages.length} · {countText(onPage.length)}
+                {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
+              </span>
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={index === pages.length - 1}
+                onClick={() => {
+                  setCurrent(pages[index + 1]?.page);
+                }}
+              >
+                ›
+              </button>
+            </div>
+          )}
+          <div className="vw-zoom">
             <button
               type="button"
-              aria-label="Previous page"
-              disabled={index === 0}
+              aria-label="Zoom out"
+              disabled={zoom === 1}
               onClick={() => {
-                setCurrent(pages[index - 1]?.page);
+                setZoom(zoom === 4 ? 2 : 1);
               }}
             >
-              ‹
+              −
             </button>
-            <span>
-              Page {index + 1} of {pages.length} · {countText(onPage.length)}
-              {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
-            </span>
+            <span>{zoom * 100}%</span>
             <button
               type="button"
-              aria-label="Next page"
-              disabled={index === pages.length - 1}
+              aria-label="Zoom in"
+              disabled={zoom === 4}
               onClick={() => {
-                setCurrent(pages[index + 1]?.page);
+                setZoom(zoom === 1 ? 2 : 4);
               }}
             >
-              ›
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setZoom(1);
+              }}
+            >
+              Fit
             </button>
           </div>
-        )}
-        <div className="vw-zoom">
-          <button
-            type="button"
-            aria-label="Zoom out"
-            disabled={zoom === 1}
-            onClick={() => {
-              setZoom(zoom === 4 ? 2 : 1);
-            }}
-          >
-            −
-          </button>
-          <span>{zoom * 100}%</span>
-          <button
-            type="button"
-            aria-label="Zoom in"
-            disabled={zoom === 4}
-            onClick={() => {
-              setZoom(zoom === 1 ? 2 : 4);
-            }}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setZoom(1);
-            }}
-          >
-            Fit
-          </button>
         </div>
-      </div>
+      )}
       {fixing && (
         <p className="vw-hint">
           <span className="vw-hint-wide">Click or drag on the drawing where a mark is missing</span>
@@ -858,14 +862,16 @@ export function PageViewer({
           })}
         </PageFrame>
       </div>
-      <p className="vw-pagemeta">
-        {pageMeta.map((text) => `${text} · `)}
-        Page {page.page}
-        {note && ' · '}
-        {note && <span className="vw-note">{note}</span>}
-        {meta && ` · ${meta}`}
-      </p>
-      {chosen && (
+      {!bare && (
+        <p className="vw-pagemeta">
+          {pageMeta.map((text) => `${text} · `)}
+          Page {page.page}
+          {note && ' · '}
+          {note && <span className="vw-note">{note}</span>}
+          {meta && ` · ${meta}`}
+        </p>
+      )}
+      {!bare && chosen && (
         <p className="vw-selection">
           {badgeText(chosen)} · {chosen.label ?? 'item'} ·{' '}
           {chosenValue === null ? '' : `${chosenValue} · `}
@@ -873,7 +879,7 @@ export function PageViewer({
           {chosenDoubt !== undefined && ` · ${ask(chosenDoubt.why, chosenDoubt.prefix)}`}
         </p>
       )}
-      {hasLegend && (
+      {!bare && hasLegend && (
         <figcaption className="vw-legend">
           <ul>
             {states.map((s) => (
