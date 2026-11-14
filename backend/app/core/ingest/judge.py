@@ -4,6 +4,8 @@ from collections.abc import Mapping, Sequence
 
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import (
+    CARBON_FLAG,
+    CARBON_PART_FLAG,
     CarbonRead,
     ContentKind,
     FileState,
@@ -61,12 +63,6 @@ def judge(
     return "ready", f"read on the {route_words(route)}: {found}"
 
 
-# Carbon counted the drawing's elements (CARBON_READER); review/ask.py reads this flag as "a class
-# Carbon counted and found none of is a read 0" (brief r8 BD), so it is never set for a part
-CARBON_FLAG = "counted by Gemini Carbon: its counts are not measured yet"
-# a composite took another part from Carbon (rooms, plans, scale, one class): its elements are not
-# all Carbon's (fail-1's S-D, .agents/qa/r9/review-269.md)
-CARBON_PART_FLAG = "read in part by Gemini Carbon: its counts are not measured yet"
 UNRULED_FLAG = "a drawn PDF without reading rules, read as an image"
 
 
@@ -102,7 +98,7 @@ def reading_flags(
         flags = (f"a phone photo, rectified by {frame.rectifier}: check the paper's corners",)
     elif kind == "photo_plan":
         flags = ("a phone photo, read without perspective correction",)
-    if carbon == "elements":  # its counts have no measured level yet (carbon-reader.md 1.4)
+    if carbon == "elements":
         flags += (CARBON_FLAG,)
     elif carbon == "part":
         flags += (CARBON_PART_FLAG,)

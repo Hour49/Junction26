@@ -201,9 +201,52 @@ def test_the_query_is_words_only(index: SqliteLawIndex, query: str) -> None:
 
 
 def test_match_query_quotes_every_word() -> None:
-    assert match_query('NEAR("x" -y*) Fluchtweg') == '"NEAR"* OR "x"* OR "y"* OR "Fluchtweg"*'
+    quoted = '"near"* OR "xyz"* OR "abc"* OR "fluchtweg"*'
+    assert match_query('NEAR("xyz" -abc*) Fluchtweg') == quoted
     assert match_query("room area", every=True) == '"room"* AND "area"*'
     assert match_query("  ") is None
+
+
+def test_match_query_drops_short_words_stopwords_and_repeats() -> None:
+    """lawkb-3: "a"* and "do"* match nearly every clause and buried 42 § 1 under long ones."""
+    assert match_query("when do I need a building permit") == '"building"* OR "permit"*'
+    assert match_query("Room room ROOM area") == '"room"* OR "area"*'
+    assert match_query("x § ja an es") is None
+
+
+def test_a_two_letter_word_is_an_exact_term() -> None:
+    """Review: "WC", "m2" are what a designer types; exact, since "do"* would find "door"."""
+    assert match_query("accessible WC 10 m2") == '"accessible"* OR "wc" OR "10" OR "m2"'
+
+
+def test_a_long_query_is_capped() -> None:
+    """lawkb-4: 250 one-letter prefix terms took ~1 s under the index's one lock."""
+    assert match_query(("a " * 250)[:500]) is None
+    words = " ".join(f"word{n}" for n in range(100))
+    assert (match_query(words) or "").count(" OR ") == 19
+    pairs = " ".join(f"{a}{b}" for a in "bcdfgh" for b in "kprtvx")
+    assert (match_query(pairs) or "").count(" OR ") == 19
+
+
+def test_old_wording_ranks_after_every_current_clause(tmp_path: Path) -> None:
+    """lawkb-1: an Anhang clause (the wording before an amendment) that has every word of the
+    query still comes after a current clause that has only some of them."""
+    law = fi_law()
+    old = {**law["clauses"][0], "id": "fi-test-1-anhang-4-2", "keywords": ["vanha", "x", "y"]}
+    law["clauses"].append(old)
+    write(tmp_path, "fi", "fi-test-1", law)
+    index = SqliteLawIndex(load_laws(tmp_path))
+    assert ids(index.search("fi", "room area vanha")) == ["fi-test-1-4-2", "fi-test-1-anhang-4-2"]
+    assert ids(index.search("fi", "room area vanha", limit=1)) == ["fi-test-1-4-2"]
+
+
+def test_a_cantonal_first_absatz_cites_abs_1() -> None:
+    """lawkb-5: § 303 has an Abs. 2, so its first clause is "§ 303 Abs. 1", not "§ 303"."""
+    laws = [law for law in load_laws(Settings().laws_dir) if law.pack == "ch-zh"]
+    clauses = [clause for law in laws for clause in law.clauses]
+    ids_ = {clause.id for clause in clauses}
+    first = [c for c in clauses if f"{c.id}-2" in ids_ or f"{c.id}-3" in ids_]
+    assert [c.id for c in first if "Abs. 1" not in c.ref] == []
 
 
 def test_an_unknown_pack_is_not_found(index: SqliteLawIndex) -> None:

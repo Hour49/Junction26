@@ -6,7 +6,10 @@ room readers, Carbon, the printed-scale reader and the Decisions swap and answer
 the PDF they failed ("cannot identify image file", local-dec BK S0, 2026-11-14). `ScanImages`
 hands every one of them the same PNG of the page: rendered once per file and shared, at
 `SCAN_DPI` pixels per inch of the page (fewer when that is over page_render's MAX_PIXELS). Page
-fractions are the page's either way, so boxes land where the served page shows them. Every other
+fractions are the page's either way, so boxes land where the served page shows them. The PNG
+states the render's exact resolution (pHYs, after the cap), which is the paper size a printed
+ratio needs (printed_scale.stated_dpi; judge-path, 2026-11-14: "1/4\" = 1'-0\"" was read and
+dropped as "an image has no paper size", and areas came out about 17% low). Every other
 file (an image, a drawn PDF) reads as it is, unless `render` says it too is read as an image (a
 drawn PDF the vector reader has no rules for, VECTOR_FALLBACK=raster). A later page of a PDF is a
 file of its own (ingest splits them), so page 1 is the page.
@@ -30,7 +33,8 @@ KEEP = 8  # renders kept, newest first (a project's pages are read one after ano
 
 
 def scan_png(data: bytes, dpi: float = SCAN_DPI) -> bytes:
-    """Page 1 of a PDF as a PNG, `dpi` pixels per inch of the page, at most MAX_PIXELS."""
+    """Page 1 of a PDF as a PNG, `dpi` pixels per inch of the page, at most MAX_PIXELS; the PNG
+    states the resolution it was rendered at."""
     with PDFIUM:  # pdfium is not thread-safe (app/adapters/pdfium_lock.py)
         document = pypdfium2.PdfDocument(data)
         try:
@@ -40,8 +44,9 @@ def scan_png(data: bytes, dpi: float = SCAN_DPI) -> bytes:
             image = page.render(scale=wide / width).to_pil().convert("RGB")
         finally:
             document.close()
+    rendered = wide * 72 / width  # pixels per inch of paper: `dpi`, fewer when over the cap
     buffer = io.BytesIO()
-    image.save(buffer, "PNG")
+    image.save(buffer, "PNG", dpi=(rendered, rendered))
     return buffer.getvalue()
 
 

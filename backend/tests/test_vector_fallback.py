@@ -15,10 +15,12 @@ from test_vector_pdf import swiss_sheet
 
 from app import composition
 from app.adapters import raster_detector
+from app.adapters.answer_v1 import AnswerV1Writer
 from app.adapters.archive.probe import is_scanned_pdf
-from app.adapters.extraction_v1 import ExtractionV1Writer
+from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer
 from app.adapters.vector_pdf.unruled import Unruled
 from app.composition import build_answering, build_ingest, build_pipeline
+from app.core.answering.model import Question
 from app.core.ingest.judge import UNRULED_FLAG, reading_flags
 from app.settings import Settings
 
@@ -129,3 +131,35 @@ def test_the_answer_confidence_asks_about_the_render_of_an_unruled_plot(
     (asked,) = reader.asked
     with Image.open(io.BytesIO(asked)) as image:
         assert image.format == "PNG"
+
+
+def test_the_cli_never_certifies_an_answer_on_a_plot_the_fallback_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """codecheck's review-283 M1 repro: with DECISIONS_CONFIDENCE and a GATE_POLICY, the
+    golden/answer CLI path gave the plot's door count `sure: true`; ingest and ask flag it."""
+    detector(tmp_path, monkeypatch)
+    monkeypatch.setattr(composition, "decisions_reader", lambda settings: Reader())
+    gate = tmp_path / "gate.json"
+    gate.write_text(json.dumps({
+        "schema": "gate_policy_v1", "part": "val", "split_sha256": "0" * 64,
+        "families": {"door": {"threshold": 0.5, "signal": "g1main"}},
+    }))  # fmt: skip
+    dataset = tmp_path / "dataset"
+    (dataset / PDF).parent.mkdir(parents=True)
+    (dataset / PDF).write_bytes(plot())
+    settings = Settings(vector_fallback="raster", decisions_confidence=True, gate_policy=str(gate))
+    pipeline = build_pipeline(settings, dataset, lambda path: "pdf_vector")
+    out = tmp_path / "extraction"
+    out.mkdir()
+    (sheet,) = pipeline.ingest([PDF], ExtractionV1Writer(out, {PDF: "dev"})).sheets
+    assert sheet.route == "raster"
+    answers = tmp_path / "answers.jsonl"
+    pipeline.answer_questions(
+        [Question(id=1, file=PDF, text="How many doors are there?")],
+        ExtractionV1Reader(out),
+        AnswerV1Writer(answers),
+    )
+    (answer,) = [json.loads(line) for line in answers.read_text().splitlines()]
+    assert answer["answer"] == 1 and answer["confidence"] == 1.0
+    assert answer.get("sure") is None  # read as an image without reading rules: no verdict

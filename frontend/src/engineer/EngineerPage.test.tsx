@@ -1191,4 +1191,32 @@ describe('judge path', () => {
       'about 180 m², the scale estimated from the doors',
     );
   });
+
+  it('EN-89 a double-check reason that already gives the estimate is the one line: no estimate line', async () => {
+    const why = 'counted by Gemini Carbon, an AI reader: check its marks on the plan';
+    const reason = `Please double-check the doors: it is an estimate (${why}).`;
+    const q = answerMedium.quantity as Row;
+    const check = answerMedium.check as NonNullable<typeof answerMedium.check>;
+    const carbon = {
+      ...answerMedium,
+      drawing_id: DRAWING,
+      answer: 19,
+      quantity: { ...q, estimate: why },
+      check: { ...check, reason },
+    };
+    let t = await shownTurn(carbon);
+    expect(t.querySelector('.dc-reason')?.textContent).toBe(reason);
+    expect(t.querySelector('.en-estimate')).toBeNull();
+    cleanup();
+    // High: no double-check panel, so the reason is not shown and the caveat stays
+    const high = {
+      ...carbon,
+      level: { ...(carbon.level as NonNullable<typeof carbon.level>), level: 'high' as const },
+    };
+    t = await shownTurn(high);
+    expect(t.querySelector('.dc-reason')).toBeNull();
+    expect(t.querySelector('.en-estimate')?.textContent).toBe(
+      'Counted by Gemini Carbon, an AI reader: check its marks on the plan',
+    );
+  });
 });
