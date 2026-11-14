@@ -163,6 +163,7 @@ def asked_on(
         disputes=answering.disputes,
         no_reader=no_reader,
         scorers=answering.scorers,
+        carbon_ladder=answering.carbon_ladder,
     )
 
 
@@ -198,10 +199,19 @@ def signal_of(asked: Asked, answering: Answering) -> Signal | None:
 
 
 def shown_value(asked: Asked) -> int | float | str | None:
-    """The value the screen shows: the row's current value (edits applied), none on a refusal."""
+    """The value the screen shows: the row's current value (edits applied), none on a refusal.
+    An area that is an estimate shows in whole m²: two decimals would claim a precision that an
+    estimated scale (about ±16%, its areas about ±24% and more) does not have. The scorer's line
+    keeps the value as measured."""
     if asked.refusal is not None:
         return None
-    return asked.answer.answer if asked.row is None else asked.row.value
+    if asked.row is None:
+        value, unit, estimate = asked.answer.answer, asked.answer.unit, bool(asked.answer.estimate)
+    else:
+        value, unit, estimate = asked.row.value, asked.row.unit, asked.row.estimate is not None
+    if estimate and unit == "m2" and isinstance(value, float):
+        return round(value)
+    return value
 
 
 @router.post("/ask")

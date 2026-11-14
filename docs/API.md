@@ -761,7 +761,7 @@ Ingest's project status, plus `drawings`:
   "skipped": [
     {
       "path": "photos/site.jpg",
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))"
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))"
     },
     {
       "path": "cad/detail.dxf",
@@ -2793,7 +2793,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "identify",
-          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink, camera EXIF (SyntheticPhone Model 1))",
+          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink (2.2% on the paper), camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
           "output": "photo of a drawing",
           "failure": null,
@@ -2867,7 +2867,7 @@ upload lists the files, instead of one request per file.
         "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
         "kind": "photo",
         "state": "set_aside",
-        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
         "group": null,
         "route": null,
         "source": null,
@@ -2898,7 +2898,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "identify",
-          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
           "output": "photo",
           "failure": null,
@@ -4445,10 +4445,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1)).",
+      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1)).",
       "quantity": null,
       "question": null,
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
       "check": null,
       "links": {
         "drawing": null,
@@ -5241,7 +5241,9 @@ so every client shows the same one: show `level` as the pill and `text` with it,
 
 - `level`: `high`, `medium` or `low`.
   - `high`: the answer is certified. It is high exactly when `line.sure` is true and `check` is null, so a level
-    never contradicts the request.
+    never contradicts the request. With `CARBON_LEVELS=ladder` (off by default) a Medium raster answer that Gemini
+    Carbon, read as a second reader, answered with the same value is high too (basis `carbon`): `check` is null,
+    but `line.sure` stays false, because Carbon never certifies an answer.
   - `medium`: the answer asks for a double-check, and its score is at or above its family's Medium threshold: the
     calibrated chance that it is wrong is at most the policy's cut (0.20).
   - `low`: every other rated answer. It asks for a double-check too.
@@ -5258,6 +5260,9 @@ so every client shows the same one: show `level` as the pill and `text` with it,
     signed off, a bedroom with no printed label). Low; `check.reason` says why.
   - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
     route with no level). Low.
+  - `carbon` (`CARBON_LEVELS=demote` or `ladder`): Gemini Carbon read the raster sheet beside the reader. A Medium
+    answer it counted differently is low; with `ladder`, one it counted the same is high ("checked by Carbon: two
+    readers agree"). When Carbon could not check the sheet, the level stays as it was and `text` says so.
 - `text`: one plain sentence to show with the pill. For `certified` and `score` it quotes the validation counts of
   that level from the policy file, e.g. `Medium confidence: on our validation plans, 91% of the answers rated this
   way were exact (1084 of 1185). Please double-check it.`; for `route`, the route's reference counts.
@@ -9116,8 +9121,10 @@ order.
 ### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
 
 `q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
-starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. Clauses with every word come first, then
-clauses with any word fill `limit`, each group by score. `topic` one of `rooms accessibility fire
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored; words of 1-2 letters, a few English stopwords
+("when", "do", "need", ...) and words past the 20th are ignored, so a query of only those has no hits. Clauses with
+every word come first, then clauses with any word fill `limit`, each group by score; old wording (an id with
+`-anhang-`) comes after every current clause. `topic` one of `rooms accessibility fire
 escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
 distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
 -BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.
@@ -9168,6 +9175,9 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-14, behaviour (brief r8 BQ, Bogdan "make them high"): `CARBON_LEVELS=ladder`. As `demote`, and a Medium
+  raster answer Gemini Carbon counted the same gets `level` high with basis `carbon` and no `check`; `line.sure`
+  stays false. Off and `demote` are unchanged. No shape change.
 - 2026-11-14, additive (decision 0012 Amendment 1, contract v1.3): text documents and unread files in the
   evidence index: `how` `text` and `listed`, the part `text` (ids `f7-text-12`; a hit's `page` is the passage's
   page), the kinds `text_document`, `text_file`, `text_pages`, `not_read` and the listed probe kinds, and `FileStatus.evidence.text_pages`
