@@ -127,6 +127,14 @@ class Readers(Protocol):
         Such a drawing is flagged. None: no file is."""
         ...
 
+    @property
+    def unruled(self) -> Callable[[bytes], bool] | None:
+        """Whether a drawn PDF has no sheet style the vector reader has rules for
+        (VECTOR_FALLBACK=raster): when the vector route reads nothing of page 1 of an upload, it is
+        read again as an image on the raster route, kept when that finds an element or a room, and
+        such a drawing is flagged. None: off, every drawn PDF stays on the vector route."""
+        ...
+
 
 class ProjectStore(Protocol):
     """Projects, their files, and the drawings and outcomes kept by content."""

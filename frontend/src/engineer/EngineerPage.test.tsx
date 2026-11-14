@@ -794,10 +794,13 @@ describe('drawing header states', () => {
     open({ [DRAWING_ROUTE]: drawingHello });
     await screen.findByText('No ready questions for this drawing.');
     const page = document.body.textContent;
-    expect(page).toContain('not read (no reader for this route yet)');
+    expect(page).toContain('not read (this setup has no reader for this kind of sheet)');
+    expect(page).not.toContain('yet');
     expect(page).not.toContain('by hello');
     expect(
-      screen.getByText('Its route has no reader yet, so questions will be refused.'),
+      screen.getByText(
+        "This setup has no reader for this kind of sheet, so nothing on it was counted or measured. You can still ask about the project's other drawings.",
+      ),
     ).toBeTruthy();
   });
 
@@ -1190,6 +1193,21 @@ describe('judge path', () => {
     expect(t.querySelector('.en-head .en-estimate')?.textContent).toBe(
       'about 180 m², the scale estimated from the doors',
     );
+  });
+
+  it('CH-48 the answer card says an estimated area as the chat does: 5 m² in the sentence, the value and the caveat', async () => {
+    // the Finnish flat's kitchen as the API sends it (#294): measured 4.88 m², shown in whole m²
+    const q = answerArea.quantity as Row;
+    const why = 'the scale estimated from the doors';
+    const t = await shownTurn({
+      ...answerArea,
+      answer: 5,
+      quantity: { ...q, value: 4.88, original_value: 4.88, estimate: why },
+    });
+    expect(within(t).getByTestId('answer-value').textContent).toBe('5 m²');
+    expect(t.querySelector('.en-sentence strong')?.textContent).toBe('5 m²');
+    expect(t.querySelector('.en-head .en-estimate')?.textContent).toBe(`about 5 m², ${why}`);
+    expect(t.textContent).not.toMatch(/4\.88|5\.00/);
   });
 
   it('EN-89 a double-check reason that already gives the estimate is the one line: no estimate line', async () => {

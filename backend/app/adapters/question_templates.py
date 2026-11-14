@@ -39,6 +39,8 @@ from app.adapters.question_tables import is_table_question, parse_table
 from app.adapters.question_typos import corrected
 from app.core.answering.model import (
     IN_ONE_ROOM,
+    NO_SUBJECT,
+    SEVERAL_ROOMS,
     SEVERAL_THINGS,
     Query,
     TableQuery,
@@ -208,6 +210,10 @@ MODEL = re.compile(
     r"|\bmodellen\b"
 )
 ROOM_NUMBER = re.compile(r"(?<![\w.])(U?\d+\.\d+)(?![\w.])")
+# A number with a unit or in a product is a measure, not a room number: "2.5 m high", "3.5 m2",
+# "1.5 x 2.0" (review-313 S2)
+MEASURE_AFTER = re.compile(r"\s*(?:[x\u00d7*]|m|cm|mm|ft|sq|acres?|ha|m2|m²|%)(?![^\W\d_])")
+MEASURE_BEFORE = re.compile(r"[x\u00d7*]\s*$")
 # A room's printed code in parentheses after its noun, "the living room (OH)": its name.
 ROOM_CODE = re.compile(r"\(([A-ZÄÖÜÅ]{1,8})\)")
 APARTMENT = re.compile(
@@ -325,8 +331,15 @@ class TemplateParser:
             and NOT_NET.search(lower) is None
             and (FLOOR_TOTAL.search(lower) is not None or ALL_ROOMS.search(lower) is not None)
         )
+        numbers = _room_numbers(bare)
+        number = numbers[0] if numbers else None
+        if len({n.group(1) for n in numbers}) > 1 and measure in ("area", "length"):
+            return Unsupported(reason=SEVERAL_ROOMS)  # "Bagno 1.01 and Bagno 1.09": one at a time
         if not hits and not floor_total:
-            return Unsupported(reason="no element, room or apartment named")
+            if number is None or measure not in ("area", "length"):
+                return Unsupported(reason=NO_SUBJECT)
+            # a room number names a room whatever word goes with it ("Bagno 1.01")
+            hits = [(number.start(), "room")]
         if hits and not _counted_thing_named(body, hits):
             return Unsupported(reason="the thing counted is not an element, room or apartment")
         subjects = list(dict.fromkeys(subject for _, subject in hits)) or ["room"]
@@ -336,7 +349,7 @@ class TemplateParser:
         label = next((q.text for q in quoted if q.role == "label"), None)
         name = next((q.text for q in quoted if q.role == "name"), None)
         storey = next((q.text for q in quoted if q.role == "storey"), None)
-        if name is None and (number := ROOM_NUMBER.search(bare)):
+        if name is None and number is not None:
             name = number.group(1)
         apartment = APARTMENT.search(bare)
         common = {"storey": storey, "model": model}
@@ -344,12 +357,20 @@ class TemplateParser:
         if largest and measure != "area":
             return Unsupported(reason="only the largest room by area is taken off")
         if measure == "count":
+            things = [s for s in subjects if not s.startswith("room")]
+            if things and len({n.group(1) for n in numbers}) > 1:
+                return Unsupported(reason=SEVERAL_ROOMS)
+            if things and name is not None:  # a room's number or quoted name: what is inside it
+                if set(things) == {"shower", "bathtub"}:
+                    return Query(measure="count", subject="shower+bathtub", name=name, **common)
+                if len(things) > 1:
+                    return Unsupported(reason=SEVERAL_THINGS)
+                return Query(measure="count", subject=things[0], name=name, **common)
             if {"shower", "bathtub"} == set(subjects):
                 return Query(measure="count", subject="shower+bathtub", **common)
             # Never drop part of a question: two element classes ("doors and windows", "doors
             # near the window"), or elements counted in one room ("doors the kitchen has"), are
             # not one count of the sheet. Room types name the same rooms ("WC rooms").
-            things = [s for s in subjects if not s.startswith("room")]
             if len(things) > 1:
                 return Unsupported(reason=SEVERAL_THINGS)
             if (
@@ -376,6 +397,9 @@ class TemplateParser:
             return _room_side(subjects, subject, name or (code.group(1) if code else None), common)
         if measure == "area" and subject.startswith("room") and code and not (name or label):
             return Query(measure="area", subject="room", name=code.group(1), **common)
+        if measure == "area" and subject.startswith("room:") and name is not None:
+            # a type word and the room's number or name ("bathroom 1.01"): that room
+            return Query(measure="area", subject="room", name=name, **common)
         if measure == "area" and subject.startswith("room:") and not (name or label):
             # a room by its type ("the kitchen"): the one room of that type (review/ask.py)
             return Query(measure="area", subject=subject, **common)
@@ -421,6 +445,16 @@ def _room_side(
     if subject != "room":
         return Query(measure="length", subject=subject, **common)
     return Unsupported(reason="the length of rooms without saying which room")
+
+
+def _room_numbers(bare: str) -> list[re.Match[str]]:
+    """The room numbers in the question: decimal numbers that are not a measure (MEASURE_AFTER)."""
+    return [
+        found
+        for found in ROOM_NUMBER.finditer(bare)
+        if not MEASURE_AFTER.match(bare, found.end())
+        and not MEASURE_BEFORE.search(bare, 0, found.start())
+    ]
 
 
 def _quoted(raw: str) -> list[_Quoted]:

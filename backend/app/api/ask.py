@@ -258,7 +258,7 @@ def answer_view(
     info = ingest.drawing_info(drawing_id)
     named = as_uploaded(ingest, info, project_id)
     owner = None if project_id is None else named.project_id
-    spent = cost.spent()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
+    spent = cost.mark()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
     asked = asked_on(
         question, drawing, drawing_id, reviews, answering, ingest, owner,
         no_reader_of(drawing_id, ingest, settings),
@@ -282,7 +282,7 @@ def answer_view(
                 note = reply.note
             else:
                 resolved = reply
-    line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
+    line = asked.answer.model_copy(update={"cost_usd": cost.since(spent)})
     doubt = None if asked.refusal is not None else doubt_of(ingest, named)
     if doubt is not None:  # on an answer with a value only; it changes no value, check or level
         explanation = "; ".join(said for said in (line.explanation, doubt) if said)

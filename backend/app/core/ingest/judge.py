@@ -13,6 +13,7 @@ from app.core.ingest.model import (
     Stage,
     StageTrace,
 )
+from app.core.pipeline.ingest import nothing_read
 from app.core.pipeline.model import Route
 from app.core.wording import CONFLICT_WORDS, ROUTE_WORDS, SCALE_WORDS, count, route_words
 
@@ -34,10 +35,12 @@ def judge(
     reader: str | None,
     frame: Normalised | None = None,
     carbon: CarbonRead | None = None,
+    unruled: bool = False,
 ) -> tuple[FileState, str]:
     """`ready` when the route's reader read the drawing and nothing needs a look; `flagged`
     with every reason a person should look at it. `reader`: the route's adapter name; `frame`:
-    how an image was normalised; `carbon`: what Gemini Carbon read of it (reading_flags)."""
+    how an image was normalised; `carbon`: what Gemini Carbon read of it (reading_flags);
+    `unruled`: a drawn PDF read as an image (VECTOR_FALLBACK)."""
     if drawing.model_objects is not None and not drawing.pages:
         found = count(len(drawing.model_objects), "model object")
     else:
@@ -55,16 +58,19 @@ def judge(
     empty = read_nothing(drawing, route, reader)
     if empty is not None:
         flags.append(empty)
-    flags += reading_flags(kind, frame, carbon)
+    flags += reading_flags(kind, frame, carbon, unruled)
     if flags:
         return "flagged", f"{'; '.join(flags)} ({found})"
     return "ready", f"read on the {route_words(route)}: {found}"
 
 
+UNRULED_FLAG = "a drawn PDF without reading rules, read as an image"
+
+
 def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:
     """Why the route's reader read nothing from the drawing, or None when it read something
     (a schedule sheet reads tables). `reader` "hello" is the do-nothing stand-in."""
-    if drawing.read != () or drawing.tables:
+    if not nothing_read(drawing):
         return None
     if reader == "hello":
         return f"not read: this setup has no reader for the {route_words(route)}"
@@ -73,16 +79,22 @@ def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | No
 
 
 def reading_flags(
-    kind: ContentKind, frame: Normalised | None, carbon: CarbonRead | None = None
+    kind: ContentKind,
+    frame: Normalised | None,
+    carbon: CarbonRead | None = None,
+    unruled: bool = False,
 ) -> tuple[str, ...]:
-    """The flags about how the page itself was read (a phone photo, a scan, by Gemini Carbon
-    alone): every answer on the drawing carries them, none of its answers is certified, and a
-    group the reader found nothing of is not a count of 0 (review/ask.py). A conflict or an
-    empty read is said where it shows (its row, no-reader). They are part of the stored reading;
-    the sheet-kind step's flag is the project's (triage.sheet_flag, with_sheet_flag)."""
+    """The flags about how the page itself was read (a phone photo, a scan, a drawn PDF with no
+    reading rules read as an image, by Gemini Carbon alone): every answer on the drawing carries
+    them, none of its answers is certified, and a group the reader found nothing of is not a
+    count of 0 (review/ask.py). A conflict or an empty read is said where it shows (its row,
+    no-reader). They are part of the stored reading; the sheet-kind step's flag is the
+    project's (triage.sheet_flag, with_sheet_flag)."""
     flags: tuple[str, ...] = ()
     if kind == "pdf_scan":
         flags = ("a scanned PDF, read as an image",)
+    elif unruled:  # VECTOR_FALLBACK: its readers were made for scans and photos, not this sheet
+        flags = (UNRULED_FLAG,)
     elif kind == "photo_plan" and frame is not None and frame.rectified:
         flags = (f"a phone photo, rectified by {frame.rectifier}: check the paper's corners",)
     elif kind == "photo_plan":

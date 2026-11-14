@@ -154,6 +154,7 @@ def _add_sheet(
     _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale)
     _add_apartments(found, drawing, scale)
     _add_room_sides(found, drawing, scale)
+    _add_room_counts(found, drawing)
     plans = {plan.id: plan.storey for plan in drawing.plans}
     elements_by: dict[str, list[Element]] = defaultdict(list)
     rooms_by: dict[str, list[Room]] = defaultdict(list)
@@ -302,14 +303,15 @@ def _space_area(space: ModelObject, rooms: Mapping[str, Room]) -> tuple[float | 
     return (None, None) if room is None else (room.area_m2, room)
 
 
-def _space_names(space: ModelObject) -> set[str]:
+def _space_names(space: ModelObject) -> tuple[str, ...]:
     """What a model's space is known by, as `room_names` knows a drawn IFC space: its Name (the
-    number), its LongName, and "<LongName> (<Name>)"."""
+    number), its LongName, and "<LongName> (<Name>)"; sorted, so the takeoff's keys come in the
+    same order on every run (a set's order follows the hash seed; golden-311)."""
     number, long_name = space.name or None, space.long_name or None
     found = {value for value in (number, long_name) if value is not None}
     if number is not None and long_name is not None and number != long_name:
         found.add(f"{long_name} ({number})")
-    return {normalised(value) for value in found}
+    return tuple(sorted({normalised(value) for value in found}))
 
 
 def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Quantity]:
@@ -429,7 +431,8 @@ def _conflict_keys(
             for room in (room for room in drawing.rooms if room.id == ref):
                 own = _storey(room.attrs, room.plan, plans)
                 for name in room_names(room):
-                    keys += [quantity_key("area", "room", name=name, storey=s) for s in {None, own}]
+                    storeys = dict.fromkeys((None, own))  # ordered, unlike a set
+                    keys += [quantity_key("area", "room", name=name, storey=s) for s in storeys]
             return keys
         case "apartment_area", "apartment":
             labels = [a.label for a in drawing.apartments if a.id == ref and a.label is not None]
@@ -691,6 +694,64 @@ def _mark(item: Element | Room) -> Mark:
     return Mark(page=item.page, box=item.box)
 
 
+def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
+    """What is drawn in each room one name selects (`room_names`; a name two rooms share selects
+    neither), counted by the sheet's rules ("How many doors does Bagno 1.01 have?" counted the
+    whole sheet; Tudor's chat QA, 2026-11-14). A fixture is the room's when its box centre lies
+    in the room's outline; a door or window sits in a wall, outside every room's floor outline
+    (floor9178: all 19, about half a wall from the outline), so it is the room's when its centre
+    lies within its box's short side (the wall's depth) of the outline: a door between two rooms
+    is both rooms'. A room with no outline, only its box, gets none: a box is not the room's
+    shape (review/ask.py says so)."""
+    named: dict[str, list[Room]] = defaultdict(list)
+    for room in drawing.rooms:
+        for name in room_names(room):
+            named[name].append(room)
+    for name, same in named.items():
+        if len(same) != 1 or (outline := same[0].polygon) is None:
+            continue
+        page = same[0].page
+        inside = [e for e in drawing.elements if e.page == page and _in_room(e, outline)]
+        for key, chosen in apply_rules(_listed(inside, ())).items():
+            if not key.startswith("room"):
+                count = quantity_key("count", key, name=name)
+                marks = chosen.marks
+                _put(
+                    found, count, "count", len(marks), marks, chosen.rule, excluded=chosen.excluded
+                )
+
+
+def _in_room(element: Element, outline: Sequence[tuple[float, float]]) -> bool:
+    x0, y0, x1, y1 = element.box
+    x, y = (x0 + x1) / 2, (y0 + y1) / 2
+    if _holds(outline, x, y):
+        return True
+    return element.class_ in OPENINGS and _gap(outline, x, y) <= min(x1 - x0, y1 - y0)
+
+
+OPENINGS = frozenset({"door", "window"})  # in a wall: the room's when they touch its outline
+
+
+def _holds(outline: Sequence[tuple[float, float]], x: float, y: float) -> bool:
+    """Whether the point lies inside the polygon (even-odd rule)."""
+    inside = False
+    for (ax, ay), (bx, by) in zip(outline, (*outline[1:], outline[0]), strict=True):
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            inside = not inside
+    return inside
+
+
+def _gap(outline: Sequence[tuple[float, float]], x: float, y: float) -> float:
+    """The distance from the point to the polygon's edges."""
+    best = math.inf
+    for (ax, ay), (bx, by) in zip(outline, (*outline[1:], outline[0]), strict=True):
+        dx, dy = bx - ax, by - ay
+        along = ((x - ax) * dx + (y - ay) * dy) / ((dx * dx + dy * dy) or 1.0)
+        t = min(1.0, max(0.0, along))
+        best = min(best, math.hypot(ax + t * dx - x, ay + t * dy - y))
+    return best
+
+
 def _listed(elements: Iterable[Element], rooms: Iterable[Room]) -> dict[str, tuple[Mark, ...]]:
     """Drawing.marks_by_quantity() for some of the drawing's items; plans are per sheet only."""
     marks: dict[str, list[Mark]] = {key: [] for key in COUNT_KEYS if key != PLAN}
@@ -749,8 +810,9 @@ def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
     return out
 
 
-def room_names(room: Room) -> set[str]:
-    """Every name a room answers to (its numbers, names, printed label), normalised."""
+def room_names(room: Room) -> tuple[str, ...]:
+    """Every name a room answers to (its numbers, names, printed label), normalised and sorted, so
+    the takeoff's keys come in the same order on every run (golden-311)."""
 
     def texts(keys: Iterable[str]) -> set[str]:
         return {value for key in keys if isinstance(value := room.attrs.get(key), str) and value}
@@ -758,7 +820,7 @@ def room_names(room: Room) -> set[str]:
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
-    return {normalised(value) for value in found}
+    return tuple(sorted({normalised(value) for value in found}))
 
 
 def _add_scope(

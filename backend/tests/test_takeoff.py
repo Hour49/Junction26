@@ -762,3 +762,76 @@ def test_a_conflict_with_no_item_or_position_has_no_marks() -> None:
     sheet = drawing(elements=(), conflicts=(_door_count_entry(0, 3),))
     found = known_quantities(sheet)
     assert all(q.conflict is None or q.conflict.value_marks == () for q in found.values())
+
+
+ORDER_SCRIPT = """
+from app.core.drawing.model import Drawing, ModelObject, Page, Room, Scale
+from app.core.pipeline.takeoff import known_quantities
+
+rooms = tuple(
+    Room(id=f"r{at}", type="bedroom", label=f"Stanza {at}", page=1, area_m2=10.0 + at,
+         box=(0.1 * at, 0.1, 0.1 * at + 0.05, 0.2),
+         attrs={"number": f"1.0{at}", "name": f"Camera {at}"})
+    for at in range(1, 6)
+)
+spaces = tuple(
+    ModelObject(id=f"s{at}", class_="space", storey="EG", name=f"0.0{at}",
+                long_name=f"Raum {at}", quantities={"area_m2": 5.0 + at})
+    for at in range(1, 6)
+)
+drawing = Drawing(file="x.ifc", pages=(Page(page=1, width=9, height=9, unit="px"),),
+                  scale=Scale(status="scaled"), rooms=rooms, model_objects=spaces)
+print("\\n".join(known_quantities(drawing)))
+"""
+
+
+def test_the_takeoff_keys_come_in_the_same_order_whatever_the_hash_seed() -> None:
+    """golden-311: three runs wrote ingest.json's 230 keys in three orders, because room_names
+    and _space_names returned sets, whose order follows PYTHONHASHSEED."""
+    import os
+    import subprocess
+    import sys
+
+    orders = set()
+    for seed in ("1", "2", "3", "4"):
+        env = {**os.environ, "PYTHONHASHSEED": seed}
+        done = subprocess.run([sys.executable, "-c", ORDER_SCRIPT], env=env, capture_output=True,
+                              text=True, check=True)  # fmt: skip
+        orders.add(done.stdout)
+    assert len(orders) == 1
+    keys = next(iter(orders)).splitlines()
+    assert any("name=" in key for key in keys)  # the names are in it
+
+
+def test_a_room_s_count_takes_its_fixtures_inside_and_the_doors_and_windows_in_its_walls() -> None:
+    """Tudor's chat QA (floor9178): "How many doors does Bagno 1.01 have?" counted the sheet's
+    13. Doors and windows sit in walls, outside every floor outline, so a door is the room's
+    when it touches the outline (both rooms' between two rooms); a fixture when it is inside."""
+
+    def at(n: int, cls: str, box: tuple[float, float, float, float]) -> Element:
+        return Element.model_validate({"id": f"e{n}", "class": cls, "page": 1, "box": box})
+
+    bath_outline = ((0.10, 0.10), (0.30, 0.10), (0.30, 0.30), (0.10, 0.30))
+    hall_outline = ((0.32, 0.10), (0.60, 0.10), (0.60, 0.30), (0.32, 0.30))
+    bath = room(1, "bathroom", 4.0, label="Bagno", polygon=bath_outline, attrs={"number": "1.01"})
+    hall = room(2, "hall", 6.0, label="Corridoio", polygon=hall_outline, attrs={"number": "1.04"})
+    boxed = room(3, "bedroom", 9.0, label="Stanza", attrs={"number": "1.02"})  # no outline
+    items = (
+        at(1, "door", (0.300, 0.18, 0.320, 0.22)),  # in the wall between bath and hall: both
+        at(2, "door", (0.18, 0.090, 0.22, 0.100)),  # in the bath's top wall, up to its outline
+        at(3, "toilet", (0.12, 0.12, 0.16, 0.16)),  # inside the bath
+        at(4, "window", (0.60, 0.18, 0.62, 0.22)),  # in the hall's outer wall
+        at(5, "door", (0.80, 0.80, 0.84, 0.84)),  # far from both
+        at(6, "sink", (0.40, 0.40, 0.44, 0.44)),  # below the hall, outside it
+    )
+    found = known_quantities(drawing(rooms=(bath, hall, boxed), elements=items))
+    count = {key: q.value for key, q in found.items() if "|name=" in key and "|" in key}
+
+    def of(subject: str, name: str) -> int | float | None:
+        return count.get(f"{subject}|name={name}")
+
+    assert (of("door", "1.01"), of("toilet", "1.01"), of("window", "1.01")) == (2, 1, 0)
+    assert of("door", "bagno") == 2  # by its printed label too
+    assert (of("door", "1.04"), of("window", "1.04"), of("sink", "1.04")) == (1, 1, 0)
+    assert of("door", "1.02") is None  # a box is not the room's shape
+    assert found["door"].value == 3  # the sheet's count is unchanged

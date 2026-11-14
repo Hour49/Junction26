@@ -6,7 +6,14 @@ dataset, so a pass means the parser reads meaning rather than one fixed template
 import pytest
 
 from app.adapters.question_templates import TemplateParser
-from app.core.answering.model import IN_ONE_ROOM, Query, Unsupported
+from app.core.answering.model import (
+    IN_ONE_ROOM,
+    NO_SUBJECT,
+    SEVERAL_ROOMS,
+    SEVERAL_THINGS,
+    Query,
+    Unsupported,
+)
 
 PARSE = TemplateParser().parse
 
@@ -337,6 +344,95 @@ def test_how_big_asks_for_an_area() -> None:
     """R2-2-3: "How big is room 1.01?" was refused as no count, area, length or volume."""
     assert PARSE("How big is room 1.01?") == Query(measure="area", subject="room", name="1.01")
     assert PARSE("How large is the kitchen?") == Query(measure="area", subject="room:kitchen")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How big is bathroom 1.01?",  # a type word and the number
+        "What is the area of WC 1.01?",
+        "How big is Bagno 1.01?",  # a printed label the parser has no word for, and the number
+        "Quanto è grande il Bagno 1.01 in m2?",
+        "What is the net floor area of Stanza 1.01?",
+    ],
+)
+def test_a_room_number_with_any_word_names_that_room(text: str) -> None:
+    """Tudor's chat QA (#14, floor9178): the type word dropped the number, and a label the parser
+    has no word for left no room named."""
+    assert PARSE(text) == Query(measure="area", subject="room", name="1.01")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How big is Bagno 1.01 and Bagno 1.09?",
+        "How big is bathroom 1.01 and 1.09?",
+        "What is the total area of room 1.01 and room 1.09?",
+        "How long are rooms 1.01 and 1.09?",
+    ],
+)
+def test_an_area_or_length_naming_two_rooms_asks_for_one_at_a_time(text: str) -> None:
+    """review-313 S1: "Bagno 1.01 and Bagno 1.09" answered 1.01's area alone, with no note."""
+    assert PARSE(text) == Unsupported(reason=SEVERAL_ROOMS)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the area of 1.5 x 2.0?",
+        "What is the area of 1.5x2.0?",
+        "How big is it, 2.5 m high?",
+        "How big is 1.20 m?",
+        "Area of 1.2 acres?",
+        "How big is 3.5m2?",
+    ],
+)
+def test_a_number_with_a_unit_or_in_a_product_is_not_a_room_number(text: str) -> None:
+    """review-313 S2: these read as "the area of room 1.5" and refused as a missing room."""
+    assert PARSE(text) == Unsupported(reason=NO_SUBJECT)
+
+
+def test_a_room_number_keeps_its_unit_of_answer_and_a_measure_beside_a_room_type_is_dropped() -> (
+    None
+):
+    area = Query(measure="area", subject="room", name="1.01")
+    assert PARSE("How big is Bagno 1.01 in m²?") == area
+    assert PARSE("What is the area of room 1.01 in m2?") == area
+    assert PARSE("How long is room 1.01 in m?") == Query(
+        measure="length", subject="room", name="1.01"
+    )
+    assert PARSE("How big is the 3.5 m2 balcony?") == Query(measure="area", subject="room:balcony")
+
+
+def test_a_room_number_alone_does_not_make_a_count_or_a_sheet_total() -> None:
+    assert PARSE("How long is Bagno 1.01?") == Query(measure="length", subject="room", name="1.01")
+    assert PARSE("How many are in 1.01?") == Unsupported(
+        reason="no element, room or apartment named"
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "subject", "name"),
+    [
+        ("How many doors does Bagno 1.01 have?", "door", "1.01"),
+        ("How many doors are in room 1.01?", "door", "1.01"),
+        ("How many windows does room 'Cucina' have?", "window", "Cucina"),
+        ("How many showers and bathtubs are in room 1.01?", "shower+bathtub", "1.01"),
+    ],
+)
+def test_a_count_with_a_room_number_or_name_counts_inside_that_room(
+    text: str, subject: str, name: str
+) -> None:
+    """Tudor's chat QA: "How many doors does Bagno 1.01 have?" counted the whole sheet."""
+    assert PARSE(text) == Query(measure="count", subject=subject, name=name)
+
+
+def test_a_count_naming_two_rooms_or_two_things_in_one_room_is_refused() -> None:
+    assert PARSE("How many doors are in rooms 1.01 and 1.09?") == Unsupported(reason=SEVERAL_ROOMS)
+    assert PARSE("How many doors and windows does room 1.01 have?") == Unsupported(
+        reason=SEVERAL_THINGS
+    )
+    assert PARSE("How many doors are there?") == Query(measure="count", subject="door")
 
 
 def test_a_storage_room_is_a_room_type() -> None:
