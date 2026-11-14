@@ -558,6 +558,7 @@ class Outcome(Frozen):
     stages: tuple[StageTrace, ...] = ()
     normalised: Normalised | None = None
     flags: tuple[str, ...] = ()  # how the page was read, for every answer (judge.reading_flags)
+    degraded: bool = False  # a model call failed while it was read: shown, never reused
 
     @model_validator(mode="before")
     @classmethod

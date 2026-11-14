@@ -38,6 +38,7 @@ from app.adapters.carbon.reader import CarbonModel, jpeg
 from app.adapters.eight_bit import eight_bit
 from app.adapters.raster_ocr.gemini import GeminiError, pixel_digest, reply_text
 from app.adapters.whole_file import write_whole
+from app.core import cost
 from app.core.pipeline.model import DrawingFile, Sheet
 from app.core.pipeline.ports import DrawingFiles
 from app.core.pipeline.printed import PrintedFact, PrintedSheet, ScaleBar
@@ -163,6 +164,7 @@ class CarbonPrinted:
                 answer = self._model.generate(jpeg(image), prompt, schema, tokens)
                 form = check(json.loads(reply_text(answer)))
             except GeminiError as error:
+                cost.fail()
                 notes.append(f"printed scale: the {kind} call failed: {error}")
                 return None
             except (ValueError, AttributeError, TypeError, KeyError, IndexError) as error:

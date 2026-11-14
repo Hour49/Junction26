@@ -24,6 +24,22 @@ def mark() -> int:
     return getattr(_local, "pico", 0)
 
 
+def fail(count: int = 1) -> None:
+    """A model call that got no answer (HTTP 429/5xx, a timeout, a reset): counted per thread
+    like the dollars, so the ingest can tell a sheet read while the model failed from one read
+    in full, and not keep the first as the file's reading for later uploads."""
+    _local.failed = faults() + count
+
+
+def faults() -> int:
+    """How many calls have failed on this thread so far: `faults_since`'s argument."""
+    return getattr(_local, "failed", 0)
+
+
+def faults_since(before: int) -> int:
+    return faults() - before
+
+
 def since(before: int) -> float:
     """The dollars this thread was charged since `before` (a `mark()`)."""
     return (mark() - before) / PICO

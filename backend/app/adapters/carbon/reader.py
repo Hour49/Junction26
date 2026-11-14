@@ -33,6 +33,7 @@ from typing import Any, Protocol
 
 from PIL import Image
 
+from app.adapters import gemini_http
 from app.adapters.carbon import contract
 from app.adapters.carbon.flight import flight
 from app.adapters.eight_bit import eight_bit
@@ -50,6 +51,7 @@ WORKERS = 4  # calls in flight at once for one read (contract 1.1)
 # every sheet read at the same time, the printed-scale reader): ingest reads several drawings at
 # once (INGEST_GROUPS_IN_FLIGHT), and their calls together stay under this
 CALLS_IN_FLIGHT = 8
+CALL_FAILED = "call failed"  # in a reason: the model gave no answer (not: a reply that is no form)
 _in_flight = threading.BoundedSemaphore(CALLS_IN_FLIGHT)
 SPENT_AS = "carbon reader"  # its name in the spend guard's ledger
 
@@ -88,7 +90,7 @@ class CarbonClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with _in_flight, urllib.request.urlopen(request, timeout=self._timeout) as response:
+            with _in_flight, gemini_http.urlopen(request, timeout=self._timeout) as response:
                 answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
@@ -143,6 +145,8 @@ class CarbonReader:
                 tiles = None if form is None else contract.tile_plan(width, height, _plans(form))
                 asked = list(pool.map(lambda box: self._ask("tile", page.crop(box)), tiles or []))
         cost.charge(usd + sum(paid for _, _, paid in asked))  # paid on the pool's threads
+        said = [why, *(said for _, said, _ in asked)]
+        cost.fail(sum(1 for line in said if line is not None and CALL_FAILED in line))
         found = contract.assemble(
             width,
             height,
@@ -179,7 +183,7 @@ class CarbonReader:
                 answer = self._model.generate(jpeg(image), prompt, schema, tokens)
                 form = check(json.loads(reply_text(answer)))
             except GeminiError as error:
-                return None, f"the {kind} call failed: {error}", cost.since(before)
+                return None, f"the {kind} {CALL_FAILED}: {error}", cost.since(before)
             except ValueError as error:  # not JSON, or not the form (contract.ReplyError)
                 return None, f"the {kind} reply is not the form: {error}", cost.since(before)
             except (AttributeError, TypeError, KeyError, IndexError) as error:  # an odd envelope

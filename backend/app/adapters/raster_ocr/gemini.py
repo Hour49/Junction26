@@ -34,6 +34,7 @@ from typing import Any, Protocol, cast
 
 from PIL import Image
 
+from app.adapters import gemini_http
 from app.adapters.whole_file import write_whole
 from app.core import cost
 from app.core.drawing.model import Room, RoomType, Scale
@@ -136,7 +137,7 @@ class GeminiClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with urllib.request.urlopen(request, timeout=self._timeout) as response:
+            with gemini_http.urlopen(request, timeout=self._timeout) as response:
                 answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
@@ -326,6 +327,7 @@ class GeminiRoomExtractor:
             try:
                 found = self._gemini.read(image)
             except GeminiError as error:
+                cost.fail()
                 return Extracted(
                     method="printed_label",
                     scale=Scale(status="no_scale"),

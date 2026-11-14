@@ -137,7 +137,7 @@ class Groups:
         keys = {file.path: _hash(file.sha256, group_key)[:16] for file in asked}
         if not run.fresh:
             stored = [self._store.outcome(keys[file.path]) for file in asked]
-            if all(outcome is not None for outcome in stored):
+            if all(outcome is not None and not outcome.degraded for outcome in stored):
                 for file, outcome in zip(asked, stored, strict=True):
                     if outcome is not None:
                         _reuse(run, file, members, outcome)
@@ -224,9 +224,18 @@ class Groups:
                     f"another rendering of {members.key}; its drawing is read from {source.path}"
                 )
             run.add_stages(file.path, stages)
-            self._store_outcome(run, file, drawing, keys[file.path], source, read_on,
-                                state=state, reason=reason, takeoff=takeoff,
-                                stages=stages, flags=flags)  # fmt: skip
+            failed = timer.faults.get(file.path, 0)
+            degraded = failed > 0
+            if degraded and state != "set_aside":
+                reason += (
+                    f"; {count(failed, 'model call')} got no answer, so this reading is partial"
+                    " and is asked again on the next upload"
+                )
+            self._store_outcome(
+                run, file, drawing, keys[file.path], source, read_on,
+                state=state, reason=reason, takeoff=takeoff, stages=stages, flags=flags,
+                degraded=degraded,
+            )  # fmt: skip
 
     def _store_outcome(
         self,
