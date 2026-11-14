@@ -26,7 +26,7 @@ Built in three parts, each merged on its own (no half-built screens):
 | File | What |
 | --- | --- |
 | `src/model3d/ModelView.tsx` (new) | `ModelView({projectId, file, highlight?})`: the states, the controls, the legend / highlight line. Imports no `three` |
-| `src/model3d/ModelDialog.tsx` (new) | the view in a modal (chat References, the engineer's model proof): `SourcePreview`'s modal pattern (Esc, focus trap, focus back) |
+| `src/model3d/ModelDialog.tsx` (new) | the view in a modal (chat References, the agent chat's plan pane): `SourcePreview`'s modal pattern (Esc, focus trap, focus back) |
 | `src/model3d/scene.ts` (new) | the only module that imports `three`: renderer, `GLTFLoader.parse`, `OrbitControls`, `highlight(root, marks)`, `frame(camera, controls, box)`, `dispose()`. Loaded with `import('./scene')` |
 | `src/model3d/model3d.ts` (new) | pure: `model3dOf`, `canShow3d`, `failure`, `ROLE_LABEL`, `legendLines(result)` |
 | `src/model3d/model3d.css` (new) | `--v-*` tokens only; one token per role |
@@ -90,9 +90,8 @@ frontend-orch's 21:50 GO.
      elements are not in the 3D view." when some ids are not in the model; "None of these elements are in the 3D
      view." (and nothing dimmed, whole model framed) when none match; no legend for `[]`.
    - The GLB's materials are cloned before colouring (another open view of the same file is unaffected).
-4. **Out for now** (w3:p1 21:50 / frontend-orch 21:50): the engineer page's `ModelProof` (its `AnswerView` carries no
-   `highlight` or `model_file_id`), Documents issue cards, the agent chat's Sources and edit proposals
-   (`Proposal.services`).
+4. **Later places**: the agent chat's plan pane is in "More places" below; Documents issue cards wait for
+   `Issue.highlight`; edit proposals (`Proposal.services`) are still out.
 
 ## Controls
 
@@ -206,19 +205,46 @@ Everywhere:
 - M3-20: `model3d.css` uses only `--v-*` tokens (no colour literals); the role colours are read from the computed
   style at mount. [unit]
 
+## More places (feature/model-3d-more, w3:p1 22:55, Tudor: "give the 3D workers what's left")
+
+Same `ModelDialog`, `canShow3d` and highlight as parts 2-3; no new dependency; main bundle within +5 kB of main
+2c70d8d.
+
+1. **Agent chat.** Answers: `ChatAnswer`'s References already have "View in 3D" (M3-10..M3-12). Sources: a
+   `ChatEvidence` is a place on a page (`page`, `box`); IFC drawings have no pages, so the agent never cites one (probe
+   on the e2e fixture, 22:58: "How many doors / walls are there?", "Where is the door?", "Show me the slab", "What is
+   the floor area?" each gave `evidence: []`). The other agent place that names a drawing is the **plan pane** (beside
+   the chat at >= 1200 px, a sheet below): when the shown drawing's file can show 3D, the pane head gets "View in 3D"
+   after "Open in workspace", opening `ModelDialog` with the newest answered turn's `highlight` for that drawing (its
+   part in `turn.answers`), else `[]`.
+2. **Documents issue cards: not built, data missing.** `Issue` has `drawing_id`, `file_id`, `page`, `box`,
+   `polygon`, `mark_id`, no GlobalId; a code check on an IFC model (`code_check_failed`) knows the space or door it
+   checked but drops its GlobalId. Needed from the backend: `Issue.highlight: Highlight[]` (as `ProjectAnswerPart`),
+   e.g. the checked element as `affected`, plus `model_file_id`/`model_3d` or the file lookup by `file_id`. Then the
+   card gets the same button (one block in `IssueCard.tsx`).
+
+`ModelDialog` stops Esc and Tab from bubbling: through the React tree a portal's key events reach the plan sheet's
+own Esc/Tab handlers, which would close the sheet behind the dialog.
+
+Criteria:
+- M3-21: `PlanPane` with a `model` shows "View in 3D" in its head, none without; it opens the dialog with the given
+  highlight; Esc inside the dialog closes the dialog only (a `PlanSheet` around it stays open). `AgentChat` passes the
+  file and the newest answered part's `highlight` for the shown drawing. [component]
+- M3-22: [e2e 1440 and 390] the fixture's agent chat after "How many walls are there?": the plan pane (390: "Show the
+  plan") -> "View in 3D" -> "Affected: 4"; Esc closes the dialog, the pane stays; screenshots `model3d-pane`. [e2e]
+
 ## Out of scope
 
 - web-ifc or any IFC parsing in the browser (licence and speed: the brief).
 - Per-storey views, sectioning, measuring, picking an element to see its properties.
-- A 3D view on Documents' issue cards (frontend-orch 21:50).
-- Highlight from the agent chat's Sources (`ChatEvidence` has no GlobalIds) and from edit proposals
-  (`Proposal.services`, Bogdan's cross-discipline GlobalIds): later; the view already takes `{global_id, role}`
-  marks, so they only need a caller. Part 3 now = the answers' model objects (`ModelProof`, `ChatAnswer`).
+- A 3D view on Documents' issue cards: needs `Issue.highlight` (More places, 2).
+- Highlight from edit proposals (`Proposal.services`, Bogdan's cross-discipline GlobalIds): later; the view already
+  takes `{global_id, role}` marks, so they only need a caller.
 
 ## Open points
 
 Settled by frontend-orch (21:50): states and 409/422 above; no issue cards; part 3 = answers' model objects; load
-on press; the blocks in `FileTraceScreen.tsx`, `ChatAnswer.tsx`, `ModelProof.tsx`, `client.ts` are mine; the e2e
+on press; the blocks in `FileTraceScreen.tsx`, `ChatAnswer.tsx`, `client.ts` are mine; the e2e
 backend converts the sample `house.ifc` on the first GET and the e2e waits through "Preparing" (bounded), env name
 agreed with m3d-back via frontend-orch; a capped `proof.objects` is fine.
 
