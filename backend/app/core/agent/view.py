@@ -29,9 +29,10 @@ SHOW_ON_PLAN_TOOL: dict[str, Any] = {
         "name": SHOW_ON_PLAN,
         "description": (
             "Show places on the plan beside the chat (the user asks where something is, or to "
-            "see it). Give evidence_ids (any ev id of this chat, all on one drawing page), or "
-            "answer: latest for the marks of the latest ask_drawings answer of this chat (marks: "
-            "disputed for only the ones the readers disagree on) without asking again. caption: "
+            "see it). Give evidence_ids (any ev id of this chat; on several pages, the page with "
+            "the most is shown and the others are listed), or answer: latest for the marks of "
+            "the latest ask_drawings answer of this chat (marks: disputed for only the ones the "
+            "readers disagree on) without asking again. caption: "
             "a few plain words on what is shown. An answer that cites places is shown anyway: "
             "call this only to show other places than the ones the answer cites."
         ),
