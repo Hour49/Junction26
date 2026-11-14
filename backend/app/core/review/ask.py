@@ -164,7 +164,7 @@ def ask(
     (a refusal, a question with no takeoff row), so an answer is never shown sure and asked
     about at once. The answer's `level` comes from the same verdict (check.level_of): High
     exactly when sure; none on a value a person signed or settled, which is theirs."""
-    quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
+    quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
@@ -180,6 +180,12 @@ def ask(
     found = quantities.get(query) if query is not None and answer.method == TAKEOFF else None
     shared = with_twins(state, storey_twins(quantities))
     shown = None if found is None else row(found, drawing, shared, RULES)
+    notes = [NOT_LOCATED] if found is not None and _unplaced(found, drawing) else []
+    if found is not None and parse_key(found.key)[1] == "door" and CLOSET.search(text):
+        notes.append(CLOSET_RULE)
+    if notes:
+        said = "; ".join(note for note in (answer.explanation, *notes) if note)
+        answer = answer.model_copy(update={"explanation": said})
     if shown is not None:
         marks = shown.marks
     elif answer.method == SCHEDULE:
@@ -210,6 +216,8 @@ def ask(
         code, words = _refusal(answer.method, parsed, query, drawing)
         if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
+        elif query is not None and query in unlocated:
+            code, words = "no-reader", _unlocated_text(unlocated[query], flags)
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
@@ -318,7 +326,7 @@ def _summed(parsed: object, answer: Answer) -> bool:
 
 def _flagged(
     quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
-) -> tuple[dict[str, Quantity], set[str]]:
+) -> tuple[dict[str, Quantity], set[str], dict[str, Quantity]]:
     """On a page ingest flagged (a phone photo, a scan), a group its reader found nothing of
     (no element at all, no room at all) is unknown, not 0: its keys are left out and the group
     is returned as `unread`, so any question on it is refused, its key in the takeoff or not
@@ -327,7 +335,10 @@ def _flagged(
     page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
     the classes it could not count (left out of `read`), so on a drawing whose elements are
     Carbon's (CARBON_FLAG, which ingest sets only then) a class it read with no element is a
-    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b."""
+    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b.
+    On a flagged page a room count with no located mark ("0 bathrooms", "37 bedrooms" with
+    nothing marked) is a guess too: it is left out and returned in `unlocated` by key, so the
+    question is refused the same way (brief r8 BM); a class Carbon read keeps its 0."""
     empty: set[str] = set()
     if flags and not drawing.elements:
         empty.update(ELEMENT_CLASSES)
@@ -336,8 +347,10 @@ def _flagged(
     if (flags or raster) and not drawing.rooms:
         empty.add("room")
     if not flags and not empty:
-        return dict(quantities), set()
+        return dict(quantities), set(), {}
+    carbon: set[str] = set(drawing.read or ()) if CARBON_FLAG in flags else set()
     kept: dict[str, Quantity] = {}
+    unlocated: dict[str, Quantity] = {}
     note = f"read from a page flagged at upload: {'; '.join(flags)}"
     for key, found in quantities.items():
         if _groups(key) <= empty:
@@ -345,9 +358,12 @@ def _flagged(
         if not flags:
             kept[key] = found
             continue
+        if _room_count(found) and not found.marks and not _groups(key) <= carbon:
+            unlocated[key] = found
+            continue
         said = note if found.estimate is None else f"{found.estimate}; {note}"
         kept[key] = found.model_copy(update={"estimate": said})
-    return kept, empty
+    return kept, empty, unlocated
 
 
 def _groups(key: str) -> set[str]:
@@ -363,6 +379,31 @@ def _unread_text(query: str, flags: Sequence[str]) -> str:
     return (
         f"This drawing was flagged at upload ({'; '.join(flags)}), and its reader found no "
         f"{things} on it, so 0 would be a guess, not a count."
+    )
+
+
+NOT_LOCATED = "not located on the drawing"
+# "How many doors are there, including closet doors?": the door count's rule, said once (Stoa
+# counts closet doors as doors; brief r8 BM)
+CLOSET = re.compile(r"\bcloset", re.IGNORECASE)
+CLOSET_RULE = "closet doors are counted as doors"
+
+
+def _room_count(found: Quantity) -> bool:
+    """A count of rooms (of a type or all): element counts keep a read 0 (R3-qa4-1)."""
+    return found.unit == "count" and _groups(found.key) == {"room"}
+
+
+def _unplaced(found: Quantity, drawing: Drawing) -> bool:
+    """A count of something on a drawing with pages that marks none of it: its value can't be
+    checked on the drawing, so the answer says so next to it (brief r8 BM)."""
+    return bool(drawing.pages) and found.unit == "count" and found.value > 0 and not found.marks
+
+
+def _unlocated_text(found: Quantity, flags: Sequence[str]) -> str:
+    return (
+        f"This drawing was flagged at upload ({'; '.join(flags)}), and none of what its reader "
+        f"counted here is located on it, so {found.value:g} would be a guess, not a count."
     )
 
 
