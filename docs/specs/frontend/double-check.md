@@ -117,13 +117,17 @@ Inside the answer card, under the value block; a block on `--v-warn-soft` with `
 - Top row: pill (12px 600, 980px radius, 5px 10px: "Please double-check" `--v-warn` on `--v-surface`; "Fixing"
   `--v-accent` on `--v-accent-soft`; "Checked by a person" `--v-ok` on `--v-surface`), then the sentence (17px
   600, `--v-text`), the reason (14px `--v-text-2`).
-- 1440: two columns, viewer `minmax(0, 1fr)` left, list 320px right, 16px gap; the viewer on `--v-surface` with
-  `--v-radius` corners. The list: one row per disputed place: a 28px circle with the mark number in `--v-warn`,
+- The layout follows the panel's own width (`.dc` is an inline-size container), not the window's. In the answer
+  card the panel sits in the side column (~330px inside at 1440): one column, the list full width, the panel's own
+  viewer hidden (the card's plan beside or above it shows the marks; Reject/Restore/Add it here stay in the list);
+  nothing overflows and an answer with no places is just the sentence, reason and buttons (Bogdan's live test,
+  #14 c6876826283). From 680px inside: two columns, viewer `minmax(0, 1fr)` left, list 320px right, 16px gap; the
+  viewer on `--v-surface` with `--v-radius` corners. The list: one row per disputed place: a 28px circle with the mark number in `--v-warn`,
   the why (14px), one line per reader "`reader`: `sentence`" (12px `--v-muted`); hovering or focusing a row highlights its mark (`highlighted`),
   clicking selects it (`selected`), and a viewer click on a mark selects its row (`onSelect`).
 - Buttons (pills, 44px, 600): Looks right / Confirm primary (`--v-accent`, white); Fix it, Done fixing, Back, Cancel,
   Reject/Restore secondary (`--v-fill`); Add a missed one secondary, pressed while picking.
-- 390: one column: sentence, viewer (full width), list, buttons full width stacked; no sideways scroll; every button
+- 390: one column: sentence, list, buttons full width stacked; no sideways scroll; every button
   44px tall; the name field 16px text (no iOS zoom).
 - Motion: press scale 0.97, none under `prefers-reduced-motion`; the live value does not animate.
 
@@ -166,6 +170,8 @@ door m2.", disputed: [{mark_id: "m2", why: "only the vector reader saw it", read
 - DC-15: `doublecheck.css` holds no colour literal and no font other than `var(--v-font)` / the monospace stack.
 - DC-16: Cancel after an edit shows the kept line and the workspace link; Looks right is back.
 - DC-17: a drawing (credit) error shows a line with Retry; the panel still works; Retry fetches again.
+- DC-19: `doublecheck.css`: `.dc` is an inline-size container; below `@container (min-width: 680px)` the body is one
+  column and `.dc-plan` is hidden; the 320px list column exists only inside that query.
 - DC-18 [e2e, fe-golden, 1440 and 390, after Bogdan's check PR]: an answer with `check` on the sample: Fix it, reject
   a door, the card's value drops by 1; Done fixing, Confirm as "Ana": "Checked by Ana". No sideways scroll.
 
