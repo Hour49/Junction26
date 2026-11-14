@@ -69,8 +69,9 @@ ChatModelName = Literal["gemini", "rules", "off"]
 # and the shipped reader the rooms
 CarbonReaderName = Literal["off", "advanced", "all", "large"]
 # The Carbon check of the levels (CARBON_LEVELS): off; demote: Carbon reads every raster drawing
-# beside its reader, and a Medium answer it counts differently becomes Low
-CarbonLevelsName = Literal["off", "demote"]
+# beside its reader, and a Medium answer it counts differently becomes Low; ladder: the same, and a
+# Medium answer it counts the same becomes High (two readers agree; still not certified)
+CarbonLevelsName = Literal["off", "demote", "ladder"]
 # Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
     Annotated[float, Field(ge=0)] | None,
@@ -155,7 +156,8 @@ class Settings(BaseSettings):
     # CARBON_LEVELS=demote (brief r8 BG; integ's pre-registered rule, .agents/exp/integ.md): the
     # Carbon reader (same key, timeout, cache and spend guard) reads every raster drawing beside
     # its reader, never counted; CHECK_POLICY's Medium answer whose question Carbon answers with
-    # another value becomes Low. Needs EXTRACTOR_RASTER=composite
+    # another value becomes Low. Needs EXTRACTOR_RASTER=composite. ladder (brief r8 BQ, Bogdan
+    # 19:4x "make them high"): the same read, and a Medium answer it answers alike becomes High
     carbon_levels: CarbonLevelsName = "off"
     carbon_timeout_s: float = 120.0
     carbon_cache_dir: Path = Path("../data/cache/carbon-reader")

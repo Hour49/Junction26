@@ -3,7 +3,9 @@ gemini-4-carbon reads page 1 whole and in full-resolution tiles. contract.py is 
 how the replies become a drawing; reader.py makes the calls. `CarbonSwitch` (CARBON_READER=all,
 advanced) sends a raster drawing to it or to the shipped reader; `CarbonThings` (CARBON_READER=
 large) takes the things drawn from it and the rooms from the shipped reader; `CarbonChecked`
-(CARBON_LEVELS=demote) keeps what it read beside the shipped reading, never counted.
+(CARBON_LEVELS=demote) keeps what it read beside the shipped reading, never counted. The last two
+read a sheet with Carbon and the shipped reader at the same time (app/adapters/beside.py), except
+`CarbonThings`' few clause, which needs the shipped reader's count first.
 """
 
 import logging
@@ -11,6 +13,7 @@ from collections.abc import Callable, Sequence
 
 from PIL import Image
 
+from app.adapters.beside import beside
 from app.adapters.carbon.reader import CarbonClient, CarbonExtractor, CarbonReader
 from app.core.drawing.model import Box, CarbonCheck, Plan, ReadClass
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
@@ -78,12 +81,16 @@ class CarbonThings:
         self._took = took
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        shipped = self._other.extract(source, sheet)
-        large = self._use_carbon(source.path)
-        if not large and len(shipped.elements) >= self._few:
-            return shipped
-        carbon = self._carbon.extract(source, sheet)
-        if not large:
+        if self._use_carbon(source.path):  # known before reading: both at the same time
+            shipped, carbon = beside(
+                lambda: self._other.extract(source, sheet),
+                lambda: self._carbon.extract(source, sheet),
+            )
+        else:  # the few clause needs the shipped reader's count first: one after the other
+            shipped = self._other.extract(source, sheet)
+            if len(shipped.elements) >= self._few:
+                return shipped
+            carbon = self._carbon.extract(source, sheet)
             if not carbon.plans and not carbon.read:  # Carbon read nothing (a failed call, a
                 return shipped  # spent budget): the shipped reading stays, as before the clause
             if self._took is not None:
@@ -142,15 +149,20 @@ class CarbonChecked:
         self._carbon = carbon
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        found = self._other.extract(source, sheet)
+        found, check = beside(  # independent reads of the same sheet: at the same time
+            lambda: self._other.extract(source, sheet), lambda: self._check(source, sheet)
+        )
+        return found.model_copy(update={"carbon_check": check})
+
+    def _check(self, source: DrawingFile, sheet: Sheet) -> CarbonCheck:
+        """What Carbon read of the sheet, or why it read nothing; never raises."""
         try:
             seen = self._carbon.extract(source, sheet)
         except (OSError, Image.DecompressionBombError) as error:  # PIL could not open the image
             check = CarbonCheck(failed=f"the image could not be opened: {type(error).__name__}")
         except Exception as error:  # a bug in a check that is never counted keeps the drawing
             log.exception("Carbon check of %s raised", source.path)
-            failed = CarbonCheck(failed=f"the check failed: {type(error).__name__}")
-            return found.model_copy(update={"carbon_check": failed})
+            return CarbonCheck(failed=f"the check failed: {type(error).__name__}")
         else:
             check = CarbonCheck(
                 read=tuple(seen.read or ()),
@@ -161,7 +173,7 @@ class CarbonChecked:
             )
         if check.failed is not None:
             log.warning("Carbon did not check %s: %s", source.path, check.failed)
-        return found.model_copy(update={"carbon_check": check})
+        return check
 
 
 def _why(notes: Sequence[str]) -> str:

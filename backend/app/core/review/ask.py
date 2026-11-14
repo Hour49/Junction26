@@ -149,6 +149,7 @@ def ask(
     disputes: Disputes = no_disputes,
     no_reader: bool = False,
     scorers: Mapping[str, Scorer] = NO_SCORERS,
+    carbon_ladder: bool = False,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -163,7 +164,9 @@ def ask(
     `sure_at`'s: true exactly when it certifies the answer, None on every answer it does not rate
     (a refusal, a question with no takeoff row), so an answer is never shown sure and asked
     about at once. The answer's `level` comes from the same verdict (check.level_of): High
-    exactly when sure; none on a value a person signed or settled, which is theirs."""
+    exactly when sure; none on a value a person signed or settled, which is theirs. With
+    `carbon_ladder` (CARBON_LEVELS=ladder) a Medium answer Carbon read the same is High and asks
+    nothing, yet stays not `sure`: Carbon never certifies an answer."""
     quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
@@ -258,8 +261,12 @@ def ask(
                 carbon = carbon_answer(
                     question, drawing, drawing.carbon_check, parser, clock, prior, prior_families
                 )
-                level = carbon_checked(level, drawing.carbon_check, carbon, answer.answer)
-        if not sure:
+                # a disagreement the gate found (`agrees`) is not settled by Carbon agreeing
+                ladder = carbon_ladder and agrees is not False
+                level = carbon_checked(
+                    level, drawing.carbon_check, carbon, answer.answer, ladder=ladder
+                )
+        if not sure and not (level is not None and level.level == "high"):
             if reason is None and agrees is False:
                 reason = disagree(shown)
             request = double_check(shown, marks, disputes(drawing, shown), reason)

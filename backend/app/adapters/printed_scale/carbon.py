@@ -11,9 +11,12 @@ Per sheet, page 1 of the image file:
    furthest apart, their values in metres and their points. The crop is sent as the contract sends
    any image (`jpeg`: at most 3072 px, so a bar on a 14000 px sheet keeps its pixels).
 
-Calls go through `CarbonModel` (CarbonClient: GEMINI_API_KEY, the spend guard, the trace's cost)
-one after the other on the reading thread. Each checked reply is cached as a whole under a name
-that holds the pixel sha256 of the image sent and the prompt's sha. A failed call (an HTTP error,
+Calls go through `CarbonModel` (CarbonClient: GEMINI_API_KEY, the spend guard, the trace's cost).
+Calls 1 and 2 run at the same time (app/adapters/beside.py), then 3 on the reading thread; their
+notes keep that order. Call 1 is looked up, asked and cached inside the page file's `flight`, so
+the Carbon reader reading the same sheet at the same time does not pay for it twice. Each checked
+reply is cached as a whole under a name that holds the pixel sha256 of the image sent and the
+prompt's sha. A failed call (an HTTP error,
 the budget used up, a reply that is not the form) is not cached: what it would have given is left
 out and a note says why. Prompts and schemas are the ones measured in
 prototypes/printed-scale/measure.py (22/22 Swiss Dwellings dev PNGs within 0.33% of gold).
@@ -28,7 +31,9 @@ from typing import Any
 
 from PIL import Image
 
+from app.adapters.beside import beside
 from app.adapters.carbon import contract
+from app.adapters.carbon.flight import flight
 from app.adapters.carbon.reader import CarbonModel, jpeg
 from app.adapters.eight_bit import eight_bit
 from app.adapters.raster_ocr.gemini import GeminiError, pixel_digest, reply_text
@@ -108,8 +113,11 @@ class CarbonPrinted:
         with Image.open(io.BytesIO(self._files.read(source.path))) as image:
             page = eight_bit(image).convert("RGB")
         notes: list[str] = []
-        form = self._ask("page", page, notes)
-        bars_form = self._ask("bars", page, notes)
+        bars_notes: list[str] = []  # after the page call's, as when they ran one after the other
+        form, bars_form = beside(
+            lambda: self._ask("page", page, notes), lambda: self._ask("bars", page, bars_notes)
+        )
+        notes.extend(bars_notes)
         text = form.get("printed_scale") if form is not None else None
         if not text and bars_form is not None:
             text = bars_form.get("printed_scale")
@@ -137,30 +145,32 @@ class CarbonPrinted:
         digest = pixel_digest(image)
         name = contract.cache_name("page", digest) if kind == "page" else cache_name(kind, digest)
         path = None if self._cache is None else self._cache / name
-        check = {"page": contract.check_page, "bars": check_bars, "ticks": check_ticks}[kind]
-        if path is not None and path.is_file():
+        shared = path if kind == "page" else None  # the Carbon reader asks it too
+        with flight(shared):
+            check = {"page": contract.check_page, "bars": check_bars, "ticks": check_ticks}[kind]
+            if path is not None and path.is_file():
+                try:
+                    return check(json.loads(reply_text(json.loads(path.read_text()))))
+                except (ValueError, GeminiError, AttributeError, TypeError, KeyError, IndexError):
+                    pass  # a cached file that does not parse is a miss
+            prompt, schema, tokens = {
+                "page": (contract.PAGE_PROMPT, contract.PAGE_SCHEMA, contract.PAGE_MAX_TOKENS),
+                "bars": (BARS_PROMPT, BARS_SCHEMA, MAX_TOKENS),
+                "ticks": (TICKS_PROMPT, TICKS_SCHEMA, MAX_TOKENS),
+            }[kind]
             try:
-                return check(json.loads(reply_text(json.loads(path.read_text()))))
-            except (ValueError, GeminiError, AttributeError, TypeError, KeyError, IndexError):
-                pass  # a cached file that does not parse is a miss
-        prompt, schema, tokens = {
-            "page": (contract.PAGE_PROMPT, contract.PAGE_SCHEMA, contract.PAGE_MAX_TOKENS),
-            "bars": (BARS_PROMPT, BARS_SCHEMA, MAX_TOKENS),
-            "ticks": (TICKS_PROMPT, TICKS_SCHEMA, MAX_TOKENS),
-        }[kind]
-        try:
-            answer = self._model.generate(jpeg(image), prompt, schema, tokens)
-            form = check(json.loads(reply_text(answer)))
-        except GeminiError as error:
-            notes.append(f"printed scale: the {kind} call failed: {error}")
-            return None
-        except (ValueError, AttributeError, TypeError, KeyError, IndexError) as error:
-            said = str(error) if isinstance(error, ValueError) else type(error).__name__
-            notes.append(f"printed scale: the {kind} reply is not the form: {said}")
-            return None
-        if path is not None:
-            write_whole(path, json.dumps(answer, ensure_ascii=False))
-        return form
+                answer = self._model.generate(jpeg(image), prompt, schema, tokens)
+                form = check(json.loads(reply_text(answer)))
+            except GeminiError as error:
+                notes.append(f"printed scale: the {kind} call failed: {error}")
+                return None
+            except (ValueError, AttributeError, TypeError, KeyError, IndexError) as error:
+                said = str(error) if isinstance(error, ValueError) else type(error).__name__
+                notes.append(f"printed scale: the {kind} reply is not the form: {said}")
+                return None
+            if path is not None:
+                write_whole(path, json.dumps(answer, ensure_ascii=False))
+            return form
 
 
 def _padded(box: Frac) -> Frac:
