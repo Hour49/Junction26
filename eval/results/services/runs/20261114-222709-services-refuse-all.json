@@ -1,29 +1,29 @@
 {
- "recorded_at": "2026-11-14T20:56:53+02:00",
- "commit": "f88abb0",
+ "recorded_at": "2026-11-14T22:27:09+02:00",
+ "commit": "b0421b1",
  "dirty": true,
  "name": "services refuse all",
- "note": "every question refused with one fixed reason: the floor",
+ "note": "every question refused with one fixed reason: the floor (SV-11 + downstream_unknown, graph v3)",
  "split": "dev",
- "questions_sha256": "fd3bd2962deff73e15dccca33d2a545a130b2e804ad4350d1a2ef66145fe3922",
+ "questions_sha256": "5a49520a82ec442d2fad1f4d35c448b7927cc0c45201f39630c6fc9a33c0e090",
  "report": {
   "overall": {
-   "n": 1036,
-   "right": 188,
-   "rate": 0.18146718146718147
+   "n": 1120,
+   "right": 260,
+   "rate": 0.23214285714285715
   },
   "refusal": {
-   "unanswerable": 188,
-   "refused": 188,
+   "unanswerable": 260,
+   "refused": 260,
    "reason_right": 72,
-   "false_refusals": 848
+   "false_refusals": 860
   },
   "by": {
    "template": {
     "circuit_of": {
-     "n": 68,
-     "right": 20,
-     "rate": 0.29411764705882354
+     "n": 76,
+     "right": 28,
+     "rate": 0.3684210526315789
     },
     "controllers_between": {
      "n": 52,
@@ -31,9 +31,9 @@
      "rate": 0.0
     },
     "cut_off": {
-     "n": 36,
-     "right": 0,
-     "rate": 0.0
+     "n": 112,
+     "right": 64,
+     "rate": 0.5714285714285714
     },
     "dead_ends": {
      "n": 60,
@@ -88,14 +88,14 @@
    },
    "anchor": {
     "descriptive": {
-     "n": 208,
-     "right": 32,
-     "rate": 0.15384615384615385
+     "n": 236,
+     "right": 48,
+     "rate": 0.2033898305084746
     },
     "id": {
-     "n": 468,
-     "right": 156,
-     "rate": 0.3333333333333333
+     "n": 524,
+     "right": 212,
+     "rate": 0.40458015267175573
     },
     "none": {
      "n": 360,
@@ -105,37 +105,37 @@
    },
    "phrasing": {
     "held-out": {
-     "n": 518,
-     "right": 94,
-     "rate": 0.18146718146718147
+     "n": 560,
+     "right": 130,
+     "rate": 0.23214285714285715
     },
     "seen": {
-     "n": 518,
-     "right": 94,
-     "rate": 0.18146718146718147
+     "n": 560,
+     "right": 130,
+     "rate": 0.23214285714285715
     }
    },
    "hops": {
     "2": {
-     "n": 796,
-     "right": 188,
-     "rate": 0.23618090452261306
+     "n": 804,
+     "right": 196,
+     "rate": 0.24378109452736318
     },
     "3": {
-     "n": 240,
-     "right": 0,
-     "rate": 0.0
+     "n": 316,
+     "right": 64,
+     "rate": 0.20253164556962025
     }
    },
    "answerable": {
     "answerable": {
-     "n": 848,
+     "n": 860,
      "right": 0,
      "rate": 0.0
     },
     "unanswerable": {
-     "n": 188,
-     "right": 188,
+     "n": 260,
+     "right": 260,
      "rate": 1.0
     }
    }

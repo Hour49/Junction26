@@ -2,13 +2,22 @@
 IFC model's port graph, asked by exact id and by description, plus questions the model cannot
 answer (the truth is a refusal with its reason), scored per template, anchor and phrasing.
 
-- Graph: `services_graph_v1`, written per model by `eval/services_backend.py` in backend/'s
-  environment (nodes from the backend's element reader, edges from raw IfcRelConnectsPorts).
+- Graph: `services_graph_v3`, written per model by `eval/services_backend.py` in backend/'s
+  environment (nodes from the backend's element reader, edges from raw IfcRelConnectsPorts, with
+  the direction an edge's two ports state: SOURCE -> SINK).
 - Truth: computed here, in plain Python, sharing no code with the backend's graph operations
   (those come later, slice 2), so agreement between the two means something.
 - Equipment ("a source"): an energy conversion, flow moving, flow storage or flow treatment
   device, an electric distribution element, or a Revit Mechanical / Electrical / Plumbing
   Equipment category (some exports write their units as controllers or proxies).
+- The definitions follow the services-model spec (SV-11): equipment pieces that touch form one
+  unit; a walk passes pumps and fans and stops at any other equipment it reaches; "what feeds X"
+  is the set of equipment units X's walk reaches, the heat or air sources among them when there
+  are any; "what closing a valve cuts off" follows the stated flow and needs a stated direction
+  on at least 90% of the ports of the valve's systems, and every outlet of the valve and of what
+  it passes must feed a stated inlet: an outlet with no stated direction, or with nothing
+  connected (often a connection the export lost), hides what lies beyond, so the truth is a
+  refusal.
 - An element's handle: its Revit family (the type name before ":") and its Revit id (the
   trailing ":<id>" of its IFC Name, else its STEP id). A description names the family plus the
   top floor, a storey or a system, and is used only when it fits exactly one element.
@@ -50,6 +59,8 @@ class GraphNode(_Model):
     size: str | None
     ports: int
     connected: int
+    directed: int  # ports whose flow direction is stated: SOURCE or SINK
+    sinks: int  # ports stated SINK: the element's inlets
     panel: str | None
     circuit: str | None
     systems: tuple[str, ...]
@@ -61,11 +72,12 @@ class GraphStorey(_Model):
 
 
 class ServicesGraph(_Model):
-    schema_: Literal["services_graph_v1"] = Field(alias="schema")
+    schema_: Literal["services_graph_v3"] = Field(alias="schema")
     model: str
     storeys: tuple[GraphStorey, ...]
     nodes: tuple[GraphNode, ...]
     edges: tuple[tuple[str, str], ...]
+    flow: tuple[tuple[str, str], ...]  # (upstream, downstream): the edges whose ports state it
     system_types: dict[str, str | None]
 
 
@@ -99,18 +111,22 @@ SRC_GROUPS = (
     "flow_treatment_device",
 )  # fmt: skip
 SRC_CATS = ("Mechanical Equipment", "Electrical Equipment", "Plumbing Equipment")
+INLINE = "flow_moving_device"  # pumps and fans: a walk passes them
+# a storage device that heats (a hot-water cylinder) is a heat source too, in the languages seen
+HEATS = re.compile(r"heat|heiz|w[aä]rm|boiler|kessel|calorifier|verwarm|chauff", re.IGNORECASE)
 ELECTRIC_KINDS = ("light_fixture", "outlet", "switching_device", "electric_appliance", "lamp")
 SETS = ("s1", "s2", "h1", "h2")
 SEEN = ("s1", "s2")
 
 MEANINGS = {
-    "terminals_served": "flow terminals reached from the equipment without passing through other "
-    "equipment",
-    "farthest_terminal": "of those terminals, the one farthest along the run (each hop weighs half "
-    "of each end's segment length); a tie goes to the lowest Revit id",
-    "feeds": "the equipment fewest port hops away from the element; asked only when one is nearest",
-    "trace": "elements reached from the equipment without passing through other equipment (the "
-    "equipment it stops at included, itself not)",
+    "terminals_served": "flow terminals the walk from the equipment's unit reaches (a walk passes "
+    "pumps and fans and stops at any other equipment)",
+    "farthest_terminal": "of those terminals, the one with the most metres of run on the way "
+    "(the summed lengths of the segments passed); a tie goes to the lowest Revit id",
+    "feeds": "every piece of the equipment units the element's walk reaches; only the units with a "
+    "heat or air source when any has one",
+    "trace": "elements the walk from the equipment's unit reaches, the equipment it stops at "
+    "included, the unit itself not",
     "run_length_source": "the summed segment length of those elements, in metres",
     "run_length_system": "the summed segment length of the system's members, in metres",
     "system_storeys": "the storeys the system's members are on",
@@ -121,16 +137,21 @@ MEANINGS = {
     "unconnected": "elements of that kind on exactly that storey with ports, none connected",
     "controllers_between": "the valves and dampers on the shortest port path between the two "
     "elements; asked only when that path is unique",
-    "cut_off": "elements connected to the valve that lose every path to the named element when the "
-    "valve is removed",
+    "cut_off": "elements the valve's outlet reaches along the stated flow (passing pumps and fans, "
+    "stopping at other equipment, which counts); asked only when the valve's systems state a "
+    "direction on at least 90% of their ports and every outlet of the valve and of what it "
+    "passes feeds a stated inlet",
     "circuit_of": "the Revit panel and circuit number the element's properties state, as "
-    "panel/circuit",
+    "panel/circuit; a missing panel or a placeholder ('<unnamed>') is not stated",
 }
 REASONS = {
     "no_connectivity": "the model states no port connections at all",
     "unconnected": "the element has no connected port",
-    "no_source": "the element's network holds no equipment",
-    "no_circuit_data": "no element of the model states a panel or circuit",
+    "no_source": "the element's walk reaches no equipment",
+    "no_circuit_data": "the model states no panel and circuit for the element",
+    "no_flow": "the valve's systems state a flow direction on fewer than 90% of their ports",
+    "downstream_unknown": "an outlet of the valve or of what it passes has no stated direction or "
+    "nothing connected, so the model cannot say what lies beyond",
 }
 
 KIND_WORDS = {
@@ -157,9 +178,9 @@ TEMPLATES: dict[str, tuple[int, tuple[str, str, str, str]]] = {
         "run?",
         "What's the most remote end device, measured along the run, on the {eq}'s network?")),
     "feeds": (2, (
-        "Which piece of equipment feeds the {el}?",
-        "What is the nearest upstream equipment of the {el}?",
-        "Trace the {el} back: which unit supplies it?",
+        "Which equipment feeds the {el}?",
+        "What equipment supplies the {el}?",
+        "Trace the {el} back: which unit or units supply it?",
         "Where does the {el} get its supply from, i.e. which equipment is it hooked up to?")),
     "trace": (2, (
         "How many elements are connected downstream of the {eq}?",
@@ -204,10 +225,10 @@ TEMPLATES: dict[str, tuple[int, tuple[str, str, str, str]]] = {
         "Walking the network from the {a} to the {b}, which valves or dampers do I pass?",
         "What valves/dampers sit in line between the {a} and the {b}?")),
     "cut_off": (3, (
-        "If the {valve} is closed, how many elements are cut off from the {src}?",
-        "How many components lose their connection to the {src} when the {valve} is shut?",
-        "Closing the {valve}: how many parts on the far side from the {src} get isolated?",
-        "Seen from the {src}, how many elements does shutting the {valve} isolate?")),
+        "If the {valve} is closed, how many elements downstream of it lose their supply?",
+        "How many components are cut off downstream when the {valve} is shut?",
+        "Closing the {valve}: how many parts after it, in the direction of flow, get isolated?",
+        "Shutting the {valve} isolates how many elements on its outlet side?")),
     "circuit_of": (2, (
         "Which panel and circuit serve the {dev}?",
         "What panel/circuit number feeds the {dev}?",
@@ -221,7 +242,7 @@ def _family(type_name: str) -> str:
 
 
 class Net:
-    """The truth over one model's graph (undirected port connections)."""
+    """The truth over one model's graph: undirected port connections, plus the stated flow."""
 
     def __init__(self, graph: ServicesGraph) -> None:
         self.graph = graph
@@ -231,6 +252,22 @@ class Net:
             if a in self.nodes and b in self.nodes and a != b:
                 self.adj[a].add(b)
                 self.adj[b].add(a)
+        self.down: dict[str, set[str]] = defaultdict(set)
+        self.fed = Counter(a for a, _ in graph.flow)  # outlets feeding a stated inlet
+        for a, b in graph.flow:
+            if a in self.nodes and b in self.nodes and a != b:
+                self.down[a].add(b)
+        self.units: dict[str, frozenset[str]] = {}  # equipment pieces that touch: one unit
+        for g in self.nodes:
+            if self.src(g) and g not in self.units:
+                unit, todo = {g}, deque([g])
+                while todo:
+                    for w in self.adj[todo.popleft()]:
+                        if w not in unit and self.src(w):
+                            unit.add(w)
+                            todo.append(w)
+                self.units |= dict.fromkeys(unit, frozenset(unit))
+        self._stated: dict[tuple[str, ...], bool] = {}  # flow_stated per set of systems
         self.members: dict[str, list[str]] = defaultdict(list)
         for n in graph.nodes:
             for system in dict.fromkeys(n.systems):
@@ -252,19 +289,35 @@ class Net:
             or n.category in SRC_CATS
         )
 
-    def reach(self, s: str, avoid: str | None = None, stop_at_src: bool = True) -> set[str]:
-        """s and every element reached from it, never entering `avoid`; with stop_at_src, other
-        equipment is reached but not walked through."""
-        seen, todo = {s}, deque([s])
+    def unit(self, guid: str) -> frozenset[str]:
+        return self.units.get(guid, frozenset({guid}))
+
+    def stops(self, guid: str) -> bool:
+        """Equipment a walk reaches but does not pass: all but pumps and fans."""
+        return self.src(guid) and self.nodes[guid].group != INLINE
+
+    def walk(self, starts: frozenset[str], edges: Mapping[str, set[str]] | None = None) -> set[str]:
+        """What a walk from `starts` reaches over `edges` (the undirected connections by
+        default), the starts left out: it passes pumps and fans and stops at other equipment."""
+        edges = self.adj if edges is None else edges
+        seen, todo = set(starts), deque(starts)
         while todo:
             v = todo.popleft()
-            if stop_at_src and v != s and self.src(v):
+            if v not in starts and self.stops(v):
                 continue
-            for w in self.adj[v]:
-                if w not in seen and w != avoid:
+            for w in edges.get(v, ()):
+                if w not in seen:
                     seen.add(w)
                     todo.append(w)
-        return seen
+        return seen - starts
+
+    def heats(self, guid: str) -> bool:
+        """A heat or air source: an energy conversion device (boiler, chiller, heat pump, air
+        handling unit) or a storage device whose type says it heats."""
+        n = self.nodes[guid]
+        return n.group == "energy_conversion_device" or (
+            n.group == "flow_storage_device" and bool(HEATS.search(n.type_name))
+        )
 
     def hops(self, s: str, cutoff: int | None = None) -> dict[str, int]:
         dist, todo = {s: 0}, deque([s])
@@ -279,21 +332,22 @@ class Net:
         return dist
 
     def trace(self, s: str) -> int:
-        return len(self.reach(s)) - 1
+        return len(self.walk(self.unit(s)))
 
     def terminals_served(self, s: str) -> int:
-        return sum(self.nodes[g].group == "flow_terminal" for g in self.reach(s) - {s})
+        return sum(self.nodes[g].group == "flow_terminal" for g in self.walk(self.unit(s)))
 
-    def feeds(self, s: str) -> tuple[int | None, int]:
-        """(Revit id of the nearest equipment, how many equipment tie at that distance)."""
-        found = sorted((h, g) for g, h in self.hops(s).items() if g != s and self.src(g))
-        if not found:
-            return None, 0
-        tied = [g for h, g in found if h == found[0][0]]
-        return self.rid(tied[0]), len(tied)
+    def feeds(self, s: str) -> list[int] | None:
+        """Sorted Revit ids of every piece of the units reached (the heat or air source units
+        when there are any); None when the walk reaches no equipment."""
+        units = {self.unit(g) for g in self.walk(self.unit(s)) if self.src(g)}
+        if not units:
+            return None
+        heat = [u for u in units if any(self.heats(g) for g in u)]
+        return sorted(self.rid(g) for u in (heat or units) for g in u)
 
     def run_length(self, s: str | None = None, system: str | None = None) -> float:
-        guids = self.reach(s) if s is not None else self.members.get(system or "", [])
+        guids = self.walk(self.unit(s)) if s is not None else self.members.get(system or "", [])
         return round(sum(self.nodes[g].length_m or 0.0 for g in guids), 3)
 
     def controllers_between(self, a: str, b: str) -> tuple[list[int] | None, int, bool]:
@@ -323,7 +377,8 @@ class Net:
 
     def circuit_of(self, guid: str) -> str | None:
         n = self.nodes[guid]
-        return None if n.panel is None and n.circuit is None else f"{n.panel}/{n.circuit}"
+        stated = [x for x in (n.panel, n.circuit) if x and x.strip() and not x.startswith("<")]
+        return f"{n.panel}/{n.circuit}" if len(stated) == 2 else None
 
     def unconnected(self, kind: str, storey: str) -> int:
         return sum(
@@ -341,28 +396,48 @@ class Net:
         )
 
     def farthest_terminal(self, s: str) -> int | None:
-        r = self.reach(s)
-        w = {g: self.nodes[g].length_m or 0.0 for g in r}
-        dist, heap = {s: 0.0}, [(0.0, s)]
+        """Dijkstra over the walk's elements; entering an element adds its length."""
+        start = self.unit(s)
+        inside = self.walk(start) | start
+        dist = dict.fromkeys(start, 0.0)
+        heap = [(0.0, g) for g in sorted(start)]
         while heap:
             d, v = heapq.heappop(heap)
-            if d > dist[v]:
+            if d > dist[v] or (v not in start and self.stops(v)):
                 continue
-            for x in self.adj[v]:
-                nd = d + (w[v] + w.get(x, 0.0)) / 2
-                if x in r and nd < dist.get(x, float("inf")) - 1e-12:
+            for x in self.adj[v] & inside:
+                nd = d + (self.nodes[x].length_m or 0.0)
+                if nd < dist.get(x, float("inf")) - 1e-12:
                     dist[x] = nd
                     heapq.heappush(heap, (nd, x))
-        terms = [
-            (dist[g], -self.rid(g))
-            for g in dist
-            if g != s and self.nodes[g].group == "flow_terminal"
-        ]
+        terms = [(dist[g], -self.rid(g)) for g in dist if self.nodes[g].group == "flow_terminal"]
         return -max(terms)[1] if terms else None
 
-    def cut_off(self, valve: str, source: str) -> int:
-        keep = self.reach(source, avoid=valve, stop_at_src=False)
-        return len(self.reach(valve, stop_at_src=False) - {valve} - keep)
+    def flow_stated(self, valve: str) -> bool:
+        """At least 90% of the ports of the valve's systems (its network when it is in none)
+        state a flow direction."""
+        systems = self.nodes[valve].systems
+        if systems in self._stated:
+            return self._stated[systems]
+        around = {g for s in systems for g in self.members[s]} if systems else set(self.hops(valve))
+        ports = sum(self.nodes[g].ports for g in around)
+        stated = ports > 0 and sum(self.nodes[g].directed for g in around) >= 0.9 * ports
+        if systems:  # a valve in no system is judged on its own network: not cached
+            self._stated[systems] = stated
+        return stated
+
+    def cut_off(self, valve: str) -> tuple[int | None, str | None]:
+        """(elements downstream of the valve along the stated flow, None) or (None, the reason
+        the model cannot say: `no_flow`, `downstream_unknown`)."""
+        if not self.flow_stated(valve):
+            return None, "no_flow"
+        down = self.walk(frozenset({valve}), self.down)
+        for g in {valve} | {d for d in down if not self.stops(d)}:
+            # every port is an inlet or an outlet that feeds a stated inlet; any other port is an
+            # outlet with no stated direction or nothing connected
+            if self.nodes[g].sinks + self.fed[g] < self.nodes[g].ports:
+                return None, "downstream_unknown"
+        return len(down), None
 
     def handle(self, guid: str) -> str:
         return f"{_family(self.nodes[guid].type_name)} (Revit id {self.rid(guid)})"
@@ -424,11 +499,9 @@ def _answerable(net: Net, rng: random.Random) -> list[_Item]:
                     net.terminals_served(v), None))  # fmt: skip
         out.append(("farthest_terminal", "farthest_terminal", {"source": rid}, {"eq": v}, {},
                     net.farthest_terminal(v), None))  # fmt: skip
-    terms = {t for v in serving for t in net.reach(v) if nodes[t].group == "flow_terminal"}
+    terms = {t for v in serving for t in net.walk(net.unit(v)) if nodes[t].group == "flow_terminal"}
     for t in _sample(rng, terms, 10):
-        rid, tied = net.feeds(t)
-        if tied == 1:
-            out.append(("feeds", "feeds", {"element": net.rid(t)}, {"el": t}, {}, rid, None))
+        out.append(("feeds", "feeds", {"element": net.rid(t)}, {"el": t}, {}, net.feeds(t), None))
     big = [v for v in srcs if v not in serving and net.trace(v) >= 3]
     for v in _sample(rng, big, 6) + _sample(rng, serving, 3):
         rid = net.rid(v)
@@ -483,18 +556,12 @@ def _answerable(net: Net, rng: random.Random) -> list[_Item]:
     valves = [g for g in nodes if nodes[g].group == "flow_controller" and len(net.adj[g]) >= 2
               and not net.src(g)]  # fmt: skip
     cuts = 0
-    for v in _sample(rng, valves, 200):
+    for v in _sample(rng, [v for v in valves if net.flow_stated(v)], 200):
         if cuts >= 6:
             break
-        # the source side is the nearest meter (some exports never connect their equipment)
-        meters = sorted((h, x) for x, h in net.hops(v).items()
-                        if x != v and "meter" in nodes[x].type_name.lower())  # fmt: skip
-        if meters and (len(meters) == 1 or meters[0][0] < meters[1][0]):
-            src = meters[0][1]
-            if c := net.cut_off(v, src):
-                out.append(("cut_off", "cut_off", {"valve": net.rid(v), "source": net.rid(src)},
-                            {"valve": v, "src": src}, {}, c, None))  # fmt: skip
-                cuts += 1
+        if c := net.cut_off(v)[0]:
+            out.append(("cut_off", "cut_off", {"valve": net.rid(v)}, {"valve": v}, {}, c, None))
+            cuts += 1
     devs = [g for g in nodes if net.circuit_of(g)]
     for v in _sample(rng, devs, 10):
         out.append(("circuit_of", "circuit_of", {"device": net.rid(v)}, {"dev": v}, {},
@@ -519,12 +586,22 @@ def _unanswerable(net: Net, rng: random.Random) -> list[_Item]:
         for v in _sample(rng, [g for g in srcs if not nodes[g].connected], 5):
             out.append(("terminals_served", "terminals_served", {"equipment": net.rid(v)},
                         {"eq": v}, {}, None, "unconnected"))  # fmt: skip
-        alone = [t for t in terms if nodes[t].connected and net.feeds(t)[0] is None]
+        alone = [t for t in terms if nodes[t].connected and net.feeds(t) is None]
         for t in _sample(rng, alone, 5):
             out.append(("feeds", "feeds", {"element": net.rid(t)}, {"el": t}, {}, None,
                         "no_source"))  # fmt: skip
+    valves = [g for g in nodes if nodes[g].group == "flow_controller" and len(net.adj[g]) >= 2
+              and not net.src(g)]  # fmt: skip
+    why = {v: net.cut_off(v)[1] for v in valves}
+    for reason in ("no_flow", "downstream_unknown"):
+        for v in _sample(rng, [v for v in valves if why[v] == reason], 3):
+            out.append(("cut_off", "cut_off", {"valve": net.rid(v)}, {"valve": v}, {}, None,
+                        reason))  # fmt: skip
     if not any(net.circuit_of(g) for g in nodes):
         devs = [g for g in nodes if nodes[g].kind in ELECTRIC_KINDS]
+    else:  # a device that states part of its circuit only (no panel, "<unnamed>")
+        devs = [g for g in nodes if (nodes[g].panel or nodes[g].circuit) and not net.circuit_of(g)]
+    if devs:
         for v in _sample(rng, devs, 5):
             out.append(("circuit_of", "circuit_of", {"device": net.rid(v)}, {"dev": v}, {},
                         None, "no_circuit_data"))  # fmt: skip

@@ -163,14 +163,19 @@ run length and storeys, systems crossing floors, open ends, unconnected elements
 elements, what closing a valve cuts off, the panel and circuit of a device. Code: `stoa_eval/services.py`
 (truth, generator, scorer; each template's meaning in `MEANINGS`), `services_cli.py`, and
 `services_backend.py`, which reads each model in backend/'s environment (the backend's element reader;
-edges from raw IfcRelConnectsPorts) into a plain JSON graph. The truth is computed in eval and shares no
-code with the backend's graph operations.
+edges from raw IfcRelConnectsPorts, with the flow direction their ports state) into a plain JSON graph.
+The truth is computed in eval and shares no code with the backend's graph operations. Its definitions
+are the services-model spec's (SV-11): equipment pieces that touch are one unit; a walk passes pumps and
+fans and stops at other equipment; "what feeds X" is the set of units reached, the heat or air sources
+among them when there are any; "what closing a valve cuts off" follows the stated flow and needs a stated
+direction on at least 90% of the ports of the valve's systems, and every outlet of the valve and of what it
+passes must feed a stated inlet (an outlet with no stated direction, or an open one, hides what lies beyond).
 
 - Anchors: an element by Revit family and id (`id`), or by a description that fits exactly one element:
   family on the top floor, on a storey, or in a system (`descriptive`). Questions with no element have
   `none`. These are scored apart.
 - Unanswerable questions: the truth is a refusal with a reason (`no_connectivity`, `unconnected`,
-  `no_source`, `no_circuit_data`). Refusing is right; refusing an answerable question is wrong.
+  `no_source`, `no_circuit_data`, `no_flow`, `downstream_unknown`). Refusing is right; refusing an answerable question is wrong.
 - Four phrasings per question: s1, s2 `seen` (a parser may be tuned on them), h1, h2 `held-out`.
 - Split by building (the model stem minus its `_<discipline>`), from a manifest
   `{"dev": [...], "heldout": [...]}`. Held-out buildings are scored only with `--milestone`.

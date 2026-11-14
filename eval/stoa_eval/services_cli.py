@@ -2,7 +2,8 @@
 
 services-gen MODEL.ifc ... --manifest M.json [--out DIR]
     each model's graph (`services_backend.py` in backend/'s environment, cached in
-    DIR/graphs/<stem>.json; a model that fails to parse is skipped and named), then
+    DIR/graphs/<stem>.json and rebuilt when its schema is older; a model that fails to parse
+    is skipped and named), then
     DIR/questions.jsonl (every split, each row with its split) and DIR/oracle.jsonl (the
     truth as answers, which scores 100 %). DIR defaults to data/stoa/services (gitignored:
     the questions name the dataset's models and elements).
@@ -44,7 +45,10 @@ def run_gen(args: argparse.Namespace) -> None:
     for ifc in args.ifc:
         split = split_of(ifc.stem, manifest)
         graph_path = args.out / "graphs" / f"{ifc.stem}.json"
-        if not graph_path.exists():
+        if (
+            not graph_path.exists()
+            or json.loads(graph_path.read_text("utf-8")).get("schema") != "services_graph_v3"
+        ):  # an older graph lacks what today's truth reads
             try:
                 backend.run(
                     "graph", "--ifc", str(ifc.resolve()), "--out", str(graph_path.resolve()),

@@ -4,7 +4,7 @@ ifcopenshell; tests/test_services_ifc.py starts it). Millimetres; two storeys, L
     AHU:Big:101 (L2) -port- Duct:Rect:102 (2 m) -port- Damper:FD:103 -port- Duct:Rect:104 (3 m, L1)
     -port- Grille:G:105 (L1)
     Fan:F:106 (L1): one port, not connected.   Lamp:L:107 (L1): Panel P1, Circuit Number 3.
-    System SA1 (Supply Air): the AHU's chain.
+    System SA1 (Supply Air): the AHU's chain, each connection SOURCE -> SINK downstream.
 
 usage: make_services_ifc.py OUT.ifc
 """
@@ -42,8 +42,8 @@ def pset(element: Any, name: str, **props: Any) -> None:
     )
 
 
-def port(element: Any) -> Any:
-    p = rooted("IfcDistributionPort")
+def port(element: Any, flow: str = "NOTDEFINED") -> Any:
+    p = rooted("IfcDistributionPort", FlowDirection=flow)
     rooted("IfcRelNests", RelatingObject=element, RelatedObjects=[p])
     return p
 
@@ -71,7 +71,7 @@ def main(out: str) -> None:
         add("IfcAirTerminal", "Grille:G:105", l1),
     ]
     for a, b in itertools.pairwise(chain):
-        rooted("IfcRelConnectsPorts", RelatingPort=port(a), RelatedPort=port(b))
+        rooted("IfcRelConnectsPorts", RelatingPort=port(a, "SOURCE"), RelatedPort=port(b, "SINK"))
     port(add("IfcFan", "Fan:F:106", l1))
     lamp = add("IfcLightFixture", "Lamp:L:107", l1)
     pset(lamp, "Electrical", Panel="P1", **{"Circuit Number": "3"})

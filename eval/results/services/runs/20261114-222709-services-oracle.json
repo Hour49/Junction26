@@ -1,28 +1,28 @@
 {
- "recorded_at": "2026-11-14T20:56:53+02:00",
- "commit": "f88abb0",
+ "recorded_at": "2026-11-14T22:27:09+02:00",
+ "commit": "b0421b1",
  "dirty": true,
  "name": "services oracle",
- "note": "truth as answers; must be 100%",
+ "note": "truth as answers (SV-11 + downstream_unknown, graph v3); must be 100%",
  "split": "dev",
- "questions_sha256": "fd3bd2962deff73e15dccca33d2a545a130b2e804ad4350d1a2ef66145fe3922",
+ "questions_sha256": "5a49520a82ec442d2fad1f4d35c448b7927cc0c45201f39630c6fc9a33c0e090",
  "report": {
   "overall": {
-   "n": 1036,
-   "right": 1036,
+   "n": 1120,
+   "right": 1120,
    "rate": 1.0
   },
   "refusal": {
-   "unanswerable": 188,
-   "refused": 188,
-   "reason_right": 188,
+   "unanswerable": 260,
+   "refused": 260,
+   "reason_right": 260,
    "false_refusals": 0
   },
   "by": {
    "template": {
     "circuit_of": {
-     "n": 68,
-     "right": 68,
+     "n": 76,
+     "right": 76,
      "rate": 1.0
     },
     "controllers_between": {
@@ -31,8 +31,8 @@
      "rate": 1.0
     },
     "cut_off": {
-     "n": 36,
-     "right": 36,
+     "n": 112,
+     "right": 112,
      "rate": 1.0
     },
     "dead_ends": {
@@ -88,13 +88,13 @@
    },
    "anchor": {
     "descriptive": {
-     "n": 208,
-     "right": 208,
+     "n": 236,
+     "right": 236,
      "rate": 1.0
     },
     "id": {
-     "n": 468,
-     "right": 468,
+     "n": 524,
+     "right": 524,
      "rate": 1.0
     },
     "none": {
@@ -105,37 +105,37 @@
    },
    "phrasing": {
     "held-out": {
-     "n": 518,
-     "right": 518,
+     "n": 560,
+     "right": 560,
      "rate": 1.0
     },
     "seen": {
-     "n": 518,
-     "right": 518,
+     "n": 560,
+     "right": 560,
      "rate": 1.0
     }
    },
    "hops": {
     "2": {
-     "n": 796,
-     "right": 796,
+     "n": 804,
+     "right": 804,
      "rate": 1.0
     },
     "3": {
-     "n": 240,
-     "right": 240,
+     "n": 316,
+     "right": 316,
      "rate": 1.0
     }
    },
    "answerable": {
     "answerable": {
-     "n": 848,
-     "right": 848,
+     "n": 860,
+     "right": 860,
      "rate": 1.0
     },
     "unanswerable": {
-     "n": 188,
-     "right": 188,
+     "n": 260,
+     "right": 260,
      "rate": 1.0
     }
    }

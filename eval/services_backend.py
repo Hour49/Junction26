@@ -1,5 +1,5 @@
 """The backend half of `stoa_eval services-gen`: runs in backend/'s environment (ifcopenshell) and
-writes one IFC model's services graph as plain JSON (`services_graph_v1`), which eval's own truth
+writes one IFC model's services graph as plain JSON (`services_graph_v3`), which eval's own truth
 code (`stoa_eval.services`) reads. `stoa_eval` starts it; nobody needs to call it by hand.
 
     graph --ifc MODEL.ifc --out GRAPH.json
@@ -9,6 +9,9 @@ code (`stoa_eval.services`) reads. `stoa_eval` starts it; nobody needs to call i
   connected-port count and a Revit `Panel` / `Circuit Number` when a property set states one.
 - Edges: raw IfcRelConnectsPorts, each port's host found here (IFC2X3 ContainedIn, IFC4 Nests),
   not through `ifcopenshell.util.system`, so the truth shares no edge code with the backend.
+- Flow: an edge whose ports state SOURCE and SINK, as (upstream, downstream); per element, how
+  many of its ports state a direction (SOURCE or SINK, not SOURCEANDSINK or none) and how many
+  are inlets (SINK).
 - Storeys with their elevation in metres; each system's type (IfcSystem ObjectType, else the
   first member's `System Type` property).
 """
@@ -42,23 +45,32 @@ def _said(props: dict[str, Any], key: str) -> str | None:
 def graph(ifc: Path) -> dict[str, Any]:
     model = ifcopenshell.open(str(ifc))
     scale = _unit_scales(model)["LENGTHUNIT"]
-    ports, connected = {}, set()
+    ports, flows, connected = {}, {}, set()
     for port in model.by_type("IfcDistributionPort"):
         host = _host(port)
         ports[port.id()] = None if host is None else host.GlobalId
-    edges = []
+        flows[port.id()] = port.FlowDirection
+    edges, flow = [], []
     for rel in model.by_type("IfcRelConnectsPorts"):
         a, b = rel.RelatingPort.id(), rel.RelatedPort.id()
         connected |= {a, b}
         ha, hb = ports.get(a), ports.get(b)
         if ha and hb and ha != hb:
             edges.append((ha, hb))
+            if (flows.get(a), flows.get(b)) == ("SOURCE", "SINK"):
+                flow.append((ha, hb))
+            elif (flows.get(a), flows.get(b)) == ("SINK", "SOURCE"):
+                flow.append((hb, ha))
     nports: dict[str, int] = {}
     nconn: dict[str, int] = {}
+    ndir: dict[str, int] = {}
+    nsink: dict[str, int] = {}
     for pid, host in ports.items():
         if host:
             nports[host] = nports.get(host, 0) + 1
             nconn[host] = nconn.get(host, 0) + (pid in connected)
+            ndir[host] = ndir.get(host, 0) + (flows[pid] in ("SOURCE", "SINK"))
+            nsink[host] = nsink.get(host, 0) + (flows[pid] == "SINK")
     types = {s.Name: s.ObjectType for s in model.by_type("IfcSystem") if s.Name}
     nodes = []
     for e in mep_elements(model):
@@ -73,7 +85,8 @@ def graph(ifc: Path) -> dict[str, Any]:
             "guid": e.guid, "step": entity.id(), "name": e.name, "type_name": e.type_name,
             "kind": e.kind, "group": e.group, "category": e.category, "storey": e.storey,
             "length_m": e.length_m, "size": e.size, "ports": nports.get(e.guid, 0),
-            "connected": nconn.get(e.guid, 0), "panel": panel, "circuit": circuit,
+            "connected": nconn.get(e.guid, 0), "directed": ndir.get(e.guid, 0),
+            "sinks": nsink.get(e.guid, 0), "panel": panel, "circuit": circuit,
             "systems": list(e.systems),
         })  # fmt: skip
     storeys = [
@@ -82,8 +95,8 @@ def graph(ifc: Path) -> dict[str, Any]:
         if s.Name
     ]
     return {
-        "schema": "services_graph_v1", "model": ifc.stem, "storeys": storeys, "nodes": nodes,
-        "edges": edges, "system_types": types,
+        "schema": "services_graph_v3", "model": ifc.stem, "storeys": storeys, "nodes": nodes,
+        "edges": edges, "flow": flow, "system_types": types,
     }  # fmt: skip
 
 
