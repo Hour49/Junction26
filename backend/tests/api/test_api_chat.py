@@ -317,3 +317,14 @@ def test_answers_3_robust_4_lc6_lc14_the_model_is_told_the_country_on_every_turn
     assert "Country chosen by the person: Finland" in fi and "(pack fi)" in fi
     assert "search_law(pack='fi'" in fi  # the pack's law contents (AC-9)
     assert none.endswith(NO_COUNTRY)
+
+
+def test_robust_10_ac2_a_sideways_drag_gets_the_true_reason_on_the_rules_planner(
+    client: TestClient, walled: tuple[str, str]
+) -> None:
+    project, drawing = walled
+    line = {"id": "sel_1", "kind": "region", "drawing_id": drawing, "page": 1,
+            "box": [0.40, 0.30, 0.47, 0.30]}  # fmt: skip
+    turn = ask(client, project, "Put a storage room here", selection=[line])
+    assert turn["kind"] == "dont_know" and "line, not an area" in turn["text"], turn["text"]
+    assert [step["tool"] for step in turn["steps"]] == ["propose_room"]

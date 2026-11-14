@@ -73,6 +73,8 @@ function Text({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
         </a>
       ) : x.kind === 'b' ? (
         <b key={i}>{cites(x.text)}</b>
+      ) : x.kind === 'em' ? (
+        <em key={i}>{cites(x.text)}</em>
       ) : (
         <span key={i}>{cites(x.text)}</span>
       ),

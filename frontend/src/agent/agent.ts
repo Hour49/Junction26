@@ -42,7 +42,7 @@ export function splitCites(text: string, ns: number[]): (string | number)[] {
 
 export type Block = { kind: 'p' | 'ul' | 'ol'; lines: string[]; start?: number };
 export type Inline =
-  { kind: 'text' | 'b'; text: string } | { kind: 'a'; text: string; href: string };
+  { kind: 'text' | 'b' | 'em'; text: string } | { kind: 'a'; text: string; href: string };
 
 /** The model's text as paragraphs and "- " / "1. " lists (answers-1); headings and quote marks dropped. */
 export function blocksOf(text: string): Block[] {
@@ -64,16 +64,20 @@ export function blocksOf(text: string): Block[] {
   return out;
 }
 
-/** A line's **bold** runs and [text](url) links (http(s) only, else the text); backticks and stray ** dropped. */
+/** A line's **bold** and *italic* / _italic_ runs (lawai-4; `_` only at word edges, so snake_case stays) and
+ * [text](url) links (http(s) only, else the text); backticks and stray ** dropped. */
 export function inlineOf(line: string): Inline[] {
   const out: Inline[] = [];
-  const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  const re =
+    /\*\*(.+?)\*\*|\*(?![\s*])([^*]+?)(?<!\s)\*|(?<!\w)_(?![\s_])([^_]+?)(?<!\s)_(?!\w)|\[([^\]]+)\]\(([^)\s]+)\)/g;
   const plain = (s: string) => s.replace(/`|\*\*/g, '');
   let at = 0;
   for (const m of line.matchAll(re)) {
     if (m.index > at) out.push({ kind: 'text', text: plain(line.slice(at, m.index)) });
-    const [, bold, label, href] = m;
+    const [, bold, star, under, label, href] = m;
     if (bold !== undefined) out.push({ kind: 'b', text: plain(bold) });
+    else if ((star ?? under) !== undefined)
+      out.push({ kind: 'em', text: plain(star ?? under ?? '') });
     else if (href && /^https?:\/\//.test(href))
       out.push({ kind: 'a', text: plain(label ?? href), href });
     else out.push({ kind: 'text', text: plain(label ?? '') });
@@ -127,6 +131,22 @@ export function centreOf(poly: Point[]): Point {
   const xs = poly.map((p) => p[0]);
   const ys = poly.map((p) => p[1]);
   return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+}
+
+/** The overlay's room badges, grouped where they would land on each other (rerun-lawcheck-1: a box cut from a
+ * room's bottom edge puts both badges under that edge). Each group sits under its first room's lowest point, at
+ * its centre x kept off the page edge; its badges stack below one another. */
+export function badgeGroups(rooms: RoomChange[]): { x: number; y: number; rooms: RoomChange[] }[] {
+  const groups: { x: number; y: number; rooms: RoomChange[] }[] = [];
+  for (const r of rooms) {
+    const x = Math.min(Math.max(centreOf(r.polygon)[0], 0.1), 0.9);
+    const y = Math.max(...r.polygon.map((q) => q[1]));
+    // shortcut: "near" is in page fractions (a badge is up to 220 px wide); measure the badges if this misfires
+    const near = groups.find((g) => Math.abs(g.x - x) < 0.5 && Math.abs(g.y - y) < 0.05);
+    if (near) near.rooms.push(r);
+    else groups.push({ x, y, rooms: [r] });
+  }
+  return groups;
 }
 
 /** The bounding box of every polygon the proposal draws, in page fractions. */

@@ -114,3 +114,34 @@ def test_edits_6_ac6_step_labels_in_plain_words_and_a_refused_proposal_is_a_fail
         Model(room_step(), final(text="Done.")), Tools(propose_room={"status": "ok"})
     ).steps
     assert (ok.label, ok.status) == ("Proposed a room Storage in the drawn area", "ok")
+
+
+# QA rerun minors
+def test_rerun_edits_n1_ac6_no_selection_or_proposal_id_reaches_the_text() -> None:
+    from app.core.agent.loop import _plain_ids  # pyright: ignore[reportPrivateUsage]
+
+    said = (
+        "I placed it (sel_1); accept or reject the proposal p1, then ask again for sel_2 (sel_2)."
+    )
+    assert _plain_ids(said) == (
+        "I placed it; accept or reject the proposal, then ask again for the second area you drew."
+    )
+    assert (
+        _plain_ids("sel_0 and sel_12, p2.")
+        == "an area you drew and an area you drew, the proposal."
+    )
+    assert "Never write selection ids (sel_1) or proposal ids (p1)" in SYSTEM
+
+
+def test_rerun_edits_n2_ac6_a_missing_argument_still_gives_plain_words() -> None:
+    walls = step(call("propose_remove_wall", room_a="R1", room_b="R2"))
+    got = turn(Model(walls, final(text="Done.")), Tools(propose_remove_wall={"status": "ok"}))
+    assert got.steps[0].label == "Proposed removing a wall"
+    no_wall = {"status": "refused", "reason": "no wall"}
+    refused = turn(Model(walls, final(kind="dont_know", text="No.")),
+                   Tools(propose_remove_wall=no_wall))  # fmt: skip
+    assert refused.steps[0].label == "Could not remove a wall"
+    other = turn(Model(step(call("list_walls", page=1)), step(call("made_up_tool", n=2)),
+                       final(text="Done.")),
+                 Tools(list_walls={"status": "ok"}, made_up_tool={"status": "ok"}))  # fmt: skip
+    assert [s.label for s in other.steps] == ["Listed the walls of a drawing", "Made up tool"]

@@ -105,13 +105,18 @@ def _final(
     return "final_answer", {"kind": kind, "text": text[:1200], "evidence_ids": cited, **more}
 
 
+REGION = re.compile(r"^sel_\d+: (?:region\b|a line .*, not an area$)")
+
+
 def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     if turn.done and turn.done[-1][0] == "final_answer":  # the validator refused it
         return _final("dont_know", UNBACKED)
     words = turn.message.lower()
     if STRUCTURE.search(words):
         return _final("dont_know", LOAD)
-    regions = [line.split(":")[0] for line in turn.selections if "region" in line]
+    # a drawn area, or a sideways drag described as "a line ..., not an area" (QA robust-10):
+    # propose_room gives the true reason for that one
+    regions = [line.split(":")[0] for line in turn.selections if REGION.search(line)]
     if regions and ROOM.search(words) and "propose_room" in offered:
         found = turn.result("propose_room")
         if found is None:

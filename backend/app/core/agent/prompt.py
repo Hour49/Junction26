@@ -45,6 +45,8 @@ a verdict on the law. Say "would not meet" or "meets".
 with >, [text](url) links). Write a clause's url as it is.
 - When ask_drawings marks a quantity as a conflict, the answer is kind conflict: say the \
 sources disagree, in one sentence, and cite both.
+- Never write selection ids (sel_1) or proposal ids (p1) in the text: say "the area you \
+drew", "the second area", "this change".
 - End every turn with exactly one final_answer call.
 """
 

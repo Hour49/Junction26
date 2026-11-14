@@ -4,7 +4,7 @@ import { PageFrame } from '../viewer/PageFrame';
 import '../viewer/viewer.css';
 import {
   areaChange,
-  centreOf,
+  badgeGroups,
   changeLines,
   extentOf,
   pointsOf,
@@ -80,20 +80,20 @@ function Overlay({ p, hatch }: { p: Proposal; hatch: string }) {
           <polygon key={g.id} className="ag-added" points={pointsOf(g.polygon)} {...line} />
         ))}
       </svg>
-      {p.rooms.map((r) => {
-        // Under the room, not over it, and kept off the page edge.
-        const x = Math.min(Math.max(centreOf(r.polygon)[0], 0.1), 0.9);
-        const y = Math.max(...r.polygon.map((q) => q[1]));
-        return (
-          <span
-            key={r.id}
-            className="ag-badge"
-            style={{ left: `${String(x * 100)}%`, top: `${String(y * 100)}%` }}
-          >
-            {r.label} · {areaChange(r)}
-          </span>
-        );
-      })}
+      {badgeGroups(p.rooms).map((g) => (
+        // Under the room, not over it; badges that would overlap stack in one column.
+        <span
+          key={g.rooms[0]?.id}
+          className="ag-badges"
+          style={{ left: `${String(g.x * 100)}%`, top: `${String(g.y * 100)}%` }}
+        >
+          {g.rooms.map((r) => (
+            <span key={r.id} className="ag-badge">
+              {r.label} · {areaChange(r)}
+            </span>
+          ))}
+        </span>
+      ))}
     </>
   );
 }

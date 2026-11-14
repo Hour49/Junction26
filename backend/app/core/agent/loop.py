@@ -72,6 +72,28 @@ FAILED_LABELS = {
     "propose_remove_wall": "Could not remove wall {wall_id}",
     "propose_room": "Could not place a room {name} in the drawn area",
 }
+# The label when an argument it names is missing (QA rerun-edits-n2); a tool in neither: its name
+PLAIN = {
+    "list_drawings": "Listed the project's drawings",
+    "ask_drawings": "Asked the drawings",
+    "get_takeoff": "Read the quantities of a drawing",
+    "list_conflicts": "Listed the project's conflicts",
+    "list_issues": "Listed the project's issues",
+    "run_checks": "Checked the drawings against a rule pack",
+    "get_plan_geometry": "Read the rooms and walls of a drawing",
+    "list_walls": "Listed the walls of a drawing",
+    "propose_remove_wall": "Proposed removing a wall",
+    "propose_room": "Proposed a room in the drawn area",
+    "search_law": "Searched the law",
+    "get_clause": "Read a law clause",
+    "search_evidence": "Searched the evidence",
+    "get_evidence": "Read a piece of evidence",
+}
+FAILED_PLAIN = {
+    "propose_remove_wall": "Could not remove a wall",
+    "propose_room": "Could not place a room in the drawn area",
+}
+ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth")
 
 
 class _EndedError(Exception):
@@ -343,7 +365,11 @@ class _Run:
         self.failures.append(failed(found))
         self.chat.results.append({"tool": name, "arguments": arguments, "result": found})
         bad = self.failures[-1]  # an error, or refused / cannot_edit / unknown (QA edits-6)
-        label = self._label(name, arguments, FAILED_LABELS if bad else LABELS)
+        label = (
+            self._label(name, arguments, FAILED_LABELS, FAILED_PLAIN)
+            if bad
+            else self._label(name, arguments)
+        )
         self.steps.append(Step(n=len(self.steps) + 1, tool=name, label=label,
                                status="error" if bad else "ok", ms=ms))  # fmt: skip
         self._reply(call, text if isinstance(found, str) else _for_model(found))
@@ -382,14 +408,20 @@ class _Run:
             shown.append(message)
         return shown
 
-    def _label(self, name: str, arguments: str, labels: Mapping[str, str] = LABELS) -> str:
+    def _label(
+        self,
+        name: str,
+        arguments: str,
+        labels: Mapping[str, str] = LABELS,
+        plain: Mapping[str, str] = PLAIN,
+    ) -> str:
         try:
             args = json.loads(arguments)
-            drawing = args.get("drawing_id", "")
-            args["drawing"] = self.names.get(drawing) or f"drawing {drawing[:6]}"
+            if drawing := args.get("drawing_id"):
+                args["drawing"] = self.names.get(drawing) or f"drawing {drawing[:6]}"
             return (labels.get(name) or LABELS[name]).format_map(args)
         except (KeyError, ValueError, AttributeError, TypeError):
-            return name
+            return plain.get(name) or PLAIN.get(name) or name.replace("_", " ").capitalize()
 
     def _turn_of(self, answer: FinalAnswer) -> ChatTurn:
         # The sources are the places the text cites, in its order; evidence_ids only when the
@@ -399,6 +431,7 @@ class _Run:
         text = re.sub(r"\[?(ev_\d+)\]?", lambda found: f"[{number[found[1]]}]", answer.text)
         for drawing_id, file in self._files():  # a drawing by its plain name, not its file
             text = text.replace(file, self.names.get(drawing_id) or file)
+        text = _plain_ids(text)
         kind: TurnKind = answer.kind
         answers = self._answers(set(cited), kind)
         if kind == "answer" and any(_conflicted(given) for given in answers):
@@ -477,6 +510,18 @@ def _refused(asked: Json) -> bool:
     parts: list[Json] = asked.get("parts") or []
     answers: list[Json] = [part.get("answer") or {} for part in parts]
     return any(answer.get("refusal") for answer in answers)
+
+
+def _plain_ids(text: str) -> str:
+    """`text` without selection and proposal ids (QA rerun-edits-n1): "(sel_2)" goes, "sel_2"
+    reads "the second area you drew", "proposal p1" / "p1" reads "the proposal"."""
+    text = re.sub(r"\s*\((?:sel_\d+|p\d+)\)", "", text)
+    text = re.sub(r"\bsel_(\d+)\b", lambda found: _area(int(found[1])), text)
+    return re.sub(r"\b(?:(?:the|this) )?(?:proposal )?p\d+\b", "the proposal", text)
+
+
+def _area(n: int) -> str:
+    return f"the {ORDINALS[n - 1]} area you drew" if 1 <= n <= len(ORDINALS) else "an area you drew"
 
 
 def _conflicted(asked: Json) -> bool:
