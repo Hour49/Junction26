@@ -84,7 +84,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `quantity.key` | "Query: `<key>`" in the details |
 | `quantity.status` | the status in words (table in States); never colour alone |
 | `quantity.rule.text`, `quantity.rule.id` | "Counting rule: <text>", the id in small text |
-| `quantity.first`, `quantity.second`, `quantity.conflict`, `quantity.needs_person`, `quantity.settled`, `quantity.estimate`, `quantity.original_value`, `quantity.signed` | the checks panel (States) |
+| `quantity.first`, `quantity.second`, `quantity.conflict`, `quantity.needs_person`, `quantity.settled`, `quantity.estimate`, `quantity.original_value`, `quantity.signed` | the checks panel; measuring methods (`second.method`, `conflict.values[].method`: API ids such as `polygon_x_scale`) shown by the shared `methodName()`, never raw; the Details "Method: <method>" line (the answer's `takeoff`/`schedule`/`refused:…`) stays as sent (States) |
 | `quantity.measure` | the viewer's `measure` prop (badges carry values unless `count`) |
 | `quantity.conflict` | the viewer's `conflict` prop (tags A, B on the page, viewer.md) and the checks panel |
 | `quantity` null with `refusal` null | a schedule answer: no rule or checks panel; the proof's schedule table shows instead |
@@ -156,9 +156,9 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | Answer, building model | `answer_model.json` | value `2`, no viewer; `ModelProof` with "Door 1", "Door 2", their storey and GlobalId, the storey table, the arithmetic line |
 | Answer, schedule | see Open points (no fixture yet) | the string answer, the schedule table, no rule or checks panel |
 | Verified | derived: `answer.json` with `quantity.status: "signed"`, `quantity.signed: {"by": "Ana", "at": "2026-11-14T01:40:00Z", "value": 2}` | status "Verified", "Verified by Ana, 2026-11-14 01:40 UTC" next to the value |
-| Methods disagree, rule decides | derived: `answer.json` with `quantity` = `takeoff.json` `quantities[0]`, `answer` 30.0, `unit` "m2" | status "Methods disagree"; both values "22.40 m² by polygon_x_scale", "30.00 m² by printed_label"; "Kept 30.00 m²: the printed label over the outline at the sheet's scale" |
+| Methods disagree, rule decides | derived: `answer.json` with `quantity` = `takeoff.json` `quantities[0]`, `answer` 30.0, `unit` "m2" | status "Methods disagree"; both values "22.40 m² by <methodName(polygon_x_scale)>", "30.00 m² by <methodName(printed_label)>"; "Kept 30.00 m²: the printed label over the outline at the sheet's scale" |
 | Methods disagree, nobody decided | the above with `conflict.resolution: null`, `needs_person: true` | as above, and instead of "Kept": "No rule decides. A surveyor has to settle it before this value can be used." |
-| Methods agree | derived: `answer.json` with `status: "agree"`, `first: {"method": "plan_drawing", "value": 2}`, `second: {"method": "ifc_model", "value": 2}` | status "Two methods agree"; "Second method (ifc_model): 2, agrees" |
+| Methods agree | derived: `answer.json` with `status: "agree"`, `first: {"method": "plan_drawing", "value": 2}`, `second: {"method": "ifc_model", "value": 2}` | status "Two methods agree"; "Second method (<methodName(ifc_model)>): 2, agrees" |
 | One method | `answer.json` (`first`/`second` null) | "Measured by one method; no second check." |
 | Estimate | derived: `answer.json` with `status: "estimate"`, `estimate: "scale estimated from a door width"` | status "Estimate"; "Estimate: scale estimated from a door width" |
 | Edited in review | derived: `answer.json` with `status: "edited"`, `value`/`answer` 1, `original_value` 2, mark m2 `state: "rejected"`, `n: null` | status "Changed in review"; "Changed in review, was 2"; mark list row "× door rejected by a surveyor" |
@@ -235,9 +235,9 @@ Answers
 Checks and review state
 - EN-31 Each status shows its word: signed "Verified", conflict "Methods disagree", estimate "Estimate", edited "Changed in review", agree "Two methods agree", single "One method". [component, `answer.json` and its derived variants]
 - EN-32 A signed answer shows "Verified by Ana, 2026-11-14 01:40 UTC" next to the value. [component, derived signed `answer.json`]
-- EN-33 A conflict shows both values with their methods, "22.40 m² by polygon_x_scale" and "30.00 m² by printed_label", and "Kept 30.00 m²: the printed label over the outline at the sheet's scale". [component, derived conflict]
+- EN-33 A conflict shows both values with their methods' plain names from the shared `methodName()`, "22.40 m² by <methodName("polygon_x_scale")>" and "30.00 m² by <methodName("printed_label")>", never the raw ids, and "Kept 30.00 m²: the printed label over the outline at the sheet's scale". [component, derived conflict]
 - EN-34 With `conflict.resolution` null and `needs_person` true it shows "No rule decides. A surveyor has to settle it before this value can be used." and no "Kept" line. [component, derived conflict]
-- EN-35 `status: "agree"` shows "Second method (ifc_model): 2, agrees"; `first`/`second` null shows "Measured by one method; no second check.". [component, derived agree, `answer.json`]
+- EN-35 `status: "agree"` shows "Second method (<methodName("ifc_model")>): 2, agrees" (not the raw id); `first`/`second` null shows "Measured by one method; no second check.". [component, derived agree, `answer.json`]
 - EN-36 An estimate shows "Estimate: scale estimated from a door width". [component, derived estimate]
 - EN-37 An edited answer shows "Changed in review, was 2" and the rejected mark row "× door rejected by a surveyor"; an added mark (derived: `{"id": "a1", "n": 3, "state": "added", "label": null, "ref": null, "polygon": null, …}`) shows "+3 item added by a surveyor". [component, derived edited]
 - EN-38 A settled value shows "Settled by a surveyor at 2026-11-14 01:30 UTC: 22.40 m²". [component, derived settled]
@@ -273,7 +273,6 @@ Thread and pages
   the model score as a probability or percent, or a "sure" cutoff (the score is uncalibrated).
 - Editing marks, settling or signing off from this screen: the surveyor view does that.
 - The mock's "Where this came from" list of several files per drawing: API v1 gives one `reader.source`.
-- Readable names for method slugs (`polygon_x_scale`): shown as sent.
 - A model-object 3D view, or fetching `GET /api/drawings/{id}/model`.
 
 ## Open points

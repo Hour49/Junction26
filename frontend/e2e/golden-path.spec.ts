@@ -2,6 +2,7 @@
 // live backend, at the project's viewport, with a screenshot of every screen.
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { methodName } from '../src/api/format';
 import { noKeys, shot, watchErrors } from './support';
 
 const AREA = 'What is the net floor area of room 1.01?';
@@ -83,8 +84,8 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     const area = turn(AREA);
     await expect(area.getByTestId('answer-value')).toHaveText('30.00 m²');
     await expect(area).toContainText('Methods disagree');
-    await expect(area).toContainText('22.40 m² by polygon_x_scale');
-    await expect(area).toContainText('30.00 m² by printed_label');
+    await expect(area).toContainText(`22.40 m² by ${methodName('polygon_x_scale')}`);
+    await expect(area).toContainText(`30.00 m² by ${methodName('printed_label')}`);
     await expect(area.getByRole('button', { name: 'Mark 1: Küche, counted' })).toHaveCount(1);
     // EN-43: the newest turn is scrolled into view
     await expect(area).toBeInViewport({ ratio: 0.2 });
@@ -124,7 +125,9 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
   const kitchen = row(page, 'area of room (name 1.01)');
   await test.step('GP-10 step 9: settle on the drawn outline', async () => {
     await kitchen.getByRole('button', { name: 'area of room (name 1.01)', exact: true }).click();
-    await page.getByRole('button', { name: 'Keep A: 22.40 m² (polygon_x_scale)' }).click();
+    await page
+      .getByRole('button', { name: `Keep A: 22.40 m² (${methodName('polygon_x_scale')})` })
+      .click();
     await expect(kitchen).toContainText('22.40 m²');
     await expect(kitchen).toContainText('Changed in review');
     await expect(page.getByText(/Settled at 22\.40 m²/).first()).toBeVisible();

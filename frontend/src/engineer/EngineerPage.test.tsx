@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { AnswerView } from '../api';
+import { methodName, type AnswerView } from '../api';
 import {
   answer,
   answerArea,
@@ -320,10 +320,13 @@ describe('answers', () => {
     expect(within(c).getByText('Methods disagree')).toBeTruthy();
   });
 
-  it('EN-33 a conflict shows both values with their methods and the kept one', async () => {
+  it('R3 EN-33 a conflict shows both values with plain method names and the kept one', async () => {
     const t = await shown(answerConflict);
-    expect(within(t).getByText('22.40 m² by polygon_x_scale')).toBeTruthy();
-    expect(within(t).getByText('30.00 m² by printed_label')).toBeTruthy();
+    expect(within(t).getByText(`22.40 m² by ${methodName('polygon_x_scale')}`)).toBeTruthy();
+    expect(within(t).getByText(`30.00 m² by ${methodName('printed_label')}`)).toBeTruthy();
+    // The checks panel is this screen's; the viewer's conflict legend is fe-viewer's.
+    const checks = t.querySelector('.en-checks')?.textContent ?? '';
+    expect(checks).not.toMatch(/polygon_x_scale|printed_label/);
     expect(
       within(t).getByText("Kept 30.00 m²: the printed label over the outline at the sheet's scale"),
     ).toBeTruthy();
@@ -678,7 +681,10 @@ describe('extended answers', () => {
 
   it('EN-35 agree shows the second method; single says one method', async () => {
     const t = await shownTurn(answerAgree);
-    expect(within(t).getByText('Second method (ifc_model): 2, agrees')).toBeTruthy();
+    expect(
+      within(t).getByText(`Second method (${methodName('ifc_model')}): 2, agrees`),
+    ).toBeTruthy();
+    expect(t.querySelector('.en-checks')?.textContent).not.toContain('ifc_model');
     cleanup();
     const s = await shownTurn(answer);
     expect(within(s).getByText('Measured by one method; no second check.')).toBeTruthy();
@@ -705,7 +711,7 @@ describe('extended answers', () => {
 
   it('EN-38 a settled value replaces the Kept line', async () => {
     const t = await shownTurn(answerSettled);
-    expect(within(t).getByText('30.00 m² by printed_label')).toBeTruthy();
+    expect(within(t).getByText(`30.00 m² by ${methodName('printed_label')}`)).toBeTruthy();
     expect(within(t).queryByText(/^Kept /)).toBeNull();
   });
 
