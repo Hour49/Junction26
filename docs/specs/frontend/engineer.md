@@ -112,10 +112,12 @@ drawing `credit` (the answer has none), `highlighted` = the hovered or focused m
 
 Requested by the viewer, not by this screen (viewer.md picks the width).
 
-### `GET /api/drawings/{drawing_id}/evidence.png?question=&width=1600` (API.md "Answering")
+### `GET /api/drawings/{drawing_id}/evidence.png?question=&width=1600&project=<project_id>` (API.md "Answering")
 
 Not fetched by the screen: the "Picture of this answer" link's `href`, built by the shared client's
-`evidenceUrl(drawing_id, question)` (shared.md; `question` encoded by `encodeURIComponent`), `target="_blank"`,
+`evidenceUrl(drawing_id, question, {project: projectId})` (shared.md; `question` encoded by `encodeURIComponent`;
+`project` = the route's project id, since review edits and sign-offs are per project (backend #90) and the picture
+must show this project's), `target="_blank"`,
 `rel="noopener"`. Shown only on a non-refused answer with `confidence` null: the image still prints the old
 probability line, so it stays hidden for an answer with a model score until the backend drops that line (shared.md
 Open point 5).
@@ -227,7 +229,7 @@ Answers
 - EN-26 "Where this came from" shows "PDF vector reader read plans/flat-a.pdf (vector route), no second count" for `answer.json` (`second_counter: "none"`), and "PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model" with `second_counter: "ifc"`. [component, `answer.json`, derived `answer.json`]
 - EN-27 "Details" is collapsed by default, its summary in the footer row with Drawing, Cost and Time (the row aligns items on the baseline); opened it shows "Query: door" and "Method: takeoff"; with `explanation` null no "How:" line. [component, `answer.json`]
 - EN-28 A building-model answer shows no viewer; it shows a table with "Door 1", "Ground floor", "000000000000000000000K", a storey table row "Ground floor" with door 2, window 3, and the line "2 door objects in the model on Ground floor". Each table sits in a wrapper that scrolls sideways (`overflow-x: auto`), and its cells do not break inside words (`overflow-wrap: normal`, `word-break: normal`). [component, `answer_model.json`]
-- EN-29 "Picture of this answer" links to `/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600` and opens a new tab when `confidence` is null; with the `confidence` object set there is no "Picture of this answer" link. [component, `answer.json`, `answer_confidence.json` or its derived form]
+- EN-29 "Picture of this answer" links to `/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600&project=5e0c1a2b3d4f` (the route's project) and opens a new tab when `confidence` is null; with the `confidence` object set there is no "Picture of this answer" link. [component, `answer.json`, `answer_confidence.json` or its derived form]
 - EN-30 "Send to surveyor" links to `#/p/<project_id>/d/adeefbbcc17559fc/surveyor?q=door` (built with the shared `routeHref`; derived conflict: `?q=area%3Aroom%7Cname%3D1.01`), surveyor.md Open point 4. Absent when `quantity` is null. [component, `answer.json`, derived conflict]
 
 Checks and review state

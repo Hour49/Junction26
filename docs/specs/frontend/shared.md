@@ -120,7 +120,7 @@ URL builders (no request; for `<img src>` and `<a href download>`):
 | `pageUrl(drawingId, page: number, width: PageWidth = 1600)` | `/api/drawings/{drawing_id}/pages/{page}.png?width={width}` |
 | `previewUrl(projectId, fileId, width: PageWidth = 1600)` | `/api/projects/{project_id}/files/{file_id}/preview.png?width={width}` |
 | `takeoffCsvUrl(drawingId, opts?: {zeros?, project?})` | `/api/drawings/{drawing_id}/takeoff.csv[?zeros=][&project=]` |
-| `evidenceUrl(drawingId, question: string, width: PageWidth = 1600)` | `/api/drawings/{drawing_id}/evidence.png?question={question}&width={width}` (API.md "GET …/evidence.png"; `question` encoded by `encodeURIComponent`) |
+| `evidenceUrl(drawingId, question: string, opts: {width?: PageWidth, project?: string} = {})` | `/api/drawings/{drawing_id}/evidence.png?question={question}&width={width, default 1600}[&project={project_id}]` (API.md "GET …/evidence.png"; `question` encoded by `encodeURIComponent`; `project` from a screen inside a project, so the picture carries that project's review edits and sign-offs, backend #90) |
 
 `PageWidth = 400 | 1600 | 3200` (API.md: thumbnail, view, zoom), so another width does not type-check. The width is
 always in the URL, the default included, so the browser cache sees one URL per image. Which width to load for a
@@ -314,7 +314,9 @@ API client
   `@ts-expect-error`). [unit]
 - SH-30 `previewUrl("5e0c1a2b3d4f", "f2", 400)` is `/api/projects/5e0c1a2b3d4f/files/f2/preview.png?width=400`;
   `evidenceUrl("adeefbbcc17559fc", "How many doors are there?")` is
-  `/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600`. [unit]
+  `/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600`; with
+  `{project: "5e0c1a2b3d4f"}` the same URL ends in `&width=1600&project=5e0c1a2b3d4f`, and with `{width: 400}` in
+  `&width=400`. [unit]
 - SH-31 A 404 with `error.json`'s body rejects with `ApiError` `status` 404, `code` `not-found`, `detail` "no drawing
   0123456789abcdef", `message` "no drawing 0123456789abcdef (not-found)". [unit]
 - SH-32 A 422 body with `errors` keeps them in `ApiError.errors`. [unit]

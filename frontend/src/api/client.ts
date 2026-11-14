@@ -149,5 +149,15 @@ export const takeoffCsvUrl = (
     project: opts.project,
   });
 
-export const evidenceUrl = (drawingId: string, question: string, width: PageWidth = 1600) =>
-  withQuery(`/api/drawings/${seg(drawingId)}/evidence.png`, { question, width });
+/** `project`: the project the screen shows the answer in, so the picture carries its review edits and
+ * sign-offs (backend #90). */
+export const evidenceUrl = (
+  drawingId: string,
+  question: string,
+  opts: { width?: PageWidth; project?: string } = {},
+) =>
+  withQuery(`/api/drawings/${seg(drawingId)}/evidence.png`, {
+    question,
+    width: opts.width ?? 1600,
+    project: opts.project,
+  });

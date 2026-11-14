@@ -166,8 +166,16 @@ describe('API client', () => {
       '/api/projects/5e0c1a2b3d4f/files/f2/preview.png?width=400',
     );
     // encodeURIComponent: a space is %20 (the spec's `+` is the same query to the server)
+    const doors =
+      '/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F';
     expect(evidenceUrl('adeefbbcc17559fc', 'How many doors are there?')).toBe(
-      '/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600',
+      `${doors}&width=1600`,
+    );
+    expect(
+      evidenceUrl('adeefbbcc17559fc', 'How many doors are there?', { project: '5e0c1a2b3d4f' }),
+    ).toBe(`${doors}&width=1600&project=5e0c1a2b3d4f`);
+    expect(evidenceUrl('adeefbbcc17559fc', 'How many doors are there?', { width: 400 })).toBe(
+      `${doors}&width=400`,
     );
   });
 
