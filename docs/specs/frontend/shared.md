@@ -92,7 +92,7 @@ As in every design's `<header>`, without the avatar (common brief: not built). T
   sets the shown name and closes the popover; nothing else happens: no request, no rule, no storage (a reload shows
   the first country again). Escape or a click outside closes it; Escape returns focus to the button. The countries
   come from `src/shell/pending.ts` (below), Finland first.
-- Under the header row, the info strip as today (offline text, "What runs"; SH-15 to SH-20 unchanged), restyled:
+- Under the header row, the info strip as today (offline text only; SH-15 to SH-20), restyled:
   `13px`, `--v-warn` on `--v-warn-soft` for the offline sentence, the strip itself transparent, same max-width as
   the header row.
 - Phone (≤720 px): the row wraps: logo + name + "Workspaces" on the first line, the project picker (growing) and
@@ -360,7 +360,7 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
   6px padding) and "Vellum" 26px/700, letter-spacing -0.025em; Workspaces pill as `.pill-link` (`rgba(0,0,0,0.04)`
   fill, 980px radius, min-height 48px, 600); at ≤720 px the logo is 36px (padding 5px, radius 10px) and "Vellum"
   22px. Focus ring 3px `--v-accent`, offset 2px (was 2px; SH-58). The badge has a 2px `--v-surface` ring. The
-  offline strip and "What runs" stay (no-keys honesty; the demo has neither). The header stays solid (`--v-surface`, Open point 23 decided), not the demo's glass.
+  offline strip stays (no-keys honesty; the demo has neither). The header stays solid (`--v-surface`, Open point 23 decided), not the demo's glass.
 
 ### Plain drawing names (#201)
 
@@ -428,15 +428,14 @@ Tests: `*.test.ts(x)` next to each file above. [e2e] criteria are built by the e
 
 1. The user opens the app at `#/` (or any deep link). The header shows "Vellum", the project picker and,
    below it, the info strip "Checking the server…" until `GET /api/info` answers; then "Running offline: no API
-   keys, no models" with a "What runs" disclosure. The route's screen fills the rest.
+   keys, no models" (no strip at all with keys). The route's screen fills the rest.
 2. The user picks a project in the picker: the hash becomes `#/p/<project_id>` and the ingest screen shows it.
 3. On a drawing route (`#/p/<pid>/d/<did>/engineer` or `/surveyor`) the header shows three links, Ingest, Engineer,
    Surveyor; the current one is marked. Clicking Surveyor while on Engineer changes the hash to the same drawing's
    surveyor route; Ingest goes to `#/p/<pid>`.
-4. The user opens "What runs": each reader port with its reader; a `hello` reader reads "not read".
-5. The user types an unknown hash (`#/nope`, or an id with the wrong pattern): the not-found view says nothing is
+4. The user types an unknown hash (`#/nope`, or an id with the wrong pattern): the not-found view says nothing is
    there and links back to the start.
-6. The backend stops: the strip says "The server did not answer" with the `detail` and `code` and a Retry button;
+5. The backend stops: the strip says "The server did not answer" with the `detail` and `code` and a Retry button;
    the screens show their own error views, built from the shared `ErrorView`.
 
 ## API calls
@@ -445,14 +444,10 @@ The shell calls two endpoints itself; the client covers every endpoint of API.md
 
 **`GET /api/info`** (API.md "GET /api/info"). Once when the app starts, and again on Retry in the info strip. Fields:
 
-- `no_keys`: true → the strip shows "Running offline: no API keys, no models" on every route. false → no offline
-  text, the strip shows only the "What runs" disclosure.
-- `readers` (port → reader name): listed in "What runs" in the order the object gives, port labels from
-  `strings.ts`: `bim` "BIM model", `cad` "CAD (DXF)", `vector` "Vector PDF", `raster` "Scans and photos",
-  `tables` "Tables and schedules", `second_counter` "Second count", `rectifier` "Photo rectifier",
-  `question_parser` "Questions", `answer_prior` "Answer prior", `decisions_kind` "photo/sheet check" (its value `True`/`False` reads "on"/"off", #14); a port not in
-  that list shows its key as is. Each value shows as `readerName(value)` (see "Formatting"): a plain label, never
-  the raw id. The list is information only: no reader value changes what any screen offers.
+- `no_keys`: true → the strip shows "Running offline: no API keys, no models" on every route. false → no strip at all
+  (no empty bar).
+- `readers` (port → reader name): not shown by the shell (the "What runs" panel was removed, docs/ui-bugs.md 12);
+  screens show reader ids through `readerName(value)` (see "Formatting").
 - `limits`: exposed through `useInfo().info.limits`. Ingest refuses an upload over `upload_mb` with
   `uploadTooLarge`; engineer caps the question at `question_chars`. The shell itself shows no limit.
 - Fixture: `backend/tests/fixtures/api_v1/info.json` (ten ports; `cad` and `raster` are `hello`; `no_keys: true`).
@@ -580,8 +575,7 @@ request no route matches with a thrown error naming it, so a test fails on an un
 | Info loading | Strip: "Checking the server…" (`role="status"`). Screens render already; they do not wait for info. | `mockApi` answers `GET /api/info` with `never()`; in the browser, throttle the network. |
 | Info error | Strip: "The server did not answer: `<detail>` (`<code>`)" and a Retry button that calls `GET /api/info` again. | Mock `{status: 500, body: error fixture}` or a rejected fetch; in the browser, stop the backend. |
 | No-keys | Strip: "Running offline: no API keys, no models", on every route, the not-found view included. | `info.json` (`no_keys: true`); the backend today always says so. |
-| Keys present | Strip without the offline text, "What runs" still there. | `info.json` with `no_keys` set to false in the test. |
-| Hello reader | "What runs" lists the port as "not read". | `info.json` (`cad`, `raster` are `hello`). |
+| Keys present | No strip at all (no empty bar). | `info.json` with `no_keys` set to false in the test. |
 | Projects loading | Picker disabled, one option "Loading projects…". | `GET /api/projects` → `never()`. |
 | Projects empty | Picker disabled, one option "No projects yet". | `{projects: []}`. |
 | Projects error | Picker replaced by "Projects: `<detail>` (`<code>`)" and a Retry button. | Mock 500 / network error. |
@@ -601,13 +595,11 @@ surveyor" buttons. The header replaces those with one place for the role switch.
 
 - **Desktop 1440x900.** One header row, 56 px: "Vellum" (link to `#/`) left; the project picker (max 320 px
   wide, shrinks with the header) next to it; the view links Ingest · Engineer · Surveyor centred (only on project, file and drawing routes);
-  nothing on the right. Under it the info strip, one line, 32 px: offline text left, "What runs" right; open, it
-  drops a two-column list (port, reader) under the strip, pushing content down (not over it). The route's screen
+  nothing on the right. Under it the info strip, one line, 32 px: offline text left (no strip with keys). The route's screen
   fills the rest, max width 1440, no horizontal scroll.
 - **Phone 390x844.** Header in rows: "Vellum"; the picker full width and never wider (a long project name is cut
   off in the closed select and shown in full in its open list, R1-5-4); the view links as three equal
-  tabs full width, each at least 44 px high. The strip under them wraps the full offline text (no shortened form),
-  and "What runs" is a full-width disclosure under it. No horizontal scroll
+  tabs full width, each at least 44 px high. The strip under them wraps the full offline text (no shortened form). No horizontal scroll
   at 390 px with the longest fixture name.
 - The current view link has `aria-current="page"` and is bold with a 2 px underline, so it never relies on colour
   alone. Offline is said in words, not by a coloured dot.
@@ -754,7 +746,7 @@ Project scope (QA R1 batch 2: a drawing is shared by content across projects)
 QA round 2 (qa-3 notes)
 
 - SH-47 `readerName` gives each label of "Formatting" (`composite`, `pdf`, `ifc`, `templates`, `hello`, `none`,
-  null and undefined "no reader", `False`) and an unknown id as is; "What runs" shows `readerName` of each value. [unit, component,
+  null and undefined "no reader", `False`) and an unknown id as is. [unit, component,
   R2-qa-3-1]
 - SH-48 `ErrorView` for a 404 (an `ApiError` with `status` 404, whatever its `code`) shows no Retry even when the
   screen passes `onRetry`, and a "Back to workspaces" link to `#/workspaces` (pre-QA 12:02; was "Back to projects" to `#/`); any other error keeps Retry and has no such link.
