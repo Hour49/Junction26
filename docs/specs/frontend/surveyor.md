@@ -363,6 +363,9 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
 - SV-53 (pre-QA): with `matchMedia('(max-width: 760px)')` matching, selecting a row calls `scrollIntoView` on the
   detail; not matching, it does not. [component]
 - SV-54 (pre-QA): a conflict settled at A shows "A: … · in use" and B without it. [component]
+- SV-55 (QA R4-c-1): the viewer inside the surveyor keeps its own look: no `.sv-screen` button rule reaches an
+  element inside `.vw` (the badges stay filled `--v-accent` / open dashed `--v-surface`, as the legend; the zoom bar
+  as on the engineer route). [unit] `css.test.ts` + [e2e] `surveyor.spec.ts` at 1440 and 390
 - Pre-QA look (checked live at 1440 and 390, not unit-tested): the takeoff panel's sticky header starts at the card's
   top edge (no padding above it); inputs 40px tall, 12px radius, `--v-line` border, 16px text; Export CSV a
   secondary pill (`--v-fill`, 600); table cells vertically centred; the 32px value with no extra margins; at 390 side

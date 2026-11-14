@@ -4,7 +4,7 @@ import { error, project, projectRunning } from '../api/fixtures';
 import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
-import { formatMs, kindLabel } from './ingest';
+import { formatMs, kindLabel, routeLabel } from './ingest';
 import { ProjectScreen } from './ProjectScreen';
 import { flush, must, variants } from './testing';
 
@@ -131,7 +131,8 @@ describe('ProjectScreen', () => {
       const card = must(cards[i]);
       expect(card.textContent).toContain(d.file);
       expect(card.textContent).toContain(kindLabel(d.kind));
-      expect(card.textContent).toContain(`${must(d.route)} route`);
+      expect(card.textContent).toContain(routeLabel(d.route)); // IN-73
+      expect(card.textContent).not.toContain(`${must(d.route)} route`);
       expect(card.textContent).toContain(d.state === 'ready' ? 'ready' : 'flagged');
       expect(within(card).getByRole('link', { name: 'Open' }).getAttribute('href')).toBe(
         `#/p/${ID}/d/${d.drawing_id}/engineer`,
@@ -255,14 +256,34 @@ describe('ProjectScreen', () => {
     expect(row.textContent).toContain('not identified');
   });
 
-  it('IN-22 no drawings and no files say so', async () => {
-    mockApi({ [GET]: variants.noDrawings });
+  it('IN-72 a done project with no drawings: "Nothing could be read", reasons, no ring, no conflicts link', async () => {
+    const nothing: ProjectView = {
+      ...variants.noDrawings,
+      files: project.files.map((f) => ({
+        ...f,
+        state: 'set_aside' as const,
+        drawing_id: null,
+        reason: `not a drawing: ${f.path}`,
+      })),
+      skipped: [{ path: 'secret.exe', reason: 'not a file type we read' }],
+    };
+    mockApi({ [GET]: nothing });
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(
-      screen.getByText('No drawings: nothing in this upload could be read as a plan.'),
-    ).toBeTruthy();
-    cleanup();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(within(panel).getByText('Nothing could be read from this upload')).toBeTruthy();
+    for (const f of nothing.files) expect(panel.textContent).toContain(`not a drawing: ${f.path}`);
+    expect(panel.textContent).toContain('secret.exe');
+    expect(panel.textContent).toContain('not a file type we read');
+    expect(screen.queryByRole('region', { name: 'Progress' })).toBeNull();
+    expect(screen.queryByRole('img', { name: /percent done/ })).toBeNull();
+    expect(screen.queryByText('All 8 steps done')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Drawings' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Files' })).toBeTruthy();
+  });
+
+  it('IN-22 no files say so', async () => {
     mockApi({ [GET]: variants.noFiles });
     render(<ProjectScreen projectId={ID} />);
     await flush();
@@ -319,6 +340,7 @@ describe('ProjectScreen', () => {
     expect(screen.queryByText(/^No drawings/)).toBeNull();
     expect(stat('Files through')).toBe('—');
     expect(screen.queryByText('0 / 0')).toBeNull();
+    expect(screen.queryByText(/0 \/ 0/)).toBeNull(); // IN-71: nor the step bar's "0 / 0 files"
     cleanup();
 
     mockApi({ [GET]: { ...variants.running, drawings: [] } });
