@@ -20,6 +20,7 @@ the entry does not matter.
 """
 
 import math
+import re
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 
@@ -154,6 +155,7 @@ def _add_sheet(
     _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale)
     _add_apartments(found, drawing, scale)
     _add_room_sides(found, drawing, scale)
+    _add_room_counts(found, drawing)
     plans = {plan.id: plan.storey for plan in drawing.plans}
     elements_by: dict[str, list[Element]] = defaultdict(list)
     rooms_by: dict[str, list[Room]] = defaultdict(list)
@@ -706,6 +708,64 @@ def _mark(item: Element | Room) -> Mark:
     return Mark(page=item.page, box=item.box)
 
 
+def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
+    """What is drawn in each room one name selects (`room_names`; a name two rooms share selects
+    neither), counted by the sheet's rules ("How many doors does Bagno 1.01 have?" counted the
+    whole sheet; Tudor's chat QA, 2026-11-14). A fixture is the room's when its box centre lies
+    in the room's outline; a door or window sits in a wall, outside every room's floor outline
+    (floor9178: all 19, about half a wall from the outline), so it is the room's when its centre
+    lies within its box's short side (the wall's depth) of the outline: a door between two rooms
+    is both rooms'. A room with no outline, only its box, gets none: a box is not the room's
+    shape (review/ask.py says so)."""
+    named: dict[str, list[Room]] = defaultdict(list)
+    for room in drawing.rooms:
+        for name in room_names(room):
+            named[name].append(room)
+    for name, same in named.items():
+        if len(same) != 1 or (outline := same[0].polygon) is None:
+            continue
+        page = same[0].page
+        inside = [e for e in drawing.elements if e.page == page and _in_room(e, outline)]
+        for key, chosen in apply_rules(_listed(inside, ())).items():
+            if not key.startswith("room"):
+                count = quantity_key("count", key, name=name)
+                marks = chosen.marks
+                _put(
+                    found, count, "count", len(marks), marks, chosen.rule, excluded=chosen.excluded
+                )
+
+
+def _in_room(element: Element, outline: Sequence[tuple[float, float]]) -> bool:
+    x0, y0, x1, y1 = element.box
+    x, y = (x0 + x1) / 2, (y0 + y1) / 2
+    if _holds(outline, x, y):
+        return True
+    return element.class_ in OPENINGS and _gap(outline, x, y) <= min(x1 - x0, y1 - y0)
+
+
+OPENINGS = frozenset({"door", "window"})  # in a wall: the room's when they touch its outline
+
+
+def _holds(outline: Sequence[tuple[float, float]], x: float, y: float) -> bool:
+    """Whether the point lies inside the polygon (even-odd rule)."""
+    inside = False
+    for (ax, ay), (bx, by) in zip(outline, (*outline[1:], outline[0]), strict=True):
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            inside = not inside
+    return inside
+
+
+def _gap(outline: Sequence[tuple[float, float]], x: float, y: float) -> float:
+    """The distance from the point to the polygon's edges."""
+    best = math.inf
+    for (ax, ay), (bx, by) in zip(outline, (*outline[1:], outline[0]), strict=True):
+        dx, dy = bx - ax, by - ay
+        along = ((x - ax) * dx + (y - ay) * dy) / ((dx * dx + dy * dy) or 1.0)
+        t = min(1.0, max(0.0, along))
+        best = min(best, math.hypot(ax + t * dx - x, ay + t * dy - y))
+    return best
+
+
 def _listed(elements: Iterable[Element], rooms: Iterable[Room]) -> dict[str, tuple[Mark, ...]]:
     """Drawing.marks_by_quantity() for some of the drawing's items; plans are per sheet only."""
     marks: dict[str, list[Mark]] = {key: [] for key in COUNT_KEYS if key != PLAN}
@@ -766,15 +826,44 @@ def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
     return out
 
 
+# A room number printed inside a label ("Stanza 1.07"), as the parser reads one (U1.05, 4.01),
+# with its sign ("-1.2" is a basement room, not 1.2): a minus after a letter joins ("Zimmer-1.05")
+LABEL_NUMBER = re.compile(r"(?:(?<![\w.\-])|(?<=[^\W\d_]-))(-?U?\d+\.\d+)(?![\w.])", re.IGNORECASE)
+# ... and not a measure: a times sign on either side ("x 1.5", "3.50 x 4.20") or a unit after it
+# ("PH 4.5 m²", "7.56 qm"; review-354 S1)
+TIMES_BEFORE = re.compile(r"(?:^|[\W\d_])[x\u00d7*]\s*$", re.IGNORECASE)
+MEASURE_AFTER = re.compile(
+    r"\s*(?:[x\u00d7*](?![^\W\d_])|m\b|m2|m²|qm\b|sqm\b|sq\b|cm\b|mm\b|ft\b|%|'|\")", re.IGNORECASE
+)
+
+
+def _label_numbers(label: str) -> set[str]:
+    """The room number printed in a label (LABEL_NUMBER), leaving out dimensions and measures;
+    none when it prints two ("-1.4 Room 0.5": a level and a number, or two rooms' numbers, and
+    which is the room's is not known; it took -1.4, another room's number, so the shared-name
+    rule left that room unnamed; review-354 re-check)."""
+    found = {
+        number.group(1)
+        for number in LABEL_NUMBER.finditer(label)
+        if not TIMES_BEFORE.search(label, 0, number.start())
+        and not MEASURE_AFTER.match(label, number.end())
+    }
+    return found if len(found) == 1 else set()
+
+
 def room_names(room: Room) -> tuple[str, ...]:
-    """Every name a room answers to (its numbers, names, printed label), normalised and sorted, so
-    the takeoff's keys come in the same order on every run (golden-311)."""
+    """Every name a room answers to (its numbers, names, printed label, and a room number printed
+    in the label), normalised and sorted, so the takeoff's keys come in the same order on every
+    run (golden-311). The raster room reader keeps "Stanza 1.07" as one label where the vector
+    reader stores the number apart, so "the area of Stanza 1.07" (the parser's name 1.07) was
+    refused on the PNG and answered on the PDF (fail-1, .agents/qa/r10/stanza-107.md)."""
 
     def texts(keys: Iterable[str]) -> set[str]:
         return {value for key in keys if isinstance(value := room.attrs.get(key), str) and value}
 
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
+    found |= _label_numbers(room.label or "")
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
     return tuple(sorted({normalised(value) for value in found}))
 

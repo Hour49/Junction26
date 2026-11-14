@@ -162,12 +162,17 @@ def _remove_wall(turn: _Turn, words: str) -> tuple[str, Json]:
     if proposed is not None:
         wall = proposed_wall(turn)
         return _edit(proposed, [wall["ev"]] if wall and "ev" in wall else [])
-    ok = next(((args, found) for args, found in walls_of if found.get("status") == "ok"), None)
+    # the latest: a list_walls between the named rooms after a cut list (chat-eval 2026-11-14)
+    ok = next(
+        ((args, found) for args, found in reversed(walls_of) if found.get("status") == "ok"), None
+    )
     if ok is not None:
         return _pick_wall(turn, words, *ok)
     drawings = turn.result("list_drawings")
     if drawings is None:
         return "list_drawings", {}
+    if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
+        drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     if isinstance(drawings, list) and len(walls_of) < min(TRIED, len(drawings)):  # pyright: ignore[reportUnknownArgumentType]
         drawing = drawings[len(walls_of)]
         return "list_walls", {"drawing_id": drawing["drawing_id"], "page": 1}
@@ -202,6 +207,11 @@ def _pick_wall(turn: _Turn, words: str, args: Json, found: Json) -> tuple[str, J
                 groups[same] &= group
         groups = [group for group in groups if group]
         chosen = [w for w in walls if _between({r["id"] for r in w.get("rooms", [])}, groups)]
+        sides = [next(iter(group)) for group in groups[:2] if len(group) == 1]
+        if not chosen and found.get("walls_more") and len(sides) == len(groups[:2]) > 0:
+            # the list was cut: ask for the walls of the named rooms only
+            pair = dict(zip(("room_a", "room_b"), sides, strict=False))
+            return "list_walls", {"drawing_id": args["drawing_id"], "page": args["page"], **pair}
     if len(chosen) == 1:
         place = {"drawing_id": args["drawing_id"], "page": args["page"]}
         return "propose_remove_wall", {**place, "wall_id": chosen[0]["id"]}
@@ -265,6 +275,8 @@ def _edit(found: Json, evidence: list[str], more: str = "") -> tuple[str, Json]:
     if removed:
         text += " Removed: " + "; ".join(removed) + "."
     text += "".join(f" {unknown}" for unknown in proposal.get("unknowns", [])) + more
+    if services := (found.get("services") or {}).get("text"):  # SERVICES_FOLLOW=on
+        text += f" {services}"
     law: Json = found.get("law") or {}
     for finding in law.get("findings") or []:  # LC-8: name each rule the change newly breaks
         if finding.get("change") == "newly_fails" and finding.get("ev"):

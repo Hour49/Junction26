@@ -7,13 +7,24 @@ import re
 import time
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from pydantic import ValidationError
 
 from app.core.agent import law
 from app.core.agent.evidence import mint
-from app.core.agent.model import Caps, Chat, ChatEvidence, ChatTurn, Json, Level, Step, TurnKind
+from app.core.agent.model import (
+    Caps,
+    Chat,
+    ChatEvidence,
+    ChatTurn,
+    Json,
+    Level,
+    Step,
+    TurnKind,
+    View,
+)
 from app.core.agent.ports import ChatModel, ChatModelError, Toolbox
 from app.core.agent.prompt import SYSTEM
 from app.core.agent.validate import (
@@ -24,6 +35,16 @@ from app.core.agent.validate import (
     numbers,
     problems,
     shortened,
+    unbacked,
+)
+from app.core.agent.view import (
+    MARKS,
+    SHOW_ON_PLAN,
+    SHOW_ON_PLAN_TOOL,
+    ShowArgs,
+    bounds,
+    pages,
+    view_of,
 )
 from app.core.laws.model import ClauseView
 from app.core.plan_edit.law_check import AiFinding, LawCheck, LawNote, validate_law_note
@@ -37,6 +58,8 @@ OLD_TOOL_CHARS = 1000  # a tool message of an earlier turn is cut to this
 # ~6,800 compact, so 8,000 keeps every drawing's answer); the full result stays in the chat
 TOOL_CHARS = 8000
 GEOMETRY = frozenset({"box", "polygon", "holes"})  # the model cites ev ids, never coordinates
+# Run timings say nothing about the drawing, and their numbers could back a wrong claim
+NOT_FOR_MODEL = GEOMETRY | {"latency_s"}
 NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
 
@@ -88,12 +111,30 @@ PLAIN = {
     "get_clause": "Read a law clause",
     "search_evidence": "Searched the evidence",
     "get_evidence": "Read a piece of evidence",
+    "show_on_plan": "Showed places on the plan",
 }
 FAILED_PLAIN = {
     "propose_remove_wall": "Could not remove a wall",
     "propose_room": "Could not place a room in the drawn area",
 }
 ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth")
+
+
+# What the stream says when the server sends an answer back (contract C `checking`), by the
+# start of the first problem the validator found
+RETRY = (
+    ("numbers", "a number in the answer is not in the drawings' results"),
+    ("evidence ids", "the answer cited a place no tool returned"),
+    ("text too long", "the answer was too long"),
+    ("kind edit", "the answer named no proposal a plan tool made"),
+    ("kind needs_input", "the answer asked a question without 2 to 4 choices"),
+    ("kind answer", "every tool said it could not answer"),
+)
+Emit = Callable[[str, Json], None]  # (event type, data): the step stream (contract C)
+
+
+def _quiet(kind: str, data: Json) -> None:
+    """No stream: the sync route."""
 
 
 class _EndedError(Exception):
@@ -111,12 +152,16 @@ def run_turn(
     clock: Callable[[], float] = time.monotonic,
     names: Mapping[str, str] | None = None,
     context: str = "",
+    emit: Emit = _quiet,
 ) -> ChatTurn:
     """Runs one turn and records it in `chat` (messages, turns, proposals, results).
     `names`: drawing id → the drawing's plain name ("Drawn plan 1"), for evidence and steps.
-    `context`: this turn's lines after the system prompt (the chosen country, its laws)."""
+    `context`: this turn's lines after the system prompt (the chosen country, its laws).
+    `emit`: gets the turn's events as they happen (contract C), all in the server's words; the
+    final `answer` event is the caller's (it is the returned turn)."""
     run = _Run(chat, model, toolbox, caps, guard, clock, names or {})
     run.system = f"{SYSTEM}\n{context}" if context else SYSTEM
+    run.emit = emit
     return run.turn(message, selection)
 
 
@@ -134,9 +179,11 @@ class _Run:
         self.chat, self.model, self.toolbox, self.caps = chat, model, toolbox, caps
         self.guard, self.clock, self.names = guard, clock, names
         self.system = SYSTEM
-        self.tools = [*toolbox.tools, FINAL_ANSWER_TOOL]
+        self.emit: Emit = _quiet
+        self.tools = [*toolbox.tools, SHOW_ON_PLAN_TOOL, FINAL_ANSWER_TOOL]
         self.started = clock()
-        self.ledger: dict[str, Json] = {}
+        self.ledger: dict[str, Json] = {}  # this turn's places
+        self.known: dict[str, Json] = dict(chat.evidence)  # earlier turns' places
         self.proposals: dict[str, Proposal] = {}
         self.sources: list[str] = []
         self.failures: list[bool] = []
@@ -144,7 +191,9 @@ class _Run:
         self.seen: Counter[tuple[str, str]] = Counter()
         self.cost = 0.0
         self.refused = 0
-        self.asked: list[tuple[set[str], Json]] = []  # ask_drawings results: their ev ids, as given
+        self.asked: list[Json] = []  # this turn's ask_drawings results, as Chat.asked keeps them
+        self.shown: tuple[list[str], str] | None = None  # show_on_plan's places and caption
+        self.reattached: list[Json] = []  # earlier ask_drawings results show_on_plan showed
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
         self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
         self.searched: set[str] = set()  # clause ids search_law returned this turn
@@ -152,6 +201,7 @@ class _Run:
 
     def turn(self, message: str, selection: Sequence[Selection]) -> ChatTurn:
         chat = self.chat
+        self.emit("turn", {"chat_id": chat.chat_id, "turn": len(chat.turns) + 1})
         chat.starts.append(len(chat.messages))
         lines = [self.toolbox.describe(chosen) for chosen in selection]
         chat.messages.append({"role": "user", "content": "\n".join([message, *lines])})
@@ -163,6 +213,8 @@ class _Run:
         chat.minted += len(self.ledger)
         chat.proposals.update(self.proposals)
         turn = self._turn_of(answer)
+        chat.evidence.update(self.ledger)
+        chat.asked.extend(self.asked)
         if turn.edit is not None:  # as shown, ev ids and kept law notes included (LC-10)
             chat.proposals[turn.edit.proposal_id] = turn.edit
         chat.turns.append(turn)
@@ -170,8 +222,9 @@ class _Run:
 
     def _loop(self) -> FinalAnswer:
         nudged = False
-        for _ in range(self.caps.max_steps):
+        for at in range(self.caps.max_steps):
             self._check_caps()
+            self.emit("thinking", {"step": at + 1})
             try:
                 reply = self.model.complete(self._window(), self.tools)
             except ChatModelError as error:
@@ -188,10 +241,26 @@ class _Run:
                 nudged = True
                 self.chat.messages.append({"role": "user", "content": NUDGE})
                 continue
+            self._plan(at + 1, calls)
             answer = self._calls(calls)
             if answer is not None:
                 return answer
         raise _EndedError(STOPS["steps"])
+
+    def _plan(self, at: int, calls: list[Json]) -> None:
+        """The `plan` event: the tool calls of this step that will run, as their steps will read."""
+        planned: list[Json] = []
+        for call in calls[: self.caps.calls_per_step]:
+            function: Json = call.get("function") or {}
+            name = str(function.get("name", ""))
+            if name == "final_answer":
+                break
+            given: Any = function.get("arguments") or "{}"
+            arguments = given if isinstance(given, str) else json.dumps(given)
+            n = len(self.steps) + len(planned) + 1
+            planned.append({"n": n, "tool": name, "label": self._label(name, arguments)})
+        if planned:
+            self.emit("plan", {"step": at, "calls": planned})
 
     def _check_caps(self) -> None:
         if why := self.guard.exhausted():  # the total and the hourly limit read differently
@@ -203,7 +272,9 @@ class _Run:
 
     def _calls(self, calls: list[Json]) -> FinalAnswer | None:
         """Runs one step's tool calls in order; every call gets its tool message, even when the
-        turn ends before it (the next request is refused otherwise)."""
+        turn ends before it (the next request is refused otherwise). The step's first plain tool
+        calls run at the same time (`_together`); their results are used in call order."""
+        ready = self._together(calls)
         for at, call in enumerate(calls):
             function: Json = call.get("function") or {}
             name = str(function.get("name", ""))
@@ -223,11 +294,50 @@ class _Run:
                 self.seen[(name, arguments)] += 1
                 if self.seen[(name, arguments)] >= 3:
                     raise _EndedError(STOPS["repeat"])
+                if at in ready:  # ran already, its tool_call announced
+                    self._tool(call, name, arguments, ready[at])
+                    continue
+                label = self._label(name, arguments)
+                self.emit("tool_call", {"n": len(self.steps) + 1, "tool": name, "label": label})
+                if name == SHOW_ON_PLAN:
+                    self._show(call, arguments)
+                    continue
                 self._tool(call, name, arguments)
             except _EndedError:
                 self._skip(calls[at:])
                 raise
         return None
+
+    def _together(self, calls: list[Json]) -> dict[int, tuple[str, float]]:
+        """Runs the step's leading plain tool calls (2 or more, within the cap; not final_answer,
+        show_on_plan or a plan proposal, which numbers itself in the chat) at the same time, at
+        most `caps.parallel` at once: their (result, ms) by position."""
+        lead: list[tuple[str, str]] = []
+        for call in calls[: self.caps.calls_per_step]:
+            function: Json = call.get("function") or {}
+            name = str(function.get("name", ""))
+            if name in ("final_answer", SHOW_ON_PLAN) or name.startswith("propose_"):
+                break
+            given: Any = function.get("arguments") or "{}"
+            found = (name, given if isinstance(given, str) else json.dumps(given))
+            if self.seen[found] + lead.count(found) >= 2:
+                break  # its third time ends the turn (_calls): it must not run
+            lead.append(found)
+        if len(lead) < 2 or self.caps.parallel < 2:
+            return {}
+        for at, (name, arguments) in enumerate(lead):
+            label = self._label(name, arguments)
+            self.emit("tool_call", {"n": len(self.steps) + at + 1, "tool": name, "label": label})
+
+        def timed(found: tuple[str, str]) -> tuple[str, float]:
+            name, arguments = found
+            start = self.clock()
+            out = self.toolbox.run(name, arguments)
+            return out, round((self.clock() - start) * 1000, 1)
+
+        with ThreadPoolExecutor(min(self.caps.parallel, len(lead))) as pool:
+            done = list(pool.map(timed, lead))
+        return dict(enumerate(done))
 
     def _final(self, call: Json, arguments: str) -> FinalAnswer | None:
         """The answer when it passes the validator; else the model is told why once, and the
@@ -239,7 +349,7 @@ class _Run:
             answer = FinalAnswer.model_validate_json(arguments)
             wrong = problems(
                 answer,
-                set(self.ledger),
+                set(self.ledger) | set(self.known),
                 set(self.proposals),
                 self.sources,
                 bool(self.failures) and all(self.failures),
@@ -251,6 +361,7 @@ class _Run:
             soft.insert(0, f"text too long ({len(long)} characters): shorten it to {TEXT_CHARS}")
         if not wrong and not soft:
             self._reply(call, json.dumps({"ok": True}))
+            self.emit("checking", {"status": "ok", "reason": None})
             return answer
         self.refused += 1
         if self.refused >= 2:
@@ -258,8 +369,13 @@ class _Run:
                 self._reply(call, _error("; ".join(wrong)))
                 raise _EndedError(UNBACKED)
             self._reply(call, json.dumps({"ok": True, "fixed_by_server": soft}))
+            self.emit("checking", {"status": "ok", "reason": None})
             return fixed  # wording and law naming never end an edit as dont_know (LC-8)
         self._reply(call, _error("final_answer refused: " + "; ".join(wrong + soft) + ". Fix it."))
+        first = (wrong + soft)[0]
+        why = next((plain for start, plain in RETRY if first.startswith(start)), None)
+        reason = why or "the answer did not pass the server's check"
+        self.emit("checking", {"status": "retry", "reason": reason})
         return None
 
     def _law(self, answer: FinalAnswer) -> tuple[list[str], FinalAnswer]:
@@ -336,10 +452,16 @@ class _Run:
                 found.setdefault(clause_id, ClauseView.model_validate(given))
         return found
 
-    def _tool(self, call: Json, name: str, arguments: str) -> None:
-        start = self.clock()
-        out = self.toolbox.run(name, arguments)
-        ms = round((self.clock() - start) * 1000, 1)
+    def _tool(
+        self, call: Json, name: str, arguments: str, ran: tuple[str, float] | None = None
+    ) -> None:
+        """One tool call: runs it (or takes `ran`, its result and ms when it ran already), mints
+        its places, records its step and answers the model."""
+        if ran is None:
+            start = self.clock()
+            out = self.toolbox.run(name, arguments)
+            ran = (out, round((self.clock() - start) * 1000, 1))
+        out, ms = ran
         try:
             found: Any = json.loads(out)
         except json.JSONDecodeError:
@@ -347,7 +469,8 @@ class _Run:
         before = set(self.ledger)
         mint(found, self.ledger, self.chat.minted + 1)
         if name == ASK and isinstance(found, dict):  # kept as the route gives it, without ev ids
-            self.asked.append((set(self.ledger) - before, json.loads(out)))
+            given = json.loads(out)
+            self.asked.append(_asked(found, set(self.ledger) - before, given))  # pyright: ignore[reportUnknownArgumentType]
         proposal: Any = found.get("proposal") if isinstance(found, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         if isinstance(proposal, dict) and "proposal_id" in proposal:
             made = self.toolbox.proposal(str(proposal["proposal_id"]))  # pyright: ignore[reportUnknownArgumentType]
@@ -372,7 +495,82 @@ class _Run:
         )
         self.steps.append(Step(n=len(self.steps) + 1, tool=name, label=label,
                                status="error" if bad else "ok", ms=ms))  # fmt: skip
+        summary = _summary(name, found, self.names)
+        self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": summary})
         self._reply(call, text if isinstance(found, str) else _for_model(found))
+
+    def _show(self, call: Json, arguments: str) -> None:
+        """show_on_plan (contract B): the places this turn shows, or the model is told why not."""
+        start = self.clock()
+        places = {**self.known, **self.ledger}
+        try:
+            args = ShowArgs.model_validate_json(arguments)
+        except ValidationError as error:
+            return self._show_failed(call, start, f"bad arguments: {error.errors()[0]['msg']}")
+        ids, entry = list(args.evidence_ids), None
+        if args.answer == "latest":
+            if not (self.chat.asked or self.asked):
+                return self._show_failed(call, start, "no ask_drawings answer in this chat yet")
+            entry = [*self.chat.asked, *self.asked][-1]
+            ids = list(entry["disputed" if args.marks == "disputed" else "marks"])
+            if not ids:
+                which = "disputed marks" if args.marks == "disputed" else "marks"
+                return self._show_failed(call, start, f"the latest answer has no {which}")
+        if not ids:
+            return self._show_failed(call, start, "give evidence_ids or answer: latest")
+        # lenient: unknown ids are named back and the known ones shown; several pages show the
+        # page with the most places and name the others (a retry once showed 1 door of 19)
+        unknown = [ev for ev in ids if ev not in places]
+        if not (known := [ev for ev in ids if ev in places]):
+            missing = ", ".join(unknown)
+            why = f"no place in this chat has id {missing}; answer: latest shows the last answer"
+            return self._show_failed(call, start, why)
+        groups = pages(known, places)
+        (drawing, page), ids = max(groups.items(), key=lambda group: len(group[1]))
+        ids = ids[:MARKS]
+        name = self._name(drawing, places[ids[0]])
+        given = re.sub(r"\s*\[?ev_\d+\]?", "", _plain_ids(args.caption)).strip()
+        backing = [*self.sources, str(len(ids)), *(str(places[ev]["label"]) for ev in ids)]
+        if entry is not None:
+            backing.append(json.dumps(entry["answer"]))
+            self.reattached.append(entry["answer"])
+        if given and not unbacked(given, backing):
+            caption, label = given, _showed(given)
+        else:  # the server's words: a caption with a number no tool gave is not shown
+            caption = f"{len(ids)} {'place' if len(ids) == 1 else 'places'} on {name}, page {page}"
+            label = f"Showed {caption}"
+        self.shown = (ids, caption)
+        numbered = {ev: n for n, ev in enumerate(ids, start=1)}  # the final turn may renumber
+        shown = view_of((drawing, page), ids, places, numbered, name, caption, "show_on_plan")
+        self.emit("view", shown.model_dump(mode="json"))
+        others = [{"drawing": self._name(d, places[evs[0]]), "page": p, "places": len(evs)}
+                  for (d, p), evs in groups.items() if (d, p) != (drawing, page)]  # fmt: skip
+        result: Json = {"status": "ok", "shown": len(ids), "drawing": name, "page": page}
+        if others:
+            result["other_pages"] = others
+        if unknown:
+            result["unknown"] = unknown
+        text = json.dumps(result, ensure_ascii=False)
+        # what it showed backs the answer's numbers: a tool result, and the answer it shows
+        self.sources.append(text)
+        if entry is not None:
+            self.sources.append(json.dumps(entry["answer"]))
+        self._show_step(call, start, label, "ok", text)
+
+    def _show_failed(self, call: Json, start: float, why: str) -> None:
+        self._show_step(call, start, "Could not show that on the plan", "error",
+                        _error(f"show_on_plan: {why}"))  # fmt: skip
+
+    def _show_step(self, call: Json, start: float, label: str, status: str, reply: str) -> None:
+        ms = round((self.clock() - start) * 1000, 1)
+        self.steps.append(Step(n=len(self.steps) + 1, tool=SHOW_ON_PLAN, label=label,
+                               status="ok" if status == "ok" else "error", ms=ms))  # fmt: skip
+        self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": None})
+        self._reply(call, reply)
+
+    def _name(self, drawing_id: str, place: Json) -> str:
+        """A drawing's plain name ("Drawn plan 1"), else the name its place came with."""
+        return self.names.get(drawing_id) or place.get("name") or f"drawing {drawing_id[:6]}"
 
     def _law_results(self, name: str, out: str) -> None:
         """The clauses this turn's law tools returned, as they returned them (LC-9b)."""
@@ -427,15 +625,19 @@ class _Run:
         # The sources are the places the text cites, in its order; evidence_ids only when the
         # text cites none (AC-5)
         cited = list(dict.fromkeys(re.findall(r"ev_\d+", answer.text) or answer.evidence_ids))
-        number = {ev: n for n, ev in enumerate(cited, start=1)}
+        shown = self.shown[0] if self.shown else []
+        # the places show_on_plan showed are sources too, numbered after the cited ones
+        number = {ev: n for n, ev in enumerate(dict.fromkeys([*cited, *shown]), start=1)}
         text = re.sub(r"\[?(ev_\d+)\]?", lambda found: f"[{number[found[1]]}]", answer.text)
         for drawing_id, file in self._files():  # a drawing by its plain name, not its file
             text = text.replace(file, self.names.get(drawing_id) or file)
         text = _plain_ids(text)
         kind: TurnKind = answer.kind
-        answers = self._answers(set(cited), kind)
+        answers = self._answers(set(cited) | set(shown), kind)
         if kind == "answer" and any(_conflicted(given) for given in answers):
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
+        # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
+        answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
         return ChatTurn(
             chat_id=self.chat.chat_id,
             turn=len(self.chat.turns) + 1,
@@ -449,7 +651,37 @@ class _Run:
             cost_usd=round(self.cost, 6),
             latency_s=round(self.clock() - self.started, 3),
             answers=answers,
+            view=self._view(kind, cited, number, answer.proposal_id),
         )
+
+    def _view(
+        self, kind: TurnKind, cited: list[str], number: Mapping[str, int], proposal_id: str | None
+    ) -> View | None:
+        """The plan the turn shows (contract A): show_on_plan's places; else an edit's page
+        around the proposal; else the page of the first cited place with the cited places on it."""
+        places = {**self.known, **self.ledger}
+        if self.shown:
+            ids, caption = self.shown
+            first = places[ids[0]]
+            place = (str(first["drawing_id"]), int(first["page"]))
+            name = self._name(place[0], first)
+            return view_of(place, ids, places, number, name, caption, "show_on_plan")
+        made = self.proposals.get(proposal_id or "") if kind == "edit" else None
+        if made is not None:
+            place = (made.drawing_id, made.page)
+            items = (*made.removed, *made.added, *made.rooms)
+            around = [bounds(item.polygon) for item in items if len(item.polygon) > 0]
+            ids = pages(cited, places).get(place, [])
+            if not ids and not around:
+                return None
+            name = self.names.get(made.drawing_id)
+            return view_of(place, ids, places, number, name, None, "evidence", around)
+        if not cited:
+            return None
+        first = places[cited[0]]
+        place = (str(first["drawing_id"]), int(first["page"]))
+        ids = pages(cited, places)[place]
+        return view_of(place, ids, places, number, self._name(place[0], first), None, "evidence")
 
     def _edit(self, proposal_id: str | None) -> Proposal | None:
         """The proposal the answer names, its law check with each finding's ev id (as minted on
@@ -470,8 +702,8 @@ class _Run:
     def _files(self) -> set[tuple[str, str]]:
         """(drawing id, file name) of every drawing this turn's results named."""
         parts: list[Json] = []
-        for _, given in self.asked:
-            parts += given.get("parts") or []
+        for entry in self.asked:
+            parts += entry["answer"].get("parts") or []
         named = {(str(p.get("drawing_id")), str(p.get("name"))) for p in parts if p.get("name")}
         return named | {(f["drawing_id"], f["name"]) for f in self.ledger.values() if f["name"]}
 
@@ -479,16 +711,17 @@ class _Run:
         """The ask_drawings results the answer rests on: those whose places it cites; when it
         cites none, every one for an answer and those in which a drawing refused for a dont_know
         or needs_input."""
-        if cited:
-            return tuple(given for evs, given in self.asked if evs & cited)
+        if cited:  # earlier turns' answers too: a follow-up may cite their places (item 1)
+            every = [*self.chat.asked, *self.asked]
+            return tuple(e["answer"] for e in every if set(e["evs"]) & cited)
         if kind == "answer":
-            return tuple(given for _, given in self.asked)
+            return tuple(e["answer"] for e in self.asked)
         if kind in ("dont_know", "needs_input"):
-            return tuple(given for _, given in self.asked if _refused(given))
+            return tuple(e["answer"] for e in self.asked if _refused(e["answer"]))
         return ()
 
     def _evidence(self, n: int, ev: str) -> ChatEvidence:
-        found = self.ledger[ev]
+        found = self.ledger.get(ev) or self.known[ev]
         level = found["level"]
         return ChatEvidence(
             n=n,
@@ -503,6 +736,82 @@ class _Run:
             if level
             else None,
         )
+
+
+def _asked(found: Json, evs: set[str], given: Json) -> Json:
+    """An ask_drawings result as Chat.asked keeps it. `found`: the result with its ev ids minted;
+    `evs`: those ids; `given`: the result as the route gave it."""
+    marks: list[str] = []
+    disputed: list[str] = []
+    parts: list[Json] = found.get("parts") or []
+    for part in parts:
+        answer: Json = part.get("answer") or {}
+        quantity: Json = answer.get("quantity") or {}
+        check: Json = answer.get("check") or {}
+        marks += _evs(answer.get("marks") or quantity.get("marks"))
+        disputed += _evs(check.get("disputed"))
+    ordered = sorted(evs, key=lambda ev: int(ev.removeprefix("ev_")))
+    return {"answer": given, "evs": ordered, "marks": marks, "disputed": disputed}
+
+
+def _evs(items: Any) -> list[str]:
+    """The ev ids of a list of objects, in order."""
+    out: list[str] = []
+    for item in items if isinstance(items, list) else []:  # pyright: ignore[reportUnknownVariableType]
+        ev: Any = item.get("ev") if isinstance(item, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        if isinstance(ev, str):
+            out.append(ev)
+    return out
+
+
+def _showed(caption: str) -> str:
+    """show_on_plan's step label from its checked caption: "Showed the 3 doors on the plan"."""
+    lower = caption[:1].lower() + caption[1:] if caption[1:2].islower() else caption
+    return f"Showed {lower}" if "plan" in caption.lower() else f"Showed {lower} on the plan"
+
+
+def _summary(name: str, found: Any, names: Mapping[str, str]) -> str | None:
+    """What a tool found, in one line of the server's words (contract C `tool_result`), every
+    number from the result itself; None when there is no safe one-liner."""
+    if isinstance(found, list):
+        listed: list[Any] = found  # pyright: ignore[reportUnknownVariableType]
+        return (
+            f"{len(listed)} drawing{'' if len(listed) == 1 else 's'}"
+            if name == "list_drawings"
+            else None
+        )
+    if not isinstance(found, dict):
+        return None
+    result: Json = found  # pyright: ignore[reportUnknownVariableType]
+    if failed(result):
+        why = result.get("error") or result.get("reason")
+        return str(why)[:160] if why else None
+    if name == ASK:
+        given: list[Any] = result.get("parts") or []
+        parts: list[Json] = [p for p in given if isinstance(p, dict)]
+        lines = [_part(part, names) for part in parts[:3]]
+        more = f"; {len(parts) - 3} more drawings" if len(parts) > 3 else ""
+        return "; ".join(lines) + more if lines else None
+    if name == "list_walls":
+        walls: list[Any] = result.get("walls") or []
+        rooms: list[Any] = result.get("rooms") or []
+        return f"{len(walls)} walls, {len(rooms)} rooms"
+    if name.startswith("propose_"):
+        return "Proposal ready"
+    return None
+
+
+def _part(part: Json, names: Mapping[str, str]) -> str:
+    """One drawing's answer in an ask_drawings result: "Drawn plan 1: 7.56 m2 (high)"."""
+    name = names.get(str(part.get("drawing_id"))) or part.get("name") or "a drawing"
+    answer: Json = part.get("answer") or {}
+    if answer.get("refusal") or answer.get("answer") is None:
+        return f"{name}: cannot answer"
+    unit = answer.get("unit")
+    unit = f" {unit}" if unit and unit != "count" else ""
+    level: Json = answer.get("level") or {}
+    said = f" ({level['level']})" if level.get("level") else ""
+    return f"{name}: {answer['answer']}{unit}{said}"
 
 
 def _refused(asked: Json) -> bool:
@@ -543,16 +852,25 @@ def _too_long(arguments: str) -> str | None:
 
 
 def _for_model(found: Any) -> str:
-    """A tool result as the model reads it: compact JSON without geometry or empty fields, its
-    lists cut shorter until it fits TOOL_CHARS, else cut as text with a note."""
+    """A tool result as the model reads it: compact JSON without geometry or empty fields. Until
+    it fits TOOL_CHARS the longest list is halved, keeping its first items as they are; how many
+    were cut goes beside it as `<key>_more` (a cut top-level list becomes {items, items_more}).
+    Still too long: cut as text with a note."""
     slim = _slim(found)
-    text = ""
-    for keep in (0, 8, 4, 2, 1):
-        text = json.dumps(_cut(slim, keep) if keep else slim, ensure_ascii=False,
-                          separators=(",", ":"))  # fmt: skip
-        if len(text) <= TOOL_CHARS:
-            return text
-    return text[:TOOL_CHARS] + '\n{"truncated": true}'
+    keeps: dict[tuple[Any, ...], int] = {}
+    text = _compact(_cut(slim, keeps))
+    while len(text) > TOOL_CHARS:
+        longest = _longest(slim, keeps)
+        if longest is None:
+            return text[:TOOL_CHARS] + '\n{"truncated": true}'
+        path, kept = longest
+        keeps[path] = kept // 2
+        text = _compact(_cut(slim, keeps))
+    return text
+
+
+def _compact(found: Any) -> str:
+    return json.dumps(found, ensure_ascii=False, separators=(",", ":"))
 
 
 def _slim(found: Any) -> Any:
@@ -562,19 +880,47 @@ def _slim(found: Any) -> Any:
         return {
             key: _slim(value)
             for key, value in found.items()  # pyright: ignore[reportUnknownVariableType]
-            if key not in GEOMETRY and value not in (None, "", [], {})
+            if key not in NOT_FOR_MODEL and value not in (None, "", [], {})
         }
     return found
 
 
-def _cut(found: Any, keep: int) -> Any:
+def _cut(found: Any, keeps: Mapping[tuple[Any, ...], int], path: tuple[Any, ...] = ()) -> Any:
+    """`found` with the list at each path in `keeps` cut to its first `keeps[path]` items."""
     if isinstance(found, list):
-        items: list[Any] = [_cut(item, keep) for item in found[:keep]]  # pyright: ignore[reportUnknownVariableType]
-        more = len(found) - keep  # pyright: ignore[reportUnknownArgumentType]
-        return [*items, f"... {more} more"] if more > 0 else items
+        items: list[Any] = found  # pyright: ignore[reportUnknownVariableType]
+        kept = [_cut(item, keeps, (*path, at)) for at, item in enumerate(items[: keeps.get(path)])]
+        if path or len(kept) == len(items):
+            return kept
+        return {"items": kept, "items_more": len(items) - len(kept)}
     if isinstance(found, dict):
-        return {key: _cut(value, keep) for key, value in found.items()}  # pyright: ignore[reportUnknownVariableType]
+        out: Json = {}
+        for key, value in found.items():  # pyright: ignore[reportUnknownVariableType]
+            out[key] = cut = _cut(value, keeps, (*path, key))  # pyright: ignore[reportUnknownArgumentType]
+            if isinstance(value, list) and len(cut) < len(value):  # pyright: ignore[reportUnknownArgumentType]
+                out[f"{key}_more"] = len(value) - len(cut)  # pyright: ignore[reportUnknownArgumentType]
+        return out
     return found
+
+
+def _longest(
+    found: Any, keeps: Mapping[tuple[Any, ...], int], path: tuple[Any, ...] = ()
+) -> tuple[tuple[Any, ...], int] | None:
+    """The path and kept length of the list of more than one kept item that is longest as JSON
+    once cut, or None when every list is down to one item."""
+    best: tuple[int, tuple[Any, ...], int] | None = None
+    stack: list[tuple[Any, tuple[Any, ...]]] = [(found, path)]
+    while stack:
+        here, at = stack.pop()
+        if isinstance(here, list):
+            items: list[Any] = here[: keeps.get(at)]  # pyright: ignore[reportUnknownVariableType]
+            size = len(_compact(_cut(here, keeps, at)))
+            if len(items) > 1 and (best is None or size > best[0]):
+                best = (size, at, len(items))
+            stack += [(item, (*at, n)) for n, item in enumerate(items)]
+        elif isinstance(here, dict):
+            stack += [(value, (*at, key)) for key, value in here.items()]  # pyright: ignore[reportUnknownVariableType]
+    return None if best is None else (best[1], best[2])
 
 
 def _error(message: str) -> str:

@@ -35,19 +35,27 @@ from app.api import (
 )
 from app.api.deps import Ingest
 from app.api.views import ErrorBody
-from app.composition import EvidenceIndexes, build_answering, build_evidence, build_ingest
+from app.composition import (
+    EvidenceIndexes,
+    build_answering,
+    build_evidence,
+    build_ingest,
+    build_models_3d,
+)
 from app.core.errors import (
     DomainError,
     InvalidInputError,
     NotFoundError,
     NotTriagedError,
     UnknownPackError,
+    UnsupportedFileError,
 )
 from app.core.review.review import NotAllowedError
 from app.settings import Settings
 
 # The only place a domain error becomes an HTTP status. An unmapped one stays a 500, like any bug.
 STATUS_BY_ERROR: dict[type[DomainError], int] = {
+    UnsupportedFileError: 415,  # before InvalidInputError: the first match wins
     NotFoundError: 404,
     InvalidInputError: 422,
     NotAllowedError: 409,
@@ -62,6 +70,7 @@ CODES = {
     405: "method-not-allowed",
     409: "not-allowed",
     413: "too-large",
+    415: "unsupported",
     422: "invalid",
     429: "busy",
 }
@@ -112,6 +121,8 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         service.close()
+        if app.state.models_3d is not None:
+            app.state.models_3d.close()
 
     app = FastAPI(title="Hour49 backend", lifespan=lifespan)
     app.state.settings = settings  # adapters' providers build their clients from it
@@ -127,6 +138,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     app.state.rule_packs = rule_packs
     app.state.chats = JsonChatStore(settings.projects_dir)  # the agent chats (decision 0013)
     app.state.laws = law_index
+    app.state.models_3d = build_models_3d(settings)  # None: MODEL_3D off
     routers = (
         health,
         info,

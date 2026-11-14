@@ -10,6 +10,8 @@ from collections.abc import Callable
 from functools import partial
 from typing import Any
 
+from app.adapters.counting_rules import TOOLS as COUNTING_TOOLS
+from app.adapters.counting_rules import run_counting_tool
 from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
 from app.core.checks.model import RulePack
@@ -71,6 +73,7 @@ def project_toolbox(
     pipeline = PipelineStore.of_app(app, project_id)
     pipe: Runner = partial(run_pipeline_tool, pipeline)
     sets: list[tuple[list[Json], Runner]] = [(PIPELINE_TOOLS, partial(_by_number, pipe))]
+    sets.append((COUNTING_TOOLS, run_counting_tool))  # read-only conventions, no project state
     describe: Callable[[Selection], str] = _plain
     made: Callable[[], list[Proposal]] = list
     laws = getattr(app.state, "laws", None)  # the law index (SqliteLawIndex), None: no law files
@@ -82,6 +85,12 @@ def project_toolbox(
         plans = PlanStore(
             pipeline, {s.id: s for s in selection}, list(proposals.values()), pack, laws
         )
+        if pipeline.settings.services_follow == "on":  # decision 0016
+            from app.adapters.service_tools import follower
+
+            services = follower(app, pipeline)
+            services.warm()  # the models are read while the turn's first steps run
+            plans.services = services.run
         sets.append((PLAN_TOOLS, partial(run_plan_tool, plans)))
         describe = plans.describe
         made = lambda: plans.proposals  # noqa: E731

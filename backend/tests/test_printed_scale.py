@@ -121,6 +121,20 @@ def test_a_bar_wins_over_a_ratio_and_a_ratio_needs_a_trusted_resolution() -> Non
     assert printed_scale(PrintedSheet(printed_scale="bar"), [PAGE], dpi=150.0) is None
 
 
+def test_a_ratio_on_a_page_in_points_is_metres_per_point_whatever_the_renders_resolution() -> None:
+    """A scanned PDF's page is in points (r10, 2026-11-14: its ratio became metres per pixel of
+    the 129 dpi render, so a 47.7 m wide sheet measured 26.6 m and its areas came out x0.31)."""
+    paper = Page(page=1, width=39.1 * 72, height=24.5 * 72, unit="pt")
+    quarter_inch = PrintedSheet(printed_scale='1/4" = 1\'-0"')
+    for dpi in (129.286, 150.0):
+        scale = printed_scale(quarter_inch, [paper], dpi=dpi)
+        assert scale is not None and scale.m_per_unit is not None
+        assert scale.m_per_unit == pytest.approx(48 * 0.0254 / 72)
+        assert scale.m_per_unit * paper.width == pytest.approx(48 * 39.1 * 0.0254)
+        assert scale.source == "printed scale 1/4\" = 1'-0\" on the page's paper size"
+    assert printed_scale(quarter_inch, [paper], dpi=None) is None  # no trusted paper size
+
+
 def doors(side_px: float, n: int) -> tuple[Element, ...]:
     """`n` sure doors whose long side is `side_px` on PAGE."""
     w = side_px / PAGE.width

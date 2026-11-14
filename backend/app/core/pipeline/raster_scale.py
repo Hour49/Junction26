@@ -171,3 +171,25 @@ def label_area_checks(
 def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
     pairs = zip(polygon, [*polygon[1:], polygon[0]], strict=True)
     return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in pairs)) / 2
+
+
+# SCALE_CARBON_DOORS=on (app/adapters/raster_scale/ CarbonDoorScale): when the detector found no
+# door it is sure of, the Carbon reader's own door boxes. shortcut: CARBON_DOOR_M is DOOR_M, fitted
+# on the detector's boxes, not Carbon's (it boxes a door with its swing, a square about a leaf wide
+# on a side; on golden's 19 Carbon door boxes the scale comes out about 14.5% low); fit it on the
+# hard set before the setting goes on: scripts/carbon_door_scale.py prints the value ("fit:")
+CARBON_DOOR_M = DOOR_M
+
+
+def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
+    """The scale from the door prior over Carbon's door boxes `sides`; None without a door. The
+    band is SPREAD_FEW however many doors (the widest; the bands were fitted on the detector's)."""
+    if not sides:
+        return None
+    return Scale(
+        status="estimated",
+        m_per_unit=CARBON_DOOR_M / statistics.median(sides),
+        source=f"a door is about {CARBON_DOOR_M} m wide; median of {len(sides)} doors the Carbon "
+        "reader found (the detector found no door it is sure of)",
+        uncertainty=SPREAD_FEW,
+    )

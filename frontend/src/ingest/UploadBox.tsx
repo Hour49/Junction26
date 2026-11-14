@@ -5,11 +5,12 @@ import { useInfo } from '../shell/info';
 import { uploadTooLarge } from '../shell/limits';
 
 const ACCEPT = '.zip,.pdf,.png,.jpg,.jpeg,.ifc,.dxf,.svg,image/*';
-// What a route reads today; no DWG (no reader).
+// What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader.
 const FORMATS = [
   'IFC models',
   'DXF',
-  'Vector PDF · SVG',
+  'PDF, drawn or scanned',
+  'SVG',
   'PNG · JPG scans and photos',
   'ZIP archives',
 ];

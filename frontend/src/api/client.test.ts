@@ -16,6 +16,7 @@ import {
   pageUrl,
   evidenceUrl,
   getModel,
+  getModelGlb,
   postReview,
   answerIssue,
   postRelevance,
@@ -432,5 +433,24 @@ describe('API client', () => {
     await expect(decideProposal(pid, editTurn.chat_id, 'p1', 'reject')).rejects.toMatchObject({
       status: 409,
     });
+  });
+});
+
+describe('getModelGlb', () => {
+  it('M3-9 GETs the encoded GLB URL and resolves its bytes; a 409 rejects with its ApiError', async () => {
+    const api = mockApi({ 'GET /api/projects/p%201/files/f%2F1/model.glb': 'glTF' });
+    const bytes = await getModelGlb('p 1', 'f/1');
+    expect(bytes).toBeInstanceOf(ArrayBuffer);
+    expect(new TextDecoder().decode(bytes)).toBe('glTF');
+    expect(api.calls[0]?.method).toBe('GET');
+    mockApi({
+      'GET /api/projects/p/files/f/model.glb': reply(409, {
+        detail: 'converting',
+        code: 'converting',
+      }),
+    });
+    const error = await getModelGlb('p', 'f').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 409, code: 'converting' });
   });
 });
