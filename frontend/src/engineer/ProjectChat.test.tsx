@@ -197,7 +197,7 @@ async function answered(question: string) {
 const line = (turn: HTMLElement, name: string) =>
   within(turn).getByText(name, { selector: '.en-part-name' }).closest('li') as HTMLElement;
 
-it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row with Show it on <name>, its reference', async () => {
+it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row, its reference, no Show it on link (ui-bugs 8)', async () => {
   open(oneAnswers);
   const turn = await answered('How many doors are there?');
   // CH-39: the lead is the value with its noun only, no total_note
@@ -205,8 +205,7 @@ it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row
   expect(within(turn).queryByText(oneAnswers.total_note)).toBeNull();
   const li = line(turn, label(flatA));
   expect(li.textContent).toContain(`${label(flatA)}: 2`);
-  const show = within(li).getByRole('link', { name: `Show it on ${label(flatA)}` });
-  expect(show.getAttribute('href')).toMatch(`#/p/${PID}/d/${flatA.drawing_id}/engineer?ask=`);
+  expect(within(turn).queryByRole('link', { name: /^Show it on/ })).toBeNull();
   expect(
     within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
   ).toHaveLength(1);
@@ -228,20 +227,22 @@ it('CH-47 an arriving answer: the turn to its top, then its first row just above
   Element.prototype.scrollIntoView = vi.fn();
 });
 
-it('CH-5 project_ask.json: two drawings answer, no total, its note, then a line per drawing', async () => {
+it('CH-5 (ui-bugs 6) project_ask.json: two drawings answer, no total, its note, the line of the shown drawing; a reference swaps it', async () => {
   open(projectAsk);
   const turn = await answered('How many doors are there?');
   expect(within(turn).getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();
   expect(within(turn).queryByTestId('answer-value')).toBeNull();
-  for (const p of [flatA, flatB]) {
-    expect(line(turn, label(p)).textContent).toContain(`${label(p)}: 2`);
-    expect(
-      within(line(turn, label(p))).getByRole('link', { name: `Show it on ${label(p)}` }),
-    ).toBeTruthy();
-  }
-  expect(
-    within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
-  ).toHaveLength(2);
+  const perDrawing = () =>
+    within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem');
+  expect(line(turn, label(flatA)).textContent).toContain(`${label(flatA)}: 2`);
+  expect(perDrawing()).toHaveLength(1);
+  fireEvent.click(
+    within(within(turn).getByRole('list', { name: 'References' })).getAllByRole(
+      'button',
+    )[1] as HTMLElement,
+  );
+  expect(line(turn, label(flatB)).textContent).toContain(`${label(flatB)}: 2`);
+  expect(perDrawing()).toHaveLength(1);
 });
 
 it('CH-13 (CH-42) the total in total_unit with its total_level, never a Sure badge', async () => {
@@ -328,24 +329,6 @@ it('CH-15 nothing asked for an empty ?ask=, a project 404, or no askable drawing
   const empty = open(noneAnswers, none, drawingRoutes(), 'ask=doors');
   await screen.findByText('No drawing in this project can be asked yet.');
   expect([...posts(api), ...posts(failed), ...posts(empty)]).toEqual([]);
-});
-
-it('CH-16 Show it on <name> opens that drawing asking this question; ?pack= is kept (QA R4b-1)', async () => {
-  const q = 'How many doors are there?';
-  const href = (name: string) =>
-    within(line(screen.getByRole('article', { name: q }), name))
-      .getByRole('link', { name: `Show it on ${name}` })
-      .getAttribute('href') ?? '';
-  open(projectAsk);
-  await answered(q);
-  expect(href(label(flatA))).toBe(
-    `#/p/${PID}/d/${flatA.drawing_id}/engineer?${new URLSearchParams({ ask: q }).toString()}`,
-  );
-  cleanup();
-  open(projectAsk, project, drawingRoutes(), 'pack=fi');
-  await answered(q);
-  const query = new URLSearchParams(href(label(flatB)).split('?')[1]);
-  expect([query.get('ask'), query.get('pack')]).toEqual([q, 'fi']);
 });
 
 // Adding a photo (board #203): the new file f4, its drawing askable once read.

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   errorText,
   evidenceUrl,
@@ -147,6 +148,34 @@ export function StatusPill({ status }: { status: Row['status'] }) {
         {statusTip(status)}
       </span>
     </span>
+  );
+}
+
+/** The confidence sentence ("High confidence: on our reference drawings…") behind a "Why?" toggle, closed by
+ * default (ui-bugs 7); a refusal or flag reason is never put here: it stays on screen. */
+export function WhyToggle({ text }: { text?: string | null }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  if (!text) return null;
+  return (
+    <div className="en-whybox">
+      <Button
+        type="button"
+        variant="link"
+        size="xs"
+        className="h-auto px-0"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => {
+          setOpen((o) => !o);
+        }}
+      >
+        Why?
+      </Button>
+      <p id={id} className="en-small en-whytext" hidden={!open}>
+        {text}
+      </p>
+    </div>
   );
 }
 
@@ -399,7 +428,7 @@ function Answer(props: {
               <span key={s} className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'} />
             ))}
           </span>
-          <p className="en-small">{a.level?.text}</p>
+          <WhyToggle text={a.level?.text} />
         </div>
       )
     );

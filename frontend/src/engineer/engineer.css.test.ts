@@ -57,12 +57,11 @@ it('EN-80 the place row and the file name share the row without covering each ot
   expect(rulesFor('.en-place')).toMatch(/max-width:\s*calc\(50% - 32px\)/);
 });
 
-it('CH-37 the chat answer card: figure and side in two columns (1.4 : 1), one column at 900 px or less', () => {
-  expect(rulesFor('.en-chatcard')).toMatch(
-    /grid-template-columns:\s*minmax\(0,\s*1\.4fr\)\s*minmax\(0,\s*1fr\)/,
-  );
+it('CH-37 ui-bugs 9: the image takes the room, the card a 260 px column; one column at 900 px or less', () => {
+  expect(rulesFor('.en-chatcard')).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s*260px/);
+  expect(rulesFor('.en-chatcard .en-side')).toMatch(/padding:\s*16px/);
   // the phone rule must come after the base rule, or the base wins (same specificity)
-  const base = css.search(/\.en-chatcard\s*\{[^}]*1\.4fr/);
+  const base = css.search(/\.en-chatcard\s*\{[^}]*260px/);
   const phone = css.slice(base);
   expect(phone).toMatch(
     /@media \(max-width: 900px\)[^@]*\.en-chatcard\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
@@ -90,11 +89,7 @@ it('EN-81 the arrows on plans and references: 92% surface, the demo shadow', () 
   );
 });
 
-it('CH-39 the Show it on link: accent, 600, no underline until hover or focus; the why line smaller', () => {
-  const show = rulesFor('.en-show');
-  expect(show).toMatch(/color:\s*var\(--v-accent\)/);
-  expect(show).toMatch(/font-weight:\s*600/);
-  expect(show).toMatch(/text-decoration:\s*none/);
-  expect(rulesFor('.en-show:hover')).toMatch(/text-decoration:\s*underline/);
+it('CH-39 ui-bugs 8: no Show it on link style left; the why line smaller', () => {
+  expect(css).not.toMatch(/\.en-show\b/);
   expect(rulesFor('.en-lead--why')).toMatch(/font-size:\s*14px/);
 });
