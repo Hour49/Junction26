@@ -79,6 +79,24 @@ UNRATED = (
     "That number is read straight from the drawing's geometry and has no confidence level; ask "
     "about it directly for a rated answer."
 )
+UNRATED_TAKEOFF = (  # get_takeoff: the readers' counts, not geometry (review-342 S1)
+    "That number is read straight from the drawing's takeoff and has no confidence level; ask "
+    "about it directly for a rated answer."
+)
+UNRATED_BOTH = (
+    "Those numbers are read straight from the drawing's takeoff and geometry and have no "
+    "confidence level; ask about them directly for a rated answer."
+)
+# the model already said it (the prompt asks it to): not said twice (review-342 N3)
+SAID_UNRATED = re.compile(
+    r"\b(no|without( a)?|not have a|has no) confidence level|\bunrated\b|\bnot rated\b", re.I
+)
+# a number the user names a place by ("floor 3", "room 102") is no quantity they state
+NAMED_BY = re.compile(
+    r"\b(floors?|levels?|storeys?|stor(y|ies)|rooms?|pages?|sheets?|plans?|drawings?|units?|"
+    r"flats?|apartments?|stairs?|stairwells?|wings?|blocks?|buildings?|no\.?|#)\s*\d+(?:[.,]\d+)?",
+    re.I,
+)
 
 STOPS = {
     "steps": "I ran out of steps before I could answer.",
@@ -209,7 +227,7 @@ class _Run:
         # what rates a number: rated tool results (ask_drawings, review_answer, an answer shown)
         # and the user's message; numbers only an UNRATED_TOOLS result gives carry no level
         self.rated: list[str] = []
-        self.unrated: list[str] = []
+        self.unrated: list[tuple[str, str]] = []  # (tool, result text)
         self.failures: list[bool] = []
         self.steps: list[Step] = []
         self.seen: Counter[tuple[str, str]] = Counter()
@@ -239,7 +257,11 @@ class _Run:
                 lines.append(REVIEWED + reviewed)
         chat.messages.append({"role": "user", "content": "\n".join([message, *lines])})
         self.sources.append(message)
-        self.rated.append(message)
+        self.rated.append(NAMED_BY.sub(" ", message))  # the numbers the user states
+        # an earlier turn's rated answers (review-342 N5): the answer review_answer reviews or
+        # show_on_plan shows is one of them
+        for given in chat.asked:
+            self.rated += _values(given["answer"])
         try:
             answer = self._loop()
         except _EndedError as ended:
@@ -525,9 +547,9 @@ class _Run:
         text = out if isinstance(found, str) else json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
         if name == ASK:
-            self.rated.append(text)
+            self.rated += _values(found)  # the answers' own values (review-342 S2)
         elif name in UNRATED_TOOLS:
-            self.unrated.append(text)
+            self.unrated.append((name, text))
         self.failures.append(failed(found))
         self.chat.results.append({"tool": name, "arguments": arguments, "result": found})
         bad = self.failures[-1]  # an error, or refused / cannot_edit / unknown (QA edits-6)
@@ -596,10 +618,8 @@ class _Run:
         text = json.dumps(result, ensure_ascii=False)
         # what it showed backs the answer's numbers: a tool result, and the answer it shows
         self.sources.append(text)
-        self.rated.append(text)
         if entry is not None:
             self.sources.append(json.dumps(entry["answer"]))
-            self.rated.append(self.sources[-1])
         self._show_step(call, start, label, "ok", text)
 
     def _review(self, call: Json) -> None:
@@ -628,7 +648,6 @@ class _Run:
         found = review_of(minted, self.names)
         text = json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
-        self.rated.append(text)
         self.reattached.append([*self.chat.asked, *self.asked][-1]["answer"])
         latest = [*self.chat.asked, *self.asked][-1]
         self.reviewed = [ev for ev in latest["marks"] if ev in {**self.known, **self.ledger}]
@@ -741,8 +760,8 @@ class _Run:
             # "are you sure?" about a refusal is answered by its review: the refusal stands and
             # why. Not "I don't know." over "Yes, ..." (qa-a live, r10 live-photo #7)
             kind = "answer"
-        if kind in ("answer", "conflict") and self._unrated(answer.text):
-            text = f"{text.rstrip()} {UNRATED}"
+        if kind in ("answer", "conflict") and (said := self._unrated(answer.text)):
+            text = f"{text.rstrip()} {said}"
         answers = self._answers(set(cited) | set(shown), kind)
         if kind == "answer" and any(_conflicted(given) for given in answers):
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
@@ -764,11 +783,28 @@ class _Run:
             view=self._view(kind, cited, number, answer.proposal_id),
         )
 
-    def _unrated(self, text: str) -> bool:
-        """Whether a number in `text` rests only on unrated places: an UNRATED_TOOLS result of
-        this turn gives it, and no rated result or the user's message does."""
-        rated, unrated = numbers(self.rated), numbers(self.unrated)
-        return any(backed(n, unrated) and not backed(n, rated) for n in claims(text))
+    def _unrated(self, text: str) -> str | None:
+        """The sentence for a number in `text` that rests only on unrated places (an
+        UNRATED_TOOLS result of this turn gives it; no rated answer's value, earlier ones
+        included, nor the user's message does), worded for the tools that gave it; None: no
+        such number, or the text says so already. A label's number ("LOBBY 104") is a name."""
+        if SAID_UNRATED.search(text):
+            return None
+        for label in _labels([_json(found) for _, found in self.unrated]):
+            text = re.sub(re.escape(label), " ", text, flags=re.I)
+        rated = numbers(self.rated)
+        tools = {
+            tool
+            for n in claims(text)
+            if not backed(n, rated)
+            for tool, found in self.unrated
+            if backed(n, numbers([found]))
+        }
+        if not tools:
+            return None
+        if tools == {"get_takeoff"}:
+            return UNRATED_TAKEOFF
+        return UNRATED_BOTH if "get_takeoff" in tools else UNRATED
 
     def _view(
         self, kind: TurnKind, cited: list[str], number: Mapping[str, int], proposal_id: str | None
@@ -878,6 +914,49 @@ def _evs(items: Any) -> list[str]:
         if isinstance(ev, str):
             out.append(ev)
     return out
+
+
+def _values(found: Any) -> list[str]:
+    """The values a rated result gives, as text: each drawing's answer of an ask_drawings result
+    (ProjectAnswer `parts`) or of a review (`drawings`); not its ids, pages or labels."""
+    if not isinstance(found, dict):
+        return []
+    given: Json = found  # pyright: ignore[reportUnknownVariableType]
+    out: list[str] = []
+    parts: list[Any] = [*(given.get("parts") or []), *(given.get("drawings") or [])]
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        each: Json = part  # pyright: ignore[reportUnknownVariableType]
+        value: Any = each.get("answer")
+        if isinstance(value, dict):  # a part's answer line
+            line: Json = value  # pyright: ignore[reportUnknownVariableType]
+            value = line.get("answer")
+        if value is not None:
+            out.append(json.dumps(value, ensure_ascii=False))
+    return out
+
+
+def _json(text: str) -> Any:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def _labels(found: Any) -> list[str]:
+    """Every `label` with a digit in a result, longest first ("LOBBY 104")."""
+    out: set[str] = set()
+    if isinstance(found, dict):
+        for key, value in found.items():  # pyright: ignore[reportUnknownVariableType]
+            if key == "label" and isinstance(value, str) and any(c.isdigit() for c in value):
+                out.add(value)
+            else:
+                out.update(_labels(value))
+    elif isinstance(found, list):
+        for item in found:  # pyright: ignore[reportUnknownVariableType]
+            out.update(_labels(item))
+    return sorted(out, key=len, reverse=True)
 
 
 def _showed(caption: str) -> str:
