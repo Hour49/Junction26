@@ -39,7 +39,7 @@
     {
       "n": 3,
       "id": "ev_14",
-      "drawing_id": "1461af7f40ba2791",
+      "drawing_id": "f789aa7619c82669",
       "name": "Drawn plan 3",
       "page": 1,
       "box": [
@@ -486,11 +486,11 @@
           "file_id": "f3"
         },
         {
-          "drawing_id": "1461af7f40ba2791",
+          "drawing_id": "f789aa7619c82669",
           "name": "plans/flat-c.pdf",
           "answer": {
             "question": "How many doors are there?",
-            "drawing_id": "1461af7f40ba2791",
+            "drawing_id": "f789aa7619c82669",
             "file": "plans/flat-c.pdf",
             "pages": [
               {
@@ -498,7 +498,7 @@
                 "width": 600.0,
                 "height": 400.0,
                 "unit": "pt",
-                "url": "/api/drawings/1461af7f40ba2791/pages/1.png",
+                "url": "/api/drawings/f789aa7619c82669/pages/1.png",
                 "normalised": null,
                 "scale": {
                   "status": "scaled",

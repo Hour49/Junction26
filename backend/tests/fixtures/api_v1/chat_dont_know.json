@@ -254,11 +254,11 @@
           "file_id": "f3"
         },
         {
-          "drawing_id": "1461af7f40ba2791",
+          "drawing_id": "f789aa7619c82669",
           "name": "plans/flat-c.pdf",
           "answer": {
             "question": "What is the fire rating of the doors?",
-            "drawing_id": "1461af7f40ba2791",
+            "drawing_id": "f789aa7619c82669",
             "file": "plans/flat-c.pdf",
             "pages": [
               {
@@ -266,7 +266,7 @@
                 "width": 600.0,
                 "height": 400.0,
                 "unit": "pt",
-                "url": "/api/drawings/1461af7f40ba2791/pages/1.png",
+                "url": "/api/drawings/f789aa7619c82669/pages/1.png",
                 "normalised": null,
                 "scale": {
                   "status": "scaled",
@@ -298,6 +298,11 @@
                   "question": "How many doors are there?"
                 },
                 {
+                  "quantity": "window",
+                  "label": "window count",
+                  "question": "How many windows are there?"
+                },
+                {
                   "quantity": "room:bedroom",
                   "label": "room bedroom count",
                   "question": "How many bedrooms are there?"
@@ -311,11 +316,6 @@
                   "quantity": "room:balcony",
                   "label": "room balcony count",
                   "question": "How many balconies are there?"
-                },
-                {
-                  "quantity": "room",
-                  "label": "room count",
-                  "question": "How many rooms are there?"
                 }
               ]
             },

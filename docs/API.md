@@ -942,7 +942,7 @@ Ingest's project status, plus `drawings`:
       "not_drawable_reason": "no walls are drawn as geometry on this page"
     },
     {
-      "drawing_id": "1461af7f40ba2791",
+      "drawing_id": "f789aa7619c82669",
       "group": "plans/flat-c",
       "file": "plans/flat-c.pdf",
       "kind": "pdf_vector",
@@ -3155,15 +3155,15 @@ upload lists the files, instead of one request per file.
       "file": {
         "id": "f4",
         "path": "plans/flat-c.pdf",
-        "size": 1292,
-        "sha256": "2a6e43cca7db2ddcb232ae4684c7c37d1f494b1d6a0d4d77894e7209c083c284",
+        "size": 1351,
+        "sha256": "1dd9419ba7b69b19337fc8690777766fcdd22301df5fb46ff3f70056dec57b0c",
         "kind": "pdf_vector",
         "state": "ready",
-        "reason": "read on the drawn PDF route: 1 element, 3 rooms, scale read from the sheet",
+        "reason": "read on the drawn PDF route: 2 elements, 3 rooms, scale read from the sheet",
         "group": "plans/flat-c",
         "route": "vector",
         "source": "plans/flat-c.pdf",
-        "drawing_id": "1461af7f40ba2791",
+        "drawing_id": "f789aa7619c82669",
         "reused": false,
         "takeoff": {
           "area:apartment": 20.664,
@@ -3252,13 +3252,13 @@ upload lists the files, instead of one request per file.
           "toilet|name=bagno": 0,
           "toilet|name=balcone": 0,
           "toilet|name=stanza": 0,
-          "window": 0,
+          "window": 1,
           "window|name=1.01": 0,
-          "window|name=1.02": 0,
+          "window|name=1.02": 1,
           "window|name=1.03": 0,
           "window|name=bagno": 0,
           "window|name=balcone": 0,
-          "window|name=stanza": 0
+          "window|name=stanza": 1
         },
         "ms": 12.5,
         "stage": "write",
@@ -3268,7 +3268,7 @@ upload lists the files, instead of one request per file.
       "stages": [
         {
           "stage": "unpack",
-          "did": "path checked, 1292 bytes",
+          "did": "path checked, 1351 bytes",
           "ms": 12.5,
           "output": "plans/flat-c.pdf",
           "failure": null,
@@ -3276,15 +3276,15 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "hash",
-          "did": "sha256 2a6e43cca7db",
+          "did": "sha256 1dd9419ba7b6",
           "ms": 12.5,
-          "output": "2a6e43cca7db2ddcb232ae4684c7c37d1f494b1d6a0d4d77894e7209c083c284",
+          "output": "1dd9419ba7b69b19337fc8690777766fcdd22301df5fb46ff3f70056dec57b0c",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "identify",
-          "did": "a drawn PDF (page 1 of 1: 10 paths, 0 images, 80 characters)",
+          "did": "a drawn PDF (page 1 of 1: 13 paths, 0 images, 80 characters)",
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
@@ -3316,9 +3316,9 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "extract",
-          "did": "1 element, 3 rooms, 1 plan, scale read from the sheet",
+          "did": "2 elements, 3 rooms, 1 plan, scale read from the sheet",
           "ms": 12.5,
-          "output": "1 element, 3 rooms, 1 plan, scale read from the sheet",
+          "output": "2 elements, 3 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -3332,15 +3332,15 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "takeoff",
-          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 93 quantities, 40 above zero",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 93 quantities, 43 above zero",
           "ms": 12.5,
-          "output": "takeoff: 93 quantities, 40 above zero",
+          "output": "takeoff: 93 quantities, 43 above zero",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "write",
-          "did": "drawing model 1461af7f40ba2791 stored",
+          "did": "drawing model f789aa7619c82669 stored",
           "ms": 12.5,
           "output": "93 quantities",
           "failure": null,
@@ -4126,11 +4126,11 @@ many quantities are left to review and how many are signed off, and every confli
       "quantities": 81
     },
     {
-      "drawing_id": "1461af7f40ba2791",
+      "drawing_id": "f789aa7619c82669",
       "file": "plans/flat-c.pdf",
       "to_review": 0,
       "signed": 0,
-      "quantities": 40
+      "quantities": 43
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -8879,7 +8879,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
     {
       "n": 3,
       "id": "ev_14",
-      "drawing_id": "1461af7f40ba2791",
+      "drawing_id": "f789aa7619c82669",
       "name": "Drawn plan 3",
       "page": 1,
       "box": [
@@ -9326,11 +9326,11 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
           "file_id": "f3"
         },
         {
-          "drawing_id": "1461af7f40ba2791",
+          "drawing_id": "f789aa7619c82669",
           "name": "plans/flat-c.pdf",
           "answer": {
             "question": "How many doors are there?",
-            "drawing_id": "1461af7f40ba2791",
+            "drawing_id": "f789aa7619c82669",
             "file": "plans/flat-c.pdf",
             "pages": [
               {
@@ -9338,7 +9338,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
                 "width": 600.0,
                 "height": 400.0,
                 "unit": "pt",
-                "url": "/api/drawings/1461af7f40ba2791/pages/1.png",
+                "url": "/api/drawings/f789aa7619c82669/pages/1.png",
                 "normalised": null,
                 "scale": {
                   "status": "scaled",
@@ -10075,11 +10075,11 @@ budget, the same call a third time) ends a turn the same way.
           "file_id": "f3"
         },
         {
-          "drawing_id": "1461af7f40ba2791",
+          "drawing_id": "f789aa7619c82669",
           "name": "plans/flat-c.pdf",
           "answer": {
             "question": "What is the fire rating of the doors?",
-            "drawing_id": "1461af7f40ba2791",
+            "drawing_id": "f789aa7619c82669",
             "file": "plans/flat-c.pdf",
             "pages": [
               {
@@ -10087,7 +10087,7 @@ budget, the same call a third time) ends a turn the same way.
                 "width": 600.0,
                 "height": 400.0,
                 "unit": "pt",
-                "url": "/api/drawings/1461af7f40ba2791/pages/1.png",
+                "url": "/api/drawings/f789aa7619c82669/pages/1.png",
                 "normalised": null,
                 "scale": {
                   "status": "scaled",
@@ -10119,6 +10119,11 @@ budget, the same call a third time) ends a turn the same way.
                   "question": "How many doors are there?"
                 },
                 {
+                  "quantity": "window",
+                  "label": "window count",
+                  "question": "How many windows are there?"
+                },
+                {
                   "quantity": "room:bedroom",
                   "label": "room bedroom count",
                   "question": "How many bedrooms are there?"
@@ -10132,11 +10137,6 @@ budget, the same call a third time) ends a turn the same way.
                   "quantity": "room:balcony",
                   "label": "room balcony count",
                   "question": "How many balconies are there?"
-                },
-                {
-                  "quantity": "room",
-                  "label": "room count",
-                  "question": "How many rooms are there?"
                 }
               ]
             },

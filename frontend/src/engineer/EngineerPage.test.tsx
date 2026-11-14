@@ -859,7 +859,7 @@ describe('Vellum (screen 4)', () => {
     expect(fig.textContent).toContain('PDF vector · drawn PDF route');
     const also = within(t).getByRole('link', { name: 'flat-a.png' });
     expect(also.getAttribute('href')).toBe(`#/p/${PROJECT}/d/c9b719f715357201/engineer`);
-    expect(within(t).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+    expect(within(t).getByText('1 / 6').getAttribute('aria-live')).toBe('polite');
   });
 
   it('EN-56 previous and next drawing wrap round; none for one drawing or before the project', async () => {
@@ -878,7 +878,7 @@ describe('Vellum (screen 4)', () => {
     const nav = await screen.findByRole('navigation', { name: 'Drawings' });
     expect(within(nav).getByRole('link', { name: 'Next drawing' })).toBeTruthy();
     expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
-    expect(within(nav).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+    expect(within(nav).getByText('1 / 6').getAttribute('aria-live')).toBe('polite');
   });
 
   it.each([
@@ -891,7 +891,7 @@ describe('Vellum (screen 4)', () => {
       `#/p/${PROJECT}/d/${project.drawings[1]?.drawing_id ?? ''}/engineer`,
     );
     expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
-    expect(within(nav).getByText('1 / 5')).toBeTruthy();
+    expect(within(nav).getByText('1 / 6')).toBeTruthy();
   });
 
   it.each([

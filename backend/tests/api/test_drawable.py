@@ -225,3 +225,19 @@ def test_the_sample_has_a_drawable_plan(client: TestClient) -> None:
     project = client.get(client.post("/api/projects/sample").json()["url"]).json()
     drawable = {d["file"]: d["name"] for d in project["drawings"] if d["drawable"]}
     assert list(drawable) == ["plans/flat-c.pdf"]
+
+
+@pytest.mark.parametrize("pack", ["fi", "ch-zh"])
+def test_the_samples_walled_plan_fails_no_rule(client: TestClient, pack: str) -> None:
+    """The sample's one failed rule stays flat-b's 8.06 m2 bedroom under ch-zh (the demo's
+    story): flat-c's Stanza has a window, so it passes both packs' window rules."""
+    project = client.get(client.post("/api/projects/sample").json()["url"]).json()
+    found = client.get(f"/api/projects/{project['id']}/checks", params={"pack": pack}).json()
+    failed = [
+        (d["file"], result["subject"]["label"])
+        for d in found["drawings"]
+        for rule in d["rules"]
+        for result in rule["results"]
+        if result["status"] == "fail"
+    ]
+    assert failed == ([("plans/flat-b.pdf", "Zimmer 1.05")] if pack == "ch-zh" else [])

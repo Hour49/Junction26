@@ -4,7 +4,7 @@ import { statusTip } from '../engineer/format';
 
 export const TIPS = {
   // Home / upload
-  sample: 'A small made-up flat with 11 files. Click it to see Vellum work from start to finish.',
+  sample: 'A small made-up flat with 12 files. Click it to see Vellum work from start to finish.',
   offline:
     'No AI key is set, so Vellum uses its built-in readers only. Scans and photos may stay unread.',
   formats:

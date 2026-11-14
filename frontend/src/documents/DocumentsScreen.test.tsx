@@ -82,7 +82,7 @@ describe('DocumentsScreen (documents.md)', () => {
     await flush();
     expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeTruthy();
     expect(document.body.textContent).toContain(project.name);
-    expect(document.body.textContent).toContain('3 files ingested, 5 drawings read from them');
+    expect(document.body.textContent).toContain('3 files ingested, 6 drawings read from them');
     expect(screen.getByRole('link', { name: 'Building-code checks' }).getAttribute('href')).toBe(
       `#/p/${PID}/checks?pack=fi`,
     );

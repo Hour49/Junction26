@@ -178,7 +178,8 @@ M = 72 / 25.4 * 1000 / 100  # points per metre at 1:100
 def walled_sheet() -> bytes:
     """tests/swiss_walls.py's walled flat: Bagno 1.01 (3 x 3 m) | a 0.12 m wall with a 1 m
     door | Stanza 1.02 (3.89 x 3 m), 0.2 m outer walls, Balcone 1.03 past the façade. Its
-    walls are grey fills, so the plan tools can remove a wall or place a room on it."""
+    walls are grey fills, so the plan tools can remove a wall or place a room on it. Stanza
+    has a window in the façade."""
     sheet = SheetPdf(600, 400)
     left, top, mid, right, bottom = 100, 100, 100 + 3 * M, 100 + 3.12 * M, 100 + 3 * M
     end = right + 3.888 * M
@@ -197,6 +198,9 @@ def walled_sheet() -> bytes:
     ):
         sheet.path(rect(*box), stroke=BLACK, width=0.99, fill=WALL)
     sheet.path(rect(mid - 2, door[0], right + 2, door[1]), stroke=DOOR_GREY, width=0.37)
+    # Stanza's window in the façade, so it passes the window rules (the sample's one failed
+    # rule stays flat-b's bedroom)
+    swiss_window(sheet, right + 1 * M, top - t - 1, right + 2.2 * M, top + 1)
     sheet.text("Massstab 1:100 (A3)", 450, 380)
     return sheet.pdf()
 

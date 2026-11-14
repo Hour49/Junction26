@@ -76,11 +76,11 @@ test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks,
   const main = page.getByRole('main');
   await expect(main.getByRole('note')).toHaveText(NOTE);
   // Codecheck/sample-rooms: the sample's bedroom "Zimmer 1.05" is typed. fi (>= 7 m²) passes it on both flats,
-  // so nothing fails and the two flats count as passing.
+  // so nothing fails and the three flats (flat-c has no bedroom) count as passing.
   const fi = await liveResults(page, pid, 'fi');
   expect(fi.filter((r) => r.status === 'fail')).toEqual([]);
   expect(fi.some((r) => r.status === 'pass' && r.subject.label === 'Zimmer 1.05')).toBe(true);
-  await expect(main.getByText('2 drawings pass every checked place')).toBeVisible();
+  await expect(main.getByText('3 drawings pass every checked place')).toBeVisible();
   await expect(main.getByRole('article', { name: /^Zimmer 1\.05 · / })).toHaveCount(0);
   await noSideScroll(page, 'checks');
   await shot(page, testInfo, 'ck-checks', offline);
@@ -100,7 +100,7 @@ test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks,
   await expect(fail).toHaveCount(1);
   await expect(fail).toContainText('Fails');
   await expect(fail).toContainText('8.06');
-  await expect(main.getByText('1 drawing passes every checked place')).toBeVisible();
+  await expect(main.getByText('2 drawings pass every checked place')).toBeVisible();
   // VW-79: "Show on the drawing" outlines the failed room on its page, visible without scrolling.
   await fail.getByRole('button', { name: 'Show on the drawing' }).click();
   const mark = page
