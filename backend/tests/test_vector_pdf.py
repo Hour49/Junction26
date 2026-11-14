@@ -1,6 +1,7 @@
 """The vector route's PDF extractor (`EXTRACTOR_VECTOR=pdf`) on synthetic sheets drawn in the two
 styles it has reading rules for. Each test names the rule it holds in place."""
 
+import ast
 import json
 import math
 from collections import Counter
@@ -746,4 +747,22 @@ def test_the_setting_wires_it_and_a_plan_as_pdf_and_png_gives_two_valid_extracti
     assert on_png["pages"][0]["unit"] == "px"
     assert on_png["scale"]["m_per_unit"] == pytest.approx(
         on_pdf["scale"]["m_per_unit"] / 2, rel=1e-4
+    )
+
+
+SWISS_GOLD = Path(__file__).parents[2] / "prototypes" / "extraction-gold" / "swiss_gold.py"
+
+
+@pytest.mark.parametrize("table", ["ROOM_TYPES", "OUTDOOR_NAMES", "BALCONY_NAMES", "SHAFT_NAMES"])
+def test_the_swiss_gold_types_rooms_with_the_readers_words(table: str) -> None:
+    """The Part 1 gold of the swiss plans keeps a copy of the tables (it must not import what it
+    scores). A word in one and not in the other is a room typed two ways: scored wrong."""
+    (words,) = [
+        node.value
+        for node in ast.parse(SWISS_GOLD.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.Assign)
+        and [target.id for target in node.targets if isinstance(target, ast.Name)] == [table]
+    ]
+    assert ast.literal_eval(words) == getattr(swiss, table), (
+        "add the word to both tables, then rebuild the gold (prototypes/extraction-gold/README.md)"
     )
