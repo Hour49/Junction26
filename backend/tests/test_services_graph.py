@@ -346,7 +346,18 @@ def test_sv11_cut_off_refuses_when_an_outlet_downstream_is_open() -> None:
 
 def test_sv11_cut_off_never_says_zero_when_nothing_flows_out_of_the_valve() -> None:
     doc = model()
-    doc["elements"].append(el("E30", "valve", "flow_controller"))  # both ports state "sink"
+    doc["elements"].append(el("E30", "valve", "flow_controller"))
+    for p in doc["elements"][-1]["ports"]:  # all inlets: nothing flows out of it
+        p["flow"] = "sink"
     doc["connections"].append({"a": "E30.p1", "b": "E5.p2", "state": "stated"})
     said = ask(derive.graph(doc), "cut_off", element_id="E30")
-    assert said["status"] == "unknown"
+    assert said == {"status": "unknown", "reason": ops.NO_FLOW}  # the guard, not the open-end check
+
+
+def test_sv11_cut_off_names_an_unstated_direction_not_a_missing_connection() -> None:
+    doc = model()
+    for p in doc["elements"][7]["ports"]:  # E8, connected at both ends, says flow "both"
+        p["flow"] = "both"
+    said = ask(derive.graph(doc), "cut_off", element_id="E7")
+    reason = "the model does not say which way the flow goes at E8, so it cannot tell what lies"
+    assert said == {"status": "unknown", "reason": f"{reason} downstream of E7"}

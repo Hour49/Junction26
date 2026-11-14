@@ -141,8 +141,9 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   the ports of the valve's systems (of its connected piece when it has no system), not connected equipment, so it
   answers on a loose part of a `partial` model too; else it refuses: "this model does not say which way the water flows here".
   On any model it also refuses when an outlet of the valve, or of anything it passes downstream (equipment it stops at
-  excepted), is open or not a stated source-to-sink connection: "the model does not show what lies downstream of
-  <valve>: at <element> a connection is missing"; and it never answers "cuts off 0" (a valve with nothing
+  excepted), is open: "the model does not show what lies downstream of <valve>: at <element> a connection is
+  missing"; or is connected with no stated direction on one side (flow "both" or none): "the model does not say
+  which way the flow goes at <element>, so it cannot tell what lies downstream of <valve>"; and it never answers "cuts off 0" (a valve with nothing
   downstream along stated flow refuses with the flow reason).
 - SV-12 A full re-derive (facts, graph, checks) runs after every edit. *Measured*: 6 ms for 1,795 elements.
 

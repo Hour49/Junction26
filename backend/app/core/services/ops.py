@@ -12,8 +12,9 @@ Definitions (SV-11):
   a heat or air source is preferred over pumps alone, the others are listed under "also".
 - "What closing a valve cuts off" follows the stated flow direction, so it needs a direction on
   at least 90% of the ports of the valve's systems; else it is unknown. It is unknown too when
-  an outlet of the valve or of anything it passes downstream is open (or not a stated
-  source-to-sink connection), and when nothing lies downstream: it never says "0" from a gap.
+  an outlet of the valve or of anything it passes downstream is open, or connected with no
+  stated direction ("both", none) on one side (each with its own reason), and when nothing
+  lies downstream: it never says "0" from a gap.
 - A junction is any element with three or more ports.
 
 Connectivity (SV-4): with `none`, every question that walks the network is unknown with the
@@ -318,12 +319,19 @@ def cut_off(g: ServicesGraph, element_id: str) -> Answer:
     # open end or an undirected outlet hides what lies beyond, so the count would be short.
     for v in _order({element_id} | {d for d in down if not g.stops(d)}):
         for p in g.el[v].get("ports") or ():
-            flow, beyond = g.flow.get(p["id"]), g.flow.get(g.peer.get(p["id"], ""))
-            if flow != "sink" and not (flow == "source" and beyond == "sink"):
+            flow, peer = g.flow.get(p["id"]), g.peer.get(p["id"])
+            if flow == "sink" or (flow == "source" and g.flow.get(peer) == "sink"):
+                continue
+            if peer is None:
                 raise UnknownAnswerError(
                     f"the model does not show what lies downstream of {element_id}: "
                     f"at {v} a connection is missing"
                 )
+            at = _host(peer) if flow == "source" else v  # the side that states no direction
+            raise UnknownAnswerError(
+                f"the model does not say which way the flow goes at {at}, "
+                f"so it cannot tell what lies downstream of {element_id}"
+            )
     if not down:  # a connected valve always has something downstream: its flow is mis-stated
         raise UnknownAnswerError(NO_FLOW)
     return {
