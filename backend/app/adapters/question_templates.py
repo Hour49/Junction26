@@ -77,7 +77,11 @@ SUBJECTS: Sequence[tuple[str, str]] = (
         r"|\bprysznic\w*",
     ),
     ("sauna", r"\bsauna\w*"),
-    ("plan", r"\bfloors\b|\bstoreys\b|\bstories\b|\bkerros(?:ta|ten)?\b|\bfloor levels\b"),
+    (
+        "plan",
+        r"\bfloors\b|\bstoreys\b|\bstories\b|\bkerros(?:ta|ten)?\b|\bfloor levels\b"
+        r"|\b(?:floor )?plans\b",
+    ),
     (
         "room:bedroom",
         r"\bbedrooms?\b|\bmakuuhuone\w*|\bschlafzimmer\b|\bchambres?\b|\bcamer[ae] da letto\b"
@@ -98,6 +102,10 @@ SUBJECTS: Sequence[tuple[str, str]] = (
         "room:living",
         r"\bliving ?rooms?\b|\bolohuone\w*|\bwohnzimmer\b|\bwoonkamer\w*|\bsoggiorn[oi]\b"
         r"|\bséjours?\b",
+    ),
+    (
+        "room:storage",
+        r"\bstorage(?: rooms?)?\b|\bstore ?rooms?\b|\bvarasto\w*|\babstellr(?:aum|äume)\w*",
     ),
     (
         "apartment",
@@ -162,7 +170,7 @@ MEASURES: Sequence[tuple[Measure, re.Pattern[str]]] = (
         "area",
         re.compile(
             r"\barea\b|fläche|surface|superficie|oppervlak|pinta-?ala|powierzchni|pind\b|pinda"
-            r"|m²|\bm2\b|square met|neliö|areal|suprafa"
+            r"|m²|\bm2\b|square met|neliö|areal|suprafa|\bhow (?:big|large)\b"
         ),
     ),
     (

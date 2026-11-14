@@ -331,3 +331,22 @@ def test_elements_counted_in_one_room_are_refused_whether_or_not_the_room_is_kno
 )
 def test_elements_counted_on_the_sheet_are_answered(text: str) -> None:
     assert PARSE(text) == Query(subject="window")
+
+
+def test_how_big_asks_for_an_area() -> None:
+    """R2-2-3: "How big is room 1.01?" was refused as no count, area, length or volume."""
+    assert PARSE("How big is room 1.01?") == Query(measure="area", subject="room", name="1.01")
+    assert PARSE("How large is the kitchen?") == Query(measure="area", subject="room:kitchen")
+
+
+def test_a_storage_room_is_a_room_type() -> None:
+    assert PARSE("What is the area of the storage room?") == Query(
+        measure="area", subject="room:storage"
+    )
+    assert PARSE("How many storage rooms are there?") == Query(subject="room:storage")
+
+
+def test_plans_are_counted() -> None:
+    """R2-2 note: "How many plans are there?" was refused though the takeoff counts plans."""
+    assert PARSE("How many plans are there?") == Query(subject="plan")
+    assert PARSE("How many floor plans does the sheet show?") == Query(subject="plan")

@@ -20,6 +20,7 @@ from collections.abc import Mapping, Sequence
 from app.core.drawing.model import Box, Drawing, Polygon
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
 from app.core.pipeline.model import Measure, Quantity
+from app.core.pipeline.takeoff import quantity_key
 from app.core.review.model import (
     Added,
     Edit,
@@ -243,7 +244,7 @@ def needs_person(quantity: Quantity, state: ReviewState) -> bool:
 def review_queue(rows: Sequence[Row]) -> list[str]:
     """The keys a surveyor should look at: methods disagree, or the value is an estimate. A
     disagreement is listed once (`disputes`)."""
-    twins = _storey_twins(rows)
+    twins = storey_twins({found.key: found for found in rows})
     return [
         found.key
         for found in rows
@@ -255,27 +256,52 @@ def disputes(rows: Sequence[Row]) -> list[Row]:
     """The rows where two methods disagree, one per disagreement: on a sheet of one storey the
     takeoff puts a disagreement on the sheet's row and on that storey's (so a question about
     either shows it); the storey's row is left out when the sheet's row carries the same one."""
-    twins = _storey_twins(rows)
+    twins = storey_twins({found.key: found for found in rows})
     return [found for found in rows if found.conflict is not None and found.key not in twins]
 
 
-def _storey_twins(rows: Sequence[Row]) -> set[str]:
-    """The keys of storey rows whose sheet row (the same key without the storey) carries the
-    same disagreement."""
-    by_scope = {(found.measure, found.subject, found.scope): found for found in rows}
-    return {
-        found.key
-        for found in rows
-        if found.conflict is not None
-        and found.scope.storey is not None
-        and (
-            sheet := by_scope.get(
-                (found.measure, found.subject, found.scope.model_copy(update={"storey": None}))
-            )
+def storey_twins(found: Mapping[str, Quantity] | Mapping[str, Row]) -> dict[str, str]:
+    """Each storey row whose sheet row (the same key without the storey) carries the same
+    disagreement, with that sheet row's key. On a sheet of one storey the takeoff puts a
+    disagreement on both rows (so a question about either shows it): it is one disagreement."""
+    twins: dict[str, str] = {}
+    for key, item in found.items():
+        measure, subject, scope = parse_key(key)
+        if item.conflict is None or scope.storey is None:
+            continue
+        sheet = quantity_key(
+            measure, subject, **scope.model_copy(update={"storey": None}).model_dump()
         )
-        is not None
-        and sheet.conflict == found.conflict
-    }
+        if (other := found.get(sheet)) is not None and other.conflict == item.conflict:
+            twins[key] = sheet
+    return twins
+
+
+def with_twins(state: ReviewState, twins: Mapping[str, str]) -> ReviewState:
+    """The state with each storey twin (`storey_twins`) taking its sheet row's edits, settled
+    value and sign-off: the review lists the disagreement once, on the sheet's row, and what is
+    decided there is decided for the storey too (K4)."""
+    if not twins:
+        return state
+
+    def shared[T](edits: dict[str, T]) -> dict[str, T]:
+        found = {key: value for key, value in edits.items() if key not in twins}
+        found.update({twin: edits[sheet] for twin, sheet in twins.items() if sheet in edits})
+        return found
+
+    return ReviewState(
+        rejected=shared(state.rejected),
+        added=shared(state.added),
+        settled=shared(state.settled),
+        signed=shared(state.signed),
+        included=shared(state.included),
+    )
+
+
+def sheet_row(quantities: Mapping[str, Quantity], key: str | None) -> Quantity:
+    """The quantity an edit or sign-off of `key` is made on: a storey twin's sheet row
+    (`storey_twins`), so one disagreement has one decision; else `key`'s own."""
+    return quantity_of(quantities, storey_twins(quantities).get(key or "", key))
 
 
 def quantity_of(quantities: Mapping[str, Quantity], key: str | None) -> Quantity:

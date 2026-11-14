@@ -1,6 +1,7 @@
 """The answering use cases: one question (the API) and a batch of them (the CLI)."""
 
 import logging
+import re
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
@@ -201,7 +202,12 @@ class RoomByType:
     """The parser, with the area of a room asked by its type ("the area of the kitchen") turned
     into that room's own area (the key "room 2.01" answers under) when the drawing has exactly one
     room of the type and the takeoff has its area: one row, with its conflict and review. Any
-    other question, or a type several rooms (or none) have, stays as parsed."""
+    other question, or a type several rooms (or none) have, stays as parsed.
+
+    The same for a room asked by a printed label or name the parser has no word for ("the area
+    of the Reduit"), when the parser refuses the question as typed: when one room on the drawing
+    carries that name (3 letters or more, no digits), the question is read with it as the room's
+    name, and answers when that is an area (R2-2-3)."""
 
     def __init__(
         self, parser: QuestionParser, drawing: Drawing, quantities: Mapping[str, Quantity]
@@ -212,16 +218,48 @@ class RoomByType:
 
     def parse(self, text: str) -> Query | TableQuery | Unsupported:
         parsed = self._parser.parse(text)
+        if isinstance(parsed, Unsupported):
+            return self._printed(text) or parsed
         if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
             return parsed
-        for name in sorted(room_names(rooms[0])):
+        return self._area_of(rooms[0], parsed) or parsed
+
+    def _area_of(self, room: Room, parsed: Query) -> Query | None:
+        """The area query of `room` by the first of its names the takeoff has a row for."""
+        for name in sorted(room_names(room)):
             query = Query(
                 measure="area", subject="room", name=name, storey=parsed.storey,
                 read_as=parsed.read_as,
             )  # fmt: skip
             if query.key() in self._quantities:
                 return query
-        return parsed
+        return None
+
+    def _printed(self, text: str) -> Query | None:
+        """The question read with the one room name of the drawing it holds as that room's name
+        ("the Reduit" → "the room 'Reduit'"), when that asks for the room's area."""
+        found: dict[str, list[Room]] = {}
+        at: dict[str, re.Match[str]] = {}
+        for room in self._drawing.rooms:
+            for name in room_names(room):
+                if len(name) < 3 or any(char.isdigit() for char in name):
+                    continue
+                match = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.IGNORECASE)
+                if match is not None:
+                    found.setdefault(name, []).append(room)
+                    at[name] = match
+        if len(found) != 1:
+            return None
+        ((name, rooms),) = found.items()
+        if len(rooms) != 1:
+            return None
+        match = at[name]
+        again = self._parser.parse(
+            f"{text[: match.start()]}room '{match.group()}'{text[match.end() :]}"
+        )
+        if not (isinstance(again, Query) and again.measure == "area" and again.name is not None):
+            return None
+        return self._area_of(rooms[0], again)
 
 
 def rooms_of_type(parsed: Query, drawing: Drawing) -> list[Room]:

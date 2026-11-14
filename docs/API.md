@@ -3051,6 +3051,10 @@ does not hold the drawing is 404.
 
 ### `POST /api/drawings/{drawing_id}/review?zeros=<bool>`
 
+On a sheet of one storey a disagreement sits on the sheet's row and on that storey's row ("window" and
+"window|storey=p1", the same values): it is one disagreement. An edit or sign-off sent for the storey's row is made
+on the sheet's row, and the storey's row shows the sheet row's edits, settled value and sign-off (K4).
+
 One edit per call; the response is the whole takeoff (as `GET …/takeoff`), so the screen replaces its state. The
 edits, in order: reject, restore, add, settle, reset one quantity, reset the whole drawing:
 
@@ -3426,6 +3430,10 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive: on a sheet of one storey, an edit or sign-off of a storey row that carries the sheet row's
+  disagreement is made on the sheet's row, and the storey row shows its edits (K4). `POST /api/ask` answers the
+  area of a room asked by a printed name the parser has no word for ("the Reduit"), "how big/large" as an area,
+  storage rooms and "how many plans" (R2-2-3).
 - 2026-11-14, text: the sample archive's drawing `credit` reads "Synthetic drawing made for this demo by the
   Hour49 team; no partner data" (it named a repo path, `backend/scripts/make_sample_archive.py`).
 - 2026-11-14, additive: a method a path does not take is `405 method-not-allowed` (it was `405 error`, a
