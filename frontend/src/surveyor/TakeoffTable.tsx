@@ -8,6 +8,8 @@ import {
   type Takeoff,
 } from '../api';
 import { statusText } from './words';
+import { Button } from '@/components/ui/button';
+import { ROW } from './ui';
 
 interface Props {
   takeoff: Takeoff;
@@ -19,14 +21,15 @@ function Rows({ rows, selected, onSelect }: { rows: Row[] } & Omit<Props, 'takeo
   return rows.map((row) => (
     <tr key={row.key} data-key={row.key} aria-current={row.key === selected ? 'true' : undefined}>
       <th scope="row">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          className={ROW}
           onClick={() => {
             onSelect(row.key);
           }}
         >
           {row.label}
-        </button>
+        </Button>
         {row.first && row.second && (
           <small>
             {methodName(row.first.method)} {formatValue(row.first.value, row.unit)} ·{' '}

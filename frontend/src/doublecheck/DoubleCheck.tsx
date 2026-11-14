@@ -18,7 +18,23 @@ import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import { pageFlagged, patch, requestLine, stateOf, toViewer } from './check';
 import { checkOf, type Disputed } from './types';
-import './doublecheck.css';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+
+/** A pill button, 44 px tall; full width in a narrow window. */
+const BTN =
+  'min-h-11 px-[18px] text-base active:scale-[0.97] motion-reduce:active:scale-100 max-[760px]:flex-[1_1_100%]';
+const PRIMARY = 'hover:bg-accent-strong';
+const ERROR = 'm-0 text-danger';
+const HINT = 'm-0 text-[13px] text-muted-foreground';
+const ASK = 'm-0 text-[17px] font-semibold';
+const BUTTONS = 'flex flex-wrap items-center gap-2';
+const PILL = 'self-start px-2.5 py-[5px] text-xs font-semibold';
+/** The panel; its layout follows its own width, not the window's (DC-19). */
+const PANEL =
+  '@container flex flex-col gap-4 rounded-2xl bg-warn-soft p-5 font-sans text-foreground';
 
 interface Props {
   answer: AnswerView;
@@ -102,7 +118,7 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
   const isCount = a.unit === 'count';
   const workspace = (
     <a
-      className="dc-link"
+      className="font-semibold text-primary"
       href={routeHref({
         name: 'workspace',
         projectId,
@@ -175,23 +191,23 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
   if (state === 'checked') {
     const s = row.signed;
     return (
-      <section className="dc dc-checked" aria-label="Double-check">
-        <span className="dc-pill dc-ok">Checked by a person</span>
+      <section className={cn(PANEL, 'gap-2 bg-ok-soft')} aria-label="Double-check">
+        <Badge className={cn(PILL, 'bg-card text-ok')}>Checked by a person</Badge>
         {s && (
-          <p className="dc-ask">
+          <p className={ASK}>
             Checked by {s.by}, {formatTime(s.at)}
           </p>
         )}
         {refresh !== null && (
-          <p role="alert" className="dc-error">
+          <p role="alert" className={ERROR}>
             Checked. The answer could not be refreshed: {refresh}{' '}
-            <button type="button" className="dc-btn" onClick={() => void reask()}>
+            <Button variant="secondary" size="pill" className={BTN} onClick={() => void reask()}>
               Retry
-            </button>
+            </Button>
           </p>
         )}
         {error !== null && (
-          <p role="alert" className="dc-error">
+          <p role="alert" className={ERROR}>
             {error}
           </p>
         )}
@@ -213,31 +229,33 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
   };
 
   return (
-    <section className="dc" aria-label="Double-check">
-      <div className="dc-top">
-        <span className={`dc-pill ${fixing ? 'dc-fixing' : 'dc-warn'}`}>
+    <section className={PANEL} aria-label="Double-check">
+      <div className="flex flex-col items-start gap-1.5">
+        <Badge className={cn(PILL, fixing ? 'bg-accent text-primary' : 'bg-card text-warn')}>
           {fixing ? 'Fixing' : 'Please double-check'}
-        </span>
-        <p className="dc-ask">{requestLine(a, check)}</p>
+        </Badge>
+        <p className={ASK}>{requestLine(a, check)}</p>
         {/* on a flagged page the generic rule ("counts once") says nothing; the card's level text says why */}
-        {!pageFlagged(a) && <p className="dc-reason">{check.reason}</p>}
+        {!pageFlagged(a) && <p className="dc-reason m-0 text-sm text-text-2">{check.reason}</p>}
       </div>
 
-      <div className="dc-body">
-        <div className="dc-plan">
+      {/* one column in a narrow panel (the answer card's side column, phones): the card's own plan shows the marks */}
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 @min-[680px]:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="hidden min-w-0 overflow-hidden rounded-[var(--v-radius)] bg-card @min-[680px]:block">
           {credit !== null && 'error' in credit && (
-            <div role="alert" className="dc-error">
+            <div role="alert" className={ERROR}>
               {errorText(credit.error).detail}{' '}
-              <button
-                type="button"
-                className="dc-btn"
+              <Button
+                variant="secondary"
+                size="pill"
+                className={BTN}
                 onClick={() => {
                   setCredit(null);
                   setCreditTry((n) => n + 1);
                 }}
               >
                 Retry
-              </button>
+              </Button>
             </div>
           )}
           <PageViewer
@@ -261,16 +279,16 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
             }
           />
         </div>
-        <ul className="dc-list" aria-label="Places to double-check">
+        <ul className="m-0 flex list-none flex-col gap-2 p-0" aria-label="Places to double-check">
           {check.disputed.map((d, i) => {
             const m = markOf(d);
             const out = m !== null && (m.state === 'rejected' || m.state === 'excluded');
             const label = placeName(d);
             return (
-              <li key={i}>
+              <li key={i} className="flex flex-col gap-1.5">
                 <button
                   type="button"
-                  className="dc-place"
+                  className="flex min-h-11 cursor-pointer flex-col items-start gap-0.5 rounded-[14px] border border-border bg-card px-3 py-2.5 text-left text-sm text-foreground [overflow-wrap:anywhere] disabled:cursor-not-allowed disabled:text-muted-foreground aria-[current=true]:border-2 aria-[current=true]:border-primary aria-[current=true]:bg-accent aria-[current=true]:px-[11px] aria-[current=true]:py-[9px]"
                   disabled={busy}
                   aria-current={m !== null && m.id === selected ? 'true' : undefined}
                   onMouseEnter={() => {
@@ -289,37 +307,39 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
                     setSelected(m?.id ?? null);
                   }}
                 >
-                  <strong>{label}</strong>
+                  <strong className="text-warn">{label}</strong>
                   <span>{d.why}</span>
                   {Object.entries(d.readers).map(([reader, says]) => (
-                    <small key={reader} className="dc-reader">
+                    <small key={reader} className="dc-reader block text-xs text-muted-foreground">
                       {readerName(reader)}: {says}
                     </small>
                   ))}
                 </button>
                 {fixing && m !== null && (
-                  <button
-                    type="button"
-                    className="dc-btn"
+                  <Button
+                    variant="secondary"
+                    size="pill"
+                    className={BTN}
                     disabled={busy}
                     onClick={() => {
                       edit({ action: out ? 'restore' : 'reject', mark: m.id });
                     }}
                   >
                     {out ? 'Restore' : 'Reject'} {label.toLowerCase()}
-                  </button>
+                  </Button>
                 )}
                 {fixing && d.mark_id === null && isCount && (
-                  <button
-                    type="button"
-                    className="dc-btn"
+                  <Button
+                    variant="secondary"
+                    size="pill"
+                    className={BTN}
                     disabled={busy}
                     onClick={() => {
                       edit({ action: 'add', page: d.page, box: d.box as Edit['box'] });
                     }}
                   >
                     Add it here: page {d.page}
-                  </button>
+                  </Button>
                 )}
               </li>
             );
@@ -328,18 +348,19 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
       </div>
 
       {fixing && (
-        <p className="dc-value">
-          <span>Value now:</span> <strong>{valueWords(a)}</strong>
+        <p className="m-0 text-[15px] tabular-nums">
+          <span>Value now:</span> <strong className="text-xl">{valueWords(a)}</strong>
         </p>
       )}
 
       {mode === 'confirm' ? (
-        <div className="dc-confirm">
-          <p className="dc-ask">Sign off {valueWords(a)} as</p>
-          <label>
-            Signing as{' '}
-            <input
+        <div className="flex flex-col gap-2.5">
+          <p className={ASK}>Sign off {valueWords(a)} as</p>
+          <label className="grid gap-1">
+            Signing as
+            <Input
               type="text"
+              className="h-11 rounded-xl bg-card px-3 text-base md:text-base"
               maxLength={100}
               value={name}
               onChange={(e) => {
@@ -347,44 +368,46 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
               }}
             />
           </label>
-          <div className="dc-buttons">
-            <button
-              type="button"
-              className="dc-btn dc-primary"
+          <div className={BUTTONS}>
+            <Button
+              size="pill"
+              className={cn(BTN, PRIMARY)}
               disabled={busy || name.trim() === ''}
               onClick={confirm}
             >
               Confirm
-            </button>
-            <button
-              type="button"
-              className="dc-btn"
+            </Button>
+            <Button
+              variant="secondary"
+              size="pill"
+              className={BTN}
               disabled={busy}
               onClick={() => {
                 setMode('ask');
               }}
             >
               Back
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
-        <div className="dc-buttons">
+        <div className={BUTTONS}>
           {fixing ? (
             <>
-              <button
-                type="button"
-                className="dc-btn dc-primary"
+              <Button
+                size="pill"
+                className={cn(BTN, PRIMARY)}
                 disabled={busy}
                 onClick={() => {
                   setMode('confirm');
                 }}
               >
                 Done fixing
-              </button>
-              <button
-                type="button"
-                className="dc-btn"
+              </Button>
+              <Button
+                variant="secondary"
+                size="pill"
+                className={BTN}
                 disabled={busy}
                 onClick={() => {
                   setMode('ask');
@@ -392,23 +415,24 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
                 }}
               >
                 Cancel
-              </button>
+              </Button>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                className="dc-btn dc-primary"
+              <Button
+                size="pill"
+                className={cn(BTN, PRIMARY)}
                 disabled={busy}
                 onClick={() => {
                   setMode('confirm');
                 }}
               >
                 Looks right
-              </button>
-              <button
-                type="button"
-                className="dc-btn"
+              </Button>
+              <Button
+                variant="secondary"
+                size="pill"
+                className={BTN}
                 disabled={busy}
                 onClick={() => {
                   setMode('fixing');
@@ -416,13 +440,14 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
                 }}
               >
                 Fix it
-              </button>
+              </Button>
             </>
           )}
           {fixing && addable.length > 0 && (
-            <button
-              type="button"
-              className="dc-btn"
+            <Button
+              variant="secondary"
+              size="pill"
+              className={BTN}
               disabled={busy}
               aria-describedby={`${id}-add`}
               onClick={() => {
@@ -431,10 +456,10 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
               }}
             >
               Add one
-            </button>
+            </Button>
           )}
           {fixing && addable.length > 0 && (
-            <span id={`${id}-add`} className="dc-hint">
+            <span id={`${id}-add`} className={HINT}>
               Adds a mark where a reader saw one that was not counted.
             </span>
           )}
@@ -442,17 +467,17 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
       )}
 
       {kept && mode === 'ask' && (
-        <p className="dc-kept">
+        <p className={HINT}>
           <span>Your edits are kept; Reset in the surveyor workspace undoes them.</span> {workspace}
         </p>
       )}
       {busy && (
-        <p role="status" className="dc-hint">
+        <p role="status" className={HINT}>
           Saving…
         </p>
       )}
       {error !== null && (
-        <p role="alert" className="dc-error">
+        <p role="alert" className={ERROR}>
           {error}
         </p>
       )}

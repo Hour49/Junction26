@@ -212,6 +212,10 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
         if sel := selected(drawing):
             args["selection_id"] = sel
         return "list_services", args
+    if not any(d.get("kind") == "ifc" for d in found) and all("drawing_id" in a for a, _ in listed):
+        # an IFC set aside at upload is in no drawing list: the project's only services model
+        word = TERMINAL.search(words)
+        return "list_services", {"kind": TERMINALS[word[1]]} if word else {}
     why = next((str(f.get("error")) for _, f in listed if isinstance(f, dict)), None)
     return _final("dont_know", f"I can't find the building's services: {why or 'no drawings'}.")
 

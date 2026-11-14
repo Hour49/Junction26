@@ -24,41 +24,6 @@
   color: var(--v-muted);
   margin: 0;
 }
-.cf-btn {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 20px;
-  border-radius: 980px;
-  border: 0;
-  font: inherit;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform 0.12s;
-}
-.cf-btn {
-  background: var(--v-fill);
-  color: var(--v-text);
-}
-/* the demo's .btn-soft: Modify */
-.cf-btn.cf-soft {
-  background: var(--v-accent-soft);
-  color: var(--v-accent);
-}
-.cf-btn.cf-primary {
-  background: var(--v-accent);
-  color: var(--v-surface);
-  white-space: nowrap;
-}
-.cf-btn.cf-primary:hover:not(:disabled) {
-  background: var(--v-accent-strong);
-}
-.cf-btn:disabled {
-  color: var(--v-muted);
-  cursor: not-allowed;
-}
-.cf-btn:active:not(:disabled),
 .cf-tile:active:not(:disabled) {
   transform: scale(0.97);
 }
@@ -126,29 +91,6 @@
 .cf-pill-wrap {
   position: relative;
   flex: none;
-}
-.cf-pill {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: 980px;
-}
-.cf-ok {
-  color: var(--v-ok);
-  background: var(--v-ok-soft);
-}
-.cf-warn {
-  color: var(--v-warn);
-  background: var(--v-warn-soft);
-}
-.cf-accent {
-  color: var(--v-accent);
-  background: var(--v-accent-soft);
-}
-.cf-muted {
-  color: var(--v-text-2);
-  background: var(--v-fill);
 }
 .cf-tip {
   position: absolute;
@@ -249,21 +191,6 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.cf-chip {
-  min-height: 40px;
-  padding: 9px 14px;
-  border: 0;
-  border-radius: 980px;
-  background: var(--v-fill);
-  color: var(--v-text);
-  font: inherit;
-  font-size: 14px;
-  text-align: left;
-  cursor: pointer;
-}
-.cf-chip:hover {
-  background: var(--v-accent-soft);
-}
 .cf-own-row {
   display: flex;
   gap: 8px;
@@ -285,15 +212,7 @@
   border-color: var(--v-accent);
 }
 .cf-own-field input {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--v-text);
-  font: inherit;
-  font-size: 15px;
+  outline: none; /* the field's border marks the focus (:focus-within) */
 }
 
 /* a model's answer (resolver.md): one quiet line, its name in bold */
@@ -378,20 +297,11 @@
   .cf-own-row {
     flex-direction: column;
   }
-  .cf-own-field input {
-    font-size: 16px; /* no iOS zoom on focus */
-  }
-  .cf-chip {
-    min-height: 44px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cf-btn,
   .cf-tile {
     transition: none;
   }
-  .cf-btn:active:not(:disabled),
-  .cf-open-btn:active:not(:disabled),
   .cf-tile:active:not(:disabled) {
     transform: none;
   }

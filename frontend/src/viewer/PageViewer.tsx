@@ -1,4 +1,5 @@
 import { type CSSProperties, useId, useLayoutEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import type { AnswerView, MarkView, PageView, QuantityConflict } from '../api/types';
 import { formatValue, methodName } from '../api/format';
 import { PageFrame } from './PageFrame';
@@ -167,6 +168,14 @@ function whyTip(text: string, where: CSSProperties) {
     </span>
   );
 }
+
+// The page switcher and zoom buttons: 44 px pills on the surface colour (taps at least 44 px).
+const barButton = {
+  variant: 'outline',
+  size: 'pill',
+  className:
+    'min-w-11 border-0 bg-card px-3 text-[13px] shadow-[var(--v-shadow)] disabled:text-muted-foreground disabled:opacity-100',
+} as const;
 
 function words(mark: MarkView): string {
   const w = STATE_WORDS[mark.state];
@@ -455,8 +464,8 @@ export function PageViewer({
         <div className="vw-bar">
           {pages.length > 1 && (
             <div className="vw-switcher">
-              <button
-                type="button"
+              <Button
+                {...barButton}
                 aria-label="Previous page"
                 disabled={index === 0}
                 onClick={() => {
@@ -464,13 +473,13 @@ export function PageViewer({
                 }}
               >
                 ‹
-              </button>
+              </Button>
               <span>
                 Page {index + 1} of {pages.length} · {countText(onPage.length)}
                 {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
               </span>
-              <button
-                type="button"
+              <Button
+                {...barButton}
                 aria-label="Next page"
                 disabled={index === pages.length - 1}
                 onClick={() => {
@@ -478,12 +487,12 @@ export function PageViewer({
                 }}
               >
                 ›
-              </button>
+              </Button>
             </div>
           )}
           <div className="vw-zoom">
-            <button
-              type="button"
+            <Button
+              {...barButton}
               aria-label="Zoom out"
               disabled={zoom === 1}
               onClick={() => {
@@ -491,10 +500,10 @@ export function PageViewer({
               }}
             >
               −
-            </button>
+            </Button>
             <span>{zoom * 100}%</span>
-            <button
-              type="button"
+            <Button
+              {...barButton}
               aria-label="Zoom in"
               disabled={zoom === 4}
               onClick={() => {
@@ -502,15 +511,15 @@ export function PageViewer({
               }}
             >
               +
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              {...barButton}
               onClick={() => {
                 setZoom(1);
               }}
             >
               Fit
-            </button>
+            </Button>
           </div>
         </div>
       )}

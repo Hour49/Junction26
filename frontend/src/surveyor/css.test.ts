@@ -44,11 +44,11 @@ describe('surveyor styles', () => {
   });
 
   it('SV-55 no .sv-screen button rule reaches the viewer (its badges and bar keep their look)', () => {
+    // The surveyor's buttons are shadcn Buttons styled by class; no element rule may style the viewer's.
     const selectors = [...surveyorCss.matchAll(/([^{}]+)\{/g)].flatMap((m) =>
       (m[1] ?? '').split(',').map((s) => s.trim()),
     );
     const buttons = selectors.filter((s) => /\.sv-screen button\b/.test(s));
-    expect(buttons.length).toBeGreaterThan(0);
     expect(buttons.filter((s) => !s.includes('button:not(:where(.vw *))'))).toEqual([]);
   });
 });
