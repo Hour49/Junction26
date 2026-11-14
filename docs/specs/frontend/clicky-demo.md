@@ -1,6 +1,7 @@
 # Vellum clickable demo (spec)
 
-Status: 2026-11-14 11:40, by vellum-clicky (Tudor's orchestrator). Folder: `demo/vellum/`.
+Status: 2026-11-14 11:40, by vellum-clicky (Tudor's orchestrator); 12:20 the project chat and the conflicts'
+"Start a new chat" (Tudor 12:15, as `chat.md` and `conflicts.md` of the real app). Folder: `demo/vellum/`.
 Design: Tudor's "Vellum redesign" canvas, boards 1-5 and 9-12 (local copies `*.dc.html`). Boards 6-8 (Edit my plan)
 are out, with no link to them.
 
@@ -15,7 +16,7 @@ settle the conflicts, ask with proof, see the workspace history. No build step, 
 
 `index.html` (shell), `style.css` (Vellum tokens as in shared.md), `data.js` (the one synthetic data structure and
 the pure functions that derive every count, mark and total), `plan.js` (plans as SVG), `app.js` (routes, screens
-1-3, 5, 9-12), `ask.js` (screen 4), `data.test.cjs` (`node --test demo/vellum/*.test.cjs`), `README.md`, `vellum-logo.png` (the canvas logo asset). Nothing from
+1-3, 5, 9-12), `ask.js` (screen 4), `chat.js` (the project chat), `data.test.cjs` (`node --test demo/vellum/*.test.cjs`), `README.md`, `vellum-logo.png` (the canvas logo asset). Nothing from
 the Stoa dataset; the canvas `.jpg` archive plans are not used: every plan is SVG drawn from `data.js`.
 
 ## Data rules
@@ -36,14 +37,15 @@ the Stoa dataset; the canvas `.jpg` archive plans are not used: every plan is SV
 ## Screens and click map
 
 Header on every screen: logo + "Vellum" (→ `#/`), the view links once a workspace exists (Ingest, Conflicts,
-Engineer; current one marked), "Workspaces" (→ `#/workspaces`). No country picker, avatar or user name. Footer line: "Clickable demo · synthetic data".
+Chat, Engineer; current one marked), "Workspaces" (→ `#/workspaces`). No country picker, avatar or user name. Footer line: "Clickable demo · synthetic data".
 
 | # | Route | Board | What it does |
 | --- | --- | --- | --- |
 | 1 | `#/` | Main | Drop zone. "Choose files" (file picker) or a drop, and "Try a sample", all start the sample archive (said on screen) → `#/ingest`. Format tags. |
 | 2 | `#/ingest` | Ingest | Simple view: 8 steps advance on a clock (~14 s), ring %, stats Elapsed / Files through / Drawings ready / Set aside. Done: "Settle the conflicts" → `#/conflicts`. Simple / Advanced switch. |
 | 9-12 | `#/ingest/unpack`, `/identify`, `/extract`, `/check` | IngestUnpack, Identify, Extract, Check | Advanced: step rail (each step → its panel, the running step pulses), animated panel, narration and log cycling over the data, stats from the data. Simple ← → Advanced. |
-| 3 | `#/conflicts` | Conflicts | 3 conflict cards: two settled by the AI (Approved; Modify → pick a variant or Cancel; "Use the AI decision"), one open (Needs you; plan with the element in amber). Progress segments. "Open the workspace" locked until all are settled → `#/ask`. |
+| 3 | `#/conflicts` | Conflicts | 3 conflict cards: two settled by the AI (Approved; Modify → pick a variant or Cancel; "Use the AI decision"), one open (Needs you; plan with the element in amber). After a person's pick the card keeps **Modify** (never "Change"); Cancel puts back what was in use. Progress segments and "`a` settled by the AI. `y` settled by you. `p` needs you." While any card is unsettled: a disabled **Start a new chat** described by "Settle the conflicts that need you first."; once all are settled it links to `#/chat` with "Ask anything about the 6 drawings in this project" and a quiet "Open the workspace" (`#/ask`). |
+| chat | `#/chat` | (Tudor 12:15) | A whole new, empty chat over every drawing: the project name, one centred line "Ask anything about the 6 drawings in this project", the ask box ("Ask about the project's drawings") at the bottom; no plan, marks or suggestions until asked. An answer asks every drawing: the total ("Across the 6 drawings: 65 doors", the units always match as every drawing answers the same quantity) and one line per drawing "`<file>`: `<value>`" with its state (Sure / Please double-check / Checked by …) and **Show it on `<file>`** → `#/ask` on that drawing with the same question asked there. When every drawing refuses: "I can't answer that from these drawings.", the reason, and chips of what can be asked. |
 | 4 | `#/ask` | Workspace | Drawing switcher (prev/next over the drawings), suggestion chips, ask box. Answer card: value, plan with numbered marks, rule, methods, references (click → the original file view over the plan, close ×). Certified: "Sure" badge, "Certified" line. Not certified: "Please double-check: we're not sure about n of these doors", disputed marks amber, **Looks right** / **Fix it** (Reject / Restore per mark, value live) → confirm "Sign off v as [name]" → "Checked by name". Unknown questions are refused with the reason. |
 | 5 | `#/workspaces` | Account | "Your workspaces" (no name, no avatar), "New workspace" → `#/`; the sample workspace with its pill, stats (Files, Drawings, Questions, Signed off) and its history built from what was clicked (upload, analysis, each conflict settled, each question, each sign-off). Empty state before any upload. |
 
@@ -52,13 +54,15 @@ Deep links: a project route opened first starts the sample already analysed (con
 ## States
 
 - Ingest: running (step n of 8) / done. Advanced panels keep animating after done (they illustrate the step).
-- Conflict: `ai` (Approved), `modify` (Choosing), `own` (Your choice), `open` (Needs you).
+- Conflict: `ai` (Approved), `modify` (Choosing, remembers what to Cancel back to), `own` (Your choice: Modify,
+  plus "Use the AI decision" where the AI had one), `open` (Needs you).
+- Chat: empty / answered (total and per drawing) / refused by every drawing.
 - Answer: certified / needs check / fixing / confirming / checked / refused.
 - Workspaces: empty / one workspace.
 
 ## Checks
 
 - `node --test demo/vellum/*.test.cjs`: counts derived from the layouts (doors, windows, area), conflict variants change the
-  answer, certification rule, ingest stats.
+  answer, certification rule, ingest stats, the project chat's total and refusal.
 - Real browser (Playwright) at 1440 and 390 wide: every path clicked, no sideways scroll, no console errors.
 - `prefers-reduced-motion`: animations off.

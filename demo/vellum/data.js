@@ -305,7 +305,18 @@
     return { step, within, done, frac, total, files, through, drawings, ready, aside: step >= 1 || done ? aside : 0 };
   }
 
-  const API = { LAYOUTS, ARCHIVE, FILES, DRAWINGS, CONFLICTS, QUANTITIES, STEPS, drawing, layoutOf, rooms, openings,
+  // The project chat: one question asked of every drawing. Answers in drawing order with their total (every answer
+  // has the question's quantity, so the units match); when every drawing refuses, the first refusal and what can be asked.
+  const CAN_ANSWER = ['How many doors are there?', 'How many windows are there?', 'What is the net floor area?', 'How many rooms are there?'];
+  function askProject(question, picks) {
+    const answers = DRAWINGS.map((d) => answer(d.id, question, picks));
+    const rows = answers.filter((a) => !a.refusal);
+    if (!rows.length) return { question, refusal: answers[0].refusal, canAnswer: CAN_ANSWER };
+    const sum = rows.reduce((s, a) => s + a.value, 0);
+    return { question, quantity: rows[0].quantity, rows, total: rows[0].quantity === 'area' ? round1(sum) : sum };
+  }
+
+  const API = { askProject, LAYOUTS, ARCHIVE, FILES, DRAWINGS, CONFLICTS, QUANTITIES, STEPS, drawing, layoutOf, rooms, openings,
     marksFor, valueOf, disputed, parseQuestion, answer, noun, formatValue, variantLabels, crossChecks, progress, readingOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.VData = API;

@@ -199,7 +199,7 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .round { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--v-fill); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
 .round:hover { background: #e4e6e4; }
 .bubble { margin: 0 0 0 auto; max-width: 70%; background: var(--v-accent); color: #fff; padding: 10px 16px; border-radius: 20px 20px 6px 20px; overflow-wrap: anywhere; }
-.turn { display: flex; flex-direction: column; gap: 14px; }
+.turn { display: flex; flex-direction: column; gap: 14px; scroll-margin-top: 96px; }
 .lead { margin: 0; font-size: 17px; max-width: 62ch; }
 .answer { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
 .answer figure { margin: 0; padding: 20px; background: #fafafc; display: flex; flex-direction: column; gap: 12px; }
@@ -255,6 +255,21 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .signas { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600; }
 .signas input { font: inherit; font-size: 16px; padding: 10px 14px; border: 1px solid var(--v-line); border-radius: 12px; background: var(--v-surface); min-height: 44px; }
 
+/* 3 → chat button */
+.chat-cta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; max-width: 260px; }
+
+/* chat (project-wide) */
+.w820.chat { min-height: calc(100vh - 77px - 64px); padding-top: 40px; gap: 20px; }
+.chat-title { font-size: 32px; font-weight: 700; overflow-wrap: anywhere; }
+.chat-thread { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+.chat-empty { margin: auto 0; text-align: center; font-size: 17px; padding: 48px 0; }
+.chat .askbar { margin-top: auto; }
+.chat-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.chat-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 0; border-top: 1px solid #f0f1f0; }
+.chat-line { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.chat-show { border: 0; background: none; color: var(--v-accent); font-size: 14px; font-weight: 600; cursor: pointer; padding: 10px 0; min-height: 44px; text-align: left; }
+.chat-show:hover { color: var(--v-accent-strong); text-decoration: underline; }
+
 /* 5 workspaces */
 .acc-wrap { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
 .ws-list { flex: 1 1 320px; max-width: 400px; display: flex; flex-direction: column; gap: 10px; }
@@ -307,6 +322,7 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
   .panel { padding: 20px; gap: 20px; } .prog-top { padding: 22px 20px; } .done-row { padding: 0 20px 22px; }
   .vars { grid-template-columns: minmax(0, 1fr); }
   .c-head { flex-direction: column; } .title-row .btn { width: 100%; }
+  .chat-cta { align-items: stretch; text-align: left; max-width: none; width: 100%; }
   .pair { grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); } .pair-box { padding: 12px; } .pair-box b { font-size: 36px; }
   .ready ul { grid-template-columns: minmax(0, 1fr); }
   .bubble { max-width: 88%; } .answer figure, .side { padding: 16px; }
