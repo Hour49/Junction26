@@ -248,5 +248,10 @@
         }
       }
     ]
+  },
+  "level": {
+    "level": "medium",
+    "basis": "score",
+    "text": "Medium confidence: on our validation plans, 91% of the answers rated this way were exact (1084 of 1185). Please double-check it."
   }
 }

@@ -248,5 +248,10 @@
         }
       }
     ]
+  },
+  "level": {
+    "level": "low",
+    "basis": "score",
+    "text": "Low confidence: on our validation plans, 58% of the answers rated this way were exact (397 of 680). Check it before you use it."
   }
 }
