@@ -34,6 +34,10 @@ SheetKindName = Literal["off", "carbon"]
 TriageDescriberName = Literal["off", "gemini"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
+# What the evidence index holds (decision 0012). set_aside: the images triage set aside and
+# described. all_non_plan: also every other file and PDF page that is not a floor plan (a picture
+# asked the sheet-kind model, then described; a text document by its own text; others by name)
+EvidenceScopeName = Literal["set_aside", "all_non_plan"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
@@ -188,3 +192,4 @@ class Settings(BaseSettings):
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")
+    evidence_scope: EvidenceScopeName = "set_aside"
