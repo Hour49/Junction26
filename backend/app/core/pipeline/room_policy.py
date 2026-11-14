@@ -14,21 +14,50 @@ Measured on config C's rooms, CubiCasa val: +0.6 pp of all questions [+0.3, +1.0
 rule, also on held-out train pages, are in docs/EXPERIMENTS.md section 5. It is for a reader that
 reads the printed labels: one that gives no labels (a segmentation network) would lose every
 bedroom to the first rule. The default, `furniture`, applies no policy: the reader's types stand.
+
+`generic_word_rooms` is not part of that setting: it is for every reading of an image. The image
+route's room reader types a room whose label says only "room" a bedroom: "Rum" on a Swedish plan
+(10 rooms on one sheet, answered "10 bedrooms"), "HUONE" and its abbreviation "H" on Finnish ones.
+The label does not say which kind of room it is, and CubiCasa5K's answers type every room
+labelled "H" `other` (1,034 of 1,034). On CubiCasa val the reader typed 71 such rooms a bedroom,
+on 36 pages: the bedrooms read equal the answers' on 1 of those pages before the rule and on 33
+after it.
 """
 
 import re
+import unicodedata
 from collections.abc import Sequence
 
 from app.core.drawing.model import Room, RoomType
 
 _WC = re.compile(r"WC\b")
 _KITCHEN = re.compile(r"APUK|APK\b|TUPAK")
+# A label that says "room" and nothing else, by its letters: sv rum, fi huone (huon., h), en room.
+GENERIC_WORDS = frozenset({"RUM", "HUONE", "HUON", "H", "ROOM"})
 
 
 def gold_label_rooms(rooms: Sequence[Room]) -> tuple[Room, ...]:
     """`rooms` with each type the label overrules replaced; a retyped room keeps the reader's
     type in `attrs.retyped_from`. Nothing else about a room changes, nor the order."""
     return tuple(_retyped(room, _by_label(room)) for room in rooms)
+
+
+def generic_word_rooms(rooms: Sequence[Room]) -> tuple[Room, ...]:
+    """`rooms` with each bedroom whose label says only "room" typed `other`; a retyped room keeps
+    the reader's type in `attrs.retyped_from`. The label's first line is read by its letters
+    alone, so "Rum 3" and "HUON." say "room" and "Sovrum" and "Makuuhuone" do not."""
+    return tuple(
+        _retyped(room, "other")
+        if room.type == "bedroom" and _letters(room.label) in GENERIC_WORDS
+        else room
+        for room in rooms
+    )
+
+
+def _letters(label: str | None) -> str:
+    """The letters of the label's first line, upper case, accents dropped."""
+    first = unicodedata.normalize("NFKD", (label or "").strip().split("\n")[0])
+    return "".join(c for c in first if c.isalpha()).upper()
 
 
 def _by_label(room: Room) -> RoomType:
