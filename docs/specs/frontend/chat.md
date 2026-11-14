@@ -111,6 +111,31 @@ routes (`App.tsx` today passes only `projectId`).
 - CH-15 `?ask=` empty or spaces: nothing asked, the empty start page; a project 404 or a project with no askable
   drawing: nothing asked. [component]
 
+## Adding a photo (board #203)
+
+Added 2026-11-14 by Beatrice's orchestrator (board #203, Tudor c6877812445, Bogdan c6877797817). The chat's ask
+bar gets a paperclip ("Add a photo"), an `<input type="file" accept="image/png,image/jpeg">`; `AskBox` shows it only
+when the chat passes `onAttach` (the engineer page's ask bar has none). Picking a file sends its bytes once with
+`POST /api/projects/{project_id}/files?name=<file name>` (`addProjectFile` in `src/api/client.ts`), which answers
+202 with the new file's `FileStatus`, queued. A status line under the heading says "Reading <name>…"; the chat then
+polls `GET /api/projects/{id}` every second until that file's `state` is no longer queued or running, and takes the
+new project (so the photo's drawing becomes askable and N counts it). While a photo is read the paperclip is
+disabled; asking still works.
+
+- CH-17 With `onAttach` the ask bar shows a button named "Add a photo" whose input accepts png and jpeg; without
+  it (the engineer page) there is none. [component]
+- CH-18 Picking `plan.jpg` posts its bytes to `/api/projects/{pid}/files?name=plan.jpg`; "Reading plan.jpg…" shows
+  and the paperclip is disabled; once a poll answers the file `ready` (or `flagged`) the line says "plan.jpg is read:
+  you can ask about it." and the next ask is sent while N includes its drawing. [component]
+- CH-19 The file ends `text_only` or `set_aside`: "plan.jpg was not read as a plan: <reason>." [component]
+- CH-20 The post fails (409 project not done, 413, 415 not png/jpeg, network): "Could not add plan.jpg: <detail>";
+  nothing is polled and the paperclip works again. [component]
+- CH-21 A poll that fails after the post succeeded is retried on the next tick (the file is added either way); after
+  180 polls (3 minutes) still queued or running: "plan.jpg is still being read. Reload later to ask about it.", the
+  paperclip freed. [component]
+
 ## Out of scope
 
 - Keeping the chat across reloads; suggestions; showing the plan in the chat.
+- Starter chips for an added photo: they are not refetched, so an empty chat suggests only the first drawings'
+  questions (#203).

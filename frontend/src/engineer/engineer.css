@@ -531,6 +531,20 @@ button.en-ref:hover,
   justify-content: center;
   cursor: pointer;
 }
+.en-attach {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--v-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.en-attach:disabled,
 .en-send:disabled {
   opacity: 0.5;
   cursor: default;

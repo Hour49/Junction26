@@ -176,6 +176,14 @@ export const readAsPlan = (projectId: string, fileId: string, by: string, opts?:
     opts,
   );
 
+/** A photo added to a done project from the chat (#203, chat.md CH-18): 202 with the new file, queued. */
+export const addProjectFile = (projectId: string, file: File, opts?: Opts) =>
+  call<FileStatus>(
+    'POST',
+    withQuery(`/api/projects/${seg(projectId)}/files`, { name: file.name }),
+    { ...opts, body: file, type: 'application/octet-stream' },
+  );
+
 export const pageUrl = (drawingId: string, page: number, width: PageWidth = 1600) =>
   withQuery(`/api/drawings/${seg(drawingId)}/pages/${String(page)}.png`, { width });
 
