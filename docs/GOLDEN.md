@@ -416,18 +416,75 @@ families flags at least 96% of val's wrong answers. The file holds one threshold
 used: `g1main` (DECISIONS_CONFIDENCE) and local-dec's local gates (LOCAL_GATES). Routes are certified on golden v2's
 holdout (vector and BIM yes, schedules no).
 
-The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json`, fit on config
-C1-T1's val answers: door, plan, sauna and shower+bathtub on `lgate2-rt`, toilet on `lgate-rt-nol1`, the rest on
-`g1main`. Cross-fit on val: 55.1% of the answers flagged, 96.0% of the wrong ones among them, 98.95% of the
-unflagged answers exact. The local gates read the count arbiter's L1 probabilities and P and the double-check
-readers, so the config needs `arbiter-t1` in RASTER_COMPONENTS and DOUBLE_CHECK_READERS `l1,m1`; on a drawing
-without them those families always ask.
+The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json` (committed as
+`eval/results/check/check-C1-T1-recall96-rt-full-small.json`, sha256
+`a9334da1b908866d57fb4066791011bf5344a0f11471a05dba2f0815dd239def`), fit on config C1-T1's val answers: door, plan,
+sauna and shower+bathtub on `lgate2-rt`, toilet on `lgate-rt-nol1`, the rest on `g1main`. Cross-fit on val: 55.1%
+of the answers flagged, 96.0% of the wrong ones among them, 98.95% of the unflagged answers exact. The local gates
+read the count arbiter's L1 probabilities and P and the double-check readers, so the config needs `arbiter-t1` in
+RASTER_COMPONENTS and DOUBLE_CHECK_READERS `l1,m1`; on a drawing without them those families always ask.
 
 Known limitation: the policy is fit on ROOM_POLICY=gold-labels (rooms typed by their printed label, as the
 reference answers are), and the demo runs ROOM_POLICY=furniture (a room with a bed is a bedroom). Room families
 are therefore certified outside the conditions they were fit on. The main case is covered by a rule: a bedroom
-count that includes a bedroom with no printed label always asks. The test certificate (integ's single test read)
-is still to come; until then the val numbers are estimates chosen on val.
+count that includes a bedroom with no printed label always asks. The test certificate is below.
+
+#### The test certificate (config C1-T1)
+
+The committed policy is the val fit, byte for byte; the test read changes nothing in it. The certificate is the
+backend's own `ask()` with that policy on the drawings the test read stored, so it runs the same code as the API,
+then each verdict is joined with the truth. It runs once, on integ's read of the 376 CubiCasa test pages, with the
+shipping config (C1-T1 with the arbiter-t1 count arbiter run live, DOUBLE_CHECK_READERS `l1,m1`, LOCAL_GATES,
+DECISIONS_CONFIDENCE, #174's plan agreement) and ROOM_POLICY=gold-labels, as on val. The read covers the raster
+route only; the vector and BIM routes are certified on golden v2's holdout (above).
+
+An answer is flagged when the policy does not certify it, so it asks for a double-check. The numbers count
+questions, as the join does. On val each page and family has one English and one Finnish question with the same
+answer, so every count there is twice the number of answers; the 95% bound (one-sided Clopper-Pearson) is computed
+on answers, not questions. The result is one sentence: "on the test pages, the double-check flagged X% of the wrong
+answers (one-sided 95% bound B%) and asked on F% of all answers; Y% of the answers it did not flag are exact".
+
+| read | rated | wrong | flagged | wrong flagged (recall) | 95% bound on recall | unflagged exact |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| val, shipped thresholds (as the backend runs) | 6764 | 800 | 3962 (58.6%) | 782/800 (97.8%) | 96.1% | 2784/2802 (99.36%) |
+| val, cross-fit (each half under the other half's fit) | 6764 | 800 | 3730 (55.1%) | 768/800 (96.0%) | 94.0% | 3002/3034 (98.95%) |
+| **test, once** | TBD | TBD | TBD | TBD | TBD | TBD |
+
+The val rows are chosen on val, not a guarantee: the shipped row is in-sample, and the cross-fit row is the honest
+val estimate. The 96% target is one point above Bogdan's 95% (D476, D490), a margin for choosing the cut on val.
+
+Per family (questions; val with the shipped thresholds):
+
+| family | val flagged | val recall | val unflagged exact | test flagged | test recall | test unflagged exact |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| door | 100.0% | 152/152 | - | TBD | TBD | TBD |
+| plan | 7.4% | 6/8 | 694/696 | TBD | TBD | TBD |
+| room:balcony | 96.0% | 20/20 | 10/10 | TBD | TBD | TBD |
+| room:bathroom | 48.9% | 24/24 | 186/186 | TBD | TBD | TBD |
+| room:bedroom | 67.5% | 40/42 | 156/158 | TBD | TBD | TBD |
+| room:kitchen | 44.9% | 38/42 | 288/292 | TBD | TBD | TBD |
+| room:wc | 62.9% | 20/20 | 132/132 | TBD | TBD | TBD |
+| sauna | 4.1% | 4/6 | 518/520 | TBD | TBD | TBD |
+| shower+bathtub | 80.4% | 60/62 | 132/134 | TBD | TBD | TBD |
+| sink | 90.0% | 68/68 | 74/74 | TBD | TBD | TBD |
+| toilet | 20.0% | 14/20 | 594/600 | TBD | TBD | TBD |
+| window | 100.0% | 336/336 | - | TBD | TBD | TBD |
+
+Two notes from integ on what this read does and does not cover:
+
+- Sauna. The count arbiter stores, in `count_arbiter["sauna"]`, T1's P for its own sauna-stove pick. C1-T1 does
+  not answer sauna with that pick: the rule counts sauna rooms first (one per sauna room, else C1's stoves from
+  the Decisions swap). lgate2-rt's sauna score therefore reads the arbiter's P next to an answered count that can
+  differ from the arbiter's pick. The gate model and the policy were fit on exactly these values: on val C1-T1's
+  sauna answer equals the arbiter arm's on 271 of 271 pages, and the arbiter's pick differs from the answer on 5 of
+  them. Those 5 score 0.83 to 0.94, below the sauna threshold 0.971, so they ask (1 of the 5 is wrong): on val
+  every sauna answer the arbiter did not back asked. On val 260 of 271 sauna answers are certified, 1 of them
+  wrong.
+- Photos. The test read answers through the CLI (`python -m app.cli answer`), which has no phone-photo
+  rectifier and no reading flags: both run only in the API's ingest. The test pages are CubiCasa plan images
+  (PNG scans of drawings), not phone photos, so neither the rectifier nor a photo flag would apply to them. In
+  the API a flagged page (a phone photo or a scanned PDF) never certifies, and this certificate says nothing
+  about photos.
 
 ## What the answer should show
 
