@@ -90,7 +90,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     app.state.credits = DatasetCredits(
         settings.credit_dataset, settings.credit_photos, settings.sample_archive
     )
-    app.state.started = []  # ids of the projects this process started (the 429 limit)
+    app.state.admission = projects.Admission()  # the 429 limit
     for router in (health, info, projects, drawings, ask, takeoff):
         app.include_router(router.router)
     for error in STATUS_BY_ERROR:

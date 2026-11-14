@@ -138,7 +138,7 @@
     "route": "raster",
     "source": "plan.png",
     "extractor": "composite",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,

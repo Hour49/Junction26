@@ -42,7 +42,7 @@
     "route": "vector",
     "source": "doors.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
