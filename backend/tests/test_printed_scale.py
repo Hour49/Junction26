@@ -5,6 +5,7 @@ off the drawing without replacing them. A fake reader stands in for the Carbon c
 
 import io
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from PIL import Image
@@ -15,7 +16,7 @@ from app.adapters.raster_scale import PriorScale
 from app.composition import build_ingest
 from app.core.answering.answer import answer_question
 from app.core.answering.model import Answer, Query, Question, Unsupported
-from app.core.drawing.model import Drawing, Element, Page, Room, Scale
+from app.core.drawing.model import Drawing, Element, MeasuredValue, Page, Room, Scale, Subject
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
 from app.core.pipeline.printed import (
@@ -23,6 +24,7 @@ from app.core.pipeline.printed import (
     PrintedSheet,
     ScaleBar,
     bar_m_per_px,
+    fact_measurements,
     imperial_scales,
     printed_scale,
     ratio_of,
@@ -474,3 +476,65 @@ def test_the_setting_is_part_of_the_ingest_reuse_key_only_when_on(tmp_path: Path
 
 def test_the_setting_is_off_by_default() -> None:
     assert Settings(_env_file=None).raster_printed_scale == "off"  # pyright: ignore[reportCallIssue]
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["4H+K", "3h+k+s", "2h+kt", "1h+kk", "5H+K+S+SAU", "4 h + k", "Asunto B 12, 3h+k+s 78 m²"],
+)
+def test_a_flat_type_is_never_a_room_count(text: str) -> None:
+    """A Finnish flat type (4H+K: four rooms and a kitchen) names the flat, it does not count the
+    rooms drawn (live project d8c0e57b1ac4: 4H+K against 18 rooms read)."""
+    assert fact_measurements([PrintedFact(text=text, subject="room", value=4, unit="count")]) == []
+
+
+def test_a_printed_room_count_that_is_no_flat_type_is_still_a_room_count() -> None:
+    (found,) = fact_measurements(
+        [PrintedFact(text="4 ROOMS", subject="room", value=4, unit="count")]
+    )
+    assert (found.quantity, found.value.value) == ("room_count", 4)
+
+
+def counts(read: float, printed: float, door: bool = False) -> list[Measurement]:
+    """A count read and one printed: of all rooms, or of doors."""
+    quantity: Literal["room_count", "element_count"] = "element_count" if door else "room_count"
+    subject = Subject(kind="class", ref="door") if door else Subject(kind="sheet", ref=None)
+    return [
+        Measurement(
+            quantity=quantity,
+            subject=subject,
+            value=MeasuredValue(value=read, unit="count", method="plan_drawing"),
+        ),
+        Measurement(
+            quantity=quantity,
+            subject=subject,
+            value=MeasuredValue(value=printed, unit="count", method="printed_total"),
+        ),
+    ]
+
+
+def test_rooms_read_more_than_twice_the_printed_count_keep_the_reading_and_ask_no_person() -> None:
+    """18 read, 4 printed: no rule decides, but a printed number that much smaller counts
+    something else; the reading is kept and shown, with no card for a person."""
+    read, printed = counts(18, 4)
+    (entry,) = second_count([read], [printed])
+    assert entry.status == "conflict"  # both values stay on the entry
+    assert entry.resolution is not None and entry.resolution.value == 18
+    assert "more than 2x the other count" in entry.resolution.rule
+
+
+@pytest.mark.parametrize(
+    ("read", "printed", "door"),
+    [
+        (0, 3, False),  # nothing read
+        (6, 5, False),  # within 2x
+        (80, 48, False),
+        (4, 12, False),  # more printed than read: the reader may have missed rooms
+        (3, 12, True),  # doors: the rule is for rooms only
+        (18, 4, True),
+    ],
+)
+def test_other_count_pairs_are_left_to_a_person(read: int, printed: int, door: bool) -> None:
+    first, second = counts(read, printed, door)
+    (entry,) = second_count([first], [second])
+    assert entry.status == "conflict" and entry.resolution is None
