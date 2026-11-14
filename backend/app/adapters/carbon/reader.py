@@ -33,6 +33,7 @@ from typing import Any, Protocol
 from PIL import Image
 
 from app.adapters.carbon import contract
+from app.adapters.carbon.flight import flight
 from app.adapters.eight_bit import eight_bit
 from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, pixel_digest, reply_text
 from app.adapters.whole_file import write_whole
@@ -149,30 +150,32 @@ class CarbonReader:
         before = cost.spent()
         name = contract.cache_name(kind, pixel_digest(image))
         path = None if self._cache is None else self._cache / name
-        check = contract.check_page if kind == "page" else contract.check_tile
-        if path is not None and path.is_file():
+        shared = path if kind == "page" else None  # the printed-scale reader asks it too
+        with flight(shared):
+            check = contract.check_page if kind == "page" else contract.check_tile
+            if path is not None and path.is_file():
+                try:
+                    return check(json.loads(reply_text(json.loads(path.read_text())))), None, 0.0
+                except (ValueError, GeminiError, AttributeError, TypeError, KeyError, IndexError):
+                    pass  # a cached file that does not parse is a miss
+            prompt, schema, tokens = (
+                (contract.PAGE_PROMPT, contract.PAGE_SCHEMA, contract.PAGE_MAX_TOKENS)
+                if kind == "page"
+                else (contract.TILE_PROMPT, contract.TILE_SCHEMA, contract.TILE_MAX_TOKENS)
+            )
             try:
-                return check(json.loads(reply_text(json.loads(path.read_text())))), None, 0.0
-            except (ValueError, GeminiError, AttributeError, TypeError, KeyError, IndexError):
-                pass  # a cached file that does not parse is a miss
-        prompt, schema, tokens = (
-            (contract.PAGE_PROMPT, contract.PAGE_SCHEMA, contract.PAGE_MAX_TOKENS)
-            if kind == "page"
-            else (contract.TILE_PROMPT, contract.TILE_SCHEMA, contract.TILE_MAX_TOKENS)
-        )
-        try:
-            answer = self._model.generate(jpeg(image), prompt, schema, tokens)
-            form = check(json.loads(reply_text(answer)))
-        except GeminiError as error:
-            return None, f"the {kind} call failed: {error}", cost.spent() - before
-        except ValueError as error:  # not JSON, or not the form (contract.ReplyError)
-            return None, f"the {kind} reply is not the form: {error}", cost.spent() - before
-        except (AttributeError, TypeError, KeyError, IndexError) as error:  # an odd envelope
-            said = type(error).__name__
-            return None, f"the {kind} reply is not the form: {said}", cost.spent() - before
-        if path is not None:
-            write_whole(path, json.dumps(answer, ensure_ascii=False))
-        return form, None, cost.spent() - before
+                answer = self._model.generate(jpeg(image), prompt, schema, tokens)
+                form = check(json.loads(reply_text(answer)))
+            except GeminiError as error:
+                return None, f"the {kind} call failed: {error}", cost.spent() - before
+            except ValueError as error:  # not JSON, or not the form (contract.ReplyError)
+                return None, f"the {kind} reply is not the form: {error}", cost.spent() - before
+            except (AttributeError, TypeError, KeyError, IndexError) as error:  # an odd envelope
+                said = type(error).__name__
+                return None, f"the {kind} reply is not the form: {said}", cost.spent() - before
+            if path is not None:
+                write_whole(path, json.dumps(answer, ensure_ascii=False))
+            return form, None, cost.spent() - before
 
 
 def _plans(form: Form) -> list[contract.Frac]:
