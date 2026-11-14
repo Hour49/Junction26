@@ -1,6 +1,9 @@
 # Issues: every place that needs a look, located (spec, #140)
 
-Status: draft for review, 2026-11-14, by fe-ingest. Brief: `.agents/briefs/fe-checks-issues.md` (incl. CHANGE 13:22).
+Status: the screen is superseded by the Documents tab (`documents.md`, demo parity, 2026-11-14 16:40): the filters, the
+plan panel, the Issues tab and IS-1, 5, 7, 9, 10, 13, 19, 20 go with it. The pure helpers of `src/issues/issues.ts`
+and IS-2 (numbering), 3, 4, 8, 11, 15-17 stay true for what Documents reuses. Was: draft for review, 2026-11-14, by
+fe-ingest. Brief: `.agents/briefs/fe-checks-issues.md` (incl. CHANGE 13:22).
 Contract: board decision #142 (Bogdan, 12:30) and its export answer (c6875986462, 12:34); record
 `docs/decisions/0008-located-issues.md` on Bogdan's branch (not pushed when this was written). Bogdan accepted all
 our #142 asks (c6876010899, via frontend-orch 13:44): `Issue.polygon` (optional), `mark_id` and `quantity`, full sort

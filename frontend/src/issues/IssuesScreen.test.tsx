@@ -174,8 +174,9 @@ describe('IssuesScreen', () => {
     mockApi(routes());
     render(<IssuesScreen projectId={PID} pack={null} />);
     await flush();
+    // the conflict's route is fe-surveyor's `issueRoute` (now the Ingest page, demo parity)
     expect(within(rowOf(2)).getByRole('link', { name: 'Settle' }).getAttribute('href')).toContain(
-      `#/p/${PID}/conflicts?`,
+      `#/p/${PID}?`,
     );
     expect(within(rowOf(2)).getByRole('link', { name: 'Open the drawing' })).toBeTruthy();
     expect(
