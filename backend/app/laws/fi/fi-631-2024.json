@@ -1,0 +1,642 @@
+{
+  "id": "fi-631-2024",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "631/2024",
+  "title": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista",
+  "title_en": "Ministry of the Environment Decree on residential, accommodation and work spaces",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+  "language": "fi",
+  "in_force": "2025-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force since 2025-01-01, issued under the Building Act 751/2023; replaces decree 1008/2017, which applies only to projects pending on 2025-01-01 (11 §).",
+  "clauses": [
+    {
+      "id": "fi-631-2024-1-1",
+      "ref": "1 § 1 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Tämä asetus koskee uuteen rakennukseen tai rakennuksen laajennukseen sijoitettavia tai rakennuksen tai sen osan käyttötarkoitusta olennaisesti muutettaessa muodostettavia asuin-, majoitus- ja työtiloja.",
+      "text_en": "This Decree applies to residential, accommodation and work spaces placed in a new building or an extension to a building, or formed when the purpose of use of a building or part of it is substantially changed.",
+      "summary_en": "The decree covers residential, accommodation and work spaces in new buildings, extensions and buildings whose use is substantially changed.",
+      "keywords": [
+        "scope",
+        "soveltamisala",
+        "asuintila",
+        "majoitustila",
+        "työtila",
+        "uudisrakennus",
+        "laajennus",
+        "käyttötarkoituksen muutos"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-631-2024-1-2",
+      "ref": "1 § 2 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Rakennettaessa vapaa-ajan asunto ei sovelleta tämän asetuksen 4–10 §:iä.",
+      "text_en": "When a holiday home is built, sections 4 to 10 of this Decree do not apply.",
+      "summary_en": "Sections 4 to 10 of the decree do not apply to building a holiday home.",
+      "keywords": [
+        "holiday home",
+        "vapaa-ajan asunto",
+        "soveltamisala",
+        "asuinhuone"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-631-2024-1-3",
+      "ref": "1 § 3 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Rakennuksen korjaus- ja muutostyössä tätä asetusta on sovellettava vain, jos alkuperäinen ratkaisu on tarkoitukseensa soveltumaton. Rakennuksen korjaus- ja muutostyöt voidaan muutoin tehdä alkuperäistä ratkaisua noudattaen.",
+      "text_en": "In repair and alteration work on a building, this Decree must be applied only if the original solution is unsuitable for its purpose. Otherwise, repair and alteration work may be carried out following the original solution.",
+      "summary_en": "In repair and alteration work the decree applies only where the original solution is unsuitable for its purpose; otherwise the original solution may be kept.",
+      "keywords": [
+        "repair and alteration work",
+        "korjaus- ja muutostyö",
+        "alkuperäinen ratkaisu",
+        "soveltamisala"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-631-2024-1-4",
+      "ref": "1 § 4 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Muutostöiden johdosta asumisolosuhteet eivät saa heikentyä.",
+      "text_en": "As a result of alteration work, living conditions must not deteriorate.",
+      "summary_en": "Alteration work must not worsen living conditions.",
+      "keywords": [
+        "living conditions",
+        "asumisolosuhteet",
+        "muutostyö",
+        "korjaus- ja muutostyö"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-631-2024-2-1",
+      "ref": "2 §",
+      "heading": "Määritelmiä",
+      "heading_en": "Definitions",
+      "text": "Tässä asetuksessa tarkoitetaan:\n1) asuinhuoneella huonetilaa, joka on ensisijaisesti tarkoitettu jatkuvaan asumiskäyttöön. Asuinhuoneena ei pidetä eteistä, käytävää, WC- ja pesutilaa tai näihin verrattavaa huonetilaa. Keittiö on asuinhuone, joka on ensisijaisesti ruoanvalmistusta ja ruokailua varten;\n2) asuinhuoneistolla eli asunnolla keittiöllä, keittokomerolla tai keittotilalla varustettua yhden asuinhuoneen tai useampia asuinhuoneita käsittävää, ympärivuotiseen asumiseen ja vapaa-ajan asumiseen tarkoitettua kokonaisuutta, jolla on oma välitön sisäänkäyntinsä;\n3) asuinkerrostalolla vähintään kaksikerroksista, useita asuinhuoneistoja käsittävää asuinrakennusta, jossa eri asuinhuoneistoihin kuuluvia tiloja on päällekkäin;\n4) huonealalla huoneen tai tilan alaa, jonka rajoina ovat huonetta tai tilaa ympäröivien seinien pinnat tai niiden ajateltu jatke, huonealaan ei kuitenkaan lueta 1,6 metriä matalampaa tilaa;\n5) huoneistoalalla alaa, jota rajaavat toisaalta huoneistoa ympäröivien seinien, toisaalta huoneiston sisällä olevien kantavien seinien ja muiden rakennukselle välttämättömien rakennusosien huoneiston puoleiset pinnat, huoneistoalaan ei kuitenkaan lueta 1,6 metriä matalampaa tilaa;\n6) huonekorkeudella kohtisuoraa mittaa huoneen lattiapinnasta sen kattopintaan;\n7) kerroskorkeudella kahden päällekkäisen lattiapinnan kohtisuoraa etäisyyttä;\n8) majoitushuoneella kalustettua huonetilaa, joka on ensisijaisesti tarkoitettu ammattimaisesti tarjottavaksi tilapäistä majoitusta tarvitseville asiakkaille;\n9) pientaloilla erillispientaloja sekä kytkettyjä pientaloja;\n10) työtilalla tilaa, joka on ensisijaisesti tarkoitettu työskentelyyn.",
+      "text_en": "In this Decree, the following definitions apply:\n1) residential room means a room space primarily intended for continuous residential use. A hall, corridor, WC and washroom or similar room space is not considered a residential room. A kitchen is a residential room that is primarily intended for food preparation and dining;\n2) dwelling unit (asunto), i.e. a flat, means a whole consisting of one or more residential rooms with a kitchen, kitchenette or cooking area, intended for year-round residential use and holiday residential use, with its own direct entrance;\n3) apartment block means a residential building of at least two storeys comprising several dwelling units, in which spaces belonging to different dwelling units are stacked on top of each other;\n4) room area means the area of a room or space bounded by the surfaces of the walls surrounding the room or space, or their imagined extension; however, space less than 1.6 metres high is not included in room area;\n5) dwelling area means the area bounded, on the one hand, by the surfaces facing the dwelling of the walls surrounding the dwelling and, on the other hand, by the load-bearing walls inside the dwelling and other building parts necessary for the building; however, space less than 1.6 metres high is not included in dwelling area;\n6) room height means the perpendicular distance from the floor surface of the room to its ceiling surface;\n7) storey height means the perpendicular distance between two superimposed floor surfaces;\n8) accommodation room means a furnished room space primarily intended to be offered professionally as temporary accommodation to customers who need it;\n9) small houses means detached small houses as well as linked small houses;\n10) work space means a space primarily intended for work.",
+      "summary_en": "Defines residential room, dwelling unit, room area (excluding space under 1.6 m high), room height and storey height as used in the decree.",
+      "keywords": [
+        "residential room",
+        "asuinhuone",
+        "dwelling unit",
+        "asunto",
+        "room area",
+        "huoneala",
+        "huoneistoala",
+        "room height",
+        "huonekorkeus",
+        "kerroskorkeus",
+        "pientalo"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [
+        {
+          "what": "space below this height excluded from room area",
+          "comparison": "<",
+          "value": 1.6,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-3-1",
+      "ref": "3 §",
+      "heading": "Asuin-, majoitus- tai työtilojen suunnittelutehtävä",
+      "heading_en": "Design duty for residential, accommodation or work spaces",
+      "text": "Pääsuunnittelijan, rakennussuunnittelijan ja erityissuunnittelijan on tehtävänsä mukaisesti huolehdittava rakennuksen suunnittelussa siitä, että rakennus täyttää käyttötarkoituksen mukaisesti asuin-, majoitus- tai työtiloja koskevat olennaiset tekniset, toiminnalliset ja arkkitehtoniset vaatimukset.",
+      "text_en": "In accordance with their duties, the principal designer, building designer and specialist designer must ensure in the design of the building that the building meets the essential technical, functional and architectural requirements for residential, accommodation or work spaces, in accordance with the purpose of use.",
+      "summary_en": "Principal, building and specialist designers must make sure the building meets the essential technical, functional and architectural requirements for its residential, accommodation or work spaces.",
+      "keywords": [
+        "designer",
+        "suunnittelija",
+        "pääsuunnittelija",
+        "rakennussuunnittelija",
+        "erityissuunnittelija",
+        "essential requirements",
+        "asuintila",
+        "majoitustila",
+        "työtila"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-631-2024-4-1",
+      "ref": "4 § 1 mom.",
+      "heading": "Asuin- ja majoitushuone sekä työtila",
+      "heading_en": "Residential and accommodation room and work space",
+      "text": "Asuin- ja majoitushuoneen sekä työtilan koon ja muodon on huoneen aiottu käyttö ja kalustettavuus huomioon ottaen oltava tarkoitukseensa soveltuvia.",
+      "text_en": "The size and shape of a residential and accommodation room and of a work space must be suitable for their purpose, taking into account the intended use and furnishability of the room.",
+      "summary_en": "Residential, accommodation and work rooms must be sized and shaped to suit their intended use and furniture layout.",
+      "keywords": [
+        "room size",
+        "room shape",
+        "furnishability",
+        "asuinhuone",
+        "majoitushuone",
+        "työtila",
+        "huoneen koko",
+        "kalustettavuus"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Asuin- ja majoitushuone sekä työtila",
+      "heading_en": "Residential and accommodation room and work space",
+      "text": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä. Asuin- ja majoitushuoneen sekä työtilan huonekorkeuden on oltava vähintään 2,5 metriä. Pientalossa mainittu vähimmäiskorkeus on 2,4 metriä. Asuin- ja majoitushuoneen sekä työtilan huonealasta enintään 20 prosenttia voi alittaa tämän vähimmäiskorkeuden, ei kuitenkaan alle 2,2 metriä. Matalampi osuus ei saa olennaisesti heikentää huoneen toimivuutta tai vähentää päivänvalon määrää. Jos huoneen sisäkatto poikkeaa vaakasuorasta, huonekorkeus on määritettävä huonealan keskikorkeutena.",
+      "text_en": "However, the floor area of a residential or accommodation room and of a work space must always be at least 7 square metres. The room height of a residential or accommodation room and of a work space must be at least 2.5 metres. In a small house the minimum height mentioned is 2.4 metres. Up to 20 per cent of the floor area of a residential or accommodation room and of a work space may fall below this minimum height, but not below 2.2 metres. The lower part must not materially impair the functionality of the room or reduce the amount of daylight. If the interior ceiling of a room deviates from horizontal, the room height must be determined as the average height of the room area.",
+      "summary_en": "A residential, accommodation or work room has a floor area of at least 7 m2 and a room height of at least 2.5 m (2.4 m in a small house); up to 20% of its area may be lower, but not below 2.2 m.",
+      "keywords": [
+        "bedroom",
+        "living room",
+        "makuuhuone",
+        "olohuone",
+        "floor area",
+        "huoneala",
+        "room height",
+        "huonekorkeus",
+        "7 m2",
+        "2.5 m",
+        "2.4 m",
+        "makuuhuoneen pinta-ala"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [
+        {
+          "what": "floor area of residential, accommodation or work room",
+          "comparison": ">=",
+          "value": 7,
+          "unit": "m2"
+        },
+        {
+          "what": "room height",
+          "comparison": ">=",
+          "value": 2.5,
+          "unit": "m"
+        },
+        {
+          "what": "room height in a small house",
+          "comparison": ">=",
+          "value": 2.4,
+          "unit": "m"
+        },
+        {
+          "what": "share of floor area allowed below minimum room height",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "%"
+        },
+        {
+          "what": "lowest permitted height of the lower part of the room",
+          "comparison": ">=",
+          "value": 2.2,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-4-3",
+      "ref": "4 § 3 mom.",
+      "heading": "Asuin- ja majoitushuone sekä työtila",
+      "heading_en": "Residential and accommodation room and work space",
+      "text": "Asuinhuoneen suunnittelussa on otettava huomioon ilmansuuntien ja ympäristön häiriötekijöiden vaikutus.",
+      "text_en": "When designing a residential room, the effect of compass directions and of environmental nuisance factors must be taken into account.",
+      "summary_en": "Residential rooms must be designed with the effect of orientation and environmental nuisances taken into account.",
+      "keywords": [
+        "orientation",
+        "ilmansuunta",
+        "häiriötekijä",
+        "asuinhuone",
+        "environmental nuisance",
+        "suunnittelu"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-631-2024-5-1",
+      "ref": "5 § 1 mom.",
+      "heading": "Asuin- ja majoitushuoneen sekä työtilan ikkuna",
+      "heading_en": "Window of residential and accommodation room and work space",
+      "text": "Asuin- ja majoitushuoneen ikkunan valoaukon on oltava vähintään 1/10 huonealasta. Ikkunan sijoituksen ja muun järjestelyn on varmistettava huoneen valoisuus, näkymä huoneesta sekä huoneen kalustettavuus. Asuin- ja majoitushuoneen ikkunan tai sen osan on oltava avattavissa. Jos työtilassa on ikkuna, valoaukon on oltava vähintään 1/10 työtilan huonealasta, jollei työtilan valaistusta ole järjestetty toisen tilan kautta tulevalla välillisellä luonnonvalolla tai työn luonteen niin edellyttäessä osaksi tai kokonaan keinovalolla.",
+      "text_en": "The light opening of a window of a residential or accommodation room must be at least 1/10 of the floor area of the room. The placement and other arrangement of the window must ensure the daylight in the room, the view from the room and the furnishability of the room. A window, or part of it, in a residential or accommodation room must be openable. If a work space has a window, the light opening must be at least 1/10 of the floor area of the work space, unless the lighting of the work space is arranged by indirect natural light through another space or, where the nature of the work requires, partly or wholly by artificial light.",
+      "summary_en": "A residential or accommodation room needs a window light opening of at least 1/10 of its floor area, and the window must be openable; a work space with a window follows the same rule unless daylight comes through another space.",
+      "keywords": [
+        "bedroom window",
+        "makuuhuone",
+        "window",
+        "ikkuna",
+        "valoaukko",
+        "light opening",
+        "daylight",
+        "päivänvalo",
+        "floor area",
+        "huoneala",
+        "avattava ikkuna",
+        "asuinhuone"
+      ],
+      "topics": [
+        "daylight",
+        "doors-windows"
+      ],
+      "limits": [
+        {
+          "what": "window light opening as share of room floor area",
+          "comparison": ">=",
+          "value": 10,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-5-2",
+      "ref": "5 § 2 mom.",
+      "heading": "Asuin- ja majoitushuoneen sekä työtilan ikkuna",
+      "heading_en": "Window of residential and accommodation room and work space",
+      "text": "Etäisyyden asuinhuoneen pääikkunan edessä samassa tai naapurikiinteistössä olevaan vastapäiseen rakennukseen on oltava vähintään yhtä suuri kuin vastapäisen rakennuksen korkeus huoneen lattiatasolta mitattuna, ellei asemakaavasta muuta johdu. Pääikkunan edessä on kuitenkin oltava vähintään 8 metrin etäisyyteen asti rakentamatonta tilaa. Pientalossa voi mainittu etäisyys samalla tontilla tai rakennuspaikalla olla viihtyisyyden vaatimukset huomioon ottaen pienempikin, kuitenkin siten, että 45 asteen valokulma huoneen lattiatasoon nähden täyttyy.",
+      "text_en": "The distance from the main window of a residential room to an opposite building in the same or a neighbouring property must be at least equal to the height of the opposite building measured from the floor level of the room, unless otherwise follows from the local detailed plan. However, the area in front of the main window must be unbuilt up to a distance of at least 8 metres. In a small house, the distance mentioned may, taking account of comfort requirements, be smaller on the same plot or building site, provided that a 45-degree light angle relative to the floor level of the room is met.",
+      "summary_en": "The main window of a residential room must face an opposite building at a distance at least equal to that building's height, with unbuilt space to 8 m, and a 45-degree light angle in small houses.",
+      "keywords": [
+        "main window",
+        "pääikkuna",
+        "distance to opposite building",
+        "vastapäinen rakennus",
+        "unbuilt space",
+        "rakentamaton tila",
+        "8 m",
+        "45 degree light angle",
+        "valokulma",
+        "asuinhuone",
+        "pientalo"
+      ],
+      "topics": [
+        "daylight",
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "unbuilt space in front of main window",
+          "comparison": ">=",
+          "value": 8,
+          "unit": "m"
+        },
+        {
+          "what": "light angle from room floor level in a small house",
+          "comparison": ">=",
+          "value": 45,
+          "unit": "degrees"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-5-3",
+      "ref": "5 § 3 mom.",
+      "heading": "Asuin- ja majoitushuoneen sekä työtilan ikkuna",
+      "heading_en": "Window of residential and accommodation room and work space",
+      "text": "Ikkunavaatimuksesta voidaan poiketa majoitusrakennuksen laajamittaisessa korjauksessa tai muutettaessa rakennuksen käyttötarkoitus majoituskäyttöön. Rakennettaessa uutta majoitusrakennusta ikkunavaatimuksesta voidaan poiketa enintään 20 prosentissa majoitushuoneista.",
+      "text_en": "The window requirement may be departed from in an extensive repair of an accommodation building or when the building's purpose of use is changed to accommodation use. When a new accommodation building is built, the window requirement may be departed from in at most 20 per cent of the accommodation rooms.",
+      "summary_en": "The window requirement may be waived in extensive repairs or a change to accommodation use, and in up to 20% of the rooms of a new accommodation building.",
+      "keywords": [
+        "window requirement",
+        "ikkunavaatimus",
+        "accommodation building",
+        "majoitusrakennus",
+        "majoitushuone",
+        "20 %",
+        "korjaus",
+        "käyttötarkoituksen muutos"
+      ],
+      "topics": [
+        "daylight"
+      ],
+      "limits": [
+        {
+          "what": "share of accommodation rooms allowed to depart from window requirement in a new building",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-6-1",
+      "ref": "6 §",
+      "heading": "Asuin- ja majoitustilojen lattian suhde maanpintaan",
+      "heading_en": "Floor level of residential and accommodation spaces in relation to the ground",
+      "text": "Asuin- ja majoitushuoneen lattian on oltava pääikkunaseinän kohdalla olevan maanpinnan yläpuolella. Osassa huoneiston asuinhuoneista lattia voi kuitenkin sijaita enintään metrin maanpinnan alapuolella. Asuin- ja majoitustilojen sisäänkäynnin korkeusaseman on sijaittava maanpinnan suhteen luontevasti.",
+      "text_en": "The floor of a residential or accommodation room must be above the ground level at the main window wall. However, the floor of some of the dwelling's residential rooms may be at most one metre below ground level. The height position of the entrance to residential and accommodation spaces must be located naturally in relation to the ground.",
+      "summary_en": "A residential or accommodation room floor must be above ground at the main window wall, though some dwelling rooms may sit up to 1 m below ground.",
+      "keywords": [
+        "floor level",
+        "lattia",
+        "ground level",
+        "maanpinta",
+        "entrance height",
+        "sisäänkäynti",
+        "asuinhuone",
+        "majoitushuone",
+        "1 m below ground"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [
+        {
+          "what": "depth of floor of some residential rooms below ground level",
+          "comparison": "<=",
+          "value": 1,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-7-1",
+      "ref": "7 §",
+      "heading": "Asuinhuoneiston koko",
+      "heading_en": "Size of dwelling unit",
+      "text": "Asuinhuoneiston huoneistoalan on oltava vähintään 20 neliömetriä. Opiskelija-asunnon ala voi kuitenkin olla vähintään 16 neliömetriä, jos yhteisissä tiloissa on tarkoituksenmukaiset oleskelu- tai muiden toimintojen tilat, jotka ovat helposti saavutettavissa.",
+      "text_en": "The floor area of a dwelling unit must be at least 20 square metres. However, the floor area of a student flat may be at least 16 square metres if the shared spaces include appropriate lounge or other function spaces that are easily accessible.",
+      "summary_en": "A dwelling unit has a floor area of at least 20 m2, or 16 m2 for a student flat with suitable, easily reached shared lounge spaces.",
+      "keywords": [
+        "minimum apartment size",
+        "studio flat",
+        "yksiö",
+        "dwelling unit",
+        "asunto",
+        "huoneistoala",
+        "dwelling area",
+        "student flat",
+        "opiskelija-asunto",
+        "20 m2",
+        "16 m2"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [
+        {
+          "what": "dwelling unit floor area",
+          "comparison": ">=",
+          "value": 20,
+          "unit": "m2"
+        },
+        {
+          "what": "student flat floor area with suitable shared spaces",
+          "comparison": ">=",
+          "value": 16,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Asuinhuoneiston tilat ja varustus",
+      "heading_en": "Spaces and equipment of dwelling unit",
+      "text": "Asuinhuoneiston tilojen ja pohjaratkaisun on oltava suunniteltu käyttäjämäärä, asuntojen yhteiset tilat ja käyttötarpeiden muutokset huomioon ottaen asumisen kannalta tarkoituksenmukaisia. Asuinhuoneistossa on oltava toiminnan kannalta tarkoituksenmukaiset tilat lepoa, oleskelua ja yhdessäoloa, ruokailua ja ruoanvalmistusta, hygienian hoitoa sekä asumiseen liittyvää välttämätöntä huoltoa ja säilytystä varten.",
+      "text_en": "The spaces and layout of a dwelling unit must be designed to be appropriate for living, taking into account the planned number of users, the shared spaces of the dwellings and changes in use needs. The dwelling unit must have spaces appropriate for its function for rest, lounging and being together, eating and food preparation, personal hygiene care, and the necessary maintenance and storage related to living.",
+      "summary_en": "A dwelling unit must have appropriate spaces for resting, lounging, eating, cooking, personal hygiene and storage for its planned users.",
+      "keywords": [
+        "dwelling unit layout",
+        "pohjaratkaisu",
+        "oleskelutila",
+        "ruoanvalmistus",
+        "hygiene space",
+        "hygieniatila",
+        "säilytys",
+        "storage",
+        "dwelling unit"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Asuinhuoneiston tilat ja varustus",
+      "heading_en": "Spaces and equipment of dwelling unit",
+      "text": "Asuinhuoneistossa tai sen käytössä on oltava asianmukaiset tilat vaatehuoltoa ja irtaimiston säilytystä sekä polkupyörien, lastenvaunujen sekä ulkoilu- ja apuvälineiden säilytystä varten.",
+      "text_en": "The dwelling unit, or its use, must have appropriate spaces for laundry care and for storing movable property, and for storing bicycles, prams, and outdoor and assistive equipment.",
+      "summary_en": "The dwelling, or its use, must provide suitable space for laundry, storage of belongings, and bicycles, prams and outdoor or assistive equipment.",
+      "keywords": [
+        "laundry",
+        "vaatehuolto",
+        "storage",
+        "säilytys",
+        "bicycle storage",
+        "polkupyörä",
+        "pram",
+        "lastenvaunut",
+        "assistive equipment",
+        "apuväline",
+        "dwelling unit"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-8-3",
+      "ref": "8 § 3 mom.",
+      "heading": "Asuinhuoneiston tilat ja varustus",
+      "heading_en": "Spaces and equipment of dwelling unit",
+      "text": "Tilat on varustettava niiden käytön edellyttämillä kiintokalusteilla, varusteilla sekä teknisillä asennuksilla. Asuinhuoneistossa on kuitenkin aina oltava wc- ja pesutila sekä riittävä perusvarustus ruoanvalmistusta varten.",
+      "text_en": "The spaces must be equipped with the built-in furniture, equipment and technical installations that their use requires. However, a dwelling unit must always have a WC and washroom and sufficient basic equipment for food preparation.",
+      "summary_en": "A dwelling unit must always have a WC and washroom and basic food-preparation equipment, plus the fixed fittings and installations its spaces need.",
+      "keywords": [
+        "WC",
+        "wc-tila",
+        "washroom",
+        "pesutila",
+        "ruoanvalmistus",
+        "kiintokalusteet",
+        "technical installations",
+        "tekniset asennukset",
+        "dwelling unit"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-9-1",
+      "ref": "9 § 1 mom.",
+      "heading": "Kulkuväylät",
+      "heading_en": "Circulation routes",
+      "text": "Porraskäytävät, kerrostasanteet ja eteiset on mitoitettava siten, että henkilöiden kulkeminen ja tavaroiden kuljettaminen on sujuvaa. Tavarankuljetus voidaan järjestää myös hissillä.",
+      "text_en": "Stairwells, landings and hallways must be dimensioned so that people can move and goods can be transported smoothly. Goods transport may also be arranged by lift.",
+      "summary_en": "Stairwells, landings and hallways must be sized for smooth movement of people and goods, which may also be carried by lift.",
+      "keywords": [
+        "stairwell",
+        "porraskäytävä",
+        "landing",
+        "kerrostasanne",
+        "hallway",
+        "eteinen",
+        "circulation",
+        "kulkuväylä",
+        "lift",
+        "hissi"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-9-2",
+      "ref": "9 § 2 mom.",
+      "heading": "Kulkuväylät",
+      "heading_en": "Circulation routes",
+      "text": "Asunnoista on päästävä vaivattomasti ja turvallisesti pihan leikki- ja oleskelualueille sekä muihin tiloihin ja alueille, jotka palvelevat rakennuksen käyttöä. Autopaikat ja jätehuoltotilat on sijoitettava sekä huoltoajo piha-alueella järjestettävä siten, etteivät ne aiheuta häiriötä tai vaaraa asumiselle tai piha-alueen käytölle.",
+      "text_en": "From the dwellings it must be possible to reach easily and safely the yard's play and recreation areas and other spaces and areas serving the use of the building. Parking spaces and waste management spaces must be placed, and service traffic in the yard area must be arranged, so that they do not cause disturbance or danger to living or to the use of the yard area.",
+      "summary_en": "Dwellings must have easy, safe access to the yard's play and recreation areas and other building-serving areas, with parking, waste and service traffic arranged so they do not disturb residents.",
+      "keywords": [
+        "yard",
+        "piha",
+        "play area",
+        "leikkialue",
+        "recreation area",
+        "oleskelualue",
+        "parking space",
+        "autopaikka",
+        "waste management",
+        "jätehuolto"
+      ],
+      "topics": [
+        "outdoor",
+        "parking"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-631-2024-10-1",
+      "ref": "10 §",
+      "heading": "Kerroskorkeus",
+      "heading_en": "Storey height",
+      "text": "Asuinkerrostalon kerroskorkeuden on oltava vähintään kolme metriä.",
+      "text_en": "The storey height of an apartment block must be at least three metres.",
+      "summary_en": "The storey height of an apartment block must be at least 3 m.",
+      "keywords": [
+        "floor-to-floor height",
+        "storey height",
+        "kerroskorkeus",
+        "apartment block",
+        "asuinkerrostalo",
+        "3 m"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "storey height of apartment block",
+          "comparison": ">=",
+          "value": 3,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-631-2024-11-1",
+      "ref": "11 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2025.",
+      "text_en": "This Decree enters into force on 1 January 2025.",
+      "summary_en": "The decree took effect on 1 January 2025.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "1 January 2025"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-631-2024-11-2",
+      "ref": "11 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämän asetuksen voimaan tullessa vireillä olevaan hankkeeseen sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "For a project pending when this Decree enters into force, the provisions in force when this Decree entered into force apply.",
+      "summary_en": "A project pending when the decree takes effect is governed by the rules in force at that time.",
+      "keywords": [
+        "transitional provision",
+        "siirtymäsäännös",
+        "vireillä oleva hanke",
+        "voimaantulo",
+        "pending project"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

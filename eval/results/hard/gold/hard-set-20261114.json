@@ -1,0 +1,2286 @@
+{
+ "schema": "hard_set_v1",
+ "files": [
+  {
+   "file": "fp01_photo_hotel_door_evac_glasgow.jpg",
+   "sha256": "108e33420ee25f1765dc9c25d992443fd846247ed920443f23f3fa2bda59d4c0",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Escape_and_evacuation_plan_on_door_in_guest_room_in_a_hotel_in_Glasgow.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Tbatb (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "phone photo of a hotel evacuation plan behind glass on a door: glare over part of one wing, plan is a third of the frame, about 40 guest rooms with bathroom pods",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 60,
+     "hi": 100
+    },
+    "window": "cannot_tell",
+    "toilet": {
+     "lo": 34,
+     "hi": 44
+    },
+    "sink": "cannot_tell",
+    "shower+bathtub": "cannot_tell",
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 34,
+     "hi": 44
+    },
+    "room:bathroom": {
+     "lo": 34,
+     "hi": 44
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 1
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 6.0,
+   "fetched": "original file",
+   "px": [
+    4032,
+    3024
+   ],
+   "note": "room:bedroom = hotel guest rooms; the glare hides 2-3 rooms"
+  },
+  {
+   "file": "fp02_photo_station_evac_alexanderplatz.jpg",
+   "sha256": "093edb462576611fa1798bc97bdf1ea13df71cf136de8bd01db5d1f23bbafb40",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Flucht-_und_Rettungsplan_Bahnhof_Alexanderplatz_(20230417_172645).jpg",
+   "licence": "CC0",
+   "attribution": "Ebeling-Marius (Wikimedia Commons, CC0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "phone photo of a station evacuation plan (Berlin Alexanderplatz), stored sideways with an EXIF orientation tag, green escape routes over a concourse with shop units as black blocks",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": "cannot_tell",
+    "window": "cannot_tell",
+    "toilet": "cannot_tell",
+    "sink": "cannot_tell",
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 4.0,
+   "fetched": "original file",
+   "px": [
+    4000,
+    3000
+   ],
+   "note": "pixels are landscape (4000x3000), EXIF orientation 6: upright only after applying EXIF"
+  },
+  {
+   "file": "fp03_photo_library_evac_freiburg.jpg",
+   "sha256": "6a77add0f4711081cf4929d95e03af035c13de46df9d0a78990171d74c70ab8e",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Universit%C3%A4tsbibliothek_Freiburg,_Flucht-_und_Rettungsplan_des_1._Obergeschosses.jpg",
+   "licence": "CC-BY-SA-3.0",
+   "attribution": "Andreas Schwarzkopf (Wikimedia Commons, CC BY-SA 3.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "photo of a framed escape plan of a library floor: irregular outline, open reading rooms with furniture, two service cores, green routes, legend and site inset",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 28,
+     "hi": 42
+    },
+    "window": "cannot_tell",
+    "toilet": {
+     "lo": 7,
+     "hi": 13
+    },
+    "sink": "cannot_tell",
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": {
+     "lo": 6,
+     "hi": 6
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:office": {
+     "lo": 4,
+     "hi": 4
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 7.0,
+   "fetched": "original file",
+   "px": [
+    3615,
+    2534
+   ],
+   "note": "room:wc from the printed labels: Beh.-WC x2, 01.208 WC H, 01.209 WC D, 01.104 WC D, 01.105 WC D; Buero 01.011-01.014; toilets are small stall rectangles, wash basins not told apart at this photo size"
+  },
+  {
+   "file": "fp04_photo_hotel_escape_dongguan.jpg",
+   "sha256": "0e21d8cc320b9b821e120d9a35d859747e659b6218eb172c03e2a4b43b4f3c31",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:SZ_Dongguan_%E6%9D%B1%E8%8E%9E%E5%A4%AA%E5%AD%90%E9%85%92%E5%BA%97_Crown_Prince_Hotel_fire_case_escape_route_map_floorplan_Aug-2010_a.jpg",
+   "licence": "CC-BY-SA-3.0",
+   "attribution": "Winghoomai (Wikimedia Commons, CC BY-SA 3.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "photo of a hotel escape-route plan under acrylic: three wings at an angle, about 46 guest rooms, glare, text in three languages",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 80,
+     "hi": 115
+    },
+    "window": "cannot_tell",
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 40,
+     "hi": 52
+    },
+    "room:bathroom": {
+     "lo": 40,
+     "hi": 52
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 6.0,
+   "fetched": "original file",
+   "px": [
+    3264,
+    2448
+   ],
+   "note": "bathrooms are outlines without fixtures; room:bedroom = hotel guest rooms"
+  },
+  {
+   "file": "fp05_photo_lodge_fire_exit_sketch.jpg",
+   "sha256": "c5cb6181dca616cdeec2117110947ad9061a4a615ac58098cb2637c28ada516f",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:The_Lodge,_Camp_Rosalie,_fire_exit_plan.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Xnatedawgx (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "photo of a stained home-made fire exit plan taped to a wall: single-line walls, three labelled spaces, exits as door ticks",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 4,
+     "hi": 7
+    },
+    "window": {
+     "lo": 0,
+     "hi": 0
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": {
+     "lo": 1,
+     "hi": 1
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "rooms_total": {
+     "lo": 3,
+     "hi": 5
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 3.0,
+   "fetched": "original file",
+   "px": [
+    2560,
+    1536
+   ],
+   "note": null
+  },
+  {
+   "file": "fp06_safety_plan_small_business_chieti.jpg",
+   "sha256": "bf48655703257202db64f616e388bf61ce30b51157bd63101858dbcde735d0eb",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Safety_plan_of_a_small_Italian_business,_Chieti,_Italy.jpg",
+   "licence": "CC0",
+   "attribution": "Cats' photos (Wikimedia Commons, CC0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "safety plan of a small business: rough photocopied wall outline with a handwritten word, arrows and a legend panel",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 0,
+     "hi": 3
+    },
+    "window": {
+     "lo": 8,
+     "hi": 16
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": {
+     "lo": 2,
+     "hi": 2
+    },
+    "room:balcony": {
+     "lo": 1,
+     "hi": 1
+    },
+    "rooms_total": {
+     "lo": 8,
+     "hi": 11
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 4.0,
+   "fetched": "original file",
+   "px": [
+    2353,
+    1421
+   ],
+   "note": "doorways are drawn as gaps without leaves; BALCONE is handwritten"
+  },
+  {
+   "file": "fp07_photo_hotel_card_small_plan.jpg",
+   "sha256": "05e6206e5f337014d7c77c7b0c040b376bd4e79fc59c2bf61ded6fe795d16ba7",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Century_Hotel_-_Fire_Escape_Plan.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Chongkian (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": false,
+   "advanced": true,
+   "why": "photo of a hotel notice card: the 3F evacuation diagram is a small part of the card between house rules and a price table; 5 numbered rooms, no door leaves",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": "cannot_tell",
+    "window": {
+     "lo": 0,
+     "hi": 0
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 5,
+     "hi": 5
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 3.0,
+   "fetched": "original file",
+   "px": [
+    2816,
+    2112
+   ],
+   "note": "rooms 301, 302, 303, 305, 306 (guest rooms)"
+  },
+  {
+   "file": "fp08_photo_mall_directory_elcon.jpg",
+   "sha256": "5258c1325704a2a9669f851a7aa13e64127da6afaf3d6a15d9c558c528e732a7",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:1990s_El_Con_Mall_directory_map.jpg",
+   "licence": "CC-BY-SA-3.0",
+   "attribution": "Chickensire (Wikimedia Commons, CC BY-SA 3.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": false,
+   "advanced": true,
+   "why": "photo of a mall directory board: colour-coded store units and anchors, no doors or windows drawn, icons, top cut off",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 0,
+     "hi": 0
+    },
+    "window": {
+     "lo": 0,
+     "hi": 0
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": "cannot_tell",
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "rooms_total": {
+     "lo": 100,
+     "hi": 140
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 4.0,
+   "fetched": "original file",
+   "px": [
+    2592,
+    1944
+   ],
+   "note": "restroom icons mark about 5 places, no WC rooms drawn"
+  },
+  {
+   "file": "fp09_photo_mall_directory_york_two_levels.jpg",
+   "sha256": "7c93dfcc1a5977d145ad06f9d99277adcea91772020248319747d8fac697efd5",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:York_Galleria_-_Mall_Directory_(7708696522).jpg",
+   "licence": "CC-BY-SA-2.0",
+   "attribution": "Mike Kalasnik from Charlotte, USA (Wikimedia Commons, CC BY-SA 2.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": false,
+   "advanced": true,
+   "why": "photo of a backlit mall directory: two small colour-coded level plans (upper, lower) with reflections, most of the board is the store list",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 2,
+     "hi": 2
+    },
+    "door": {
+     "lo": 0,
+     "hi": 0
+    },
+    "window": {
+     "lo": 0,
+     "hi": 0
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 3.0,
+   "fetched": "original file",
+   "px": [
+    2204,
+    3042
+   ],
+   "note": null
+  },
+  {
+   "file": "fp10_photo_school_wall_map_three_levels.jpg",
+   "sha256": "4cac73a6eb596d3a330291e1400eacccd29222132594760305497482deb6b814",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Map_Jedburgh_Grammar_School_2022.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Victuallers (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": false,
+   "advanced": true,
+   "why": "oblique photo of a painted wayfinding wall in a school: three stacked colour-coded level diagrams (2, 1, G), zones not rooms, no doors",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 3,
+     "hi": 3
+    },
+    "door": {
+     "lo": 0,
+     "hi": 0
+    },
+    "window": {
+     "lo": 0,
+     "hi": 0
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": "cannot_tell",
+    "room:wc": {
+     "lo": 5,
+     "hi": 7
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 4.0,
+   "fetched": "original file",
+   "px": [
+    6000,
+    8000
+   ],
+   "note": "WC labels: one on level 2, five to six on G; COOK SCHOOL and DINING are teaching/dining zones"
+  },
+  {
+   "file": "fp16_uscg_bldg125_first_floor_plan.png",
+   "sha256": "310c031f6468692282da71c451eb3f8ed604196284f7ea70c525dfa3e2ec8fe5",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167065821",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167065821: Building 125 Architectural First Floor Plan, May 4, 1991 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "US Coast Guard renovation sheet, 7,822 px wide, 1-bit: partial first floor plan of an office building with notes, wall-type key, section marks and dimension strings",
+   "printed_scale": {
+    "text": "1/4\" = 1'-0\"",
+    "ratio": 48.0,
+    "how": "text"
+   },
+   "scale_check": {
+    "p1": [
+     5604.0,
+     1267.0
+    ],
+    "p2": [
+     6210.0,
+     1267.0
+    ],
+    "metres": 3.658,
+    "from": "printed dimension 12'-0\" across RF ROOM 111 (tick dot centres; hand-drafted, about 1 % loose)"
+   },
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 16,
+     "hi": 21
+    },
+    "window": {
+     "lo": 14,
+     "hi": 22
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 1,
+     "hi": 2
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 1
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:office": {
+     "lo": 4,
+     "hi": 7
+    },
+    "rooms_total": {
+     "lo": 14,
+     "hi": 17
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 7.0,
+   "fetched": "original from the National Archives catalog (FILE0273.TIF), converted TIFF -> PNG",
+   "px": [
+    7822,
+    4896
+   ],
+   "note": "door tags 1-14 in hexagons (14 is a bi-fold closet door) plus four existing doors marked E, two of them double; rooms 101-116 (offices, open offices, lobby, conference, RF room, file, utility); a \"new coffee station\" with one sink in the passage, not a room"
+  },
+  {
+   "file": "fp17_uscg_bldg134_first_floor_plan_dirty.png",
+   "sha256": "621315d448cf9cdef43e88ae11995e5644941c9298b88b89b4b255217936de3b",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167066497",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167066497: Building 134 Architectural First Floor Plan, January 9, 1984 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "very dirty 1-bit scan, 10,219 px wide: as-built ground floor plan of a station building buried in dimensions, tags and notes, with details along the bottom",
+   "printed_scale": {
+    "text": "SCALE: 1/4\" = 1'-0\"",
+    "ratio": 48.0,
+    "how": "both"
+   },
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 24,
+     "hi": 32
+    },
+    "window": {
+     "lo": 8,
+     "hi": 14
+    },
+    "toilet": {
+     "lo": 3,
+     "hi": 6
+    },
+    "sink": {
+     "lo": 4,
+     "hi": 8
+    },
+    "shower+bathtub": {
+     "lo": 2,
+     "hi": 4
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 2,
+     "hi": 2
+    },
+    "room:kitchen": {
+     "lo": 1,
+     "hi": 1
+    },
+    "room:wc": {
+     "lo": 2,
+     "hi": 2
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "rooms_total": {
+     "lo": 18,
+     "hi": 22
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 10.0,
+   "fetched": "original from the National Archives catalog (FILE0079.TIF), converted TIFF -> PNG",
+   "px": [
+    10219,
+    7200
+   ],
+   "note": "door tags in circles run to 29; window tags in hexagons on the long wall: E, D, H-1 x3, A6 x2, B1, plus F on an end wall; rooms 101-120; room:wc = MEN'S TOILET 111 and WOMEN'S TOILET 112, room:bathroom = the two WET RM (showers), room:kitchen = KIT. UNIT 108; title block says first floor, the drawing title says GROUND FLOOR PLAN"
+  },
+  {
+   "file": "fp20_uscg_bldg125_emergency_exit_faint.png",
+   "sha256": "5aeafd635f9cae288038401fa2e1930c0fe4bf7614c0d54d58cecb423d0446f2",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167066365",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167066365: Emergency Exit Building 125 2nd Floor Plan (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "clean CAD plot of one large institutional floor on a 7,492 px sheet: hairline walls that fade at screen size, two labelled rooms only, curved entrance stair",
+   "printed_scale": {
+    "text": "SCALE: 1/8\" = 1'-0\"",
+    "ratio": 96.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 28,
+     "hi": 38
+    },
+    "window": {
+     "lo": 28,
+     "hi": 40
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": {
+     "lo": 2,
+     "hi": 2
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "rooms_total": {
+     "lo": 26,
+     "hi": 36
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 7.0,
+   "fetched": "original from the National Archives catalog (FILE0046.TIF), converted TIFF -> PNG",
+   "px": [
+    7492,
+    4896
+   ],
+   "note": "31 doorways with leaves by my count, 5 of them double; only WOMEN'S TOILET and MEN'S TOILET are labelled, no fixtures drawn"
+  },
+  {
+   "file": "fp21_uscg_bldg400_first_floor_plan_rot90.png",
+   "sha256": "9e85f1bb5d4356fdb2d94928d40fda8897108b147c80e0771c0e6d60e6cdce68",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167069741",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167069741: Building 400 Addition Architectural First Floor Plan, July 20, 1967 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "dormitory first floor plan with two room finish schedules on a 9,756 px sheet, stored rotated 90 degrees clockwise (we rotated it): text reads sideways",
+   "printed_scale": {
+    "text": "SCALE 1/8\" = 1'-0\"",
+    "ratio": 96.0,
+    "how": "text"
+   },
+   "scale_check": {
+    "p1": [
+     1709.0,
+     2065.0
+    ],
+    "p2": [
+     1709.0,
+     5964.0
+    ],
+    "metres": 47.65,
+    "from": "printed dimensions 34'-8\" + 121'-8\" along the long wall (extension lines; the sheet is stored rotated, so the run is vertical)"
+   },
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 38,
+     "hi": 46
+    },
+    "window": {
+     "lo": 46,
+     "hi": 52
+    },
+    "toilet": {
+     "lo": 10,
+     "hi": 16
+    },
+    "sink": {
+     "lo": 8,
+     "hi": 14
+    },
+    "shower+bathtub": "cannot_tell",
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 17,
+     "hi": 20
+    },
+    "room:bathroom": {
+     "lo": 2,
+     "hi": 4
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 1
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 2
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "rooms_total": {
+     "lo": 33,
+     "hi": 39
+    }
+   },
+   "printed_facts": [
+    "BERTHING CAPACITY 54 STUDENTS @ 50 S.F. EA",
+    "BERTHING CAPACITY 60 STUDENTS @ 50 S.F. EA"
+   ],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 10.0,
+   "fetched": "original from the National Archives catalog (FILE0178.TIF), converted TIFF -> PNG, rotated 90 deg clockwise by us",
+   "px": [
+    6112,
+    9756
+   ],
+   "note": "door tags in circles 1-41, window tags in triangles 1-50, rooms 101-137; dorm rooms 105-113 and 122-131; la15 is the door schedule of the same project"
+  },
+  {
+   "file": "la01_mep_hvac_floor_plan_bldg333.png",
+   "sha256": "98104bccc4565cae8c481cc8ab01f088e6602d30382daff69fdb07bdc4b9df5b",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167069303",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167069303: Building 333 HVAC - Floor Plan and Notes (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "mep_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "HVAC sheet M-1 (titled HVAC - floor plan and notes; the view is labelled reflected ceiling plan): duct grid, diffusers and CFM tags over a courtroom floor whose room names show faintly",
+   "printed_scale": {
+    "text": "SCALE: 1/4\" = 1'-0\"",
+    "ratio": 48.0,
+    "how": "both"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 3.0,
+   "fetched": "original from the National Archives catalog (FILE0018.TIF), converted TIFF -> PNG",
+   "px": [
+    7917,
+    4512
+   ],
+   "note": "borderline for floor_plan_on_sheet: room names (courtroom, jury room, judge's chamber) and wall lines are there as background, no doors"
+  },
+  {
+   "file": "la02_mep_plumbing_first_floor_bldg134.png",
+   "sha256": "66d74ee7e3066efa6377442991f2d301658a0a7270573a5b17a9c6fa6627ce72",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167066611",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167066611: Building 134 Plumbing First Floor Plan, August 21, 1980 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "mep_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "plumbing first floor plan: pipe runs and drain notes over the wall outline of an operations building, a few room names, no door leaves",
+   "printed_scale": {
+    "text": "SCALE: 1/4\" = 1'-0\"",
+    "ratio": 48.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 3.0,
+   "fetched": "original from the National Archives catalog (FILE0057.TIF), converted TIFF -> PNG",
+   "px": [
+    7799,
+    4896
+   ],
+   "note": "borderline for floor_plan_on_sheet: the wall outline and some room names (bath, laundry, storage) are drawn as the pipe background"
+  },
+  {
+   "file": "la03_mep_lighting_third_floor_bldg400.png",
+   "sha256": "792f5aac6e60b5d3c5405205607bf5336acca63fa32ac677e688cdc66f2f98e0",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167070543",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167070543: Building 400 Sections A, B and C Third Floor Electrical Lighting Plan, June 16, 1966 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "mep_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": true,
+   "advanced": false,
+   "why": "electrical lighting plan of a long berthing floor, 9,769 px wide: fixtures, circuits and panel tags over the full architectural background (rooms and door swings show)",
+   "printed_scale": {
+    "text": "AS SHOWN (graphic scale)",
+    "ratio": null,
+    "how": "bar"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 3.0,
+   "fetched": "original from the National Archives catalog (FILE0020.TIF), converted TIFF -> PNG",
+   "px": [
+    9769,
+    6112
+   ],
+   "note": "the hardest lookalike: an electrical sheet, but rooms and doors of the floor could be counted from the background, so takeoff_possible is true while floor_plan_on_sheet is false"
+  },
+  {
+   "file": "la07_struct_steel_framing_bldg915.png",
+   "sha256": "4f6edfd6915860e8ff7c05c64c4e1bf49c51257853d9e6bb682229c8040a7a12",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167078573",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167078573: Building 915 Servmart Structural Steel Second Floor and Canopy Framing Plans and Details, May 13, 1982 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "structural_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "structural steel second floor and canopy framing plans with roof opening details: beams, grid bubbles, no rooms",
+   "printed_scale": {
+    "text": "1/8\" = 1'-0\" and 1/2\" = 1'-0\" (graphic scales), title block AS NOTED",
+    "ratio": 96.0,
+    "how": "both"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original from the National Archives catalog (FILE0010.TIF), converted TIFF -> PNG",
+   "px": [
+    9014,
+    6112
+   ],
+   "note": null
+  },
+  {
+   "file": "la09_site_plan_governors_island.png",
+   "sha256": "b28a5b75107cd0d2accc2979c43d146acf0b65f8c8c62b9aeab0873554b59306",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167060595",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167060595: Site Plan, January 1984 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "site_plan_or_map",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "site plan of Governors Island with a location map inset and a cable TV distribution overlay: building footprints, roads, piers",
+   "printed_scale": {
+    "text": "SCALE IN FEET (bar)",
+    "ratio": null,
+    "how": "bar"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original from the National Archives catalog (FILE0165.TIF), converted TIFF -> PNG",
+   "px": [
+    7200,
+    4808
+   ],
+   "note": null
+  },
+  {
+   "file": "la11_roof_plan_bldg403.png",
+   "sha256": "1a91d28276aa374fb9942d3c90910e22a1e2e26192a0af602f189cefd9538b4d",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167071505",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167071505: Building 403 Roof Plan (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "roof_or_ceiling_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "roof plan of a house on gridded paper: hips, valleys, chimneys and porch roofs, empty title block, no text",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original from the National Archives catalog (FILE0066.TIF), converted TIFF -> PNG",
+   "px": [
+    7810,
+    4896
+   ],
+   "note": null
+  },
+  {
+   "file": "la12_reflected_ceiling_plan_bldg125.png",
+   "sha256": "d08e00d304f8b550e2f347bacec1537635a70003bacffaf7b7f402c8c3000242",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167065827",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167065827: Building 125 Architectural Fourth Floor Reflected Ceiling Plan, June 13, 1991 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "roof_or_ceiling_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "4th floor reflected ceiling plan: ceiling grid, light fixtures and lighting troughs inside the room outlines, no doors",
+   "printed_scale": {
+    "text": "SCALE 1/4\" = 1'-0\"",
+    "ratio": 48.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original from the National Archives catalog (FILE0041.TIF), converted TIFF -> PNG",
+   "px": [
+    7811,
+    4896
+   ],
+   "note": "room outlines are visible, which is what makes it look like a floor plan"
+  },
+  {
+   "file": "la15_door_schedule_details_bldg400.png",
+   "sha256": "e27aeac273bc71082e93f7e31327ee5114b09e7f18d41b9bcc706b831cdbcd8f",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167069753",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167069753: Building 400 Addition Door Schedule and Door Details, July 20, 1967 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "detail",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "door schedule table with door type elevations and head and jamb details (same project as fp21)",
+   "printed_scale": {
+    "text": "AS NOTED (1/4\" = 1'-0\" elevations, 3\" = 1'-0\" details)",
+    "ratio": null,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original from the National Archives catalog (FILE0190.TIF), converted TIFF -> PNG",
+   "px": [
+    9657,
+    6112
+   ],
+   "note": "schedule_or_text is also defensible: the schedule fills the left third, drawn details the rest"
+  },
+  {
+   "file": "la16_title_sheet_vicinity_map_bldg125.png",
+   "sha256": "9016771e1e7361e8fc4e7b86a26dc9829007890366e452da38baa12f7572e7eb",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167065867",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167065867: Building 125 Architectural Title/Vicinity Map/Site Plan/List of Drawings, June 13, 1991 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "schedule_or_text",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "title sheet: project name in large letters, legend, list of drawings, a vicinity map and an island location plan",
+   "printed_scale": {
+    "text": "NO SCALE",
+    "ratio": null,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original from the National Archives catalog (FILE0023.TIF), converted TIFF -> PNG",
+   "px": [
+    7807,
+    4896
+   ],
+   "note": "site_plan_or_map is also defensible for the two small maps"
+  },
+  {
+   "file": "la17_ship_hull_lines_blueprint.jpg",
+   "sha256": "3a4283f1579d817810289ac9141d29875d1147d2555eb0959050a19516821268",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/7368230",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 7368230: Hull Lines (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "other",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "blueprint (white on blue) of a ship's hull lines: body plan and sheer curves, not a building; stored sideways with an EXIF orientation tag",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original from the National Archives catalog (lancaster_hull1_001.JPG)",
+   "px": [
+    3302,
+    1830
+   ],
+   "note": "engineering drawing of a vessel; closest contract word is other"
+  },
+  {
+   "file": "la18_elevation_section_residence_bldg206.png",
+   "sha256": "26cdb262520f588ad1d3ec4a37da4f9afb1576f7ddda22e5fc4e7dffe5ef88a6",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167067423",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167067423: Building 206 Residence Elevation and Section (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "elevation",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "record drawing of a residence: two porch elevations and a small wall section, no plan",
+   "printed_scale": {
+    "text": "1/4\" = 1'-0\"",
+    "ratio": 48.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original from the National Archives catalog (FILE0063.TIF), converted TIFF -> PNG",
+   "px": [
+    7932,
+    6112
+   ],
+   "note": null
+  },
+  {
+   "file": "la19_struct_foundation_plan_bldg702.png",
+   "sha256": "31ad5aef37d11da99fa7d48578e6713dcfe0dd41e622c6dcf13027449c263126",
+   "page": 1,
+   "source_url": "https://catalog.archives.gov/id/167076197",
+   "licence": "PD-USGov",
+   "attribution": "U.S. National Archives, NAID 167076197: Building 702 Bachelor Officers Quarters Structural Foundation Plan, July 21, 1980 (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "structural_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "structural foundation plan of a bachelor officers quarters ringed by a dozen footing sections and a footing schedule; the outline follows the building, so it reads like a floor plan",
+   "printed_scale": {
+    "text": "FOUNDATION PLAN & FIRST FLOOR PLAN 1/8\" = 1'-0\" (sections 3/8\" = 1'-0\")",
+    "ratio": 96.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 3.0,
+   "fetched": "original from the National Archives catalog (FILE0009.TIF), converted TIFF -> PNG",
+   "px": [
+    8728,
+    6112
+   ],
+   "note": "the view title says \"foundation plan & first floor plan\" (first floor slab), but it shows footings, slab depressions and wall thicknesses, no rooms or doors"
+  },
+  {
+   "file": "fp11_photo_museum_floor_plan_board.png",
+   "sha256": "bb43618051b6122892b580d05cadeef104d7de85dac04cd72dc08d0ef419e14d",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Floor_Plan_of_Aviation_Museum_20130928.jpg",
+   "licence": "CC-BY-SA-3.0",
+   "attribution": "玄史生 (Wikimedia Commons, CC BY-SA 3.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": false,
+   "advanced": true,
+   "why": "photo of a museum floor plan board at an angle: seven small colour-coded level diagrams of a triangular building plus a bilingual exhibit list, no doors drawn",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 5,
+     "hi": 7
+    },
+    "door": "cannot_tell",
+    "window": {
+     "lo": 0,
+     "hi": 0
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": "cannot_tell",
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 4.0,
+   "fetched": "original file",
+   "px": [
+    3264,
+    2448
+   ],
+   "note": "titled plans: 2nd floor, 1st floor, basement office, observation tower, 2nd-5th floor, 1st floor (tower), basement; restroom icons, exits marked by text only; stored as PNG (the source JPEG is a multi-picture file)"
+  },
+  {
+   "file": "fp12_church_building_phases_colour.jpg",
+   "sha256": "7b3cf12e9e97daf472f72853cfd0aa3d89c333aa00a9db190b5f7becc95abfbc",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:St_Adelphe_Bauphasenplan.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Reinhard Dietrich (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": false,
+   "advanced": true,
+   "why": "colour-coded building-phase plan of a church, 9,449 px wide: walls filled by construction period, vault lines, destroyed parts dashed, legend and a metre bar",
+   "printed_scale": {
+    "text": "0  5  10 m (bar)",
+    "ratio": null,
+    "how": "bar"
+   },
+   "scale_check": {
+    "p1": [
+     4671.0,
+     3796.0
+    ],
+    "p2": [
+     5747.0,
+     3796.0
+    ],
+    "metres": 10.0,
+    "from": "scale bar 0 to 10 m (end tick centres, 11 ticks 107.6 px apart)"
+   },
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 0,
+     "hi": 0
+    },
+    "window": "cannot_tell",
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 4.0,
+   "fetched": "original file",
+   "px": [
+    9449,
+    4724
+   ],
+   "note": "portals are gaps in the wall, no door leaves; window embrasures are drawn in the walls but the destroyed half is dashed, so no count"
+  },
+  {
+   "file": "fp13_werkplan_stuttgart_hbf_ebene_e.jpg",
+   "sha256": "b079db482192a8972f249587f60c561d611fe146df8c6f3ca10319db24bb2c1a",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Stuttgart_Hbf-_Baulos_3_E-Ebene_Block_1_u.2_Werkplan_Grundriss(Technikr%C3%A4ume,Lager,Rolltreppe)_-_LABW_-_Staatsarchiv_Ludwigsburg_K_412_IV_DO_11602.jpeg",
+   "licence": "CC-BY-4.0",
+   "attribution": "This image was catalogued by Staatsarchiv Ludwigsburg of the Landesarchiv Baden-Württemberg under ID: K 412 IV DO 11602. (Wikimedia Commons, CC BY 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "German working drawing of an underground station level: plan of technical rooms between two tracks, soaked in dimensions, levels and notes, with seven sections and an index block around it",
+   "printed_scale": {
+    "text": "M. = 1:50",
+    "ratio": 50.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 5,
+     "hi": 12
+    },
+    "window": {
+     "lo": 0,
+     "hi": 0
+    },
+    "toilet": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 0
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "rooms_total": {
+     "lo": 8,
+     "hi": 13
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 5.0,
+   "fetched": "original file",
+   "px": [
+    4939,
+    3499
+   ],
+   "note": "multi_view_sheet is also defensible (sections 1-1 to 7-7 at 1:50 fill about a fifth of the sheet); door tags read 3ET02, 3ET05, 3ET12, 3ET16, 3ET17, 4ET01; rooms: Signalraum, FM-Batterie Raum, FM-Relais Raum, FM-Kabelraum, Inst. Raum, Hochspannungsschaltanlage, Lager, Vorplatz, Dienstwege"
+  },
+  {
+   "file": "fp14_dresden_panel_housing_plan.jpg",
+   "sha256": "df545277e10a195f40fd7a434235e4bc6bb075b52e550bae5a0ed4cafb698f24",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:19710508011AR_Dresden_Gro%C3%9Ftafelbau_9_Mp_Studentenentwurf.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Jörg Blobelt (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "high-contrast reproduction of a 1971 panel-housing floor: four flats around a stair with furniture, door size tags and room area text, big stencil title",
+   "printed_scale": {
+    "text": "M 1:50",
+    "ratio": 50.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 28,
+     "hi": 40
+    },
+    "window": {
+     "lo": 11,
+     "hi": 19
+    },
+    "toilet": {
+     "lo": 3,
+     "hi": 5
+    },
+    "sink": {
+     "lo": 5,
+     "hi": 9
+    },
+    "shower+bathtub": {
+     "lo": 3,
+     "hi": 5
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 6,
+     "hi": 8
+    },
+    "room:bathroom": {
+     "lo": 3,
+     "hi": 6
+    },
+    "room:kitchen": {
+     "lo": 4,
+     "hi": 4
+    },
+    "room:wc": "cannot_tell",
+    "room:balcony": {
+     "lo": 2,
+     "hi": 3
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 8.0,
+   "fetched": "original file",
+   "px": [
+    4194,
+    3116
+   ],
+   "note": "bedrooms: Kinderschlafzimmer x3, Elternschlafzimmer x3, Wohnschlafzimmer x1, plus one unlabelled half room; baths are prefabricated cells (Zelle), in one flat split in two; one Loggia is labelled, two more balconies are outlines"
+  },
+  {
+   "file": "fp15_hand_drawn_apartment_plan_fr.jpg",
+   "sha256": "c8ab24ebac239c59cf4c1bdb8969786026f05d342eeb1a532e4e23f50aefe5ae",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:1976_12_17_-_Jacob_-Plan_appart._1_%C3%A0_4_-_Roullier,_5.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Urb Jul (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "hand-drawn, hand-lettered and watercoloured apartment plan (French), one drawing for four storeys, dimensions in metres, doorways as gaps",
+   "printed_scale": null,
+   "scale_check": {
+    "p1": [
+     130.0,
+     1515.0
+    ],
+    "p2": [
+     1552.0,
+     1515.0
+    ],
+    "metres": 12.0,
+    "from": "printed dimension 12,00 across the facade (extension lines; hand-drawn, about 1 % loose)"
+   },
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 0,
+     "hi": 0
+    },
+    "window": {
+     "lo": 4,
+     "hi": 8
+    },
+    "toilet": {
+     "lo": 1,
+     "hi": 1
+    },
+    "sink": {
+     "lo": 0,
+     "hi": 1
+    },
+    "shower+bathtub": {
+     "lo": 0,
+     "hi": 0
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 2,
+     "hi": 2
+    },
+    "room:bathroom": {
+     "lo": 1,
+     "hi": 1
+    },
+    "room:kitchen": {
+     "lo": 1,
+     "hi": 1
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 1
+    },
+    "room:balcony": {
+     "lo": 1,
+     "hi": 2
+    },
+    "rooms_total": {
+     "lo": 8,
+     "hi": 9
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 5.0,
+   "fetched": "original file",
+   "px": [
+    1648,
+    1692
+   ],
+   "note": "rooms: CHAMBRE x2, BAINS, CUISINE, HALL, VEST., S. A MANGER, FUMOIR; the toilet sits in its own small enclosure next to BAINS; \"PLAN DES 1ER 2ME 3ME ET 4E ETAGES\" is one plan, not four"
+  },
+  {
+   "file": "fp19_blueprint_negative_first_floor_plan.png",
+   "sha256": "7e3434f794024f9d25d549b24d1946bb901ab4aadd3f8db43e05f81b429df21b",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:BLDG._-41;_PHOTOCOPY_OF_BLUEPRINT_OF_WORKING_DRAWING_OF_FIRST_FLOOR_PLAN_-_Fort_MacArthur,_Pacific_Avenue,_San_Pedro,_Los_Angeles_County,_CA_HABS_CAL,19-SANPE,2-38.tif",
+   "licence": "PD-USGov",
+   "attribution": "Related names: Office of the Quartermaster General, U.S. Army Construction Division, Office of Quartermaster General (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "architectural_floor_plan",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "photocopy of a 1916 blueprint, white lines on near-black with paper texture: first floor plan of a guard house and fire station with roof framing lines and dimensions",
+   "printed_scale": {
+    "text": "Scale 1/4 Inch",
+    "ratio": 48.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 8,
+     "hi": 14
+    },
+    "window": {
+     "lo": 13,
+     "hi": 22
+    },
+    "toilet": {
+     "lo": 3,
+     "hi": 5
+    },
+    "sink": {
+     "lo": 2,
+     "hi": 6
+    },
+    "shower+bathtub": {
+     "lo": 1,
+     "hi": 3
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bathroom": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:kitchen": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:wc": {
+     "lo": 2,
+     "hi": 2
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:cell": {
+     "lo": 3,
+     "hi": 3
+    },
+    "rooms_total": {
+     "lo": 7,
+     "hi": 10
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 6.0,
+   "fetched": "original file, converted image/tiff -> PNG",
+   "px": [
+    5000,
+    4015
+   ],
+   "note": "rooms: Porch, Officers Room, Sergeants Room, Guard's Toilet, Prisoners Toilet (with a shower), Guard Room, Prison Room with two cages and three cells, Fire Station; \"D.R.\" in the walls are radiators, not doors"
+  },
+  {
+   "file": "fp22_multiview_house_plans_elevations_electrical.jpg",
+   "sha256": "e1e3fe588e781b47b8715d612d013a3d8358670add1b37b6160bab21bc1126f6",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Elevations,_floor_plans,_and_electrical_layout_(c180cb3f-1847-480e-95d4-a3c5d92c8a8e).tif",
+   "licence": "PD-USGov",
+   "attribution": "Unknown authorUnknown author (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "multi_view_sheet",
+   "floor_plan_on_sheet": true,
+   "takeoff_possible": true,
+   "advanced": true,
+   "why": "1925 National Park Service sheet for a small house: one floor plan with electric outlets, two elevations, two kitchen wall elevations and a symbol list",
+   "printed_scale": {
+    "text": "Scale: 1/4\" = 1 ft. & 1/2\" = 1 ft.",
+    "ratio": 48.0,
+    "how": "text"
+   },
+   "scale_check": {
+    "p1": [
+     510.0,
+     1207.0
+    ],
+    "p2": [
+     1483.0,
+     1207.0
+    ],
+    "metres": 8.001,
+    "from": "printed dimension 26'-3\" across the plan (extension lines; 11'-11\" and 14'-4\" inside it agree at 37.05 px per foot)"
+   },
+   "counts": {
+    "plan": {
+     "lo": 1,
+     "hi": 1
+    },
+    "door": {
+     "lo": 9,
+     "hi": 13
+    },
+    "window": {
+     "lo": 9,
+     "hi": 12
+    },
+    "toilet": {
+     "lo": 1,
+     "hi": 1
+    },
+    "sink": {
+     "lo": 1,
+     "hi": 2
+    },
+    "shower+bathtub": {
+     "lo": 1,
+     "hi": 1
+    },
+    "sauna": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:bedroom": {
+     "lo": 2,
+     "hi": 2
+    },
+    "room:bathroom": {
+     "lo": 1,
+     "hi": 1
+    },
+    "room:kitchen": {
+     "lo": 1,
+     "hi": 1
+    },
+    "room:wc": {
+     "lo": 0,
+     "hi": 0
+    },
+    "room:balcony": {
+     "lo": 0,
+     "hi": 0
+    },
+    "rooms_total": {
+     "lo": 5,
+     "hi": 9
+    }
+   },
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 6.0,
+   "fetched": "Commons JPEG render, 3840 px wide (original 15609x12861)",
+   "px": [
+    3840,
+    3164
+   ],
+   "note": "stored as a 3,840 px render of a 15,609 px original (410 MB TIFF); 9 hinged doors plus 3 screen doors; two porches, no balcony; the plan is at 1/4\", the kitchen elevations at 1/2\""
+  },
+  {
+   "file": "la04_mep_hvac_tenth_floor_halle.jpg",
+   "sha256": "7d38d5dbc29d5cf1590752337f84f2399f9621cee0c92eac8451f55dd8ebf3ed",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Tenth_floor_HVAC_plan_-_Halle_Building_Cleveland.jpg",
+   "licence": "PDM",
+   "attribution": "\"Heating and Ventilating the Alfred A. Pope Building, Cleveland, O\". Engineering Review. June 1910. p. 44. (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "mep_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "steam heating plan of one open office floor from a 1910s trade journal: pipe runs, radiators and pipe sizes inside a tilted building outline",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original file",
+   "px": [
+    1538,
+    1162
+   ],
+   "note": "borderline for floor_plan_on_sheet: the outline with its window bays is the floor, but nothing inside is a room"
+  },
+  {
+   "file": "la05_struct_rebar_plan_goeppingen.jpg",
+   "sha256": "3962780c8ce98151fcdfba968065766254cc6182705ac307d3826e17120360a6",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:G%C3%B6ppingen-_Erdgeschoss_Bauteil_3_Bewehrungsplan_-_LABW_-_Staatsarchiv_Ludwigsburg_K_412_IV_DO_4511.jpeg",
+   "licence": "CC-BY-4.0",
+   "attribution": "This image was catalogued by Staatsarchiv Ludwigsburg of the Landesarchiv Baden-Württemberg under ID: K 412 IV DO 4511. (Wikimedia Commons, CC BY 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "structural_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "reinforcement drawing for a ground floor slab: bar bending shapes, beam elevations and steel lists, no building outline at all",
+   "printed_scale": {
+    "text": "M = 1:25",
+    "ratio": 25.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original file",
+   "px": [
+    6226,
+    3531
+   ],
+   "note": "detail is also defensible; the title says Bewehrungsplan Erdgeschoss"
+  },
+  {
+   "file": "la06_struct_formwork_slab_plan_stuttgart.jpg",
+   "sha256": "d8bf3500f5c582a8b1a0c5e798b7a6533438fee46bf79300667ba49594fd62e0",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Stuttgart_Hbf-_Dienstgeb%C3%A4ude_Hbm_Werkst%C3%A4tten_Schalplan_Decke_Obergescho%C3%9F_-_LABW_-_Staatsarchiv_Ludwigsburg_K_412_IV_DO_11206.jpeg",
+   "licence": "CC-BY-4.0",
+   "attribution": "This image was catalogued by Staatsarchiv Ludwigsburg of the Landesarchiv Baden-Württemberg under ID: K 412 IV DO 11206. (Wikimedia Commons, CC BY 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "structural_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "formwork plan of a floor slab with four small sections: walls, beams, slab thicknesses and dimension chains, room-like bays without names or doors",
+   "printed_scale": {
+    "text": "Massstab 1:50",
+    "ratio": 50.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original file",
+   "px": [
+    2967,
+    2264
+   ],
+   "note": "the lookalike closest to a clean floor plan: thick walls, bays and dimensions, but it is the slab seen from below"
+  },
+  {
+   "file": "la08_struct_second_floor_framing_blueprint.jpg",
+   "sha256": "24d98a300e1b0c2dd6e62d7c233e1741ad7ff916305b06fb4840929e1ce4f214",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Second_Floor_Framing_Plan_(5f4740a2-fdad-44dd-8b2e-b9853b5625d7).tif",
+   "licence": "PD-USGov",
+   "attribution": "Unknown authorUnknown author (Wikimedia Commons, Public domain)",
+   "gold_commit_ok": true,
+   "sheet_kind": "structural_plan",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "faded blueprint of a second floor framing plan: rows of joists and headers, white on blue, low contrast",
+   "printed_scale": {
+    "text": "printed under the title, unreadable in the stored render",
+    "ratio": null,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "Commons JPEG render, 3840 px wide (original 23932x10774)",
+   "px": [
+    3840,
+    1729
+   ],
+   "note": "stored as a 3,840 px render of a 23,932 px original (774 MB TIFF)"
+  },
+  {
+   "file": "la10_photo_outdoor_evacuation_map_sign.jpg",
+   "sha256": "903059c40eb45fa55e07dd35b089025f23523f615be7abc27738c36554c83929",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:A_neighborhood_evacuation_plan_in_Hsinchu_City.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Tbatb (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "site_plan_or_map",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "photo of an outdoor neighbourhood evacuation map on a signboard under trees: streets and shelters, not a building",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original file",
+   "px": [
+    4032,
+    3024
+   ],
+   "note": "not checked at full size for a map scale"
+  },
+  {
+   "file": "la13_elevations_station_altshausen.jpg",
+   "sha256": "f908724eecb32f21d423f28492ab8a18ecb09a0a0e4dd61f5ec4b53eb9cbefe3",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Altshausen-_Empfangsgeb%C3%A4ude_Ansichten_-_LABW_-_Staatsarchiv_Ludwigsburg_K_412_IV_DO_450.jpeg",
+   "licence": "CC-BY-4.0",
+   "attribution": "This image was catalogued by Staatsarchiv Ludwigsburg of the Landesarchiv Baden-Württemberg under ID: K 412 IV DO 450. (Wikimedia Commons, CC BY 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "elevation",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "four elevations of a station building (west, north, east, south), no plan",
+   "printed_scale": {
+    "text": "1:100",
+    "ratio": 100.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original file",
+   "px": [
+    2503,
+    1840
+   ],
+   "note": null
+  },
+  {
+   "file": "la14_sections_formwork_aalen.jpg",
+   "sha256": "265d75c11798f87d0d804c1a4b71a8fcdbc98176df4ca05a313336bded09e82a",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Aalen-_Schnitte_Neubau_BA-Befehlsstelle_Schalplan_-_LABW_-_Staatsarchiv_Ludwigsburg_K_412_IV_DO_158.jpeg",
+   "licence": "CC-BY-4.0",
+   "attribution": "This image was catalogued by Staatsarchiv Ludwigsburg of the Landesarchiv Baden-Württemberg under ID: K 412 IV DO 158. (Wikimedia Commons, CC BY 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "section",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "six formwork sections (a-a to f-f) of a basement structure with stairs, dimension chains and two title blocks",
+   "printed_scale": {
+    "text": "M. 1:50",
+    "ratio": 50.0,
+    "how": "text"
+   },
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 2.0,
+   "fetched": "original file",
+   "px": [
+    4860,
+    2352
+   ],
+   "note": null
+  },
+  {
+   "file": "nd01_photo_architecture_classroom.jpg",
+   "sha256": "9994eec800bc41bd2e9bcd0ffd3ba7441e264fec7c272f4bafc369f3fe3d7c19",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:BGSU_Architecture_Classroom.jpg",
+   "licence": "CC-BY-4.0",
+   "attribution": "Mbrickn (Wikimedia Commons, CC BY 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "not_a_drawing",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "photo of an empty architecture classroom with drawing tables and a whiteboard",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 1.0,
+   "fetched": "original file",
+   "px": [
+    4032,
+    3024
+   ],
+   "note": null
+  },
+  {
+   "file": "nd02_photo_museum_hall_interior.jpg",
+   "sha256": "f902d3dc86b4f6becbb72ad40d546bd3b251d620a89e8ebc7531fd1715e00111",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Museum_Exhibition_Hall_Interior_Space.jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "QueenCityCebu (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "not_a_drawing",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "photo of a museum hall interior: tiled floor, bench, plants, glass cases",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 1.0,
+   "fetched": "original file",
+   "px": [
+    4624,
+    3472
+   ],
+   "note": null
+  },
+  {
+   "file": "nd03_screenshot_fem_software.png",
+   "sha256": "acdf9509cc705d61ee657e66ee6a1b6d9548aaae16d47623a0f63873f468fda8",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Analyse_sismique_dans_RFEM.png",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Friedley (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "not_a_drawing",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "screenshot of structural analysis software: a coloured 3D model of a building, menus and a data table",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 1.0,
+   "fetched": "original file",
+   "px": [
+    1281,
+    1025
+   ],
+   "note": "perspective_or_axonometric or other are defensible for the 3D model; it is a screenshot, not a drawing sheet"
+  },
+  {
+   "file": "nd04_photo_text_only_evacuation_sign.jpg",
+   "sha256": "d8bda99f75b34fcbca0242e89b2c5937fd784adc0d419326543ed7a78dce1693",
+   "page": 1,
+   "source_url": "https://commons.wikimedia.org/wiki/File:Green_Cross_evacuation_plan_sign,_Groningen_(2019).jpg",
+   "licence": "CC-BY-SA-4.0",
+   "attribution": "Donald Trung Quoc Don (Chữ Hán: 徵國單) - Wikimedia Commons.(Want to use this image?) (Wikimedia Commons, CC BY-SA 4.0)",
+   "gold_commit_ok": true,
+   "sheet_kind": "not_a_drawing",
+   "floor_plan_on_sheet": false,
+   "takeoff_possible": false,
+   "advanced": false,
+   "why": "close-up photo of a printed evacuation notice: text and exit pictograms only, no plan",
+   "printed_scale": null,
+   "scale_check": null,
+   "counts": null,
+   "printed_facts": [],
+   "checked_by": "think-local, by eye on the stored file (full-res crops), before any model or product run",
+   "minutes": 1.0,
+   "fetched": "original file",
+   "px": [
+    4864,
+    2736
+   ],
+   "note": "schedule_or_text is defensible; chosen as a trap because the word evacuation and the pictogram suggest a plan"
+  }
+ ]
+}

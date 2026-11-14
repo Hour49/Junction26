@@ -19,6 +19,10 @@ export type StageTrace = Schemas['StageTrace'];
 export type ProjectReview = Schemas['ProjectReview'];
 export type DrawingReview = Schemas['DrawingReview'];
 export type ConflictEntry = Schemas['ConflictEntry'];
+/** A model's pick or "can't tell" on a conflict or uncertain answer (#252, RESOLVER=carbon; absent while off). */
+export type Resolved = Schemas['Resolved'];
+/** POST /api/projects/{id}/resolve: the review after the replies + one note per conflict that got none. */
+export type Resolving = Schemas['Resolving'];
 export type DrawingView = Schemas['DrawingView'];
 export type PageView = Schemas['PageView'];
 export type Normalised = Schemas['Normalised'];
@@ -63,6 +67,9 @@ export type ProjectChecks = Schemas['ProjectChecks'];
 export type CheckStatus = RuleCheck['status'];
 
 export type Issue = Schemas['Issue'];
+export type IssueAnswer = Schemas['IssueAnswer'];
+/** #223: `{text, by}` answers an issue, `{undo: true}` takes the answer back. */
+export type IssueAnswerRequest = { text: string; by: string } | { undo: true };
 export type IssueList = Schemas['ProjectIssues'];
 export type IssueKind = Issue['kind'];
 export type IssueSeverity = Issue['severity'];

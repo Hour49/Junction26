@@ -2,8 +2,10 @@
 that is not a floor plan fills the description form (what_it_is, shows_building, visible_text,
 text_seen, language, subject) and its long text (detail, text).
 
-The prompt and schema are prototypes/triage-describe's describe-5, word for word, so the
-numbers measured on it hold here (.agents/exp/triage-describer.md). describe-5 is describe-4 with
+The prompt is describe-6: prototypes/triage-describe's describe-5, word for word, plus the
+home-address rule below; the schema is describe-5's. The numbers measured on describe-5 are
+below (.agents/exp/triage-describer.md); describe-6 was checked on 5 files only. describe-5 is
+describe-4 with
 two rules for the long text: a count only when every item can be counted, and a date only when
 it is printed. On the same 50 images a blind count found 44 right, 6 minor errors, 0 wrong
 (describe-4: 43, 7, 0), with no dates read from the style and no invented views; the form
@@ -25,11 +27,15 @@ come after the model has looked.
 - A failed call (HTTP error, timeout, a refusal such as RECITATION, a form that is incomplete) is
   `Unavailable` with the reason, and nothing is cached: nothing is guessed, and no other prompt
   is tried.
-- Phone numbers and e-mail addresses are taken out of every text field (orchestrator,
-  2026-11-14: "drop every phone number and e-mail address from visible_text and detail with a
-  tested regex, firm or private"). Street addresses and firm names stay. Names of people in
-  photos are kept out by the prompt. A national number with no label, no "+" or "00" and no
-  area-code dash (0401234567) is not caught: it can't be told from a row of dimensions.
+- Phone numbers and e-mail addresses are taken out of every text field by app/core/contacts.py
+  (orchestrator, 2026-11-14: "drop every phone number and e-mail address from visible_text and
+  detail with a tested regex, firm or private"). Street addresses and firm names stay, except a home
+  address (decision 0010): the prompt has it written without its house number and postal
+  code in every field (describe-6; describe-5 kept a house's address on 8 of 8 sheets). That
+  is the model's call, not a regex: on the 5 files checked it also dropped a school's house
+  number. Names of people in photos are kept out by the prompt. A national number with no
+  label, no "+" or "00" and no area-code dash (0401234567) is not caught: it can't be told
+  from a row of dimensions.
 """
 
 import base64
@@ -47,22 +53,34 @@ from typing import Any, Protocol
 from PIL import Image
 from pydantic import ValidationError
 
+from app.adapters.eight_bit import eight_bit
 from app.adapters.pdfium_lock import PDFIUM
-from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, price, reply_text
+from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, reply_text
 from app.adapters.whole_file import write_whole
 from app.core import cost
+from app.core.contacts import without_contacts
 from app.core.errors import InvalidInputError
 from app.core.ingest.model import Classified, Description, Unavailable
+from app.core.spend import SpendGuard
 
 log = logging.getLogger(__name__)
 
 MODEL = "gemini-3.5-flash"
 THINKING = "minimal"  # 0 thought tokens; the pilot's form was right on 18 of 20
+USD_PER_M = (1.50, 9.00)  # Flash: input, output (thinking counts as output)
+# TRIAGE_DESCRIBER: model, thinking level, USD per million tokens in and out. carbon: rag's pilot
+# (.agents/exp/rag-evidence.md 7.8) picked it, 5 of 5 right on the form, the home address and the
+# sheet number and title (Flash leaked the address on 1 of 5), with describe-6 as it is
+DESCRIBERS: dict[str, tuple[str, str, tuple[float, float]]] = {
+    "gemini": (MODEL, THINKING, USD_PER_M),
+    "carbon": ("gemini-4-carbon", "low", (4.00, 20.00)),
+}
+CARBON_MIN_TIMEOUT_S = 45.0  # Carbon took up to 45 s per reply in the pilot
 TEMPERATURE = 0.2
 MAX_SIDE = 2048
 JPEG_QUALITY = 90
 MAX_TOKENS = 4096
-PROMPT_VERSION = "describe-5"  # change it with PROMPT, SCHEMA or the image encoding
+PROMPT_VERSION = "describe-6"  # change it with PROMPT, SCHEMA or the image encoding
 MAX_VISIBLE, MAX_DETAIL, MAX_SEEN = 2000, 4000, 20  # Description's limits (0010 section 8)
 UNAVAILABLE = "the describer could not answer"
 
@@ -92,13 +110,17 @@ PROMPT = (
     "to a building project. Look only at what is visible. Answer in English, as JSON. Never name "
     "or identify people seen in a photograph (write 'a person', 'two people'), and never write "
     "the contact data of private people (phone numbers, e-mail addresses, home addresses) or "
-    "number plates, in any field.\n\n"
+    "number plates, in any field. A home address is the street address of a house, a flat or a "
+    "private person; the address of a public building, a business or a firm is not one and "
+    "stays as printed. Write a home address without its house number and postal code in every "
+    "field (detail, text, visible_text, text_seen, subject).\n\n"
     "detail: a description of a paragraph or more (about 120 to 250 words, at most 4,000 "
     "characters). Say what kind of picture it is (photograph, technical drawing, print, page of "
     "text, ...), what it shows and how the sheet is laid out; the building or object if there "
     "is one (type, storeys, roof, facade, materials, style); the drawing technique or the "
     "photo's conditions; what the text on it says, in short (title, place, date, scale, the "
-    "firm or office that made it); and its condition (paper, stains, mount, a camera photo of a "
+    "firm or office that made it; a home address without its house number and postal code); "
+    "and its condition (paper, stains, mount, a camera photo of a "
     "sheet). Do not guess what is not visible: when unsure, say 'possibly' or 'unclear'. Give the "
     "number of repeated things (bays, panels, windows, columns, clusters, sheets) only when you "
     "can count every one of them; otherwise write 'several', 'many' or 'about N'. Give a date, "
@@ -110,9 +132,12 @@ PROMPT = (
     "or label). At most 2,000 characters: on a sheet with more text, keep titles, labels and "
     "notes and leave out repeated dimension figures. Do not invent text you cannot read. Empty "
     "string when nothing is readable. Building names, street and place names, firms, "
-    "institutions, dates and scales stay.\n\n"
+    "institutions, dates and scales stay, but a home address loses its house number and postal "
+    "code even here: on the sheets of a house, the title-block line '12 OAK ST - SPRINGFIELD, IL "
+    "62704' is written 'OAK ST - SPRINGFIELD, IL'.\n\n"
     "text_seen: the title-block and caption items of visible_text (title, place, date, scale, "
-    "firm), one per item, the most important first, at most 20; [] when there are none.\n\n"
+    "firm), one per item, the most important first, at most 20; [] when there are none. A home "
+    "address as in visible_text.\n\n"
     "language: the ISO 639-1 code of most of visible_text (fi, sv, de, en, nl, fr, la, ...), "
     "or null (not the word 'null') when there is no text.\n\n"
     "what_it_is: the one value that fits best:\n"
@@ -148,74 +173,8 @@ SCHEMA: dict[str, Any] = {
 # The prototype's cache names hold this, so its paid replies are read here as they are
 PROMPT_SHA = hashlib.sha256((PROMPT + json.dumps(SCHEMA, sort_keys=True)).encode()).hexdigest()
 
+
 # Contact data, each with the digits a match needs to count (fewer: a level, date or scale)
-_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
-# a phone or fax label (fi, sv, de, en, fr), "T." and "P." with their dot and a space (T.01.1930
-# is a date), and what may follow it
-_LABEL = (
-    r"(?:\b(?:puh(?:elin)?|matkapuh(?:elin)?|t[eé]l(?:efon|ephone|éphone|efax)?|phone|ph|fax|"
-    r"faksi|telefax|gsm|mob(?:il|ile)?|tfn|tlf)\b\.?|\b[tp]\.(?=[ \t]))"
-    r"[ \t]*(?:n[or]o?\.?[ \t]*)?:?[ \t]*"
-)
-_NUMBER = r"\+?\(?\d[\d \t()/.-]*\d"
-_LABELLED = re.compile(_LABEL + _NUMBER, re.IGNORECASE)
-_LABEL_AT_END = re.compile(_LABEL + "$", re.IGNORECASE)  # its number on the next line
-_NUMBER_AT_START = re.compile(r"^[ \t]*" + _NUMBER)
-# a country code after "+" or "00", an area code, then groups of 2-4 digits
-_GROUPS = r"\d{1,3}[ \t.-]?\(?\d{1,4}\)?(?:[ \t.-]?\d{2,4}){1,5}"
-_PLUS = re.compile(r"(?<![\w+])\+" + _GROUPS)
-_DOUBLE_ZERO = re.compile(r"(?<![\w+])00" + _GROUPS)
-# "09-123 4567", "019-123456": a 0 area code, a dash, one or two groups, nothing numeric after
-_AREA_CODE = re.compile(
-    r"(?<![\w.,/+-])0\d{1,3}-[ \t]?(?:\d{5,7}|\d{3,4}[ \t]\d{2,4})(?![\w/-]|[.,]\d|[ \t]+\d)"
-)
-# "(555) 123-4567", "555-123-4567"
-_NORTH_AMERICAN = re.compile(
-    r"(?<![\w.,/+-])(?:\(\d{3}\)[ \t]?|\d{3}-)\d{3}-\d{4}(?![\w/-]|[.,]\d)"
-)
-CONTACTS: tuple[tuple[re.Pattern[str], int], ...] = (
-    (_EMAIL, 0),
-    (_LABELLED, 5),  # "PUH 651088", "Tel. (09) 123 456", "T. 09 123 4567"
-    (_PLUS, 8),  # "+358 9 123 4567", never a level such as "+108.65"
-    (_DOUBLE_ZERO, 10),  # "0049 30 1234567", never a postal code such as "00130"
-    (_AREA_CODE, 7),
-    (_NORTH_AMERICAN, 10),
-)
-
-
-def without_contacts(text: str) -> str:
-    """`text` with every e-mail address and phone number found taken out, also a number whose
-    label ends the line above it. A line left empty goes; the rest of a line stays. A national
-    number with no label, no "+" or "00" and no area-code dash is not caught: it cannot be told
-    from a row of dimensions."""
-    lines = text.split("\n")
-    kept = list(lines)
-    for at in range(len(kept) - 1):
-        label = _LABEL_AT_END.search(kept[at])
-        number = _NUMBER_AT_START.match(kept[at + 1])
-        if label and number and _digits(number.group(0)) >= 5:
-            kept[at], kept[at + 1] = kept[at][: label.start()], kept[at + 1][number.end() :]
-    out: list[str] = []
-    for line, now in zip(lines, kept, strict=True):
-        for pattern, digits in CONTACTS:
-            now = pattern.sub(lambda found, n=digits: _drop(found, n), now)
-        if now != line:
-            now = re.sub(r"[ \t]{2,}", " ", now).strip()
-            if not now:
-                continue
-        out.append(now)
-    return "\n".join(out)
-
-
-def _digits(text: str) -> int:
-    return sum(char.isdigit() for char in text)
-
-
-def _drop(found: re.Match[str], digits: int) -> str:
-    said = found.group(0)
-    return "" if _digits(said) >= digits else said
-
-
 def cut(text: str, limit: int) -> str:
     """`text` at most `limit` characters long, cut at its last line break (else its last space)
     that fits."""
@@ -228,23 +187,27 @@ def cut(text: str, limit: int) -> str:
     return (head[:at] if at > 0 else head).rstrip()
 
 
-def encode(data: bytes) -> bytes:
-    """The image as sent when measured: RGB, long side at most MAX_SIDE (never enlarged), JPEG
-    quality 90. A PDF scan sends its first page, rendered to MAX_SIDE."""
+def encode(data: bytes, max_side: int = MAX_SIDE) -> bytes:
+    """The image as sent when measured: RGB, long side at most `max_side` (never enlarged), JPEG
+    quality 90. A PDF, scanned or drawn, sends its first page, rendered to `max_side`; one pdfium
+    cannot open raises ValueError with pdfium's reason, as an unreadable image does."""
     if data.startswith(b"%PDF-"):
         import pypdfium2
 
         with PDFIUM:
-            pdf = pypdfium2.PdfDocument(data)
+            try:
+                pdf = pypdfium2.PdfDocument(data)
+            except pypdfium2.PdfiumError as error:
+                raise ValueError(str(error)) from error
             try:
                 page = pdf[0]
-                image = page.render(scale=MAX_SIDE / max(page.get_size())).to_pil()
+                image = page.render(scale=max_side / max(page.get_size())).to_pil()
             finally:
                 pdf.close()
     else:
         image = Image.open(io.BytesIO(data))
-    rgb = image.convert("RGB")
-    rgb.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
+    rgb = eight_bit(image).convert("RGB")
+    rgb.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
     out = io.BytesIO()
     rgb.save(out, format="JPEG", quality=JPEG_QUALITY)
     return out.getvalue()
@@ -274,10 +237,20 @@ class DescribeModel(Protocol):
         """The generateContent answer about the JPEG; raises `GeminiError`."""
         ...
 
+    def price(self, answer: dict[str, Any]) -> float:
+        """Dollars of one answer at this model's price."""
+        ...
+
 
 class GeminiDescribeClient:
     def __init__(
-        self, api_key: str, timeout_s: float, model: str = MODEL, thinking: str = THINKING
+        self,
+        api_key: str,
+        timeout_s: float,
+        model: str = MODEL,
+        thinking: str = THINKING,
+        budget: SpendGuard | None = None,
+        usd_per_m: tuple[float, float] = USD_PER_M,
     ) -> None:
         if not api_key:
             raise InvalidInputError("GEMINI_API_KEY is empty: the Gemini describer needs a key")
@@ -285,6 +258,8 @@ class GeminiDescribeClient:
         self.model = model
         self.thinking = thinking
         self._timeout = timeout_s
+        self._budget = budget  # GEMINI_BUDGET_USD (app/core/spend.py); None: no limit
+        self._usd_per_m = usd_per_m
 
     @property
     def name(self) -> str:
@@ -293,7 +268,19 @@ class GeminiDescribeClient:
     def __repr__(self) -> str:
         return f"GeminiDescribeClient({self.name})"
 
+    def price(self, answer: dict[str, Any]) -> float:
+        """Dollars of one answer from its `usageMetadata` at this model's price; 0 with none."""
+        usage = answer.get("usageMetadata") or {}
+        tokens_in = int(usage.get("promptTokenCount", 0))
+        tokens_out = int(usage.get("candidatesTokenCount", 0)) + int(
+            usage.get("thoughtsTokenCount", 0)
+        )
+        usd_in, usd_out = self._usd_per_m
+        return (tokens_in * usd_in + tokens_out * usd_out) / 1e6
+
     def ask(self, jpeg: bytes) -> dict[str, Any]:
+        if self._budget is not None and (refused := self._budget.exhausted()):
+            raise GeminiError(refused)
         request = urllib.request.Request(
             f"{URL}/{self.model}:generateContent",
             data=json.dumps(request_body(jpeg, self.thinking)).encode(),
@@ -301,13 +288,16 @@ class GeminiDescribeClient:
         )
         try:
             with urllib.request.urlopen(request, timeout=self._timeout) as response:
-                return json.load(response)
+                answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
         except (OSError, http.client.HTTPException) as error:  # URLError, timeouts, resets
             raise GeminiError(f"no answer: {type(error).__name__}") from None
         except json.JSONDecodeError:
             raise GeminiError("the answer is not JSON") from None
+        if self._budget is not None:  # the describer charges the thread's trace (`cost`) itself
+            self._budget.charge(self.price(answer), "describer")
+        return answer
 
 
 class GeminiDescriber:
@@ -343,7 +333,7 @@ class GeminiDescriber:
             answer = self._model.ask(jpeg)
         except GeminiError as error:
             return Unavailable(note=f"{UNAVAILABLE}: {error}")
-        usd = price(answer)
+        usd = self._model.price(answer)
         cost.charge(usd)  # a call that was paid for counts even when its reply is unusable
         try:
             form = json.loads(reply_text(answer))

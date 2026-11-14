@@ -5,23 +5,21 @@ const pid = '5e0c1a2b3d4f';
 const did = '44cc9f0d991eafe3';
 const base = { drawing_id: did, quantity: 'area:room|name=1.01', question: null };
 
-describe('issueRoute (CF-34)', () => {
-  it('a conflict goes to its card on the conflicts screen, with the pack when given', () => {
+describe('issueRoute (CF-34, CF-44)', () => {
+  it('a conflict goes to its card in the finished ingest (the project route), with the pack when given', () => {
     const href = issueRoute({ ...base, kind: 'conflict' }, pid);
-    expect(href).toBe(`#/p/${pid}/conflicts?d=${did}&q=area%3Aroom%7Cname%3D1.01`);
+    expect(href).toBe(`#/p/${pid}?d=${did}&q=area%3Aroom%7Cname%3D1.01`);
     const q = new URLSearchParams(href?.split('?')[1]);
     expect(q.get('q')).toBe('area:room|name=1.01');
     expect(issueRoute({ ...base, kind: 'conflict' }, pid, 'fi')).toBe(
-      `#/p/${pid}/conflicts?d=${did}&q=area%3Aroom%7Cname%3D1.01&pack=fi`,
+      `#/p/${pid}?d=${did}&q=area%3Aroom%7Cname%3D1.01&pack=fi`,
     );
   });
 
-  it('a conflict with no drawing or quantity falls back to the conflicts screen', () => {
-    expect(issueRoute({ ...base, kind: 'conflict', drawing_id: null }, pid)).toBe(
-      `#/p/${pid}/conflicts`,
-    );
+  it('a conflict with no drawing or quantity falls back to the project', () => {
+    expect(issueRoute({ ...base, kind: 'conflict', drawing_id: null }, pid)).toBe(`#/p/${pid}`);
     expect(issueRoute({ ...base, kind: 'conflict', quantity: null }, pid, 'fi')).toBe(
-      `#/p/${pid}/conflicts?pack=fi`,
+      `#/p/${pid}?pack=fi`,
     );
   });
 

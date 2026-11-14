@@ -20,18 +20,29 @@ value, not theirs), or a bedroom count includes a room typed a bedroom from what
 with no printed label (orchestrator, golden-22: the demo's ROOM_POLICY=furniture counts those; the
 reference answers type a room by its label alone). A plan count is certified only when the answer
 confidence's own most likely count is the answered one (`AGREEING_FAMILIES`, #174: hand-drawn
-sketches got wrong plan counts with a high score where Gemini counted otherwise). A refusal has no
-value to check; a quantity a person settled or signed off is theirs, not ours, so neither gets one.
+sketches got wrong plan counts with a high score where Gemini counted otherwise). Nothing is
+certified on a raster drawing on which the detector found no plan and no located element
+(`found_nothing`; a disclosed safety rule, chosen after seeing it fail on 50 archive sheets, AR,
+orchestrator 2026-11-14 17:24): every reader then agrees on 0 because none of them saw the
+drawing, and that agreement is no evidence; its answers are Low. A refusal has no value to
+check; a quantity a person settled or signed off is theirs, not ours, so neither gets one.
+
+The same verdict gives each rated answer a confidence level (`level_of`, decision 0011): High
+exactly when it is certified, so a level never contradicts the request; an answer that asks is
+Medium when its score is at or above its family's second threshold (`medium`: the calibrated
+P(wrong) is at most the policy's cut), Low below it; a route takes the level its own reference
+answers gave it. The words under a level quote the counts it was measured on, from the policy file.
 """
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from types import MappingProxyType
+from typing import Literal
 
 from pydantic import Field
 
 from app.core.answering.answer import AGREEING_FAMILIES
 from app.core.answering.local_gate import READER_FAMILIES, LocalGateModel, reading_of, score
-from app.core.drawing.model import Box, Drawing, Room
+from app.core.drawing.model import Box, CarbonCheck, Drawing, Room
 from app.core.model import Frozen
 from app.core.pipeline.count_arbiter import count_arbiter_reading
 from app.core.review.model import MarkView, Row
@@ -46,6 +57,22 @@ SCHEDULE_REASON = (
 )
 
 
+LevelName = Literal["high", "medium", "low"]
+LEVELS: tuple[LevelName, ...] = ("low", "medium", "high")  # lowest first
+# What a level rests on: the policy's certificate on a raster answer; the route's own reference
+# answers; the answer's score against its family's Medium threshold; a page flagged at upload; a
+# value held for a check whatever its score; nothing measured; Gemini Carbon reading it otherwise
+# (Low), or the same (High, CARBON_LEVELS=ladder)
+Basis = Literal["certified", "route", "score", "page", "held", "unrated", "carbon"]
+
+
+class Counts(Frozen):
+    """The measured answers a level's sentence quotes: how many, and how many were exact."""
+
+    units: int
+    exact: int
+
+
 class CheckPolicy(Frozen):
     """golden's check policy as the API applies it (app/adapters/check_policy.py)."""
 
@@ -54,6 +81,23 @@ class CheckPolicy(Frozen):
     # family -> the local scorer (LOCAL_GATES) its threshold is on, by signal name; a family not
     # here is on the answer confidence's signal
     signals: dict[str, str] = Field(default_factory=dict[str, str])
+    # Levels (decision 0011). medium: family -> lowest score that is Medium, on the threshold's
+    # signal; a family not here has no Medium. route_levels: route -> the level of its answers;
+    # route_counts: its reference answers. counts: the val cross-fit answers at each level;
+    # None: the file carries no levels, so no answer gets one.
+    medium: dict[str, float] = Field(default_factory=dict[str, float])
+    route_levels: dict[str, LevelName] = Field(default_factory=dict[str, LevelName])
+    route_counts: dict[str, Counts] = Field(default_factory=dict[str, Counts])
+    counts: dict[LevelName, Counts] | None = None
+
+
+class Level(Frozen):
+    """How far to trust an answer: one of three levels, what it rests on, and one plain sentence
+    with the measured counts behind it."""
+
+    level: LevelName
+    basis: Basis
+    text: str
 
 
 # (the drawing, the family, the answered count) -> the signal's P(the count is exact); None: it
@@ -149,6 +193,15 @@ def no_disputes(drawing: Drawing, row: Row) -> Found:
     return Found()
 
 
+def found_nothing(drawing: Drawing) -> bool:
+    """True when the detector found no plan and no located element on the drawing (an element a
+    second reader counted with no position of its own does not count: its box is its plan's,
+    app/core/review/review.py unlocated_boxes). Its counts are every reader's 0 on a sheet none
+    of them read, so none is certified (on the raster route)."""
+    located = any(element.attrs.get("located") is not False for element in drawing.elements)
+    return bool(drawing.pages) and not drawing.plans and not located
+
+
 def certified(
     policy: CheckPolicy,
     *,
@@ -157,17 +210,158 @@ def certified(
     score: float | None,
     flags: Sequence[str],
     agrees: bool | None = None,
+    blank: bool = False,
 ) -> bool:
     """`agrees`: whether the answer confidence's own most likely count is the answered one (None:
-    it gives none); a family in `AGREEING_FAMILIES` needs True on the raster route."""
+    it gives none); a family in `AGREEING_FAMILIES` needs True on the raster route. `blank`:
+    `found_nothing` of the drawing; nothing on it is certified on the raster route."""
     if flags:
         return False  # the policy was chosen on scans of plans, not on photos
     if route != "raster":
         return route in policy.routes
+    if blank:
+        return False  # the readers agree because none of them saw anything
     if family in AGREEING_FAMILIES and agrees is not True:
         return False  # a second reader counts otherwise, or there is none to agree
     threshold = None if family is None else policy.thresholds.get(family)
     return threshold is not None and score is not None and score >= threshold
+
+
+ASK = {"high": "", "medium": " Please double-check it.", "low": " Check it before you use it."}
+PAGE_TEXT = (
+    "Low confidence: this page was flagged when it was uploaded, and answers on such pages are "
+    "not measured." + ASK["low"]
+)
+SUMMED_REASON = (
+    "Please double-check this value against the schedule printed on the sheet: it is added up "
+    "from several rows, or a room's area taken from the schedule, which is not measured."
+)
+SUMMED_TEXT = (
+    "Low confidence: this value is added up from schedule rows or taken from the room schedule, "
+    "and such values are not measured." + ASK["low"]
+)
+HELD_TEXT = (
+    "Low confidence: this value is held for a check whatever its score; the double-check "
+    "request says why." + ASK["low"]
+)
+UNRATED_TEXT = "Low confidence: we have no measurement behind this answer." + ASK["low"]
+BLANK_TEXT = (
+    "Low confidence: nothing was found on this page (no plan, no element), so the readers "
+    "agreeing is not evidence." + ASK["low"]
+)
+
+# integ's pre-registered test of CARBON_LEVELS=demote on 256 unseen val pages (.agents/exp/integ.md
+# AW pre-registration 2, 2026-11-14): of the 109 Medium answers Carbon counted otherwise, 80 exact
+CARBON_DEMOTED = Counts(units=109, exact=80)
+# CARBON_LEVELS=ladder on the same pages (.agents/exp/integ.md BQ): of the 563 Medium answers it
+# counted the same, 536 exact
+CARBON_AGREED = Counts(units=563, exact=536)
+
+
+def carbon_checked(
+    level: Level, check: CarbonCheck, carbon: object, said: object, *, ladder: bool = False
+) -> Level:
+    """CARBON_LEVELS=demote on an answer's level: a Medium answer whose question Carbon answers
+    with another value (`carbon`) than the one shown (`said`) becomes Low; Carbon agreeing or
+    refusing (None) changes nothing. With `ladder` (CARBON_LEVELS=ladder) a Medium answer Carbon
+    answers with the same value becomes High: two readers agree (Carbon alone never makes one).
+    When Carbon checked nothing (`check.failed`), the level stays and its sentence says so.
+    Other levels are left as they are."""
+    if level.level != "medium":
+        return level
+    if check.failed is not None:
+        return level.model_copy(
+            update={"text": f"{level.text} Gemini Carbon did not check it: {check.failed}."}
+        )
+    if carbon is None:
+        return level
+    if carbon == said:
+        if not ladder:
+            return level
+        measured = round(100 * CARBON_AGREED.exact / CARBON_AGREED.units)
+        text = (
+            "High confidence: checked by Carbon: two readers agree. Gemini Carbon, read as a "
+            f"second reader, counted the same here. On our validation plans, {measured}% of the "
+            f"answers checked this way were exact ({CARBON_AGREED.exact} of "
+            f"{CARBON_AGREED.units})." + ASK["high"]
+        )
+        return Level(level="high", basis="carbon", text=text)
+    read = int(carbon) if isinstance(carbon, float) and carbon.is_integer() else carbon
+    measured = round(100 * CARBON_DEMOTED.exact / CARBON_DEMOTED.units)
+    text = (
+        f"Low confidence: Gemini Carbon, read as a second reader, counted {read} here. On our "
+        f"validation plans, {measured}% of the answers it counted differently were exact "
+        f"({CARBON_DEMOTED.exact} of {CARBON_DEMOTED.units})." + ASK["low"]
+    )
+    return Level(level="low", basis="carbon", text=text)
+
+
+def level_of(
+    policy: CheckPolicy,
+    *,
+    sure: bool,
+    route: str | None,
+    family: str | None,
+    score: float | None,
+    flags: Sequence[str],
+    held: bool = False,
+    blank: bool = False,
+) -> Level | None:
+    """The level of an answer `policy` rated `sure` or not (None: the policy file carries no
+    levels). High exactly when sure. Else Low on a flagged page, on a raster drawing where
+    nothing was found (`blank`, `found_nothing`) and on a value `held` for a check (its score, if
+    any, did not rate what is shown); off the raster route, the route's own level;
+    on it, Medium at or above the family's `medium` score and Low below. A family with no
+    threshold, an answer with no score and a route with no level are Low: nothing was measured."""
+    if policy.counts is None:
+        return None
+    if sure:
+        if route == "raster":
+            return _measured("high", "certified", policy.counts["high"])
+        return _on_route(policy, "high", route)
+    if flags:
+        return Level(level="low", basis="page", text=PAGE_TEXT)
+    if blank and route == "raster":
+        return Level(level="low", basis="page", text=BLANK_TEXT)
+    if held:
+        return Level(level="low", basis="held", text=HELD_TEXT)
+    if route != "raster":
+        made = None if route is None else policy.route_levels.get(route)
+        if made is None or made == "high":  # no level, or a certified route's answer that asks
+            return Level(level="low", basis="unrated", text=UNRATED_TEXT)
+        return _on_route(policy, made, route)
+    if family is None or family not in policy.thresholds or score is None:
+        return Level(level="low", basis="unrated", text=UNRATED_TEXT)
+    medium = policy.medium.get(family)
+    made = "medium" if medium is not None and score >= medium else "low"
+    return _measured(made, "score", policy.counts[made])
+
+
+def lowest(levels: Iterable[LevelName]) -> LevelName | None:
+    """The lowest of `levels`, as a total over several answers is trusted; None for none."""
+    return min(levels, key=LEVELS.index, default=None)
+
+
+def _measured(level: LevelName, basis: Basis, counts: Counts) -> Level:
+    said = f"{level.capitalize()} confidence: "
+    if counts.units:
+        said += (
+            f"on our validation plans, {round(100 * counts.exact / counts.units)}% of the answers "
+            f"rated this way were exact ({counts.exact} of {counts.units})."
+        )
+    else:
+        said += "no validation answer was rated this way."
+    return Level(level=level, basis=basis, text=said + ASK[level])
+
+
+def _on_route(policy: CheckPolicy, level: LevelName, route: str | None) -> Level:
+    counts = None if route is None else policy.route_counts.get(route)
+    said = f"{level.capitalize()} confidence: on our reference drawings of this kind"
+    if counts is None or not counts.units:
+        said += ", answers read this way were checked."
+    else:
+        said += f", {counts.exact} of {counts.units} answers were exact."
+    return Level(level=level, basis="route", text=said + ASK[level])
 
 
 UNLABELLED = "Drawn as a bedroom, no label: please confirm."
@@ -255,6 +449,14 @@ def double_check(
 def schedule_check(policy: CheckPolicy) -> Check | None:
     """The request on a value read from a schedule: none when the policy certified the route."""
     return None if SCHEDULE in policy.routes else Check(reason=SCHEDULE_REASON, disputed=())
+
+
+def summed_check(policy: CheckPolicy) -> tuple[Check, Level | None]:
+    """The request and level on a value a schedule gives by adding up several rows, or a room's
+    area read from the room schedule because the plan has no such room: never certified, since
+    the schedule route was measured on single-cell lookups, not on these."""
+    level = None if policy.counts is None else Level(level="low", basis="held", text=SUMMED_TEXT)
+    return Check(reason=SUMMED_REASON, disputed=()), level
 
 
 def _shown(row: Row, value: float) -> str:

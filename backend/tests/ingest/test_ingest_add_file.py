@@ -3,11 +3,24 @@ background as at upload, the project stays done; png or jpeg only."""
 
 import pytest
 from conftest import MakeService
+from evidence_fakes import FakeKinds
+from test_ingest_evidence_scope import ELEVATION, KINDS, on
 from test_ingest_read_as_plan import Gate
 from test_ingest_triage import PHOTO, PLAN, SCAN, file_of, zipped
 
 from app.core.errors import InvalidInputError, NotFoundError, UnsupportedFileError
+from app.core.ingest.model import ProjectStatus
 from app.core.review.review import NotAllowedError
+
+
+class Indexed:
+    """An evidence index that keeps the statuses it was given."""
+
+    def __init__(self) -> None:
+        self.statuses: list[ProjectStatus] = []
+
+    def update(self, status: ProjectStatus) -> None:
+        self.statuses.append(status)
 
 
 def test_an_added_image_is_read_as_a_drawing_and_the_project_stays_done(
@@ -63,3 +76,24 @@ def test_only_an_image_for_a_done_project_is_taken(make_service: MakeService) ->
     with pytest.raises(NotAllowedError):
         ingest.add_file(running, "scan.png", SCAN)
     gate.release()
+
+
+def test_an_added_picture_gets_its_evidence_and_is_indexed_alone(
+    make_service: MakeService,
+) -> None:
+    """EVIDENCE_SCOPE=all_non_plan: the added picture is asked its kind and described for the
+    index like an upload's, the files already there are not asked (nor charged) again, and the
+    index gets the project with it."""
+    kinds, index = FakeKinds(KINDS), Indexed()
+    ingest = make_service(evidence_steps=on(kinds), evidence=index)
+    files = {"plan.pdf": PLAN, "elevation.pdf": ELEVATION}
+    project = ingest.wait(ingest.start("site.zip", zipped(files)))
+    before = file_of(project, "elevation.pdf").evidence
+    asked = len(kinds.asked)
+    ingest.add_file(project.id, "detail.png", SCAN)
+    status = ingest.wait(project.id)
+    added = file_of(status, "detail.png").evidence
+    assert added is not None and added.indexed and added.kind == "detail"
+    assert kinds.asked[asked:] == [SCAN]
+    assert file_of(status, "elevation.pdf").evidence == before
+    assert index.statuses[-1] == status

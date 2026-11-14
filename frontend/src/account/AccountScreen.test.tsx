@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ProjectList, ProjectReview } from '../api';
 import { project, projectList, projectQuestions, projectReview, takeoff } from '../api/fixtures';
@@ -330,6 +330,31 @@ describe('AccountScreen #121 fields', () => {
     expect(document.querySelector('[data-pending]')).toBeNull();
   });
 
+  it('RS-8 a neutral "N picked by Carbon" pill from conflicts_picked; none for absent, null or 0', async () => {
+    const base = must(projectList.projects[0]);
+    mockApi({
+      ...routes,
+      [LIST]: {
+        projects: [
+          { ...base, to_review: 2, conflicts_picked: 2 },
+          { ...base, id: OTHER, conflicts_picked: 1 },
+          { ...base, id: 'cccccccccccc', conflicts_picked: null },
+          { ...base, id: 'dddddddddddd', conflicts_picked: 0 },
+        ],
+      },
+    });
+    render(<AccountScreen />);
+    await flush();
+    const [a, b, c, d] = items();
+    const pill = must(must(a).querySelector('.v-pill:not([class*="v-pill--"])'));
+    expect(pill.textContent).toBe('2 picked by Carbon');
+    expect(must(a).textContent).toContain('2 to review');
+    expect(must(b).textContent).toContain('1 picked by Carbon');
+    expect(must(c).textContent).not.toMatch(/Carbon/);
+    expect(must(d).textContent).not.toMatch(/Carbon/);
+    expect(base.conflicts_picked).toBeUndefined();
+  });
+
   it('AC-29 the questions log is asked for and shows as a stat and events', async () => {
     const api = mockApi({ ...routes, [QUESTIONS]: projectQuestions });
     render(<AccountScreen />);
@@ -357,5 +382,43 @@ describe('AccountScreen #121 fields', () => {
     await flush();
     expect(api.calls.filter((c) => c.url === `/api/projects/${ID}/questions`)).toHaveLength(2);
     expect(p.getByText('Questions').nextElementSibling?.textContent).toBe('2');
+  });
+});
+
+describe('AccountScreen settles a late sign-off', () => {
+  it('AC-36 a review and list still to review are asked again until they read 0; then no more', async () => {
+    const done = (r: ProjectReview): ProjectReview => ({
+      ...r,
+      drawings: r.drawings.map((d) => ({ ...d, to_review: 0 })),
+    });
+    let n = 0;
+    const api = mockApi({
+      ...routes,
+      [LIST]: () =>
+        n === 0
+          ? projectList
+          : { projects: projectList.projects.map((p) => ({ ...p, to_review: 0 })) },
+      [REVIEW]: () => (n++ === 0 ? projectReview : done(projectReview)),
+    });
+    render(<AccountScreen />);
+    const stat = () =>
+      [...panel().querySelectorAll('dt')].find((dt) => dt.textContent === 'To review')
+        ?.nextElementSibling?.textContent;
+    await waitFor(() => {
+      expect(stat()).toBe('1');
+    });
+    await waitFor(
+      () => {
+        expect(stat()).toBe('0');
+      },
+      { timeout: 3000 },
+    );
+    await waitFor(() => {
+      expect(screen.queryByText(/to review$/)).toBeNull();
+    });
+    const asked = () => api.calls.filter((c) => c.url.endsWith('/review')).length;
+    const settled = asked();
+    await new Promise((r) => setTimeout(r, 1200));
+    expect(asked()).toBe(settled);
   });
 });

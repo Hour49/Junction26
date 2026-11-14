@@ -18,6 +18,22 @@ from app.core.pipeline.model import Route
 FileState = Literal["queued", "running", "ready", "flagged", "text_only", "set_aside"]
 FINISHED: frozenset[FileState] = frozenset({"ready", "flagged", "text_only", "set_aside"})
 ProjectState = Literal["queued", "running", "done", "failed"]
+# What Gemini Carbon read of a raster drawing: its elements (CARBON_READER sent it to Carbon), or
+# another part a composite takes from the `carbon` source (rooms, plans, scale, a class)
+CarbonRead = Literal["elements", "part"]
+# The reading flags (judge.reading_flags) that say Carbon read the page. Carbon counted the
+# drawing's elements (CARBON_READER); review/ask.py reads this flag as "a class Carbon counted and
+# found none of is a read 0" (brief r8 BD), so it is never set for a part
+CARBON_FLAG = "counted by Gemini Carbon, an AI reader: check its marks on the plan"
+# a composite took another part from Carbon (rooms, plans, scale, one class): its elements are not
+# all Carbon's (fail-1's S-D, .agents/qa/r9/review-269.md)
+CARBON_PART_FLAG = "read in part by Gemini Carbon, an AI reader: check its marks on the plan"
+# what the flags said before (brief r8 BS): a stored Outcome is reused by content across code
+# versions, so its flags and reason are read in today's words and ask still finds CARBON_FLAG
+RENAMED_FLAGS = {
+    "counted by Gemini Carbon: its counts are not measured yet": CARBON_FLAG,
+    "read in part by Gemini Carbon: its counts are not measured yet": CARBON_PART_FLAG,
+}
 
 # What a file is, from its content (stage 3). The first eight go into the pipeline.
 ContentKind = Literal[
@@ -101,6 +117,12 @@ class Probed(Frozen):
     kind: ContentKind
     did: str
     pages: tuple[LaterPage, ...] = ()  # a multi-page PDF's later drawn pages, in page order
+    # The sheet-kind signal's P(a plan, drawn or photographed) when the probe got a reply for this
+    # file; None: not asked, or no reply. Triage's classifier reads it, so it never asks again.
+    p_plan_sheet: float | None = Field(default=None, ge=0, le=1)
+    # Set when the signal was asked and gave no reply ("kind signal not available: <why>"), so a
+    # triage method can say the signal timed out and not that it is off; None otherwise.
+    signal_missing: str | None = None
 
 
 # File triage (decision 0010): is an uploaded image a floor plan, and if not, what is it and does
@@ -169,6 +191,53 @@ def class_of(register: Register) -> TriageClass:
     return "not_drawing" if register.kind in NOT_DRAWING_KINDS else "other_drawing"
 
 
+# The VLM sheet-kind step (.agents/exp/vlm-kind.md): what the model calls a sheet, and what that
+# decides. Set aside: no floor plan on the sheet and a non-plan kind at confidence >= the cut; any
+# other "not a plan" sign is a doubt (read, and its answers say so); unsure always means read.
+SheetKindName = Literal[
+    "architectural_floor_plan",
+    "multi_view_sheet",
+    "mep_plan",
+    "structural_plan",
+    "roof_or_ceiling_plan",
+    "site_plan_or_map",
+    "elevation",
+    "section",
+    "detail",
+    "perspective_or_axonometric",
+    "schedule_or_text",
+    "not_a_drawing",
+    "other",
+]
+SheetDecision = Literal["read", "doubt", "set_aside"]
+SHEET_PLAN_KINDS: frozenset[SheetKindName] = frozenset(
+    {"architectural_floor_plan", "multi_view_sheet"}
+)
+
+
+EvidenceHow = Literal["described", "text", "listed"]
+
+
+class Sheet(Frozen):
+    """Classified.sheet and Triage.sheet: the sheet-kind model's reply and its decision. The
+    title, sheet number and printed scale are shown, never acted on."""
+
+    kind: SheetKindName
+    kind_words: str  # the kind in plain words, as a set-aside reason shows it
+    decision: SheetDecision
+    takeoff_possible: bool
+    confidence: float = Field(ge=0, le=1)  # how sure the model is of a floor plan on the sheet
+    title: str | None
+    sheet_number: str | None
+    printed_scale: str | None
+    # Harder than a clean scan of one small residential plan (the model's call, or an upload over
+    # 4,000 px on its long side): routes the Carbon reader (r8 AS-2); nothing reads it yet
+    advanced: bool
+    advanced_why: str | None
+    seen: str  # one sentence on what is drawn
+    model: str
+
+
 class Classified(_Classed):
     """Step 1: what the classifier made of one image. With a register, `class` is derived from
     it (given only the register, it is filled in; given both, they must agree)."""
@@ -179,6 +248,7 @@ class Classified(_Classed):
     cost_usd: float = Field(default=0.0, ge=0)
     # None: this classifier reads no register (rules)
     register_: Register | None = Field(default=None, alias="register")
+    sheet: Sheet | None = None  # the sheet-kind step's reply; None: off, or not asked
 
     @model_validator(mode="before")
     @classmethod
@@ -261,6 +331,8 @@ class Triage(_Classed):
     verdict: Verdict | None = None
     # Why `description` or `relevance` is null, in a plain sentence; None when both are set
     note: str | None = None
+    # The sheet-kind step's reply (SHEET_KIND); absent when the step is off or was not asked
+    sheet: Sheet | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="before")
     @classmethod
@@ -337,6 +409,22 @@ class Rectified(Frozen):
     method: str  # how it was found, shown in the trace and the status
 
 
+class FileEvidence(Frozen):
+    """FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence
+    index, and from what (decision 0012 sources v2). Written by the evidence step for every file it
+    looked at; a file today's triage path set aside and described keeps its record in `triage`."""
+
+    indexed: bool
+    how: EvidenceHow | None = None  # None: not indexed
+    kind: str | None = None  # the hit's kind; None: not indexed
+    why: str  # one plain sentence, always set
+    sheet: Sheet | None = None  # the sheet-kind reply; None: not asked
+    description: Description | None = None  # how = described
+    text_pages: int | None = None  # how = text: the pages that gave text
+    text_chars: int | None = None  # how = text: the characters indexed (after the cut)
+    cost_usd: float = Field(default=0.0, ge=0)
+
+
 class FileStatus(Frozen):
     id: str  # f1, f2... in the order the upload lists the files
     path: str
@@ -359,6 +447,9 @@ class FileStatus(Frozen):
     normalised: Normalised | None = None  # an image sheet: how its frame was made
     # Set for an image file when triage is on (decision 0010); left out of the JSON otherwise
     triage: Triage | None = Field(default=None, exclude_if=lambda value: value is None)
+    # What the evidence index made of the file (decision 0012, EVIDENCE_SCOPE=all_non_plan);
+    # left out of the JSON when that step did not look at it
+    evidence: FileEvidence | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectStatus(Frozen):
@@ -441,3 +532,22 @@ class Outcome(Frozen):
     stages: tuple[StageTrace, ...] = ()
     normalised: Normalised | None = None
     flags: tuple[str, ...] = ()  # how the page was read, for every answer (judge.reading_flags)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _renamed(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        fields = dict(cast(dict[str, object], data))
+        flags = fields.get("flags")
+        if isinstance(flags, list | tuple):
+            given = cast(Iterable[object], flags)
+            fields["flags"] = [
+                RENAMED_FLAGS.get(flag, flag) if isinstance(flag, str) else flag for flag in given
+            ]
+        reason = fields.get("reason")
+        if isinstance(reason, str):
+            for before, now in RENAMED_FLAGS.items():
+                reason = reason.replace(before, now)
+            fields["reason"] = reason
+        return fields

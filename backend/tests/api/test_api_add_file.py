@@ -1,7 +1,10 @@
 """POST /api/projects/{project_id}/files (board #203): a photo added to a finished project."""
 
+import pytest
 from conftest import plan_png, upload
 from fastapi.testclient import TestClient
+
+from app.api import projects
 
 
 def test_an_added_png_answers_202_queued_then_becomes_a_drawing(
@@ -27,3 +30,14 @@ def test_refusals_are_404_415_and_422(client: TestClient, plan_pdf: bytes) -> No
     assert (pdf.status_code, pdf.json()["code"]) == (415, "unsupported")
     unnamed = client.post(f"/api/projects/{pid}/files", content=plan_png())
     assert unnamed.status_code == 422
+
+
+def test_a_photo_over_the_cap_is_413_and_not_added(
+    client: TestClient, plan_pdf: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pid = upload(client, plan_pdf)
+    photo = plan_png()
+    monkeypatch.setattr(projects, "MAX_UPLOAD", len(photo) - 1)
+    big = client.post(f"/api/projects/{pid}/files", params={"name": "a.png"}, content=photo)
+    assert (big.status_code, big.json()["code"]) == (413, "too-large")
+    assert [f["id"] for f in client.get(f"/api/projects/{pid}").json()["files"]] == ["f1"]

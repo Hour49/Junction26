@@ -41,9 +41,12 @@ from make_sample_archive import (  # noqa: E402  # pyright: ignore[reportMissing
     jpeg_bytes,
     png_bytes,
     raster_plan,
+    sample_files,
     site_photo,
 )
 from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
+from pydantic import SecretStr  # noqa: E402
+from swiss_walls import walled_flat  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_api_checks import checks_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports]
@@ -53,12 +56,15 @@ from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports
 )
 
 from app.adapters.triage.rules_judge import RulesJudge  # noqa: E402
+from app.api import takeoff as takeoff_api  # noqa: E402
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.drawing.model import Drawing  # noqa: E402
 from app.core.ingest.model import Register  # noqa: E402
+from app.core.pipeline.model import Quantity, QuantityConflict, ValueMark  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
-from app.core.review.check import CheckPolicy, Found, Place  # noqa: E402
-from app.core.review.model import Row  # noqa: E402
+from app.core.review import ask as review_ask  # noqa: E402
+from app.core.review.check import CheckPolicy, Counts, Found, LevelName, Place  # noqa: E402
+from app.core.review.model import Resolved, ResolveRequest, Row  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
 
@@ -67,6 +73,7 @@ PROJECT_ID = "5e0c1a2b3d4f"
 CREATED_AT = "2026-11-14T08:00:00+00:00"
 EDITED_AT = "2026-11-14T08:05:00Z"
 DURATIONS = {"ms": 12.5, "latency_s": 0.002}
+PHOTO_SIZE = 2000  # file_added.json: the added photo's size, the same on every platform
 FIXTURES = BACKEND / "tests" / "fixtures" / "api_v1"
 DOC = BACKEND.parent / "docs" / "API.md"
 MARKER = "<!-- fixture: "
@@ -97,6 +104,7 @@ def responses() -> dict[str, Any]:
         sample_archive=root / "sample.zip",
         credit_dataset=root / "dataset",  # none: the sample is synthetic, its credit null
         credit_photos=root / "photos",
+        evidence_embedder_manifest=root / "no-model.json",  # BM25: the same on every machine
     )
     settings.sample_archive.write_bytes(build_archive())
     ingest = build_ingest(settings, settings.projects_dir, background=False)
@@ -155,12 +163,19 @@ def responses() -> dict[str, Any]:
     others.append(triaged(root / "triage", settings, found))
     others.append(code_checks(client, found))  # checks, project checks, their issues
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
+    found.update(issue_answered(client, started["id"], found["project_issues"]))  # appended
+    chats, chat_ids = agent_chat(client, started["id"], found)  # appended
+    others += chats
+    resolved_ids, resolved = carbon_checked(root / "resolver", settings)
+    others += resolved_ids
+    found.update(resolved)  # appended
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
         found["checks"]["drawing_id"]: "5c4ed01e00000002",
         # an issue's id hashes its drawing's: the first failed check's, the one the fixture keeps
         found["project_issues_checks"]["issues"][0]["id"]: "code_check_failed-5c4ed01e0002",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
+        **chat_ids,
     }
     return stable(trimmed(found), [started["id"], *others], variable)
 
@@ -204,6 +219,43 @@ def project_issues(
     body = {"drawing_id": scan, "question": "How many doors are there?", "project_id": project_id}
     assert client.post("/api/ask", json=body).status_code == 200
     return client.get(f"/api/projects/{project_id}/issues").json()
+
+
+def issue_answered(client: TestClient, project_id: str, listed: dict[str, Any]) -> dict[str, Any]:
+    """The sample's conflict answered with its first chip (board #14, Tudor's ask 1)."""
+    conflict = next(issue for issue in listed["issues"] if issue["kind"] == "conflict")
+    request = {"text": conflict["suggestions"][0], "by": "Ana"}
+    url = f"/api/projects/{project_id}/issues/{conflict['id']}/answer"
+    reply = client.post(url, json=request)
+    assert reply.status_code == 200, reply.text
+    return {"issue_answer_request": request, "issue_answered": reply.json()}
+
+
+def agent_chat(
+    client: TestClient, project_id: str, found: dict[str, Any]
+) -> tuple[list[str], dict[str, str]]:
+    """The agent chat (decision 0013) with CHAT_MODEL=rules: an answer, a dont_know in the same
+    chat, and an edit on a swiss sheet whose walls are grey fills, its proposal accepted. Back:
+    the new project's id, and the chat and drawing ids with their stand-ins."""
+    url = f"/api/projects/{project_id}/chat"
+    found["chat_request"] = {"message": "How many doors are there?"}
+    answer = client.post(url, json=found["chat_request"]).json()
+    found["chat_answer"] = answer
+    unknown = {"chat_id": answer["chat_id"], "message": "What is the fire rating of the doors?"}
+    found["chat_dont_know"] = client.post(url, json=unknown).json()
+    flat = client.post("/api/projects", params={"name": "flat.pdf"}, content=walled_flat())
+    flat_id = flat.json()["id"]
+    message = "Remove the wall between the bathroom and the bedroom"
+    edit = client.post(f"/api/projects/{flat_id}/chat", json={"message": message}).json()
+    assert edit["kind"] == "edit", edit
+    found["chat_edit"] = edit
+    decided = f"/api/projects/{flat_id}/chat/{edit['chat_id']}/proposals/p1"
+    found["chat_proposal_accepted"] = client.post(decided, json={"action": "accept"}).json()
+    return [flat_id], {
+        answer["chat_id"]: "c4a7c0000001",
+        edit["chat_id"]: "c4a7c0000002",
+        edit["edit"]["drawing_id"]: "5c4ed01e00000003",
+    }
 
 
 def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
@@ -260,6 +312,11 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
     url = f"/api/projects/{project_id}/files/{site_id}/relevance"
     assert client.post(url, json=found["relevance_request"]).status_code == 200
     found["project_triaged"] = client.get(f"/api/projects/{project_id}").json()
+    # the evidence index (decision 0012): the photographed church elevation by its printed name
+    search = client.get(f"/api/projects/{project_id}/evidence/search", params={"q": "St. Anna"})
+    found["evidence_search"] = search.json()
+    hit = found["evidence_search"]["hits"][0]["id"]
+    found["evidence_detail"] = client.get(f"/api/projects/{project_id}/evidence/{hit}").json()
     # then a person has the elevation read as a floor plan (POST …/triage): queued, then read
     south = next(file["id"] for file in site["files"] if file["path"] == "elevations/south.png")
     found["triage_request"] = {"class": "floor_plan", "by": "Ana"}
@@ -271,9 +328,12 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
     found["file_read_as_plan"] = next(file for file in read if file["id"] == south)
     # then a photo of a plan is added from the chat (POST …/files, board #203): queued
     url = f"/api/projects/{project_id}/files"
-    started = client.post(url, params={"name": "phone.png"}, content=plan_png())
+    photo = plan_png()
+    started = client.post(url, params={"name": "phone.png"}, content=photo)
     assert started.status_code == 202, started.text
-    found["file_added"] = started.json()
+    assert started.json()["size"] == len(photo), started.text
+    # zlib encodes the generated png to different bytes per platform: its size is a stand-in
+    found["file_added"] = {**started.json(), "size": PHOTO_SIZE}
     return project_id
 
 
@@ -400,6 +460,14 @@ def rated(root: Path, settings: Settings) -> dict[str, Any]:
         os.chdir(here)
 
 
+# The val cross-fit counts of the levels at the time of decision 0011, as a policy file gives them
+EXAMPLE_COUNTS: dict[LevelName, Counts] = {
+    "high": Counts(units=1517, exact=1501),
+    "medium": Counts(units=1185, exact=1084),
+    "low": Counts(units=680, exact=397),
+}
+
+
 def example_disputes(drawing: Drawing, row: Row) -> Found:
     """A dispute finder's stand-in (core/pipeline/disputed_marks, room_disputes give these): on
     the arm's sheet, the second door or bedroom is disputed and one place was not counted."""
@@ -428,9 +496,10 @@ def example_disputes(drawing: Drawing, row: Row) -> Found:
 
 def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
     """CHECK_POLICY on the raster arm, with DECISIONS_CONFIDENCE's stand-in (0.87): a door count
-    certified (threshold 0.8: `check` null), the same count and a bedroom count not certified
-    (0.9), with the places `example_disputes` lists: a counted mark, a counted room, and a
-    place each answer did not count (`mark_id` null)."""
+    certified (threshold 0.8: `check` null, level high), the same count and a bedroom count not
+    certified (0.9), with the places `example_disputes` lists: a counted mark, a counted room,
+    and a place each answer did not count (`mark_id` null). The doors are Medium from 0.5 (level
+    medium); the bedrooms have no Medium (level low)."""
     raster_arm(root / "arm", "plan.png")
     settings = settings.model_copy(
         update={
@@ -453,16 +522,100 @@ def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
             ("answer_double_check", 0.9, "How many doors are there?"),
             ("answer_double_check_rooms", 0.9, "How many bedrooms are there?"),
         ):
-            policy = CheckPolicy(thresholds={"door": threshold, "room:bedroom": threshold})
+            policy = CheckPolicy(
+                thresholds={"door": threshold, "room:bedroom": threshold},
+                medium={"door": 0.5},
+                counts=EXAMPLE_COUNTS,
+            )
             app.state.answering = replace(
                 app.state.answering, confidence=ExampleConfidence, signal=DECISIONS_SIGNAL,
                 check=policy, disputes=example_disputes,
             )  # fmt: skip
             ask = {"drawing_id": drawing_id, "question": question}
             found[name] = client.post("/api/ask", json=ask).json()
-        return found
+        app.state.answering = replace(  # RESOLVER on: the model's check beside the answer
+            app.state.answering, resolver=ExampleResolver("picked")
+        )
+        ask = {"drawing_id": drawing_id, "question": "How many doors are there?"}
+        resolved = client.post("/api/ask", json=ask).json()
+        return {**found, "answer_resolved": resolved}
     finally:
         os.chdir(here)
+
+
+class ExampleResolver:
+    """A stand-in for RESOLVER=carbon (no network): every conflict gets `verdict`, picking the
+    first method's value; an answer is confirmed as it is."""
+
+    def __init__(self, verdict: str) -> None:
+        self.verdict = verdict
+
+    def resolve(self, request: ResolveRequest, page: object) -> Resolved:
+        return self._said(request).model_copy(update={"marks": tuple(
+            ValueMark(page=spot.page, box=spot.box, label=spot.why) for spot in request.spots[:2]
+        )})  # fmt: skip
+
+    def _said(self, request: ResolveRequest) -> Resolved:
+        if request.kind == "answer":
+            reason = "Two door leaves are drawn at the places counted."
+            return Resolved(verdict="picked", value=request.candidates[0].value, reason=reason,
+                            by="carbon:gemini-4-carbon", at=EDITED_AT)  # fmt: skip
+        if self.verdict == "cannot_tell":
+            reason = "The printed area is cut by the sheet edge, so the label can't be read."
+            return Resolved(verdict="cannot_tell", value=None, reason=reason,
+                            by="carbon:gemini-4-carbon", at=EDITED_AT)  # fmt: skip
+        reason = "The room's outline is closed and drawn to the sheet's scale."
+        return Resolved(verdict="picked", value=request.candidates[0].value, reason=reason,
+                        by="carbon:gemini-4-carbon", at=EDITED_AT)  # fmt: skip
+
+
+def carbon_checked(root: Path, settings: Settings) -> tuple[list[str], dict[str, Any]]:
+    """RESOLVER on, with flat-b's room 1.01 taken as no rule deciding it: one project where the
+    model picked a value (its project, review and the takeoff after a settle), one where it
+    could not tell (POST .../resolve), and the uncertain door answer with the model's check."""
+    settings = settings.model_copy(
+        update={
+            "projects_dir": root / "projects",
+            "resolver": "carbon",
+            "gemini_api_key": SecretStr("example"),
+        }
+    )
+    known = (takeoff_api.known_quantities, review_ask.known_quantities)
+
+    def without_rule(drawing: Drawing) -> dict[str, Quantity]:
+        found = dict(known[0](drawing))
+        for key, value in found.items():
+            if value.conflict is not None:
+                conflict = QuantityConflict.model_validate(
+                    value.conflict.model_dump() | {"resolution": None}
+                )
+                found[key] = value.model_copy(update={"conflict": conflict})
+        return found
+
+    takeoff_api.known_quantities = review_ask.known_quantities = without_rule
+    try:
+        app = create_app(settings, build_ingest(settings, settings.projects_dir, background=False))
+        client = TestClient(app)
+        flat_b = sample_files()["plans/flat-b.pdf"]
+        out: dict[str, Any] = {}
+        ids: list[str] = []
+        for verdict in ("picked", "cannot_tell"):
+            app.state.answering = replace(app.state.answering, resolver=ExampleResolver(verdict))
+            started = client.post("/api/projects", params={"name": "flat-b.pdf"}, content=flat_b)
+            ids.append(started.json()["id"])
+        picked, unsure = ids
+        out["project_resolved"] = client.get(f"/api/projects/{picked}").json()
+        review = client.get(f"/api/projects/{picked}/review").json()
+        review["conflicts"] = [c for c in review["conflicts"] if c["quantity"] == ROOM]
+        out["project_review_resolved"] = review
+        resolving = client.post(f"/api/projects/{unsure}/resolve").json()
+        resolving["review"]["conflicts"] = [
+            c for c in resolving["review"]["conflicts"] if c["quantity"] == ROOM
+        ]
+        out["resolving"] = resolving
+        return ids, out
+    finally:
+        takeoff_api.known_quantities, review_ask.known_quantities = known
 
 
 def stable(

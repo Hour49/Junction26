@@ -1,0 +1,439 @@
+{
+  "schema": "check_policy_v1",
+  "generated": "2026-11-14T17:02:35+02:00",
+  "part": "val",
+  "split_sha256": "9c762d68a698dd45a6c1ca4fa7fae39f19199aae470d1b195ed82a873d8c48e9",
+  "arm": "integ8-arms-C1-T1",
+  "rule": "D476: per family, the signal calibrated to P(wrong) (logistic, cross-fit on val); one P(wrong) cut over all families so the flagged answers hold >= recall of val's wrong ones",
+  "lambda": 10.0,
+  "floor": 0.95,
+  "recall": 0.96,
+  "pool_below": 10,
+  "pool_with": "small",
+  "always_flag": [
+    "bedroom_retyped_unlabelled"
+  ],
+  "cut": 0.01829846101735553,
+  "families": {
+    "door": {
+      "signal": "lgate2-rt",
+      "threshold": 0.9856863407312934,
+      "fixed": false,
+      "val": {
+        "units": 279,
+        "certified": 0,
+        "exact": 0,
+        "wrong": 76,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 279,
+        "certified": 0,
+        "exact": 0,
+        "wrong": 76,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -1.1346866083080733,
+        "b": -1.1266610900802758,
+        "mu": 1.1907977708886048,
+        "sd": 1.2032317461945716,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.8114570160887691
+    },
+    "plan": {
+      "signal": "lgate2-rt",
+      "threshold": 0.9711040488977836,
+      "fixed": false,
+      "val": {
+        "units": 376,
+        "certified": 351,
+        "exact": 350,
+        "wrong": 4,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 376,
+        "certified": 351,
+        "exact": 350,
+        "wrong": 4,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -5.735699808640822,
+        "b": -1.0833898995849776,
+        "mu": 4.487582542472728,
+        "sd": 0.6011627936731044,
+        "logit": true
+      },
+      "group": "plan+sauna",
+      "medium": 0.8883640660316444
+    },
+    "room:balcony": {
+      "signal": "g1main",
+      "threshold": 0.9890115680767032,
+      "fixed": false,
+      "val": {
+        "units": 125,
+        "certified": 5,
+        "exact": 5,
+        "wrong": 10,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 125,
+        "certified": 34,
+        "exact": 32,
+        "wrong": 10,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -2.784689906154318,
+        "b": -0.8836008640415,
+        "mu": 1.9789999387918453,
+        "sd": 1.8596368877914478,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.2760620634991001
+    },
+    "room:bathroom": {
+      "signal": "g1main",
+      "threshold": 0.8128489232160712,
+      "fixed": false,
+      "val": {
+        "units": 182,
+        "certified": 93,
+        "exact": 93,
+        "wrong": 12,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 182,
+        "certified": 87,
+        "exact": 87,
+        "wrong": 12,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -3.83928916895872,
+        "b": -1.7459771087323703,
+        "mu": 1.3431910045547786,
+        "sd": 1.5296142304709304,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.3087805071567222
+    },
+    "room:bedroom": {
+      "signal": "g1main",
+      "threshold": 0.9228184440968845,
+      "fixed": false,
+      "val": {
+        "units": 243,
+        "certified": 79,
+        "exact": 78,
+        "wrong": 21,
+        "no_value": 20
+      },
+      "crossfit": {
+        "units": 243,
+        "certified": 78,
+        "exact": 78,
+        "wrong": 21,
+        "no_value": 20
+      },
+      "calibration": {
+        "a": -3.2705955892361884,
+        "b": -1.528085301926143,
+        "mu": 1.5923784661636682,
+        "sd": 1.908067506678104,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.31854127985959113
+    },
+    "room:kitchen": {
+      "signal": "g1main",
+      "threshold": 0.9035237032579555,
+      "fixed": false,
+      "val": {
+        "units": 265,
+        "certified": 146,
+        "exact": 144,
+        "wrong": 21,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 265,
+        "certified": 155,
+        "exact": 153,
+        "wrong": 21,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -3.657715828988509,
+        "b": -1.6229112866601867,
+        "mu": 1.9136006211109926,
+        "sd": 1.616164030377896,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.41377595055205624
+    },
+    "room:wc": {
+      "signal": "g1main",
+      "threshold": 0.6265869411284593,
+      "fixed": false,
+      "val": {
+        "units": 178,
+        "certified": 66,
+        "exact": 66,
+        "wrong": 10,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 178,
+        "certified": 119,
+        "exact": 114,
+        "wrong": 10,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -3.7125275830408806,
+        "b": -1.5778622602821286,
+        "mu": 0.23095047295652166,
+        "sd": 1.6755296785352893,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.09627875620466426
+    },
+    "sauna": {
+      "signal": "lgate2-rt",
+      "threshold": 0.9711040488977836,
+      "fixed": false,
+      "val": {
+        "units": 271,
+        "certified": 260,
+        "exact": 259,
+        "wrong": 3,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 271,
+        "certified": 260,
+        "exact": 259,
+        "wrong": 3,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -5.735699808640822,
+        "b": -1.0833898995849776,
+        "mu": 4.487582542472728,
+        "sd": 0.6011627936731044,
+        "logit": true
+      },
+      "group": "plan+sauna",
+      "medium": 0.8883640660316444
+    },
+    "shower+bathtub": {
+      "signal": "lgate2-rt",
+      "threshold": 0.9878256777722149,
+      "fixed": false,
+      "val": {
+        "units": 341,
+        "certified": 67,
+        "exact": 66,
+        "wrong": 31,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 341,
+        "certified": 122,
+        "exact": 119,
+        "wrong": 31,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -2.8539128487938497,
+        "b": -1.1447911603179912,
+        "mu": 3.1057003022619916,
+        "sd": 1.3090396956389054,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.8065139433038956
+    },
+    "sink": {
+      "signal": "g1main",
+      "threshold": 0.8097098526729588,
+      "fixed": false,
+      "val": {
+        "units": 371,
+        "certified": 37,
+        "exact": 37,
+        "wrong": 34,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 371,
+        "certified": 49,
+        "exact": 49,
+        "wrong": 34,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -2.6385948623125652,
+        "b": -0.9904106717375802,
+        "mu": -0.2386497536332912,
+        "sd": 1.2431216094287618,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.14057959100342637
+    },
+    "toilet": {
+      "signal": "lgate-rt-nol1",
+      "threshold": 0.9769864232385678,
+      "fixed": false,
+      "val": {
+        "units": 375,
+        "certified": 300,
+        "exact": 297,
+        "wrong": 10,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 375,
+        "certified": 265,
+        "exact": 263,
+        "wrong": 10,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -4.440451049231882,
+        "b": -1.061595872483858,
+        "mu": 4.090287861487395,
+        "sd": 0.7925204134234023,
+        "logit": true
+      },
+      "group": null,
+      "medium": 0.8593917746264546
+    },
+    "window": {
+      "signal": "g1main",
+      "threshold": 0.9989500226847009,
+      "fixed": false,
+      "val": {
+        "units": 376,
+        "certified": 0,
+        "exact": 0,
+        "wrong": 168,
+        "no_value": 0
+      },
+      "crossfit": {
+        "units": 376,
+        "certified": 0,
+        "exact": 0,
+        "wrong": 168,
+        "no_value": 0
+      },
+      "calibration": {
+        "a": -0.22416755935194818,
+        "b": -0.46071291368824974,
+        "mu": -2.4507302973590614,
+        "sd": 1.1411062584925995,
+        "logit": true
+      },
+      "group": null,
+      "medium": null
+    }
+  },
+  "routes": {
+    "bim": {
+      "certified": true,
+      "holdout": {
+        "units": 94,
+        "certified": 94,
+        "exact": 94,
+        "wrong": 0,
+        "no_value": 0
+      },
+      "lower_bound": 0.9686329879212145,
+      "level": "high",
+      "dev": {
+        "units": 372,
+        "exact": 372
+      }
+    },
+    "schedule": {
+      "certified": false,
+      "holdout": {
+        "units": 1,
+        "certified": 1,
+        "exact": 0,
+        "wrong": 1,
+        "no_value": 0
+      },
+      "lower_bound": 0.0,
+      "level": "medium",
+      "dev": {
+        "units": 37,
+        "exact": 35
+      }
+    },
+    "vector": {
+      "certified": true,
+      "holdout": {
+        "units": 282,
+        "certified": 282,
+        "exact": 282,
+        "wrong": 0,
+        "no_value": 0
+      },
+      "lower_bound": 0.9894330624396704,
+      "level": "high",
+      "dev": {
+        "units": 794,
+        "exact": 794
+      }
+    }
+  },
+  "pooled_val": {
+    "units": 3382,
+    "certified": 1404,
+    "exact": 1395,
+    "wrong": 400,
+    "no_value": 20
+  },
+  "pooled_crossfit": {
+    "units": 3382,
+    "certified": 1520,
+    "exact": 1504,
+    "wrong": 400,
+    "no_value": 20
+  },
+  "test": null,
+  "levels": {
+    "cut": 0.2,
+    "min_units": 30,
+    "min_exact": 0.8,
+    "crossfit": {
+      "high": {
+        "units": 1520,
+        "exact": 1504
+      },
+      "medium": {
+        "units": 1171,
+        "exact": 1073
+      },
+      "low": {
+        "units": 691,
+        "exact": 405
+      }
+    }
+  }
+}

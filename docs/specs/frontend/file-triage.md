@@ -1,7 +1,7 @@
 # File triage: not-a-floor-plan files, their description, relevance and a person's call (spec, decision 0010)
 
 Status: accepted by frontend-orch and built, 2026-11-14, by fe-ingest: FT-1..16 and FT-18..20 (the read-as-plan
-button, after Bogdan's PR #166 merged on main e8a89a8; FT-17 "no button" is superseded by FT-18). FT-21 is fe-golden's.
+button, after Bogdan's PR #166 merged on main e8a89a8; FT-17 "no button" is superseded by FT-18). FT-21 is fe-golden's. Demo parity FT-22, FT-23 by preqa-a, GO 2026-11-14 16:27.
 API: docs/API.md "File triage (decision 0010)" and "POST …/relevance"; record `docs/decisions/0010-file-triage.md`;
 types `frontend/src/api/schema.d.ts` (`Triage`, `Description`, `Relevance`, `Overrule`, `RelevanceRequest`).
 
@@ -50,6 +50,11 @@ Asks of fe-shared (`src/api/`): export `Triage`, `Description`, `Relevance`, `Ov
 | `floor_plan` | a floor plan |
 | `other_drawing` | another kind of drawing |
 | `not_drawing` | not a drawing |
+
+With `triage.sheet` (#251, `SHEET_KIND=carbon`, off by default) and `sheet.decision` `set_aside`, the class words
+give way to the sheet model's, as the backend's reason line: "Not a floor plan: <sheet.kind_words> (<title>,
+<sheet_number>)", missing parts left out (no parentheses with neither). A sheet with `doubt` or `read` did not set
+the file aside, so the class words stay (FT-24).
 
 `VERDICT_LABEL` (icon + word, never colour alone):
 
@@ -258,6 +263,41 @@ End to end (fe-golden, no-keys backend with `TRIAGE_CLASSIFIER=rules`)
   shows the note "not described: no description model is set up, so it is not judged" and no call form; the issues
   list has an `unrelated_file` row "Not a floor plan" linking to that trace; cost stays "$0.00". With triage off
   (the default) the golden path is unchanged. [e2e]
+
+## Demo parity (Tudor 2026-11-14 16:25, demo PR #214; GO 16:27)
+
+The demo's file page (`demo/vellum/triage.js` `card`, after #214) keeps the class heading, the preview, "What is on
+it" with the printed text and the full description, the call and "Read it as a floor plan"; it drops the "Does it
+belong to this project?" block and the note on who described it. The real card follows:
+
+- Removed from `TriageCard`: the heading "Does it belong to this project?", the verdict pill and sentence, the
+  relevance `why`, "Matched on: …", "Judged by <judge>", and "Described by <model>". The data stays in the API and in
+  the issue (`unrelated_file`), it is just not on this card. When `description` is null the `note` still shows once
+  in its place (FT-8).
+- The call gets the demo's heading "Your call" over the name field and the two buttons, and the line under them:
+  "Your call replaces the suggestion and settles this file's issue. It does not read the file as a plan."
+- The file rows (FT-2 to FT-4, FT-20's rows) move with the Files list to Documents (ingest.md v3, fe-ingest): same
+  words there, owned by fe-ingest.
+
+Criteria:
+
+- FT-22: With `trace-triaged` `files[1]` the card shows no "Does it belong to this project?", no verdict pill or
+  sentence, no "Matched on", no "Judged by", no "Described by"; it still shows the class heading, the chance line,
+  the preview, the description, "Subject: …" and "Text printed on it (2)". Supersedes FT-6's related sentence,
+  relevance, matched-on, judged-by and described-by parts. [component]
+- FT-23: With a call offered, the card shows the heading "Your call" and the line "Your call replaces the suggestion
+  and settles this file's issue. It does not read the file as a plan."; FT-9 to FT-13 unchanged. [component]
+- FT-24: A non-plan whose `triage.sheet.decision` is `set_aside` reads "Not a floor plan: <kind_words> (<title>,
+  <sheet_number>)" in the trace card heading and in its Documents file row (`rowLine`), e.g. "Not a floor plan: an
+  elevation (South elevation, A-201)"; only the title → "(South elevation)"; only the number → "(A-201)"; neither →
+  no parentheses; no subject after it. No sheet, or `doubt` / `read` → the class words as today. [unit + component]
+- FT-25: A sheet the model doubts (`triage.sheet.decision` `doubt`, the demo's warn-only mode) whose `kind` is not a
+  plan kind (backend `SHEET_PLAN_KINDS`: `architectural_floor_plan`, `multi_view_sheet`) adds "Looks like:
+  <kind_words>" right after the class words, on the trace card heading and the Documents file row. Such a file is
+  read, so its class is usually `floor_plan`: it then gets a small card (heading "A floor plan · Looks like: an
+  elevation", the chance line, no calls, no read button) and a row line "A floor plan · Looks like: an elevation";
+  a non-plan reads "Not a floor plan: another kind of drawing · Looks like: an elevation" (subject after it). A doubt
+  with a plan kind, `read`, no sheet: unchanged (no card for a plan); `set_aside`: FT-24 unchanged. [unit + component]
 
 ## Out of scope
 

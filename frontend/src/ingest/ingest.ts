@@ -78,7 +78,7 @@ export const STATE_LABEL: Record<FileState, { word: string; icon: string }> = {
 export const PROJECT_STATE_LABEL: Record<string, string> = {
   queued: 'Waiting to start',
   running: 'Analysing now',
-  done: 'Done',
+  done: 'Analysis done', // the demo's kicker (IN-84)
   failed: 'Ingest failed',
 };
 

@@ -14,22 +14,26 @@ import pytest
 from pydantic import BaseModel, TypeAdapter
 
 from app.api.ask import AnswerView, AskRequest
+from app.api.chat import ChatRequest, ChatTurn
 from app.api.checks import DrawingChecks, ProjectChecks
 from app.api.drawings import DrawingView
 from app.api.info import Info
-from app.api.issues import ProjectIssues
+from app.api.issues import AnswerRequest, Issue, ProjectIssues
 from app.api.project_ask import ProjectAnswer
 from app.api.projects import (
     ProjectList,
     ProjectReview,
     RelevanceRequest,
+    Resolving,
     Started,
     TriageRequest,
 )
 from app.api.questions import ProjectQuestions
 from app.api.takeoff import SignOffRequest, Takeoff
 from app.api.views import ErrorBody, ProjectTrace, ProjectView
+from app.core.evidence.model import EvidenceDetail, EvidenceSearch
 from app.core.ingest.model import FileStatus, FileTrace
+from app.core.plan_edit.model import Proposal
 from app.core.review.model import Edit
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "api_v1"
@@ -77,6 +81,19 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "checks": DrawingChecks,
     "project_checks": ProjectChecks,
     "project_issues_checks": ProjectIssues,
+    "issue_answer_request": AnswerRequest,
+    "issue_answered": Issue,
+    "chat_request": ChatRequest,
+    "chat_answer": ChatTurn,
+    "chat_dont_know": ChatTurn,
+    "chat_edit": ChatTurn,
+    "chat_proposal_accepted": Proposal,
+    "project_resolved": ProjectView,
+    "project_review_resolved": ProjectReview,
+    "resolving": Resolving,
+    "answer_resolved": AnswerView,
+    "evidence_search": EvidenceSearch,
+    "evidence_detail": EvidenceDetail,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 

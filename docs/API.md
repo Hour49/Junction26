@@ -81,8 +81,8 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Unknown or malformed project, file or drawing id, unknown page, quantity key or mark id | 404 `not-found` |
 | Unknown rule pack (`?pack=`) | 404 `unknown-pack` |
 | A relevance call on, or reading as a floor plan, a file triage did not set aside as not a floor plan | 422 `not-triaged` |
-| `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
-| A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
+| `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value` or `note`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
+| A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action, a `note` on an edit other than `settle`, an empty `note` or one over 280 characters) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
@@ -117,6 +117,8 @@ An edit of a signed-off quantity (409):
 | `POST /api/projects/{project_id}/files?name=` | Add a photo (png or jpeg) to a done project; read in the background | #203 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
 | `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
+| `GET /api/projects/{project_id}/evidence/search?q=&k=&include_unrelated=` | Search the project's non-plan files by what they show and say (one hit per file) | 0012 |
+| `GET /api/projects/{project_id}/evidence/{evidence_id}` | One hit's passage with its file's description | 0012 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
@@ -132,6 +134,11 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
 | `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
 | `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
+| `POST /api/projects/{project_id}/chat` | One turn of the agent chat: tools called, cited sources, plan-edit proposals | 0013 |
+| `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}` | Accept or reject a plan-edit proposal | 0013 |
+| `GET /api/laws` | The building-law knowledge base: each pack's laws (table of contents) | 0014 |
+| `GET /api/laws/{pack}/search?q=&topic=&limit=` | Search one pack's law clauses, best first | 0014 |
+| `GET /api/laws/clauses/{clause_id}` | One clause, verbatim and in our English, with its law | 0014 |
 
 ## `GET /api/info`
 
@@ -212,7 +219,7 @@ An edit of a signed-off quantity (409):
       "country": "FI",
       "country_name": "Finland",
       "name": "Finland: homes and accessibility decrees",
-      "law": "Rakentamislaki 751/2023; decrees 1008/2017 (homes and rooms) and 241/2017 (accessibility), kept in force by the entry-into-force provision of Act 752/2023",
+      "law": "Rakentamislaki 751/2023; decrees 631/2024 (homes and rooms, in force since 2025-01-01, replacing 1008/2017; a project pending then follows the earlier rules, 631/2024 11 § 2 mom.) and 241/2017 (accessibility, as amended by 683/2024)",
       "version": "2026-11-14",
       "note": "A pre-check of a few rules, not a compliance certificate.",
       "fail_means": "It would not meet today's rule for a new building.",
@@ -239,7 +246,7 @@ An edit of a signed-off quantity (409):
               "Pranzo",
               "ALKOVI"
             ],
-            "note": "New buildings, extensions and substantial changes of use (decree 1008/2017 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
+            "note": "New buildings, extensions and substantial changes of use (decree 631/2024 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
           },
           "comparison": ">=",
           "comparison_text": "at least",
@@ -247,22 +254,38 @@ An edit of a signed-off quantity (409):
           "unit": "m2",
           "key": null,
           "clause": {
-            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
-            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
-            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+            "quote": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential or accommodation room and of a work space must, however, always be at least 7 square metres."
           }
         }
       ]
     }
-  ]
+  ],
+  "commit": null,
+  "chat": {
+    "model": "rules",
+    "available": true,
+    "reason": null
+  }
 }
 ```
 
-`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `verda` or `decisions` source
-in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The screen then shows "running
-offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
-questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `regionrooms`, `verda` or
+`decisions` source in `RASTER_COMPONENTS`, `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`,
+`DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off, and no Gemini describer in file triage
+(`TRIAGE_DESCRIBER=gemini` or `carbon` with `TRIAGE_CLASSIFIER` on). The screen then shows "running offline". A reader
+named `hello` reads nothing: drawings on that route have no counts, and their questions are refused with the
+code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+
+`gemini` is there only when a Gemini spend limit is set (`GEMINI_BUDGET_USD`, `GEMINI_BUDGET_USD_PER_HOUR`):
+`ok`, or `budget_exhausted` while the limit is used up. Then every Gemini step (room reader, Decisions count swap
+and answer confidence, sheet-kind signal, describer) answers as when Gemini fails: nothing new is read, the
+answer stays unknown or unchanged, and the file's trace or the answer's note says "Gemini budget used up".
+Replies cached earlier still serve. With the hourly limit it clears as the last hour's spend ages out; with the
+total limit only a restart clears it. A limit of 0 refuses every Gemini call from the first one. The screen can
+say so instead of showing empty readings.
 
 `rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
 below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
@@ -331,6 +354,8 @@ over its drawings (the review queue). `conflicts_open`: the conflicts a person s
 with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
 decided ("settled by a rule") or a person settled is not open. A room's several names count once.
 `issues_open`: the issues in state `open` in `GET /api/projects/{id}/issues` without a pack; null until `done`.
+`issues_to_answer`: of those, the ones that wait for a person's answer: not a `note` and no `answer` yet (an answer
+does not change an issue's `state`); null until `done`.
 `not_plans`: as in `GET /api/projects/{id}` (file triage); left out when the project was ingested with triage off.
 
 <!-- fixture: project_list.json -->
@@ -346,7 +371,8 @@ decided ("settled by a rule") or a person settled is not open. A room's several 
       "drawings": 5,
       "to_review": 1,
       "conflicts_open": 0,
-      "issues_open": 4
+      "issues_open": 4,
+      "issues_to_answer": 0
     }
   ]
 }
@@ -683,7 +709,9 @@ Ingest's project status, plus `drawings`:
           "drawing_id": "c9b719f715357201",
           "file": "plans/flat-a.png"
         }
-      ]
+      ],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -693,7 +721,9 @@ Ingest's project status, plus `drawings`:
       "route": "vector",
       "source": "plans/flat-b.pdf",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Drawn plan 2",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -708,7 +738,9 @@ Ingest's project status, plus `drawings`:
           "drawing_id": "3b3ce7db34257f63",
           "file": "scans/ground-floor-copy.png"
         }
-      ]
+      ],
+      "name": "Plan image 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "37f6819bd17d65d9",
@@ -718,7 +750,9 @@ Ingest's project status, plus `drawings`:
       "route": "raster",
       "source": "photos/plan-photo.jpg",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Plan photo 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "1db9bcf1e67e27a3",
@@ -728,23 +762,30 @@ Ingest's project status, plus `drawings`:
       "route": "bim",
       "source": "model/house.ifc",
       "state": "ready",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Building model 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     }
   ],
   "skipped": [
     {
       "path": "photos/site.jpg",
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))"
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))"
     },
     {
       "path": "cad/detail.dxf",
       "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
     }
   ],
-  "expected_drawings": 5
+  "expected_drawings": 5,
+  "conflicts_open": 0,
+  "issues_open": 4,
+  "issues_to_answer": 0
 }
 ```
 
+- `conflicts_open`, `issues_open`, `issues_to_answer`: the same numbers as the project's entry in
+  `GET /api/projects`; null until `done`.
 - Project `state`: `queued`, `running`, `done`, `failed`. `failed` only when ingest itself broke (e.g. not a
   readable zip), with `error` set; one bad file never fails the project, it becomes a `set_aside` file.
 - File `kind`, by content: `pdf_vector`, `pdf_scan`, `pdf_text`, `png_plan`, `jpeg_plan`, `photo_plan`, `ifc`,
@@ -769,6 +810,13 @@ Ingest's project status, plus `drawings`:
   PNG before JPEG; the group's other drawings are `other_renderings`. A copy of the same content under another
   name is listed once. An IFC model asked about on its own is an entry with no pages. An upload with no drawing
   gives `"drawings": []`.
+- `name` on each drawing: a plain name to show instead of the file name, from the kind of `file` and a number
+  counted per name in the list's order: "Drawn plan" (vector PDF, DXF, SVG), "Scanned plan", "Plan image" (PNG,
+  JPEG), "Plan photo", "Building model" (IFC), else "Drawing"; a page read as a file of its own adds its page
+  ("Drawn plan 3, page 2"). Once the project is done, the same upload always gives the same names; while it
+  runs, a number can still move (a drawing read before an earlier file is counted first). `credit` on each
+  drawing: the licence credit of `file`, the same as `GET /api/drawings/{id}` gives (a page has the credit of the
+  PDF it was split from), or null for a file that is not from the dataset, the Commons photos or the sample.
 - `stage`: the stage a running file is in, or the last one it finished, so the ingest screen needs no trace
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
@@ -828,7 +876,10 @@ after a restart cut that run off:
   "cost_usd": 0.0,
   "drawings": [],
   "skipped": [],
-  "expected_drawings": null
+  "expected_drawings": null,
+  "conflicts_open": null,
+  "issues_open": null,
+  "issues_to_answer": null
 }
 ```
 
@@ -886,13 +937,16 @@ after a restart cut that run off:
       "reason": "not ingested: the server restarted during ingest"
     }
   ],
-  "expected_drawings": 0
+  "expected_drawings": 0,
+  "conflicts_open": null,
+  "issues_open": null,
+  "issues_to_answer": null
 }
 ```
 
 ### File triage (decision 0010)
 
-Off by default (`TRIAGE_CLASSIFIER=off`). With it on, every image file (a PNG or JPEG, a photo, a scanned PDF;
+Off by default (`TRIAGE_CLASSIFIER=off` and `SHEET_KIND=off`). With either on, every image file (a PNG or JPEG, a photo, a scanned PDF;
 not vector PDFs, IFC, DXF or SVG) is asked "is this a floor plan?" in the `identify` stage, before any reader. A
 floor plan goes on as before. Any other image is kept, set aside, described in words, and once the project's plans
 are read, judged against the project. Nothing is deleted, and a person's call is never a reading: an image called
@@ -922,7 +976,8 @@ the `identify` stage's line.
   characters) and `detail` (a paragraph or more, at most 4,000 characters: a model's description no person
   checked). Printed text is kept (project, company, place and room names, the title block); the describer leaves
   out number plates, home addresses, personal contact data of private persons (phone numbers, e-mails) and the
-  names of people seen in photos.
+  names of people seen in photos. A home address keeps its street and town, without the house number and
+  postal code; that is the model's judgement, which can also drop a public building's house number.
 - `relevance` (set once the project's ingest is done): `verdict` `related`, `unrelated` or `unsure`, `why` (one
   sentence naming what matched or what is missing), `matched_on`, `plans` (drawing ids, always among this
   project's `drawings`), `judge`. With no plan read in the project the verdict is `unsure`, "no floor plan in the
@@ -941,6 +996,23 @@ the `identify` stage's line.
 - `read_as_plan`: `{by, at}` once a person had the file read as a floor plan (`POST …/triage`); `class` stays the
   classifier's.
 - `verdict`: the one value that counts: `overruled.verdict`, else `relevance.verdict`, else null.
+- `sheet` (left out unless `SHEET_KIND=carbon` asked about the file; off by default): what gemini-4-carbon calls
+  the sheet. `kind` (`architectural_floor_plan`, `multi_view_sheet`, `mep_plan`, `structural_plan`,
+  `roof_or_ceiling_plan`, `site_plan_or_map`, `elevation`, `section`, `detail`, `perspective_or_axonometric`,
+  `schedule_or_text`, `not_a_drawing`, `other`) with `kind_words` to show, `decision` (`set_aside`: no floor plan
+  on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT` (default 0.9) and `SHEET_KIND_SET_ASIDE=true`
+  (the default; `false` makes such a sheet a `doubt` instead: read and flagged, below), the file is set
+  aside with the reason "not a floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it;
+  `doubt`: it is read; with a non-plan kind, in either mode (an unsure one with `SHEET_KIND_SET_ASIDE=true` too), the
+  file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; "), none of
+  its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
+  issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
+  drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
+  plan."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
+  sheet), `title`, `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
+  than a clean scan of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet),
+  `seen`, `model`. A call that fails leaves the file as triage would have it without the step ("triage not
+  available: ...; read as today" with no classifier). A model answer alone; never a certified value.
 - `note`: why `description` or `relevance` is null, a plain sentence: "a floor plan: it is read, so it is not
   described or judged"; "not described: no description model is set up, so it is not judged" (no describer: the
   offline demo); "not described: <why>" (the model refused or failed); "not judged yet: the project is still being
@@ -1288,7 +1360,9 @@ photo of an elevation sheet with its register, showing a building that matches n
       "route": "vector",
       "source": "plans/flat-a.pdf",
       "state": "ready",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     }
   ],
   "skipped": [
@@ -1310,7 +1384,10 @@ photo of an elevation sheet with its register, showing a building that matches n
     }
   ],
   "expected_drawings": 1,
-  "not_plans": 4
+  "not_plans": 4,
+  "conflicts_open": 0,
+  "issues_open": 2,
+  "issues_to_answer": 1
 }
 ```
 
@@ -1320,7 +1397,8 @@ A photo added to a finished project, from the chat (board #203). The body is the
 up to the upload limit); `name` its file name. 202 with the new file's `FileStatus`, `queued`, id `f<n+1>`, at
 its own name, the folders dropped (a name the project has gets `-2`, `-3`... before the extension). It is read
 in the background, alone, as at upload: identified (a camera photo of a plan as `photo_plan`, EXIF and
-rectifier applied), triaged when triage is on, then its group, route and readers. Poll
+rectifier applied), triaged when triage is on, then its group, route and readers; with
+`EVIDENCE_SCOPE=all_non_plan` it alone is then described for the evidence index. Poll
 `GET /api/projects/{project_id}`: the file goes `running`, then `ready`, `flagged`, `set_aside` or `text_only`;
 once read as a plan it has a `drawing_id` and is in `drawings`. The project stays `done` throughout; the issues
 already there keep their ids and order, the new drawing's issues join the list.
@@ -1336,7 +1414,7 @@ already there keep their ids and order, the new drawing's issues join the list.
 {
   "id": "f6",
   "path": "phone.png",
-  "size": 1959,
+  "size": 2000,
   "sha256": null,
   "kind": null,
   "state": "queued",
@@ -1353,6 +1431,43 @@ already there keep their ids and order, the new drawing's issues join the list.
   "normalised": null
 }
 ```
+
+### Evidence scope (decision 0012, Amendment 1)
+
+`EVIDENCE_SCOPE=set_aside` (the default) indexes only what triage set aside and described, as above.
+`EVIDENCE_SCOPE=all_non_plan` also asks every picture triage did not set aside (a PNG or JPEG, a scanned or drawn
+PDF page) its sheet kind, once the plans are read, and describes every one that is not a floor plan sheet, for
+the evidence index. A text document (`pdf_text`, `text`) is searched by its own text, page by page, and so are
+the text pages (200 characters or more) of a drawn or scanned PDF; a file nothing reads (DWG, office, archive,
+encrypted PDF, IFC, unknown, refused) is listed by name; DXF and SVG files are not sources. Phone numbers and
+e-mail addresses are taken out of the text first; a file's text is cut at 200,000 characters. It never changes a
+file's `state`, `reason`, `route`, `group`, `drawing_id` or `takeoff`: a drawn elevation is still read as
+before, and is also described.
+
+`FileStatus.evidence` (left out when that step did not look at the file, so always with the default scope):
+
+- `indexed`: whether the file is a source of the evidence index; `how`: `described`, `text` (its own text) or
+  `listed` (by name only; its content is not read); null when not indexed. `kind`: the hit's kind (null when not
+  indexed): the sheet kind for a described picture, `text_document` or `text_file`, `text_pages` (a drawn or
+  scanned PDF searched by its own text pages only: its drawing is not a source), or the probe's kind for a
+  listed file (`dwg`, `office`, `archive`, `pdf_encrypted`, `ifc`, `unknown`; `not_read` for an entry that was
+  refused or could not be identified).
+- `why`: one plain sentence, always set: `not a floor plan: an elevation (Gemini sheet kind, ...)`, `a floor
+  plan: it is read, so it is not in the evidence index`, `the kind call failed: ...` (a spent Gemini budget
+  included), `not described: ...` (`no description model is set up` without `TRIAGE_DESCRIBER`), `the evidence
+  step failed: ...`, `searched by its own text: 3 pages, 2140 characters` (`, cut at 200,000 characters`; for a
+  PDF whose drawing is not a source, `; its drawing is not a source (...)`), `listed by name only: <why>`, `a CAD
+  file: no kind decision for it yet` (DXF, SVG), `no text to index: no page holds text`.
+- `sheet`: the kind reply, the same object as `triage.sheet`; null when not asked. `description`: the same
+  object as `triage.description` when indexed; for `text` and `listed` it is made by rule, no model: `subject` the
+  file name in words, `text` the first 300 characters (or the "not read" sentence), `model` `no model: ...`.
+  `text_pages`, `text_chars`: the pages that gave text and the characters indexed; null when none (a described
+  drawn PDF with text pages has both). The text itself is not in the status: the index reads it from the stored
+  file. The rule-made `description` is made at ingest, so a change to the text rules (contacts, addresses, the
+  cut) shows in it only when the project is ingested again; the index's passages are cut again on its next
+  sync.
+- `cost_usd`: the kind call and the description, also counted in the file's and the project's `cost_usd`; 0 from
+  the caches.
 
 ### `POST /api/projects/{project_id}/files/{file_id}/relevance`
 
@@ -1398,6 +1513,10 @@ project stays `done` throughout.
   is back to triage's call: `read_as_plan` is null again, it is in `not_plans`, its `unrelated_file` issue is
   `open` again, and it can be asked again (R6-a-1).
 - While it is read, the file's `reason` is "being read as a floor plan".
+- A sheet the sheet-kind step doubted with a non-plan kind (`triage.sheet.decision` `doubt`, flagged) was read
+  already: the call is accepted the same way, nothing is read again, and the 202 returns the file as it ends: its
+  reading's state and reason without the sheet-kind flag, `read_as_plan` set, and an `identify` trace line "read as
+  a floor plan, as <by> asked: the reading is kept, the sheet-kind flag is dropped". Its answers lose the flag.
 
 <!-- fixture: triage_request.json -->
 ```json
@@ -1534,6 +1653,114 @@ The same file once read:
     },
     "verdict": "related",
     "note": null
+  }
+}
+```
+
+### `GET /api/projects/{project_id}/evidence/search?q=<text>&k=5&include_unrelated=false` (decision 0012)
+
+A search over what the project's files that are not floor plans show and say: every file triage described and
+nobody read as a plan (photos, elevations, sections, site plans, maps, text pages). Floor-plan facts are not in it.
+The same JSON as the chat agent's `search_evidence` tool (`backend/app/adapters/evidence_tools.py`). Local only:
+SQLite FTS5 BM25 and a multilingual embedder on CPU, fused by reciprocal rank fusion; with no embedder model on the
+machine it searches with BM25 alone and `method` says so. Works in any project state: it answers from what is
+described so far; a project with nothing indexed has `indexed_files: 0` and a `note`. With
+`EVIDENCE_SCOPE=all_non_plan` (Evidence scope, above) the pictures the evidence step described are searched too.
+
+- `q` 1-500 characters, not blank; `k` 1-20 (default 5) counts files: a file appears once, with its best-matching
+  passage. 422 `validation` otherwise; 404 `not-found` for an unknown project.
+- Files whose verdict (a person's call over the judge's) is `unrelated` are searched only with
+  `include_unrelated=true`; `unrelated_left_out` counts the ones skipped.
+- A hit: `id` (`f7-summary`, `f7-detail-2`, `f7-visible_text-1`, `f7-text-12`), `file_id`, `file` (as uploaded; the picture is
+  `…/files/{file_id}/preview.png`), `page` (a `text` passage: the PDF page it comes from, and a text source's summary: its first text page; else the PDF page of a page entry `<name>#p<n>.pdf`, else 1), `part`, `how` (`described`, `text`, `listed`; see Evidence scope), `kind` (the register's kind, else
+  the sheet kind of the evidence step, else the description's `what_it_is`), `subject`, `snippet` (at most 300 characters around the matched words), `language`, `verdict`,
+  `credit`, `score` (orders one result's hits only) and `why` (`terms`: query words in the passage; `bm25_rank`,
+  `dense_rank`: the file's rank by each retriever, null when it did not rank it or did not run).
+- A hit is the closest file, not proof: read the snippet, then get the passage.
+
+<!-- fixture: evidence_search.json -->
+```json
+{
+  "query": "St. Anna",
+  "method": "BM25 (no embedder model on this machine)",
+  "indexed_files": 3,
+  "unrelated_left_out": 0,
+  "note": null,
+  "hits": [
+    {
+      "id": "f5-visible_text-1",
+      "file_id": "f5",
+      "file": "photos/sheet.jpg",
+      "page": 1,
+      "part": "visible_text",
+      "how": "described",
+      "kind": "elevation",
+      "subject": "a photographed elevation of a church",
+      "snippet": "Kirche St. Anna",
+      "language": "en",
+      "verdict": "unsure",
+      "credit": null,
+      "score": 0.166667,
+      "why": {
+        "terms": [
+          "st",
+          "anna"
+        ],
+        "bm25_rank": 1,
+        "dense_rank": null
+      }
+    }
+  ]
+}
+```
+
+### `GET /api/projects/{project_id}/evidence/{evidence_id}`
+
+One hit's whole passage and its file's description, register and relevance as `GET /api/projects/{project_id}`
+gives them (without the description's `cost_usd`). A file id alone (`f7`) answers as its summary (`f7-summary`).
+A file judged unrelated is returned too. 404 `not-found` for an unknown project, an id not in the index or one
+that is not an evidence id. `description.detail` is a model's description no person checked.
+
+<!-- fixture: evidence_detail.json -->
+```json
+{
+  "id": "f5-visible_text-1",
+  "file_id": "f5",
+  "file": "photos/sheet.jpg",
+  "page": 1,
+  "part": "visible_text",
+  "how": "described",
+  "text": "Kirche St. Anna",
+  "kind": "elevation",
+  "verdict": "unsure",
+  "credit": null,
+  "description": {
+    "subject": "a photographed elevation of a church",
+    "text": "A picture of a photographed elevation of a church.",
+    "detail": "A longer account of a photographed elevation of a church, for later use.",
+    "visible_text": "Kirche St. Anna",
+    "text_seen": [
+      "Kirche St. Anna"
+    ],
+    "language": "en",
+    "what_it_is": "drawing",
+    "shows_building": true,
+    "model": "fake describer"
+  },
+  "register": {
+    "kind": "elevation",
+    "has_floor_plan": false,
+    "photo_of_sheet": true,
+    "scale_shown": "bar",
+    "quality": "fair",
+    "method": "fake classifier"
+  },
+  "relevance": {
+    "verdict": "unsure",
+    "why": "Unsure: it shows a building, but none of its printed words is in the project's name, file and folder names or plan text.",
+    "matched_on": [],
+    "plans": [],
+    "judge": "rule on the words printed on it and whether it shows a building, no model"
   }
 }
 ```
@@ -2616,7 +2843,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "identify",
-          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink, camera EXIF (SyntheticPhone Model 1))",
+          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink (2.2% on the paper), camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
           "output": "photo of a drawing",
           "failure": null,
@@ -2690,7 +2917,7 @@ upload lists the files, instead of one request per file.
         "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
         "kind": "photo",
         "state": "set_aside",
-        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
         "group": null,
         "route": null,
         "source": null,
@@ -2721,7 +2948,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "identify",
-          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
           "output": "photo",
           "failure": null,
@@ -3165,12 +3392,44 @@ many quantities are left to review and how many are signed off, and every confli
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "needs_person": false,
       "signed": null,
-      "value": 30.0
+      "value": 30.0,
+      "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+      "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. Settled by a rule (the printed label over the outline at the sheet's scale): 30.00 m² is used.",
+      "suggestions": [
+        "22.40 m²",
+        "30.00 m²"
+      ]
     }
   ]
 }
@@ -3178,6 +3437,747 @@ many quantities are left to review and how many are signed off, and every confli
 
 `needs_person: true` marks a conflict no rule decides and nobody settled ("needs you"); the others were decided by
 a rule ("AI decision") or settled by a surveyor.
+
+The conflict card's words, rule-based from the conflict's values (no model, no paid call):
+
+- `title`: the conflict as a question, each value once: "Door count: 13 or 11?", "Area of room (name Küche ·
+  1.01): 22.40 m² or 30.00 m²?".
+- `why`: what each method read and how it is decided: "The methods disagree: 22.40 m² by the room outlines at the
+  sheet's scale, 30.00 m² by the printed room areas." then "Settled by a rule (<the rule>): 30.00 m² is used." or
+  "No rule decides between them, so a person has to choose." A stage-8 `conflict.note` sits between the two.
+- `suggestions`: short answers to tap, one per value read, as a person would type them: "13 doors", "1 door",
+  "22.40 m²". A tapped one goes back as a `settle` with its number in `value` (and the words in `note` if wanted).
+
+### `POST /api/projects/{project_id}/resolve`
+
+`RESOLVER` (off by default; `carbon`: Google's gemini-4-carbon): a model looks at each conflict of the project that
+no rule decides and no person settled, at the places each method's items are (`value_marks`), and picks one of the
+methods' values or says it can't tell. One call per conflict; the replies are kept with the project's review, so a
+second POST asks only about conflicts that changed, and a `GET` never calls the model. With `RESOLVER` on, the same
+runs on its own once an upload's ingest is done (`POST /api/projects` and `/sample`), so this POST is for a retry
+(after a budget stop or a timeout). Every call is charged to the Gemini spend guard (`GEMINI_BUDGET_USD`), and the
+adapter caches each reply by its request, model and prompt version. No body. 200 with `{review, notes}`: `review` is `GET …/review`'s body, `notes` one line per
+conflict that got no reply (the budget used up, a timeout, a pick that is none of the methods' values). 409
+`not-allowed` while `RESOLVER` is off or the project is not `done`.
+
+A pick is checked by a model, never a person's word:
+
+- the row's `status` stays `conflict` (the methods still disagree), its `value` is the pick, `needs_person` is
+  false, and `resolved` holds
+  `{verdict, value, reason, marks, by, at, of}` (`of`: the methods' values it was asked about; a pick applies only
+  while the conflict still has exactly these values). The conflict's `why` ends "A model (<by>) checked the drawing
+  and picked <value>: <reason>. You can still choose another value."
+- `resolved.marks` are where the model looked: 1-based `page` and a page-fraction `box` `[x0, y0, x1, y1]`, the same
+  frame as the conflict's `value_marks`, with a `label` saying whose item it is.
+- A person's settle or sign-off wins over it; `unsettle` and `reset` bring the pick back (it is not an edit). Every
+  review and sign-off response (`settle`, `unsettle`, `reset`, ...) carries the row's `resolved` as the takeoff does.
+- A person's mark edit (`reject`, `add`, counting in an excluded mark) also wins: the value is counted from the
+  marks as before, `needs_person` is true again, and `why` says the model picked <value> before the marks were
+  edited. A `reset` brings the pick back.
+- `cannot_tell`: nothing changes (`needs_person` stays true) and `why` says the model could not tell, and why. The
+  reply is kept: it is not asked again until the conflict's values change.
+- Counts: a picked conflict is not in `conflicts_open`; `GET /api/projects` and `GET /api/projects/{id}` count it in
+  `conflicts_picked` (a pick in use: no person settled, signed or edited its marks). A `cannot_tell` stays in
+  `conflicts_open`. `conflicts_picked` is absent while `RESOLVER` is off and the project holds no pick.
+- Issues: a conflict's issue stays listed (state `open`) with `resolved` set; with a pick in use its severity is
+  `note`, so `issues_to_answer` doesn't count it, and its `why` ends "no rule decides, a model picked <value>
+  (<by>): you can change it". With `cannot_tell` it stays `needs_person`.
+- Answers (`POST /api/ask`): an answer that `check` asks to double-check gets the model's reply in `resolved`,
+  beside the answer (never certified). On a conflict whose reply is kept, that reply is shown and no call is made;
+  on a conflict a person has to choose, the request is the conflict's (both methods' values, the same cache entry
+  as this POST), and as here a pick must be one of the methods' values: anything else gives no `resolved`, only a
+  `resolver_note`. `cost_usd` and `line.cost_usd` include the resolver's call, which waits at most
+  `RESOLVER_TIMEOUT_S` (30 s by default). Two callers asking the same thing at once (the upload's resolve and a
+  person's POST) share one call.
+- With `RESOLVER` off, `resolved` is absent from every row, conflict, issue and answer (not null), so every response
+  is as before.
+
+A project with a pick (`GET /api/projects/{id}`; `GET …/review` below), a `POST …/resolve` whose model could not
+tell, and an uncertain answer with the model's check:
+
+<!-- fixture: project_resolved.json -->
+```json
+{
+  "id": "5e0c1a2b3d55",
+  "name": "flat-b.pdf",
+  "state": "done",
+  "created_at": "2026-11-14T08:00:00+00:00",
+  "started_at": "2026-11-14T08:00:00+00:00",
+  "finished_at": "2026-11-14T08:00:00+00:00",
+  "files": [
+    {
+      "id": "f1",
+      "path": "flat-b.pdf",
+      "size": 2260,
+      "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
+      "kind": "pdf_vector",
+      "state": "flagged",
+      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+      "group": "flat-b",
+      "route": "vector",
+      "source": "flat-b.pdf",
+      "drawing_id": "44cc9f0d991eafe3",
+      "reused": false,
+      "takeoff": {
+        "apartment": 1,
+        "area:apartment": 45.4,
+        "area:apartment|apartment=a": 45.4,
+        "area:room": 65.443,
+        "area:room:balcony|largest": 12.445,
+        "area:room:bathroom|largest": 12.445,
+        "area:room:bedroom|largest": 8.064,
+        "area:room:kitchen|largest": 30.0,
+        "area:room:storage|largest": 2.489,
+        "area:room|indoor": 52.998,
+        "area:room|label=bad": 12.445,
+        "area:room|label=bad|largest": 12.445,
+        "area:room|label=balkon": 12.445,
+        "area:room|label=balkon|largest": 12.445,
+        "area:room|label=küche": 30.0,
+        "area:room|label=küche|largest": 30.0,
+        "area:room|label=reduit": 2.489,
+        "area:room|label=reduit|largest": 2.489,
+        "area:room|label=zimmer": 8.064,
+        "area:room|label=zimmer|largest": 8.064,
+        "area:room|name=1.01": 30.0,
+        "area:room|name=1.02": 2.489,
+        "area:room|name=1.03": 12.445,
+        "area:room|name=1.04": 12.445,
+        "area:room|name=1.05": 8.064,
+        "area:room|name=bad": 12.445,
+        "area:room|name=balkon": 12.445,
+        "area:room|name=küche": 30.0,
+        "area:room|name=reduit": 2.489,
+        "area:room|name=zimmer": 8.064,
+        "bathtub": 1,
+        "door": 2,
+        "length:room:balcony": 7.056,
+        "length:room:bathroom": 3.528,
+        "length:room:bedroom": 4.233,
+        "length:room:kitchen": 7.056,
+        "length:room:storage": 1.764,
+        "length:room|name=1.01": 7.056,
+        "length:room|name=1.02": 1.764,
+        "length:room|name=1.03": 3.528,
+        "length:room|name=1.04": 7.056,
+        "length:room|name=1.05": 4.233,
+        "length:room|name=bad": 3.528,
+        "length:room|name=balkon": 7.056,
+        "length:room|name=küche": 7.056,
+        "length:room|name=reduit": 1.764,
+        "length:room|name=zimmer": 4.233,
+        "plan": 1,
+        "room": 5,
+        "room:balcony": 1,
+        "room:bathroom": 1,
+        "room:bedroom": 1,
+        "room:hall": 0,
+        "room:kitchen": 1,
+        "room:living": 0,
+        "room:other": 0,
+        "room:outdoor": 0,
+        "room:sauna": 0,
+        "room:shaft": 0,
+        "room:storage": 1,
+        "room:wc": 0,
+        "room|label=bad": 1,
+        "room|label=balkon": 1,
+        "room|label=küche": 1,
+        "room|label=reduit": 1,
+        "room|label=zimmer": 1,
+        "shower": 0,
+        "shower+bathtub": 1,
+        "sink": 1,
+        "toilet": 1,
+        "window": 2
+      },
+      "ms": 12.5,
+      "stage": "write",
+      "cost_usd": 0.0,
+      "normalised": null
+    }
+  ],
+  "counts": {
+    "flagged": 1
+  },
+  "readers": {
+    "bim": "ifc",
+    "cad": "hello",
+    "vector": "pdf",
+    "raster": "hello",
+    "raster_components": "",
+    "tables": "pdf",
+    "second_counter": "ifc",
+    "rectifier": "none",
+    "decisions_kind": "False"
+  },
+  "error": null,
+  "ms": 12.5,
+  "cost_usd": 0.0,
+  "drawings": [
+    {
+      "drawing_id": "44cc9f0d991eafe3",
+      "group": "flat-b",
+      "file": "flat-b.pdf",
+      "kind": "pdf_vector",
+      "route": "vector",
+      "source": "flat-b.pdf",
+      "state": "flagged",
+      "other_renderings": [],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+    }
+  ],
+  "skipped": [],
+  "expected_drawings": 1,
+  "conflicts_open": 0,
+  "conflicts_picked": 1,
+  "issues_open": 1,
+  "issues_to_answer": 0
+}
+```
+
+<!-- fixture: project_review_resolved.json -->
+```json
+{
+  "drawings": [
+    {
+      "drawing_id": "44cc9f0d991eafe3",
+      "file": "flat-b.pdf",
+      "to_review": 1,
+      "signed": 0,
+      "quantities": 63
+    }
+  ],
+  "conflicts": [
+    {
+      "drawing_id": "44cc9f0d991eafe3",
+      "file": "flat-b.pdf",
+      "quantity": "area:room|name=1.01",
+      "label": "area of room (name Küche · 1.01)",
+      "conflict": {
+        "values": [
+          {
+            "value": 22.401,
+            "unit": "m2",
+            "method": "polygon_x_scale",
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ]
+          },
+          {
+            "value": 30.0,
+            "unit": "m2",
+            "method": "printed_label",
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ]
+          }
+        ],
+        "resolution": null,
+        "note": null,
+        "derived": null,
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
+      },
+      "settled": null,
+      "needs_person": false,
+      "signed": null,
+      "value": 22.401,
+      "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+      "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. No rule decides between them. A model (carbon:gemini-4-carbon) checked the drawing and picked 22.40 m²: The room's outline is closed and drawn to the sheet's scale. You can still choose another value.",
+      "suggestions": [
+        "22.40 m²",
+        "30.00 m²"
+      ],
+      "resolved": {
+        "verdict": "picked",
+        "value": 22.401,
+        "reason": "The room's outline is closed and drawn to the sheet's scale.",
+        "marks": [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "the room outlines at the sheet's scale counts polygon_x_scale here"
+          },
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "the printed room areas counts printed_label here"
+          }
+        ],
+        "by": "carbon:gemini-4-carbon",
+        "at": "2026-11-14T08:05:00Z",
+        "of": [
+          22.401,
+          30.0
+        ]
+      }
+    }
+  ]
+}
+```
+
+<!-- fixture: resolving.json -->
+```json
+{
+  "review": {
+    "drawings": [
+      {
+        "drawing_id": "44cc9f0d991eafe3",
+        "file": "flat-b.pdf",
+        "to_review": 1,
+        "signed": 0,
+        "quantities": 63
+      }
+    ],
+    "conflicts": [
+      {
+        "drawing_id": "44cc9f0d991eafe3",
+        "file": "flat-b.pdf",
+        "quantity": "area:room|name=1.01",
+        "label": "area of room (name Küche · 1.01)",
+        "conflict": {
+          "values": [
+            {
+              "value": 22.401,
+              "unit": "m2",
+              "method": "polygon_x_scale",
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ]
+            },
+            {
+              "value": 30.0,
+              "unit": "m2",
+              "method": "printed_label",
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ]
+            }
+          ],
+          "resolution": null,
+          "note": null,
+          "derived": null,
+          "status": "conflict",
+          "value_marks": [
+            [
+              {
+                "page": 1,
+                "box": [
+                  0.16667,
+                  0.125,
+                  0.5,
+                  0.375
+                ],
+                "label": "polygon_x_scale"
+              }
+            ],
+            [
+              {
+                "page": 1,
+                "box": [
+                  0.17367,
+                  0.17946,
+                  0.21269,
+                  0.19027
+                ],
+                "label": "printed_label"
+              }
+            ]
+          ]
+        },
+        "settled": null,
+        "needs_person": true,
+        "signed": null,
+        "value": 30.0,
+        "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+        "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. No rule decides between them, and a model (carbon:gemini-4-carbon) could not tell: The printed area is cut by the sheet edge, so the label can't be read.",
+        "suggestions": [
+          "22.40 m²",
+          "30.00 m²"
+        ],
+        "resolved": {
+          "verdict": "cannot_tell",
+          "value": null,
+          "reason": "The printed area is cut by the sheet edge, so the label can't be read.",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "the room outlines at the sheet's scale counts polygon_x_scale here"
+            },
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "the printed room areas counts printed_label here"
+            }
+          ],
+          "by": "carbon:gemini-4-carbon",
+          "at": "2026-11-14T08:05:00Z",
+          "of": [
+            22.401,
+            30.0
+          ]
+        }
+      }
+    ]
+  },
+  "notes": []
+}
+```
+
+<!-- fixture: answer_resolved.json -->
+```json
+{
+  "question": "How many doors are there?",
+  "drawing_id": "c592bb6c7e3273ca",
+  "file": "plan.png",
+  "pages": [
+    {
+      "page": 1,
+      "width": 800.0,
+      "height": 400.0,
+      "unit": "px",
+      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "normalised": {
+        "exif": null,
+        "rotated": 0,
+        "deskew_deg": 0.0,
+        "rectified": false,
+        "quad": null,
+        "width": 800,
+        "height": 400,
+        "rectifier": null
+      },
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": null
+      },
+      "scale_text": null,
+      "storey": null
+    }
+  ],
+  "answer": 2,
+  "unit": "count",
+  "confidence": {
+    "signal": "g1main",
+    "score": 0.87,
+    "calibrated": false
+  },
+  "quantity": {
+    "key": "door",
+    "label": "door count",
+    "measure": "count",
+    "subject": "door",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "each-once",
+      "text": "every element, room and plan the drawing lists counts once"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.05,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e1",
+        "reason": null,
+        "room_type": null
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e2",
+        "reason": null,
+        "room_type": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {},
+    "noun": "doors"
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.05,
+        0.1,
+        0.1,
+        0.2
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e1",
+      "reason": null,
+      "room_type": null
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.6,
+        0.1,
+        0.65,
+        0.2
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e2",
+      "reason": null,
+      "room_type": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "raster",
+    "source": "plan.png",
+    "extractor": "composite",
+    "second_counter": "none",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.05,
+          0.1,
+          0.1,
+          0.2
+        ]
+      },
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": 0.87,
+    "sure": false,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "door",
+        "colour": "#d62728",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": null
+  },
+  "check": {
+    "reason": "Please double-check the doors: the readers disagree at 2 places, marked on the drawing.",
+    "disputed": [
+      {
+        "mark_id": "m2",
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
+        "readers": {
+          "answer": "door, score 0.41",
+          "L one view": "nothing",
+          "M one view": "nothing",
+          "seg": "door, score 0.62"
+        }
+      },
+      {
+        "mark_id": null,
+        "page": 1,
+        "box": [
+          0.3,
+          0.85,
+          0.36,
+          0.9
+        ],
+        "why": "Not counted, but 2 of the 3 other readers see a door here.",
+        "readers": {
+          "answer": "nothing",
+          "L one view": "door, score 0.55",
+          "M one view": "door, score 0.48",
+          "seg": "nothing"
+        }
+      }
+    ]
+  },
+  "level": {
+    "level": "medium",
+    "basis": "score",
+    "text": "Medium confidence: on our validation plans, 91% of the answers rated this way were exact (1084 of 1185). Please double-check it."
+  },
+  "resolved": {
+    "verdict": "picked",
+    "value": 2,
+    "reason": "Two door leaves are drawn at the places counted.",
+    "marks": [
+      {
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "label": "Counted as a door, but 2 of the 3 other readers see nothing here."
+      },
+      {
+        "page": 1,
+        "box": [
+          0.3,
+          0.85,
+          0.36,
+          0.9
+        ],
+        "label": "Not counted, but 2 of the 3 other readers see a door here."
+      }
+    ],
+    "by": "carbon:gemini-4-carbon",
+    "at": "2026-11-14T08:05:00Z",
+    "of": []
+  }
+}
+```
 
 ### `GET /api/projects/{project_id}/issues?pack=<pack id>`
 
@@ -3227,6 +4227,9 @@ Each issue:
   `unrelated_file` can be other than `open`.
 - `file` is the file as **this project** uploaded it. `file_id` is its `FileStatus.id` (`f3`). `drawing_id` is null
   for a file with no drawing.
+- `drawing_name`: the drawing's plain name as `GET /api/projects/{id}` `drawings[].name` gives it ("Drawn plan 2",
+  the same numbering; another rendering of a drawing has that drawing's name), null for a file with no drawing.
+  Show it to a person instead of `file`, which can be a dataset's file name.
 - `floor`: the storey, only where the source states it (an IFC storey: the plan's on the page, or the quantity
   key's); null otherwise, never guessed.
 - `page`, `box`, `polygon`, `mark_id`: where to open the drawing, in page fractions as on `MarkView`.
@@ -3242,6 +4245,18 @@ Each issue:
   the source refs, null where they don't apply.
 - `links`: API paths (not screen routes) to the drawing and its takeoff in this project, the file's trace, and for a
   code check the drawing's checks.
+- `label`: short legend text for the issue's mark: a conflict's quantity label ("Area of room (name Küche ·
+  1.01)"), else by kind: "No answer", "Set aside", "How it was read", "Fails a rule", "Double-check", "Not a floor
+  plan".
+- `suggestions`: short answers a person can pick (chips), by kind, with no model call; none only restates a
+  value (Tudor, board #14). A conflict: "Check it on site". A refused answer: "Not needed", "I'll send
+  a drawing that shows it". A set-aside file: "Not needed", "I'll send a readable copy". A reading flag: "The
+  reading is fine", "I'll send a better copy". A failed check: "Accepted as drawn", "To be fixed in the design".
+  `unrelated_file`: "It belongs to the project", "It does not belong here". Any text can be answered, not only
+  these.
+- `answer`: a person's answer, `{text, by, at}` (`POST …/issues/{id}/answer` below), or null. It is a note on the
+  issue: it settles nothing and does not change `state` (settle a conflict with `POST …/review`, make a call on a
+  file with `POST …/relevance`).
 
 A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
 
@@ -3257,6 +4272,7 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
       "severity": "fails_rule",
       "state": "open",
       "drawing_id": "5c4ed01e00000002",
+      "drawing_name": "Drawn plan 1",
       "file": "flat-fi.pdf",
       "file_id": "f1",
       "floor": null,
@@ -3286,7 +4302,7 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
         ]
       ],
       "mark_id": "m1",
-      "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building. (Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.)",
+      "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building. (Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.)",
       "quantity": "area:room|name=4.02",
       "question": null,
       "reason": null,
@@ -3296,7 +4312,13 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
         "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d53",
         "trace": "/api/projects/5e0c1a2b3d53/files/f1/trace",
         "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d53"
-      }
+      },
+      "label": "Fails a rule",
+      "suggestions": [
+        "Accepted as drawn",
+        "To be fixed in the design"
+      ],
+      "answer": null
     }
   ]
 }
@@ -3316,6 +4338,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "settled",
       "drawing_id": "44cc9f0d991eafe3",
+      "drawing_name": "Drawn plan 2",
       "file": "plans/flat-b.pdf",
       "file_id": "f3",
       "floor": null,
@@ -3355,7 +4378,12 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
         "checks": null
-      }
+      },
+      "label": "Area of room (name Küche · 1.01)",
+      "suggestions": [
+        "Check it on site"
+      ],
+      "answer": null
     },
     {
       "id": "reading_flag-b8584dc30c73",
@@ -3363,6 +4391,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "3b3ce7db34257f63",
+      "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
       "file_id": "f4",
       "floor": null,
@@ -3380,7 +4409,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
         "checks": null
-      }
+      },
+      "label": "How it was read",
+      "suggestions": [
+        "The reading is fine",
+        "I'll send a better copy"
+      ],
+      "answer": null
     },
     {
       "id": "refused_answer-3b5adbf71a63",
@@ -3388,6 +4423,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "3b3ce7db34257f63",
+      "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
       "file_id": "f4",
       "floor": null,
@@ -3405,7 +4441,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
         "checks": null
-      }
+      },
+      "label": "No answer",
+      "suggestions": [
+        "Not needed",
+        "I'll send a drawing that shows it"
+      ],
+      "answer": null
     },
     {
       "id": "reading_flag-2b11c57c0ff6",
@@ -3413,6 +4455,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "37f6819bd17d65d9",
+      "drawing_name": "Plan photo 1",
       "file": "photos/plan-photo.jpg",
       "file_id": "f6",
       "floor": null,
@@ -3430,7 +4473,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/37f6819bd17d65d9/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f6/trace",
         "checks": null
-      }
+      },
+      "label": "How it was read",
+      "suggestions": [
+        "The reading is fine",
+        "I'll send a better copy"
+      ],
+      "answer": null
     },
     {
       "id": "set_aside-02a5f0314890",
@@ -3438,6 +4487,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": null,
+      "drawing_name": null,
       "file": "photos/site.jpg",
       "file_id": "f7",
       "floor": null,
@@ -3445,17 +4495,23 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1)).",
+      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1)).",
       "quantity": null,
       "question": null,
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
       "check": null,
       "links": {
         "drawing": null,
         "takeoff": null,
         "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
         "checks": null
-      }
+      },
+      "label": "Set aside",
+      "suggestions": [
+        "Not needed",
+        "I'll send a readable copy"
+      ],
+      "answer": null
     },
     {
       "id": "set_aside-ac138023ff60",
@@ -3463,6 +4519,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": null,
+      "drawing_name": null,
       "file": "cad/detail.dxf",
       "file_id": "f9",
       "floor": null,
@@ -3480,7 +4537,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": null,
         "trace": "/api/projects/5e0c1a2b3d4f/files/f9/trace",
         "checks": null
-      }
+      },
+      "label": "Set aside",
+      "suggestions": [
+        "Not needed",
+        "I'll send a readable copy"
+      ],
+      "answer": null
     }
   ]
 }
@@ -3500,9 +4563,92 @@ The issues with the floor plans, saved as `<project name>-issues[-<pack>].zip`:
 - `issues.csv`: the CSV above with a first column `n`, the issue's number in the list.
 - One PNG per drawing page that has issues with a box, named `<file stem>-p<page>.png` (`-2`, `-3`… when two files
   share a stem). It is the page at 1600 px with each such issue drawn (its polygon, else its box), coloured by
-  severity and labelled with its `n`. Under the page are the issues' sentences, a colour key and the drawing's
+  severity and labelled with its `n`, under the line "`<drawing_name>`, page `<n>`: `<k>` issues". Under the page
+  are the issues' sentences, a colour key and the drawing's
   licence credit.
 - An issue with no page or no box is only in the CSV, and a page with no such issue has no PNG.
+
+#### `POST /api/projects/{project_id}/issues/{issue_id}/answer?pack=`
+
+A person's answer to an issue: `{text, by}` (`text` 1-500 characters, `by` as a sign-off's), or `{undo: true}` to
+take it back (nothing else; with no answer kept, nothing changes). A new answer replaces the one before. Returns
+the issue as the list gives it, with its `answer`. The answer is kept with the project (`<projects dir>/api/
+issue_answers/<project id>.json`), so it survives a reload and a restart, and keeps to the issue's `id`: an issue
+that leaves the list (a refused question answered later) takes its answer with it, and gets it back if it returns.
+
+- A failed code check's issue needs its `pack`, as the list does.
+- Errors: an unknown project, pack or issue is 404; a project that is not `done` is 409 `not-allowed`; a body with
+  no `text` or `by`, an empty one, or `undo` with either is 422 `validation`.
+- The project's `issues_to_answer` drops by one when an open issue that is not a note gets its first answer.
+
+<!-- fixture: issue_answer_request.json -->
+```json
+{
+  "text": "Check it on site",
+  "by": "Ana"
+}
+```
+
+<!-- fixture: issue_answered.json -->
+```json
+{
+  "id": "conflict-efcb1b52a852",
+  "kind": "conflict",
+  "severity": "note",
+  "state": "settled",
+  "drawing_id": "44cc9f0d991eafe3",
+  "drawing_name": "Drawn plan 2",
+  "file": "plans/flat-b.pdf",
+  "file_id": "f3",
+  "floor": null,
+  "page": 1,
+  "box": [
+    0.16667,
+    0.125,
+    0.5,
+    0.375
+  ],
+  "polygon": [
+    [
+      0.16667,
+      0.125
+    ],
+    [
+      0.16667,
+      0.375
+    ],
+    [
+      0.5,
+      0.375
+    ],
+    [
+      0.5,
+      0.125
+    ]
+  ],
+  "mark_id": "m1",
+  "why": "Area of room (name Küche · 1.01): checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale.",
+  "quantity": "area:room|name=1.01",
+  "question": null,
+  "reason": null,
+  "check": null,
+  "links": {
+    "drawing": "/api/drawings/44cc9f0d991eafe3?project=5e0c1a2b3d4f",
+    "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
+    "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
+    "checks": null
+  },
+  "label": "Area of room (name Küche · 1.01)",
+  "suggestions": [
+    "Check it on site"
+  ],
+  "answer": {
+    "text": "Check it on site",
+    "by": "Ana",
+    "at": "2026-11-14T08:05:00Z"
+  }
+}
+```
 
 ## Drawings
 
@@ -3822,7 +4968,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -3832,8 +4979,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
   Decisions' choice distribution for the answered count, on when the server runs with
   `DECISIONS_CONFIDENCE=true`), `score` (0 to 1) and `calibrated` (false: the score was not checked against
   right answers, so it is **not** a probability that the answer is right; a correct 4-bedroom answer scored
-  0.38). Don't show it as one: the proof and `evidence.png` leave it out. A "sure" badge comes later from
-  golden's gate thresholds. Only a drawing read on the raster route is scored (Decisions reads images). Null
+  0.38). Don't show it as one: the proof and `evidence.png` leave it out. What to show is `level` (below), which
+  is measured. Only a drawing read on the raster route is scored (Decisions reads images). Null
   when it is off, for other routes, when there is no score (the reason is in `explanation`), or on a
   refusal. `line.confidence` carries the same raw score, because the scorer's answer_v1.1 line has that
   field.
@@ -4087,7 +5234,8 @@ from a stand-in, not Gemini; `marks` trimmed to two):
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -4133,6 +5281,48 @@ So the screen never shows Sure next to a double-check request. The policy is fit
 `ROOM_POLICY=gold-labels`; under `furniture` (the demo) room counts are certified outside those conditions, except
 that a bedroom count including a bedroom with no printed label always asks (docs/GOLDEN.md, "The double-check
 policy").
+
+#### Confidence level: `level`
+
+With `CHECK_POLICY` set to a policy file that carries levels (decision 0011; `stoa_eval check-policy --medium`
+writes them), every answer the policy rates also carries `level`: `{level, basis, text}`. The backend computes it,
+so every client shows the same one: show `level` as the pill and `text` with it, and don't derive a level from
+`confidence.score`.
+
+- `level`: `high`, `medium` or `low`.
+  - `high`: the answer is certified. It is high exactly when `line.sure` is true and `check` is null, so a level
+    never contradicts the request. With `CARBON_LEVELS=ladder` (off by default) a Medium raster answer that Gemini
+    Carbon, read as a second reader, answered with the same value is high too (basis `carbon`): `check` is null,
+    but `line.sure` stays false, because Carbon never certifies an answer.
+  - `medium`: the answer asks for a double-check, and its score is at or above its family's Medium threshold: the
+    calibrated chance that it is wrong is at most the policy's cut (0.20).
+  - `low`: every other rated answer. It asks for a double-check too.
+- `basis`: what the level rests on.
+  - `certified`: the policy's certificate on a raster answer (high).
+  - `score`: the answer's score against its family's Medium threshold (medium or low). A family with no Medium
+    threshold, because its Medium answers were too few or too often wrong on validation, is low.
+  - `route`: the drawing's route, from its own reference answers. A certified route (vector PDF, IFC model) is
+    high; a value read from a printed schedule takes the `schedule` route's level.
+  - `page`: the page was flagged at upload (a phone photo, a scan). Low: levels are not measured on such pages.
+    Also a raster page on which the detector found no plan and no element: nothing on it is certified, and its
+    answers are low (`text` says so), because readers that all saw nothing agree on 0 without evidence.
+  - `held`: the value is held for a check whatever its score (two methods disagree, an estimate, edited and not
+    signed off, a bedroom with no printed label). Low; `check.reason` says why.
+  - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
+    route with no level). Low.
+  - `carbon` (`CARBON_LEVELS=demote` or `ladder`): Gemini Carbon read the raster sheet beside the reader. A Medium
+    answer it counted differently is low; with `ladder`, one it counted the same is high ("checked by Carbon: two
+    readers agree"). When Carbon could not check the sheet, the level stays as it was and `text` says so.
+- `text`: one plain sentence to show with the pill. For `certified` and `score` it quotes the validation counts of
+  that level from the policy file, e.g. `Medium confidence: on our validation plans, 91% of the answers rated this
+  way were exact (1084 of 1185). Please double-check it.`; for `route`, the route's reference counts.
+
+`level` is null on a refusal, on a value a person signed off or settled (it is theirs: show the sign-off and no
+level), when `CHECK_POLICY` is off, and with a policy file that has no `levels` block: an older file still
+certifies and asks, and gives no level instead of calling every answer low. `line` (answer_v1.1) is unchanged.
+What each level measured on validation, on golden v2 and on the test read is in
+[decision 0011](decisions/0011-confidence-levels.md). The three examples show `check` and `level` together: high,
+medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Medium threshold here).
 
 <!-- fixture: answer_certified.json -->
 ```json
@@ -4348,7 +5538,12 @@ policy").
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": {
+    "level": "high",
+    "basis": "certified",
+    "text": "High confidence: on our validation plans, 99% of the answers rated this way were exact (1501 of 1517)."
+  }
 }
 ```
 
@@ -4604,6 +5799,11 @@ policy").
         }
       }
     ]
+  },
+  "level": {
+    "level": "medium",
+    "basis": "score",
+    "text": "Medium confidence: on our validation plans, 91% of the answers rated this way were exact (1084 of 1185). Please double-check it."
   }
 }
 ```
@@ -4860,6 +6060,11 @@ policy").
         }
       }
     ]
+  },
+  "level": {
+    "level": "low",
+    "basis": "score",
+    "text": "Low confidence: on our validation plans, 58% of the answers rated this way were exact (397 of 680). Check it before you use it."
   }
 }
 ```
@@ -4884,10 +6089,16 @@ that call gives, the project's review edits applied. An unknown project is 404; 
   The total only adds the parts' `answer` values.
 - `total_sure`: true only when there is a total and every part in it is sure (`answer.line.sure`); false
   otherwise.
+- `total_level`: the lowest confidence level among the total's parts that have one (`answer.level.level`): `high`,
+  `medium` or `low`. Null with no total, or when no part has a level.
 - `total_note`: one plain sentence to show with the total, or instead of it: what was added over how many drawings,
   how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), or
   why there is no total, and which drawings gave no answer and why, e.g. `2 doors from 1 drawing.` or `3 drawings
   answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.`
+- `why_no_total` and `refused_note`: `total_note` in its two parts. `why_no_total`: why there is no total, as a
+  sentence (`3 drawings answered; they may show the same rooms, so the numbers are not added up.`, or `No drawing
+  answered it.`); null when there is a total. `refused_note`: the drawings that gave no answer and why (`2 drawings
+  have no reader for it.`); null when none refused.
 - The question is kept in the project's question list (`GET /api/projects/{id}/questions`) as one line per drawing
   that answered, with its own `answer` and `unit`, or one refused line per drawing when none answered; its lines
   share one `project_ask` id.
@@ -5103,7 +6314,8 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     },
     {
@@ -5308,7 +6520,8 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     },
     {
@@ -5391,14 +6604,18 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     }
   ],
   "total": null,
   "total_unit": null,
   "total_sure": false,
-  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
+  "total_level": null,
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+  "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+  "refused_note": "2 drawings have no reader for it."
 }
 ```
 
@@ -5712,7 +6929,8 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -5825,7 +7043,8 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -5912,7 +7131,8 @@ A question the drawing cannot answer:
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6025,7 +7245,33 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
       },
       "note": null,
       "derived": null,
-      "status": "conflict"
+      "status": "conflict",
+      "value_marks": [
+        [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "polygon_x_scale"
+          }
+        ],
+        [
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "printed_label"
+          }
+        ]
+      ]
     },
     "settled": null,
     "marks": [
@@ -6189,7 +7435,8 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "schedule": null,
     "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6287,7 +7534,33 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
       },
       "note": null,
       "derived": null,
-      "status": "conflict"
+      "status": "conflict",
+      "value_marks": [
+        [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "polygon_x_scale"
+          }
+        ],
+        [
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "printed_label"
+          }
+        ]
+      ]
     },
     "settled": null,
     "marks": [
@@ -6455,7 +7728,8 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "schedule": null,
     "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6594,7 +7868,1699 @@ rests on:
     },
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
+}
+```
+
+## Chat (decision 0013)
+
+The project chat as a tool-calling agent: it calls the pipeline tools (`list_drawings`, `ask_drawings`,
+`get_takeoff`, `list_conflicts`, `list_issues`, `run_checks`, `get_plan_geometry`) and the plan tools (`list_walls`,
+`propose_remove_wall`, `propose_room`), and ends each turn with an answer the server checked: every evidence id and
+every number in `text` came from a tool result of this turn, else the turn is `dont_know`. The model never writes
+coordinates: places are evidence ids the server resolves. `CHAT_MODEL` picks the model: `rules` (default, no key,
+deterministic), `gemini` (`AGENT_MODEL`, every call charged to the Gemini spend guard), `off` (503).
+`GET /api/info` `chat` says which, and whether a turn can run now.
+
+### `POST /api/projects/{project_id}/chat`
+
+Body: `chat_id` (12 hex, omit to start a chat), `message` (1-2,000 characters), `selection` (at most 8, optional):
+what the user pointed at, `{id: "sel_<n>", kind: "room" | "region", drawing_id, page, ref?, box?}` with `box` in
+page fractions. A sync call: a turn takes up to `AGENT_TURN_USD` dollars and 60 s.
+
+<!-- fixture: chat_request.json -->
+```json
+{
+  "message": "How many doors are there?"
+}
+```
+
+Response `ChatTurn`: `kind` is `answer`, `dont_know`, `conflict`, `needs_input` (which room or wall: 2-4
+`options`) or `edit` (with `edit`, the proposal). `options` may come with any kind (a `dont_know` carries the
+questions the drawings can answer): each is a chip whose `message` the client sends as the next message.
+`evidence[].name`, the step labels and the text use the drawing's plain name ("Drawn plan 1"). `evidence` lists
+only the places `text` cites, numbered in the order it cites them. `answers` (last) holds the `ask_drawings`
+results the answer rests on, each exactly a `POST /api/projects/{project_id}/ask` response: those whose places the
+text cites, or for a `dont_know` or `needs_input` citing none, those in which a drawing refused; `[]` otherwise. `text` cites sources as
+`[n]`, the `n` of an `evidence` item: a place on a page (`drawing_id`, `name`, `page`, `box` in page fractions,
+`label`, `sure`, and `level`, the confidence level of the `ask_drawings` answer it comes from, or null). `steps`
+lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
+`latency_s` are the turn's.
+
+<!-- fixture: chat_answer.json -->
+```json
+{
+  "chat_id": "c4a7c0000001",
+  "turn": 1,
+  "kind": "answer",
+  "text": "The drawings answer this below [1][2].",
+  "evidence": [
+    {
+      "n": 1,
+      "id": "ev_3",
+      "drawing_id": "adeefbbcc17559fc",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 2,
+      "id": "ev_9",
+      "drawing_id": "44cc9f0d991eafe3",
+      "name": "Drawn plan 2",
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    }
+  ],
+  "edit": null,
+  "options": null,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "ask_drawings",
+      "label": "Asked the drawings: How many doors are there?",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "answers": [
+    {
+      "question": "How many doors are there?",
+      "parts": [
+        {
+          "drawing_id": "adeefbbcc17559fc",
+          "name": "plans/flat-a.pdf",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "adeefbbcc17559fc",
+            "file": "plans/flat-a.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": 2,
+            "unit": "count",
+            "confidence": null,
+            "quantity": {
+              "key": "door",
+              "label": "door count",
+              "measure": "count",
+              "subject": "door",
+              "scope": {
+                "storey": null,
+                "label": null,
+                "name": null,
+                "apartment": null,
+                "indoor": false,
+                "model": false,
+                "largest": false
+              },
+              "value": 2,
+              "unit": "count",
+              "original_value": 2,
+              "status": "single",
+              "needs_person": false,
+              "rule": {
+                "id": "each-once",
+                "text": "every element, room and plan the drawing lists counts once"
+              },
+              "estimate": null,
+              "first": null,
+              "second": null,
+              "conflict": null,
+              "settled": null,
+              "marks": [
+                {
+                  "id": "m1",
+                  "n": 1,
+                  "page": 1,
+                  "box": [
+                    0.49333,
+                    0.225,
+                    0.50667,
+                    0.275
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e1",
+                  "reason": null,
+                  "room_type": null
+                },
+                {
+                  "id": "m2",
+                  "n": 2,
+                  "page": 1,
+                  "box": [
+                    0.66,
+                    0.225,
+                    0.67333,
+                    0.275
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e2",
+                  "reason": null,
+                  "room_type": null
+                }
+              ],
+              "signed": null,
+              "unlocated": {},
+              "noun": "doors"
+            },
+            "marks": [
+              {
+                "id": "m1",
+                "n": 1,
+                "page": 1,
+                "box": [
+                  0.49333,
+                  0.225,
+                  0.50667,
+                  0.275
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e1",
+                "reason": null,
+                "room_type": null
+              },
+              {
+                "id": "m2",
+                "n": 2,
+                "page": 1,
+                "box": [
+                  0.66,
+                  0.225,
+                  0.67333,
+                  0.275
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e2",
+                "reason": null,
+                "room_type": null
+              }
+            ],
+            "refusal": null,
+            "method": "takeoff",
+            "explanation": null,
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-a.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": 2,
+              "unit": "count",
+              "evidence": [
+                {
+                  "file": "plans/flat-a.pdf",
+                  "page": 1,
+                  "box": [
+                    0.49333,
+                    0.225,
+                    0.50667,
+                    0.275
+                  ]
+                },
+                {
+                  "file": "plans/flat-a.pdf",
+                  "page": 1,
+                  "box": [
+                    0.66,
+                    0.225,
+                    0.67333,
+                    0.275
+                  ]
+                }
+              ],
+              "method": "takeoff",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": null,
+              "explanation": null,
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "count",
+              "legend": [
+                {
+                  "label": "door",
+                  "colour": "#d62728",
+                  "count": 2,
+                  "unlocated": 0,
+                  "note": null
+                }
+              ],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "44cc9f0d991eafe3",
+          "name": "plans/flat-b.pdf",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "44cc9f0d991eafe3",
+            "file": "plans/flat-b.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": 2,
+            "unit": "count",
+            "confidence": null,
+            "quantity": {
+              "key": "door",
+              "label": "door count",
+              "measure": "count",
+              "subject": "door",
+              "scope": {
+                "storey": null,
+                "label": null,
+                "name": null,
+                "apartment": null,
+                "indoor": false,
+                "model": false,
+                "largest": false
+              },
+              "value": 2,
+              "unit": "count",
+              "original_value": 2,
+              "status": "single",
+              "needs_person": false,
+              "rule": {
+                "id": "each-once",
+                "text": "every element, room and plan the drawing lists counts once"
+              },
+              "estimate": null,
+              "first": null,
+              "second": null,
+              "conflict": null,
+              "settled": null,
+              "marks": [
+                {
+                  "id": "m1",
+                  "n": 1,
+                  "page": 1,
+                  "box": [
+                    0.49333,
+                    0.225,
+                    0.50667,
+                    0.275
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e1",
+                  "reason": null,
+                  "room_type": null
+                },
+                {
+                  "id": "m2",
+                  "n": 2,
+                  "page": 1,
+                  "box": [
+                    0.66,
+                    0.225,
+                    0.67333,
+                    0.275
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e2",
+                  "reason": null,
+                  "room_type": null
+                }
+              ],
+              "signed": null,
+              "unlocated": {},
+              "noun": "doors"
+            },
+            "marks": [
+              {
+                "id": "m1",
+                "n": 1,
+                "page": 1,
+                "box": [
+                  0.49333,
+                  0.225,
+                  0.50667,
+                  0.275
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e1",
+                "reason": null,
+                "room_type": null
+              },
+              {
+                "id": "m2",
+                "n": 2,
+                "page": 1,
+                "box": [
+                  0.66,
+                  0.225,
+                  0.67333,
+                  0.275
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e2",
+                "reason": null,
+                "room_type": null
+              }
+            ],
+            "refusal": null,
+            "method": "takeoff",
+            "explanation": null,
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-b.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": 2,
+              "unit": "count",
+              "evidence": [
+                {
+                  "file": "plans/flat-b.pdf",
+                  "page": 1,
+                  "box": [
+                    0.49333,
+                    0.225,
+                    0.50667,
+                    0.275
+                  ]
+                },
+                {
+                  "file": "plans/flat-b.pdf",
+                  "page": 1,
+                  "box": [
+                    0.66,
+                    0.225,
+                    0.67333,
+                    0.275
+                  ]
+                }
+              ],
+              "method": "takeoff",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": null,
+              "explanation": null,
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "count",
+              "legend": [
+                {
+                  "label": "door",
+                  "colour": "#d62728",
+                  "count": 2,
+                  "unlocated": 0,
+                  "note": null
+                }
+              ],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "1db9bcf1e67e27a3",
+          "name": "model/house.ifc",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "1db9bcf1e67e27a3",
+            "file": "model/house.ifc",
+            "pages": [],
+            "answer": 2,
+            "unit": "count",
+            "confidence": null,
+            "quantity": {
+              "key": "door",
+              "label": "door count",
+              "measure": "count",
+              "subject": "door",
+              "scope": {
+                "storey": null,
+                "label": null,
+                "name": null,
+                "apartment": null,
+                "indoor": false,
+                "model": false,
+                "largest": false
+              },
+              "value": 2,
+              "unit": "count",
+              "original_value": 2,
+              "status": "single",
+              "needs_person": false,
+              "rule": {
+                "id": "model-objects",
+                "text": "every object of the building model counts once, whether this sheet draws it or not"
+              },
+              "estimate": null,
+              "first": null,
+              "second": null,
+              "conflict": null,
+              "settled": null,
+              "marks": [],
+              "signed": null,
+              "unlocated": {},
+              "noun": "doors"
+            },
+            "marks": [],
+            "refusal": null,
+            "method": "takeoff",
+            "explanation": null,
+            "reader": {
+              "route": "bim",
+              "source": "model/house.ifc",
+              "extractor": "ifc",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": 2,
+              "unit": "count",
+              "evidence": [],
+              "method": "takeoff",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": null,
+              "explanation": null,
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "model",
+              "legend": [],
+              "arithmetic": "2 door objects in the model",
+              "objects": [
+                {
+                  "id": "m1",
+                  "class": "door",
+                  "name": "Door 1",
+                  "storey": "Ground floor",
+                  "global_id": "000000000000000000000K"
+                },
+                {
+                  "id": "m2",
+                  "class": "door",
+                  "name": "Door 2",
+                  "storey": "Ground floor",
+                  "global_id": "000000000000000000000M"
+                }
+              ],
+              "storeys": [
+                {
+                  "storey": "Ground floor",
+                  "counts": {
+                    "door": 2,
+                    "slab": 1,
+                    "space": 2,
+                    "wall": 4,
+                    "window": 3
+                  }
+                }
+              ],
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "3b3ce7db34257f63",
+          "name": "scans/ground-floor.png",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "3b3ce7db34257f63",
+            "file": "scans/ground-floor.png",
+            "pages": [
+              {
+                "page": 1,
+                "width": 1200.0,
+                "height": 850.0,
+                "unit": "px",
+                "url": "/api/drawings/3b3ce7db34257f63/pages/1.png",
+                "normalised": {
+                  "exif": null,
+                  "rotated": 0,
+                  "deskew_deg": 0.0,
+                  "rectified": false,
+                  "quad": null,
+                  "width": 1200,
+                  "height": 850,
+                  "rectifier": null
+                },
+                "scale": {
+                  "status": "no_scale",
+                  "text": null,
+                  "ratio": null,
+                  "source": null
+                },
+                "scale_text": null,
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "no-reader",
+              "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+              "can_answer": []
+            },
+            "method": "refused:not-in-drawing",
+            "explanation": "the drawing model does not give door",
+            "reader": {
+              "route": "raster",
+              "source": "scans/ground-floor.png",
+              "extractor": "hello",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:not-in-drawing",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "the drawing model does not give door",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "37f6819bd17d65d9",
+          "name": "photos/plan-photo.jpg",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "37f6819bd17d65d9",
+            "file": "photos/plan-photo.jpg",
+            "pages": [
+              {
+                "page": 1,
+                "width": 1600.0,
+                "height": 1200.0,
+                "unit": "px",
+                "url": "/api/drawings/37f6819bd17d65d9/pages/1.png",
+                "normalised": {
+                  "exif": null,
+                  "rotated": 0,
+                  "deskew_deg": 0.0,
+                  "rectified": false,
+                  "quad": null,
+                  "width": 1600,
+                  "height": 1200,
+                  "rectifier": null
+                },
+                "scale": {
+                  "status": "no_scale",
+                  "text": null,
+                  "ratio": null,
+                  "source": null
+                },
+                "scale_text": null,
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "no-reader",
+              "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+              "can_answer": []
+            },
+            "method": "refused:not-in-drawing",
+            "explanation": "the drawing model does not give door",
+            "reader": {
+              "route": "raster",
+              "source": "photos/plan-photo.jpg",
+              "extractor": "hello",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:not-in-drawing",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "the drawing model does not give door",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        }
+      ],
+      "total": null,
+      "total_unit": null,
+      "total_sure": false,
+      "total_level": null,
+      "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+      "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+      "refused_note": "2 drawings have no reader for it."
+    }
+  ]
+}
+```
+
+Something no tool can answer is `dont_know` with the reason; a cap (8 steps, `AGENT_TURN_USD`, 60 s, the Gemini
+budget, the same call a third time) ends a turn the same way.
+
+<!-- fixture: chat_dont_know.json -->
+```json
+{
+  "chat_id": "c4a7c0000001",
+  "turn": 2,
+  "kind": "dont_know",
+  "text": "This question isn't one I can turn into a count, area, length or volume.",
+  "evidence": [],
+  "edit": null,
+  "options": [
+    {
+      "label": "area of room (indoor)",
+      "message": "What is the net floor area of all indoor rooms in m²?"
+    },
+    {
+      "label": "door count",
+      "message": "How many doors are there?"
+    },
+    {
+      "label": "window count",
+      "message": "How many windows are there?"
+    },
+    {
+      "label": "toilet count",
+      "message": "How many toilets are there?"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "tool": "ask_drawings",
+      "label": "Asked the drawings: What is the fire rating of the doors?",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "answers": [
+    {
+      "question": "What is the fire rating of the doors?",
+      "parts": [
+        {
+          "drawing_id": "adeefbbcc17559fc",
+          "name": "plans/flat-a.pdf",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "adeefbbcc17559fc",
+            "file": "plans/flat-a.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": [
+                {
+                  "quantity": "area:room|indoor",
+                  "label": "area of room (indoor)",
+                  "question": "What is the net floor area of all indoor rooms in m²?"
+                },
+                {
+                  "quantity": "door",
+                  "label": "door count",
+                  "question": "How many doors are there?"
+                },
+                {
+                  "quantity": "window",
+                  "label": "window count",
+                  "question": "How many windows are there?"
+                },
+                {
+                  "quantity": "toilet",
+                  "label": "toilet count",
+                  "question": "How many toilets are there?"
+                },
+                {
+                  "quantity": "sink",
+                  "label": "sink count",
+                  "question": "How many sinks are there?"
+                },
+                {
+                  "quantity": "bathtub",
+                  "label": "bathtub count",
+                  "question": "How many bathtubs are there?"
+                }
+              ]
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-a.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "44cc9f0d991eafe3",
+          "name": "plans/flat-b.pdf",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "44cc9f0d991eafe3",
+            "file": "plans/flat-b.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": [
+                {
+                  "quantity": "area:room|indoor",
+                  "label": "area of room (indoor)",
+                  "question": "What is the net floor area of all indoor rooms in m²?"
+                },
+                {
+                  "quantity": "door",
+                  "label": "door count",
+                  "question": "How many doors are there?"
+                },
+                {
+                  "quantity": "window",
+                  "label": "window count",
+                  "question": "How many windows are there?"
+                },
+                {
+                  "quantity": "toilet",
+                  "label": "toilet count",
+                  "question": "How many toilets are there?"
+                },
+                {
+                  "quantity": "sink",
+                  "label": "sink count",
+                  "question": "How many sinks are there?"
+                },
+                {
+                  "quantity": "bathtub",
+                  "label": "bathtub count",
+                  "question": "How many bathtubs are there?"
+                }
+              ]
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-b.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "3b3ce7db34257f63",
+          "name": "scans/ground-floor.png",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "3b3ce7db34257f63",
+            "file": "scans/ground-floor.png",
+            "pages": [
+              {
+                "page": 1,
+                "width": 1200.0,
+                "height": 850.0,
+                "unit": "px",
+                "url": "/api/drawings/3b3ce7db34257f63/pages/1.png",
+                "normalised": {
+                  "exif": null,
+                  "rotated": 0,
+                  "deskew_deg": 0.0,
+                  "rectified": false,
+                  "quad": null,
+                  "width": 1200,
+                  "height": 850,
+                  "rectifier": null
+                },
+                "scale": {
+                  "status": "no_scale",
+                  "text": null,
+                  "ratio": null,
+                  "source": null
+                },
+                "scale_text": null,
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": []
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "raster",
+              "source": "scans/ground-floor.png",
+              "extractor": "hello",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "37f6819bd17d65d9",
+          "name": "photos/plan-photo.jpg",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "37f6819bd17d65d9",
+            "file": "photos/plan-photo.jpg",
+            "pages": [
+              {
+                "page": 1,
+                "width": 1600.0,
+                "height": 1200.0,
+                "unit": "px",
+                "url": "/api/drawings/37f6819bd17d65d9/pages/1.png",
+                "normalised": {
+                  "exif": null,
+                  "rotated": 0,
+                  "deskew_deg": 0.0,
+                  "rectified": false,
+                  "quad": null,
+                  "width": 1600,
+                  "height": 1200,
+                  "rectifier": null
+                },
+                "scale": {
+                  "status": "no_scale",
+                  "text": null,
+                  "ratio": null,
+                  "source": null
+                },
+                "scale_text": null,
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": []
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "raster",
+              "source": "photos/plan-photo.jpg",
+              "extractor": "hello",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        },
+        {
+          "drawing_id": "1db9bcf1e67e27a3",
+          "name": "model/house.ifc",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "1db9bcf1e67e27a3",
+            "file": "model/house.ifc",
+            "pages": [],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": [
+                {
+                  "quantity": "area:room|indoor",
+                  "label": "area of room (indoor)",
+                  "question": "What is the net floor area of all indoor rooms in m²?"
+                },
+                {
+                  "quantity": "door|model",
+                  "label": "door count (model)",
+                  "question": "How many doors are there in the building model?"
+                },
+                {
+                  "quantity": "door",
+                  "label": "door count",
+                  "question": "How many doors are there?"
+                },
+                {
+                  "quantity": "window|model",
+                  "label": "window count (model)",
+                  "question": "How many windows are there in the building model?"
+                },
+                {
+                  "quantity": "window",
+                  "label": "window count",
+                  "question": "How many windows are there?"
+                },
+                {
+                  "quantity": "wall|model",
+                  "label": "wall count (model)",
+                  "question": "How many walls are there in the building model?"
+                }
+              ]
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "bim",
+              "source": "model/house.ifc",
+              "extractor": "ifc",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          }
+        }
+      ],
+      "total": null,
+      "total_unit": null,
+      "total_sure": false,
+      "total_level": null,
+      "total_note": "No drawing answered it: 5 drawings can't answer this question.",
+      "why_no_total": "No drawing answered it.",
+      "refused_note": "5 drawings can't answer this question."
+    }
+  ]
+}
+```
+
+A plan edit is a proposal computed from the drawn geometry (decision 0013 §4): `removed` and `added` geometry and
+each changed room's `polygon` in page fractions, `area_before_m2` → `area_after_m2`, `unknowns` (whether a wall
+carries load) and `flags`. No drawing is changed. A plan whose walls are not drawn as geometry (a scan, a sheet
+without wall fills) gets `dont_know` saying so.
+
+<!-- fixture: chat_edit.json -->
+```json
+{
+  "chat_id": "c4a7c0000002",
+  "turn": 1,
+  "kind": "edit",
+  "text": "Proposed: Bagno 1.01 + Stanza 1.02: 20.66 → 21.02 m². Removed: Wall W1, 2.5 m, 0.1 m thick; door, no longer needed. Whether wall W1 is load-bearing: this drawing does not say.",
+  "evidence": [
+    {
+      "n": 1,
+      "id": "ev_1",
+      "drawing_id": "5c4ed01e00000003",
+      "name": "Drawn plan 1",
+      "page": 1,
+      "box": [
+        0.2999,
+        0.25,
+        0.32257,
+        0.4626
+      ],
+      "label": "W1",
+      "sure": null,
+      "level": null
+    }
+  ],
+  "edit": {
+    "proposal_id": "p1",
+    "drawing_id": "5c4ed01e00000003",
+    "page": 1,
+    "state": "proposed",
+    "removed": [
+      {
+        "id": "W1",
+        "polygon": [
+          [
+            0.3084,
+            0.25
+          ],
+          [
+            0.3084,
+            0.32087
+          ],
+          [
+            0.3084,
+            0.39173
+          ],
+          [
+            0.3084,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.39173
+          ],
+          [
+            0.31407,
+            0.32087
+          ],
+          [
+            0.31407,
+            0.25
+          ]
+        ],
+        "label": "Wall W1, 2.5 m, 0.1 m thick"
+      },
+      {
+        "id": "e1",
+        "polygon": [
+          [
+            0.3174,
+            0.32087
+          ],
+          [
+            0.3174,
+            0.39173
+          ],
+          [
+            0.30507,
+            0.39173
+          ],
+          [
+            0.30507,
+            0.32087
+          ]
+        ],
+        "label": "door, no longer needed"
+      }
+    ],
+    "added": [],
+    "rooms": [
+      {
+        "id": "r1+r2",
+        "label": "Bagno 1.01 + Stanza 1.02",
+        "polygon": [
+          [
+            0.16667,
+            0.25
+          ],
+          [
+            0.16667,
+            0.25002
+          ],
+          [
+            0.16667,
+            0.46258
+          ],
+          [
+            0.16667,
+            0.4626
+          ],
+          [
+            0.16668,
+            0.4626
+          ],
+          [
+            0.49774,
+            0.4626
+          ],
+          [
+            0.49775,
+            0.4626
+          ],
+          [
+            0.49775,
+            0.46258
+          ],
+          [
+            0.49775,
+            0.25002
+          ],
+          [
+            0.49775,
+            0.25
+          ],
+          [
+            0.49774,
+            0.25
+          ],
+          [
+            0.16668,
+            0.25
+          ]
+        ],
+        "area_before_m2": 20.66,
+        "area_after_m2": 21.02,
+        "was": [
+          "r1",
+          "r2"
+        ]
+      }
+    ],
+    "unknowns": [
+      "Whether wall W1 is load-bearing: this drawing does not say."
+    ],
+    "flags": [
+      {
+        "code": "structural",
+        "text": "Before removing a wall, a structural engineer has to confirm it does not carry load."
+      },
+      {
+        "code": "wet_room",
+        "text": "A wet room changes: its waterproofing is redone and inspected."
+      }
+    ],
+    "law": null
+  },
+  "options": null,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "list_drawings",
+      "label": "Listed the project's drawings",
+      "status": "ok",
+      "ms": 12.5
+    },
+    {
+      "n": 2,
+      "tool": "list_walls",
+      "label": "Listed the walls of Drawn plan 1, page 1",
+      "status": "ok",
+      "ms": 12.5
+    },
+    {
+      "n": 3,
+      "tool": "propose_remove_wall",
+      "label": "Proposed removing wall W1",
+      "status": "ok",
+      "ms": 12.5
+    }
+  ],
+  "model": "rules",
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "answers": []
+}
+```
+
+Errors: 404 unknown project or chat, 409 project not done or a turn of this chat still running, 422 a bad body,
+503 `CHAT_MODEL=off`.
+
+### `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`
+
+Body `{"action": "accept" | "reject"}`. Returns the proposal with its new `state` (`accepted` or `rejected`); 404 an
+unknown chat or proposal, 409 a proposal already decided. Accepting records the person's call; the drawing file is
+unchanged.
+
+<!-- fixture: chat_proposal_accepted.json -->
+```json
+{
+  "proposal_id": "p1",
+  "drawing_id": "5c4ed01e00000003",
+  "page": 1,
+  "state": "accepted",
+  "removed": [
+    {
+      "id": "W1",
+      "polygon": [
+        [
+          0.3084,
+          0.25
+        ],
+        [
+          0.3084,
+          0.32087
+        ],
+        [
+          0.3084,
+          0.39173
+        ],
+        [
+          0.3084,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.39173
+        ],
+        [
+          0.31407,
+          0.32087
+        ],
+        [
+          0.31407,
+          0.25
+        ]
+      ],
+      "label": "Wall W1, 2.5 m, 0.1 m thick"
+    },
+    {
+      "id": "e1",
+      "polygon": [
+        [
+          0.3174,
+          0.32087
+        ],
+        [
+          0.3174,
+          0.39173
+        ],
+        [
+          0.30507,
+          0.39173
+        ],
+        [
+          0.30507,
+          0.32087
+        ]
+      ],
+      "label": "door, no longer needed"
+    }
+  ],
+  "added": [],
+  "rooms": [
+    {
+      "id": "r1+r2",
+      "label": "Bagno 1.01 + Stanza 1.02",
+      "polygon": [
+        [
+          0.16667,
+          0.25
+        ],
+        [
+          0.16667,
+          0.25002
+        ],
+        [
+          0.16667,
+          0.46258
+        ],
+        [
+          0.16667,
+          0.4626
+        ],
+        [
+          0.16668,
+          0.4626
+        ],
+        [
+          0.49774,
+          0.4626
+        ],
+        [
+          0.49775,
+          0.4626
+        ],
+        [
+          0.49775,
+          0.46258
+        ],
+        [
+          0.49775,
+          0.25002
+        ],
+        [
+          0.49775,
+          0.25
+        ],
+        [
+          0.49774,
+          0.25
+        ],
+        [
+          0.16668,
+          0.25
+        ]
+      ],
+      "area_before_m2": 20.66,
+      "area_after_m2": 21.02,
+      "was": [
+        "r1",
+        "r2"
+      ]
+    }
+  ],
+  "unknowns": [
+    "Whether wall W1 is load-bearing: this drawing does not say."
+  ],
+  "flags": [
+    {
+      "code": "structural",
+      "text": "Before removing a wall, a structural engineer has to confirm it does not carry load."
+    },
+    {
+      "code": "wet_room",
+      "text": "A wet room changes: its waterproofing is redone and inspected."
+    }
+  ],
+  "law": null
 }
 ```
 
@@ -6678,7 +9644,33 @@ any project, which no project shows. A project that does not hold the drawing is
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "marks": [
@@ -6920,7 +9912,8 @@ any project, which no project shows. A project that does not hold the drawing is
   or a scan, with the flag in `estimate`), `edited` (a review changed it), `agree` (two methods agree), `single`
   (one method).
 - `needs_person`: the methods disagree, no rule decides and nobody settled it. Such a row can't be signed off.
-- `settled`: the value a surveyor chose with `settle`, and when.
+- `settled`: the value a surveyor chose with `settle`, and when; `note`: their answer in words when they typed one
+  (else null).
 - `marks`: one per counted item (count) or per room in the sum (area), in the order the screen numbers them.
   - `n`: the number to draw, null for a mark that is not counted.
   - `state`: `counted`, `rejected` (by a surveyor), `added` (by a surveyor), `excluded` (left out by the counting
@@ -6996,7 +9989,10 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
   it. `restore` on an `excluded` mark (`x1`…) counts it in; `reject` on it leaves it out again.
 - `add`: a missed item, on a count only. The new mark gets an id `a1`, `a2`…
 - `settle`: the value to keep (one of the conflict's values, or any value the surveyor counted). It holds until
-  the next mark edit of that quantity.
+  the next mark edit of that quantity. Optional `note` (1-280 characters): the person's answer in words, kept in
+  `settled.note` (the conflict card's typed answer). With `note` and no `value`, the value in use is kept with the
+  note and the quantity counts as settled; the screen sends `value` too when the typed answer has a number.
+  `unsettle` drops the note with the value.
 - `unsettle`: drop the settled value of the quantity and nothing else: mark edits and the rest of the drawing stay
   (`reset` also drops them and the sign-off). Needs `quantity`; nothing settled is not an error; a signed-off
   quantity is 409 as for any edit.
@@ -7162,7 +10158,8 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
       "conflict": null,
       "settled": {
         "value": 3,
-        "at": "2026-11-14T08:05:00Z"
+        "at": "2026-11-14T08:05:00Z",
+        "note": null
       },
       "marks": [
         {
@@ -7271,7 +10268,33 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "marks": [
@@ -7365,10 +10388,10 @@ ingest read it; review edits don't change it.
       "status": "fail",
       "why": "Of 3 checked: 1 fail, 2 pass.",
       "clause": {
-        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
-        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-        "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
-        "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+        "quote": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+        "quote_en": "The room area of a residential or accommodation room and of a work space must, however, always be at least 7 square metres."
       },
       "results": [
         {
@@ -7481,10 +10504,10 @@ ingest read it; review edits don't change it.
       "status": "fail",
       "why": "Of 3 checked: 1 fail, 2 pass.",
       "clause": {
-        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 5 § 1 mom. (as amended by 127/2018)",
-        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-        "quote": "Asuin- ja, majoitustilan ikkunan valoaukon on oltava vähintään 1/10 huonealasta.",
-        "quote_en": "The light opening of the window of a residential or accommodation space must be at least 1/10 of the room area."
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 5 § 1 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+        "quote": "Asuin- ja majoitushuoneen ikkunan valoaukon on oltava vähintään 1/10 huonealasta.",
+        "quote_en": "The light opening of the window of a residential or accommodation room must be at least 1/10 of the room area."
       },
       "results": [
         {
@@ -7738,10 +10761,10 @@ ingest read it; review edits don't change it.
           "status": "fail",
           "why": "Of 3 checked: 1 fail, 2 pass.",
           "clause": {
-            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
-            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
-            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+            "quote": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential or accommodation room and of a work space must, however, always be at least 7 square metres."
           },
           "results": [
             {
@@ -7808,6 +10831,81 @@ Every drawing of the project (in `GET /api/projects/{id}` `drawings` order), eac
 project is `done` (a drawing's own checks answer as soon as that drawing exists); 404 `unknown-pack` for an
 unknown pack, `not-found` for an unknown project.
 
+## Building law
+
+The law knowledge base the AI searches instead of carrying the laws in its prompt (decision
+[0014](decisions/0014-law-knowledge-base.md)): one file per law in `backend/app/laws/<pack>/`, one clause per
+subsection, `text` verbatim from the official source and `text_en` our unofficial translation. Packs are `fi` and
+`ch-zh` (Swiss federal law and the Canton of Zürich), the rule packs' ids. The examples are the test laws of
+`backend/tests/fixtures/laws/` (made up).
+
+### `GET /api/laws`
+
+Both packs, always; `laws: []` while a pack has none. `topics`: the topics its clauses use, in the closed list's
+order.
+
+```json
+{
+  "packs": [
+    {
+      "id": "fi",
+      "laws": [
+        {"law_id": "fi-test-1", "number": "1/2026", "title_en": "Test decree on residential spaces",
+         "clauses": 2, "topics": ["rooms", "fire", "escape-routes"]}
+      ]
+    },
+    {"id": "ch-zh", "laws": [...]}
+  ]
+}
+```
+
+### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
+
+`q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored; words of 1-2 letters, a few English stopwords
+("when", "do", "need", ...) and words past the 20th are ignored, so a query of only those has no hits. Clauses with
+every word come first, then clauses with any word fill `limit`, each group by score; old wording (an id with
+`-anhang-`) comes after every current clause. `topic` one of `rooms accessibility fire
+escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
+distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
+-BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.
+
+```json
+{
+  "pack": "fi",
+  "query": "minimum bedroom area",
+  "hits": [
+    {"id": "fi-test-1-4-2", "law_id": "fi-test-1", "ref": "4 § 2 mom.",
+     "title_en": "Test decree on residential spaces",
+     "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+     "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "score": 2.745}
+  ]
+}
+```
+
+### `GET /api/laws/clauses/{clause_id}`
+
+The clause as its file has it, plus its law's `law_id`, `law_number`, `law_title`, `law_title_en`, `url`,
+`language` (of `text`), `checked` and `status_note`. `text_en` is null only for a law in English; show it as an
+unofficial translation. An unknown id is 404 `not-found`.
+
+```json
+{
+  "id": "fi-test-1-4-2", "ref": "4 § 2 mom.", "heading": "Huoneala", "heading_en": "Room area",
+  "text": "Asuintilan huonealan on oltava vähintään 7 neliömetriä.",
+  "text_en": "The room area of a residential space must be at least 7 square metres.",
+  "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+  "keywords": ["room area", "minimum area", "bedroom", "huoneala", "makuuhuone"],
+  "topics": ["rooms"],
+  "limits": [{"what": "habitable room area", "comparison": ">=", "value": 7.0, "unit": "m2"}],
+  "drawing_checkable": true,
+  "law_id": "fi-test-1", "law_number": "1/2026", "law_title": "Testiasetus asuintiloista",
+  "law_title_en": "Test decree on residential spaces",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "language": "fi", "checked": "2026-11-14",
+  "status_note": "A made-up test law: its clauses point nowhere real."
+}
+```
+
 ## What is not in v1
 
 - Contested marks: a conflict is shown per quantity, with both values and, where the method has one, the `box` it
@@ -7821,6 +10919,89 @@ unknown pack, `not-found` for an unknown project.
 - 2026-11-14, additive (board #203): new `POST /api/projects/{project_id}/files?name=`, a png or jpeg added to a
   done project and read alone in the background; 202 `FileStatus`. New error 415 `unsupported`. New fixture
   `file_added.json`.
+- 2026-11-14, additive (decision 0013, agent chat): `POST /api/projects/{project_id}/chat` and
+  `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`; `GET /api/info` gains `chat`
+  (`model`, `available`, `reason`; last). Settings `CHAT_MODEL`, `AGENT_MODEL`, `AGENT_BASE_URL`,
+  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_TURN_USD`, `AGENT_MAX_STEPS`. Fixtures `chat_request`,
+  `chat_answer`, `chat_dont_know`, `chat_edit`, `chat_proposal_accepted`.
+- 2026-11-14, additive (decision 0013): `ChatTurn.answers` (last), the `ProjectAnswer`s a turn rests on;
+  `ChatTurn.evidence` lists only the cited places; `options` may come with any kind.
+- 2026-11-14, behaviour (brief r8 BQ, Bogdan "make them high"): `CARBON_LEVELS=ladder`. As `demote`, and a Medium
+  raster answer Gemini Carbon counted the same gets `level` high with basis `carbon` and no `check`; `line.sure`
+  stays false. Off and `demote` are unchanged. No shape change.
+- 2026-11-14, additive (decision 0012 Amendment 1, contract v1.3): text documents and unread files in the
+  evidence index: `how` `text` and `listed`, the part `text` (ids `f7-text-12`; a hit's `page` is the passage's
+  page), the kinds `text_document`, `text_file`, `text_pages`, `not_read` and the listed probe kinds, and `FileStatus.evidence.text_pages`
+  and `text_chars` filled.
+- 2026-11-14, additive (decision 0012 Amendment 1, contract v1.3): `FileStatus.evidence` (left out unless
+  `EVIDENCE_SCOPE=all_non_plan`); evidence hits and details gain `how` (`described`, later `text` and `listed`),
+  and a hit's `kind` may be a sheet kind. The empty-index `note` names `EVIDENCE_SCOPE`.
+- 2026-11-14, additive (RESOLVER): `POST /api/projects/{project_id}/resolve`;
+  `resolved` on takeoff rows, conflicts (`ConflictEntry`) and answers (`AnswerView`, with `resolver_note` when the
+  model gave no reply), each absent while `RESOLVER` is off. No enum value changes. An answer's `resolved`
+  sits beside its value: `answer`, `check`, `line.sure` and `level` are unchanged (a model's check is never
+  certified); its `cost_usd` includes the resolver's call. Also `conflicts_picked` on `GET /api/projects` and
+  `GET /api/projects/{id}`, and `resolved` on issues (`Issue`). `RESOLVER=carbon` resolves an upload on its own
+  once ingest is done.
+- 2026-11-14, behaviour: `TRIAGE_DESCRIBER=carbon` describes with gemini-4-carbon at thinking low (rag's
+  pilot), the same describe-6 prompt and form; `Description.model` is then `gemini-4-carbon-low, describe-6`
+  and `cost_usd` is at Carbon's 4 / 20 USD per M tokens. A PDF pdfium cannot open is described as
+  unavailable with pdfium's reason (it raised before). No shape change.
+- 2026-11-14, additive (decision 0014): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
+  `GET /api/laws/clauses/{clause_id}`, the building-law knowledge base. An unknown pack is 404 `unknown-pack`.
+- 2026-11-14, additive (decision 0012): `GET /api/projects/{id}/evidence/search?q=&k=&include_unrelated=` and
+  `GET /api/projects/{id}/evidence/{evidence_id}`, the project's evidence index (described non-plan files; BM25 +
+  a local multilingual embedder). New fixtures `evidence_search`, `evidence_detail`.
+- 2026-11-14, content (board #220): the `fi` pack cites YMa 631/2024 (in force 2025-01-01, under the Building
+  Act 751/2023), which replaced 1008/2017: the 7 m2 rule is 4 § 2 mom. and the window rule 5 § 1 mom., each with
+  the decree's own sentence and its Finlex link; the limits are unchanged. Fixtures `info`, `checks`,
+  `project_checks` and `project_issues_checks` show the new citation. No shape change.
+- 2026-11-14, behaviour (safety rule, orchestrator): on the raster route, an answer on a drawing where the
+  detector found no plan and no located element is never certified (`sure` false, `check` set) and its `level`
+  is low with basis `page`. No shape change.
+- 2026-11-14, behaviour: the Gemini describer's prompt is `describe-6` (`Description.model` ends
+  `describe-6`): a home address is written without its house number and postal code in every field
+  (decision 0010); `describe-5` kept a house's street address on all 8 of its sheets that print one. No
+  shape change. Replies cached under `describe-5` are not reused: each described file is asked again once.
+- 2026-11-14, additive (decision 0011, Bogdan: "the confidence levels should be high medium low"): `level` on
+  `POST /api/ask`'s answer: `{level: high|medium|low, basis, text}` or null, computed by the backend from the
+  check policy; high exactly when the answer is certified (`check` null). `total_level` on the project ask: the
+  lowest level among the total's parts. `CHECK_POLICY`'s file may carry `medium` per family, `level` and `dev` per
+  route and a `levels` block; a file without them loads as before and gives `level` null. Every answer fixture
+  gains `level`; `answer_certified`, `answer_double_check` and `answer_double_check_rooms` show high, medium and
+  low. `line` (answer_v1.1) is unchanged.
+- 2026-11-14, additive (QA R9 area 4, `tools/smoke.py`): `GET /api/info` gains `commit`, the git commit the backend
+  was started from (setting `APP_COMMIT`, which `tools/qa-env.sh` sets to the exported commit), or null when
+  unset. Fixture `info.json` gains it (last).
+- 2026-11-14, behaviour: `GET /api/info` `no_keys` is false also when a keyed source is in
+  `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`, or when `TRIAGE_DESCRIBER=gemini` runs (a triage
+  classifier on); it said true for these. No shape change.
+- 2026-11-14, additive (board #14, plain drawing names): `Issue.drawing_name`, the drawing's `name` from
+  `GET /api/projects/{id}` (null with no drawing). The pages of `issues.zip` name the drawing by it instead of its
+  file. `file` is unchanged.
+- 2026-11-14, additive (board #14, Tudor's conflict card asks 8-10): `Edit.note` on `settle` (1-280 characters, a
+  typed answer in words; without `value` the value in use is kept) and `Settled.note` (null when none); a `note`
+  on another action, empty or too long is 422 `validation`. `settle` with neither `value` nor `note` stays 422
+  `invalid`. `ConflictEntry` (`GET /api/projects/{id}/review`) gains `title`, `why` and `suggestions`. Fixtures
+  `project_review.json` and `takeoff_edited.json` gain the new fields (last in each object).
+- 2026-11-14, additive (board #14, Tudor's asks 1, 3, 4): new `POST /api/projects/{id}/issues/{issue_id}/answer`
+  (`{text, by}` or `{undo: true}`), kept with the project. `Issue` gains `answer` (`{text, by, at}` or null),
+  `suggestions` (answer chips by kind) and `label` (short legend text). `GET /api/projects/{id}` gains
+  `conflicts_open`, `issues_open` and `issues_to_answer`, the same numbers as `GET /api/projects`, which gains
+  `issues_to_answer` (open issues that are not notes and have no answer). An answer does not change an issue's
+  `state`. New fixtures `issue_answer_request`, `issue_answered`.
+- 2026-11-14, additive (board #14 item 6): each entry of `GET /api/projects/{id}`'s `drawings` gains `name` (a
+  plain name from its kind, number and page, never the file name) and `credit` (its licence credit, as on
+  `GET /api/drawings/{id}`, or null). Fixtures `project.json` and `project_triaged.json` show both.
+- 2026-11-14, additive (board #14, Tudor's asks 2, 5 and 11): `value_marks` on every conflict and agreement of a
+  quantity (`QuantityConflict`, in the takeoff, the review's conflicts and an answer): `value_marks[i]` lists
+  `{page, box, label}` for each item of `values[i]`, so a legend can outline them. A count of an element class or
+  of rooms lists what each method counted: the elements or rooms the plan draws, and the objects of the building
+  model that the sheet draws (a model object the sheet does not draw has no position, so a list can be shorter
+  than the count). Any other value with a `page` and `box` (a room area, a scale, a schedule's count) is one mark,
+  labelled with its method. `[]` when no value has a position. `ProjectAnswer.why_no_total` and `refused_note`:
+  the parts of `total_note` (why there is no total; which drawings refused and why). Fixtures `answer_conflict`,
+  `answer_signed`, `project_ask`, `project_review`, `takeoff`, `takeoff_edited` gain the fields.
 - 2026-11-14, additive (decision 0010 section 8, board #152, PR #183): `Triage.register` (the sheet register:
   kind, has_floor_plan, photo_of_sheet, scale_shown, quality, method; null with no register-reading classifier);
   `Description.what_it_is`, `shows_building`, `visible_text` and `detail`. `TRIAGE_JUDGE=rules` judges a

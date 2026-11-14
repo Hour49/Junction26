@@ -17,6 +17,7 @@ from app.core.drawing.model import (
     TableRow,
 )
 from app.core.errors import InvalidInputError
+from app.core.ingest.judge import CARBON_FLAG, CARBON_PART_FLAG
 from app.core.pipeline.model import Quantity, QuantityConflict
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import Asked, ask, suggestions
@@ -485,6 +486,30 @@ def test_a_raster_page_with_no_rooms_read_refuses_room_questions_flagged_or_not(
             assert found.refusal is not None and found.refusal.code == "no-reader", (text, flags)
     vector = asked_flagged("How many rooms?", drawing, (), raster=False)
     assert vector.refusal is None and vector.answer.answer == 0
+
+
+def test_a_class_carbon_counted_and_found_none_of_answers_0_flagged() -> None:
+    """Brief r8 BD (#269 replay: fp10, fp12, fp13 refused 13 right zeros): on a large sheet whose
+    elements are Carbon's, a class Carbon counted (in `read`) with no element is a read 0, still
+    flagged. A class Carbon could not count stays refused, and so does every other flagged page
+    with no elements (F4-4b)."""
+    kitchen = Room(id="r1", type="kitchen", page=1, box=BOX_B)
+    carbon = photo(kitchen).model_copy(update={"read": ("door", "window", "toilet", "room")})
+    for flags in ((CARBON_FLAG,), (PHOTO_FLAG, CARBON_FLAG)):  # fp10 is a photo too
+        for text in ("How many doors are there?", "How many toilets are there?"):
+            found = asked_flagged(text, carbon, flags, raster=True)
+            assert found.refusal is None and found.answer.answer == 0, (text, flags)
+            assert found.row is not None and found.row.status == "estimate"
+            assert found.row.estimate is not None and CARBON_FLAG in found.row.estimate
+            assert found.answer.estimate is True and found.answer.sure is not True
+        sinks = asked_flagged("How many sinks are there?", carbon, flags, raster=True)
+        assert sinks.row is None and sinks.refusal is not None, flags  # Carbon could not count
+    shipped = asked_flagged("How many doors are there?", carbon, (PHOTO_FLAG,), raster=True)
+    assert shipped.refusal is not None and shipped.refusal.code == "no-reader"
+    # fail-1's S-D: Carbon read a part (a composite's plans or rooms), so the elements are not
+    # known to be Carbon's: no element is still unread, as F4-4b says
+    part = asked_flagged("How many doors are there?", carbon, (CARBON_PART_FLAG,), raster=True)
+    assert part.refusal is not None and part.refusal.code == "no-reader"
 
 
 def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:

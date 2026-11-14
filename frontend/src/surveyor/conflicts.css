@@ -1,59 +1,30 @@
-/* Screen 3, "Settle the conflicts" (docs/specs/frontend/conflicts.md "Layout"); tokens only (shared.md). */
-/* frame and padding: the shell's .v-page.v-page--narrow (shared.md "Page frame") */
+/* The conflicts list under the finished ingest (docs/specs/frontend/conflicts.md "Demo parity"); tokens only. */
 .cf {
+  display: flex;
+  flex-direction: column;
   gap: 20px;
   font-family: var(--v-font);
   color: var(--v-text);
 }
-.cf-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 24px;
+.cf:focus {
+  outline: none; /* a programmatic focus target ("Show the conflict"), not a control */
 }
-.cf-head h1 {
-  font-size: 44px;
-  line-height: 1.1;
+.cf-head h2 {
+  font-size: 20px;
   font-weight: 700;
-  margin: 4px 0 8px;
+  margin: 4px 0 6px;
 }
-.cf-head-kicker {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--v-ok);
-  margin: 0;
-}
-.cf-sub,
-.cf-state,
-.cf-locked {
-  font-size: 16px;
+.cf-sub {
+  font-size: 15px;
   color: var(--v-muted);
   margin: 0;
 }
-.cf-locked {
+.cf-loading {
   font-size: 13px;
-  margin-top: 6px;
+  color: var(--v-muted);
+  margin: 0;
 }
-/* the chat block, at the bottom after the last card (Tudor 2026-11-14), centred */
-.cf-open {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 2px;
-  padding-top: 8px;
-}
-.cf-quiet {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--v-accent);
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-}
-.cf-open-btn,
-.cf-btn,
-.cf-link {
+.cf-btn {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -66,29 +37,28 @@
   cursor: pointer;
   transition: transform 0.12s;
 }
-.cf-open-btn {
-  background: var(--v-accent);
-  color: var(--v-surface);
-  white-space: nowrap;
-}
-.cf-open-btn:hover {
-  background: var(--v-accent-strong);
-}
-.cf-open-btn:disabled {
-  background: var(--v-fill);
-  color: var(--v-muted);
-  cursor: not-allowed;
-}
 .cf-btn {
   background: var(--v-fill);
   color: var(--v-text);
 }
-.cf-link {
+/* the demo's .btn-soft: Modify */
+.cf-btn.cf-soft {
+  background: var(--v-accent-soft);
   color: var(--v-accent);
-  padding: 0 8px;
+}
+.cf-btn.cf-primary {
+  background: var(--v-accent);
+  color: var(--v-surface);
+  white-space: nowrap;
+}
+.cf-btn.cf-primary:hover:not(:disabled) {
+  background: var(--v-accent-strong);
+}
+.cf-btn:disabled {
+  color: var(--v-muted);
+  cursor: not-allowed;
 }
 .cf-btn:active:not(:disabled),
-.cf-open-btn:active:not(:disabled),
 .cf-tile:active:not(:disabled) {
   transform: scale(0.97);
 }
@@ -148,8 +118,7 @@
   margin: 4px 0;
 }
 .cf-file {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--v-muted);
   overflow-wrap: anywhere;
   margin: 0;
@@ -224,37 +193,153 @@
 }
 .cf-tile[aria-pressed='true'] {
   border: 2px solid var(--v-accent);
-  background: var(--v-accent-soft);
+  /* the demo's paler chosen fill: half the soft accent on white */
+  background: color-mix(in srgb, var(--v-accent-soft) 50%, var(--v-surface));
   padding: 15px;
 }
-.cf-tile-kicker,
-.cf-tile-source {
+.cf-tile-kicker {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 20px;
   font-size: 12px;
+  font-weight: 500;
+  color: var(--v-muted);
+}
+.cf-tile-source {
+  font-size: 13px;
   color: var(--v-muted);
 }
 .cf-tile-value {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.cf-badge {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--v-accent);
+.cf-check {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.cf-check circle {
+  fill: var(--v-accent);
+}
+.cf-check path {
+  fill: none;
+  stroke: var(--v-surface);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.cf-why,
-.cf-evidence {
+/* "Or type your own answer" (demo .c-own) */
+.cf-own {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cf-own label {
+  font-size: 13px;
+  color: var(--v-muted);
+}
+/* demo .chips-row / .qchip: only suggestions no variant already says */
+.cf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cf-chip {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 980px;
   background: var(--v-fill);
-  border-radius: 14px;
-  padding: 12px 16px;
+  color: var(--v-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.cf-chip:hover {
+  background: var(--v-accent-soft);
+}
+.cf-own-row {
+  display: flex;
+  gap: 8px;
+}
+.cf-own-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--v-line);
+  border-radius: 12px;
+  background: var(--v-surface);
+  color: var(--v-muted);
+  font-size: 15px;
+}
+.cf-own-field:focus-within {
+  border-color: var(--v-accent);
+}
+.cf-own-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--v-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+/* a model's answer (resolver.md): one quiet line, its name in bold */
+.cf-resolved {
+  margin: 0;
   color: var(--v-text-2);
 }
-.cf-why summary,
-.cf-evidence summary {
+.cf-why {
+  background: var(--v-fill);
+  border-radius: 14px;
+  padding: 0 16px; /* the summary is the 44 px tap target */
+  color: var(--v-text-2);
+  font-size: 14px;
+}
+.cf-why summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
+  color: var(--v-text);
   cursor: pointer;
-  min-height: 24px;
+  min-height: 44px;
+  list-style: none;
+}
+.cf-why[open] {
+  padding-bottom: 12px;
+}
+.cf-why summary::-webkit-details-marker {
+  display: none;
+}
+/* the demo's chevron, turning when open */
+.cf-why summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--v-muted);
+  border-bottom: 2px solid var(--v-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+.cf-why[open] summary::before {
+  transform: rotate(45deg);
+}
+.cf-why ul {
+  margin: 0;
+  padding-left: 22px;
 }
 .cf-actions {
   display: flex;
@@ -281,29 +366,27 @@
 }
 
 @media (max-width: 600px) {
-  /* the pill above the title, so the title gets the card's full width */
+  /* the pill after the title block (demo .c-head column), so the title gets the card's full width */
   .cf-card-top {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: flex-start;
     gap: 8px;
-  }
-  .cf-head {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .cf-quiet {
-    min-height: 40px;
-  }
-  .cf-head h1 {
-    font-size: 32px;
   }
   .cf-tiles {
     grid-template-columns: 1fr;
   }
+  .cf-own-row {
+    flex-direction: column;
+  }
+  .cf-own-field input {
+    font-size: 16px; /* no iOS zoom on focus */
+  }
+  .cf-chip {
+    min-height: 44px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .cf-btn,
-  .cf-open-btn,
   .cf-tile {
     transition: none;
   }
@@ -312,50 +395,16 @@
   .cf-tile:active:not(:disabled) {
     transform: none;
   }
+  .cf-why summary::before {
+    transition: none;
+  }
 }
 
-/* checks + issues (backend issues 139 and 140) */
+/* the card an issue link names (CF-29) */
 .cf-card.cf-focused {
   outline: 2px solid var(--v-accent);
   outline-offset: 2px;
 }
 .cf-card h2:focus {
   outline: none; /* the card's outline marks it */
-}
-.cf-checks {
-  background: var(--v-surface);
-  border-radius: var(--v-radius);
-  box-shadow: var(--v-shadow);
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-.cf-checks p {
-  margin: 0;
-}
-.cf-checks-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0;
-}
-.cf-checks-counts {
-  color: var(--v-muted);
-}
-.cf-check-pass {
-  color: var(--v-ok);
-  background: var(--v-ok-soft);
-}
-.cf-check-fail {
-  color: var(--v-danger);
-  background: var(--v-danger-soft);
-}
-.cf-check-cannot_tell {
-  color: var(--v-text-2);
-  background: var(--v-fill);
-}
-.cf-checks-note {
-  font-size: 12px;
-  color: var(--v-muted);
 }

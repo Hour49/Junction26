@@ -1,7 +1,6 @@
 import { type CSSProperties, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { AnswerView, MarkView, PageView, QuantityConflict } from '../api/types';
 import { formatValue, methodName } from '../api/format';
-import { Credit } from '../shell/Credit';
 import { PageFrame } from './PageFrame';
 import {
   badgeText,
@@ -71,7 +70,7 @@ export interface PageViewerProps {
   file: string;
   pages: PageView[];
   marks: MarkView[];
-  credit: string | null;
+  credit?: string | null; // ignored: screens show no credits (About page, demo parity); callers may drop it
   unit?: string | null; // the row's or answer's unit: badges show mark values unless "count" or null
   unlocated?: Record<string, number>; // a takeoff row's items counted without a position
   legend?: LegendEntry[] | null; // answer.proof.legend: a colour per label, `note` lines
@@ -88,6 +87,7 @@ export interface PageViewerProps {
   tones?: Record<string, Tone> | null; // mark id → check outcome; replaces that mark's state look
   disputedLegend?: string; // legend count words for `disputed`; default "to double-check"
   focus?: Focus | null; // jump-to-place: open the page, zoom and scroll to the box
+  bare?: boolean; // image and marks only: no name, class line, toolbar, page meta, mark line, legend (chat)
 }
 
 interface Drag {
@@ -107,6 +107,7 @@ const ask = (why: string, prefix = 'Please double-check') => `${prefix}: ${why}`
 type Zoom = 1 | 2 | 4;
 
 const NARROW = 600; // px of frame width under which badges show their number only
+const CROWD = 50; // more badges than this in a narrow frame: outlines only (carbon flag, VW-96)
 const STATE_ORDER: MarkView['state'][] = ['counted', 'added', 'rejected', 'excluded'];
 const inPage = (v: number) => v >= 0 && v <= 1;
 /** A box in page fractions: four numbers in 0..1, x0 <= x1, y0 <= y1. */
@@ -180,7 +181,6 @@ export function PageViewer({
   file,
   pages,
   marks,
-  credit,
   unit = null,
   unlocated,
   legend,
@@ -197,6 +197,7 @@ export function PageViewer({
   tones,
   disputedLegend = 'to double-check',
   focus,
+  bare = false,
 }: PageViewerProps) {
   const uid = useId().replace(/[^\w-]/g, '');
   const hatch = `vw-hatch-${uid}`;
@@ -294,7 +295,7 @@ export function PageViewer({
     return t ? TONE_WORDS[t] : words(m);
   };
   // Counted marks of a check are context: a shape, no badge (viewer.md OP 17).
-  const badged = onPage.filter((m) => toneOf(m) !== 'counted');
+  const allBadged = onPage.filter((m) => toneOf(m) !== 'counted');
   const colourOf = (m: MarkView) => {
     const t = toneOf(m);
     return t ? TONE_COLOUR[t] : stateColour(m);
@@ -344,6 +345,9 @@ export function PageViewer({
   const W = frameWidth * zoom;
   const H = (W * page.height) / page.width;
   const narrow = W < NARROW;
+  // Too many to number legibly here (a flagged 200-door sheet): keep the outlines and the selected mark's badge.
+  const crowded = allBadged.length > CROWD && W < NARROW;
+  const badged = crowded ? allBadged.filter((m) => m.id === selected) : allBadged;
   const spots =
     W > 0
       ? placeLabels(
@@ -426,7 +430,7 @@ export function PageViewer({
 
   return (
     <figure
-      className="vw"
+      className={bare ? 'vw vw--bare' : 'vw'}
       onPointerDownCapture={moved}
       onWheelCapture={moved}
       onKeyDown={(e) => {
@@ -437,8 +441,8 @@ export function PageViewer({
         else onSelect?.(null);
       }}
     >
-      <p className="vw-name">{file}</p>
-      {classes.length > 0 && (
+      {!bare && <p className="vw-name">{file}</p>}
+      {!bare && classes.length > 0 && (
         <ul className="vw-classes">
           {classes.map((e) => (
             <li key={e.label}>
@@ -447,67 +451,69 @@ export function PageViewer({
           ))}
         </ul>
       )}
-      <div className="vw-bar">
-        {pages.length > 1 && (
-          <div className="vw-switcher">
+      {!bare && (
+        <div className="vw-bar">
+          {pages.length > 1 && (
+            <div className="vw-switcher">
+              <button
+                type="button"
+                aria-label="Previous page"
+                disabled={index === 0}
+                onClick={() => {
+                  setCurrent(pages[index - 1]?.page);
+                }}
+              >
+                ‹
+              </button>
+              <span>
+                Page {index + 1} of {pages.length} · {countText(onPage.length)}
+                {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
+              </span>
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={index === pages.length - 1}
+                onClick={() => {
+                  setCurrent(pages[index + 1]?.page);
+                }}
+              >
+                ›
+              </button>
+            </div>
+          )}
+          <div className="vw-zoom">
             <button
               type="button"
-              aria-label="Previous page"
-              disabled={index === 0}
+              aria-label="Zoom out"
+              disabled={zoom === 1}
               onClick={() => {
-                setCurrent(pages[index - 1]?.page);
+                setZoom(zoom === 4 ? 2 : 1);
               }}
             >
-              ‹
+              −
             </button>
-            <span>
-              Page {index + 1} of {pages.length} · {countText(onPage.length)}
-              {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
-            </span>
+            <span>{zoom * 100}%</span>
             <button
               type="button"
-              aria-label="Next page"
-              disabled={index === pages.length - 1}
+              aria-label="Zoom in"
+              disabled={zoom === 4}
               onClick={() => {
-                setCurrent(pages[index + 1]?.page);
+                setZoom(zoom === 1 ? 2 : 4);
               }}
             >
-              ›
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setZoom(1);
+              }}
+            >
+              Fit
             </button>
           </div>
-        )}
-        <div className="vw-zoom">
-          <button
-            type="button"
-            aria-label="Zoom out"
-            disabled={zoom === 1}
-            onClick={() => {
-              setZoom(zoom === 4 ? 2 : 1);
-            }}
-          >
-            −
-          </button>
-          <span>{zoom * 100}%</span>
-          <button
-            type="button"
-            aria-label="Zoom in"
-            disabled={zoom === 4}
-            onClick={() => {
-              setZoom(zoom === 1 ? 2 : 4);
-            }}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setZoom(1);
-            }}
-          >
-            Fit
-          </button>
         </div>
-      </div>
+      )}
       {fixing && (
         <p className="vw-hint">
           <span className="vw-hint-wide">Click or drag on the drawing where a mark is missing</span>
@@ -860,15 +866,22 @@ export function PageViewer({
           })}
         </PageFrame>
       </div>
-      <Credit credit={credit} />
-      <p className="vw-pagemeta">
-        {pageMeta.map((text) => `${text} · `)}
-        Page {page.page}
-        {note && ' · '}
-        {note && <span className="vw-note">{note}</span>}
-        {meta && ` · ${meta}`}
-      </p>
-      {chosen && (
+      {crowded && (
+        <p className="vw-many">
+          {allBadged.length} marks, too many to number at this size
+          {!bare && ': zoom in to see their numbers'}
+        </p>
+      )}
+      {!bare && (
+        <p className="vw-pagemeta">
+          {pageMeta.map((text) => `${text} · `)}
+          Page {page.page}
+          {note && ' · '}
+          {note && <span className="vw-note">{note}</span>}
+          {meta && ` · ${meta}`}
+        </p>
+      )}
+      {!bare && chosen && (
         <p className="vw-selection">
           {badgeText(chosen)} · {chosen.label ?? 'item'} ·{' '}
           {chosenValue === null ? '' : `${chosenValue} · `}
@@ -876,7 +889,7 @@ export function PageViewer({
           {chosenDoubt !== undefined && ` · ${ask(chosenDoubt.why, chosenDoubt.prefix)}`}
         </p>
       )}
-      {hasLegend && (
+      {!bare && hasLegend && (
         <figcaption className="vw-legend">
           <ul>
             {states.map((s) => (

@@ -21,8 +21,9 @@
   const image = FILES.find((f) => f.image).image;
   // A plain-English name from the answer key, instead of the dataset id (site…_bldg…_floor…)
   const keyOf = (re) => { const q = QS.find((x) => re.test(x.question)); return q ? q.answer : null; };
-  const flats = keyOf(/apartments/), net = keyOf(/total net floor area/);
-  const NAME = `Swiss apartment floor${flats ? `, ${flats} flat${flats === 1 ? '' : 's'}` : ''}${net ? `, ${Math.round(net)} m²` : ''}`;
+  // the flat's own area (apartment A), not the floor total: that adds the stair hall and a bathroom outside the flat
+  const flats = keyOf(/apartments/), net = keyOf(/total net floor area/), flatArea = keyOf(/net floor area of apartment A/);
+  const NAME = `Swiss apartment floor${flats ? `, ${flats} flat${flats === 1 ? '' : 's'}` : ''}${flatArea && flats === 1 ? ` of ${Math.round(flatArea)} m²` : ''}`;
   const DRAWINGS = [{ id: ID, name: NAME, lane: 'CAD', meta: D.files.map((f) => f.kind).join(' · '), image, check: [] }]
     .concat(ARCH.map((f, i) => (f.plan ? { id: planId(i), name: f.path.split('/').pop(), lane: 'Vision', meta: `${f.kind} · no answer key`, image: f.image, credit: f.credit, check: [] } : null)).filter(Boolean));
   // The house set (OpeningDesign): real sheets of one house; its plan is a drawing, the elevations and section are
@@ -61,20 +62,23 @@
   const A3 = 1600 / 1131, FLOOR = [31, 22, 38, 42];
   const floorSrc = (files, marks) => ({ files, view: FLOOR, ratio: A3, marks });
   const CONFLICTS = !pdf || !png ? [] : [
-    doors !== null && { id: 'c1', drawing: ID, quantity: 'door', match: 'How many doors', ai: 0, title: 'Doors on this floor',
-      readers: { 'vector PDF': `${doors} doors`, 'PNG rendering': `${doors - 1} doors` }, files: `${pdf.path} ↔ ${png.path}`,
-      variants: [{ kind: 'door', value: doors, label: `${doors} doors`, src: 'Vector PDF: every door symbol, the flat\'s entrance door included' },
-        { kind: 'door', value: doors - 1, label: `${doors - 1} doors`, src: 'PNG rendering: the entrance door is drawn on the stair-hall wall and was read as wall' }],
-      rules: ['Vector geometry outranks a raster rendering of the same sheet.', 'The flat\'s entrance door counts as a door.'],
-      why: `Same sheet in two formats, so the vector PDF wins: ${doors} doors.`,
-      src: floorSrc([pdf.path, png.path], [{ box: [44.8, 30, 4.2, 5], label: 'The flat\'s entrance door, on the stair-hall wall' }]) },
+    // Checked on the DXF (Tudor, 17:20): 13 door objects but 11 doors, because the entrance door and the door of
+    // bathroom 1.09 are each in the file twice, on the same spot. The answer key counts the objects (13).
+    doors !== null && { id: 'c1', drawing: ID, quantity: 'door', match: 'How many doors', ai: 1, title: `Doors on this floor: ${doors} or ${doors - 2}?`,
+      readers: { 'counted in the CAD file': `${doors} doors`, 'real doors': `${doors - 2} doors` }, files: (D.files.find((f) => f.path.endsWith('.dxf')) || pdf).path,
+      variants: [{ kind: 'door', value: doors, label: `${doors} doors`, src: 'Counted in the CAD file. Two doors are drawn twice there, so each counts twice. The dataset\'s answer key says this.' },
+        { kind: 'door', value: doors - 2, label: `${doors - 2} doors`, src: 'Each real door counted once: the 2 doors drawn twice count as one each.' }],
+      rules: ['A door drawn twice in the same place is still one door.',
+        'In the CAD file the entrance door and the door of bathroom 1.09 are each drawn twice, one copy exactly on top of the other. On paper you see one door; a program counting the drawing finds two.'],
+      why: `On paper this floor has ${doors - 2} doors. A program counting doors in the CAD file finds ${doors}, because 2 of them are drawn twice in the same place. The dataset's answer key says ${doors}.`,
+      src: floorSrc([pdf.path], [{ box: [45.3, 30.3, 3.2, 4.2], label: 'The flat\'s entrance door: drawn twice in the CAD file, one copy on top of the other' }, { box: [35, 29.8, 3.4, 4.5], label: 'The door of bathroom 1.09: drawn twice in the CAD file, one copy on top of the other' }]) },
     aptA !== null && indoor !== null && { id: 'c2', drawing: ID, quantity: 'area', match: 'apartment A', ai: 0, title: 'Net floor area of apartment A',
       readers: { 'room table': `${aptA.toFixed(2)} m²`, 'outline sum': `${indoor.toFixed(2)} m²` }, files: pdf.path,
       variants: [{ kind: 'area', value: aptA, label: `${aptA.toFixed(2)} m²`, src: 'The flat\'s own rooms, balcony left out' },
-        { kind: 'area', value: indoor, label: `${indoor.toFixed(2)} m²`, src: 'Every numbered indoor room, the shared stair hall included' }],
-      rules: ['A flat\'s area counts only its own rooms.', 'The stair hall (Vano scala) is shared, so it is not part of the flat.'],
-      why: `The stair hall belongs to the building, not the flat: ${aptA.toFixed(2)} m².`,
-      src: floorSrc([pdf.path], [{ box: [39.4, 25.5, 9.2, 9.3], label: 'The stair hall (Vano scala 1.10), shared by the building' }]) },
+        { kind: 'area', value: indoor, label: `${indoor.toFixed(2)} m²`, src: 'Every numbered indoor room on the floor, the stair hall and bathroom 1.09 included' }],
+      rules: ['A flat\'s area counts only the rooms inside its outline (the dash-dot line).', 'The stair hall (8.41 m²) and bathroom 1.09 (5.18 m²) are outside that outline: bathroom 1.09 opens onto the stair hall, not into the flat.'],
+      why: `Only the rooms inside the flat's outline count: ${aptA.toFixed(2)} m². The floor total adds the stair hall and bathroom 1.09.`,
+      src: floorSrc([pdf.path], [{ box: [39.4, 25.5, 9.2, 9.3], label: 'The stair hall (Vano scala 1.10), 8.41 m², outside the flat' }, { box: [33.4, 25.8, 4.9, 9.6], label: 'Bathroom 1.09, 5.18 m², outside the flat: its door opens onto the stair hall' }]) },
     stanze && stanze > 1 && { id: 'c3', drawing: ID, quantity: 'bedroom', match: null, ai: null, title: 'Bedrooms in apartment A: is one of the rooms the living room?',
       readers: { 'room labels': `${stanze} × 'Stanza'`, 'room types': `${stanze} bedrooms, or ${stanze - 1} and a living room` }, files: pdf.path,
       where: `The ${stanze} rooms labelled 'Stanza' (Italian for room)`,
@@ -84,8 +88,7 @@
       why: 'Only someone who knows the flat can say whether one of the rooms is the living room. It decides the bedroom count and which building-code room rules apply.',
       placeholder: 'e.g. 3 bedrooms, room 1.02 is the living room',
       src: floorSrc([pdf.path], [['1.02', [58.2, 25.8, 7.4, 14.5]], ['1.06', [55.8, 40.3, 9.8, 9.9]], ['1.07', [39.4, 46.9, 12.9, 12.8]], ['1.08', [52.4, 49.9, 13.1, 9.8]]]
-        .map(([n, box]) => ({ box, label: `Stanza ${n}` }))),
-      suggest: ['3 bedrooms, room 1.02 is the living room', '3 bedrooms and a study', '2 bedrooms, a living room and a study'] },
+        .map(([n, box]) => ({ box, label: `Stanza ${n}` }))) },
   ].filter(Boolean);
   // Hard-coded issues on the real files (Tudor, 15:35: things that might actually need a look, not the vision model's)
   const plans = ARCH.filter((f) => f.plan).map((f) => f.path), dxf = D.files.find((f) => f.path.endsWith('.dxf'));

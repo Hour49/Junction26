@@ -45,6 +45,7 @@ from app.core.pipeline.model import (
     Quantity,
     QuantityConflict,
     QuantityUnit,
+    ValueMark,
 )
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
@@ -68,7 +69,7 @@ from app.core.pipeline.rules import (
     apply_rules,
     combine_totals,
 )
-from app.core.pipeline.second_count import differ, of_its_plans_storey
+from app.core.pipeline.second_count import differ, far_apart, mm_per_px, of_its_plans_storey
 
 # An element sum an estimated scale makes an estimate (a volume is the model's, not the sheet's).
 SCALED_MEASURES: tuple[Measure, ...] = ("area", "length")
@@ -148,7 +149,7 @@ def _add_sheet(
 ) -> None:
     """What the sheet draws, for the whole sheet and each storey. With a building model, the
     storeys' sums and space areas are the model's (`_add_model`), not the sheet's."""
-    scale = scale_estimate(drawing.scale)
+    scale = scale_estimate(drawing.scale) or disputed_scale(drawing)
     sheet = _without_seen_through(counted, drawing)
     _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale)
     _add_apartments(found, drawing, scale)
@@ -221,7 +222,7 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
     objects = drawing.model_objects or ()
     drawn = {item.id: _mark(item) for item in (*drawing.elements, *drawing.rooms)}
     rooms = {room.id: room for room in drawing.rooms}
-    scale = scale_estimate(drawing.scale)
+    scale = scale_estimate(drawing.scale)  # no disputed_scale: a model is never read as a raster
 
     def marks(items: Iterable[ModelObject]) -> list[Mark]:
         return [drawn[item.element] for item in items if item.element in drawn]
@@ -326,7 +327,10 @@ def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Q
         if entry.status != "conflict":
             continue
         disputed = QuantityConflict(
-            values=entry.values, resolution=entry.resolution, note=entry.note
+            values=entry.values,
+            resolution=entry.resolution,
+            note=entry.note,
+            value_marks=_value_marks(entry, drawing),
         )
         for key in _conflict_keys(entry, drawing, storey, plans):
             _attach(out, key, disputed, entry.tolerance)
@@ -337,11 +341,61 @@ def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Q
         if entry.status != "agree":
             continue
         agreed = QuantityConflict(
-            values=entry.values, resolution=entry.resolution, note=entry.note, status="agree"
+            values=entry.values,
+            resolution=entry.resolution,
+            note=entry.note,
+            status="agree",
+            value_marks=_value_marks(entry, drawing),
         )
         for key in _conflict_keys(entry, drawing, storey, plans):
             _agree(out, key, agreed, entry.tolerance)
     return out
+
+
+def _value_marks(entry: Conflict, drawing: Drawing) -> tuple[tuple[ValueMark, ...], ...]:
+    """Where each value's items are, aligned with `entry.values`: a count of an element class or
+    of rooms lists what the method counted (what the plan draws; the model's objects the sheet
+    draws, a model object it does not draw has no position); any other value is its own
+    position (page and box) when it has one. () when no value has a position."""
+    ref = entry.subject.ref
+    shown_storeys = {plan.id: plan.storey for plan in drawing.plans}
+    elements = {e.id: e for e in drawing.elements}
+    rooms = {r.id: r for r in drawing.rooms}
+    drawn: list[tuple[ValueMark, ...]] = []
+    for value in entry.values:
+        marks: list[ValueMark] = []
+        if entry.quantity == "element_count" and entry.subject.kind == "class" and ref:
+            if value.method == "plan_drawing":
+                shown = [e for e in drawing.elements if e.class_ == ref]
+                shown = [e for e in shown if of_its_plans_storey(e, shown_storeys)]
+            elif value.method == "ifc_model":
+                shown = [
+                    elements[o.element]
+                    for o in drawing.model_objects or ()
+                    if o.class_ == ref and o.element in elements
+                ]
+            else:
+                shown = []
+            for n, item in enumerate(shown, 1):
+                tag = item.attrs.get("mark")
+                label = tag if isinstance(tag, str) and tag else f"{ref} {n}"
+                marks.append(ValueMark(page=item.page, box=item.box, label=label))
+        elif entry.quantity == "room_count" and entry.subject.kind == "sheet":
+            if value.method == "plan_drawing":
+                counted = list(drawing.rooms)
+            elif value.method == "ifc_model":
+                counted = [
+                    rooms[o.element]
+                    for o in drawing.model_objects or ()
+                    if o.class_ == "space" and o.element in rooms
+                ]
+            else:
+                counted = []
+            marks = [ValueMark(page=r.page, box=r.box, label=r.label or r.id) for r in counted]
+        if not marks and value.page is not None and value.box is not None:
+            marks = [ValueMark(page=value.page, box=value.box, label=value.method)]
+        drawn.append(tuple(marks))
+    return tuple(drawn) if any(drawn) else ()
 
 
 def _agree(
@@ -368,6 +422,8 @@ def _conflict_keys(
             return [quantity_key("count", ref, storey=scope) for scope in scopes]
         case "room_count", "sheet":
             return [quantity_key("count", "room", storey=scope) for scope in scopes]
+        case "room_count", "class" if ref is not None and ref.startswith("room:"):
+            return [quantity_key("count", ref, storey=scope) for scope in scopes]
         case "room_area", "room":
             keys: list[str] = []
             for room in (room for room in drawing.rooms if room.id == ref):
@@ -556,8 +612,9 @@ def rooms_estimate(rooms: Sequence[Room], scale: str | None) -> str | None:
         how = " or ".join(
             sorted({_AREA_HOW.get(room.area_source or "", "estimated") for room in estimated})
         )
-        if scale and "geometry_x_estimate" in {room.area_source for room in estimated}:
-            how = how.replace(_AREA_HOW["geometry_x_estimate"], scale)
+        for source in ("geometry_x_estimate", "geometry_x_scale"):  # the latter: disputed_scale
+            if scale and source in {room.area_source for room in estimated}:
+                how = how.replace(_AREA_HOW[source], scale)
         spread = max((room.area_uncertainty or 0.0 for room in estimated), default=0.0)
         which = "the area" if n == 1 else "each area"
         band = f"; {which} may be off by about ±{_percent(spread)}" if spread else ""
@@ -576,6 +633,27 @@ _AREA_HOW = {
 
 def _percent(spread: float) -> str:
     return f"{round(100 * spread)}%"
+
+
+def disputed_scale(drawing: Drawing) -> str | None:
+    """What an area or length rests on, in words a user reads, when the sheet's scale is a
+    measured scale bar more than second_count.ESTIMATE_RANGE from the scale estimated from the
+    doors (printed.py: the bar is used, but one of the two is a misread), naming both."""
+    m_per_unit = drawing.scale.m_per_unit
+    if drawing.scale.status != "scaled" or m_per_unit is None:
+        return None
+    for entry in drawing.conflicts or ():
+        values = {value.method: value.value for value in entry.values}
+        bar, doors = values.get("scale_bar"), values.get("detector")
+        if entry.quantity != "scale" or bar is None or doors is None or bar != m_per_unit:
+            continue
+        if far_apart(bar, doors):
+            return (
+                f"measured at the printed scale bar ({mm_per_px(bar)}), which is more than twice "
+                f"the scale estimated from the doors ({mm_per_px(doors)}), so one of them is "
+                "misread"
+            )
+    return None
 
 
 def scale_estimate(scale: Scale) -> str | None:

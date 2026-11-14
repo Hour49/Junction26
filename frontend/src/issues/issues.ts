@@ -63,7 +63,7 @@ export function placeOf(issue: Issue): string {
       : issue.drawing_id
         ? 'the whole drawing'
         : 'not on a drawing';
-  return `${issue.file} · ${floor} · ${page}`;
+  return `${issue.drawing_name ?? issue.file} · ${floor} · ${page}`;
 }
 
 /** The located issues of one drawing as numbered marks for PageViewer: the issue's data only. */

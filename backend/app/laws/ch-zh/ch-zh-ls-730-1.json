@@ -1,0 +1,1215 @@
+{
+  "id": "ch-zh-ls-730-1",
+  "pack": "ch-zh",
+  "jurisdiction": "CH-ZH",
+  "number": "LS 730.1",
+  "title": "Energiegesetz (EnerG)",
+  "title_en": "Energy Act of the Canton of Zürich",
+  "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/52C0F42987AC41E1C1258CB40025CB78/$File/730.1_19.6.83_129.pdf",
+  "language": "de",
+  "in_force": "2025-07-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version 129 (Stand 1 July 2025) of the act of 19 June 1983. Included: § 1 and III.1 Energiesparmassnahmen (§§ 9-13d: heat for new buildings, heat generators, electric heating, own power generation). Energy planning, electricity supply and subsidies are not included; the detailed building energy rules are in BBV I part VIII.",
+  "clauses": [
+    {
+      "id": "ch-zh-ls-730-1-1",
+      "ref": "§ 1",
+      "heading": "Zweck",
+      "heading_en": "Purpose",
+      "text": "Dieses Gesetz bezweckt,\na. eine ausreichende, umweltschonende, wirtschaftliche und sichere Energieversorgung zu fördern,\nb. den sparsamen Umgang mit Primärenergien zu fördern, insbesondere mit nichterneuerbaren Energieträgern,\nc. den Energieverbrauch kontinuierlich zu senken,\nd. die Effizienz der Energieanwendung zu fördern und im Rahmen des kantonalen Zuständigkeitsbereiches bis ins Jahr 2050 den CO₂-Ausstoss auf 2,2 Tonnen pro Einwohnerin und Einwohner und Jahr zu senken,\ne. den Vollzug des Bundesgesetzes vom 23. März 2007 über die Stromversorgung (StromVG) zu regeln,\nf. die Anwendung erneuerbarer Energien und die energetische Verbesserung von Bauten und Anlagen zu erleichtern und zu fördern.",
+      "text_en": "This law aims,\na. to promote a sufficient, environmentally sound, economical and secure energy supply,\nb. to promote the sparing use of primary energy, in particular of non-renewable energy carriers,\nc. to continuously reduce energy consumption,\nd. to promote the efficiency of energy use and, within the cantonal area of competence, to reduce CO₂ emissions to 2.2 tonnes per resident per year by 2050,\ne. to regulate the enforcement of the Federal Act of 23 March 2007 on Electricity Supply (StromVG),\nf. to facilitate and promote the use of renewable energies and the energy improvement of buildings and installations.",
+      "summary_en": "General aims of the cantonal energy law: a secure, low-carbon energy supply, efficient energy use and energy-improved buildings.",
+      "keywords": [
+        "energy law purpose",
+        "energy efficiency",
+        "renewable energy",
+        "CO2 emissions",
+        "2050",
+        "StromVG",
+        "Energiegesetz",
+        "Zweck",
+        "erneuerbare Energien",
+        "Energieeffizienz",
+        "CO₂-Ausstoss",
+        "Stromversorgung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-9",
+      "ref": "§ 9 Abs. 1",
+      "heading": "Verbrauchsabhängige Heiz-und Warmwasserkostenabrechnung",
+      "heading_en": "Consumption-based heating and hot water cost billing",
+      "text": "Neue Gebäude mit zentraler Wärmeversorgung für mindestens zwei Nutzeinheiten sind mit Geräten zur Erfassung des individuellen Verbrauchs für Warmwasser auszurüsten.",
+      "text_en": "New buildings with central heat supply for at least two units of use must be fitted with devices recording individual hot water consumption.",
+      "summary_en": "New buildings with central heating serving at least two units must meter individual hot water use.",
+      "keywords": [
+        "hot water metering",
+        "individual metering",
+        "consumption billing",
+        "units of use",
+        "central heating",
+        "Warmwasser",
+        "Verbrauchserfassung",
+        "Nutzeinheit",
+        "Warmwasserzähler",
+        "Heizkostenabrechnung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "units of use served by central heat supply in a new building (at least)",
+          "comparison": ">=",
+          "value": 2,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-9-2",
+      "ref": "§ 9 Abs. 2",
+      "heading": "Verbrauchsabhängige Heiz-und Warmwasserkostenabrechnung",
+      "heading_en": "Consumption-based heating and hot water cost billing",
+      "text": "Neue Gebäude, die Wärme von einer zentralen Wärmeversorgung für eine Gebäudegruppe beziehen, sind mit Geräten zur Erfassung des Heizwärmeverbrauchs pro Gebäude auszurüsten.",
+      "text_en": "New buildings that draw heat from a central heat supply for a group of buildings must be fitted with devices recording the heating consumption per building.",
+      "summary_en": "New buildings served by a shared heat supply for a building group must meter heating consumption per building.",
+      "keywords": [
+        "heat metering",
+        "building group",
+        "heat consumption",
+        "per building",
+        "district heating",
+        "Wärmeverbrauch",
+        "Gebäudegruppe",
+        "Wärmezähler",
+        "Heizwärme",
+        "Wärmeversorgung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-9-3",
+      "ref": "§ 9 Abs. 3",
+      "heading": "Verbrauchsabhängige Heiz-und Warmwasserkostenabrechnung",
+      "heading_en": "Consumption-based heating and hot water cost billing",
+      "text": "Bestehende Gebäude und Gebäudegruppen mit zentraler Wärmeversorgung für mindestens drei Nutzeinheiten pro Gebäude sind bei einer Gesamterneuerung des Heizungs- oder des Warmwassersystems mit Geräten zur Erfassung des individuellen Wärmeverbrauchs für Heizung und Warmwasser auszurüsten.",
+      "text_en": "Existing buildings and building groups with central heat supply for at least three units of use per building must be fitted with devices recording individual heating and hot water consumption when the heating or hot water system is completely renewed.",
+      "summary_en": "Existing buildings with central heating for at least three units must add individual heat metering when their heating or hot water system is fully replaced.",
+      "keywords": [
+        "existing building",
+        "heat metering",
+        "system renewal",
+        "three units of use",
+        "individual metering",
+        "Bestand",
+        "Gesamterneuerung",
+        "Heizungsersatz",
+        "Warmwasser",
+        "Verbrauchserfassung",
+        "Nutzeinheit"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "units of use per existing building with central heat supply (at least)",
+          "comparison": ">=",
+          "value": 3,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-9-4",
+      "ref": "§ 9 Abs. 4",
+      "heading": "Verbrauchsabhängige Heiz-und Warmwasserkostenabrechnung",
+      "heading_en": "Consumption-based heating and hot water cost billing",
+      "text": "Bestehende Gebäudegruppen mit zentraler Wärmeversorgung sind mit Geräten zur Erfassung des Heizwärmeverbrauchs pro Gebäude auszurüsten, wenn an einem oder mehreren Gebäuden die Gebäudehülle zu über 75% wärmetechnisch saniert wird.",
+      "text_en": "Existing building groups with central heat supply must be fitted with devices recording the heating consumption per building if the building envelope of one or more buildings is thermally renovated to more than 75%.",
+      "summary_en": "Existing building groups with central heating must meter heat use per building once more than 75% of a building envelope is thermally renovated.",
+      "keywords": [
+        "building envelope renovation",
+        "75 %",
+        "heat metering",
+        "building group",
+        "thermal renovation",
+        "Gebäudehülle",
+        "wärmetechnische Sanierung",
+        "Wärmezähler",
+        "Gebäudegruppe",
+        "Sanierung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "share of the building envelope thermally renovated (metering trigger, more than)",
+          "comparison": ">",
+          "value": 75,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-9-5",
+      "ref": "§ 9 Abs. 5",
+      "heading": "Verbrauchsabhängige Heiz-und Warmwasserkostenabrechnung",
+      "heading_en": "Consumption-based heating and hot water cost billing",
+      "text": "Gebäude und Gebäudegruppen können von der Ausrüstungs- und Abrechnungspflicht befreit werden, wenn besondere Verhältnisse es rechtfertigen.",
+      "text_en": "Buildings and building groups may be exempted from the equipment and billing obligation if special circumstances justify it.",
+      "summary_en": "Buildings can be exempted from metering and billing duties where special circumstances justify it.",
+      "keywords": [
+        "exemption",
+        "metering exemption",
+        "billing obligation",
+        "special circumstances",
+        "Befreiung",
+        "Ausnahme",
+        "besondere Verhältnisse",
+        "Abrechnungspflicht"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-10a",
+      "ref": "§ 10a Abs. 1",
+      "heading": "Deckung des / Wärmebedarfs / von Neubauten",
+      "heading_en": "Covering the / heat demand / of new buildings",
+      "text": "Neubauten und Erweiterungen von bestehenden Gebäuden wie Aufstockungen oder Anbauten müssen so gebaut und ausgerüstet werden, dass für Heizung, Warmwasser, Lüftung und Klimatisierung möglichst wenig Energie benötigt wird.",
+      "text_en": "New buildings and extensions to existing buildings, such as storey additions or annexes, must be built and equipped so that as little energy as possible is needed for heating, hot water, ventilation and air-conditioning.",
+      "summary_en": "New buildings and extensions must be designed so that heating, hot water, ventilation and cooling need as little energy as possible.",
+      "keywords": [
+        "energy demand",
+        "new building",
+        "extension",
+        "heating",
+        "hot water",
+        "ventilation",
+        "air conditioning",
+        "Neubau",
+        "Erweiterung",
+        "Energiebedarf",
+        "Lüftung",
+        "Klimatisierung"
+      ],
+      "topics": [
+        "energy",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-10a-2",
+      "ref": "§ 10a Abs. 2",
+      "heading": "Deckung des / Wärmebedarfs / von Neubauten",
+      "heading_en": "Covering the / heat demand / of new buildings",
+      "text": "Die Verordnung regelt Art und Umfang der Anforderungen an den Energieeinsatz. Sie berücksichtigt dabei insbesondere die Wirtschaftlichkeit sowie besondere Verhältnisse wie Verschattung oder Quartiersituationen.",
+      "text_en": "The ordinance regulates the type and scope of the requirements on energy use. In doing so it takes particular account of economic efficiency and special circumstances such as shading or neighbourhood situations.",
+      "summary_en": "The implementing ordinance sets the energy requirements, taking into account cost-effectiveness and local conditions such as shading.",
+      "keywords": [
+        "energy requirements ordinance",
+        "shading",
+        "economic efficiency",
+        "district",
+        "Verordnung",
+        "Energieeinsatz",
+        "Verschattung",
+        "Wirtschaftlichkeit",
+        "Quartier"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-10b",
+      "ref": "§ 10b Abs. 1",
+      "heading": "Ortsfeste / elektrische / Widerstandsheizungen",
+      "heading_en": "Fixed / electric / resistance heating",
+      "text": "Ortsfeste elektrische Widerstandsheizungen zur Gebäudebeheizung dürfen nicht\na. neu installiert werden,\nb. als Ersatz von ortsfesten elektrischen Widerstandsheizungen installiert werden,\nc. als Zusatzheizung eingesetzt werden.",
+      "text_en": "Fixed electric resistance heating for heating buildings must not\na. be newly installed,\nb. be installed as a replacement for fixed electric resistance heating, or\nc. be used as supplementary heating.",
+      "summary_en": "Fixed electric resistance heating for buildings may not be newly installed, used to replace existing units, or used as supplementary heat.",
+      "keywords": [
+        "electric resistance heating",
+        "direct electric heating",
+        "ban",
+        "supplementary heating",
+        "replacement",
+        "Widerstandsheizung",
+        "elektrische Heizung",
+        "Zusatzheizung",
+        "Ersatz",
+        "Heizung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-10b-2",
+      "ref": "§ 10b Abs. 2",
+      "heading": "Ortsfeste / elektrische / Widerstandsheizungen",
+      "heading_en": "Fixed / electric / resistance heating",
+      "text": "Notheizungen sind in begrenztem Umfang zulässig.",
+      "text_en": "Emergency heating is permitted to a limited extent.",
+      "summary_en": "Emergency heating is allowed, but only to a limited extent.",
+      "keywords": [
+        "emergency heating",
+        "limited extent",
+        "Notheizung",
+        "elektrische Heizung",
+        "Ausnahme",
+        "begrenzt"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-10b-3",
+      "ref": "§ 10b Abs. 3",
+      "heading": "Ortsfeste / elektrische / Widerstandsheizungen",
+      "heading_en": "Fixed / electric / resistance heating",
+      "text": "Bestehende ortsfeste elektrische Widerstandsheizungen zur Gebäudebeheizung und bestehende zentrale Wassererwärmer, die ausschliesslich direkt elektrisch beheizt werden, sind bis 2030 durch Anlagen zu ersetzen, die den Anforderungen dieses Gesetzes entsprechen.",
+      "text_en": "Existing fixed electric resistance heating for building heating, and existing central water heaters that are heated exclusively by direct electricity, must be replaced by 2030 with systems that meet the requirements of this law.",
+      "summary_en": "Existing electric resistance heaters and direct-electric water heaters must be replaced with compliant systems by 2030.",
+      "keywords": [
+        "electric heating replacement",
+        "deadline 2030",
+        "water heater",
+        "direct electric",
+        "replacement",
+        "Widerstandsheizung",
+        "Wassererwärmer",
+        "elektrische Direktheizung",
+        "Ersatz",
+        "Frist"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-10b-4",
+      "ref": "§ 10b Abs. 4",
+      "heading": "Ortsfeste / elektrische / Widerstandsheizungen",
+      "heading_en": "Fixed / electric / resistance heating",
+      "text": "Die Verordnung regelt die Ausnahmen.",
+      "text_en": "The ordinance regulates the exceptions.",
+      "summary_en": "Exceptions to the electric heating rules are set by the implementing ordinance.",
+      "keywords": [
+        "exceptions",
+        "electric heating",
+        "ordinance",
+        "Ausnahmen",
+        "Verordnung",
+        "Widerstandsheizung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-10c",
+      "ref": "§ 10c Abs. 1",
+      "heading": "Eigenstromerzeugung",
+      "heading_en": "On-site electricity generation",
+      "text": "Bei Neubauten wird ein Teil der benötigten Elektrizität selbst erzeugt. Dies kann mit einer Anlage auf dem Grundstück oder in einem Zusammenschluss zum Eigenverbrauch gemäss Art. 17 des Energiegesetzes vom 30. September 2016 erfolgen. Massgebende Berechnungsgrundlage ist die Energiebezugsfläche.",
+      "text_en": "In new buildings part of the electricity required is generated on site. This can be done with a system on the plot or in a grouping for self-consumption under Art. 17 of the Energy Act of 30 September 2016. The decisive basis for calculation is the energy reference area.",
+      "summary_en": "New buildings must generate part of their electricity on site, either on the plot or in a self-consumption grouping, with the energy reference area as the basis.",
+      "keywords": [
+        "on-site electricity",
+        "solar",
+        "photovoltaic",
+        "self-consumption",
+        "energy reference area",
+        "Eigenstrom",
+        "Energiebezugsfläche",
+        "Zusammenschluss",
+        "Eigenverbrauch",
+        "Photovoltaik",
+        "EBF"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-730-1-10c-2",
+      "ref": "§ 10c Abs. 2",
+      "heading": "Eigenstromerzeugung",
+      "heading_en": "On-site electricity generation",
+      "text": "Wer die gestützt auf § 10 a erlassenen Mindestanforderungen unterschreitet, kann auf die Erfüllung der Anforderungen gemäss Abs. 1 verzichten.",
+      "text_en": "Whoever falls below the minimum requirements issued under § 10a may waive fulfilment of the requirements under para. 1.",
+      "summary_en": "A building that stays below the § 10a energy minimums (uses less energy) may waive the on-site electricity duty.",
+      "keywords": [
+        "on-site electricity waiver",
+        "energy minimum",
+        "§ 10a",
+        "low energy use",
+        "waiver",
+        "Eigenstrom",
+        "Verzicht",
+        "Mindestanforderung",
+        "Energieverbrauch",
+        "Ausnahme"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-10c-3",
+      "ref": "§ 10c Abs. 3",
+      "heading": "Eigenstromerzeugung",
+      "heading_en": "On-site electricity generation",
+      "text": "Die Verordnung regelt die Einzelheiten, insbesondere\na. Art und Umfang der Energieerzeugung unter gebührender Berücksichtigung der Situation von hohen Bauten,\nb. das Mass der Unterschreitung der Mindestanforderungen,\nc. die Anrechenbarkeit im Zusammenschluss zum Eigenverbrauch,\nd. die Ausnahmen.",
+      "text_en": "The ordinance regulates the details, in particular\na. the type and scope of energy generation, with due regard to the situation of tall buildings,\nb. the extent to which the minimum requirements may be undercut,\nc. the eligibility for crediting in a self-consumption grouping,\nd. the exceptions.",
+      "summary_en": "The ordinance sets the details of on-site generation, including special rules for tall buildings and exceptions.",
+      "keywords": [
+        "on-site generation details",
+        "tall buildings",
+        "self-consumption crediting",
+        "exceptions",
+        "Eigenstromerzeugung",
+        "Hochbau",
+        "Anrechenbarkeit",
+        "Zusammenschluss",
+        "Verordnung",
+        "Ausnahme"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11",
+      "ref": "§ 11 Abs. 1",
+      "heading": "Wärmeerzeuger",
+      "heading_en": "Heat generators",
+      "text": "Der Energiebedarf von Neubauten für Heizung, Warmwasser, Lüftung und Klimatisierung muss ohne CO₂-Emissionen aus fossilen Brennstoffen gedeckt werden.",
+      "text_en": "The energy demand of new buildings for heating, hot water, ventilation and air-conditioning must be covered without CO₂ emissions from fossil fuels.",
+      "summary_en": "New buildings must cover heating, hot water, ventilation and cooling needs without fossil-fuel CO₂ emissions.",
+      "keywords": [
+        "heat generator",
+        "fossil fuel",
+        "CO₂ emissions",
+        "new building",
+        "heating",
+        "hot water",
+        "ventilation",
+        "Wärmeerzeuger",
+        "fossile Brennstoffe",
+        "Neubau",
+        "Heizung",
+        "Klimatisierung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11-2",
+      "ref": "§ 11 Abs. 2",
+      "heading": "Wärmeerzeuger",
+      "heading_en": "Heat generators",
+      "text": "Werden Wärmeerzeuger in bestehenden Bauten ersetzt, müssen ausschliesslich erneuerbare Energien eingesetzt werden, wenn dies\na. technisch möglich ist und\nb. die Lebenszykluskosten um höchstens 5% erhöht.",
+      "text_en": "Where heat generators in existing buildings are replaced, exclusively renewable energy must be used if this\na. is technically possible and\nb. increases the life-cycle costs by at most 5%.",
+      "summary_en": "When an existing heat generator is replaced, renewable energy must be used if it is technically possible and raises life-cycle costs by no more than 5%.",
+      "keywords": [
+        "heat generator replacement",
+        "renewable energy",
+        "life-cycle cost",
+        "5 %",
+        "existing building",
+        "Wärmeerzeugerersatz",
+        "erneuerbare Energien",
+        "Lebenszykluskosten",
+        "Heizungsersatz",
+        "Bestand"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "increase of life-cycle costs accepted for renewable-only heating (at most)",
+          "comparison": "<=",
+          "value": 5,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11-3",
+      "ref": "§ 11 Abs. 3",
+      "heading": "Wärmeerzeuger",
+      "heading_en": "Heat generators",
+      "text": "Die Lebenszykluskosten werden berechnet aus den Investitionskosten und den Betriebskosten über die Lebensdauer. In die Investitionskosten eingerechnet werden neben dem Ersatz des Wärmeerzeugers auch für den Betrieb notwendige Zusatzinvestitionen im und am Gebäude.",
+      "text_en": "Life-cycle costs are calculated from investment costs and operating costs over the service life. Investment costs include, in addition to replacing the heat generator, additional investments in and on the building that are needed for operation.",
+      "summary_en": "The life-cycle cost comparison covers investment and operating costs over the service life, including building works needed to run the new heat generator.",
+      "keywords": [
+        "life-cycle cost",
+        "investment cost",
+        "operating cost",
+        "service life",
+        "heat generator",
+        "Lebenszykluskosten",
+        "Investitionskosten",
+        "Betriebskosten",
+        "Lebensdauer",
+        "Wärmeerzeuger"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11-4",
+      "ref": "§ 11 Abs. 4",
+      "heading": "Wärmeerzeuger / a. Grundsatz",
+      "heading_en": "Heat generators / Principle",
+      "text": "Sind die Voraussetzungen von Abs. 2 für den Einsatz von ausschliesslich erneuerbaren Energien nicht erfüllt, sind beim Wärmeerzeugerersatz die Bauten so auszurüsten, dass der Anteil nichterneuerbarer Energien 90% des massgebenden Energiebedarfs nicht überschreitet. Die Direktion legt Standardlösungen zur Erfüllung dieser Anforderung fest. Für deren Festlegung gilt ein massgebender Energiebedarf für die Heizung und das Warmwasser von 100 kWh/m² pro Jahr. Die zu einer Standardlösung gehörenden Massnahmen sind innert drei Jahren ab Erteilung der Bewilligung umzusetzen.",
+      "text_en": "If the conditions of para. 2 for using exclusively renewable energy are not met, then when a heat generator is replaced the buildings must be fitted so that the share of non-renewable energy does not exceed 90% of the relevant energy demand. The Directorate sets standard solutions to meet this requirement. For their determination a relevant energy demand for heating and hot water of 100 kWh/m² per year applies. The measures belonging to a standard solution must be implemented within three years of the permit being granted.",
+      "summary_en": "If renewable-only heating is not possible, a replacement heat generator must keep non-renewable energy at or below 90% of the reference demand, with standard measures completed within three years of the permit.",
+      "keywords": [
+        "heat generator replacement",
+        "non-renewable share",
+        "90 %",
+        "100 kWh/m²",
+        "standard solution",
+        "three years",
+        "Wärmeerzeugerersatz",
+        "nichterneuerbare Energien",
+        "Standardlösung",
+        "Energiebedarf",
+        "Bewilligung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "share of non-renewable energy relative to the relevant energy demand (at most)",
+          "comparison": "<=",
+          "value": 90,
+          "unit": "%"
+        },
+        {
+          "what": "reference energy demand for heating and hot water used for standard solutions",
+          "comparison": "=",
+          "value": 100,
+          "unit": "kWh/m2"
+        },
+        {
+          "what": "deadline to implement standard-solution measures after the permit is granted",
+          "comparison": "<=",
+          "value": 3,
+          "unit": "years"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11-5",
+      "ref": "§ 11 Abs. 5",
+      "heading": "Wärmeerzeuger",
+      "heading_en": "Heat generators",
+      "text": "Zur Erfüllung der Anforderungen gemäss Abs. 1–4 ist ein Anschluss an ein Wärmenetz zulässig, wenn ein wesentlicher Anteil der Wärmeerzeugung aus erneuerbaren Energien, Abwärme oder Abfallverbrennung stammt.",
+      "text_en": "To meet the requirements under paras. 1–4, a connection to a heat network is permitted if a substantial share of the heat generation comes from renewable energy, waste heat or waste incineration.",
+      "summary_en": "Connecting to a heat network is an accepted way to meet the heating requirements if the network is largely based on renewables, waste heat or waste incineration.",
+      "keywords": [
+        "heat network connection",
+        "district heating",
+        "renewable heat",
+        "waste heat",
+        "waste incineration",
+        "Wärmenetz",
+        "Anschluss",
+        "Abwärme",
+        "Abfallverbrennung",
+        "erneuerbare Energien",
+        "Fernwärme"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11-6",
+      "ref": "§ 11 Abs. 6",
+      "heading": "Wärmeerzeuger",
+      "heading_en": "Heat generators",
+      "text": "Die Gemeinden können für eine begrenzte Dauer andere Lösungen bewilligen, sofern die Energieplanung mittelfristig eine Lösung vorsieht, die der Zielsetzung dieses Gesetzes entspricht.",
+      "text_en": "The municipalities may approve other solutions for a limited period, provided that energy planning envisages a solution in the medium term that corresponds to the objective of this law.",
+      "summary_en": "Municipalities may temporarily allow other heating solutions if their energy plan foresees a compliant solution in the medium term.",
+      "keywords": [
+        "heat generator",
+        "heating system",
+        "temporary solution",
+        "energy planning",
+        "Wärmeerzeuger",
+        "Heizung",
+        "Energieplanung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11-7",
+      "ref": "§ 11 Abs. 7",
+      "heading": "Wärmeerzeuger",
+      "heading_en": "Heat generators",
+      "text": "Die Verordnung regelt die Berechnungsverfahren sowie Erleichterungen und Ausnahmen.",
+      "text_en": "The ordinance regulates the calculation methods as well as relief and exceptions.",
+      "summary_en": "The calculation methods and the relief and exemptions for heat generator rules are set in the ordinance.",
+      "keywords": [
+        "heat generator",
+        "calculation method",
+        "exemption",
+        "ordinance",
+        "Wärmeerzeuger",
+        "Ausnahme",
+        "Erleichterung",
+        "Verordnung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11a",
+      "ref": "§ 11a Abs. 1",
+      "heading": "b. Kauf von / Zertifikaten",
+      "heading_en": "Purchase of / certificates",
+      "text": "Zur Erfüllung der Anforderungen gemäss § 11 Abs. 2–4 ist die Verwendung von Zertifikaten für erneuerbare gasförmige oder flüssige sowie mit erneuerbaren Energien synthetisch hergestellte Brennstoffe zulässig, sofern diese im Schweizerischen Treibhausgasinventar angerechnet werden.",
+      "text_en": "To meet the requirements under § 11 para. 2–4, the use of certificates for renewable gaseous or liquid fuels, and for fuels produced synthetically with renewable energy, is permitted, provided these are credited in the Swiss greenhouse gas inventory.",
+      "summary_en": "Certificates for renewable or synthetic fuels may be used to meet heating requirements if the fuels are credited in the Swiss greenhouse gas inventory.",
+      "keywords": [
+        "fuel certificates",
+        "renewable fuel",
+        "synthetic fuel",
+        "greenhouse gas inventory",
+        "Zertifikate",
+        "erneuerbare Brennstoffe",
+        "Treibhausgasinventar"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11a-2",
+      "ref": "§ 11a Abs. 2",
+      "heading": "b. Kauf von / Zertifikaten",
+      "heading_en": "Purchase of / certificates",
+      "text": "Der Anteil erneuerbarer Energien beim Brennstoff muss mindestens 80% betragen. Zur Erfüllung ist zulässig:\na. ein Anschluss an ein Gasnetz, wenn der geforderte Anteil im Versorgungsgebiet durch den Gasnetzbetreiber sichergestellt wird,\nb. der Abschluss einer Bezugsvereinbarung mit einem Energielieferanten oder\nc. eine Kombination aus lit. a und lit. b, die in der Summe den geforderten Anteil erreicht.",
+      "text_en": "The share of renewable energy in the fuel must be at least 80%. To meet this, the following is permitted:\na. a connection to a gas network, if the required share is ensured in the supply area by the gas network operator,\nb. the conclusion of a supply agreement with an energy supplier, or\nc. a combination of lit. a and lit. b that together reaches the required share.",
+      "summary_en": "Fuel must be at least 80% renewable, achieved through a gas grid connection with a guaranteed share, a supply agreement, or a combination of both.",
+      "keywords": [
+        "renewable share",
+        "80%",
+        "gas network connection",
+        "supply agreement",
+        "erneuerbarer Anteil",
+        "Gasnetz",
+        "Bezugsvereinbarung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "renewable share of fuel",
+          "comparison": ">=",
+          "value": 80,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11a-3",
+      "ref": "§ 11a Abs. 3",
+      "heading": "b. Kauf von / Zertifikaten",
+      "heading_en": "Purchase of / certificates",
+      "text": "Die Lieferung der erneuerbaren Brennstoffe ist in einem zentralen Register zu erfassen. Der Energielieferant bestätigt jährlich die Einhaltung von Abs. 1 und informiert die Gemeinden und den Kanton über Änderungen.",
+      "text_en": "The supply of renewable fuels must be recorded in a central register. The energy supplier confirms annually compliance with para. 1 and informs the municipalities and the canton of any changes.",
+      "summary_en": "Deliveries of renewable fuel must be recorded in a central register and confirmed every year by the energy supplier.",
+      "keywords": [
+        "central register",
+        "fuel supply",
+        "annual confirmation",
+        "energy supplier",
+        "Register",
+        "Energielieferant",
+        "Brennstoff"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11a-4",
+      "ref": "§ 11a Abs. 4",
+      "heading": "b. Kauf von / Zertifikaten",
+      "heading_en": "Purchase of / certificates",
+      "text": "Es wird sichergestellt, dass die gelieferten Mengen der zulässigen Brennstoffe der Energielieferanten mit den Angaben zu Produktion und Lager übereinstimmen. Diese Aufgabe kann Dritten übertragen werden.",
+      "text_en": "It must be ensured that the delivered quantities of permitted fuels supplied by energy suppliers match the information on production and storage. This task may be transferred to third parties.",
+      "summary_en": "Delivered fuel quantities must match the reported production and storage data, and a third party may be engaged to check this.",
+      "keywords": [
+        "fuel quantities",
+        "production and storage",
+        "third party",
+        "reconciliation",
+        "Brennstoffmenge",
+        "Lager",
+        "Dritte"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11a-5",
+      "ref": "§ 11a Abs. 5",
+      "heading": "b. Kauf von / Zertifikaten",
+      "heading_en": "Purchase of / certificates",
+      "text": "Den Behörden ist Einsicht in die für den Vollzug erforderlichen Daten zu gewähren.",
+      "text_en": "The authorities must be granted access to the data required for enforcement.",
+      "summary_en": "Authorities may inspect the data needed to enforce the fuel rules.",
+      "keywords": [
+        "data access",
+        "authority inspection",
+        "enforcement",
+        "Einsicht",
+        "Vollzug",
+        "Behörden"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11a-6",
+      "ref": "§ 11a Abs. 6",
+      "heading": "b. Kauf von / Zertifikaten",
+      "heading_en": "Purchase of / certificates",
+      "text": "Die Verordnung regelt die Einzelheiten, insbesondere\na. den Inhalt der Bezugsvereinbarung und die Pflichten des Energielieferanten,\nb. die Erfassung der erforderlichen Angaben in einem zentralen Register,\nc. den Vollzug und die Tragung der Vollzugskosten,\nd. die Einstellung der Brennstofflieferung, falls die erforderlichen Zertifikate nicht vorliegen.",
+      "text_en": "The ordinance regulates the details, in particular\na. the content of the supply agreement and the duties of the energy supplier,\nb. the recording of the required information in a central register,\nc. the enforcement and the bearing of enforcement costs,\nd. the discontinuation of the fuel supply if the required certificates are not available.",
+      "summary_en": "The ordinance sets the detailed rules for supply agreements, the central register, enforcement costs and stopping fuel deliveries without certificates.",
+      "keywords": [
+        "supply agreement",
+        "central register",
+        "enforcement costs",
+        "fuel supply stop",
+        "certificates",
+        "Bezugsvereinbarung",
+        "Register",
+        "Verordnung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11b",
+      "ref": "§ 11b Abs. 1",
+      "heading": "Härtefälle und / Ausnahmen",
+      "heading_en": "Hardship cases / exemptions",
+      "text": "Wird für die Umsetzung von § 11 Abs. 2–4 ein finanzieller Härtefall geltend gemacht, kann die Behörde Aufschub längstens bis drei Jahre nach der nächsten Handänderung gewähren. Sie lässt den Aufschub im Grundbuch anmerken.",
+      "text_en": "If a financial hardship is claimed for the implementation of § 11 para. 2–4, the authority may grant a deferral of at most three years after the next change of ownership. It has the deferral noted in the land register.",
+      "summary_en": "Owners facing financial hardship can have the heating requirements deferred for up to three years after the next sale, noted in the land register.",
+      "keywords": [
+        "hardship deferral",
+        "3 years",
+        "change of ownership",
+        "land register",
+        "Härtefall",
+        "Aufschub",
+        "Grundbuch",
+        "Handänderung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "deferral for financial hardship",
+          "comparison": "<=",
+          "value": 3,
+          "unit": "years"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11b-2",
+      "ref": "§ 11b Abs. 2",
+      "heading": "Härtefälle und / Ausnahmen",
+      "heading_en": "Hardship cases / exemptions",
+      "text": "Die Verordnung regelt, in welchen Fällen Aufschub gemäss Abs. 1 immer gewährt wird.",
+      "text_en": "The ordinance regulates in which cases deferral under para. 1 is always granted.",
+      "summary_en": "The ordinance lists the cases in which the hardship deferral is always granted.",
+      "keywords": [
+        "hardship deferral",
+        "ordinance",
+        "Aufschub",
+        "Verordnung",
+        "Härtefall"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-11b-3",
+      "ref": "§ 11b Abs. 3",
+      "heading": "Härtefälle und / Ausnahmen",
+      "heading_en": "Hardship cases / exemptions",
+      "text": "Wer ausserordentliche Verhältnisse geltend macht, muss zuhanden der Behörde aufzeigen, dass eine Standardlösung gemäss § 11 Abs. 4 technisch nicht möglich, wirtschaftlich nicht zumutbar oder in Anbetracht der Gesamtumstände unverhältnismässig ist. Die Behörde kann in solchen Fällen eine verhältnismässige Ersatzlösung bewilligen.",
+      "text_en": "Whoever claims extraordinary circumstances must show the authority that a standard solution under § 11 para. 4 is technically impossible, economically unreasonable, or disproportionate in view of the overall circumstances. In such cases the authority may approve a proportionate substitute solution.",
+      "summary_en": "Owners claiming hardship must show the standard heating solution is technically impossible, unreasonable or disproportionate, and the authority may approve a substitute.",
+      "keywords": [
+        "hardship proof",
+        "substitute solution",
+        "disproportionate",
+        "standard solution",
+        "ausserordentliche Verhältnisse",
+        "Ersatzlösung",
+        "verhältnismässig"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-12",
+      "ref": "§ 12 Abs. 1",
+      "heading": "Heizungen / im Freien / und Freiluftschwimmbäder",
+      "heading_en": "Heating / outdoors / and open-air swimming pools",
+      "text": "Heizungen im Freien dürfen nur mit erneuerbarer Energie oder nicht anders nutzbarer Abwärme betrieben werden.",
+      "text_en": "Outdoor heating may only be operated with renewable energy or with waste heat that cannot otherwise be used.",
+      "summary_en": "Outdoor heaters may only run on renewable energy or on waste heat that has no other use.",
+      "keywords": [
+        "outdoor heating",
+        "renewable energy",
+        "waste heat",
+        "Freiluftheizung",
+        "Heizung im Freien",
+        "Abwärme"
+      ],
+      "topics": [
+        "energy",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-12-2",
+      "ref": "§ 12 Abs. 2",
+      "heading": "Heizungen / im Freien / und Freiluftschwimmbäder",
+      "heading_en": "Heating / outdoors / and open-air swimming pools",
+      "text": "Die Verordnung kann Abweichungen zulassen, wenn gewichtige Interessen vorliegen und die zumutbaren Massnahmen für eine effiziente Energienutzung getroffen werden.",
+      "text_en": "The ordinance may allow deviations if important interests are present and the reasonable measures for efficient energy use are taken.",
+      "summary_en": "The ordinance may allow exceptions to the outdoor-heating rules when important interests apply and efficiency measures are taken.",
+      "keywords": [
+        "deviation",
+        "exception",
+        "efficient energy use",
+        "ordinance",
+        "Ausnahme",
+        "Abweichung",
+        "Verordnung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-12-3",
+      "ref": "§ 12 Abs. 3",
+      "heading": "Heizungen / im Freien / und Freiluftschwimmbäder",
+      "heading_en": "Heating / outdoors / and open-air swimming pools",
+      "text": "Der Bau neuer und die Sanierung bestehender beheizter Freiluftbäder sowie der Ersatz und die wesentliche Änderung der technischen Einrichtungen zu deren Beheizung sind nur zulässig, wenn die Beheizung ausschliesslich mit erneuerbarer Energie oder mit nicht anderweitig nutzbarer Abwärme erfolgt.",
+      "text_en": "The construction of new heated open-air pools and the renovation of existing ones, as well as the replacement and substantial alteration of their heating installations, are only permitted if the heating is exclusively provided by renewable energy or by waste heat that cannot otherwise be used.",
+      "summary_en": "Heated outdoor pools may only be built, renovated or have their heating replaced if the heating runs solely on renewable energy or unusable waste heat.",
+      "keywords": [
+        "outdoor pool",
+        "open-air pool",
+        "heated pool",
+        "renewable heating",
+        "waste heat",
+        "Freiluftbad",
+        "Freiluftschwimmbad",
+        "Beheizung",
+        "Abwärme"
+      ],
+      "topics": [
+        "energy",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-12-4",
+      "ref": "§ 12 Abs. 4",
+      "heading": "Heizungen / im Freien / und Freiluftschwimmbäder",
+      "heading_en": "Heating / outdoors / and open-air swimming pools",
+      "text": "Elektrische Wärmepumpen dürfen zur Beheizung von Freiluftbädern eingesetzt werden, wenn eine Abdeckung der Wasserfläche gegen Wärmeverluste vorhanden ist.",
+      "text_en": "Electric heat pumps may be used to heat open-air pools if the water surface has a cover against heat losses.",
+      "summary_en": "Electric heat pumps may heat outdoor pools only when the water surface has a heat-loss cover.",
+      "keywords": [
+        "heat pump",
+        "pool cover",
+        "heat loss",
+        "outdoor pool",
+        "Wärmepumpe",
+        "Abdeckung",
+        "Freiluftbad"
+      ],
+      "topics": [
+        "energy",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-12a",
+      "ref": "§ 12a",
+      "heading": "Kompostierbare Abfälle",
+      "heading_en": "Compostable waste",
+      "text": "Kompostierbare Abfälle, die nicht dezentral kompostiert werden können, sind unter Ausschöpfung des Energiepotenzials in zentralen Anlagen zu marktfähigen Produkten zu verwerten, soweit dies technisch möglich und wirtschaftlich ist.",
+      "text_en": "Compostable waste that cannot be composted locally must be recycled into marketable products in central plants, making use of its energy potential, insofar as this is technically possible and economically feasible.",
+      "summary_en": "Compostable waste that cannot be composted on site must go to central plants that recover energy and make marketable products where feasible.",
+      "keywords": [
+        "compostable waste",
+        "central plant",
+        "energy recovery",
+        "composting",
+        "biogas",
+        "Kompost",
+        "Grüngut",
+        "Abfall",
+        "Biogas"
+      ],
+      "topics": [
+        "general",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-12b",
+      "ref": "§ 12b Abs. 1",
+      "heading": "Wärmenutzung / bei Elektrizitätserzeugungsanlagen",
+      "heading_en": "Use of heat / in electricity generation plants",
+      "text": "Anlagen zur Notstromerzeugung dürfen ohne Nutzung der Abwärme betrieben werden. Probeläufe sind während längstens 50 Stunden pro Jahr zulässig.",
+      "text_en": "Emergency power generation plants may be operated without using their waste heat. Test runs are permitted for no more than 50 hours per year.",
+      "summary_en": "Emergency generators may run without heat recovery, but their test runs are limited to 50 hours a year.",
+      "keywords": [
+        "emergency power",
+        "emergency generator",
+        "test run",
+        "50 hours",
+        "waste heat",
+        "Notstromerzeugung",
+        "Probelauf",
+        "Abwärme"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "emergency generator test runs per year",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "h"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-12b-2",
+      "ref": "§ 12b Abs. 2",
+      "heading": "Wärmenutzung / bei Elektrizitätserzeugungsanlagen",
+      "heading_en": "Use of heat / in electricity generation plants",
+      "text": "Eine Elektrizitätserzeugungsanlage, die mit fossilen Brennstoffen betrieben wird, darf nur erstellen, wer die im Betrieb entstehende Wärme fachgerecht und vollständig nutzt. Ausgenommen sind Bauten und Anlagen, die nicht mit verhältnismässigem Aufwand ans öffentliche Elektrizitätsverteilnetz angeschlossen werden können.",
+      "text_en": "An electricity generation plant operated with fossil fuels may only be built by someone who uses the heat produced in operation expertly and completely. Excluded are buildings and installations that cannot be connected to the public electricity distribution grid at proportionate cost.",
+      "summary_en": "Fossil-fuel power plants must make full use of their waste heat, unless connecting them to the public grid is not feasible at reasonable cost.",
+      "keywords": [
+        "fossil fuel power plant",
+        "waste heat use",
+        "combined heat and power",
+        "electricity generation",
+        "fossile Brennstoffe",
+        "Elektrizitätserzeugungsanlage",
+        "Abwärme",
+        "Verteilnetz"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-12b-3",
+      "ref": "§ 12b Abs. 3",
+      "heading": "Wärmenutzung / bei Elektrizitätserzeugungsanlagen",
+      "heading_en": "Use of heat / in electricity generation plants",
+      "text": "Eine Elektrizitätserzeugungsanlage, die mit erneuerbaren Brennstoffen betrieben wird, darf nur erstellen, wer die im Betrieb entstehende Wärme fachgerecht und weitgehend nutzt. Beim Betrieb von landwirtschaftlichen Anlagen mit erneuerbaren gasförmigen Brennstoffen kann die Elektrizitätserzeugungsanlage ohne Wärmenutzung betrieben werden, wenn\na. weniger als 50% nicht landwirtschaftliches Grüngut verwendet wird,\nb. eine Verbindung der Biogasanlage zum öffentlichen Gasnetz weder besteht noch mit verhältnismässigem Aufwand hergestellt werden kann.",
+      "text_en": "An electricity generation plant operated with renewable fuels may only be built by someone who uses the heat produced in operation expertly and to a large extent. When operating agricultural plants with renewable gaseous fuels, the electricity generation plant may be run without heat use if\na. less than 50% non-agricultural green waste is used,\nb. a connection of the biogas plant to the public gas network neither exists nor can be established at proportionate cost.",
+      "summary_en": "Renewable-fuel power plants must use their heat largely; farm biogas plants may skip heat use if they take under 50% non-farm green waste and cannot connect to the gas grid.",
+      "keywords": [
+        "biogas plant",
+        "heat use",
+        "green waste",
+        "50%",
+        "gas grid connection",
+        "Biogasanlage",
+        "Wärmenutzung",
+        "Grüngut",
+        "Landwirtschaft"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "non-agricultural green waste share (farm biogas exemption)",
+          "comparison": "<",
+          "value": 50,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-13a",
+      "ref": "§ 13a Abs. 1",
+      "heading": "Grossverbraucher",
+      "heading_en": "Large consumers",
+      "text": "Grossverbraucher mit einem jährlichen Wärmeverbrauch von mehr als fünf Gigawattstunden oder einem jährlichen Elektrizitätsverbrauch von mehr als einer halben Gigawattstunde können durch die Direktion oder auf ihrem Gebiet durch die Städte Zürich und Winterthur verpflichtet werden, ihren Energieverbrauch zu analysieren und zumutbare Massnahmen zur Verbrauchsreduktion zu realisieren.",
+      "text_en": "Large consumers with an annual heat consumption of more than five gigawatt-hours or an annual electricity consumption of more than half a gigawatt-hour may be obliged by the directorate, or on its territory by the cities of Zurich and Winterthur, to analyse their energy consumption and to implement reasonable measures to reduce consumption.",
+      "summary_en": "Large energy users above 5 GWh of heat or 0.5 GWh of electricity a year can be required to analyse their consumption and reduce it.",
+      "keywords": [
+        "large consumer",
+        "energy analysis",
+        "5 GWh",
+        "heat consumption",
+        "electricity consumption",
+        "Grossverbraucher",
+        "Energieverbrauch",
+        "Wärmeverbrauch"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "annual heat consumption (large consumer)",
+          "comparison": ">",
+          "value": 5,
+          "unit": "GWh"
+        },
+        {
+          "what": "annual electricity consumption (large consumer)",
+          "comparison": ">",
+          "value": 0.5,
+          "unit": "GWh"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-13a-2",
+      "ref": "§ 13a Abs. 2",
+      "heading": "Grossverbraucher",
+      "heading_en": "Large consumers",
+      "text": "Absatz 1 ist nicht anwendbar für Grossverbraucher, die sich verpflichten, individuell oder in einer Gruppe vom Regierungsrat vorgegebene Ziele für die Entwicklung des Energieverbrauchs einzuhalten. Überdies kann sie der Regierungsrat von der Einhaltung näher zu bezeichnender energietechnischer Vorschriften entbinden.",
+      "text_en": "Paragraph 1 does not apply to large consumers that commit, individually or as a group, to meet targets for the development of energy consumption set by the Regierungsrat. Furthermore, the Regierungsrat may release them from compliance with energy-technical regulations to be specified in more detail.",
+      "summary_en": "Large consumers that commit to government consumption targets are exempt from the analysis duty and may be released from certain energy rules.",
+      "keywords": [
+        "large consumer exemption",
+        "consumption target",
+        "energy agreement",
+        "Regierungsrat",
+        "Grossverbraucher",
+        "Zielvereinbarung",
+        "Ausnahme"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-13b",
+      "ref": "§ 13b",
+      "heading": "Gebäudeenergieausweis / der Kantone",
+      "heading_en": "Building energy certificate / of the cantons",
+      "text": "Der Regierungsrat kann für bestimmte Bauten die Erstellung eines Gebäudeenergieausweises der Kantone (GEAK) verlangen.",
+      "text_en": "The Regierungsrat may require certain buildings to have a cantonal building energy certificate (GEAK) prepared.",
+      "summary_en": "Certain buildings may be required to obtain a cantonal building energy certificate (GEAK).",
+      "keywords": [
+        "energy certificate",
+        "GEAK",
+        "building energy label",
+        "Gebäudeenergieausweis",
+        "Energieausweis"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-13c",
+      "ref": "§ 13c",
+      "heading": "Minergie",
+      "heading_en": "Minergie",
+      "text": "Die Direktion kann die Zertifizierungsstelle für den Minergie-Standard führen.",
+      "text_en": "The directorate may operate the certification body for the Minergie standard.",
+      "summary_en": "The directorate may run the certification body for the Minergie energy standard.",
+      "keywords": [
+        "Minergie",
+        "certification body",
+        "Minergie standard",
+        "Zertifizierungsstelle",
+        "Minergie-Standard"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-13d",
+      "ref": "§ 13d Abs. 1",
+      "heading": "Betriebsoptimierung",
+      "heading_en": "Operational optimisation",
+      "text": "In Nichtwohnbauten ist innerhalb dreier Jahre nach Inbetriebsetzung eine Betriebsoptimierung für die Gewerke Heizung, Lüftung, Klima, Kälte, Sanitär, Elektro und Gebäudeautomation vorzunehmen. Ausgenommen sind Bauten und Anlagen von Grossverbrauchern, die mit der zuständigen Behörde eine Vereinbarung im Sinne von § 13 a abgeschlossen haben.",
+      "text_en": "In non-residential buildings, an operational optimisation must be carried out for the trades heating, ventilation, air conditioning, refrigeration, sanitary, electrical and building automation within three years of commissioning. Excluded are buildings and installations of large consumers that have concluded an agreement with the competent authority within the meaning of § 13 a.",
+      "summary_en": "Non-residential buildings must have their building systems optimised within three years of commissioning, unless a large-consumer agreement applies.",
+      "keywords": [
+        "operational optimisation",
+        "building automation",
+        "HVAC",
+        "3 years",
+        "commissioning",
+        "Betriebsoptimierung",
+        "Gebäudeautomation",
+        "Inbetriebsetzung",
+        "Nichtwohnbau",
+        "Lüftung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "time for operational optimisation after commissioning",
+          "comparison": "<=",
+          "value": 3,
+          "unit": "years"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-730-1-13d-2",
+      "ref": "§ 13d Abs. 2",
+      "heading": "Betriebsoptimierung",
+      "heading_en": "Operational optimisation",
+      "text": "Die Verordnung regelt die Einzelheiten.",
+      "text_en": "The ordinance regulates the details.",
+      "summary_en": "The details of the operational optimisation duty are set in the ordinance.",
+      "keywords": [
+        "operational optimisation",
+        "ordinance",
+        "Verordnung",
+        "Betriebsoptimierung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

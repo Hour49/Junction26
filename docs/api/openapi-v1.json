@@ -1,6 +1,151 @@
 {
   "components": {
     "schemas": {
+      "After": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "cannot_tell",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "required": [
+          "status",
+          "value",
+          "why"
+        ],
+        "title": "After",
+        "type": "object"
+      },
+      "AiFinding": {
+        "additionalProperties": false,
+        "description": "A law note the server kept (LC-9b): its verdict recomputed, its clause filled in.",
+        "properties": {
+          "basis": {
+            "const": "ai_reading",
+            "default": "ai_reading",
+            "title": "Basis",
+            "type": "string"
+          },
+          "clause_id": {
+            "title": "Clause Id",
+            "type": "string"
+          },
+          "comparison": {
+            "enum": [
+              ">=",
+              ">",
+              "<=",
+              "<",
+              "="
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "law": {
+            "title": "Law",
+            "type": "string"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "number"
+          },
+          "quote": {
+            "title": "Quote",
+            "type": "string"
+          },
+          "quote_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote En"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "verdict": {
+            "enum": [
+              "would_not_meet",
+              "meets",
+              "check"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clause_id",
+          "subject",
+          "comparison",
+          "limit",
+          "unit",
+          "verdict",
+          "ref",
+          "law",
+          "url",
+          "quote",
+          "quote_en"
+        ],
+        "title": "AiFinding",
+        "type": "object"
+      },
       "Answer": {
         "additionalProperties": false,
         "properties": {
@@ -162,6 +307,45 @@
         "title": "Answer",
         "type": "object"
       },
+      "AnswerRequest": {
+        "additionalProperties": false,
+        "description": "A person's answer to an issue; `undo` takes it back and needs nothing else.",
+        "properties": {
+          "by": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "undo": {
+            "default": false,
+            "title": "Undo",
+            "type": "boolean"
+          }
+        },
+        "title": "AnswerRequest",
+        "type": "object"
+      },
       "AnswerView": {
         "additionalProperties": false,
         "properties": {
@@ -229,6 +413,16 @@
             "title": "Latency S",
             "type": "number"
           },
+          "level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__core__review__check__Level"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "line": {
             "$ref": "#/components/schemas/Answer"
           },
@@ -280,6 +474,27 @@
               }
             ]
           },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolver_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolver Note"
+          },
           "unit": {
             "anyOf": [
               {
@@ -318,7 +533,8 @@
           "latency_s",
           "line",
           "proof",
-          "check"
+          "check",
+          "level"
         ],
         "title": "AnswerView",
         "type": "object"
@@ -545,6 +761,320 @@
           "refused"
         ],
         "title": "AskedQuestion",
+        "type": "object"
+      },
+      "Before": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "cannot_tell",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "status",
+          "value"
+        ],
+        "title": "Before",
+        "type": "object"
+      },
+      "ChatEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__core__agent__model__Level"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "sure": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sure"
+          }
+        },
+        "required": [
+          "n",
+          "id",
+          "drawing_id",
+          "name",
+          "page",
+          "box",
+          "label",
+          "sure"
+        ],
+        "title": "ChatEvidence",
+        "type": "object"
+      },
+      "ChatInfo": {
+        "additionalProperties": false,
+        "description": "The project chat agent (decision 0013): CHAT_MODEL, and whether a turn can run now.",
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "model": {
+            "enum": [
+              "gemini",
+              "rules",
+              "off"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "model",
+          "available",
+          "reason"
+        ],
+        "title": "ChatInfo",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Id"
+          },
+          "message": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack"
+          },
+          "selection": {
+            "items": {
+              "$ref": "#/components/schemas/Selection"
+            },
+            "maxItems": 8,
+            "title": "Selection",
+            "type": "array"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
+      "ChatTurn": {
+        "additionalProperties": false,
+        "description": "A turn as the API returns it: `answers` typed as POST /api/projects/{id}/ask's answers.",
+        "properties": {
+          "answers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProjectAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "chat_id": {
+            "title": "Chat Id",
+            "type": "string"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "edit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Proposal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ChatEvidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "answer",
+              "dont_know",
+              "conflict",
+              "needs_input",
+              "edit"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "latency_s": {
+            "title": "Latency S",
+            "type": "number"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Option"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Step"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "turn": {
+            "title": "Turn",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "chat_id",
+          "turn",
+          "kind",
+          "text",
+          "model",
+          "cost_usd",
+          "latency_s"
+        ],
+        "title": "ChatTurn",
         "type": "object"
       },
       "Check": {
@@ -915,6 +1445,190 @@
         "title": "Clause",
         "type": "object"
       },
+      "ClauseView": {
+        "additionalProperties": false,
+        "description": "A clause with what citing it needs from its law.",
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "string"
+          },
+          "drawing_checkable": {
+            "title": "Drawing Checkable",
+            "type": "boolean"
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "heading_en": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading En"
+          },
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "title": "Id",
+            "type": "string"
+          },
+          "keywords": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 3,
+            "title": "Keywords",
+            "type": "array"
+          },
+          "language": {
+            "enum": [
+              "fi",
+              "sv",
+              "de",
+              "fr",
+              "it",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "law_id": {
+            "title": "Law Id",
+            "type": "string"
+          },
+          "law_number": {
+            "title": "Law Number",
+            "type": "string"
+          },
+          "law_title": {
+            "title": "Law Title",
+            "type": "string"
+          },
+          "law_title_en": {
+            "title": "Law Title En",
+            "type": "string"
+          },
+          "limits": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Limit"
+            },
+            "title": "Limits",
+            "type": "array"
+          },
+          "ref": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Ref",
+            "type": "string"
+          },
+          "status_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Note"
+          },
+          "summary_en": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary En",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text",
+            "type": "string"
+          },
+          "text_en": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text En"
+          },
+          "topics": {
+            "items": {
+              "enum": [
+                "rooms",
+                "accessibility",
+                "fire",
+                "escape-routes",
+                "stairs-railings",
+                "doors-windows",
+                "ventilation",
+                "energy",
+                "sound",
+                "moisture",
+                "structure",
+                "daylight",
+                "parking",
+                "outdoor",
+                "distances-heights",
+                "permits-procedure",
+                "general"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Topics",
+            "type": "array"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ref",
+          "text",
+          "summary_en",
+          "keywords",
+          "topics",
+          "drawing_checkable",
+          "law_id",
+          "law_number",
+          "law_title",
+          "law_title_en",
+          "url",
+          "language",
+          "checked",
+          "status_note"
+        ],
+        "title": "ClauseView",
+        "type": "object"
+      },
       "ConflictEntry": {
         "additionalProperties": false,
         "properties": {
@@ -941,6 +1655,16 @@
             "title": "Quantity",
             "type": "string"
           },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "settled": {
             "anyOf": [
               {
@@ -961,6 +1685,17 @@
               }
             ]
           },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
           "value": {
             "anyOf": [
               {
@@ -971,6 +1706,10 @@
               }
             ],
             "title": "Value"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
           }
         },
         "required": [
@@ -982,7 +1721,10 @@
           "settled",
           "needs_person",
           "signed",
-          "value"
+          "value",
+          "title",
+          "why",
+          "suggestions"
         ],
         "title": "ConflictEntry",
         "type": "object"
@@ -1087,6 +1829,24 @@
         "title": "ConflictValue",
         "type": "object"
       },
+      "Decision": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "accept",
+              "reject"
+            ],
+            "title": "Action",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "Decision",
+        "type": "object"
+      },
       "Description": {
         "additionalProperties": false,
         "description": "Step 2, for a file that is not a floor plan: what the picture shows, as a fixed form and\na long text (decision 0010 section 8). `text` is the short form a file row shows; `detail`\nthe long one kept for later AI use. Nothing tested depends on `detail`.",
@@ -1168,6 +1928,81 @@
           "detail"
         ],
         "title": "Description",
+        "type": "object"
+      },
+      "DescriptionView": {
+        "additionalProperties": false,
+        "description": "The file's description as the tools show it (its cost left out).",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "shows_building": {
+            "title": "Shows Building",
+            "type": "boolean"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "text_seen": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Text Seen",
+            "type": "array"
+          },
+          "visible_text": {
+            "title": "Visible Text",
+            "type": "string"
+          },
+          "what_it_is": {
+            "enum": [
+              "photograph",
+              "artwork",
+              "text_page",
+              "object",
+              "music",
+              "map",
+              "drawing",
+              "other"
+            ],
+            "title": "What It Is",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "text",
+          "detail",
+          "visible_text",
+          "text_seen",
+          "language",
+          "what_it_is",
+          "shows_building",
+          "model"
+        ],
+        "title": "DescriptionView",
         "type": "object"
       },
       "Disputed": {
@@ -1303,6 +2138,17 @@
         "additionalProperties": false,
         "description": "One drawing of a project: one per group of renderings of the same plan.",
         "properties": {
+          "credit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit"
+          },
           "drawing_id": {
             "title": "Drawing Id",
             "type": "string"
@@ -1325,6 +2171,10 @@
               }
             ],
             "title": "Kind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
           },
           "other_renderings": {
             "items": {
@@ -1382,7 +2232,9 @@
           "route",
           "source",
           "state",
-          "other_renderings"
+          "other_renderings",
+          "name",
+          "credit"
         ],
         "title": "DrawingEntry",
         "type": "object"
@@ -1534,6 +2386,19 @@
             ],
             "title": "Mark"
           },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 280,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
           "page": {
             "anyOf": [
               {
@@ -1625,6 +2490,381 @@
         "title": "Evidence",
         "type": "object"
       },
+      "EvidenceDetail": {
+        "additionalProperties": false,
+        "description": "`register` is a pydantic model attribute, so the field is `register_` under `register`.",
+        "properties": {
+          "credit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit"
+          },
+          "description": {
+            "$ref": "#/components/schemas/DescriptionView"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "file_id": {
+            "title": "File Id",
+            "type": "string"
+          },
+          "how": {
+            "enum": [
+              "described",
+              "text",
+              "listed"
+            ],
+            "title": "How",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "part": {
+            "enum": [
+              "summary",
+              "detail",
+              "visible_text",
+              "text"
+            ],
+            "title": "Part",
+            "type": "string"
+          },
+          "register": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Register"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relevance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Relevance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "enum": [
+                  "related",
+                  "unrelated",
+                  "unsure"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "id",
+          "file_id",
+          "file",
+          "page",
+          "part",
+          "how",
+          "text",
+          "kind",
+          "verdict",
+          "credit",
+          "description",
+          "register",
+          "relevance"
+        ],
+        "title": "EvidenceDetail",
+        "type": "object"
+      },
+      "EvidenceHit": {
+        "additionalProperties": false,
+        "properties": {
+          "credit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "file_id": {
+            "title": "File Id",
+            "type": "string"
+          },
+          "how": {
+            "enum": [
+              "described",
+              "text",
+              "listed"
+            ],
+            "title": "How",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "part": {
+            "enum": [
+              "summary",
+              "detail",
+              "visible_text",
+              "text"
+            ],
+            "title": "Part",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "snippet": {
+            "title": "Snippet",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "enum": [
+                  "related",
+                  "unrelated",
+                  "unsure"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          },
+          "why": {
+            "$ref": "#/components/schemas/HitWhy"
+          }
+        },
+        "required": [
+          "id",
+          "file_id",
+          "file",
+          "page",
+          "part",
+          "how",
+          "kind",
+          "subject",
+          "snippet",
+          "language",
+          "verdict",
+          "credit",
+          "score",
+          "why"
+        ],
+        "title": "EvidenceHit",
+        "type": "object"
+      },
+      "EvidenceSearch": {
+        "additionalProperties": false,
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceHit"
+            },
+            "title": "Hits",
+            "type": "array"
+          },
+          "indexed_files": {
+            "title": "Indexed Files",
+            "type": "integer"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "unrelated_left_out": {
+            "title": "Unrelated Left Out",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query",
+          "method",
+          "indexed_files",
+          "unrelated_left_out",
+          "note",
+          "hits"
+        ],
+        "title": "EvidenceSearch",
+        "type": "object"
+      },
+      "FileEvidence": {
+        "additionalProperties": false,
+        "description": "FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence\nindex, and from what (decision 0012 sources v2). Written by the evidence step for every file it\nlooked at; a file today's triage path set aside and described keeps its record in `triage`.",
+        "properties": {
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Description"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "how": {
+            "anyOf": [
+              {
+                "enum": [
+                  "described",
+                  "text",
+                  "listed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "How"
+          },
+          "indexed": {
+            "title": "Indexed",
+            "type": "boolean"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sheet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text_chars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Chars"
+          },
+          "text_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Pages"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "indexed",
+          "why"
+        ],
+        "title": "FileEvidence",
+        "type": "object"
+      },
       "FileStatus": {
         "additionalProperties": false,
         "properties": {
@@ -1644,6 +2884,16 @@
               }
             ],
             "title": "Drawing Id"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "group": {
             "anyOf": [
@@ -1869,6 +3119,117 @@
         "title": "FileTrace",
         "type": "object"
       },
+      "Finding": {
+        "additionalProperties": false,
+        "description": "One rule on one room or door whose result the proposal changes, or that still fails on a\nroom or door it touches (LC-3). `ev`: the chat's evidence id, set by the agent loop.",
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/After"
+          },
+          "before": {
+            "$ref": "#/components/schemas/Before"
+          },
+          "change": {
+            "enum": [
+              "newly_fails",
+              "now_passes",
+              "newly_cannot_tell",
+              "still_fails",
+              "still_passes"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "clause": {
+            "$ref": "#/components/schemas/Clause"
+          },
+          "comparison_text": {
+            "title": "Comparison Text",
+            "type": "string"
+          },
+          "ev": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ev"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "number"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "subject_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Ref"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "m2",
+              "m",
+              "count"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "title",
+          "change",
+          "subject",
+          "subject_ref",
+          "before",
+          "after",
+          "comparison_text",
+          "limit",
+          "unit",
+          "clause"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "Flag": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "Flag",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1896,9 +3257,86 @@
         "title": "Health",
         "type": "object"
       },
+      "HitWhy": {
+        "additionalProperties": false,
+        "properties": {
+          "bm25_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bm25 Rank"
+          },
+          "dense_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dense Rank"
+          },
+          "terms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "terms",
+          "bm25_rank",
+          "dense_rank"
+        ],
+        "title": "HitWhy",
+        "type": "object"
+      },
       "Info": {
         "additionalProperties": false,
         "properties": {
+          "chat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "gemini": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "budget_exhausted"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gemini"
+          },
           "limits": {
             "$ref": "#/components/schemas/Limits"
           },
@@ -1932,6 +3370,16 @@
       "Issue": {
         "additionalProperties": false,
         "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IssueAnswer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "box": {
             "anyOf": [
               {
@@ -1989,6 +3437,17 @@
             ],
             "title": "Drawing Id"
           },
+          "drawing_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing Name"
+          },
           "file": {
             "title": "File",
             "type": "string"
@@ -2031,6 +3490,17 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "links": {
             "$ref": "#/components/schemas/IssueLinks"
@@ -2119,6 +3589,16 @@
             ],
             "title": "Reason"
           },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "severity": {
             "enum": [
               "fails_rule",
@@ -2136,6 +3616,13 @@
             ],
             "title": "State",
             "type": "string"
+          },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Suggestions",
+            "type": "array"
           },
           "why": {
             "title": "Why",
@@ -2163,6 +3650,34 @@
           "links"
         ],
         "title": "Issue",
+        "type": "object"
+      },
+      "IssueAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "by",
+          "at"
+        ],
+        "title": "IssueAnswer",
         "type": "object"
       },
       "IssueLinks": {
@@ -2221,6 +3736,234 @@
           "checks"
         ],
         "title": "IssueLinks",
+        "type": "object"
+      },
+      "Item": {
+        "additionalProperties": false,
+        "description": "A removed or added piece of geometry (a wall strip, a door, a new partition).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "polygon": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Polygon",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "polygon",
+          "label"
+        ],
+        "title": "Item",
+        "type": "object"
+      },
+      "LawCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "ai_findings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AiFinding"
+            },
+            "title": "Ai Findings",
+            "type": "array"
+          },
+          "fail_means": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Means"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "pack": {
+            "title": "Pack",
+            "type": "string"
+          },
+          "pack_name": {
+            "title": "Pack Name",
+            "type": "string"
+          },
+          "related": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ClauseView"
+            },
+            "title": "Related",
+            "type": "array"
+          },
+          "subject_values": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Subject Values",
+            "type": "object"
+          },
+          "subjects": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Subjects",
+            "type": "array"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pack",
+          "pack_name",
+          "fail_means",
+          "findings",
+          "unchanged",
+          "note"
+        ],
+        "title": "LawCheck",
+        "type": "object"
+      },
+      "LawPack": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "laws": {
+            "items": {
+              "$ref": "#/components/schemas/TocEntry"
+            },
+            "title": "Laws",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "laws"
+        ],
+        "title": "LawPack",
+        "type": "object"
+      },
+      "LawPacks": {
+        "additionalProperties": false,
+        "properties": {
+          "packs": {
+            "items": {
+              "$ref": "#/components/schemas/LawPack"
+            },
+            "title": "Packs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "packs"
+        ],
+        "title": "LawPacks",
+        "type": "object"
+      },
+      "LawSearch": {
+        "additionalProperties": false,
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            },
+            "title": "Hits",
+            "type": "array"
+          },
+          "pack": {
+            "title": "Pack",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack",
+          "query",
+          "hits"
+        ],
+        "title": "LawSearch",
+        "type": "object"
+      },
+      "Limit": {
+        "additionalProperties": false,
+        "description": "A number a drawing could be checked against: \"habitable room area >= 7 m2\".",
+        "properties": {
+          "comparison": {
+            "enum": [
+              ">=",
+              ">",
+              "<=",
+              "<",
+              "="
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "unit": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          },
+          "what": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "what",
+          "comparison",
+          "value",
+          "unit"
+        ],
+        "title": "Limit",
         "type": "object"
       },
       "Limits": {
@@ -2733,6 +4476,29 @@
         "title": "Normalised",
         "type": "object"
       },
+      "Option": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "message"
+        ],
+        "title": "Option",
+        "type": "object"
+      },
       "Overrule": {
         "additionalProperties": false,
         "description": "A person's call on a file's relevance; the judge's own verdict stays as it was.",
@@ -2853,6 +4619,17 @@
             "title": "Question",
             "type": "string"
           },
+          "refused_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused Note"
+          },
           "total": {
             "anyOf": [
               {
@@ -2866,6 +4643,22 @@
               }
             ],
             "title": "Total"
+          },
+          "total_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Level"
           },
           "total_note": {
             "title": "Total Note",
@@ -2893,6 +4686,17 @@
               }
             ],
             "title": "Total Unit"
+          },
+          "why_no_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why No Total"
           }
         },
         "required": [
@@ -2901,7 +4705,10 @@
           "total",
           "total_unit",
           "total_sure",
-          "total_note"
+          "total_level",
+          "total_note",
+          "why_no_total",
+          "refused_note"
         ],
         "title": "ProjectAnswer",
         "type": "object"
@@ -3100,6 +4907,17 @@
             ],
             "title": "Conflicts Open"
           },
+          "conflicts_picked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts Picked"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -3126,6 +4944,17 @@
               }
             ],
             "title": "Issues Open"
+          },
+          "issues_to_answer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issues To Answer"
           },
           "name": {
             "title": "Name",
@@ -3203,6 +5032,28 @@
         "additionalProperties": false,
         "description": "Ingest's project status, plus the project's drawings, one per plan.",
         "properties": {
+          "conflicts_open": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts Open"
+          },
+          "conflicts_picked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts Picked"
+          },
           "cost_usd": {
             "default": 0.0,
             "minimum": 0.0,
@@ -3281,6 +5132,28 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "issues_open": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issues Open"
+          },
+          "issues_to_answer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issues To Answer"
           },
           "ms": {
             "default": 0,
@@ -3444,6 +5317,91 @@
         "title": "Proof",
         "type": "object"
       },
+      "Proposal": {
+        "additionalProperties": false,
+        "properties": {
+          "added": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "flags": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Flag"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "law": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LawCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "removed": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "rooms": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RoomChange"
+            },
+            "title": "Rooms",
+            "type": "array"
+          },
+          "state": {
+            "default": "proposed",
+            "enum": [
+              "proposed",
+              "accepted",
+              "rejected"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "unknowns": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "drawing_id",
+          "page"
+        ],
+        "title": "Proposal",
+        "type": "object"
+      },
       "QuantityConflict": {
         "additionalProperties": false,
         "description": "Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in\nthat quantity's unit: every method's value, and the rule that picked one (None: no rule\ndecides). `derived`: how the values were carried over from another entry, when they were.",
@@ -3488,6 +5446,17 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "value_marks": {
+            "default": [],
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/ValueMark"
+              },
+              "type": "array"
+            },
+            "title": "Value Marks",
+            "type": "array"
           },
           "values": {
             "items": {
@@ -3815,6 +5784,157 @@
         "title": "Resolution",
         "type": "object"
       },
+      "Resolved": {
+        "additionalProperties": false,
+        "description": "What the resolver (RESOLVER, app/core/review/resolve.py) said about a conflict or an answer\nthat is not certified: a value it picked, or that it can't tell, why, and where it looked.\nChecked by a model: never a person's settle or sign-off, never certified.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "marks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ValueMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "of": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "title": "Of",
+            "type": "array"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "verdict": {
+            "enum": [
+              "picked",
+              "cannot_tell"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "value",
+          "reason",
+          "by",
+          "at"
+        ],
+        "title": "Resolved",
+        "type": "object"
+      },
+      "Resolving": {
+        "additionalProperties": false,
+        "description": "POST /api/projects/{id}/resolve: the review after the resolver's replies, and a note for\neach conflict it gave no reply on (the budget used up, a timeout...).",
+        "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "review": {
+            "$ref": "#/components/schemas/ProjectReview"
+          }
+        },
+        "required": [
+          "review",
+          "notes"
+        ],
+        "title": "Resolving",
+        "type": "object"
+      },
+      "RoomChange": {
+        "additionalProperties": false,
+        "properties": {
+          "area_after_m2": {
+            "title": "Area After M2",
+            "type": "number"
+          },
+          "area_before_m2": {
+            "title": "Area Before M2",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "polygon": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Polygon",
+            "type": "array"
+          },
+          "was": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Was",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "polygon",
+          "area_before_m2",
+          "area_after_m2"
+        ],
+        "title": "RoomChange",
+        "type": "object"
+      },
       "Row": {
         "additionalProperties": false,
         "description": "One quantity of the takeoff with its review state.",
@@ -3901,6 +6021,16 @@
               }
             ],
             "title": "Original Value"
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "rule": {
             "$ref": "#/components/schemas/RuleText"
@@ -4483,6 +6613,50 @@
         "title": "Scope",
         "type": "object"
       },
+      "SearchHit": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "law_id": {
+            "title": "Law Id",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "summary_en": {
+            "title": "Summary En",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "law_id",
+          "ref",
+          "title_en",
+          "summary_en",
+          "url",
+          "score"
+        ],
+        "title": "SearchHit",
+        "type": "object"
+      },
       "SecondCount": {
         "additionalProperties": false,
         "description": "What the second method did on a drawing: quantities it measured and where it disagreed.",
@@ -4505,6 +6679,91 @@
         "title": "SecondCount",
         "type": "object"
       },
+      "Selection": {
+        "additionalProperties": false,
+        "description": "What the user pointed at on a plan: a room (`ref` its id) or a dragged rectangle (`box`).",
+        "properties": {
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Box"
+          },
+          "drawing_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^sel_\\d+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "room",
+              "region"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "drawing_id",
+          "page"
+        ],
+        "title": "Selection",
+        "type": "object"
+      },
       "Settled": {
         "additionalProperties": false,
         "description": "The value a surveyor chose to keep for a quantity (the `settle` action).",
@@ -4512,6 +6771,17 @@
           "at": {
             "title": "At",
             "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           },
           "value": {
             "anyOf": [
@@ -4530,6 +6800,126 @@
           "at"
         ],
         "title": "Settled",
+        "type": "object"
+      },
+      "Sheet": {
+        "additionalProperties": false,
+        "description": "Classified.sheet and Triage.sheet: the sheet-kind model's reply and its decision. The\ntitle, sheet number and printed scale are shown, never acted on.",
+        "properties": {
+          "advanced": {
+            "title": "Advanced",
+            "type": "boolean"
+          },
+          "advanced_why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advanced Why"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "decision": {
+            "enum": [
+              "read",
+              "doubt",
+              "set_aside"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "architectural_floor_plan",
+              "multi_view_sheet",
+              "mep_plan",
+              "structural_plan",
+              "roof_or_ceiling_plan",
+              "site_plan_or_map",
+              "elevation",
+              "section",
+              "detail",
+              "perspective_or_axonometric",
+              "schedule_or_text",
+              "not_a_drawing",
+              "other"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "kind_words": {
+            "title": "Kind Words",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "printed_scale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Printed Scale"
+          },
+          "seen": {
+            "title": "Seen",
+            "type": "string"
+          },
+          "sheet_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet Number"
+          },
+          "takeoff_possible": {
+            "title": "Takeoff Possible",
+            "type": "boolean"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "kind",
+          "kind_words",
+          "decision",
+          "takeoff_possible",
+          "confidence",
+          "title",
+          "sheet_number",
+          "printed_scale",
+          "advanced",
+          "advanced_why",
+          "seen",
+          "model"
+        ],
+        "title": "Sheet",
         "type": "object"
       },
       "SignOff": {
@@ -4737,6 +7127,44 @@
         "title": "Started",
         "type": "object"
       },
+      "Step": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "ms": {
+            "title": "Ms",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "n",
+          "tool",
+          "label",
+          "status",
+          "ms"
+        ],
+        "title": "Step",
+        "type": "object"
+      },
       "StoreyRow": {
         "additionalProperties": false,
         "properties": {
@@ -4827,6 +7255,63 @@
         "title": "Takeoff",
         "type": "object"
       },
+      "TocEntry": {
+        "additionalProperties": false,
+        "description": "One line of a pack's table of contents: what exists, for the prompt and the screen.",
+        "properties": {
+          "clauses": {
+            "title": "Clauses",
+            "type": "integer"
+          },
+          "law_id": {
+            "title": "Law Id",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "topics": {
+            "items": {
+              "enum": [
+                "rooms",
+                "accessibility",
+                "fire",
+                "escape-routes",
+                "stairs-railings",
+                "doors-windows",
+                "ventilation",
+                "energy",
+                "sound",
+                "moisture",
+                "structure",
+                "daylight",
+                "parking",
+                "outdoor",
+                "distances-heights",
+                "permits-procedure",
+                "general"
+              ],
+              "type": "string"
+            },
+            "title": "Topics",
+            "type": "array"
+          }
+        },
+        "required": [
+          "law_id",
+          "number",
+          "title_en",
+          "clauses",
+          "topics"
+        ],
+        "title": "TocEntry",
+        "type": "object"
+      },
       "Triage": {
         "additionalProperties": false,
         "description": "FileStatus.triage: what triage made of an image file (decision 0010). Build a changed one\nwith `model_validate`, not `model_copy`, so `verdict` follows `overruled` and `relevance`.",
@@ -4905,6 +7390,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/Relevance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sheet"
               },
               {
                 "type": "null"
@@ -4997,6 +7492,137 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "ValueMark": {
+        "additionalProperties": false,
+        "description": "Where one item a conflicting value counted or measured is on the drawing, named.",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "box",
+          "label"
+        ],
+        "title": "ValueMark",
+        "type": "object"
+      },
+      "app__core__agent__model__Level": {
+        "additionalProperties": false,
+        "description": "An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').",
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "level": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "Level",
+        "type": "object"
+      },
+      "app__core__review__check__Level": {
+        "additionalProperties": false,
+        "description": "How far to trust an answer: one of three levels, what it rests on, and one plain sentence\nwith the measured counts behind it.",
+        "properties": {
+          "basis": {
+            "enum": [
+              "certified",
+              "route",
+              "score",
+              "page",
+              "held",
+              "unrated",
+              "carbon"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "basis",
+          "text"
+        ],
+        "title": "Level",
         "type": "object"
       }
     }
@@ -5656,6 +8282,164 @@
         "summary": "Info"
       }
     },
+    "/api/laws": {
+      "get": {
+        "operationId": "law_packs_api_laws_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LawPacks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Law Packs"
+      }
+    },
+    "/api/laws/clauses/{clause_id}": {
+      "get": {
+        "operationId": "law_clause_api_laws_clauses__clause_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clause_id",
+            "required": true,
+            "schema": {
+              "title": "Clause Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClauseView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Law Clause"
+      }
+    },
+    "/api/laws/{pack}/search": {
+      "get": {
+        "operationId": "law_search_api_laws__pack__search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack",
+            "required": true,
+            "schema": {
+              "title": "Pack",
+              "type": "string"
+            }
+          },
+          {
+            "description": "words to search for",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "words to search for",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "only clauses of this topic",
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "rooms",
+                    "accessibility",
+                    "fire",
+                    "escape-routes",
+                    "stairs-railings",
+                    "doors-windows",
+                    "ventilation",
+                    "energy",
+                    "sound",
+                    "moisture",
+                    "structure",
+                    "daylight",
+                    "parking",
+                    "outdoor",
+                    "distances-heights",
+                    "permits-procedure",
+                    "general"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only clauses of this topic",
+              "title": "Topic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LawSearch"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Law Search"
+      }
+    },
     "/api/projects": {
       "get": {
         "description": "Every project, newest first.",
@@ -5844,6 +8628,125 @@
         "summary": "Project Ask"
       }
     },
+    "/api/projects/{project_id}/chat": {
+      "post": {
+        "operationId": "chat_api_projects__project_id__chat_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatTurn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "CHAT_MODEL=off"
+          }
+        },
+        "summary": "Chat"
+      }
+    },
+    "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {
+      "post": {
+        "operationId": "decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chat_id",
+            "required": true,
+            "schema": {
+              "title": "Chat Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Proposal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide"
+      }
+    },
     "/api/projects/{project_id}/checks": {
       "get": {
         "description": "Every drawing of the project checked against the pack, in the project's drawing order.\n409 `not-allowed` until the project's ingest is done, as for the project's questions.",
@@ -5893,6 +8796,129 @@
           }
         },
         "summary": "Project Checks"
+      }
+    },
+    "/api/projects/{project_id}/evidence/search": {
+      "get": {
+        "description": "Up to `k` files, best first, one hit each with its best-matching passage. Files judged\nunrelated are searched only with `include_unrelated`.",
+        "operationId": "search_evidence_api_projects__project_id__evidence_search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 500,
+              "minLength": 1,
+              "pattern": "\\S",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "k",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "K",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_unrelated",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Unrelated",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceSearch"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Evidence"
+      }
+    },
+    "/api/projects/{project_id}/evidence/{evidence_id}": {
+      "get": {
+        "description": "One passage (`f7-detail-2`) or a file as a whole (`f7`, its summary), with the file's\ndescription, register and relevance.",
+        "operationId": "get_evidence_api_projects__project_id__evidence__evidence_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evidence_id",
+            "required": true,
+            "schema": {
+              "title": "Evidence Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Evidence"
       }
     },
     "/api/projects/{project_id}/files": {
@@ -6112,7 +9138,7 @@
     },
     "/api/projects/{project_id}/files/{file_id}/triage": {
       "post": {
-        "description": "A person has a file triage set aside read as a floor plan: it is read in the background,\nalone, while the project stays done. Returns the file, queued; poll the project. 409 until\nthe project is done or while a file of it is read again; 422 `not-triaged` for a file triage\ndid not set aside as not a floor plan. No undo: a reading is not unread.",
+        "description": "A person has a file triage set aside read as a floor plan: it is read in the background,\nalone, while the project stays done. Returns the file, queued; poll the project. 409 until\nthe project is done or while a file of it is read again; 422 `not-triaged` for a file triage\ndid not set aside as not a floor plan. A sheet the sheet-kind step doubted (flagged) was read\nalready: its flag is dropped at once, nothing is read again. No undo: a reading is not\nunread.",
         "operationId": "triage_api_projects__project_id__files__file_id__triage_post",
         "parameters": [
           {
@@ -6335,6 +9361,83 @@
         "summary": "Project Issues Zip"
       }
     },
+    "/api/projects/{project_id}/issues/{issue_id}/answer": {
+      "post": {
+        "description": "Save a person's answer to an issue, replacing an earlier one, or take it back (`undo`).\nReturns the issue with its answer. A code check's issue needs its `pack`. 404 for an unknown\nproject, pack or issue; 409 until the project is done.",
+        "operationId": "answer_issue_api_projects__project_id__issues__issue_id__answer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "title": "Issue Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+            "in": "query",
+            "name": "pack",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+              "title": "Pack"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer Issue"
+      }
+    },
     "/api/projects/{project_id}/questions": {
       "get": {
         "description": "The questions asked in the project (`project_id` in POST /api/ask), newest first.",
@@ -6373,6 +9476,46 @@
           }
         },
         "summary": "Project Questions"
+      }
+    },
+    "/api/projects/{project_id}/resolve": {
+      "post": {
+        "description": "RESOLVER: a model looks at each conflict no rule decides and no person settled, and picks\na value or says it can't tell; one call per conflict, replies kept with the project's review,\nso a second POST asks only about what changed. 409 when RESOLVER is off or before `done`.\nIt also runs on its own when an upload's ingest is done (`_resolve_when_done`).",
+        "operationId": "resolve_api_projects__project_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resolving"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve"
       }
     },
     "/api/projects/{project_id}/review": {

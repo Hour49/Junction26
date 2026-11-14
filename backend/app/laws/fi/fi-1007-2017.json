@@ -1,0 +1,2180 @@
+{
+  "id": "fi-1007-2017",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "1007/2017",
+  "title": "Ympäristöministeriön asetus rakennuksen käyttöturvallisuudesta",
+  "title_en": "Ministry of the Environment Decree on the safety in use of buildings",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1007",
+  "language": "fi",
+  "in_force": "2018-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force. Kept in force by the entry-into-force provision of the Building Act 752/2023 until replaced.",
+  "clauses": [
+    {
+      "id": "fi-1007-2017-1-1",
+      "ref": "1 § 1 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Tämä asetus koskee uutta rakennusta, rakennuksen laajennusta ja rakennuksen kerrosalaa lisäävää tilaa sekä rakennuspaikan välitöntä ympäristöä.",
+      "text_en": "This Decree applies to a new building, an extension of a building and space that adds floor area to a building, as well as to the immediate surroundings of the building site.",
+      "summary_en": "The decree covers new buildings, extensions, floor-area-adding space and the immediate surroundings of the building site.",
+      "keywords": [
+        "scope of application",
+        "new building",
+        "extension",
+        "kerrosala",
+        "rakennuspaikka",
+        "soveltamisala",
+        "rakennuksen laajennus"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-1-2",
+      "ref": "1 § 2 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Rakennuksen korjaus- ja muutostyössä tätä asetusta on sovellettava, jos alkuperäinen ratkaisu on turvallisuuden tai terveydellisyyden kannalta ilmeisen haitallinen. Rakennuksen korjaus- ja muutostyöt voidaan muutoin tehdä alkuperäistä ratkaisua noudattaen. Muutokset eivät saa heikentää käyttöturvallisuutta.",
+      "text_en": "When repairing or altering a building, this Decree must be applied if the original solution is obviously harmful from the standpoint of safety or healthiness. Repair and alteration work may otherwise be carried out following the original solution. Changes must not weaken operational safety.",
+      "summary_en": "Repair and alteration work may follow the original solution unless it is obviously harmful to safety or health, and changes must not weaken operational safety.",
+      "keywords": [
+        "repair and alteration",
+        "korjaus",
+        "muutostyö",
+        "alkuperäinen ratkaisu",
+        "käyttöturvallisuus",
+        "terveellisyys"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-1-3",
+      "ref": "1 § 3 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Tätä asetusta on sovellettava rakennuksen käyttötarkoituksen muutokseen, jos rakennuksen tai sen osan käyttötarkoitus muuttuu riskillisemmäksi.",
+      "text_en": "This Decree must be applied to a change of a building's use where the use of the building or a part of it becomes riskier.",
+      "summary_en": "A change of use that makes a building or part of it riskier brings this decree into application.",
+      "keywords": [
+        "change of use",
+        "käyttötarkoituksen muutos",
+        "riskillisyys",
+        "rakennuksen käyttö",
+        "soveltamisala"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-2-1",
+      "ref": "2 §",
+      "heading": "Rakennuksen käyttöturvallisuus",
+      "heading_en": "Operational safety of the building",
+      "text": "Pääsuunnittelijan, rakennussuunnittelijan ja erityissuunnittelijan on tehtävänsä mukaisesti huolehdittava rakennuksen suunnittelusta siten, että rakennus käyttötarkoituksensa mukaisesti täyttää käyttöturvallisuudelle asetetut olennaiset tekniset vaatimukset.",
+      "text_en": "The principal designer, building designer and specialist designer must, in accordance with their duties, ensure that the design of the building meets, for its intended use, the essential technical requirements for operational safety.",
+      "summary_en": "The principal, building and specialist designers must design the building to meet the essential technical operational-safety requirements for its intended use.",
+      "keywords": [
+        "operational safety",
+        "käyttöturvallisuus",
+        "pääsuunnittelija",
+        "rakennussuunnittelija",
+        "erityissuunnittelija",
+        "olennaiset tekniset vaatimukset"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Porras",
+      "heading_en": "Stair",
+      "text": "Portaan on oltava turvallinen ja tarkoitukseensa soveltuva. Portaan pinta ei saa olla liukas.",
+      "text_en": "The stair must be safe and suited to its purpose. The surface of the stair must not be slippery.",
+      "summary_en": "A stair must be safe, fit for its purpose and have a surface that is not slippery.",
+      "keywords": [
+        "stair",
+        "slip resistance",
+        "porras",
+        "liukastuminen",
+        "portaan pinta"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Porras",
+      "heading_en": "Stair",
+      "text": "Poistumisalueen sisäisen portaan vähimmäisleveys on 0,85 metriä. Tämän mitan sisäpuolelle voivat kuitenkin ulottua käsijohteet ja jalkalistat.",
+      "text_en": "The minimum width of an internal stair within an escape area is 0.85 metres. However, handrails and skirting boards may extend inside this dimension.",
+      "summary_en": "An internal stair in an escape area must be at least 0.85 m wide, with handrails and skirting boards allowed to project into that width.",
+      "keywords": [
+        "stair width",
+        "escape area",
+        "poistumisalue",
+        "portaan leveys",
+        "käsijohde",
+        "jalkalista",
+        "0,85 m",
+        "poistumistie"
+      ],
+      "topics": [
+        "stairs-railings",
+        "escape-routes"
+      ],
+      "limits": [
+        {
+          "what": "minimum width of internal stair in escape area",
+          "comparison": ">=",
+          "value": 0.85,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-3-3",
+      "ref": "3 § 3 mom.",
+      "heading": "Porras",
+      "heading_en": "Stair",
+      "text": "Jokaiselta poistumisalueelta on oltava mahdollista kuljettaa uloskäytävän kautta liikkumiskyvytön henkilö paareilla. Jos poistumisalueen sisäinen kulkureitti uloskäytävään muissa kuin asuinrakennuksissa kulkee alueen sisäisen portaan kautta, on portaan oltava niin väljä, että liikkumiskyvyttömän henkilön kuljettaminen paareilla on mahdollista.",
+      "text_en": "From every escape area it must be possible to carry an immobile person on a stretcher through the exit. If, in buildings other than dwellings, the internal route from an escape area to the exit passes via an internal stair of the area, the stair must be wide enough for an immobile person to be carried on a stretcher.",
+      "summary_en": "Each escape area must allow a person who cannot move to be carried on a stretcher to the exit, with the stair on that route wide enough in non-residential buildings.",
+      "keywords": [
+        "stretcher evacuation",
+        "escape area",
+        "paarikuljetus",
+        "poistumisalue",
+        "uloskäytävä",
+        "liikkumiskyvytön henkilö",
+        "portaan leveys",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes",
+        "stairs-railings"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-3-4",
+      "ref": "3 § 4 mom.",
+      "heading": "Porras",
+      "heading_en": "Stair",
+      "text": "Kerrostasojen välisen portaan on oltava katettu. Asuinkerrostalossa, jossa ei ole hissiä, kerrostasojen välisen portaan on lisäksi saatava luonnonvaloa ja siinä on oltava vähintään yksi välitasanne.",
+      "text_en": "A stair between floor levels must be covered. In an apartment block without a lift, a stair between floor levels must also receive daylight and must have at least one intermediate landing.",
+      "summary_en": "Stairs between floors must be covered; in an apartment block without a lift they must also get daylight and have at least one intermediate landing.",
+      "keywords": [
+        "stair covering",
+        "daylight",
+        "intermediate landing",
+        "välitasanne",
+        "luonnonvalo",
+        "asuinkerrostalo",
+        "hissi"
+      ],
+      "topics": [
+        "stairs-railings",
+        "daylight"
+      ],
+      "limits": [
+        {
+          "what": "intermediate landings in stair of apartment block without lift",
+          "comparison": ">=",
+          "value": 1,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-4-1",
+      "ref": "4 § 1 mom.",
+      "heading": "Sisäportaiden mitoitus",
+      "heading_en": "Dimensioning of indoor stairs",
+      "text": "Portaan askelman nousun ja etenemän suhteen on oltava portaan käyttötarkoitukseen nähden helppokulkuinen.",
+      "text_en": "The rise and going of a stair step must be easy to walk on, in relation to the purpose of the stair.",
+      "summary_en": "Stair steps must have a rise and going that make the stair easy to walk on for its purpose.",
+      "keywords": [
+        "stair rise",
+        "stair going",
+        "porrasaskelma",
+        "nousu",
+        "etenemä",
+        "sisäportaat"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Sisäportaiden mitoitus",
+      "heading_en": "Dimensioning of indoor stairs",
+      "text": "Hallinto-, palvelu- ja liiketiloja sisältävien rakennusten auloissa ja muissa sisätiloissa sekä kokoontumistiloissa porrasaskelman nousu voi olla enintään 160 millimetriä ja etenemän on oltava vähintään 300 millimetriä. Asuinhuoneiston ja majoitustilan sisäisen portaan nousu voi olla enintään 190 millimetriä ja etenemän on oltava vähintään 250 millimetriä. Muiden varsinaisten käyttötilojen sisäportaiden nousu voi olla enintään 180 millimetriä ja etenemän on oltava vähintään 270 millimetriä. Yksinomaan varatienä käytettävän ja asunnossa tai majoitustilassa muihin kuin asumista palveleviin välttämättömiin tiloihin johtavan portaan nousu voi olla enintään 220 millimetriä ja etenemän on oltava vähintään 220 millimetriä.",
+      "text_en": "In the lobbies and other interior spaces of buildings containing administrative, service and commercial premises, and in assembly spaces, the rise of a stair step may be at most 160 mm and the going must be at least 300 mm. The rise of an internal stair of a dwelling unit or accommodation space may be at most 190 mm and the going must be at least 250 mm. The rise of internal stairs of other actual use spaces may be at most 180 mm and the going must be at least 270 mm. The rise of a stair used solely as an emergency route and leading within a dwelling or accommodation space to necessary spaces other than those serving residence may be at most 220 mm and the going must be at least 220 mm.",
+      "summary_en": "Stair steps may rise 160 mm at most with at least 300 mm going in lobbies and assembly spaces, 190 mm and 250 mm in dwellings, 180 mm and 270 mm in other use spaces, and 220 mm and 220 mm on emergency-only stairs.",
+      "keywords": [
+        "stair rise",
+        "stair going",
+        "porrasaskelma",
+        "sisäportaat",
+        "asuinhuoneisto",
+        "majoitustila",
+        "varatie",
+        "160 mm",
+        "kokoontumistila"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "stair step rise in lobbies, offices, service and assembly spaces",
+          "comparison": "<=",
+          "value": 160,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step going in lobbies, offices, service and assembly spaces",
+          "comparison": ">=",
+          "value": 300,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step rise in dwelling or accommodation unit",
+          "comparison": "<=",
+          "value": 190,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step going in dwelling or accommodation unit",
+          "comparison": ">=",
+          "value": 250,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step rise in other actual use spaces",
+          "comparison": "<=",
+          "value": 180,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step going in other actual use spaces",
+          "comparison": ">=",
+          "value": 270,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step rise on emergency-only stair in dwelling or accommodation unit",
+          "comparison": "<=",
+          "value": 220,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step going on emergency-only stair in dwelling or accommodation unit",
+          "comparison": ">=",
+          "value": 220,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-4-3",
+      "ref": "4 § 3 mom.",
+      "heading": "Sisäportaiden mitoitus",
+      "heading_en": "Dimensioning of indoor stairs",
+      "text": "Uloskäytävässä portaan askelman nousu voi olla enintään 180 millimetriä. Etenemän on oltava vähintään 270 millimetriä. Uloskäytävässä, jota ei samalla käytetä rakennuksen tavanomaiseen sisäiseen liikenteeseen, portaan nousu voi olla enintään 200 millimetriä.",
+      "text_en": "In an escape route, the rise of a stair step may be at most 180 mm. The going must be at least 270 mm. In an escape route that is not also used for the building's ordinary internal traffic, the rise of a stair may be at most 200 mm.",
+      "summary_en": "Escape-route stair steps must rise at most 180 mm with at least 270 mm going, or at most 200 mm where the route is not used for ordinary internal traffic.",
+      "keywords": [
+        "escape route stair",
+        "uloskäytävä",
+        "portaan nousu",
+        "etenemä",
+        "porrasaskelma",
+        "180 mm",
+        "sisäinen liikenne",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes",
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "stair step rise in escape route",
+          "comparison": "<=",
+          "value": 180,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step going in escape route",
+          "comparison": ">=",
+          "value": 270,
+          "unit": "mm"
+        },
+        {
+          "what": "stair step rise in escape route not used for ordinary traffic",
+          "comparison": "<=",
+          "value": 200,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-5-1",
+      "ref": "5 §",
+      "heading": "Ulkoportaiden mitoitus",
+      "heading_en": "Dimensioning of outdoor stairs",
+      "text": "Katettujen tai lämmitettyjen ulkoportaiden etenemän on oltava vähintään 300 millimetriä, ja nousu voi olla enintään 160 millimetriä. Kattamattomien ja lämmittämättömien ulkoportaiden etenemän on oltava vähintään 390 millimetriä, ja nousu voi olla enintään 130 millimetriä.",
+      "text_en": "The going of covered or heated outdoor stairs must be at least 300 mm, and the rise may be at most 160 mm. The going of uncovered and unheated outdoor stairs must be at least 390 mm, and the rise may be at most 130 mm.",
+      "summary_en": "Covered or heated outdoor stairs need at least 300 mm going and at most 160 mm rise; uncovered, unheated ones need at least 390 mm going and at most 130 mm rise.",
+      "keywords": [
+        "outdoor stairs",
+        "ulkoportaat",
+        "etenemä",
+        "nousu",
+        "katettu",
+        "lämmitetty",
+        "kattamaton",
+        "390 mm"
+      ],
+      "topics": [
+        "stairs-railings",
+        "outdoor"
+      ],
+      "limits": [
+        {
+          "what": "going of covered or heated outdoor stair",
+          "comparison": ">=",
+          "value": 300,
+          "unit": "mm"
+        },
+        {
+          "what": "rise of covered or heated outdoor stair",
+          "comparison": "<=",
+          "value": 160,
+          "unit": "mm"
+        },
+        {
+          "what": "going of uncovered and unheated outdoor stair",
+          "comparison": ">=",
+          "value": 390,
+          "unit": "mm"
+        },
+        {
+          "what": "rise of uncovered and unheated outdoor stair",
+          "comparison": "<=",
+          "value": 130,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-6-1",
+      "ref": "6 § 1 mom.",
+      "heading": "Tasanne",
+      "heading_en": "Landing",
+      "text": "Rakennuksen ja sen ulkotilojen tasanteen on oltava turvallinen, riittävän väljä ja tarkoitukseensa soveltuva. Portaan ja tasanteen sivureunat on varustettava korotuksella, joka estää luistamisen reunan yli, jos tason ja kaiteen tai seinän välisestä raosta mahtuu leveydeltään yli 50 millimetrin kokoinen kuutio. Portaan tasanteelle aukeavan oven etäisyyden luiskan tai porrassyöksyn yläreunasta on syöksyn sivuseinällä oltava vähintään 400 millimetriä ja päätyseinällä vähintään 1 500 millimetriä. Uloskäytävän kulkureitillä olevan oven eteen ja taakse on varattava vähintään 800 millimetrin pituinen tasanne.",
+      "text_en": "The landing of the building and of its outdoor areas must be safe, sufficiently spacious and suited to its purpose. The side edges of a stair and landing must be fitted with an upstand that prevents slipping over the edge if a cube larger than 50 mm can pass through the gap between the landing and the railing or wall. The distance from the upper edge of a ramp or stair flight to a door opening onto the stair landing must be at least 400 mm on the side wall of the flight and at least 1,500 mm on the end wall. A landing at least 800 mm long must be reserved in front of and behind a door on an escape route.",
+      "summary_en": "Landings must be safe and spacious; gaps over 50 mm at a stair edge need an upstand, landing doors must sit 400 mm (side wall) or 1,500 mm (end wall) from the flight, and escape-route doors need 800 mm landings in front and behind.",
+      "keywords": [
+        "landing",
+        "tasanne",
+        "stair flight",
+        "porrassyöksy",
+        "luiska",
+        "ovi",
+        "800 mm",
+        "reunakorotus",
+        "uloskäytävä",
+        "ramppi",
+        "poistumistie"
+      ],
+      "topics": [
+        "stairs-railings",
+        "escape-routes"
+      ],
+      "limits": [
+        {
+          "what": "gap between landing edge and railing or wall (cube size passing through)",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "mm"
+        },
+        {
+          "what": "distance of landing door from upper edge of flight, side wall",
+          "comparison": ">=",
+          "value": 400,
+          "unit": "mm"
+        },
+        {
+          "what": "distance of landing door from upper edge of flight, end wall",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        },
+        {
+          "what": "length of landing in front of and behind escape-route door",
+          "comparison": ">=",
+          "value": 800,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-6-2",
+      "ref": "6 § 2 mom.",
+      "heading": "Tasanne",
+      "heading_en": "Landing",
+      "text": "Oleskeluun ja kulkuun tarkoitetuilla rakennuksen tasanteilla sijaitsevien ikkunoiden, luukkujen ja muiden vastaavien aukkoja peittävien rakenteiden on kestettävä henkilökuorma, jos putoamisvaara on olemassa.",
+      "text_en": "Windows, hatches and other similar structures covering openings on landings of a building intended for staying or circulation must withstand the human load where there is a risk of falling.",
+      "summary_en": "Windows, hatches and similar opening covers on landings used for staying or circulation must carry a person's load where there is a risk of falling.",
+      "keywords": [
+        "landing window",
+        "human load",
+        "henkilökuorma",
+        "ikkuna",
+        "luukku",
+        "putoamisvaara",
+        "tasanne"
+      ],
+      "topics": [
+        "stairs-railings",
+        "doors-windows"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-7-1",
+      "ref": "7 § 1 mom.",
+      "heading": "Kaide",
+      "heading_en": "Guardrail",
+      "text": "Rakennuksessa tai sen lähiympäristössä on oltava kaide, kun putoamiskorkeus ylittää puoli metriä ja putoamisen tai harhaan astumisen vaara on olemassa, eikä toiminnan luonne edellytä kaiteettomuutta. Kaiteen on oltava turvallinen ja kestettävä siihen kohdistuvat kuormat. Kaide voi olla suojakaide tai avokaide.",
+      "text_en": "A guardrail must be provided in or near a building where the fall height exceeds 0.5 metres and there is a risk of falling or stepping off, unless the nature of the activity requires no railing. The railing must be safe and withstand the loads applied to it. The guardrail may be a protective railing or an open railing.",
+      "summary_en": "A guardrail is required where the fall height exceeds 0.5 m and there is a risk of falling, and it must be safe and resist the loads applied to it.",
+      "keywords": [
+        "guardrail",
+        "kaide",
+        "putoamiskorkeus",
+        "suojakaide",
+        "avokaide",
+        "putoamisvaara",
+        "0,5 m"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "fall height above which a guardrail is required",
+          "comparison": ">",
+          "value": 0.5,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-7-2",
+      "ref": "7 § 2 mom.",
+      "heading": "Kaide",
+      "heading_en": "Guardrail",
+      "text": "Suojakaidetta on käytettävä yli 0,7 metrin tasoeroissa kohteissa, joihin lapsilla on pääsy. Kaiteen suojaavan osan on ulotuttava vähintään 0,7 metrin korkeudelle tasanteen tai askelman pinnasta. Siinä ei saa olla vaakasuoria rakenteita tai kuvioita, jotka tekevät kiipeilyn mahdolliseksi. Avokaidetta voidaan käyttää kohteissa, joihin lapsilla ei ole pääsyä tai joissa ei ole putoamisvaaraa.",
+      "text_en": "A protective railing must be used where level differences over 0.7 metres exist in places accessible to children. The protective part of the railing must extend to at least 0.7 metres above the surface of the landing or step. It must have no horizontal structures or patterns that make climbing possible. An open railing may be used in places to which children have no access or where there is no risk of falling.",
+      "summary_en": "Where children can reach level differences over 0.7 m, a protective railing is needed, with its protective part at least 0.7 m high and no climbable horizontal features.",
+      "keywords": [
+        "protective railing",
+        "suojakaide",
+        "avokaide",
+        "lapset",
+        "tasoero",
+        "0,7 m",
+        "kiipeily"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "level difference requiring protective railing where children have access",
+          "comparison": ">",
+          "value": 0.7,
+          "unit": "m"
+        },
+        {
+          "what": "height of protective part of railing above landing or step surface",
+          "comparison": ">=",
+          "value": 0.7,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-7-3",
+      "ref": "7 § 3 mom.",
+      "heading": "Kaide",
+      "heading_en": "Guardrail",
+      "text": "Kaiteen sijasta voidaan käyttää muuta järjestelyä, jolla putoaminen voidaan estää tai saavuttaa muuten vaadittava turvallisuustaso, kun korkeusero on enintään yhden metrin.",
+      "text_en": "A means other than a railing may be used instead of a railing to prevent falling or to achieve the otherwise required level of safety, where the height difference is at most one metre.",
+      "summary_en": "Where the height difference is at most 1 m, another measure may replace a railing if it prevents falls to the required safety level.",
+      "keywords": [
+        "railing alternative",
+        "kaiteen sijasta",
+        "tasoero",
+        "putoamisen esto",
+        "1 m",
+        "kaide",
+        "turvallisuustaso"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "height difference at which a non-railing measure may replace a railing",
+          "comparison": "<=",
+          "value": 1,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-7-4",
+      "ref": "7 § 4 mom.",
+      "heading": "Kaide",
+      "heading_en": "Guardrail",
+      "text": "Kaiteen kokonaiskorkeuden on oltava yksi metri, kun putoamiskorkeus on enintään kuusi metriä. Tätä korkeammalla kaiteen kokonaiskorkeuden on oltava 1,2 metriä. Enintään yhtä asuntoa palvelevalla parvekkeella riittää yhden metrin korkuinen kaide riippumatta putoamiskorkeudesta.",
+      "text_en": "The total height of a guardrail must be one metre where the fall height is at most six metres. Above this, the total height of the railing must be 1.2 metres. On a balcony serving at most one dwelling, a railing one metre high is sufficient regardless of the fall height.",
+      "summary_en": "A guardrail is 1 m high for fall heights up to 6 m and 1.2 m above that; a balcony serving one dwelling may keep 1 m regardless of height.",
+      "keywords": [
+        "guardrail height",
+        "kaiteen korkeus",
+        "parveke",
+        "putoamiskorkeus",
+        "1 m",
+        "1,2 m",
+        "6 m"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "fall height up to which the railing is 1 m",
+          "comparison": "<=",
+          "value": 6,
+          "unit": "m"
+        },
+        {
+          "what": "total railing height where fall height is up to 6 m",
+          "comparison": "=",
+          "value": 1,
+          "unit": "m"
+        },
+        {
+          "what": "total railing height where fall height is over 6 m",
+          "comparison": "=",
+          "value": 1.2,
+          "unit": "m"
+        },
+        {
+          "what": "railing height on balcony serving at most one dwelling",
+          "comparison": "=",
+          "value": 1,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-7-5",
+      "ref": "7 § 5 mom.",
+      "heading": "Kaide",
+      "heading_en": "Guardrail",
+      "text": "Asunnon sisätiloissa kaiteen korkeus voi kuitenkin olla vähintään 0,9 metriä, kun putoamiskorkeus on alle kolme metriä.",
+      "text_en": "Inside a dwelling, however, the height of a railing may be at least 0.9 metres where the fall height is under three metres.",
+      "summary_en": "Inside a dwelling a railing may be at least 0.9 m high where the fall height is under 3 m.",
+      "keywords": [
+        "railing height",
+        "asunnon sisätilat",
+        "kaide",
+        "putoamiskorkeus",
+        "0,9 m",
+        "3 m"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "railing height inside a dwelling",
+          "comparison": ">=",
+          "value": 0.9,
+          "unit": "m"
+        },
+        {
+          "what": "fall height under which a 0.9 m railing is allowed inside a dwelling",
+          "comparison": "<",
+          "value": 3,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Kaiteen ja portaan rakenne",
+      "heading_en": "Construction of railing and stair",
+      "text": "Kaiteen ja portaan on kestettävä tilan käyttötarkoituksen mukaiset kuormat koko rakenteen käyttöiän ajan.",
+      "text_en": "The railing and the stair must withstand the loads appropriate to the use of the space throughout the service life of the structure.",
+      "summary_en": "Railings and stairs must carry the loads suited to the space's use for the whole service life of the structure.",
+      "keywords": [
+        "railing load",
+        "stair load",
+        "kuormat",
+        "käyttöikä",
+        "kaide",
+        "porras",
+        "käyttötarkoitus"
+      ],
+      "topics": [
+        "stairs-railings",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Kaiteen ja portaan rakenne",
+      "heading_en": "Construction of railing and stair",
+      "text": "Jos kaiteen suojaavassa osassa on ainoastaan pystyrakenteita, sen aukoista saa mahtua läpi särmältään enintään 100 millimetrin mittainen kuutio. Muunlaisen suojaavan osan aukoista saa mahtua läpi särmältään enintään 30 millimetrin mittainen kuutio. Kuitenkaan suojaavan osan vaakasuora rako ei saa olla kymmentä millimetriä korkeampi.",
+      "text_en": "If the protective part of a railing consists only of vertical members, a cube with an edge of at most 100 mm may pass through its openings. In other types of protective part, a cube with an edge of at most 30 mm may pass through its openings. However, a horizontal gap in the protective part must not be higher than 10 mm.",
+      "summary_en": "Railing openings are limited to a 100 mm cube for vertical-member railings and a 30 mm cube for other protective parts, with horizontal gaps at most 10 mm high.",
+      "keywords": [
+        "railing openings",
+        "kaiteen aukko",
+        "kuutio",
+        "100 mm",
+        "30 mm",
+        "10 mm",
+        "vaakasuora rako",
+        "suojaava osa"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "cube edge passing through openings, railing with vertical members only",
+          "comparison": "<=",
+          "value": 100,
+          "unit": "mm"
+        },
+        {
+          "what": "cube edge passing through openings, other protective part",
+          "comparison": "<=",
+          "value": 30,
+          "unit": "mm"
+        },
+        {
+          "what": "height of horizontal gap in protective part",
+          "comparison": "<=",
+          "value": 10,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-8-3",
+      "ref": "8 § 3 mom.",
+      "heading": "Kaiteen ja portaan rakenne",
+      "heading_en": "Construction of railing and stair",
+      "text": "Kaiteen yläreunan ja suojaavan osan välistä saa mahtua läpi särmältään enintään 200 millimetrin mittainen kuutio. Kaiteen suojaavan osan alareunan ja tasanteen tai askelman yläpinnan tai reunan välistä saa mahtua läpi särmältään enintään 50 millimetrin mittainen kuutio.",
+      "text_en": "A cube with an edge of at most 200 mm may pass between the upper edge of the railing and the protective part. A cube with an edge of at most 50 mm may pass between the lower edge of the protective part of the railing and the upper surface or edge of the landing or step.",
+      "summary_en": "Railing gaps are limited to a 200 mm cube between the handrail top and the protective part, and a 50 mm cube under the protective part above the walking surface.",
+      "keywords": [
+        "railing gap",
+        "kuutio",
+        "200 mm",
+        "50 mm",
+        "kaiteen yläreuna",
+        "kaiteen alareuna",
+        "tasanne"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "cube edge passing between upper edge of railing and protective part",
+          "comparison": "<=",
+          "value": 200,
+          "unit": "mm"
+        },
+        {
+          "what": "cube edge passing between lower edge of protective part and landing or step",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-8-4",
+      "ref": "8 § 4 mom.",
+      "heading": "Kaiteen ja portaan rakenne",
+      "heading_en": "Construction of railing and stair",
+      "text": "Porrasaskelmien välistä saa mahtua enintään 100 millimetrin mittainen kuutio.",
+      "text_en": "A cube with an edge of at most 100 mm may pass between stair steps.",
+      "summary_en": "Gaps between stair steps may be no larger than a 100 mm cube.",
+      "keywords": [
+        "stair step gap",
+        "porrasaskelma",
+        "100 mm",
+        "kuutio",
+        "porras",
+        "aukko"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "cube edge passing between stair steps",
+          "comparison": "<=",
+          "value": 100,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-9-1",
+      "ref": "9 § 1 mom.",
+      "heading": "Käsijohde",
+      "heading_en": "Handrail",
+      "text": "Portaassa ja luiskassa on oltava käsijohde koko pituudella ja molemmilla puolilla syöksyä. Tarvittaessa on oltava kaksi käsijohdetta päällekkäin lasten ja pyörätuolilla liikkuvien huomioon ottamiseksi. Käsijohteesta on saatava tukeva ote. Käsijohteen ja sen päätteen on oltava turvallinen ja sen on jatkuttava syöksyn alkamis- ja loppumiskohdan ohi. Johteen on jatkuttava yhtenäisenä välitasanteella.",
+      "text_en": "A stair and a ramp must have a handrail along the whole length and on both sides of the flight. If necessary there must be two handrails one above the other, to take account of children and wheelchair users. The handrail must provide a firm grip. The handrail and its end must be safe, and the handrail must continue past the start and end points of the flight. The handrail must continue unbroken across the intermediate landing.",
+      "summary_en": "Stairs and ramps need handrails along their full length on both sides, and where needed two handrails one above the other, continuing unbroken across intermediate landings.",
+      "keywords": [
+        "handrail",
+        "käsijohde",
+        "porras",
+        "luiska",
+        "pyörätuoli",
+        "lapset",
+        "välitasanne",
+        "ramppi",
+        "ramp",
+        "stair",
+        "railing"
+      ],
+      "topics": [
+        "stairs-railings",
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "number of handrails one above the other where needed",
+          "comparison": ">=",
+          "value": 2,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-9-2",
+      "ref": "9 § 2 mom.",
+      "heading": "Käsijohde",
+      "heading_en": "Handrail",
+      "text": "Julkisissa ulko- ja sisätiloissa sekä liike- ja palvelutiloissa käsijohteen on jatkuttava vähintään 300 millimetriä syöksyn alkamis- ja loppumiskohdan ohi ja kokoontumistilojen yli 2,4 metrin levyisissä portaissa tai luiskissa käsijohteen on sijoituttava myös jakamaan väylä enintään mainitun mitan levyisiin osiin.",
+      "text_en": "In public indoor and outdoor spaces and in commercial and service premises, the handrail must continue at least 300 mm beyond the start and end points of the flight, and in assembly spaces with stairs or ramps wider than 2.4 m the handrails must also be placed to divide the route into sections no wider than that dimension.",
+      "summary_en": "In public, commercial and service premises the handrail must extend at least 300 mm beyond the flight, and in assembly spaces stairs or ramps wider than 2.4 m need handrails dividing the route.",
+      "keywords": [
+        "handrail extension",
+        "käsijohde",
+        "kokoontumistila",
+        "julkiset tilat",
+        "liiketila",
+        "palvelutila",
+        "2,4 m"
+      ],
+      "topics": [
+        "stairs-railings",
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "handrail extension beyond start and end points of flight",
+          "comparison": ">=",
+          "value": 300,
+          "unit": "mm"
+        },
+        {
+          "what": "width of stair or ramp in assembly space above which handrails divide the route",
+          "comparison": ">",
+          "value": 2.4,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-10-1",
+      "ref": "10 § 1 mom.",
+      "heading": "Valoisuus ja valaistus",
+      "heading_en": "Daylight and lighting",
+      "text": "Rakennuksen ja sen ympäristön on oltava käytön ja huollon turvallisuuden mahdollistavalla tavalla valaistu. Valaistus ei saa aiheuttaa turvallisuutta vaarantavaa häikäisyä.",
+      "text_en": "The building and its surroundings must be lit in a way that makes use and maintenance safe. Lighting must not cause glare that endangers safety.",
+      "summary_en": "The building and its surroundings need lighting that makes use and maintenance safe, without glare that endangers safety.",
+      "keywords": [
+        "lighting",
+        "valaistus",
+        "häikäisy",
+        "ulkovalaistus",
+        "turvallisuus",
+        "huolto"
+      ],
+      "topics": [
+        "daylight"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-10-2",
+      "ref": "10 § 2 mom.",
+      "heading": "Valoisuus ja valaistus",
+      "heading_en": "Daylight and lighting",
+      "text": "Rakennuksen pintojen ja valaistuksen on oltava sellaiset, että havaitsemisen kannalta tarvittavat valoisuuserot saavutetaan.",
+      "text_en": "The surfaces of the building and the lighting must be such that the brightness differences needed for perception are achieved.",
+      "summary_en": "Surfaces and lighting must create the brightness contrast needed for people to perceive edges and obstacles.",
+      "keywords": [
+        "brightness contrast",
+        "valoisuuserot",
+        "havaitseminen",
+        "pinnat",
+        "valaistus",
+        "tummuusero"
+      ],
+      "topics": [
+        "daylight",
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-10-3",
+      "ref": "10 § 3 mom.",
+      "heading": "Valoisuus ja valaistus",
+      "heading_en": "Daylight and lighting",
+      "text": "Kulkureitillä olevat luiskat, askelmat, kynnykset ja tasoerot on osoitettava selvästi valaistuksen ja pintojen tummuuserojen tai huomiomerkintöjen avulla.",
+      "text_en": "Ramps, steps, thresholds and level differences on a circulation route must be clearly indicated by lighting, by differences in surface shade or by warning markings.",
+      "summary_en": "Ramps, steps, thresholds and level changes on routes must be clearly marked by lighting, contrasting surfaces or warning markings.",
+      "keywords": [
+        "level difference marking",
+        "luiska",
+        "askelma",
+        "kynnys",
+        "tasoero",
+        "valaistus",
+        "huomiomerkintä",
+        "ramppi",
+        "ramp",
+        "threshold"
+      ],
+      "topics": [
+        "accessibility",
+        "stairs-railings"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-11-1",
+      "ref": "11 § 1 mom.",
+      "heading": "Lasirakenteet",
+      "heading_en": "Glazed structures",
+      "text": "Rakennuksen lasirakenteen ja muun valoa läpäisevän rakenteen rikkoutuminen ei saa aiheuttaa putoamisvaaraa eikä sirpaleiden putoaminen alle jäävän haavoittumisvaaraa.",
+      "text_en": "Breakage of a glazed structure or other light-transmitting structure must not cause a risk of falling, nor the falling of shards causing a risk of injury to people below.",
+      "summary_en": "Broken glazing must not create a fall risk or fall shards that could injure people below.",
+      "keywords": [
+        "glazing",
+        "lasirakenne",
+        "sirpale",
+        "turvalasi",
+        "putoamisvaara",
+        "haavoittuminen",
+        "ikkuna"
+      ],
+      "topics": [
+        "doors-windows"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-11-2",
+      "ref": "11 § 2 mom.",
+      "heading": "Lasirakenteet",
+      "heading_en": "Glazed structures",
+      "text": "Lasirakenteen ja muun valoa läpäisevän rakenteen on kiinnikkeineen kestettävä siihen tavanomaisesti kohdistuva kuormitus, jollei rakennetta ole suojattu kiinteällä törmäysesteellä.",
+      "text_en": "A glazed structure or other light-transmitting structure, with its fixings, must withstand the load normally applied to it, unless the structure is protected by a fixed collision barrier.",
+      "summary_en": "Glazing and other light-transmitting structures with their fixings must resist the normal load applied, unless protected by a fixed barrier.",
+      "keywords": [
+        "glazing load",
+        "kiinnikkeet",
+        "lasirakenne",
+        "kuormitus",
+        "törmäysesteet",
+        "valoa läpäisevä rakenne"
+      ],
+      "topics": [
+        "doors-windows",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-11-3",
+      "ref": "11 § 3 mom.",
+      "heading": "Lasirakenteet",
+      "heading_en": "Glazed structures",
+      "text": "Ikkunat, lasiseinät ja lasiovet, joihin on vaara törmätä, on merkittävä siten, että ne havaitaan helposti. Niiden lasitukset on tehtävä turvalasista.",
+      "text_en": "Windows, glass walls and glass doors where there is a risk of collision must be marked so that they are easily noticed. Their glazing must be made of safety glass.",
+      "summary_en": "Windows, glass walls and glass doors at risk of collision must be marked to be easily seen and glazed with safety glass.",
+      "keywords": [
+        "glass door marking",
+        "turvalasi",
+        "lasiovi",
+        "lasiseinä",
+        "ikkuna",
+        "törmäysvaara",
+        "merkintä"
+      ],
+      "topics": [
+        "doors-windows"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-12-1",
+      "ref": "12 §",
+      "heading": "Lattiapinnat",
+      "heading_en": "Floor surfaces",
+      "text": "Lattiapinnan on oltava tasainen ja valmistettu tilan käyttötarkoitus huomioiden soveltuvasta materiaalista siten, että kompastumis- ja liukastumisriski on pieni.",
+      "text_en": "The floor surface must be level and made of material suitable for the purpose of the room, so that the risk of tripping and slipping is low.",
+      "summary_en": "Floor surfaces must be level and of material suited to the room's use, keeping trip and slip risk low.",
+      "keywords": [
+        "floor surface",
+        "lattiapinta",
+        "tasainen",
+        "kompastuminen",
+        "liukastuminen",
+        "materiaali"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-13-1",
+      "ref": "13 § 1 mom.",
+      "heading": "Ovet ja portit",
+      "heading_en": "Doors and gates",
+      "text": "Rakennuksen oven ja portin on oltava helposti avattavissa myös olosuhteiden muuttuessa.",
+      "text_en": "A building's door and gate must be easy to open, including when conditions change.",
+      "summary_en": "Doors and gates must be easy to open, including when conditions change.",
+      "keywords": [
+        "door",
+        "gate",
+        "ovi",
+        "portti",
+        "helposti avattava",
+        "olosuhteet"
+      ],
+      "topics": [
+        "doors-windows"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-13-2",
+      "ref": "13 § 2 mom.",
+      "heading": "Ovet ja portit",
+      "heading_en": "Doors and gates",
+      "text": "Oven, portin ja puomin on toimittava turvallisesti siten, etteivät ne aiheuta tapaturman vaaraa. Ne on varustettava tarkoituksenmukaisin turvavarustein.",
+      "text_en": "A door, gate and barrier must operate safely so that they do not cause a risk of accident. They must be fitted with appropriate safety devices.",
+      "summary_en": "Doors, gates and barriers must operate safely without accident risk and carry suitable safety devices.",
+      "keywords": [
+        "door safety",
+        "puomi",
+        "turvavarusteet",
+        "tapaturma",
+        "ovi",
+        "portti"
+      ],
+      "topics": [
+        "doors-windows"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-13-3",
+      "ref": "13 § 3 mom.",
+      "heading": "Ovet ja portit",
+      "heading_en": "Doors and gates",
+      "text": "Oven muihin ominaisuuksiin sovelletaan valtioneuvoston asetusta rakennuksen esteettömyydestä (241/2017) ja ympäristöministeriön asetusta rakennusten paloturvallisuudesta (848/2017).",
+      "text_en": "For other properties of a door, the Government Decree on the accessibility of buildings (241/2017) and the Ministry of the Environment Decree on the fire safety of buildings (848/2017) apply.",
+      "summary_en": "Other door requirements are set by the accessibility decree (241/2017) and the fire safety decree (848/2017).",
+      "keywords": [
+        "door requirements",
+        "esteettömyys",
+        "paloturvallisuus",
+        "ovi",
+        "241/2017",
+        "848/2017"
+      ],
+      "topics": [
+        "doors-windows",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-14-1",
+      "ref": "14 § 1 mom.",
+      "heading": "Kulkukorkeus",
+      "heading_en": "Headroom",
+      "text": "Huonetilan kulkuväylän vähimmäiskorkeus on 2 100 millimetriä Oviaukon kohdalla korkeus voi olla välttämättömien karmien ja kynnysten verran pienempi.",
+      "text_en": "The minimum height of a circulation route in a room is 2,100 mm. At a door opening the height may be lower by the amount needed for the necessary frames and thresholds.",
+      "summary_en": "Room circulation routes need at least 2,100 mm headroom, with a small reduction at door openings for frames and thresholds.",
+      "keywords": [
+        "headroom",
+        "kulkukorkeus",
+        "kulkuväylä",
+        "oviaukko",
+        "karmi",
+        "kynnys",
+        "2100 mm",
+        "door opening"
+      ],
+      "topics": [
+        "accessibility",
+        "doors-windows"
+      ],
+      "limits": [
+        {
+          "what": "headroom of circulation route in a room",
+          "comparison": ">=",
+          "value": 2100,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-14-2",
+      "ref": "14 § 2 mom.",
+      "heading": "Kulkukorkeus",
+      "heading_en": "Headroom",
+      "text": "Muun kuin uloskäytävässä olevan ja siihen johtavan portaan, sekä asunnon sisäisen portaan kulkukorkeus voi olla 1 950 millimetriä.",
+      "text_en": "The headroom of a stair other than one in or leading to an escape route, and of an internal stair within a dwelling, may be 1,950 mm.",
+      "summary_en": "Stairs outside escape routes and internal dwelling stairs may have 1,950 mm headroom.",
+      "keywords": [
+        "stair headroom",
+        "portaan kulkukorkeus",
+        "asunnon sisäportaat",
+        "uloskäytävä",
+        "1950 mm",
+        "porras"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "headroom of stair not in or leading to an escape route, and internal dwelling stair",
+          "comparison": ">=",
+          "value": 1950,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-15-1",
+      "ref": "15 § 1 mom.",
+      "heading": "Turvavarusteet",
+      "heading_en": "Safety equipment",
+      "text": "Rakennus on varustettava sen käyttöön soveltuvilla tarkoituksenmukaisilla ja kestävillä turvaratkaisuilla ja -varusteilla.",
+      "text_en": "The building must be equipped with suitable, appropriate and durable safety solutions and equipment for its use.",
+      "summary_en": "The building must have safety solutions and equipment that suit its use and are durable.",
+      "keywords": [
+        "safety equipment",
+        "turvavarusteet",
+        "turvaratkaisut",
+        "kestävyys",
+        "käyttötarkoitus"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-15-2",
+      "ref": "15 § 2 mom.",
+      "heading": "Turvavarusteet",
+      "heading_en": "Safety equipment",
+      "text": "Asunnoissa ja muissa lasten käyttämissä tiloissa ikkunoihin ja muihin aukkoihin, joissa voi olla putoamisen vaara, on oltava rajoittimet, jotka sallivat enintään 100 millimetrin helppokäyttöisen avautuman. Varatienä käytettävän ikkunan rajoittimen on kuitenkin oltava aikuisen helposti vapautettavissa.",
+      "text_en": "In dwellings and other spaces used by children, windows and other openings where there is a risk of falling must have restrictors that allow an easily operated opening of at most 100 mm. However, a restrictor on a window used as an emergency escape must be easily released by an adult.",
+      "summary_en": "Child-used rooms and dwellings need window restrictors allowing at most a 100 mm opening, releasable by an adult on emergency-escape windows.",
+      "keywords": [
+        "window restrictor",
+        "ikkunarajoitin",
+        "100 mm",
+        "varatie",
+        "lapset",
+        "putoamisvaara",
+        "asunto",
+        "poistumistie"
+      ],
+      "topics": [
+        "doors-windows",
+        "escape-routes"
+      ],
+      "limits": [
+        {
+          "what": "opening allowed by window restrictor",
+          "comparison": "<=",
+          "value": 100,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-15-3",
+      "ref": "15 § 3 mom.",
+      "heading": "Turvavarusteet",
+      "heading_en": "Safety equipment",
+      "text": "Varateiden ja huoltoreittien tikkaiden sekä muiden rakenneosien on oltava myös hätätilanteessa käyttökelpoisia.",
+      "text_en": "Ladders and other structural parts of emergency escape routes and service routes must also be usable in an emergency.",
+      "summary_en": "Ladders and structural parts of emergency and service routes must remain usable in an emergency.",
+      "keywords": [
+        "emergency escape",
+        "varatie",
+        "huoltoreitti",
+        "tikkaat",
+        "hätätilanne",
+        "rakenneosa",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-15-4",
+      "ref": "15 § 4 mom.",
+      "heading": "Turvavarusteet",
+      "heading_en": "Safety equipment",
+      "text": "Varatien pystysuuntaisen luukun tai ikkunan vapaan aukon on oltava korkeudeltaan vähintään 600 millimetriä ja leveydeltään 500 millimetriä, kuitenkin näiden summan on oltava vähintään 1 500 millimetriä. Vaakasuuntaisen luukun aukon on oltava vähintään 600 x 600 millimetriä.",
+      "text_en": "The clear opening of a vertical hatch or window of an emergency route must be at least 600 mm high and 500 mm wide, but the sum of these must be at least 1,500 mm. The clear opening of a horizontal hatch must be at least 600 x 600 mm.",
+      "summary_en": "A vertical emergency hatch or window needs at least 600 mm height and 500 mm width (sum at least 1,500 mm), and a horizontal hatch at least 600 x 600 mm.",
+      "keywords": [
+        "emergency hatch",
+        "varatie",
+        "luukku",
+        "ikkuna",
+        "vapaa aukko",
+        "600 mm",
+        "500 mm",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes",
+        "doors-windows"
+      ],
+      "limits": [
+        {
+          "what": "clear height of vertical emergency hatch or window",
+          "comparison": ">=",
+          "value": 600,
+          "unit": "mm"
+        },
+        {
+          "what": "clear width of vertical emergency hatch or window",
+          "comparison": ">=",
+          "value": 500,
+          "unit": "mm"
+        },
+        {
+          "what": "sum of clear height and width of vertical emergency hatch or window",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        },
+        {
+          "what": "clear opening of horizontal emergency hatch, each side",
+          "comparison": ">=",
+          "value": 600,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-16-1",
+      "ref": "16 § 1 mom.",
+      "heading": "Ajoväylä ja pysäköintialue",
+      "heading_en": "Driveway and parking area",
+      "text": "Tontin ja rakennuspaikan ajoväylä ja pysäköintialue on erotettava jalankulku-, leikki-, ja oleskelualueesta. Ajoväylä ei saa kulkea ristiin leikkialueelle johtavan kulkutien kanssa. Jos risteämistä ei voida välttää, risteyspaikat on merkittävä rakenteellisin ratkaisuin.",
+      "text_en": "The driveway and parking area of the plot and building site must be separated from the pedestrian, play- and recreation area. The driveway must not cross the access route leading to a play area. If crossings cannot be avoided, the crossing points must be marked by structural solutions.",
+      "summary_en": "Driveways and parking must be separated from pedestrian, play and recreation areas, and any unavoidable crossing of a play-area route must be marked structurally.",
+      "keywords": [
+        "driveway",
+        "parking area",
+        "ajoväylä",
+        "pysäköintialue",
+        "leikkialue",
+        "oleskelualue",
+        "risteys"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-16-2",
+      "ref": "16 § 2 mom.",
+      "heading": "Ajoväylä ja pysäköintialue",
+      "heading_en": "Driveway and parking area",
+      "text": "Ajoneuvoliikenteelle tarkoitetut reitit on sijoitettava niin, ettei oven ja portin avautumisen vaatimaa tilaa tai jalankulun reittiä rajoiteta.",
+      "text_en": "Routes for vehicle traffic must be placed so that they do not restrict the space needed to open a door or gate, or the pedestrian route.",
+      "summary_en": "Vehicle routes must not restrict the space needed to open doors and gates or obstruct pedestrian routes.",
+      "keywords": [
+        "vehicle route",
+        "ajoneuvoliikenne",
+        "ovi",
+        "portti",
+        "jalankulku",
+        "avautumistila"
+      ],
+      "topics": [
+        "outdoor",
+        "doors-windows"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-17-1",
+      "ref": "17 § 1 mom.",
+      "heading": "Leikki- ja oleskelualue",
+      "heading_en": "Play and recreation area",
+      "text": "Piha-alueiden jyrkät, yli 0,7 -metrin tasoerot ja jyrkänteet muiden kuin enintään kaksiasuntoisten asuinrakennusten yhteisten leikki- ja oleskelualueiden läheisyydessä on osoitettava tarkoituksenmukaisin kaitein tai sopivin istutuksin tai varustettava putoamista vaimentavalla alustalla.",
+      "text_en": "Steep level differences over 0.7 m and steep drop-offs in the yard, close to communal play and recreation areas of residential buildings other than those with at most two dwellings, must be indicated with suitable railings or suitable planting, or the area must be provided with a fall-cushioning base.",
+      "summary_en": "Steep drops over 0.7 m near communal play and recreation areas (not in residential buildings with at most two dwellings) must be fenced, planted or have fall-absorbing surfacing.",
+      "keywords": [
+        "play area",
+        "leikkialue",
+        "oleskelualue",
+        "tasoero",
+        "jyrkänne",
+        "kaide",
+        "putoamista vaimentava alusta",
+        "0,7 m"
+      ],
+      "topics": [
+        "outdoor",
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "level difference near communal play area requiring railing, planting or fall-cushioning base",
+          "comparison": ">",
+          "value": 0.7,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-17-2",
+      "ref": "17 § 2 mom.",
+      "heading": "Leikki- ja oleskelualue",
+      "heading_en": "Play and recreation area",
+      "text": "Pihan kulkuteiden portaineen ja luiskineen on oltava turvallisia sekä varustettu tarkoituksenmukaisin kaitein ja käsijohtein.",
+      "text_en": "The access routes of the yard, with their stairs and ramps, must be safe and equipped with suitable railings and handrails.",
+      "summary_en": "Yard access routes with their stairs and ramps must be safe and fitted with suitable railings and handrails.",
+      "keywords": [
+        "yard access route",
+        "piha",
+        "kulkutie",
+        "porras",
+        "luiska",
+        "kaide",
+        "käsijohde",
+        "ramppi"
+      ],
+      "topics": [
+        "outdoor",
+        "stairs-railings"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-17-3",
+      "ref": "17 § 3 mom.",
+      "heading": "Leikki- ja oleskelualue",
+      "heading_en": "Play and recreation area",
+      "text": "Leikkivälineiden on oltava turvallisia ja niiden alustan rakenteen tarkoitukseen sopiva ja iskua vaimentava.",
+      "text_en": "Play equipment must be safe, and the structure of its base must suit its purpose and absorb impact.",
+      "summary_en": "Play equipment must be safe and sit on an impact-absorbing base suited to its purpose.",
+      "keywords": [
+        "play equipment",
+        "leikkiväline",
+        "alusta",
+        "iskua vaimentava",
+        "turvallisuus",
+        "leikkialue"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-18-1",
+      "ref": "18 §",
+      "heading": "Kulkutien ja oleskelualueen suojaaminen",
+      "heading_en": "Protection of access routes and recreation areas",
+      "text": "Sisäänkäynnin ja kulkuväylän kohdan ja talvella käytettävän leikki- ja oleskelualueen sekä rakennusta ympäröivän katualueen ja muun yleisen alueen on oltava suojattu rakennuksen katolta putoavalta lumelta ja jäältä lumiestein katemateriaali ja katon kallistus huomioon ottaen. Sisäänkäynnin on lisäksi oltava suojattu kinostumiselta katoksella.",
+      "text_en": "The entrance and access-route points, the play and recreation area used in winter, and the public area around the building must be protected from snow and ice falling from the roof of the building by snow guards, taking account of the roof covering material and the roof pitch. The entrance must also be protected from snowdrifting by a canopy.",
+      "summary_en": "Entrances, access routes, winter play areas and public ground by the building must be protected from falling snow and ice by snow guards, and the entrance needs a canopy against drifting.",
+      "keywords": [
+        "snow guard",
+        "lumieste",
+        "jää",
+        "katto",
+        "sisäänkäynti",
+        "katos",
+        "kinostuminen"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-19-1",
+      "ref": "19 §",
+      "heading": "Ulkonevien rakennusosien korkeusasema",
+      "heading_en": "Height position of projecting building parts",
+      "text": "Rakennuksesta ulkonevan rakennusosan, laitteen tai varusteen kuten parvekkeen, erkkerin, katoksen, opasteen, valaisinlaitteen ja markiisin alareunan vapaa korkeus maasta tai ajo- ja kulkuväylän pinnasta on oltava vähintään 2,2 metriä, jollei kohta ole suojattu törmäysvaaran estämiseksi.",
+      "text_en": "The clear height from the ground or from the surface of a driveway or access route to the underside of a projecting building part, device or fitting, such as a balcony, bay, canopy, sign, light fitting or awning, must be at least 2.2 metres, unless the point is protected to prevent collision.",
+      "summary_en": "Projecting parts such as balconies, canopies, signs and awnings must have at least 2.2 m clearance above the ground or routes, unless protected against collision.",
+      "keywords": [
+        "projecting part",
+        "parveke",
+        "katos",
+        "markiisi",
+        "vapaa korkeus",
+        "2,2 m",
+        "törmäysvaara"
+      ],
+      "topics": [
+        "outdoor",
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "clear height under projecting part above ground or route",
+          "comparison": ">=",
+          "value": 2.2,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-20-1",
+      "ref": "20 §",
+      "heading": "Kokoontumistila",
+      "heading_en": "Assembly space",
+      "text": "Kokoontumistilan on oltava sen käyttötapa huomioonottaen tarkoituksenmukaisesti suunniteltu ja rakennettu.",
+      "text_en": "An assembly space must be suitably designed and built, taking account of how it is to be used.",
+      "summary_en": "An assembly space must be designed and built to suit its intended way of use.",
+      "keywords": [
+        "assembly space",
+        "kokoontumistila",
+        "käyttötapa",
+        "suunnittelu",
+        "rakentaminen"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-21-1",
+      "ref": "21 § 1 mom.",
+      "heading": "Kokoontumistilan henkilömäärä",
+      "heading_en": "Occupant number of assembly space",
+      "text": "Kokoontumistilassa samanaikaisesti oleskelevien henkilöiden aiottu enimmäismäärä muodostuu kokoontumishuoneiden yhteenlasketusta henkilömäärästä. Tilan ominaisuuksille rakennusluvassa asetettavat vaatimukset määräytyvät aiotun henkilömäärän mukaan.",
+      "text_en": "The intended maximum number of persons staying in an assembly space at the same time is made up of the total number of persons in the assembly rooms. The requirements set in the building permit for the features of the space are determined by the intended number of persons.",
+      "summary_en": "The design occupancy of an assembly space is the total of its assembly rooms, and building-permit requirements follow that number.",
+      "keywords": [
+        "occupancy",
+        "henkilömäärä",
+        "kokoontumishuone",
+        "kokoontumistila",
+        "rakennuslupa",
+        "enimmäishenkilömäärä",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-21-2",
+      "ref": "21 § 2 mom.",
+      "heading": "Kokoontumistilan henkilömäärä",
+      "heading_en": "Occupant number of assembly space",
+      "text": "Kokoontumistilan enimmäishenkilömäärä on laskettava tilan eri huonetilojen ominaisuuksien mukaan siten, että kiintein istuimin varustetun huonetilan henkilömäärä määräytyy istuinpaikkojen lukumäärän perusteella. Myös huonetilan, jossa ei ole kiinteitä istuimia, mutta tilan kalustus on esitetty hyväksyttävissä suunnitelmissa, enimmäismäärä määräytyy istuinpaikkojen määrän mukaisesti. Huonetilojen, joissa ei ole kiinteitä istuimia eikä ole esitetty kalustusta, henkilömääräksi on laskettava kaksi henkilöä neliömetriä kohden.",
+      "text_en": "The maximum occupancy of an assembly space must be calculated according to the properties of its different rooms, so that the number of persons in a room with fixed seats is determined by the number of seats. The maximum number for a room without fixed seats whose furnishing is shown in acceptable plans is also determined by the number of seats. For rooms without fixed seats and without shown furnishing, two persons per square metre must be counted.",
+      "summary_en": "Occupancy follows the seat count where seats or furnishing are shown; otherwise two persons per square metre must be counted.",
+      "keywords": [
+        "occupancy",
+        "istuinpaikka",
+        "kiinteät istuimet",
+        "kalustus",
+        "neliömetri",
+        "kokoontumishuone",
+        "2 henkilöä/m2",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [
+        {
+          "what": "design occupancy of room without fixed seats or shown furnishing",
+          "comparison": "=",
+          "value": 2,
+          "unit": "persons/m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-21-3",
+      "ref": "21 § 3 mom.",
+      "heading": "Kokoontumistilan henkilömäärä",
+      "heading_en": "Occupant number of assembly space",
+      "text": "Laskettaessa henkilömäärää huonealan neliömetriä kohti ei mukaan lueta näyttämö-, puhujakoroke- tai muuta sellaista tilaa eikä vaatesäilytys-, keittiö-, peseytymis-, wc- ja varastotilaa.",
+      "text_en": "When counting the number of persons per square metre of room area, stage, speaker's platform or other similar space is not counted, nor are cloakroom, kitchen, washing, WC and storage spaces.",
+      "summary_en": "Stage, speaker platform, cloakroom, kitchen, washroom, WC and storage areas are left out when occupancy is counted per square metre.",
+      "keywords": [
+        "occupancy area",
+        "näyttämö",
+        "puhujakoroke",
+        "vaatesäilytys",
+        "keittiö",
+        "wc",
+        "varastotila",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-22-1",
+      "ref": "22 § 1 mom.",
+      "heading": "Kokoontumistilan istuimet",
+      "heading_en": "Seats in assembly space",
+      "text": "Istuinten on oltava alustaan kiinnitettyjä, jos istuinalueen lattia on kalteva tai istuinrivien lattioiden välillä on tasoeroja.",
+      "text_en": "Seats must be fixed to the floor if the floor of the seating area is sloped or there are level differences between the floors of the seat rows.",
+      "summary_en": "Seats must be fixed to the floor where the seating floor slopes or where rows are at different levels.",
+      "keywords": [
+        "fixed seats",
+        "kiinnitys",
+        "kalteva lattia",
+        "tasoero",
+        "istuinrivi",
+        "istuimet"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-22-2",
+      "ref": "22 § 2 mom.",
+      "heading": "Kokoontumistilan istuimet",
+      "heading_en": "Seats in assembly space",
+      "text": "Vaakasuoralla lattialla istuimet voivat olla irrallisia. Jos tilassa on yli 60 tuolia, ne on kytkettävä toisiinsa vähintään neljän ryhmissä, jollei tuoleja ole sijoitettu pöytien ympärille.",
+      "text_en": "On a horizontal floor, seats may be loose. If there are more than 60 chairs in the space, they must be linked together in groups of at least four, unless the chairs are placed around tables.",
+      "summary_en": "On a level floor seats may be loose, but a space with more than 60 chairs must link them in groups of at least four unless they are around tables.",
+      "keywords": [
+        "chairs",
+        "tuolit",
+        "kytkeminen",
+        "60 tuolia",
+        "neljän ryhmissä",
+        "pöytä",
+        "kokoontumistila",
+        "poistumistie"
+      ],
+      "topics": [
+        "general",
+        "escape-routes"
+      ],
+      "limits": [
+        {
+          "what": "number of chairs above which linking in groups is required",
+          "comparison": ">",
+          "value": 60,
+          "unit": "count"
+        },
+        {
+          "what": "minimum number of linked chairs per group",
+          "comparison": ">=",
+          "value": 4,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-22-3",
+      "ref": "22 § 3 mom.",
+      "heading": "Kokoontumistilan istuimet",
+      "heading_en": "Seats in assembly space",
+      "text": "Kiinteät ja toisiinsa kytketyt istuimet on järjestettävä istuinriveinä istuinalueiksi, joiden sivulla on kulkureitti.",
+      "text_en": "Fixed and linked seats must be arranged in seat rows forming seating areas, beside which there must be a circulation route.",
+      "summary_en": "Fixed or linked seats must be grouped in rows into seating areas, each with a circulation route alongside.",
+      "keywords": [
+        "seating area",
+        "istuinalue",
+        "istuinrivi",
+        "kulkureitti",
+        "kiinteät istuimet",
+        "kytketyt istuimet",
+        "poistumistie"
+      ],
+      "topics": [
+        "accessibility",
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-23-1",
+      "ref": "23 § 1 mom.",
+      "heading": "Katsomo",
+      "heading_en": "Spectator stand",
+      "text": "Yli puolen metrin tasoerojen kohdalla on oltava tarkoitukseen soveltuva suoja- tai avokaide tai käsijohde. Nousevan katsomoparven alimman penkkirivin edessä oleva kaide voi olla 0,7 metriä korkea suojakaide ja putoamiselta suojaava levitys, kun penkkirivin ja kaiteen välistä on kulku vain kyseiselle penkkiriville.",
+      "text_en": "Where level differences exceed 0.5 metres, a suitable protective or open railing or a handrail must be provided. The railing in front of the lowest bench row of a rising spectator gallery may be a protective railing 0.7 metres high with fall-protective infill, where the passage between the bench row and the railing is only for that bench row.",
+      "summary_en": "Level changes over 0.5 m in a spectator stand need a railing or handrail; the front railing of a rising gallery's lowest row may be 0.7 m high where only that row has access.",
+      "keywords": [
+        "spectator stand",
+        "katsomo",
+        "kaide",
+        "käsijohde",
+        "penkkirivi",
+        "0,5 m",
+        "0,7 m"
+      ],
+      "topics": [
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "level difference requiring railing or handrail in spectator stand",
+          "comparison": ">",
+          "value": 0.5,
+          "unit": "m"
+        },
+        {
+          "what": "height of railing in front of lowest bench row of rising gallery",
+          "comparison": "=",
+          "value": 0.7,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-23-2",
+      "ref": "23 § 2 mom.",
+      "heading": "Katsomo",
+      "heading_en": "Spectator stand",
+      "text": "Seisomakatsomon on oltava porrastettu siten, että rivillä liikkuminen on turvallista. Katsomon seisomarivin syvyyden on oltava vähintään puoli metriä.",
+      "text_en": "A standing spectator area must be stepped so that moving along a row is safe. The depth of a standing row in a standing spectator stand must be at least half a metre.",
+      "summary_en": "A standing spectator stand must be stepped, with each standing row at least 0.5 m deep.",
+      "keywords": [
+        "standing spectator stand",
+        "seisomakatsomo",
+        "porrastus",
+        "seisomarivi",
+        "syvyys",
+        "0,5 m"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "depth of standing row in spectator stand",
+          "comparison": ">=",
+          "value": 0.5,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-23-3",
+      "ref": "23 § 3 mom.",
+      "heading": "Katsomo",
+      "heading_en": "Spectator stand",
+      "text": "Koneellisesti liikuteltavien katsomon osien hallintalaitteille pääsyn on oltava estetty asiattomilta.",
+      "text_en": "Access to the control devices of the mechanically moved parts of a spectator stand must be prevented to unauthorised persons.",
+      "summary_en": "Controls for mechanically moved spectator stand parts must be kept away from unauthorised people.",
+      "keywords": [
+        "stand controls",
+        "hallintalaite",
+        "asiattomat",
+        "koneellinen liike",
+        "katsomo",
+        "pääsyn esto"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-24-1",
+      "ref": "24 § 1 mom.",
+      "heading": "Kulkureitti",
+      "heading_en": "Circulation route",
+      "text": "Istuinalueen tai seisomakatsomon kulkureitille on oltava pääsy suoraan kunkin rivin päästä.",
+      "text_en": "The circulation route of a seating area or standing spectator stand must have access directly from the end of each row.",
+      "summary_en": "Each seat row must be reachable directly from the end of the row via the circulation route.",
+      "keywords": [
+        "circulation route",
+        "kulkureitti",
+        "istuinalue",
+        "istuinrivi",
+        "katsomo",
+        "pääsy rivin päästä",
+        "poistumistie"
+      ],
+      "topics": [
+        "accessibility",
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-24-2",
+      "ref": "24 § 2 mom.",
+      "heading": "Kulkureitti",
+      "heading_en": "Circulation route",
+      "text": "Enintään 60 henkilön kokoontumistilan kulkureitin leveyden on oltava vähintään 900 millimetriä. Yli 60 henkilölle tarkoitetussa tilassa kulkureitin leveyden on oltava vähintään 1 200 millimetriä.",
+      "text_en": "The width of the circulation route in an assembly space for up to 60 persons must be at least 900 mm. In a space intended for more than 60 persons, the width of the circulation route must be at least 1,200 mm.",
+      "summary_en": "Circulation routes in an assembly space must be at least 900 mm wide for up to 60 persons and 1,200 mm wide for more.",
+      "keywords": [
+        "circulation route width",
+        "kulkureitin leveys",
+        "kokoontumistila",
+        "900 mm",
+        "1200 mm",
+        "60 henkilöä",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [
+        {
+          "what": "circulation route width, assembly space for up to 60 persons",
+          "comparison": ">=",
+          "value": 900,
+          "unit": "mm"
+        },
+        {
+          "what": "circulation route width, assembly space for more than 60 persons",
+          "comparison": ">=",
+          "value": 1200,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-24-3",
+      "ref": "24 § 3 mom.",
+      "heading": "Kulkureitti",
+      "heading_en": "Circulation route",
+      "text": "Istuinrivien kulkuvälin vapaan leveyden on oltava taulukon 1 mukaisessa suhteessa kulkuväliä käyttävien henkilöiden määrään ja istuimien laatuun sekä siihen, onko kulkureitti kulkuvälin molemmissa vai vain toisessa päässä.",
+      "text_en": "The clear width of the gangway between seat rows must be in the proportion set out in Table 1 to the number of persons using the gangway and to the type of seats, and to whether the circulation route is at both ends of the gangway or only at one end.",
+      "summary_en": "Clear gangway width between seat rows follows Table 1, based on the number of users, the seat type and whether access is from both ends or one.",
+      "keywords": [
+        "row gangway",
+        "kulkuväli",
+        "taulukko 1",
+        "istuinrivi",
+        "paikkaluku",
+        "kiinteät istuimet",
+        "kulkureitti",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes",
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-24-4",
+      "ref": "24 § 4 mom.",
+      "heading": "Kulkureitti",
+      "heading_en": "Circulation route",
+      "text": "Taulukko 1\nIstuinrivin kulkuvälin vapaa leveys suhteessa paikkalukuun\nKulkuvälin vapaa vähimmäisleveys | 400 mm | 500 mm | 600 mm | 900 mm\nKiinteät istuimet, | paikkaluku rivillä\nKulkureitit molemmissa päissä | < 40 | < 50 | < 60 | > 60\nKulkureitti vain toisessa päässä | < 10 | < 10 | < 15 | < 30\nKytketyt istuimet, |  |  |  | \nKulkureitit molemmissa päissä | < 16 | < 28 | < 40 | > 40\nKulkureitti vain toisessa päässä | < 8 | < 8 | < 12 | < 24",
+      "text_en": "Table 1\nClear width of the gangway between seat rows in relation to the number of seats\nMinimum clear gangway width | 400 mm | 500 mm | 600 mm | 900 mm\nFixed seats, | number of seats in row\nCirculation routes at both ends | < 40 | < 50 | < 60 | > 60\nCirculation route at one end only | < 10 | < 10 | < 15 | < 30\nConnected seats, |  |  |  | \nCirculation routes at both ends | < 16 | < 28 | < 40 | > 40\nCirculation route at one end only | < 8 | < 8 | < 12 | < 24",
+      "summary_en": "Seat-row gangways must be 400 to 900 mm clear, the width depending on the seats per row, whether seats are fixed or connected, and whether there is access from both ends or one.",
+      "keywords": [
+        "seat row gangway",
+        "istuinrivi",
+        "kulkuväli",
+        "taulukko 1",
+        "paikkaluku",
+        "kiinteät istuimet",
+        "kytketyt istuimet",
+        "400 mm",
+        "900 mm",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes",
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "fixed seats, circulation at both ends, 400 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 40,
+          "unit": "seats"
+        },
+        {
+          "what": "fixed seats, circulation at both ends, 500 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 50,
+          "unit": "seats"
+        },
+        {
+          "what": "fixed seats, circulation at both ends, 600 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 60,
+          "unit": "seats"
+        },
+        {
+          "what": "fixed seats, circulation at both ends, 900 mm gangway: seats per row",
+          "comparison": ">",
+          "value": 60,
+          "unit": "seats"
+        },
+        {
+          "what": "fixed seats, circulation at one end only, 400 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 10,
+          "unit": "seats"
+        },
+        {
+          "what": "fixed seats, circulation at one end only, 500 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 10,
+          "unit": "seats"
+        },
+        {
+          "what": "fixed seats, circulation at one end only, 600 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 15,
+          "unit": "seats"
+        },
+        {
+          "what": "fixed seats, circulation at one end only, 900 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 30,
+          "unit": "seats"
+        },
+        {
+          "what": "connected seats, circulation at both ends, 400 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 16,
+          "unit": "seats"
+        },
+        {
+          "what": "connected seats, circulation at both ends, 500 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 28,
+          "unit": "seats"
+        },
+        {
+          "what": "connected seats, circulation at both ends, 600 mm gangway: seats per row",
+          "comparison": "<",
+          "value": 40,
+          "unit": "seats"
+        },
+        {
+          "what": "connected seats, circulation at both ends, 900 mm gangway: seats per row",
+          "comparison": ">",
+          "value": 40,
+          "unit": "seats"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-24-5",
+      "ref": "24 § 5 mom.",
+      "heading": "Kulkureitti",
+      "heading_en": "Circulation route",
+      "text": "Lattiapinnan kaltevuus istuinalueella ja kulkureitillä voi olla enintään 8 prosenttia (l:12,5). Esteettömille katsomopaikoille johtavan kulkuväylän mitoitukseen sovelletaan rakennuksen esteettömyydestä annetun valtioneuvoston asetuksen (241/2017) 5 §:ää.",
+      "text_en": "The floor gradient on the seating area and on the circulation route may be at most 8 per cent (l:12.5). For the access route leading to accessible spectator places, section 5 of the Government Decree on the accessibility of buildings (241/2017) applies.",
+      "summary_en": "Floor gradient on seating areas and circulation routes may be at most 8 per cent (about 1:12.5), and access to accessible spectator places follows decree 241/2017.",
+      "keywords": [
+        "floor gradient",
+        "kaltevuus",
+        "8 %",
+        "1:12,5",
+        "esteetön katsomopaikka",
+        "241/2017",
+        "kulkureitti"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "floor gradient on seating area and circulation route",
+          "comparison": "<=",
+          "value": 8,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-25-1",
+      "ref": "25 § 1 mom.",
+      "heading": "Huoltomahdollisuudet",
+      "heading_en": "Maintenance access",
+      "text": "Kaikkiin rakennuksen osiin, joissa on säännöllisesti siivottavia, nuohottavia, huollettavia tai tarkastettavia rakennusosia, varusteita taikka laitteita, on oltava pääsy ja työskentelymahdollisuus vaarantamatta työntekijöiden ja sivullisten turvallisuutta.",
+      "text_en": "All parts of the building that contain building elements, fittings or equipment requiring regular cleaning, sweeping, maintenance or inspection must be accessible and allow work without endangering the safety of workers and bystanders.",
+      "summary_en": "Parts holding elements that need regular cleaning, sweeping, maintenance or inspection must be reachable and workable without endangering workers or bystanders.",
+      "keywords": [
+        "maintenance access",
+        "huolto",
+        "siivous",
+        "nuohous",
+        "tarkastus",
+        "työskentely",
+        "pääsy"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-25-2",
+      "ref": "25 § 2 mom.",
+      "heading": "Huoltomahdollisuudet",
+      "heading_en": "Maintenance access",
+      "text": "Katolla sijaitseville savupiipuille, ilmanvaihtolaitteille sekä muille säännöllistä käyntiä edellyttäville rakennusosille ja laitteille on oltava turvallinen ja helppokulkuinen katkeamaton kulkutie. Yli 1:8 kaltevalla katolla on käytettävä kattosiltaa, lapetikasta, kattoporrasta, askeltasoja tai jalkatukia.",
+      "text_en": "Chimneys, ventilation equipment and other building elements and equipment that need regular visits on the roof must have a safe, easy-to-use, continuous access route. On a roof with a pitch steeper than 1:8, a roof walkway, roof ladder, roof stairway, step platforms or foot supports must be used.",
+      "summary_en": "Roofs steeper than 1:8 need a walkway, roof ladder, roof stair or foot supports, and roof equipment needs a safe continuous access route.",
+      "keywords": [
+        "roof access",
+        "katto",
+        "savupiippu",
+        "ilmanvaihtolaite",
+        "kattosilta",
+        "kattoporras",
+        "kaltevuus"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "roof pitch above which a walkway or ladder is required (1:8 = 12.5 %)",
+          "comparison": ">",
+          "value": 12.5,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-25-3",
+      "ref": "25 § 3 mom.",
+      "heading": "Huoltomahdollisuudet",
+      "heading_en": "Maintenance access",
+      "text": "Yli 9 metriä ja enintään 28 metriä korkeissa rakennuksissa ullakolle ja katolle on päästävä sekä sisä- että ulkokautta ja yli 28 metriä korkeissa rakennuksissa sisäkautta.",
+      "text_en": "In buildings more than 9 m and up to 28 m high, the attic and roof must be reachable from both inside and outside, and in buildings more than 28 m high from inside.",
+      "summary_en": "Buildings over 9 m up to 28 m need attic and roof access from inside and outside, and buildings over 28 m need it from inside.",
+      "keywords": [
+        "roof access",
+        "ullakko",
+        "katto",
+        "sisäkautta",
+        "ulkokautta",
+        "9 m",
+        "28 m",
+        "poistumistie"
+      ],
+      "topics": [
+        "general",
+        "escape-routes"
+      ],
+      "limits": [
+        {
+          "what": "building height above which attic and roof access from both inside and outside is required",
+          "comparison": ">",
+          "value": 9,
+          "unit": "m"
+        },
+        {
+          "what": "building height up to which access from both inside and outside is required",
+          "comparison": "<=",
+          "value": 28,
+          "unit": "m"
+        },
+        {
+          "what": "building height above which attic and roof access from inside is required",
+          "comparison": ">",
+          "value": 28,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-25-4",
+      "ref": "25 § 4 mom.",
+      "heading": "Huoltomahdollisuudet",
+      "heading_en": "Maintenance access",
+      "text": "Rakennuksessa, jonka korkeus ylittää 9 metriä, on oltava kiinnitysrakenteet turvaköysiä varten.. Rakennuksessa on oltava myös riipputelineiden kiinnitysrakenteet ja -varusteet, jos julkisivun huoltoon ei ole suunniteltu muuta toimivaa ratkaisua.",
+      "text_en": "A building higher than 9 metres must have anchorage structures for safety ropes.. The building must also have anchorage structures and fittings for suspended cradles, if no other workable solution for facade maintenance has been planned.",
+      "summary_en": "Buildings over 9 m need anchorage points for safety ropes, and suspended-cradle anchorages unless another facade maintenance solution is planned.",
+      "keywords": [
+        "anchorage",
+        "turvaköysi",
+        "riipputelineet",
+        "julkisivun huolto",
+        "kiinnitysrakenne",
+        "9 m"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "building height above which safety-rope anchorages are required",
+          "comparison": ">",
+          "value": 9,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-26-1",
+      "ref": "26 § 1 mom.",
+      "heading": "Tavarankuljetus ja huoltoliikenne rakennuspaikalla",
+      "heading_en": "Goods transport and service traffic on the building site",
+      "text": "Rakennuksen ja sen pihan ajoneuvoliikennealueen on oltava turvallinen.",
+      "text_en": "The vehicle traffic area of the building and its yard must be safe.",
+      "summary_en": "The vehicle traffic area of the building and its yard must be safe for goods and service traffic.",
+      "keywords": [
+        "vehicle area",
+        "ajoneuvoliikennealue",
+        "piha",
+        "tavarankuljetus",
+        "huoltoliikenne",
+        "turvallisuus"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-26-2",
+      "ref": "26 § 2 mom.",
+      "heading": "Tavarankuljetus ja huoltoliikenne rakennuspaikalla",
+      "heading_en": "Goods transport and service traffic on the building site",
+      "text": "Muiden kuin pientalojen pihamaan ajoneuvo- ja tavaraliikenteen reittien, ovien ja porttien yhteyteen on varattava jalankulkijaa varten turvallinen ja merkitty kulkutie, jos jalankulku näiden kautta on tarpeen.",
+      "text_en": "In connection with the vehicle and goods traffic routes, doors and gates of a yard other than those of a detached house, a safe and marked access route for pedestrians must be reserved, if pedestrians need to pass through them.",
+      "summary_en": "Outside detached houses, a safe marked pedestrian route must be reserved beside vehicle and goods routes, doors and gates where people need to pass.",
+      "keywords": [
+        "pedestrian route",
+        "jalankulku",
+        "ajoneuvoliikenne",
+        "tavaraliikenne",
+        "portti",
+        "pientalo",
+        "merkitty kulkutie"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-26-3",
+      "ref": "26 § 3 mom.",
+      "heading": "Tavarankuljetus ja huoltoliikenne rakennuspaikalla",
+      "heading_en": "Goods transport and service traffic on the building site",
+      "text": "Rakennuksen tavarahuollon rakenteiden ja järjestelyjen on oltava turvallisia. Kuormauslaiturin ja -luiskan on oltava suhteessa kuormien kokoon ja tavaraliikenteen määrään. Kuormauspaikan on oltava turvallinen. Kuormauslaitureiden kaiteet eivät saa haitata kuormausta ja purkua.",
+      "text_en": "The structures and arrangements for goods handling of the building must be safe. The loading dock and ramp must be proportionate to the size of loads and the volume of goods traffic. The loading point must be safe. The railings of loading docks must not hinder loading and unloading.",
+      "summary_en": "Loading docks and ramps must be safe and proportioned to the loads and goods traffic, with railings that do not hinder loading or unloading.",
+      "keywords": [
+        "loading dock",
+        "kuormauslaituri",
+        "luiska",
+        "kuormaus",
+        "purku",
+        "tavarahuolto",
+        "kaide",
+        "ramppi"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1007-2017-27-1",
+      "ref": "27 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2018.",
+      "text_en": "This Decree enters into force on 1 January 2018.",
+      "summary_en": "This decree enters into force on 1 January 2018.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "asetus 1007/2017",
+        "käyttöturvallisuus",
+        "1 January 2018"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1007-2017-27-2",
+      "ref": "27 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämän asetuksen voimaan tullessa vireillä olevaan hankkeeseen sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "A project pending when this Decree enters into force is subject to the provisions that were in force when this Decree entered into force.",
+      "summary_en": "A project already pending when the decree takes effect remains under the rules in force at that time.",
+      "keywords": [
+        "transitional provision",
+        "siirtymäsäännös",
+        "vireillä oleva hanke",
+        "voimaantulo",
+        "asetus 1007/2017"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

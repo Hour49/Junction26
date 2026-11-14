@@ -1,0 +1,1586 @@
+{
+  "id": "fi-1009-2017",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "1009/2017",
+  "title": "Ympäristöministeriön asetus uuden rakennuksen sisäilmastosta ja ilmanvaihdosta",
+  "title_en": "Ministry of the Environment Decree on the indoor climate and ventilation of new buildings",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1009",
+  "language": "fi",
+  "in_force": "2018-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force. Kept in force by the entry-into-force provision of the Building Act 752/2023 until replaced.",
+  "clauses": [
+    {
+      "id": "fi-1009-2017-1-1",
+      "ref": "1 § 1 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Tämä asetus koskee uuden rakennuksen sisäilmaston ja ilmanvaihdon suunnittelua ja rakentamista. Asetus koskee myös rakennuksen laajennusta ja kerrosalaan laskettavan tilan lisäämistä.",
+      "text_en": "This decree applies to the design and construction of the indoor climate and ventilation of a new building. The decree also applies to extensions of a building and to adding space counted in gross floor area.",
+      "summary_en": "The decree covers the design and construction of indoor climate and ventilation in new buildings, including extensions and added gross floor area.",
+      "keywords": [
+        "scope of application",
+        "new building",
+        "uusi rakennus",
+        "extension",
+        "rakennuksen laajennus",
+        "gross floor area",
+        "kerrosala",
+        "sisäilmasto",
+        "ilmanvaihto"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-1-2",
+      "ref": "1 § 2 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Asetusta ei kuitenkaan sovelleta maatalouden tuotantorakennuksen eikä sellaisen uuden asuinrakennuksen, joka on tarkoitettu käytettäväksi vähemmän kuin neljän kuukauden ajan vuodessa, suunnitteluun ja rakentamiseen.",
+      "text_en": "However, the decree is not applied to the design and construction of an agricultural production building, or of a new residential building intended to be used for less than four months a year.",
+      "summary_en": "The decree does not apply to agricultural production buildings or to new residential buildings used for less than four months a year.",
+      "keywords": [
+        "agricultural production building",
+        "maatalouden tuotantorakennus",
+        "residential building",
+        "asuinrakennus",
+        "exemption",
+        "poikkeus",
+        "four months a year",
+        "vuodessa"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-2-1",
+      "ref": "2 §",
+      "heading": "Määritelmät",
+      "heading_en": "Definitions",
+      "text": "Tässä asetuksessa tarkoitetaan:\n1) huonelämpötilalla ilman lämpötilaa oleskeluvyöhykkeellä;\n2) ilmanvaihdolla sisäilman laadun ylläpitämistä ja parantamista huoneen ilmaa vaihtamalla;\n3) ilmanvaihtojärjestelmän ominaissähköteholla (kW/(m³ /s)) rakennuksen koko ilmanvaihtojärjestelmän kaikkien puhaltimien ja niihin liittyvien taajuusmuuttajien ja muiden tehonsäätölaitteiden yhteenlaskettua sähköverkosta ottamaa sähkötehoa jaettuna ilmanvaihtojärjestelmän suunnitellun käyttöajan ulospuhallusilmavirralla tai ulkoilmavirralla sen mukaisesti kumpi näistä on suurempi;\n4) ilmastoinnilla sisäilman puhtauden, lämpötilan, kosteuden ja ilman liikkeen hallintaa tulo- tai kierrätysilmaa käsittelemällä;\n5) kierrätysilmalla ilmaa, joka palautuu ainoastaan samaan huonetilaan tai asuntoon;\n6) koneellisella poistoilmanvaihtojärjestelmällä järjestelmää, jolla ilma poistetaan rakennuksesta koneellisesti puhaltimen avulla ja tilalle tulee ulkoilmaa ulkoilmalaitteiden kautta;\n7) koneellisella tulo- ja poistoilmanvaihtojärjestelmällä järjestelmää, jolla ilma poistetaan rakennuksesta koneellisesti puhaltimen avulla ja tilalle tuodaan ulkoilmaa puhaltimen avulla;\n8) oleskelutilalla asumiseen tai työskentelyyn tarkoitettua huonetilaa, joka on tarkoitettu yli 30 minuutin yhtäjaksoiseen oleskeluun;\n9) oleskeluvyöhykkeellä sitä osaa huonetilasta, jossa sisäilmastovaatimukset on suunniteltu toteutuviksi ja jonka alapinta rajoittuu lattiaan, yläpinta on 1,8 metrin korkeudella lattiasta ja sivupinnat ovat 0,6 metrin etäisyydellä ulko- tai sisäseinästä tai vastaavasta kiinteästä rakennuksen osasta;\n10) painovoimaisella ilmanvaihtojärjestelmällä järjestelmää, jonka toiminta perustuu pääasiassa korkeus- ja lämpötilaerojen sekä tuulen aiheuttamiin paine-eroihin siten, että sisäilma virtaa ulos rakennuksesta ja tilalle tulee ulkoilmaa ulkoilmalaitteiden kautta;\n11) palautusilmalla ilmaa, joka palautetaan tuloilmana tai osana sitä siten, että palautettavassa ilmassa on kahden tai useamman eri huonetilan poistoilmaa;\n12) poistoilmalla ilmaa, joka johdetaan huonetilasta pois;\n13) siirtoilmalla ilmaa, joka johdetaan tilasta toiseen tilaan;\n14) suunnitellulla käyttöiällä ilmanvaihtojärjestelmälle, sen osalle tai komponentille asetettua käyttöaikavaatimusta, jonka määrittelee rakennushankkeeseen ryhtyvä, rakennuttaja tai suunnittelija;\n15) sisäilmastolla rakennuksessa vaikuttavien kemiallisten, fysikaalisten ja mikrobiologisten olosuhteiden muodostamaa kokonaisuutta;\n16) suunnitellulla käyttöajalla aikaa, jolloin rakennuksessa tai tilassa oleskellaan ja rakennusta tai tilaa käytetään sen suunnitellun käyttötarkoituksen mukaisesti;\n17) tuloilmalla ilmaa, joka johdetaan huonetilaan;\n18) ulkoilmalla ilmanvaihdon kautta ulkoa sisätiloihin hallitusti johdettua ilmaa;\n19) ulospuhallusilmalla poistoilmaa, joka johdetaan rakennuksesta ulos.",
+      "text_en": "In this decree:\n1) room temperature means the air temperature in the occupied zone;\n2) ventilation means maintaining and improving indoor air quality by exchanging the air of a room;\n3) specific fan power of a ventilation system (kW/(m3/s)) means the total electrical power drawn from the mains by all fans of the whole building's ventilation system and the related frequency converters and other power control devices, divided by the planned operating-time exhaust air flow or outdoor air flow of the ventilation system, whichever of these is greater;\n4) air conditioning means controlling indoor air purity, temperature, humidity and air movement by treating supply air or recirculated air;\n5) recirculated air means air that returns only to the same room space or dwelling;\n6) a mechanical exhaust ventilation system means a system in which air is removed from the building mechanically by a fan and outdoor air enters through outdoor air devices;\n7) a mechanical supply and exhaust ventilation system means a system in which air is removed from the building mechanically by a fan and outdoor air is brought in by a fan;\n8) habitable space means a room space used for living or working, intended for stays of more than 30 minutes continuously;\n9) occupied zone means the part of a room space where the indoor climate requirements are designed to be met, whose lower surface is bounded by the floor, whose upper surface is at a height of 1.8 metres from the floor, and whose side surfaces are at a distance of 0.6 metres from an outer or inner wall or a similar fixed part of the building;\n10) a gravity ventilation system means a system whose operation is based mainly on pressure differences caused by height and temperature differences and by wind, so that indoor air flows out of the building and outdoor air enters through outdoor air devices;\n11) return air means air that is returned as supply air, or part of it, such that the return air contains exhaust air from two or more different room spaces;\n12) exhaust air means air that is led away from a room space;\n13) transfer air means air that is led from one room space to another;\n14) planned service life means the service life requirement set for a ventilation system, a part of it or a component, defined by the party undertaking the building project, the client or the designer;\n15) indoor climate means the combined chemical, physical and microbiological conditions in the building;\n16) planned use time means the time when the building or space is occupied and used according to its planned purpose;\n17) supply air means air that is led into a room space;\n18) outdoor air means air led in a controlled way from outdoors into indoor spaces through ventilation;\n19) exhaust air discharged outdoors means exhaust air led out of the building.",
+      "summary_en": "The decree defines terms such as room temperature, ventilation, habitable space (stays over 30 minutes) and the occupied zone (up to 1.8 m high and 0.6 m from walls).",
+      "keywords": [
+        "definitions",
+        "habitable space",
+        "oleskelutila",
+        "occupied zone",
+        "oleskeluvyöhyke",
+        "30 minutes",
+        "1.8 m",
+        "0.6 m",
+        "specific fan power",
+        "ominaissähköteho",
+        "room temperature",
+        "huonelämpötila"
+      ],
+      "topics": [
+        "general",
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "habitable space stay duration",
+          "comparison": ">",
+          "value": 30,
+          "unit": "min"
+        },
+        {
+          "what": "occupied zone upper surface height above floor",
+          "comparison": "=",
+          "value": 1.8,
+          "unit": "m"
+        },
+        {
+          "what": "occupied zone distance from walls",
+          "comparison": "=",
+          "value": 0.6,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Sisäilmaston suunnittelu",
+      "heading_en": "Indoor climate design",
+      "text": "Pääsuunnittelijan, erityissuunnittelijan ja rakennussuunnittelijan on tehtäviensä mukaisesti rakennusta suunnitellessaan otettava huomioon seuraavat rakennuksen sisäilmastoon vaikuttavat tekijät:\n1) sisäiset kuormitustekijät, kuten: lämpö- ja kosteuskuormitus, laitteet, valaistus, henkilökuormat, melulähteet, prosessit, rakennustuotteiden päästöt sekä muut rakennuksen käyttöön liittyvät epäpuhtaudet;\n2) ulkoiset kuormitustekijät, kuten: sää- ja ääniolot, ulkoilman laatu ja muut ympäristötekijät;\n3) sijainti ja rakennuspaikka.",
+      "text_en": "When designing the building, the main designer, the specialist designer and the building designer must, according to their duties, take into account the following factors affecting the indoor climate of the building:\n1) internal loads, such as: heat and moisture loads, equipment, lighting, occupant loads, noise sources, processes, emissions from building products and other pollutants related to the use of the building;\n2) external loads, such as: weather and sound conditions, outdoor air quality and other environmental factors;\n3) location and building site.",
+      "summary_en": "Designers must consider internal loads (heat, moisture, equipment, occupants, emissions), external loads (weather, noise, outdoor air quality) and the site location when designing the indoor climate.",
+      "keywords": [
+        "internal loads",
+        "sisäiset kuormitustekijät",
+        "external loads",
+        "ulkoiset kuormitustekijät",
+        "main designer",
+        "pääsuunnittelija",
+        "specialist designer",
+        "erityissuunnittelija",
+        "building designer",
+        "rakennussuunnittelija",
+        "outdoor air quality",
+        "ulkoilman laatu"
+      ],
+      "topics": [
+        "general",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Sisäilmaston suunnittelu",
+      "heading_en": "Indoor climate design",
+      "text": "Pääsuunnittelijan, erityissuunnittelijan ja rakennussuunnittelijan on tehtäviensä mukaisesti otettava huomioon rakennuksen käyttötarkoituksen mukainen sisäilmasto, kun:\n1) suunnitellaan rakennuksen lämmön- ja kosteudeneristystä sekä ikkunoiden ominaisuuksia ja aurinkosuojausta;\n2) suunnitellaan rakennuksen energiatehokkuutta;\n3) määritellään rakennuksen ulkovaipan, alapohjan ja kuilujen ilmanpitävyyttä sekä tilojen välisten rakenteiden ilmanpitävyyttä;\n4) suunnitellaan rakennuksen ääneneristystä ja meluntorjuntaa;\n5) suunnitellaan tilojen valaistusta ja päivänvalon hyödyntämistä;\n6) valitaan rakennusmateriaaleja;\n7) suunnitellaan rakennuksen lämmitystä ja jäähdytystä sekä muita talotekniikkajärjestelmiä, niiden käyttövarmuutta ja tilantarvetta;\n8) suunnitellaan rakennustyömaan kosteudenhallintaa;\n9) suunnitellaan rakennustöiden ja ilmanvaihtojärjestelmän puhtauden hallintaa;\n10) laaditaan rakennustyömaan, vastaanoton ja käyttöönoton aikataulua;\n11) suunnitellaan rakennuksen ja teknisten järjestelmien käytettävyyttä, asianmukaista käyttöä ja kunnossapitoa sekä laaditaan rakennuksen käyttö- ja huolto-ohjetta.",
+      "text_en": "The main designer, the specialist designer and the building designer must, according to their duties, take into account the indoor climate that suits the intended use of the building when:\n1) planning the thermal and moisture insulation of the building, and the properties and solar shading of windows;\n2) planning the energy efficiency of the building;\n3) defining the air tightness of the building envelope, the ground floor and shafts, and the air tightness of structures between spaces;\n4) planning the sound insulation and noise control of the building;\n5) planning the lighting of spaces and the use of daylight;\n6) selecting building materials;\n7) planning the heating and cooling of the building and other building services systems, their operating reliability and space requirements;\n8) planning moisture control on the construction site;\n9) planning the control of cleanliness during construction and of the ventilation system;\n10) drawing up the schedule for construction, handover and commissioning;\n11) planning the usability, proper use and maintenance of the building and its technical systems, and drawing up the building's operation and maintenance instructions.",
+      "summary_en": "When planning envelope insulation, windows, airtightness, sound, daylight, materials, building services, site moisture and commissioning, designers must take the intended-use indoor climate into account.",
+      "keywords": [
+        "airtightness",
+        "ilmanpitävyys",
+        "sound insulation",
+        "ääneneristys",
+        "daylight",
+        "päivänvalo",
+        "moisture control",
+        "kosteudenhallinta",
+        "solar shading",
+        "aurinkosuojaus",
+        "operation and maintenance instructions",
+        "käyttö- ja huolto-ohje"
+      ],
+      "topics": [
+        "general",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-3-3",
+      "ref": "3 § 3 mom.",
+      "heading": "Sisäilmaston suunnittelu",
+      "heading_en": "Indoor climate design",
+      "text": "Rakennuksen käyttötarkoituksen mukaisen sisäilmaston aikaansaamiseksi voidaan käyttää rakenteellisia keinoja, pienentää sisäisiä kuormitustekijöitä, rajoittaa ulkoisten ja sisäisten kuormitustekijöiden vaikutusta sekä käyttää lämmitys-, jäähdytys-, ilmanvaihto- ja ilmastointiteknisiä keinoja sekä näihin liittyvää ohjausta ja säätöä.",
+      "text_en": "To achieve an indoor climate suited to the intended use of the building, structural means may be used, internal loads may be reduced, the effect of external and internal loads may be limited, and heating, cooling, ventilation and air-conditioning means may be used, together with the related control and regulation.",
+      "summary_en": "The indoor climate may be achieved through structural measures, lower internal loads, limits on external load effects, and heating, cooling, ventilation and air conditioning with controls.",
+      "keywords": [
+        "structural means",
+        "rakenteelliset keinot",
+        "internal loads",
+        "sisäiset kuormitustekijät",
+        "heating",
+        "lämmitys",
+        "cooling",
+        "jäähdytys",
+        "control and regulation",
+        "ohjaus ja säätö"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-4-1",
+      "ref": "4 § 1 mom.",
+      "heading": "Huonelämpötilojen suunnitteluarvot",
+      "heading_en": "Design values for room temperatures",
+      "text": "Rakennuksen huonelämpötilan on oltava suunniteltuna käyttöaikana viihtyisä, eivätkä ilman liike, lämpötilasäteily, lämpötilan vaihtelu, lämpötilaerot ja pintalämpötilat saa sitä heikentää.",
+      "text_en": "The room temperature of the building must be comfortable during the planned use time, and air movement, radiant temperature, temperature variation, temperature differences and surface temperatures must not impair it.",
+      "summary_en": "Room temperature must be comfortable during planned use, with air movement, radiant heat, temperature variation and surface temperatures kept from impairing comfort.",
+      "keywords": [
+        "room temperature",
+        "huonelämpötila",
+        "comfort",
+        "viihtyisyys",
+        "radiant temperature",
+        "lämpötilasäteily",
+        "surface temperature",
+        "pintalämpötila",
+        "air movement",
+        "ilman liike"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Huonelämpötilojen suunnitteluarvot",
+      "heading_en": "Design values for room temperatures",
+      "text": "Huonelämpötilan lämmityskauden suunnitteluarvona on käytettävä lämpötilaa 21 celsiusastetta. Huonelämpötilan hallinnan suunnittelussa huonelämpötila voi vaihdella välillä 20–25 celsiusastetta lämmityskaudella ja välillä 20–27 celsiusastetta lämmityskauden ulkopuolella. Erityisestä syystä, kuten tilan erityisiä lämpötiloja edellyttävän toiminnan tai tilan erityisluonteen vuoksi, voidaan huonelämpötilan suunnitteluarvona ja huonelämpötilan hallinnan suunnittelussa käyttää näistä arvoista poikkeavia lämpötiloja.",
+      "text_en": "The design value for room temperature in the heating season must be 21 degrees Celsius. In designing room temperature control, the room temperature may vary between 20 and 25 degrees Celsius in the heating season and between 20 and 27 degrees Celsius outside the heating season. For a special reason, such as activity requiring particular temperatures or the special nature of the space, temperatures deviating from these values may be used as the design value and in designing room temperature control.",
+      "summary_en": "The design room temperature is 21 C in the heating season, with a control range of 20-25 C in the heating season and 20-27 C outside it, unless a special reason applies.",
+      "keywords": [
+        "21 C",
+        "room temperature design value",
+        "huonelämpötila",
+        "heating season",
+        "lämmityskausi",
+        "20-25 C",
+        "20-27 C",
+        "temperature control",
+        "lämpötilan hallinta"
+      ],
+      "topics": [
+        "energy",
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "design room temperature, heating season",
+          "comparison": "=",
+          "value": 21,
+          "unit": "C"
+        },
+        {
+          "what": "room temperature control range minimum, heating season",
+          "comparison": ">=",
+          "value": 20,
+          "unit": "C"
+        },
+        {
+          "what": "room temperature control range maximum, heating season",
+          "comparison": "<=",
+          "value": 25,
+          "unit": "C"
+        },
+        {
+          "what": "room temperature control range minimum, outside heating season",
+          "comparison": ">=",
+          "value": 20,
+          "unit": "C"
+        },
+        {
+          "what": "room temperature control range maximum, outside heating season",
+          "comparison": "<=",
+          "value": 27,
+          "unit": "C"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-4-3",
+      "ref": "4 § 3 mom.",
+      "heading": "Huonelämpötilojen suunnitteluarvot",
+      "heading_en": "Design values for room temperatures",
+      "text": "Huonelämpötilojen hallinnan suunnittelun perusteena käytettävinä mitoittavina säätietoina on käytettävä liitteessä 1 esitettyjä eri säävyöhykkeille säädettyjä testivuoden säätietoja ja eri säävyöhykkeille säädettyjä lämmityskauden mitoittavia ulkoilman lämpötiloja.",
+      "text_en": "The design weather data used as the basis for designing room temperature control must be the test-year weather data given for the different climate zones, and the design outdoor air temperatures for the heating season given for the different climate zones, as set out in Annex 1.",
+      "summary_en": "Room temperature control is designed on the test-year weather data and heating-season design outdoor temperatures for each climate zone given in Annex 1.",
+      "keywords": [
+        "test-year weather data",
+        "testivuoden säätiedot",
+        "design outdoor temperature",
+        "lämmityskauden mitoittava ulkoilman lämpötila",
+        "climate zone",
+        "säävyöhyke",
+        "Annex 1",
+        "liite 1"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-5-1",
+      "ref": "5 § 1 mom.",
+      "heading": "Sisäilman laatu",
+      "heading_en": "Indoor air quality",
+      "text": "Sisäilmassa ei saa esiintyä terveydelle haitallisessa määrin hiukkasmaisia epäpuhtauksia, fysikaalisia, kemiallisia tai mikrobiologisia tekijöitä eikä viihtyisyyttä jatkuvasti heikentäviä hajuja.",
+      "text_en": "Indoor air must not contain particulate pollutants, physical, chemical or microbiological factors in amounts harmful to health, nor odours that continuously impair comfort.",
+      "summary_en": "Indoor air must not contain pollutants or odours harmful to health or continuously impairing comfort.",
+      "keywords": [
+        "indoor air quality",
+        "sisäilman laatu",
+        "particulate pollutants",
+        "hiukkasmaiset epäpuhtaudet",
+        "odours",
+        "hajut",
+        "microbiological factors",
+        "mikrobiologiset tekijät"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-5-2",
+      "ref": "5 § 2 mom.",
+      "heading": "Sisäilman laatu",
+      "heading_en": "Indoor air quality",
+      "text": "Sisäilman hiilidioksidin hetkellisen pitoisuuden suunnitteluarvo huonetilan suunniteltuna käyttöaikana voi olla enintään 1 450 mg/m³ (800 ppm) suurempi kuin ulkoilman pitoisuus.",
+      "text_en": "The design value for the momentary carbon dioxide concentration in indoor air during the planned use time of a room space may be at most 1,450 mg/m3 (800 ppm) higher than the outdoor air concentration.",
+      "summary_en": "As a design value, indoor CO2 may exceed the outdoor concentration by at most 1,450 mg/m3 (800 ppm) during planned use.",
+      "keywords": [
+        "carbon dioxide",
+        "hiilidioksidi",
+        "CO2",
+        "800 ppm",
+        "1450 mg/m3",
+        "outdoor air concentration",
+        "ulkoilman pitoisuus",
+        "indoor air quality",
+        "sisäilman laatu"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "CO2 excess over outdoor air, momentary design value",
+          "comparison": "<=",
+          "value": 1450,
+          "unit": "mg/m3"
+        },
+        {
+          "what": "CO2 excess over outdoor air, momentary design value",
+          "comparison": "<=",
+          "value": 800,
+          "unit": "ppm"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-6-1",
+      "ref": "6 §",
+      "heading": "Sisäilman kosteus",
+      "heading_en": "Indoor air humidity",
+      "text": "Sisäilman kosteuden on pysyttävä tilojen suunnitellun käyttötarkoituksen mukaisissa arvoissa sisäilman kosteudesta aiheutuvia kosteusvaurioita, mikrobien kasvua tai terveydellistä haittaa välttäen.",
+      "text_en": "Indoor air humidity must remain within the values suited to the planned use of the spaces, avoiding moisture damage caused by indoor air humidity, microbial growth or harm to health.",
+      "summary_en": "Indoor air humidity must stay at values suited to the planned use of the spaces, avoiding moisture damage, microbial growth and harm to health.",
+      "keywords": [
+        "indoor air humidity",
+        "sisäilman kosteus",
+        "moisture damage",
+        "kosteusvaurio",
+        "microbial growth",
+        "mikrobien kasvu",
+        "harm to health",
+        "terveydellinen haitta"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-7-1",
+      "ref": "7 § 1 mom.",
+      "heading": "Valaistusolosuhteet",
+      "heading_en": "Lighting conditions",
+      "text": "Rakennuksen sisätiloissa on voitava ylläpitää näkötehtävän edellyttämää valaistusta tilojen suunniteltuna käyttöaikana.",
+      "text_en": "In the interior of the building, lighting required by the visual task must be maintainable during the planned use time of the spaces.",
+      "summary_en": "Interior lighting must meet visual task requirements and be maintainable throughout the planned use time.",
+      "keywords": [
+        "lighting",
+        "valaistus",
+        "visual task",
+        "näkötehtävä",
+        "planned use time",
+        "suunniteltu käyttöaika",
+        "interior lighting",
+        "sisätilojen valaistus"
+      ],
+      "topics": [
+        "daylight"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-7-2",
+      "ref": "7 § 2 mom.",
+      "heading": "Valaistusolosuhteet",
+      "heading_en": "Lighting conditions",
+      "text": "Valaistuksen ryhmittely ja ohjaus on suunniteltava siten, että valaistusta voidaan ohjata toimintojen mukaisesti.",
+      "text_en": "The grouping and control of lighting must be designed so that lighting can be controlled according to activities.",
+      "summary_en": "Lighting must be grouped and controllable by activity.",
+      "keywords": [
+        "lighting control",
+        "valaistuksen ohjaus",
+        "lighting groups",
+        "valaistuksen ryhmittely",
+        "switching",
+        "kytkentä",
+        "activity",
+        "toiminto"
+      ],
+      "topics": [
+        "daylight"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Ilmanvaihto",
+      "heading_en": "Ventilation",
+      "text": "Ilmanvaihdon on toteutettava terveellinen, turvallinen ja viihtyisä sisäilman laatu oleskelutiloissa. Ilmanvaihtojärjestelmän on tuotava rakennukseen riittävä ulkoilmavirta ja poistettava sisäilmasta terveydelle haitallisia aineita, liiallista kosteutta, viihtyisyyttä haittaavia hajuja sekä ihmisistä, rakennustuotteista ja toiminnasta sisäilmaan aiheutuvia epäpuhtauksia.",
+      "text_en": "Ventilation must provide healthy, safe and comfortable indoor air quality in occupied spaces. The ventilation system must bring sufficient outdoor air into the building and remove from indoor air harmful substances, excessive moisture, odours impairing comfort, and pollutants arising from people, building products and activities.",
+      "summary_en": "Ventilation must give healthy, safe and comfortable air in occupied spaces by supplying enough outdoor air and removing pollutants, excess moisture and odours.",
+      "keywords": [
+        "ventilation",
+        "ilmanvaihto",
+        "outdoor air",
+        "ulkoilmavirta",
+        "occupied spaces",
+        "oleskelutila",
+        "odours",
+        "hajut",
+        "pollutants",
+        "epäpuhtaudet"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Ilmanvaihto",
+      "heading_en": "Ventilation",
+      "text": "Ilmanvaihtojärjestelmä on suunniteltava siten, että:\n1) valitun ilmanvaihtojärjestelmän toiminnan kannalta keskeisiä toimintoja voidaan mitata, ohjata ja seurata;\n2) oikein käytettynä, huollettuna ja kunnossapidettynä järjestelmä kestää toimintakuntoisena suunnitellun käyttöiän;\n3) järjestelmän toiminta voidaan kokonaisuudessaan pysäyttää. Koneellisessa järjestelmässä on oltava selvästi merkitty pysäytyskytkin, jonka on oltava helposti saavutettavassa paikassa. Painovoimaisessa järjestelmässä ilmanvaihtoventtiilien on oltava helposti suljettavissa.",
+      "text_en": "The ventilation system must be designed so that:\n1) the functions essential to the operation of the selected ventilation system can be measured, controlled and monitored;\n2) when correctly used, serviced and maintained, the system withstands operation to its planned service life;\n3) operation of the system can be stopped entirely. A mechanical system must have a clearly marked stop switch in an easily reachable place. In a gravity system, ventilation valves must be easy to close.",
+      "summary_en": "The ventilation system must be measurable and controllable, durable over its planned service life, and fully stoppable through a clearly marked, easily reached switch.",
+      "keywords": [
+        "stop switch",
+        "pysäytyskytkin",
+        "measurement and control",
+        "mittaus ja ohjaus",
+        "service life",
+        "suunniteltu käyttöikä",
+        "ventilation valve",
+        "ilmanvaihtoventtiili",
+        "gravity system",
+        "painovoimainen järjestelmä"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1009-2017-9-1",
+      "ref": "9 §",
+      "heading": "Ulkoilmavirrat",
+      "heading_en": "Outdoor air flows",
+      "text": "Erityissuunnittelijan on mitoitettava ilmanvaihtojärjestelmä siten, että oleskelutiloihin voidaan johtaa terveellisen, turvallisen ja viihtyisän sisäilman laadun edellyttämä ulkoilmavirta. Oleskelutilojen ulkoilmavirraksi on mitoitettava vähintään 6 dm³ /s henkilöä kohti suunniteltuna käyttöaikana, jos tilan käyttötarkoituksesta ei aiheudu lisäilmavirran tarvetta. Koko rakennuksen ulkoilmavirraksi on mitoitettava kuitenkin vähintään 0,35 (dm³ /s)/m² lattian pinta-alaa kohden suunniteltuna käyttöaikana, jos rakennuksen tilan käyttötarkoituksen erityisluonteesta ei aiheudu lisäilmavirran tarvetta. Asuinhuoneiston ulkoilmavirraksi on mitoitettava kuitenkin vähintään 18 dm³ /s.",
+      "text_en": "The special designer must dimension the ventilation system so that the outdoor air flow required for healthy, safe and comfortable indoor air quality can be led to the occupied spaces. Occupied spaces must be dimensioned for an outdoor air flow of at least 6 dm3/s per person during the planned use time, if the use of the space does not create a need for additional air flow. For the whole building, the outdoor air flow must nevertheless be dimensioned for at least 0.35 dm3/s per m2 of floor area during the planned use time, if the special nature of the building's use does not create a need for additional air flow. For a dwelling, however, the outdoor air flow must be dimensioned for at least 18 dm3/s.",
+      "summary_en": "Outdoor air must be at least 6 dm3/s per person and 0.35 dm3/s per m2 of floor area for the whole building, and at least 18 dm3/s per dwelling, unless extra air flow is needed.",
+      "keywords": [
+        "outdoor air flow",
+        "ulkoilmavirta",
+        "6 dm3/s per person",
+        "0.35 dm3/s per m2",
+        "18 dm3/s",
+        "asuinhuoneisto",
+        "oleskelutila",
+        "ventilation design",
+        "ilmanvaihdon mitoitus",
+        "special designer",
+        "erityissuunnittelija"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "outdoor air flow per person",
+          "comparison": ">=",
+          "value": 6,
+          "unit": "dm3/s"
+        },
+        {
+          "what": "outdoor air flow per floor area, whole building",
+          "comparison": ">=",
+          "value": 0.35,
+          "unit": "dm3/s/m2"
+        },
+        {
+          "what": "outdoor air flow per dwelling",
+          "comparison": ">=",
+          "value": 18,
+          "unit": "dm3/s"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-10-1",
+      "ref": "10 § 1 mom.",
+      "heading": "Ilmavirtojen ohjaus",
+      "heading_en": "Control of air flows",
+      "text": "Ilmavirtoja on voitava ohjata kuormituksen tai ilman laadun mukaan käyttötilannetta vastaavasti.",
+      "text_en": "Air flows must be controllable according to load or air quality, corresponding to the operating situation.",
+      "summary_en": "Air flows must be controllable according to load or air quality to suit the operating situation.",
+      "keywords": [
+        "air flow control",
+        "ilmavirtojen ohjaus",
+        "demand control",
+        "kuormitus",
+        "air quality",
+        "ilman laatu",
+        "operating situation",
+        "käyttötilanne"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-10-2",
+      "ref": "10 § 2 mom.",
+      "heading": "Ilmavirtojen ohjaus",
+      "heading_en": "Control of air flows",
+      "text": "Asuinhuoneiston ilmavirtojen ohjaus on suunniteltava niin, että tulo- ja poistoilmavirtoja voi ohjata joko rakennus- tai asuntokohtaisesti siten, että niitä voidaan tehostaa vähintään 30 prosenttia suuremmaksi kuin suunnitellun käyttöajan ilmavirrat. Jos ilmanvaihtoa voi ohjata asuntokohtaisesti, asuinhuoneiston tulo- ja poistoilmavirtoja voidaan pienentää enintään 60 prosenttia suunnitellun käyttöajan ilmavirroista.",
+      "text_en": "In a dwelling, the control of air flows must be designed so that supply and exhaust air flows can be controlled either building-wide or dwelling-specifically, and can be boosted by at least 30 per cent above the air flows of the planned use time. If ventilation can be controlled dwelling-specifically, the supply and exhaust air flows of the dwelling may be reduced by at most 60 per cent from the air flows of the planned use time.",
+      "summary_en": "In a dwelling, air flows must be boostable by at least 30 % above planned use-time flows, and may be reduced by at most 60 % when controlled per dwelling.",
+      "keywords": [
+        "boost",
+        "tehostus",
+        "30 %",
+        "60 %",
+        "asuinhuoneisto",
+        "dwelling",
+        "supply air flow",
+        "tuloilmavirta",
+        "exhaust air flow",
+        "poistoilmavirta"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "air flow boost above planned use-time flow, dwelling",
+          "comparison": ">=",
+          "value": 30,
+          "unit": "%"
+        },
+        {
+          "what": "air flow reduction below planned use-time flow, dwelling-specific control",
+          "comparison": "<=",
+          "value": 60,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-10-3",
+      "ref": "10 § 3 mom.",
+      "heading": "Ilmavirtojen ohjaus",
+      "heading_en": "Control of air flows",
+      "text": "Muun kuin asuinrakennuksen ulkoilmavirran on oltava vähintään 0,15 (dm³/s)/m² lattian pinta-alaa kohden suunnitellun käyttöajan ulkopuolella ja ilman on vaihduttava kaikissa huonetiloissa.",
+      "text_en": "The outdoor air flow of a building other than a residential building must be at least 0.15 dm3/s per m2 of floor area outside the planned use time, and air must be exchanged in all room spaces.",
+      "summary_en": "A non-residential building must have an outdoor air flow of at least 0.15 dm3/s per m2 of floor area outside planned use time, with air exchanged in all rooms.",
+      "keywords": [
+        "outdoor air flow",
+        "ulkoilmavirta",
+        "0.15 dm3/s per m2",
+        "outside planned use time",
+        "käyttöajan ulkopuolella",
+        "air exchange",
+        "ilman vaihtuminen",
+        "non-residential building"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "outdoor air flow per floor area outside planned use time, non-residential building",
+          "comparison": ">=",
+          "value": 0.15,
+          "unit": "dm3/s/m2"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-10-4",
+      "ref": "10 § 4 mom.",
+      "heading": "Ilmavirtojen ohjaus",
+      "heading_en": "Control of air flows",
+      "text": "Pykälä ei koske sellaista rakennuksen laajennusta eikä kerrosalaan laskettavan tilan lisäämistä, missä ilmanvaihdon järjestämisessä voi käyttää olemassa olevaa ilmanvaihtojärjestelmää, eikä sisäilman laatu heikkene rakennuksessa.",
+      "text_en": "This section does not apply to an extension of a building, or to adding space counted in gross floor area, where the existing ventilation system can be used to arrange the ventilation and the indoor air quality in the building does not deteriorate.",
+      "summary_en": "An extension or added gross floor area may use the existing ventilation system if indoor air quality does not deteriorate.",
+      "keywords": [
+        "extension",
+        "laajennus",
+        "existing ventilation system",
+        "olemassa oleva ilmanvaihtojärjestelmä",
+        "gross floor area",
+        "kerrosala",
+        "indoor air quality",
+        "sisäilman laatu"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-11-1",
+      "ref": "11 §",
+      "heading": "Moottoriajoneuvosuojan ilmavirrat",
+      "heading_en": "Air flows of the motor vehicle shelter",
+      "text": "Erityissuunnittelijan on mitoitettava moottoriajoneuvosuojan ilmanvaihdon ilmavirrat siten, etteivät ilman epäpuhtaudet aiheuta terveydellistä haittaa käyttäjille. Ilmavirrat on mitoitettava niin, että moottoriajoneuvosuojassa hiilimonoksidin keskiarvopitoisuus kriittisimmäksi arvioituna käyttötuntina ei ylitä arvoa 35 mg/m³ (30 ppm). Moottoriajoneuvosuojan jatkuvan työskentelyalueen ilmavirrat on mitoitettava niin, että hiilimonoksidin hetkellinen pitoisuus ei ylitä 7 mg/m³ (6 ppm).",
+      "text_en": "The special designer must dimension the ventilation air flows of a motor vehicle shelter so that air pollutants do not cause health harm to users. The air flows must be dimensioned so that the average carbon monoxide concentration in the motor vehicle shelter, assessed for the most critical operating hour, does not exceed 35 mg/m3 (30 ppm). The air flows in the continuous working area of the motor vehicle shelter must be dimensioned so that the momentary carbon monoxide concentration does not exceed 7 mg/m3 (6 ppm).",
+      "summary_en": "A motor vehicle shelter must be ventilated so that average CO stays at or below 35 mg/m3 (30 ppm) in the critical hour, and momentary CO in the continuous working area at or below 7 mg/m3 (6 ppm).",
+      "keywords": [
+        "motor vehicle shelter",
+        "autosuoja",
+        "carbon monoxide",
+        "hiilimonoksidi",
+        "CO",
+        "35 mg/m3",
+        "7 mg/m3",
+        "parking garage",
+        "pysäköintitila",
+        "continuous working area",
+        "jatkuva työskentelyalue"
+      ],
+      "topics": [
+        "ventilation",
+        "parking"
+      ],
+      "limits": [
+        {
+          "what": "average carbon monoxide concentration, most critical operating hour",
+          "comparison": "<=",
+          "value": 35,
+          "unit": "mg/m3"
+        },
+        {
+          "what": "average carbon monoxide concentration, most critical operating hour",
+          "comparison": "<=",
+          "value": 30,
+          "unit": "ppm"
+        },
+        {
+          "what": "momentary carbon monoxide concentration, continuous working area",
+          "comparison": "<=",
+          "value": 7,
+          "unit": "mg/m3"
+        },
+        {
+          "what": "momentary carbon monoxide concentration, continuous working area",
+          "comparison": "<=",
+          "value": 6,
+          "unit": "ppm"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-12-1",
+      "ref": "12 §",
+      "heading": "Ilmansuodatus",
+      "heading_en": "Air filtration",
+      "text": "Erityissuunnittelijan on suunniteltava ilmansuodatuksen taso ulkoilman laadun ja sisäilman laadulle asetettujen tavoitteiden perusteella. Erityissuunnittelijan on ilmanvaihtojärjestelmää valitessaan otettava huomioon järjestelmän soveltuvuus tarvittavaan suodatuksen tasoon.",
+      "text_en": "The special designer must design the level of air filtration on the basis of the objectives set for outdoor air quality and indoor air quality. When selecting the ventilation system, the special designer must take into account the suitability of the system for the required level of filtration.",
+      "summary_en": "The level of air filtration must be designed from outdoor and indoor air quality objectives, and the selected system must suit that level.",
+      "keywords": [
+        "air filtration",
+        "ilmansuodatus",
+        "filtration level",
+        "suodatuksen taso",
+        "outdoor air quality",
+        "ulkoilman laatu",
+        "indoor air quality",
+        "sisäilman laatu"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-13-1",
+      "ref": "13 §",
+      "heading": "Poistoilmaluokat",
+      "heading_en": "Exhaust air classes",
+      "text": "Poistoilmaluokat ovat:\nLuokka 1: poistoilma sisältää vain vähän epäpuhtauksia ja epäpuhtaudet ovat pääasiallisesti lähtöisin ihmisistä ja rakenteista;\nLuokka 2: poistoilma sisältää jonkin verran epäpuhtauksia;\nLuokka 3: poistoilma sisältää epäpuhtauksia, kosteutta, kemikaaleja tai hajuja, jotka oleellisesti huonontavat poistoilman laatua;\nLuokka 4: poistoilma sisältää huomattavasti pahanhajuisia tai epäterveellisiä epäpuhtauksia tai kemikaaleja.",
+      "text_en": "The exhaust air classes are:\nClass 1: exhaust air contains only few pollutants, and the pollutants originate mainly from people and structures;\nClass 2: exhaust air contains some pollutants;\nClass 3: exhaust air contains pollutants, moisture, chemicals or odours that substantially degrade the quality of the exhaust air;\nClass 4: exhaust air contains considerably malodorous or unhealthy pollutants or chemicals.",
+      "summary_en": "Exhaust air is classed 1 to 4 by pollutant load, from few pollutants (class 1) to considerably malodorous or unhealthy pollutants (class 4).",
+      "keywords": [
+        "exhaust air class",
+        "poistoilmaluokka",
+        "pollutants",
+        "epäpuhtaudet",
+        "odours",
+        "hajut",
+        "chemicals",
+        "kemikaalit",
+        "moisture",
+        "kosteus"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-14-1",
+      "ref": "14 § 1 mom.",
+      "heading": "Ulkoilmalaitteiden ja ulospuhallusilmalaitteiden sijoittaminen",
+      "heading_en": "Location of outdoor air devices and exhaust air devices",
+      "text": "Ulkoilmaa ei saa ottaa ilmanlaatua heikentävän rakenteen tai rakennusosan kautta tai ulkoilman laatua pilaavien lähteiden läheisyydestä.",
+      "text_en": "Outdoor air must not be taken through a structure or building part that impairs air quality, or from the vicinity of sources that pollute outdoor air.",
+      "summary_en": "Outdoor air intakes must not be placed near sources of pollution or draw air through structures that impair air quality.",
+      "keywords": [
+        "outdoor air device",
+        "ulkoilmalaite",
+        "air quality",
+        "ilmanlaatu",
+        "pollution source",
+        "ilmanlaatua pilaava lähde",
+        "outdoor air intake",
+        "ulkoilman otto"
+      ],
+      "topics": [
+        "ventilation",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1009-2017-14-2",
+      "ref": "14 § 2 mom.",
+      "heading": "Ulkoilmalaitteiden ja ulospuhallusilmalaitteiden sijoittaminen",
+      "heading_en": "Location of outdoor air devices and exhaust air devices",
+      "text": "Ulkoilmalaitteiden kautta ei saa päästä ilmanvaihtojärjestelmään siinä määrin lunta tai sadevettä, että se aiheuttaisi vahinkoa järjestelmälle tai ilman laadulle tai haittaisi järjestelmän toimintaa.",
+      "text_en": "Snow or rainwater must not enter the ventilation system through outdoor air devices to such an extent that it causes damage to the system or to air quality, or hinders the operation of the system.",
+      "summary_en": "Outdoor air devices must keep snow and rain out of the ventilation system so that it is not damaged and its air quality and operation are not impaired.",
+      "keywords": [
+        "snow",
+        "lumi",
+        "rainwater",
+        "sadevesi",
+        "outdoor air device",
+        "ulkoilmalaite",
+        "air intake",
+        "ilmanotto"
+      ],
+      "topics": [
+        "ventilation",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1009-2017-14-3",
+      "ref": "14 § 3 mom.",
+      "heading": "Ulkoilmalaitteiden ja ulospuhallusilmalaitteiden sijoittaminen",
+      "heading_en": "Location of outdoor air devices and exhaust air devices",
+      "text": "Ulospuhallusilman johtaminen ulos rakennuksesta on suunniteltava siten, ettei rakennukselle tai muille rakennuksille, ympäristölle tai niiden käyttäjille aiheudu terveydellistä tai muuta haittaa. Ulospuhallusilma on johdettava rakennuksen vesikaton yläpuolelle, jos ilmanvaihtojärjestelmän toiminta ei toisin edellytä. Poistoilmaluokan 1 tai asuinhuoneistojen ilmanvaihdon ulospuhallusilma voidaan johtaa ulos myös rakennuksen seinässä olevan ulospuhallusilmalaitteen kautta (seinäpuhallus), jos muutoin tässä momentissa esitetyt vaatimukset täytetään.",
+      "text_en": "Exhaust air led out of the building must be designed so that no health or other harm is caused to the building, other buildings, the environment or their users. Exhaust air must be led above the roof of the building unless the operation of the ventilation system requires otherwise. Exhaust air of exhaust air class 1, or exhaust air of dwelling ventilation, may also be discharged through an exhaust air device in the building wall (wall discharge), if the other requirements of this subsection are otherwise met.",
+      "summary_en": "Exhaust air must be discharged above the roof unless the system requires otherwise, and may use a wall discharge only for class 1 exhaust or dwelling ventilation.",
+      "keywords": [
+        "exhaust air discharge",
+        "ulospuhallusilma",
+        "roof",
+        "vesikatto",
+        "wall discharge",
+        "seinäpuhallus",
+        "exhaust air class 1",
+        "poistoilmaluokka 1",
+        "dwelling ventilation",
+        "asuinhuoneiston ilmanvaihto"
+      ],
+      "topics": [
+        "ventilation",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1009-2017-15-1",
+      "ref": "15 § 1 mom.",
+      "heading": "Palautus-, siirto- ja kierrätysilma",
+      "heading_en": "Return, transfer and recirculated air",
+      "text": "Erityissuunnittelijan on suunniteltava rakennuksen ilmanvaihto siten, että palautus- ja siirtoilmana voidaan käyttää vain ilmanpuhtaudeltaan samanarvoisten tai puhtaampien tilojen ilmaa, joka ei saa sisältää ilmanlaatua heikentäviä määriä epäpuhtauksia. Palautus-, siirto-, tai kierrätysilman käyttö ei saa aiheuttaa epäpuhtauksien, erityisesti hajujen, haitallista leviämistä.",
+      "text_en": "The special designer must design the building's ventilation so that only air from spaces of equal or cleaner air purity is used as return air or transfer air, and this air must not contain pollutants in amounts that degrade air quality. The use of return, transfer or recirculated air must not cause harmful spread of pollutants, especially odours.",
+      "summary_en": "Return and transfer air may come only from spaces of equal or better air purity, without harmful spread of pollutants or odours.",
+      "keywords": [
+        "return air",
+        "palautusilma",
+        "transfer air",
+        "siirtoilma",
+        "recirculated air",
+        "kierrätysilma",
+        "odours",
+        "hajut",
+        "air purity",
+        "ilmanpuhtaus"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-15-2",
+      "ref": "15 § 2 mom.",
+      "heading": "Palautus-, siirto- ja kierrätysilma",
+      "heading_en": "Return, transfer and recirculated air",
+      "text": "Palautusilmana ei saa käyttää poistoilmaluokkien 2, 3 ja 4 ilmaa.",
+      "text_en": "Exhaust air of exhaust air classes 2, 3 and 4 must not be used as return air.",
+      "summary_en": "Exhaust air of classes 2, 3 and 4 must never be used as return air.",
+      "keywords": [
+        "return air",
+        "palautusilma",
+        "exhaust air class 2",
+        "poistoilmaluokka 2",
+        "exhaust air class 3",
+        "poistoilmaluokka 3",
+        "exhaust air class 4",
+        "poistoilmaluokka 4"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-15-3",
+      "ref": "15 § 3 mom.",
+      "heading": "Palautus-, siirto- ja kierrätysilma",
+      "heading_en": "Return, transfer and recirculated air",
+      "text": "Palautusilmaa ei saa käyttää tuloilmana seuraavissa tiloissa:\n1) asuinhuoneistot;\n2) ammattimaiset keittiöt;\n3) majoitus- ja ravitsemusliikkeiden ja sisäoppilaitosten majoitusosastot;\n4) oppilaitosten opetustilat ja päiväkotien lepo-, leikki- ja ryhmähuoneet;\n5) sairaanhoito-, huolto- ja rangaistuslaitosten ja vastaavien majoitusosastot;\n6) ravintolat ja kahvilat;\n7) muut erityisen puhtaana pidettävät tilat, jollei palautusilmaa puhdisteta tilan käyttötarkoituksen edellyttämälle tasolle.",
+      "text_en": "Return air must not be used as supply air in the following spaces:\n1) dwellings;\n2) professional kitchens;\n3) accommodation departments of accommodation and catering establishments and of boarding schools;\n4) teaching spaces of educational institutions, and rest, play and group rooms of day-care centres;\n5) accommodation departments of healthcare, maintenance and penal institutions and similar institutions;\n6) restaurants and cafés;\n7) other spaces that must be kept especially clean, unless the return air is cleaned to the level required by the intended use of the space.",
+      "summary_en": "Return air must not be supplied to dwellings, professional kitchens, accommodation, teaching, day-care rest rooms, healthcare, restaurants or cafes unless cleaned to the required level.",
+      "keywords": [
+        "return air",
+        "palautusilma",
+        "supply air",
+        "tuloilma",
+        "dwelling",
+        "asuinhuoneisto",
+        "professional kitchen",
+        "ammattimainen keittiö",
+        "day-care centre",
+        "päiväkoti",
+        "restaurant",
+        "ravintola"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-16-1",
+      "ref": "16 § 1 mom.",
+      "heading": "Epäpuhtauksien leviäminen lämmöntalteenottolaitteessa",
+      "heading_en": "Spread of contaminants in the heat recovery unit",
+      "text": "Jos ilmanvaihtojärjestelmä varustetaan lämmöntalteenotolla, erityissuunnittelijan on suunniteltava lämmöntalteenotto siten, että vältetään terveydelle tai viihtyisyydelle haittaa aiheuttavien epäpuhtauksien tai hajujen leviämistä lämmöntalteenoton kautta. Otettaessa lämpöä talteen poistoilmaluokan 4 poistoilmasta ei tulo- ja poistoilman välillä saa olla vuotoja. Otettaessa lämpöä talteen muiden poistoilmaluokkien poistoilmasta on vuotoilman virtaussuunnan oltava pääosin tuloilmapuolelta poistoilmapuolelle.",
+      "text_en": "If the ventilation system is equipped with heat recovery, the special designer must design the heat recovery so that the spread of contaminants or odours that harm health or comfort through the heat recovery is avoided. When heat is recovered from exhaust air of exhaust air class 4, there must be no leakage between supply air and exhaust air. When heat is recovered from exhaust air of other exhaust air classes, the leakage air flow direction must be mainly from the supply air side to the exhaust air side.",
+      "summary_en": "Heat recovery must avoid spreading harmful contaminants; for class 4 exhaust there must be no leakage, and for other classes leakage must flow mainly from the supply side to the exhaust side.",
+      "keywords": [
+        "heat recovery",
+        "lämmöntalteenotto",
+        "leakage air",
+        "vuotoilma",
+        "exhaust air class 4",
+        "poistoilmaluokka 4",
+        "cross-contamination",
+        "epäpuhtauksien leviäminen",
+        "leakage direction",
+        "vuotoilman suunta"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-16-2",
+      "ref": "16 § 2 mom.",
+      "heading": "Epäpuhtauksien leviäminen lämmöntalteenottolaitteessa",
+      "heading_en": "Spread of contaminants in the heat recovery unit",
+      "text": "Yhtä tilaa tai yhtä asuinhuoneistoa palvelevan ilmanvaihtojärjestelmän lämmöntalteenotossa kaikissa poistoilmaluokissa voi vuotoilman virtaussuunta olla myös poistoilmapuolelta tuloilmapuolelle, jos tuloilma riittää takaamaan sisäilman laadulle 5 §:ssä ja sisäilman kosteudelle 6 §:ssä asetetut vaatimukset sekä ulkoilmavirran määrä täyttää 9 §:n mukaiset vaatimukset.",
+      "text_en": "In heat recovery of a ventilation system serving one room space or one dwelling, in all exhaust air classes, the leakage air flow direction may also be from the exhaust air side to the supply air side, if the supply air is sufficient to guarantee the indoor air quality requirements set in section 5 and the indoor air humidity requirements set in section 6, and the outdoor air flow meets the requirements of section 9.",
+      "summary_en": "A system serving one room space or one dwelling may leak from the exhaust side to the supply side if the supply air still meets the air quality, humidity and outdoor air requirements.",
+      "keywords": [
+        "heat recovery",
+        "lämmöntalteenotto",
+        "single dwelling",
+        "yksittäinen asuinhuoneisto",
+        "leakage direction",
+        "vuotoilman suunta",
+        "outdoor air flow",
+        "ulkoilmavirta",
+        "room space",
+        "huonetila"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-17-1",
+      "ref": "17 §",
+      "heading": "Ilman jako ja poisto",
+      "heading_en": "Air distribution and extraction",
+      "text": "Rakennuksen ilman jaon ja poiston on oltava sellainen, että ilma virtaa koko oleskeluvyöhykkeelle välttäen epäviihtyisyyttä aiheuttavaa ilman liikettä lukuun ottamatta tehostetun ilmanvaihdon tarvetta ja että huonetilassa syntyvät epäpuhtaudet poistuvat tehokkaasti. Ilman on virrattava rakennuksessa sisäilmaltaan puhtaammista tiloista epäpuhtaampiin tiloihin.",
+      "text_en": "The distribution and extraction of air in the building must be such that air flows through the whole occupied zone, avoiding air movement that causes discomfort, except where enhanced ventilation is needed, and that pollutants arising in a room are removed effectively. Air must flow in the building from spaces with cleaner indoor air to spaces with more polluted indoor air.",
+      "summary_en": "Air must reach the whole occupied zone without uncomfortable draught, pollutants must be removed effectively, and air must flow from cleaner to more polluted spaces.",
+      "keywords": [
+        "air distribution",
+        "ilman jako",
+        "air extraction",
+        "ilman poisto",
+        "occupied zone",
+        "oleskeluvyöhyke",
+        "draught",
+        "veto",
+        "air flow direction",
+        "ilman virtaussuunta"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-18-1",
+      "ref": "18 § 1 mom.",
+      "heading": "Ilmanvaihdon yhdistäminen",
+      "heading_en": "Combining ventilation",
+      "text": "Ilmanvaihtokanavien yhdistäminen ei saa aiheuttaa epäpuhtauksien leviämisvaaraa tai haittaa ilmanvaihtojärjestelmän toiminnalle.",
+      "text_en": "Combining ventilation ducts must not cause a risk of spreading pollutants or harm to the operation of the ventilation system.",
+      "summary_en": "Ventilation ducts may be combined only if this does not spread pollutants or harm the operation of the system.",
+      "keywords": [
+        "combined ducts",
+        "kanavien yhdistäminen",
+        "pollutant spread",
+        "epäpuhtauksien leviäminen",
+        "ventilation duct",
+        "ilmanvaihtokanava",
+        "system operation",
+        "järjestelmän toiminta"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-18-2",
+      "ref": "18 § 2 mom.",
+      "heading": "Ilmanvaihdon yhdistäminen",
+      "heading_en": "Combining ventilation",
+      "text": "Ilmanvaihtokanavat voi yhdistää poistoilmaluokkien perusteella seuraavasti:\n1) luokkien 1 ja 2 poistoilma voidaan johtaa yhteiseen kanavistoon. Jos poistoilmaluokkien 1 ja 2 ilmavirrat yhdistetään samaan kanavaan ja luokan 2 ilmavirran osuus on yli 10 prosenttia yhdistetystä ilmavirrasta, yhdistetty ilmavirta katsotaan kuuluvaksi luokkaan 2;\n2) luokan 3 poistoilma on johdettava erilliskanavilla tai ilmanpuhtaudeltaan saman tyyppisiä tiloja palvelevilla yhteiskanavilla ulos, palvelemiensa tilojen yläpuolella olevaan kokoojakanavaan tai poistoilmakammioon. WC-, pesu- ja siivoustilan poistoilma voidaan johtaa luokkien 1 ja 2 poistoilman pystykanaviin, jos näiden tilojen poistoilmavirta on yhteensä korkeintaan 10 prosenttia pystykanavan kokonaisilmavirrasta. Tällöin yhdistettyä ilmavirtaa ei saa käyttää palautusilmana. Yhden asuinhuoneiston kaikkien tilojen poistoilma voidaan johtaa koneellisessa ilmanvaihdossa saman ilmakanavan kautta suoraan ulos, tilojen yläpuolella olevaan kokoojakanavaan tai poistoilmakammioon. Eri asuinhuoneistojen poistoilmat voidaan johtaa saman koneellisen ilmanvaihtojärjestelmän yhteisiin nousukanaviin siten, että keittiöiden poistoilma johdetaan keittiöitä palvelevaan nousukanavaan ja muiden tilojen poistoilma erilliseen nousukanavaan. Painovoimaisessa ilmanvaihdossa ei voida yhdistää yhden asunnon nousukanavia eikä käyttää usean asunnon yhteisiä nousukanavia;\n3) luokan 4 poistoilma on johdettava ulos erillisillä poistoilmakanavilla. Jos tilassa käsitellään tai säilytetään merkittäviä määriä terveydelle vaarallisia tai voimakasta hajua aiheuttavia aineita, huonetilaan on tehtävä muusta ilmanvaihtojärjestelmästä erilliset ulko- ja poistoilmakanavat ja tila on suunniteltava alipaineiseksi viereisiin tiloihin nähden.",
+      "text_en": "Ventilation ducts may be combined on the basis of exhaust air classes as follows:\n1) exhaust air of classes 1 and 2 may be led into a common duct system. If the air flows of exhaust air classes 1 and 2 are combined in the same duct and the share of the class 2 air flow is more than 10 per cent of the combined air flow, the combined air flow is considered to belong to class 2;\n2) class 3 exhaust air must be led outdoors through separate ducts, or through common ducts serving spaces of the same air pollution type, to a collector duct or exhaust air chamber above the spaces they serve. Exhaust air from WC, washing and cleaning spaces may be led into the vertical ducts of exhaust air classes 1 and 2 if the total exhaust air flow of these spaces is at most 10 per cent of the total air flow of the vertical duct. In that case the combined air flow must not be used as return air. The exhaust air of all spaces of one dwelling may be led in mechanical ventilation through the same air duct directly outdoors, to a collector duct above the spaces, or to an exhaust air chamber. Exhaust air of different dwellings may be led into common risers of the same mechanical ventilation system, so that kitchen exhaust air is led into a riser serving kitchens and exhaust air of other spaces into a separate riser. In gravity ventilation, the risers of one dwelling may not be combined, nor may common risers of several dwellings be used;\n3) class 4 exhaust air must be led outdoors through separate exhaust air ducts. If significant amounts of substances hazardous to health or with a strong odour are handled or stored in a room space, separate outdoor air and exhaust air ducts must be made for that room space from the rest of the ventilation system, and the room space must be designed to be under negative pressure relative to adjacent spaces.",
+      "summary_en": "Exhaust ducts may be combined by class: classes 1 and 2 together (the mix counts as class 2 above 10 %), class 3 only with similar spaces or separately, and class 4 only in its own ducts.",
+      "keywords": [
+        "duct combination",
+        "kanavien yhdistäminen",
+        "exhaust air class 2",
+        "poistoilmaluokka 2",
+        "10 %",
+        "WC exhaust",
+        "riser",
+        "nousukanava",
+        "kitchen exhaust",
+        "keittiön poistoilma",
+        "negative pressure",
+        "alipaine"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "share of class 2 air flow in a combined class 1 and 2 duct above which the combined flow counts as class 2",
+          "comparison": ">",
+          "value": 10,
+          "unit": "%"
+        },
+        {
+          "what": "share of WC, washing and cleaning exhaust flow in a vertical class 1 or 2 duct",
+          "comparison": "<=",
+          "value": 10,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1009-2017-18-3",
+      "ref": "18 § 3 mom.",
+      "heading": "Ilmanvaihdon yhdistäminen",
+      "heading_en": "Combining ventilation",
+      "text": "Kahden tai useamman ilmanvaihtokoneen yhdistäminen samaan kanavaan tai kammioon on suunniteltava siten, etteivät huonetilojen paineet tai ilman virtaussuunnat huonetilojen välillä ja kanavistoissa muutu koneiden ilmavirtoja ohjattaessa. Painovoimaista ilmanvaihtojärjestelmää, koneellista poistoilmanvaihtojärjestelmää tai koneellista tulo- ja poistoilmanvaihtojärjestelmää ei saa suunnitella yhdistettäväksi siten, että ilman virtaussuunnat huonetilojen välillä ja kanavistoissa voivat muuttua ilmavirtoja ohjattaessa.",
+      "text_en": "Combining two or more ventilation units into the same duct or chamber must be designed so that room pressures or air flow directions between rooms and in the duct systems do not change when the air flows of the units are controlled. A gravity ventilation system, a mechanical exhaust ventilation system or a mechanical supply and exhaust ventilation system must not be designed to be combined in such a way that air flow directions between rooms and in the ducts can change when air flows are controlled.",
+      "summary_en": "Combined ventilation units must not change room pressures or airflow directions when their flows are adjusted.",
+      "keywords": [
+        "combined units",
+        "ilmanvaihtokoneiden yhdistäminen",
+        "room pressure",
+        "huonepaine",
+        "air flow direction",
+        "ilman virtaussuunta",
+        "control of air flows",
+        "ilmavirtojen ohjaus"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-19-1",
+      "ref": "19 §",
+      "heading": "Ilmanvaihdon tiiviysluokat",
+      "heading_en": "Airtightness classes of ventilation",
+      "text": "Ilmanvaihtojärjestelmän, ilmakanavan ja kanavan osien suurimmat sallitut vuotoilmavirrat vaipan pinta-alaa kohti q VlA (dm³ /s/m²) koepaineella p s (Pa) eri tiiviysluokissa ovat seuraavat:\nTiiviysluokka | Sallittu vuotoilma enintään qVlA m³ /s/m²\nA | 0,027 x p s0,65\nB | 0,009 x p s0,65\nC | 0,003 x p s0,65\nD | 0,001 x p s0,65\nE | 0,0003 x p s0,65",
+      "text_en": "The greatest permitted leakage air flows per envelope area q VlA (dm3/s/m2) of the ventilation system, air ducts and duct parts, at test pressure p s (Pa), in the different airtightness classes are as follows:\nAirtightness class | Permitted leakage air flow at most qVlA m3/s/m2\nA | 0.027 x p s0.65\nB | 0.009 x p s0.65\nC | 0.003 x p s0.65\nD | 0.001 x p s0.65\nE | 0.0003 x p s0.65",
+      "summary_en": "Permitted duct leakage per envelope area is set by airtightness class, from A (0.027 x p s0.65) to E (0.0003 x p s0.65), with p s the test pressure in Pa.",
+      "keywords": [
+        "airtightness class",
+        "tiiviysluokka",
+        "leakage air flow",
+        "vuotoilma",
+        "test pressure",
+        "koepaine",
+        "duct leakage",
+        "ilmakanavan vuoto",
+        "envelope area",
+        "vaipan pinta-ala"
+      ],
+      "topics": [
+        "ventilation",
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "permitted leakage coefficient, airtightness class A (times p s0.65)",
+          "comparison": "<=",
+          "value": 0.027,
+          "unit": "m3/s/m2"
+        },
+        {
+          "what": "permitted leakage coefficient, airtightness class B (times p s0.65)",
+          "comparison": "<=",
+          "value": 0.009,
+          "unit": "m3/s/m2"
+        },
+        {
+          "what": "permitted leakage coefficient, airtightness class C (times p s0.65)",
+          "comparison": "<=",
+          "value": 0.003,
+          "unit": "m3/s/m2"
+        },
+        {
+          "what": "permitted leakage coefficient, airtightness class D (times p s0.65)",
+          "comparison": "<=",
+          "value": 0.001,
+          "unit": "m3/s/m2"
+        },
+        {
+          "what": "permitted leakage coefficient, airtightness class E (times p s0.65)",
+          "comparison": "<=",
+          "value": 0.0003,
+          "unit": "m3/s/m2"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-20-1",
+      "ref": "20 § 1 mom.",
+      "heading": "Ilmanvaihtojärjestelmän tiiviys- ja lujuusvaatimus",
+      "heading_en": "Airtightness and strength requirements for the ventilation system",
+      "text": "Rakennuksen painovoimaisen tai koneellisen ilmanvaihtojärjestelmän on oltava luja ja tiiviydeltään vähintään tiiviysluokkaa B. Jos poistoilmassa on merkittävästi muita kuin ihmisperäisiä epäpuhtauksia, on tiiviysluokan oltava vähintään C.",
+      "text_en": "A gravity or mechanical ventilation system of a building must be strong and have airtightness of at least class B. If the exhaust air contains significant amounts of pollutants other than those of human origin, the airtightness class must be at least C.",
+      "summary_en": "Ventilation systems must be strong and at least airtightness class B, or class C where the exhaust air contains significant non-human pollutants.",
+      "keywords": [
+        "airtightness class B",
+        "tiiviysluokka B",
+        "airtightness class C",
+        "tiiviysluokka C",
+        "strength",
+        "lujuus",
+        "exhaust air pollutants",
+        "poistoilman epäpuhtaudet",
+        "gravity ventilation",
+        "painovoimainen ilmanvaihto"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-20-2",
+      "ref": "20 § 2 mom.",
+      "heading": "Ilmanvaihtojärjestelmän tiiviys- ja lujuusvaatimus",
+      "heading_en": "Airtightness and strength requirements for the ventilation system",
+      "text": "Koneellisessa ilmanvaihtojärjestelmässä rakennuksen sisällä konehuoneen ulkopuolella sijaitsevat poistoilmakanavat on suunniteltava alipaineisiksi. Poistoilmaluokkien 1 ja 2 poistoilmakanavat voivat kuitenkin olla ylipaineisia rakennuksen sisällä edellyttäen, että kanavisto on vähintään tiiviysluokkaa C. Poistoilmaluokan 3 poistoilmakanavat ja asuntokohtaiset ulospuhallusilmakanavat voivat olla ylipaineisia rakennuksen sisällä edellyttäen, että kanavisto on vähintään tiiviysluokkaa D. Poistoilmaluokan 4 poistoilmakanavat voivat olla ylipaineisia rakennuksen sisällä, jos kanavisto ei vuoda.",
+      "text_en": "In a mechanical ventilation system, exhaust ducts located inside the building, outside the machine room, must be designed to be under negative pressure. Exhaust ducts of exhaust air classes 1 and 2 may, however, be under positive pressure inside the building, provided the duct system is at least airtightness class C. Exhaust ducts of exhaust air class 3, and dwelling-specific outdoor air exhaust ducts, may be under positive pressure inside the building, provided the duct system is at least airtightness class D. Exhaust ducts of exhaust air class 4 may be under positive pressure inside the building if the duct system does not leak.",
+      "summary_en": "Exhaust ducts inside buildings must be under negative pressure unless airtightness class C (classes 1 and 2), class D (class 3 and dwelling exhaust) or a leak-free duct (class 4) allows positive pressure.",
+      "keywords": [
+        "negative pressure",
+        "alipaine",
+        "positive pressure",
+        "ylipaine",
+        "exhaust duct",
+        "poistoilmakanava",
+        "airtightness class C",
+        "tiiviysluokka C",
+        "airtightness class D",
+        "tiiviysluokka D",
+        "machine room",
+        "konehuone"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-20-3",
+      "ref": "20 § 3 mom.",
+      "heading": "Ilmanvaihtojärjestelmän tiiviys- ja lujuusvaatimus",
+      "heading_en": "Airtightness and strength requirements for the ventilation system",
+      "text": "Painovoimaisessa ja koneellisessa ilmanvaihtojärjestelmässä ilmakanavien jäykistys ja kannatus on suunniteltava siten, että kanavat pysyvät tukevasti paikallaan ja kestävät ilmanvaihtojärjestelmässä esiintyvät painevaihtelut, puhdistuksen ja muut rasitukset.",
+      "text_en": "In gravity and mechanical ventilation systems, the stiffening and support of air ducts must be designed so that the ducts stay firmly in place and withstand the pressure variations occurring in the ventilation system, cleaning and other stresses.",
+      "summary_en": "Air ducts must be stiffened and supported so that they stay in place and withstand pressure variation, cleaning and other stresses.",
+      "keywords": [
+        "duct support",
+        "kanavan kannatus",
+        "stiffening",
+        "kanavan jäykistys",
+        "pressure variation",
+        "painevaihtelu",
+        "duct cleaning",
+        "kanavien puhdistus",
+        "gravity ventilation",
+        "painovoimainen ilmanvaihto"
+      ],
+      "topics": [
+        "ventilation",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-20-4",
+      "ref": "20 § 4 mom.",
+      "heading": "Ilmanvaihtojärjestelmän tiiviys- ja lujuusvaatimus",
+      "heading_en": "Airtightness and strength requirements for the ventilation system",
+      "text": "Koneellisessa ilmanvaihtojärjestelmässä ilmanvaihtokoneiden ja kammioiden on kestettävä puhaltimen paineen aiheuttama kuormitus sulkupeltien ollessa suljettuina. Jos koneellisen ilmanvaihtojärjestelmän ilmakanavan poikkipinta-ala suunnitellaan suuremmaksi kuin 0,06 neliömetriä, on ulko- ja ulospuhallusilmakanavat varustettava sellaisilla sulkupelleillä, jotka sulkeutuvat automaattisesti järjestelmän pysähtyessä.",
+      "text_en": "In a mechanical ventilation system, ventilation units and chambers must withstand the load from fan pressure with the dampers closed. If the cross-sectional area of an air duct of a mechanical ventilation system is designed to be larger than 0.06 square metres, the outdoor air and exhaust air ducts must be fitted with dampers that close automatically when the system stops.",
+      "summary_en": "Ventilation units must withstand fan pressure with dampers closed, and outdoor or exhaust ducts above 0.06 m2 cross-section need automatic dampers that close when the system stops.",
+      "keywords": [
+        "damper",
+        "sulkupelti",
+        "automatic damper",
+        "automaattinen sulkupelti",
+        "fan pressure",
+        "puhaltimen paine",
+        "cross-section",
+        "poikkipinta-ala",
+        "0.06 m2",
+        "outdoor air duct",
+        "ulkoilmakanava"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "duct cross-section above which automatic closing dampers are required",
+          "comparison": ">",
+          "value": 0.06,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1009-2017-21-1",
+      "ref": "21 §",
+      "heading": "Ilmavirroista aiheutuvat paineet ja rakenteiden ilmanpitävyys",
+      "heading_en": "Pressures caused by air flows and air tightness of structures",
+      "text": "Erityissuunnittelijan on suunniteltava rakennuksen ulko- ja ulospuhallusilmavirrat siten, ettei rakenteisiin aiheudu ylipaineen vuoksi rakenteita vaurioittavaa pitkäaikaista kosteusrasitusta eikä alipaineen vuoksi epäpuhtauksien siirtymistä sisäilmaan. Pääsuunnittelijan, erityissuunnittelijan ja rakennussuunnittelijan on tehtäviensä mukaisesti suunniteltava rakennuksen vaipan ja sisärakenteiden ilmanpitävyys ja hormivaikutuksen hallinta siten, että edellytykset ilmanvaihdon toiminnalle voidaan varmistaa ja vältetään rakenteissa olevien epäpuhtauksien, maaperässä olevien epäpuhtauksien ja radonin siirtymistä sisäilmaan ja vältetään kosteuden siirtymistä rakenteisiin.",
+      "text_en": "The special designer must design the outdoor air and exhaust air flows of the building so that no long-term moisture stress harmful to structures is caused by overpressure in the structures, and no transfer of pollutants into indoor air is caused by underpressure. The main designer, the specialist designer and the building designer must, according to their duties, design the air tightness of the building envelope and internal structures, and the control of the stack effect, so that the preconditions for the operation of the ventilation can be ensured, transfer of pollutants from structures, soil and radon into indoor air is avoided, and moisture transfer into structures is avoided.",
+      "summary_en": "Air flows must not cause harmful long-term moisture stress from overpressure or pollutant transfer from underpressure, and envelope and internal airtightness plus stack effect must be designed accordingly.",
+      "keywords": [
+        "airtightness",
+        "ilmanpitävyys",
+        "stack effect",
+        "hormivaikutus",
+        "radon",
+        "overpressure",
+        "ylipaine",
+        "underpressure",
+        "alipaine",
+        "soil pollutants",
+        "maaperän epäpuhtaudet",
+        "moisture transfer"
+      ],
+      "topics": [
+        "ventilation",
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-22-1",
+      "ref": "22 §",
+      "heading": "Tulisija ja erillispoistot",
+      "heading_en": "Fireplace and separate extracts",
+      "text": "Erityissuunnittelijan on suunniteltava tulisijan ja erillispoistojen käytön vaatima lisäulkoilmavirran saanti siten, että rakennuksen ilmanvaihtojärjestelmä toimii hallitusti ja rakennuksen tai huonetilojen paineet eivät muutu haitallisesti.",
+      "text_en": "The special designer must design the extra outdoor air supply required by the use of a fireplace and of separate extracts so that the building's ventilation system operates in a controlled way and the pressures of the building or of its rooms do not change harmfully.",
+      "summary_en": "Extra outdoor air for fireplaces and separate extracts must be designed so that ventilation works in a controlled way and room pressures do not change harmfully.",
+      "keywords": [
+        "fireplace",
+        "tulisija",
+        "separate extract",
+        "erillispoisto",
+        "extra outdoor air",
+        "lisäulkoilma",
+        "room pressure",
+        "huonepaine",
+        "outdoor air supply",
+        "ulkoilman saanti"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-23-1",
+      "ref": "23 §",
+      "heading": "Ilman kostutus",
+      "heading_en": "Air humidification",
+      "text": "Jos ilmanvaihtojärjestelmä varustetaan ilman kostutuksella, erityissuunnittelijan on suunniteltava ilman kostutus siten, että vältetään olosuhteet terveyttä vaarantavien mikrobien kasvulle.",
+      "text_en": "If the ventilation system is equipped with air humidification, the special designer must design the humidification so that conditions for the growth of microbes harmful to health are avoided.",
+      "summary_en": "Air humidification must be designed to avoid conditions in which health-harming microbes can grow.",
+      "keywords": [
+        "air humidification",
+        "ilman kostutus",
+        "microbes",
+        "mikrobit",
+        "microbial growth",
+        "mikrobien kasvu",
+        "humidifier",
+        "kostutin"
+      ],
+      "topics": [
+        "ventilation",
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-24-1",
+      "ref": "24 §",
+      "heading": "Ilmanvaihtojärjestelmän puhdistettavuus ja huollettavuus",
+      "heading_en": "Cleanability and serviceability of the ventilation system",
+      "text": "Erityissuunnittelijan on suunniteltava ilmanvaihtojärjestelmä ja sen huoltoväylät siten, että ilmanvaihtojärjestelmän osat voidaan helposti ja turvallisesti puhdistaa, huoltaa, korjata ja vaihtaa. Ilmanvaihtokoneiden huoltoa ja korjausta varten on varattava vähintään huollettavien laitteiden mittainen tila huoltosuunnassa.",
+      "text_en": "The special designer must design the ventilation system and its service routes so that the parts of the ventilation system can be easily and safely cleaned, serviced, repaired and replaced. For servicing and repairing ventilation units, space at least as long as the serviced equipment must be reserved in the service direction.",
+      "summary_en": "Ventilation parts must be easy and safe to clean, service and replace, with service space at least as long as the equipment in the service direction.",
+      "keywords": [
+        "cleaning",
+        "puhdistettavuus",
+        "service space",
+        "huoltotila",
+        "service route",
+        "huoltoväylä",
+        "ventilation unit",
+        "ilmanvaihtokone",
+        "maintenance access",
+        "huollettavuus"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1009-2017-25-1",
+      "ref": "25 §",
+      "heading": "Ilmanvaihtojärjestelmän eristäminen",
+      "heading_en": "Insulation of the ventilation system",
+      "text": "Erityissuunnittelijan on suunniteltava ilmanvaihtokanavien, -kammioiden ja -koneiden lämmön- ja kosteudeneristys siten, ettei ilma jäähdy tai lämpene lämpötilanhallintaa ja viihtyisyyttä haittaavasti eikä kosteus tiivisty rakenteita vahingoittavasti tai sisäilman laatua heikentävästi.",
+      "text_en": "The special designer must design the heat and moisture insulation of ventilation ducts, chambers and machines so that the air does not cool or heat in a way that impairs temperature control and comfort, and so that moisture does not condense in structures in a damaging way or impair indoor air quality.",
+      "summary_en": "Ventilation ducts, chambers and machines must be insulated to avoid harmful temperature change in the air and damaging condensation.",
+      "keywords": [
+        "duct insulation",
+        "kanavan eristys",
+        "condensation",
+        "kosteuden tiivistyminen",
+        "heat insulation",
+        "lämpöeristys",
+        "moisture insulation",
+        "kosteuseristys",
+        "indoor air quality",
+        "sisäilman laatu"
+      ],
+      "topics": [
+        "ventilation",
+        "energy",
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-26-1",
+      "ref": "26 §",
+      "heading": "Tiiviys",
+      "heading_en": "Airtightness",
+      "text": "Rakennushankkeeseen ryhtyvän on huolehdittava siitä, että ilmanvaihtojärjestelmän tiiviys on mitattu ennen rakennuksen käyttöönottoa. Yhtä rakennuksen tilaa tai yhtä asuinhuoneistoa palvelevissa ilmanvaihtojärjestelmissä tiiviyden mittaus voidaan korvata asennustarkastuksella, jos kanavisto on tehty kokonaan vähintään tiiviysluokan C mukaisista kanavista ja kanavanosista. Rakennusvaiheen vastuuhenkilön on tehtävä merkintä rakennustyön tarkastusasiakirjaan ilmanvaihtojärjestelmän tiiviyden suunnitelmanmukaisuudesta.",
+      "text_en": "The party undertaking a building project must ensure that the airtightness of the ventilation system is measured before the building is taken into use. For ventilation systems serving one room space or one dwelling of the building, the airtightness measurement may be replaced by an installation inspection if the ductwork is made entirely of ducts and duct parts of at least airtightness class C. The person responsible for the building phase must make an entry in the construction inspection document on whether the airtightness of the ventilation system conforms to the plan.",
+      "summary_en": "Ventilation airtightness must be measured before occupation, or replaced by an installation inspection for single-space or single-dwelling systems built entirely of class C or better ducts.",
+      "keywords": [
+        "airtightness measurement",
+        "tiiviysmittaus",
+        "installation inspection",
+        "asennustarkastus",
+        "airtightness class C",
+        "tiiviysluokka C",
+        "construction inspection document",
+        "rakennustyön tarkastusasiakirja",
+        "responsible person",
+        "vastuuhenkilö"
+      ],
+      "topics": [
+        "ventilation",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-27-1",
+      "ref": "27 § 1 mom.",
+      "heading": "Ilmanvaihtojärjestelmän suunnitelmanmukaisuuden toteaminen",
+      "heading_en": "Verifying that the ventilation system conforms to the plan",
+      "text": "Rakennushankkeeseen ryhtyvän on huolehdittava siitä, että ilmanvaihtojärjestelmän ilmavirrat on mitattu ja säädetty, ilmanvaihtojärjestelmän ominaissähköteho on määritetty ja ilmanvaihtojärjestelmä on saatettu toimimaan suunnitelman mukaisesti ennen rakennuksen käyttöönottoa. Rakennuksen ja sen ilmanvaihtojärjestelmän on oltava puhdas ennen ilmavirtojen mittausta ja säätöä sekä ennen järjestelmän käyttöönottoa. Rakennusvaiheen vastuuhenkilön on tehtävä merkintä rakennustyön tarkastusasiakirjaan ilmanvaihtojärjestelmän suunnitelmanmukaisuudesta.",
+      "text_en": "The party undertaking a building project must ensure that the air flows of the ventilation system have been measured and adjusted, that the specific fan power of the ventilation system has been determined, and that the ventilation system has been brought into operation according to the plan before the building is taken into use. The building and its ventilation system must be clean before the air flows are measured and adjusted and before the system is brought into use. The person responsible for the building phase must make an entry in the construction inspection document on whether the ventilation system conforms to the plan.",
+      "summary_en": "Before occupation, air flows must be measured and adjusted, specific fan power determined and the system commissioned to plan, with the building clean and an entry made in the inspection document.",
+      "keywords": [
+        "air flow measurement",
+        "ilmavirtojen mittaus",
+        "specific fan power",
+        "ominaissähköteho",
+        "commissioning",
+        "käyttöönotto",
+        "adjustment",
+        "säätö",
+        "construction inspection document",
+        "rakennustyön tarkastusasiakirja",
+        "cleanliness",
+        "puhtaus"
+      ],
+      "topics": [
+        "ventilation",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-27-2",
+      "ref": "27 § 2 mom.",
+      "heading": "Ilmanvaihtojärjestelmän suunnitelmanmukaisuuden toteaminen",
+      "heading_en": "Verifying that the ventilation system conforms to the plan",
+      "text": "Hyväksyttävät poikkeamat suunnitelluista arvoista voivat olla seuraavia:\n1) ilmavirta järjestelmä- ja huoneistokohtaisesti ± 10 prosenttia;\n2) ilmavirta huonekohtaisesti ± 20 prosenttia, kuitenkin siten, että poikkeama voi aina olla vähintään 1 dm³ /s;\n3) ilmanvaihtojärjestelmän ominaissähköteho + 10 prosenttia.",
+      "text_en": "Acceptable deviations from the planned values may be the following:\n1) air flow per system and per dwelling plus or minus 10 per cent;\n2) air flow per room plus or minus 20 per cent, however so that the deviation may always be at least 1 dm3/s;\n3) specific fan power of the ventilation system plus 10 per cent.",
+      "summary_en": "Measured air flows may deviate from plan by up to 10 % per system or dwelling and 20 % per room (at least 1 dm3/s), and specific fan power may exceed plan by up to 10 %.",
+      "keywords": [
+        "acceptable deviation",
+        "hyväksyttävä poikkeama",
+        "air flow deviation",
+        "ilmavirran poikkeama",
+        "specific fan power",
+        "ominaissähköteho",
+        "1 dm3/s",
+        "10 %",
+        "20 %",
+        "air flow per room",
+        "huonekohtainen ilmavirta"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [
+        {
+          "what": "air flow deviation from plan per system or dwelling",
+          "comparison": "<=",
+          "value": 10,
+          "unit": "%"
+        },
+        {
+          "what": "air flow deviation from plan per room",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "%"
+        },
+        {
+          "what": "minimum allowed air flow deviation per room",
+          "comparison": ">=",
+          "value": 1,
+          "unit": "dm3/s"
+        },
+        {
+          "what": "specific fan power excess over plan",
+          "comparison": "<=",
+          "value": 10,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-27-3",
+      "ref": "27 § 3 mom.",
+      "heading": "Ilmanvaihtojärjestelmän suunnitelmanmukaisuuden toteaminen",
+      "heading_en": "Confirming that the ventilation system conforms to the design",
+      "text": "Hyväksyttävät poikkeamat sisältävät sekä mittaustuloksen poikkeamat että mittausepävarmuuden, joka on esitettävä mittaustulosten yhteydessä. Mittausmenetelmän ja mittauslaitteiden on sovelluttava mitattavan ilmavirran mittaukseen. Mittauslaitteiden on oltava kalibroituja, kalibroinnin on oltava voimassa ja mittausarvoa on korjattava kalibroinnin mukaan.",
+      "text_en": "Acceptable deviations include both the deviation of the measurement result and the measurement uncertainty, which must be stated together with the measurement results. The measurement method and measuring devices must be suitable for measuring the airflow being measured. The measuring devices must be calibrated, the calibration must be valid, and the measured value must be corrected according to the calibration.",
+      "summary_en": "Airflow measurement results must state their measurement uncertainty, and the instruments must have valid calibration, with readings corrected accordingly.",
+      "keywords": [
+        "ventilation airflow measurement",
+        "measurement uncertainty",
+        "calibration",
+        "airflow",
+        "ilmanvaihto",
+        "ilmavirta",
+        "mittausepävarmuus",
+        "kalibrointi",
+        "mittaustulos"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-28-1",
+      "ref": "28 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2018.",
+      "text_en": "This decree enters into force on 1 January 2018.",
+      "summary_en": "The decree enters into force on 1 January 2018.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "asetus",
+        "1.1.2018"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-28-2",
+      "ref": "28 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tällä asetuksella kumotaan ympäristöministeriön 30 päivänä maaliskuuta 2011 antama ympäristöministeriön asetus rakennusten sisäilmastosta ja ilmanvaihdosta.",
+      "text_en": "This decree repeals the Ministry of the Environment decree of 30 March 2011 on indoor climate and ventilation of buildings.",
+      "summary_en": "The decree repeals the 2011 Ministry of the Environment decree on indoor climate and ventilation of buildings.",
+      "keywords": [
+        "repeal of earlier decree",
+        "kumoaminen",
+        "sisäilmasto",
+        "ilmanvaihto",
+        "ympäristöministeriön asetus",
+        "voimaantulo"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1009-2017-28-3",
+      "ref": "28 § 3 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämän asetuksen voimaan tullessa vireillä olevaan hankkeeseen sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "A project pending when this decree enters into force is subject to the provisions that were in force when this decree entered into force.",
+      "summary_en": "Projects already pending when the decree takes effect are judged under the rules that applied at that time.",
+      "keywords": [
+        "transitional provision",
+        "pending project",
+        "vireillä oleva hanke",
+        "siirtymäsäännös",
+        "voimassa olleet säännökset",
+        "voimaantulo"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

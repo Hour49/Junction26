@@ -73,7 +73,7 @@
       "country": "FI",
       "country_name": "Finland",
       "name": "Finland: homes and accessibility decrees",
-      "law": "Rakentamislaki 751/2023; decrees 1008/2017 (homes and rooms) and 241/2017 (accessibility), kept in force by the entry-into-force provision of Act 752/2023",
+      "law": "Rakentamislaki 751/2023; decrees 631/2024 (homes and rooms, in force since 2025-01-01, replacing 1008/2017; a project pending then follows the earlier rules, 631/2024 11 § 2 mom.) and 241/2017 (accessibility, as amended by 683/2024)",
       "version": "2026-11-14",
       "note": "A pre-check of a few rules, not a compliance certificate.",
       "fail_means": "It would not meet today's rule for a new building.",
@@ -100,7 +100,7 @@
               "Pranzo",
               "ALKOVI"
             ],
-            "note": "New buildings, extensions and substantial changes of use (decree 1008/2017 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
+            "note": "New buildings, extensions and substantial changes of use (decree 631/2024 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
           },
           "comparison": ">=",
           "comparison_text": "at least",
@@ -108,13 +108,19 @@
           "unit": "m2",
           "key": null,
           "clause": {
-            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
-            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
-            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+            "quote": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential or accommodation room and of a work space must, however, always be at least 7 square metres."
           }
         }
       ]
     }
-  ]
+  ],
+  "commit": null,
+  "chat": {
+    "model": "rules",
+    "available": true,
+    "reason": null
+  }
 }

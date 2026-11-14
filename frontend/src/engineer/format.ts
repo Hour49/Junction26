@@ -1,5 +1,5 @@
 // The engineer screen's own words and numbers; values and times use the shared formatValue/formatTime.
-import type { AnswerView, Row } from '../api';
+import { formatValue, type AnswerView, type Row } from '../api';
 
 export function formatCost(usd: number): string {
   if (usd === 0) return '$0';
@@ -61,11 +61,25 @@ export function kindName(kind: string | null | undefined): string {
 
 export type Grade = 'High' | 'Medium' | 'Low';
 
-/** Bogdan's rule (#14 c6874945888): the Sure check, else the second reader's score; none without a score. */
-export function gradeOf(a: AnswerView): Grade | null {
-  if (a.line.sure === true) return 'High';
-  if (!a.confidence) return null;
-  return a.confidence.score >= 0.8 ? 'Medium' : 'Low';
+const LEVEL_WORD = { high: 'High', medium: 'Medium', low: 'Low' } as const;
+
+/** The backend's confidence level (#233, Bogdan #14 c6879176847); null without one, no score rule (EN-82). */
+export function gradeOf(a: { level?: AnswerView['level'] }): Grade | null {
+  return a.level ? LEVEL_WORD[a.level.level] : null;
 }
 
-export const GRADE_TIP = "From the Sure check and the second reader's score (0.8 or more: Medium).";
+/** `ProjectAnswer.total_level` in words (CH-42). */
+export const levelWord = (level: keyof typeof LEVEL_WORD): Grade => LEVEL_WORD[level];
+
+/** EN-88/CH-44: "about 180 m², <why the value is an estimate>" for a measured number with `quantity.estimate`;
+ * for a count only the caveat ("Counted by …"): a count is whole, never "about" (Bogdan c6881747518); else null. */
+export function estimateLine(a: AnswerView): string | null {
+  const why = a.quantity?.estimate;
+  if (!why || typeof a.answer !== 'number') return null;
+  if (a.unit === 'count') return why.charAt(0).toUpperCase() + why.slice(1);
+  const n = Math.round(a.answer);
+  // "about 0 m²" says nothing: a measure that rounds to 0 is shown as it is
+  if (n === 0) return `${formatValue(a.answer, a.unit)}, ${why}`;
+  // a whole number: formatValue's two decimals would claim a precision the estimate has not
+  return `about ${formatValue(n, a.unit).replace(/\.00 /, ' ')}, ${why}`;
+}

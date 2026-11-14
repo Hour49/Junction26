@@ -6,6 +6,7 @@ from typing import Protocol
 
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import (
+    CarbonRead,
     Classified,
     ContentKind,
     Description,
@@ -117,6 +118,13 @@ class Readers(Protocol):
     @property
     def scanned(self) -> Callable[[bytes], bool] | None:
         """Whether a PDF is a scan (stage 5 routes it to the raster reader)."""
+        ...
+
+    @property
+    def carbon_read(self) -> Callable[[str], CarbonRead | None] | None:
+        """What Gemini Carbon read of the raster route's drawing of a file (by path): its
+        elements (CARBON_READER) or another part (a composite's `carbon` source); None: nothing.
+        Such a drawing is flagged. None: no file is."""
         ...
 
 

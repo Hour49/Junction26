@@ -14,23 +14,28 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from app.adapters.chat_store import JsonChatStore
 from app.adapters.credits import DatasetCredits
+from app.adapters.law_index import SqliteLawIndex, load_laws
 from app.adapters.review_store import JsonReviewStore
 from app.adapters.rule_packs import load_packs
 from app.api import (
     ask,
+    chat,
     checks,
     drawings,
+    evidence,
     health,
     info,
     issues,
+    laws,
     project_ask,
     projects,
     takeoff,
 )
 from app.api.deps import Ingest
 from app.api.views import ErrorBody
-from app.composition import build_answering, build_ingest
+from app.composition import EvidenceIndexes, build_answering, build_evidence, build_ingest
 from app.core.errors import (
     DomainError,
     InvalidInputError,
@@ -102,7 +107,9 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     settings = settings or Settings()
     logging.basicConfig(level=settings.log_level)
     rule_packs = load_packs(settings.rule_packs_dir)  # a pack that fails stops here, first
-    service = ingest or build_ingest(settings, settings.projects_dir)
+    law_index = SqliteLawIndex(load_laws(settings.laws_dir))  # so does a law file
+    index = build_evidence(settings, settings.projects_dir)  # shared: one embedder session
+    service = ingest or build_ingest(settings, settings.projects_dir, evidence=index)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -117,11 +124,28 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     app.state.credits = DatasetCredits(
         settings.credit_dataset, settings.credit_photos, settings.sample_archive
     )
+    app.state.evidence = EvidenceIndexes(index, service.status, app.state.credits.of)
     app.state.admission = projects.Admission()  # the 429 limit
     app.state.kept_reviews = projects.KeptReviews()  # the project list's review counts
     app.state.rule_packs = rule_packs
-    for router in (health, info, projects, drawings, ask, takeoff, project_ask, issues, checks):
+    app.state.chats = JsonChatStore(settings.projects_dir)  # the agent chats (decision 0013)
+    app.state.laws = law_index
+    routers = (
+        health,
+        info,
+        projects,
+        drawings,
+        ask,
+        takeoff,
+        project_ask,
+        issues,
+        checks,
+        evidence,
+        laws,
+    )
+    for router in routers:
         app.include_router(router.router)
+    app.include_router(chat.router)
     for error in STATUS_BY_ERROR:
         app.add_exception_handler(error, domain_error_response)
     app.add_exception_handler(HTTPException, http_error_response)

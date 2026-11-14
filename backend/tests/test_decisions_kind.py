@@ -177,12 +177,16 @@ def test_flagged_drawing_image_becomes_a_photo_of_a_plan() -> None:
 
 def test_unflagged_image_keeps_the_probe_kind_with_the_signal_in_the_trace() -> None:
     plan = kind_probe("png_plan", FakeDecider(reply=replies()[0]["reply"])).probe(png(20, 20))
-    assert plan.kind == "png_plan" and "P(plan) 0.78" in plan.did
+    assert plan.kind == "png_plan" and "P(plan drawn) 0.78" in plan.did
 
 
 def test_unavailable_signal_keeps_the_probe_answer_and_says_why() -> None:
     probed = kind_probe("jpeg_plan", FakeDecider(fail="HTTP 503")).probe(png(20, 20))
-    assert probed == Probed(kind="jpeg_plan", did=f"the probe's words; {UNAVAILABLE}: HTTP 503")
+    assert probed == Probed(
+        kind="jpeg_plan",
+        did=f"the probe's words; {UNAVAILABLE}: HTTP 503",
+        signal_missing=f"{UNAVAILABLE}: HTTP 503",
+    )
 
 
 def test_only_drawing_images_are_sent() -> None:

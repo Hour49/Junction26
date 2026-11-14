@@ -1,0 +1,2129 @@
+{
+  "id": "ch-zh-ls-700-2",
+  "pack": "ch-zh",
+  "jurisdiction": "CH-ZH",
+  "number": "LS 700.2",
+  "title": "Allgemeine Bauverordnung (ABV)",
+  "title_en": "General Building Ordinance of the Canton of Zürich (definitions and measuring methods)",
+  "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/C624AC55D9DDC0B7C1258BDD0044EAEC/$File/700.2_22.6.77_127.pdf",
+  "language": "de",
+  "in_force": "2025-01-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version 127 (Stand 1 January 2025) of the ordinance of 22 June 1977; sections I-IX in full. Clauses with '-anhang-' ids quote Anhang 2: the wording before the change of 11 May 2016, still applicable to the listed §§ until the commune has adapted its Bau- und Zonenordnung. The explanatory sketches (Anhang 1, figures) are not text and are not included.",
+  "clauses": [
+    {
+      "id": "ch-zh-ls-700-2-1",
+      "ref": "§ 1 Abs. 1",
+      "heading": "Bauten / und Anlagen",
+      "heading_en": "Structures / and installations",
+      "text": "Bauten und Anlagen im Sinne des Planungs- und Baugesetzes sind:\na. Bauten, die im Boden eingelassen oder mit einer gewissen Ortsbezogenheit darauf stehend ihrem Umfang nach geeignet sind, die Umgebung durch Luft- und Lichtverdrängung, Überlagerung einer freien Bodenfläche oder durch sonstige Einwirkungen zu beeinflussen,\nb. alle planungs- und baurechtlich bedeutsamen äusserlichen Veränderungen von Grundstücken oder deren Nutzung.",
+      "text_en": "Structures and installations within the meaning of the Planning and Building Act are:\na. structures which are built into the ground or stand on it with a certain site-relatedness and whose extent is suitable to affect the surroundings through displacement of air and light, overlaying a free ground area, or through other effects,\nb. all externally visible changes to plots of land or their use that are significant under planning and building law.",
+      "summary_en": "Defines what counts as a structure or installation, so that the permit rules apply to it.",
+      "keywords": [
+        "structure",
+        "installation",
+        "Bauten",
+        "Anlagen",
+        "Baubewilligung",
+        "Bauwerk"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-1-2",
+      "ref": "§ 1 Abs. 2",
+      "heading": "Bauten / und Anlagen",
+      "heading_en": "Structures / and installations",
+      "text": "Bauten und Anlagen sind namentlich: Gebäude, Mauern und Einfriedigungen, Reklamen, Aussenantennen, Anlagen für die Nutzung von Sonnenenergie, Sport-, Spiel- und Erholungsanlagen, Schwimmbassins, Campingplätze, selbstständige Fahrzeugabstellplätze, Werk- und Lagerplätze, Anlagen für die Materialgewinnung und -ablagerung, Verkehrs- und andere Transportanlagen, Tankstellen.",
+      "text_en": "Structures and installations are in particular: buildings, walls and fences, advertising signs, external antennas, installations for using solar energy, sports, play and recreation facilities, swimming pools, camping sites, independent vehicle parking spaces, works and storage areas, installations for the extraction and deposit of materials, traffic and other transport installations, filling stations.",
+      "summary_en": "Lists typical structures, such as buildings, fences, pools and car parks, that fall under the planning and building rules.",
+      "keywords": [
+        "fence",
+        "wall",
+        "swimming pool",
+        "solar installation",
+        "car park",
+        "Einfriedung",
+        "Mauer",
+        "Reklame",
+        "Antenne",
+        "Tankstelle"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-2",
+      "ref": "§ 2",
+      "heading": "Gebäude",
+      "heading_en": "Building",
+      "text": "Gebäude sind ortsfeste Bauten, die zum Schutz von Menschen, Tieren oder Sachen eine feste Überdachung und in der Regel weitere Abschlüsse aufweisen.",
+      "text_en": "Buildings are fixed structures which, to protect people, animals or property, have a solid roof and, as a rule, further enclosures.",
+      "summary_en": "A building is a fixed structure with a solid roof and usually walls, which is the basis for the building rules.",
+      "keywords": [
+        "building",
+        "Gebäude",
+        "roof",
+        "Dach",
+        "enclosure",
+        "Umfassung"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-2a",
+      "ref": "§ 2a Abs. 1",
+      "heading": "Kleinbauten / und Anbauten",
+      "heading_en": "Small buildings / and annexes",
+      "text": "Kleinbauten sind freistehende Gebäude mit einer Grundfläche von höchstens 50 m², deren Gesamthöhe 4,0 m, bei Schrägdächern 5,0 m, nicht überschreitet und die nur Nebennutzflächen enthalten.",
+      "text_en": "Small buildings are freestanding buildings with a floor area of at most 50 m², whose total height does not exceed 4.0 m, or 5.0 m for pitched roofs, and which contain only ancillary usable areas.",
+      "summary_en": "A freestanding building of up to 50 m² and 4.0 m high (5.0 m with a pitched roof), with only ancillary space, counts as a small building.",
+      "keywords": [
+        "small building",
+        "Kleinbau",
+        "50 m2",
+        "4 m height",
+        "pitched roof",
+        "Schrägdach",
+        "Nebennutzfläche",
+        "Gebäudehöhe"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "floor area of a small building",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "m2"
+        },
+        {
+          "what": "total height of a small building",
+          "comparison": "<=",
+          "value": 4,
+          "unit": "m"
+        },
+        {
+          "what": "total height of a small building with a pitched roof",
+          "comparison": "<=",
+          "value": 5,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-2a-2",
+      "ref": "§ 2a Abs. 2",
+      "heading": "Kleinbauten / und Anbauten",
+      "heading_en": "Small buildings / and annexes",
+      "text": "Anbauten sind mit einem anderen Gebäude zusammengebaute Gebäude mit einer Grundfläche von höchstens 50 m², deren Gesamthöhe 4,0 m, bei Schrägdächern 5,0 m, nicht überschreitet und die nur Nebennutzflächen enthalten.",
+      "text_en": "Annexes are buildings joined to another building, with a floor area of at most 50 m², whose total height does not exceed 4.0 m, or 5.0 m for pitched roofs, and which contain only ancillary usable areas.",
+      "summary_en": "An annex attached to another building is limited to the same 50 m², 4.0 m (5.0 m pitched) and ancillary-use limits as a small building.",
+      "keywords": [
+        "annex",
+        "Anbau",
+        "attached building",
+        "50 m2",
+        "4 m height",
+        "Nebennutzfläche"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "floor area of an annex",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "m2"
+        },
+        {
+          "what": "total height of an annex",
+          "comparison": "<=",
+          "value": 4,
+          "unit": "m"
+        },
+        {
+          "what": "total height of an annex with a pitched roof",
+          "comparison": "<=",
+          "value": 5,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-2b",
+      "ref": "§ 2b",
+      "heading": "Unterirdische / Bauten",
+      "heading_en": "Underground / buildings",
+      "text": "Unterirdische Bauten sind Gebäude, die, mit Ausnahme der Erschliessung sowie der Geländer und Brüstungen, vollständig unter dem massgebenden bzw. unter dem tiefer gelegten Terrain liegen.",
+      "text_en": "Underground buildings are buildings which, with the exception of access and of railings and parapets, lie completely below the decisive or lowered terrain.",
+      "summary_en": "A building that lies fully below the relevant terrain, apart from access and railings, counts as underground.",
+      "keywords": [
+        "underground building",
+        "Unterirdischer Bau",
+        "terrain",
+        "Terrain",
+        "Erschliessung",
+        "Geländer"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-2c",
+      "ref": "§ 2c",
+      "heading": "Unterniveaubauten",
+      "heading_en": "Sunken buildings",
+      "text": "Unterniveaubauten sind Gebäude, die das massgebende bzw. das tiefer gelegte Terrain in der Fassadenflucht an keiner Stelle um mehr als 0,5 m überragen. Im Bereich der Erschliessung wird ab dem massgebenden Terrain gemessen.",
+      "text_en": "Sunken buildings are buildings which, along the facade line, nowhere project more than 0.5 m above the decisive or lowered terrain. Within the access area, measurement starts from the decisive terrain.",
+      "summary_en": "A building may rise no more than 0.5 m above the terrain along its facade to count as sunken; access areas are measured from the original ground.",
+      "keywords": [
+        "sunken building",
+        "Unterniveaubau",
+        "0.5 m",
+        "terrain",
+        "Terrain",
+        "facade",
+        "Fassade",
+        "access",
+        "Erschliessung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "height of a sunken building above the terrain along the facade",
+          "comparison": "<=",
+          "value": 0.5,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-3",
+      "ref": "§ 3",
+      "heading": "Ausstattungen",
+      "heading_en": "Fittings",
+      "text": "Ausstattungen sind Nebeneinrichtungen zu Bauten und Anlagen, wie Spielplätze, Ruheplätze, Lärmwälle, Fahrzeugabstellplätze und innere Zufahrten.",
+      "text_en": "Fittings are ancillary facilities of buildings and installations, such as play areas, rest areas, noise barriers, vehicle parking spaces and internal access roads.",
+      "summary_en": "Fittings are ancillary features, such as play areas, parking and internal access roads, that serve a building or installation.",
+      "keywords": [
+        "fittings",
+        "Ausstattung",
+        "play area",
+        "Spielplatz",
+        "noise barrier",
+        "Lärmwall",
+        "internal access",
+        "innere Zufahrt",
+        "parking",
+        "Abstellplatz"
+      ],
+      "topics": [
+        "outdoor",
+        "parking"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-4",
+      "ref": "§ 4",
+      "heading": "Ausrüstungen",
+      "heading_en": "Equipment",
+      "text": "Ausrüstungen sind technische Einrichtungen von Bauten und Anlagen, die der Benützung oder der Sicherheit dienen.",
+      "text_en": "Equipment means technical installations of buildings and installations which serve their use or safety.",
+      "summary_en": "Technical installations in a building that serve its use or safety count as equipment.",
+      "keywords": [
+        "equipment",
+        "Ausrüstung",
+        "technical installation",
+        "technische Einrichtung",
+        "safety",
+        "Sicherheit"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-5",
+      "ref": "§ 5 Abs. 1",
+      "heading": "Massgebendes / Terrain",
+      "heading_en": "Decisive / terrain",
+      "text": "Als massgebendes Terrain gilt der natürlich gewachsene Geländeverlauf. Kann dieser infolge früherer Abgrabungen und Aufschüttungen nicht mehr festgestellt werden, ist vom natürlichen Geländeverlauf der Umgebung auszugehen.",
+      "text_en": "The decisive terrain is the naturally formed course of the ground. If this can no longer be established because of earlier excavation and embankment, the natural course of the surrounding ground is used.",
+      "summary_en": "The reference ground level is the natural terrain, or the natural terrain of the surroundings if earlier digging has erased it.",
+      "keywords": [
+        "decisive terrain",
+        "massgebendes Terrain",
+        "natural ground level",
+        "Terrain",
+        "Geländeverlauf",
+        "Abgrabung",
+        "Aufschüttung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-5-2",
+      "ref": "§ 5 Abs. 2",
+      "heading": "Massgebendes / Terrain",
+      "heading_en": "Decisive / terrain",
+      "text": "Aus planerischen oder erschliessungstechnischen Gründen kann das massgebende Terrain in einem Planungs- oder im Baubewilligungsverfahren abweichend festgelegt werden.",
+      "text_en": "For planning or access reasons, the decisive terrain may be set differently in a planning or building-permit procedure.",
+      "summary_en": "The authority may set a different reference terrain in a planning or permit procedure for planning or access reasons.",
+      "keywords": [
+        "decisive terrain",
+        "massgebendes Terrain",
+        "permit procedure",
+        "Baubewilligung",
+        "access",
+        "Erschliessung"
+      ],
+      "topics": [
+        "distances-heights",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-6",
+      "ref": "§ 6 Abs. 1",
+      "heading": "Fassadenflucht",
+      "heading_en": "Facade alignment",
+      "text": "Die Fassadenflucht ist die Mantelfläche, gebildet aus den lotrechten Geraden durch die äussersten Punkte des Baukörpers über dem massgebenden Terrain.",
+      "text_en": "The facade alignment is the surface formed by the vertical lines through the outermost points of the building body above the decisive terrain.",
+      "summary_en": "The facade alignment is the vertical surface through the building's outermost points above the reference terrain, used to measure setbacks.",
+      "keywords": [
+        "facade alignment",
+        "Fassadenflucht",
+        "outermost points",
+        "setback",
+        "Grenzabstand",
+        "vertical",
+        "building envelope"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-6-2",
+      "ref": "§ 6 Abs. 2",
+      "heading": "Fassadenflucht",
+      "heading_en": "Facade alignment",
+      "text": "Vorspringende und unbedeutend rückspringende Gebäudeteile werden nicht berücksichtigt.",
+      "text_en": "Projecting and insignificantly receding building parts are not taken into account.",
+      "summary_en": "Small projections and minor recesses are ignored when fixing the facade alignment.",
+      "keywords": [
+        "projecting part",
+        "Vorsprung",
+        "recess",
+        "Rücksprung",
+        "Fassadenflucht",
+        "balcony",
+        "Balkon"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-6a",
+      "ref": "§ 6a",
+      "heading": "Fassadenlinie",
+      "heading_en": "Facade line",
+      "text": "Die Fassadenlinie ist die Schnittlinie von Fassadenflucht und massgebendem Terrain.",
+      "text_en": "The facade line is the line where the facade alignment intersects the decisive terrain.",
+      "summary_en": "The facade line is where the facade meets the reference ground, and is the base line for measuring setbacks.",
+      "keywords": [
+        "facade line",
+        "Fassadenlinie",
+        "terrain",
+        "intersection",
+        "Grenzabstand"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-6b",
+      "ref": "§ 6b",
+      "heading": "Projizierte / Fassadenlinie",
+      "heading_en": "Projected facade line",
+      "text": "Die projizierte Fassadenlinie ist die Projektion der Fassadenlinie auf die Ebene der amtlichen Vermessung.",
+      "text_en": "The projected facade line is the projection of the facade line onto the plane of the official survey.",
+      "summary_en": "The facade line projected onto the cadastral survey plan, used to measure setbacks on the plot.",
+      "keywords": [
+        "projected facade line",
+        "projizierte Fassadenlinie",
+        "cadastral survey",
+        "amtliche Vermessung",
+        "site plan",
+        "Situationsplan"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-6c",
+      "ref": "§ 6c Abs. 1",
+      "heading": "Vorspringende / Gebäudeteile",
+      "heading_en": "Projecting / building parts",
+      "text": "Vorspringende Gebäudeteile ragen höchstens 2 m über die Fassadenflucht hinaus und dürfen, mit Ausnahme der Dachvorsprünge, die Hälfte des zugehörigen Fassadenabschnitts nicht überschreiten.",
+      "text_en": "Projecting building parts extend at most 2 m beyond the facade alignment and, with the exception of roof projections, may not exceed half of the associated facade section.",
+      "summary_en": "Projections such as balconies may extend up to 2 m past the facade, and together may cover at most half of their facade section (roof overhangs excepted).",
+      "keywords": [
+        "projection",
+        "Vorsprung",
+        "balcony",
+        "Balkon",
+        "2 m",
+        "half facade",
+        "Dachvorsprung",
+        "roof overhang",
+        "Fassadenabschnitt"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "projection of a building part beyond the facade alignment",
+          "comparison": "<=",
+          "value": 2,
+          "unit": "m"
+        },
+        {
+          "what": "share of the associated facade section occupied by projecting parts (roof projections excepted)",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-6c-2",
+      "ref": "§ 6c Abs. 2",
+      "heading": "Vorspringende / Gebäudeteile",
+      "heading_en": "Projecting / building parts",
+      "text": "Für den zulässigen Anteil des zugehörigen Fassadenabschnitts werden mehrere vorspringende Gebäudeteile auf unterschiedlichen Stockwerken zusammengezählt.",
+      "text_en": "For the permitted share of the associated facade section, several projecting building parts on different floors are added together.",
+      "summary_en": "Projections on different floors are added together when checking the half-facade limit.",
+      "keywords": [
+        "projection",
+        "Vorsprung",
+        "different floors",
+        "Geschosse",
+        "facade section",
+        "Fassadenabschnitt",
+        "sum"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-6d",
+      "ref": "§ 6d Abs. 1",
+      "heading": "Rückspringende / Gebäudeteile",
+      "heading_en": "Receding / building parts",
+      "text": "Rückspringende Gebäudeteile sind gegenüber der Hauptfassade zurückversetzt.",
+      "text_en": "Receding building parts are set back from the main facade.",
+      "summary_en": "Receding parts are set back relative to the main facade.",
+      "keywords": [
+        "receding part",
+        "Rücksprung",
+        "set back",
+        "main facade",
+        "Hauptfassade"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-6d-2",
+      "ref": "§ 6d Abs. 2",
+      "heading": "Rückspringende / Gebäudeteile",
+      "heading_en": "Receding / building parts",
+      "text": "Unbedeutend rückspringende Gebäudeteile sind um höchstens 1,5 m gegenüber der Fassadenflucht zurückversetzt und überschreiten einen Fünftel des zugehörigen Fassadenabschnitts nicht.",
+      "text_en": "Insignificantly receding building parts are set back by at most 1.5 m from the facade alignment and do not exceed one fifth of the associated facade section.",
+      "summary_en": "A minor recess may be up to 1.5 m deep and may cover no more than a fifth of its facade section.",
+      "keywords": [
+        "insignificant recess",
+        "Rücksprung",
+        "1.5 m",
+        "one fifth",
+        "Fassadenabschnitt",
+        "facade alignment"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "setback of an insignificant receding part from the facade alignment",
+          "comparison": "<=",
+          "value": 1.5,
+          "unit": "m"
+        },
+        {
+          "what": "share of the facade section occupied by an insignificant receding part",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-7",
+      "ref": "§ 7",
+      "heading": "Baubereich",
+      "heading_en": "Building area",
+      "text": "Der Baubereich umfasst den bebaubaren Bereich, der abweichend von Abstandsvorschriften und Baulinien in einem Nutzungsplan festgelegt ist.",
+      "text_en": "The building area comprises the buildable area which is set in a land-use plan, departing from distance regulations and building lines.",
+      "summary_en": "The building area is the buildable zone set in the land-use plan, which can differ from the standard setback rules.",
+      "keywords": [
+        "building area",
+        "Baubereich",
+        "buildable area",
+        "building line",
+        "Baulinie",
+        "land-use plan",
+        "Nutzungsplan",
+        "setback"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-8",
+      "ref": "§ 8",
+      "heading": "Messweise",
+      "heading_en": "Measurement method",
+      "text": "Für die Bemessung der Arealfläche gelten sinngemäss die entsprechenden Bestimmungen über die anrechenbare Grundstücksfläche für Nutzungsziffern.",
+      "text_en": "For measuring the area, the corresponding provisions on the creditable plot area for utilisation ratios apply accordingly.",
+      "summary_en": "The area measured for the site follows the same rules as the creditable plot area for utilisation ratios.",
+      "keywords": [
+        "measurement",
+        "Messweise",
+        "site area",
+        "Arealfläche",
+        "plot area",
+        "anrechenbare Grundstücksfläche",
+        "utilisation ratio",
+        "Nutzungsziffer",
+        "Ausnützungsziffer"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-9",
+      "ref": "§ 9",
+      "heading": "Dach-, Attika-und Untergeschosse",
+      "heading_en": "Roof, attic and basement floors",
+      "text": "Dach-, Attika- und Untergeschosse, die im Sinne von § 276 Abs. 2 PBG ein Vollgeschoss ersetzen, gelten für die Berechnung der Ausnützungsziffer als Vollgeschosse.",
+      "text_en": "Roof, attic and basement floors which, within the meaning of § 276 para. 2 PBG, replace a full storey count as full storeys for calculating the utilisation ratio.",
+      "summary_en": "Attic or basement floors that replace a full storey count as full storeys in the utilisation calculation.",
+      "keywords": [
+        "attic",
+        "Dachgeschoss",
+        "basement",
+        "Untergeschoss",
+        "full storey",
+        "Vollgeschoss",
+        "utilisation ratio",
+        "Ausnützungsziffer",
+        "§ 276 PBG"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-10",
+      "ref": "§ 10",
+      "heading": "Nicht / anrechenbare / Nebenräume",
+      "heading_en": "Non-creditable / ancillary rooms",
+      "text": "Als nicht anrechenbar gelten:\na. der Freizeit dienende Gemeinschaftsmehrzweckräume von Mehrfamilienhäusern und Einfamilienhaussiedlungen, soweit sie mindestens 20 m² erreichen und bei grösserem Ausmass 2% der anrechenbaren Geschossfläche nicht übersteigen,\nb. der Arbeitsplatzgestaltung dienende Nebenräume bis zu 2% der anrechenbaren Geschossfläche,\nc. verglaste Balkone, Veranden und Loggien sowie Wintergärten und Windfänge ohne heiztechnische Installationen, soweit sie dem Energiesparen dienen, bis zu 20% der Summe aller anrechenbaren Geschossflächen.",
+      "text_en": "The following are not creditable:\na. shared multi-purpose leisure rooms of multi-family houses and single-family house developments, insofar as they reach at least 20 m² and, if larger, do not exceed 2% of the creditable storey area,\nb. ancillary rooms serving the design of workplaces, up to 2% of the creditable storey area,\nc. glazed balconies, verandas and loggias as well as winter gardens and wind lobbies without heating installations, insofar as they serve energy saving, up to 20% of the total of all creditable storey areas.",
+      "summary_en": "Certain shared leisure rooms, workplace ancillary rooms, and unheated glazed balconies or winter gardens are excluded from the floor area count, within size caps.",
+      "keywords": [
+        "non-creditable area",
+        "nicht anrechenbar",
+        "leisure room",
+        "Gemeinschaftsraum",
+        "20 m2",
+        "2%",
+        "glazed balcony",
+        "verglaster Balkon",
+        "winter garden",
+        "Wintergarten",
+        "wind lobby",
+        "Windfang"
+      ],
+      "topics": [
+        "rooms",
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "floor area of a shared leisure room (minimum to qualify)",
+          "comparison": ">=",
+          "value": 20,
+          "unit": "m2"
+        },
+        {
+          "what": "shared leisure room as a share of the creditable storey area (maximum)",
+          "comparison": "<=",
+          "value": 2,
+          "unit": "%"
+        },
+        {
+          "what": "ancillary workplace rooms as a share of the creditable storey area (maximum)",
+          "comparison": "<=",
+          "value": 2,
+          "unit": "%"
+        },
+        {
+          "what": "glazed balconies, verandas, loggias and winter gardens as a share of all creditable storey areas (maximum)",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-11",
+      "ref": "§ 11",
+      "heading": "Dem Energiesparen dienende / Bauteile",
+      "heading_en": "Components serving energy saving",
+      "text": "Für verglaste Balkone, Veranden und Loggien sowie Wintergärten und Windfänge ohne heiztechnische Installationen, soweit sie dem Energiesparen dienen, kann die Überbauungsziffer um bis zu 20% der zonengemässen Grundziffer erhöht werden.",
+      "text_en": "For glazed balconies, verandas and loggias as well as winter gardens and wind lobbies without heating installations, insofar as they serve energy saving, the site coverage ratio may be increased by up to 20% of the zone's basic ratio.",
+      "summary_en": "Unheated glazed balconies, verandas and winter gardens that save energy may raise the site coverage ratio by up to 20% of the zone's basic ratio.",
+      "keywords": [
+        "coverage ratio",
+        "Überbauungsziffer",
+        "energy saving",
+        "Energiesparen",
+        "glazed balcony",
+        "winter garden",
+        "Wintergarten",
+        "20%",
+        "zone basic ratio",
+        "zonengemässe Grundziffer"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "increase of the site coverage ratio for glazed balconies, verandas, loggias and winter gardens, relative to the zone basic ratio",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-12",
+      "ref": "§ 12 Abs. 1",
+      "heading": "Anrechenbare / Grünflächen",
+      "heading_en": "Creditable green areas",
+      "text": "Als natürliche Bodenflächen gelten Flächen, die einen natürlichen Bodenaufbau und natürliche Versickerungseigenschaften aufweisen.",
+      "text_en": "Natural ground areas are areas which have a natural soil structure and natural infiltration properties.",
+      "summary_en": "Natural ground means soil that keeps its natural layering and can soak up water.",
+      "keywords": [
+        "natural ground",
+        "natürliche Bodenfläche",
+        "infiltration",
+        "Versickerung",
+        "soil structure",
+        "Bodenaufbau",
+        "green area",
+        "Grünfläche"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-12-2",
+      "ref": "§ 12 Abs. 2",
+      "heading": "Anrechenbare / Grünflächen",
+      "heading_en": "Creditable green areas",
+      "text": "Als bepflanzte Bodenflächen gelten Flächen mit einer hinreichenden Humusschicht, die eine dauerhafte Bepflanzung ermöglicht und die nicht regelmässig austrocknet.",
+      "text_en": "Planted ground areas are areas with a sufficient topsoil layer that permits lasting planting and that do not dry out regularly.",
+      "summary_en": "Planted ground needs enough topsoil to support lasting planting and must not dry out regularly.",
+      "keywords": [
+        "planted ground",
+        "bepflanzte Bodenfläche",
+        "topsoil",
+        "Humusschicht",
+        "planting",
+        "Bepflanzung",
+        "green area",
+        "Grünfläche"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-13",
+      "ref": "§ 13 Abs. 1",
+      "heading": "Aufteilung der / Baumassenziffer",
+      "heading_en": "Division of the volume ratio",
+      "text": "Die Gemeinden können die Baumassenziffer aufteilen und je gesondert regeln für\na. Hauptgebäude,\nb. Kleinbauten und Anbauten.",
+      "text_en": "Municipalities may divide the volume ratio and regulate each part separately for:\na. main buildings,\nb. small buildings and annexes.",
+      "summary_en": "Municipalities may set separate volume limits for main buildings and for small buildings and annexes.",
+      "keywords": [
+        "volume ratio",
+        "Baumassenziffer",
+        "main building",
+        "Hauptgebäude",
+        "small buildings",
+        "Kleinbauten",
+        "annexes",
+        "Anbauten",
+        "municipality",
+        "Gemeinde"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-13-2",
+      "ref": "§ 13 Abs. 2",
+      "heading": "Aufteilung der / Baumassenziffer",
+      "heading_en": "Division of the volume ratio",
+      "text": "Für verglaste Balkone, Veranden und Loggien sowie Wintergärten und Windfänge ohne heiztechnische Installationen, soweit sie dem Energiesparen dienen, gilt eine zusätzliche Baumassenziffer. Sie beträgt 20% der zonengemässen Grundziffer. §§ 14–16.",
+      "text_en": "For glazed balconies, verandas and loggias as well as winter gardens and wind lobbies without heating installations, insofar as they serve energy saving, an additional volume ratio applies. It amounts to 20% of the zone's basic ratio. §§ 14–16.",
+      "summary_en": "Unheated glazed balconies and winter gardens that save energy get an extra volume allowance of 20% of the zone's basic ratio.",
+      "keywords": [
+        "volume ratio",
+        "Baumassenziffer",
+        "energy saving",
+        "Energiesparen",
+        "glazed balcony",
+        "winter garden",
+        "20%",
+        "zone basic ratio",
+        "Grundziffer"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "additional volume ratio for glazed balconies, verandas, loggias and winter gardens, relative to the zone basic ratio",
+          "comparison": "=",
+          "value": 20,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-18",
+      "ref": "§ 18",
+      "heading": "Zurechnung",
+      "heading_en": "Attribution",
+      "text": "Der besonderen Nutzung werden die ihr unmittelbar dienenden Räume unter Einschluss der dazugehörigen Erschliessungsflächen und Sanitärräume samt inneren Trennwänden zugerechnet.",
+      "text_en": "The rooms directly serving the special use are attributed to it, including the associated access areas and sanitary rooms with internal partition walls.",
+      "summary_en": "Rooms that directly serve a special use, with their access areas, sanitary rooms and internal walls, count toward that use.",
+      "keywords": [
+        "special use",
+        "besondere Nutzung",
+        "access areas",
+        "Erschliessungsflächen",
+        "sanitary rooms",
+        "Sanitärräume",
+        "partition wall",
+        "Trennwand",
+        "Zurechnung"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-20",
+      "ref": "§ 20 Abs. 1",
+      "heading": "Gemischte / Bauten",
+      "heading_en": "Mixed-use buildings",
+      "text": "Grenzen Räume für die besondere Nutzung unmittelbar an sonstige Räume oder an gemeinsame Nebenräume und Erschliessungsanlagen, erstreckt sich ihre Fläche bis zur halben Stärke der Trennwand.",
+      "text_en": "If rooms for a special use border directly on other rooms or on shared ancillary rooms and access facilities, their area extends to half the thickness of the partition wall.",
+      "summary_en": "In mixed use, the area of a special-use room extends to half the thickness of a shared partition wall.",
+      "keywords": [
+        "mixed use",
+        "Gemischte Nutzung",
+        "partition wall",
+        "Trennwand",
+        "half thickness",
+        "halbe Stärke",
+        "special use",
+        "besondere Nutzung",
+        "access",
+        "Erschliessung"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-20-2",
+      "ref": "§ 20 Abs. 2",
+      "heading": "Gemischte / Bauten",
+      "heading_en": "Mixed-use buildings",
+      "text": "Gemeinsame Nebenräume und Erschliessungsflächen werden nach dem tatsächlichen Verhältnis zwischen besonderer und sonstiger Nutzung aufgeteilt.",
+      "text_en": "Shared ancillary rooms and access areas are divided according to the actual ratio between special and other use.",
+      "summary_en": "Shared ancillary rooms and access areas are split between special and other use according to actual use.",
+      "keywords": [
+        "shared ancillary rooms",
+        "gemeinsame Nebenräume",
+        "access areas",
+        "Erschliessungsflächen",
+        "apportionment",
+        "Aufteilung",
+        "special use",
+        "besondere Nutzung"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-21",
+      "ref": "§ 21 Abs. 1",
+      "heading": "A. Begriff",
+      "heading_en": "A. Concept",
+      "text": "Der Grenzabstand setzt sich aus dem Grundabstand und dem Mehrhöhenzuschlag sowie dem Mehrlängenzuschlag gemäss Bau- und Zonenordnung zusammen.",
+      "text_en": "The boundary setback is made up of the basic setback and the surcharge for greater height, as well as the surcharge for greater length, in accordance with the building and zoning regulations.",
+      "summary_en": "The boundary setback is the basic setback plus any height and length surcharges set by the building and zoning regulations.",
+      "keywords": [
+        "boundary setback",
+        "Grenzabstand",
+        "basic setback",
+        "Grundabstand",
+        "height surcharge",
+        "Mehrhöhenzuschlag",
+        "length surcharge",
+        "Mehrlängenzuschlag",
+        "Bau- und Zonenordnung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-21-2",
+      "ref": "§ 21 Abs. 2",
+      "heading": "A. Begriff",
+      "heading_en": "A. Concept",
+      "text": "Treffen die Voraussetzungen für Mehrlängen- und Mehrhöhenzuschlag zusammen, so werden dem Grundabstand vorerst der Zuschlag für die Mehrlänge und hernach derjenige für die Mehrhöhe hinzugefügt.",
+      "text_en": "If the conditions for both the length surcharge and the height surcharge apply together, the length surcharge is first added to the basic setback, and then the height surcharge.",
+      "summary_en": "When both the length and height surcharges apply, the length surcharge is added first, then the height surcharge.",
+      "keywords": [
+        "length surcharge",
+        "height surcharge",
+        "Mehrlängenzuschlag",
+        "Mehrhöhenzuschlag",
+        "basic setback",
+        "Grundabstand",
+        "order of addition",
+        "Grenzabstand"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-22",
+      "ref": "§ 22 Abs. 1",
+      "heading": "B. Grundabstand",
+      "heading_en": "B. Basic setback",
+      "text": "Der Grundabstand ist der kleinste erforderliche Grenzabstand ohne Mehrlängen- und Mehrhöhenzuschlag; er wird rechtwinklig zur projizierten Fassadenlinie und radial über die Gebäudeecken gemessen.",
+      "text_en": "The basic setback is the smallest required boundary setback without the length and height surcharges; it is measured at right angles to the projected facade line and radially over the building corners.",
+      "summary_en": "The basic setback is the minimum boundary distance without surcharges, measured perpendicular to the projected facade line and radially around corners.",
+      "keywords": [
+        "basic setback",
+        "Grundabstand",
+        "boundary",
+        "Grenzabstand",
+        "projected facade line",
+        "projizierte Fassadenlinie",
+        "perpendicular",
+        "rechtwinklig",
+        "building corner",
+        "Gebäudecke"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-22-2",
+      "ref": "§ 22 Abs. 2",
+      "heading": "B. Grundabstand",
+      "heading_en": "B. Basic setback",
+      "text": "Bestehen gemäss Bau- und Zonenordnung zwei verschieden grosse Grundabstände, so ist der kleinere über die Gebäudeecken radial herumzuschlagen.",
+      "text_en": "If the building and zoning regulations set two basic setbacks of different sizes, the smaller one is wrapped radially around the building corners.",
+      "summary_en": "Where two basic setbacks of different size apply, the smaller one carries around the building corners.",
+      "keywords": [
+        "basic setback",
+        "Grundabstand",
+        "two setbacks",
+        "smaller setback",
+        "building corners",
+        "Gebäudecken",
+        "radial"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-23",
+      "ref": "§ 23 Abs. 1",
+      "heading": "C. Mehrlängenzuschlag",
+      "heading_en": "C. Surcharge for greater length",
+      "text": "Der Mehrlängenzuschlag entspricht einem bestimmten Teil der als Mehrlänge qualifizierten Fassadenlänge; der Zuschlag kann auf ein Höchstmass begrenzt werden.",
+      "text_en": "The surcharge for greater length corresponds to a set part of the facade length qualified as greater length; the surcharge may be limited to a maximum.",
+      "summary_en": "The length surcharge is a fixed share of the long facade length and may be capped at a maximum.",
+      "keywords": [
+        "length surcharge",
+        "Mehrlängenzuschlag",
+        "facade length",
+        "Fassadenlänge",
+        "maximum",
+        "Höchstmass",
+        "boundary setback",
+        "Grenzabstand"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-23-2",
+      "ref": "§ 23 Abs. 2",
+      "heading": "C. Mehrlängenzuschlag",
+      "heading_en": "C. Surcharge for greater length",
+      "text": "Der Mehrlängenzuschlag wird rechtwinklig zu den Fassaden gemessen; über die Gebäudeecken fällt er ausser Ansatz.",
+      "text_en": "The surcharge for greater length is measured at right angles to the facades; it does not apply over the building corners.",
+      "summary_en": "The length surcharge is measured perpendicular to the facades and does not apply around corners.",
+      "keywords": [
+        "length surcharge",
+        "Mehrlängenzuschlag",
+        "perpendicular",
+        "rechtwinklig",
+        "corner",
+        "Ecke",
+        "facade"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-24",
+      "ref": "§ 24 Abs. 1",
+      "heading": "II. Bei / besonderem / Fassadenverlauf",
+      "heading_en": "II. For a special facade course",
+      "text": "Bei seitlich gegliederten Fassaden wird die für den Mehrlängenzuschlag massgebende Länge für jeden Fassadenteil für sich bestimmt.",
+      "text_en": "For laterally structured facades, the length relevant for the length surcharge is determined separately for each facade part.",
+      "summary_en": "Each part of a laterally broken facade is measured separately for the length surcharge.",
+      "keywords": [
+        "laterally structured facade",
+        "Fassadengliederung",
+        "length surcharge",
+        "Mehrlängenzuschlag",
+        "facade part",
+        "Fassadenteil",
+        "setback"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-24-2",
+      "ref": "§ 24 Abs. 2",
+      "heading": "II. Bei / besonderem / Fassadenverlauf / I. Im / Allgemeinen",
+      "heading_en": "II. For a special facade course / I. In general",
+      "text": "Zurückliegende Fassadenteile werden durch vorspringende Teile hindurch bis zur äussersten sichtbaren Gebäudekante in oder vor der Fassadenflucht gemessen; vorspringende Teile gelten nur dann als selbstständige Fassadenteile, wenn ihr gegenseitiger Abstand wenigstens der Summe zweier Grundabstände entspricht.",
+      "text_en": "Recessed facade parts are measured through projecting parts up to the outermost visible building edge in or in front of the facade alignment; projecting parts count as independent facade parts only if their mutual distance is at least the sum of two basic setbacks.",
+      "summary_en": "Recessed facade parts are measured out to the outermost visible edge, and projecting parts count as separate facades only if they are far enough apart (the sum of two basic setbacks).",
+      "keywords": [
+        "recessed facade",
+        "rückversetzte Fassade",
+        "projecting part",
+        "Vorsprung",
+        "independent facade part",
+        "selbstständiger Fassadenteil",
+        "two basic setbacks",
+        "zwei Grundabstände",
+        "Mehrlängenzuschlag"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-24-3",
+      "ref": "§ 24 Abs. 3",
+      "heading": "II. Bei / besonderem / Fassadenverlauf",
+      "heading_en": "II. For a special facade course",
+      "text": "Bei abgewinkelten oder abgerundeten Fassaden wird die für den Mehrlängenzuschlag massgebende Länge gleich wie bei den seitlich gegliederten Fassaden bestimmt; dabei ist die Abwinklung oder Abrundung als seitlich gegliederte Fassade mit unendlich kleinen Abtreppungen zu betrachten.",
+      "text_en": "For angled or rounded facades, the length relevant for the length surcharge is determined in the same way as for laterally structured facades; the angling or rounding is treated as a laterally structured facade with infinitely small steps.",
+      "summary_en": "Angled or curved facades are measured like stepped facades, treating the bend as infinitely small steps.",
+      "keywords": [
+        "angled facade",
+        "abgewinkelte Fassade",
+        "rounded facade",
+        "abgerundete Fassade",
+        "length surcharge",
+        "Mehrlängenzuschlag",
+        "curved",
+        "facade length"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-25",
+      "ref": "§ 25",
+      "heading": "III. Bei / Kleinbauten / und Anbauten",
+      "heading_en": "III. For small buildings and annexes",
+      "text": "Kleinbauten und Anbauten fallen bei der Berechnung des Mehrlängenzuschlages ausser Betracht, sofern die Bau- und Zonenordnung nicht etwas anderes bestimmt.",
+      "text_en": "Small buildings and annexes are disregarded when calculating the length surcharge, unless the building and zoning regulations provide otherwise.",
+      "summary_en": "Small buildings and annexes are ignored for the length surcharge unless the local zoning rules say otherwise.",
+      "keywords": [
+        "small buildings",
+        "Kleinbauten",
+        "annexes",
+        "Anbauten",
+        "length surcharge",
+        "Mehrlängenzuschlag",
+        "Bau- und Zonenordnung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-26",
+      "ref": "§ 26",
+      "heading": "D. Mehrhöhenzuschlag",
+      "heading_en": "D. Surcharge for greater height",
+      "text": "Der Mehrhöhenzuschlag im Sinne von § 260 Abs. 2 PBG wird rechtwinklig zu den Fassaden und radial über die Gebäudeecken gemessen.",
+      "text_en": "The surcharge for greater height within the meaning of § 260 para. 2 PBG is measured at right angles to the facades and radially over the building corners.",
+      "summary_en": "The height surcharge to the boundary setback is measured perpendicular to the facades and around corners, per § 260 para. 2 PBG.",
+      "keywords": [
+        "height surcharge",
+        "Mehrhöhenzuschlag",
+        "§ 260 PBG",
+        "perpendicular",
+        "rechtwinklig",
+        "building corners",
+        "Gebäudecken",
+        "boundary setback",
+        "Grenzabstand"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-27",
+      "ref": "§ 27 Abs. 1",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Die Fassadenlänge entspricht dem Fassadenabschnitt, der für die Berechnung der zulässigen Breite vorspringender und unbedeutend rückspringender Gebäudeteile sowie von Dachaufbauten massgebend ist.",
+      "text_en": "The façade length corresponds to the façade section that is decisive for calculating the permitted width of projecting and insignificantly recessed building parts as well as of roof structures.",
+      "summary_en": "The façade length used for the multi-length surcharge is the façade section that counts for projecting parts and roof structures.",
+      "keywords": [
+        "façade length",
+        "Fassadenlänge",
+        "projection",
+        "Vorsprung",
+        "roof structure",
+        "Dachaufbau",
+        "multi-length surcharge",
+        "Mehrlängenzuschlag"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-27-2",
+      "ref": "§ 27 Abs. 2",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Zur Fassadenlänge werden oberirdische Vorsprünge über mehr als einem Geschoss hinzugerechnet, wenn sie in der Richtung der betreffenden Fassade eine geschlossene Höhe von mehr als 1,3 m aufweisen.",
+      "text_en": "Above-ground projections extending over more than one storey are added to the façade length if, in the direction of the relevant façade, they have a closed height of more than 1.3 m.",
+      "summary_en": "Projections over more than one storey with a closed height above 1.3 m count towards the façade length.",
+      "keywords": [
+        "façade length",
+        "Fassadenlänge",
+        "projection over storeys",
+        "Vorsprung",
+        "closed height",
+        "geschlossene Höhe",
+        "1.3 m",
+        "Balkon",
+        "Erker"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "closed height of over-storey projections that count towards the façade length",
+          "comparison": ">",
+          "value": 1.3,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-27-3",
+      "ref": "§ 27 Abs. 3",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Die Bau- und Zonenordnung kann bestimmen, dass die für den Mehrlängenzuschlag massgeblichen Fassadenlängen von benachbarten Hauptgebäuden zusammengerechnet werden, wenn der Gebäudeabstand ein bestimmtes Mass unterschreitet.",
+      "text_en": "The building and zoning regulations may provide that the façade lengths of neighbouring main buildings that are decisive for the multi-length surcharge are added together if the building distance falls below a certain dimension.",
+      "summary_en": "The local zoning code may combine the façade lengths of neighbouring main buildings when they are closer than a set distance.",
+      "keywords": [
+        "façade length",
+        "Fassadenlänge",
+        "neighbouring buildings",
+        "Nachbargebäude",
+        "building distance",
+        "Gebäudeabstand",
+        "multi-length surcharge",
+        "Mehrlängenzuschlag",
+        "Bau- und Zonenordnung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-28",
+      "ref": "§ 28 Abs. 1",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Die Gebäudelänge ist die längere Seite des flächenkleinsten Rechtecks, welches die projizierte Fassadenlinie umfasst.",
+      "text_en": "The building length is the longer side of the smallest-area rectangle that encloses the projected façade line.",
+      "summary_en": "Building length is the long side of the smallest rectangle around the projected façade outline.",
+      "keywords": [
+        "building length",
+        "Gebäudelänge",
+        "smallest rectangle",
+        "Rechteck",
+        "façade line",
+        "Fassadenlinie",
+        "footprint",
+        "Grundriss"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-28-2",
+      "ref": "§ 28 Abs. 2",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Die Gebäudebreite ist die kürzere Seite des flächenkleinsten Rechtecks, welches die projizierte Fassadenlinie umfasst.",
+      "text_en": "The building width is the shorter side of the smallest-area rectangle that encloses the projected façade line.",
+      "summary_en": "Building width is the short side of the smallest rectangle around the projected façade outline.",
+      "keywords": [
+        "building width",
+        "Gebäudebreite",
+        "smallest rectangle",
+        "Rechteck",
+        "façade line",
+        "Fassadenlinie",
+        "footprint",
+        "Grundriss"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-28-3",
+      "ref": "§ 28 Abs. 3",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Anbauten fallen ausser Ansatz, sofern die Bau- und Zonenordnung nicht etwas anderes bestimmt.",
+      "text_en": "Extensions are disregarded, unless the building and zoning regulations specify otherwise.",
+      "summary_en": "Extensions (Anbauten) are left out of the building length and width calculation unless the local zoning code says otherwise.",
+      "keywords": [
+        "extension",
+        "Anbau",
+        "building length",
+        "Gebäudelänge",
+        "building width",
+        "Gebäudebreite",
+        "Bau- und Zonenordnung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-29",
+      "ref": "§ 29",
+      "heading": "Messweise",
+      "heading_en": "Measurement method",
+      "text": "Das mittlere Mass, um welches Untergeschosse über die Fassadenlinie hinausragen dürfen, wird berechnet aus der Summe der Fassadenflächen über der Fassadenlinie, geteilt durch die Länge der projizierten Fassadenlinie.",
+      "text_en": "The average dimension by which basement storeys may project beyond the façade line is calculated from the sum of the façade areas above the façade line, divided by the length of the projected façade line.",
+      "summary_en": "The allowed average projection of basement storeys beyond the façade line is a computed average (total façade area above the line divided by the line length).",
+      "keywords": [
+        "basement",
+        "Untergeschoss",
+        "projection",
+        "Vorsprung",
+        "façade line",
+        "Fassadenlinie",
+        "average projection",
+        "Fassadenfläche"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-30",
+      "ref": "§ 30 Abs. 1",
+      "heading": "Beeinträchtigung durch / Schattenwurf",
+      "heading_en": "Impairment by / shadow cast",
+      "text": "Als wesentliche Beeinträchtigung durch Schattenwurf im Sinne von § 284 PBG gilt:\na. bei überbauten Grundstücken: die an den mittleren Wintertagen länger als drei Stunden dauernde Beschattung der bewohnten oder in Wohnzonen liegenden Nachbargebäude, in der Regel an ihrem Fusspunkt gemessen,\nb. bei unüberbauten Grundstücken in Wohnzonen: die an den mittleren Wintertagen länger als drei Stunden dauernde Beschattung überbaubarer Flächen des Nachbargrundstückes, sofern dadurch eine den örtlichen Verhältnissen und der Bau- und Zonenordnung entsprechende Überbauung verunmöglicht oder erheblich erschwert wird.",
+      "text_en": "A material impairment by shading within the meaning of § 284 PBG is:\na. for built-up plots: shading of the inhabited neighbouring buildings or those located in residential zones lasting longer than three hours on mean winter days, usually measured at their base,\nb. for unbuilt plots in residential zones: shading of buildable areas of the neighbouring plot lasting longer than three hours on mean winter days, where this makes a development corresponding to the local conditions and to the building and zoning regulations impossible or considerably more difficult.",
+      "summary_en": "Shade from a neighbouring development counts as a material impairment if it lasts more than three hours on mean winter days.",
+      "keywords": [
+        "shading",
+        "Schattenwurf",
+        "winter shadow",
+        "Wintertag",
+        "three hours",
+        "3 Stunden",
+        "neighbouring building",
+        "Nachbargebäude",
+        "residential zone",
+        "Wohnzone",
+        "daylight",
+        "Besonnung"
+      ],
+      "topics": [
+        "daylight"
+      ],
+      "limits": [
+        {
+          "what": "shading duration on mean winter days, neighbouring inhabited or residential-zone buildings (built-up plots)",
+          "comparison": "<=",
+          "value": 3,
+          "unit": "h"
+        },
+        {
+          "what": "shading duration on mean winter days, buildable areas of neighbouring plot (unbuilt plots in residential zones)",
+          "comparison": "<=",
+          "value": 3,
+          "unit": "h"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-30-2",
+      "ref": "§ 30 Abs. 2",
+      "heading": "Beeinträchtigung durch / Schattenwurf",
+      "heading_en": "Impairment by / shadow cast",
+      "text": "Keine wesentliche Beeinträchtigung durch Schattenwurf liegt indessen vor, wenn mit einem in allen Teilen den Vorschriften entsprechenden kubischen Vergleichsprojekt nachgewiesen wird, dass eine der Bau- und Zonenordnung entsprechende Überbauung keine geringere Beschattung des Nachbargrundstückes nach sich zieht.",
+      "text_en": "No material impairment through shading exists, however, if it is demonstrated, using a volumetric comparison project that fully complies with the regulations, that a development complying with the building and zoning regulations would not cause less shading of the neighbouring plot.",
+      "summary_en": "Shading is not material if a fully compliant comparison project would shade the neighbour just as much.",
+      "keywords": [
+        "shading",
+        "Schattenwurf",
+        "comparison project",
+        "Vergleichsprojekt",
+        "volume",
+        "Kubatur",
+        "shadow study",
+        "Schattenstudie",
+        "neighbouring plot",
+        "Nachbargrundstück"
+      ],
+      "topics": [
+        "daylight"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-30-3",
+      "ref": "§ 30 Abs. 3",
+      "heading": "Beeinträchtigung durch / Schattenwurf",
+      "heading_en": "Impairment by / shadow cast",
+      "text": "Ist in Wohnzonen die Überbauung auf dem Nachbargrundstück erheblich überaltert oder steht sie zu den Zielen der Bau- und Zonenordnung in einem starken Missverhältnis, gelten zugleich die Regeln für überbaute und unüberbaute Grundstücke.",
+      "text_en": "If in residential zones the development on the neighbouring plot is considerably outdated or stands in a marked disproportion to the objectives of the building and zoning regulations, the rules for built-up and for unbuilt plots apply at the same time.",
+      "summary_en": "In residential zones, an outdated neighbouring development brings both the built-up and the unbuilt-plot shading rules into play.",
+      "keywords": [
+        "shading",
+        "Schattenwurf",
+        "outdated development",
+        "überaltert",
+        "residential zone",
+        "Wohnzone",
+        "neighbouring plot",
+        "Nachbargrundstück",
+        "Bau- und Zonenordnung"
+      ],
+      "topics": [
+        "daylight"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-31",
+      "ref": "§ 31 Abs. 1",
+      "heading": "Offene und / geschlossene / Überbauung",
+      "heading_en": "Open / closed development",
+      "text": "Als offen im Sinne von § 286 PBG gilt eine Überbauung, deren Gebäude nach allen Seiten frei stehen.",
+      "text_en": "A development is deemed open within the meaning of § 286 PBG if its buildings stand freely on all sides.",
+      "summary_en": "A development counts as open when every building stands free on all four sides.",
+      "keywords": [
+        "open development",
+        "offene Bauweise",
+        "freestanding",
+        "freistehend",
+        "building distance",
+        "Gebäudeabstand",
+        "boundary",
+        "Grenzabstand"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-31-2",
+      "ref": "§ 31 Abs. 2",
+      "heading": "Offene und / geschlossene / Überbauung",
+      "heading_en": "Open / closed development",
+      "text": "Als geschlossen gilt eine Überbauung, bei der Gebäude einseitig oder mehrseitig zusammengebaut oder auf eine Grenze gestellt sind oder gestellt werden dürfen bzw. müssen.",
+      "text_en": "A development is deemed closed if buildings are built together on one or more sides, or stand on a boundary or are, or may or must be, placed on one.",
+      "summary_en": "A development counts as closed when buildings are joined to each other or built on the boundary, or are allowed or required to be.",
+      "keywords": [
+        "closed development",
+        "geschlossene Bauweise",
+        "boundary building",
+        "Grenzbau",
+        "on the boundary",
+        "auf der Grenze",
+        "joined building",
+        "Zusammenbau"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-32",
+      "ref": "§ 32",
+      "heading": "Einfamilienhausähnliche / Wohnungsarten",
+      "heading_en": "Dwelling types similar to single-family houses",
+      "text": "Als mit Einfamilienhäusern vergleichbare Wohnungsarten im Sinne der §§ 303–305 PBG gelten Wohnungen, die\na. nicht an einem gemeinsamen Treppenhaus mit anderen Wohnungen liegen und einen unmittelbaren Zugang ins Freie haben,\nb. sich überdies in einem Gebäudeteil befinden, der äusserlich ähnlich einem Einfamilienhaus in Erscheinung tritt. §§ 32 a und 33.",
+      "text_en": "Dwellings comparable to single-family houses within the meaning of §§ 303–305 PBG are dwellings that\na. do not lie on a common stairwell with other dwellings and have direct access to the outdoors,\nb. are furthermore located in a part of the building that presents itself externally similarly to a single-family house. §§ 32 a and 33.",
+      "summary_en": "A dwelling counts as single-family-like if it has its own access from outside, not via a shared stairwell, and looks like a single-family house from outside.",
+      "keywords": [
+        "single-family house",
+        "Einfamilienhaus",
+        "stairwell",
+        "Treppenhaus",
+        "direct access",
+        "direkter Zugang",
+        "dwelling",
+        "Wohnung",
+        "§ 303 PBG"
+      ],
+      "topics": [
+        "general",
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-34",
+      "ref": "§ 34",
+      "heading": "Inkraftsetzung",
+      "heading_en": "Entry into force",
+      "text": "Diese Verordnung tritt nach der Genehmigung durch den Kantonsrat und der Veröffentlichung im Amtsblatt auf den vom Regierungsrat zu bestimmenden Zeitpunkt in Kraft.",
+      "text_en": "This ordinance enters into force, after approval by the Cantonal Council and publication in the Official Gazette, at the time to be set by the Regierungsrat (cantonal government).",
+      "summary_en": "The ordinance takes effect only after cantonal approval and publication, on a date set by the cantonal government.",
+      "keywords": [
+        "entry into force",
+        "Inkraftsetzung",
+        "Kantonsrat",
+        "Amtsblatt",
+        "Regierungsrat",
+        "ordinance",
+        "Verordnung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 2 Abs. 1",
+      "heading": "Gebäude",
+      "heading_en": "Buildings",
+      "text": "Gebäude sind Bauten und Anlagen, die einen Raum zum Schutz von Menschen oder Sachen gegen äussere, namentlich atmosphärische Einflüsse mehr oder weniger vollständig abschliessen.",
+      "text_en": "Buildings are structures and installations that more or less completely enclose a space to protect people or property against external, in particular atmospheric, influences.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): a building is any structure that encloses a space to shelter people or things from the weather.",
+      "keywords": [
+        "old wording",
+        "building",
+        "Gebäude",
+        "enclosed space",
+        "Raum",
+        "structure",
+        "Bau",
+        "weather protection",
+        "Witterungsschutz"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-2-2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 2 Abs. 2",
+      "heading": "Gebäude",
+      "heading_en": "Buildings",
+      "text": "Nicht als Gebäude gelten Bauten und Anlagen, deren grösste Höhe nicht mehr als 1,5 m beträgt und die eine Bodenfläche von höchstens 2 m² überlagern.",
+      "text_en": "Structures and installations whose greatest height is no more than 1.5 m and that cover a floor area of no more than 2 m² do not count as buildings.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): small structures up to 1.5 m high and 2 m² on the ground are not treated as buildings.",
+      "keywords": [
+        "old wording",
+        "not a building",
+        "kein Gebäude",
+        "small structure",
+        "Kleinbaute",
+        "1.5 m",
+        "2 m²",
+        "floor area",
+        "Bodenfläche",
+        "garden shed",
+        "Gartenhäuschen"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [
+        {
+          "what": "greatest height of structures not counted as buildings",
+          "comparison": "<=",
+          "value": 1.5,
+          "unit": "m"
+        },
+        {
+          "what": "floor area of structures not counted as buildings",
+          "comparison": "<=",
+          "value": 2,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-5",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 5 Abs. 1",
+      "heading": "Gewachsener / Boden",
+      "heading_en": "Natural ground",
+      "text": "Gewachsener Boden ist der bei Einreichung des Baugesuchs bestehende Verlauf des Bodens.",
+      "text_en": "Natural ground is the course of the ground existing when the building application is submitted.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): the reference ground level is the terrain as it is when the building application is filed.",
+      "keywords": [
+        "old wording",
+        "natural ground",
+        "gewachsener Boden",
+        "ground level",
+        "Terrain",
+        "building application",
+        "Baugesuch",
+        "reference level",
+        "Referenzhöhe"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-5-2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 5 Abs. 2",
+      "heading": "Gewachsener / Boden",
+      "heading_en": "Natural ground",
+      "text": "Auf frühere Verhältnisse ist zurückzugreifen, wenn der Boden\na. innert eines Zeitraums von 10 Jahren vor der Baueingabe in einem im Zeitpunkt der Ausführung der Bewilligungspflicht unterliegenden Ausmass aufgeschüttet und das neue Terrain in der baurechtlichen Bewilligung oder in einem förmlichen Planungs- oder Projektgenehmigungsverfahren nicht ausdrücklich als künftig gewachsener Boden erklärt worden ist;\nb. im Hinblick auf die beabsichtigte Nutzung des Grundstückes oder zur Umgehung von Bauvorschriften umgestaltet worden ist.",
+      "text_en": "Earlier conditions must be reverted to if the ground\na. has, within a period of 10 years before the building application, been filled to an extent subject to the permit requirement at the time of execution, and the new terrain has not been expressly declared in the building permit or in a formal planning or project approval procedure as future natural ground;\nb. has been reshaped with a view to the intended use of the plot or to circumvent building regulations.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): if the ground was filled or reshaped recently to gain height or area, the original terrain is used instead of the filled one.",
+      "keywords": [
+        "old wording",
+        "natural ground",
+        "gewachsener Boden",
+        "fill",
+        "Aufschüttung",
+        "10 years",
+        "10 Jahre",
+        "terrain reshaping",
+        "Terrainveränderung",
+        "circumvention",
+        "Umgehung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "look-back period for ground filled before the building application",
+          "comparison": "<=",
+          "value": 10,
+          "unit": "years"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-8",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 8",
+      "heading": "Weitergeltung gemäss (OS 72, 60). / Messweise",
+      "heading_en": "Continued validity under (OS 72, 60). / Measurement method",
+      "text": "Für die Bemessung der Arealfläche gelten sinngemäss die entsprechenden Bestimmungen über die massgebliche Grundfläche für Nutzungsziffern.",
+      "text_en": "The corresponding provisions on the relevant floor area for utilisation ratios apply mutatis mutandis to the calculation of the site area.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): the site area is calculated using the same rules as the floor area for utilisation ratios.",
+      "keywords": [
+        "old wording",
+        "site area",
+        "Arealfläche",
+        "utilisation ratio",
+        "Ausnützungsziffer",
+        "floor area",
+        "Grundfläche",
+        "calculation",
+        "Berechnung"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-9",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 9",
+      "heading": "Dach- und / Untergeschosse",
+      "heading_en": "Roof and / basement storeys",
+      "text": "Dach- und Untergeschosse, die im Sinne von § 276 Abs. 2 PBG ein Vollgeschoss ersetzen, sowie Untergeschosse, die mehrheitlich über dem gewachsenen Boden liegen, gelten für die Berechnung der Ausnützungsziffer als Vollgeschosse.",
+      "text_en": "Roof and basement storeys which, within the meaning of § 276 para. 2 PBG, replace a full storey, as well as basement storeys that lie predominantly above natural ground, count as full storeys for the calculation of the utilisation ratio.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): attic or basement storeys that replace a full storey, or that sit mostly above ground, count as full storeys in the utilisation ratio.",
+      "keywords": [
+        "old wording",
+        "full storey",
+        "Vollgeschoss",
+        "basement",
+        "Untergeschoss",
+        "roof storey",
+        "Dachgeschoss",
+        "utilisation ratio",
+        "Ausnützungsziffer",
+        "above natural ground",
+        "über gewachsenem Boden"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-10",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 10",
+      "heading": "Nichtanrechenbare / Nebenräume",
+      "heading_en": "Non-counted / ancillary rooms",
+      "text": "Als nicht anrechenbar gelten:\na. der Freizeit dienende Gemeinschaftsmehrzweckräume von Mehrfamilienhäusern und Einfamilienhaussiedlungen, soweit sie mindestens 20 m² erreichen und bei grösserem Ausmass 2% der anrechenbaren Geschossfläche nicht übersteigen;\nb. der Arbeitsplatzgestaltung dienende Nebenräume bis zu 2% der anrechenbaren Geschossfläche;\nc. verglaste Balkone, Veranden und Vorbauten ohne heiztechnische Installationen, soweit sie dem Energiesparen dienen, bis zu 10% der Summe aller anrechenbaren Geschossflächen.",
+      "text_en": "The following are not counted:\na. communal multi-purpose leisure rooms of multi-family houses and single-family house estates, provided they reach at least 20 m² and, where larger, do not exceed 2% of the countable floor area;\nb. ancillary rooms serving workplace design, up to 2% of the countable floor area;\nc. glazed balconies, verandas and projections without heating installations, insofar as they serve energy saving, up to 10% of the sum of all countable floor areas.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): communal leisure rooms of at least 20 m², workplace support rooms and energy-saving glazed balconies can be left out of the counted floor area up to set percentages.",
+      "keywords": [
+        "old wording",
+        "non-counted area",
+        "nicht anrechenbar",
+        "communal room",
+        "Gemeinschaftsraum",
+        "20 m²",
+        "2%",
+        "glazed balcony",
+        "verglaster Balkon",
+        "veranda",
+        "Wintergarten",
+        "10%"
+      ],
+      "topics": [
+        "rooms",
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "floor area of communal leisure room (minimum to be non-counted)",
+          "comparison": ">=",
+          "value": 20,
+          "unit": "m2"
+        },
+        {
+          "what": "communal leisure room share of countable floor area (maximum non-counted)",
+          "comparison": "<=",
+          "value": 2,
+          "unit": "%"
+        },
+        {
+          "what": "workplace ancillary rooms share of countable floor area (maximum non-counted)",
+          "comparison": "<=",
+          "value": 2,
+          "unit": "%"
+        },
+        {
+          "what": "glazed balconies, verandas, projections share of total countable floor area (maximum non-counted)",
+          "comparison": "<=",
+          "value": 10,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-11",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 11",
+      "heading": "Anrechenbarkeit zur Spiel-, / Ruhe- und / Gartenfläche",
+      "heading_en": "Credit toward play, / rest and / garden areas",
+      "text": "Als Spiel-, Ruhe- und Gartenflächen anrechenbar gelten:\na. einfache Garten- und kleine Gerätehäuschen sowie überdeckte und seitlich mindestens zur Hälfte der Abwicklung offene Gartensitzplätze;\nb. Spiel-, Ruhe- und Gartenanlagen auf Dachflächen, soweit sie mit der übrigen diesem Zwecke dienenden Fläche zusammenhängen und über einen freien Zugang verfügen.",
+      "text_en": "The following count as play, rest and garden areas:\na. simple garden and small tool sheds, and covered garden seating areas that are open at the sides for at least half of their developed length;\nb. play, rest and garden facilities on roof surfaces, insofar as they are connected with the other area serving these purposes and have free access.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): garden sheds, covered seating areas open on at least half their sides, and accessible roof gardens count as outdoor play, rest and garden space.",
+      "keywords": [
+        "old wording",
+        "play area",
+        "Spielfläche",
+        "rest area",
+        "Ruhefläche",
+        "garden area",
+        "Gartenfläche",
+        "roof garden",
+        "Dachgarten",
+        "garden shed",
+        "Gerätehäuschen",
+        "covered seating"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [
+        {
+          "what": "open share of the developed perimeter of a covered garden seating area",
+          "comparison": ">=",
+          "value": 50,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-12",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 12 Abs. 1",
+      "heading": "Anrechenbare / Bereiche",
+      "heading_en": "Creditable / Areas",
+      "text": "Als oberirdisch gelten alle über dem gewachsenen Boden liegenden Gebäudeteile.",
+      "text_en": "Above-ground means all parts of the building lying above natural ground.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): above-ground parts are everything that sits above the natural ground level.",
+      "keywords": [
+        "old wording",
+        "above ground",
+        "oberirdisch",
+        "natural ground",
+        "gewachsener Boden",
+        "building part",
+        "Gebäudeteil",
+        "above-ground floor area",
+        "oberirdische Geschossfläche"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-12-2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 12 Abs. 2",
+      "heading": "Anrechenbare / Bereiche",
+      "heading_en": "Creditable / Areas",
+      "text": "Als Witterungsbereich gilt der äussere Teil des offenen Raumes bis zu einer Tiefe, die der halben Raumhöhe entspricht.",
+      "text_en": "The weather zone is the outer part of the open space up to a depth corresponding to half the room height.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): the weather zone of an open space (loggia, covered terrace) reaches inward half the room height from the open edge.",
+      "keywords": [
+        "old wording",
+        "weather zone",
+        "Witterungsbereich",
+        "open space",
+        "offener Raum",
+        "loggia",
+        "Loggia",
+        "half room height",
+        "halbe Raumhöhe",
+        "covered terrace",
+        "überdeckte Terrasse",
+        "50%"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [
+        {
+          "what": "depth of the weather zone as a share of room height",
+          "comparison": "=",
+          "value": 50,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-12-3",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 12 Abs. 3",
+      "heading": "Anrechenbare / Bereiche",
+      "heading_en": "Creditable / Areas",
+      "text": "Wird die Konstruktionsstärke der Fassade und des Dachs aufgrund der Wärmedämmung grösser als 35 cm, ist sie nur bis zu diesem Mass zu berücksichtigen.",
+      "text_en": "If the construction thickness of the façade and roof becomes greater than 35 cm due to thermal insulation, it is taken into account only up to this dimension.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): insulation thickness counts towards the building dimensions only up to 35 cm in facade and roof construction.",
+      "keywords": [
+        "old wording",
+        "insulation",
+        "Wärmedämmung",
+        "wall thickness",
+        "Konstruktionsstärke",
+        "façade thickness",
+        "Fassadenstärke",
+        "roof thickness",
+        "Dachstärke",
+        "35 cm",
+        "thermal insulation",
+        "Dämmung"
+      ],
+      "topics": [
+        "structure",
+        "energy"
+      ],
+      "limits": [
+        {
+          "what": "construction thickness of façade and roof counted for insulation (maximum taken into account)",
+          "comparison": "<=",
+          "value": 0.35,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-13",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 13",
+      "heading": "Aufteilung der / Baumassenziffer",
+      "heading_en": "Division of the / building volume ratio",
+      "text": "Die Gemeinden können die Baumassenziffer aufteilen und je gesondert regeln für\na. Hauptgebäude,\nb. besondere Gebäude im Sinne von § 273 PBG und\nc. verglaste Balkone, Veranden und andere Vorbauten ohne heiztechnische Installationen, soweit sie dem Energiesparen dienen.",
+      "text_en": "The municipalities may divide the building volume ratio and regulate it separately for\na. main buildings,\nb. special buildings within the meaning of § 273 PBG and\nc. glazed balconies, verandas and other projections without heating installations, insofar as they serve energy saving.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): municipalities may set separate building volume limits for main buildings, special buildings and energy-saving glazed projections.",
+      "keywords": [
+        "old wording",
+        "building volume ratio",
+        "Baumassenziffer",
+        "main building",
+        "Hauptgebäude",
+        "special building",
+        "besonderes Gebäude",
+        "glazed balcony",
+        "verglaster Balkon",
+        "municipality",
+        "Gemeinde"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-22",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 22 Abs. 1",
+      "heading": "B. Grundabstand",
+      "heading_en": "Basic setback",
+      "text": "Der Grundabstand ist der kleinste erforderliche Grenzabstand ohne Mehrlängen- und Mehrhöhenzuschlag; er wird rechtwinklig zu den Fassaden und radial über die Gebäudeecken gemessen.",
+      "text_en": "The basic setback is the smallest required boundary distance without the multi-length and multi-height surcharges; it is measured at right angles to the façades and radially around the building corners.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): the basic setback is the minimum boundary distance before length and height surcharges, measured perpendicular to the façades and swung around corners.",
+      "keywords": [
+        "old wording",
+        "basic setback",
+        "Grundabstand",
+        "boundary distance",
+        "Grenzabstand",
+        "multi-height surcharge",
+        "Mehrhöhenzuschlag",
+        "multi-length surcharge",
+        "Mehrlängenzuschlag",
+        "corner",
+        "Gebäudecke",
+        "perpendicular"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-22-2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 22 Abs. 2",
+      "heading": "B. Grundabstand",
+      "heading_en": "Basic setback",
+      "text": "Bestehen gemäss Bau- und Zonenordnung zwei verschieden grosse Grundabstände, so ist der kleinere über die Gebäudeecken radial herumzuschlagen.",
+      "text_en": "If the building and zoning regulations specify two basic setbacks of different sizes, the smaller one is to be applied radially around the building corners.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): where two basic setbacks apply, the smaller one is swung around the building corners.",
+      "keywords": [
+        "old wording",
+        "basic setback",
+        "Grundabstand",
+        "two setbacks",
+        "zwei Grundabstände",
+        "smaller setback",
+        "kleinerer Abstand",
+        "building corner",
+        "Gebäudecke",
+        "radial",
+        "radial"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-25",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 25",
+      "heading": "III. Bei / besonderen / Gebäuden",
+      "heading_en": "For / special / buildings",
+      "text": "Besondere Gebäude im Sinne von § 49 Abs. 3 PBG fallen bei der Berechnung des Mehrlängenzuschlages ausser Betracht, sofern die Bau- und Zonenordnung nicht etwas anderes bestimmt.",
+      "text_en": "Special buildings within the meaning of § 49 para. 3 PBG are disregarded in calculating the multi-length surcharge, unless the building and zoning regulations specify otherwise.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): special buildings are left out of the multi-length surcharge calculation unless the local zoning code says otherwise.",
+      "keywords": [
+        "old wording",
+        "special building",
+        "besonderes Gebäude",
+        "multi-length surcharge",
+        "Mehrlängenzuschlag",
+        "§ 49 PBG",
+        "disregarded",
+        "ausser Betracht",
+        "zoning code",
+        "Bau- und Zonenordnung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-27",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 27 Abs. 1",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Zur Fassadenlänge werden oberirdische Vorsprünge über mehr als einem Geschoss hinzugerechnet, wenn sie in der Richtung der betreffenden Fassade eine geschlossene Höhe von mehr als 1,3 m aufweisen.",
+      "text_en": "Above-ground projections extending over more than one storey are added to the façade length if, in the direction of the relevant façade, they have a closed height of more than 1.3 m.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): projections over more than one storey with a closed height above 1.3 m count towards the façade length.",
+      "keywords": [
+        "old wording",
+        "façade length",
+        "Fassadenlänge",
+        "projection over storeys",
+        "Vorsprung",
+        "closed height",
+        "geschlossene Höhe",
+        "1.3 m",
+        "Balkon",
+        "Erker"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "closed height of over-storey projections that count towards the façade length",
+          "comparison": ">",
+          "value": 1.3,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-27-2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 27 Abs. 2",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Die Bau- und Zonenordnung kann bestimmen, dass die für den Mehrlängenzuschlag massgeblichen Fassadenlängen von benachbarten Hauptgebäuden zusammengerechnet werden, wenn der Gebäudeabstand ein bestimmtes Mass unterschreitet.",
+      "text_en": "The building and zoning regulations may provide that the façade lengths of neighbouring main buildings that are decisive for the multi-length surcharge are added together if the building distance falls below a certain dimension.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): the local zoning code may combine the façade lengths of neighbouring main buildings when they are closer than a set distance.",
+      "keywords": [
+        "old wording",
+        "façade length",
+        "Fassadenlänge",
+        "neighbouring buildings",
+        "Nachbargebäude",
+        "building distance",
+        "Gebäudeabstand",
+        "multi-length surcharge",
+        "Mehrlängenzuschlag",
+        "Bau- und Zonenordnung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-28",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 28 Abs. 1",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Als Gebäudelänge gilt die längere Seite des flächenkleinsten Rechtecks, welches die senkrecht auf den Erdboden projizierte grösste, durch die massgebliche Fassadenlänge gebildete Gebäudeumfassung umschreibt. Als Gebäudebreite gilt die kürzere Seite dieses Rechtecks.",
+      "text_en": "The building length is the longer side of the smallest-area rectangle that encloses the largest building outline formed by the decisive façade length, projected vertically onto the ground. The building width is the shorter side of this rectangle.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): building length is the long side, and building width the short side, of the smallest rectangle around the vertically projected building outline.",
+      "keywords": [
+        "old wording",
+        "building length",
+        "Gebäudelänge",
+        "building width",
+        "Gebäudebreite",
+        "smallest rectangle",
+        "Rechteck",
+        "façade length",
+        "Fassadenlänge",
+        "projection onto ground",
+        "Grundriss"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-28-2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 28 Abs. 2",
+      "heading": "Begriff",
+      "heading_en": "Definition",
+      "text": "Besondere Gebäude im Sinne von § 49 Abs. 3 PBG fallen ausser Ansatz, sofern die Bau- und Zonenordnung nicht etwas anderes bestimmt.",
+      "text_en": "Special buildings within the meaning of § 49 para. 3 PBG are disregarded, unless the building and zoning regulations specify otherwise.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): special buildings are left out of the building length and width calculation unless the local zoning code says otherwise.",
+      "keywords": [
+        "old wording",
+        "special building",
+        "besonderes Gebäude",
+        "building length",
+        "Gebäudelänge",
+        "building width",
+        "Gebäudebreite",
+        "§ 49 PBG",
+        "disregarded",
+        "ausser Ansatz"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-29",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 29 Abs. 1",
+      "heading": "Einzelheiten",
+      "heading_en": "Details",
+      "text": "Alle Höhenmasse werden im Lot gemessen.",
+      "text_en": "All height dimensions are measured vertically (plumb).",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): all heights are measured vertically, not along a sloped surface.",
+      "keywords": [
+        "old wording",
+        "height measurement",
+        "Höhenmass",
+        "vertical",
+        "im Lot",
+        "plumb",
+        "building height",
+        "Gebäudehöhe",
+        "sloped ground",
+        "Hang"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-zh-ls-700-2-anhang-29-2",
+      "ref": "Anhang 2, Fassung vor der Änderung vom 11. Mai 2016, § 29 Abs. 2",
+      "heading": "Einzelheiten",
+      "heading_en": "Details",
+      "text": "Für andere Masse und Berechnungen enthalten die Skizzen im Anhang erläuternde Darstellungen zu den entsprechenden Vorschriften.",
+      "text_en": "For other dimensions and calculations, the sketches in the annex contain explanatory illustrations of the corresponding provisions.",
+      "summary_en": "Old wording (applies only where the commune's BZO is not yet adapted to the 2015 revision): the annex sketches illustrate how the other dimensions and calculations are meant to be taken.",
+      "keywords": [
+        "old wording",
+        "annex sketches",
+        "Anhang Skizzen",
+        "illustration",
+        "Darstellung",
+        "dimensions",
+        "Masse",
+        "calculation",
+        "Berechnung"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

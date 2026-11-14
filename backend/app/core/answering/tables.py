@@ -177,9 +177,34 @@ def _column(table: Table, named: Iterable[str]) -> int | None:
     return scores[0][2]
 
 
+def why_none(query: TableQuery, tables: Sequence[Table]) -> str | None:
+    """Why the query has no answer, when a schedule holds the rows but not one value: the one
+    row asked for is several rows, or the rows a read covers print different values. None for
+    any other miss (no schedule, no such row or column)."""
+    for table in tables:
+        if _is_legend(table) or not _of_kind(table, query):
+            continue
+        rows = _rows(table, query)
+        title = table.title or "the schedule"
+        if rows is None:
+            continue
+        if query.one_row and len(rows) > 1:
+            named = " or ".join(value for wanted in query.filters for value in wanted.values)
+            return f"{len(rows)} rows of {title} are {named}: ask for one, by its number"
+        if query.op == "read" and len(rows) > 1:
+            for named in query.column:
+                column = _column(table, named)
+                if column is not None and _read(rows, column) is None:
+                    return (
+                        f"the rows of {title} print different values for "
+                        f"{table.columns[column]}: ask for one row, by its type or number"
+                    )
+    return None
+
+
 def _on(table: Table, query: TableQuery, legends: Sequence[Table]) -> TableAnswer | None:
     rows = _rows(table, query)
-    if rows is None:
+    if rows is None or (query.one_row and len(rows) != 1):
         return None
     boxes = tuple(row.box or table.box for row in rows) or (table.box,)
     if query.op == "count":

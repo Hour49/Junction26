@@ -59,6 +59,48 @@ def test_images_drawings_and_photos() -> None:
     assert kind(png_bytes(Image.new("RGB", (40, 300), "white"))) == "unknown"  # too small to read
 
 
+def scanner_jpeg(image: Image.Image, file_source: bytes | None) -> bytes:
+    """A JPEG with the EXIF Canon's MP Navigator writes on a flatbed scan (fp14 in the hard set:
+    Make Canon, Model MP550 series), and FileSource (0xA300) as given."""
+    exif = Image.Exif()
+    exif[0x010F] = "Canon"
+    exif[0x0110] = "MP550 series"
+    exif[0x0131] = "MP Navigator EX 3.0"
+    if file_source is not None:
+        exif.get_ifd(0x8769)[0xA300] = file_source
+    buffer = io.BytesIO()
+    image.save(buffer, "JPEG", exif=exif.tobytes())
+    return buffer.getvalue()
+
+
+def test_a_scanner_s_make_and_model_is_not_camera_exif() -> None:
+    # scan sweep fp14: a flat reproduction scanned on a Canon MP550 was "a phone photo, read
+    # without perspective correction"; EXIF FileSource says what made it (1 film scanner,
+    # 2 print scanner, 3 digital camera)
+    plan = raster_plan()
+    assert kind(scanner_jpeg(plan, b"\x02")) == "jpeg_plan"
+    assert kind(scanner_jpeg(plan, b"\x01")) == "jpeg_plan"
+    assert "camera EXIF" not in FileProbe().probe(scanner_jpeg(plan, b"\x02")).did
+    # a camera's FileSource, or none at all (Commons 014, a 2006 phone), stays a camera
+    assert kind(scanner_jpeg(plan, b"\x03")) == "photo_plan"
+    assert kind(scanner_jpeg(plan, None)) == "photo_plan"
+
+
+def card_on_dark_table() -> Image.Image:
+    """A plan on a card that fills 42% of the frame, on a dark grey table (hard set fp07, a hotel
+    card: 31% paper, 51.6% of the frame dark, 6.2% of the card)."""
+    table = Image.new("RGB", (1600, 1200), (55, 55, 58))
+    table.paste(raster_plan().resize((1000, 800)), (300, 200))
+    return table
+
+
+def test_a_dark_table_around_the_paper_is_not_ink() -> None:
+    probed = FileProbe().probe(jpeg_bytes(card_on_dark_table()))
+    assert probed.kind == "photo_plan", probed.did
+    assert "on the paper" in probed.did
+    assert kind(jpeg_bytes(site_photo())) == "photo"  # a scene is still not a drawing
+
+
 def noise(width: int, height: int) -> Image.Image:
     """Random grey pixels, seeded: an image with no structure at all."""
     return Image.frombytes("L", (width, height), random.Random(0).randbytes(width * height))

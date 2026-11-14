@@ -17,6 +17,7 @@ import {
   evidenceUrl,
   getModel,
   postReview,
+  answerIssue,
   postRelevance,
   readAsPlan,
   postSignoff,
@@ -33,7 +34,10 @@ import {
   issuesCsvUrl,
   issuesZipUrl,
   rulePacksOf,
+  chatTurn,
+  decideProposal,
 } from '.';
+import { editTurn, proposal } from '../agent/fixtures';
 import type { Edit, SignOffRequest } from './types';
 
 const pid = fx.project.id;
@@ -163,6 +167,18 @@ describe('API client', () => {
     for (const edit of fx.reviewRequests) expect(await postReview(tid, edit)).toEqual(fx.takeoff);
     expect(await postSignoff(tid, fx.signoffRequest)).toEqual(fx.takeoff);
     expect(api.calls.map((c) => c.body)).toEqual([...fx.reviewRequests, fx.signoffRequest]);
+  });
+
+  it('SH-87 answerIssue posts the answer (or the undo) and resolves with the issue', async () => {
+    const pid = fx.projectIssues.project_id;
+    const id = fx.issueAnswered.id;
+    const api = mockApi({ [`POST /api/projects/${pid}/issues/${id}/answer`]: fx.issueAnswered });
+    expect(await answerIssue(pid, id, fx.issueAnswerRequest)).toEqual(fx.issueAnswered);
+    await answerIssue(pid, id, { undo: true });
+    expect(api.calls.map((c) => c.body)).toEqual([fx.issueAnswerRequest, { undo: true }]);
+    await answerIssue(pid, id, { undo: true }, { pack: 'fi' }); // a code check's issue needs its pack
+    expect(api.calls.at(-1)?.url).toBe(`/api/projects/${pid}/issues/${id}/answer?pack=fi`);
+    expect(api.calls[0]?.url).toBe(`/api/projects/${pid}/issues/${id}/answer`);
   });
 
   it('SH-73 postRelevance sends the request fixture and resolves with the file', async () => {
@@ -377,5 +393,44 @@ describe('API client', () => {
     expect(rulePacksOf({ ...fx.info, rule_packs: undefined })).toEqual([]);
     expect(rulePacksOf(fx.info).map((p) => p.id)).toEqual(['ch-zh', 'fi']);
     expect(rulePacksOf(fx.info)).toContain(fx.rulePackFi);
+  });
+  it('AC-34 chatTurn posts {chat_id?, message, selection?} to the project chat; a 409 rejects', async () => {
+    const api = mockApi({ [`POST /api/projects/${pid}/chat`]: editTurn });
+    expect(await chatTurn(pid, { message: 'Remove the wall' })).toEqual(editTurn);
+    const sel = [
+      {
+        id: 'sel_1',
+        kind: 'region' as const,
+        drawing_id: did,
+        page: 1,
+        box: [0.1, 0.1, 0.2, 0.2] as [number, number, number, number],
+      },
+    ];
+    await chatTurn(pid, {
+      chat_id: editTurn.chat_id,
+      message: 'Put a storage room here',
+      selection: sel,
+    });
+    expect(api.calls.map((c) => c.body)).toEqual([
+      { message: 'Remove the wall' },
+      { chat_id: editTurn.chat_id, message: 'Put a storage room here', selection: sel },
+    ]);
+    expect(new Headers(api.fetch.mock.calls[0]?.[1]?.headers).get('Content-Type')).toBe(
+      'application/json',
+    );
+    mockApi({ [`POST /api/projects/${pid}/chat`]: reply(409, fx.errorNotAllowed) });
+    await expect(chatTurn(pid, { message: 'q' })).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('AC-34 decideProposal posts {action} to the proposal and resolves it with its new state', async () => {
+    const url = `POST /api/projects/${pid}/chat/${editTurn.chat_id}/proposals/p1`;
+    const api = mockApi({ [url]: { ...proposal, state: 'accepted' } });
+    const p = await decideProposal(pid, editTurn.chat_id, 'p1', 'accept');
+    expect(p.state).toBe('accepted');
+    expect(api.calls[0]?.body).toEqual({ action: 'accept' });
+    mockApi({ [url]: reply(409, fx.errorNotAllowed) });
+    await expect(decideProposal(pid, editTurn.chat_id, 'p1', 'reject')).rejects.toMatchObject({
+      status: 409,
+    });
   });
 });
