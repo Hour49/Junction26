@@ -278,10 +278,16 @@ def printed_area(label: str) -> dict[str, Any]:
     return {"area_m2": area, "area_status": "exact", "area_source": "printed"}
 
 
+DIGEST_ROWS = 256  # rows hashed at a time
+
+
 def pixel_digest(image: Image.Image) -> str:
     """sha256 of the page as decoded (RGB, as `encode` sends it) and its size."""
-    rgb = image.convert("RGB")
-    return hashlib.sha256(f"{rgb.width}x{rgb.height}:".encode() + rgb.tobytes()).hexdigest()
+    digest = hashlib.sha256(f"{image.width}x{image.height}:".encode())
+    for top in range(0, image.height, DIGEST_ROWS):  # strips: no full-page RGB copy, same hash
+        strip = image.crop((0, top, image.width, min(image.height, top + DIGEST_ROWS)))
+        digest.update(strip.convert("RGB").tobytes())
+    return digest.hexdigest()
 
 
 class GeminiRoomReader:
