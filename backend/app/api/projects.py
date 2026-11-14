@@ -1,6 +1,7 @@
 """Projects: upload a zip or one file, follow its ingest file by file, and the project's review
 summary (docs/API.md "Projects and ingest")."""
 
+import gzip
 import logging
 import threading
 from collections.abc import Callable, Iterator, Mapping
@@ -9,9 +10,10 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, NamedTuple
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.page_render import render_upload
 from app.api.ask import page_images
 from app.api.deps import (
@@ -20,6 +22,7 @@ from app.api.deps import (
     FileId,
     Ingest,
     IngestDep,
+    Models3dDep,
     ProjectId,
     ReviewsDep,
     SettingsDep,
@@ -32,6 +35,7 @@ from app.api.questions import ProjectQuestions, listed, log_size
 from app.api.takeoff import Takeoff, takeoff_rows
 from app.api.views import (
     SHEET_KINDS,
+    ErrorBody,
     ProjectTrace,
     ProjectView,
     View,
@@ -380,12 +384,13 @@ def project(
     reviews: ReviewsDep,
     settings: SettingsDep,
     credits: CreditsDep,
+    models_3d: Models3dDep,
 ) -> ProjectView:
     status = ingest.status(project_id)
     files = {file.path: file for file in status.files}
     kept: KeptReviews = request.app.state.kept_reviews
     return ProjectView(
-        **status.model_dump(),
+        **with_models_3d(status, models_3d).model_dump(),
         drawings=drawings_of(status, lambda path: file_credit(path, files, credits)),
         skipped=skipped_of(status),
         expected_drawings=expected_drawings_of(status),
@@ -474,6 +479,61 @@ def preview(
         raise NotFoundError(f"file {file_id} is no image or PDF, so it has no preview")
     png = render_upload(ingest.upload_bytes(project_id, file_id), kind, width)
     return Response(content=png, media_type="image/png", headers={"Cache-Control": IMMUTABLE})
+
+
+def with_models_3d(status: ProjectStatus, models: GlbModels | None) -> ProjectStatus:
+    """Each IFC file with its 3D view's state (MODEL_3D); off, the status as it is."""
+    if models is None:
+        return status
+    files = tuple(
+        file.model_copy(update={"model_3d": models.status(file.sha256)})
+        if file.kind == "ifc" and file.sha256 is not None
+        else file
+        for file in status.files
+    )
+    return status.model_copy(update={"files": files})
+
+
+@router.get(
+    "/{project_id}/files/{file_id}/model.glb",
+    response_class=Response,
+    responses={
+        200: {"content": {"model/gltf-binary": {}}, "description": "the model's GLB"},
+        404: {"model": ErrorBody, "description": "no such file, no IFC file, or MODEL_3D off"},
+        409: {"model": ErrorBody, "description": "code converting: being built, ask again"},
+        422: {"model": ErrorBody, "description": "code too_big, no_geometry or failed: no view"},
+    },
+)
+def model_glb(
+    request: Request,
+    project_id: ProjectId,
+    file_id: FileId,
+    ingest: IngestDep,
+    models_3d: Models3dDep,
+) -> Response:
+    """An IFC file's 3D view: one GLB of the whole model, each node named by its element's
+    GlobalId. The first request starts its conversion (409 `converting` until it is built; poll
+    it or the project's `model_3d`); gzipped when the client takes gzip."""
+    file = ingest.trace(project_id, file_id).file
+    if models_3d is None or file.kind != "ifc" or file.sha256 is None:
+        raise NotFoundError(f"file {file_id} has no 3D view")
+    sha256 = file.sha256
+    found = models_3d.start(sha256, lambda: ingest.upload_bytes(project_id, file_id))
+    if found.state == "unavailable":
+        assert found.code is not None
+        return JSONResponse(
+            status_code=422,
+            content=ErrorBody(detail=found.reason, code=found.code).model_dump(exclude_none=True),
+        )
+    if found.state != "ready":
+        body = ErrorBody(detail=f"the 3D view of {file.path} is being built", code="converting")
+        return JSONResponse(status_code=409, content=body.model_dump(exclude_none=True))
+    zipped = models_3d.glb_gz(sha256).read_bytes()
+    headers = {"Cache-Control": IMMUTABLE, "Vary": "Accept-Encoding"}
+    if "gzip" in request.headers.get("accept-encoding", ""):
+        headers["Content-Encoding"] = "gzip"
+        return Response(content=zipped, media_type="model/gltf-binary", headers=headers)
+    return Response(gzip.decompress(zipped), media_type="model/gltf-binary", headers=headers)
 
 
 @router.get("/{project_id}/review")
