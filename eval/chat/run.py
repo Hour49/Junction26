@@ -129,12 +129,17 @@ def main() -> None:
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--only", default="")
     ap.add_argument(
-        "--usd-cap", type=float, default=1.0, help="stop when the run's spend reaches it"
+        "--usd-cap",
+        type=float,
+        default=1.0,
+        help="stop when the run's cost reaches it (recorded cost: a replay counts it too)",
     )
     args = ap.parse_args()
     scripts: list[Json] = json.loads(args.scripts.read_text())["scripts"]
     pids: dict[str, str] = json.loads(args.projects.read_text())
     only = {s for s in args.only.split(",") if s}
+    if args.out.exists() and args.out.stat().st_size:
+        ap.error(f"{args.out} is not empty: a second run in it would count every turn twice")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     spent = 0.0
     with args.out.open("a") as f:

@@ -19,8 +19,12 @@ do the runs and the replay cache, which hold drawing text. Only scores are commi
 
 Per turn: **right** (a truth is given: the card's value, else the first number in the text, equals
 it or lies in its range; `"refuse"`: the turn refused), **answered** first turns and follow-ups,
-**on topic** (the reply names the subject), **grounded** (every number in the text appears in the
-chat's stored tool results, the reply or the message; needs `--chats <env>/data/projects`),
+**on topic** (the reply names the subject), **grounded** (every number in the text is backed by a
+value in the chat's stored tool results, the reply or the message: a whole number by an equal
+value, a decimal by one that rounds to it at its places, a number inside a string such as a room
+label only as written; ids, boxes, polygons, pages, timings and cost don't count; needs
+`--chats <env>/data/projects`; the stored file holds the whole chat, so a later turn's result can
+back an earlier turn),
 **refusal offers**, **steps shown**, **view shown** (the turn puts a plan on screen), **http
 errors**, **latency** p50 and max, **USD** per turn and in total.
 
@@ -54,5 +58,12 @@ on the proxy says how many calls were served from the cache, and a miss's body i
 backend puts in tool results; after a change to the key, `--rekey` renames the cache.
 
 Checked 2026-11-14 on main 11a089e: the full set recorded (64 turns, 1.245 USD), then replayed:
-64/64 replies word for word the same, 176 calls from the cache, 0 misses, 0 USD.
-Model answers vary run to run, so a live A/B arm that matters gets two runs.
+64/64 replies word for word the same, 176 calls from the cache, 0 misses, 0 USD. Grounded on that
+baseline: 64/64; with every standalone whole number in the replies raised by 1, it fails 22 of the
+31 turns that have one (the rest land on another value the chat's tool results hold).
+
+Model answers vary run to run, so a live A/B arm that matters gets two runs. A reply that is not
+JSON (a streamed event body) is passed on but not recorded, so a streaming model call cannot be
+replayed yet. `run.py` refuses an `--out` file that already has turns (a second run in it would
+count every turn twice), and `score.py --ab` refuses two runs that do not cover the same turns:
+compare a subset with the same `--only` on both.

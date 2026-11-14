@@ -148,6 +148,7 @@ def row(script: str, turn: int, text: str, truth: Any = None, **more: Any) -> Js
         ([10, 20], "answer", "About 14.5 m².", None, True),
         ("refuse", "dont_know", "I can't tell the height.", None, True),
         (6, "refusal", "I can't count doors here.", None, False),
+        (14.5, "answer", "It is 14.5 m².", None, True),  # an exact decimal truth
     ],
 )
 def test_right_reads_the_card_or_the_first_number_not_a_citation(
@@ -156,11 +157,55 @@ def test_right_reads_the_card_or_the_first_number_not_a_citation(
     assert score.right(row("s", 1, text, truth, kind=kind, value=value)) is want
 
 
-def test_grounded_finds_numbers_in_the_stored_chats_tool_results(tmp_path: Path) -> None:
+def stored(tmp_path: Path, results: list[Any]) -> list[Path]:
     chats = tmp_path / "projects" / "pid" / "chats"
-    chats.mkdir(parents=True)
-    (chats / "c1.json").write_text(json.dumps({"results": [{"doors": 6, "area_m2": 14.53}]}))
-    projects = [tmp_path / "projects"]
+    chats.mkdir(parents=True, exist_ok=True)
+    (chats / "c1.json").write_text(json.dumps({"results": results}))
+    return [tmp_path / "projects"]
+
+
+@pytest.mark.parametrize(
+    ("text", "want"),
+    [
+        ("There are 6 doors.", False),  # 5.8 does not back a whole 6
+        ("There are 40 doors.", False),  # an id is not a value
+        ("6 doors, 12 windows", False),
+        ("About 5.8 doors.", True),
+        ("2 ids.", False),  # nothing under an id field counts, not even its length
+    ],
+)
+def test_grounded_needs_a_value_not_an_id_or_a_near_decimal(
+    tmp_path: Path, text: str, want: bool
+) -> None:
+    """The #331 review's probe: a result {total: 5.8, ids: [12, 40]} grounded '6 doors' and
+    '40 doors' when every number in the JSON counted and integers matched by rounding."""
+    projects = stored(tmp_path, [{"total": 5.8, "ids": [12, 40]}])
+    assert score.grounded(row("s", 1, text), projects) is want
+
+
+def test_grounded_skips_geometry_and_timings_and_reads_labels_as_written(tmp_path: Path) -> None:
+    result = {"marks": [{"id": 7, "box": [0.3, 0.4, 0.5, 0.6], "page": 1}], "latency_s": 3.0,
+              "rooms": [{"label": "Bagno 1.01", "area_m2": 14.53}], "count": 1}  # fmt: skip
+    projects = stored(tmp_path, [result])
+    assert score.grounded(row("s", 1, "Bagno 1.01 is 14.5 m² on page 1 [1]."), projects)
+    assert not score.grounded(row("s", 1, "It took 3 seconds."), projects)
+    assert not score.grounded(row("s", 1, "7 marks."), projects)
+    assert not score.grounded(row("s", 1, "About 1.02 m."), projects)  # "1.01" only as written
+
+
+def test_grounded_counts_a_list_of_things_but_not_digits_inside_ids(tmp_path: Path) -> None:
+    result = {"drawing_id": "8b0bca4c21f9d8d5", "ev": "ev_12", "file": "plan-11790.png",
+              "parts": [{"total": 5}, {"total": 7}]}  # fmt: skip
+    projects = stored(tmp_path, [result])
+    assert score.grounded(
+        row("s", 1, "2 drawings answered: 5 and 7 doors (plan-11790.png)."), projects
+    )
+    assert not score.grounded(row("s", 1, "There are 12 doors."), projects)  # ev_12
+    assert not score.grounded(row("s", 1, "There are 21 doors."), projects)  # inside the hex id
+
+
+def test_grounded_finds_numbers_in_the_stored_chats_tool_results(tmp_path: Path) -> None:
+    projects = stored(tmp_path, [{"doors": 6, "area_m2": 14.53}])
     assert score.grounded(row("s", 1, "6 doors, 14.5 m² [1]."), projects)
     assert not score.grounded(row("s", 1, "7 doors."), projects)
     assert not score.grounded(row("s", 1, "6 doors, 14.5 m²."), [])  # no tool results to back it
@@ -176,6 +221,29 @@ def test_ab_passes_only_when_right_and_grounded_hold_and_the_metric_improves() -
     assert not score.ab(base, base, "steps shown")[0]  # no change is not an improvement
     faster = score.score([row("doors", 1, "6 doors", 6, latency_s=1.0)], [])
     assert score.ab(base, faster, "latency p50 s")[0]
+
+
+def test_ab_refuses_runs_that_do_not_cover_the_same_turns() -> None:
+    a = [row("doors", 1, "6"), row("doors", 2, "6")]
+    assert score.turns_differ(a, list(a)) == []
+    assert score.turns_differ(a, a[:1]) == ["1 turns only in base, e.g. ('doors', 2)"]
+    assert score.turns_differ(a + a, a) == ["base has 2 repeated turns"]
+
+
+def test_run_refuses_an_out_file_that_already_has_turns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out = tmp_path / "run.jsonl"
+    out.write_text('{"script": "doors"}\n')
+    scripts, ids = tmp_path / "s.json", tmp_path / "ids.json"
+    scripts.write_text(json.dumps({"scripts": SCRIPTS}))
+    ids.write_text(json.dumps({"p": "pid"}))
+    argv = ["run", "--base", "http://127.0.0.1:9", "--scripts", str(scripts), "--projects",
+            str(ids), "--out", str(out)]  # fmt: skip
+    monkeypatch.setattr("sys.argv", argv)
+    with pytest.raises(SystemExit):
+        run.main()
+    assert out.read_text() == '{"script": "doors"}\n'
 
 
 def test_a_recorded_row_holds_numbers_not_turn_text(

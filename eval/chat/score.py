@@ -2,14 +2,15 @@
 
   python3 -m chat.score <runs>/a.jsonl <runs>/b.jsonl --chats <env>/data/projects [--turns]
   python3 -m chat.score <run> --chats ... --record <name> --commit <sha> --note "..."
-  python3 -m chat.score <base run> <new run> --chats ... --ab "steps shown"
+  python3 -m chat.score <base run> <new run> --chats ... --ab "steps shown" [--only ...]
 
 Per turn: right (truth given: the value the judge sees equals the truth or lies in its range;
 'refuse': the turn refused), answered (not a refusal), on topic (the text names the subject),
-grounded (every number in the text is in the chat's tool results, the reply or the user's message;
+grounded (every number in the text is backed by a value of the chat's tool results, the reply or the
+user's message: a whole number exactly, a decimal at its places, ids and geometry not counting;
 ask mode is grounded by construction), refusal offers, steps shown, view (the turn puts a plan on
 screen), latency, USD. --ab passes when right and grounded do not drop and the named metric goes
-up (latency and USD: down).
+up (latency and USD: down); it refuses (exit 2) two runs that do not cover the same turns.
 """
 
 import argparse
@@ -57,26 +58,71 @@ def right(r: Json) -> bool | None:
     v = shown_value(r)
     if v is None:
         return False
-    return v == truth if isinstance(truth, int) else truth[0] <= v <= truth[1]
+    if isinstance(truth, list):
+        return truth[0] <= v <= truth[1]
+    return v == truth
+
+
+# Fields that are not facts a reply may quote (ids, geometry, timings, cost, enums): nothing under
+# them counts, not their numbers, the numbers in their strings or their lists' lengths.
+NOT_VALUES = {"id", "ids", "n", "ev", "turn", "page", "box", "bbox", "polygon", "quad", "points",
+              "rotated", "deskew_deg", "exif", "score", "cost_usd",
+              "latency_s", "usd", "url", "colour", "color", "unit", "kind", "status",
+              "model"}  # fmt: skip
+# a number standing alone in a string ("Bagno 1.01", "631/2024"), not digits inside a word or id
+STANDALONE = re.compile(r"(?<![A-Za-z0-9_])\d+(?:[.,]\d+)?(?![A-Za-z0-9_])")
+PAGE = re.compile(r"\bpages?\s+\d+|\d+-page\b", re.IGNORECASE)
+
+
+def _quotable(key: str | None) -> bool:
+    return key not in NOT_VALUES and not (key or "").endswith(("_id", "_ids", "_usd", "_s"))
+
+
+def _known(found: Any, key: str | None, values: set[Decimal], tokens: set[str]) -> None:
+    """The quotable numbers in a tool result or reply: numeric values, the length of a list of
+    things (a reply may count the parts or rooms it got), and numbers standing alone in strings
+    (labels, file names, clause numbers), which match only as written; nothing under NOT_VALUES."""
+    if not _quotable(key):
+        return
+    if isinstance(found, dict):
+        for k, v in found.items():  # pyright: ignore[reportUnknownVariableType]
+            _known(v, str(k), values, tokens)  # pyright: ignore[reportUnknownArgumentType]
+    elif isinstance(found, list):
+        if found and all(isinstance(v, dict) for v in found):  # pyright: ignore[reportUnknownVariableType]
+            values.add(Decimal(len(found)))  # pyright: ignore[reportUnknownArgumentType]
+        for v in found:  # pyright: ignore[reportUnknownVariableType]
+            _known(v, key, values, tokens)
+    elif isinstance(found, str):
+        tokens.update(STANDALONE.findall(found))
+    elif isinstance(found, int | float) and not isinstance(found, bool):
+        values.add(Decimal(str(found)))
 
 
 def grounded(r: Json, chats: list[Path]) -> bool:
-    """Every number in the text is in the reply, the message or a tool result of the chat (its
-    stored file under one of `chats`, the env's projects dirs)."""
+    """Every number in the text is backed: a whole number by an equal value (5.8 does not back
+    "6"), a decimal by a value that rounds to it at the text's places, either by the same token
+    in a string; values from the reply, the user's message and the chat's tool results (its
+    stored file under one of `chats`, the env's projects dirs), ids, geometry and timings left
+    out (NOT_VALUES). Page numbers in the text ("page 1", "1-page") are not checked."""
     if r["mode"] == "ask":
         return True
     raw = dict(r.get("raw") or {})
     text = raw.pop("text", "") or r.get("text", "")
     stored = [f for d in chats for f in d.glob(f"*/chats/{raw.get('chat_id')}.json")]
-    source = json.dumps(json.loads(stored[0].read_text()).get("results", [])) if stored else ""
-    known = {num(n) for n in NUMBER.findall(json.dumps(raw) + source + " " + r["msg"])}
-    for n in NUMBER.findall(CITE.sub(" ", text)):
+    results = json.loads(stored[0].read_text()).get("results", []) if stored else []
+    values: set[Decimal] = set()
+    tokens: set[str] = set(NUMBER.findall(r["msg"]))
+    for found in [raw, *results]:  # not the lengths of these wrappers: no reply counts them
+        _known(found, None, values, tokens)
+    for n in STANDALONE.findall(PAGE.sub(" ", CITE.sub(" ", text))):
         d = num(n)
         if d is None:
             return False
+        if n in tokens:
+            continue
         exponent = d.as_tuple().exponent
         places = -exponent if isinstance(exponent, int) and exponent < 0 else 0
-        if d not in known and not any(k is not None and round(k, places) == d for k in known):
+        if not any(round(v, places) == d if places else v == d for v in values):
             return False
     return True
 
@@ -134,6 +180,23 @@ def ab(base: Score, new: Score, metric: str) -> tuple[bool, list[str]]:
     lines.append(f"{metric}: {_show(base[metric])} -> {_show(new[metric])} "
                  f"{'better' if better else 'NOT better'}")  # fmt: skip
     return ok and better, lines
+
+
+def turns_differ(base: list[Json], new: list[Json]) -> list[str]:
+    """Why two runs cannot be compared turn for turn: turns one has and the other lacks, or a
+    turn repeated (a run appended twice); empty when they cover the same turns once each."""
+    why: list[str] = []
+    for name, rows in (("base", base), ("new", new)):
+        keys = [(r["script"], r["turn"], r["msg"]) for r in rows]
+        if len(set(keys)) != len(keys):
+            why.append(f"{name} has {len(keys) - len(set(keys))} repeated turns")
+    a = {(r["script"], r["turn"], r["msg"]) for r in base}
+    b = {(r["script"], r["turn"], r["msg"]) for r in new}
+    if a - b:
+        why.append(f"{len(a - b)} turns only in base, e.g. {sorted(a - b)[0][:2]}")
+    if b - a:
+        why.append(f"{len(b - a)} turns only in new, e.g. {sorted(b - a)[0][:2]}")
+    return why
 
 
 def _show(v: Any) -> str:
@@ -203,6 +266,10 @@ def main() -> None:
     if args.ab:
         if len(args.runs) != 2:
             ap.error("--ab takes two runs: base, new")
+        why = turns_differ(*(loaded[p.stem] for p in args.runs))
+        if why:
+            print("A/B REFUSED: the runs do not cover the same turns (use --only):", "; ".join(why))
+            raise SystemExit(2)
         base, new = (table[p.stem] for p in args.runs)
         ok, lines = ab(base, new, args.ab)
         print("\n".join(lines))
