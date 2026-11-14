@@ -1,7 +1,7 @@
 # Editable services model: pipes, ducts, cables and their terminals as one model the agent can change (spec)
 
 Status: draft, 2026-11-14 evening, by the research lead for Tudor's ifc orchestrator. Contract and reasons: decision
-[0016](../../decisions/0016-editable-services-model.md) (proposed). It extends decision
+[0017](../../decisions/0017-editable-services-model.md) (proposed). It extends decision
 [0013](../../decisions/0013-agent-chat.md) and [docs/specs/agent-chat.md](../agent-chat.md) and changes none of
 their rules. Board: #281, #222. Source: Tudor, 2026-11-14: "make sure te approach you are chosing for storing the
 information of procssed pipes vents etc, will be able to be modified by the agent with a tool cool, like move
@@ -9,6 +9,19 @@ sockets redraw the diagrmams".
 
 Requirement ids SV-n; a test names the id it covers. Numbers marked *measured* come from prototypes on the bench
 models (gitignored notes); a public file names no dataset file.
+
+## Alignment with #333 (services-follow, decision 0016), settled on #281 2026-11-14
+
+- #333 (Bogdan's side) owns `core/services/model.py` (`ServiceElement`, `Frame`, `fit_frame`), `core/services/graph.py`
+  (`ServiceGraph`), `core/services/follow.py`, `adapters/ifc_services.py`, `adapters/service_tools.py` and
+  `Proposal.services: ServicesFollow`. This spec's files are named apart: `core/services/stored.py` (the stored
+  model), `core/services/ops.py` (the operations), `derive.py`, `edit.py`, `route.py`.
+- This spec's proposal field is `Proposal.services_change` (not `services`).
+- SV-32..SV-35 (what a wall edit does to services) are done by #333's `follow` and leave this spec; SV-33's
+  `services_check` is #333's `Proposal.services`. #333's re-seat estimate (`follow._reseat`) calls this spec's
+  reroute rule (SV-18) once both are merged.
+- Later: `ops.py` can be built on `ServiceGraph`, and #333's `ServiceFollower._read` can read the stored model (SV-8)
+  instead of the IFC. Neither is needed for either PR to merge.
 
 ## Purpose
 
@@ -31,7 +44,7 @@ disciplines; writing an IFC; `propose_reroute` of an existing run.
 
 ## Files owned (new; future workers)
 
-- `backend/app/core/services/model.py`, `derive.py`, `graph.py`, `edit.py`, `route.py`, `walls.py`: pure (pydantic,
+- `backend/app/core/services/stored.py`, `derive.py`, `ops.py`, `edit.py`, `route.py`, `walls.py`: pure (pydantic,
   shapely, no adapter, no settings, no ifcopenshell, no image library).
 - `backend/app/adapters/ifc_model/services_model.py`: builds the model from an IFC file.
 - `backend/app/adapters/services_store.py` (cache, id map), `services_tools.py` (tools), `services_picture.py`
@@ -39,7 +52,7 @@ disciplines; writing an IFC; `propose_reroute` of an existing run.
 - Tests beside them: `backend/tests/test_services_*.py`, on synthetic IFC files built in the test.
 
 Used, not owned (additive changes proposed to their owner, decision 0013's side): `core/plan_edit/model.py`
-(`Proposal.services`, `Proposal.services_check`), `adapters/plan_tools.py` (`propose_remove_wall` fills
+(`Proposal.services_change`, `Proposal.services_check`), `adapters/plan_tools.py` (`propose_remove_wall` fills
 `services_check`), `adapters/agent_tools.py` (offers the tool set, import-guarded like the law tools),
 `adapters/chat_rules.py` (keyword rules), `core/agent/loop.py` (step labels), `adapters/ifc_model/facts_mep.py`
 (facts from stored elements), `frontend/src/agent/EditCard.tsx` (the overlay layer).
@@ -105,7 +118,7 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   with the same subjects and values as `facts_mep.mep_facts` on the same file. Test: equal fact lists on two
   synthetic IFC files (IFC2X3 and IFC4). *Measured*: 416 of 416 aggregates equal on the bench heating model.
 - SV-10 `derive.graph(model)` is an adjacency over `connections` in plain Python (dict, `deque`, `heapq`; no graph
-  library). `graph.py` holds the operations of the earlier plan: terminals served, farthest terminal, what feeds
+  library). `ops.py` holds the operations of the earlier plan: terminals served, farthest terminal, what feeds
   an element, trace, run length per system or from a source (optionally per size), controllers between two
   elements, what closing a valve cuts off, storeys of a system, systems crossing storeys, open ends, unconnected
   elements, panel and circuit of a device, system info. A junction is any element with three or more ports.
@@ -207,7 +220,7 @@ with a plain reason. The input model is never mutated (test: its hash before and
   "removed": [], "added": [], "rooms": [],
   "unknowns": ["Whether the new run clashes with other services: not checked."],
   "flags": [{"code": "not_sized", "text": "Sizes are copied from the old branch. Flow, pressure and clashes with other services are not checked."}],
-  "services": {"op": "move_terminal", "storey": {"id": "L2", "name": "…"}, "based_on": ["p1"],
+  "services_change": {"op": "move_terminal", "storey": {"id": "L2", "name": "…"}, "based_on": ["p1"],
     "picture": "/api/projects/{project_id}/drawings/{drawing_id}/services/L2.png",
     "moved": [{"id": "E12", "label": "Radiator 22-600", "from": [0.41, 0.32], "to": [0.47, 0.38]}],
     "removed": [{"id": "E31", "polyline": [[0.40, 0.31], [0.44, 0.31]], "label": "Pipe DN15, 2.00 m", "system": "…"}],
@@ -216,7 +229,7 @@ with a plain reason. The input model is never mutated (test: its hash before and
     "checks": [{"code": "connected", "ok": true, "text": "The heating network is still in one piece."}]}}
 ```
 
-- SV-28 `Proposal.services: ServicesChange | None = None`. For a services proposal the top-level `removed`, `added`
+- SV-28 `Proposal.services_change: ServicesChange | None = None`. For a services proposal the top-level `removed`, `added`
   and `rooms` are empty, `page` is the storey's ordinal, and `drawing_id` is the services model's drawing.
   Polylines and points are page fractions of the storey picture (SV-6). Metres to 2 decimals.
 - SV-29 `GET /api/projects/{project_id}/drawings/{drawing_id}/services/{storey_id}.png` → the storey drawn from the

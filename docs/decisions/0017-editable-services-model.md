@@ -1,4 +1,4 @@
-# 0016: Building services are kept as one editable services model per file; facts and graph answers are derived from it, and the agent changes it only through id-based tools that return proposals
+# 0017: Building services are kept as one editable services model per file; facts and graph answers are derived from it, and the agent changes it only through id-based tools that return proposals
 
 - Status: proposed
 - Date: 2026-11-14, evening (Europe/Helsinki)
@@ -29,7 +29,7 @@
 
 ## Decision
 
-1. **One services model per source file** (`app/core/services/model.py`, pure): storeys, elements with stable short
+1. **One services model per source file** (`app/core/services/stored.py`, pure): storeys, elements with stable short
    ids (`E12`, mapped to the IFC GlobalId or to a picture spot), kind, type, systems, size, length, position and
    ports in model metres, connections between ports with a `state` (`stated`, `proposed`, `unknown`), and the
    rooms, walls and openings of the building's architectural model when both share coordinates. It is a JSON
@@ -80,12 +80,12 @@
 
 ## Consequences
 
-- New: `app/core/services/` (model, derive, graph, edit, route, walls), `app/adapters/ifc_model/services_model.py`,
+- New: `app/core/services/` (stored, derive, ops, edit, route), `app/adapters/ifc_model/services_model.py`,
   `app/adapters/{services_store,services_tools,services_picture}.py`, `app/api/services.py`, one frontend overlay
   layer. Shared with 0013's owner, additive only: two optional fields on `Proposal`, the tool set in
   `agent_tools.py`, keyword rules in `chat_rules.py`, step labels in the loop, and the affected-services call in
   `propose_remove_wall`.
-- The graph operations of the earlier plan move into `app/core/services/graph.py` and read the model, not the IFC.
+- The graph operations of the earlier plan move into `app/core/services/ops.py` and read the model, not the IFC.
 - Honest limits to state: on the bench heating model, 23 of 63 random radiator moves (37%) gave a proposal, every
   one passing every check, 13 with no flag; 7 of 12 judged by eye looked like an engineer's drawing and 11 of 12
   were acceptable. A looser rule gave 46 of 63 but one or two in five looked right, so the strict rule stays and
