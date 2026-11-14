@@ -8,6 +8,12 @@ export function askable(drawings: Entry[]): Entry[] {
   return drawings.filter((d) => d.state === 'ready' || d.state === 'flagged');
 }
 
+/** Whether the pen can draw on this drawing (ui-bugs 1): the backend's call (`drawable`: a drawn plan with
+ * geometry to pick from), not a guess from the route. */
+export function canDraw(entry: Entry): boolean {
+  return entry.drawable;
+}
+
 // A door count, a room area, a window count first (Tudor 12:45: "like the chatgpt ui"), then the rest in order.
 const STARTER_RANK = ['door', 'area', 'window'];
 const kind = (s: Suggestion) => s.quantity.split(/[:|]/)[0] ?? '';

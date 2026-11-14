@@ -3,6 +3,7 @@ import { ApiError, getModelGlb, type FileStatus, type Highlight } from '../api';
 import { plural } from '../ingest/ingest';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tip } from '@/components/ui/tip';
 import { cn } from '@/lib/utils';
 import { failure, model3dOf, ROLE_LABEL, ROLES, UNAVAILABLE } from './model3d';
 import type { Shown, View } from './scene';
@@ -94,19 +95,21 @@ export function ModelView({
     if (e.key === '+' || e.key === '=') view.current?.zoom(0.8);
     else if (e.key === '-') view.current?.zoom(1.25);
   };
+  // The tip says the button's own words (docs/ui-tooltips.md: replaces the slow native title).
   const tool = (label: string, glyph: string, act: (v: View) => void) => (
-    <Button
-      variant="secondary"
-      size="pill-icon"
-      className="v-press bg-card text-xl leading-none shadow-[var(--v-shadow)] hover:bg-accent"
-      aria-label={label}
-      title={label}
-      onClick={() => {
-        if (view.current) act(view.current);
-      }}
-    >
-      <span aria-hidden="true">{glyph}</span>
-    </Button>
+    <Tip text={label}>
+      <Button
+        variant="secondary"
+        size="pill-icon"
+        className="v-press bg-card text-xl leading-none shadow-[var(--v-shadow)] hover:bg-accent"
+        aria-label={label}
+        onClick={() => {
+          if (view.current) act(view.current);
+        }}
+      >
+        <span aria-hidden="true">{glyph}</span>
+      </Button>
+    </Tip>
   );
   const ready = status.kind === 'ready';
 

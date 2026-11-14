@@ -1,3 +1,5 @@
+import { Tip } from '@/components/ui/tip';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import { useEffect, useRef, useState, type JSX } from 'react';
 import {
   ApiError,
@@ -173,7 +175,9 @@ export function ChecksScreen({
   const head = (note: string | null, failed = false) => (
     <header>
       <h1 className="m-0 text-[clamp(26px,3vw,34px)] tracking-[-0.02em]">
-        Pre-check: {rulePack?.name ?? pack}
+        <Tip text={REVIEW_TIPS.preCheck} wrap>
+          <span>Pre-check: {rulePack?.name ?? pack}</span>
+        </Tip>
       </h1>
       {rulePack && (
         <p className={cn('mt-1 mb-0', MUTED)}>

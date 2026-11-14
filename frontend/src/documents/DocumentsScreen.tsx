@@ -19,6 +19,8 @@ import { IssueCard } from './IssueCard';
 import { issueModel } from '../model3d/model3d';
 import { documentIssues, needsYou } from './documents';
 import { Button } from '@/components/ui/button';
+import { Tip } from '@/components/ui/tip';
+import { TIPS } from '../shell/tips';
 import { MUTED, SMALL, TITLE } from './ui';
 
 /** Route `#/p/<pid>/documents` (documents.md): the issues to answer, the drawings, every file. */
@@ -125,7 +127,9 @@ export function DocumentsScreen({
       <section aria-label="Issues" className="flex flex-col gap-3">
         <div className={TITLE}>
           <div>
-            <h2 className="m-0 text-xl">Issues</h2>
+            <Tip text={TIPS.issues} wrap>
+              <h2 className="m-0 text-xl">Issues</h2>
+            </Tip>
             {rows.length > 0 && (
               <p className={MUTED}>
                 {left

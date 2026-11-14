@@ -21,6 +21,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS } from '../shell/tips-ingest';
 
 const once = () => false;
 const NAME = 'min-w-0 font-mono font-semibold [overflow-wrap:anywhere]';
@@ -58,9 +60,11 @@ export function AccountScreen() {
     <div className="account mx-auto max-w-[1280px] px-6 py-10 max-[720px]:px-4 max-[720px]:py-6">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="m-0 text-[44px] leading-[1.1] font-bold tracking-[-0.025em] max-[720px]:text-[32px]">
-            Your workspaces
-          </h1>
+          <Tip text={INGEST_TIPS.workspaces} wrap>
+            <h1 className="m-0 text-[44px] leading-[1.1] font-bold tracking-[-0.025em] max-[720px]:text-[32px]">
+              Your workspaces
+            </h1>
+          </Tip>
           {list.data && (
             <p className="v-caption mt-1.5 mb-0">
               {projects.length === 1 ? '1 workspace' : `${String(projects.length)} workspaces`} on

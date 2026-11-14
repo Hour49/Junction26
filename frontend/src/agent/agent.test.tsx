@@ -26,7 +26,7 @@ import {
   proposal,
   roomTurn,
 } from './fixtures';
-import { selectionOf } from './PlanPointer';
+import { selectionOf } from './PlanPane';
 import { TurnCard } from './TurnCard';
 
 const PID = project.id;

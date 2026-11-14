@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Tip } from '@/components/ui/tip';
+import { TIPS } from '../shell/tips';
 import {
   askQuestion,
   drawingLabel,
@@ -169,7 +171,9 @@ export function EngineerPage(props: {
               <p className="en-small">Building model: no sheet to draw on.</p>
             </>
           )}
-          <p className="en-read">{howRead(drawing)}</p>
+          <Tip text={TIPS.howRead} wrap>
+            <p className="en-read">{howRead(drawing)}</p>
+          </Tip>
         </>
       )}
       <section className="en-thread" aria-label="Chat" ref={thread}>

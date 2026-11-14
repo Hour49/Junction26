@@ -1,50 +1,47 @@
 import { useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
-import { routeHref } from '../shell/route';
-import { GRADE_TONE, PartialTag, StatusPill } from './AnswerCard';
+import { GRADE_TONE, PartialTag, StatusPill, TipIf, WhyToggle } from './AnswerCard';
 import { ResolverLines } from './Resolver';
 import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
 import { ModelDialog } from '../model3d/ModelDialog';
 import { canShow3d } from '../model3d/model3d';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-/** "<Level> confidence" (CH-42), the backend's sentence as its tooltip when there is one. */
+/** "<Level> confidence" (CH-42), the backend's sentence as its tooltip (the shared Tip) when there is one. */
 const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
-  <span className={`v-pill${GRADE_TONE[grade]}`} title={text}>
-    {grade} confidence
-  </span>
+  <TipIf text={text}>
+    <span className={`v-pill${GRADE_TONE[grade]}`}>{grade} confidence</span>
+  </TipIf>
 );
 
-const Chevron = ({ d }: { d: string }) => (
-  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-    <path d={d} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-  </svg>
-);
-
-/** A project answer from one or more drawings (chat.md "Demo parity", CH-30..CH-35): the lead line, the current
- * reference drawn large with arrows on its sides, the rows per drawing and the numbered references. */
+/** A project answer from one or more drawings (chat.md "Demo parity", CH-30..CH-35; ui-bugs 4-9): the lead line,
+ * the chosen reference drawn large with the numbered references under it, and that one drawing's card beside it. */
 export function ChatAnswer(props: {
   ask: ProjectAnswer;
   project: ProjectView;
   projectId: string;
   pack: string | null;
 }) {
-  const { ask, project, projectId, pack } = props;
+  const { ask, project, projectId } = props;
   const parts = orderParts(ask.parts, project.files);
-  // Only parts with a page can be drawn; a building model is listed as "no preview".
-  const drawn = parts.filter((p) => p.answer.pages.length > 0);
-  const [at, setAt] = useState(0);
+  // The reference shown: the first with a page; a building model (no page) shows "No preview" when chosen.
+  const [at, setAt] = useState(() =>
+    Math.max(
+      0,
+      parts.findIndex((p) => p.answer.pages.length > 0),
+    ),
+  );
   // model-3d.md part 2: the part whose 3D view is open, and the button that opened it (focus goes back)
   const [model, setModel] = useState<(typeof parts)[number] | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
-  const current = drawn[at];
-  const step = (by: number) => {
-    setAt((i) => (i + by + drawn.length) % drawn.length);
-  };
-  // That drawing opens answering this question (EN-72), in the chat's rule pack (QA R4b-1).
-  const query = new URLSearchParams(pack ? { ask: ask.question, pack } : { ask: ask.question });
+  const current = parts[Math.min(at, parts.length - 1)];
+  const has3d = (p: (typeof parts)[number]) => canShow3d(p.model_3d) && Boolean(p.model_file_id);
+  // ui-bugs 5: the shown drawing's own model, else the answer's building model; none: no button
+  const model3d = current && has3d(current) ? current : parts.find(has3d);
   // "2 doors" (EN-68's noun), as the demo's "11 doors"
   const noun = (n: string | null | undefined) => (n ? ` ${n}` : '');
   // The value the server shows (`answer`: an estimated area in whole m², #294), as the answer card says it (CH-48).
@@ -58,11 +55,12 @@ export function ChatAnswer(props: {
   // CH-40: a drawing by its plain name (#224), else its file name; files keep their path
   const labelOf = (p: (typeof parts)[number]) =>
     drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
-  const why = (p: (typeof parts)[number]) => p.answer.check?.reason ?? p.answer.level?.text;
+  // ui-bugs 7: why a value was refused or flagged stays on screen; the confidence sentence is behind "Why?"
+  const reason = (p: (typeof parts)[number]) => p.answer.check?.reason;
   // CH-46: the reason already says it is an estimate and why (the backend quotes it): one line, not two
   const estimate = (p: (typeof parts)[number]) => {
     const e = p.answer.quantity?.estimate;
-    return e && why(p)?.includes(e) ? null : estimateLine(p.answer);
+    return e && reason(p)?.includes(e) ? null : estimateLine(p.answer);
   };
   const about = (drawingId: string) => {
     const d = project.drawings.find((x) => x.drawing_id === drawingId);
@@ -90,141 +88,115 @@ export function ChatAnswer(props: {
         <p className="en-lead en-lead--why">{ask.why_no_total ?? ask.total_note}</p>
       )}
       <div className="v-card en-chatcard">
-        {current && (
-          <figure
-            className="en-chatfig"
-            aria-label={`Reference ${String(at + 1)} of ${String(drawn.length)}`}
-          >
-            {/* the viewer is bare (no name of its own): the demo's mono file name above the image */}
-            <span className="en-chatname">{labelOf(current)}</span>
-            <Plan
-              place={null}
-              viewer={{
-                bare: true,
-                file: current.name,
-                pages: current.answer.pages,
-                marks: current.answer.marks,
-                credit: null,
-                unit: current.answer.unit,
-                legend: current.answer.proof.legend,
-              }}
-              overlay={
-                drawn.length > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      className="en-nav en-nav--prev v-press"
-                      aria-label="Previous reference"
-                      onClick={() => {
-                        step(-1);
-                      }}
-                    >
-                      <Chevron d="M15 6l-6 6 6 6" />
-                    </button>
-                    <button
-                      type="button"
-                      className="en-nav en-nav--next v-press"
-                      aria-label="Next reference"
-                      onClick={() => {
-                        step(1);
-                      }}
-                    >
-                      <Chevron d="M9 6l6 6-6 6" />
-                    </button>
-                  </>
-                )
-              }
-            />
-          </figure>
-        )}
-        <div className="en-side">
-          <ul className="en-parts" aria-label="Per drawing">
-            {parts.map((p) => (
-              <li key={p.drawing_id}>
-                <span>
-                  <span className="en-part-name">{labelOf(p)}</span>: <strong>{value(p)}</strong>
-                </span>
-                {/* CH-49: a room total that may leave rooms out; the explanation names them */}
-                <PartialTag a={p.answer} />
-                {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
-                {p.answer.quantity?.status === 'signed' ? (
-                  <span className="v-pill v-pill--ok">Signed off</span>
-                ) : gradeOf(p.answer) ? (
-                  <LevelPill grade={gradeOf(p.answer) as Grade} text={p.answer.level?.text} />
-                ) : (
-                  p.answer.quantity && <StatusPill status={p.answer.quantity.status} />
+        <figure
+          className="en-chatfig"
+          aria-label={`Reference ${String(at + 1)} of ${String(parts.length)}`}
+        >
+          {current && (
+            <>
+              {/* the viewer is bare (no name of its own): the name above the image, the 3D button at its right */}
+              <div className="en-chathead">
+                <span className="en-chatname">{labelOf(current)}</span>
+                {model3d && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="size-11 rounded-full text-xs font-bold"
+                          aria-label={`View in 3D: ${labelOf(model3d)}`}
+                          onClick={(e) => {
+                            opener.current = e.currentTarget;
+                            setModel(model3d);
+                          }}
+                        >
+                          3D
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Open the 3D model</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
-                <a
-                  className="en-show"
-                  href={routeHref({
-                    name: 'workspace',
-                    projectId,
-                    drawingId: p.drawing_id,
-                    role: 'engineer',
-                    query,
-                  })}
-                >
-                  Show it on {labelOf(p)}
-                </a>
-                {estimate(p) && <p className="en-estimate">{estimate(p)}</p>}
-                {/* CH-43: why, under the value, as a refusal gives its reason */}
-                {why(p) && <p className="en-why">{why(p)}</p>}
-                <ResolverLines a={p.answer} />
-              </li>
-            ))}
-          </ul>
+              </div>
+              {current.answer.pages.length > 0 ? (
+                <Plan
+                  place={null}
+                  viewer={{
+                    bare: true,
+                    file: current.name,
+                    pages: current.answer.pages,
+                    marks: current.answer.marks,
+                    credit: null,
+                    unit: current.answer.unit,
+                    legend: current.answer.proof.legend,
+                  }}
+                />
+              ) : (
+                <p className="en-nopreview">No preview for this file</p>
+              )}
+            </>
+          )}
           <div className="en-crefsbox">
             <span className="en-label">References</span>
             <ol className="en-crefs" aria-label="References">
               {parts.map((p, n) => {
-                const k = drawn.indexOf(p);
                 const sub = about(p.drawing_id);
-                const body = (
-                  <>
-                    <span className="en-cnum">{n + 1}</span>
-                    <span className="en-crefbody">
-                      <span className="en-crefname">{labelOf(p)}</span>
-                      <span className="en-muted">
-                        {sub}
-                        {k < 0 && `${sub ? ' · ' : ''}no preview`}
-                      </span>
-                    </span>
-                  </>
-                );
                 return (
                   <li key={p.drawing_id}>
-                    {k < 0 ? (
-                      <span className="en-cref">{body}</span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="en-cref v-press"
-                        aria-pressed={k === at}
-                        onClick={() => {
-                          setAt(k);
-                        }}
-                      >
-                        {body}
-                      </button>
-                    )}
-                    {canShow3d(p.model_3d) && p.model_file_id && (
-                      <button
-                        type="button"
-                        className="v-btn v-btn--secondary v-press m3-open3d"
-                        aria-label={`View in 3D: ${labelOf(p)}`}
-                        onClick={(e) => {
-                          opener.current = e.currentTarget;
-                          setModel(p);
-                        }}
-                      >
-                        View in 3D
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="en-cref v-press"
+                      aria-pressed={n === at}
+                      onClick={() => {
+                        setAt(n);
+                      }}
+                    >
+                      <span className="en-cnum">{n + 1}</span>
+                      <span className="en-crefbody">
+                        <span className="en-crefname">{labelOf(p)}</span>
+                        <span className="en-muted">
+                          {sub}
+                          {p.answer.pages.length === 0 && `${sub ? ' · ' : ''}no preview`}
+                        </span>
+                      </span>
+                    </button>
                   </li>
                 );
               })}
             </ol>
           </div>
+        </figure>
+        <div className="en-side">
+          {/* ui-bugs 6: only the card of the drawing shown on the left */}
+          <ul className="en-parts" aria-label="Per drawing">
+            {current && (
+              <li key={current.drawing_id}>
+                <span>
+                  <span className="en-part-name">{labelOf(current)}</span>:{' '}
+                  <strong>{value(current)}</strong>
+                </span>
+                {/* CH-49: a room total that may leave rooms out; the explanation names them */}
+                <PartialTag a={current.answer} />
+                {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
+                {current.answer.quantity?.status === 'signed' ? (
+                  <span className="v-pill v-pill--ok">Signed off</span>
+                ) : gradeOf(current.answer) ? (
+                  <LevelPill
+                    grade={gradeOf(current.answer) as Grade}
+                    text={current.answer.level?.text}
+                  />
+                ) : (
+                  current.answer.quantity && <StatusPill status={current.answer.quantity.status} />
+                )}
+                {estimate(current) && <p className="en-estimate">{estimate(current)}</p>}
+                {/* CH-43: why a value was refused or flagged, under the value */}
+                {reason(current) && <p className="en-why">{reason(current)}</p>}
+                <WhyToggle text={current.answer.level?.text} />
+                <ResolverLines a={current.answer} />
+              </li>
+            )}
+          </ul>
         </div>
       </div>
       {model?.model_file_id && (
