@@ -119,7 +119,7 @@ it('SH-58 focus ring on every focusable element, no outline: none, reduced motio
   const focusable = ['a', 'button', 'select', 'input', 'textarea', 'summary', '[tabindex]'];
   for (const el of focusable) {
     const ring = rulesFor(`${el}:focus-visible`, css);
-    expect(ring, el).toMatch(/outline:\s*2px solid var\(--v-accent\)/);
+    expect(ring, el).toMatch(/outline:\s*3px solid var\(--v-accent\)/); // SH-81: the demo's 3px
     expect(ring, el).toMatch(/outline-offset:\s*2px/);
   }
   // The one exception: App focuses <main tabindex=-1> on a route change; it is not a control (pre-QA 12:00).
@@ -194,4 +194,29 @@ it('SH-71 the country button stays on one line and ellipsises a long name', () =
   const name = rulesFor('.country-name', css);
   expect(name).toMatch(/overflow:\s*hidden/);
   expect(name).toMatch(/text-overflow:\s*ellipsis/);
+});
+
+it('SH-81 the demo-parity tokens and the badge and tabs use them', () => {
+  const root = declarations(rulesFor(':root', css));
+  for (const [name, value] of Object.entries({
+    '--v-warn-mark': '#d9860b',
+    '--v-warn-mark-fill': 'rgba(217, 134, 11, 0.12)',
+    '--v-badge': '#e8740c',
+    '--v-seg': '#e8e8ed',
+    '--v-grey': '#ececf0',
+    '--v-mono': '"JetBrains Mono", ui-monospace, Menlo, monospace',
+  }))
+    expect(root.get(name), name).toBe(same(value));
+  expect(rulesFor('.tab-badge', css)).toMatch(/background:\s*var\(--v-badge\)/);
+  expect(rulesFor('.view-links', css)).toMatch(/background:\s*var\(--v-seg\)/);
+});
+
+it('SH-81 the demo look: 3px focus ring, a surface ring round the badge, the smaller phone logo', () => {
+  expect(rulesFor('a:focus-visible', css)).toMatch(/outline:\s*3px solid var\(--v-accent\)/);
+  expect(rulesFor('.tab-badge', css)).toMatch(/box-shadow:\s*0 0 0 2px var\(--v-surface\)/);
+  const phone = css.slice(css.indexOf('@media (max-width: 720px)'));
+  const logo = rulesFor('.brand-logo', phone);
+  expect(logo).toMatch(/width:\s*36px/);
+  expect(logo).toMatch(/height:\s*36px/);
+  expect(rulesFor('.brand-name', phone)).toMatch(/font-size:\s*22px/);
 });

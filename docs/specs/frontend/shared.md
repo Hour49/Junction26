@@ -273,6 +273,105 @@ tab. Hrefs: `#/p/<pid>`, `/conflicts`, `/checks`, `/issues`, `/chat`, the drawin
   the third row and wrap to a second line of the control when they do not fit (each ≥44 px high); no horizontal
   page scroll at 390, 768 and 1024.
 
+## Demo parity (round 6: Tudor 16:25, brief fe-demo-parity.md; demo PRs #201-#217)
+
+Supersedes "Header tabs" above, the Conflicts/Issues/Checks tabs in SH-56, SH-64, SH-68 and SH-72, and the credit
+line under every drawing (Credit, SH-23-era). Port the demo's shell look and behaviour, never its data.
+
+### Tabs: Ingest · Chat · Documents (#206)
+
+| Route | Tabs (current marked) |
+| --- | --- |
+| project, file, and the old `conflicts` / `issues` routes | Ingest (current), Chat, Documents |
+| chat | Ingest, Chat (current), Documents |
+| documents | Ingest, Chat, Documents (current) |
+| checks, workspace (engineer and surveyor) | Ingest, Chat, Documents (none current) |
+
+- Hrefs `#/p/<pid>`, `#/p/<pid>/chat`, `#/p/<pid>/documents`, each with `?pack=<id>` when the route has a pack
+  (`withPack`). No Conflicts, Issues, Checks or Surveyor tab; those screens stay reachable by the links other
+  screens draw (checks from Documents, surveyor/engineer from a drawing).
+- New route `documents`: `#/p/<pid>/documents` (trailing `/` accepted) → `Screens.DocumentsScreen({projectId,
+  pack})` (fe-ingest's `src/documents/DocumentsScreen.tsx`; `pack` = `packOf(route)`). Changing only `?pack` does not remount (SH-67 rule).
+- Old routes: `#/p/<pid>/conflicts` and `#/p/<pid>/issues` parse as the `project` route (ProjectScreen mounts, Ingest
+  current); the hash is not rewritten and its query (`?q`, `?pack`, `?view`…) is kept and passed on as for any
+  project route. `routeHref` of such a route gives `#/p/<pid>` (+ query). The `conflicts` and `issues` route names
+  are removed from `Route`.
+- Look (demo `.seg`): the segmented control on `--v-seg` (#e8e8ed) with 3px padding, radius 10px, 2px gap; each tab
+  14px/500 `--v-text-2`, padding 8px 16px, radius 8px, min-height 36px (44px at ≤1100 px, SH-70 stays); current tab
+  600 `--v-text` on `--v-surface` with `0 1px 3px rgba(0,0,0,0.10)`.
+
+### Documents badge (#212)
+
+- The Documents tab shows an orange badge with the number of issues still to answer: fe-ingest's
+  `needsYou(issues, answers)` (documents.md DOC-12, the one rule: not a `conflict`, severity not `note`, `state`
+  `open`, not answered in the store; a failed rule counts, it is answered by typing). Orch 16:55: fe-ingest owns the
+  rule, fe-shared the store and the hook.
+- Source: `useIssuesToAnswer(projectId, reload?): number | null` in `src/shell/issueCount.ts` (fe-shared): one
+  `getIssues(projectId)` (no pack) per project and per change of `reload` (the header passes the route), then
+  `needsYou(list.issues, useIssueAnswers(projectId))`; it re-renders when the store changes, without a request. A
+  409 (ingest not done), any error, a load in flight or no project → `null` → no badge; 0 → no badge. The
+  finished-ingest done line ("N issues in Documents need you", preqa-a / fe-scaffold) reads the same hook. The hook imports
+  `needsYou` from `src/documents/documents.ts` (one rule).
+- Badge: `<span class="tab-badge" aria-hidden="true">N</span>` inside the tab link; the link's accessible name
+  becomes "Documents, N issues to answer" ("1 issue"). Look (demo `.seg .badge`): absolute, top -8px, right -8px,
+  20px high, min-width 20px, padding 0 5px, radius 10px, `--v-badge` (#e8740c) background, white 12px/700 text;
+  the tab gets `position: relative`. Never colour alone: the number is the content, the name says what it counts.
+
+### Answers store (client-side until the API saves answers; API ask A1)
+
+- `src/shell/issueAnswers.ts` (fe-shared): `answerOf(projectId, issueId): string | null`, `setAnswer(projectId,
+  issueId, text: string | null): void` (null clears), `useIssueAnswers(projectId): ReadonlyMap<string, string>`
+  (issue id → typed text; a new map on every change of that project, so it is the `answers` argument of `needsYou`
+  and a React dependency). In memory only until API ask A1 lands (Open point 26, decided): a reload forgets the
+  typed answers and the badge counts them again; the Documents screen says so (its owner). fe-ingest's Documents
+  writes it (instead of its planned `localAnswers`/localStorage); the badge and the done line read it.
+
+### Credits move to an About page (#204; CC BY needs them reachable)
+
+- No screen shows a credit line any more: `src/shell/Credit.tsx` is deleted (no screen renders it; SH-40 and SH-50
+  retired with it).
+- New route `about`: `#/about` (optionally `?project=<pid>`) → `AboutScreen` (`src/shell/AboutScreen.tsx`,
+  fe-shared): h1 "About Vellum", one line on what it is, then "Drawing credits": with `?project`, the project's name
+  and one row per drawing (`file`, then its `credit` verbatim with a leading "Credit:" stripped as before; null →
+  "No credit recorded for this file"), loaded with `getProject` + one `getDrawing(id, {project})` per drawing
+  (shortcut until API ask A2: N requests); without `?project`, "Open a project to see its drawings' credits." Loading
+  ("Loading the credits…"), error (ErrorView with Retry) and a project without drawings ("This project has no
+  drawings.").
+- Every page ends with a footer (`<footer class="app-foot">`, demo `.foot`: centred 12px `--v-muted`, padding
+  0 24px 32px) holding one link "About and credits" → `#/about`, with `?project=<pid>` on project routes. The tab
+  title stays "Vellum".
+
+### Tokens (demo `style.css :root`)
+
+- Added: `--v-warn-mark: #d9860b` (the conflict/issue outline orange; fe-viewer's ask, orch 16:28),
+  `--v-warn-mark-fill: rgba(217, 134, 11, 0.12)` (the outline's soft fill, demo `.hl`), `--v-badge: #e8740c`, `--v-seg: #e8e8ed`,
+  `--v-grey: #ececf0` (plain buttons, grey pills), `--v-mono: "JetBrains Mono", ui-monospace, Menlo, monospace`
+  (no web font is loaded: the stack falls back). Other `--v-*` values already equal the demo's. Owners use these
+  instead of the demo's literals; the demo's #e9efec (soft button) and #f2f2f5 (tag) map to `--v-accent-soft` and
+  `--v-fill` (no new token for a near-equal shade).
+- Header: as the demo's `.top-in`: padding 14px 24px, gap 12px; brand 44px logo (radius 12px, `--v-text` backing,
+  6px padding) and "Vellum" 26px/700, letter-spacing -0.025em; Workspaces pill as `.pill-link` (`rgba(0,0,0,0.04)`
+  fill, 980px radius, min-height 48px, 600); at ≤720 px the logo is 36px (padding 5px, radius 10px) and "Vellum"
+  22px. Focus ring 3px `--v-accent`, offset 2px (was 2px; SH-58). The badge has a 2px `--v-surface` ring. The
+  offline strip and "What runs" stay (no-keys honesty; the demo has neither). The header stays solid (`--v-surface`, Open point 23 decided), not the demo's glass.
+
+### Plain drawing names (#201)
+
+- `drawingName(file: string): string` in `src/api/format.ts`: the path's last segment (folders dropped), extension
+  kept: `plans/flat-a.pdf` → `flat-a.pdf`. Used where a screen names a drawing. No prettifying of dataset ids
+  (`site980_bldg2055_floor9178` stays as given): a plain name needs the backend (API ask A3).
+
+### API asks (fe-shared, for Bogdan's fleet on #14 via the orchestrator)
+
+- A1. Save an issue's answer: `POST /api/projects/{pid}/issues/{id}/answer {text, by}` (and clear), and the answer on
+  `Issue` (`answer: {text, by, at} | null`), so the badge and Documents survive a reload and other viewers see it.
+- A2. `credit` on `DrawingEntry` in `GET /api/projects/{id}` (today only on `GET /api/drawings/{id}`), so About makes
+  one request.
+- A3. A plain name per drawing (`title`: the sheet title or the answer key's name, null when none) on `DrawingEntry`
+  and `DrawingView`, instead of the dataset file name.
+- A4. (nice to have) `issues_to_answer` (needs_person + open) next to `ProjectSummary.issues_open`, so the badge
+  needs no issues request.
+
 ## Files owned
 
 Tooling: built by the scaffold PR (branch `frontend/scaffold`, worker fe-scaffold), not by this spec's build worker.
@@ -687,7 +786,7 @@ Vellum round (round 2)
   `.v-btn--secondary` (`--v-fill`), `.v-pill` and its four tones, `.v-segmented`, `.v-page` and its three widths,
   `.v-title`, `.v-hero`. [unit: parse the CSS]
 - SH-58 Focus and motion: `:focus-visible` on `a, button, select, input, textarea, summary, [tabindex]` sets
-  `outline: 2px solid var(--v-accent)` with `outline-offset: 2px`; the only rule in `src/shell/` that sets `outline:
+  `outline: 3px solid var(--v-accent)` with `outline-offset: 2px`; the only rule in `src/shell/` that sets `outline:
   none` is for `main[tabindex='-1']` (`:focus`, `:focus-visible`): App moves focus there on a route change, and it is
   not a control, so it draws no ring around the page (pre-QA 12:00);
   a `prefers-reduced-motion: reduce` block turns off transitions and animations for `*`. (The reduced-transparency
@@ -737,6 +836,37 @@ Vellum round (round 2)
 - SH-74 (triage) `readAsPlan('5e0c1a2b3d52', 'f2', 'Ana')` sends `POST /api/projects/5e0c1a2b3d52/files/f2/triage`
   with `triage_request.json` as the body and resolves with the 202's `triage_started.json`; `fixtures.ts` exports
   `triageRequest`, `triageStarted`, `fileReadAsPlan`; `types.ts` exports `TriageRequest`, `ReadAsPlan`. [unit, mockApi]
+- SH-75 (parity) Header tabs per route are those of "Tabs: Ingest · Chat · Documents" in that order, hrefs carrying
+  `?pack` when the route has it, exactly the current one marked (none on checks and workspace routes); no Conflicts,
+  Issues, Checks or Surveyor tab on any route. Supersedes SH-56, SH-64, SH-68 and SH-72 (tabs). [component]
+- SH-76 (parity) `parseRoute('#/p/<pid>/documents')` → `documents` (trailing `/` accepted, `/documents/x`
+  not-found); `routeHref` round-trips it with `?pack`; `App` mounts `DocumentsScreen` with `{projectId, pack}` and
+  changing only `?pack` does not remount. [unit + component]
+- SH-77 (parity) `#/p/<pid>/conflicts?q=a&pack=fi` and `#/p/<pid>/issues?pack=fi` parse as `project` with that
+  query (`packOf` → `fi`, `q` kept); ProjectScreen mounts and Ingest is current; the hash is not rewritten. [unit +
+  component]
+- SH-78 (parity) Badge: the store keeps answers per project (`answerOf`, `setAnswer`, null clears);
+  `useIssuesToAnswer(pid)` is null while loading, then `needsYou` over `project_issues.json` variants (a failed rule
+  counts; a settled one, a note and a conflict do not); `setAnswer` lowers it and clearing raises it back with no new
+  request; a new `reload` asks again, a null project asks nothing; a 409 and a 500 give null. In the header: the
+  link's name "Documents, 2 issues to answer" (singular "1 issue"), the badge `aria-hidden`, none for 0 or null.
+  [unit + component, mockApi]
+- SH-79 (parity) No element with class `credit` and no text starting "Credit:" on any route of App with stub
+  screens; the footer link "About and credits" is on every route, `#/about?project=<pid>` on project routes and
+  `#/about` elsewhere. [component]
+- SH-80 (parity) `parseRoute('#/about')` → `about` (`/about/x` not-found, `?project` round-trips);
+  `#/about?project=<pid>` lists the project's drawings with their credits ("Credit:" stripped once,
+  null → "No credit recorded for this file"), one `getProject` and one `getDrawing` per drawing; `#/about` says
+  "Open a project to see its drawings' credits." and sends no project request; a 500 shows ErrorView with Retry.
+  [component, mockApi]
+- SH-81 (parity) `shell.css` defines `--v-warn-mark #d9860b`, `--v-warn-mark-fill rgba(217, 134, 11, 0.12)`, `--v-badge #e8740c`, `--v-seg #e8e8ed`, `--v-grey
+  #ececf0`, `--v-mono`; `.tab-badge` uses `var(--v-badge)` with a `0 0 0 2px var(--v-surface)` ring; the focus ring is 3px; at ≤720 px
+  `.brand-logo` is 36px and `.brand-name` 22px; the segmented control uses `var(--v-seg)`; no colour
+  literal outside `:root` (the existing token test). [unit: parse the CSS]
+- SH-82 (parity) `drawingName('plans/flat-a.pdf')` → `flat-a.pdf`, `drawingName('flat-a.pdf')` → `flat-a.pdf`,
+  `drawingName('a/b/site980_bldg2055_floor9178.png')` → `site980_bldg2055_floor9178.png`. [unit]
+- SH-83 (parity) At 1440x900 and 390x844 on project, documents, chat and about: no horizontal scroll, the badge
+  inside the viewport and not covering the next tab's label, tabs ≥44 px high at 390. [e2e fe-golden; browser]
 - SH-63 `index.html`'s `<title>` equals `PRODUCT_NAME` ("Vellum"). [unit]
 - SH-61 The country picker: a button "Country rules: Finland" with `data-pending="country-rules"` and
   `aria-expanded="false"`; clicking opens the group "Building rules the agent follows" with Finland
@@ -819,3 +949,15 @@ Vellum round (round 2)
     alternative (a horizontally scrolling tab strip) hides tabs. Recommendation: the 1100 px breakpoint.
 21. **`IssuesScreen` prop** is `pack?: string` and `ChecksScreen`'s is `pack: string | null`, as the brief fixes them;
     the shell passes `undefined` / `null` for no pack.
+23. **Header glass or opaque** (parity; DECIDED 16:50 orch: stays solid): the demo's header is translucent glass (`rgba(255,255,255,0.72)` +
+    blur); ours was made opaque on purpose (D20, orchestrator 11:45). Proposal: keep opaque (readability over
+    drawings, no blur cost); switch only if Tudor wants the exact demo look. Orchestrator's call.
+24. **Pickers stay** (parity; DECIDED 16:50 orch: keep both): the demo's header has no project picker and no country picker. Proposal: keep both
+    (switching projects and the rule pack are real features the demo never had); the demo changes did not remove
+    them. Orchestrator's call.
+25. **Checks route without a tab** (parity; DECIDED 16:50 orch: checks page stays, no tab, linked from Documents): the brief drops the Checks tab; `#/p/<pid>/checks` stays as a route,
+    reached from Documents' code-check issues ("See the check"). If Tudor wants checks gone entirely, the route goes
+    too.
+26. **Answers in memory only** until A1 (DECIDED 16:50 orch: in memory until A1): a reload loses typed answers and the badge comes back. Alternative:
+    `sessionStorage` per tab (survives a reload, not other viewers); not chosen to keep one source of truth for
+    when A1 lands. Orchestrator's call.

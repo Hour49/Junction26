@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { formatTime, formatValue, methodName, readerName } from './format';
+import { drawingName, formatTime, formatValue, methodName, readerName } from './format';
 import { projectList } from './fixtures';
 
 const zone = process.env.TZ;
@@ -52,4 +52,10 @@ it('R3-method (SH-49) methodName turns measuring-method ids into plain labels', 
   for (const [id, label] of Object.entries(labels)) expect(methodName(id)).toBe(label);
   for (const missing of [null, undefined]) expect(methodName(missing)).toBe('no method');
   expect(methodName('lidar')).toBe('lidar');
+});
+
+it('SH-82 drawingName drops the folders and keeps the file name as given', () => {
+  expect(drawingName('plans/flat-a.pdf')).toBe('flat-a.pdf');
+  expect(drawingName('flat-a.pdf')).toBe('flat-a.pdf');
+  expect(drawingName('a/b/site980_bldg2055_floor9178.png')).toBe('site980_bldg2055_floor9178.png');
 });

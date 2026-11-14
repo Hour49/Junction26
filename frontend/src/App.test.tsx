@@ -3,8 +3,9 @@ import { renderHook } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, type Screens } from './App';
-import type { ProjectList } from './api';
-import { error as errorBody, info, projectList, rulePackFi } from './api/fixtures';
+import type { Issue, ProjectList } from './api';
+import { error as errorBody, info, projectIssues, projectList, rulePackFi } from './api/fixtures';
+import { setAnswer } from './shell/issueAnswers';
 import { InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
@@ -28,35 +29,44 @@ function ChecksStub({ projectId, pack }: { projectId: string; pack: string | nul
 const withPacks = info;
 const noPacks = { ...info, rule_packs: [] };
 
-function ProjectStub({ projectId }: { projectId: string }) {
+function ProjectStub({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [mount] = useState(() => ++projectMounts);
   return (
     <p>
-      project {projectId} mount {mount}
+      project {projectId} mount {mount} {query?.toString()}
     </p>
   );
 }
+
+let documentsMounts = 0;
+function DocumentsStub({ projectId, pack }: { projectId: string; pack: string | null }) {
+  const [mount] = useState(() => ++documentsMounts);
+  return (
+    <p>
+      documents {projectId} {String(pack)} mount {mount}
+    </p>
+  );
+}
+
+/** The header's badge asks for the issues on project routes; a 409 (ingest not done) shows no badge. */
+const noIssues = Object.fromEntries(
+  [P, 'aaaaaaaaaaaa', 'bbbbbbbbbbbb'].map((id) => [
+    `GET /api/projects/${id}/issues`,
+    reply(409, { detail: 'not done', code: 'not-ready' }),
+  ]),
+);
 
 const stubs: Screens = {
   HomeScreen: () => <p>home screen</p>,
   AccountScreen: () => <p>account screen</p>,
   ProjectScreen: ProjectStub,
-  ConflictsScreen: ({ projectId, query }) => (
-    <p>
-      conflicts {projectId} {query?.get('pack')}
-    </p>
-  ),
   ProjectChat: ({ projectId, query }) => (
     <p>
       chat {projectId} {query.get('ask')}
     </p>
   ),
   ChecksScreen: ({ projectId, pack }) => <ChecksStub projectId={projectId} pack={pack} />,
-  IssuesScreen: ({ projectId, pack }) => (
-    <p>
-      issues {projectId} {String(pack)}
-    </p>
-  ),
+  DocumentsScreen: DocumentsStub,
   FileTraceScreen: ({ fileId }) => <p>trace {fileId}</p>,
   EngineerPage: ({ drawingId }) => <p>engineer {drawingId}</p>,
   SurveyorScreen: ({ drawingId, query }) => (
@@ -90,7 +100,7 @@ afterEach(cleanup);
 
 describe('shell', () => {
   it('SH-4 a hash change renders the matching screen without a reload', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     expect(screen.getByText('home screen')).toBeTruthy();
     go(`#/p/${P}`);
@@ -106,7 +116,7 @@ describe('shell', () => {
 
   it('SH-5 an unknown route shows the not-found view and asks for nothing else', async () => {
     window.location.hash = '#/nope';
-    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeTruthy();
     expect(screen.getByText('Nothing at #/nope')).toBeTruthy();
@@ -116,7 +126,7 @@ describe('shell', () => {
   });
 
   it('SH-7 the product name links to the start on every route', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     for (const hash of ['#/', `#/p/${P}`, `#/p/${P}/d/${D}/engineer`, '#/workspaces', '#/nope']) {
       go(hash);
@@ -125,90 +135,110 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-13 on a drawing route the view links point to the views and keep ?q=', async () => {
-    window.location.hash = `#/p/${P}/d/${D}/engineer?q=door`;
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+  it('SH-75 the tabs of each route: Ingest, Chat, Documents; at most the current one is marked', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
-    expect(links().map((l) => [l.text, l.href])).toEqual([
-      ['Ingest', `#/p/${P}`],
-      ['Conflicts', `#/p/${P}/conflicts`],
-      ['Issues', `#/p/${P}/issues`],
-      ['Chat', `#/p/${P}/chat`],
-      ['Surveyor', `#/p/${P}/d/${D}/surveyor?q=door`],
-    ]);
-    // Tudor 12:46: no Engineer tab; the engineer route still renders.
-    expect(screen.queryByRole('link', { name: 'Engineer' })).toBeNull();
+    const marked = () => links().map((l) => [l.text, l.href, l.current]);
+    const tabs = (current: string | null) =>
+      [
+        ['Ingest', `#/p/${P}`],
+        ['Chat', `#/p/${P}/chat`],
+        ['Documents', `#/p/${P}/documents`],
+      ].map(([text, href]) => [text, href, text === current ? 'page' : null]);
+    for (const hash of ['#/', '#/workspaces', '#/nope', '#/about']) {
+      go(hash);
+      expect(links(), hash).toEqual([]);
+    }
+    for (const hash of [`#/p/${P}`, `#/p/${P}/f/f1`, `#/p/${P}/conflicts`, `#/p/${P}/issues`]) {
+      go(hash);
+      expect(marked(), hash).toEqual(tabs('Ingest'));
+    }
+    go(`#/p/${P}/chat`);
+    expect(marked()).toEqual(tabs('Chat'));
+    go(`#/p/${P}/documents`);
+    expect(marked()).toEqual(tabs('Documents'));
+    for (const hash of [
+      `#/p/${P}/checks`,
+      `#/p/${P}/d/${D}/surveyor`,
+      `#/p/${P}/d/${D}/engineer`,
+    ]) {
+      go(hash);
+      expect(marked(), hash).toEqual(tabs(null));
+    }
+    for (const name of ['Conflicts', 'Issues', 'Checks', 'Surveyor', 'Engineer'])
+      expect(screen.queryByRole('link', { name }), name).toBeNull();
     expect(screen.getByText(`engineer ${D}`)).toBeTruthy();
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-56 the view links of each route; at most the current one is marked', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+  it('SH-75 with a pack every tab href carries it (also an unlisted pack)', async () => {
+    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`;
+    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
-    const marked = () => links().map((l) => [l.text, l.href, l.current]);
-    for (const hash of ['#/', '#/workspaces', '#/nope']) {
-      go(hash);
-      expect(links(), hash).toEqual([]);
-    }
-    for (const hash of [`#/p/${P}`, `#/p/${P}/f/f1`]) {
-      go(hash);
-      expect(marked(), hash).toEqual([
-        ['Ingest', `#/p/${P}`, 'page'],
-        ['Conflicts', `#/p/${P}/conflicts`, null],
-        ['Issues', `#/p/${P}/issues`, null],
-        ['Chat', `#/p/${P}/chat`, null],
-      ]);
-    }
-    go(`#/p/${P}/conflicts`);
-    expect(marked()).toEqual([
-      ['Ingest', `#/p/${P}`, null],
-      ['Conflicts', `#/p/${P}/conflicts`, 'page'],
-      ['Issues', `#/p/${P}/issues`, null],
-      ['Chat', `#/p/${P}/chat`, null],
+    await screen.findByText(OFFLINE);
+    expect(links().map((l) => [l.text, l.href])).toEqual([
+      ['Ingest', `#/p/${P}?pack=fi`],
+      ['Chat', `#/p/${P}/chat?pack=fi`],
+      ['Documents', `#/p/${P}/documents?pack=fi`],
     ]);
-    go(`#/p/${P}/d/${D}/surveyor`);
-    expect(marked()).toEqual([
-      ['Ingest', `#/p/${P}`, null],
-      ['Conflicts', `#/p/${P}/conflicts`, null],
-      ['Issues', `#/p/${P}/issues`, null],
-      ['Chat', `#/p/${P}/chat`, null],
-      ['Surveyor', `#/p/${P}/d/${D}/surveyor`, 'page'],
+    go(`#/p/${P}/chat?pack=xx`);
+    expect(links().map((l) => l.href)).toEqual([
+      `#/p/${P}?pack=xx`,
+      `#/p/${P}/chat?pack=xx`,
+      `#/p/${P}/documents?pack=xx`,
     ]);
-    go(`#/p/${P}/d/${D}/engineer`);
-    expect(marked().map(([, , current]) => current)).toEqual([null, null, null, null, null]);
+  });
+
+  it('SH-79 SH-80 no credit line from the shell; the footer links About on every route, with the project', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    render(<App screens={stubs} />);
+    const about = () =>
+      screen.getByRole('link', { name: 'About and credits' }).getAttribute('href');
+    for (const hash of ['#/', '#/workspaces', '#/nope'] as const) {
+      go(hash);
+      expect(about(), hash).toBe('#/about');
+    }
+    for (const hash of [
+      `#/p/${P}`,
+      `#/p/${P}/chat`,
+      `#/p/${P}/documents`,
+      `#/p/${P}/d/${D}/engineer`,
+    ]) {
+      go(hash);
+      expect(about(), hash).toBe(`#/about?project=${P}`);
+      expect(document.querySelector('.credit'), hash).toBeNull();
+      expect(screen.queryByText(/^Credit:/), hash).toBeNull();
+    }
+    go('#/about');
+    expect(screen.getByRole('heading', { level: 1, name: 'About Vellum' })).toBeTruthy();
+    expect(links()).toEqual([]);
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-64 the chat route mounts ProjectChat; header shows Ingest, Conflicts, Chat (current)', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+  it('SH-64 the chat route mounts ProjectChat with its query', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
-    go(`#/p/${P}/chat`);
-    expect(screen.getByText(`chat ${P}`, { exact: false })).toBeTruthy();
-    expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
-      ['Ingest', `#/p/${P}`, null],
-      ['Conflicts', `#/p/${P}/conflicts`, null],
-      ['Issues', `#/p/${P}/issues`, null],
-      ['Chat', `#/p/${P}/chat`, 'page'],
-    ]);
+    go(`#/p/${P}/chat?ask=doors`);
+    expect(screen.getByText(`chat ${P} doors`)).toBeTruthy();
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-54 account and conflicts mount their screens; ?view does not remount the project', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+  it('SH-54 account mounts its screen; ?view does not remount the project', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     go('#/workspaces');
     expect(screen.getByText('account screen')).toBeTruthy();
-    go(`#/p/${P}/conflicts`);
-    expect(screen.getByText(`conflicts ${P}`, { exact: false })).toBeTruthy();
     go(`#/p/${P}`);
-    const first = screen.getByText(new RegExp(`^project ${P} mount`)).textContent;
+    const mount = () =>
+      /mount \d+/.exec(screen.getByText(new RegExp(`^project ${P} mount`)).textContent)?.[0];
+    const first = mount();
     go(`#/p/${P}?view=advanced`);
-    expect(screen.getByText(new RegExp(`^project ${P} mount`)).textContent).toBe(first);
+    expect(mount()).toBe(first);
     await screen.findByText(OFFLINE);
   });
 
   it('SH-55 the header: logo link, Workspaces link, picker; no country picker or avatar', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     const banner = screen.getByRole('banner');
     const home = within(banner).getByRole('link', { name: 'Vellum' });
@@ -230,8 +260,8 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-67 checks and issues mount with pack: packOf(route); a ?pack change does not remount', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+  it('SH-67 SH-76 checks and documents mount with pack: packOf(route); a ?pack change does not remount', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     go(`#/p/${P}/checks?pack=fi`);
     const first = screen.getByText(new RegExp(`^checks ${P} fi mount`)).textContent;
@@ -239,58 +269,75 @@ describe('shell', () => {
     expect(screen.getByText(new RegExp(`^checks ${P} null mount`)).textContent).toBe(
       first.replace(' fi ', ' null '),
     );
-    go(`#/p/${P}/issues?pack=fi`);
-    expect(screen.getByText(`issues ${P} fi`)).toBeTruthy();
-    go(`#/p/${P}/issues`);
-    expect(screen.getByText(`issues ${P} null`)).toBeTruthy();
-    go(`#/p/${P}/conflicts?pack=fi`);
-    expect(screen.getByText(`conflicts ${P} fi`)).toBeTruthy();
-    go(`#/p/${P}/chat?ask=doors`);
-    expect(screen.getByText(`chat ${P} doors`)).toBeTruthy();
+    go(`#/p/${P}/documents?pack=fi`);
+    const docs = screen.getByText(new RegExp(`^documents ${P} fi mount`)).textContent;
+    go(`#/p/${P}/documents`);
+    expect(screen.getByText(new RegExp(`^documents ${P} null mount`)).textContent).toBe(
+      docs.replace(' fi ', ' null '),
+    );
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-68 with a pack the tabs add Checks and every href carries ?pack', async () => {
-    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`;
-    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
+  it('SH-77 the old conflicts and issues routes mount the project screen with their query, no remount', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
-    await screen.findByText(OFFLINE);
-    expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
-      ['Ingest', `#/p/${P}?pack=fi`, null],
-      ['Conflicts', `#/p/${P}/conflicts?pack=fi`, null],
-      ['Checks', `#/p/${P}/checks?pack=fi`, null],
-      ['Issues', `#/p/${P}/issues?pack=fi`, null],
-      ['Chat', `#/p/${P}/chat?pack=fi`, null],
-      ['Surveyor', `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`, 'page'],
-    ]);
-    go(`#/p/${P}/checks`);
-    expect(links().map((l) => [l.text, l.current])).toEqual([
-      ['Ingest', null],
-      ['Conflicts', null],
-      ['Checks', 'page'],
-      ['Issues', null],
-      ['Chat', null],
-    ]);
+    go(`#/p/${P}`);
+    const text = () => screen.getByText(new RegExp(`^project ${P}`)).textContent;
+    const mount = () => /mount (\d+)/.exec(text())?.[1];
+    const first = mount();
+    go(`#/p/${P}/conflicts?d=${D}&q=a`);
+    expect(text()).toContain(`d=${D}&q=a`);
+    expect(mount()).toBe(first);
+    expect(window.location.hash).toBe(`#/p/${P}/conflicts?d=${D}&q=a`);
     go(`#/p/${P}/issues?pack=fi`);
-    expect(links().find((l) => l.current)?.text).toBe('Issues');
+    expect(text()).toContain('pack=fi');
+    expect(links().find((l) => l.current)?.text).toBe('Ingest');
+    await screen.findByText(OFFLINE);
   });
 
-  it('SH-72 the Checks tab only for a pack info lists (not while info loads); always on its own route', async () => {
-    window.location.hash = `#/p/${P}/issues?pack=fi`;
-    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
+  it('SH-78 the Documents badge: the issues to answer, named on the link, gone at 0 and on a 409', async () => {
+    const GET = `GET /api/projects/${P}/issues`;
+    const base: Issue = { ...(projectIssues.issues[0] as Issue), kind: 'reading_flag' };
+    const open = (id: string): Issue => ({ ...base, id, severity: 'needs_person', state: 'open' });
+    let body: unknown = { ...projectIssues, issues: [open('a'), open('b')] };
+    const api = mockApi({
+      'GET /api/info': info,
+      'GET /api/projects': projectList,
+      [GET]: () => body,
+    });
+    window.location.hash = `#/p/${P}`;
     render(<App screens={stubs} />);
-    expect(links().map((l) => l.text)).not.toContain('Checks');
+    const tab = () => screen.getByRole('link', { name: /^Documents/ });
+    await waitFor(() => {
+      expect(tab().getAttribute('aria-label')).toBe('Documents, 2 issues to answer');
+    });
+    const badge = tab().querySelector('.tab-badge');
+    expect(badge?.textContent).toBe('2');
+    expect(badge?.getAttribute('aria-hidden')).toBe('true');
+    act(() => {
+      setAnswer(P, 'a', 'Bedroom');
+    });
+    expect(tab().getAttribute('aria-label')).toBe('Documents, 1 issue to answer');
+    act(() => {
+      setAnswer(P, 'b', 'Hall');
+    });
+    expect(tab().getAttribute('aria-label')).toBeNull();
+    expect(tab().querySelector('.tab-badge')).toBeNull();
+    act(() => {
+      setAnswer(P, 'a', null);
+      setAnswer(P, 'b', null);
+    });
+    body = reply(409, { detail: 'not done', code: 'not-ready' });
+    const issueCalls = () => api.calls.filter((c) => c.url.endsWith('/issues')).length;
+    const before = issueCalls();
+    go(`#/p/${P}/chat`);
+    await waitFor(() => {
+      expect(issueCalls()).toBe(before + 1);
+    });
+    await waitFor(() => {
+      expect(tab().querySelector('.tab-badge')).toBeNull();
+    });
     await screen.findByText(OFFLINE);
-    expect(links().map((l) => l.text)).toContain('Checks');
-    go(`#/p/${P}/issues?pack=xx`);
-    expect(links().map((l) => [l.text, l.href])).toEqual([
-      ['Ingest', `#/p/${P}?pack=xx`],
-      ['Conflicts', `#/p/${P}/conflicts?pack=xx`],
-      ['Issues', `#/p/${P}/issues?pack=xx`],
-      ['Chat', `#/p/${P}/chat?pack=xx`],
-    ]);
-    go(`#/p/${P}/checks?pack=xx`);
-    expect(links().find((l) => l.text === 'Checks')?.current).toBe('page');
   });
 
   it('SH-68 the project picker keeps ?pack', async () => {
@@ -299,6 +346,7 @@ describe('shell', () => {
     mockApi({
       'GET /api/info': info,
       'GET /api/projects': { projects: [...projectList.projects, other] },
+      ...noIssues,
     });
     render(<App screens={stubs} />);
     await screen.findByRole('option', { name: /^second\.zip/ });
@@ -310,7 +358,11 @@ describe('shell', () => {
 
   it('SH-69 the country picker lists the rule packs and writes ?pack; no request, no pending', async () => {
     window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door`;
-    const api = mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
+    const api = mockApi({
+      'GET /api/info': withPacks,
+      'GET /api/projects': projectList,
+      ...noIssues,
+    });
     render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     const button = () => screen.getByRole('button', { name: /^Country rules: / });
@@ -350,7 +402,7 @@ describe('shell', () => {
   });
 
   it('SH-69 the picker is not rendered off project routes, without packs, or while info loads', async () => {
-    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList, ...noIssues });
     const { unmount } = render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     for (const hash of ['#/', '#/workspaces', '#/nope']) {
@@ -360,12 +412,12 @@ describe('shell', () => {
     go(`#/p/${P}`);
     expect(screen.getByRole('button', { name: /^Country rules/ })).toBeTruthy();
     unmount();
-    mockApi({ 'GET /api/info': noPacks, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': noPacks, 'GET /api/projects': projectList, ...noIssues });
     const second = render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     expect(screen.queryByRole('button', { name: /^Country rules/ })).toBeNull();
     second.unmount();
-    mockApi({ 'GET /api/info': never(), 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': never(), 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     expect(screen.queryByRole('button', { name: /^Country rules/ })).toBeNull();
   });
@@ -375,7 +427,7 @@ describe('shell', () => {
   });
 
   it('SH-15 GET /api/info is sent once, not on route changes', async () => {
-    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     go(`#/p/${P}`);
@@ -384,7 +436,7 @@ describe('shell', () => {
   });
 
   it('SH-16 the offline text shows on home, project, file, workspace and not-found', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     for (const hash of [
@@ -400,7 +452,7 @@ describe('shell', () => {
   });
 
   it('SH-19 while info is pending the strip says so and the screen is already there', () => {
-    mockApi({ 'GET /api/info': never(), 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': never(), 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     expect(screen.getByRole('status').textContent).toBe('Checking the server…');
     expect(screen.getByText('home screen')).toBeTruthy();
@@ -415,6 +467,7 @@ describe('shell', () => {
         return answer;
       },
       'GET /api/projects': projectList,
+      ...noIssues,
     });
     render(<App screens={stubs} />);
     const alert = await screen.findByRole('alert');
@@ -437,7 +490,7 @@ describe('shell', () => {
   });
 
   it('SH-6 on a route change, focus is on main', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     go(`#/p/${P}`);
     expect(document.activeElement?.id).toBe('main');
@@ -454,14 +507,14 @@ function picker() {
 
 describe('project picker', () => {
   it('SH-8 lists the project with its name and creation time', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     await screen.findByRole('option', { name: 'sample-project.zip · 2026-11-14 08:00 UTC' });
   });
 
   it('SH-9 the route project is selected; choosing another opens it', async () => {
     window.location.hash = `#/p/${P}`;
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': two });
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': two, ...noIssues });
     render(<App screens={stubs} />);
     await screen.findByRole('option', { name: /^second\.zip/ });
     expect(picker().value).toBe(P);
@@ -470,7 +523,7 @@ describe('project picker', () => {
   });
 
   it('SH-10 a route project missing from the list asks for the list again, once', async () => {
-    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     await screen.findByRole('option', { name: /^sample-project/ });
     go('#/p/bbbbbbbbbbbb');
@@ -524,7 +577,11 @@ describe('project picker', () => {
 
 describe('info strip', () => {
   it('SH-17 with keys there is no offline text, and What runs stays', async () => {
-    mockApi({ 'GET /api/info': { ...info, no_keys: false }, 'GET /api/projects': projectList });
+    mockApi({
+      'GET /api/info': { ...info, no_keys: false },
+      'GET /api/projects': projectList,
+      ...noIssues,
+    });
     render(<App screens={stubs} />);
     await screen.findByText('What runs');
     expect(screen.queryByText(OFFLINE)).toBeNull();
@@ -532,7 +589,11 @@ describe('info strip', () => {
 
   it('SH-18 What runs lists every port with its label and reader', async () => {
     const readers = { ...info.readers, new_port: 'thing' };
-    mockApi({ 'GET /api/info': { ...info, readers }, 'GET /api/projects': projectList });
+    mockApi({
+      'GET /api/info': { ...info, readers },
+      'GET /api/projects': projectList,
+      ...noIssues,
+    });
     const { container } = render(<App screens={stubs} />);
     await screen.findByText('What runs');
     const rows = Array.from(container.querySelectorAll('.what-runs dl > div')).map((row) => [
@@ -553,6 +614,7 @@ describe('info strip', () => {
     mockApi({
       'GET /api/info': { ...info, readers: { ...info.readers, decisions_kind: 'True' } },
       'GET /api/projects': projectList,
+      ...noIssues,
     });
     const { container } = render(<App screens={stubs} />);
     await screen.findByText('What runs');
