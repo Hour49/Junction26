@@ -25,11 +25,11 @@ def beside[A, B](here: Callable[[], A], there: Callable[[], B]) -> tuple[A, B]:
     spent = [0.0]
 
     def run() -> B:
-        before = cost.spent()
+        before = cost.mark()
         try:
             return there()
         finally:
-            spent[0] = cost.spent() - before
+            spent[0] = cost.since(before)
 
     pool = ThreadPoolExecutor(1, thread_name_prefix="beside")
     future = pool.submit(run)

@@ -83,7 +83,8 @@ class Groups:
         self, run: Run, readers: Readers, members: DrawingGroup, asked: list[DrawingFile]
     ) -> None:
         started = self._clock()
-        scans = _scans(run, members)
+        unruled = _unruled(run, members, readers)
+        scans = _scans(run, members) | unruled
         routed = route(members, readers.readable, scans)
         scanned = routed.source.path in scans
         route_name = routed.route
@@ -97,7 +98,12 @@ class Groups:
         spent = _ms(self._clock, started) / len(asked)
         listed = ", ".join(file.path.rpartition("/")[2] for file in members.files)
         how = f"{route_words(route_name)}, read from {routed.source.path}"
-        if scanned:
+        if routed.source.path in unruled:
+            how += (
+                " (a drawn PDF the vector reader has no rules for: VECTOR_FALLBACK reads its page"
+                " as an image on the raster route)"
+            )
+        elif scanned:
             how += " (a scanned PDF: its page is an image, so the raster reader reads it)"
         for file in asked:
             run.set(file.path, group=members.key, route=route_name, source=routed.source.path)
@@ -112,7 +118,7 @@ class Groups:
                     if outcome is not None:
                         _reuse(run, file, members, outcome)
                 return
-        self._ingest(run, readers, members, asked, keys, route_name)
+        self._ingest(run, readers, members, asked, keys, route_name, unruled)
 
     def _ingest(
         self,
@@ -122,6 +128,7 @@ class Groups:
         asked: list[DrawingFile],
         keys: Mapping[str, str],
         route_name: Route,
+        unruled: set[str],
     ) -> None:
         timer = StageClock(self._clock, on_start=lambda stage, path: _live(run, stage, path))
         extractors: dict[Route, Extractor] = {
@@ -148,7 +155,8 @@ class Groups:
             return
         sheets = {sheet.file: sheet for sheet in report.sheets}
         aside = {found.path: found.reason for found in report.set_aside}
-        source = route(members, readers.readable, _scans(run, members)).source
+        source = route(members, readers.readable, _scans(run, members) | unruled).source
+        as_image = route_name == "raster" and source.path in unruled
         for file in asked:
             drawing = sink.drawings.get(file.path)
             stages: list[StageTrace] = []
@@ -172,9 +180,12 @@ class Groups:
                     self._readers.get(route_name),
                     self._frames.get(file.path),
                     carbon,
+                    as_image,
                 )
                 takeoff = sheets[file.path].takeoff
-                flags = reading_flags(run.kinds[file.path], self._frames.get(file.path), carbon)
+                flags = reading_flags(
+                    run.kinds[file.path], self._frames.get(file.path), carbon, as_image
+                )
             elif file.path in aside:
                 state, reason = "set_aside", aside[file.path]
             elif file == source:
@@ -226,6 +237,19 @@ class Groups:
 def _scans(run: Run, members: DrawingGroup) -> set[str]:
     """The group's scanned PDFs, as identify called them."""
     return {file.path for file in members.files if run.kinds.get(file.path) == "pdf_scan"}
+
+
+def _unruled(run: Run, members: DrawingGroup, readers: Readers) -> set[str]:
+    """The group's drawn PDFs the vector reader has no rules for (VECTOR_FALLBACK=raster), which
+    the raster route reads as the image of their page; none when the fallback is off."""
+    unruled = readers.unruled
+    if unruled is None:
+        return set()
+    return {
+        file.path
+        for file in members.files
+        if run.kinds.get(file.path) == "pdf_vector" and unruled(readers.files.read(file.path))
+    }
 
 
 def _reuse(run: Run, file: DrawingFile, members: DrawingGroup, outcome: Outcome) -> None:
