@@ -6,6 +6,7 @@ storey; 409 while the drawing has no services model."""
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
+from app.adapters.services_agent_tools import model_id
 from app.adapters.services_picture import storey_png
 from app.adapters.services_store import ServicesStore
 from app.api.deps import DrawingId, IngestDep, ProjectId, SettingsDep
@@ -30,7 +31,7 @@ def services_png(
     ingest: IngestDep,
     settings: SettingsDep,
 ) -> Response:
-    files = [f for f in ingest.status(project_id).files if f.drawing_id == drawing_id]
+    files = [f for f in ingest.status(project_id).files if model_id(f) == drawing_id]
     if not files:
         raise NotFoundError(f"no drawing {drawing_id} in project {project_id}")
     sha256 = files[0].sha256

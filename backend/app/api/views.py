@@ -153,6 +153,11 @@ class DrawingEntry(View):
     other_renderings: list[Rendering]
     name: str  # a plain name, never the file name: "Drawn plan 2", "Drawn plan 3, page 2"
     credit: str | None  # the licence credit of `file`, as GET /api/drawings/{id} gives it
+    # Whether a person can draw an edit (an area, a wall to remove) on its first page, and why
+    # not in plain words: the plan tools' own checks (plan_tools.not_drawable). Filled by
+    # GET /api/projects/{id}; other lists leave the defaults
+    drawable: bool = False
+    not_drawable_reason: str | None = None
 
 
 class Skipped(View):

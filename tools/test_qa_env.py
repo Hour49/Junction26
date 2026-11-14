@@ -157,3 +157,11 @@ def test_the_demo_config_turns_on_the_all_on_features() -> None:
         assert line in config, line
     names = {entry.split("=")[0] for entry in config}
     assert not names & {"RASTER_TILES", "SCALE_CARBON_DOORS", "VECTOR_FALLBACK", "RESOLVER"}
+
+
+def test_the_demo_config_follows_services_models() -> None:
+    """demo/services-on (2026-11-15): SERVICES_FOLLOW=on follows the services IFC files of a project
+    and gives its chat the services tools (#397). The backend default is off."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    assert "SERVICES_FOLLOW=on" in found.stdout.split()

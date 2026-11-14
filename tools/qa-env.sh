@@ -56,7 +56,8 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   MODEL_3D=true  # all-on: the 3D view of IFC files (#356/#366/#374/#375); precompute: uv run python -m app.cli glb <ifc>
   TRIAGE_DESCRIBER=carbon  # all-on: an image set aside is described by Carbon for the evidence index (about 0.005 USD an image)
   TRIAGE_JUDGE=rules  # all-on: the judge's rules say whether a set-aside file relates to the project
-  EVIDENCE_SCOPE=all_non_plan)  # all-on: the evidence index also holds every other non-plan file and PDF page (decision 0012)
+  EVIDENCE_SCOPE=all_non_plan  # all-on: the evidence index also holds every other non-plan file and PDF page (decision 0012)
+  SERVICES_FOLLOW=on)  # services-on: an IFC project's plumbing/ventilation/heating files are followed and the chat gets the services tools (#397); the deploy builds the DigitalHub cache first
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
