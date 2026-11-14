@@ -9,11 +9,23 @@ import pytest
 from app.adapters.answer_prior import NoPrior
 from app.adapters.check_policy import load_check
 from app.adapters.question_templates import TemplateParser
-from app.core.drawing.model import Drawing, Element, Page, Room, Scale, Table, TableRow
+from app.core.drawing.model import (
+    Conflict,
+    Drawing,
+    Element,
+    MeasuredValue,
+    Page,
+    Resolution,
+    Room,
+    Scale,
+    Subject,
+    Table,
+    TableRow,
+)
 from app.core.errors import InvalidInputError
 from app.core.review.ask import Asked, ask
 from app.core.review.check import CheckPolicy, Place, certified
-from app.core.review.model import ReviewState, Row, SignOff
+from app.core.review.model import ReviewState, Row, Settled, SignOff
 
 SHA = "9c762d68a698dd45a6c1ca4fa7fae39f19199aae470d1b195ed82a873d8c48e9"
 PAGE = Page(page=1, width=100, height=100, unit="pt")
@@ -221,3 +233,67 @@ def test_at_most_five_places_are_listed() -> None:
     )  # fmt: skip
     assert found.check is not None and len(found.check.disputed) == 5
     assert found.check.disputed[0].box == many[0].box
+
+
+def disagreeing(resolution: Resolution | None = None) -> Drawing:
+    """SCAN where a second method counts 3 doors against the detector's 2."""
+    conflict = Conflict(
+        id="c1", quantity="element_count", subject=Subject(kind="class", ref="door"),
+        status="conflict", tolerance=0.0, resolution=resolution,
+        values=(MeasuredValue(value=2, unit="count", method="detector"),
+                MeasuredValue(value=3, unit="count", method="parser")),
+    )  # fmt: skip
+    return SCAN.model_copy(update={"conflicts": (conflict,)})
+
+
+def asked_on(drawing: Drawing, *, route: str, state: ReviewState | None = None) -> Asked:
+    return ask(
+        "How many doors are there?", drawing, parser=TemplateParser(), clock=lambda: 0.0,
+        prior=NoPrior(), state=state or ReviewState(), confidence=Scored(0.95),
+        raster=route == "raster", check=POLICY, route=route, disputes=readers_say,
+    )  # fmt: skip
+
+
+@pytest.mark.parametrize("route", ["raster", "bim"])
+@pytest.mark.parametrize("rule", [None, Resolution(rule="second_count", value=3)])
+def test_a_disagreement_is_never_certified_and_the_request_names_it(
+    route: str, rule: Resolution | None
+) -> None:
+    """Review of #129 B1: a high score on a certified route does not hide two methods that
+    disagree, whether a rule picked one or nobody did."""
+    found = asked_on(disagreeing(rule), route=route)
+    assert found.row is not None and found.row.conflict is not None
+    assert found.check is not None
+    shown = found.row.value
+    assert found.check.reason == (
+        f"Please double-check the doors: two methods disagree: 2 vs 3; we show {shown}."
+    )
+
+
+def test_a_settled_disagreement_asks_for_no_check() -> None:
+    """The person's settle is the one thing that lifts it: the value is theirs."""
+    settled = ReviewState(settled={"door": Settled(value=3, at="2026-11-14T12:00:00Z")})
+    assert asked_on(disagreeing(), route="raster", state=settled).check is None
+
+
+def test_an_estimate_is_never_certified() -> None:
+    found = asked(score=0.95, flags=(PHOTO_FLAG,))
+    assert found.check is not None and "it is an estimate (read from a page flagged" in (
+        found.check.reason
+    )
+
+
+def test_an_edited_value_is_not_certified_on_the_pipeline_s_score() -> None:
+    """The score rated the pipeline's 2 doors, not the person's 1: sign off to confirm."""
+    edited = ReviewState(rejected={"door": ("m1",)})
+    found = asked(score=0.95, state=edited)
+    assert found.row is not None and found.row.value == 1
+    assert found.check is not None
+    assert found.check.reason == "Please double-check the door: edited by you: sign off to confirm."
+
+
+def test_a_mark_the_person_rejected_is_never_pointed_at() -> None:
+    rejected = ReviewState(rejected={"door": ("m2",)})
+    found = asked(score=0.1, state=rejected)
+    assert found.check is not None
+    assert [d.mark_id for d in found.check.disputed] == [None]  # e2's m2 is gone, the miss stays

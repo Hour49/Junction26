@@ -2976,9 +2976,12 @@ from a stand-in, not Gemini; `marks` trimmed to two):
 
 #### Double-check request: `check`
 
-With `CHECK_POLICY` set (golden's `check_policy_v1` file in `eval/results/gate/`, chosen on val: per family, the
-threshold that maximises answers certified minus 10 x wrong ones, D455), a takeoff answer the policy does not
-certify **keeps its value** and carries `check`, so the screen asks a person to look before trusting it:
+With `CHECK_POLICY` set (golden's `check_policy_v1` file in `eval/results/gate/`, chosen on val: one threshold per
+family so that at least 96% of the wrong answers ask for a check, D476), a takeoff answer the policy does not
+certify **keeps its value** and carries `check`, so the screen asks a person to look before trusting it.
+`answer.check` is the request the screen shows; `proof.check` is a different, older field: one line on how a
+second method measured the value (`Checked twice, ...`), shown with the proof. Read the request from
+`answer.check`, never from `proof.check`.
 
 - `reason`: one plain sentence for the person, e.g. `Please double-check the doors: the readers disagree at 2
   places, marked on the drawing.`
@@ -2990,7 +2993,12 @@ certify **keeps its value** and carries `check`, so the screen asks a person to 
 
 `check` is null when the answer is certified (on the raster route: its `g1main` score at or above its family's
 threshold on a page ingest did not flag; on another route: the route was certified on golden v2's holdout), once
-a person signed the quantity off, on a refusal, and when `CHECK_POLICY` is off. A value read from a printed
+a person settled or signed the quantity off, on a refusal, and when `CHECK_POLICY` is off. Never certified,
+whatever the score or route, and the `reason` says why: two methods disagree, also when a rule picked one value
+(`Please double-check the doors: two methods disagree: 2 vs 3; we show 3.`; areas with two decimals and m²);
+the value is an estimate (`... it is an estimate (<the estimate>).`); a person changed the marks without
+signing off (`... edited by you: sign off to confirm.`). A mark the person rejected is never listed in
+`disputed`. A value read from a printed
 schedule gets a request without places unless the policy certified the `schedule` route. A family the
 policy has no threshold for (or a null one) is never certified. The examples use stand-ins for the score (0.87) and
 for the dispute finders: a door count certified at threshold 0.8, the same count at 0.9, and a bedroom count at
@@ -5672,7 +5680,9 @@ formula in a spreadsheet.
 - 2026-11-14, additive (golden-21, board #14): `check` on `POST /api/ask`'s answer: `{reason, disputed: [{mark_id,
   page, box, why, readers}]}` or null, the double-check request of an answer `CHECK_POLICY` does not certify (the
   value stays; not a refusal). Null for every answer while `CHECK_POLICY` is off (the default). New fixtures
-  `answer_certified`, `answer_double_check`, `answer_double_check_rooms`.
+  `answer_certified`, `answer_double_check`, `answer_double_check_rooms`. A disagreement between two methods,
+  an estimate or a person's unsigned edit always asks; a settle or sign-off lifts the request. Not
+  `proof.check` (unchanged: how a second method measured the value).
 - 2026-11-14, additive (board #14): `POST /api/drawings/{id}/signoff` takes an optional `settle: true`: the
   quantity's current value is settled and signed off in one call (same 409 rules; with `undo` it is 422).
 - 2026-11-14, additive (the Vellum redesign's fields, part 2, board #14): review action `unsettle` (drops the settled

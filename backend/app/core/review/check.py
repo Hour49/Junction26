@@ -8,8 +8,13 @@ the policy was chosen on CubiCasa scans); on another route the route itself was 
 golden v2's holdout. Every other answer, a family the policy has no threshold for included, gets
 `Check`: a sentence and the disputed places (`Disputes`, at most a few), each pointing at the
 review mark a person can reject or settle (`mark_id`) or, with no mark, at a place the answer did
-not count, which a person can add. A refusal has no value to check; a quantity a person signed off
-is theirs, not ours, so neither gets one.
+not count, which a person can add; a mark the person rejected is never pointed at again.
+
+Some answers are never certified, whatever their score (`held`; D452 "if it doesn't agree, show it
+to the user", review of #129 B1, 2026-11-14): two methods disagree (also when a rule picked one
+value), the value is an estimate, or a person changed its marks (the score rated the pipeline's
+value, not theirs). A refusal has no value to check; a quantity a person settled or signed off is
+theirs, not ours, so neither gets one.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -17,6 +22,7 @@ from collections.abc import Callable, Mapping, Sequence
 from app.core.drawing.model import Box, Drawing
 from app.core.model import Frozen
 from app.core.review.model import MarkView, Row
+from app.core.review.proof import SHOWN_UNITS
 
 NOTHING = "nothing"  # what a reader that sees nothing at a place says
 LIMIT = 5  # places listed per answer: a person checks five, not forty
@@ -87,13 +93,39 @@ def certified(
     return threshold is not None and score is not None and score >= threshold
 
 
-def double_check(row: Row, marks: Sequence[MarkView], places: Sequence[Place]) -> Check | None:
-    """The request for `row`'s answer, which is not certified; None once a person signed it off.
-    A place whose counted item has no mark in `marks` is left out: there is nothing to point
-    at. At most `LIMIT` places, in the finder's order (strongest first)."""
-    if row.signed is not None:
+def held(row: Row) -> str | None:
+    """Why `row`'s answer is never certified, whatever its score, as the request's sentence: two
+    methods disagree (a rule's pick included), it is an estimate, or a person changed its marks
+    and has not signed off. None: nothing holds it."""
+    what = row.noun or row.label
+    if row.conflict is not None:
+        if row.first is None or row.second is None:
+            return f"Please double-check the {what}: two methods disagree."
+        unit = "" if row.unit == "count" else f" {SHOWN_UNITS.get(row.unit, row.unit)}"
+        values = [_shown(row, v) for v in (row.first.value, row.second.value, row.value)]
+        return (
+            f"Please double-check the {what}: two methods disagree: {values[0]} vs {values[1]}"
+            f"{unit}; we show {values[2]}."
+        )
+    if row.estimate is not None:
+        return f"Please double-check the {what}: it is an estimate ({row.estimate})."
+    if row.status == "edited":
+        return f"Please double-check the {what}: edited by you: sign off to confirm."
+    return None
+
+
+def double_check(
+    row: Row, marks: Sequence[MarkView], places: Sequence[Place], reason: str | None = None
+) -> Check | None:
+    """The request for `row`'s answer, which is not certified, with `reason` (`held`'s) or the
+    policy's sentence; None once a person settled or signed it off. A place whose counted item
+    has no mark in `marks`, or only one the person rejected, is left out: there is nothing to
+    point at. At most `LIMIT` places, in the finder's order (strongest first)."""
+    if row.signed is not None or row.settled is not None:
         return None
-    mark_of = {mark.ref: mark.id for mark in marks if mark.ref is not None}
+    mark_of = {
+        mark.ref: mark.id for mark in marks if mark.ref is not None and mark.state != "rejected"
+    }
     disputed: list[Disputed] = []
     for place in places:
         if place.item_id is not None and place.item_id not in mark_of:
@@ -108,12 +140,16 @@ def double_check(row: Row, marks: Sequence[MarkView], places: Sequence[Place]) -
             )
         )
     listed = tuple(disputed[:LIMIT])
-    return Check(reason=_reason(row, len(listed)), disputed=listed)
+    return Check(reason=reason or _reason(row, len(listed)), disputed=listed)
 
 
 def schedule_check(policy: CheckPolicy) -> Check | None:
     """The request on a value read from a schedule: none when the policy certified the route."""
     return None if SCHEDULE in policy.routes else Check(reason=SCHEDULE_REASON, disputed=())
+
+
+def _shown(row: Row, value: float) -> str:
+    return str(round(value)) if row.unit == "count" else f"{value:.2f}"
 
 
 def _reason(row: Row, places: int) -> str:

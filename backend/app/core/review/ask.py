@@ -41,6 +41,7 @@ from app.core.review.check import (
     Disputes,
     certified,
     double_check,
+    held,
     no_disputes,
     schedule_check,
 )
@@ -194,11 +195,12 @@ def ask(
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     if check is not None and shown is not None and isinstance(parsed, Query):
-        sure = certified(
+        reason = held(shown)
+        sure = reason is None and certified(
             check, route=route, family=parsed.family(), score=answer.confidence, flags=flags
         )
         if not sure:
-            request = double_check(shown, marks, disputes(drawing, shown))
+            request = double_check(shown, marks, disputes(drawing, shown), reason)
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
     return Asked(
