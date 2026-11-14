@@ -1960,20 +1960,20 @@
       "heading_en": "Building permit",
       "text": "Uuden rakennuskohteen rakentaminen edellyttää rakentamislupaa, jos kohde on:\n1) asuinrakennus;\n2) kooltaan vähintään 30 neliömetriä tai 120 kuutiometriä oleva rakennus;\n3) kooltaan vähintään 50 neliömetriä oleva katos;\n4) yleisörakennelma, jota voi käyttää yhtä aikaa vähintään viisi luonnollista henkilöä lukuun ottamatta enintään kolme kuukautta paikallaan pidettävää tapahtumarakennetta;\n5) vähintään 30 metriä korkea masto tai piippu;\n6) vähintään 2 neliömetrin suuruinen valaistu mainoslaite;\n7) energiakaivo;\n8) erityistä toimintaa varten rakennettava alue, josta aiheutuu vaikutuksia sitä ympäröivien alueiden käytölle.",
       "text_en": "Construction of a new building site requires a building permit if the site is:\n1) a residential building;\n2) a building of at least 30 square metres or 120 cubic metres in size;\n3) a canopy of at least 50 square metres in size;\n4) a public structure that can be used by at least five natural persons at the same time, excluding an event structure kept in place for at most three months;\n5) a mast or chimney at least 30 metres high;\n6) an illuminated advertising device of at least 2 square metres;\n7) an energy well;\n8) an area built for a specific activity, which has effects on the use of the surrounding areas.",
-      "summary_en": "A new building requires a building permit if it is residential, at least 30 m2 or 120 m3, a canopy of 50 m2, a mast or chimney of 30 m, an advertising device of 2 m2, or certain other structures.",
+      "summary_en": "When a building permit is needed: a new building requires a building permit if it is residential, at least 30 m2 or 120 m3, a canopy of 50 m2, a mast or chimney of 30 m, an advertising device of 2 m2, or certain other structures.",
       "keywords": [
         "what needs a building permit",
-        "permit required",
         "building permit",
-        "30 m2",
-        "120 m3",
         "canopy",
         "mast",
         "chimney",
         "advertising device",
         "energy well",
         "rakentamislupa",
-        "katos"
+        "katos",
+        "building permit required",
+        "when is a building permit needed",
+        "new building permit"
       ],
       "topics": [
         "permits-procedure"
