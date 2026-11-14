@@ -63,6 +63,8 @@ from app.adapters.page_sizes import PageSizes
 from app.adapters.paths import inside
 from app.adapters.pdf_tables import PdfTables
 from app.adapters.pdf_tables.schedule_check import ScheduleTagCounter
+from app.adapters.printed_scale import PrintedScale
+from app.adapters.printed_scale.carbon import CarbonPrinted
 from app.adapters.question_templates import TemplateParser
 from app.adapters.raster import RoomPolicy, assemble, parse_components, parse_readers
 from app.adapters.raster.photo import PHOTO, PhotoSwitch
@@ -245,7 +247,9 @@ def build_pipeline(
             # whose page 1 is not a vector plan is read here, so its schedules are read (and its
             # schedule checks noted) as on the vector route.
             "raster": _tables(
-                settings.tables, _raster(settings, files, decisions, kind_of, use_carbon), files
+                settings.tables,
+                _printed(settings, _raster(settings, files, decisions, kind_of, use_carbon), files),
+                files,
             ),
         },
         second_counter=_checked(
@@ -630,6 +634,8 @@ def build_ingest(
     }
     if settings.raster_scale != "off":  # named only when on: the default keeps its cache keys
         names["raster_scale"] = settings.raster_scale
+    if settings.raster_printed_scale != "off":  # the same
+        names["raster_printed_scale"] = settings.raster_printed_scale
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -774,6 +780,20 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
                     "RASTER_COMPONENTS, or set RASTER_SCALE=off"
                 )
             return PriorScale(inner)
+
+
+def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extractor:
+    """RASTER_PRINTED_SCALE=carbon: the printed scale and counts (app/adapters/printed_scale/),
+    read by gemini-4-carbon on the process's spend guard, cached with the Carbon reader's
+    replies (its page reply is shared)."""
+    match settings.raster_printed_scale:
+        case "off":
+            return inner
+        case "carbon":
+            key = settings.gemini_api_key.get_secret_value()
+            client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
+            reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
+            return PrintedScale(inner, reader, files)
 
 
 def _raster_component(
