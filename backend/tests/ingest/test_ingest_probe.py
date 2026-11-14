@@ -195,8 +195,9 @@ def test_annotations_are_drawn_when_a_page_is_rendered() -> None:
 
 def test_a_set_whose_first_page_is_text_names_its_drawn_pages() -> None:
     found = FileProbe().probe(drawing_set_pdf())
-    assert found.kind == "pdf_text"  # the vector reader reads page 1 only (vector_pdf)
-    assert found.did.endswith("; page 2 holds a drawing, which is not read (only page 1 is)")
+    assert found.kind == "pdf_text"
+    assert found.did.endswith("; page 2 holds a drawing, read as a file of its own")
+    assert [page.number for page in found.pages] == [2]
 
 
 def test_a_pdf_whose_page_does_not_load_is_named_damaged() -> None:
