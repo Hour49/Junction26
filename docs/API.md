@@ -2524,8 +2524,9 @@ methods, refused answers, pages read with a caveat, files set aside, and with a 
 checks. The decision record, with the reasons for each choice, is
 [0008](decisions/0008-located-issues.md). The list makes no model call.
 
-- `pack` is optional: a rule pack's id (decision 0009). Its failed checks (`code_check_failed`) are listed only
-  when a pack is given, since the country is chosen on the screen. Until the code checks land there is no pack.
+- `pack` is optional: a rule pack's id from `GET /api/info` `rule_packs` (decision 0009). Its failed checks
+  (`code_check_failed`) are listed only when a pack is given, since the country is chosen on the screen.
+  `ProjectSummary.issues_open` counts the list without a pack.
 - Errors: an unknown project is 404 `not-found`. An unknown pack is 404 `unknown-pack`. A project that is not
   `done` is 409 `not-allowed`. The CSV and zip routes answer errors the same way (JSON), so offer the downloads
   once the project is `done`.
@@ -2543,10 +2544,12 @@ Each issue:
     parser can't read are left out.
   - `reading_flag`: the page was read with a caveat (a phone photo, a scan), or its reader read nothing.
   - `set_aside`: ingest set the file aside, with `reason`.
-  - `code_check_failed`: a failed rule of the pack (decision 0009). Not produced yet (#139).
+  - `code_check_failed`: a failed rule of the pack (decision 0009), one per failing room, door or sheet. A check
+    that cannot tell is not an issue. `check` + `drawing_id` is its `CheckResult` in
+    `GET /api/drawings/{id}/checks?pack=`; `why` is the result's `why` followed by the clause ref in brackets.
   - `double_check`: an answer we can't vouch for, one issue per disputed place. Not produced yet (#129).
   - `unrelated_file`: an upload that is not a floor plan (decision 0010, file triage). Not produced yet.
-  - All seven values are in the type now, so a screen can switch over them; the last three appear once their
+  - All seven values are in the type now, so a screen can switch over them; the last two appear once their
     work lands.
 - `severity`: `fails_rule` (a failed code check), `needs_person` (a conflict no rule decides and nobody settled),
   or `note` (everything else: decided conflicts, refusals, reading flags, set-aside files).
@@ -2560,6 +2563,8 @@ Each issue:
   - A quantity with one takeoff mark (a room) gives that mark: its page, box, `polygon` and `mark_id` (its
     `MarkView.id` in the takeoff, so the viewer can select it).
   - Otherwise the box a method read, or the sheet's only plan, with `polygon` and `mark_id` null.
+  - A failed check gives its room's or door's mark (`CheckResult.marks`, role `subject`): page, box, `polygon`
+    and `mark_id`, as the takeoff draws it. A check on the whole sheet has no place.
   - A reading flag gives the page of a one-page drawing and no box. A refused answer and a set-aside file have
     no page.
 - `why`: one plain sentence.
@@ -2567,6 +2572,65 @@ Each issue:
   the source refs, null where they don't apply.
 - `links`: API paths (not screen routes) to the drawing and its takeoff in this project, the file's trace, and for a
   code check the drawing's checks.
+
+A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
+
+<!-- fixture: project_issues_checks.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d52",
+  "pack": "fi",
+  "issues": [
+    {
+      "id": "code_check_failed-a173afe7b92c",
+      "kind": "code_check_failed",
+      "severity": "fails_rule",
+      "state": "open",
+      "drawing_id": "5c4ed01e00000002",
+      "file": "flat-fi.pdf",
+      "file_id": "f1",
+      "floor": null,
+      "page": 1,
+      "box": [
+        0.28833,
+        0.15,
+        0.43,
+        0.2925
+      ],
+      "polygon": [
+        [
+          0.28833,
+          0.15
+        ],
+        [
+          0.28833,
+          0.2925
+        ],
+        [
+          0.43,
+          0.2925
+        ],
+        [
+          0.43,
+          0.15
+        ]
+      ],
+      "mark_id": "m1",
+      "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building. (Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.)",
+      "quantity": "area:room|name=4.02",
+      "question": null,
+      "reason": null,
+      "check": "fi:fi-habitable-room-area:r2",
+      "links": {
+        "drawing": "/api/drawings/5c4ed01e00000002?project=5e0c1a2b3d52",
+        "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d52",
+        "trace": "/api/projects/5e0c1a2b3d52/files/f1/trace",
+        "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d52"
+      }
+    }
+  ]
+}
+```
 
 The sample after a door question on its scan (no reader in no-keys mode):
 
@@ -6300,6 +6364,8 @@ unknown pack, `not-found` for an unknown project.
 - 2026-11-14, additive (story #139, decision 0009): `GET /api/info` gains `rule_packs` (the building-code packs,
   `[]` when none is installed). New `GET /api/drawings/{id}/checks?pack=&project=` and
   `GET /api/projects/{id}/checks?pack=`. An unknown pack is 404 `unknown-pack`, as for the issues.
+  `GET /api/projects/{id}/issues?pack=` (and `.csv`, `.zip`) now lists the pack's failed checks as
+  `code_check_failed` issues (severity `fails_rule`, `links.checks` set); without a pack the list is unchanged.
 - 2026-11-14, additive (QA R4-a-8): `Takeoff.disputes`, the keys of the rows where two methods disagree, one per
   disagreement, the same ones the project review lists. Behaviour (QA R4-a-1): `ProjectView.expected_drawings` is
   null while a running project's files are not grouped yet, then final (it overshot, 0/19 then 13/13 on the demo

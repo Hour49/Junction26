@@ -61,6 +61,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "project_issues": ProjectIssues,
     "checks": DrawingChecks,
     "project_checks": ProjectChecks,
+    "project_issues_checks": ProjectIssues,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 

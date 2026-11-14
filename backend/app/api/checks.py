@@ -116,7 +116,12 @@ RulePacksDep = Annotated[tuple[RulePack, ...], Depends(get_rule_packs)]
 
 def pack_of(request: Request, pack_id: str) -> RulePack:
     """The pack `?pack=` names; 404 `unknown-pack` when there is none."""
-    found = next((pack for pack in get_rule_packs(request) if pack.id == pack_id), None)
+    return find_pack(get_rule_packs(request), pack_id)
+
+
+def find_pack(packs: tuple[RulePack, ...], pack_id: str) -> RulePack:
+    """The pack with this id among the loaded ones; UnknownPackError when there is none."""
+    found = next((pack for pack in packs if pack.id == pack_id), None)
     if found is None:
         raise UnknownPackError(f"no rule pack {pack_id!r}")
     return found

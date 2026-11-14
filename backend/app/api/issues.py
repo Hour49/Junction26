@@ -1,7 +1,7 @@
 """GET /api/projects/{project_id}/issues (and issues.csv): every finding in a project as one
 located issue, the list Stoa's floor view takes in (decision 0008, story #140). Built from what
-the API already holds: the takeoff's disagreements, the question log and ingest's file states;
-no model call."""
+the API already holds: the takeoff's disagreements, the question log, ingest's file states and,
+with `?pack=`, the failed building-code checks (decision 0009); no model call."""
 
 import csv
 import hashlib
@@ -17,6 +17,7 @@ from fastapi.responses import Response
 
 from app.adapters.evidence_render import render as render_evidence
 from app.adapters.page_render import render_png
+from app.api.checks import RulePacksDep, find_pack
 from app.api.deps import Credits, CreditsDep, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep
 from app.api.drawings import credit_of
 from app.api.project_ask import LACKS
@@ -25,8 +26,9 @@ from app.api.takeoff import Takeoff, takeoff_rows
 from app.api.takeoff import _cell as csv_cell  # pyright: ignore[reportPrivateUsage]
 from app.api.views import View, drawings_of
 from app.composition import readers
+from app.core.checks.check import check_drawing
+from app.core.checks.model import CheckResult, RuleCheck, RulePack
 from app.core.drawing.model import Box, Drawing, Polygon
-from app.core.errors import UnknownPackError
 from app.core.ingest.judge import read_nothing
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.review.model import MarkView, Row
@@ -39,8 +41,8 @@ from app.settings import Settings
 router = APIRouter(prefix="/api/projects")
 
 # Every kind planned, so a screen's exhaustive switch never meets a new one (decision 0008). Not
-# produced yet: code_check_failed (#139, decision 0009, with ?pack=), double_check (#129: an
-# uncertified answer, one issue per disputed place), unrelated_file (decision 0010: file triage).
+# produced yet: double_check (#129: an uncertified answer, one issue per disputed place),
+# unrelated_file (decision 0010: file triage). code_check_failed only with ?pack= (decision 0009).
 IssueKind = Literal[
     "conflict",
     "refused_answer",
@@ -115,10 +117,11 @@ def project_issues(
     ingest: IngestDep,
     reviews: ReviewsDep,
     settings: SettingsDep,
+    packs: RulePacksDep,
     pack: Annotated[str | None, PACK] = None,
 ) -> ProjectIssues:
     """Every finding of the project as a located issue (decision 0008)."""
-    return issues_of(project_id, pack, ingest, reviews, settings)
+    return issues_of(project_id, pack, ingest, reviews, settings, packs)
 
 
 @router.get(
@@ -131,10 +134,11 @@ def project_issues_csv(
     ingest: IngestDep,
     reviews: ReviewsDep,
     settings: SettingsDep,
+    packs: RulePacksDep,
     pack: Annotated[str | None, PACK] = None,
 ) -> Response:
     """The same issues as GET …/issues, one CSV row each."""
-    found = issues_of(project_id, pack, ingest, reviews, settings)
+    found = issues_of(project_id, pack, ingest, reviews, settings, packs)
     name = _download(ingest.status(project_id).name, pack, "csv")
     return _attachment(_csv(found.issues, numbered=False), "text/csv; charset=utf-8", name)
 
@@ -152,11 +156,12 @@ def project_issues_zip(
     reviews: ReviewsDep,
     settings: SettingsDep,
     credits: CreditsDep,
+    packs: RulePacksDep,
     pack: Annotated[str | None, PACK] = None,
 ) -> Response:
     """issues.csv with each issue's number `n` first, and one PNG per drawing page that has
     issues with a box: the page with each box drawn and labelled with its `n`."""
-    found = issues_of(project_id, pack, ingest, reviews, settings).issues
+    found = issues_of(project_id, pack, ingest, reviews, settings, packs).issues
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("issues.csv", _csv(found, numbered=True))
@@ -250,18 +255,21 @@ def _attachment(content: str | bytes, media_type: str, filename: str) -> Respons
 
 
 def issues_of(
-    project_id: str, pack: str | None, ingest: Ingest, reviews: ReviewStore, settings: Settings
+    project_id: str,
+    pack: str | None,
+    ingest: Ingest,
+    reviews: ReviewStore,
+    settings: Settings,
+    packs: tuple[RulePack, ...] = (),
 ) -> ProjectIssues:
-    """The project's issues as the routes give them: 404 for an unknown project or pack, 409
-    until the project is done."""
+    """The project's issues as the routes give them, with `pack`'s failed checks when one is
+    named (among `packs`): 404 for an unknown project or pack, 409 until the project is done."""
     status = ingest.status(project_id)  # 404 for a project that doesn't exist
-    if pack is not None:  # no rule pack exists until decision 0009's checks land
-        raise UnknownPackError(f"no rule pack {pack!r}")
+    chosen = None if pack is None else find_pack(packs, pack)  # 404 unknown-pack
     if status.state != "done":
         raise NotAllowedError(f"project {project_id} is {status.state}; list its issues when done")
-    return ProjectIssues(
-        project_id=project_id, pack=pack, issues=listed_issues(status, ingest, reviews, settings)
-    )
+    found = listed_issues(status, ingest, reviews, settings, pack=chosen)
+    return ProjectIssues(project_id=project_id, pack=pack, issues=found)
 
 
 def listed_issues(
@@ -270,11 +278,14 @@ def listed_issues(
     reviews: ReviewStore,
     settings: Settings,
     takeoffs: Mapping[str, Takeoff] | None = None,
+    pack: RulePack | None = None,
 ) -> list[Issue]:
     """The issues of a done project, in the list's order. `takeoffs`: each drawing's takeoff
-    in this project, when the caller has them already (the project list's summary)."""
+    in this project, when the caller has them already (the project list's summary). `pack`:
+    its failed checks join the list."""
     where = _Files(status)
     found = [
+        *([] if pack is None else _code_checks(status, where, ingest, pack)),
         *_conflicts(status, where, ingest, reviews, takeoffs or {}),
         *_reading_flags(status, where, ingest, settings),
         *_set_aside(status, where),
@@ -288,7 +299,7 @@ def listed_issues(
         drawing = drawings.get(issue.drawing_id or "")
         at = drawing if drawing is not None else len(drawings) + files.get(issue.file, last)
         top = issue.box[1] if issue.box is not None else 2.0  # no box: after the boxed ones
-        ref = issue.quantity or issue.question or issue.reason or issue.check or ""
+        ref = issue.check or issue.quantity or issue.question or issue.reason or ""
         return (SEVERITIES.index(issue.severity), at, issue.page or 1_000_000, top, ref, issue.id)
 
     return sorted(found, key=order)
@@ -331,9 +342,11 @@ def _issue(
     file: FileStatus,
     drawing_id: str | None,
     ref: str,
+    checks: str | None = None,
     **fields: object,
 ) -> Issue:
-    """An issue of the file, its id hashed from what names it, its links filled in."""
+    """An issue of the file, its id hashed from what names it, its links filled in (`checks`:
+    the drawing's checks for the pack, for a failed code check)."""
     named = drawing_id if drawing_id is not None else file.id
     digest = hashlib.sha256("\0".join((kind, named, ref)).encode()).hexdigest()  # per project
     at = f"?project={project_id}"
@@ -341,7 +354,7 @@ def _issue(
         drawing=None if drawing_id is None else f"/api/drawings/{drawing_id}{at}",
         takeoff=None if drawing_id is None else f"/api/drawings/{drawing_id}/takeoff{at}",
         trace=f"/api/projects/{project_id}/files/{file.id}/trace",
-        checks=None,
+        checks=checks,
     )
     defaults: dict[str, object] = {
         "state": "open", "floor": None, "page": None, "box": None, "polygon": None, "mark_id": None,
@@ -359,6 +372,49 @@ def _issue(
             "links": links,
         }
     )
+
+
+def _code_checks(
+    status: ProjectStatus, where: _Files, ingest: Ingest, pack: RulePack
+) -> Iterator[Issue]:
+    """One issue per failed check of the pack (decision 0009), placed on its room or door: the
+    result's first subject mark, on a page the drawing has. Cannot tell is not an issue."""
+    for entry in drawings_of(status):
+        file = where.of(entry.drawing_id)
+        assert file is not None  # a listed drawing has its file
+        drawing = ingest.drawing(entry.drawing_id)
+        sheets = {page.page for page in drawing.pages}
+        route = ingest.drawing_info(entry.drawing_id).route  # raster: read off a picture
+        checks = f"/api/drawings/{entry.drawing_id}/checks?pack={pack.id}&project={status.id}"
+        for rule in check_drawing(drawing, pack, route):
+            for result in rule.results:
+                if result.status != "fail":
+                    continue
+                mark = next((m for m in result.marks if m.role == "subject"), None)
+                placed = mark if mark is not None and mark.page in sheets else None
+                page = None if placed is None else placed.page
+                yield _issue(
+                    "code_check_failed",
+                    status.id,
+                    file,
+                    entry.drawing_id,
+                    f"{pack.id}:{result.id}",
+                    severity="fails_rule",
+                    floor=_floor(drawing, page),
+                    page=page,
+                    box=None if placed is None else placed.box,
+                    polygon=None if placed is None else placed.polygon,
+                    mark_id=None if placed is None else placed.mark_id,
+                    why=_check_why(result, rule),
+                    quantity=result.quantity,
+                    check=f"{pack.id}:{result.id}",
+                    checks=checks,
+                )
+
+
+def _check_why(result: CheckResult, rule: RuleCheck) -> str:
+    """The result's sentences, then the clause it quotes (decision 0009)."""
+    return f"{result.why} ({rule.clause.ref})"
 
 
 def _conflicts(

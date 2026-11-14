@@ -1,0 +1,53 @@
+{
+  "project_id": "5e0c1a2b3d52",
+  "pack": "fi",
+  "issues": [
+    {
+      "id": "code_check_failed-a173afe7b92c",
+      "kind": "code_check_failed",
+      "severity": "fails_rule",
+      "state": "open",
+      "drawing_id": "5c4ed01e00000002",
+      "file": "flat-fi.pdf",
+      "file_id": "f1",
+      "floor": null,
+      "page": 1,
+      "box": [
+        0.28833,
+        0.15,
+        0.43,
+        0.2925
+      ],
+      "polygon": [
+        [
+          0.28833,
+          0.15
+        ],
+        [
+          0.28833,
+          0.2925
+        ],
+        [
+          0.43,
+          0.2925
+        ],
+        [
+          0.43,
+          0.15
+        ]
+      ],
+      "mark_id": "m1",
+      "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building. (Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.)",
+      "quantity": "area:room|name=4.02",
+      "question": null,
+      "reason": null,
+      "check": "fi:fi-habitable-room-area:r2",
+      "links": {
+        "drawing": "/api/drawings/5c4ed01e00000002?project=5e0c1a2b3d52",
+        "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d52",
+        "trace": "/api/projects/5e0c1a2b3d52/files/f1/trace",
+        "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d52"
+      }
+    }
+  ]
+}

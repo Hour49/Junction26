@@ -227,7 +227,8 @@ def schedule_answer(client: TestClient) -> dict[str, Any]:
 
 def code_checks(client: TestClient, found: dict[str, Any]) -> str:
     """A flat checked against the Finnish pack (tests/api/test_api_checks.py checks_sheet): a
-    pass, a fail and a cannot tell, each with its marks; and the same as its project's checks."""
+    pass, a fail and a cannot tell, each with its marks; the same as its project's checks; and
+    its project's issues with the pack (a failed check)."""
     upload = client.post("/api/projects", params={"name": "flat-fi.pdf"}, content=checks_sheet())
     project = client.get(upload.json()["url"]).json()
     drawing_id = project["drawings"][0]["drawing_id"]
@@ -235,6 +236,9 @@ def code_checks(client: TestClient, found: dict[str, Any]) -> str:
     found["checks"] = client.get(f"/api/drawings/{drawing_id}/checks", params=params).json()
     found["project_checks"] = client.get(
         f"/api/projects/{project['id']}/checks", params={"pack": "fi"}
+    ).json()
+    found["project_issues_checks"] = client.get(
+        f"/api/projects/{project['id']}/issues", params={"pack": "fi"}
     ).json()
     return project["id"]
 
@@ -375,6 +379,8 @@ def trimmed(found: dict[str, Any]) -> dict[str, Any]:
         drawing["rules"] = drawing["rules"][:1]
         for rule in drawing["rules"]:
             rule["results"] = rule["results"][1:2]  # the fail
+    issues = found["project_issues_checks"]["issues"]
+    issues[:] = [issue for issue in issues if issue["kind"] == "code_check_failed"][:1]
     return found
 
 

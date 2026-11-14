@@ -112,7 +112,7 @@ not cannot tell (review 9).
 page, box and polygon from its first `subject` mark, `mark_id` and `quantity` from it, `why` = its `why` plus the
 clause ref, state `open`, source ref `<pack>:<CheckResult.id>`. Cannot tell is not an issue. The feed lists them
 only with `?pack=` (the country is a screen choice, not stored on the project); it finds the pack with
-`app/api/checks.py` `pack_of`, so an unknown pack is the same 404 `unknown-pack`.
+`app/api/checks.py` `find_pack` (what `pack_of` uses), so an unknown pack is the same 404 `unknown-pack`.
 
 Checks read the drawing as ingest read it; the surveyor's review edits don't change them in this version.
 
