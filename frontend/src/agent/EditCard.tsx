@@ -15,6 +15,7 @@ import {
 } from './agent';
 import { LawSection } from './LawSection';
 import { useServiceTabs } from './multi/ServiceTabs';
+import { ServicesChangePlan } from './services_change/ServicesChangePlan';
 
 type PageLoad =
   { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
@@ -313,7 +314,11 @@ export function EditCard(props: {
   };
   return (
     <div className="ag-edit">
-      <EditPlan p={p} projectId={projectId} hot={hot} reveal={props.reveal ?? 0} />
+      {p.services_change ? (
+        <ServicesChangePlan p={p} />
+      ) : (
+        <EditPlan p={p} projectId={projectId} hot={hot} reveal={props.reveal ?? 0} />
+      )}
       <div className="ag-side">
         <h4 className="en-label">Changes</h4>
         <ul className="ag-changes">
