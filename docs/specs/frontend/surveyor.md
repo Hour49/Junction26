@@ -366,6 +366,12 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
 - SV-55 (QA R4-c-1): the viewer inside the surveyor keeps its own look: no `.sv-screen` button rule reaches an
   element inside `.vw` (the badges stay filled `--v-accent` / open dashed `--v-surface`, as the legend; the zoom bar
   as on the engineer route). [unit] `css.test.ts` + [e2e] `surveyor.spec.ts` at 1440 and 390
+- SV-56 (#224, parity follow-up, orch 2026-11-14): the heading reads "Takeoff: `drawingLabel`" (the plain name,
+  "Drawn plan 2"; without one the project's file name, never the takeoff's) and the side panel names each drawing
+  and each conflict's drawing the same way. Neither the drawing view nor the review carries `name`, so the
+  workspace sends **one more request**, `GET /api/projects/<pid>` (`useDrawingNames`, shared with the conflicts
+  list), and passes the names to the side panel; SV-1's request list grows to four on purpose. A failed project
+  GET changes nothing else: the file names show.
 - Pre-QA look (checked live at 1440 and 390, not unit-tested): the takeoff panel's sticky header starts at the card's
   top edge (no padding above it); inputs 40px tall, 12px radius, `--v-line` border, 16px text; Export CSV a
   secondary pill (`--v-fill`, 600); table cells vertically centred; the 32px value with no extra margins; at 390 side

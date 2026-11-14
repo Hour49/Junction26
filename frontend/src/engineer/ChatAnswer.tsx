@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { drawingLabel, formatValue, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
-import { StatusPill, SURE_TIP } from './AnswerCard';
-import { kindName } from './format';
+import { GRADE_TONE, StatusPill } from './AnswerCard';
+import { gradeOf, kindName, levelWord, type Grade } from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
 
-const Sure = () => (
-  <span className="en-sure v-pill v-pill--ok" title={SURE_TIP}>
-    Sure<span className="en-sr">. {SURE_TIP}</span>
+/** "<Level> confidence" (CH-42), the backend's sentence as its tooltip when there is one. */
+const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
+  <span className={`v-pill${GRADE_TONE[grade]}`} title={text}>
+    {grade} confidence
   </span>
 );
 
@@ -60,10 +61,10 @@ export function ChatAnswer(props: {
           <strong className="en-value" data-testid="answer-value">
             {formatValue(ask.total, ask.total_unit) + noun(parts[0]?.answer.quantity?.noun)}
           </strong>
-          {ask.total_sure && (
+          {ask.total_level && (
             <>
               {' '}
-              <Sure />
+              <LevelPill grade={levelWord(ask.total_level)} />
             </>
           )}
         </p>
@@ -78,7 +79,7 @@ export function ChatAnswer(props: {
             aria-label={`Reference ${String(at + 1)} of ${String(drawn.length)}`}
           >
             {/* the viewer is bare (no name of its own): the demo's mono file name above the image */}
-            <span className="en-mono en-chatname">{current.name}</span>
+            <span className="en-chatname">{labelOf(current)}</span>
             <Plan
               place={null}
               viewer={{
@@ -126,9 +127,11 @@ export function ChatAnswer(props: {
                 <span>
                   <span className="en-part-name">{labelOf(p)}</span>: <strong>{value(p)}</strong>
                 </span>
-                {/* one pill, as the demo: Sure wins over the status word */}
-                {p.answer.line.sure === true ? (
-                  <Sure />
+                {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
+                {p.answer.quantity?.status === 'signed' ? (
+                  <span className="v-pill v-pill--ok">Signed off</span>
+                ) : gradeOf(p.answer) ? (
+                  <LevelPill grade={gradeOf(p.answer) as Grade} text={p.answer.level?.text} />
                 ) : (
                   p.answer.quantity && <StatusPill status={p.answer.quantity.status} />
                 )}
@@ -157,7 +160,7 @@ export function ChatAnswer(props: {
                   <>
                     <span className="en-cnum">{n + 1}</span>
                     <span className="en-crefbody">
-                      <span className="en-mono en-crefname">{p.name}</span>
+                      <span className="en-crefname">{labelOf(p)}</span>
                       <span className="en-muted">
                         {sub}
                         {k < 0 && `${sub ? ' · ' : ''}no preview`}

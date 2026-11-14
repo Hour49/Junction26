@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { PageView } from '../api/types';
 import { pickWidth } from './marks';
@@ -56,6 +56,20 @@ export function cropOf(places: readonly Place[]): Box {
   return [clamp(x0 - px), clamp(y0 - py), clamp(x1 + px), clamp(y1 + py)];
 }
 
+/** Per disc, how many 24 px steps right it moves so no two 20 px discs overlap (anchors in px). */
+export function stackOf(anchors: readonly ([number, number] | null)[]): number[] {
+  const placed: [number, number][] = [];
+  return anchors.map((a) => {
+    if (!a) return 0;
+    let k = 0;
+    const hits = (x: number) =>
+      placed.some(([px, py]) => Math.abs(px - x) < 22 && Math.abs(py - a[1]) < 22);
+    while (hits(a[0] + k * 24)) k += 1;
+    placed.push([a[0] + k * 24, a[1]]);
+    return k;
+  });
+}
+
 /** Each source's first place number (figure-wide numbering). */
 const firstNumbers = (sources: readonly Source[]) =>
   sources.map((_, i) => 1 + sources.slice(0, i).reduce((n, s) => n + s.places.length, 0));
@@ -103,6 +117,15 @@ function SourceImage({ source, first, crop }: { source: Source; first: number; c
     height: pct((b[3] - b[1]) / h),
   });
   const polys = source.places.filter((p) => p.polygon?.length);
+  // before measuring (or in jsdom) only identical anchors count as touching
+  const pxW = cssWidth || 0;
+  const pxH = (pxW * h * page.height) / (w * page.width);
+  const ks = stackOf(
+    source.places.map((p) => {
+      const b = boundsOf(p);
+      return b ? [((b[0] - x0) / w) * pxW, ((b[1] - y0) / h) * pxH] : null;
+    }),
+  );
   return (
     <span
       ref={ref}
@@ -148,7 +171,7 @@ function SourceImage({ source, first, crop }: { source: Source; first: number; c
           <span
             key={i}
             className={p.polygon?.length ? 'vw-hl vw-hl--poly' : 'vw-hl'}
-            style={at(b)}
+            style={{ ...at(b), '--vw-k': String(ks[i] ?? 0) } as CSSProperties}
             aria-hidden="true"
           >
             <b>{first + i}</b>
