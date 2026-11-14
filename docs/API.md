@@ -2269,8 +2269,10 @@ upload lists the files, instead of one request per file.
 ### `GET /api/projects/{project_id}/questions`
 
 The questions asked in the project, newest first (the last 200): every `POST /api/ask` that names the project in
-`project_id` is kept, and every `POST /api/projects/{id}/ask` once, with `drawing_id` null. An ask without a
-`project_id` is not kept.
+`project_id` is kept. A `POST /api/projects/{id}/ask` is kept as one line per drawing that answered (or, when none
+did, one refused line per drawing), each with that drawing's `drawing_id`, `answer` and `unit`, and with
+`project_ask`: an id the same on every line of that question, so the lines group into one question. `project_ask`
+is absent on a line from `POST /api/ask`. An ask without a `project_id` is not kept.
 
 <!-- fixture: project_questions.json -->
 ```json
@@ -3003,9 +3005,9 @@ that call gives, the project's review edits applied. An unknown project is 404; 
   how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), or
   why there is no total, and which drawings gave no answer and why, e.g. `2 doors from 1 drawing.` or `3 drawings
   answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.`
-- The question is kept once in the project's question list (`GET /api/projects/{id}/questions`) with
-  `drawing_id: null`, `answer` and `unit` the total's (null with no total) and `refused` true when no drawing
-  answered.
+- The question is kept in the project's question list (`GET /api/projects/{id}/questions`) as one line per drawing
+  that answered, with its own `answer` and `unit`, or one refused line per drawing when none answered; its lines
+  share one `project_ask` id.
 
 The door count on the sample project, trimmed to three of its five parts (two that answered, one refused) with two
 marks each; the note is over all five (the sample's flat-a.pdf and model/house.ifc draw the same flat, so there
@@ -5450,8 +5452,8 @@ formula in a spreadsheet.
 - 2026-11-14, additive (board #14, the project chat): `POST /api/projects/{project_id}/ask` with `{question}`
   returns `{question, parts: [{drawing_id, name, answer}], total, total_unit, total_sure, total_note}`, each part
   the `POST /api/ask` answer on one drawing of the project; a total only for one answering drawing or for drawings
-  known to show different storeys of one model. `AskedQuestion.drawing_id` (in
-  `GET /api/projects/{id}/questions`) is null for a question asked on the whole project.
+  known to show different storeys of one model. `GET /api/projects/{id}/questions` lines gain an optional
+  `project_ask` (the id grouping one project question's lines; absent on `POST /api/ask` lines).
 - 2026-11-14, text and behaviour (board #14, pre-QA sweep): a room the takeoff keys under several names (number,
   name, "name (number)") is one conflict in `GET /api/projects/{id}/review`, one entry in `review_queue` and one
   decision: settling or signing any of its rows settles and signs them all (the rows stay, each with its own

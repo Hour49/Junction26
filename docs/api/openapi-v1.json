@@ -369,6 +369,10 @@
             "type": "string"
           },
           "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "project_ask": {
             "anyOf": [
               {
                 "type": "string"
@@ -377,7 +381,7 @@
                 "type": "null"
               }
             ],
-            "title": "Drawing Id"
+            "title": "Project Ask"
           },
           "question": {
             "title": "Question",

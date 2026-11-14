@@ -1,10 +1,12 @@
 """The questions asked in a project: one JSON line per ask in `<projects_dir>/api/questions/
-<project id>.jsonl`, written by POST /api/ask when it names a project, read back newest first
-(docs/API.md "Projects and ingest")."""
+<project id>.jsonl`, written by POST /api/ask when it names a project and by POST /api/projects/
+{id}/ask (one line per drawing), read back newest first (docs/API.md "Projects and ingest")."""
 
 import json
 import threading
 from pathlib import Path
+
+from pydantic import Field
 
 from app.api.views import View
 from app.core.answering.model import Unit
@@ -17,9 +19,12 @@ class AskedQuestion(View):
     question: str
     answer: int | float | str | None  # the value shown; None on a refusal
     unit: Unit | None
-    drawing_id: str | None  # None: asked on the whole project (POST /api/projects/{id}/ask)
+    drawing_id: str
     at: str  # ISO 8601, UTC
     refused: bool
+    # The id of the question asked on the whole project (POST /api/projects/{id}/ask), the same on
+    # each of its lines; absent on a POST /api/ask line
+    project_ask: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectQuestions(View):

@@ -4,6 +4,7 @@ total is given only when one drawing answers, or when the drawings that answer a
 different parts of the building: the same building drawn twice (a sheet and its model) would
 otherwise be counted twice (board #14, Tudor)."""
 
+import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -90,18 +91,21 @@ def project_ask(
     answered = [part for part in parts if part.answer.refusal is None]
     refused = [part for part in parts if part.answer.refusal is not None]
     total = _total(parts, ingest.drawing)
-    record(
-        settings.projects_dir,
-        project_id,
-        AskedQuestion(
-            question=body.question,
-            answer=total.total,
-            unit=total.unit,
-            drawing_id=None,
-            at=now(),
-            refused=not answered,
-        ),
-    )
+    asked, at = uuid.uuid4().hex[:16], now()
+    for part in answered or refused:  # a question no drawing answered: every drawing refused
+        record(
+            settings.projects_dir,
+            project_id,
+            AskedQuestion(
+                question=body.question,
+                answer=part.answer.answer,
+                unit=part.answer.unit,
+                drawing_id=part.drawing_id,
+                at=at,
+                refused=part.answer.refusal is not None,
+                project_ask=asked,
+            ),
+        )
     return ProjectAnswer(
         question=body.question,
         parts=answered + refused,

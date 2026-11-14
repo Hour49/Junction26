@@ -452,7 +452,9 @@ export interface components {
             /** At */
             at: string;
             /** Drawing Id */
-            drawing_id: string | null;
+            drawing_id: string;
+            /** Project Ask */
+            project_ask?: string | null;
             /** Question */
             question: string;
             /** Refused */

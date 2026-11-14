@@ -179,21 +179,28 @@ def test_a_summed_part_that_needs_a_double_check_says_so(
     assert "; 1 of them needs a double-check;" in found["total_note"]
 
 
-def test_a_project_question_is_logged_once_with_no_drawing(
-    client: TestClient, plan_pdf: bytes
+def test_a_project_question_is_logged_per_answering_drawing_under_one_id(
+    client: TestClient,
 ) -> None:
-    project_id = upload(client, plan_pdf)
-    found = ask(client, project_id, DOORS)
-    ask(client, project_id, "What colour is the roof?")
-    listed = client.get(f"/api/projects/{project_id}/questions").json()["questions"]
-    assert len(listed) == 2  # one line per project question, not one per drawing
-    roof, doors = listed
-    assert (doors["question"], doors["answer"], doors["unit"], doors["drawing_id"]) == (
-        DOORS, found["total"], "count", None,
-    )  # fmt: skip
-    assert (roof["answer"], roof["unit"], roof["drawing_id"], roof["refused"]) == (
-        None, None, None, True,
-    )  # fmt: skip
+    project = sample(client)
+    url = f"/api/projects/{project['id']}/questions"
+    found = ask(client, project["id"], DOORS)
+    answered = [part for part in found["parts"] if part["answer"]["refusal"] is None]
+    lines = client.get(url).json()["questions"][::-1]  # oldest first
+    assert [
+        (line["drawing_id"], line["answer"], line["unit"], line["refused"]) for line in lines
+    ] == [(part["drawing_id"], part["answer"]["answer"], "count", False) for part in answered]
+    assert len({line["project_ask"] for line in lines}) == 1 and lines[0]["project_ask"]
+    # no drawing answers: one refused line per drawing, under a new id
+    ask(client, project["id"], "What colour is the roof?")
+    roof = client.get(url).json()["questions"][: len(project["drawings"])]
+    assert {line["drawing_id"] for line in roof} == {d["drawing_id"] for d in project["drawings"]}
+    assert all(line["refused"] and line["answer"] is None for line in roof)
+    assert len({line["project_ask"] for line in roof} | {lines[0]["project_ask"]}) == 2
+    # an ask on one drawing has no project_ask at all
+    body = {"drawing_id": answered[0]["drawing_id"], "question": DOORS, "project_id": project["id"]}
+    client.post("/api/ask", json=body)
+    assert "project_ask" not in client.get(url).json()["questions"][0]
 
 
 def sheet(storeys: tuple[str | None, ...], model: tuple[str, ...] = ("g1", "g2")) -> Drawing:
