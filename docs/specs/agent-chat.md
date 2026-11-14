@@ -15,7 +15,7 @@ Project: the real swiss sheet `site980_bldg2055_floor9178.pdf` uploaded as a pro
 1. Ask "How big is the bathroom?" → an answer with its number, a numbered source ("Bagno 1.01 · Drawn plan 1,
    page 1 · Show it") and a "2 steps" disclosure listing what the agent did.
 2. Ask "Remove the wall between the bathroom and the bedroom to make the bathroom larger" → an edit card: the plan
-   with the wall drawn as demolished, the merged room hatched with "24.04 → 24.69 m²", a change list, what is
+   with the wall drawn as demolished, the merged room hatched with "24.04 → 24.56 m²", a change list, what is
    unknown ("whether the wall is load-bearing"), the wet-room note, Before / After, Accept / Reject.
 3. Ask "Is that wall load-bearing?" → "I don't know: this drawing does not say which walls carry load", with what
    would settle it (structural drawings, a building model with LoadBearing, an engineer).
@@ -102,7 +102,7 @@ metres: x_m = x · page.width · m_per_unit, y_m = y · page.height · m_per_uni
 scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reason: "this drawing has no scale"}`.
 
 - AC-15 Walls of a page = the drawn wall mass (`walls_drawn` polygons with holes; IFC sheets: `wall` elements' polygons
-  when `walls_sure`). A *partition* between rooms A and B = `mass ∩ A.buffer(t) ∩ B.buffer(t)` with t = 0.30 m,
+  when `walls_sure`). A *partition* between rooms A and B = `mass ∩ A.buffer(t) ∩ B.buffer(t)` with t = 0.30 m, limited to the space between A and B (not the façade beyond them) plus the door gaps in it,
   kept when its length (longest side of its minimum rotated rectangle) ≥ 0.5 m. Ids `W1..Wn` in order of (min y,
   min x) of the strip, stable for the same page. thickness = strip area / length.
 - AC-16 `list_walls(drawing_id, page)` → `{status, walls: [{id, rooms: [{id, label}], length_m, thickness_m,
@@ -157,7 +157,7 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   options as chips that send `option.message`.
 - AC-32 Edit card (`kind: edit`): the page image with an overlay (page-fraction SVG, like `PageViewer`'s marks):
   removed geometry yellow fill with a dashed dark outline, added walls red, changed rooms hatched with a badge
-  "Bagno 1.01 + Stanza 1.02 · 24.04 → 24.69 m²", a legend (Existing · Demolished · New · Changed room; colour never
+  "Bagno 1.01 + Stanza 1.02 · 24.04 → 24.56 m²", a legend (Existing · Demolished · New · Changed room; colour never
   alone: dash, hatch and words too). Before / After toggle (`aria-pressed`): Before hides the overlay. Below: the
   change list (one line per removed/added item and per room with before → after and the difference), unknowns,
   flags, a note "Proposed from the drawn geometry. Structure, services and permits are not checked.", and Accept /
@@ -174,7 +174,7 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 
 - Core: plan_edit on synthetic rectangles (two rooms sharing a 0.12 m wall: merged area = A + B + strip; a façade
   pair → refused; region snap and clip); on floor9178 when `data/stoa/full` is present (skip otherwise): Bagno
-  1.01 + Stanza 1.02 → 24.69 ± 0.05 m². Loop with a scripted fake model: final_answer, validator downgrade (a number
+  1.01 + Stanza 1.02 → 24.56 ± 0.05 m². Loop with a scripted fake model: final_answer, validator downgrade (a number
   no tool returned), step cap, spend cap, tool error passed back, assistant message kept verbatim (extra_content
   round-trips), evidence numbering. Architecture test stays green.
 - API: chat with `CHAT_MODEL=rules` on the sample project: an answer turn, a dont_know turn, an edit refused on a

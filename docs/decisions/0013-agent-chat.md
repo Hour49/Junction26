@@ -13,7 +13,7 @@
 The project chat answers one question at a time through `POST /api/projects/{id}/ask` and cannot edit a plan. We
 checked prior art (no product edits an existing plan by chat and keeps true areas; image models invent geometry)
 and ran the edit on real data: removing the wall between Bagno 1.01 and Stanza 1.02 on
-`site980_bldg2055_floor9178` with our reader's room polygons gives one 24.69 m² room (7.56 + 16.48 + 0.65 m² wall)
+`site980_bldg2055_floor9178` with our reader's room polygons gives one 24.56 m² room (7.56 + 16.48 + 0.52 m² of wall and door gap between them; the first spike took 24.69 by also swallowing façade wall, corrected 17:35)
 in 0.14 s. The pieces exist: `pipeline_tools.py` (#228, list_drawings … get_plan_geometry with `walls_drawn`),
 `law_tools.py` (branch laws/knowledge-base), evidence tools (Bogdan's side, ADR 0012), the spend guard (#225).
 Research reports: `.agents/research/ac-{code,prior,agent}.md` on Tudor's machine (not in the repo).
@@ -56,7 +56,7 @@ Research reports: `.agents/research/ac-{code,prior,agent}.md` on Tudor's machine
 {
   "chat_id": "c3f9a1b2c4d5", "turn": 2,
   "kind": "edit",
-  "text": "Removing the wall between Bagno 1.01 and Stanza 1.02 makes one room of 24.69 m² (+0.65 m²) [1].",
+  "text": "Removing the wall between Bagno 1.01 and Stanza 1.02 makes one room of 24.56 m² (+0.52 m²) [1].",
   "evidence": [{"n": 1, "id": "ev_1", "drawing_id": "…16 hex…", "name": "Drawn plan 1", "page": 1,
                 "box": [0.31, 0.22, 0.38, 0.29], "label": "Bagno 1.01", "sure": true}],
   "edit": {
@@ -65,7 +65,7 @@ Research reports: `.agents/research/ac-{code,prior,agent}.md` on Tudor's machine
                  "label": "Wall W4, 2.87 m, 0.12 m thick"}],
     "added": [],
     "rooms": [{"id": "R1+R2", "label": "Bagno 1.01 + Stanza 1.02", "polygon": [[0.30, 0.20], "…"],
-               "area_before_m2": 24.04, "area_after_m2": 24.69, "was": ["R1", "R2"]}],
+               "area_before_m2": 24.04, "area_after_m2": 24.56, "was": ["R1", "R2"]}],
     "unknowns": ["Whether wall W4 is load-bearing: this drawing does not say."],
     "flags": [{"code": "wet_room", "text": "A bathroom changes: in Finland a certified wet-room supervisor inspects the waterproofing."}]
   },
