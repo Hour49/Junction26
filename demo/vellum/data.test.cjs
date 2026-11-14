@@ -77,3 +77,46 @@ test('ingest progress ends with every file through and every drawing ready', () 
   assert.equal(end.ready, V.DRAWINGS.length);
   assert.equal(end.aside, 2);
 });
+
+test('the project chat adds nothing up across drawings, or refuses with what can be asked', () => {
+  const r = V.askProject('How many doors are there?', {});
+  assert.equal(r.parts.length, V.DRAWINGS.length);
+  assert.equal(r.parts[0].drawing_id, V.DRAWINGS[0].id);
+  assert.equal(r.total, null);
+  assert.equal(r.total_sure, false);
+  assert.match(r.total_note, /same rooms/);
+  const no = V.askProject('Who designed this?', {});
+  assert.ok(no.parts.every((p) => p.answer.refusal) && no.total === null && no.canAnswer.length > 0);
+});
+
+test('an area question that names a room sums that room only, and drawings without it do not answer', () => {
+  const d = V.drawing('floor-02');
+  const kitchens = V.rooms(d).filter((r) => !r.common && r.label === 'Kitchen');
+  const a = V.answer('floor-02', 'What is the area of the kitchen?', {});
+  assert.equal(a.marks.length, kitchens.length);
+  assert.equal(a.value, Math.round(kitchens.reduce((s, r) => s + r.area, 0) * 10) / 10);
+  const sauna = V.askProject('What is the area of the sauna?', {});
+  const ok = sauna.parts.filter((p) => !p.answer.refusal);
+  assert.ok(ok.length > 0 && ok.length < V.DRAWINGS.length);
+  assert.ok(ok.every((p) => p.answer.marks.every((m) => m.room.label === 'Sauna')));
+  assert.ok(sauna.parts.slice(ok.length).every((p) => p.answer.refusal), 'refused parts come after the answering ones');
+  assert.equal(V.ruleOf(ok[0].answer), 'Net floor area of the sauna, inside the walls.');
+});
+
+test('one answering drawing gives a total with its unit, sure only when the drawing is', () => {
+  const r = V.askProject('What is the area of the sauna?', {});
+  // two drawings have a sauna, so no total; a question only one drawing answers is built from a filter
+  assert.equal(r.total, null);
+  const saved = V.DRAWINGS.splice(4);  // keep floor-01..03 and flat-b12: only flat-b12 has a sauna
+  try {
+    const one = V.askProject('What is the area of the sauna?', {});
+    assert.equal(one.total, one.parts[0].answer.value);
+    assert.equal(one.total_unit, 'm2');
+    assert.equal(one.total_sure, false);  // a scan: please double-check
+    assert.match(one.total_note, /flat-b12/);
+  } finally { V.DRAWINGS.push(...saved); }
+});
+
+test('every reading step opens an advanced panel, Normalise its own', () => {
+  assert.deepEqual([...new Set(V.STEPS.map((s) => s.panel))], ['unpack', 'identify', 'normalise', 'extract', 'check']);
+});

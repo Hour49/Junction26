@@ -140,7 +140,9 @@ describe('loading and routing', () => {
   it('SV-4 selects ?q=, else the first queue row, else the default', async () => {
     show();
     await ready();
-    expect(within(detail()).getByRole('heading').textContent).toContain('area of room (name 1.01)');
+    expect(within(detail()).getByRole('heading').textContent).toContain(
+      'area of room (name Küche · 1.01)',
+    );
     cleanup();
     show(new URLSearchParams({ q: 'door' }).toString());
     await ready();
@@ -148,7 +150,9 @@ describe('loading and routing', () => {
     cleanup();
     show('q=nothing');
     await ready();
-    expect(within(detail()).getByRole('heading').textContent).toContain('area of room (name 1.01)');
+    expect(within(detail()).getByRole('heading').textContent).toContain(
+      'area of room (name Küche · 1.01)',
+    );
   });
 
   it('SV-5 selecting a row replaces ?q= without a history entry', async () => {
@@ -748,8 +752,8 @@ describe('states', () => {
     expect(notFound.textContent).toContain('no drawing 0123456789abcdef');
     expect(notFound.textContent).toContain('code: not-found');
     expect(
-      within(notFound).getByRole('link', { name: 'Back to projects' }).getAttribute('href'),
-    ).toBe('#/');
+      within(notFound).getByRole('link', { name: 'Back to workspaces' }).getAttribute('href'),
+    ).toBe('#/workspaces');
     expect(within(notFound).queryByRole('button', { name: 'Retry' })).toBeNull();
     cleanup();
     let fail = true;
@@ -852,5 +856,60 @@ describe('QA round 3', () => {
         name: `Keep A: 22.40 m² (${methodName('polygon_x_scale')})`,
       }),
     ).toBeTruthy();
+  });
+});
+
+describe('pre-QA (2026-11-14)', () => {
+  const settledA = {
+    ...derive(CONFLICT, {
+      value: 22.401,
+      status: 'edited',
+      settled: { value: 22.401, at: '2026-11-14T01:30:00Z' },
+    }),
+    review_queue: [],
+  };
+
+  it('SV-52 after Keep on the default row the selection stays on it and shows "Settled at"', async () => {
+    show('', { [PATH.edit]: { ...settledA, review_queue: ['door'] } }); // the next row still to review
+    await ready();
+    expect(within(detail()).getByRole('heading').textContent).toContain(
+      rowOf(takeoff, CONFLICT).label,
+    );
+    fireEvent.click(within(detail()).getByRole('button', { name: /^Keep A:/ }));
+    await within(detail()).findByText(/^Settled at 22\.40 m²/);
+    expect(within(detail()).getByRole('heading').textContent).toContain(
+      rowOf(takeoff, CONFLICT).label,
+    );
+  });
+
+  it('SV-53 on a phone, selecting a row scrolls the detail into view; on a desktop it does not', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    const narrow = (matches: boolean) => {
+      window.matchMedia = vi.fn().mockReturnValue({ matches });
+    };
+    narrow(false);
+    show();
+    await ready();
+    pick('door count');
+    await waitFor(() => {
+      expect(within(detail()).getByRole('heading').textContent).toContain('door count');
+    });
+    expect(scroll).not.toHaveBeenCalled();
+    narrow(true);
+    pick(rowOf(takeoff, 'area:room|indoor').label);
+    await waitFor(() => {
+      expect(scroll).toHaveBeenCalledTimes(1);
+    });
+    expect(scroll.mock.contexts[0]).toBe(detail());
+  });
+
+  it('SV-54 a settled conflict marks the value in use in its list', async () => {
+    show('', { [PATH.takeoff]: settledA });
+    await ready();
+    const items = within(detail())
+      .getAllByRole('listitem')
+      .filter((li) => /^[AB]:/.test(li.textContent));
+    expect(items.map((li) => li.textContent.includes('in use'))).toEqual([true, false]);
   });
 });

@@ -27,6 +27,7 @@ from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, DrawingGroup, FileKind, Route
 from app.core.pipeline.ports import Extractor
 from app.core.pipeline.route import route
+from app.core.wording import count
 
 logger = logging.getLogger(__name__)
 
@@ -56,15 +57,26 @@ class Groups:
             path: [drawings[found] for found in readers.finder.sources(path) if found in drawings]
             for path in drawings
         }
-        for members in group(drawings.values(), sources):
-            asked = [
-                file
-                for file in members.files
-                if file.path in drawings and key_of(file) == members.key
-            ]
-            if asked:
-                self._group(run, readers, members, asked)
-                saved()
+        groups = [
+            (members, asked)
+            for members in group(drawings.values(), sources)
+            if (
+                asked := [
+                    file
+                    for file in members.files
+                    if file.path in drawings and key_of(file) == members.key
+                ]
+            )
+        ]
+        # Every file's group is known now: publish it before the first group is read, so a poll
+        # counts the drawings to expect from the groups, not from the files (QA R4-a-1)
+        for members, asked in groups:
+            for file in asked:
+                run.set(file.path, group=members.key)
+        saved()
+        for members, asked in groups:
+            self._group(run, readers, members, asked)
+            saved()
 
     def _group(
         self, run: Run, readers: Readers, members: DrawingGroup, asked: list[DrawingFile]
@@ -87,7 +99,7 @@ class Groups:
         for file in asked:
             run.set(file.path, group=members.key, route=route_name, source=routed.source.path)
             run.stage(file.path, "group", f"{members.key}: {listed}", spent,
-                      output=f"{len(members.files)} file(s)")  # fmt: skip
+                      output=count(len(members.files), "file"))  # fmt: skip
             run.stage(file.path, "route", how, 0.0, output=route_name)
         keys = {file.path: _hash(file.sha256, group_key)[:16] for file in asked}
         if not run.fresh:
@@ -200,7 +212,7 @@ class Groups:
         if drawing is not None:
             run.stage(file.path, "write", f"drawing model {key} stored",
                       _ms(self._clock, started),
-                      output=f"{len(outcome.takeoff)} quantities")  # fmt: skip
+                      output=count(len(outcome.takeoff), "quantity", "quantities"))  # fmt: skip
         run.set(file.path, takeoff=outcome.takeoff, drawing_id=key if drawing is not None else None)
         run.finish(file.path, outcome.state, outcome.reason)
 
@@ -225,7 +237,7 @@ def _reuse(run: Run, file: DrawingFile, members: DrawingGroup, outcome: Outcome)
     replayed = [stage.model_copy(update={"ms": 0.0, "cost_usd": 0.0}) for stage in outcome.stages]
     if outcome.has_drawing:
         did = f"drawing model {outcome.key} stored by that ingest"
-        output = f"{len(outcome.takeoff)} quantities"
+        output = count(len(outcome.takeoff), "quantity", "quantities")
         replayed.append(StageTrace(stage="write", did=did, ms=0.0, output=output))
     run.add_stages(file.path, replayed)
     run.set(file.path, reused=True, takeoff=outcome.takeoff, source=source,

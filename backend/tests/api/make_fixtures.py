@@ -135,6 +135,7 @@ def responses() -> dict[str, Any]:
     found["answer_schedule"] = schedule_answer(client)
     others.append(set_aside(client, found))
     others += in_flight(root / "flight", settings, found)
+    found["project_ask"] = project_ask(client, started["id"])  # the frontend reads it by name
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
@@ -170,6 +171,21 @@ def reviewed(client: TestClient, drawing_id: str, found: dict[str, Any]) -> list
     assert refused.status_code == 409, refused.text
     found["error_not_allowed"] = refused.json()
     return []
+
+
+def project_ask(client: TestClient, project_id: str) -> dict[str, Any]:
+    """The door count asked on the whole sample project, trimmed to three parts (two that
+    answered, one refused); the total and its note are over all five."""
+    url = f"/api/projects/{project_id}/ask"
+    found = client.post(url, json={"question": "How many doors are there?"}).json()
+    parts = found["parts"]
+    found["parts"] = parts[:2] + [part for part in parts if part["answer"]["refusal"]][:1]
+    for part in found["parts"]:
+        _marks(part["answer"])
+        refusal = part["answer"]["refusal"]
+        if refusal is not None:
+            refusal["can_answer"] = refusal["can_answer"][:2]
+    return found
 
 
 def door_schedule_pdf() -> bytes:

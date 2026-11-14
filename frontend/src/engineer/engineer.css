@@ -1,36 +1,396 @@
-/* Engineer workspace: one centred column (mock: demo/ "chat-mode"); one column on a phone. */
+/* Engineer workspace, Vellum screen 4 "Ask, with proof" (engineer.md Layout). Colours: --v-* tokens only. */
 .en-page {
   /* The sticky ask box's height: the thread keeps this much free space under the newest turn. */
-  --en-ask-h: 64px;
-  max-width: 960px;
+  --en-ask-h: 96px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 16px 16px 0;
+  padding: 32px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
   overflow-wrap: anywhere;
+  color: var(--v-text);
 }
 .en-thread {
-  padding-bottom: var(--en-ask-h);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 .en-turn {
-  scroll-margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Below the sticky site header (0 on the phone, where it is not sticky). */
+  scroll-margin-top: calc(var(--v-header-h, 0px) + 8px);
   scroll-margin-bottom: var(--en-ask-h);
 }
+.en-bubble {
+  margin: 0 0 0 auto;
+  max-width: 70%;
+  width: fit-content;
+  padding: 10px 16px;
+  border-radius: 20px 20px 6px 20px;
+  background: var(--v-accent);
+  color: var(--v-surface);
+}
 .en-readas {
-  margin: 0 0 12px;
-  color: #9a5b00;
-  font-weight: 600;
+  margin: -4px 0 0 auto;
+  color: var(--v-muted);
+  font-size: 13px;
 }
-.en-arith,
-.en-verified {
-  font-weight: 600;
+.en-sentence {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 17px;
 }
-.en-warn {
-  color: #9a5b00;
+.en-pending {
+  margin: 0;
+  color: var(--v-muted);
+}
+
+/* The answer card: plan left, answer right; one column below 900 px. */
+.en-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+}
+.en-card--empty {
+  grid-template-columns: minmax(0, 1fr);
+}
+.en-left {
+  position: relative;
+  margin: 0;
+  /* The viewer pads itself (viewer.css .vw): no second padding above or beside it, so the plan's legend line
+     sits higher and stays clear of the ask band at 1440x900 (golden 06/07). */
+  padding: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--v-bg);
+}
+.en-side {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.en-side p {
+  margin: 0;
+}
+.en-left > :not(.en-plan) {
+  margin-inline: 20px;
+}
+.en-left > .en-planbox:first-child {
+  margin-top: 20px;
+}
+.en-plan {
+  position: relative;
+}
+/* Over the empty right end of the viewer's file-name row (its padding is 20 px); in flow on a phone. */
+.en-place {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1;
+  max-width: 50%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--v-muted);
+}
+.en-pos {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--v-text);
+}
+.en-planbox {
+  position: relative;
+}
+.en-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--v-surface) 85%, transparent);
+  box-shadow: var(--v-shadow);
+  color: var(--v-text);
+  z-index: 2;
+}
+.en-nav--prev {
+  left: 6px;
+}
+.en-nav--next {
+  right: 6px;
+}
+.en-nav:active {
+  transform: translateY(-50%) scale(0.97);
+}
+
+/* Where there is no plan (building model, refusal), the arrows and position sit in a row (EN-56). */
+.en-drawnav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.en-drawnav .en-pos {
+  margin-left: 0;
+}
+.en-drawnav .en-nav {
+  position: static;
+  transform: none;
+}
+.en-drawnav .en-nav:active {
+  transform: scale(0.97);
+}
+
+/* The opened reference covers the plan box. */
+.en-overlay {
+  position: absolute;
+  inset: -8px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow);
+  overflow: hidden;
+  animation: en-open 220ms ease-out;
+}
+@keyframes en-open {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+.en-overlay-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--v-line);
+}
+.en-overlay img {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  background: var(--v-bg);
+}
+.en-close {
+  margin-left: auto;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--v-fill);
+  color: var(--v-text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.en-marks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+.en-marks li {
+  padding: 4px 6px;
+  border-radius: 8px;
 }
 .en-marks li[aria-selected='true'] {
-  background: #eef1f6;
-  border-radius: 4px;
+  background: var(--v-accent-soft);
 }
-.en-fold summary,
+.en-sign,
+.en-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 11px;
+  background: var(--v-accent);
+  color: var(--v-surface);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.en-arith {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Right column. */
+.en-value-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.en-value {
+  font-size: 44px;
+  line-height: 1.05;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.en-noun {
+  font-size: 17px;
+  color: var(--v-muted);
+}
+.en-labelrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.en-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.en-checks,
+.en-grade {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+.en-pillwrap {
+  position: relative;
+}
+.en-pill {
+  cursor: default;
+}
+.en-tip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 4;
+  width: max-content;
+  max-width: 240px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--v-text);
+  color: var(--v-surface);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.en-tip[hidden] {
+  display: none;
+}
+.en-bar {
+  display: flex;
+  gap: 4px;
+}
+.en-step {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--v-line);
+}
+.en-step--on {
+  background: var(--v-accent);
+}
+.en-conflict {
+  margin: 0;
+  padding-left: 20px;
+}
+.en-rule {
+  font-size: 14px;
+}
+.en-verified {
+  font-weight: 600;
+  color: var(--v-ok);
+}
+.en-sure {
+  font-weight: 600;
+}
+.en-refs ol {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.en-ref {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--v-fill);
+  color: var(--v-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+}
+button.en-ref {
+  cursor: pointer;
+}
+button.en-ref:hover,
+.en-ref[aria-pressed='true'] {
+  background: var(--v-accent-soft);
+}
+.en-ref-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.en-ref-what {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--v-text-2);
+}
+.en-ref-where {
+  font-size: 12px;
+  color: var(--v-muted);
+}
+.en-mono {
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.en-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  padding: 4px 22px;
+  border-top: 1px solid var(--v-line);
+  color: var(--v-muted);
+  font-size: 12px;
+}
+.en-foot a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
 .en-details summary {
   /* list-item keeps the browser's ▶ marker, as the shell's "What runs" (flex would drop it). */
   display: list-item;
@@ -39,17 +399,15 @@
   box-sizing: border-box;
   cursor: pointer;
 }
-.en-foot a {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
+.en-details p {
+  margin: 0 0 6px;
 }
 .en-tablewrap {
   margin: 8px 0;
 }
 .en-tablewrap table {
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 14px;
 }
 .en-tablewrap caption {
   text-align: left;
@@ -58,156 +416,124 @@
 }
 .en-tablewrap th,
 .en-tablewrap td {
-  border-bottom: 1px solid #dcdfe5;
+  border-bottom: 1px solid var(--v-line);
   padding: 4px 8px;
   text-align: left;
 }
-.en-mono {
-  font-family: ui-monospace, monospace;
+
+/* Refusal and error turns. */
+.en-refusal,
+.en-error {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.en-limit {
-  flex-basis: 100%;
+.en-refusal p,
+.en-error p {
   margin: 0;
 }
-.en-file {
-  font-family: ui-monospace, monospace;
-  font-size: 1.15rem;
-  margin: 0 0 4px;
+.en-error {
+  color: var(--v-danger);
 }
+
 .en-read,
 .en-small,
-.en-meta {
-  color: #5b6170;
-  font-size: 0.85rem;
+.en-meta,
+.en-empty {
+  margin: 0;
+  color: var(--v-muted);
+  font-size: 13px;
 }
+.en-warn {
+  color: var(--v-warn);
+}
+
+/* Chips: suggestions, can_answer, Try again. */
 .en-suggest {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 12px 0;
 }
-.en-suggest button,
-.en-ask button,
-.en-error button {
+.en-chip {
   min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid #c9ccd4;
-  border-radius: 8px;
-  background: #fff;
-  color: inherit;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 980px;
+  background: var(--v-fill);
+  color: var(--v-text);
   font: inherit;
+  font-size: 14px;
   cursor: pointer;
 }
-.en-suggest button:disabled,
-.en-ask button:disabled {
+.en-chip:hover {
+  background: var(--v-accent-soft);
+}
+.en-chip:disabled {
   opacity: 0.5;
   cursor: default;
 }
-.en-empty {
-  color: #5b6170;
-}
-.en-turn {
-  margin: 24px 0;
-}
-.en-bubble {
-  margin: 0 0 12px auto;
-  max-width: 80%;
-  width: fit-content;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: #eef1f6;
-}
-.en-card {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid #dcdfe5;
-  border-radius: 12px;
-}
-.en-foot {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  color: #5b6170;
-  font-size: 0.85rem;
-}
-.en-title {
-  margin: 0;
-  font-size: 1rem;
-}
-.en-value {
-  margin: 4px 0 8px;
-  font-size: 2rem;
-  font-weight: 700;
-}
-.en-value-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
-}
-.en-sure {
-  padding: 0 6px;
-  border: 1px solid #1d6b3a;
-  border-radius: 4px;
-  color: #1d6b3a;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-/* Read by screen readers, not shown. */
-.en-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-.en-marks {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-}
-.en-sign {
-  display: inline-block;
-  min-width: 2em;
-  font-weight: 700;
-}
-.en-checks h4 {
-  margin: 12px 0 4px;
-}
-.en-conflict {
-  margin: 4px 0;
-  padding-left: 20px;
-}
-.en-error {
-  padding: 12px;
-  border: 1px solid #c8402a;
-  border-radius: 8px;
-}
+
+/* The ask box: a pill on a solid band stuck to the bottom; content scrolls behind the band, never shows through
+   it (golden 06/07: the plan's legend and mark rows read through the glass). */
 .en-ask {
   position: sticky;
   bottom: 0;
+  z-index: 5;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px 0 10px;
+  background: var(--v-bg);
+}
+.en-askpill {
+  display: flex;
   align-items: center;
   gap: 8px;
-  min-height: var(--en-ask-h);
-  padding: 8px 0;
-  box-sizing: border-box;
-  background: #fff;
+  padding: 6px 6px 6px 18px;
+  border-radius: 980px;
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow);
 }
-.en-ask input {
+.en-askpill input {
   flex: 1;
   min-width: 0;
   min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid #c9ccd4;
-  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--v-text);
   font: inherit;
 }
+.en-send {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--v-accent);
+  color: var(--v-surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.en-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.en-limit {
+  text-align: center;
+  font-size: 12px;
+}
+/* "<n> asked · len / limit" inside the pill (a shorter band on desktop); under it on a phone. */
+.en-askpill .en-meta {
+  flex: none;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Read by screen readers, not shown. */
 .en-sr {
   position: absolute;
   width: 1px;
@@ -216,11 +542,134 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-@media (max-width: 720px) {
+
+@media (max-width: 900px) {
   .en-card {
     grid-template-columns: minmax(0, 1fr);
   }
-  .en-meta {
-    display: none;
+  .en-page {
+    padding: 24px 16px 0;
+  }
+  .en-left > :not(.en-plan) {
+    margin-inline: 16px;
+  }
+  .en-place {
+    position: static;
+    max-width: none;
+    padding: 16px 16px 0;
+  }
+  .en-ask {
+    padding-bottom: 28px;
+  }
+  .en-askpill {
+    position: relative;
+  }
+  .en-askpill .en-meta {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    text-align: center;
+  }
+  /* Under the meta line, not over it. */
+  .en-limit {
+    margin-top: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .en-overlay {
+    animation: none;
+  }
+  .v-press:active {
+    transform: none;
+  }
+  /* The arrows press by their own rule (they keep their centring transform). */
+  .en-nav:active {
+    transform: translateY(-50%);
+  }
+}
+.en-check {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--v-warn-soft);
+  color: var(--v-warn);
+  font-size: 14px;
+}
+
+/* Project chat (chat.md): empty until asked. */
+.en-chat-title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+.en-chatcard {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.en-chatcard p {
+  margin: 0;
+}
+.en-parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
+}
+.en-parts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.en-parts a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+/* The ask box at the bottom also while the chat is empty (sticky needs a page at least as tall as the view). */
+.en-chat {
+  min-height: calc(100dvh - var(--v-header-h, 0px));
+  box-sizing: border-box;
+}
+.en-chat .en-ask {
+  margin-top: auto;
+}
+/* The empty chat: heading, bar and starter chips in the upper middle, as a chat app's start page. */
+.en-chat--empty {
+  padding-top: max(14vh, 40px);
+  align-items: center;
+}
+.en-chat--empty > * {
+  width: 100%;
+  max-width: 720px;
+}
+.en-chat--empty .en-chat-title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 600;
+}
+.en-chat--empty .en-ask {
+  position: static;
+  margin-top: 0;
+  padding: 0;
+  background: none;
+}
+.en-chat--empty .en-suggest {
+  justify-content: center;
+}
+.en-chat--empty .en-empty {
+  text-align: center;
+}
+@media (max-width: 900px) {
+  /* The phone's header is tall and not sticky: less space above, so the bar stays in the upper half. */
+  .en-chat--empty {
+    padding-top: 24px;
   }
 }

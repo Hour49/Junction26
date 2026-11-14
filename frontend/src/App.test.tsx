@@ -1,19 +1,35 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, type Screens } from './App';
 import type { ProjectList } from './api';
 import { error as errorBody, info, projectList } from './api/fixtures';
 import { InfoProvider, useInfo } from './shell/info';
+import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
 
 const P = '5e0c1a2b3d4f';
 const D = 'adeefbbcc17559fc';
 const OFFLINE = 'Running offline: no API keys, no models';
 
+let projectMounts = 0;
+
+function ProjectStub({ projectId }: { projectId: string }) {
+  const [mount] = useState(() => ++projectMounts);
+  return (
+    <p>
+      project {projectId} mount {mount}
+    </p>
+  );
+}
+
 const stubs: Screens = {
   HomeScreen: () => <p>home screen</p>,
-  ProjectScreen: ({ projectId }) => <p>project {projectId}</p>,
+  AccountScreen: () => <p>account screen</p>,
+  ProjectScreen: ProjectStub,
+  ConflictsScreen: ({ projectId }) => <p>conflicts {projectId}</p>,
+  ProjectChat: ({ projectId }) => <p>chat {projectId}</p>,
   FileTraceScreen: ({ fileId }) => <p>trace {fileId}</p>,
   EngineerPage: ({ drawingId }) => <p>engineer {drawingId}</p>,
   SurveyorScreen: ({ drawingId, query }) => (
@@ -51,7 +67,7 @@ describe('shell', () => {
     render(<App screens={stubs} />);
     expect(screen.getByText('home screen')).toBeTruthy();
     go(`#/p/${P}`);
-    expect(screen.getByText(`project ${P}`)).toBeTruthy();
+    expect(screen.getByText(new RegExp(`^project ${P} mount`))).toBeTruthy();
     go(`#/p/${P}/f/f2`);
     expect(screen.getByText('trace f2')).toBeTruthy();
     go(`#/p/${P}/d/${D}/engineer`);
@@ -75,42 +91,156 @@ describe('shell', () => {
   it('SH-7 the product name links to the start on every route', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
-    for (const hash of ['#/', `#/p/${P}`, `#/p/${P}/d/${D}/engineer`, '#/nope']) {
+    for (const hash of ['#/', `#/p/${P}`, `#/p/${P}/d/${D}/engineer`, '#/workspaces', '#/nope']) {
       go(hash);
-      expect(screen.getByRole('link', { name: 'Countersign' }).getAttribute('href')).toBe('#/');
+      expect(screen.getByRole('link', { name: 'Vellum' }).getAttribute('href')).toBe('#/');
     }
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-13 on a drawing route the view links point to the three views and keep ?q=', async () => {
+  it('SH-13 on a drawing route the view links point to the views and keep ?q=', async () => {
     window.location.hash = `#/p/${P}/d/${D}/engineer?q=door`;
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
     expect(links().map((l) => [l.text, l.href])).toEqual([
       ['Ingest', `#/p/${P}`],
-      ['Engineer', `#/p/${P}/d/${D}/engineer?q=door`],
+      ['Conflicts', `#/p/${P}/conflicts`],
+      ['Chat', `#/p/${P}/chat`],
       ['Surveyor', `#/p/${P}/d/${D}/surveyor?q=door`],
+    ]);
+    // Tudor 12:46: no Engineer tab; the engineer route still renders.
+    expect(screen.queryByRole('link', { name: 'Engineer' })).toBeNull();
+    expect(screen.getByText(`engineer ${D}`)).toBeTruthy();
+    await screen.findByText(OFFLINE);
+  });
+
+  it('SH-56 the view links of each route; at most the current one is marked', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    const marked = () => links().map((l) => [l.text, l.href, l.current]);
+    for (const hash of ['#/', '#/workspaces', '#/nope']) {
+      go(hash);
+      expect(links(), hash).toEqual([]);
+    }
+    for (const hash of [`#/p/${P}`, `#/p/${P}/f/f1`]) {
+      go(hash);
+      expect(marked(), hash).toEqual([
+        ['Ingest', `#/p/${P}`, 'page'],
+        ['Conflicts', `#/p/${P}/conflicts`, null],
+        ['Chat', `#/p/${P}/chat`, null],
+      ]);
+    }
+    go(`#/p/${P}/conflicts`);
+    expect(marked()).toEqual([
+      ['Ingest', `#/p/${P}`, null],
+      ['Conflicts', `#/p/${P}/conflicts`, 'page'],
+      ['Chat', `#/p/${P}/chat`, null],
+    ]);
+    go(`#/p/${P}/d/${D}/surveyor`);
+    expect(marked()).toEqual([
+      ['Ingest', `#/p/${P}`, null],
+      ['Conflicts', `#/p/${P}/conflicts`, null],
+      ['Chat', `#/p/${P}/chat`, null],
+      ['Surveyor', `#/p/${P}/d/${D}/surveyor`, 'page'],
+    ]);
+    go(`#/p/${P}/d/${D}/engineer`);
+    expect(marked().map(([, , current]) => current)).toEqual([null, null, null, null]);
+    await screen.findByText(OFFLINE);
+  });
+
+  it('SH-64 the chat route mounts ProjectChat; header shows Ingest, Conflicts, Chat (current)', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    go(`#/p/${P}/chat`);
+    expect(screen.getByText(`chat ${P}`)).toBeTruthy();
+    expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
+      ['Ingest', `#/p/${P}`, null],
+      ['Conflicts', `#/p/${P}/conflicts`, null],
+      ['Chat', `#/p/${P}/chat`, 'page'],
     ]);
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-14 the current view link is marked; project and file show only Ingest; home none', async () => {
+  it('SH-54 account and conflicts mount their screens; ?view does not remount the project', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
-    expect(links()).toEqual([]);
-    go(`#/p/${P}/d/${D}/surveyor`);
-    expect(links().map((l) => [l.text, l.current])).toEqual([
-      ['Ingest', null],
-      ['Engineer', null],
-      ['Surveyor', 'page'],
-    ]);
-    for (const hash of [`#/p/${P}`, `#/p/${P}/f/f1`]) {
-      go(hash);
-      expect(links().map((l) => [l.text, l.current])).toEqual([['Ingest', 'page']]);
-    }
-    go('#/nope');
-    expect(links()).toEqual([]);
+    go('#/workspaces');
+    expect(screen.getByText('account screen')).toBeTruthy();
+    go(`#/p/${P}/conflicts`);
+    expect(screen.getByText(`conflicts ${P}`)).toBeTruthy();
+    go(`#/p/${P}`);
+    const first = screen.getByText(new RegExp(`^project ${P} mount`)).textContent;
+    go(`#/p/${P}?view=advanced`);
+    expect(screen.getByText(new RegExp(`^project ${P} mount`)).textContent).toBe(first);
     await screen.findByText(OFFLINE);
+  });
+
+  it('SH-55 the header: logo link, Workspaces link, picker; no country picker or avatar', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    const banner = screen.getByRole('banner');
+    const home = within(banner).getByRole('link', { name: 'Vellum' });
+    expect(home.getAttribute('href')).toBe('#/');
+    expect(home.textContent).toBe('Vellum');
+    const img = home.querySelector('img');
+    expect(img?.getAttribute('alt')).toBe('');
+    expect(img?.getAttribute('src')).toBe(logo);
+    expect(banner.querySelectorAll('img')).toHaveLength(1);
+    const workspaces = () => within(banner).getByRole('link', { name: 'Workspaces' });
+    expect(workspaces().getAttribute('href')).toBe('#/workspaces');
+    expect(workspaces().getAttribute('aria-current')).toBeNull();
+    expect(within(banner).getByRole('combobox', { name: 'Project' })).toBeTruthy();
+    expect(within(banner).queryByText(/Country rules/)).toBeNull();
+    go('#/workspaces');
+    expect(workspaces().getAttribute('aria-current')).toBe('page');
+    go(`#/p/${P}`);
+    expect(workspaces().getAttribute('aria-current')).toBeNull();
+    await screen.findByText(OFFLINE);
+  });
+
+  it('SH-61 the country picker only changes its own name, and is marked pending', async () => {
+    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    await screen.findByText(OFFLINE);
+    const button = () => screen.getByRole('button', { name: /^Country rules: / });
+    expect(button().getAttribute('aria-label')).toBe('Country rules: Finland');
+    expect(button().getAttribute('data-pending')).toBe('country-rules');
+    expect(button().getAttribute('aria-expanded')).toBe('false');
+    const before = api.calls.length;
+    fireEvent.click(button());
+    const group = screen.getByRole('group', { name: 'Building rules the agent follows' });
+    expect(
+      within(group)
+        .getByRole('button', { name: /^Finland/ })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(within(group).getByText('Rules are not applied yet.')).toBeTruthy();
+    expect(button().getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(within(group).getByRole('button', { name: /^Switzerland/ }));
+    expect(button().getAttribute('aria-label')).toBe('Country rules: Switzerland');
+    expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
+    fireEvent.click(button());
+    fireEvent.keyDown(screen.getByRole('group', { name: 'Building rules the agent follows' }), {
+      key: 'Escape',
+    });
+    expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
+    expect(document.activeElement).toBe(button());
+    expect(api.calls.length).toBe(before);
+  });
+
+  it('SH-61 country_rules from /api/info replace the mock', async () => {
+    const country_rules = [{ id: 'se', name: 'Sweden', law: 'PBL 2010:900' }];
+    mockApi({ 'GET /api/info': { ...info, country_rules }, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    await screen.findByText(OFFLINE);
+    const button = screen.getByRole('button', { name: 'Country rules: Sweden' });
+    fireEvent.click(button);
+    const group = screen.getByRole('group', { name: 'Building rules the agent follows' });
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['SwedenPBL 2010:900']);
   });
 
   it('SH-15 GET /api/info is sent once, not on route changes', async () => {
@@ -257,7 +387,7 @@ describe('project picker', () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': list });
     const { container } = render(<App screens={stubs} />);
     await screen.findByRole('option', { name: `${name} · 2026-11-14 08:00 UTC` });
-    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('img:not(.brand-logo)')).toBeNull();
   });
 });
 

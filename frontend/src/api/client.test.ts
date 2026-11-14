@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { never, mockApi, reply } from '../test/mockApi';
 import {
   ApiError,
+  askProject,
   askQuestion,
   getDrawing,
   getInfo,
@@ -9,6 +10,8 @@ import {
   getProjectReview,
   getTakeoff,
   getTrace,
+  getProjectTrace,
+  getProjectQuestions,
   listProjects,
   pageUrl,
   evidenceUrl,
@@ -21,6 +24,7 @@ import {
   uploadProject,
 } from '.';
 import * as fx from './fixtures';
+import type { Edit, SignOffRequest } from './types';
 
 const pid = fx.project.id;
 const did = fx.drawing.id;
@@ -32,6 +36,8 @@ describe('API client', () => {
       'GET /api/projects': fx.projectList,
       [`GET /api/projects/${pid}`]: fx.project,
       [`GET /api/projects/${pid}/files/f1/trace`]: fx.trace,
+      [`GET /api/projects/${pid}/trace`]: fx.projectTrace,
+      [`GET /api/projects/${pid}/questions`]: fx.projectQuestions,
       [`GET /api/projects/${pid}/review`]: fx.projectReview,
       [`GET /api/drawings/${did}`]: fx.drawing,
       [`GET /api/drawings/${fx.takeoff.drawing_id}/takeoff`]: fx.takeoff,
@@ -40,6 +46,8 @@ describe('API client', () => {
     expect(await listProjects()).toEqual(fx.projectList);
     expect(await getProject(pid)).toEqual(fx.project);
     expect(await getTrace(pid, 'f1')).toEqual(fx.trace);
+    expect(await getProjectTrace(pid)).toEqual(fx.projectTrace);
+    expect(await getProjectQuestions(pid)).toEqual(fx.projectQuestions);
     expect(await getProjectReview(pid)).toEqual(fx.projectReview);
     expect(await getDrawing(did)).toEqual(fx.drawing);
     expect(await getTakeoff(fx.takeoff.drawing_id)).toEqual(fx.takeoff);
@@ -48,6 +56,8 @@ describe('API client', () => {
       'GET /api/projects',
       `GET /api/projects/${pid}`,
       `GET /api/projects/${pid}/files/f1/trace`,
+      `GET /api/projects/${pid}/trace`,
+      `GET /api/projects/${pid}/questions`,
       `GET /api/projects/${pid}/review`,
       `GET /api/drawings/${did}`,
       `GET /api/drawings/${fx.takeoff.drawing_id}/takeoff`,
@@ -84,6 +94,16 @@ describe('API client', () => {
     expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
     mockApi({ 'POST /api/ask': fx.answerRefused });
     await expect(askQuestion(fx.askRequest)).resolves.toEqual(fx.answerRefused);
+  });
+
+  it('CH-9 askProject posts {question} to the project and resolves project_ask.json; a 409 rejects', async () => {
+    const api = mockApi({ [`POST /api/projects/${pid}/ask`]: fx.projectAsk });
+    expect(await askProject(pid, fx.projectAsk.question)).toEqual(fx.projectAsk);
+    expect(api.calls[0]?.body).toEqual({ question: fx.projectAsk.question });
+    const init = api.fetch.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+    mockApi({ [`POST /api/projects/${pid}/ask`]: reply(409, fx.errorNotAllowed) });
+    await expect(askProject(pid, 'q')).rejects.toMatchObject({ status: 409 });
   });
 
   it('SH-29 pageUrl builds the fixture page URL with the width', () => {
@@ -133,6 +153,15 @@ describe('API client', () => {
     for (const edit of fx.reviewRequests) expect(await postReview(tid, edit)).toEqual(fx.takeoff);
     expect(await postSignoff(tid, fx.signoffRequest)).toEqual(fx.takeoff);
     expect(api.calls.map((c) => c.body)).toEqual([...fx.reviewRequests, fx.signoffRequest]);
+  });
+
+  it('SH-27 (#121) an unsettle edit and a settling sign-off are sent as given', async () => {
+    const api = mockApi({ [reviewPath]: fx.takeoff, [signoffPath]: fx.takeoff });
+    const unsettle: Edit = { action: 'unsettle', quantity: 'count:door' };
+    const settle: SignOffRequest = { ...fx.signoffRequest, settle: true };
+    await postReview(tid, unsettle);
+    await postSignoff(tid, settle);
+    expect(api.calls.map((c) => c.body)).toEqual([unsettle, settle]);
   });
 
   it('SH-28 zeros is sent only when passed', async () => {
@@ -201,6 +230,8 @@ describe('API client', () => {
       'GET /api/projects': fx.projectList,
       [`GET /api/projects/${pid}`]: fx.project,
       [`GET /api/projects/${pid}/files/f1/trace`]: fx.trace,
+      [`GET /api/projects/${pid}/trace`]: fx.projectTrace,
+      [`GET /api/projects/${pid}/questions`]: fx.projectQuestions,
       [`GET /api/projects/${pid}/review`]: fx.projectReview,
       [`GET /api/drawings/${did}`]: fx.drawing,
       [`GET /api/drawings/${did}/model`]: {},
@@ -218,6 +249,8 @@ describe('API client', () => {
       listProjects(opts),
       getProject(pid, opts),
       getTrace(pid, 'f1', opts),
+      getProjectTrace(pid, opts),
+      getProjectQuestions(pid, opts),
       getProjectReview(pid, opts),
       getDrawing(did, opts),
       getModel(did, opts),
@@ -227,7 +260,7 @@ describe('API client', () => {
       postSignoff(tid, fx.signoffRequest, opts),
     ]);
     const signals = api.fetch.mock.calls.map(([, init]) => init?.signal);
-    expect(signals).toHaveLength(13);
+    expect(signals).toHaveLength(15);
     expect(signals.every((s) => s === signal)).toBe(true);
   });
 

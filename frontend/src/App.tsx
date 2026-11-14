@@ -1,20 +1,26 @@
 import { useEffect, useRef, type ComponentType } from 'react';
+import { AccountScreen } from './account/AccountScreen';
 import { EngineerPage } from './engineer/EngineerPage';
+import { ProjectChat } from './engineer/ProjectChat';
 import { FileTraceScreen } from './ingest/FileTraceScreen';
 import { HomeScreen } from './ingest/HomeScreen';
 import { ProjectScreen } from './ingest/ProjectScreen';
-import { Header } from './shell/Header';
+import { Header, isWide } from './shell/Header';
 import { InfoBar } from './shell/InfoBar';
 import { InfoProvider } from './shell/info';
 import { NotFound } from './shell/NotFound';
 import { parseRoute, routePath, useHash } from './shell/route';
 import './shell/shell.css';
+import { ConflictsScreen } from './surveyor/ConflictsScreen';
 import { SurveyorScreen } from './surveyor/SurveyorScreen';
 
 /** The screen of each route; tests pass stubs. */
 export interface Screens {
   HomeScreen: ComponentType;
+  AccountScreen: ComponentType<Record<string, never>>;
   ProjectScreen: ComponentType<{ projectId: string }>;
+  ConflictsScreen: ComponentType<{ projectId: string }>;
+  ProjectChat: ComponentType<{ projectId: string }>;
   FileTraceScreen: ComponentType<{ projectId: string; fileId: string }>;
   EngineerPage: ComponentType<{ projectId: string; drawingId: string; query: URLSearchParams }>;
   SurveyorScreen: ComponentType<{ projectId: string; drawingId: string; query: URLSearchParams }>;
@@ -22,7 +28,10 @@ export interface Screens {
 
 const builtScreens: Screens = {
   HomeScreen,
+  AccountScreen,
   ProjectScreen,
+  ConflictsScreen,
+  ProjectChat,
   FileTraceScreen,
   EngineerPage,
   SurveyorScreen,
@@ -41,7 +50,14 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
     main.current?.focus();
     document.documentElement.scrollTop = 0;
   }, [key]);
-  const { HomeScreen: Home, ProjectScreen: Project, FileTraceScreen: Trace } = screens;
+  const {
+    HomeScreen: Home,
+    AccountScreen: Account,
+    ProjectScreen: Project,
+    ConflictsScreen: Conflicts,
+    ProjectChat: Chat,
+    FileTraceScreen: Trace,
+  } = screens;
   const Work =
     route.name === 'workspace' && route.role === 'surveyor'
       ? screens.SurveyorScreen
@@ -51,8 +67,17 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
     case 'home':
       body = <Home key={key} />;
       break;
+    case 'account':
+      body = <Account />; // one account route: no key needed (its props type is fixed empty)
+      break;
     case 'project':
       body = <Project key={key} projectId={route.projectId} />;
+      break;
+    case 'conflicts':
+      body = <Conflicts key={key} projectId={route.projectId} />;
+      break;
+    case 'chat':
+      body = <Chat key={key} projectId={route.projectId} />;
       break;
     case 'file':
       body = <Trace key={key} projectId={route.projectId} fileId={route.fileId} />;
@@ -73,7 +98,7 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
   return (
     <InfoProvider>
       <Header route={route} />
-      <InfoBar />
+      <InfoBar wide={isWide(route)} />
       <main id="main" tabIndex={-1} ref={main}>
         {body}
       </main>

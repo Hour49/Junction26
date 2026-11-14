@@ -239,6 +239,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Project Ask */
+        post: operations["project_ask_api_projects__project_id__ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/files/{file_id}/preview.png": {
         parameters: {
             query?: never;
@@ -437,6 +454,8 @@ export interface components {
             at: string;
             /** Drawing Id */
             drawing_id: string;
+            /** Project Ask */
+            project_ask?: string | null;
             /** Question */
             question: string;
             /** Refused */
@@ -879,6 +898,34 @@ export interface components {
             url: string;
             /** Width */
             width: number;
+        };
+        /** ProjectAnswer */
+        ProjectAnswer: {
+            /** Parts */
+            parts: components["schemas"]["ProjectAnswerPart"][];
+            /** Question */
+            question: string;
+            /** Total */
+            total: number | null;
+            /** Total Note */
+            total_note: string;
+            /** Total Sure */
+            total_sure: boolean;
+            /** Total Unit */
+            total_unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+        };
+        /** ProjectAnswerPart */
+        ProjectAnswerPart: {
+            answer: components["schemas"]["AnswerView"];
+            /** Drawing Id */
+            drawing_id: string;
+            /** Name */
+            name: string;
+        };
+        /** ProjectAskRequest */
+        ProjectAskRequest: {
+            /** Question */
+            question: string;
         };
         /** ProjectList */
         ProjectList: {
@@ -1331,6 +1378,8 @@ export interface components {
         };
         /** Takeoff */
         Takeoff: {
+            /** Disputes */
+            disputes: string[];
             /** Drawing Id */
             drawing_id: string;
             /** File */
@@ -1806,6 +1855,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_ask_api_projects__project_id__ask_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectAskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAnswer"];
                 };
             };
             /** @description Validation Error */

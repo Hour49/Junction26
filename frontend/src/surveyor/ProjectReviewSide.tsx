@@ -117,6 +117,14 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0 }: Props) {
         })}
       </ul>
       <h2 id="sv-conflicts">Conflicts ({conflicts.length})</h2>
+      {conflicts.length > 0 && (
+        <a
+          className="sv-settle"
+          href={routeHref({ name: 'conflicts', projectId, query: new URLSearchParams() })}
+        >
+          Settle the conflicts
+        </a>
+      )}
       <ul aria-labelledby="sv-conflicts">
         {conflicts.map((c) => (
           <li key={`${c.drawing_id} ${c.quantity}`}>

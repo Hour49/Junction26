@@ -117,6 +117,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/pages/{n}.png?width=` | Page `n` as PNG | #31 |
 | `GET /api/drawings/{drawing_id}/evidence.png?question=&width=` | An answer with its proof drawn on its page | #31 |
 | `POST /api/ask` | Answer a question with its takeoff row, marks, rule, conflicts, cost | #31 |
+| `POST /api/projects/{project_id}/ask` | Ask every drawing of a project; the parts, and their total where one means something | #31 |
 | `GET /api/drawings/{drawing_id}/takeoff?zeros=` | Every quantity with its marks, both methods' values and review state | #32 |
 | `POST /api/drawings/{drawing_id}/review` | Reject, restore or add a mark; settle, unsettle; reset. Returns the takeoff | #32 |
 | `POST /api/drawings/{drawing_id}/signoff` | Sign off one quantity, or undo it. Returns the takeoff | #32 |
@@ -204,6 +205,11 @@ Without it a second sample run is all `reused: true`.
 
 Every project, newest first: open one ingested earlier when a live ingest is slow.
 
+`to_review` and `conflicts_open` are null until the project is `done`. `to_review`: the quantities left to review
+over its drawings (the review queue). `conflicts_open`: the conflicts a person still has to settle, that is rows
+with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
+decided ("settled by a rule") or a person settled is not open. A room's several names count once.
+
 <!-- fixture: project_list.json -->
 ```json
 {
@@ -215,8 +221,8 @@ Every project, newest first: open one ingested earlier when a live ingest is slo
       "created_at": "2026-11-14T08:00:00+00:00",
       "files": 11,
       "drawings": 5,
-      "to_review": 2,
-      "conflicts_open": 2
+      "to_review": 1,
+      "conflicts_open": 0
     }
   ]
 }
@@ -243,7 +249,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
       "kind": "pdf_vector",
       "state": "ready",
-      "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+      "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
       "group": "plans/flat-a",
       "route": "vector",
       "source": "plans/flat-a.pdf",
@@ -334,7 +340,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
       "kind": "png_plan",
       "state": "ready",
-      "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+      "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
       "group": "plans/flat-a",
       "route": "vector",
       "source": "plans/flat-a.pdf",
@@ -434,7 +440,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict(s) between the two methods (room_area) (7 elements, 5 rooms, scale scaled)",
+      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",
@@ -694,7 +700,7 @@ after a restart cut that run off:
   "cost_usd": 0.0,
   "drawings": [],
   "skipped": [],
-  "expected_drawings": 1
+  "expected_drawings": null
 }
 ```
 
@@ -769,7 +775,7 @@ after a restart cut that run off:
     "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
     "kind": "pdf_vector",
     "state": "ready",
-    "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+    "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
     "group": "plans/flat-a",
     "route": "vector",
     "source": "plans/flat-a.pdf",
@@ -874,7 +880,7 @@ after a restart cut that run off:
       "stage": "identify",
       "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
       "ms": 12.5,
-      "output": "pdf_vector",
+      "output": "drawn PDF",
       "failure": null,
       "cost_usd": 0.0
     },
@@ -882,7 +888,7 @@ after a restart cut that run off:
       "stage": "group",
       "did": "plans/flat-a: flat-a.pdf, flat-a.png",
       "ms": 12.5,
-      "output": "2 file(s)",
+      "output": "2 files",
       "failure": null,
       "cost_usd": 0.0
     },
@@ -896,25 +902,25 @@ after a restart cut that run off:
     },
     {
       "stage": "normalise",
-      "did": "1 page(s), page 1 is 600 x 400 pt",
+      "did": "1 page, page 1 is 600 x 400 pt",
       "ms": 12.5,
-      "output": "1 page(s), page 1 is 600 x 400 pt",
+      "output": "1 page, page 1 is 600 x 400 pt",
       "failure": null,
       "cost_usd": 0.0
     },
     {
       "stage": "extract",
-      "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+      "did": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "ms": 12.5,
-      "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+      "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "failure": null,
       "cost_usd": 0.0
     },
     {
       "stage": "second_count",
-      "did": "5 quantities measured twice, 0 conflict(s)",
+      "did": "5 quantities measured twice, 0 conflicts",
       "ms": 12.5,
-      "output": "5 quantities measured twice, 0 conflict(s)",
+      "output": "5 quantities measured twice, 0 conflicts",
       "failure": null,
       "cost_usd": 0.0
     },
@@ -1009,7 +1015,7 @@ upload lists the files, instead of one request per file.
         "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
         "kind": "pdf_vector",
         "state": "ready",
-        "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+        "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
         "group": "plans/flat-a",
         "route": "vector",
         "source": "plans/flat-a.pdf",
@@ -1114,7 +1120,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
           "ms": 12.5,
-          "output": "pdf_vector",
+          "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1122,7 +1128,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "plans/flat-a: flat-a.pdf, flat-a.png",
           "ms": 12.5,
-          "output": "2 file(s)",
+          "output": "2 files",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1136,25 +1142,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 600 x 400 pt",
+          "did": "1 page, page 1 is 600 x 400 pt",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 600 x 400 pt",
+          "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "did": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "ms": 12.5,
-          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "5 quantities measured twice, 0 conflict(s)",
+          "did": "5 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "5 quantities measured twice, 0 conflict(s)",
+          "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1189,7 +1195,7 @@ upload lists the files, instead of one request per file.
         "sha256": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
         "kind": "png_plan",
         "state": "ready",
-        "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+        "reason": "read on the vector route: 7 elements, 5 rooms, scale read from the sheet",
         "group": "plans/flat-a",
         "route": "vector",
         "source": "plans/flat-a.pdf",
@@ -1303,7 +1309,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawing as a PNG (1200x800 px, 93% white, 99% paper, 0.0% ink)",
           "ms": 12.5,
-          "output": "png_plan",
+          "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1311,7 +1317,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "plans/flat-a: flat-a.pdf, flat-a.png",
           "ms": 12.5,
-          "output": "2 file(s)",
+          "output": "2 files",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1325,25 +1331,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 1200 x 800 px",
+          "did": "1 page, page 1 is 1200 x 800 px",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 1200 x 800 px",
+          "output": "1 page, page 1 is 1200 x 800 px",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "did": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "ms": 12.5,
-          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "5 quantities measured twice, 0 conflict(s)",
+          "did": "5 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "5 quantities measured twice, 0 conflict(s)",
+          "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1378,7 +1384,7 @@ upload lists the files, instead of one request per file.
         "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
         "kind": "pdf_vector",
         "state": "flagged",
-        "reason": "1 conflict(s) between the two methods (room_area) (7 elements, 5 rooms, scale scaled)",
+        "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
         "group": "plans/flat-b",
         "route": "vector",
         "source": "plans/flat-b.pdf",
@@ -1483,7 +1489,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
           "ms": 12.5,
-          "output": "pdf_vector",
+          "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1491,7 +1497,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "plans/flat-b: flat-b.pdf",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1505,25 +1511,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 600 x 400 pt",
+          "did": "1 page, page 1 is 600 x 400 pt",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 600 x 400 pt",
+          "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "did": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "ms": 12.5,
-          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "5 quantities measured twice, 1 conflict(s)",
+          "did": "5 quantities measured twice, 1 conflict",
           "ms": 12.5,
-          "output": "5 quantities measured twice, 1 conflict(s)",
+          "output": "5 quantities measured twice, 1 conflict",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1558,7 +1564,7 @@ upload lists the files, instead of one request per file.
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
         "kind": "png_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, scale no_scale)",
+        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
         "group": "scans/ground-floor",
         "route": "raster",
         "source": "scans/ground-floor.png",
@@ -1600,7 +1606,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
           "ms": 12.5,
-          "output": "png_plan",
+          "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1608,7 +1614,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "scans/ground-floor: ground-floor.png",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1622,25 +1628,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 1200 x 850 px",
+          "did": "1 page, page 1 is 1200 x 850 px",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 1200 x 850 px",
+          "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "did": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "ms": 12.5,
-          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "0 quantities measured twice, 0 conflict(s)",
+          "did": "0 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "0 quantities measured twice, 0 conflict(s)",
+          "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1672,7 +1678,7 @@ upload lists the files, instead of one request per file.
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
         "kind": "png_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, scale no_scale)",
+        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
         "group": "scans/ground-floor-copy",
         "route": "raster",
         "source": "scans/ground-floor-copy.png",
@@ -1714,7 +1720,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
           "ms": 12.5,
-          "output": "png_plan",
+          "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1722,7 +1728,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "scans/ground-floor-copy: ground-floor-copy.png",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1744,25 +1750,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 1200 x 850 px",
+          "did": "1 page, page 1 is 1200 x 850 px",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 1200 x 850 px",
+          "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "did": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "ms": 12.5,
-          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "0 quantities measured twice, 0 conflict(s)",
+          "did": "0 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "0 quantities measured twice, 0 conflict(s)",
+          "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1794,7 +1800,7 @@ upload lists the files, instead of one request per file.
         "sha256": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
         "kind": "photo_plan",
         "state": "flagged",
-        "reason": "no reader for the raster route yet: nothing was read; a phone photo, read without perspective correction (0 elements, 0 rooms, scale no_scale)",
+        "reason": "no reader for the raster route yet: nothing was read; a phone photo, read without perspective correction (0 elements, 0 rooms, no scale on the sheet)",
         "group": "photos/plan-photo",
         "route": "raster",
         "source": "photos/plan-photo.jpg",
@@ -1836,7 +1842,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink, camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
-          "output": "photo_plan",
+          "output": "photo of a drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1844,7 +1850,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "photos/plan-photo: plan-photo.jpg",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -1858,25 +1864,25 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "normalise",
-          "did": "1 page(s), page 1 is 1600 x 1200 px",
+          "did": "1 page, page 1 is 1600 x 1200 px",
           "ms": 12.5,
-          "output": "1 page(s), page 1 is 1600 x 1200 px",
+          "output": "1 page, page 1 is 1600 x 1200 px",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "extract",
-          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "did": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "ms": 12.5,
-          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
           "cost_usd": 0.0
         },
         {
           "stage": "second_count",
-          "did": "0 quantities measured twice, 0 conflict(s)",
+          "did": "0 quantities measured twice, 0 conflicts",
           "ms": 12.5,
-          "output": "0 quantities measured twice, 0 conflict(s)",
+          "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2038,7 +2044,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "first bytes: an IFC building model (STEP)",
           "ms": 12.5,
-          "output": "ifc",
+          "output": "IFC model",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2046,7 +2052,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "model/house: house.ifc",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2135,7 +2141,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "first bytes: a DXF drawing",
           "ms": 12.5,
-          "output": "dxf",
+          "output": "DXF drawing",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2143,7 +2149,7 @@ upload lists the files, instead of one request per file.
           "stage": "group",
           "did": "cad/detail: detail.dxf",
           "ms": 12.5,
-          "output": "1 file(s)",
+          "output": "1 file",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2200,7 +2206,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
           "ms": 12.5,
-          "output": "pdf_text",
+          "output": "text PDF",
           "failure": null,
           "cost_usd": 0.0
         }
@@ -2249,7 +2255,7 @@ upload lists the files, instead of one request per file.
           "stage": "identify",
           "did": "plain text, 80 bytes",
           "ms": 12.5,
-          "output": "text",
+          "output": "text file",
           "failure": null,
           "cost_usd": 0.0
         }
@@ -2263,7 +2269,10 @@ upload lists the files, instead of one request per file.
 ### `GET /api/projects/{project_id}/questions`
 
 The questions asked in the project, newest first (the last 200): every `POST /api/ask` that names the project in
-`project_id` is kept. An ask without a `project_id` is not kept.
+`project_id` is kept. A `POST /api/projects/{id}/ask` is kept as one line per drawing that answered (or, when none
+did, one refused line per drawing), each with that drawing's `drawing_id`, `answer` and `unit`, and with
+`project_ask`: an id the same on every line of that question, so the lines group into one question. `project_ask`
+is absent on a line from `POST /api/ask`. An ask without a `project_id` is not kept.
 
 <!-- fixture: project_questions.json -->
 ```json
@@ -2309,7 +2318,7 @@ many quantities are left to review and how many are signed off, and every confli
     {
       "drawing_id": "6d153ea15dca9ab4",
       "file": "plans/flat-b.pdf",
-      "to_review": 2,
+      "to_review": 1,
       "signed": 0,
       "quantities": 63
     },
@@ -2340,7 +2349,7 @@ many quantities are left to review and how many are signed off, and every confli
       "drawing_id": "6d153ea15dca9ab4",
       "file": "plans/flat-b.pdf",
       "quantity": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "conflict": {
         "values": [
           {
@@ -3737,6 +3746,544 @@ for the dispute finders: a door count certified at threshold 0.8, the same count
 }
 ```
 
+### `POST /api/projects/{project_id}/ask`
+
+A question on the whole project, for a chat with no drawing picked. The body is `{"question": "<text>"}` (1 to
+2000 characters). The question is asked on every drawing of the project (the `drawings` of
+`GET /api/projects/{id}`) exactly as `POST /api/ask` asks it with that `project_id`, so each part is the answer
+that call gives, the project's review edits applied. An unknown project is 404; a project that is not `done` yet
+(queued, running or failed) is 409 `not-allowed`.
+
+- `parts`: one per drawing, `{drawing_id, name, answer}`: `name` is the drawing's file as the project uploaded it
+  and `answer` is the full `POST /api/ask` response. The drawings that answered come first, then those that
+  refused (with their `answer.refusal`), each group in the project's order.
+- `total`, `total_unit`: when exactly one drawing answered, its value. When several did, their values added up, but
+  only when the backend knows the drawings show different parts of the building: sheets of the same IFC model,
+  each showing a different storey. A flat drawn twice (a PDF and its IFC model, as in the sample) would otherwise be
+  counted twice. The question must also be a count, or an area or length over each whole drawing, in one unit.
+  Null otherwise: no drawing answered, the drawings may show the same rooms, the question is about one room (two
+  kitchens on two drawings are two parts, not one sum), the answer came from a printed table, or the units differ.
+  The total only adds the parts' `answer` values.
+- `total_sure`: true only when there is a total and every part in it is sure (`answer.line.sure`); false
+  otherwise.
+- `total_note`: one plain sentence to show with the total, or instead of it: what was added over how many drawings,
+  how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), or
+  why there is no total, and which drawings gave no answer and why, e.g. `2 doors from 1 drawing.` or `3 drawings
+  answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.`
+- The question is kept in the project's question list (`GET /api/projects/{id}/questions`) as one line per drawing
+  that answered, with its own `answer` and `unit`, or one refused line per drawing when none answered; its lines
+  share one `project_ask` id.
+
+The door count on the sample project, trimmed to three of its five parts (two that answered, one refused) with two
+marks each; the note is over all five (the sample's flat-a.pdf and model/house.ifc draw the same flat, so there
+is no total):
+
+<!-- fixture: project_ask.json -->
+```json
+{
+  "question": "How many doors are there?",
+  "parts": [
+    {
+      "drawing_id": "adeefbbcc17559fc",
+      "name": "plans/flat-a.pdf",
+      "answer": {
+        "question": "How many doors are there?",
+        "drawing_id": "adeefbbcc17559fc",
+        "file": "plans/flat-a.pdf",
+        "pages": [
+          {
+            "page": 1,
+            "width": 600.0,
+            "height": 400.0,
+            "unit": "pt",
+            "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+            "normalised": null,
+            "scale": {
+              "status": "scaled",
+              "text": "1:100",
+              "ratio": 100.0,
+              "source": "sheet text 1:100; no scale bar found"
+            },
+            "scale_text": "1:100",
+            "storey": null
+          }
+        ],
+        "answer": 2,
+        "unit": "count",
+        "confidence": null,
+        "quantity": {
+          "key": "door",
+          "label": "door count",
+          "measure": "count",
+          "subject": "door",
+          "scope": {
+            "storey": null,
+            "label": null,
+            "name": null,
+            "apartment": null,
+            "indoor": false,
+            "model": false,
+            "largest": false
+          },
+          "value": 2,
+          "unit": "count",
+          "original_value": 2,
+          "status": "single",
+          "needs_person": false,
+          "rule": {
+            "id": "each-once",
+            "text": "every element, room and plan the drawing lists counts once"
+          },
+          "estimate": null,
+          "first": null,
+          "second": null,
+          "conflict": null,
+          "settled": null,
+          "marks": [
+            {
+              "id": "m1",
+              "n": 1,
+              "page": 1,
+              "box": [
+                0.49333,
+                0.225,
+                0.50667,
+                0.275
+              ],
+              "polygon": null,
+              "state": "counted",
+              "value": 1.0,
+              "label": "door",
+              "ref": "e1",
+              "reason": null,
+              "room_type": null
+            },
+            {
+              "id": "m2",
+              "n": 2,
+              "page": 1,
+              "box": [
+                0.66,
+                0.225,
+                0.67333,
+                0.275
+              ],
+              "polygon": null,
+              "state": "counted",
+              "value": 1.0,
+              "label": "door",
+              "ref": "e2",
+              "reason": null,
+              "room_type": null
+            }
+          ],
+          "signed": null,
+          "unlocated": {},
+          "noun": "doors"
+        },
+        "marks": [
+          {
+            "id": "m1",
+            "n": 1,
+            "page": 1,
+            "box": [
+              0.49333,
+              0.225,
+              0.50667,
+              0.275
+            ],
+            "polygon": null,
+            "state": "counted",
+            "value": 1.0,
+            "label": "door",
+            "ref": "e1",
+            "reason": null,
+            "room_type": null
+          },
+          {
+            "id": "m2",
+            "n": 2,
+            "page": 1,
+            "box": [
+              0.66,
+              0.225,
+              0.67333,
+              0.275
+            ],
+            "polygon": null,
+            "state": "counted",
+            "value": 1.0,
+            "label": "door",
+            "ref": "e2",
+            "reason": null,
+            "room_type": null
+          }
+        ],
+        "refusal": null,
+        "method": "takeoff",
+        "explanation": null,
+        "reader": {
+          "route": "vector",
+          "source": "plans/flat-a.pdf",
+          "extractor": "pdf",
+          "second_counter": "none",
+          "question_parser": "templates"
+        },
+        "cost_usd": 0.0,
+        "latency_s": 0.002,
+        "line": {
+          "id": 1,
+          "answer": 2,
+          "unit": "count",
+          "evidence": [
+            {
+              "file": "plans/flat-a.pdf",
+              "page": 1,
+              "box": [
+                0.49333,
+                0.225,
+                0.50667,
+                0.275
+              ]
+            },
+            {
+              "file": "plans/flat-a.pdf",
+              "page": 1,
+              "box": [
+                0.66,
+                0.225,
+                0.67333,
+                0.275
+              ]
+            }
+          ],
+          "method": "takeoff",
+          "cost_usd": 0.0,
+          "latency_s": 0.002,
+          "confidence": null,
+          "sure": null,
+          "abstain": null,
+          "explanation": null,
+          "estimate": null,
+          "conflicts": null,
+          "resolution": null
+        },
+        "proof": {
+          "kind": "count",
+          "legend": [
+            {
+              "label": "door",
+              "colour": "#d62728",
+              "count": 2,
+              "unlocated": 0,
+              "note": null
+            }
+          ],
+          "arithmetic": null,
+          "objects": null,
+          "storeys": null,
+          "schedule": null,
+          "check": null
+        },
+        "check": null
+      }
+    },
+    {
+      "drawing_id": "6d153ea15dca9ab4",
+      "name": "plans/flat-b.pdf",
+      "answer": {
+        "question": "How many doors are there?",
+        "drawing_id": "6d153ea15dca9ab4",
+        "file": "plans/flat-b.pdf",
+        "pages": [
+          {
+            "page": 1,
+            "width": 600.0,
+            "height": 400.0,
+            "unit": "pt",
+            "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+            "normalised": null,
+            "scale": {
+              "status": "scaled",
+              "text": "1:100",
+              "ratio": 100.0,
+              "source": "sheet text 1:100; no scale bar found"
+            },
+            "scale_text": "1:100",
+            "storey": null
+          }
+        ],
+        "answer": 2,
+        "unit": "count",
+        "confidence": null,
+        "quantity": {
+          "key": "door",
+          "label": "door count",
+          "measure": "count",
+          "subject": "door",
+          "scope": {
+            "storey": null,
+            "label": null,
+            "name": null,
+            "apartment": null,
+            "indoor": false,
+            "model": false,
+            "largest": false
+          },
+          "value": 2,
+          "unit": "count",
+          "original_value": 2,
+          "status": "single",
+          "needs_person": false,
+          "rule": {
+            "id": "each-once",
+            "text": "every element, room and plan the drawing lists counts once"
+          },
+          "estimate": null,
+          "first": null,
+          "second": null,
+          "conflict": null,
+          "settled": null,
+          "marks": [
+            {
+              "id": "m1",
+              "n": 1,
+              "page": 1,
+              "box": [
+                0.49333,
+                0.225,
+                0.50667,
+                0.275
+              ],
+              "polygon": null,
+              "state": "counted",
+              "value": 1.0,
+              "label": "door",
+              "ref": "e1",
+              "reason": null,
+              "room_type": null
+            },
+            {
+              "id": "m2",
+              "n": 2,
+              "page": 1,
+              "box": [
+                0.66,
+                0.225,
+                0.67333,
+                0.275
+              ],
+              "polygon": null,
+              "state": "counted",
+              "value": 1.0,
+              "label": "door",
+              "ref": "e2",
+              "reason": null,
+              "room_type": null
+            }
+          ],
+          "signed": null,
+          "unlocated": {},
+          "noun": "doors"
+        },
+        "marks": [
+          {
+            "id": "m1",
+            "n": 1,
+            "page": 1,
+            "box": [
+              0.49333,
+              0.225,
+              0.50667,
+              0.275
+            ],
+            "polygon": null,
+            "state": "counted",
+            "value": 1.0,
+            "label": "door",
+            "ref": "e1",
+            "reason": null,
+            "room_type": null
+          },
+          {
+            "id": "m2",
+            "n": 2,
+            "page": 1,
+            "box": [
+              0.66,
+              0.225,
+              0.67333,
+              0.275
+            ],
+            "polygon": null,
+            "state": "counted",
+            "value": 1.0,
+            "label": "door",
+            "ref": "e2",
+            "reason": null,
+            "room_type": null
+          }
+        ],
+        "refusal": null,
+        "method": "takeoff",
+        "explanation": null,
+        "reader": {
+          "route": "vector",
+          "source": "plans/flat-b.pdf",
+          "extractor": "pdf",
+          "second_counter": "none",
+          "question_parser": "templates"
+        },
+        "cost_usd": 0.0,
+        "latency_s": 0.002,
+        "line": {
+          "id": 1,
+          "answer": 2,
+          "unit": "count",
+          "evidence": [
+            {
+              "file": "plans/flat-b.pdf",
+              "page": 1,
+              "box": [
+                0.49333,
+                0.225,
+                0.50667,
+                0.275
+              ]
+            },
+            {
+              "file": "plans/flat-b.pdf",
+              "page": 1,
+              "box": [
+                0.66,
+                0.225,
+                0.67333,
+                0.275
+              ]
+            }
+          ],
+          "method": "takeoff",
+          "cost_usd": 0.0,
+          "latency_s": 0.002,
+          "confidence": null,
+          "sure": null,
+          "abstain": null,
+          "explanation": null,
+          "estimate": null,
+          "conflicts": null,
+          "resolution": null
+        },
+        "proof": {
+          "kind": "count",
+          "legend": [
+            {
+              "label": "door",
+              "colour": "#d62728",
+              "count": 2,
+              "unlocated": 0,
+              "note": null
+            }
+          ],
+          "arithmetic": null,
+          "objects": null,
+          "storeys": null,
+          "schedule": null,
+          "check": null
+        },
+        "check": null
+      }
+    },
+    {
+      "drawing_id": "3b3ce7db34257f63",
+      "name": "scans/ground-floor.png",
+      "answer": {
+        "question": "How many doors are there?",
+        "drawing_id": "3b3ce7db34257f63",
+        "file": "scans/ground-floor.png",
+        "pages": [
+          {
+            "page": 1,
+            "width": 1200.0,
+            "height": 850.0,
+            "unit": "px",
+            "url": "/api/drawings/3b3ce7db34257f63/pages/1.png",
+            "normalised": {
+              "exif": null,
+              "rotated": 0,
+              "deskew_deg": 0.0,
+              "rectified": false,
+              "quad": null,
+              "width": 1200,
+              "height": 850,
+              "rectifier": null
+            },
+            "scale": {
+              "status": "no_scale",
+              "text": null,
+              "ratio": null,
+              "source": null
+            },
+            "scale_text": null,
+            "storey": null
+          }
+        ],
+        "answer": null,
+        "unit": null,
+        "confidence": null,
+        "quantity": null,
+        "marks": [],
+        "refusal": {
+          "code": "no-reader",
+          "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+          "can_answer": []
+        },
+        "method": "refused:not-in-drawing",
+        "explanation": "the drawing model does not give door",
+        "reader": {
+          "route": "raster",
+          "source": "scans/ground-floor.png",
+          "extractor": "hello",
+          "second_counter": "none",
+          "question_parser": "templates"
+        },
+        "cost_usd": 0.0,
+        "latency_s": 0.002,
+        "line": {
+          "id": 1,
+          "answer": null,
+          "unit": null,
+          "evidence": [],
+          "method": "refused:not-in-drawing",
+          "cost_usd": 0.0,
+          "latency_s": 0.002,
+          "confidence": null,
+          "sure": null,
+          "abstain": true,
+          "explanation": "the drawing model does not give door",
+          "estimate": null,
+          "conflicts": null,
+          "resolution": null
+        },
+        "proof": {
+          "kind": "none",
+          "legend": [],
+          "arithmetic": null,
+          "objects": null,
+          "storeys": null,
+          "schedule": null,
+          "check": null
+        },
+        "check": null
+      }
+    }
+  ],
+  "total": null,
+  "total_unit": null,
+  "total_sure": false,
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
+}
+```
+
 ### `GET /api/drawings/{drawing_id}/evidence.png?question=<text>&width=<400|1600|3200>&project=<project_id>`
 
 The answer to `question` (as `POST /api/ask` gives it, the edits of `project` applied, if given) with its `proof` drawn on the page the marks
@@ -3798,7 +4345,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "needs_person": false,
     "rule": {
       "id": "indoor-rooms-total",
-      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
+      "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
     },
     "estimate": null,
     "first": null,
@@ -4258,7 +4805,7 @@ A question the drawing cannot answer:
 | `unsupported-question` | the question is not one the parser turns into a count, area, length or volume |
 | `not-in-drawing` | the drawing does not give this quantity (or no schedule on the sheet answers it) |
 | `not-read` | the reader of this drawing does not look for that class, so it has no count of it |
-| `no-reader` | nothing was read from the sheet (no reader for its route yet), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
+| `no-reader` | nothing was read from the sheet (no reader for its route yet: the text says so; a reader that found nothing says that instead), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
 | `no-scale` | an area or length on a sheet without a scale |
 | `no-drawing` | the file has no drawing model |
 
@@ -4297,7 +4844,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
   "confidence": null,
   "quantity": {
     "key": "area:room|name=1.01",
-    "label": "area of room (name 1.01)",
+    "label": "area of room (name Küche · 1.01)",
     "measure": "area",
     "subject": "room",
     "scope": {
@@ -4559,7 +5106,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
   "confidence": null,
   "quantity": {
     "key": "area:room|name=1.01",
-    "label": "area of room (name 1.01)",
+    "label": "area of room (name Küche · 1.01)",
     "measure": "area",
     "subject": "room",
     "scope": {
@@ -4950,7 +5497,7 @@ any project, which no project shows. A project that does not hold the drawing is
   "quantities": [
     {
       "key": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "measure": "area",
       "subject": "room",
       "scope": {
@@ -5148,7 +5695,7 @@ any project, which no project shows. A project that does not hold the drawing is
       "needs_person": false,
       "rule": {
         "id": "indoor-rooms-total",
-        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
+        "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
       },
       "estimate": null,
       "first": null,
@@ -5233,8 +5780,10 @@ any project, which no project shows. A project that does not hold the drawing is
     }
   ],
   "review_queue": [
-    "area:room|name=1.01",
-    "area:room|name=küche"
+    "area:room|name=1.01"
+  ],
+  "disputes": [
+    "area:room|name=1.01"
   ]
 }
 ```
@@ -5268,6 +5817,9 @@ any project, which no project shows. A project that does not hold the drawing is
   (decide's count swap adds them with `attrs.located` false). They are in `value` but have no mark; empty when
   there are none.
 - `review_queue`: the keys whose status is `conflict` or `estimate`.
+- `disputes`: the keys of the rows where two methods disagree (`conflict` set, settled or not), one per
+  disagreement: a storey's row or a room's other name that repeats another row's disagreement is left out. These
+  are the drawing's entries in `GET /api/projects/{id}/review` `conflicts`; count these, not the rows.
 - `value` is the current value (after review); `original_value` what ingest computed.
 
 ### `POST /api/drawings/{drawing_id}/review?zeros=<bool>`
@@ -5538,7 +6090,7 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
     },
     {
       "key": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "measure": "area",
       "subject": "room",
       "scope": {
@@ -5650,8 +6202,9 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
       "noun": null
     }
   ],
-  "review_queue": [
-    "area:room|name=küche"
+  "review_queue": [],
+  "disputes": [
+    "area:room|name=1.01"
   ]
 }
 ```
@@ -5674,7 +6227,6 @@ formula in a spreadsheet.
 - Contested marks: a conflict is shown per quantity, with both values and, where the method has one, the `box` it
   read; the frontend does not build an amber per-item mark.
 - Adding a mark with a value to an area or length (marks are added to counts only).
-- A question on a whole project: ask one drawing at a time.
 - Free page widths, CORS, server push (progress is polled).
 - Editing a room's outline or label.
 
@@ -5686,6 +6238,31 @@ formula in a spreadsheet.
   `answer_certified`, `answer_double_check`, `answer_double_check_rooms`. A disagreement between two methods,
   an estimate or a person's unsigned edit always asks; a settle or sign-off lifts the request. Not
   `proof.check` (unchanged: how a second method measured the value).
+- 2026-11-14, additive (QA R4-a-8): `Takeoff.disputes`, the keys of the rows where two methods disagree, one per
+  disagreement, the same ones the project review lists. Behaviour (QA R4-a-1): `ProjectView.expected_drawings` is
+  null while a running project's files are not grouped yet, then final (it overshot, 0/19 then 13/13 on the demo
+  zip, because each rendering counted until its group was read); groups of only DXF or SVG files no longer count,
+  and a file set aside after grouping still does. Ingest records every file's group before reading the first group.
+- 2026-11-14, additive (board #14, the project chat): `POST /api/projects/{project_id}/ask` with `{question}`
+  returns `{question, parts: [{drawing_id, name, answer}], total, total_unit, total_sure, total_note}`, each part
+  the `POST /api/ask` answer on one drawing of the project; a total only for one answering drawing or for drawings
+  known to show different storeys of one model. `GET /api/projects/{id}/questions` lines gain an optional
+  `project_ask` (the id grouping one project question's lines; absent on `POST /api/ask` lines).
+- 2026-11-14, text and behaviour (board #14, pre-QA sweep): a room the takeoff keys under several names (number,
+  name, "name (number)") is one conflict in `GET /api/projects/{id}/review`, one entry in `review_queue` and one
+  decision: settling or signing any of its rows settles and signs them all (the rows stay, each with its own
+  `key`). A room's rows are labelled with its printed name ("area of room (name Küche)"; the row of its
+  number "area of room (name Küche · 1.01)", was "(name 1.01)"). `ProjectSummary.conflicts_open` is the conflicts a person still has to settle
+  (`needs_person`: the methods disagree, no rule decides, nobody settled it), no longer those a rule decided or a
+  person settled; `to_review` is unchanged. A `no-reader` refusal on a route with no reader (the stand-in) says
+  "there is no reader for this kind of sheet yet", not that a reader found no elements.
+- 2026-11-14, text only (board #14 c6875409494): the human text of a file's `reason` and of the stage lines in
+  its trace (`did`, `output`) reads in plain words, no field changes. Counts agree with their number ("1 conflict",
+  "2 files", "1 page", "1 plan", "1 quantity"; was "1 conflict(s)", "2 file(s)", "1 page(s)", "1 plans",
+  "1 quantities"). The scale in them is a sentence by its status ("scale read from the sheet", "no scale on the
+  sheet", "sheet says it is not to scale", "scale estimated"; was "scale scaled"); `scale.status` is unchanged. The
+  `identify` stage's `output` is the kind in words ("drawn PDF", "scanned PDF", "PNG drawing", "photo of a
+  drawing"...; was "pdf_vector"); `FileStatus.kind` is unchanged.
 - 2026-11-14, additive (board #14): `POST /api/drawings/{id}/signoff` takes an optional `settle: true`: the
   quantity's current value is settled and signed off in one call (same 409 rules; with `undo` it is 422).
 - 2026-11-14, additive (the Vellum redesign's fields, part 2, board #14): review action `unsettle` (drops the settled
@@ -5698,9 +6275,11 @@ formula in a spreadsheet.
     done or failed; null until then. Elapsed is `now - started_at`; there is no `eta_ms` (file times differ too much to
     estimate honestly).
   - `ProjectView.skipped`: `[{path, reason}]`, the files with state `set_aside`, in upload order (empty list if none).
-  - `ProjectView.expected_drawings`: the drawings the upload holds, one per group of renderings and one for a copy under
-    another name, counted from the files identified so far, so it can grow until ingest has identified every file;
-    null while the project is `queued`. Final once `done`; it can be above `drawings.length` when a drawing file fails.
+  - `ProjectView.expected_drawings`: the drawings the upload holds, one per group of renderings that has a sheet
+    (PDF, PNG, JPEG, photo of a plan) or a model (IFC), and one for a copy under another name. null while the project
+    is `queued` and while a file of a `running` project is not grouped yet (until then a plan's renderings would each
+    count as a drawing); once known it is final and never drops: a file set aside after it was grouped still counts,
+    so it can be above `drawings.length` when a drawing file fails. A group of only DXF or SVG files gives no drawing.
   - `GET /api/projects/{id}/trace`: `{project_id, files: FileTrace[]}`, every file's trace in upload order.
   - `second_count` on a file's trace (both trace routes): `{measured, conflicts}`, the quantities the second method
     measured and how many of them disagree; null when the file has no drawing yet or nothing was measured twice.

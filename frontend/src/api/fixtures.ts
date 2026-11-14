@@ -16,6 +16,7 @@ import infoJson from '@fixtures/info.json';
 import projectJson from '@fixtures/project.json';
 import projectFailedJson from '@fixtures/project_failed.json';
 import projectListJson from '@fixtures/project_list.json';
+import projectAskJson from '@fixtures/project_ask.json';
 import projectReviewJson from '@fixtures/project_review.json';
 import projectRunningJson from '@fixtures/project_running.json';
 import projectStartedJson from '@fixtures/project_started.json';
@@ -23,6 +24,8 @@ import reviewRequestsJson from '@fixtures/review_requests.json';
 import signoffRequestJson from '@fixtures/signoff_request.json';
 import takeoffJson from '@fixtures/takeoff.json';
 import takeoffEditedJson from '@fixtures/takeoff_edited.json';
+import projectQuestionsJson from '@fixtures/project_questions.json';
+import projectTraceJson from '@fixtures/project_trace.json';
 import traceJson from '@fixtures/trace.json';
 import traceSetAsideJson from '@fixtures/trace_set_aside.json';
 import type { ErrorBody } from './errors';
@@ -33,8 +36,11 @@ import type {
   Edit,
   FileTrace,
   Info,
+  ProjectAnswer,
   ProjectList,
   ProjectReview,
+  ProjectTrace,
+  ProjectQuestions,
   ProjectView,
   SignOffRequest,
   Started,
@@ -49,6 +55,8 @@ export const projectRunning = projectRunningJson as unknown as ProjectView;
 export const projectFailed = projectFailedJson as unknown as ProjectView;
 export const trace = traceJson as unknown as FileTrace;
 export const traceSetAside = traceSetAsideJson as unknown as FileTrace;
+export const projectTrace = projectTraceJson as unknown as ProjectTrace;
+export const projectQuestions = projectQuestionsJson as unknown as ProjectQuestions;
 export const projectReview = projectReviewJson as unknown as ProjectReview;
 export const drawing = drawingJson as unknown as DrawingView;
 export const askRequest: AskRequest = askRequestJson;
@@ -60,6 +68,7 @@ export const answerConflict = answerConflictJson as unknown as AnswerView;
 export const answerSigned = answerSignedJson as unknown as AnswerView;
 export const answerSchedule = answerScheduleJson as unknown as AnswerView;
 export const answerRefused = answerRefusedJson as unknown as AnswerView;
+export const projectAsk = projectAskJson as unknown as ProjectAnswer;
 export const takeoff = takeoffJson as unknown as Takeoff;
 export const takeoffEdited = takeoffEditedJson as unknown as Takeoff;
 export const reviewRequests = reviewRequestsJson as unknown as Edit[];

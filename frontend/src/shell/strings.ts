@@ -1,4 +1,4 @@
-export const PRODUCT_NAME = 'Countersign';
+export const PRODUCT_NAME = 'Vellum';
 
 /** Port labels for "What runs" (docs/API.md "GET /api/info" `readers`). */
 export const READER_LABELS: Record<string, string> = {

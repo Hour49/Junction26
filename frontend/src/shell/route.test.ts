@@ -43,4 +43,25 @@ describe('parseRoute', () => {
     expect(back).toMatchObject({ name: 'workspace', role: 'surveyor' });
     expect(back.query.get('q')).toBe(key);
   });
+
+  it('SH-53 account and conflicts routes, and ?view on a project, round-trip', () => {
+    for (const hash of ['#/workspaces', '#/workspaces/'])
+      expect(parseRoute(hash).name).toBe('account');
+    expect(parseRoute(`#/p/${P}/conflicts`)).toMatchObject({ name: 'conflicts', projectId: P });
+    for (const hash of ['#/workspaces/x', '#/p/XYZ/conflicts', `#/p/${P}/conflicts/x`])
+      expect(parseRoute(hash).name).toBe('not-found');
+    const project = parseRoute(`#/p/${P}?view=advanced`);
+    expect(project.name).toBe('project');
+    expect(project.query.get('view')).toBe('advanced');
+    for (const hash of ['#/workspaces', `#/p/${P}/conflicts`, `#/p/${P}?view=advanced`])
+      expect(routeHref(parseRoute(hash))).toBe(hash);
+  });
+
+  it('SH-64 the chat route', () => {
+    for (const hash of [`#/p/${P}/chat`, `#/p/${P}/chat/`])
+      expect(parseRoute(hash)).toMatchObject({ name: 'chat', projectId: P });
+    for (const hash of ['#/p/XYZ/chat', `#/p/${P}/chat/x`])
+      expect(parseRoute(hash).name).toBe('not-found');
+    expect(routeHref(parseRoute(`#/p/${P}/chat`))).toBe(`#/p/${P}/chat`);
+  });
 });

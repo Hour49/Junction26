@@ -165,7 +165,7 @@
     },
     {
       "key": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "measure": "area",
       "subject": "room",
       "scope": {
@@ -277,7 +277,8 @@
       "noun": null
     }
   ],
-  "review_queue": [
-    "area:room|name=küche"
+  "review_queue": [],
+  "disputes": [
+    "area:room|name=1.01"
   ]
 }

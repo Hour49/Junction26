@@ -1,7 +1,7 @@
 // Derived fixtures (engineer.md "Acceptance criteria"): the backend's fixture files with named fields
 // overridden, never a hand-written whole response.
-import type { AnswerView, DrawingView, MarkView, Row } from '../api';
-import { answer, answerArea, drawing, takeoff } from '../api/fixtures';
+import type { AnswerView, DrawingView, MarkView, ProjectView, Row } from '../api';
+import { answer, answerArea, answerConfidence, drawing, project, takeoff } from '../api/fixtures';
 
 function must<T>(value: T | null | undefined, what: string): T {
   if (value === null || value === undefined) throw new Error(`fixture has no ${what}`);
@@ -126,3 +126,20 @@ export const refusalWithMarkup = (refused: AnswerView): AnswerView => ({
   ...refused,
   refusal: { ...must(refused.refusal, 'refusal'), text: markup },
 });
+
+/** project.json with only the route drawing: no position, no arrows. */
+export const projectOneDrawing: ProjectView = {
+  ...project,
+  drawings: project.drawings.slice(0, 1),
+};
+
+/** project.json without the upload behind the drawing: the "Original file" reference has no picture. */
+export const projectNoFiles: ProjectView = { ...project, files: [] };
+
+export const answerSure: AnswerView = { ...answer, line: { ...answer.line, sure: true } };
+
+/** A low second reader's score, sure not set. */
+export const answerLowScore: AnswerView = {
+  ...answerConfidence,
+  confidence: { ...must(answerConfidence.confidence, 'confidence'), score: 0.5 },
+};

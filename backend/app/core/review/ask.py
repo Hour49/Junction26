@@ -76,6 +76,9 @@ TEXTS = {
     "volume. Try one of these instead.",
     # `read` is empty: the do-nothing stand-in, or a real reader that found nothing on this sheet
     "no-reader": "Nothing was read from this sheet: its reader found no elements or rooms on it.",
+    # the route's extractor is the do-nothing stand-in: there is no reader to blame
+    "no-reader-yet": "Nothing was read from this sheet: there is no reader for this kind of sheet "
+    "yet.",
     "no-scale": "The sheet has no scale, so lengths and areas can't be measured. Counts still "
     "work.",
     "no-drawing": "This file has no drawing model.",
@@ -129,13 +132,16 @@ def ask(
     check: CheckPolicy | None = None,
     route: str | None = None,
     disputes: Disputes = no_disputes,
+    no_reader: bool = False,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
     `flags`: how ingest read the page (judge.reading_flags: a phone photo, a scan). `raster`: the
-    page was read on the raster route (an image, a photo, a scanned PDF). `check` (CHECK_POLICY):
-    a takeoff answer it does not certify on `route` (ingest's) gets a double-check request with
-    the places `disputes` finds (app/core/review/check.py)."""
+    page was read on the raster route (an image, a photo, a scanned PDF). `no_reader`: the
+    sheet's route has no reader (the stand-in), so a "no-reader" refusal says so, not that a
+    reader found nothing. `check` (CHECK_POLICY): a takeoff answer it does not certify on `route`
+    (ingest's) gets a double-check request with the places `disputes` finds
+    (app/core/review/check.py)."""
     quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
@@ -182,6 +188,8 @@ def ask(
         code, words = _refusal(answer.method, parsed, query, drawing)
         if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
+        if no_reader and code == "no-reader":
+            words = TEXTS["no-reader-yet"]
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
         if code == "not-in-drawing" and isinstance(parsed, Query):
             rooms = rooms_of_type(parsed, drawing)

@@ -4,7 +4,7 @@
   "quantities": [
     {
       "key": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "measure": "area",
       "subject": "room",
       "scope": {
@@ -202,7 +202,7 @@
       "needs_person": false,
       "rule": {
         "id": "indoor-rooms-total",
-        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
+        "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
       },
       "estimate": null,
       "first": null,
@@ -287,7 +287,9 @@
     }
   ],
   "review_queue": [
-    "area:room|name=1.01",
-    "area:room|name=küche"
+    "area:room|name=1.01"
+  ],
+  "disputes": [
+    "area:room|name=1.01"
   ]
 }

@@ -4,7 +4,10 @@ export type Role = 'engineer' | 'surveyor';
 
 export type Route =
   | { name: 'home'; query: URLSearchParams }
+  | { name: 'account'; query: URLSearchParams }
   | { name: 'project'; projectId: string; query: URLSearchParams }
+  | { name: 'conflicts'; projectId: string; query: URLSearchParams }
+  | { name: 'chat'; projectId: string; query: URLSearchParams }
   | { name: 'file'; projectId: string; fileId: string; query: URLSearchParams }
   | { name: 'workspace'; projectId: string; drawingId: string; role: Role; query: URLSearchParams }
   | { name: 'not-found'; hash: string; query: URLSearchParams };
@@ -13,6 +16,8 @@ const PROJECT = '([0-9a-f]{12})';
 const FILE = new RegExp(`^/p/${PROJECT}/f/(f\\d+)$`);
 const WORKSPACE = new RegExp(`^/p/${PROJECT}/d/([0-9a-f]{16})/(engineer|surveyor)$`);
 const PROJECT_ONLY = new RegExp(`^/p/${PROJECT}$`);
+const CONFLICTS = new RegExp(`^/p/${PROJECT}/conflicts$`);
+const CHAT = new RegExp(`^/p/${PROJECT}/chat$`);
 
 /** The route of a location hash (`#/p/<id>/d/<id>/engineer?q=door`); ids off their pattern are not found. */
 export function parseRoute(hash: string): Route {
@@ -22,8 +27,13 @@ export function parseRoute(hash: string): Route {
   const query = new URLSearchParams(mark < 0 ? '' : raw.slice(mark + 1));
   const path = pathPart === '' ? '/' : pathPart.replace(/(.)\/$/, '$1');
   if (path === '/') return { name: 'home', query };
+  if (path === '/workspaces') return { name: 'account', query };
   let m = PROJECT_ONLY.exec(path);
   if (m?.[1]) return { name: 'project', projectId: m[1], query };
+  m = CONFLICTS.exec(path);
+  if (m?.[1]) return { name: 'conflicts', projectId: m[1], query };
+  m = CHAT.exec(path);
+  if (m?.[1]) return { name: 'chat', projectId: m[1], query };
   m = FILE.exec(path);
   if (m?.[1] && m[2]) return { name: 'file', projectId: m[1], fileId: m[2], query };
   m = WORKSPACE.exec(path);
@@ -39,8 +49,14 @@ export function routePath(route: Route): string {
   switch (route.name) {
     case 'home':
       return '/';
+    case 'account':
+      return '/workspaces';
     case 'project':
       return `/p/${route.projectId}`;
+    case 'conflicts':
+      return `/p/${route.projectId}/conflicts`;
+    case 'chat':
+      return `/p/${route.projectId}/chat`;
     case 'file':
       return `/p/${route.projectId}/f/${route.fileId}`;
     case 'workspace':

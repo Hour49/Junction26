@@ -28,6 +28,7 @@ from app.core.review.check import Check
 from app.core.review.model import MarkView, Refusal, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
+from app.settings import Settings
 
 router = APIRouter(prefix="/api")
 
@@ -109,6 +110,7 @@ def asked_on(
     answering: Answering,
     ingest: Ingest,
     project_id: str | None,
+    no_reader: bool = False,
 ) -> Asked:
     """The question on the drawing, with the surveyor's edits of it in `project_id` applied (a
     checked id: deps.project_of)."""
@@ -128,7 +130,14 @@ def asked_on(
         check=answering.check,
         route=info.route,
         disputes=answering.disputes,
+        no_reader=no_reader,
     )
+
+
+def no_reader_of(drawing_id: str, ingest: Ingest, settings: Settings) -> bool:
+    """The drawing's route is read by the do-nothing stand-in (`hello`): no reader at all."""
+    route = ingest.drawing_info(drawing_id).route
+    return route is not None and readers(settings)[route] == "hello"
 
 
 def signal_of(asked: Asked, answering: Answering) -> Signal | None:
@@ -155,35 +164,54 @@ def ask_route(
     answering: AnsweringDep,
     settings: SettingsDep,
 ) -> AnswerView:
-    drawing_id = drawing_id_of(body.drawing_id)
-    drawing = ingest.drawing(drawing_id)
-    info = ingest.drawing_info(drawing_id)
-    named = as_uploaded(ingest, info, body.project_id)
-    owner = None if body.project_id is None else named.project_id
-    spent = cost.spent()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
-    asked = asked_on(body.question, drawing, drawing_id, reviews, answering, ingest, owner)
-    line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
-    shown = asked.row
-    value = shown_value(asked)
-    if owner is not None:  # asked in a project: kept for its question list
+    view = answer_view(
+        body.question, body.drawing_id, body.project_id, ingest, reviews, answering, settings
+    )
+    if body.project_id is not None:  # asked in a project (checked to hold the drawing): kept
         record(
             settings.projects_dir,
-            owner,
+            body.project_id,
             AskedQuestion(
                 question=body.question,
-                answer=value,
-                unit=None if asked.refusal is not None else line.unit,
-                drawing_id=drawing_id,
+                answer=view.answer,
+                unit=view.unit,
+                drawing_id=view.drawing_id,
                 at=now(),
-                refused=asked.refusal is not None,
+                refused=view.refusal is not None,
             ),
         )
+    return view
+
+
+def answer_view(
+    question: str,
+    drawing_id: str,
+    project_id: str | None,
+    ingest: Ingest,
+    reviews: ReviewStore,
+    answering: Answering,
+    settings: Settings,
+) -> AnswerView:
+    """What POST /api/ask answers for `question` on one drawing, asked in `project_id` (its
+    edits and its names) or in none; nothing is recorded."""
+    drawing_id = drawing_id_of(drawing_id)
+    drawing = ingest.drawing(drawing_id)
+    info = ingest.drawing_info(drawing_id)
+    named = as_uploaded(ingest, info, project_id)
+    owner = None if project_id is None else named.project_id
+    spent = cost.spent()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
+    asked = asked_on(
+        question, drawing, drawing_id, reviews, answering, ingest, owner,
+        no_reader_of(drawing_id, ingest, settings),
+    )  # fmt: skip
+    line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
+    shown = asked.row
     return AnswerView(
-        question=body.question,
+        question=question,
         drawing_id=drawing_id,
-        file=drawing.file if body.project_id is None else named.path,
+        file=drawing.file if project_id is None else named.path,
         pages=page_views(drawing_id, drawing, info.normalised),
-        answer=value,
+        answer=shown_value(asked),
         unit=None if asked.refusal is not None else line.unit,
         confidence=signal_of(asked, answering),
         quantity=shown,

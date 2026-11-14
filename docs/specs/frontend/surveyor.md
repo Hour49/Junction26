@@ -1,5 +1,5 @@
 # Surveyor workspace (spec, frontend v1)
-Status: draft, 2026-11-14, by fe-spec-surveyor.  Story: #33.  API: docs/API.md (v1).
+Status: draft, 2026-11-14, by fe-spec-surveyor; Vellum restyle added 2026-11-14 10:57 by fe-surveyor.  Story: #33.  API: docs/API.md (v1).  Conflicts page: conflicts.md.
 
 ## Purpose
 
@@ -127,7 +127,7 @@ Mark rows, by `state`:
 | Ready | Side panel, viewer, takeoff panel as in Layout | `takeoff.json` + `drawing.json` + `project_review.json` |
 | Empty | No rows: "Nothing was counted on this drawing." When `reader.extractor` is `hello`: "This drawing's route has no reader in this build, so nothing was counted." When `zeros` is false: also the "Show rows with value 0" control. No sign-off, no CSV link, no reset-all | `takeoff.json` with `quantities: []`, `review_queue: []`; the sample's `scans/` or `photos/` drawing (0 quantities in `project_review.json`) |
 | Nothing to review | The "To review" group says "Nothing left to review." | `takeoff.json` with `review_queue: []` |
-| Load error | The shell's `ErrorView` with `detail`, `code` and Retry, which repeats the failed loads (on a 404 `ErrorView` shows "Back to projects" to `#/` instead of Retry) | Mock a 404 `error.json` for the takeoff; an unknown drawing id against the backend |
+| Load error | The shell's `ErrorView` with `detail`, `code` and Retry, which repeats the failed loads (on a 404 `ErrorView` shows "Back to workspaces" to `#/workspaces` instead of Retry) | Mock a 404 `error.json` for the takeoff; an unknown drawing id against the backend |
 | Side-panel error | Only the side panel shows `detail`, `code` and Retry; the takeoff still works | Mock a 500 for `GET …/review` |
 | Saving | "Saving…" in a live region; every edit, settle, sign-off and reset control disabled; the table stays readable | Any edit with a delayed response |
 | Edit refused | An alert in the detail with `detail` and `code` (409 `not-allowed`, 422 `invalid`, 422 `validation`, 404 `not-found`); the takeoff stays as it was; the alert clears on the next successful request | Mock 409/422 bodies shaped as `error.json` |
@@ -157,6 +157,13 @@ sideways (QA R1-4-2: one inner box for both tables showed one row of 61).
 Phone 390x844: one column, in this order: the side panel collapsed behind "Drawings and conflicts" (a `<details>`),
 the viewer (at most 50% of the viewport height), the takeoff panel in the page's flow (no column scroll, no
 sticky header, no scroll box around the tables). The table keeps its three columns and wraps labels. Buttons and table rows are at least 40px tall. Nothing scrolls sideways.
+At 760px and narrower, selecting a row (click, Enter or a `?q=` change by the user) scrolls the detail into view
+(`scrollIntoView({block: "start"})`, `scroll-margin-top` clears the sticky site header): the detail sits under all
+the rows (63 on the sample), and the row order stays as on the desktop (pre-QA 2026-11-14, SV-53).
+
+Selection after an edit or sign-off: the row acted on stays selected, even when it leaves "To review" (it was the
+default selection), so its "Settled at …" / "Signed off by …" line shows (frontend-orch decision, pre-QA, SV-52).
+The conflict block marks the value in use (the row's `value`) with " · in use" after that letter (SV-54).
 
 Table cell content: Quantity = `label`, and under it in small text when `first` and `second` are set:
 "<methodName(first.method)> `first.value` · <methodName(second.method)> `second.value`". Value = the original value struck through when it
@@ -169,6 +176,34 @@ needs-a-person text, `note`, `derived`), Keep buttons and the Settle field; "Set
 (`settled.at`). A mark edit clears it."; the estimate note "Estimate: `estimate`"; "Counting rule: `rule.text`";
 the mark list; the tools: Add a missed one (counts only), Reset this quantity, Signing as,
 Sign off / Undo sign-off.
+
+### Vellum look (round 2, 2026-11-14: restyle only)
+
+The canvas has no surveyor screen; this one takes the look of screens 3 and 4 (`Conflicts.dc.html`,
+`Workspace.dc.html`). Nothing in the flow, the layout grid above, the API calls, the words, the accessible names
+or the test ids changes (the e2e uses "Surveyor", "Engineer", the "To review" table, "Keep A: …", "Settled at …",
+"Signing as", "Sign off …", "Signed off by …", "Export CSV", "Verified", "Changed in review", "Methods disagree").
+
+- Colours, radius, shadow and font only from the tokens on `:root` (shared.md): `--v-bg` page, `--v-surface`
+  panels, `--v-text`, `--v-muted`, `--v-line`, `--v-accent`/`--v-accent-strong`, `--v-ok`, `--v-warn`/`--v-warn-soft`,
+  `--v-danger`, the `-soft` tints, `--v-fill`, `--v-text-2`, `--v-radius`, `--v-shadow`, `--v-font`. `surveyor.css` keeps no colour literal of its own (today 6).
+  File names use `ui-monospace, Menlo, monospace` (no web font).
+- The side panel and the takeoff panel become cards: `--v-surface`, `--v-radius`, `--v-shadow`, 16-20px padding,
+  no borders between them; the viewer sits on `--v-bg` with no frame. The column widths (240px / rest / 420px),
+  the takeoff column's sticky scroll (R1-4-2) and the phone order stay.
+- Status words become pills (12px, 600, 980px radius, 5px 10px): Verified `--v-ok` on `--v-ok-soft`; Methods disagree
+  and "needs you" `--v-warn` on `--v-warn-soft`; Estimate and Changed in review `--v-text-2` on `--v-fill`; Two methods
+  agree / One method plain muted text. Same words, same element as now (the e2e reads row text).
+- Buttons become pills (980px radius, 600): primary (Sign off, Keep A/B, Settle) `--v-accent` fill, white text;
+  secondary (Reset, Add a missed one, Undo sign-off, Export CSV, row tools) `--v-fill` fill, `--v-text`; destructive
+  (Reset all edits) `--v-danger` text. Heights stay: 32px desktop table tools, 40px phone, 44px detail actions.
+  Press scale 0.97 with no motion under `prefers-reduced-motion`.
+- The progress bar takes the conflicts screen's look: 6px, 3px radius, `--v-accent` on `--v-line`.
+- Type: the detail's value 32px 700 tabular numbers; section headings 13px 600 muted; table 14px; row selected
+  = `--v-accent` 2px left edge on a `--v-accent-soft` row (today's highlight, restyled).
+- The screen's grid is also the shell's `.v-page.v-page--wide` frame (shared.md "Page frame"), still a grid.
+- The side panel's "Conflicts (n)" heading gets a link "Settle the conflicts" to `#/p/<pid>/conflicts` (conflicts.md
+  CF-19).
 
 ## Acceptance criteria
 
@@ -302,7 +337,7 @@ States, safety, layout
   no-reader sentence; with zeros off also the zeros toggle; there is no Sign off, CSV link or Reset all.
   [component] derived `takeoff.json` (`quantities: []`), derived `drawing.json`
 - SV-45: A 404 on the takeoff shows `ErrorView` with "no drawing 0123456789abcdef" and "code: not-found", a link
-  "Back to projects" to `#/` and no Retry (asking again finds nothing, QA qa-3 (b)); any other load error (a 500)
+  "Back to workspaces" to `#/workspaces` and no Retry (asking again finds nothing, QA qa-3 (b)); any other load error (a 500)
   shows Retry, which re-sends the loads. [component] `error.json`, derived 500
 - SV-46: A label, mark label, reason, rule text or file name holding `<img src=x onerror=alert(1)>` renders as that
   literal text and adds no element. [component] derived
@@ -319,6 +354,22 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
   start and the end keeps the run repeatable. [e2e]
 - SV-49: After signing off `door` on the surveyor route, the engineer route of the same drawing answering "How many
   doors are there?" shows "Verified by Ana" (EN-32). [e2e]
+- SV-50 (Vellum): `surveyor.css` (and `conflicts.css`) holds no colour literal (`#hex`, `rgb(`, `rgba(`, `hsl(`) and no `font-family`
+  other than `var(--v-font)` or the monospace stack: a unit test reads the file from disk (vitest hands `?raw` CSS over empty) and checks.
+- SV-51 (Vellum): the restyle changes no accessible name or test id: SV-1 to SV-46 pass unchanged, and the e2e
+  golden path, surveyor and qa specs pass at 1440 and 390. [e2e]
+- SV-52 (pre-QA): with no `?q=`, Keep A on the default (first queue) row whose answer drops it from `review_queue`
+  keeps that row selected and shows "Settled at 22.40 m² …". [component]
+- SV-53 (pre-QA): with `matchMedia('(max-width: 760px)')` matching, selecting a row calls `scrollIntoView` on the
+  detail; not matching, it does not. [component]
+- SV-54 (pre-QA): a conflict settled at A shows "A: … · in use" and B without it. [component]
+- SV-55 (QA R4-c-1): the viewer inside the surveyor keeps its own look: no `.sv-screen` button rule reaches an
+  element inside `.vw` (the badges stay filled `--v-accent` / open dashed `--v-surface`, as the legend; the zoom bar
+  as on the engineer route). [unit] `css.test.ts` + [e2e] `surveyor.spec.ts` at 1440 and 390
+- Pre-QA look (checked live at 1440 and 390, not unit-tested): the takeoff panel's sticky header starts at the card's
+  top edge (no padding above it); inputs 40px tall, 12px radius, `--v-line` border, 16px text; Export CSV a
+  secondary pill (`--v-fill`, 600); table cells vertically centred; the 32px value with no extra margins; at 390 side
+  panel links, "Settle the conflicts", Export CSV and "Show rows with value 0" are 40px tall (checkbox 22px).
 
 ## Out of scope
 
@@ -329,8 +380,7 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
 - Toggling a mark by clicking it in the viewer: a viewer click selects the mark's row; the action is in the list
   (fewer accidental edits on a phone).
 - Grouping rows by `measure`/`subject`/`scope`, sorting or filtering the table.
-- The mock's ingest-end conflict gate ("the workspace opens when every conflict is settled"): the side panel's
-  conflict list replaces it; nothing is blocked.
+- The project's conflict page (Vellum screen 3, "Settle the conflicts"): conflicts.md. This screen only links to it.
 - A login or a verified identity behind `by`: the name is what the surveyor types (no auth, decision 0001).
 - Fetching the CSV by script, or showing an error for a failed download (the drawing was just loaded, so a 404 is
   unlikely; the browser shows the failure).

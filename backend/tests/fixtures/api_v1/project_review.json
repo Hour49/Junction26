@@ -10,7 +10,7 @@
     {
       "drawing_id": "6d153ea15dca9ab4",
       "file": "plans/flat-b.pdf",
-      "to_review": 2,
+      "to_review": 1,
       "signed": 0,
       "quantities": 63
     },
@@ -41,7 +41,7 @@
       "drawing_id": "6d153ea15dca9ab4",
       "file": "plans/flat-b.pdf",
       "quantity": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "conflict": {
         "values": [
           {

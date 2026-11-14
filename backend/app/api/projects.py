@@ -61,7 +61,7 @@ class ProjectSummary(View):
     files: int
     drawings: int
     to_review: int | None  # quantities left to review over all drawings; None until `done`
-    conflicts_open: int | None  # conflicts nobody settled or signed off; None until `done`
+    conflicts_open: int | None  # conflicts a person still has to settle; None until `done`
 
 
 class ProjectList(View):
@@ -124,6 +124,38 @@ class Admission:
             self._started.append(project_id)
 
 
+class KeptReviews:
+    """Each done project's review for the project list (R4-c-2: recomputing every review on
+    every list call took 15-40 s with 18 projects). One is kept until what it is made of
+    changes: the project's status, or for one of its drawings the upload that wrote it last (a
+    drawing is shared by content, so another project's ingest may write it again) or its review
+    edits. Both are read on every call, so every review write (settle, sign-off, add, reject,
+    restore, reset) is seen, whoever wrote it."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._kept: dict[str, tuple[object, ProjectReview]] = {}
+
+    def review(
+        self, status: ProjectStatus, ingest: Ingest, reviews: ReviewStore
+    ) -> ProjectReview | None:
+        if status.state != "done":
+            return None
+        drawings = tuple(
+            (ingest.drawing_info(entry.drawing_id), reviews.get(status.id, entry.drawing_id))
+            for entry in drawings_of(status)
+        )
+        key = (status, drawings)  # read before the review: it is never newer than the key
+        with self._lock:
+            kept = self._kept.get(status.id)
+        if kept is not None and kept[0] == key:
+            return kept[1]
+        found = review_of(status, ingest, reviews)
+        with self._lock:
+            self._kept[status.id] = (key, found)
+        return found
+
+
 class _Sample(BaseModel):
     """What the API remembers of the sample: the last project made from it (api/sample.json)."""
 
@@ -131,21 +163,21 @@ class _Sample(BaseModel):
 
 
 @router.get("")
-def project_list(ingest: IngestDep, reviews: ReviewsDep) -> ProjectList:
+def project_list(request: Request, ingest: IngestDep, reviews: ReviewsDep) -> ProjectList:
     """Every project, newest first."""
+    kept: KeptReviews = request.app.state.kept_reviews
+    statuses = ingest.projects()
     return ProjectList(
-        projects=[summary_of(status, ingest, reviews) for status in ingest.projects()]
+        projects=[summary_of(status, kept.review(status, ingest, reviews)) for status in statuses]
     )
 
 
-def summary_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> ProjectSummary:
+def summary_of(status: ProjectStatus, found: ProjectReview | None) -> ProjectSummary:
+    """`found`: the project's review, for a `done` project."""
     to_review = conflicts_open = None
-    if status.state == "done":
-        found = review_of(status, ingest, reviews)
+    if found is not None:
         to_review = sum(drawing.to_review for drawing in found.drawings)
-        conflicts_open = sum(
-            entry.settled is None and entry.signed is None for entry in found.conflicts
-        )
+        conflicts_open = sum(entry.needs_person for entry in found.conflicts)
     return ProjectSummary(
         id=status.id,
         name=status.name,
