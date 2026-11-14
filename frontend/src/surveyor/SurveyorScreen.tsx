@@ -197,9 +197,11 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
         }
       />
       <section className="sv-panel" aria-label="Takeoff">
-        <h2>Takeoff: {takeoff.file}</h2>
         {rows.length === 0 ? (
           <>
+            <header className="sv-panel-head">
+              <h2>Takeoff: {takeoff.file}</h2>
+            </header>
             <p>Nothing was counted on this drawing.</p>
             {drawing.reader.extractor === 'hello' && (
               <p>This drawing&apos;s route has no reader in this build, so nothing was counted.</p>
@@ -208,26 +210,29 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
           </>
         ) : (
           <>
-            <div className="sv-tools">
-              <a href={takeoffCsvUrl(drawingId, zq)} download>
-                Export CSV
-              </a>
-              {zerosToggle}
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => {
-                  if (window.confirm('Reset every edit and sign-off of this drawing?'))
-                    void send(() => postReview(drawingId, { action: 'reset' }, zq));
-                }}
-              >
-                Reset all edits
-              </button>
-            </div>
-            <p>
-              {signedCount} of {rows.length} quantities signed off
-            </p>
-            <progress value={signedCount} max={rows.length} />
+            <header className="sv-panel-head">
+              <h2>Takeoff: {takeoff.file}</h2>
+              <div className="sv-tools">
+                <a href={takeoffCsvUrl(drawingId, zq)} download>
+                  Export CSV
+                </a>
+                {zerosToggle}
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    if (window.confirm('Reset every edit and sign-off of this drawing?'))
+                      void send(() => postReview(drawingId, { action: 'reset' }, zq));
+                  }}
+                >
+                  Reset all edits
+                </button>
+              </div>
+              <p>
+                {signedCount} of {rows.length} quantities signed off
+              </p>
+              <progress value={signedCount} max={rows.length} />
+            </header>
             <TakeoffTable takeoff={takeoff} selected={selectedKey} onSelect={select} />
             {row && (
               <QuantityDetail

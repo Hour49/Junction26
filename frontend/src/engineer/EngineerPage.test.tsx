@@ -226,23 +226,27 @@ describe('answers', () => {
     expect(html).toContain('#1f77b4');
   });
 
-  it('EN-23 the model score, never a percent or probability; absent when null', async () => {
+  it("QA R1 EN-23 the second reader's score, no signal name on the card, never a probability", async () => {
     const conf = answerConfidence.confidence;
     expect(conf).not.toBeNull();
+    const signal = conf?.signal ?? '';
     const t = await shown(answerConfidence);
-    expect(t.querySelector('.en-score')?.textContent).toContain(
-      `Model score ${formatScore(conf?.score ?? NaN)} (${conf?.signal ?? ''}, uncalibrated)`,
-    );
     expect(
       within(t).getByText(
-        "A raw score from the model's choice, not the chance that the answer is right.",
+        `Second reader's score ${formatScore(conf?.score ?? NaN)} (not a probability)`,
       ),
     ).toBeTruthy();
-    const side = t.querySelector('.en-side')?.textContent ?? '';
-    expect(side).not.toMatch(/%|probability|confidence/i);
+    const details = within(t).getByText('Details').closest('details') as HTMLElement;
+    expect(within(details).getByText(`Signal: ${signal}`)).toBeTruthy();
+    const outside = t.textContent.replace(details.textContent, '');
+    expect(outside).not.toContain(signal);
+    expect(outside).not.toMatch(/confidence/i);
+    expect(t.querySelector('.en-side')?.textContent).not.toContain('%');
+    expect(outside.replace('not a probability', '')).not.toMatch(/probability/i);
     cleanup();
     const plain = await shown(answer);
-    expect(within(plain).queryByText(/Model score/)).toBeNull();
+    expect(within(plain).queryByText(/Second reader's score/)).toBeNull();
+    expect(within(plain).queryByText(/^Signal:/)).toBeNull();
   });
 
   it('EN-24 the footer shows cost and time', async () => {
@@ -484,6 +488,24 @@ describe('extended answers', () => {
     expect(inside.getByText('Query: door')).toBeTruthy();
     expect(inside.getByText('Method: takeoff')).toBeTruthy();
     expect(inside.queryByText(/^How:/)).toBeNull();
+  });
+
+  it('QA R1 EN-27 the Details summary sits in the footer row, aligned on the baseline', async () => {
+    const t = await shownTurn(answer);
+    const footer = t.querySelector('footer') as HTMLElement;
+    const details = within(footer).getByText('Details').closest('details') as HTMLElement;
+    expect(details.parentElement).toBe(footer);
+    expect(footer.style.alignItems).toBe('baseline');
+  });
+
+  it('QA R1 EN-28 model tables never break inside a word and scroll sideways', async () => {
+    const t = await shownTurn(answerModel);
+    for (const name of ['Model objects', 'Objects per storey']) {
+      const table = within(t).getByRole('table', { name });
+      expect(table.style.overflowWrap).toBe('normal');
+      expect(table.style.wordBreak).toBe('normal');
+      expect(table.parentElement?.style.overflowX).toBe('auto');
+    }
   });
 
   it('EN-19 the arithmetic line for a sum; none when null', async () => {

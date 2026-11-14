@@ -61,12 +61,13 @@ service-down test (GP-20) stays.
 
 The golden demo path, for docs/QA.md §1 (the orchestrator moves this table there; this spec does not edit QA.md).
 All steps run on the fakes: the path uses only the vector-PDF reader, the IFC second counter and the template
-question parser, which need no key, so the same steps and values hold with keys.
+question parser, which need no key. With keys the steps are the same but step 2's counts differ (the raster reader
+reads the scans); the e2e always runs on no keys (`start-backend.sh` forces every keyed reader off).
 
 | # | Action | Expected (what the screen shows) | Runs on fakes? |
 | --- | --- | --- | --- |
 | 1 | Open the app at `/#/` | Home: drop zone, "Choose a file", "Try the sample project", the list of earlier projects; the strip "Running offline: no API keys, no models" | yes |
-| 2 | Click "Try the sample project" | `#/p/<id>`: "sample-project.zip", the files turn finished one by one, then "Done", "11 of 11 files finished", cost $0.00; every file row has its state in words (3 ready, 4 flagged, 2 set aside, 2 text only); 5 drawings listed | yes |
+| 2 | Click "Try the sample project" | `#/p/<id>`: "sample-project.zip", the files turn finished one by one, then "Done", "11 of 11 files finished", cost $0.00; every file row has its state in words (no keys: 3 ready, 4 flagged, 2 set aside, 2 text only; with keys the raster reader reads the two scans: 5 ready, 2 flagged, 2 set aside, 2 text only); 5 drawings listed | yes |
 | 3 | Click the file `plans/flat-b.pdf` | `#/p/<id>/f/<file_id>` (`f3` today): state "flagged", reason "1 conflict(s) between the two methods (room_area) …"; ten stages unpack → write, `second_count` reading "5 quantities measured twice, 1 conflict(s)" | yes |
 | 4 | Click "Open the drawing" | `#/p/<id>/d/<drawing_id>/engineer`: "plans/flat-b.pdf", "vector route, read from plans/flat-b.pdf by pdf …", page 1 of the plan, six suggested questions | yes |
 | 5 | Click "How many doors are there?" | Answer `2`, "door count", two numbered marks 1 and 2 on the doors, "Counting rule: every element, room and plan the drawing lists counts once", "One method", Cost $0 | yes |

@@ -39,12 +39,42 @@
   font-size: 15px;
   overflow-wrap: anywhere;
 }
-.sv-tables {
-  max-height: 40vh;
-  overflow: auto;
+/* QA R1-4-2: the takeoff column scrolls as a whole under a sticky header; the tables have no box of their own */
+@media (min-width: 761px) {
+  .sv-work .sv-panel {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  .sv-panel-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--panel, #fff);
+  }
+}
+.sv-panel-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto; /* the progress text and its bar share a line */
+  align-items: center;
+  gap: 4px 8px;
+  padding-bottom: 6px;
+}
+.sv-panel-head > h2,
+.sv-panel-head > .sv-tools {
+  grid-column: 1 / -1;
+}
+.sv-panel-head .sv-tools button {
+  min-height: 32px;
+}
+.sv-panel-head h2,
+.sv-panel-head p {
+  margin: 0;
 }
 .sv-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 .sv-table caption {
@@ -55,13 +85,14 @@
 .sv-table th,
 .sv-table td {
   text-align: left;
-  padding: 4px 6px;
+  padding: 2px 6px;
   border-top: 1px solid #e5e7eb;
   vertical-align: top;
   overflow-wrap: anywhere;
 }
 .sv-table th button {
-  min-height: 40px;
+  min-height: 32px;
+  padding: 2px 8px;
   text-align: left;
 }
 .sv-table th small {
@@ -69,6 +100,13 @@
 }
 .sv-table tr[aria-current='true'] {
   background: #e8f0fb;
+}
+/* fixed columns: auto layout gave Value and State the width and wrapped every label (R1-4-2) */
+.sv-table thead th:nth-child(2) {
+  width: 84px;
+}
+.sv-table thead th:nth-child(3) {
+  width: 140px;
 }
 .sv-num {
   text-align: right;
@@ -132,5 +170,9 @@
 @media (max-width: 760px) {
   .sv-screen.sv-work {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .sv-table th button,
+  .sv-panel-head .sv-tools button {
+    min-height: 40px; /* phone tap targets; desktop rows stay compact so 10+ fit (R1-4-2) */
   }
 }

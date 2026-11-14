@@ -144,13 +144,15 @@ Desktop 1440x900: three columns. Left, 240px: the side panel, with "Drawings (5)
 (n)" (each: `label`, `file`, the values "22.40 m² vs 30.00 m²", and "needs you" / "decided by rule" / "settled").
 Middle, the rest: `PageViewer` (viewer.md) with the selected row's marks, conflict tags and unlocated line, page
 at most the viewport height. Right, 420px:
-the takeoff panel: title "Takeoff: `file`", "Export CSV", "Show rows with value 0", "Reset all edits", the progress
-"k of n quantities signed off" (text and bar), the table (Quantity, Value, State; its own scroll at most 40% of the
-viewport height), then the detail of the selected row. The page does not scroll sideways.
+the takeoff panel, which scrolls as one column (sticky, at most the viewport height, its own vertical scroll): a
+sticky header with the title "Takeoff: `file`", "Export CSV", "Show rows with value 0", "Reset all edits" and the
+progress "k of n quantities signed off" (text and bar); under it both tables (Quantity, Value, State) in the
+column's flow, with no scroll box of their own, then the detail of the selected row. The page does not scroll
+sideways (QA R1-4-2: one inner box for both tables showed one row of 61).
 
 Phone 390x844: one column, in this order: the side panel collapsed behind "Drawings and conflicts" (a `<details>`),
-the viewer (at most 50% of the viewport height), the takeoff panel. The table keeps its three columns and wraps
-labels. Buttons and table rows are at least 40px tall. Nothing scrolls sideways.
+the viewer (at most 50% of the viewport height), the takeoff panel in the page's flow (no column scroll, no
+sticky header, no scroll box around the tables). The table keeps its three columns and wraps labels. Buttons and table rows are at least 40px tall. Nothing scrolls sideways.
 
 Table cell content: Quantity = `label`, and under it in small text when `first` and `second` are set:
 "`first.method` `first.value` · `second.method` `second.value`". Value = the original value struck through when it

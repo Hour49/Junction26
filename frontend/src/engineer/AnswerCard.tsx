@@ -148,12 +148,7 @@ function Answer(props: {
         )}
         {score && (
           <p className="en-score">
-            Model score {formatScore(score.score)} ({score.signal}
-            {score.calibrated ? '' : ', uncalibrated'})
-            <br />
-            <small>
-              A raw score from the model's choice, not the chance that the answer is right.
-            </small>
+            Second reader's score {formatScore(score.score)} (not a probability)
           </p>
         )}
         {row && (
@@ -165,7 +160,8 @@ function Answer(props: {
         <h4>Where this came from</h4>
         <p className="en-small">{cameFrom(a.reader)}</p>
       </div>
-      <footer className="en-foot">
+      {/* Inline: jsdom applies no stylesheet, so the tests can see the alignment rule. */}
+      <footer className="en-foot" style={{ alignItems: 'baseline' }}>
         <span>Drawing {a.file}</span>
         <span>Cost {formatCost(a.cost_usd)}</span>
         <span>Time {formatLatency(a.latency_s)}</span>
@@ -173,6 +169,7 @@ function Answer(props: {
           <summary>Details</summary>
           {row && <p>Query: {row.key}</p>}
           <p>Method: {a.method}</p>
+          {score && <p>Signal: {score.signal}</p>}
           {a.explanation && <p>How: {a.explanation}</p>}
         </details>
         {/* The server's picture still prints the old probability line: only without a score. */}

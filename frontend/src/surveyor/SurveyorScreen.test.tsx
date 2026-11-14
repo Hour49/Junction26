@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MarkView, Row, Takeoff } from '../api';
@@ -745,5 +746,25 @@ describe('states', () => {
     fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
     await ready();
     expect(api.calls.filter((c) => c.url.includes('/takeoff'))).toHaveLength(2);
+  });
+});
+
+describe('QA round 1', () => {
+  it('R1-4-2 both tables sit in the takeoff column under one sticky header, with no inner scroll box', async () => {
+    show();
+    await ready();
+    const panel = screen.getByRole('region', { name: 'Takeoff' });
+    for (const name of ['To review', 'All other quantities']) {
+      expect(screen.getByRole('table', { name }).parentElement).toBe(panel);
+    }
+    const head = panel.querySelector('header.sv-panel-head');
+    expect(head?.textContent).toContain(`Takeoff: ${takeoff.file}`);
+    expect(head?.textContent).toContain('0 of 3 quantities signed off');
+    expect(head?.querySelector('a[download]')?.textContent).toBe('Export CSV');
+    const css = readFileSync('src/surveyor/surveyor.css', 'utf8'); // vitest runs in frontend/;
+    // the 40vh box held both tables and showed one row of 61; the column scrolls instead
+    expect(css).not.toMatch(/40vh/);
+    expect(css).toMatch(/\.sv-panel-head\s*\{[^}]*position:\s*sticky/);
+    expect(css).toMatch(/\.sv-work \.sv-panel\s*\{[^}]*overflow-y:\s*auto/);
   });
 });

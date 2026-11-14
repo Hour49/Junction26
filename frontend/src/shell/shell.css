@@ -51,6 +51,17 @@ button {
   color: var(--ink);
   text-decoration: none;
 }
+/* A native <select> sizes to its longest option: cap it so a long project name never widens the page
+   (R1-5-4). The open list still shows each option in full. */
+.project-picker {
+  flex: 0 1 320px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+}
+.project-picker-error {
+  overflow-wrap: anywhere;
+}
 .view-links {
   display: flex;
   gap: 4px;
@@ -110,11 +121,14 @@ button {
   font-family: var(--mono);
 }
 
+/* File strings (names, paths) can be one unbreakable word: let them wrap rather than widen the page (R1-5-4). */
 main {
   max-width: 1440px;
+  min-width: 0;
   margin: 0 auto;
   padding: 16px;
   outline: none;
+  overflow-wrap: anywhere;
 }
 .loading {
   color: var(--mute);
@@ -152,6 +166,12 @@ main {
   .brand {
     width: 100%;
     padding-bottom: 8px;
+  }
+  .project-picker {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
+    min-height: 44px;
   }
   .view-links {
     width: 100%;
