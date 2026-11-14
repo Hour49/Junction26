@@ -2,9 +2,12 @@
 
 Team Hour49 at Junction 2026, Espoo, 13-15 Nov 2026, Europe/Helsinki (gh logins: Bogzx, Cucuteanu-Tudor-912,
 bbeatricecretu, madabotos). This repo holds the project code, the agent setup every teammate runs, the board, and
-the pitch kit with the research so far (`junction-pitch/`, own CLAUDE.md). The project itself is not picked yet;
-this file gets its goal, layout and commands once it is. Full guide to the agent setup with tests and reasoning:
-`docs/TEAM-AGENTS.md`. This file is the short version an agent needs.
+the pitch kit with the research so far (`junction-pitch/`, own CLAUDE.md). The project is Vellum, our answer to the
+Stoa challenge: it reads building drawings (drawn and scanned PDFs, images, photos, IFC models) and answers questions
+about them with the marks on the drawing as evidence (backend `backend/`, frontend `frontend/`, scoring `eval/`; live
+at junction.hour49.com). Layout and commands are in "Project guide" below, the pipeline in `docs/PIPELINE.md`, the API
+in `docs/API.md`, the measured results in `docs/GOLDEN.md`, the README is the entry point. Full guide to the agent
+setup with tests and reasoning: `docs/TEAM-AGENTS.md`. This file is the short version an agent needs.
 
 ## First thing on any machine: is the setup installed?
 
