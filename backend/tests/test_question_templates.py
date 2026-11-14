@@ -140,7 +140,6 @@ def test_a_question_about_the_whole_model_is_marked_as_such() -> None:
         "How many electrical sockets are shown on this plan?",
         "What is the ceiling height of room 4.07?",
         "Who owns apartment B?",
-        "What is the area of the kitchen in square metres?",
         "What is the length in metres of the longest wall?",
         "What is the total length of the exterior walls in metres?",
         "Wie viele Steckdosen sind eingezeichnet?",
@@ -214,6 +213,22 @@ def test_how_long_a_room_is_by_its_name_or_its_type() -> None:
     )
     assert isinstance(PARSE("In room 'A1', what is the length of the walls?"), Unsupported)
     assert isinstance(PARSE("How long is the room?"), Unsupported)
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("What is the area of the kitchen?", "room:kitchen"),
+        ("What is the area of the kitchen in square metres?", "room:kitchen"),
+        ("What is the net floor area of the kitchen?", "room:kitchen"),
+        ("What is the area of the Küche?", "room:kitchen"),
+        ("How large is the bathroom in m²?", "room:bathroom"),
+    ],
+)
+def test_an_area_of_a_room_named_by_its_type_asks_for_that_room(text: str, subject: str) -> None:
+    # R1-3-4 (user, 2026-11-14 via the orchestrator): answered when exactly one room of the type
+    # is on the drawing (review/ask.py resolves it), else refused with the rooms that match
+    assert PARSE(text) == Query(measure="area", subject=subject)
 
 
 def test_the_apartment_without_a_letter_and_a_living_room_by_its_code() -> None:

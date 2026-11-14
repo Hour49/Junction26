@@ -14,10 +14,11 @@ dropped hint or a typo still parses:
    out. Showers and bathtubs named together are their combined count.
 4. Filters: a room number (4.01, U1.05), an apartment letter, "indoor"/"numbered" rooms.
 
-5. Four forms that are not dataset templates: the largest room of a type or printed label by
-   area, how long a room is (its longer side), "the apartment" with no letter (the sheet's one
-   dwelling), and the sheet's floor area asked plainly ("the total floor area", "the total area
-   of all rooms"): Stoa's one sheet total, the net area of its indoor rooms. A gross area, a
+5. Five forms that are not dataset templates: the largest room of a type or printed label by
+   area, how long a room is (its longer side), the area of a room by its type ("the kitchen":
+   the one room of that type), "the apartment" with no letter (the sheet's one dwelling), and
+   the sheet's floor area asked plainly ("the total floor area", "the total area of all
+   rooms"): Stoa's one sheet total, the net area of its indoor rooms. A gross area, a
    footprint or a building's area is not that, and stays unsupported.
 
 A question it can't place (no measure, no subject, a measure the subject has no quantity for,
@@ -330,6 +331,9 @@ class TemplateParser:
             return _room_side(subjects, subject, name or (code.group(1) if code else None), common)
         if measure == "area" and subject.startswith("room") and code and not (name or label):
             return Query(measure="area", subject="room", name=code.group(1), **common)
+        if measure == "area" and subject.startswith("room:") and not (name or label):
+            # a room by its type ("the kitchen"): the one room of that type (review/ask.py)
+            return Query(measure="area", subject=subject, **common)
         if subject == "wall" and QUALIFIED_WALL.search(lower):
             return Unsupported(reason="only all walls together have a length, area or volume")
         if measure == "area" and subject == "room":
