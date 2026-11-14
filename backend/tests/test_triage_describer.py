@@ -3,6 +3,7 @@ how a reply becomes the description form, the reply cache, the cost, what a fail
 and the contact-data rule. Every test runs on a fake model or a stubbed urlopen: no network, no
 partner data (the images and texts are made up)."""
 
+import hashlib
 import io
 import json
 import urllib.error
@@ -14,6 +15,7 @@ from typing import Any
 import pypdfium2
 import pytest
 from PIL import Image
+from test_vector_pdf import swiss_sheet
 from triage_fakes import FakeClassifier, steps
 
 from app.adapters.raster_ocr.gemini import GeminiError
@@ -26,7 +28,7 @@ from app.adapters.triage.gemini_describer import (
     encode,
     without_contacts,
 )
-from app.composition import _triage  # pyright: ignore[reportPrivateUsage]
+from app.composition import _triage, spend_guard  # pyright: ignore[reportPrivateUsage]
 from app.core import cost
 from app.core.errors import InvalidInputError
 from app.core.ingest.model import (
@@ -43,6 +45,12 @@ from app.settings import Settings
 KEY = "test-key-0123456789"
 USAGE = {"promptTokenCount": 1092, "candidatesTokenCount": 600, "thoughtsTokenCount": 0}
 USD = (1092 * 1.50 + 600 * 9.00) / 1e6
+# A well-formed PDF whose page tree is empty: pdfium refuses to load it
+ZERO_PAGES = (
+    b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+    b"2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n"
+    b"trailer\n<< /Size 3 /Root 1 0 R >>\n%%EOF\n"
+)
 NOT_DRAWING = Classified.model_validate(
     {"class": "not_drawing", "p_plan": 0.03, "method": "fake classifier"}
 )
@@ -102,6 +110,9 @@ class FakeModel:
         if isinstance(found, Exception):
             raise found
         return found
+
+    def price(self, answer: dict[str, Any]) -> float:
+        return GeminiDescribeClient(KEY, 1.0).price(answer)  # Flash's price
 
 
 def describe(model: FakeModel, tmp_path: Path, image: bytes | None = None) -> Any:
@@ -380,6 +391,40 @@ def test_a_pdf_scan_sends_its_first_page() -> None:
         assert (page.format, page.size) == ("JPEG", (MAX_SIDE, 1366))
 
 
+def test_a_drawn_pdf_page_is_described_as_a_scan_is(tmp_path: Path) -> None:
+    """rag's evidence sources (.agents/exp/rag-evidence.md 7.7 item 1): a vector PDF page, such as
+    a `<name>#p3.pdf` file, goes through describe as a scan does: page 1 rendered, sent as JPEG."""
+    model = FakeModel(answer(form()))
+    assert isinstance(describe(model, tmp_path, image=swiss_sheet().pdf()), Description)
+    [sent] = model.asked
+    with Image.open(io.BytesIO(sent)) as page:
+        assert page.format == "JPEG" and max(page.size) == MAX_SIDE
+
+
+@pytest.mark.parametrize(
+    "data", [b"%PDF-1.4\nnot a pdf at all", b"%PDF-1.7\n1 0 obj << /Type /Catalog", ZERO_PAGES]
+)
+def test_a_pdf_pdfium_cannot_open_is_unavailable_without_a_call(
+    tmp_path: Path, data: bytes
+) -> None:
+    """pdfium's own error (a RuntimeError) escaped describe(); it is the reason now."""
+    model = FakeModel()
+    found = describe(model, tmp_path, image=data)
+    assert isinstance(found, Unavailable)
+    assert "could not be opened" in found.note and "PDFium" in found.note
+    assert model.asked == []
+
+
+def test_the_contact_rule_is_core_code_for_every_text_source() -> None:
+    """The evidence index (app/core/evidence) takes contact data out of text files too, and core
+    imports no adapter: the rule lives in app.core.contacts, the describer uses that one."""
+    from app.core.contacts import without_contacts as core_rule
+
+    assert core_rule is without_contacts
+    found = core_rule("Puh. 040 123 4567\ninfo@example.fi\nSOUTH ELEVATION")
+    assert found == "SOUTH ELEVATION"
+
+
 def test_a_museum_object_drawing_is_not_a_drawing_and_unrelated(tmp_path: Path) -> None:
     """Orchestrator, 2026-11-14: the answer key wins for an object's design sheet (a chalice):
     the classifier's not_architecture makes it not_drawing; the describer may call it a drawing,
@@ -430,6 +475,75 @@ def test_triage_describer_gemini_builds_the_gemini_describer(tmp_path: Path) -> 
     assert "describer=gemini" in found.name
     off = _triage(Settings(_env_file=None, triage_classifier="rules"))  # type: ignore[call-arg]
     assert off is not None and off.describer is None
+
+
+def carbon_settings(tmp_path: Path, **changes: Any) -> Settings:
+    return Settings(
+        _env_file=None,  # type: ignore[call-arg]
+        triage_classifier="rules",
+        triage_describer="carbon",
+        gemini_api_key=KEY,  # type: ignore[arg-type]
+        triage_describer_cache_dir=tmp_path,
+        **changes,
+    )
+
+
+def test_triage_describer_carbon_replays_a_cached_carbon_reply_at_no_cost(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """rag's pilot (.agents/exp/rag-evidence.md 7.8) picked Gemini 4 Carbon: describe-6 as it is,
+    thinking low, cached under its own model name (data/cache/triage-describer has 5)."""
+    image = png()
+    name = (
+        f"{hashlib.sha256(image).hexdigest()}-{gemini_describer.PROMPT_VERSION}-"
+        f"{gemini_describer.PROMPT_SHA[:12]}-gemini-4-carbon-low.json"
+    )
+    (tmp_path / name).write_text(json.dumps({"form": form()}))
+
+    def urlopen(request: urllib.request.Request, timeout: float) -> io.BytesIO:
+        raise AssertionError("a cached reply makes no call")
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    found = _triage(carbon_settings(tmp_path))
+    assert found is not None and "describer=carbon" in found.name
+    assert found.describer is not None
+    described = found.describer.describe(image, NOT_DRAWING)
+    assert isinstance(described, Description) and described.cost_usd == 0
+    assert described.model == "gemini-4-carbon-low, describe-6"
+
+
+def test_a_carbon_reply_is_asked_at_low_thinking_and_charged_at_carbons_price(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[tuple[urllib.request.Request, float]] = []
+
+    def urlopen(request: urllib.request.Request, timeout: float) -> io.BytesIO:
+        sent.append((request, timeout))
+        return io.BytesIO(json.dumps(answer(form())).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    settings = carbon_settings(tmp_path)
+    found = _triage(settings)
+    assert found is not None and found.describer is not None
+    guard, trace = spend_guard(settings).spent_by().get("describer", 0.0), cost.spent()
+    described = found.describer.describe(png(), NOT_DRAWING)
+    carbon_usd = (1092 * 4.00 + 600 * 20.00) / 1e6  # 4 / 20 USD per M, not Flash's 1.50 / 9.00
+    assert isinstance(described, Description)
+    assert described.cost_usd == pytest.approx(carbon_usd)
+    assert cost.spent() - trace == pytest.approx(carbon_usd)
+    assert spend_guard(settings).spent_by()["describer"] - guard == pytest.approx(
+        carbon_usd, abs=1e-6
+    )
+    [(request, timeout)] = sent
+    assert request.full_url.endswith("/gemini-4-carbon:generateContent") and timeout >= 45
+    assert isinstance(request.data, bytes)
+    config = json.loads(request.data)["generationConfig"]
+    assert config["thinkingConfig"] == {"thinkingLevel": "low"}
+
+
+def test_carbon_refuses_a_time_limit_too_short_for_its_replies(tmp_path: Path) -> None:
+    with pytest.raises(InvalidInputError, match="45"):
+        _triage(carbon_settings(tmp_path, gemini_timeout_s=30.0))
 
 
 def test_the_prompt_leaves_out_a_homes_house_number_and_postal_code() -> None:

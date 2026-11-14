@@ -30,10 +30,20 @@ RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normali
 TriageClassifierName = Literal["off", "rules", "siglip"]
 SheetKindName = Literal["off", "carbon"]
 # gemini: gemini-3.5-flash fills the description form and its long text, GEMINI_API_KEY's
-# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/)
-TriageDescriberName = Literal["off", "gemini"]
+# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/).
+# carbon: the same with gemini-4-carbon at thinking low (rag's pilot), 4 / 20 USD per M tokens;
+# it needs GEMINI_TIMEOUT_S of 45 s or more
+TriageDescriberName = Literal["off", "gemini", "carbon"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
+# What the evidence index holds (decision 0012). set_aside: the images triage set aside and
+# described. all_non_plan: also every other file and PDF page that is not a floor plan (a picture
+# asked the sheet-kind model, then described; a text document by its own text; others by name)
+EvidenceScopeName = Literal["set_aside", "all_non_plan"]
+# RESOLVER: a model picks a value for a conflict no rule decides,
+# or checks an answer CHECK_POLICY does not certify; never a person's word. off: as before.
+# carbon: Google Carbon (the adapter is not built yet: startup refuses it until it is).
+ResolverName = Literal["off", "carbon"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
@@ -42,6 +52,9 @@ TablesName = Literal["off", "pdf"]
 ProviderName = Literal["gemini", "eu"]
 # off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
 RasterScaleName = Literal["off", "priors"]
+# off, or carbon: a raster sheet's printed scale and counts, read by the Carbon reader, replace
+# its estimated scale and check its counts (app/adapters/printed_scale/)
+RasterPrintedScaleName = Literal["off", "carbon"]
 RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
@@ -49,6 +62,14 @@ RoomPolicyName = Literal["furniture", "gold-labels"]
 # The project chat's model (decision 0013). gemini: Gemini's OpenAI-compatible endpoint
 # (AGENT_*, GEMINI_API_KEY). rules: a deterministic planner, no key. off: no agent chat
 ChatModelName = Literal["gemini", "rules", "off"]
+# The Carbon reader of raster drawings (app/adapters/carbon/). off; all: every raster drawing;
+# advanced: the drawings the sheet-kind step (SHEET_KIND=carbon) called advanced
+# large: on raster images over 4,000 px on their long side (from the file's header), Carbon counts
+# the things drawn and the shipped reader the rooms
+CarbonReaderName = Literal["off", "advanced", "all", "large"]
+# The Carbon check of the levels (CARBON_LEVELS): off; demote: Carbon reads every raster drawing
+# beside its reader, and a Medium answer it counts differently becomes Low
+CarbonLevelsName = Literal["off", "demote"]
 # Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
     Annotated[float, Field(ge=0)] | None,
@@ -79,6 +100,11 @@ class Settings(BaseSettings):
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
     raster_scale: RasterScaleName = "off"
+    # carbon: the printed scale (a bar, or a ratio at a resolution the file states) replaces the
+    # estimate, kept as a conflict value, and printed counts are checked against the read ones.
+    # Off by default; carbon asks gemini-4-carbon (GEMINI_API_KEY, the spend guard, cached in
+    # CARBON_CACHE_DIR: the page reply is the Carbon reader's): about 0.015 USD a sheet
+    raster_printed_scale: RasterPrintedScaleName = "off"
     # auto: a raster page whose long side is over 4000 px is read by every detector source of
     # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
     # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.
@@ -117,6 +143,21 @@ class Settings(BaseSettings):
     # The sheet-kind signal at ingest (app/adapters/decisions_kind/, same key, timeout and cache
     # folder): Gemini's photo-of-a-plan flag and P(floor plan) for each uploaded image or PDF
     decisions_kind: bool = False
+    # The Carbon reader (app/adapters/carbon/; brief r8 AS-2, .agents/exp/carbon-reader.md):
+    # gemini-4-carbon reads page 1 of a raster drawing whole and in full-resolution tiles, with
+    # GEMINI_API_KEY and the spend guard (charged at 4/20 USD per million tokens). CARBON_READER
+    # routes raster drawings to it alone instead of RASTER_COMPONENTS' reader (needs
+    # EXTRACTOR_RASTER=composite); ingest flags each such drawing, so none of its answers is
+    # certified. As a source it is `carbon` in RASTER_COMPONENTS or DOUBLE_CHECK_READERS.
+    # Seconds per call, and the folder replies are cached in (gitignored)
+    carbon_reader: CarbonReaderName = "off"
+    # CARBON_LEVELS=demote (brief r8 BG; integ's pre-registered rule, .agents/exp/integ.md): the
+    # Carbon reader (same key, timeout, cache and spend guard) reads every raster drawing beside
+    # its reader, never counted; CHECK_POLICY's Medium answer whose question Carbon answers with
+    # another value becomes Low. Needs EXTRACTOR_RASTER=composite
+    carbon_levels: CarbonLevelsName = "off"
+    carbon_timeout_s: float = 120.0
+    carbon_cache_dir: Path = Path("../data/cache/carbon-reader")
     # EU open models (app/adapters/openvlm/): our vLLM server on Verda (Finland), reached by an SSH
     # tunnel. Each Gemini step picks its provider; "eu" sends it to this server instead (no
     # fallback to Gemini on an error). URL, key (never logged), model, seconds per request
@@ -150,6 +191,11 @@ class Settings(BaseSettings):
     # golden's check policy (check_policy_v1): the answers certified as they are; every other
     # takeoff answer asks for a double-check (app/core/review/check.py); "" off
     check_policy: str = ""
+    # RESOLVER (ResolverName above): off, or the model that checks conflicts and uncertain answers
+    resolver: ResolverName = "off"
+    resolver_model: str = "gemini-4-carbon"  # RESOLVER=carbon's model (GEMINI_API_KEY)
+    resolver_timeout_s: float = 30.0  # POST /api/ask waits for it inline
+    resolver_cache_dir: Path = Path("../data/cache/resolver")  # replies by request, paid once
     # local-dec's local gate models (local_gate_v1, comma separated): a check policy family whose
     # threshold is on one of their signals is scored by it (app/core/review/check.py); read only
     # with CHECK_POLICY set; "" none
@@ -192,13 +238,19 @@ class Settings(BaseSettings):
     # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
     # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
     # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set
-    # aside, a doubtful one is read and its answers say so. Replies cached in the folder by file
-    # content. Off until its gate passes
+    # aside. A doubtful one is read; with a non-plan kind (in either SHEET_KIND_SET_ASIDE mode) it
+    # is flagged, so its answers are never certified and are Low, until a person has it read as a
+    # floor plan. Replies cached in the folder by file content. Off until its gate passes
     sheet_kind: SheetKindName = "off"
     sheet_kind_cache_dir: Path = Path("../data/cache/sheet-kind")
     # 0.9: the lowest cut that set aside none of checked-200's 75 plans (0.8 set aside 1; gate
     # run, .agents/exp/vlm-kind.md section 3)
     sheet_kind_cut: float = Field(default=0.9, ge=0, le=1)
+    # false: warn only (Bogdan, 2026-11-14 18:1x: Carbon names sheet kinds as a warning; its
+    # set-aside gate failed, 7 of 227 plans): a sheet it would set aside is read and flagged with
+    # the kind it looks like, so its answers are never certified and are Low (orchestrator)
+    sheet_kind_set_aside: bool = True
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")
+    evidence_scope: EvidenceScopeName = "set_aside"

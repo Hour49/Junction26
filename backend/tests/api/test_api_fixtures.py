@@ -24,6 +24,7 @@ from app.api.projects import (
     ProjectList,
     ProjectReview,
     RelevanceRequest,
+    Resolving,
     Started,
     TriageRequest,
 )
@@ -86,6 +87,10 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "chat_dont_know": ChatTurn,
     "chat_edit": ChatTurn,
     "chat_proposal_accepted": Proposal,
+    "project_resolved": ProjectView,
+    "project_review_resolved": ProjectReview,
+    "resolving": Resolving,
+    "answer_resolved": AnswerView,
     "evidence_search": EvidenceSearch,
     "evidence_detail": EvidenceDetail,
 }

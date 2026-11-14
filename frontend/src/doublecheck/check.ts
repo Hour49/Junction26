@@ -12,11 +12,17 @@ export function stateOf(a: AnswerView): PanelState {
   return checkOf(a) ? 'needs' : 'hidden';
 }
 
+/** The page was flagged as a whole at upload (a photo, a scan, a big sheet a model counted): API.md level basis `page`. */
+export const pageFlagged = (a: AnswerView): boolean => a.level?.basis === 'page';
+
 export function requestLine(a: AnswerView, check: Check): string {
-  const n = check.disputed.length;
-  if (n === 0) return 'Please double-check this value.';
   const row = a.quantity;
   const noun = row?.noun ?? (row?.measure === 'area' ? 'rooms' : 'places');
+  // the whole page is in doubt, not N of its items (Bogdan #14 c6880945211, DC-20)
+  if (pageFlagged(a))
+    return `Please double-check the whole page: it was flagged when it was read, so every one of these ${noun} is in doubt.`;
+  const n = check.disputed.length;
+  if (n === 0) return 'Please double-check this value.';
   return `Please double-check: we're not sure about ${String(n)} of these ${noun}.`;
 }
 

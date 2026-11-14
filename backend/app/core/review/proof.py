@@ -174,6 +174,8 @@ def check(found: Row) -> str | None:
         return f"{text}; settled by a person: {number(found.settled.value)}{unit}"
     if (rule := found.conflict.resolution) is not None:
         return f"{text}; kept {number(rule.value)}{unit}: {rule.rule}"
+    if not found.needs_person and found.resolved is not None and found.resolved.value is not None:
+        return f"{text}; no rule decides, a model picked {number(found.resolved.value)}{unit}"
     return f"{text}; no rule decides, a person must settle it"
 
 

@@ -333,6 +333,20 @@ class ArbiterReading(_Strict):
     )
 
 
+class CarbonCheck(_Strict):
+    """What Gemini Carbon read of the sheet beside the extraction's reader (the backend's
+    CARBON_LEVELS). Never scored, never counted."""
+
+    read: list[ElementClass | Literal["room"]] = Field(
+        default_factory=list[ElementClass | Literal["room"]],
+        description="what it counted; of another class it says nothing",
+    )
+    plans: list[Plan] = Field(default_factory=list[Plan])
+    elements: list[Element] = Field(default_factory=list[Element])
+    rooms: list[Room] = Field(default_factory=list[Room])
+    failed: str | None = Field(default=None, description="why it checked nothing; null: it read")
+
+
 class Extraction(_Strict):
     """One drawing file: its pages, plans, elements, rooms, apartments and, optionally, its
     schedules, stage-8 conflicts and the objects of its BIM model (extraction_v1)."""
@@ -381,6 +395,11 @@ class Extraction(_Strict):
         default=None,
         description="what the local count arbiter read, by count family (door, room:wc, "
         "sauna_stove...), for the answer's local gate; never scored; null: it did not run",
+    )
+    carbon_check: CarbonCheck | None = Field(
+        default=None,
+        description="what Gemini Carbon read beside the reader, for the answer's level; never "
+        "scored; null: it did not run",
     )
     notes: list[str] = Field(default_factory=list[str])
 

@@ -52,9 +52,27 @@ export function notPlanLine(t: Triage): string {
   return `Not a floor plan: ${s.kind_words}${more ? ` (${more})` : ''}`;
 }
 
+// the backend's SHEET_PLAN_KINDS (app/core/ingest/model.py)
+const SHEET_PLAN_KINDS = new Set(['architectural_floor_plan', 'multi_view_sheet']);
+
+/** FT-25: "Looks like: <kind_words>" for a sheet the model doubts (read anyway) of a non-plan kind; else null. */
+export function looksLike(t: Triage): string | null {
+  const s = t.sheet;
+  return s?.decision === 'doubt' && !SHEET_PLAN_KINDS.has(s.kind)
+    ? `Looks like: ${s.kind_words}`
+    : null;
+}
+
+/** The class words with what the sheet looks like (FT-25); a non-plan's per FT-24. */
+export function classLine(t: Triage): string {
+  const hint = looksLike(t);
+  const line = t.class === 'floor_plan' ? 'A floor plan' : notPlanLine(t);
+  return hint ? `${line} · ${hint}` : line;
+}
+
 export function rowLine(t: Triage): string {
   const subject = t.sheet?.decision === 'set_aside' ? null : t.description?.subject;
-  return `${notPlanLine(t)}${subject ? ` · ${subject}` : ''}`;
+  return `${classLine(t)}${subject ? ` · ${subject}` : ''}`;
 }
 
 /** "Related to this project: Ana’s call, <time>. The judge said: Not related."; null with no call. */

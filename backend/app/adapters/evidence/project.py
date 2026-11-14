@@ -17,13 +17,24 @@ from app.core.evidence.model import (
     EvidenceSearch,
     EvidenceSource,
     HitWhy,
+    Passage,
 )
 from app.core.evidence.search import parsed, passage_id, snippet, terms
 from app.core.ingest.model import ProjectStatus
 
 KEPT: frozenset[str | None] = frozenset({"related", "unsure", None})
 EVERY: frozenset[str | None] = KEPT | {"unrelated"}
-NOTHING = "No file of this project has a description: file triage was off when it was ingested."
+NOTHING = (
+    "No file of this project is in the evidence index (EVIDENCE_SCOPE and file triage decide"
+    " what is)."
+)
+# what the first prompt line counts, by (how, kinds), singular and plural (rag's review of #272, N1)
+COUNTED = (
+    ("described", None, "described", "described"),
+    ("text", frozenset({"text_document", "text_file"}), "text document", "text documents"),
+    ("text", frozenset({"text_pages"}), "drawing file's text pages", "drawing files' text pages"),
+    ("listed", None, "listed by name", "listed by name"),
+)
 LISTED = 30  # evidence_prompt lists each file up to this many
 PROMPT_CHARS = 6000  # the longest evidence_prompt, as the law tools' prompt
 CreditOf = Callable[[int, str], str | None]  # (size, sha256) -> the licence credit
@@ -102,8 +113,9 @@ class ProjectEvidence:
                     id=passage_id(file_id, passage),
                     file_id=file_id,
                     file=source.path,
-                    page=source.page,
+                    page=_page(passage, source),
                     part=passage.part,
+                    how=source.how,
                     kind=source.kind,
                     subject=source.description.subject,
                     snippet=snippet(passage.text, matched),
@@ -138,8 +150,9 @@ class ProjectEvidence:
             id=wanted,
             file_id=file_id,
             file=source.path,
-            page=source.page,
+            page=_page(passage, source),
             part=passage.part,
+            how=source.how,
             text=passage.text,
             kind=source.kind,
             verdict=source.verdict,
@@ -165,19 +178,36 @@ class ProjectEvidence:
             sources = list(self._opened(reader).values())
         if not sources:
             return f"Project evidence: none. {NOTHING} Do not call search_evidence."
+        hows = Counter(source.how for source in sources)
         kinds = Counter(source.kind for source in sources)
+        counts = [
+            (sum(s.how == how and (only is None or s.kind in only) for s in sources), one, many)
+            for how, only, one, many in COUNTED
+        ]
         languages = sorted({s.description.language for s in sources if s.description.language})
         unrelated = sum(source.verdict == "unrelated" for source in sources)
+        how = ", ".join(f"{n} {one if n == 1 else many}" for n, one, many in counts if n)
         said = ", ".join(f"{count} {kind}" for kind, count in kinds.most_common())
         lines = [
-            f"Project evidence: {len(sources)} described files that are not floor plans ({said})"
+            f"Project evidence: {len(sources)} files or pages that are not floor plans"
+            + f" ({how}; {said})"
             + (f"; printed text in {', '.join(languages)}" if languages else "")
             + (f"; {unrelated} judged unrelated, searched only on request" if unrelated else "")
             + ".",
             "Call search_evidence for what a photo, elevation, section, site plan, map or text page"
             " shows or says, and get_evidence before stating a fact from one; cite the file."
             " The descriptions were written by a model and not checked by a person: say"
-            ' "the description says". Floor plan facts (counts, areas, rooms) are not in it.',
+            ' "the description says". Floor plan facts (counts, areas, rooms) are not in it.'
+            + (
+                " A text document is quoted from its own text (say the file and page)."
+                if hows["text"]
+                else ""
+            )
+            + (
+                " A file listed by name was not read: say only that it exists."
+                if hows["listed"]
+                else ""
+            ),
         ]
         if len(sources) <= LISTED:
             lines += [f"{s.file_id} {s.kind}: {s.description.subject}" for s in sources]
@@ -188,3 +218,9 @@ class ProjectEvidence:
 def _rank(ranking: FileRanking, file_id: str) -> int | None:
     """The file's rank in a retriever's pool; None when the pool doesn't hold it."""
     return next((rank for rank, (found, _) in enumerate(ranking, 1) if found == file_id), None)
+
+
+def _page(passage: Passage, source: EvidenceSource) -> int:
+    """A `text` passage's own PDF page, and a text source's summary's (its first text page); any
+    other passage's page is its file's."""
+    return passage.page if passage.part == "text" or source.how == "text" else source.page

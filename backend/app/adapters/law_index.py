@@ -30,7 +30,7 @@ from app.core.laws.model import (
     clause_view,
     toc_entry,
 )
-from app.core.laws.search import match_query
+from app.core.laws.search import is_old_wording, match_query
 
 # Columns of the FTS5 table and their BM25 weights: what was written for search counts most
 COLUMNS = {"summary_en": 4.0, "keywords": 4.0, "heading": 2.0, "text_en": 1.0, "text": 1.0,
@@ -73,7 +73,9 @@ class SqliteLawIndex:
             f"CREATE VIRTUAL TABLE fts USING fts5({', '.join(COLUMNS)}, "
             "tokenize='unicode61 remove_diacritics 2', prefix='3 4 5')"
         )
-        self._db.execute("CREATE TABLE clause (row INTEGER PRIMARY KEY, id TEXT, pack TEXT)")
+        self._db.execute(
+            "CREATE TABLE clause (row INTEGER PRIMARY KEY, id TEXT, pack TEXT, old INTEGER)"
+        )
         self._db.execute("CREATE TABLE topic (row INTEGER, topic TEXT)")
         for law in laws:
             for clause in law.clauses:
@@ -92,7 +94,10 @@ class SqliteLawIndex:
                         f"{law.number} {law.title} {law.title_en}",
                     ),
                 )
-                self._db.execute("INSERT INTO clause VALUES (?, ?, ?)", (row, clause.id, law.pack))
+                self._db.execute(
+                    "INSERT INTO clause VALUES (?, ?, ?, ?)",
+                    (row, clause.id, law.pack, is_old_wording(clause.id)),
+                )
                 self._db.executemany(
                     "INSERT INTO topic VALUES (?, ?)", [(row, topic) for topic in clause.topics]
                 )
@@ -105,17 +110,18 @@ class SqliteLawIndex:
     ) -> list[SearchHit]:
         _known(pack)
         # Clauses with every word first, then any word to fill `limit`: a short clause sharing
-        # one common word ("minimum") must not outrank the one that has them all
-        rows: list[tuple[str, float]] = []
+        # one common word ("minimum") must not outrank the one that has them all. Old wording
+        # goes after every current hit of both rounds (stable sort).
+        rows: dict[str, float] = {}
         for every in (True, False):
             match = match_query(query, every)
-            if match is None or len(rows) >= limit:
+            if match is None or sum(not is_old_wording(id_) for id_ in rows) >= limit:
                 break
-            seen = {clause_id for clause_id, _ in rows}
-            found = self._match(match, pack, topic, limit)
-            rows += [row for row in found if row[0] not in seen][: limit - len(rows)]
+            for clause_id, score in self._match(match, pack, topic, limit):
+                rows.setdefault(clause_id, score)
+        ranked = sorted(rows.items(), key=lambda row: is_old_wording(row[0]))[:limit]
         hits: list[SearchHit] = []
-        for clause_id, score in rows:
+        for clause_id, score in ranked:
             law, clause = self._clauses[clause_id]
             hits.append(
                 SearchHit(
@@ -136,7 +142,7 @@ class SqliteLawIndex:
             f"SELECT clause.id, -bm25(fts, {weights}) AS score FROM fts "
             "JOIN clause ON clause.row = fts.rowid WHERE fts MATCH ? AND clause.pack = ? "
             + ("AND clause.row IN (SELECT row FROM topic WHERE topic = ?) " if topic else "")
-            + "ORDER BY score DESC, clause.id LIMIT ?"
+            + "ORDER BY clause.old, score DESC, clause.id LIMIT ?"
         )
         params = (match, pack, *([topic] if topic else []), limit)
         with self._lock:

@@ -11,7 +11,7 @@ import logging
 from collections.abc import Callable, Mapping
 
 from app.core.drawing.model import Drawing, Page
-from app.core.ingest.judge import judge, pipeline_stages, reading_flags
+from app.core.ingest.judge import judge, pipeline_stages, reading_flags, with_sheet_flag
 from app.core.ingest.model import Normalised, Outcome, SheetKind, StageTrace
 from app.core.ingest.ports import Clock, ProjectStore, Readers
 from app.core.ingest.progress import Run
@@ -22,6 +22,7 @@ from app.core.ingest.timing import (
     TimedExtractor,
     TimedPages,
 )
+from app.core.ingest.triage import sheet_flag
 from app.core.pipeline.group import group, key_of
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, DrawingGroup, FileKind, Route
@@ -154,6 +155,8 @@ class Groups:
             takeoff: dict[str, int | float] = {}
             flags: tuple[str, ...] = ()
             if file.path in sheets and drawing is not None:
+                carbon_read = readers.carbon_read
+                carbon = carbon_read(file.path) if route_name == "raster" and carbon_read else None
                 stages = pipeline_stages(
                     sheets[file.path].trace,
                     timer.ms.get(file.path, {}),
@@ -168,9 +171,10 @@ class Groups:
                     route_name,
                     self._readers.get(route_name),
                     self._frames.get(file.path),
+                    carbon,
                 )
                 takeoff = sheets[file.path].takeoff
-                flags = reading_flags(run.kinds[file.path], self._frames.get(file.path))
+                flags = reading_flags(run.kinds[file.path], self._frames.get(file.path), carbon)
             elif file.path in aside:
                 state, reason = "set_aside", aside[file.path]
             elif file == source:
@@ -216,7 +220,7 @@ class Groups:
                       _ms(self._clock, started),
                       output=count(len(outcome.takeoff), "quantity", "quantities"))  # fmt: skip
         run.set(file.path, takeoff=outcome.takeoff, drawing_id=key if drawing is not None else None)
-        run.finish(file.path, outcome.state, outcome.reason)
+        _finish(run, file.path, outcome)
 
 
 def _scans(run: Run, members: DrawingGroup) -> set[str]:
@@ -245,7 +249,14 @@ def _reuse(run: Run, file: DrawingFile, members: DrawingGroup, outcome: Outcome)
     run.set(file.path, reused=True, takeoff=outcome.takeoff, source=source,
             stage=replayed[-1].stage if replayed else ended,
             drawing_id=outcome.key if outcome.has_drawing else None)  # fmt: skip
-    run.finish(file.path, outcome.state, outcome.reason)
+    _finish(run, file.path, outcome)
+
+
+def _finish(run: Run, path: str, outcome: Outcome) -> None:
+    """The file ends as its reading did, flagged when this project's triage doubts the sheet
+    (with_sheet_flag): read fresh or reused, the flag follows the triage, not the cache."""
+    flag = sheet_flag(run.file(path).triage) if outcome.has_drawing else None
+    run.finish(path, *with_sheet_flag(outcome.state, outcome.reason, flag))
 
 
 def _failed(run: Run, asked: list[DrawingFile], timer: StageClock, failure: str) -> None:

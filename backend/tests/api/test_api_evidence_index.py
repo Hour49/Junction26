@@ -58,9 +58,10 @@ def test_search_finds_a_described_non_plan_by_what_it_shows_and_what_is_printed(
     (hit,) = reply["hits"]
     assert (hit["file_id"], hit["file"], hit["verdict"]) == (elevation, "elevation.png", "related")
     assert set(hit) == {
-        "id", "file_id", "file", "page", "part", "kind", "subject", "snippet", "language",
-        "verdict", "credit", "score", "why",
+        "id", "file_id", "file", "page", "part", "how", "kind", "subject", "snippet",
+        "language", "verdict", "credit", "score", "why",
     }  # fmt: skip
+    assert hit["how"] == "described"
     printed = search(described, found["id"], q="Kuche")  # diacritics folded
     assert [hit["id"] for hit in printed["hits"]] == [f"{elevation}-visible_text-1"]
 
@@ -133,4 +134,4 @@ def test_a_project_without_descriptions_has_an_empty_index_and_says_why(
     started = client.post("/api/projects", params={"name": "plan.pdf"}, content=plan_pdf)
     reply = search(client, started.json()["id"], q="anything")
     assert (reply["indexed_files"], reply["hits"]) == (0, [])
-    assert reply["note"].startswith("No file of this project has a description")
+    assert reply["note"].startswith("No file of this project is in the evidence index")

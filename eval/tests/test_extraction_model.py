@@ -174,6 +174,9 @@ def test_a_good_file_parses_and_counts_itself() -> None:
         ("read", []),  # looked for nothing
         # what the local count arbiter read, by count family; p null where it sets no count
         ("count_arbiter", {"toilet": {"probs": [0.25, 0.75], "p": 0.9}, "plan": {"probs": [1.0]}}),
+        # what Gemini Carbon read beside the reader (the backend's CARBON_LEVELS), or why not
+        ("carbon_check", {"read": ["door", "room"], "elements": [], "rooms": []}),
+        ("carbon_check", {"failed": "not read: the page call failed: HTTP 503"}),
     ],
 )
 def test_widened_fields_parse(path: str, value: Any) -> None:
@@ -289,6 +292,7 @@ def test_widened_fields_parse(path: str, value: Any) -> None:
         ("count_arbiter", {"toilet": {"probs": [1.5]}}, "less than or equal to 1"),
         ("count_arbiter", {"toilet": {"probs": [1.0], "p": -0.1}}, "greater than or equal to 0"),
         ("count_arbiter", {"toilet": {"probs": [1.0], "votes": 3}}, "Extra inputs"),
+        ("carbon_check", {"read": ["doors"]}, "Input should be 'door'"),
     ],
 )
 def test_a_bad_file_is_refused(path: str, value: Any, message: str) -> None:

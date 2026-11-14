@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import struct
+import urllib.error
 import urllib.request
 import zlib
 from pathlib import Path
@@ -39,7 +40,7 @@ from app.core.ingest.model import (
     Triage,
     Unavailable,
 )
-from app.core.ingest.triage import set_aside_reason, sheet_doubt
+from app.core.ingest.triage import set_aside_reason, sheet_doubt, sheet_flag
 from app.core.spend import SpendGuard
 from app.settings import Settings
 
@@ -167,7 +168,7 @@ def test_an_mep_plan_is_set_aside_with_its_kind_title_and_number_and_no_register
     assert set_aside_reason(triage) == (
         "not a floor plan: a piping, plumbing, ventilation or electrical plan (PIPING PLAN, M-101A)"
     )
-    assert sheet_doubt(triage) is None  # set aside, not doubted
+    assert sheet_doubt(triage) is None and sheet_flag(triage) is None  # set aside, not doubted
 
 
 def test_a_schedule_is_set_aside_as_not_a_drawing(tmp_path: Path) -> None:
@@ -191,14 +192,16 @@ def test_a_doubt_is_read_keeps_the_inner_register_and_its_answers_say_so(tmp_pat
     assert (found.class_, found.register_) == ("floor_plan", register)
     assert found.method == "fake classifier; Gemini sheet kind (gemini-4-carbon, sheet-kind-2)"
     triage = triage_of(found)
-    assert sheet_doubt(triage) == (
-        "This sheet may not be a floor plan: it looks like a structural plan (foundation, slab, "
-        "framing or reinforcement)."
+    assert sheet_doubt(triage) is None  # a non-plan kind: flagged instead, with its kind
+    assert sheet_flag(triage) == (
+        "the sheet may not be a floor plan: it looks like a structural plan (foundation, slab, "
+        "framing or reinforcement)"
     )
     plan_kind = form("architectural_floor_plan", False, False, 0.9)
     found = classifier(tmp_path / "2", FakeModel(reply(plan_kind))).classify(png(), PNG_PROBED)
     assert isinstance(found, Classified) and found.sheet is not None
     assert sheet_doubt(triage_of(found)) == ("This sheet may not be a floor plan.")
+    assert sheet_flag(triage_of(found)) is None  # a plan kind: read, warned, not flagged
 
 
 def test_a_plan_is_read_with_no_line(tmp_path: Path) -> None:
@@ -206,6 +209,7 @@ def test_a_plan_is_read_with_no_line(tmp_path: Path) -> None:
     assert isinstance(found, Classified) and found.sheet is not None
     assert (found.class_, found.p_plan, found.sheet.decision) == ("floor_plan", 0.97, "read")
     assert sheet_doubt(triage_of(found)) is None
+    assert sheet_flag(triage_of(found)) is None
 
 
 def test_no_call_when_the_inner_classifier_already_says_not_a_plan(tmp_path: Path) -> None:
@@ -359,3 +363,100 @@ def test_the_default_cut_is_the_one_the_gate_run_picked(
     assert Settings().sheet_kind_cut == CUT == 0.9
     # 0.85: set aside at the old 0.8, a doubt (read) at 0.9
     assert decide(form("mep_plan", False, True, 0.85), CUT) == "doubt"
+
+
+class FlakyNetwork:
+    """urlopen, faked: raises `errors` in turn, then answers PIPING. Records every request."""
+
+    def __init__(self, *errors: Exception) -> None:
+        self.errors, self.calls = list(errors), 0
+
+    def __call__(self, request: urllib.request.Request, timeout: float) -> io.BytesIO:
+        self.calls += 1
+        if self.errors:
+            raise self.errors.pop(0)
+        return io.BytesIO(json.dumps(reply(PIPING)).encode())
+
+
+@pytest.mark.parametrize(
+    "timeout",
+    [TimeoutError("timed out"), urllib.error.URLError(TimeoutError("timed out"))],
+)
+def test_a_timeout_is_asked_once_more_with_a_warning_and_only_the_answer_is_charged(
+    timeout: Exception,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    network = FlakyNetwork(timeout)
+    monkeypatch.setattr(urllib.request, "urlopen", network)
+    guard = SpendGuard(1.0)
+    client = GeminiSheetKindClient("test-key-not-real", 5.0, budget=guard)
+    with caplog.at_level("WARNING"):
+        found = SheetKindClassifier(None, SheetKindReader(client, tmp_path), CUT).classify(
+            png(), PNG_PROBED
+        )
+    assert isinstance(found, Classified) and found.class_ == "other_drawing"
+    assert network.calls == 2
+    assert guard.spent_by() == pytest.approx({"gemini sheet kind": 0.0128})  # one paid reply
+    assert any("timed out" in record.message and record.levelname == "WARNING"
+               for record in caplog.records)  # fmt: skip
+
+
+def test_a_second_timeout_fails_and_other_errors_are_not_asked_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    network = FlakyNetwork(TimeoutError("timed out"), TimeoutError("timed out"))
+    monkeypatch.setattr(urllib.request, "urlopen", network)
+    client = GeminiSheetKindClient("test-key-not-real", 5.0, budget=SpendGuard(1.0))
+    found = SheetKindClassifier(None, SheetKindReader(client, tmp_path), CUT).classify(
+        png(), PNG_PROBED
+    )
+    assert found == Unavailable(
+        note="the sheet-kind model could not answer: no answer: TimeoutError"
+    )
+    assert network.calls == 2
+    for error in (ConnectionResetError("reset"), urllib.error.URLError("no route")):
+        network = FlakyNetwork(error)
+        monkeypatch.setattr(urllib.request, "urlopen", network)
+        found = SheetKindClassifier(None, SheetKindReader(client, tmp_path), CUT).classify(
+            png(), PNG_PROBED
+        )
+        assert isinstance(found, Unavailable) and network.calls == 1
+
+
+def test_the_budget_is_asked_again_before_the_second_try(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guard = SpendGuard(1.0)
+
+    class SpendsThenTimesOut(FlakyNetwork):
+        def __call__(self, request: urllib.request.Request, timeout: float) -> io.BytesIO:
+            guard.charge(1.0, "another caller")  # the budget runs out while this call waits
+            return super().__call__(request, timeout)
+
+    network = SpendsThenTimesOut(TimeoutError("timed out"))
+    monkeypatch.setattr(urllib.request, "urlopen", network)
+    client = GeminiSheetKindClient("test-key-not-real", 5.0, budget=guard)
+    found = SheetKindClassifier(None, SheetKindReader(client, tmp_path), CUT).classify(
+        png(), PNG_PROBED
+    )
+    assert isinstance(found, Unavailable) and "Gemini budget used up" in found.note
+    assert network.calls == 1
+
+
+def test_a_set_aside_sheet_is_never_advanced_and_a_doubt_keeps_the_flag(tmp_path: Path) -> None:
+    big = png(ADVANCED_LONG_SIDE + 10, 100)
+    hard = PIPING | {"advanced": True, "advanced_why": "dense annotation"}
+    found = classifier(tmp_path, FakeModel(reply(hard))).classify(big, PNG_PROBED)
+    assert isinstance(found, Classified) and found.sheet is not None
+    assert (found.sheet.decision, found.sheet.advanced, found.sheet.advanced_why) == (
+        "set_aside",
+        False,
+        None,
+    )
+    warned = SheetKindClassifier(
+        None, SheetKindReader(FakeModel(reply(hard)), tmp_path / "warn"), CUT, set_aside=False
+    ).classify(big, PNG_PROBED)
+    assert isinstance(warned, Classified) and warned.sheet is not None
+    assert (warned.sheet.decision, warned.sheet.advanced) == ("doubt", True)  # it is read

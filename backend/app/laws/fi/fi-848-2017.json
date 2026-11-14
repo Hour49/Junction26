@@ -3754,7 +3754,9 @@
         "900 mm",
         "850 mm",
         "hissi",
-        "poistumistie"
+        "poistumistie",
+        "escape route",
+        "escape route width"
       ],
       "topics": [
         "escape-routes"

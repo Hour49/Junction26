@@ -18,6 +18,22 @@ from app.core.pipeline.model import Route
 FileState = Literal["queued", "running", "ready", "flagged", "text_only", "set_aside"]
 FINISHED: frozenset[FileState] = frozenset({"ready", "flagged", "text_only", "set_aside"})
 ProjectState = Literal["queued", "running", "done", "failed"]
+# What Gemini Carbon read of a raster drawing: its elements (CARBON_READER sent it to Carbon), or
+# another part a composite takes from the `carbon` source (rooms, plans, scale, a class)
+CarbonRead = Literal["elements", "part"]
+# The reading flags (judge.reading_flags) that say Carbon read the page. Carbon counted the
+# drawing's elements (CARBON_READER); review/ask.py reads this flag as "a class Carbon counted and
+# found none of is a read 0" (brief r8 BD), so it is never set for a part
+CARBON_FLAG = "counted by Gemini Carbon, an AI reader: check its marks on the plan"
+# a composite took another part from Carbon (rooms, plans, scale, one class): its elements are not
+# all Carbon's (fail-1's S-D, .agents/qa/r9/review-269.md)
+CARBON_PART_FLAG = "read in part by Gemini Carbon, an AI reader: check its marks on the plan"
+# what the flags said before (brief r8 BS): a stored Outcome is reused by content across code
+# versions, so its flags and reason are read in today's words and ask still finds CARBON_FLAG
+RENAMED_FLAGS = {
+    "counted by Gemini Carbon: its counts are not measured yet": CARBON_FLAG,
+    "read in part by Gemini Carbon: its counts are not measured yet": CARBON_PART_FLAG,
+}
 
 # What a file is, from its content (stage 3). The first eight go into the pipeline.
 ContentKind = Literal[
@@ -197,6 +213,9 @@ SheetDecision = Literal["read", "doubt", "set_aside"]
 SHEET_PLAN_KINDS: frozenset[SheetKindName] = frozenset(
     {"architectural_floor_plan", "multi_view_sheet"}
 )
+
+
+EvidenceHow = Literal["described", "text", "listed"]
 
 
 class Sheet(Frozen):
@@ -390,6 +409,22 @@ class Rectified(Frozen):
     method: str  # how it was found, shown in the trace and the status
 
 
+class FileEvidence(Frozen):
+    """FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence
+    index, and from what (decision 0012 sources v2). Written by the evidence step for every file it
+    looked at; a file today's triage path set aside and described keeps its record in `triage`."""
+
+    indexed: bool
+    how: EvidenceHow | None = None  # None: not indexed
+    kind: str | None = None  # the hit's kind; None: not indexed
+    why: str  # one plain sentence, always set
+    sheet: Sheet | None = None  # the sheet-kind reply; None: not asked
+    description: Description | None = None  # how = described
+    text_pages: int | None = None  # how = text: the pages that gave text
+    text_chars: int | None = None  # how = text: the characters indexed (after the cut)
+    cost_usd: float = Field(default=0.0, ge=0)
+
+
 class FileStatus(Frozen):
     id: str  # f1, f2... in the order the upload lists the files
     path: str
@@ -412,6 +447,9 @@ class FileStatus(Frozen):
     normalised: Normalised | None = None  # an image sheet: how its frame was made
     # Set for an image file when triage is on (decision 0010); left out of the JSON otherwise
     triage: Triage | None = Field(default=None, exclude_if=lambda value: value is None)
+    # What the evidence index made of the file (decision 0012, EVIDENCE_SCOPE=all_non_plan);
+    # left out of the JSON when that step did not look at it
+    evidence: FileEvidence | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectStatus(Frozen):
@@ -494,3 +532,22 @@ class Outcome(Frozen):
     stages: tuple[StageTrace, ...] = ()
     normalised: Normalised | None = None
     flags: tuple[str, ...] = ()  # how the page was read, for every answer (judge.reading_flags)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _renamed(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        fields = dict(cast(dict[str, object], data))
+        flags = fields.get("flags")
+        if isinstance(flags, list | tuple):
+            given = cast(Iterable[object], flags)
+            fields["flags"] = [
+                RENAMED_FLAGS.get(flag, flag) if isinstance(flag, str) else flag for flag in given
+            ]
+        reason = fields.get("reason")
+        if isinstance(reason, str):
+            for before, now in RENAMED_FLAGS.items():
+                reason = reason.replace(before, now)
+            fields["reason"] = reason
+        return fields

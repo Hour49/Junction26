@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatCost, formatLatency, formatScore, statusWord } from './format';
+import { estimateLine, formatCost, formatLatency, formatScore, statusWord } from './format';
+import { answer, answerArea } from '../api/fixtures';
 
 describe('engineer format', () => {
   it('EN-25 cost, latency and score', () => {
@@ -20,4 +21,19 @@ describe('engineer format', () => {
     expect(statusWord('agree')).toBe('Two methods agree');
     expect(statusWord('single')).toBe('One method');
   });
+});
+
+it('EN-88 estimateLine: rounded value, unit and the API sentence; null without an estimate', () => {
+  const q = answerArea.quantity as NonNullable<typeof answerArea.quantity>;
+  const est = {
+    ...answerArea,
+    answer: 179.6,
+    quantity: { ...q, estimate: 'the scale estimated from the doors' },
+  };
+  expect(estimateLine(est)).toBe('about 180 m², the scale estimated from the doors');
+  expect(estimateLine({ ...est, answer: 12.4, unit: 'count' })).toBe(
+    'about 12, the scale estimated from the doors',
+  );
+  expect(estimateLine(answerArea)).toBeNull();
+  expect(estimateLine(answer)).toBeNull();
 });

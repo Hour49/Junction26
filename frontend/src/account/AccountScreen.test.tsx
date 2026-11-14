@@ -330,6 +330,31 @@ describe('AccountScreen #121 fields', () => {
     expect(document.querySelector('[data-pending]')).toBeNull();
   });
 
+  it('RS-8 a neutral "N picked by Carbon" pill from conflicts_picked; none for absent, null or 0', async () => {
+    const base = must(projectList.projects[0]);
+    mockApi({
+      ...routes,
+      [LIST]: {
+        projects: [
+          { ...base, to_review: 2, conflicts_picked: 2 },
+          { ...base, id: OTHER, conflicts_picked: 1 },
+          { ...base, id: 'cccccccccccc', conflicts_picked: null },
+          { ...base, id: 'dddddddddddd', conflicts_picked: 0 },
+        ],
+      },
+    });
+    render(<AccountScreen />);
+    await flush();
+    const [a, b, c, d] = items();
+    const pill = must(must(a).querySelector('.v-pill:not([class*="v-pill--"])'));
+    expect(pill.textContent).toBe('2 picked by Carbon');
+    expect(must(a).textContent).toContain('2 to review');
+    expect(must(b).textContent).toContain('1 picked by Carbon');
+    expect(must(c).textContent).not.toMatch(/Carbon/);
+    expect(must(d).textContent).not.toMatch(/Carbon/);
+    expect(base.conflicts_picked).toBeUndefined();
+  });
+
   it('AC-29 the questions log is asked for and shows as a stat and events', async () => {
     const api = mockApi({ ...routes, [QUESTIONS]: projectQuestions });
     render(<AccountScreen />);

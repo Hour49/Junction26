@@ -208,6 +208,31 @@ def test_the_hard_command_records_aggregates_only_and_writes_public_gold(tmp_pat
     assert first["counts"] == label()["counts"]  # as labelled
 
 
+def test_the_hard_command_scores_several_runs_each_with_its_own_questions(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A row can span runs (a second batch read later): each --run is read with its own
+    --questions, so the same question id in two runs is two different questions."""
+    labels = write_labels(tmp_path / "labels.json", label("a.png"), label("b.png"))
+    argv = ["hard", str(labels), "--name", "two runs", "--results", str(tmp_path / "results")]
+    for name, doors in (("a.png", 11), ("b.png", 99)):
+        rows = questions_for([HardFile.model_validate(label(name))], "data/inbox/hard")
+        questions = tmp_path / name / "q.jsonl"
+        door = next(r["id"] for r in rows if r["question"] == QUESTIONS["door"])
+        run = tmp_path / name / "run"
+        run.mkdir(parents=True)
+        questions.write_text("".join(json.dumps(r) + "\n" for r in rows))
+        (run / "answers.jsonl").write_text(json.dumps({"id": door, "answer": doors}) + "\n")
+        argv += ["--run", str(run), "--questions", str(questions)]
+    assert main(argv) == 0
+    (record_path,) = (tmp_path / "results").iterdir()
+    report = json.loads(record_path.read_text())["report"]
+    assert report["predicted"] == 2  # both runs read, not only the last --run
+    assert (report["families"]["door"]["asked"], report["families"]["door"]["hit"]) == (2, 1)
+    assert main(["hard", str(labels), "--run", str(run)]) == 1
+    assert "each --run needs its --questions" in capsys.readouterr().err
+
+
 @pytest.mark.skipif(not (backend.BACKEND / ".venv").is_dir(), reason="backend/ has no environment")
 def test_the_backend_parser_reads_each_question_as_its_family(tmp_path: Path) -> None:
     questions = tmp_path / "q.jsonl"

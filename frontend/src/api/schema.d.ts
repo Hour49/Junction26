@@ -499,7 +499,9 @@ export interface paths {
          * @description A person has a file triage set aside read as a floor plan: it is read in the background,
          *     alone, while the project stays done. Returns the file, queued; poll the project. 409 until
          *     the project is done or while a file of it is read again; 422 `not-triaged` for a file triage
-         *     did not set aside as not a floor plan. No undo: a reading is not unread.
+         *     did not set aside as not a floor plan. A sheet the sheet-kind step doubted (flagged) was read
+         *     already: its flag is dropped at once, nothing is read again. No undo: a reading is not
+         *     unread.
          */
         post: operations["triage_api_projects__project_id__files__file_id__triage_post"];
         delete?: never;
@@ -605,6 +607,29 @@ export interface paths {
         get: operations["project_questions_api_projects__project_id__questions_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve
+         * @description RESOLVER: a model looks at each conflict no rule decides and no person settled, and picks
+         *     a value or says it can't tell; one call per conflict, replies kept with the project's review,
+         *     so a second POST asks only about what changed. 409 when RESOLVER is off or before `done`.
+         *     It also runs on its own when an upload's ingest is done (`_resolve_when_done`).
+         */
+        post: operations["resolve_api_projects__project_id__resolve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -802,6 +827,9 @@ export interface components {
             question: string;
             reader: components["schemas"]["Reader"];
             refusal: components["schemas"]["Refusal"] | null;
+            resolved?: components["schemas"]["Resolved"] | null;
+            /** Resolver Note */
+            resolver_note?: string | null;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };
@@ -1157,6 +1185,7 @@ export interface components {
             needs_person: boolean;
             /** Quantity */
             quantity: string;
+            resolved?: components["schemas"]["Resolved"] | null;
             settled: components["schemas"]["Settled"] | null;
             signed: components["schemas"]["SignOff"] | null;
             /** Suggestions */
@@ -1416,6 +1445,11 @@ export interface components {
             file: string;
             /** File Id */
             file_id: string;
+            /**
+             * How
+             * @enum {string}
+             */
+            how: "described" | "text" | "listed";
             /** Id */
             id: string;
             /** Kind */
@@ -1426,7 +1460,7 @@ export interface components {
              * Part
              * @enum {string}
              */
-            part: "summary" | "detail" | "visible_text";
+            part: "summary" | "detail" | "visible_text" | "text";
             register: components["schemas"]["Register"] | null;
             relevance: components["schemas"]["Relevance"] | null;
             /** Text */
@@ -1442,6 +1476,11 @@ export interface components {
             file: string;
             /** File Id */
             file_id: string;
+            /**
+             * How
+             * @enum {string}
+             */
+            how: "described" | "text" | "listed";
             /** Id */
             id: string;
             /** Kind */
@@ -1454,7 +1493,7 @@ export interface components {
              * Part
              * @enum {string}
              */
-            part: "summary" | "detail" | "visible_text";
+            part: "summary" | "detail" | "visible_text" | "text";
             /** Score */
             score: number;
             /** Snippet */
@@ -1480,6 +1519,33 @@ export interface components {
             /** Unrelated Left Out */
             unrelated_left_out: number;
         };
+        /**
+         * FileEvidence
+         * @description FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence
+         *     index, and from what (decision 0012 sources v2). Written by the evidence step for every file it
+         *     looked at; a file today's triage path set aside and described keeps its record in `triage`.
+         */
+        FileEvidence: {
+            /**
+             * Cost Usd
+             * @default 0
+             */
+            cost_usd: number;
+            description?: components["schemas"]["Description"] | null;
+            /** How */
+            how?: ("described" | "text" | "listed") | null;
+            /** Indexed */
+            indexed: boolean;
+            /** Kind */
+            kind?: string | null;
+            sheet?: components["schemas"]["Sheet"] | null;
+            /** Text Chars */
+            text_chars?: number | null;
+            /** Text Pages */
+            text_pages?: number | null;
+            /** Why */
+            why: string;
+        };
         /** FileStatus */
         FileStatus: {
             /**
@@ -1489,6 +1555,7 @@ export interface components {
             cost_usd: number;
             /** Drawing Id */
             drawing_id?: string | null;
+            evidence?: components["schemas"]["FileEvidence"] | null;
             /** Group */
             group?: string | null;
             /** Id */
@@ -1671,6 +1738,7 @@ export interface components {
             question: string | null;
             /** Reason */
             reason: string | null;
+            resolved?: components["schemas"]["Resolved"] | null;
             /**
              * Severity
              * @enum {string}
@@ -2068,6 +2136,8 @@ export interface components {
         ProjectSummary: {
             /** Conflicts Open */
             conflicts_open: number | null;
+            /** Conflicts Picked */
+            conflicts_picked?: number | null;
             /** Created At */
             created_at: string;
             /** Drawings */
@@ -2106,6 +2176,8 @@ export interface components {
         ProjectView: {
             /** Conflicts Open */
             conflicts_open?: number | null;
+            /** Conflicts Picked */
+            conflicts_picked?: number | null;
             /**
              * Cost Usd
              * @default 0
@@ -2370,6 +2442,47 @@ export interface components {
             /** Value */
             value: number;
         };
+        /**
+         * Resolved
+         * @description What the resolver (RESOLVER, app/core/review/resolve.py) said about a conflict or an answer
+         *     that is not certified: a value it picked, or that it can't tell, why, and where it looked.
+         *     Checked by a model: never a person's settle or sign-off, never certified.
+         */
+        Resolved: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ValueMark"][];
+            /**
+             * Of
+             * @default []
+             */
+            of: (number)[];
+            /** Reason */
+            reason: string;
+            /** Value */
+            value: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "picked" | "cannot_tell";
+        };
+        /**
+         * Resolving
+         * @description POST /api/projects/{id}/resolve: the review after the resolver's replies, and a note for
+         *     each conflict it gave no reply on (the budget used up, a timeout...).
+         */
+        Resolving: {
+            /** Notes */
+            notes: string[];
+            review: components["schemas"]["ProjectReview"];
+        };
         /** RoomChange */
         RoomChange: {
             /** Area After M2 */
@@ -2417,6 +2530,7 @@ export interface components {
             noun?: string | null;
             /** Original Value */
             original_value: number;
+            resolved?: components["schemas"]["Resolved"] | null;
             rule: components["schemas"]["RuleText"];
             scope: components["schemas"]["Scope"];
             second: components["schemas"]["MethodValue"] | null;
@@ -2958,7 +3072,7 @@ export interface components {
              * Basis
              * @enum {string}
              */
-            basis: "certified" | "route" | "score" | "page" | "held" | "unrated";
+            basis: "certified" | "route" | "score" | "page" | "held" | "unrated" | "carbon";
             /**
              * Level
              * @enum {string}
@@ -4070,6 +4184,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectQuestions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_api_projects__project_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resolving"];
                 };
             };
             /** @description Validation Error */

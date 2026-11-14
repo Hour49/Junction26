@@ -474,6 +474,27 @@
               }
             ]
           },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolver_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolver Note"
+          },
           "unit": {
             "anyOf": [
               {
@@ -1634,6 +1655,16 @@
             "title": "Quantity",
             "type": "string"
           },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "settled": {
             "anyOf": [
               {
@@ -2485,6 +2516,15 @@
             "title": "File Id",
             "type": "string"
           },
+          "how": {
+            "enum": [
+              "described",
+              "text",
+              "listed"
+            ],
+            "title": "How",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -2501,7 +2541,8 @@
             "enum": [
               "summary",
               "detail",
-              "visible_text"
+              "visible_text",
+              "text"
             ],
             "title": "Part",
             "type": "string"
@@ -2553,6 +2594,7 @@
           "file",
           "page",
           "part",
+          "how",
           "text",
           "kind",
           "verdict",
@@ -2586,6 +2628,15 @@
             "title": "File Id",
             "type": "string"
           },
+          "how": {
+            "enum": [
+              "described",
+              "text",
+              "listed"
+            ],
+            "title": "How",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -2613,7 +2664,8 @@
             "enum": [
               "summary",
               "detail",
-              "visible_text"
+              "visible_text",
+              "text"
             ],
             "title": "Part",
             "type": "string"
@@ -2656,6 +2708,7 @@
           "file",
           "page",
           "part",
+          "how",
           "kind",
           "subject",
           "snippet",
@@ -2717,6 +2770,101 @@
         "title": "EvidenceSearch",
         "type": "object"
       },
+      "FileEvidence": {
+        "additionalProperties": false,
+        "description": "FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence\nindex, and from what (decision 0012 sources v2). Written by the evidence step for every file it\nlooked at; a file today's triage path set aside and described keeps its record in `triage`.",
+        "properties": {
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Description"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "how": {
+            "anyOf": [
+              {
+                "enum": [
+                  "described",
+                  "text",
+                  "listed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "How"
+          },
+          "indexed": {
+            "title": "Indexed",
+            "type": "boolean"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sheet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text_chars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Chars"
+          },
+          "text_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Pages"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "indexed",
+          "why"
+        ],
+        "title": "FileEvidence",
+        "type": "object"
+      },
       "FileStatus": {
         "additionalProperties": false,
         "properties": {
@@ -2736,6 +2884,16 @@
               }
             ],
             "title": "Drawing Id"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "group": {
             "anyOf": [
@@ -3430,6 +3588,16 @@
               }
             ],
             "title": "Reason"
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "severity": {
             "enum": [
@@ -4739,6 +4907,17 @@
             ],
             "title": "Conflicts Open"
           },
+          "conflicts_picked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts Picked"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -4863,6 +5042,17 @@
               }
             ],
             "title": "Conflicts Open"
+          },
+          "conflicts_picked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts Picked"
           },
           "cost_usd": {
             "default": 0.0,
@@ -5594,6 +5784,102 @@
         "title": "Resolution",
         "type": "object"
       },
+      "Resolved": {
+        "additionalProperties": false,
+        "description": "What the resolver (RESOLVER, app/core/review/resolve.py) said about a conflict or an answer\nthat is not certified: a value it picked, or that it can't tell, why, and where it looked.\nChecked by a model: never a person's settle or sign-off, never certified.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "marks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ValueMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "of": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "title": "Of",
+            "type": "array"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "verdict": {
+            "enum": [
+              "picked",
+              "cannot_tell"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "value",
+          "reason",
+          "by",
+          "at"
+        ],
+        "title": "Resolved",
+        "type": "object"
+      },
+      "Resolving": {
+        "additionalProperties": false,
+        "description": "POST /api/projects/{id}/resolve: the review after the resolver's replies, and a note for\neach conflict it gave no reply on (the budget used up, a timeout...).",
+        "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "review": {
+            "$ref": "#/components/schemas/ProjectReview"
+          }
+        },
+        "required": [
+          "review",
+          "notes"
+        ],
+        "title": "Resolving",
+        "type": "object"
+      },
       "RoomChange": {
         "additionalProperties": false,
         "properties": {
@@ -5735,6 +6021,16 @@
               }
             ],
             "title": "Original Value"
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "rule": {
             "$ref": "#/components/schemas/RuleText"
@@ -7301,7 +7597,8 @@
               "score",
               "page",
               "held",
-              "unrated"
+              "unrated",
+              "carbon"
             ],
             "title": "Basis",
             "type": "string"
@@ -8790,7 +9087,7 @@
     },
     "/api/projects/{project_id}/files/{file_id}/triage": {
       "post": {
-        "description": "A person has a file triage set aside read as a floor plan: it is read in the background,\nalone, while the project stays done. Returns the file, queued; poll the project. 409 until\nthe project is done or while a file of it is read again; 422 `not-triaged` for a file triage\ndid not set aside as not a floor plan. No undo: a reading is not unread.",
+        "description": "A person has a file triage set aside read as a floor plan: it is read in the background,\nalone, while the project stays done. Returns the file, queued; poll the project. 409 until\nthe project is done or while a file of it is read again; 422 `not-triaged` for a file triage\ndid not set aside as not a floor plan. A sheet the sheet-kind step doubted (flagged) was read\nalready: its flag is dropped at once, nothing is read again. No undo: a reading is not\nunread.",
         "operationId": "triage_api_projects__project_id__files__file_id__triage_post",
         "parameters": [
           {
@@ -9128,6 +9425,46 @@
           }
         },
         "summary": "Project Questions"
+      }
+    },
+    "/api/projects/{project_id}/resolve": {
+      "post": {
+        "description": "RESOLVER: a model looks at each conflict no rule decides and no person settled, and picks\na value or says it can't tell; one call per conflict, replies kept with the project's review,\nso a second POST asks only about what changed. 409 when RESOLVER is off or before `done`.\nIt also runs on its own when an upload's ingest is done (`_resolve_when_done`).",
+        "operationId": "resolve_api_projects__project_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resolving"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve"
       }
     },
     "/api/projects/{project_id}/review": {

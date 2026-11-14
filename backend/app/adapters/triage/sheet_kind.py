@@ -303,8 +303,27 @@ class GeminiSheetKindClient:
         return f"GeminiSheetKindClient({self.model})"
 
     def ask(self, jpeg: bytes) -> dict[str, Any]:
-        if self._budget is not None and (refused := self._budget.exhausted()):
-            raise GeminiError(refused)
+        """One request, asked once more when it times out (rag's pilot: 1 of 10 calls timed out
+        at 120 s and answered in 9 s the second time); any other failure is not repeated. The
+        budget is checked before each request, and only a reply is charged."""
+        for attempt in (1, 2):
+            if self._budget is not None and (refused := self._budget.exhausted()):
+                raise GeminiError(refused)
+            try:
+                answer = self._post(jpeg)
+            except TimeoutError:
+                if attempt == 2:
+                    raise GeminiError("no answer: TimeoutError") from None
+                log.warning("the sheet-kind call timed out after %.0f s; asked once more",
+                            self._timeout)  # fmt: skip
+                continue
+            if self._budget is not None:  # the reader charges the thread's trace (`cost`) itself
+                self._budget.charge(price(answer), CHARGED_AS)
+            return answer
+        raise AssertionError("unreachable")
+
+    def _post(self, jpeg: bytes) -> dict[str, Any]:
+        """The generateContent answer; raises TimeoutError on a timeout, else `GeminiError`."""
         request = urllib.request.Request(
             f"{URL}/{self.model}:generateContent",
             data=json.dumps(request_body(jpeg)).encode(),
@@ -312,16 +331,19 @@ class GeminiSheetKindClient:
         )
         try:
             with urllib.request.urlopen(request, timeout=self._timeout) as response:
-                answer = json.load(response)
+                return json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
-        except (OSError, http.client.HTTPException) as error:  # URLError, timeouts, resets
+        except urllib.error.URLError as error:  # a timeout while connecting comes wrapped
+            if isinstance(error.reason, TimeoutError):
+                raise TimeoutError(str(error.reason)) from None
+            raise GeminiError(f"no answer: {type(error).__name__}") from None
+        except TimeoutError:  # while reading the reply
+            raise
+        except (OSError, http.client.HTTPException) as error:  # resets, refused connections
             raise GeminiError(f"no answer: {type(error).__name__}") from None
         except json.JSONDecodeError:
             raise GeminiError("the answer is not JSON") from None
-        if self._budget is not None:  # the reader charges the thread's trace (`cost`) itself
-            self._budget.charge(price(answer), CHARGED_AS)
-        return answer
 
 
 @dataclass(frozen=True)
@@ -371,13 +393,46 @@ class SheetKindReader:
         return SheetReply(form, usd, model, said)
 
 
+def sheet_of(found: SheetReply, image: bytes, cut: float, set_aside: bool = True) -> Sheet:
+    """The reply as `Triage.sheet` holds it, with its decision at `cut`; with `set_aside` false
+    (SHEET_KIND_SET_ASIDE) a sheet it would set aside is a doubt: read, and flagged."""
+    form = found.form
+    decision = decide(form, cut)
+    if decision == "set_aside" and not set_aside:
+        decision = "doubt"
+    # a set-aside sheet is not read, so it routes no reader (hardphotos: the size rule marked
+    # 13 of 14 set-aside non-plans advanced)
+    hard, why = (False, None) if decision == "set_aside" else advanced(form, long_side(image))
+    return Sheet(
+        kind=form["sheet_kind"],
+        kind_words=KINDS[form["sheet_kind"]],
+        decision=decision,
+        takeoff_possible=form["takeoff_possible"],
+        confidence=float(form["confidence"]),
+        title=form["title"],
+        sheet_number=form["sheet_number"],
+        printed_scale=form["printed_scale"],
+        advanced=hard,
+        advanced_why=why,
+        seen=form["seen"],
+        model=found.model,
+    )
+
+
 class SheetKindClassifier:
     """The `Classifier` port (app/core/ingest/ports.py): `inner`, then the sheet-kind model."""
 
-    def __init__(self, inner: Classifier | None, reader: SheetKindReader, cut: float) -> None:
+    def __init__(
+        self,
+        inner: Classifier | None,
+        reader: SheetKindReader,
+        cut: float,
+        set_aside: bool = True,
+    ) -> None:
         self._inner = inner
         self._reader = reader
         self._cut = cut
+        self._set_aside = set_aside  # False (SHEET_KIND_SET_ASIDE): warn only, never set aside
 
     def classify(self, image: bytes, probed: Probed) -> Classified | Unavailable:
         before = None if self._inner is None else self._inner.classify(image, probed)
@@ -386,22 +441,9 @@ class SheetKindClassifier:
         found = self._reader.read(image)
         if isinstance(found, Unavailable):
             return before if isinstance(before, Classified) else found
-        form, decision = found.form, decide(found.form, self._cut)
-        hard, why = advanced(form, long_side(image))
-        sheet = Sheet(
-            kind=form["sheet_kind"],
-            kind_words=KINDS[form["sheet_kind"]],
-            decision=decision,
-            takeoff_possible=form["takeoff_possible"],
-            confidence=float(form["confidence"]),
-            title=form["title"],
-            sheet_number=form["sheet_number"],
-            printed_scale=form["printed_scale"],
-            advanced=hard,
-            advanced_why=why,
-            seen=form["seen"],
-            model=found.model,
-        )
+        form = found.form
+        sheet = sheet_of(found, image, self._cut, self._set_aside)
+        decision = sheet.decision
         method = f"Gemini sheet kind ({found.said})"
         if isinstance(before, Classified):
             method = f"{before.method}; {method}"

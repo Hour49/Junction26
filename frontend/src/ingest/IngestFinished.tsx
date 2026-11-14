@@ -48,17 +48,19 @@ function IssuesSentence({ projectId }: { projectId: string }) {
   );
 }
 
-/** The conflicts list, then "Start a new chat" (locked while a conflict needs a person) and "Open the workspace". */
+/** The conflicts list, then the chat row unless `withChatRow` is false (Simple has it in the card, IN-88). */
 export function IngestFinished({
   projectId,
   project,
   query,
   onCounts,
+  withChatRow = true,
 }: {
   projectId: string;
   project: ProjectView;
   query?: URLSearchParams;
   onCounts?: (counts: ConflictCounts) => void;
+  withChatRow?: boolean;
 }): JSX.Element | null {
   const [counts, setCounts] = useState<ConflictCounts | null>(null);
   const report = useCallback(
@@ -69,43 +71,60 @@ export function IngestFinished({
     [onCounts],
   );
   if (!finished(project)) return null;
+  return (
+    <>
+      <ConflictsList projectId={projectId} query={query} onCounts={report} />
+      {withChatRow && <ChatRow projectId={projectId} project={project} counts={counts} />}
+    </>
+  );
+}
+
+/** "Start a new chat" and "Open the workspace", locked while a conflict needs a person (IN-77). */
+/** Simple puts it under "Ready" in the progress card (IN-88); Advanced gets it from IngestFinished. */
+export function ChatRow({
+  projectId,
+  project,
+  counts,
+}: {
+  projectId: string;
+  project: ProjectView;
+  counts: ConflictCounts | null;
+}): JSX.Element | null {
+  if (!finished(project)) return null;
   // locked until the list has said nothing needs a person (IN-77)
   const locked = counts === null || counts.needsPerson > 0;
   const first = project.drawings[0];
   return (
-    <>
-      <ConflictsList projectId={projectId} query={query} onCounts={report} />
-      <div className="ingest-chat-row">
-        {locked ? (
-          <>
-            <button
-              type="button"
-              className="v-btn v-press"
-              disabled
-              aria-describedby="ingest-chat-why"
+    <div className="ingest-chat-row">
+      {locked ? (
+        <>
+          <button
+            type="button"
+            className="v-btn v-press"
+            disabled
+            aria-describedby="ingest-chat-why"
+          >
+            Start a new chat
+          </button>
+          <span id="ingest-chat-why" className="ingest-chat-why">
+            Settle the conflicts that need you first.
+          </span>
+        </>
+      ) : (
+        <>
+          <a className="v-btn v-press" href={`#/p/${projectId}/chat`}>
+            Start a new chat
+          </a>
+          {first && (
+            <a
+              className="ingest-chat-link"
+              href={`#/p/${projectId}/d/${first.drawing_id}/engineer`}
             >
-              Start a new chat
-            </button>
-            <span id="ingest-chat-why" className="ingest-chat-why">
-              Settle the conflicts that need you first.
-            </span>
-          </>
-        ) : (
-          <>
-            <a className="v-btn v-press" href={`#/p/${projectId}/chat`}>
-              Start a new chat
+              Open the workspace
             </a>
-            {first && (
-              <a
-                className="ingest-chat-link"
-                href={`#/p/${projectId}/d/${first.drawing_id}/engineer`}
-              >
-                Open the workspace
-              </a>
-            )}
-          </>
-        )}
-      </div>
-    </>
+          )}
+        </>
+      )}
+    </div>
   );
 }

@@ -13,11 +13,14 @@ import {
   type Row,
 } from '../api';
 import { routeLabel } from '../ingest/ingest';
+import { pageFlagged } from '../doublecheck/check';
 import { DoubleCheck } from '../doublecheck/DoubleCheck';
+import { ResolverLines } from './Resolver';
 import { routeHref } from '../shell/route';
 import { ChecksPanel } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
 import {
+  estimateLine,
   formatCost,
   formatLatency,
   formatScore,
@@ -315,12 +318,15 @@ function References(props: {
 
 function Answer(props: {
   a: AnswerView;
+  /** The drawing's name (EN-87), for the viewer's title line. */
+  name: string;
   projectId: string;
   credit: string | null;
   place: Place | null;
+  flagged: boolean;
   onChanged: (answer: AnswerView) => void;
 }) {
-  const { a, projectId, credit, place, onChanged } = props;
+  const { a, projectId, credit, place, flagged, onChanged } = props;
   const [selected, setSelected] = useState<string | null>(null);
   const [hot, setHot] = useState<string | null>(null);
   const [open, setOpen] = useState<RefKind | null>(null);
@@ -350,8 +356,44 @@ function Answer(props: {
   // Row.noun ("doors"); null for areas and where the backend has none: then the label sentence.
   const noun = typeof a.answer === 'number' ? (row?.noun ?? null) : null;
   const grade = gradeOf(a);
+  const estimate = estimateLine(a);
+  const confidence =
+    row?.status === 'signed' ? (
+      // A person's sign-off replaces the level (EN-83).
+      <div className="en-grade">
+        <div className="en-labelrow">
+          <h4 className="en-label">Confidence</h4>
+          <span className="v-pill v-pill--ok">Signed off</span>
+        </div>
+      </div>
+    ) : (
+      grade && (
+        <div className="en-grade">
+          <div className="en-labelrow">
+            <h4 className="en-label">Confidence</h4>
+            <span className={`v-pill${GRADE_TONE[grade]}`} title={a.level?.text}>
+              {grade}
+            </span>
+          </div>
+          <span className="en-bar" aria-hidden="true">
+            {[1, 2, 3].map((s) => (
+              <span key={s} className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'} />
+            ))}
+          </span>
+          <p className="en-small">{a.level?.text}</p>
+        </div>
+      )
+    );
   return (
     <>
+      {flagged && (
+        // A flagged page (EN-84): the doubt about the whole drawing comes first, at every width.
+        <section className="en-flag" aria-label="This drawing was flagged">
+          <h4 className="en-label">This drawing was flagged</h4>
+          {a.check && <p>{a.check.reason}</p>}
+          {confidence}
+        </section>
+      )}
       <p className="en-sentence">
         {noun && typeof a.answer === 'number' ? (
           <>
@@ -364,16 +406,37 @@ function Answer(props: {
             <strong>{value}</strong>.
           </>
         )}
-        {row && ` ${cap(row.rule.text)}.`}
+        {/* The whole page is in doubt: no generic counting rule (EN-85). */}
+        {row && !pageFlagged(a) && ` ${cap(row.rule.text)}.`}
       </p>
       <div className="v-card en-card">
+        {/* EN-86: its own grid area, first in the card on phones so the value and the reason are above the fold */}
+        <div className="en-head">
+          <div className="en-value-row">
+            <span className="en-value" data-testid="answer-value">
+              {value}
+            </span>
+            {noun && <span className="en-noun">{noun}</span>}
+          </div>
+          {estimate && <p className="en-estimate">{estimate}</p>}
+          {/* Decides itself whether to ask (null when certified); never for a High answer (EN-83). */}
+          {a.level?.level !== 'high' && (
+            <DoubleCheck
+              answer={a}
+              projectId={projectId}
+              drawingId={a.drawing_id}
+              onChanged={onChanged}
+            />
+          )}
+          <ResolverLines a={a} />
+        </div>
         <figure className="en-left" aria-label="Drawing">
           {a.pages.length > 0 ? (
             <Plan
               place={place}
               overlay={overlay}
               viewer={{
-                file: a.file,
+                file: props.name,
                 pages: a.pages,
                 marks: a.marks,
                 credit,
@@ -399,55 +462,12 @@ function Answer(props: {
           {a.proof.arithmetic && <p className="en-arith">{a.proof.arithmetic}</p>}
         </figure>
         <div className="en-side">
-          <div className="en-value-row">
-            <span className="en-value" data-testid="answer-value">
-              {value}
-            </span>
-            {noun && <span className="en-noun">{noun}</span>}
-          </div>
-          {/* Decides itself whether to ask (null when certified); never for a High answer (EN-83). */}
-          {a.level?.level !== 'high' && (
-            <DoubleCheck
-              answer={a}
-              projectId={projectId}
-              drawingId={a.drawing_id}
-              onChanged={onChanged}
-            />
-          )}
           {row?.signed && (
             <p className="en-verified">
               Verified by {row.signed.by}, {formatTime(row.signed.at)}
             </p>
           )}
-          {row?.status === 'signed' ? (
-            // A person's sign-off replaces the level (EN-83).
-            <div className="en-grade">
-              <div className="en-labelrow">
-                <h4 className="en-label">Confidence</h4>
-                <span className="v-pill v-pill--ok">Signed off</span>
-              </div>
-            </div>
-          ) : (
-            grade && (
-              <div className="en-grade">
-                <div className="en-labelrow">
-                  <h4 className="en-label">Confidence</h4>
-                  <span className={`v-pill${GRADE_TONE[grade]}`} title={a.level?.text}>
-                    {grade}
-                  </span>
-                </div>
-                <span className="en-bar" aria-hidden="true">
-                  {[1, 2, 3].map((s) => (
-                    <span
-                      key={s}
-                      className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'}
-                    />
-                  ))}
-                </span>
-                <p className="en-small">{a.level?.text}</p>
-              </div>
-            )
-          )}
+          {!flagged && confidence}
           {row && (
             <div className="en-checks">
               <div className="en-labelrow">
@@ -532,6 +552,8 @@ export function AnswerCard(props: {
   refusalFrom?: string;
   /** DoubleCheck's new answer for this turn (an edit, or the re-ask after a sign-off). */
   onChanged: (turn: Turn, answer: AnswerView) => void;
+  /** The drawing's state is `flagged` (EN-84). */
+  flagged?: boolean;
 }) {
   const { turn, projectId, file, credit, place, busy, onAsk, onRetry, onChanged } = props;
   const from = props.refusalFrom ?? 'this drawing';
@@ -573,9 +595,11 @@ export function AnswerCard(props: {
       {turn.status === 'done' && !refusal && (
         <Answer
           a={turn.answer}
+          name={file}
           projectId={projectId}
           credit={credit}
           place={place}
+          flagged={props.flagged ?? false}
           onChanged={(answer) => {
             onChanged(turn, answer);
           }}

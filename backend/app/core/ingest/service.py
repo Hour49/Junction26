@@ -7,6 +7,7 @@ Stages 4-10 are the pipeline's own, one drawing group at a time (groups.py). A g
 (by content) were ingested before with the same readers is reused, unless the upload is fresh.
 """
 
+import functools
 import hashlib
 import logging
 import threading
@@ -22,7 +23,9 @@ from app.core.errors import (
     NotFoundError,
     NotTriagedError,
 )
+from app.core.evidence.pictures import EvidenceSteps
 from app.core.evidence.ports import EvidenceIndex
+from app.core.evidence.step import file_evidence
 from app.core.ingest.groups import Groups
 from app.core.ingest.model import (
     DRAWING_KINDS,
@@ -30,6 +33,7 @@ from app.core.ingest.model import (
     ContentKind,
     DrawingInfo,
     Entry,
+    FileEvidence,
     FileState,
     FileStatus,
     FileTrace,
@@ -42,6 +46,7 @@ from app.core.ingest.model import (
     ReadAsPlan,
     SheetFile,
     StageTrace,
+    Triage,
     Unavailable,
     page_path,
 )
@@ -67,6 +72,7 @@ from app.core.ingest.triage import (
     TriageSteps,
     called_not_plan,
     context_of,
+    doubted_not_plan,
     judged,
     judged_note,
     kind_after,
@@ -112,6 +118,7 @@ class IngestService:
         new_id: NewId,
         triage: TriageSteps | None = None,
         evidence: EvidenceIndex | None = None,
+        evidence_steps: EvidenceSteps | None = None,
     ) -> None:
         """`readers(project_id)`: the pipeline's ports over that project's files.
         `reader_names`: which adapter reads each route, shown in the status and part of the
@@ -119,13 +126,15 @@ class IngestService:
         is off, ingest as before it existed. It is shown in the status but is not part of the
         cache key: it decides which files are read, not how a plan is read. `evidence`: the
         project's evidence index (decision 0012), kept in step after judging and after an
-        overrule or a re-read; None: no index."""
+        overrule or a re-read; None: no index. `evidence_steps`: EVIDENCE_SCOPE=all_non_plan,
+        every picture triage did not set aside is asked its kind and described for the index
+        after the plans are read; it never changes how a file is routed. None: set_aside."""
         self._unpacker, self._probe, self._frame, self._store = unpacker, probe, frame, store
         self._rectifier = rectifier
         self._readers, self._names = readers, dict(reader_names)
         self._runner, self._clock, self._now, self._new_id = runner, clock, now, new_id
         self._triage = triage
-        self._evidence = evidence
+        self._evidence, self._evidence_steps = evidence, evidence_steps
         self._lock = threading.Lock()
         self._live: dict[str, Run] = {}
 
@@ -261,7 +270,9 @@ class IngestService:
     def read_as_plan(self, project_id: str, file_id: str, call: ReadAsPlan) -> FileStatus:
         """A person says a file triage set aside is a floor plan (decision 0010): it is read as
         one in the background, alone, through the usual group, route and readers, while the
-        project stays done. Returns the file as queued; poll the project for the rest."""
+        project stays done. Returns the file as queued; poll the project for the rest. A sheet
+        the sheet-kind step doubted was read already: the person's call drops its flag
+        (triage.sheet_flag) at once, nothing is read again, and the file is returned as it ends."""
         with self._lock:
             if project_id in self._live:
                 raise NotAllowedError(f"project {project_id} is still being read; try again")
@@ -271,7 +282,8 @@ class IngestService:
             if file_id not in traces:
                 raise NotFoundError(f"project {project_id} has no file {file_id}")
             file = traces[file_id].file
-            if file.triage is None or not called_not_plan(file):
+            doubted = file.triage is not None and doubted_not_plan(file.triage)
+            if file.triage is None or not (called_not_plan(file) or doubted):
                 raise NotTriagedError(
                     f"file {file_id} was not set aside by triage as not a floor plan"
                 )
@@ -282,6 +294,8 @@ class IngestService:
                 )
             run = Run.resumed(status, traces)
             triage = read_as_plan(file.triage, call)
+            if doubted:
+                return self._doubt_read_as_plan(run, file, triage, call)
             reason = "queued to be read as a floor plan"
             run.set(file.path, triage=triage, state="queued", reason=reason)
             self._live[project_id] = run
@@ -289,6 +303,22 @@ class IngestService:
         self._save(run)
         self._runner.submit(lambda: self._reread(run, file.path, call))
         return queued
+
+    def _doubt_read_as_plan(
+        self, run: Run, file: FileStatus, triage: Triage, call: ReadAsPlan
+    ) -> FileStatus:
+        """A doubted sheet a person says is a floor plan: it ends as its reading did, without
+        the sheet-kind flag (groups._finish), and the project is saved. Called under the lock."""
+        outcome = None if file.drawing_id is None else self._store.outcome(file.drawing_id)
+        if outcome is None:
+            raise NotFoundError(f"file {file.id} has no reading to keep")
+        said = f"{_asked(call.by)}: the reading is kept, the sheet-kind flag is dropped"
+        run.stage(file.path, "identify", said, 0.0, output=kind_words(file.kind or "unknown"))
+        run.set(file.path, triage=triage)
+        run.finish(file.path, outcome.state, outcome.reason)
+        self._save(run)
+        self._index(run.status())
+        return run.file(file.path)
 
     def overrule(self, project_id: str, file_id: str, overrule: Overrule | None) -> FileStatus:
         """A person's call on a triaged file's relevance (decision 0010), kept in the project's
@@ -344,6 +374,8 @@ class IngestService:
             for path in run.unfinished():
                 run.finish(path, "set_aside", f"not ingested: {error}")
         self._judge(run, failed=error is not None)
+        if error is None:
+            self._describe_for_index(run)
         ms = (self._clock() - started) * 1000
         run.set_project(state=state, error=error, ms=ms, finished_at=self._now())
         self._save(run)
@@ -619,8 +651,40 @@ class IngestService:
                 triage = judged(file.triage, found, judged_note(file.triage, None))
             run.set(file.path, triage=triage, cost_usd=file.cost_usd + paid)
 
+    def _describe_for_index(self, run: Run) -> None:
+        """EVIDENCE_SCOPE=all_non_plan (decision 0012 sources v2): every file triage did not set
+        aside gets its record for the index (`file_evidence`: a picture asked its kind and
+        described, a text document by its own text, an unread file listed by name), a few side
+        by side. It runs after the readers, so plans are never held back, and writes only
+        `evidence` and the cost: a file's state, route and takeoff stay as they are. One file's
+        failure is its `why`, never the project's."""
+        steps = self._evidence_steps
+        if steps is None:
+            return
+
+        def one(file: FileStatus) -> None:
+            try:
+                read = functools.cache(lambda: self._store.read_upload(run.id, file.path))
+                found = file_evidence(file, read, steps)
+                if found is None:
+                    return
+            except Exception as error:
+                logger.warning("the evidence step on %s failed", file.path, exc_info=True)
+                why = f"the evidence step failed: {type(error).__name__}: {error}"
+                found = FileEvidence(indexed=False, why=why)
+            run.set(file.path, evidence=found, cost_usd=file.cost_usd + found.cost_usd)
+
+        with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="evidence") as pool:
+            for done in [pool.submit(one, file) for file in run.status().files]:
+                done.result()
+
     def _shown(self) -> dict[str, str]:
-        return {} if self._triage is None else {"triage": self._triage.name}
+        """Shown in the status, not part of the cache key: triage decides which files are read,
+        not how; the evidence step reads no drawing (decision 0012 sources v2)."""
+        shown = {} if self._triage is None else {"triage": self._triage.name}
+        if self._evidence_steps is not None:
+            shown["evidence_scope"] = "all_non_plan"
+        return shown
 
     # ---------------------------------------------------------------- helpers
 
