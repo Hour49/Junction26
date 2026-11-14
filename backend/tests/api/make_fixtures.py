@@ -269,6 +269,11 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
     found["triage_started"] = started.json()
     read = client.get(f"/api/projects/{project_id}").json()["files"]
     found["file_read_as_plan"] = next(file for file in read if file["id"] == south)
+    # then a photo of a plan is added from the chat (POST …/files, board #203): queued
+    url = f"/api/projects/{project_id}/files"
+    started = client.post(url, params={"name": "phone.png"}, content=plan_png())
+    assert started.status_code == 202, started.text
+    found["file_added"] = started.json()
     return project_id
 
 

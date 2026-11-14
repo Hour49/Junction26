@@ -316,6 +316,26 @@ def project(project_id: ProjectId, ingest: IngestDep) -> ProjectView:
     )
 
 
+@router.post("/{project_id}/files", status_code=202)
+async def add_file(
+    request: Request,
+    project_id: ProjectId,
+    ingest: IngestDep,
+    name: Annotated[str, Query(min_length=1, max_length=255)],
+) -> FileStatus:
+    """A photo added to a finished project from the chat (board #203). The body is the image's
+    bytes, png or jpeg; `name` its file name. It is read in the background, alone, while the
+    project stays done. Returns the new file, queued; poll the project. 404 unknown project,
+    409 until the project is done or while a file of it is read, 413 over the upload limit, 415
+    not a png or jpeg."""
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > MAX_UPLOAD:
+            raise HTTPException(413, f"the upload is over {MAX_UPLOAD // 2**20} MB")
+    return ingest.add_file(project_id, name, bytes(data))
+
+
 @router.post("/{project_id}/files/{file_id}/relevance")
 def relevance(
     project_id: ProjectId,

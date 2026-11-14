@@ -86,6 +86,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
+| A file added to a project (`POST …/files`) that is not a png or jpeg | 415 `unsupported` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
 | A method the path does not take (`GET /api/ask`) | 405 `method-not-allowed` |
 | An unexpected error | 500 `internal` |
@@ -113,6 +114,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects` | All projects, newest first | #27 |
 | `GET /api/projects/{project_id}` | Project status: every file with its state and reason, one drawing per plan | #27 |
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
+| `POST /api/projects/{project_id}/files?name=` | Add a photo (png or jpeg) to a done project; read in the background | #203 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
 | `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
@@ -1309,6 +1311,46 @@ photo of an elevation sheet with its register, showing a building that matches n
   ],
   "expected_drawings": 1,
   "not_plans": 4
+}
+```
+
+### `POST /api/projects/{project_id}/files?name=<file name>`
+
+A photo added to a finished project, from the chat (board #203). The body is the image's bytes (png or jpeg,
+up to the upload limit); `name` its file name. 202 with the new file's `FileStatus`, `queued`, id `f<n+1>`, at
+its own name, the folders dropped (a name the project has gets `-2`, `-3`... before the extension). It is read
+in the background, alone, as at upload: identified (a camera photo of a plan as `photo_plan`, EXIF and
+rectifier applied), triaged when triage is on, then its group, route and readers. Poll
+`GET /api/projects/{project_id}`: the file goes `running`, then `ready`, `flagged`, `set_aside` or `text_only`;
+once read as a plan it has a `drawing_id` and is in `drawings`. The project stays `done` throughout; the issues
+already there keep their ids and order, the new drawing's issues join the list.
+
+- 404 `not-found` for an unknown project; 409 `not-allowed` until the project is `done` or while one of its files
+  is read; 413 `too-large` over the upload limit; 415 `unsupported` for anything but png or jpeg (an empty body
+  too); 422 `invalid` for a name that is not a file name (`..`); 422 `validation` with no `name`.
+- A failure sets the file aside with why ("not ingested: ..."); the project stays `done`.
+- While queued its `reason` is "added to the project, queued to be read".
+
+<!-- fixture: file_added.json -->
+```json
+{
+  "id": "f6",
+  "path": "phone.png",
+  "size": 1959,
+  "sha256": null,
+  "kind": null,
+  "state": "queued",
+  "reason": "added to the project, queued to be read",
+  "group": null,
+  "route": null,
+  "source": null,
+  "drawing_id": null,
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": null,
+  "cost_usd": 0.0,
+  "normalised": null
 }
 ```
 
@@ -7776,6 +7818,9 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (board #203): new `POST /api/projects/{project_id}/files?name=`, a png or jpeg added to a
+  done project and read alone in the background; 202 `FileStatus`. New error 415 `unsupported`. New fixture
+  `file_added.json`.
 - 2026-11-14, additive (decision 0010 section 8, board #152, PR #183): `Triage.register` (the sheet register:
   kind, has_floor_plan, photo_of_sheet, scale_shown, quality, method; null with no register-reading classifier);
   `Description.what_it_is`, `shows_building`, `visible_text` and `detail`. `TRIAGE_JUDGE=rules` judges a

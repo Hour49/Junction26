@@ -37,12 +37,14 @@ from app.core.errors import (
     NotFoundError,
     NotTriagedError,
     UnknownPackError,
+    UnsupportedFileError,
 )
 from app.core.review.review import NotAllowedError
 from app.settings import Settings
 
 # The only place a domain error becomes an HTTP status. An unmapped one stays a 500, like any bug.
 STATUS_BY_ERROR: dict[type[DomainError], int] = {
+    UnsupportedFileError: 415,  # before InvalidInputError: the first match wins
     NotFoundError: 404,
     InvalidInputError: 422,
     NotAllowedError: 409,
@@ -57,6 +59,7 @@ CODES = {
     405: "method-not-allowed",
     409: "not-allowed",
     413: "too-large",
+    415: "unsupported",
     422: "invalid",
     429: "busy",
 }
