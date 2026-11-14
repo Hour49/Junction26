@@ -18,6 +18,9 @@ from app.core.pipeline.model import Route
 FileState = Literal["queued", "running", "ready", "flagged", "text_only", "set_aside"]
 FINISHED: frozenset[FileState] = frozenset({"ready", "flagged", "text_only", "set_aside"})
 ProjectState = Literal["queued", "running", "done", "failed"]
+# What Gemini Carbon read of a raster drawing: its elements (CARBON_READER sent it to Carbon), or
+# another part a composite takes from the `carbon` source (rooms, plans, scale, a class)
+CarbonRead = Literal["elements", "part"]
 
 # What a file is, from its content (stage 3). The first eight go into the pipeline.
 ContentKind = Literal[

@@ -216,13 +216,18 @@ class Settings(BaseSettings):
     # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
     # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
     # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set
-    # aside, a doubtful one is read and its answers say so. Replies cached in the folder by file
-    # content. Off until its gate passes
+    # aside. A doubtful one is read; with a non-plan kind (in either SHEET_KIND_SET_ASIDE mode) it
+    # is flagged, so its answers are never certified and are Low, until a person has it read as a
+    # floor plan. Replies cached in the folder by file content. Off until its gate passes
     sheet_kind: SheetKindName = "off"
     sheet_kind_cache_dir: Path = Path("../data/cache/sheet-kind")
     # 0.9: the lowest cut that set aside none of checked-200's 75 plans (0.8 set aside 1; gate
     # run, .agents/exp/vlm-kind.md section 3)
     sheet_kind_cut: float = Field(default=0.9, ge=0, le=1)
+    # false: warn only (Bogdan, 2026-11-14 18:1x: Carbon names sheet kinds as a warning; its
+    # set-aside gate failed, 7 of 227 plans): a sheet it would set aside is read and flagged with
+    # the kind it looks like, so its answers are never certified and are Low (orchestrator)
+    sheet_kind_set_aside: bool = True
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

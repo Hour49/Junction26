@@ -43,7 +43,7 @@ from app.core.drawing.model import Box, Drawing, Polygon
 from app.core.errors import NotFoundError
 from app.core.ingest.judge import read_nothing
 from app.core.ingest.model import FileStatus, ProjectStatus
-from app.core.ingest.triage import called_not_plan, is_not_plan, not_plan_words
+from app.core.ingest.triage import called_not_plan, is_not_plan, not_plan_words, sheet_flag
 from app.core.review.conflict_card import number
 from app.core.review.model import MarkView, Resolved, Row, is_none
 from app.core.review.ports import ReviewStore
@@ -641,7 +641,8 @@ def _reading_flags(
         file = where.of(entry.drawing_id)
         assert file is not None  # a listed drawing has its file
         info = ingest.drawing_info(entry.drawing_id)
-        said = list(info.flags)
+        flag = sheet_flag(file.triage)  # the project's triage, not the stored reading's
+        said = [*info.flags, *([] if flag is None else [flag])]
         if info.route is not None:
             empty = read_nothing(ingest.drawing(entry.drawing_id), info.route, names[info.route])
             said += [] if empty is None else [empty]

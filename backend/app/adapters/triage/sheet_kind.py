@@ -393,14 +393,20 @@ class SheetKindReader:
         return SheetReply(form, usd, model, said)
 
 
-def sheet_of(found: SheetReply, image: bytes, cut: float) -> Sheet:
-    """The reply as `Triage.sheet` holds it, with its decision at `cut`."""
+def sheet_of(found: SheetReply, image: bytes, cut: float, set_aside: bool = True) -> Sheet:
+    """The reply as `Triage.sheet` holds it, with its decision at `cut`; with `set_aside` false
+    (SHEET_KIND_SET_ASIDE) a sheet it would set aside is a doubt: read, and flagged."""
     form = found.form
-    hard, why = advanced(form, long_side(image))
+    decision = decide(form, cut)
+    if decision == "set_aside" and not set_aside:
+        decision = "doubt"
+    # a set-aside sheet is not read, so it routes no reader (hardphotos: the size rule marked
+    # 13 of 14 set-aside non-plans advanced)
+    hard, why = (False, None) if decision == "set_aside" else advanced(form, long_side(image))
     return Sheet(
         kind=form["sheet_kind"],
         kind_words=KINDS[form["sheet_kind"]],
-        decision=decide(form, cut),
+        decision=decision,
         takeoff_possible=form["takeoff_possible"],
         confidence=float(form["confidence"]),
         title=form["title"],
@@ -416,10 +422,17 @@ def sheet_of(found: SheetReply, image: bytes, cut: float) -> Sheet:
 class SheetKindClassifier:
     """The `Classifier` port (app/core/ingest/ports.py): `inner`, then the sheet-kind model."""
 
-    def __init__(self, inner: Classifier | None, reader: SheetKindReader, cut: float) -> None:
+    def __init__(
+        self,
+        inner: Classifier | None,
+        reader: SheetKindReader,
+        cut: float,
+        set_aside: bool = True,
+    ) -> None:
         self._inner = inner
         self._reader = reader
         self._cut = cut
+        self._set_aside = set_aside  # False (SHEET_KIND_SET_ASIDE): warn only, never set aside
 
     def classify(self, image: bytes, probed: Probed) -> Classified | Unavailable:
         before = None if self._inner is None else self._inner.classify(image, probed)
@@ -429,7 +442,7 @@ class SheetKindClassifier:
         if isinstance(found, Unavailable):
             return before if isinstance(before, Classified) else found
         form = found.form
-        sheet = sheet_of(found, image, self._cut)
+        sheet = sheet_of(found, image, self._cut, self._set_aside)
         decision = sheet.decision
         method = f"Gemini sheet kind ({found.said})"
         if isinstance(before, Classified):
