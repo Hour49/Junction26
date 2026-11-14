@@ -6,8 +6,10 @@
 #   tools/qa-env.sh stop <commit>                  stop what this script started for <commit>
 #
 # The export goes to data/qa/env-<sha>/ (gitignored; made once, reused after). The backend runs
-# from it with the api-6 demo config: the region detector C-yolo26s-1536 for elements and plans,
-# Gemini for rooms, the r3 photo rectifier, the dev prior and the Decisions confidence. It reads
+# from it with the shippable config (the recorded series point 2701/2948): the region detector
+# C-yolo26s-1536 behind the Decisions S1536 swap for elements and plans, Gemini rooms through the
+# region room filter (REGION_MODEL_DIR, the settings default), the r3 photo rectifier, the dev
+# prior and the Decisions confidence. It reads
 # the repo's data/models, data/stoa, data/cache, data/demo and data/external through symlinks and
 # keeps its own data/projects. GEMINI_API_KEY comes from the repo-root .env, into this process's
 # environment only: never printed, never written to a file.
@@ -22,7 +24,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QA="$ROOT/data/qa"
-RASTER='elements=region:C-yolo26s-1536,plans=region:C-yolo26s-1536,rooms=gemini'
+RASTER='elements=decisions-s1536:region:C-yolo26s-1536,plans=decisions-s1536:region:C-yolo26s-1536,rooms=regionrooms'
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180

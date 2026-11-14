@@ -87,6 +87,21 @@ together; `--part test` reuses the val file's groups and thresholds unchanged. V
 the plans marked sure, at least X% have every sure answer exact (N plans, 95% bound); the gate opens on Y% of
 plans" (one-sided Clopper-Pearson, the plan as the unit). JSON goes to `data/stoa/exp/ab/gate-<arm>-<part>.json`.
 
+The gate of what the product runs: `--family-arm 'room:*=<folder>'` (repeatable; a family or a pattern) answers
+those families from another arm, as a runtime combination does (the arm's name becomes `<arm>+<other>`, the
+JSON records `family_arms`, and `--part test` needs the same routing). Built-in signals have no value on a routed
+family (they read `--arm`'s extraction), and a signal file about one arm is refused. `--g1main <folder>` adds the
+signal `g1main`, the backend's DECISIONS_CONFIDENCE on the gate's own answers: decide's cached G1main replies
+(`data/stoa/exp/decide/G1main-high/raw`, checked against the backend's question set) read by the backend's parser
+(`ab_backend.py g1main`), Gemini's probability for each answered count, the lowest over a family's questions on an
+image, none for an answer that is not a whole count. Runtime gate (2026-11-14, golden-16):
+
+```bash
+uv run python -m stoa_eval gate --arm ../data/stoa/exp/decide/S1536 \
+  --family-arm 'room:*=../data/stoa/exp/ocr/G4' --g1main ../data/stoa/exp/decide/G1main-high/raw \
+  --signal g1main --pool
+```
+
 `gate-policy` turns a val gate JSON into `data/stoa/exp/gate.json` (gate_policy_v1, schema in
 docs/GOLDEN.md): per family whose gate opens on val answers, the signal, threshold, group and val numbers
 ("chosen on val, not a guarantee"), the split sha256 (required) and `certified: false` until the test run.

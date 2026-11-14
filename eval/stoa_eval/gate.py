@@ -60,6 +60,7 @@ from .extraction_scoring import match
 from .split import rank
 
 SIGNALS: tuple[str, ...] = ("top3", "pb_mode", "agree", "agree_pb")  # signal files add more
+G1MAIN = "g1main"  # gate --g1main: the backend's answer confidence (DECISIONS_CONFIDENCE)
 TOP_K = 3
 MIN_CALIBRATION = 30
 TARGET = 0.95
@@ -257,6 +258,9 @@ class SignalValue(BaseModel):
     value: float | None = Field(description="higher is surer; null: no value (never sure)")
 
 
+SIGNAL_SCHEMA: Literal["gate_signal_v1"] = "gate_signal_v1"
+
+
 class SignalFile(BaseModel):
     """gate_signal_v1: one producer's value for each answer (a family on an image)."""
 
@@ -272,6 +276,29 @@ class SignalFile(BaseModel):
 
     def by_answer(self) -> dict[tuple[str, str], float | None]:
         return {(v.file, v.family): v.value for v in self.values}
+
+
+def g1main_signal(
+    said: Mapping[tuple[str, str], Sequence[object]],
+    dists: Mapping[str, Mapping[str, Mapping[int, float]]],
+) -> SignalFile:
+    """The backend's answer confidence (DECISIONS_CONFIDENCE) on the gate's own answers: Gemini's
+    G1main probability for the answered count, per (image, family) the lowest over its questions
+    (a unit is sure only when every answer is). `said`: (file, family) -> the answers given, None
+    for a refusal; `dists`: file -> family -> count -> probability. No value for an answer that
+    is not a whole count (the backend gives none either), or an image without a reply."""
+    values: list[SignalValue] = []
+    for (file, family), answers in sorted(said.items()):
+        dist = dists.get(file, {}).get(family)
+        counts = [
+            int(a)
+            for a in answers
+            if isinstance(a, int | float) and not isinstance(a, bool) and float(a).is_integer()
+        ]
+        whole = bool(answers) and len(counts) == len(answers)
+        value = min(dist.get(c, 0.0) for c in counts) if dist is not None and whole else None
+        values.append(SignalValue(file=file, family=family, value=value))
+    return SignalFile(schema=SIGNAL_SCHEMA, name=G1MAIN, arm=None, values=values)
 
 
 def load_signal_file(path: Path) -> SignalFile:
@@ -695,6 +722,11 @@ class GateResult(BaseModel):
 
     arm: str
     second: str | None
+    family_arms: dict[str, str] = Field(
+        default_factory=dict[str, str],
+        description="--family-arm: family -> the arm (folder under data/stoa/exp) answering it "
+        "instead of `arm`",
+    )
     part: str
     images: int = Field(description="the images the signals are compared and the gate set on")
     seed: int
@@ -762,6 +794,10 @@ class GatePolicy(BaseModel):
     split_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     arm: str = Field(description="the arm whose answers the thresholds were set on")
     second: str | None
+    family_arms: dict[str, str] = Field(
+        default_factory=dict[str, str],
+        description="family -> the arm that answered it instead of `arm` (a runtime combination)",
+    )
     target: float
     source: str = Field(description="the val gate JSON it was made from")
     certified: bool = Field(description="false until the single test run certifies the gate")
@@ -794,7 +830,8 @@ def gate_policy(result: GateResult, source: str, generated: str) -> GatePolicy:
     return GatePolicy(
         schema="gate_policy_v1", generated=generated, part="val",
         split_sha256=result.split_sha256, arm=result.arm, second=result.second,
-        target=result.target, source=source, certified=False, families=families,
+        family_arms=result.family_arms, target=result.target, source=source, certified=False,
+        families=families,
     )  # fmt: skip
 
 
@@ -864,6 +901,15 @@ def format_gate(result: GateResult) -> str:
         f"## Gate on {result.part}: {result.arm}"
         + (f" (second arm {result.second})" if result.second else ""),
         "",
+        *(
+            [
+                "Answered by another arm: "
+                + ", ".join(f"{f} = {arm}" for f, arm in sorted(result.family_arms.items())),
+                "",
+            ]
+            if result.family_arms
+            else []
+        ),
         f"{result.images} images; target {result.target:.0%} exact among sure answers"
         + (f", {rule}" if rule else "")
         + f"; signal used: **{result.signal}**",

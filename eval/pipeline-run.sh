@@ -7,7 +7,8 @@
 #   eval/pipeline-run.sh 85d3470 EXTRACTOR_VECTOR=pdf QUESTION_PARSER=templates
 #
 # NAME=VALUE are the backend settings that turn on every real adapter of that commit. The record
-# keeps the settings the export actually ran with (all of them, read back from its Settings).
+# keeps the settings the export actually ran with (all of them, read back from its Settings; a
+# path or long value as its hash) and the given pairs in its note (pipeline-record.sh).
 # With ANSWER_PRIOR=dev the export builds its own dev prior from data/stoa/split/dev.jsonl first.
 # Everything lands in data/stoa/runs/pipeline-<sha>-<time>/ (gitignored): export/ (the code and
 # its venv; delete the folder when done) and out/ (what the backend wrote). Cap it like any
@@ -17,7 +18,7 @@ set -euo pipefail
 commit=${1:?usage: eval/pipeline-run.sh <commit> [NAME=VALUE ...]}
 shift
 for pair in "$@"; do
-  [[ $pair =~ ^[A-Za-z_][A-Za-z0-9_]*=[^/]+$ ]] || { echo "not NAME=VALUE: $pair" >&2; exit 2; }
+  [[ $pair =~ ^[A-Za-z_][A-Za-z0-9_]*=.+$ ]] || { echo "not NAME=VALUE: $pair" >&2; exit 2; }
 done
 eval_dir=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$eval_dir")
@@ -27,6 +28,7 @@ short=$(git -C "$repo" rev-parse --verify --short "$commit^{commit}")
 work=$repo/data/stoa/runs/pipeline-$short-$(date +%Y%m%d-%H%M%S)
 mkdir -p "$work/export"
 git -C "$repo" archive "$short" backend | tar -x -C "$work/export"
+ln -s "$repo/data" "$work/export/data"  # the backend's defaults read data/ next to backend/
 echo "export of $short in $work/export"
 
 cd "$work/export/backend"
@@ -45,10 +47,5 @@ backend_args=(-m app.cli golden --golden-dir "$golden" --dataset "$dataset" --dr
   --out "$work/out")
 backend "$@"
 
-cd "$eval_dir"
-record=(--name pipeline --commit "$short")
-for setting in "${effective[@]}"; do record+=(--setting "$setting"); done
-uv run --locked python -m stoa_eval score-extraction "$work/out/extraction" "${record[@]}"
-uv run --locked python -m stoa_eval score "$work/out/answers.jsonl" --reads pipeline-extraction \
-  "${record[@]}"
-echo "recorded both parts of $short; the table: uv run python -m stoa_eval series"
+printf '%s\n' "${effective[@]}" > "$work/settings.txt"
+"$eval_dir/pipeline-record.sh" "$work" "$short" "$@"
