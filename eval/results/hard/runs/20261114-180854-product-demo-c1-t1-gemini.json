@@ -1,0 +1,198 @@
+{
+ "recorded_at": "2026-11-14T18:08:54+02:00",
+ "commit": "4d17627",
+ "dirty": false,
+ "name": "product demo C1-T1 Gemini",
+ "note": "30 files; backend at main 4d17627 with the demo config (tools/qa-env.sh config), real Gemini key; spent 0.1525 USD (rooms 0.1453, decisions 0.0072) plus a 3-file pilot not metered (guard cap 0.30, about 0.02 at this run's rate); 0 rooms refusals; 42 of the 48 extra hits over the no-Gemini row are counts whose truth range starts at 0",
+ "labels_sha256": [
+  "85afa954f0ea3e10b4a27097c7b12bfbca747e649cfe5355b34f6054e559da06",
+  "bdc64df1e42b48c77369fe67371565d11b32e86aeabd0d14dff75aa5414e7cb8"
+ ],
+ "report": {
+  "files": 30,
+  "predicted": 30,
+  "kind": {
+   "labelled": 30,
+   "said": 0,
+   "right": 0,
+   "rate": null
+  },
+  "plan": {
+   "tp": 16,
+   "fp": 14,
+   "fn": 0,
+   "tn": 0,
+   "not_said": 0,
+   "recall": 1.0,
+   "precision": 0.5333333333333333
+  },
+  "takeoff": {
+   "labelled": 30,
+   "said": 0,
+   "right": 0,
+   "rate": null
+  },
+  "advanced": {
+   "labelled": 30,
+   "said": 0,
+   "right": 0,
+   "rate": null
+  },
+  "families": {
+   "plan": {
+    "labelled": 16,
+    "asked": 16,
+    "hit": 10,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.625
+   },
+   "door": {
+    "labelled": 16,
+    "asked": 13,
+    "hit": 5,
+    "refused": 0,
+    "cannot_tell": 3,
+    "hit_rate": 0.38461538461538464
+   },
+   "window": {
+    "labelled": 16,
+    "asked": 11,
+    "hit": 8,
+    "refused": 0,
+    "cannot_tell": 5,
+    "hit_rate": 0.7272727272727273
+   },
+   "toilet": {
+    "labelled": 16,
+    "asked": 15,
+    "hit": 8,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": 0.5333333333333333
+   },
+   "sink": {
+    "labelled": 16,
+    "asked": 13,
+    "hit": 8,
+    "refused": 0,
+    "cannot_tell": 3,
+    "hit_rate": 0.6153846153846154
+   },
+   "shower+bathtub": {
+    "labelled": 14,
+    "asked": 12,
+    "hit": 8,
+    "refused": 0,
+    "cannot_tell": 2,
+    "hit_rate": 0.6666666666666666
+   },
+   "sauna": {
+    "labelled": 14,
+    "asked": 14,
+    "hit": 13,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.9285714285714286
+   },
+   "room:bedroom": {
+    "labelled": 14,
+    "asked": 14,
+    "hit": 11,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.7857142857142857
+   },
+   "room:bathroom": {
+    "labelled": 13,
+    "asked": 13,
+    "hit": 10,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.7692307692307693
+   },
+   "room:kitchen": {
+    "labelled": 10,
+    "asked": 9,
+    "hit": 7,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": 0.7777777777777778
+   },
+   "room:wc": {
+    "labelled": 12,
+    "asked": 11,
+    "hit": 8,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": 0.7272727272727273
+   },
+   "room:balcony": {
+    "labelled": 14,
+    "asked": 14,
+    "hit": 13,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.9285714285714286
+   },
+   "room:classroom": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:group room": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:office": {
+    "labelled": 2,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:store": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "rooms_total": {
+    "labelled": 7,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   }
+  },
+  "pooled": {
+   "labelled": 183,
+   "asked": 155,
+   "hit": 109,
+   "refused": 0,
+   "cannot_tell": 16,
+   "hit_rate": 0.7032258064516129
+  },
+  "scale": {
+   "ratio_labelled": 14,
+   "ratio_read": 0,
+   "ratio_exact": 0,
+   "px_labelled": 2,
+   "px_median": 0.08927763819894502,
+   "px_within_10": 1,
+   "px_within_20": 1
+  },
+  "non_plan_counts": 168
+ }
+}

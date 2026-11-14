@@ -303,8 +303,27 @@ class GeminiSheetKindClient:
         return f"GeminiSheetKindClient({self.model})"
 
     def ask(self, jpeg: bytes) -> dict[str, Any]:
-        if self._budget is not None and (refused := self._budget.exhausted()):
-            raise GeminiError(refused)
+        """One request, asked once more when it times out (rag's pilot: 1 of 10 calls timed out
+        at 120 s and answered in 9 s the second time); any other failure is not repeated. The
+        budget is checked before each request, and only a reply is charged."""
+        for attempt in (1, 2):
+            if self._budget is not None and (refused := self._budget.exhausted()):
+                raise GeminiError(refused)
+            try:
+                answer = self._post(jpeg)
+            except TimeoutError:
+                if attempt == 2:
+                    raise GeminiError("no answer: TimeoutError") from None
+                log.warning("the sheet-kind call timed out after %.0f s; asked once more",
+                            self._timeout)  # fmt: skip
+                continue
+            if self._budget is not None:  # the reader charges the thread's trace (`cost`) itself
+                self._budget.charge(price(answer), CHARGED_AS)
+            return answer
+        raise AssertionError("unreachable")
+
+    def _post(self, jpeg: bytes) -> dict[str, Any]:
+        """The generateContent answer; raises TimeoutError on a timeout, else `GeminiError`."""
         request = urllib.request.Request(
             f"{URL}/{self.model}:generateContent",
             data=json.dumps(request_body(jpeg)).encode(),
@@ -312,16 +331,19 @@ class GeminiSheetKindClient:
         )
         try:
             with urllib.request.urlopen(request, timeout=self._timeout) as response:
-                answer = json.load(response)
+                return json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
-        except (OSError, http.client.HTTPException) as error:  # URLError, timeouts, resets
+        except urllib.error.URLError as error:  # a timeout while connecting comes wrapped
+            if isinstance(error.reason, TimeoutError):
+                raise TimeoutError(str(error.reason)) from None
+            raise GeminiError(f"no answer: {type(error).__name__}") from None
+        except TimeoutError:  # while reading the reply
+            raise
+        except (OSError, http.client.HTTPException) as error:  # resets, refused connections
             raise GeminiError(f"no answer: {type(error).__name__}") from None
         except json.JSONDecodeError:
             raise GeminiError("the answer is not JSON") from None
-        if self._budget is not None:  # the reader charges the thread's trace (`cost`) itself
-            self._budget.charge(price(answer), CHARGED_AS)
-        return answer
 
 
 @dataclass(frozen=True)
