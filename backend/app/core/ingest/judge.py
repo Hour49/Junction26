@@ -47,15 +47,23 @@ def judge(
     elif read_nothing:
         why = drawing.notes[0] if drawing.notes else "nothing it knows was found"
         flags.append(f"the {route} reader read nothing: {why}")
-    if kind == "pdf_scan":
-        flags.append("a scanned PDF, read as an image")
-    if kind == "photo_plan" and frame is not None and frame.rectified:
-        flags.append(f"a phone photo, rectified by {frame.rectifier}: check the paper's corners")
-    elif kind == "photo_plan":
-        flags.append("a phone photo, read without perspective correction")
+    flags += reading_flags(kind, frame)
     if flags:
         return "flagged", f"{'; '.join(flags)} ({found})"
     return "ready", f"read on the {route} route: {found}"
+
+
+def reading_flags(kind: ContentKind, frame: Normalised | None) -> tuple[str, ...]:
+    """The flags about how the page itself was read (a phone photo, a scan): every answer on
+    the drawing carries them, and a group the reader found nothing of is not a count of 0
+    (review/ask.py). A conflict or an empty read is said where it shows (its row, no-reader)."""
+    if kind == "pdf_scan":
+        return ("a scanned PDF, read as an image",)
+    if kind == "photo_plan" and frame is not None and frame.rectified:
+        return (f"a phone photo, rectified by {frame.rectifier}: check the paper's corners",)
+    if kind == "photo_plan":
+        return ("a phone photo, read without perspective correction",)
+    return ()
 
 
 def pipeline_stages(

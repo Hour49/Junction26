@@ -2094,7 +2094,7 @@ A question the drawing cannot answer:
 | `unsupported-question` | the question is not one the parser turns into a count, area, length or volume |
 | `not-in-drawing` | the drawing does not give this quantity (or no schedule on the sheet answers it) |
 | `not-read` | the reader of this drawing does not look for that class, so it has no count of it |
-| `no-reader` | nothing was read from the sheet (no reader for its route yet), or that reader is less reliable than a guess for this kind of question (`prior:policy`) |
+| `no-reader` | nothing was read from the sheet (no reader for its route yet), that reader is less reliable than a guess for this kind of question (`prior:policy`), or the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked: 0 would be a guess |
 | `no-scale` | an area or length on a sheet without a scale |
 | `no-drawing` | the file has no drawing model |
 
@@ -3040,7 +3040,8 @@ any project, which no project shows. A project that does not hold the drawing is
 - `conflict`: every method's value and the rule that kept one (`resolution`; null: no rule decides). Null when the
   methods agree or only one measured it.
 - `status`, ranked: `signed` (signed off), `conflict` (methods disagree, not settled), `estimate` (rests on an
-  estimated scale or reading, not settled), `edited` (a review changed it), `agree` (two methods agree), `single`
+  estimated scale or reading, not settled; on `/api/ask`, every row of a page flagged at upload as a phone photo
+  or a scan, with the flag in `estimate`), `edited` (a review changed it), `agree` (two methods agree), `single`
   (one method).
 - `needs_person`: the methods disagree, no rule decides and nobody settled it. Such a row can't be signed off.
 - `settled`: the value a surveyor chose with `settle`, and when.

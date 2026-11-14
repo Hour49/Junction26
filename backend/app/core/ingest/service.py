@@ -138,6 +138,7 @@ class IngestService:
             route=outcome.route,
             source=outcome.source,
             normalised=outcome.normalised,
+            flags=outcome.flags,
         )
 
     def sheet(self, drawing_id: str) -> SheetFile:

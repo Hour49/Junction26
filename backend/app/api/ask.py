@@ -115,6 +115,7 @@ def asked_on(
         state=reviews.get(project_id, drawing_id),
         prior_families=answering.prior_families,
         confidence=confidence_of(drawing, drawing_id, ingest, answering),
+        flags=ingest.drawing_info(drawing_id).flags,
     )
 
 

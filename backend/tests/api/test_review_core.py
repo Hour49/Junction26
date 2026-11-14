@@ -404,3 +404,58 @@ def test_the_area_of_the_one_room_of_a_type_without_a_printed_name_is_answered()
         assert found.refusal is None, (text, found.refusal)
         assert (found.answer.answer, found.answer.unit) == (5.55, "m2")
         assert len(found.marks) == 1
+
+
+PHOTO_FLAG = "a phone photo, read without perspective correction"
+
+
+def photo(*rooms: Room, elements: tuple[Element, ...] = ()) -> Drawing:
+    """A phone photo of a plan: its raster reader looked for everything (`read` set)."""
+    return Drawing(
+        file="027.jpg",
+        pages=(PAGE,),
+        scale=Scale(status="no_scale"),
+        rooms=rooms,
+        elements=elements,
+        read=("door", "window", "room"),
+    )
+
+
+def asked_flagged(text: str, drawing: Drawing, flags: tuple[str, ...]) -> Asked:
+    return ask(
+        text,
+        drawing,
+        parser=TemplateParser(),
+        clock=lambda: 0.0,
+        prior=NoPrior(),
+        state=ReviewState(),
+        flags=flags,
+    )
+
+
+def test_a_flagged_photo_whose_reader_found_nothing_refuses_instead_of_counting_0() -> None:
+    """R3-qa4-1: Commons 027.jpg, flagged at upload and read as 0 elements, 0 rooms, answered
+    "door count 0 · One method". A 0 is a count only when the reader read the page."""
+    for text, what in (("How many doors are there?", "elements"), ("How many rooms?", "rooms")):
+        found = asked_flagged(text, photo(), (PHOTO_FLAG,))
+        assert found.row is None and found.refusal is not None, text
+        assert found.refusal.code == "no-reader"
+        assert PHOTO_FLAG in found.refusal.text and f"no {what}" in found.refusal.text
+    # Not flagged: the reader's 0 stays an answer (a clean scan with no doors has 0 doors)
+    clean = asked_flagged("How many doors are there?", photo(), ())
+    assert clean.refusal is None and clean.answer.answer == 0
+
+
+def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:
+    """R3-qa4-1 (2): any other answer on a flagged drawing says so on the card (status
+    estimate, the flag in `estimate`), and a group it did read still counts 0 as read."""
+    door = Element(id="e1", class_="door", page=1, box=BOX_A)
+    drawing = photo(Room(id="r1", type="kitchen", page=1, box=BOX_B), elements=(door,))
+    for text, value in (("How many doors are there?", 1), ("How many windows are there?", 0)):
+        found = asked_flagged(text, drawing, (PHOTO_FLAG,))
+        assert found.refusal is None and found.row is not None, text
+        assert found.row.value == value and found.row.status == "estimate"
+        assert found.row.estimate is not None and PHOTO_FLAG in found.row.estimate
+        assert found.answer.estimate is True
+    plain = asked_flagged("How many doors are there?", drawing, ())
+    assert plain.row is not None and plain.row.status == "single" and plain.row.estimate is None
