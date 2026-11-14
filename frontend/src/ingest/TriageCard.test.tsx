@@ -59,7 +59,13 @@ describe('TriageCard (file-triage.md)', () => {
     ])
       expect(text).toContain(s);
     const img = c.getByRole('img', { name: 'elevations/south.png as uploaded' });
-    expect(img.getAttribute('src')).toContain(`/api/projects/${PID}/files/f2/preview.png`);
+    const preview = `/api/projects/${PID}/files/f2/preview.png`;
+    // FT-6: the 400 rendition at 1x, 1600 only for dense screens (the API has no width between)
+    expect(img.getAttribute('src')).toBe(`${preview}?width=400`);
+    expect(img.getAttribute('srcset')).toBe(
+      `${preview}?width=400 400w, ${preview}?width=1600 1600w`,
+    );
+    expect(img.getAttribute('sizes')).toBe('(max-width: 400px) 100vw, 400px');
     const seen = must(c.getByText('Text printed on it (2)').closest('details'));
     expect(seen.open).toBe(false);
     expect(seen.textContent).toContain('Küche');

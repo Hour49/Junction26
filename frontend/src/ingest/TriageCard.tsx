@@ -109,7 +109,10 @@ export function TriageCard(props: {
       ) : (
         <img
           className="ingest-triage-preview"
-          src={previewUrl(projectId, file.id)}
+          // the API's widths are 400/1600/3200: 400 at 1x, 1600 for dense screens (never 1600 at 1x)
+          src={previewUrl(projectId, file.id, 400)}
+          srcSet={`${previewUrl(projectId, file.id, 400)} 400w, ${previewUrl(projectId, file.id, 1600)} 1600w`}
+          sizes="(max-width: 400px) 100vw, 400px"
           alt={`${file.path} as uploaded`}
           onError={() => {
             setNoPreview(true);
