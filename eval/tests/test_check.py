@@ -1,13 +1,16 @@
 """The double-check policy (stoa_eval/check.py): D455's per family threshold maximising certified -
 lambda x wrong, the pooled floor, the cross-fit, the route verdicts; D476's P(wrong) calibration
-and the one cut that flags a share of the wrong answers."""
+and the one cut that flags a share of the wrong answers; the levels (High, Medium, Low)."""
 
 import math
 
 from stoa_eval.check import (
     NONE,
     Calibration,
+    CheckFamily,
     CheckPolicyFile,
+    LevelPoint,
+    Levels,
     Point,
     best_threshold,
     calibrate,
@@ -16,11 +19,15 @@ from stoa_eval.check import (
     fit,
     flag_always,
     groups_below,
+    level,
+    medium_fit,
     point,
     probabilities,
     recall_cut,
     recall_fit,
+    route_level,
     route_verdict,
+    thresholds_at,
 )
 from stoa_eval.gate import Unit
 
@@ -208,3 +215,102 @@ def test_by_signal_a_small_family_borrows_its_signal_s_curve() -> None:
     door_then_sauna = [(0.9, False)] * 5 + [(0.1, True)] * 10 + [(0.9, False)] * 8 + [(0.2, True)]
     pooled_fit = calibrate(door_then_sauna)
     assert made["sauna"] == pooled_fit and made["door"] != made["sauna"]
+
+
+def graded(family: str, prefix: str, *runs: tuple[float, bool, int]) -> list[Unit]:
+    """`count` units at `value`, right or wrong, numbered in order (even numbers: first half)."""
+    scored = [(value, right) for value, right, count in runs for _ in range(count)]
+    return units(family, *scored, prefix=prefix)
+
+
+def even(file: str) -> bool:
+    return int(file[1:]) % 2 == 0
+
+
+DOORS = (
+    (0.95, True, 40), (0.7, True, 36), (0.7, False, 4), (0.3, True, 10), (0.3, False, 10),
+    (0.1, True, 4), (0.1, False, 16),
+)  # fmt: skip
+
+
+def test_medium_is_a_second_threshold_of_the_same_calibration_below_the_certified_one() -> None:
+    doors = graded("door", "d", *DOORS)
+    by_family, signals = {"door": doors}, {"door": ("s", None)}
+    medium, counts = medium_fit(by_family, signals, 0.02, 0.20, even)
+    calibrated = calibrations(by_family, signals, probabilities(by_family, signals))
+    certified = thresholds_at(calibrated, signals, 0.02)["door"]
+    assert medium["door"] == thresholds_at(calibrated, signals, 0.20)["door"]
+    assert medium["door"] is not None and certified is not None
+    assert 0.3 < medium["door"] < 0.7 < certified < 0.95
+    # cross-fit: the 0.95s High, the 0.7s (36 of 40 right) Medium, the rest Low
+    assert counts["door"] == {
+        "high": LevelPoint(units=40, exact=40),
+        "medium": LevelPoint(units=40, exact=36),
+        "low": LevelPoint(units=40, exact=14),
+    }
+
+
+def test_a_thin_or_weak_medium_band_a_fixed_cut_or_a_rising_signal_has_no_medium() -> None:
+    doors = graded("door", "d", *DOORS)
+    signals = {"door": ("s", None)}
+    thin, counts = medium_fit({"door": doors}, signals, 0.02, 0.20, even, min_units=41)
+    assert thin == {"door": None}
+    assert counts["door"]["medium"] == LevelPoint(units=0, exact=0)  # its Medium counts as Low
+    assert counts["door"]["low"] == LevelPoint(units=80, exact=50)
+    weak, _ = medium_fit({"door": doors}, signals, 0.02, 0.20, even, min_exact=0.95)
+    assert weak == {"door": None}
+    fixed, _ = medium_fit({"door": doors}, {"door": ("s", 0.9)}, 0.02, 0.20, even)
+    assert fixed == {"door": None}
+    rising = graded("window", "w", (0.9, False, 20), (0.1, True, 20))
+    never, _ = medium_fit({"window": rising}, {"window": ("s", None)}, 0.02, 0.20, even)
+    assert never == {"window": None}
+
+
+def test_a_calibration_group_is_judged_on_its_families_medium_together() -> None:
+    runs = ((0.95, True, 40), (0.7, True, 18), (0.7, False, 2), (0.2, False, 20))
+    by_family = {"plan": graded("plan", "p", *runs), "sauna": graded("sauna", "s", *runs)}
+    signals = {"plan": ("s", None), "sauna": ("s", None)}
+    alone, _ = medium_fit(by_family, signals, 0.02, 0.20, even)
+    assert alone == {"plan": None, "sauna": None}  # 20 Medium answers each
+    group = {"plan": ("plan", "sauna"), "sauna": ("plan", "sauna")}
+    together, _ = medium_fit(by_family, signals, 0.02, 0.20, even, group)
+    assert together["plan"] is not None and together["plan"] == together["sauna"]
+
+
+def test_an_answer_is_high_when_certified_medium_from_its_second_threshold_else_low() -> None:
+    assert level(0.9, 0.8, 0.5) == "high"
+    assert level(0.8, 0.8, 0.5) == "high"
+    assert level(0.6, 0.8, 0.5) == "medium"
+    assert level(0.4, 0.8, 0.5) == "low"
+    assert level(None, 0.8, 0.5) == "low"
+    assert level(0.6, 0.8, None) == "low"  # a family without Medium
+    assert level(0.9, None, 0.5) == "medium"  # a family never certified
+
+
+def test_a_route_is_high_when_certified_else_medium_on_enough_exact_dev_answers() -> None:
+    certified = route_verdict([True] * 40, 10, 0.95)
+    assert route_level(certified, []).level == "high"
+    schedule = route_verdict([False], 10, 0.95)  # golden v2 holdout: 0 of 1
+    made = route_level(schedule, [True] * 37 + [False] * 2)
+    assert made.level == "medium" and made.dev == LevelPoint(units=39, exact=37)
+    assert route_level(schedule, [True] * 29).level == "low"  # too few to rest on
+    assert route_level(schedule, [True] * 23 + [False] * 7).level == "low"  # 76.7% exact
+
+
+def test_the_file_keeps_medium_the_levels_and_a_route_s_level() -> None:
+    door = CheckFamily(signal="s", threshold=0.9, fixed=False, val=NONE, crossfit=NONE, medium=0.5)
+    route = route_level(route_verdict([False], 10, 0.95), [True] * 37 + [False] * 2)
+    levels = Levels(
+        cut=0.2, min_units=30, min_exact=0.8,
+        crossfit={lv: LevelPoint(units=1, exact=1) for lv in ("high", "medium", "low")},
+    )  # fmt: skip
+    made = CheckPolicyFile(
+        generated="2026-11-14T12:00:00+02:00", split_sha256="0" * 64, arm="x", lambda_=10,
+        floor=0.95, families={"door": door}, routes={"schedule": route}, pooled_val=NONE,
+        pooled_crossfit=NONE, levels=levels,
+    )  # fmt: skip
+    dumped = made.model_dump(by_alias=True)
+    assert dumped["families"]["door"]["medium"] == 0.5
+    assert dumped["routes"]["schedule"]["level"] == "medium"
+    assert dumped["levels"]["cut"] == 0.2
+    assert CheckPolicyFile.model_validate(dumped) == made

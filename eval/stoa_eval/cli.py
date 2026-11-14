@@ -43,12 +43,18 @@ from .ab import (
 from .check import (
     FLOOR,
     LAMBDA,
+    LEVELS,
+    MEDIUM_MIN_EXACT,
+    MEDIUM_MIN_UNITS,
     POOL_BELOW,
     RECALL_RULE,
     RULE,
     CheckFamily,
     CheckPolicyFile,
     FlagUnits,
+    Level,
+    LevelPoint,
+    Levels,
     Point,
     PoolWith,
     calibrations,
@@ -56,10 +62,12 @@ from .check import (
     fit,
     flag_always,
     groups_below,
+    medium_fit,
     point,
     pooled,
     probabilities,
     recall_fit,
+    route_level,
     route_verdict,
     thresholds_at,
 )
@@ -1095,12 +1103,13 @@ def _family_signals(
     return made
 
 
-def _route_answers(run: Path) -> dict[str, list[bool]]:
-    """Golden v2's holdout answers of a pipeline run (its out/ folder) by the route the check
+def _route_answers(run: Path, split: str = "holdout") -> dict[str, list[bool]]:
+    """Golden v2's answers of a pipeline run (its out/ folder) on one split (holdout: what routes
+    are certified on; dev: what an uncertified route's level rests on) by the route the check
     certifies whole: the ingest route of a takeoff answer not on the raster route, `schedule`
     for a schedule answer; refusals and raster answers are left out."""
     golden = [item for _, item in read_jsonl(DEFAULT_GOLDEN, GoldenItem)]
-    holdout = [item for item in golden if item.split == "holdout"]
+    holdout = [item for item in golden if item.split == split]
     lines = [json.loads(line) for line in (run / "answers.jsonl").read_text("utf-8").splitlines()]
     answers = {a.id: a for _, a in read_jsonl(run / "answers.jsonl", Answer)}
     method = {line["id"]: line.get("method") for line in lines}
@@ -1156,6 +1165,8 @@ def run_check_policy(args: argparse.Namespace) -> None:
     known = {made.name for made in extra}
     if missing := sorted({name for name, _ in signals.values()} - known):
         raise ValueError(f"no values for the signals {missing}: give their --signal-file")
+    if args.medium is not None and args.recall is None:
+        raise ValueError("--medium needs --recall: Medium is a band of the calibrated P(wrong)")
     first = set(halves(files, args.seed)[0])
     cut, calibrated, groups = None, {}, {}
     if args.recall is None:
@@ -1167,6 +1178,16 @@ def run_check_policy(args: argparse.Namespace) -> None:
         logit = probabilities(by_family, signals)
         calibrated = calibrations(by_family, signals, logit, groups)
         chosen = thresholds_at(calibrated, signals, cut)
+    medium: dict[str, float | None] = {}
+    levels: dict[str, dict[Level, LevelPoint]] = {}
+    if args.medium is not None:
+        assert cut is not None
+        if args.medium <= cut:
+            raise ValueError(f"--medium {args.medium} is not above the certified cut {cut:.4f}")
+        medium, levels = medium_fit(
+            by_family, signals, cut, args.medium, lambda file: file in first, groups,
+            args.medium_min_units, args.medium_min_exact,
+        )  # fmt: skip
     made_families = {
         family: CheckFamily(
             signal=signals[family][0],
@@ -1176,6 +1197,7 @@ def run_check_policy(args: argparse.Namespace) -> None:
             crossfit=held[family],
             calibration=calibrated.get(family),
             group="+".join(groups[family]) if groups.get(family, (family,)) != (family,) else None,
+            medium=medium.get(family),
         )
         for family, units_of in sorted(by_family.items())
     }
@@ -1185,6 +1207,14 @@ def run_check_policy(args: argparse.Namespace) -> None:
             route: route_verdict(exact, args.lam, args.floor)
             for route, exact in sorted(_route_answers(args.golden_run).items())
         }
+        if args.medium is not None:
+            dev = _route_answers(args.golden_run, "dev")
+            routes = {
+                route: route_level(
+                    verdict, dev.get(route, []), args.medium_min_units, args.medium_min_exact
+                )
+                for route, verdict in routes.items()
+            }
     made = CheckPolicyFile(
         generated=datetime.now(HELSINKI).isoformat(timespec="seconds"),
         split_sha256=_sha256(args.exp_dir / "split.json"),
@@ -1201,6 +1231,20 @@ def run_check_policy(args: argparse.Namespace) -> None:
         routes=routes,
         pooled_val=pooled({f: c.val for f, c in made_families.items()}),
         pooled_crossfit=pooled(held),
+        levels=None
+        if args.medium is None
+        else Levels(
+            cut=args.medium,
+            min_units=args.medium_min_units,
+            min_exact=args.medium_min_exact,
+            crossfit={
+                lv: LevelPoint(
+                    units=sum(c[lv].units for c in levels.values()),
+                    exact=sum(c[lv].exact for c in levels.values()),
+                )
+                for lv in LEVELS
+            },
+        ),
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(made.model_dump_json(by_alias=True, indent=2) + "\n", "utf-8")
@@ -1208,10 +1252,14 @@ def run_check_policy(args: argparse.Namespace) -> None:
         _print_certified(made)
     else:
         _print_flagged(made)
+    if levels:
+        _print_levels(made, levels)
     for route, verdict in routes.items():
         h = verdict.holdout
         print(f"route {route}: {h.exact}/{h.certified} exact on golden v2 holdout, bound "
               f"{verdict.lower_bound}, certified {verdict.certified}")  # fmt: skip
+        if (dev := verdict.dev) is not None:
+            print(f"  level {verdict.level} (golden v2 dev {dev.exact}/{dev.units})")
     print(f"wrote {args.out}")
 
 
@@ -1231,6 +1279,24 @@ def _print_flagged(made: CheckPolicyFile) -> None:
             what += f" ({entry.group})"
         print(f"| {family} | {what} | {held.units} | {held.wrong} | {held.no_value} | "
               f"{_flagging(held)} | {_flagging(val)} |")  # fmt: skip
+
+
+def _print_levels(made: CheckPolicyFile, levels: Mapping[str, Mapping[Level, LevelPoint]]) -> None:
+    """The levels, cross-fit: per family each level's share of the answers and exact share."""
+    assert made.levels is not None
+    print(f"levels: Medium up to P(wrong) {made.levels.cut} (cross-fit)")
+    print("| family | Medium from | High | Medium | Low |")
+    print("| --- | --- | --- | --- | --- |")
+    rows = [*((f, made.families[f].medium, levels[f]) for f in made.families)]
+    rows.append(("pooled", None, made.levels.crossfit))
+    for family, low, cells in rows:
+        total = sum(c.units for c in cells.values())
+        shown = [
+            f"{c.units / total:.1%} ({c.units}), {c.exact / c.units:.1%}" if c.units else "0"
+            for c in (cells[lv] for lv in LEVELS)
+        ]
+        since = "-" if family == "pooled" else "never" if low is None else f"{low:.4f}"
+        print(f"| {family} | {since} | " + " | ".join(shown) + " |")
 
 
 def _cut(entry: CheckFamily) -> str:
@@ -2331,6 +2397,19 @@ def parser() -> argparse.ArgumentParser:
         "--pool-with", choices=get_args(PoolWith), default="small",
         help="with --recall: fit those families all together (small, D23) or each on every family "
         "gated on its signal (signal)",
+    )  # fmt: skip
+    check.add_argument(
+        "--medium", type=float,
+        help="with --recall: levels; Medium (asks, likely right) up to this calibrated P(wrong), "
+        "e.g. 0.20",
+    )  # fmt: skip
+    check.add_argument(
+        "--medium-min-units", type=int, default=MEDIUM_MIN_UNITS,
+        help="a calibration group whose cross-fit Medium has fewer answers gets no Medium",
+    )  # fmt: skip
+    check.add_argument(
+        "--medium-min-exact", type=float, default=MEDIUM_MIN_EXACT,
+        help="nor one whose cross-fit Medium is less exact than this",
     )  # fmt: skip
     check.add_argument("--lambda", dest="lam", type=float, default=LAMBDA)
     check.add_argument("--floor", type=float, default=FLOOR)

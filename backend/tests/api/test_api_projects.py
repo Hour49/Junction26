@@ -378,6 +378,18 @@ def test_info_names_the_readers_and_the_limits(client: TestClient) -> None:
     }
 
 
+def test_info_names_the_commit_the_backend_was_started_from(settings: Settings) -> None:
+    """APP_COMMIT (tools/qa-env.sh sets it to the exported commit) so a smoke test can tell which
+    build it talks to; null when the env doesn't say."""
+    assert info(settings).commit is None
+    started = settings.model_copy(update={"app_commit": "4bc4405e1a2b"})
+    assert info(started).commit == "4bc4405e1a2b"
+    assert TestClient(create_app(started)).get("/api/info").json()["commit"] == "4bc4405e1a2b"
+
+
+LOCAL = "elements=region:C,plans=region:C"  # ONNX models on this machine only
+
+
 @pytest.mark.parametrize(
     ("keyed", "no_keys"),
     [
@@ -387,6 +399,27 @@ def test_info_names_the_readers_and_the_limits(client: TestClient) -> None:
         (
             {"raster_components": "elements=dir:arm,plans=dir:arm", "decisions_confidence": True},
             False,
+        ),
+        ({"triage_classifier": "rules", "triage_describer": "gemini"}, False),
+        ({"triage_describer": "gemini"}, True),  # triage off: the describer is never built
+        (
+            {"raster_components": LOCAL, "raster_photo_components": "rooms=gemini,plans=one-plan"},
+            False,
+        ),
+        ({"raster_components": LOCAL, "double_check_readers": "v1=verda"}, False),
+        # our EU model server instead of Gemini is still a keyed model server
+        ({"raster_components": f"{LOCAL},rooms=gemini", "rooms_provider": "eu"}, False),
+        ({"decisions_kind": True, "kind_provider": "eu"}, False),
+        # the SigLIP classifier is a local model, but it turns triage on, so the describer runs
+        ({"triage_classifier": "siglip"}, True),
+        ({"triage_classifier": "siglip", "triage_describer": "gemini"}, False),
+        (
+            {
+                "raster_components": LOCAL,
+                "raster_photo_components": "plans=photo:P",
+                "double_check_readers": "l1=detector:C",
+            },
+            True,
         ),
     ],
 )
