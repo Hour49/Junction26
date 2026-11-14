@@ -1,6 +1,7 @@
 """The agent's toolbox for one project and turn (spec AC-13): the pipeline tools (#228), the plan
-tools, and the law tools when the app has a law index, behind one `run(name, arguments)` that
-never raises. A tool module whose code is not in this build is simply not offered."""
+tools, the evidence tools over the project's other files, and the law tools when the app has a
+law index, behind one `run(name, arguments)` that never raises. A tool module whose code is not
+in this build is simply not offered."""
 
 import json
 import logging
@@ -8,6 +9,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import Any
 
+from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
 from app.core.plan_edit.model import Proposal, Selection
 
@@ -56,6 +58,10 @@ def project_toolbox(
         plans = PlanStore(pipeline, {s.id: s for s in selection}, list(proposals.values()))
         sets.append((PLAN_TOOLS, partial(run_plan_tool, plans)))
         describe = plans.describe
+    evidence = getattr(app.state, "evidence", None)  # EvidenceIndexes (decision 0012)
+    if evidence is not None:
+        index = evidence.evidence_index(project_id)
+        sets.append((EVIDENCE_TOOLS, partial(run_evidence_tool, index)))
     laws = getattr(app.state, "laws", None)
     if laws is not None:
         try:

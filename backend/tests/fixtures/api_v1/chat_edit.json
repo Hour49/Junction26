@@ -191,5 +191,6 @@
   ],
   "model": "rules",
   "cost_usd": 0.0,
-  "latency_s": 0.002
+  "latency_s": 0.002,
+  "answers": []
 }

@@ -810,8 +810,16 @@ export interface components {
             /** Selection */
             selection?: components["schemas"]["Selection"][];
         };
-        /** ChatTurn */
+        /**
+         * ChatTurn
+         * @description A turn as the API returns it: `answers` typed as POST /api/projects/{id}/ask's answers.
+         */
         ChatTurn: {
+            /**
+             * Answers
+             * @default []
+             */
+            answers: components["schemas"]["ProjectAnswer"][];
             /** Chat Id */
             chat_id: string;
             /** Cost Usd */

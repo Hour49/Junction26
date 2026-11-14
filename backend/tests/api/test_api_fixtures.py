@@ -14,7 +14,7 @@ import pytest
 from pydantic import BaseModel, TypeAdapter
 
 from app.api.ask import AnswerView, AskRequest
-from app.api.chat import ChatRequest
+from app.api.chat import ChatRequest, ChatTurn
 from app.api.checks import DrawingChecks, ProjectChecks
 from app.api.drawings import DrawingView
 from app.api.info import Info
@@ -30,7 +30,6 @@ from app.api.projects import (
 from app.api.questions import ProjectQuestions
 from app.api.takeoff import SignOffRequest, Takeoff
 from app.api.views import ErrorBody, ProjectTrace, ProjectView
-from app.core.agent.model import ChatTurn
 from app.core.evidence.model import EvidenceDetail, EvidenceSearch
 from app.core.ingest.model import FileStatus, FileTrace
 from app.core.plan_edit.model import Proposal

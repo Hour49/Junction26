@@ -26,7 +26,6 @@ ROOM_WORDS = {
     "storage": "storage", "closet": "storage", "sauna": "sauna", "balcony": "balcony",
 }  # fmt: skip
 ROOM_WORD = re.compile(r"\b(" + "|".join(ROOM_WORDS) + r")s?\b")
-UNITS = {"count": "", "m": " m", "m2": " m²", "m3": " m³", "ft": " ft", "ft2": " ft²"}
 LOAD = (
     "I don't know: these drawings do not say which walls carry load. A structural drawing, a "
     "building model that marks load-bearing walls, or a structural engineer would settle it."
@@ -252,14 +251,10 @@ def _answer(found: Json) -> tuple[str, Json]:
         related = refusal.get("code") == "unsupported-question"
         more: Json = {"options": options} if options and related else {}
         return _final("dont_know", dont_know(why), **more)
-    lines, evidence = [], []
-    for part in answering[:3]:
-        answer = part["answer"]
-        unit = UNITS.get(answer.get("unit") or "count", "")
-        noun = (answer.get("quantity") or {}).get("noun")
-        unit = f" {noun}" if not unit and noun else unit
-        marks = [mark["ev"] for mark in answer.get("marks", []) if "ev" in mark][:4]
-        cite = f" [{marks[0]}]" if marks else ""
-        lines.append(f"{part['name']}: {answer['answer']}{unit}{cite}")
-        evidence += marks
-    return _final("answer", "; ".join(lines) + ".", evidence)
+    # The turn carries the ask_drawings result, shown in full under the text: one sentence that
+    # cites each answering drawing's first mark
+    evidence = [marks[0]["ev"] for p in answering[:12] if (marks := [
+        m for m in p["answer"].get("marks", []) if "ev" in m])]  # fmt: skip
+    cites = "".join(f"[{ev}]" for ev in evidence)
+    them = "drawings answer" if len(answering) > 1 else "drawing answers"
+    return _final("answer", f"The {them} this below{' ' + cites if cites else ''}.", evidence)

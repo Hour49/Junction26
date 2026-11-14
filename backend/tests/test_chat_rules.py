@@ -49,8 +49,12 @@ def test_ac11_a_question_asks_the_drawings_then_answers_from_them() -> None:
         "marks": [{"ev": "ev_1"}, {"ev": "ev_2"}]}}]}  # fmt: skip
     name, args = plan("How many doors?", ("ask_drawings", {}, asked))
     assert name == "final_answer"
-    assert args == {"kind": "answer", "text": "a.pdf: 2 doors [ev_1].",
-                    "evidence_ids": ["ev_1", "ev_2"]}  # fmt: skip
+    assert args == {"kind": "answer", "text": "The drawing answers this below [ev_1].",
+                    "evidence_ids": ["ev_1"]}  # fmt: skip
+    model = {"drawing_id": DRAWING, "name": "b.ifc", "answer": {"answer": 2, "marks": []}}
+    asked["parts"].append(model)
+    _, args = plan("How many doors?", ("ask_drawings", {}, asked))
+    assert args["text"] == "The drawings answer this below [ev_1]."
 
 
 def test_ac11_all_refused_is_dont_know_with_the_reason() -> None:

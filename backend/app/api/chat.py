@@ -10,10 +10,11 @@ from pydantic import Field
 from app.adapters.agent_tools import project_toolbox
 from app.adapters.chat_store import JsonChatStore
 from app.api.deps import IngestDep, ProjectId, SettingsDep
+from app.api.project_ask import ProjectAnswer
 from app.api.views import View, drawings_of
 from app.composition import chat_caps, chat_model, spend_guard
+from app.core.agent import model
 from app.core.agent.loop import run_turn
-from app.core.agent.model import ChatTurn
 from app.core.errors import NotFoundError
 from app.core.plan_edit.model import Proposal, Selection
 from app.core.review.review import NotAllowedError
@@ -21,6 +22,13 @@ from app.core.review.review import NotAllowedError
 router = APIRouter(prefix="/api/projects")
 
 MESSAGE_CHARS = 2000
+
+
+class ChatTurn(model.ChatTurn):
+    """A turn as the API returns it: `answers` typed as POST /api/projects/{id}/ask's answers."""
+
+    # the same JSON core keeps as plain objects, typed here for the contract
+    answers: tuple[ProjectAnswer, ...] = ()  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 class ChatRequest(View):
@@ -68,7 +76,7 @@ def chat(
         turn = run_turn(current, body.message, body.selection, model, tools, caps, guard,
                         names=names)  # fmt: skip
         chats.put(project_id, current)
-        return turn
+        return ChatTurn.model_validate(turn.model_dump(mode="json"))
     finally:
         lock.release()
 

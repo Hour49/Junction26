@@ -18,6 +18,7 @@ from app.core.agent.validate import FINAL_ANSWER_TOOL, FinalAnswer, failed, prob
 from app.core.plan_edit.model import Proposal, Selection
 from app.core.spend import SpendGuard
 
+ASK = "ask_drawings"  # its results are ProjectAnswers the turn returns with an answer built on them
 SEEN_TURNS = 6  # turns whose messages the model is sent (AC-23)
 OLD_TOOL_CHARS = 1000  # a tool message of an earlier turn is cut to this
 # What the model sees of a tool result (AC-13 says 4,000; one ask_drawings over 5 drawings is
@@ -98,6 +99,7 @@ class _Run:
         self.seen: Counter[tuple[str, str]] = Counter()
         self.cost = 0.0
         self.refused = 0
+        self.asked: list[tuple[set[str], Json]] = []  # ask_drawings results: their ev ids, as given
 
     def turn(self, message: str, selection: Sequence[Selection]) -> ChatTurn:
         chat = self.chat
@@ -206,7 +208,10 @@ class _Run:
             found: Any = json.loads(out)
         except json.JSONDecodeError:
             found = out
+        before = set(self.ledger)
         mint(found, self.ledger, self.chat.minted + 1)
+        if name == ASK and isinstance(found, dict):  # kept as the route gives it, without ev ids
+            self.asked.append((set(self.ledger) - before, json.loads(out)))
         proposal: Any = found.get("proposal") if isinstance(found, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         if isinstance(proposal, dict) and "proposal_id" in proposal:
             try:
@@ -255,9 +260,13 @@ class _Run:
             return name
 
     def _turn_of(self, answer: FinalAnswer) -> ChatTurn:
-        cited = list(dict.fromkeys([*answer.evidence_ids, *re.findall(r"ev_\d+", answer.text)]))
+        # The sources are the places the text cites, in its order; evidence_ids only when the
+        # text cites none (AC-5)
+        cited = list(dict.fromkeys(re.findall(r"ev_\d+", answer.text) or answer.evidence_ids))
         number = {ev: n for n, ev in enumerate(cited, start=1)}
         text = re.sub(r"\[?(ev_\d+)\]?", lambda found: f"[{number[found[1]]}]", answer.text)
+        for drawing_id, file in self._files():  # a drawing by its plain name, not its file
+            text = text.replace(file, self.names.get(drawing_id) or file)
         kind: TurnKind = answer.kind
         return ChatTurn(
             chat_id=self.chat.chat_id,
@@ -271,7 +280,28 @@ class _Run:
             model=self.model.name,
             cost_usd=round(self.cost, 6),
             latency_s=round(self.clock() - self.started, 3),
+            answers=self._answers(set(cited), kind),
         )
+
+    def _files(self) -> set[tuple[str, str]]:
+        """(drawing id, file name) of every drawing this turn's results named."""
+        parts: list[Json] = []
+        for _, given in self.asked:
+            parts += given.get("parts") or []
+        named = {(str(p.get("drawing_id")), str(p.get("name"))) for p in parts if p.get("name")}
+        return named | {(f["drawing_id"], f["name"]) for f in self.ledger.values() if f["name"]}
+
+    def _answers(self, cited: set[str], kind: TurnKind) -> tuple[Json, ...]:
+        """The ask_drawings results the answer rests on: those whose places it cites; when it
+        cites none, every one for an answer and those in which a drawing refused for a dont_know
+        or needs_input."""
+        if cited:
+            return tuple(given for evs, given in self.asked if evs & cited)
+        if kind == "answer":
+            return tuple(given for _, given in self.asked)
+        if kind in ("dont_know", "needs_input"):
+            return tuple(given for _, given in self.asked if _refused(given))
+        return ()
 
     def _evidence(self, n: int, ev: str) -> ChatEvidence:
         found = self.ledger[ev]
@@ -289,6 +319,13 @@ class _Run:
             if level
             else None,
         )
+
+
+def _refused(asked: Json) -> bool:
+    """Whether a drawing refused in an ask_drawings result."""
+    parts: list[Json] = asked.get("parts") or []
+    answers: list[Json] = [part.get("answer") or {} for part in parts]
+    return any(answer.get("refusal") for answer in answers)
 
 
 def _for_model(found: Any) -> str:

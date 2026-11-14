@@ -768,7 +768,16 @@
       },
       "ChatTurn": {
         "additionalProperties": false,
+        "description": "A turn as the API returns it: `answers` typed as POST /api/projects/{id}/ask's answers.",
         "properties": {
+          "answers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProjectAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
           "chat_id": {
             "title": "Chat Id",
             "type": "string"

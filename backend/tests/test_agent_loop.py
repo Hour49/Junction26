@@ -332,3 +332,62 @@ def test_evidence_ids_run_on_through_the_chat() -> None:
                       final(text=f"See [ev_{n}].", evidence_ids=[f"ev_{n}"]))  # fmt: skip
         got = turn(model, chat=chat)
         assert got.kind == "answer" and got.evidence[0].id == f"ev_{n}"
+
+
+THREE = {
+    "question": "how many doors",
+    "parts": [{"drawing_id": DRAWING, "name": "plans/a.pdf", "answer": {"answer": 3, "marks": [
+        {"id": f"m{n}", "page": 1, "box": [0.1, 0.1, 0.2, 0.2], "label": "door"}
+        for n in (1, 2, 3)]}}],
+}  # fmt: skip
+
+
+def test_ac5_evidence_is_only_what_the_text_cites_in_its_order() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="Doors [ev_3] and [ev_1].", evidence_ids=["ev_1", "ev_2", "ev_3"]),
+    )
+    got = turn(model, Tools(ask_drawings=THREE))
+    assert got.text == "Doors [1] and [2]."
+    assert [(e.n, e.id) for e in got.evidence] == [(1, "ev_3"), (2, "ev_1")]
+
+
+def test_the_text_names_drawings_by_their_plain_name() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="plans/a.pdf: 3 doors [ev_1]."),
+    )
+    got = turn(model, Tools(ask_drawings=THREE), names={DRAWING: "Drawn plan 1"})
+    assert got.text == "Drawn plan 1: 3 doors [1]."
+    unmarked = {"parts": [{"drawing_id": DRAWING, "name": "model/house.ifc",
+                           "answer": {"answer": 2, "marks": []}}]}  # fmt: skip
+    model = Model(step(call("ask_drawings", question="q")), final(text="model/house.ifc: 2."))
+    got = turn(model, Tools(ask_drawings=unmarked), names={DRAWING: "Building model"})
+    assert got.text == "Building model: 2."
+
+
+def test_answers_are_the_cited_ask_drawings_results_as_given() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        final(text="3 doors [ev_2]."),
+    )
+    got = turn(model, Tools(ask_drawings=THREE))
+    assert got.answers == (THREE,)  # without the ev ids the server added for the model
+
+
+def test_a_dont_know_on_a_refusal_carries_that_result() -> None:
+    answer = {"answer": None, "refusal": {"text": "No scale."}}
+    refused = {"parts": [{"drawing_id": DRAWING, "name": "a.pdf", "answer": answer}]}
+    model = Model(step(call("ask_drawings", question="q")),
+                  final(kind="dont_know", text="No scale."))  # fmt: skip
+    assert turn(model, Tools(ask_drawings=refused)).answers == (refused,)
+
+
+def test_answers_without_citations() -> None:
+    model = Model(step(call("ask_drawings", question="q")), final(text="See below."))
+    assert turn(model, Tools(ask_drawings=THREE)).answers == (THREE,)  # an answer: every result
+    walls = {"walls": [{"id": "W1", "page": 1, "box": [0.1, 0.1, 0.2, 0.2]}],
+             "drawing_id": DRAWING}  # fmt: skip
+    model = Model(step(call("ask_drawings", question="q"), call("list_walls", 2)),
+                  final(text="Wall W1 [ev_4].", evidence_ids=["ev_4"]))  # fmt: skip
+    assert turn(model, Tools(ask_drawings=THREE, list_walls=walls)).answers == ()

@@ -9,6 +9,7 @@ from conftest import upload
 from fastapi.testclient import TestClient
 from swiss_walls import walled_flat
 
+from app.adapters.agent_tools import project_toolbox
 from app.composition import build_ingest
 from app.main import create_app
 from app.settings import Settings
@@ -42,6 +43,16 @@ def test_ac11_ac22_an_answer_turn_with_sources_and_steps(client: TestClient) -> 
         and len(turn["evidence"][0]["box"]) == 4
     )
     assert [step["tool"] for step in turn["steps"]] == ["ask_drawings"]
+    cited = set(re.findall(r"\[(\d+)\]", turn["text"]))
+    assert {str(e["n"]) for e in turn["evidence"]} == cited  # only what the text cites
+    assert turn["text"] == "The drawings answer this below [1][2]."
+    [answer] = turn["answers"]  # the project ask result, as POST /api/projects/{id}/ask gives it
+    asked = client.post(
+        f"/api/projects/{project}/ask", json={"question": "How many doors are there?"}
+    )
+    assert answer["total"] == asked.json()["total"] and len(answer["parts"]) == len(
+        asked.json()["parts"]
+    )
     again = ask(client, project, "How many windows are there?", chat_id=turn["chat_id"])
     assert (again["chat_id"], again["turn"]) == (turn["chat_id"], 2)
 
@@ -51,6 +62,7 @@ def test_ac11_dont_know_turns(client: TestClient) -> None:
     unknown = ask(client, project, "What is the fire rating?")
     assert unknown["kind"] == "dont_know" and unknown["text"].startswith("I don't know: this")
     assert unknown["options"] and unknown["options"][0]["message"].endswith("?")
+    assert len(unknown["answers"]) == 1 and unknown["answers"][0]["parts"]
     load = ask(client, project, "Is that wall load-bearing?")
     assert load["kind"] == "dont_know" and "structural engineer" in load["text"]
 
@@ -153,3 +165,21 @@ def test_ac11_floor9178_two_bathrooms_ask_which(client: TestClient) -> None:
     turn = ask(client, project, "How big is the bathroom?")
     assert turn["kind"] == "needs_input"
     assert [o["label"] for o in turn["options"]] == ["Room 1.01", "Room 1.09"]
+
+
+def test_ac13_the_evidence_tools_are_offered(client: TestClient) -> None:
+    project = sample(client)
+    tools = {
+        tool["function"]["name"] for tool in project_toolbox(client.app, project, [], {}).tools
+    }
+    assert {"search_evidence", "get_evidence", "ask_drawings", "list_walls"} <= tools
+
+
+def test_ac13_the_law_tools_are_offered_when_the_app_has_laws(client: TestClient) -> None:
+    pytest.importorskip("app.adapters.law_tools")  # on main since #249: runs once merged
+    app: Any = client.app
+    assert getattr(app.state, "laws", None) is not None
+    tools = {
+        tool["function"]["name"] for tool in project_toolbox(app, sample(client), [], {}).tools
+    }
+    assert {"search_law", "get_clause"} <= tools

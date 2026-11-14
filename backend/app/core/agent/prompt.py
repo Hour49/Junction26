@@ -14,6 +14,9 @@ propose_room. With a selection, use its drawing and page directly.
 user asks about conflicts, issues, the takeoff, geometry or building-code checks. Never call a \
 tool "just in case".
 - As soon as a tool result backs the answer (or says it cannot), call final_answer.
+- When you answer from ask_drawings, the user sees its full answer card (every drawing's value, \
+its marks and confidence) under your text: do not repeat the per-drawing values; say it in one \
+short sentence and cite.
 
 Rules:
 - Use only what the tools return in this chat. Never state a number, room, wall or rule that no \

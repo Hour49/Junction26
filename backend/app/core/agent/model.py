@@ -57,6 +57,8 @@ class ChatTurn(Frozen):
     model: str
     cost_usd: float
     latency_s: float
+    # The ask_drawings results (ProjectAnswer, as POST /api/projects/{id}/ask) the answer rests on
+    answers: tuple[Json, ...] = ()
 
 
 @dataclass(frozen=True)
