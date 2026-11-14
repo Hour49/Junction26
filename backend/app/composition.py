@@ -425,6 +425,8 @@ def build_ingest(
         names["room_policy"] = settings.room_policy
     if settings.double_check_readers:  # the same
         names["double_check_readers"] = settings.double_check_readers
+    if settings.raster_tiles != "off":  # the same
+        names["raster_tiles"] = settings.raster_tiles
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -548,6 +550,7 @@ def _raster_component(
     """The reader of one RASTER_COMPONENTS source name. A precomputed arm finds an uploaded sheet
     in the Stoa dataset (CREDIT_DATASET, the folder its files are relative to) by its content."""
     kind, _, where = source.partition(":")
+    tiles = settings.raster_tiles == "auto"
     match kind:
         case "one-plan" if not where:
             return WholePagePlan()
@@ -558,10 +561,11 @@ def _raster_component(
         case "detector" if where:
             arm, _, run = where.partition(":")
             tuned = inside(DETECTOR_RUNS, f"{run}.thresholds.json") if run else None
-            return OnnxDetector.from_folder(files, inside(DETECTOR_DIR, arm), tuned)
+            return OnnxDetector.from_folder(files, inside(DETECTOR_DIR, arm), tuned, tiles=tiles)
         case "detector-v2" | "detector-v4" | "detector-v8" if where:
             views = int(kind.removeprefix("detector-v"))
-            return OnnxDetector.from_folder(files, inside(DETECTOR_DIR, where), views=views)
+            folder = inside(DETECTOR_DIR, where)
+            return OnnxDetector.from_folder(files, folder, views=views, tiles=tiles)
         case "verda" if not where:
             client = HttpReaderClient(
                 settings.verda_reader_url,
@@ -585,8 +589,8 @@ def _raster_component(
             arm, _, run = where.partition(":")
             folder = inside(DETECTOR_DIR, arm)
             tuned = inside(DETECTOR_RUNS, f"{run}.thresholds.json") if run else None
-            base = OnnxDetector.from_folder(files, folder, views=8)
-            second = OnnxDetector.from_folder(files, folder, tuned)
+            base = OnnxDetector.from_folder(files, folder, views=8, tiles=tiles)
+            second = OnnxDetector.from_folder(files, folder, tuned, tiles=tiles)
             return ArbiterCountExtractor.from_folder(
                 base, second, files, Path(settings.arbiter_model_dir)
             )

@@ -41,6 +41,7 @@ TablesName = Literal["off", "pdf"]
 ProviderName = Literal["gemini", "eu"]
 # off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
 RasterScaleName = Literal["off", "priors"]
+RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
@@ -74,6 +75,12 @@ class Settings(BaseSettings):
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
     raster_scale: RasterScaleName = "off"
+    # auto: a raster page whose long side is over 4000 px is read by every detector source of
+    # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
+    # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.
+    # Photo arms are not tiled. off: every page is letterboxed whole (a door on a 14k px sheet
+    # is then a few px)
+    raster_tiles: RasterTilesName = "off"
     # How the raster route types the rooms its rooms source read, whichever source that is.
     # gold-labels is for a source that reads printed labels: it turns every unlabelled bedroom
     # into `other`
