@@ -292,7 +292,10 @@ def test_a_file_read_as_a_plan_gets_a_drawing_leaves_not_plans_and_its_issue_set
         for issue in listed
         if issue["file"] == "score.png" and issue["kind"] == "unrelated_file"
     )
-    assert (issue["state"], issue["drawing_id"]) == ("settled", None)
+    # same id, now with the file's drawing to open (R6-a-4)
+    assert issue["id"] in {seen["id"] for seen in before}
+    assert (issue["state"], issue["drawing_id"]) == ("settled", score["drawing_id"])
+    assert issue["links"]["drawing"] == f"/api/drawings/{score['drawing_id']}?project={found['id']}"
     assert issue["why"].endswith("Ana had it read as a floor plan.")
     assert call(triaged, after, "score.png", {"verdict": "related", "by": "Ana"}).status_code == 200
     again = read_as_plan(triaged, after, "score.png")
@@ -310,3 +313,15 @@ def test_reading_as_a_plan_refuses_a_file_triage_did_not_set_aside_and_a_body_ou
         assert (reply.status_code, reply.json()["code"]) == (422, "validation")
     url = f"/api/projects/{found['id']}/files/f99/triage"
     assert triaged.post(url, json={"class": "floor_plan", "by": "Ana"}).status_code == 404
+
+
+def test_a_file_read_as_a_plan_keeps_its_issues_place_ahead_of_no_other_file(
+    triaged: TestClient,
+) -> None:
+    # the photo's issue comes first (upload order); once the score is read and has a drawing,
+    # its issue must not jump ahead to the drawings' places (R6-a-4)
+    found = project(triaged, {"photo.jpg": PHOTO, "score.png": SCORE, "plan.pdf": PLAN})
+    before = [issue["id"] for issue in issues(triaged, found["id"])]
+    assert read_as_plan(triaged, found, "score.png").status_code == 202
+    after = [issue["id"] for issue in issues(triaged, found["id"]) if issue["id"] in before]
+    assert after == before

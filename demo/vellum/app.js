@@ -18,7 +18,10 @@
     const now = Date.now();
     const conflicts = {};
     for (const c of V.CONFLICTS) conflicts[c.id] = { mode: c.ai === null ? 'open' : 'ai', pick: null };
-    S.p = { started: analysed ? now - TOTAL * 1000 : now, doneLogged: false, conflicts, history: [], turns: [], chat: [], di: 0, checks: {} };
+    if (V.resetReadAsPlan) V.resetReadAsPlan();
+    // calls / rap: a person's relevance calls and "read it as a floor plan" per triaged file (triage.js)
+    S.p = { started: analysed ? now - TOTAL * 1000 : now, doneLogged: false, conflicts, history: [], turns: [], chat: [], di: 0, checks: {},
+      calls: {}, rap: {}, rapDone: {}, issueFilter: { kind: null, state: null } };
     log(S.p.started, 'up', 'Uploaded the archive', `${V.ARCHIVE} · ${V.FILES.length} files`);
     logDone();
   }
@@ -40,6 +43,8 @@
 
   const elapsed = () => (S.p ? (Date.now() - S.p.started) / 1000 : 0);
   const progress = () => V.progress(elapsed(), V.FILES, V.DRAWINGS.length);
+  // what triage.js and issues.js derive from: the reading's end, the calls, and the conflict modes
+  const ctx = () => ({ done: progress().done, calls: S.p.calls, rap: S.p.rap, conflicts: S.p.conflicts, now: Date.now(), project: window.VTriage.projectOf(V) });
 
   // The reading of each conflict now: the AI's while approved, the person's pick, else unsettled (null).
   function picks() {
@@ -57,12 +62,13 @@
     const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
     const name = parts[0] || 'home';
     if (name === 'ingest' && PANELS.includes(parts[1])) return { name: 'advanced', panel: parts[1] };
-    return { name: ['ingest', 'conflicts', 'chat', 'ask', 'workspaces'].includes(name) ? name : 'home' };
+    if (name === 'file' && /^\d+$/.test(parts[1] || '')) return { name: 'file', n: parts[1] };
+    return { name: ['ingest', 'conflicts', 'chat', 'issues', 'ask', 'workspaces'].includes(name) ? name : 'home' };
   }
 
   function header(r) {
-    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['chat', 'Chat', '#/chat']];
-    const cur = r.name === 'advanced' ? 'ingest' : r.name;
+    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['chat', 'Chat', '#/chat'], ['issues', 'Issues', '#/issues']];
+    const cur = r.name === 'advanced' || r.name === 'file' ? 'ingest' : r.name;
     const nav = S.p && r.name !== 'home' && r.name !== 'workspaces'
       ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => (k === cur
         ? `<span aria-current="page">${label}</span>` : `<a class="press" href="${href}">${label}</a>`)).join('')}</nav>` : '';
@@ -80,7 +86,7 @@
     if (r.name !== 'home' && r.name !== 'workspaces' && !S.p) newProject(true);
     slots = {};
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, conflicts: conflictsScreen,
-      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen }[r.name](r);
+      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen, issues: window.VIssues.screen }[r.name](r);
     app.innerHTML = header(r) + screen + (V.CREDIT
       ? `<p class="foot">Stoa mode, local only: a real drawing and its answer key from the Stoa dataset; the reading steps are illustrated. From the Stoa dataset's LICENSE.md: “${esc(V.CREDIT)}”</p>`
       : '<p class="foot">Clickable demo · synthetic data drawn in the browser, no backend, nothing read from a real file.</p>');
@@ -165,9 +171,11 @@
       return `<div class="bar"><div style="width:${pct}%"></div></div><span class="small" style="font-variant-numeric:tabular-nums">${pct}% of this step</span>`;
     };
     slots.done = doneRow;
+    slots.files = window.VFiles.lists;
     return `<main class="w820">${titleRow('simple')}
       <section class="card" aria-label="Progress"><div class="prog-top" data-slot="top"></div>
-        <dl class="stats" data-slot="stats"></dl><ol class="steps" data-slot="steps"></ol><div data-slot="done"></div></section></main>`;
+        <dl class="stats" data-slot="stats"></dl><ol class="steps" data-slot="steps"></ol><div data-slot="done"></div></section>
+      <div class="lists" data-slot="files"></div></main>`;
   }
 
   // ---------- 9-12 reading, advanced ----------
@@ -221,7 +229,9 @@
       'Watching the size: a small zip that unpacks to gigabytes is stopped here.',
       'Skipping system files like __MACOSX, they are not drawings.'];
     slots.say = () => sayLine(say);
-    slots.log = () => logLines(V.FILES.map((f) => `open  ${f.path} · ${f.size}`));
+    // a later page of a multi-page PDF is split off as a file of its own (#156)
+    const page = (f) => { const m = f.path.match(/^(.*)#p(\d+)\.pdf$/); return m ? `page ${m[2]} of ${m[1]}.pdf, as a PDF of its own` : `open  ${f.path} · ${f.size}`; };
+    slots.log = () => logLines(V.FILES.map(page));
     slots.name = () => `<span class="live">${esc(cycle(V.FILES).path)}</span>`;
     slots.stats = () => {
       const pr = progress();
@@ -233,8 +243,13 @@
   }
 
   function identifyPanel() {
-    slots.say = () => { const f = cycle(DRAWING_FILES); return `<span class="live" style="display:block"><span class="mono">${esc(f.path)}</span>: ${esc(WHY[f.kind])}</span>`; };
-    slots.log = () => logLines(DRAWING_FILES.map((f) => `route ${f.lane === 'CAD' ? 'cad   ' : 'vision'} ${f.path}`));
+    const T = window.VTriage, triaged = V.FILES.filter((f) => T.of(f.path));
+    const lines = DRAWING_FILES.map((f) => [f.path, WHY[f.kind]])
+      .concat(triaged.map((f) => [f.path, `not a floor plan (${T.CLASS_LABEL[T.classOf(f.path)]}): kept, set aside, not read. File triage is a preview.`]))
+      .concat(triaged.length ? [[null, 'Without triage, ingest keeps only 15 of 214 non-plans out of the floor-plan readers (Bogdan\'s measurement).']] : []);
+    slots.say = () => { const [path, why] = cycle(lines); return `<span class="live" style="display:block">${path ? `<span class="mono">${esc(path)}</span>: ` : ''}${esc(why)}</span>`; };
+    slots.log = () => logLines(DRAWING_FILES.map((f) => `route ${f.lane === 'CAD' ? 'cad   ' : 'vision'} ${f.path}`)
+      .concat(triaged.map((f) => `identify ${f.path}; triage: ${T.classOf(f.path)}, ${T.of(f.path).register.kind} (preview)`)));
     slots.fig = () => {
       const f = cycle(DRAWING_FILES), d = V.drawing(f.drawing), look = P.lookOfFile(f.kind);
       return `<div class="fig" style="background:${look === 'cad' ? '#16181d' : '#f3eedd'}">${P.plain(d, look, `${f.path}, being identified`)}
@@ -404,7 +419,8 @@
   app.addEventListener('click', (ev) => {
     const el = ev.target.closest('[data-act]');
     if (!el || el.getAttribute('aria-disabled') === 'true') return;
-    const fn = ACTIONS[el.dataset.act] || window.VAsk.actions[el.dataset.act] || window.VChat.actions[el.dataset.act];
+    const act = el.dataset.act;
+    const fn = ACTIONS[act] || window.VAsk.actions[act] || window.VChat.actions[act] || window.VFiles.actions[act] || window.VIssues.actions[act];
     if (fn && fn(el, ev) !== false) render();
   });
   app.addEventListener('keydown', (ev) => {
@@ -416,8 +432,13 @@
   app.addEventListener('dragleave', (ev) => { const z = ev.target.closest('[data-drop]'); if (z) z.classList.remove('over'); });
   app.addEventListener('drop', (ev) => { if (ev.target.closest('[data-drop]')) { ev.preventDefault(); start(); } });
   window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
-  setInterval(() => { if (!S.p) return; const was = S.p.doneLogged; logDone(); if (was !== S.p.doneLogged && route().name === 'workspaces') render(); else fill(); }, 250);
+  setInterval(() => {
+    if (!S.p) return;
+    const was = S.p.doneLogged; logDone();
+    // the end of the reading or of a re-read changes whole screens (issues, trace, the drawing switcher)
+    if (window.VFiles.tick() || (was !== S.p.doneLogged && ['workspaces', 'issues', 'file'].includes(route().name))) render(); else fill();
+  }, 250);
 
-  window.VApp = { S, render, log, picks, esc, hhmm };
+  window.VApp = { S, render, log, picks, esc, hhmm, progress, ctx };
   document.addEventListener('DOMContentLoaded', render);
 })();
