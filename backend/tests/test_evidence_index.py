@@ -367,3 +367,48 @@ def test_stale_words_never_match_a_new_passage_that_reuses_a_rowid(tmp_path: Pat
     store.update(project(("wall.jpg", described("render wall"))))
     assert store.bm25("p1", "brick", ALL) == []
     assert store.bm25("p1", "render", ALL) != []
+
+
+def test_a_second_first_open_waits_for_the_writer_instead_of_failing_locked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K10: the writer holds SQLite's write lock while it embeds; a second sync of the same
+    project used to give up after the busy timeout ('database is locked')."""
+    import sqlite3
+    import threading
+    import time
+
+    from app.adapters.evidence import store as store_module
+
+    real = sqlite3.connect
+    monkeypatch.setattr(
+        store_module.sqlite3, "connect", lambda *a, **k: real(*a, **{**k, "timeout": 0.1})
+    )
+    inside_embed, release = threading.Event(), threading.Event()
+
+    class Slow(Embedder):
+        def embed(self, texts: Sequence[str]) -> NDArray[np.float32]:
+            inside_embed.set()
+            assert release.wait(10)
+            return super().embed(texts)
+
+    store = index(tmp_path, Slow())
+    errors: list[BaseException] = []
+
+    def run(status: ProjectStatus) -> None:
+        try:
+            store.update(status)
+        except BaseException as error:  # collected for the assert
+            errors.append(error)
+
+    first = threading.Thread(target=run, args=(SITE,))
+    second = threading.Thread(target=run, args=(project(("a.jpg", described("a wall"))),))
+    first.start()
+    assert inside_embed.wait(10)
+    second.start()
+    time.sleep(0.5)  # well past the 0.1 s busy timeout
+    release.set()
+    first.join(10)
+    second.join(10)
+    assert errors == []
+    assert store.bm25("p1", "wall", ALL) != []
