@@ -19,6 +19,8 @@ import { useDrawingNames } from './drawingNames';
 import { ProjectReviewSide } from './ProjectReviewSide';
 import { QuantityDetail } from './QuantityDetail';
 import { TakeoffTable } from './TakeoffTable';
+import { Button } from '@/components/ui/button';
+import { DANGER, HEAD } from './ui';
 
 interface Props {
   projectId: string;
@@ -239,13 +241,15 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
             <header className="sv-panel-head">
               <h2>Takeoff: {title}</h2>
               <div className="sv-tools">
-                <a href={takeoffCsvUrl(drawingId, zq)} download>
-                  Export CSV
-                </a>
+                <Button asChild variant="secondary" className={`${HEAD} no-underline`}>
+                  <a href={takeoffCsvUrl(drawingId, zq)} download>
+                    Export CSV
+                  </a>
+                </Button>
                 {zerosToggle}
-                <button
-                  type="button"
-                  className="sv-danger"
+                <Button
+                  variant="secondary"
+                  className={`${HEAD} ${DANGER}`}
                   disabled={saving}
                   onClick={() => {
                     if (window.confirm('Reset every edit and sign-off of this drawing?'))
@@ -253,7 +257,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
                   }}
                 >
                   Reset all edits
-                </button>
+                </Button>
               </div>
               <p>
                 {signedCount} of {rows.length} quantities signed off
