@@ -1,7 +1,7 @@
 // The agent's live steps (.agents/chat/contract.md C): Server-Sent Events over a POST, read with fetch, and what the
 // pending row shows from them. Every line shown is server-written (labels, summaries, reasons); nothing is invented.
-import { ApiError, chatTurn, errorOf } from '../api';
-import type { ChatRequest, ChatTurn, Step } from './agent';
+import { ApiError, errorOf } from '../api';
+import type { ChatRequest, ChatTurn, Step, View } from './agent';
 
 type Call = { n: number; tool: string; label: string };
 
@@ -12,7 +12,7 @@ export type StreamEvent =
   | { type: 'plan'; step: number; calls: Call[] }
   | ({ type: 'tool_call' } & Call)
   | ({ type: 'tool_result' } & Step & { summary: string | null })
-  | { type: 'view'; [key: string]: unknown }
+  | { type: 'view'; view: View }
   | { type: 'checking'; status: 'ok' | 'retry'; reason: string | null }
   | { type: 'answer'; turn: ChatTurn }
   | { type: 'error'; status: number; detail: string };
@@ -45,25 +45,25 @@ export class SseParser {
   }
 }
 
-/** A message as a typed event: `answer` carries the ChatTurn as its data. */
+/** A message as a typed event: `answer` carries the ChatTurn as its data, `view` the View (contract A). */
 function eventOf(m: { event: string; data: string }): StreamEvent {
   const data = JSON.parse(m.data) as Record<string, unknown>;
   if (m.event === 'answer') return { type: 'answer', turn: data as unknown as ChatTurn };
+  if (m.event === 'view') return { type: 'view', view: data as unknown as View };
   return { ...data, type: m.event } as StreamEvent;
 }
 
 const LOST = 'The connection was lost while the agent was working. Ask again.';
 
-/** One turn over the stream route, calling `onEvent` for each event; resolves with the final ChatTurn. Falls back
- * to the sync route when the stream route is missing (404/405, or a 200 that is not a stream) or the connection
- * fails before any event. Once an event has come, never resends: the turn is running on the server. */
+/** One turn over the stream route, calling `onEvent` for each event; resolves with the final ChatTurn. Only for a
+ * server whose /api/info says `chat.stream` (the caller picks the sync route otherwise). Never resends: a lost
+ * connection may have started the turn on the server. */
 export async function streamTurn(
   projectId: string,
   body: ChatRequest,
   onEvent: (e: StreamEvent) => void,
   opts: { signal?: AbortSignal } = {},
 ): Promise<ChatTurn> {
-  const sync = () => chatTurn(projectId, body, opts);
   let response: Response;
   try {
     response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/chat/stream`, {
@@ -74,31 +74,24 @@ export async function streamTurn(
     });
   } catch (error) {
     if ((error as { name?: unknown } | null)?.name === 'AbortError') throw error;
-    return sync();
+    throw new ApiError(0, 'network', 'cannot reach the server');
   }
-  if (response.status === 404 || response.status === 405) return sync();
   if (!response.ok) throw await errorOf(response);
   const reader = response.body?.getReader();
-  if (!reader || !response.headers.get('Content-Type')?.includes('text/event-stream')) {
-    await reader?.cancel();
-    return sync();
-  }
+  if (!reader) throw new ApiError(0, 'network', LOST);
   const parser = new SseParser();
   const decoder = new TextDecoder();
-  let seen = false;
   for (;;) {
     let chunk: ReadableStreamReadResult<Uint8Array>;
     try {
       chunk = await reader.read();
     } catch (error) {
       if ((error as { name?: unknown } | null)?.name === 'AbortError') throw error;
-      if (!seen) return sync();
       throw new ApiError(0, 'network', LOST);
     }
     const text = chunk.done ? decoder.decode() : decoder.decode(chunk.value, { stream: true });
     for (const m of parser.feed(chunk.done ? `${text}\n\n` : text)) {
       const e = eventOf(m);
-      seen = true;
       onEvent(e);
       if (e.type === 'answer') {
         void reader.cancel();
@@ -109,10 +102,7 @@ export async function streamTurn(
         throw new ApiError(e.status, 'stream', e.detail);
       }
     }
-    if (chunk.done) {
-      if (!seen) return sync();
-      throw new ApiError(0, 'network', LOST);
-    }
+    if (chunk.done) throw new ApiError(0, 'network', LOST);
   }
 }
 

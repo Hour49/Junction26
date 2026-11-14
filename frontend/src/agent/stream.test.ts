@@ -1,5 +1,5 @@
-// chat-ux #2: the step stream client (.agents/chat/contract.md C): the SSE parser, the fallbacks to the sync route,
-// and the live lines from the events.
+// chat-ux #2: the step stream client (.agents/chat/contract.md C): the SSE parser, its errors (never a resend), and
+// the live lines from the events.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api';
 import { answerTurn } from './fixtures';
@@ -7,6 +7,17 @@ import { LIVE_START, liveStep, SseParser, streamTurn, type StreamEvent } from '.
 
 const PID = 'p1';
 const BODY = { message: 'How many doors?' };
+
+/** show_on_plan's view (contract A), as the server sends it mid-turn. */
+const VIEW = {
+  drawing_id: 'd1',
+  name: 'Plan 1',
+  page: 1,
+  box: [0.1, 0.1, 0.3, 0.3],
+  marks: [{ n: 1, label: 'Kitchen', box: [0.12, 0.12, 0.28, 0.28], polygon: null }],
+  caption: 'The kitchen',
+  source: 'show_on_plan',
+};
 
 /** contract.md C's fixture, as the server writes it. */
 const FIXTURE = [
@@ -16,6 +27,7 @@ const FIXTURE = [
   ': ping\n\n',
   'event: tool_call\ndata: {"n":1,"tool":"ask_drawings","label":"Asked the drawings: How many doors?"}\n\n',
   'event: tool_result\ndata: {"n":1,"tool":"ask_drawings","label":"Asked the drawings: How many doors?","status":"ok","ms":812.4,"summary":"Scanned plan 1: 19 doors (Low)"}\n\n',
+  `event: view\ndata: ${JSON.stringify(VIEW)}\n\n`,
   'event: thinking\ndata: {"step":2}\n\n',
   'event: checking\ndata: {"status":"ok","reason":null}\n\n',
   `event: answer\ndata: ${JSON.stringify(answerTurn)}\n\n`,
@@ -81,11 +93,13 @@ describe('streamTurn', () => {
       'plan',
       'tool_call',
       'tool_result',
+      'view',
       'thinking',
       'checking',
       'answer',
     ]);
     expect(seen[0]).toEqual({ type: 'turn', chat_id: '3fa1c2d4e5f6', turn: 1 });
+    expect(seen[5]).toEqual({ type: 'view', view: VIEW });
     expect(urls).toEqual([STREAM]);
   });
 
@@ -100,28 +114,19 @@ describe('streamTurn', () => {
     expect((init.headers as Record<string, string>).Accept).toBe('text/event-stream');
   });
 
-  it.each([404, 405])(
-    'a server without the stream route (%i) gets the sync POST',
-    async (status) => {
-      const urls = routes(() => json(status, { detail: 'Not Found', code: 'not_found' }));
-      expect(await streamTurn(PID, BODY, () => undefined)).toEqual(answerTurn);
-      expect(urls).toEqual([STREAM, SYNC]);
-    },
-  );
-
-  it('a 200 that is not an event stream gets the sync POST', async () => {
-    const urls = routes(() => json(200, answerTurn));
-    expect(await streamTurn(PID, BODY, () => undefined)).toEqual(answerTurn);
-    expect(urls).toEqual([STREAM, SYNC]);
-  });
-
-  it('a connection that fails before any event gets the sync POST', async () => {
+  it('a connection that fails before any event is a network error, never resent to the sync route', async () => {
     const urls = routes(() => Promise.reject(new TypeError('Failed to fetch')));
-    expect(await streamTurn(PID, BODY, () => undefined)).toEqual(answerTurn);
-    expect(urls).toEqual([STREAM, SYNC]);
+    await expect(streamTurn(PID, BODY, () => undefined)).rejects.toMatchObject({
+      status: 0,
+      code: 'network',
+    });
     const urls2 = routes(() => sse([': ping\n\n'], true));
-    expect(await streamTurn(PID, BODY, () => undefined)).toEqual(answerTurn);
-    expect(urls2).toEqual([STREAM, SYNC]);
+    await expect(streamTurn(PID, BODY, () => undefined)).rejects.toMatchObject({
+      status: 0,
+      code: 'network',
+    });
+    expect(urls).toEqual([STREAM]);
+    expect(urls2).toEqual([STREAM]);
   });
 
   it('a connection lost after the turn started is an error and is never resent', async () => {
@@ -149,11 +154,14 @@ describe('streamTurn', () => {
     });
   });
 
-  it('an HTTP error before the turn (409 a turn is still running) is that error, not a resend', async () => {
-    const urls = routes(() => json(409, { detail: 'a turn is still running', code: 'busy' }));
+  it.each([
+    [409, 'a turn is still running'],
+    [404, 'project p1 not found'],
+  ])('an HTTP error before the turn (%i) is that error, not a resend', async (status, detail) => {
+    const urls = routes(() => json(status, { detail, code: 'x' }));
     await expect(streamTurn(PID, BODY, () => undefined)).rejects.toMatchObject({
-      status: 409,
-      detail: 'a turn is still running',
+      status,
+      detail,
     });
     expect(urls).toEqual([STREAM]);
   });

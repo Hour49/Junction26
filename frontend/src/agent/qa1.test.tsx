@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { drawing, info, project } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
-import { mockApi, reply } from '../test/mockApi';
+import { mockApi } from '../test/mockApi';
 import { blocksOf, inlineOf, roomName, type ChatTurn, type LawCheck } from './agent';
 import { AgentChat } from './AgentChat';
 import { EditCard } from './EditCard';
@@ -212,7 +212,6 @@ it('answers-5 the thread survives leaving the chat ("Show it") and the next turn
       ]),
     ),
     [chat]: answerTurn,
-    [`${chat}/stream`]: reply(404, { detail: 'Not Found', code: 'not_found' }), // no stream route: the sync POST (chat-ux #2)
   };
   mockApi(routes);
   const first = render(<AgentChat projectId={PID} query={new URLSearchParams('ask=How big?')} />);
@@ -227,7 +226,7 @@ it('answers-5 the thread survives leaving the chat ("Show it") and the next turn
   fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'And the bedroom?' } });
   fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
   await screen.findAllByText(/is 7.56 m²/);
-  expect(api.calls.find((c) => c.method === 'POST' && c.url.endsWith('/chat'))?.body).toEqual({
+  expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual({
     chat_id: answerTurn.chat_id,
     message: 'And the bedroom?',
   });

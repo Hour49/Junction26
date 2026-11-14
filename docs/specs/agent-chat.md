@@ -192,11 +192,12 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   lists each tool as the server labels it: planned (open circle), running (spinner, still under reduced motion),
   then ✓ or ✗ with the server's `summary`; under them what it does now: "Thinking…", "Checking the answer…", or
   "Checking again: <reason>" after a `checking` retry; "Working on it…" before the first event. The `answer` event's
-  ChatTurn replaces the row as the sync reply did. A new chat's id is taken from the `turn` event. Fallback to the
-  sync `POST .../chat`: the stream route answers 404/405, a 200 that is not `text/event-stream`, or the connection
-  fails before any event. Once an event has come, never resent: a lost connection or an `error` event shows the
-  error row; asking again continues the chat. [unit `stream.test.ts`; component `live.test.tsx`; browser with a
-  streaming mock backend, 1440 and 390]
+  ChatTurn replaces the row as the sync reply did. A new chat's id is taken from the `turn` event. A `view` event
+  (show_on_plan) moves the plan (AC-36) while the turn runs; the answer's own view has the last word. The stream is
+  used only when `GET /api/info` says `chat.stream`; otherwise (false, or an older server without it) the sync
+  `POST .../chat`. Never resent to either route: an HTTP error, a lost connection or an `error` event shows the
+  error row; asking again continues the chat. [unit `stream.test.ts`; component `live.test.tsx`, `plan.test.tsx`;
+  browser with a streaming mock backend, 1440 and 390]
 
 ## 4. Tests
 

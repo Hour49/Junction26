@@ -1,7 +1,8 @@
 // chat-ux #2: the pending row shows the agent's steps as the stream's events arrive (contract C).
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
-import { drawing, project } from '../api/fixtures';
+import { drawing, info, project } from '../api/fixtures';
+import { InfoProvider } from '../shell/info';
 import { mockApi } from '../test/mockApi';
 import { AgentChat } from './AgentChat';
 import { answerTurn, model } from './fixtures';
@@ -17,12 +18,21 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
+/** /api/info of a server with the stream route (`chat.stream`), as the backend's fixture, and of one without. */
+const streaming = {
+  ...info,
+  chat: { model: 'gemini', available: true, reason: null, stream: true },
+};
+const noStream = { ...info, chat: { ...streaming.chat, stream: false } };
+
 /** The chat with the stream route held open: `push` sends one event, `fail` breaks the connection. */
-function open() {
+async function open(server: unknown = streaming) {
   // one held-open stream per request; push and fail act on the newest
   let ctl!: ReadableStreamDefaultController<Uint8Array>;
   const api = mockApi({
+    'GET /api/info': server,
     [`GET /api/projects/${PID}`]: project,
+    [`POST /api/projects/${PID}/chat`]: answerTurn,
     ...Object.fromEntries<unknown>(
       project.drawings.flatMap((d) => [
         [`GET /api/drawings/${d.drawing_id}`, drawing],
@@ -43,7 +53,15 @@ function open() {
   vi.stubGlobal('fetch', (url: string, init?: RequestInit) =>
     url.endsWith('/chat/stream') ? stream(init) : api.fetch(url, init),
   );
-  render(<AgentChat projectId={PID} />);
+  render(
+    <InfoProvider>
+      <AgentChat projectId={PID} />
+    </InfoProvider>,
+  );
+  // /api/info has answered before the first ask
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
   const push = async (event: string, data: unknown) => {
     await act(async () => {
       ctl.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
@@ -72,7 +90,7 @@ const lines = () =>
 const call = { n: 1, tool: 'ask_drawings', label: 'Asked the drawings: How many doors?' };
 
 it('each step shows as it is planned, runs and ends with its summary; then the answer replaces them', async () => {
-  const { push } = open();
+  const { push } = await open();
   await send('How many doors?');
   expect(await screen.findByText('Working on it…')).toBeTruthy();
   await push('turn', { chat_id: 'c1', turn: 1 });
@@ -114,7 +132,7 @@ it('each step shows as it is planned, runs and ends with its summary; then the a
 });
 
 it('a connection lost mid-turn says so, keeps the chat id, and is not sent again by itself', async () => {
-  const { push, fail, stream, api } = open();
+  const { push, fail, stream, api } = await open();
   await send('How many doors?');
   await push('turn', { chat_id: 'c1', turn: 1 });
   await push('tool_call', call);
@@ -131,4 +149,14 @@ it('a connection lost mid-turn says so, keeps the chat id, and is not sent again
   });
   await push('answer', answerTurn);
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+});
+
+it('a server whose /api/info says chat.stream false gets the sync POST, never the stream route', async () => {
+  const { stream, api } = await open(noStream);
+  await send('How many doors?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  expect(stream).not.toHaveBeenCalled();
+  expect(api.calls.filter((c) => c.method === 'POST').map((c) => c.url)).toEqual([
+    `/api/projects/${PID}/chat`,
+  ]);
 });

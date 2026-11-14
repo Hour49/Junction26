@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
+  chatTurn,
   drawingLabel,
   errorText,
   getDrawing,
@@ -12,6 +13,7 @@ import { AskBox } from '../engineer/AskBox';
 import { Suggestions } from '../engineer/DrawingHeader';
 import { askable, followUps, starters } from '../engineer/projectAsk';
 import { ErrorView } from '../shell/ErrorView';
+import { useInfo } from '../shell/info';
 import { Loading } from '../shell/Loading';
 import {
   evidenceView,
@@ -117,6 +119,12 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   useEffect(() => {
     packNow.current = pack;
   }, [pack]);
+  // chat-ux #2: the stream route only where /api/info says the server has it (contract C); read at send time.
+  const { info } = useInfo();
+  const streams = useRef(false);
+  useEffect(() => {
+    streams.current = info?.chat?.stream === true;
+  }, [info]);
   const [pointed, setPointed] = useState<Pointed[]>([]);
   const [pointing, setPointing] = useState(false);
   const chatId = useRef<string | undefined>(start.chatId);
@@ -132,27 +140,30 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         pending.current = false;
         setRows((rs) => rs.map((x) => (x.id === r.id ? r : x)));
       };
-      // chat-ux #2: the stream route with its live steps; the sync route where there is none (contract C)
-      streamTurn(
-        projectId,
-        {
-          ...(chatId.current ? { chat_id: chatId.current } : {}),
-          message: row.message,
-          ...(selection.length ? { selection } : {}),
-          ...(packNow.current ? { pack: packNow.current } : {}), // LC-11: the country picker's rule pack, as the checks screen sends it
-        },
-        (e) => {
-          // A new chat's id is known from the first event: a failure later still continues this chat.
-          if (e.type === 'turn') chatId.current = e.chat_id;
-          setRows((rs) =>
-            rs.map((x) =>
-              x.id === row.id && x.status === 'pending'
-                ? { ...x, live: liveStep(x.live ?? LIVE_START, e) }
-                : x,
-            ),
-          );
-        },
-      ).then(
+      const body = {
+        ...(chatId.current ? { chat_id: chatId.current } : {}),
+        message: row.message,
+        ...(selection.length ? { selection } : {}),
+        ...(packNow.current ? { pack: packNow.current } : {}), // LC-11: the country picker's rule pack, as the checks screen sends it
+      };
+      // chat-ux #2: the stream route with its live steps where the server has it, else the sync route (contract C)
+      const turn = streams.current
+        ? streamTurn(projectId, body, (e) => {
+            // A new chat's id is known from the first event: a failure later still continues this chat.
+            if (e.type === 'turn') chatId.current = e.chat_id;
+            // show_on_plan's view moves the plan while the turn runs; the answer's view has the last word.
+            if (e.type === 'view')
+              setShown({ drawingId: e.view.drawing_id, view: e.view, focus: null });
+            setRows((rs) =>
+              rs.map((x) =>
+                x.id === row.id && x.status === 'pending'
+                  ? { ...x, live: liveStep(x.live ?? LIVE_START, e) }
+                  : x,
+              ),
+            );
+          })
+        : chatTurn(projectId, body);
+      turn.then(
         (turn) => {
           chatId.current = turn.chat_id;
           settle({ ...row, status: 'done', turn });
