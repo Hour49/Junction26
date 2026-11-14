@@ -30,8 +30,10 @@ RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normali
 TriageClassifierName = Literal["off", "rules", "siglip"]
 SheetKindName = Literal["off", "carbon"]
 # gemini: gemini-3.5-flash fills the description form and its long text, GEMINI_API_KEY's
-# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/)
-TriageDescriberName = Literal["off", "gemini"]
+# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/).
+# carbon: the same with gemini-4-carbon at thinking low (rag's pilot), 4 / 20 USD per M tokens;
+# it needs GEMINI_TIMEOUT_S of 45 s or more
+TriageDescriberName = Literal["off", "gemini", "carbon"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query

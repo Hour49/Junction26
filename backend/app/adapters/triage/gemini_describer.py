@@ -55,7 +55,7 @@ from pydantic import ValidationError
 
 from app.adapters.eight_bit import eight_bit
 from app.adapters.pdfium_lock import PDFIUM
-from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, price, reply_text
+from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, reply_text
 from app.adapters.whole_file import write_whole
 from app.core import cost
 from app.core.contacts import without_contacts
@@ -67,6 +67,15 @@ log = logging.getLogger(__name__)
 
 MODEL = "gemini-3.5-flash"
 THINKING = "minimal"  # 0 thought tokens; the pilot's form was right on 18 of 20
+USD_PER_M = (1.50, 9.00)  # Flash: input, output (thinking counts as output)
+# TRIAGE_DESCRIBER: model, thinking level, USD per million tokens in and out. carbon: rag's pilot
+# (.agents/exp/rag-evidence.md 7.8) picked it, 5 of 5 right on the form, the home address and the
+# sheet number and title (Flash leaked the address on 1 of 5), with describe-6 as it is
+DESCRIBERS: dict[str, tuple[str, str, tuple[float, float]]] = {
+    "gemini": (MODEL, THINKING, USD_PER_M),
+    "carbon": ("gemini-4-carbon", "low", (4.00, 20.00)),
+}
+CARBON_MIN_TIMEOUT_S = 45.0  # Carbon took up to 45 s per reply in the pilot
 TEMPERATURE = 0.2
 MAX_SIDE = 2048
 JPEG_QUALITY = 90
@@ -228,6 +237,10 @@ class DescribeModel(Protocol):
         """The generateContent answer about the JPEG; raises `GeminiError`."""
         ...
 
+    def price(self, answer: dict[str, Any]) -> float:
+        """Dollars of one answer at this model's price."""
+        ...
+
 
 class GeminiDescribeClient:
     def __init__(
@@ -237,6 +250,7 @@ class GeminiDescribeClient:
         model: str = MODEL,
         thinking: str = THINKING,
         budget: SpendGuard | None = None,
+        usd_per_m: tuple[float, float] = USD_PER_M,
     ) -> None:
         if not api_key:
             raise InvalidInputError("GEMINI_API_KEY is empty: the Gemini describer needs a key")
@@ -245,6 +259,7 @@ class GeminiDescribeClient:
         self.thinking = thinking
         self._timeout = timeout_s
         self._budget = budget  # GEMINI_BUDGET_USD (app/core/spend.py); None: no limit
+        self._usd_per_m = usd_per_m
 
     @property
     def name(self) -> str:
@@ -252,6 +267,16 @@ class GeminiDescribeClient:
 
     def __repr__(self) -> str:
         return f"GeminiDescribeClient({self.name})"
+
+    def price(self, answer: dict[str, Any]) -> float:
+        """Dollars of one answer from its `usageMetadata` at this model's price; 0 with none."""
+        usage = answer.get("usageMetadata") or {}
+        tokens_in = int(usage.get("promptTokenCount", 0))
+        tokens_out = int(usage.get("candidatesTokenCount", 0)) + int(
+            usage.get("thoughtsTokenCount", 0)
+        )
+        usd_in, usd_out = self._usd_per_m
+        return (tokens_in * usd_in + tokens_out * usd_out) / 1e6
 
     def ask(self, jpeg: bytes) -> dict[str, Any]:
         if self._budget is not None and (refused := self._budget.exhausted()):
@@ -271,7 +296,7 @@ class GeminiDescribeClient:
         except json.JSONDecodeError:
             raise GeminiError("the answer is not JSON") from None
         if self._budget is not None:  # the describer charges the thread's trace (`cost`) itself
-            self._budget.charge(price(answer), "describer")
+            self._budget.charge(self.price(answer), "describer")
         return answer
 
 
@@ -308,7 +333,7 @@ class GeminiDescriber:
             answer = self._model.ask(jpeg)
         except GeminiError as error:
             return Unavailable(note=f"{UNAVAILABLE}: {error}")
-        usd = price(answer)
+        usd = self._model.price(answer)
         cost.charge(usd)  # a call that was paid for counts even when its reply is unusable
         try:
             form = json.loads(reply_text(answer))

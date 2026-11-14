@@ -66,7 +66,12 @@ from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
-from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
+from app.adapters.triage.gemini_describer import (
+    CARBON_MIN_TIMEOUT_S,
+    DESCRIBERS,
+    GeminiDescribeClient,
+    GeminiDescriber,
+)
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.triage.sheet_kind import (
@@ -301,11 +306,23 @@ def _triage(settings: Settings) -> TriageSteps | None:
     name += f"describer={settings.triage_describer}, judge={settings.triage_judge}"
     judge = RulesJudge() if settings.triage_judge == "rules" else None
     describer = None
-    if settings.triage_describer == "gemini":
+    if settings.triage_describer != "off":
+        model, thinking, usd_per_m = DESCRIBERS[settings.triage_describer]
+        if (
+            settings.triage_describer == "carbon"
+            and settings.gemini_timeout_s < CARBON_MIN_TIMEOUT_S
+        ):
+            raise InvalidInputError(
+                f"TRIAGE_DESCRIBER=carbon needs GEMINI_TIMEOUT_S of {CARBON_MIN_TIMEOUT_S:.0f} s "
+                f"or more: its replies take up to that long (it is {settings.gemini_timeout_s:g})"
+            )
         client = GeminiDescribeClient(
             settings.gemini_api_key.get_secret_value(),
             settings.gemini_timeout_s,
+            model=model,
+            thinking=thinking,
             budget=spend_guard(settings),
+            usd_per_m=usd_per_m,
         )
         describer = GeminiDescriber(client, settings.triage_describer_cache_dir)
     return TriageSteps(classifier=classifier, describer=describer, judge=judge, name=name)
@@ -414,7 +431,7 @@ def uses_keys(settings: Settings) -> bool:
     raster = settings.extractor_raster == "composite" and keyed
     # the describer is built only when triage is on (`_triage`)
     triage = settings.triage_classifier != "off" or settings.sheet_kind != "off"
-    describer = triage and settings.triage_describer == "gemini"
+    describer = triage and settings.triage_describer != "off"
     sheet_kind = settings.sheet_kind != "off"
     return (
         raster
