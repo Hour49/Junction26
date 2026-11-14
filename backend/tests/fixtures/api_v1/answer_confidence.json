@@ -18,7 +18,15 @@
         "width": 800,
         "height": 400,
         "rectifier": null
-      }
+      },
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": null
+      },
+      "scale_text": null,
+      "storey": null
     }
   ],
   "answer": 2,
@@ -72,7 +80,8 @@
         "value": 1.0,
         "label": "door",
         "ref": "e1",
-        "reason": null
+        "reason": null,
+        "room_type": null
       },
       {
         "id": "m2",
@@ -89,11 +98,13 @@
         "value": 1.0,
         "label": "door",
         "ref": "e2",
-        "reason": null
+        "reason": null,
+        "room_type": null
       }
     ],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": "doors"
   },
   "marks": [
     {
@@ -111,7 +122,8 @@
       "value": 1.0,
       "label": "door",
       "ref": "e1",
-      "reason": null
+      "reason": null,
+      "room_type": null
     },
     {
       "id": "m2",
@@ -128,7 +140,8 @@
       "value": 1.0,
       "label": "door",
       "ref": "e2",
-      "reason": null
+      "reason": null,
+      "room_type": null
     }
   ],
   "refusal": null,

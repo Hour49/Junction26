@@ -16,8 +16,9 @@ and a conflict no rule decides is settled by a person before it can be signed of
 """
 
 from collections.abc import Mapping, Sequence
+from typing import get_args
 
-from app.core.drawing.model import Box, Drawing, Polygon, words
+from app.core.drawing.model import Box, Drawing, ElementClass, Polygon, RoomType, words
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
 from app.core.pipeline.model import Measure, Quantity
 from app.core.pipeline.rules import ROOM_NAMES, ROOM_NUMBERS
@@ -107,6 +108,7 @@ def mark_views(quantity: Quantity, drawing: Drawing, state: ReviewState) -> tupl
     rejected = set(state.rejected.get(quantity.key, ()))
     included = set(state.included.get(quantity.key, ()))
     items = _items(drawing)
+    room_types: dict[str, RoomType] = {room.id: room.type for room in drawing.rooms}
     unplaced = unlocated_boxes(drawing)
     views: list[MarkView] = []
     number = 0
@@ -136,6 +138,7 @@ def mark_views(quantity: Quantity, drawing: Drawing, state: ReviewState) -> tupl
                 label=name,
                 ref=ref,
                 reason=reason,
+                room_type=room_types.get(ref) if ref is not None else None,
             )
         )
     for added in state.added.get(quantity.key, ()):
@@ -214,13 +217,14 @@ def row(quantity: Quantity, drawing: Drawing, state: ReviewState, rules: Mapping
     first = second = None
     if measured is not None:
         first, second = (MethodValue(method=v.method, value=v.value) for v in measured.values[:2])
+    value = current_value(quantity, views, state)
     return Row(
         key=quantity.key,
         label=label(quantity.key, drawing),
         measure=measure,
         subject=subject,
         scope=scope,
-        value=current_value(quantity, views, state),
+        value=value,
         unit=quantity.unit,
         original_value=quantity.value,
         status=status(quantity, state),
@@ -234,7 +238,19 @@ def row(quantity: Quantity, drawing: Drawing, state: ReviewState, rules: Mapping
         marks=views,
         signed=state.signed.get(quantity.key),
         unlocated=unlocated(quantity, drawing),
+        noun=noun(measure, subject, value),
     )
+
+
+UNCOUNTED = frozenset({"furniture"})  # no plural
+
+
+def noun(measure: str, subject: str, value: int | float) -> str | None:
+    """ "doors" for a count of 14 doors, "door" for 1; None unless it counts one element class."""
+    if measure != "count" or subject not in get_args(ElementClass):
+        return None
+    name = words(subject)
+    return name if value == 1 or subject in UNCOUNTED else f"{name}s"
 
 
 def status(quantity: Quantity, state: ReviewState) -> RowStatus:

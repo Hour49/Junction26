@@ -3,6 +3,8 @@
   "name": "sample-project.zip",
   "state": "done",
   "created_at": "2026-11-14T08:00:00+00:00",
+  "started_at": "2026-11-14T08:00:00+00:00",
+  "finished_at": "2026-11-14T08:00:00+00:00",
   "files": [
     {
       "id": "f1",
@@ -368,5 +370,16 @@
       "state": "ready",
       "other_renderings": []
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "path": "photos/site.jpg",
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))"
+    },
+    {
+      "path": "cad/detail.dxf",
+      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
+    }
+  ],
+  "expected_drawings": 5
 }

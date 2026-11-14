@@ -296,6 +296,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/trace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Trace
+         * @description Every file's trace in one request, in the order the upload lists the files.
+         */
+        get: operations["project_trace_api_projects__project_id__trace_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -418,6 +438,9 @@ export interface components {
             /** Quantity */
             quantity: string;
             settled: components["schemas"]["Settled"] | null;
+            signed: components["schemas"]["SignOff"] | null;
+            /** Value */
+            value: number;
         };
         /**
          * ConflictValue
@@ -588,14 +611,6 @@ export interface components {
                 [key: string]: number;
             };
         };
-        /** FileTrace */
-        FileTrace: {
-            file: components["schemas"]["FileStatus"];
-            /** Project Id */
-            project_id: string;
-            /** Stages */
-            stages: components["schemas"]["StageTrace"][];
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -664,6 +679,8 @@ export interface components {
             reason: string | null;
             /** Ref */
             ref: string | null;
+            /** Room Type */
+            room_type?: ("bedroom" | "kitchen" | "bathroom" | "wc" | "sauna" | "balcony" | "living" | "hall" | "storage" | "outdoor" | "shaft" | "other") | null;
             /**
              * State
              * @enum {string}
@@ -770,6 +787,11 @@ export interface components {
             normalised: components["schemas"]["Normalised"] | null;
             /** Page */
             page: number;
+            scale: components["schemas"]["ScaleView"];
+            /** Scale Text */
+            scale_text: string | null;
+            /** Storey */
+            storey: string | null;
             /**
              * Unit
              * @enum {string}
@@ -810,6 +832,13 @@ export interface components {
              */
             state: "queued" | "running" | "done" | "failed";
         };
+        /** ProjectTrace */
+        ProjectTrace: {
+            /** Files */
+            files: components["schemas"]["TraceView"][];
+            /** Project Id */
+            project_id: string;
+        };
         /**
          * ProjectView
          * @description Ingest's project status, plus the project's drawings, one per plan.
@@ -830,11 +859,15 @@ export interface components {
             drawings: components["schemas"]["DrawingEntry"][];
             /** Error */
             error?: string | null;
+            /** Expected Drawings */
+            expected_drawings: number | null;
             /**
              * Files
              * @default []
              */
             files: components["schemas"]["FileStatus"][];
+            /** Finished At */
+            finished_at?: string | null;
             /** Id */
             id: string;
             /**
@@ -848,6 +881,10 @@ export interface components {
             readers?: {
                 [key: string]: string;
             };
+            /** Skipped */
+            skipped: components["schemas"]["Skipped"][];
+            /** Started At */
+            started_at?: string | null;
             /**
              * State
              * @enum {string}
@@ -961,6 +998,8 @@ export interface components {
             measure: "count" | "area" | "length" | "volume" | "text";
             /** Needs Person */
             needs_person: boolean;
+            /** Noun */
+            noun?: string | null;
             /** Original Value */
             original_value: number;
             rule: components["schemas"]["RuleText"];
@@ -993,6 +1032,23 @@ export interface components {
             id: string;
             /** Text */
             text: string;
+        };
+        /**
+         * ScaleView
+         * @description The sheet's scale as read. `ratio`: N of a printed "1:N", None when the text is no ratio.
+         */
+        ScaleView: {
+            /** Ratio */
+            ratio: number | null;
+            /** Source */
+            source: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "scaled" | "no_scale" | "not_to_scale" | "estimated";
+            /** Text */
+            text: string | null;
         };
         /** Schedule */
         Schedule: {
@@ -1060,6 +1116,16 @@ export interface components {
             storey?: string | null;
         };
         /**
+         * SecondCount
+         * @description What the second method did on a drawing: quantities it measured and where it disagreed.
+         */
+        SecondCount: {
+            /** Conflicts */
+            conflicts: number;
+            /** Measured */
+            measured: number;
+        };
+        /**
          * Settled
          * @description The value a surveyor chose to keep for a quantity (the `settle` action).
          */
@@ -1102,6 +1168,16 @@ export interface components {
             score: number;
             /** Signal */
             signal: string;
+        };
+        /**
+         * Skipped
+         * @description A file ingest set aside, with the reason.
+         */
+        Skipped: {
+            /** Path */
+            path: string;
+            /** Reason */
+            reason: string;
         };
         /** StageTrace */
         StageTrace: {
@@ -1172,6 +1248,18 @@ export interface components {
             quantities: components["schemas"]["Row"][];
             /** Review Queue */
             review_queue: string[];
+        };
+        /**
+         * TraceView
+         * @description A file's trace, plus its second count (None: no drawing yet, or nothing measured twice).
+         */
+        TraceView: {
+            file: components["schemas"]["FileStatus"];
+            /** Project Id */
+            project_id: string;
+            second_count: components["schemas"]["SecondCount"] | null;
+            /** Stages */
+            stages: components["schemas"]["StageTrace"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -1705,7 +1793,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FileTrace"];
+                    "application/json": components["schemas"]["TraceView"];
                 };
             };
             /** @description Validation Error */
@@ -1737,6 +1825,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectReview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_trace_api_projects__project_id__trace_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectTrace"];
                 };
             };
             /** @description Validation Error */

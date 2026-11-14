@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from app.core.drawing.model import Box, Polygon
+from app.core.drawing.model import Box, Polygon, RoomType
 from app.core.model import Frozen
 from app.core.pipeline.model import Measure, QuantityConflict, QuantityUnit
 
@@ -79,6 +79,7 @@ class MarkView(Frozen):
     label: str | None
     ref: str | None
     reason: str | None  # why it is left out (state excluded)
+    room_type: RoomType | None = None  # a room's type; None: no room (an element, an added mark)
 
 
 class RuleText(Frozen):
@@ -127,6 +128,9 @@ class Row(Frozen):
     # Counted by a second reader with no position of its own (decide's count swap adds elements
     # with `attrs.located` false), per class: in `value`, never drawn as a mark
     unlocated: dict[str, int] = Field(default_factory=dict[str, int])
+    # What a count is a count of, as the screen writes it after the number ("doors", "door" at 1);
+    # None: not a count of one kind of thing (an area, a room type, a combined count)
+    noun: str | None = None
 
 
 class Refusal(Frozen):

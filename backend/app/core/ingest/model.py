@@ -139,6 +139,10 @@ class ProjectStatus(Frozen):
     name: str
     state: ProjectState
     created_at: str  # ISO 8601, UTC
+    started_at: str | None = (
+        None  # ISO 8601, UTC: when the run began (after the queue); None: not yet
+    )
+    finished_at: str | None = None  # ISO 8601, UTC: when it ended, done or failed; None: not yet
     files: tuple[FileStatus, ...] = ()
     counts: dict[FileState, int] = Field(default_factory=dict[FileState, int])
     readers: dict[str, str] = Field(default_factory=dict[str, str])  # route -> adapter name

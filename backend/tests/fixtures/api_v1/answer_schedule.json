@@ -9,7 +9,15 @@
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/5c4ed01e00000001/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": "no scale text and no scale bar on the sheet"
+      },
+      "scale_text": null,
+      "storey": null
     }
   ],
   "answer": "2'-8\" wide x 7'-0\" high",
@@ -32,7 +40,8 @@
       "value": null,
       "label": null,
       "ref": null,
-      "reason": null
+      "reason": null,
+      "room_type": null
     }
   ],
   "refusal": null,

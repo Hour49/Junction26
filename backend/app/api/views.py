@@ -2,13 +2,21 @@
 so /openapi.json describes every response; unknown fields are refused so a fixture that drifts
 from the code fails its test (tests/api/test_api_fixtures.py)."""
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
 from app.composition import second_counter_of
-from app.core.drawing.model import Page
-from app.core.ingest.model import DrawingInfo, FileState, Normalised, ProjectStatus
+from app.core.drawing.model import Drawing, ScaleStatus
+from app.core.ingest.model import (
+    DRAWING_KINDS,
+    DrawingInfo,
+    FileState,
+    FileTrace,
+    Normalised,
+    ProjectStatus,
+)
 from app.core.pipeline.model import Route
 
 
@@ -24,6 +32,15 @@ class ErrorBody(View):
     errors: list[dict[str, object]] | None = None
 
 
+class ScaleView(View):
+    """The sheet's scale as read. `ratio`: N of a printed "1:N", None when the text is no ratio."""
+
+    status: ScaleStatus
+    text: str | None
+    ratio: float | None
+    source: str | None
+
+
 class PageView(View):
     page: int
     width: float
@@ -31,22 +48,48 @@ class PageView(View):
     unit: Literal["px", "pt"]
     url: str
     normalised: Normalised | None  # how an image sheet was made upright; None for a PDF page
+    scale: ScaleView  # the drawing's scale, the same on each of its pages
+    scale_text: str | None  # the printed scale, "1:100"; None: none printed or found
+    storey: str | None  # the storey of the plan on this page; None: no plan, or several storeys
 
 
-def page_views(
-    drawing_id: str, pages: tuple[Page, ...], normalised: Normalised | None
-) -> list[PageView]:
-    return [
-        PageView(
-            page=page.page,
-            width=page.width,
-            height=page.height,
-            unit=page.unit,
-            url=f"/api/drawings/{drawing_id}/pages/{page.page}.png",
-            normalised=normalised,
+RATIO = re.compile(r"\s*1\s*[:/]\s*(\d+(?:\.\d+)?)\s*")
+
+
+def scale_view(drawing: Drawing) -> ScaleView:
+    scale = drawing.scale
+    found = None if scale.text is None else RATIO.fullmatch(scale.text)
+    return ScaleView(
+        status=scale.status,
+        text=scale.text,
+        ratio=None if found is None else float(found.group(1)),
+        source=scale.source,
+    )
+
+
+def page_views(drawing_id: str, drawing: Drawing, normalised: Normalised | None) -> list[PageView]:
+    scale = scale_view(drawing)
+    views: list[PageView] = []
+    for page in drawing.pages:
+        storeys = {
+            str(plan.storey)
+            for plan in drawing.plans
+            if plan.page == page.page and plan.storey is not None
+        }
+        views.append(
+            PageView(
+                page=page.page,
+                width=page.width,
+                height=page.height,
+                unit=page.unit,
+                url=f"/api/drawings/{drawing_id}/pages/{page.page}.png",
+                normalised=normalised,
+                scale=scale,
+                scale_text=scale.text,
+                storey=next(iter(storeys)) if len(storeys) == 1 else None,
+            )
         )
-        for page in pages
-    ]
+    return views
 
 
 class Reader(View):
@@ -98,7 +141,63 @@ class DrawingEntry(View):
     other_renderings: list[Rendering]
 
 
+class Skipped(View):
+    """A file ingest set aside, with the reason."""
+
+    path: str
+    reason: str
+
+
 class ProjectView(ProjectStatus):
     """Ingest's project status, plus the project's drawings, one per plan."""
 
     drawings: tuple[DrawingEntry, ...]
+    skipped: tuple[Skipped, ...]  # the files set aside, in upload order
+    # The drawings the upload holds, one per group of renderings, counted from the files identified
+    # so far: it can grow until ingest has identified every file. None while the project is queued.
+    expected_drawings: int | None
+
+
+def skipped_of(status: ProjectStatus) -> tuple[Skipped, ...]:
+    return tuple(
+        Skipped(path=file.path, reason=file.reason)
+        for file in status.files
+        if file.state == "set_aside"
+    )
+
+
+def expected_drawings_of(status: ProjectStatus) -> int | None:
+    """The groups of drawing files not set aside, where groups holding the same content (a copy
+    under another name) are one drawing, as `drawings_of` lists them."""
+    if status.state == "queued":
+        return None
+    groups: dict[str, set[str]] = {}
+    for file in status.files:
+        if file.kind in DRAWING_KINDS and file.state != "set_aside":
+            groups.setdefault(file.group or file.path, set()).add(file.sha256 or file.path)
+    drawings: list[set[str]] = []
+    for contents in groups.values():
+        same = [found for found in drawings if found & contents]
+        for found in same:
+            drawings.remove(found)
+            contents = contents | found
+        drawings.append(contents)
+    return len(drawings)
+
+
+class SecondCount(View):
+    """What the second method did on a drawing: quantities it measured and where it disagreed."""
+
+    measured: int
+    conflicts: int
+
+
+class TraceView(FileTrace):
+    """A file's trace, plus its second count (None: no drawing yet, or nothing measured twice)."""
+
+    second_count: SecondCount | None
+
+
+class ProjectTrace(View):
+    project_id: str
+    files: list[TraceView]

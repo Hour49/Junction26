@@ -9,7 +9,15 @@
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "answer": 30.0,
@@ -116,11 +124,13 @@
         "value": 30.0,
         "label": "Küche",
         "ref": "r1",
-        "reason": null
+        "reason": null,
+        "room_type": "kitchen"
       }
     ],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": null
   },
   "marks": [
     {
@@ -155,7 +165,8 @@
       "value": 30.0,
       "label": "Küche",
       "ref": "r1",
-      "reason": null
+      "reason": null,
+      "room_type": "kitchen"
     }
   ],
   "refusal": null,

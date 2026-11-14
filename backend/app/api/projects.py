@@ -16,11 +16,21 @@ from app.adapters.page_render import render_upload
 from app.api.deps import FileId, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep
 from app.api.drawings import IMMUTABLE, checked_width
 from app.api.takeoff import takeoff_rows
-from app.api.views import DrawingEntry, ProjectView, Rendering, View
+from app.api.views import (
+    DrawingEntry,
+    ProjectTrace,
+    ProjectView,
+    Rendering,
+    SecondCount,
+    TraceView,
+    View,
+    expected_drawings_of,
+    skipped_of,
+)
 from app.core.errors import NotFoundError
 from app.core.ingest.model import FileStatus, FileTrace, ProjectStatus
 from app.core.pipeline.model import QuantityConflict
-from app.core.review.model import ReviewState, Settled
+from app.core.review.model import ReviewState, Settled, SignOff
 from app.core.review.ports import ReviewStore
 from app.core.review.review import disputes, reset
 from scripts.make_sample_archive import build_archive
@@ -73,6 +83,8 @@ class ConflictEntry(View):
     conflict: QuantityConflict
     settled: Settled | None
     needs_person: bool
+    signed: SignOff | None  # the sign-off, when a person signed the value off
+    value: int | float  # the value in use: edits applied, the settled value if one was chosen
 
 
 class ProjectReview(View):
@@ -193,12 +205,40 @@ def sample(
 @router.get("/{project_id}")
 def project(project_id: ProjectId, ingest: IngestDep) -> ProjectView:
     status = ingest.status(project_id)
-    return ProjectView(**status.model_dump(), drawings=drawings_of(status))
+    return ProjectView(
+        **status.model_dump(),
+        drawings=drawings_of(status),
+        skipped=skipped_of(status),
+        expected_drawings=expected_drawings_of(status),
+    )
 
 
 @router.get("/{project_id}/files/{file_id}/trace")
-def trace(project_id: ProjectId, file_id: FileId, ingest: IngestDep) -> FileTrace:
-    return ingest.trace(project_id, file_id)
+def trace(project_id: ProjectId, file_id: FileId, ingest: IngestDep) -> TraceView:
+    return trace_view(ingest.trace(project_id, file_id), ingest)
+
+
+@router.get("/{project_id}/trace")
+def project_trace(project_id: ProjectId, ingest: IngestDep) -> ProjectTrace:
+    """Every file's trace in one request, in the order the upload lists the files."""
+    return ProjectTrace(
+        project_id=project_id,
+        files=[trace_view(found, ingest) for found in ingest.traces(project_id)],
+    )
+
+
+def trace_view(found: FileTrace, ingest: Ingest) -> TraceView:
+    """The trace with its file's second count, read from the drawing's conflicts."""
+    second = None
+    drawing_id = found.file.drawing_id
+    if drawing_id is not None:
+        measured = ingest.drawing(drawing_id).conflicts
+        if measured is not None:
+            second = SecondCount(
+                measured=len(measured),
+                conflicts=sum(entry.status == "conflict" for entry in measured),
+            )
+    return TraceView(**dict(found), second_count=second)
 
 
 @router.get(
@@ -246,6 +286,8 @@ def project_review(project_id: ProjectId, ingest: IngestDep, reviews: ReviewsDep
                 conflict=row.conflict,
                 settled=row.settled,
                 needs_person=row.needs_person,
+                signed=row.signed,
+                value=row.value,
             )
             for row in disputes(found.quantities)
             if row.conflict is not None  # always: narrows the type

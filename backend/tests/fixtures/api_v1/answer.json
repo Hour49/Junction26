@@ -9,7 +9,15 @@
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "answer": 2,
@@ -59,7 +67,8 @@
         "value": 1.0,
         "label": "door",
         "ref": "e1",
-        "reason": null
+        "reason": null,
+        "room_type": null
       },
       {
         "id": "m2",
@@ -76,11 +85,13 @@
         "value": 1.0,
         "label": "door",
         "ref": "e2",
-        "reason": null
+        "reason": null,
+        "room_type": null
       }
     ],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": "doors"
   },
   "marks": [
     {
@@ -98,7 +109,8 @@
       "value": 1.0,
       "label": "door",
       "ref": "e1",
-      "reason": null
+      "reason": null,
+      "room_type": null
     },
     {
       "id": "m2",
@@ -115,7 +127,8 @@
       "value": 1.0,
       "label": "door",
       "ref": "e2",
-      "reason": null
+      "reason": null,
+      "room_type": null
     }
   ],
   "refusal": null,

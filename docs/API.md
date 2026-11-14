@@ -231,6 +231,8 @@ Ingest's project status, plus `drawings`:
   "name": "sample-project.zip",
   "state": "done",
   "created_at": "2026-11-14T08:00:00+00:00",
+  "started_at": "2026-11-14T08:00:00+00:00",
+  "finished_at": "2026-11-14T08:00:00+00:00",
   "files": [
     {
       "id": "f1",
@@ -596,7 +598,18 @@ Ingest's project status, plus `drawings`:
       "state": "ready",
       "other_renderings": []
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "path": "photos/site.jpg",
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))"
+    },
+    {
+      "path": "cad/detail.dxf",
+      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
+    }
+  ],
+  "expected_drawings": 5
 }
 ```
 
@@ -637,6 +650,8 @@ after a restart cut that run off:
   "name": "plan.pdf",
   "state": "running",
   "created_at": "2026-11-14T08:00:00+00:00",
+  "started_at": "2026-11-14T08:00:00+00:00",
+  "finished_at": null,
   "files": [
     {
       "id": "f1",
@@ -675,7 +690,9 @@ after a restart cut that run off:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
-  "drawings": []
+  "drawings": [],
+  "skipped": [],
+  "expected_drawings": 1
 }
 ```
 
@@ -686,6 +703,8 @@ after a restart cut that run off:
   "name": "plan.pdf",
   "state": "failed",
   "created_at": "2026-11-14T08:00:00+00:00",
+  "started_at": "2026-11-14T08:00:00+00:00",
+  "finished_at": null,
   "files": [
     {
       "id": "f1",
@@ -724,7 +743,14 @@ after a restart cut that run off:
   "error": "the server restarted during ingest",
   "ms": 12.5,
   "cost_usd": 0.0,
-  "drawings": []
+  "drawings": [],
+  "skipped": [
+    {
+      "path": "plan.pdf",
+      "reason": "not ingested: the server restarted during ingest"
+    }
+  ],
+  "expected_drawings": 0
 }
 ```
 
@@ -906,7 +932,11 @@ after a restart cut that run off:
       "failure": null,
       "cost_usd": 0.0
     }
-  ]
+  ],
+  "second_count": {
+    "measured": 5,
+    "conflicts": 0
+  }
 }
 ```
 
@@ -952,6 +982,1277 @@ stage carries `failure`, and later stages are not run:
       "output": "",
       "failure": "unsafe path: it could be written outside the project folder",
       "cost_usd": 0.0
+    }
+  ],
+  "second_count": null
+}
+```
+
+### `GET /api/projects/{project_id}/trace`
+
+Every file's trace (the same object as the per-file route, `second_count` included) in one request, in the order the
+upload lists the files, instead of one request per file.
+
+<!-- fixture: project_trace.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d4f",
+  "files": [
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f1",
+        "path": "plans/flat-a.pdf",
+        "size": 2263,
+        "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
+        "kind": "pdf_vector",
+        "state": "ready",
+        "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+        "group": "plans/flat-a",
+        "route": "vector",
+        "source": "plans/flat-a.pdf",
+        "drawing_id": "adeefbbcc17559fc",
+        "reused": false,
+        "takeoff": {
+          "apartment": 1,
+          "area:apartment": 52.27,
+          "area:apartment|apartment=a": 52.27,
+          "area:room": 64.714,
+          "area:room:balcony|largest": 12.445,
+          "area:room:bathroom|largest": 12.445,
+          "area:room:kitchen|largest": 22.401,
+          "area:room:other|largest": 14.934,
+          "area:room:storage|largest": 2.489,
+          "area:room|indoor": 52.269,
+          "area:room|label=bad": 12.445,
+          "area:room|label=bad|largest": 12.445,
+          "area:room|label=balkon": 12.445,
+          "area:room|label=balkon|largest": 12.445,
+          "area:room|label=küche": 22.401,
+          "area:room|label=küche|largest": 22.401,
+          "area:room|label=reduit": 2.489,
+          "area:room|label=reduit|largest": 2.489,
+          "area:room|label=zimmer": 14.934,
+          "area:room|label=zimmer|largest": 14.934,
+          "area:room|name=1.01": 22.401,
+          "area:room|name=1.02": 2.489,
+          "area:room|name=1.03": 12.445,
+          "area:room|name=1.04": 12.445,
+          "area:room|name=1.05": 14.934,
+          "area:room|name=bad": 12.445,
+          "area:room|name=balkon": 12.445,
+          "area:room|name=küche": 22.401,
+          "area:room|name=reduit": 2.489,
+          "area:room|name=zimmer": 14.934,
+          "bathtub": 1,
+          "door": 2,
+          "length:room:balcony": 7.056,
+          "length:room:bathroom": 3.528,
+          "length:room:kitchen": 7.056,
+          "length:room:other": 4.233,
+          "length:room:storage": 1.764,
+          "length:room|name=1.01": 7.056,
+          "length:room|name=1.02": 1.764,
+          "length:room|name=1.03": 3.528,
+          "length:room|name=1.04": 7.056,
+          "length:room|name=1.05": 4.233,
+          "length:room|name=bad": 3.528,
+          "length:room|name=balkon": 7.056,
+          "length:room|name=küche": 7.056,
+          "length:room|name=reduit": 1.764,
+          "length:room|name=zimmer": 4.233,
+          "plan": 1,
+          "room": 5,
+          "room:balcony": 1,
+          "room:bathroom": 1,
+          "room:bedroom": 0,
+          "room:hall": 0,
+          "room:kitchen": 1,
+          "room:living": 0,
+          "room:other": 1,
+          "room:outdoor": 0,
+          "room:sauna": 0,
+          "room:shaft": 0,
+          "room:storage": 1,
+          "room:wc": 0,
+          "room|label=bad": 1,
+          "room|label=balkon": 1,
+          "room|label=küche": 1,
+          "room|label=reduit": 1,
+          "room|label=zimmer": 1,
+          "shower": 0,
+          "shower+bathtub": 1,
+          "sink": 1,
+          "toilet": 1,
+          "window": 2
+        },
+        "ms": 12.5,
+        "stage": "write",
+        "cost_usd": 0.0,
+        "normalised": null
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 2263 bytes",
+          "ms": 12.5,
+          "output": "plans/flat-a.pdf",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 dd2c1cfd3ebb",
+          "ms": 12.5,
+          "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+          "ms": 12.5,
+          "output": "pdf_vector",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "plans/flat-a: flat-a.pdf, flat-a.png",
+          "ms": 12.5,
+          "output": "2 file(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "vector, read from plans/flat-a.pdf",
+          "ms": 12.5,
+          "output": "vector",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "normalise",
+          "did": "1 page(s), page 1 is 600 x 400 pt",
+          "ms": 12.5,
+          "output": "1 page(s), page 1 is 600 x 400 pt",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "extract",
+          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "ms": 12.5,
+          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "second_count",
+          "did": "5 quantities measured twice, 0 conflict(s)",
+          "ms": 12.5,
+          "output": "5 quantities measured twice, 0 conflict(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "takeoff",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 71 quantities, 63 above zero",
+          "ms": 12.5,
+          "output": "takeoff: 71 quantities, 63 above zero",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "write",
+          "did": "drawing model adeefbbcc17559fc stored",
+          "ms": 12.5,
+          "output": "71 quantities",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": {
+        "measured": 5,
+        "conflicts": 0
+      }
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f2",
+        "path": "plans/flat-a.png",
+        "size": 21988,
+        "sha256": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
+        "kind": "png_plan",
+        "state": "ready",
+        "reason": "read on the vector route: 7 elements, 5 rooms, scale scaled",
+        "group": "plans/flat-a",
+        "route": "vector",
+        "source": "plans/flat-a.pdf",
+        "drawing_id": "c9b719f715357201",
+        "reused": false,
+        "takeoff": {
+          "apartment": 1,
+          "area:apartment": 52.27,
+          "area:apartment|apartment=a": 52.27,
+          "area:room": 64.714,
+          "area:room:balcony|largest": 12.445,
+          "area:room:bathroom|largest": 12.445,
+          "area:room:kitchen|largest": 22.401,
+          "area:room:other|largest": 14.934,
+          "area:room:storage|largest": 2.489,
+          "area:room|indoor": 52.269,
+          "area:room|label=bad": 12.445,
+          "area:room|label=bad|largest": 12.445,
+          "area:room|label=balkon": 12.445,
+          "area:room|label=balkon|largest": 12.445,
+          "area:room|label=küche": 22.401,
+          "area:room|label=küche|largest": 22.401,
+          "area:room|label=reduit": 2.489,
+          "area:room|label=reduit|largest": 2.489,
+          "area:room|label=zimmer": 14.934,
+          "area:room|label=zimmer|largest": 14.934,
+          "area:room|name=1.01": 22.401,
+          "area:room|name=1.02": 2.489,
+          "area:room|name=1.03": 12.445,
+          "area:room|name=1.04": 12.445,
+          "area:room|name=1.05": 14.934,
+          "area:room|name=bad": 12.445,
+          "area:room|name=balkon": 12.445,
+          "area:room|name=küche": 22.401,
+          "area:room|name=reduit": 2.489,
+          "area:room|name=zimmer": 14.934,
+          "bathtub": 1,
+          "door": 2,
+          "length:room:balcony": 7.056,
+          "length:room:bathroom": 3.528,
+          "length:room:kitchen": 7.056,
+          "length:room:other": 4.233,
+          "length:room:storage": 1.764,
+          "length:room|name=1.01": 7.056,
+          "length:room|name=1.02": 1.764,
+          "length:room|name=1.03": 3.528,
+          "length:room|name=1.04": 7.056,
+          "length:room|name=1.05": 4.233,
+          "length:room|name=bad": 3.528,
+          "length:room|name=balkon": 7.056,
+          "length:room|name=küche": 7.056,
+          "length:room|name=reduit": 1.764,
+          "length:room|name=zimmer": 4.233,
+          "plan": 1,
+          "room": 5,
+          "room:balcony": 1,
+          "room:bathroom": 1,
+          "room:bedroom": 0,
+          "room:hall": 0,
+          "room:kitchen": 1,
+          "room:living": 0,
+          "room:other": 1,
+          "room:outdoor": 0,
+          "room:sauna": 0,
+          "room:shaft": 0,
+          "room:storage": 1,
+          "room:wc": 0,
+          "room|label=bad": 1,
+          "room|label=balkon": 1,
+          "room|label=küche": 1,
+          "room|label=reduit": 1,
+          "room|label=zimmer": 1,
+          "shower": 0,
+          "shower+bathtub": 1,
+          "sink": 1,
+          "toilet": 1,
+          "window": 2
+        },
+        "ms": 12.5,
+        "stage": "write",
+        "cost_usd": 0.0,
+        "normalised": {
+          "exif": null,
+          "rotated": 0,
+          "deskew_deg": 0.0,
+          "rectified": false,
+          "quad": null,
+          "width": 1200,
+          "height": 800,
+          "rectifier": null
+        }
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 21988 bytes",
+          "ms": 12.5,
+          "output": "plans/flat-a.png",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 f73bc98a3ee5",
+          "ms": 12.5,
+          "output": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a drawing as a PNG (1200x800 px, 93% white, 99% paper, 0.0% ink)",
+          "ms": 12.5,
+          "output": "png_plan",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "plans/flat-a: flat-a.pdf, flat-a.png",
+          "ms": 12.5,
+          "output": "2 file(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "vector, read from plans/flat-a.pdf",
+          "ms": 12.5,
+          "output": "vector",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "normalise",
+          "did": "1 page(s), page 1 is 1200 x 800 px",
+          "ms": 12.5,
+          "output": "1 page(s), page 1 is 1200 x 800 px",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "extract",
+          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "ms": 12.5,
+          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "second_count",
+          "did": "5 quantities measured twice, 0 conflict(s)",
+          "ms": 12.5,
+          "output": "5 quantities measured twice, 0 conflict(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "takeoff",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 71 quantities, 63 above zero",
+          "ms": 12.5,
+          "output": "takeoff: 71 quantities, 63 above zero",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "write",
+          "did": "drawing model c9b719f715357201 stored",
+          "ms": 12.5,
+          "output": "71 quantities",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": {
+        "measured": 5,
+        "conflicts": 0
+      }
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f3",
+        "path": "plans/flat-b.pdf",
+        "size": 2262,
+        "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
+        "kind": "pdf_vector",
+        "state": "flagged",
+        "reason": "1 conflict(s) between the two methods (room_area) (7 elements, 5 rooms, scale scaled)",
+        "group": "plans/flat-b",
+        "route": "vector",
+        "source": "plans/flat-b.pdf",
+        "drawing_id": "6d153ea15dca9ab4",
+        "reused": false,
+        "takeoff": {
+          "apartment": 1,
+          "area:apartment": 52.27,
+          "area:apartment|apartment=a": 52.27,
+          "area:room": 72.313,
+          "area:room:balcony|largest": 12.445,
+          "area:room:bathroom|largest": 12.445,
+          "area:room:kitchen|largest": 30.0,
+          "area:room:other|largest": 14.934,
+          "area:room:storage|largest": 2.489,
+          "area:room|indoor": 59.868,
+          "area:room|label=bad": 12.445,
+          "area:room|label=bad|largest": 12.445,
+          "area:room|label=balkon": 12.445,
+          "area:room|label=balkon|largest": 12.445,
+          "area:room|label=küche": 30.0,
+          "area:room|label=küche|largest": 30.0,
+          "area:room|label=reduit": 2.489,
+          "area:room|label=reduit|largest": 2.489,
+          "area:room|label=zimmer": 14.934,
+          "area:room|label=zimmer|largest": 14.934,
+          "area:room|name=1.01": 30.0,
+          "area:room|name=1.02": 2.489,
+          "area:room|name=1.03": 12.445,
+          "area:room|name=1.04": 12.445,
+          "area:room|name=1.05": 14.934,
+          "area:room|name=bad": 12.445,
+          "area:room|name=balkon": 12.445,
+          "area:room|name=küche": 30.0,
+          "area:room|name=reduit": 2.489,
+          "area:room|name=zimmer": 14.934,
+          "bathtub": 1,
+          "door": 2,
+          "length:room:balcony": 7.056,
+          "length:room:bathroom": 3.528,
+          "length:room:kitchen": 7.056,
+          "length:room:other": 4.233,
+          "length:room:storage": 1.764,
+          "length:room|name=1.01": 7.056,
+          "length:room|name=1.02": 1.764,
+          "length:room|name=1.03": 3.528,
+          "length:room|name=1.04": 7.056,
+          "length:room|name=1.05": 4.233,
+          "length:room|name=bad": 3.528,
+          "length:room|name=balkon": 7.056,
+          "length:room|name=küche": 7.056,
+          "length:room|name=reduit": 1.764,
+          "length:room|name=zimmer": 4.233,
+          "plan": 1,
+          "room": 5,
+          "room:balcony": 1,
+          "room:bathroom": 1,
+          "room:bedroom": 0,
+          "room:hall": 0,
+          "room:kitchen": 1,
+          "room:living": 0,
+          "room:other": 1,
+          "room:outdoor": 0,
+          "room:sauna": 0,
+          "room:shaft": 0,
+          "room:storage": 1,
+          "room:wc": 0,
+          "room|label=bad": 1,
+          "room|label=balkon": 1,
+          "room|label=küche": 1,
+          "room|label=reduit": 1,
+          "room|label=zimmer": 1,
+          "shower": 0,
+          "shower+bathtub": 1,
+          "sink": 1,
+          "toilet": 1,
+          "window": 2
+        },
+        "ms": 12.5,
+        "stage": "write",
+        "cost_usd": 0.0,
+        "normalised": null
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 2262 bytes",
+          "ms": 12.5,
+          "output": "plans/flat-b.pdf",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 a7fce07de289",
+          "ms": 12.5,
+          "output": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+          "ms": 12.5,
+          "output": "pdf_vector",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "plans/flat-b: flat-b.pdf",
+          "ms": 12.5,
+          "output": "1 file(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "vector, read from plans/flat-b.pdf",
+          "ms": 12.5,
+          "output": "vector",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "normalise",
+          "did": "1 page(s), page 1 is 600 x 400 pt",
+          "ms": 12.5,
+          "output": "1 page(s), page 1 is 600 x 400 pt",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "extract",
+          "did": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "ms": 12.5,
+          "output": "7 elements, 5 rooms, 1 plans, scale scaled",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "second_count",
+          "did": "5 quantities measured twice, 1 conflict(s)",
+          "ms": 12.5,
+          "output": "5 quantities measured twice, 1 conflict(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "takeoff",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 71 quantities, 63 above zero",
+          "ms": 12.5,
+          "output": "takeoff: 71 quantities, 63 above zero",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "write",
+          "did": "drawing model 6d153ea15dca9ab4 stored",
+          "ms": 12.5,
+          "output": "71 quantities",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": {
+        "measured": 5,
+        "conflicts": 1
+      }
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f4",
+        "path": "scans/ground-floor.png",
+        "size": 7237,
+        "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
+        "kind": "png_plan",
+        "state": "flagged",
+        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, scale no_scale)",
+        "group": "scans/ground-floor",
+        "route": "raster",
+        "source": "scans/ground-floor.png",
+        "drawing_id": "3b3ce7db34257f63",
+        "reused": false,
+        "takeoff": {},
+        "ms": 12.5,
+        "stage": "write",
+        "cost_usd": 0.0,
+        "normalised": {
+          "exif": null,
+          "rotated": 0,
+          "deskew_deg": 0.0,
+          "rectified": false,
+          "quad": null,
+          "width": 1200,
+          "height": 850,
+          "rectifier": null
+        }
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 7237 bytes",
+          "ms": 12.5,
+          "output": "scans/ground-floor.png",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 4d70b874dd85",
+          "ms": 12.5,
+          "output": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
+          "ms": 12.5,
+          "output": "png_plan",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "scans/ground-floor: ground-floor.png",
+          "ms": 12.5,
+          "output": "1 file(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "raster, read from scans/ground-floor.png",
+          "ms": 12.5,
+          "output": "raster",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "normalise",
+          "did": "1 page(s), page 1 is 1200 x 850 px",
+          "ms": 12.5,
+          "output": "1 page(s), page 1 is 1200 x 850 px",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "extract",
+          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "ms": 12.5,
+          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "second_count",
+          "did": "0 quantities measured twice, 0 conflict(s)",
+          "ms": 12.5,
+          "output": "0 quantities measured twice, 0 conflict(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "takeoff",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 0 quantities, 0 above zero",
+          "ms": 12.5,
+          "output": "takeoff: 0 quantities, 0 above zero",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "write",
+          "did": "drawing model 3b3ce7db34257f63 stored",
+          "ms": 12.5,
+          "output": "0 quantities",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": null
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f5",
+        "path": "scans/ground-floor-copy.png",
+        "size": 7237,
+        "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
+        "kind": "png_plan",
+        "state": "flagged",
+        "reason": "no reader for the raster route yet: nothing was read (0 elements, 0 rooms, scale no_scale)",
+        "group": "scans/ground-floor-copy",
+        "route": "raster",
+        "source": "scans/ground-floor-copy.png",
+        "drawing_id": "3b3ce7db34257f63",
+        "reused": true,
+        "takeoff": {},
+        "ms": 12.5,
+        "stage": "write",
+        "cost_usd": 0.0,
+        "normalised": {
+          "exif": null,
+          "rotated": 0,
+          "deskew_deg": 0.0,
+          "rectified": false,
+          "quad": null,
+          "width": 1200,
+          "height": 850,
+          "rectifier": null
+        }
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 7237 bytes",
+          "ms": 12.5,
+          "output": "scans/ground-floor-copy.png",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 4d70b874dd85, same content as scans/ground-floor.png",
+          "ms": 12.5,
+          "output": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
+          "ms": 12.5,
+          "output": "png_plan",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "scans/ground-floor-copy: ground-floor-copy.png",
+          "ms": 12.5,
+          "output": "1 file(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "raster, read from scans/ground-floor-copy.png",
+          "ms": 12.5,
+          "output": "raster",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "cache",
+          "did": "seen before as scans/ground-floor.png (project 5e0c1a2b3d4f) with the same group and readers: reused, nothing recomputed; the stages below are from that ingest",
+          "ms": 12.5,
+          "output": "flagged",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "normalise",
+          "did": "1 page(s), page 1 is 1200 x 850 px",
+          "ms": 12.5,
+          "output": "1 page(s), page 1 is 1200 x 850 px",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "extract",
+          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "ms": 12.5,
+          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "second_count",
+          "did": "0 quantities measured twice, 0 conflict(s)",
+          "ms": 12.5,
+          "output": "0 quantities measured twice, 0 conflict(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "takeoff",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 0 quantities, 0 above zero",
+          "ms": 12.5,
+          "output": "takeoff: 0 quantities, 0 above zero",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "write",
+          "did": "drawing model 3b3ce7db34257f63 stored by that ingest",
+          "ms": 12.5,
+          "output": "0 quantities",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": null
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f6",
+        "path": "photos/plan-photo.jpg",
+        "size": 59453,
+        "sha256": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
+        "kind": "photo_plan",
+        "state": "flagged",
+        "reason": "no reader for the raster route yet: nothing was read; a phone photo, read without perspective correction (0 elements, 0 rooms, scale no_scale)",
+        "group": "photos/plan-photo",
+        "route": "raster",
+        "source": "photos/plan-photo.jpg",
+        "drawing_id": "37f6819bd17d65d9",
+        "reused": false,
+        "takeoff": {},
+        "ms": 12.5,
+        "stage": "write",
+        "cost_usd": 0.0,
+        "normalised": {
+          "exif": null,
+          "rotated": 0,
+          "deskew_deg": 0.0,
+          "rectified": false,
+          "quad": null,
+          "width": 1600,
+          "height": 1200,
+          "rectifier": null
+        }
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 59453 bytes",
+          "ms": 12.5,
+          "output": "photos/plan-photo.jpg",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 d3c1c562a56f",
+          "ms": 12.5,
+          "output": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink, camera EXIF (SyntheticPhone Model 1))",
+          "ms": 12.5,
+          "output": "photo_plan",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "photos/plan-photo: plan-photo.jpg",
+          "ms": 12.5,
+          "output": "1 file(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "raster, read from photos/plan-photo.jpg",
+          "ms": 12.5,
+          "output": "raster",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "normalise",
+          "did": "1 page(s), page 1 is 1600 x 1200 px",
+          "ms": 12.5,
+          "output": "1 page(s), page 1 is 1600 x 1200 px",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "extract",
+          "did": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "ms": 12.5,
+          "output": "0 elements, 0 rooms, 0 plans, scale no_scale",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "second_count",
+          "did": "0 quantities measured twice, 0 conflict(s)",
+          "ms": 12.5,
+          "output": "0 quantities measured twice, 0 conflict(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "takeoff",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 0 quantities, 0 above zero",
+          "ms": 12.5,
+          "output": "takeoff: 0 quantities, 0 above zero",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "write",
+          "did": "drawing model 37f6819bd17d65d9 stored",
+          "ms": 12.5,
+          "output": "0 quantities",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": null
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f7",
+        "path": "photos/site.jpg",
+        "size": 524600,
+        "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
+        "kind": "photo",
+        "state": "set_aside",
+        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+        "group": null,
+        "route": null,
+        "source": null,
+        "drawing_id": null,
+        "reused": false,
+        "takeoff": {},
+        "ms": 12.5,
+        "stage": "identify",
+        "cost_usd": 0.0,
+        "normalised": null
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 524600 bytes",
+          "ms": 12.5,
+          "output": "photos/site.jpg",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 642105ade12e",
+          "ms": 12.5,
+          "output": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+          "ms": 12.5,
+          "output": "photo",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": null
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f8",
+        "path": "model/house.ifc",
+        "size": 4886,
+        "sha256": "951a9027130b1b3a7a86e1c1b1292a582fb01c988a189f406078ed8b7cac0047",
+        "kind": "ifc",
+        "state": "ready",
+        "reason": "read on the bim route: 12 model objects",
+        "group": "model/house",
+        "route": "bim",
+        "source": "model/house.ifc",
+        "drawing_id": "1db9bcf1e67e27a3",
+        "reused": false,
+        "takeoff": {
+          "area:room|name=0.01|storey=ground floor": 30.0,
+          "area:room|name=0.02|storey=ground floor": 18.0,
+          "area:room|name=kitchen (0.02)|storey=ground floor": 18.0,
+          "area:room|name=kitchen|storey=ground floor": 18.0,
+          "area:room|name=living (0.01)|storey=ground floor": 30.0,
+          "area:room|name=living|storey=ground floor": 30.0,
+          "area:room|storey=ground floor": 48.0,
+          "area:wall|storey=ground floor": 72.8,
+          "beam": 0,
+          "beam|model": 0,
+          "beam|storey=ground floor": 0,
+          "beam|storey=ground floor|model": 0,
+          "column": 0,
+          "column|model": 0,
+          "column|storey=ground floor": 0,
+          "column|storey=ground floor|model": 0,
+          "door": 2,
+          "door|model": 2,
+          "door|storey=ground floor": 2,
+          "door|storey=ground floor|model": 2,
+          "length:wall|storey=ground floor": 28.0,
+          "railing": 0,
+          "railing|model": 0,
+          "railing|storey=ground floor": 0,
+          "railing|storey=ground floor|model": 0,
+          "room": 2,
+          "room|model": 2,
+          "room|storey=ground floor": 2,
+          "room|storey=ground floor|model": 2,
+          "slab": 1,
+          "slab|model": 1,
+          "slab|storey=ground floor": 1,
+          "slab|storey=ground floor|model": 1,
+          "stair": 0,
+          "stair|model": 0,
+          "stair|storey=ground floor": 0,
+          "stair|storey=ground floor|model": 0,
+          "volume:slab|storey=ground floor": 12.0,
+          "volume:wall|storey=ground floor": 14.56,
+          "wall": 4,
+          "wall|model": 4,
+          "wall|storey=ground floor": 4,
+          "wall|storey=ground floor|model": 4,
+          "window": 3,
+          "window|model": 3,
+          "window|storey=ground floor": 3,
+          "window|storey=ground floor|model": 3
+        },
+        "ms": 12.5,
+        "stage": "write",
+        "cost_usd": 0.0,
+        "normalised": null
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 4886 bytes",
+          "ms": 12.5,
+          "output": "model/house.ifc",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 951a9027130b",
+          "ms": 12.5,
+          "output": "951a9027130b1b3a7a86e1c1b1292a582fb01c988a189f406078ed8b7cac0047",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "first bytes: an IFC building model (STEP)",
+          "ms": 12.5,
+          "output": "ifc",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "model/house: house.ifc",
+          "ms": 12.5,
+          "output": "1 file(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "bim, read from model/house.ifc",
+          "ms": 12.5,
+          "output": "bim",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "normalise",
+          "did": "no page, a building model",
+          "ms": 12.5,
+          "output": "no page, a building model",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "extract",
+          "did": "12 model objects",
+          "ms": 12.5,
+          "output": "12 model objects",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "takeoff",
+          "did": "takeoff: 47 quantities, 31 above zero",
+          "ms": 12.5,
+          "output": "takeoff: 47 quantities, 31 above zero",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "write",
+          "did": "drawing model 1db9bcf1e67e27a3 stored",
+          "ms": 12.5,
+          "output": "47 quantities",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": null
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f9",
+        "path": "cad/detail.dxf",
+        "size": 79,
+        "sha256": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
+        "kind": "dxf",
+        "state": "set_aside",
+        "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+        "group": "cad/detail",
+        "route": "cad",
+        "source": "cad/detail.dxf",
+        "drawing_id": null,
+        "reused": false,
+        "takeoff": {},
+        "ms": 12.5,
+        "stage": "route",
+        "cost_usd": 0.0,
+        "normalised": null
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 79 bytes",
+          "ms": 12.5,
+          "output": "cad/detail.dxf",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 5fc645fa369f",
+          "ms": 12.5,
+          "output": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "first bytes: a DXF drawing",
+          "ms": 12.5,
+          "output": "dxf",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "cad/detail: detail.dxf",
+          "ms": 12.5,
+          "output": "1 file(s)",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "cad, read from cad/detail.dxf",
+          "ms": 12.5,
+          "output": "cad",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": null
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f10",
+        "path": "docs/specification.pdf",
+        "size": 1291,
+        "sha256": "91af270215243f7925863c27187149ec275efe789e6ed277a3a9da77ad86d692",
+        "kind": "pdf_text",
+        "state": "text_only",
+        "reason": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
+        "group": null,
+        "route": null,
+        "source": null,
+        "drawing_id": null,
+        "reused": false,
+        "takeoff": {},
+        "ms": 12.5,
+        "stage": "identify",
+        "cost_usd": 0.0,
+        "normalised": null
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 1291 bytes",
+          "ms": 12.5,
+          "output": "docs/specification.pdf",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 91af27021524",
+          "ms": 12.5,
+          "output": "91af270215243f7925863c27187149ec275efe789e6ed277a3a9da77ad86d692",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
+          "ms": 12.5,
+          "output": "pdf_text",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": null
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f11",
+        "path": "docs/notes.txt",
+        "size": 80,
+        "sha256": "ca6138f02cfafd870094f2e8ef9a15f39c6c8925025613a0c6465ae21f2e7a20",
+        "kind": "text",
+        "state": "text_only",
+        "reason": "plain text, 80 bytes",
+        "group": null,
+        "route": null,
+        "source": null,
+        "drawing_id": null,
+        "reused": false,
+        "takeoff": {},
+        "ms": 12.5,
+        "stage": "identify",
+        "cost_usd": 0.0,
+        "normalised": null
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 80 bytes",
+          "ms": 12.5,
+          "output": "docs/notes.txt",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 ca6138f02cfa",
+          "ms": 12.5,
+          "output": "ca6138f02cfafd870094f2e8ef9a15f39c6c8925025613a0c6465ae21f2e7a20",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "plain text, 80 bytes",
+          "ms": 12.5,
+          "output": "text",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": null
     }
   ]
 }
@@ -1044,7 +2345,9 @@ many quantities are left to review and how many are signed off, and every confli
         "status": "conflict"
       },
       "settled": null,
-      "needs_person": false
+      "needs_person": false,
+      "signed": null,
+      "value": 30.0
     }
   ]
 }
@@ -1082,7 +2385,15 @@ project that does not hold the drawing is 404.
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "suggestions": [
@@ -1174,7 +2485,15 @@ shape as `GET …/takeoff` gives it, so one component shows both:
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "answer": 2,
@@ -1224,7 +2543,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
         "value": 1.0,
         "label": "door",
         "ref": "e1",
-        "reason": null
+        "reason": null,
+        "room_type": null
       },
       {
         "id": "m2",
@@ -1241,11 +2561,13 @@ shape as `GET …/takeoff` gives it, so one component shows both:
         "value": 1.0,
         "label": "door",
         "ref": "e2",
-        "reason": null
+        "reason": null,
+        "room_type": null
       }
     ],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": "doors"
   },
   "marks": [
     {
@@ -1263,7 +2585,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
       "value": 1.0,
       "label": "door",
       "ref": "e1",
-      "reason": null
+      "reason": null,
+      "room_type": null
     },
     {
       "id": "m2",
@@ -1280,7 +2603,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
       "value": 1.0,
       "label": "door",
       "ref": "e2",
-      "reason": null
+      "reason": null,
+      "room_type": null
     }
   ],
   "refusal": null,
@@ -1421,7 +2745,15 @@ from a stand-in, not Gemini; `marks` trimmed to two):
         "width": 800,
         "height": 400,
         "rectifier": null
-      }
+      },
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": null
+      },
+      "scale_text": null,
+      "storey": null
     }
   ],
   "answer": 2,
@@ -1475,7 +2807,8 @@ from a stand-in, not Gemini; `marks` trimmed to two):
         "value": 1.0,
         "label": "door",
         "ref": "e1",
-        "reason": null
+        "reason": null,
+        "room_type": null
       },
       {
         "id": "m2",
@@ -1492,11 +2825,13 @@ from a stand-in, not Gemini; `marks` trimmed to two):
         "value": 1.0,
         "label": "door",
         "ref": "e2",
-        "reason": null
+        "reason": null,
+        "room_type": null
       }
     ],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": "doors"
   },
   "marks": [
     {
@@ -1514,7 +2849,8 @@ from a stand-in, not Gemini; `marks` trimmed to two):
       "value": 1.0,
       "label": "door",
       "ref": "e1",
-      "reason": null
+      "reason": null,
+      "room_type": null
     },
     {
       "id": "m2",
@@ -1531,7 +2867,8 @@ from a stand-in, not Gemini; `marks` trimmed to two):
       "value": 1.0,
       "label": "door",
       "ref": "e2",
-      "reason": null
+      "reason": null,
+      "room_type": null
     }
   ],
   "refusal": null,
@@ -1629,7 +2966,15 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "answer": 52.269,
@@ -1696,7 +3041,8 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
         "value": 22.401,
         "label": "Küche",
         "ref": "r1",
-        "reason": null
+        "reason": null,
+        "room_type": "kitchen"
       },
       {
         "id": "m2",
@@ -1730,11 +3076,13 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
         "value": 2.489,
         "label": "Reduit",
         "ref": "r2",
-        "reason": null
+        "reason": null,
+        "room_type": "storage"
       }
     ],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": null
   },
   "marks": [
     {
@@ -1769,7 +3117,8 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
       "value": 22.401,
       "label": "Küche",
       "ref": "r1",
-      "reason": null
+      "reason": null,
+      "room_type": "kitchen"
     },
     {
       "id": "m2",
@@ -1803,7 +3152,8 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
       "value": 2.489,
       "label": "Reduit",
       "ref": "r2",
-      "reason": null
+      "reason": null,
+      "room_type": "storage"
     }
   ],
   "refusal": null,
@@ -1945,7 +3295,8 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     "settled": null,
     "marks": [],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": "doors"
   },
   "marks": [],
   "refusal": null,
@@ -2029,7 +3380,15 @@ A question the drawing cannot answer:
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "answer": null,
@@ -2122,7 +3481,15 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "answer": 30.0,
@@ -2229,11 +3596,13 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
         "value": 30.0,
         "label": "Küche",
         "ref": "r1",
-        "reason": null
+        "reason": null,
+        "room_type": "kitchen"
       }
     ],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": null
   },
   "marks": [
     {
@@ -2268,7 +3637,8 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
       "value": 30.0,
       "label": "Küche",
       "ref": "r1",
-      "reason": null
+      "reason": null,
+      "room_type": "kitchen"
     }
   ],
   "refusal": null,
@@ -2372,7 +3742,15 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "answer": 30.0,
@@ -2479,7 +3857,8 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
         "value": 30.0,
         "label": "Küche",
         "ref": "r1",
-        "reason": null
+        "reason": null,
+        "room_type": "kitchen"
       }
     ],
     "signed": {
@@ -2487,7 +3866,8 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
       "at": "2026-11-14T08:05:00Z",
       "value": 30.0
     },
-    "unlocated": {}
+    "unlocated": {},
+    "noun": null
   },
   "marks": [
     {
@@ -2522,7 +3902,8 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
       "value": 30.0,
       "label": "Küche",
       "ref": "r1",
-      "reason": null
+      "reason": null,
+      "room_type": "kitchen"
     }
   ],
   "refusal": null,
@@ -2627,7 +4008,15 @@ rests on:
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/5c4ed01e00000001/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": "no scale text and no scale bar on the sheet"
+      },
+      "scale_text": null,
+      "storey": null
     }
   ],
   "answer": "2'-8\" wide x 7'-0\" high",
@@ -2650,7 +4039,8 @@ rests on:
       "value": null,
       "label": null,
       "ref": null,
-      "reason": null
+      "reason": null,
+      "room_type": null
     }
   ],
   "refusal": null,
@@ -2856,11 +4246,13 @@ any project, which no project shows. A project that does not hold the drawing is
           "value": 30.0,
           "label": "Küche",
           "ref": "r1",
-          "reason": null
+          "reason": null,
+          "room_type": "kitchen"
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": null
     },
     {
       "key": "door",
@@ -2906,7 +4298,8 @@ any project, which no project shows. A project that does not hold the drawing is
           "value": 1.0,
           "label": "door",
           "ref": "e1",
-          "reason": null
+          "reason": null,
+          "room_type": null
         },
         {
           "id": "m2",
@@ -2923,11 +4316,13 @@ any project, which no project shows. A project that does not hold the drawing is
           "value": 1.0,
           "label": "door",
           "ref": "e2",
-          "reason": null
+          "reason": null,
+          "room_type": null
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": "doors"
     },
     {
       "key": "area:room|indoor",
@@ -2990,7 +4385,8 @@ any project, which no project shows. A project that does not hold the drawing is
           "value": 30.0,
           "label": "Küche",
           "ref": "r1",
-          "reason": null
+          "reason": null,
+          "room_type": "kitchen"
         },
         {
           "id": "m2",
@@ -3024,11 +4420,13 @@ any project, which no project shows. A project that does not hold the drawing is
           "value": 2.489,
           "label": "Reduit",
           "ref": "r2",
-          "reason": null
+          "reason": null,
+          "room_type": "storage"
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": null
     }
   ],
   "review_queue": [
@@ -3198,7 +4596,8 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
           "value": 1.0,
           "label": "door",
           "ref": "e1",
-          "reason": null
+          "reason": null,
+          "room_type": null
         },
         {
           "id": "m2",
@@ -3215,7 +4614,8 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
           "value": 1.0,
           "label": "door",
           "ref": "e2",
-          "reason": null
+          "reason": null,
+          "room_type": null
         },
         {
           "id": "a1",
@@ -3232,11 +4632,13 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
           "value": 1.0,
           "label": null,
           "ref": null,
-          "reason": null
+          "reason": null,
+          "room_type": null
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": "doors"
     },
     {
       "key": "window",
@@ -3285,7 +4687,8 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
           "value": 1.0,
           "label": "window",
           "ref": "e3",
-          "reason": null
+          "reason": null,
+          "room_type": null
         },
         {
           "id": "m2",
@@ -3302,11 +4705,13 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
           "value": 1.0,
           "label": "window",
           "ref": "e4",
-          "reason": null
+          "reason": null,
+          "room_type": null
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": "windows"
     },
     {
       "key": "area:room|name=1.01",
@@ -3409,7 +4814,8 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
           "value": 30.0,
           "label": "Küche",
           "ref": "r1",
-          "reason": null
+          "reason": null,
+          "room_type": "kitchen"
         }
       ],
       "signed": {
@@ -3417,7 +4823,8 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
         "at": "2026-11-14T08:05:00Z",
         "value": 30.0
       },
-      "unlocated": {}
+      "unlocated": {},
+      "noun": null
     }
   ],
   "review_queue": [
@@ -3450,6 +4857,26 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (the Vellum redesign's fields, board #14), all optional:
+  - `ProjectView.started_at` / `finished_at`: ISO 8601 UTC, when the run began (after the queue) and ended,
+    done or failed; null until then. Elapsed is `now - started_at`; there is no `eta_ms` (file times differ too much to
+    estimate honestly).
+  - `ProjectView.skipped`: `[{path, reason}]`, the files with state `set_aside`, in upload order (empty list if none).
+  - `ProjectView.expected_drawings`: the drawings the upload holds, one per group of renderings and one for a copy under
+    another name, counted from the files identified so far, so it can grow until ingest has identified every file;
+    null while the project is `queued`. Final once `done`; it can be above `drawings.length` when a drawing file fails.
+  - `GET /api/projects/{id}/trace`: `{project_id, files: FileTrace[]}`, every file's trace in upload order.
+  - `second_count` on a file's trace (both trace routes): `{measured, conflicts}`, the quantities the second method
+    measured and how many of them disagree; null when the file has no drawing yet or nothing was measured twice.
+    The same numbers as the "second count" line of the trace.
+  - `PageView.scale`: `{status, text, ratio, source}` of the drawing's scale (the same on each page); `ratio` is N of
+    a printed "1:N", null when the text is no bare ratio. `PageView.scale_text`: `scale.text`. `PageView.storey`: the
+    storey of the plan on that page as text, null when the page has no plan, or plans of several storeys.
+  - `MarkView.room_type`: the room's type for a room mark, null for an element or an added mark.
+  - `Row.noun`: what a count is of, to write after the number: "doors", "door" at 1; null for an area or a count
+    that is not of one element class (rooms, combined counts). Follows the row's current `value`.
+  - `ConflictEntry.signed` (`SignOff` or null) and `ConflictEntry.value` (the value in use: edits and the
+    settled value applied).
 - 2026-11-14, additive: `line.sure` (answer_v1.1): true when the answer's `g1main` score is at or above
   its family's threshold in golden's gate file (`GATE_POLICY`, chosen on val and certified once on test),
   false below it, null when there is no score (a vector or IFC page), the family is not gated or the gate is
