@@ -154,3 +154,70 @@ def test_a_vector_total_a_schedule_shows_partial_is_never_certified() -> None:
 def test_a_schedule_s_rows_count_only_on_the_sheet_s_storey() -> None:
     no_numbers = tuple(r.model_copy(update={"attrs": {}}) for r in READ)
     assert known_quantities(drawing(no_numbers, (SCHEDULE,)))["area:room"].partial is None
+
+
+# --- refused partial (fail-1 S1 on #349): a refused room box keeps the sheet total ------------
+
+
+def boxed(at: int, label: str, box: tuple[float, float, float, float]) -> Room:
+    """A room a reader boxed, with no area of its own yet."""
+    return Room(id=f"b{at}", type="other", label=label, page=1, box=box, attrs={"reader": "gemini"})
+
+
+def measured(rooms: tuple[Room, ...], scale: Scale = SCALE) -> Drawing:
+    """The rooms measured at `scale` as the raster route does (refused boxes get no area)."""
+    from app.core.pipeline.raster_scale import rooms_with_areas
+
+    got, _ = rooms_with_areas(rooms, scale, [PAGE])
+    return Drawing(file="scan.png", pages=(PAGE,), scale=scale, rooms=tuple(got))
+
+
+HALLS = (boxed(1, "OFFICE", (0.0, 0.0, 0.5, 0.5)), boxed(2, "HALL", (0.5, 0.0, 1.0, 0.5)))
+LOBBY = boxed(3, "LOBBY", (0.1, 0.6, 0.22, 0.66))  # 0.6 x 0.3 m at 0.05 m/px: 0.18 m²
+
+
+def test_refused_partial_a_refused_room_keeps_the_total_partial_and_named() -> None:
+    from app.core.pipeline.raster_scale import AREA_REFUSED
+
+    lobby_two = boxed(4, "LOBBY", (0.5, 0.6, 1.0, 1.0))  # a second lobby, a room-sized box
+    shown = measured((*HALLS, LOBBY, lobby_two))
+    lobby = shown.rooms[2]
+    assert lobby.area_m2 is None and "smaller than any room" in str(lobby.attrs[AREA_REFUSED])
+    found = known_quantities(shown)
+    kept = [shown.rooms[at].area_m2 or 0.0 for at in (0, 1, 3)]
+    assert found["area:room"].value == pytest.approx(sum(kept))
+    assert found["area:room"].partial == Partial(counted=3, refused=("LOBBY",))
+    assert found["area:room|indoor"].partial == Partial(counted=3, refused=("LOBBY",))
+    assert "area:room|label=lobby" not in found  # a sum by label stays unknown, as before
+    got = asked(shown)
+    assert (  # after the estimate's own sentence
+        "This is the sum of the 3 rooms with a measured area; not measured: LOBBY (its box "
+        "cannot be the room); rooms the reader missed are not in it either."
+    ) in (got.answer.explanation or "")
+    assert got.level is not None and got.level.level == "low" and got.answer.sure is False
+
+
+def test_refused_partial_the_api_lists_refused_rooms_as_missing_after_the_schedule_s_once() -> None:
+    got = asked(measured((*HALLS, LOBBY)))
+    assert partial_fields(got) == {"partial": True, "rooms_counted": 2, "rooms_missing": ["LOBBY"]}
+    both = Partial(counted=2, missing=("104 LOBBY", "107 STAIR"), refused=("LOBBY", "107 STAIR"))
+    assert partial_fields(got.model_copy(update={"partial": both})) == {
+        "partial": True,
+        "rooms_counted": 2,
+        "rooms_missing": ["104 LOBBY", "107 STAIR", "LOBBY"],  # in order, no repeat
+    }
+
+
+def test_refused_partial_a_room_without_an_area_that_was_not_refused_still_gives_no_total() -> None:
+    unmeasured = room(3, "LOBBY", 1.0).model_copy(update={"area_m2": None})
+    found = known_quantities(drawing((*READ, unmeasured)))
+    assert "area:room" not in found and "area:room|indoor" not in found
+
+
+def test_refused_partial_a_room_refused_at_a_replaced_scale_is_measured_again() -> None:
+    from app.core.pipeline.raster_scale import AREA_REFUSED, rooms_with_areas
+
+    small = measured((*HALLS, LOBBY))  # refused at 0.05 m/px
+    larger = Scale(status="scaled", m_per_unit=0.2, evidence=("scale_bar",))  # 0.72 m²: a room
+    again, _ = rooms_with_areas(small.rooms, larger, [PAGE])
+    assert again[2].area_m2 is not None and AREA_REFUSED not in again[2].attrs

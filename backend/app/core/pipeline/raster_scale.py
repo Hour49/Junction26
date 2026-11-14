@@ -53,6 +53,8 @@ MIN_BOX_M2 = 0.5
 MIN_COVER = 0.1
 MIN_COVER_ROOMS = 3  # fewer boxes on a page say nothing about coverage
 REFUSED_NOTE = "room area: "  # how the note on a room the box does not measure starts
+# The attr a refused room carries (its reason): a whole-sheet total leaves it out, marked partial
+AREA_REFUSED = "area_refused"
 
 
 def door_sides(elements: Sequence[Element], pages: Sequence[Page]) -> list[float]:
@@ -90,8 +92,9 @@ def rooms_with_areas(
     rooms: Sequence[Room], scale: Scale, pages: Sequence[Page]
 ) -> tuple[list[Room], list[str]]:
     """Each room without an area gets its outline's area at `scale`, as an estimate, unless its
-    box cannot be the room (`refused_boxes`): that room keeps no area, and the notes say why. A
-    room that has an area keeps it."""
+    box cannot be the room (`refused_boxes`): that room keeps no area, `attrs[AREA_REFUSED]` and
+    the notes say why (a refusal at an earlier scale is measured again). A room that has an area
+    keeps it."""
     if scale.m_per_unit is None:
         return list(rooms), []
     by_page = {page.page: page for page in pages}
@@ -99,8 +102,16 @@ def rooms_with_areas(
     spread = math.hypot(2 * math.log1p(scale.uncertainty or 0.0), OUTLINE_SPREAD)
     out: list[Room] = []
     for room in rooms:
+        if AREA_REFUSED in room.attrs:  # refused at the scale this one replaces
+            attrs = {key: value for key, value in room.attrs.items() if key != AREA_REFUSED}
+            room = room.model_copy(update={"attrs": attrs})
         page = by_page.get(room.page)
-        if room.area_m2 is not None or page is None or room.id in refused:
+        if room.id in refused and room.area_m2 is None and page is not None:
+            out.append(
+                room.model_copy(update={"attrs": {**room.attrs, AREA_REFUSED: refused[room.id]}})
+            )
+            continue
+        if room.area_m2 is not None or page is None:
             out.append(room)
             continue
         if room.polygon is not None:

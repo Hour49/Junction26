@@ -50,6 +50,7 @@ from app.core.pipeline.model import (
     QuantityUnit,
     ValueMark,
 )
+from app.core.pipeline.raster_scale import AREA_REFUSED
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
     AS_GIVEN,
@@ -168,11 +169,21 @@ def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
     if not (read or missing):
         return
     for key, quantity in found.items():
-        if quantity.rule in PARTIAL_RULES and "label=" not in key and "name=" not in key:
+        if _whole_sheet(key, quantity.rule):
+            refused = () if quantity.partial is None else quantity.partial.refused  # _area_sum's
             partial = Partial(
-                counted=len(quantity.marks), missing=missing, read=read, schedule=schedule
+                counted=len(quantity.marks),
+                missing=missing,
+                read=read,
+                schedule=schedule,
+                refused=refused,
             )
             found[key] = quantity.model_copy(update={"partial": partial})
+
+
+def _whole_sheet(key: str, rule: str) -> bool:
+    """Whether a takeoff key is a whole-sheet room total (not a sum by label or name)."""
+    return rule in PARTIAL_RULES and "label=" not in key and "name=" not in key
 
 
 def _room_columns(table: Table) -> tuple[int, int | None] | None:
@@ -866,13 +877,22 @@ def _area_sum(
 ) -> None:
     """The total net area of `rooms`; no key when there are none or one has no area. `scale`:
     what the sheet's scale makes an estimate of (scale_estimate). `excluded`: the rooms the
-    rule left out, with the reason."""
+    rule left out, with the reason. A whole-sheet total leaves out a room whose box area was
+    refused (`AREA_REFUSED`), named in its `partial`; any other room without an area still
+    leaves the total unknown."""
+    whole = _whole_sheet(key, rule.id)
+    refused = [r for r in rooms if whole and r.area_m2 is None and AREA_REFUSED in r.attrs]
+    rooms = [r for r in rooms if not (whole and r.area_m2 is None and AREA_REFUSED in r.attrs)]
     areas = [room.area_m2 for room in rooms]
     if rooms and all(area is not None for area in areas):
         total = sum(area for area in areas if area is not None)
         marks = [_mark(room) for room in rooms]
         estimate = rooms_estimate(rooms, scale)
         _put(found, key, "area", total, marks, rule, estimate, excluded)
+        if refused:
+            names = tuple(room.label or room.id for room in refused)
+            partial = Partial(counted=len(rooms), refused=names)
+            found[key] = found[key].model_copy(update={"partial": partial})
 
 
 def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:

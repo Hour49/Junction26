@@ -18,6 +18,7 @@ from app.core.answering.model import Answer, Question
 from app.core.drawing.model import Element, Page, Room, Scale
 from app.core.errors import InvalidInputError
 from app.core.pipeline.raster_scale import (
+    AREA_REFUSED,
     BOX_RATIO,
     DOOR_M,
     FEW_DOORS,
@@ -102,7 +103,9 @@ def test_label_boxes_fixes_m1_a_box_smaller_than_any_room_gets_no_area_a_narrow_
                     polygon=((0.85, 0.0), (0.9, 0.0), (0.9, 0.05), (0.85, 0.05)))  # fmt: skip
     got, notes = rooms_with_areas([living, kitchen, apk, lobby, outlined], scale, [PAGE])
     assert [room.area_m2 is not None for room in got] == [True, True, True, False, True]
-    assert got[3] == lobby  # stays, its area unknown: never a smaller number
+    # stays, its area unknown (never a smaller number), marked refused for the sheet's totals
+    assert got[3].model_copy(update={"attrs": {}}) == lobby
+    assert str(got[3].attrs[AREA_REFUSED]).startswith("its box is 0.60 x 0.30 m")
     assert notes == [  # says what was measured, not that it is the label
         "room area: r4 not measured, its box is 0.60 x 0.30 m (0.18 m²), smaller than any room "
         "(a door leaf's footprint, 0.5 m²)"

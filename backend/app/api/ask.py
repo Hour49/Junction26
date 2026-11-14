@@ -102,7 +102,8 @@ class AnswerView(View):
     resolved: Resolved | None = Field(default=None, exclude_if=is_none)
     resolver_note: str | None = Field(default=None, exclude_if=is_none)
     # A room total that may leave rooms out: the sum of the `rooms_counted` rooms the reader
-    # found (or drawn); `rooms_missing` are the rooms a room schedule names that it lacks.
+    # found (or drawn); `rooms_missing` are the rooms not in it: those a room schedule names that
+    # it lacks, then those found whose box area was refused.
     # Left out of the JSON when it is not one
     partial: bool | None = Field(default=None, exclude_if=is_none)
     rooms_counted: int | None = Field(default=None, exclude_if=is_none)
@@ -333,5 +334,6 @@ def partial_fields(asked: Asked) -> PartialFields:
     return {
         "partial": True,
         "rooms_counted": asked.partial.counted,
-        "rooms_missing": list(asked.partial.missing),
+        # not in the sum: the rooms a schedule lists, then those whose box area was refused
+        "rooms_missing": list(dict.fromkeys((*asked.partial.missing, *asked.partial.refused))),
     }
