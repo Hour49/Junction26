@@ -1,4 +1,5 @@
 import { readerName, type DrawingView, type Suggestion } from '../api';
+import { routeLabel } from '../ingest/ingest';
 
 /** Reader ids are API values: shown by their names (`pdf` → "PDF vector reader"). */
 export function howRead({ reader }: DrawingView): string {
@@ -12,7 +13,7 @@ export function howRead({ reader }: DrawingView): string {
       : // the drawing's second counter; a question it does not count says "no second count" (preqa-b)
         `second count where a question has one: ${readerName(reader.second_counter)}`;
   return (
-    `${reader.route ?? 'no'} route, read from ${reader.source ?? 'no file'}${by}; ${second}; ` +
+    `${routeLabel(reader.route)}, read from ${reader.source ?? 'no file'}${by}; ${second}; ` +
     `questions: ${readerName(reader.question_parser)}`
   );
 }

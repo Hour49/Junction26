@@ -106,6 +106,10 @@ const href = (path: string, query: Record<string, string>, pack: string | null) 
   return `#${path}${q ? `?${q}` : ''}`;
 };
 
+/** A conflict with nothing left to settle gets a neutral word; the ask route asks on open, so it always says so. */
+const settleWord = (issue: Issue) =>
+  issue.kind !== 'conflict' ? 'Ask again' : issue.state === 'open' ? 'Settle' : 'See the conflict';
+
 /** The row's links, settling screen first; every href keeps `pack`. */
 export function routeOf(
   issue: Issue,
@@ -116,8 +120,7 @@ export function routeOf(
   const did = issue.drawing_id;
   const links: { label: string; href: string }[] = [];
   const settle = issueRoute(issue, projectId, pack);
-  if (settle)
-    links.push({ label: issue.kind === 'conflict' ? 'Settle' : 'Ask again', href: settle });
+  if (settle) links.push({ label: settleWord(issue), href: settle });
   if (issue.kind === 'set_aside' && issue.file_id)
     links.push({ label: 'Why it was set aside', href: href(`${p}/f/${issue.file_id}`, {}, pack) });
   if (did && (issue.kind === 'reading_flag' || issue.kind === 'code_check_failed')) {

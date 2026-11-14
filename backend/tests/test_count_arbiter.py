@@ -105,11 +105,32 @@ def test_the_core_reproduces_t1s_val_picks() -> None:
     )  # fmt: skip
     units = fixture["units"]
     assert sum(u["expected"] != u["base"] for u in units) >= 20  # changed picks are covered
+    above = 0
     for u in units:
         reading = Reading(u["base"], tuple(u["scores"]), u["plans"], u["second"], u["probs"])
         got = pick(model, u["family"], reading)
+        if u["base"] >= len(u["probs"]):  # T1 offline let L1 pull it down; the backend keeps it
+            above += 1
+            assert got.count == u["base"] != u["expected"]
+            continue
         assert (u["page"], u["family"], got.count) == (u["page"], u["family"], u["expected"])
         assert got.p == pytest.approx(u["expected_p"], abs=1e-6)
+    assert above == 1  # val-7's windows: base 42, T1 offline 25
+
+
+def test_a_base_above_l1s_last_class_is_kept() -> None:
+    """L1 has no class for a count above its last one, so it gives the base, base - 1 and base + 1
+    the same floored P and its own top would win: val high_quality_architectural-10483, windows
+    gold 41, base 42, picked 25 before. The base is kept there; inside L1's range it is not."""
+    coef = [0.0] * 19
+    coef[17] = 5.0  # a model that follows L1's top (feature `_top(probs) == k`)
+    fit = FamilyModel((0.0,) * 19, (1.0,) * 19, tuple(coef), 0.0)
+    model = ArbiterModel({"window": fit}, {"window": {25: 0.5}})
+    probs = [0.0] * 25 + [0.6] + [0.4 / 15] * 15  # 0..40, top 25
+    for base in (41, 42):
+        got = pick(model, "window", Reading(base, (0.9,) * base, 1, base, probs))
+        assert got.count == base
+    assert pick(model, "window", Reading(40, (0.9,) * 40, 1, 40, probs)).count == 25
 
 
 def test_the_pick_drops_the_lowest_scores_and_adds_unlocated_elements() -> None:

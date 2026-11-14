@@ -54,7 +54,8 @@ shared.md), `src/shell` (`Loading`, `ErrorView`, the country picker and `?pack=`
 5. A row without a place (no `drawing_id`, or no `page`) says so in words ("not on a drawing", "the whole drawing")
    and selecting it shows no outline: the plan panel says "This issue has no place on a drawing." (no `drawing_id`) or
    shows the drawing without a focus (IFC: `page` null).
-6. Row links go to the screens that settle the issue: conflict → "Settle" `issueRoute(issue, pid, pack)` from
+6. Row links go to the screens that settle the issue: conflict → "Settle" (when `state` is `settled` or `signed_off`:
+   "See the conflict", same route: nothing is left to settle) `issueRoute(issue, pid, pack)` from
    `src/surveyor/issueLinks.ts` (fe-surveyor, CF-34: `#/p/<pid>/conflicts?d=<did>&q=<quantity>`); refused_answer →
    "Ask again" `#/p/<pid>/d/<drawing_id>/engineer?ask=<question>` (engineer.md EN-72), or `#/p/<pid>/chat?ask=<question>`
    when `drawing_id` is null (chat.md CH-14), also through `issueRoute`; every located issue (`drawing_id` and `page` set)
@@ -187,7 +188,9 @@ Status is never colour alone: kind, severity and state each carry a word (and an
 - IS-9: A row with `drawing_id` null selected: the plan panel reads "This issue has no place on a drawing." and no
   drawing is requested. A row with `page` null shows the drawing with no `focus`. [component]
 - IS-10: Clicking a mark in the plan (`onSelect(id)`) selects that issue's row and scrolls it into view. [component]
-- IS-11: Row links per kind: conflict "Settle" and refused_answer "Ask again" are `issueRoute(issue, pid, pack)`
+- IS-11: Row links per kind: conflict "Settle" ("See the conflict" when settled or signed off) and refused_answer
+  "Ask again" (in every state: its route asks on open, EN-72/CH-14, so a neutral word would hide that) are
+  `issueRoute(issue, pid, pack)`
   (conflict → `#/p/<pid>/conflicts?d=<did>&q=<quantity>`; refused_answer → `…/d/<did>/engineer?ask=<question>`, or
   `#/p/<pid>/chat?ask=<question>` with `drawing_id` null); a located issue has "Open the drawing" →
   `#/p/<pid>/d/<did>/engineer?page=<page>&box=<x0,y0,x1,y1>`; set_aside "Why it was set aside" → `#/p/<pid>/f/<file_id>`; reading_flag and code_check_failed

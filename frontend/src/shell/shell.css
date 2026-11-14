@@ -364,12 +364,25 @@ main[tabindex='-1']:focus-visible {
   flex: 0 0 auto;
 }
 
-/* Country picker: shows a name only; the rules are not applied yet (shared.md "Pending fields"). */
+/* Country picker (shared.md "Country picker"). */
 .country {
   position: relative;
+  /* One line at every width (SH-71): the project picker gives way first; a long name ellipsises at the cap. */
+  flex: 0 0 auto;
+  max-width: 240px;
 }
 .country-button {
+  max-width: 100%;
   padding: 4px 14px 4px 12px;
+  white-space: nowrap;
+}
+.country-button svg {
+  flex-shrink: 0;
+}
+.country-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .country-button svg:last-child {
   color: var(--v-muted);

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import ifcopenshell
+import ifcopenshell.geom
 import pytest
 from ifc_models import IfcFile, Schema, Shape, box, sheet_svg
 from jsonschema import Draft202012Validator
@@ -19,6 +20,7 @@ from app.adapters.extraction_v1 import ExtractionV1Writer
 from app.adapters.ifc_model import LOOKS_FOR, IfcModelExtractor, IfcModels, IfcSecondCounter
 from app.adapters.ifc_model.objects import read_model
 from app.adapters.ifc_model.svg import read_svg
+from app.adapters.vector_pdf.ifc_render import room_type
 from app.composition import build_pipeline
 from app.core.drawing.model import MeasuredValue, ModelObject, Page, Subject
 from app.core.errors import InvalidInputError, NotFoundError
@@ -523,7 +525,7 @@ def test_a_model_asked_about_itself_gives_its_objects_and_nothing_drawn() -> Non
     alone = extractor.extract(model_file(), Sheet(file=model_file(), pages=()))
     assert (alone.method, alone.read) == ("ifc_model", LOOKS_FOR)
     assert (alone.plans, alone.elements, alone.rooms) == ((), (), ())
-    assert alone.scale.status == "no_scale"
+    assert (alone.scale.status, alone.scale.text) == ("scaled", "model units (IFC)")
     assert files.reads == [MODEL]  # neither the sheet nor its twin
     on_the_sheet = extract().model_objects or ()
     assert len(on_the_sheet) == 14
@@ -726,3 +728,186 @@ def test_without_the_ifc_reader_the_sheet_is_read_alone_and_the_model_is_set_asi
     of_sheet = json.loads((out / "demo" / "house_plan-01-level-1.pdf.json").read_text())
     assert "model_objects" not in of_sheet
     assert not (out / "demo" / "house.ifc.json").exists()
+
+
+# a space's windows (windows.py)
+
+ROOM = (box(0, 0, 4, 3), 0.0, 2.5)  # a room's solid: 4 x 3 m, 2.5 m high, on the ground
+
+
+def test_a_spaces_windows_are_the_models_by_boundary_by_shape_or_by_placement() -> None:
+    model = IfcFile()
+    one, two = model.storey("Level 1"), model.storey("Level 2")
+    bedroom = model.space(one, "1.1", "Bedroom", ROOM)
+    corridor = model.space(one, "1.2", "Corridor", (box(4, 0, 6, 3), 0.0, 2.5))
+    upstairs = model.space(two, "2.1", "Bedroom", (box(0, 0, 4, 3), 3.0, 2.5))
+    # in the bedroom's outer wall, 0.2 m outside its footprint
+    shaped = model.window(one, "shaped", solid=(box(1, -0.3, 2, -0.2), 0.9, 1.2))
+    # no shape: placed 0.1 m outside the corridor, 1.2 m high from 0.9 m up
+    placed = model.window(one, "placed", at=(5.0, -0.1, 0.9), height=1.2)
+    stated = model.window(one, "stated")  # no shape and no place: only the model's own word
+    model.boundary(bedroom, stated)
+    model.boundary(bedroom, shaped)  # said twice, by the model and by its shape: counted once
+    # above the bedroom, in the same place seen from above: the storey over it
+    above = model.window(two, "above", solid=(box(1, -0.3, 2, -0.2), 3.9, 1.2))
+    model.window(one, "far", solid=(box(1, -1.0, 2, -0.9), 0.9, 1.2))  # 0.9 m off: nobody's
+
+    spaces = {space.guid: space for space in read_model(model.ifc()).spaces}
+
+    assert spaces[bedroom].windows == (shaped, stated)  # in the file's order
+    assert spaces[corridor].windows == (placed,)
+    assert spaces[upstairs].windows == (above,)
+
+
+def test_a_space_has_no_window_only_when_every_window_of_the_model_has_a_shape() -> None:
+    def windows(*, placed_too: bool, any_window: bool = True) -> tuple[str, ...] | None:
+        model = IfcFile()
+        one = model.storey("Level 1")
+        inner = model.space(one, "1.1", "Bedroom", (box(10, 0, 14, 3), 0.0, 2.5))
+        model.space(one, "1.2", "Living", ROOM)
+        if any_window:
+            model.window(one, "shaped", solid=(box(1, -0.3, 2, -0.2), 0.9, 1.2))
+        if placed_too:
+            model.window(one, "placed", at=(30.0, 0.0, 0.9), height=1.2)
+        return next(s.windows for s in read_model(model.ifc()).spaces if s.guid == inner)
+
+    assert windows(placed_too=False) == ()  # every window has a shape, none is at this room
+    assert windows(placed_too=True) is None  # one is placed by a point only: it may be missed
+    assert windows(placed_too=False, any_window=False) is None  # the model has no windows
+
+
+def test_a_space_without_a_solid_has_the_windows_the_model_states_and_no_others() -> None:
+    model = IfcFile()
+    one = model.storey("Level 1")
+    stated = model.space(one, "1.1", "Bedroom")
+    unknown = model.space(one, "1.2", "Bedroom")
+    window = model.window(one, "shaped", solid=(box(1, -0.3, 2, -0.2), 0.9, 1.2))
+    model.boundary(stated, window)
+
+    spaces = {space.guid: space for space in read_model(model.ifc()).spaces}
+
+    assert (spaces[stated].windows, spaces[unknown].windows) == ((window,), None)
+
+
+def test_a_model_in_millimetres_places_a_shapeless_window_in_metres() -> None:
+    model = IfcFile(millimetres=True)
+    one = model.storey("Level 1")
+    bedroom = model.space(one, "1.1", "Bedroom", ROOM)
+    placed = model.window(one, "placed", at=(2.0, -0.1, 0.9), height=1.2)
+
+    (space,) = read_model(model.ifc()).spaces
+
+    assert (space.guid, space.windows) == (bedroom, (placed,))
+
+
+@pytest.mark.parametrize("millimetres", [False, True])
+def test_the_copies_of_one_window_shape_are_built_once_and_each_is_where_it_is_placed(
+    millimetres: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = IfcFile(millimetres=millimetres)
+    one = model.storey("Level 1")
+    south = model.space(one, "1.1", "Bedroom", (box(4, 0, 8, 3), 0.0, 2.5))
+    east = model.space(one, "1.2", "Bedroom", (box(24, 0, 28, 3), 0.0, 2.5))
+    turned = model.space(one, "1.3", "Bedroom", (box(40, 4, 44, 8), 0.0, 2.5))
+    # The shape is 5 to 6 m along its own x axis: in the first room's south wall as it is, in
+    # the second's moved 20 m, and in the third's west wall moved 40 m and turned a quarter.
+    copies = model.window_copies(
+        one,
+        (box(5, -0.1, 6, 0.1), 0.9, 1.2),
+        [
+            ((0.0, 0.0, 0.0), (1.0, 0.0)),
+            ((20.0, 0.0, 0.0), (1.0, 0.0)),
+            ((40.0, 0.0, 0.0), (0.0, 1.0)),
+        ],
+    )
+    built: list[str] = []
+    create_shape = ifcopenshell.geom.create_shape
+
+    def counted(settings: Any, inst: Any, *args: Any, **kwargs: Any) -> Any:
+        built.append(inst.is_a())
+        return create_shape(settings, inst, *args, **kwargs)
+
+    monkeypatch.setattr(ifcopenshell.geom, "create_shape", counted)
+
+    spaces = {space.guid: space.windows for space in read_model(model.ifc()).spaces}
+
+    assert spaces == {south: (copies[0],), east: (copies[1],), turned: (copies[2],)}
+    assert built.count("IfcWindow") == 1
+
+
+def test_a_listed_space_says_how_many_windows_it_has_and_which() -> None:
+    model = IfcFile()
+    one = model.storey("Level 1")
+    bedroom = model.space(one, "1.1", "Bedroom", ROOM)
+    model.space(one, "1.2", "Store", (box(10, 0, 12, 3), 0.0, 2.5))
+    first = model.window(one, "first", solid=(box(1, -0.3, 2, -0.2), 0.9, 1.2))
+    second = model.window(one, "second", solid=(box(2.5, -0.3, 3.5, -0.2), 0.9, 1.2))
+    shapes = [Shape("IfcSpace", bedroom, [box(50, 25, 146, 75)], name="1.1")]
+    found = extract(Demo(model.ifc(), sheet_svg(300, 200, shapes), sheet_pdf("Level 1"), {}))
+
+    assert found.model_objects is not None
+    listed = {item.global_id: item for item in found.model_objects}
+    spaces = {item.long_name: item for item in found.model_objects if item.class_ == "space"}
+    # Neither window is drawn on the sheet: the room has them all the same.
+    assert (listed[first].element, listed[second].element) == (None, None)
+    assert spaces["Bedroom"].attrs == {
+        "source_class": "IfcSpace",
+        "windows": 2,
+        "window_ids": f"{listed[first].id} {listed[second].id}",
+    }
+    assert spaces["Store"].attrs == {"source_class": "IfcSpace", "windows": 0}
+
+
+# a room's type from its label in the model's language (vector_pdf/ifc_render.py ROOM_WORDS)
+
+
+@pytest.mark.parametrize(
+    ("label", "kind"),
+    [
+        ("MAGAMISTUBA 5-2", "bedroom"),  # Estonian
+        ("ELUTUBA+KÖÖK 24-1", "living"),  # a living room with its kitchen, not a kitchen
+        ("KÖÖK 3", "kitchen"),
+        ("TUALETTRUUM 23-4", "wc"),
+        ("ESIK 28-2", "hall"),
+        ("KORIDOR 119", "hall"),
+        ("SAUN", "sauna"),
+        ("2IZQ-HAB3 01.32", "bedroom"),  # Spanish flat codes: floor, side, room
+        ("2IZQ-SAL 01.39", "living"),
+        ("2DER-COC 01.37", "kitchen"),
+        ("2IZQ-BAÑ 01.36", "bathroom"),
+        ("2IZQ-DIST 01.33", "hall"),
+        ("1 RELLANO", "hall"),
+        ("doucheruimte", "bathroom"),  # Dutch
+        ("werkkast", "storage"),
+        ("Zimmer", "bedroom"),  # German: a flat's room
+        ("Vorr.", "hall"),
+        ("Comunication 0.2", "hall"),  # as one model spells it
+    ],
+)
+def test_a_room_is_typed_from_its_label_in_the_models_language(label: str, kind: str) -> None:
+    assert room_type(label) == kind
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["2IZQ-DES 01.38", "Room 0.3", "Buero Meier", "PESUKODA 4", "TREPIKODA 2", "Floor", ""],
+)
+def test_a_label_no_word_names_stays_other(label: str) -> None:
+    assert room_type(label) == "other"
+
+
+@pytest.mark.parametrize(
+    ("label", "kind"),
+    [
+        ("Wohnküche", "kitchen"),
+        ("Badezimmer", "other"),  # no word of its own yet: "Zimmer" inside a word is not a room
+        ("Wohnzimmer", "living"),
+        ("Schlafzimmer", "bedroom"),
+        ("Kitchen 1.2", "kitchen"),
+        ("Corridor 1.1", "hall"),
+        ("Loggia", "balcony"),
+        ("Disabled toilet", "wc"),
+    ],
+)
+def test_the_added_words_leave_typed_labels_as_they_were(label: str, kind: str) -> None:
+    assert room_type(label) == kind

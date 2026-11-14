@@ -10,10 +10,10 @@ from typing import Annotated, Literal, NamedTuple
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 from app.adapters.page_render import render_upload
-from app.api.deps import FileId, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep
+from app.api.deps import FileId, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep, now
 from app.api.drawings import IMMUTABLE, checked_width
 from app.api.issues import open_count
 from app.api.questions import ProjectQuestions, listed, log_size
@@ -25,10 +25,11 @@ from app.api.views import (
     View,
     drawings_of,
     expected_drawings_of,
+    not_plans_of,
     skipped_of,
 )
 from app.core.errors import NotFoundError
-from app.core.ingest.model import FileTrace, ProjectStatus, SecondCount
+from app.core.ingest.model import FileStatus, FileTrace, Overrule, ProjectStatus, SecondCount
 from app.core.pipeline.model import QuantityConflict
 from app.core.review.model import ReviewState, Settled, SignOff
 from app.core.review.ports import ReviewStore
@@ -64,6 +65,26 @@ class ProjectSummary(View):
     conflicts_open: int | None  # conflicts a person still has to settle; None until `done`
     # Issues in state open (GET …/issues without a pack, decision 0008); None until `done`
     issues_open: int | None = None
+    # Files triage called not a floor plan (decision 0010); None until `done`; left out of the
+    # JSON when triage is off
+    not_plans: int | None = Field(default=None, exclude_if=lambda value: value is None)
+
+
+class RelevanceRequest(View):
+    """A person's call on a triaged file's relevance (decision 0010). `by` as a sign-off's;
+    `undo` takes the call back and, like unsettle, needs nothing else."""
+
+    verdict: Literal["related", "unrelated"] | None = None  # not with undo
+    by: str | None = Field(default=None, min_length=1, max_length=100)
+    undo: bool = False
+
+    @model_validator(mode="after")
+    def _complete(self) -> "RelevanceRequest":
+        if not self.undo and (self.verdict is None or self.by is None):
+            raise ValueError("a verdict and by are needed, unless undo")
+        if self.undo and self.verdict is not None:
+            raise ValueError("undo takes no verdict")
+        return self
 
 
 class ProjectList(View):
@@ -207,6 +228,7 @@ def summary_of(status: ProjectStatus, found: Counts | None) -> ProjectSummary:
         to_review=to_review,
         conflicts_open=conflicts_open,
         issues_open=issues_open,
+        not_plans=not_plans_of(status),
     )
 
 
@@ -273,7 +295,26 @@ def project(project_id: ProjectId, ingest: IngestDep) -> ProjectView:
         drawings=drawings_of(status),
         skipped=skipped_of(status),
         expected_drawings=expected_drawings_of(status),
+        not_plans=not_plans_of(status),
     )
+
+
+@router.post("/{project_id}/files/{file_id}/relevance")
+def relevance(
+    project_id: ProjectId,
+    file_id: FileId,
+    body: RelevanceRequest,
+    ingest: IngestDep,
+) -> FileStatus:
+    """A person says whether a file triage set aside belongs to the project, or takes that back
+    (`undo`; with no call made, nothing changes). The file stays set aside either way: a call
+    is no reading. 409 until the project is done; 422 `no-description` for a file triage did
+    not describe."""
+    if body.undo:
+        return ingest.overrule(project_id, file_id, None)
+    assert body.verdict is not None and body.by is not None  # checked by the model
+    call = Overrule(verdict=body.verdict, by=body.by, at=now())
+    return ingest.overrule(project_id, file_id, call)
 
 
 @router.get("/{project_id}/files/{file_id}/trace")

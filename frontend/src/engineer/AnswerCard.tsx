@@ -12,6 +12,7 @@ import {
   type Reader,
   type Row,
 } from '../api';
+import { routeLabel } from '../ingest/ingest';
 import { DoubleCheck } from '../doublecheck/DoubleCheck';
 import { routeHref } from '../shell/route';
 import { ChecksPanel } from './ChecksPanel';
@@ -64,7 +65,7 @@ function cameFrom(r: Reader): string {
     r.second_counter === 'none'
       ? 'no second count'
       : `second count by ${readerName(r.second_counter)}`;
-  return `${readerName(r.extractor)} read ${r.source ?? 'no file'} (${r.route ?? 'no'} route), ${second}`;
+  return `${readerName(r.extractor)} read ${r.source ?? 'no file'} (${routeLabel(r.route)}), ${second}`;
 }
 
 function MarkList(props: {
