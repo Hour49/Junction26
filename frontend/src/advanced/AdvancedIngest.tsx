@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from 'react';
 import type { FileStatus, ProjectView } from '../api';
+import { DoneLine, IngestFinished, type ConflictCounts } from '../ingest/IngestFinished';
 import { STEPS, formatCost, formatMs, formatSize, isFinished, stepOf } from '../ingest/ingest';
 import {
   STATUS_WORD,
@@ -41,6 +42,7 @@ export function AdvancedIngest({
   project: ProjectView;
 }): JSX.Element {
   const [picked, setPicked] = useState<number | null>(null);
+  const [counts, setCounts] = useState<ConflictCounts | null>(null);
   const step = picked ?? defaultStep(project);
   const view = STEP_VIEW[step - 1] ?? STEP_VIEW_FIRST;
   // A clock for Elapsed (now - started_at): ticks once a second; render itself stays pure.
@@ -271,7 +273,10 @@ export function AdvancedIngest({
             </div>
           ))}
         </dl>
+        <DoneLine projectId={projectId} project={project} counts={counts} />
       </section>
+      {/* the same finished block as Simple (AV-35); both render nothing until done */}
+      <IngestFinished projectId={projectId} project={project} onCounts={setCounts} />
     </div>
   );
 }

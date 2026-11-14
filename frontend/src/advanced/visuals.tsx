@@ -17,6 +17,7 @@ import {
   routeLabel,
 } from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
+import { CONFLICTS_ID } from '../ingest/IngestFinished';
 import { drawingFiles, previewNote, scaleChip, type Pair } from './advanced';
 
 /** An image that says so when it cannot load, instead of a broken icon. */
@@ -309,9 +310,9 @@ const VERDICT: Record<string, string> = {
 const CONFLICT_DONE = 'They disagree. It goes to the conflicts below.';
 const CONFLICT_LATER = 'They disagree. It goes to the conflicts when reading ends.';
 
-/** The finished block's conflicts list (src/ingest IngestFinished, preqa-a): into view and focus (AV-38). */
+/** The finished block's conflicts list (IngestFinished): into view and focus (AV-38). */
 function showConflicts() {
-  const list = document.getElementById('conflicts');
+  const list = document.getElementById(CONFLICTS_ID);
   if (!list) return;
   const reduce =
     typeof window.matchMedia === 'function' &&

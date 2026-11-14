@@ -6,6 +6,31 @@ import { formatSize } from '../ingest/ingest';
 import { flush, variants, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from './AdvancedIngest';
+
+// The finished block is preqa-a's (src/ingest/IngestFinished.tsx), tested there; here only where it goes (AV-35).
+vi.mock('../ingest/IngestFinished', () => ({
+  CONFLICTS_ID: 'conflicts',
+  DoneLine: (p: { projectId: string; project: ProjectView; counts: unknown }) =>
+    p.project.state === 'done' ? (
+      <p data-testid="done-line">
+        {p.projectId} {JSON.stringify(p.counts)}
+      </p>
+    ) : null,
+  IngestFinished: (p: {
+    projectId: string;
+    project: ProjectView;
+    onCounts?: (c: { total: number; needsPerson: number }) => void;
+  }) =>
+    p.project.state === 'done' ? (
+      <button
+        type="button"
+        data-testid="finished"
+        onClick={() => p.onCounts?.({ total: 3, needsPerson: 1 })}
+      >
+        {p.projectId}
+      </button>
+    ) : null,
+}));
 import { readFileSync } from 'node:fs';
 
 const PID = project.id;
@@ -453,6 +478,37 @@ describe('AdvancedIngest', () => {
     expect(must(document.querySelector('.adv-live')).textContent).toBe(
       `${last.path}: ${formatSize(last.size)}`,
     );
+  });
+
+  it('AV-35 done: DoneLine last inside the panel card, IngestFinished after it, counts passed back', async () => {
+    await show();
+    const card = must(document.querySelector('section.adv-panel'));
+    const line = screen.getByTestId('done-line');
+    expect(card.lastElementChild).toBe(line);
+    expect(line.previousElementSibling?.tagName).toBe('DL');
+    const block = screen.getByTestId('finished');
+    expect(card.nextElementSibling).toBe(block);
+    expect(block.textContent).toBe(PID);
+    expect(line.textContent).toBe(`${PID} null`);
+    fireEvent.click(block);
+    expect(screen.getByTestId('done-line').textContent).toBe(`${PID} {"total":3,"needsPerson":1}`);
+  });
+
+  it('AV-36 not done: no done line and no finished block', async () => {
+    for (const p of [variants.running, variants.failed, variants.queued]) {
+      await show(p);
+      expect(screen.queryByTestId('done-line')).toBeNull();
+      expect(screen.queryByTestId('finished')).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('AV-37 the Advanced view makes no review or issues request of its own', async () => {
+    const { api } = await show();
+    await pick(/^Cross-check/);
+    const urls = api.calls.map((c) => c.url);
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.filter((u) => u.includes('/review') || u.includes('/issues'))).toEqual([]);
   });
 
   it('AV-38 while reading, a conflict goes to the list when reading ends, with no button', async () => {

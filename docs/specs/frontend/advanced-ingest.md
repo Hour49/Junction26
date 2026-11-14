@@ -318,8 +318,10 @@ and stats; only the end of the page and a few links change.
 
 **One finished block, two views.** Simple and Advanced must not disagree, so `src/advanced/` writes none of it: it
 imports preqa-a's done line and finished block from `src/ingest/` (which embeds fe-surveyor's conflicts list).
-Working names below: `DoneLine({projectId, project})` and `IngestFinished({projectId, project})`; if preqa-a's
-spec names them otherwise, the code follows theirs and this spec is updated, nothing else changes. Ruled out:
+They are `DoneLine({projectId, project, counts})` and `IngestFinished({projectId, project, onCounts})` from
+`src/ingest/IngestFinished.tsx` (ingest.md IN-74..83); AdvancedIngest keeps the list's `ConflictCounts` in state
+for the done line, and "Show the conflict" scrolls to `CONFLICTS_ID`. No `query` is passed (issue links land on
+Simple). Ruled out:
 ProjectScreen rendering the block under both views (ingest.md says `AdvancedIngest` replaces everything under the
 title row; keeping that keeps the toggle a one-line switch).
 
