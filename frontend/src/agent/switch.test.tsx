@@ -5,7 +5,7 @@ import type { Info } from '../api';
 import { drawing, info, project } from '../api/fixtures';
 import { ProjectChat } from '../engineer/ProjectChat';
 import { InfoProvider, useInfo } from '../shell/info';
-import { mockApi } from '../test/mockApi';
+import { mockApi, reply } from '../test/mockApi';
 import { answerTurn } from './fixtures';
 
 const PID = project.id;
@@ -31,6 +31,11 @@ function open(chat: Info['chat'], query?: string) {
       project.drawings.map((d) => [`GET /api/drawings/${d.drawing_id}`, drawing]),
     ),
     [`POST /api/projects/${PID}/chat`]: answerTurn,
+    // no stream route: the sync POST (chat-ux #2)
+    [`POST /api/projects/${PID}/chat/stream`]: reply(404, {
+      detail: 'Not Found',
+      code: 'not_found',
+    }),
   });
   render(
     <InfoProvider>
@@ -69,6 +74,6 @@ it('CH-44 the agent chat sends ?ask= on open, once', async () => {
     'ask=How+big+is+Bagno+1.01%3F',
   );
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
-  const posts = api.calls.filter((c) => c.method === 'POST');
+  const posts = api.calls.filter((c) => c.method === 'POST' && c.url.endsWith('/chat'));
   expect(posts.map((c) => c.body)).toEqual([{ message: 'How big is Bagno 1.01?' }]);
 });

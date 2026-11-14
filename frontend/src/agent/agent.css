@@ -389,3 +389,81 @@
 .ag-pointer .vw-hint {
   display: none;
 }
+
+/* Live steps while the agent works (chat-ux #2): one line per tool, a spinner on the running one. */
+.ag-live {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: var(--v-radius);
+  background: var(--v-surface);
+  border: 1px solid var(--v-line);
+}
+.ag-live-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--v-text-2);
+}
+.ag-live-step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.ag-live-step--planned {
+  color: var(--v-muted);
+}
+.ag-live-mark {
+  flex: none;
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+}
+.ag-live-step--ok .ag-live-mark {
+  color: var(--v-ok);
+}
+.ag-live-step--error .ag-live-mark {
+  color: var(--v-danger);
+}
+.ag-live-step--planned .ag-live-mark::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--v-line);
+}
+.ag-live-step--running .ag-live-mark::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--v-accent-soft);
+  border-top-color: var(--v-accent);
+  animation: ag-spin 0.8s linear infinite;
+}
+.ag-live-body {
+  display: flex;
+  flex-direction: column;
+}
+.ag-live-sum {
+  color: var(--v-text);
+  font-weight: 600;
+}
+@keyframes ag-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ag-live-step--running .ag-live-mark::before {
+    animation: none;
+    border-color: var(--v-accent);
+  }
+}

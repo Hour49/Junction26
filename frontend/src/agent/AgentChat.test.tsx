@@ -1,13 +1,15 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { drawing, project } from '../api/fixtures';
-import { mockApi, never } from '../test/mockApi';
+import { mockApi, never, reply } from '../test/mockApi';
 import { AgentChat } from './AgentChat';
 import type { ChatRequest } from './agent';
 import { answerTurn, dontKnowTurn, model, needsInputTurn } from './fixtures';
 
 const PID = project.id;
 const CHAT = `POST /api/projects/${PID}/chat`;
+// A server without the stream route (chat-ux #2): each turn falls back to the sync POST, whose bodies these tests read.
+const STREAM = `${CHAT}/stream`;
 const drawings: Record<string, unknown> = Object.fromEntries<unknown>(
   project.drawings.flatMap((d) => [
     [`GET /api/drawings/${d.drawing_id}`, drawing],
@@ -24,7 +26,12 @@ afterEach(() => {
 });
 
 function open(chat: unknown, query?: string) {
-  const api = mockApi({ [`GET /api/projects/${PID}`]: project, ...drawings, [CHAT]: chat });
+  const api = mockApi({
+    [`GET /api/projects/${PID}`]: project,
+    ...drawings,
+    [CHAT]: chat,
+    [STREAM]: reply(404, { detail: 'Not Found', code: 'not_found' }),
+  });
   render(<AgentChat projectId={PID} query={new URLSearchParams(query)} />);
   return api;
 }
@@ -36,7 +43,9 @@ async function send(message: string) {
 }
 
 const posts = (api: ReturnType<typeof mockApi>) =>
-  api.calls.filter((c) => c.method === 'POST').map((c) => c.body as ChatRequest);
+  api.calls
+    .filter((c) => c.method === 'POST' && c.url.endsWith('/chat'))
+    .map((c) => c.body as ChatRequest);
 
 it('AC-30 first turn without chat_id, the next with the returned one; one turn pending at a time', async () => {
   let n = 0;

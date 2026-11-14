@@ -1,25 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  chatTurn,
-  errorText,
-  getDrawing,
-  getProject,
-  type ProjectView,
-  type Suggestion,
-} from '../api';
+import { errorText, getDrawing, getProject, type ProjectView, type Suggestion } from '../api';
 import { AskBox } from '../engineer/AskBox';
 import { Suggestions } from '../engineer/DrawingHeader';
 import { askable, followUps, starters } from '../engineer/projectAsk';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import type { ChatTurn, Selection } from './agent';
+import { LiveSteps } from './LiveSteps';
 import { PlanPointer } from './PlanPointer';
+import { LIVE_START, liveStep, streamTurn, type Live } from './stream';
 import { TurnCard } from './TurnCard';
 import '../engineer/engineer.css';
 
 type Sent = { id: number; message: string; chips: string[] };
 type Row =
-  | (Sent & { status: 'pending' })
+  | (Sent & { status: 'pending'; live?: Live })
   | (Sent & { status: 'error'; error: unknown; selection: Selection[] })
   | (Sent & { status: 'done'; turn: ChatTurn });
 
@@ -75,12 +70,27 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         pending.current = false;
         setRows((rs) => rs.map((x) => (x.id === r.id ? r : x)));
       };
-      chatTurn(projectId, {
-        ...(chatId.current ? { chat_id: chatId.current } : {}),
-        message: row.message,
-        ...(selection.length ? { selection } : {}),
-        ...(packNow.current ? { pack: packNow.current } : {}), // LC-11: the country picker's rule pack, as the checks screen sends it
-      }).then(
+      // chat-ux #2: the stream route with its live steps; the sync route where there is none (contract C)
+      streamTurn(
+        projectId,
+        {
+          ...(chatId.current ? { chat_id: chatId.current } : {}),
+          message: row.message,
+          ...(selection.length ? { selection } : {}),
+          ...(packNow.current ? { pack: packNow.current } : {}), // LC-11: the country picker's rule pack, as the checks screen sends it
+        },
+        (e) => {
+          // A new chat's id is known from the first event: a failure later still continues this chat.
+          if (e.type === 'turn') chatId.current = e.chat_id;
+          setRows((rs) =>
+            rs.map((x) =>
+              x.id === row.id && x.status === 'pending'
+                ? { ...x, live: liveStep(x.live ?? LIVE_START, e) }
+                : x,
+            ),
+          );
+        },
+      ).then(
         (turn) => {
           chatId.current = turn.chat_id;
           settle({ ...row, status: 'done', turn });
@@ -187,11 +197,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         {r.chips.length > 0 && <span className="ag-bubble-sel">{r.chips.join(' · ')}</span>}
         {r.message}
       </p>
-      {r.status === 'pending' && (
-        <p className="en-pending" role="status">
-          Working on it…
-        </p>
-      )}
+      {r.status === 'pending' && <LiveSteps live={r.live} />}
       {r.status === 'error' && (
         <div className="v-card en-error" role="alert">
           <p>The message could not be answered: {errorText(r.error).detail}</p>

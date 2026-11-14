@@ -169,6 +169,16 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 - AC-34 API client: `chatTurn(projectId, {chat_id?, message, selection?})` and `decideProposal(projectId, chatId,
   proposalId, action)` in `src/api/client.ts`; types from `npm run api:gen`.
 - AC-35 Phone width (390): the edit card's plan is full width, the change list below; no horizontal scroll.
+- AC-37 (chat-ux #2, orch 20:36; events in `.agents/chat/contract.md` C) Live steps: a turn is sent to
+  `POST .../chat/stream` (`src/agent/stream.ts`, fetch + reader, not EventSource). While it runs, the pending row
+  lists each tool as the server labels it: planned (open circle), running (spinner, still under reduced motion),
+  then ✓ or ✗ with the server's `summary`; under them what it does now: "Thinking…", "Checking the answer…", or
+  "Checking again: <reason>" after a `checking` retry; "Working on it…" before the first event. The `answer` event's
+  ChatTurn replaces the row as the sync reply did. A new chat's id is taken from the `turn` event. Fallback to the
+  sync `POST .../chat`: the stream route answers 404/405, a 200 that is not `text/event-stream`, or the connection
+  fails before any event. Once an event has come, never resent: a lost connection or an `error` event shows the
+  error row; asking again continues the chat. [unit `stream.test.ts`; component `live.test.tsx`; browser with a
+  streaming mock backend, 1440 and 390]
 
 ## 4. Tests
 
