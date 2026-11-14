@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { rulePacksOf } from '../api';
 import { useInfo } from './info';
-import { PENDING_COUNTRY_RULES, type CountryRule } from './pending';
+import { withPack } from './route';
 
-function Flag({ id }: { id: string }) {
+/** By ISO country code ("FI"); none for others. */
+function Flag({ country }: { country: string }) {
+  const id = country.toLowerCase();
   if (id === 'fi')
     return (
       <svg className="flag" width="26" height="18" viewBox="0 0 18 11" aria-hidden="true">
@@ -44,13 +47,28 @@ const Chevron = () => (
   </svg>
 );
 
-/** Which country's building rules the header shows. Choosing one changes the shown name only: the rules are
- * neither sent nor applied yet (CHANGE 11:05). */
-export function CountryPicker() {
+const Check = () => (
+  <svg
+    className="country-check"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
+  </svg>
+);
+
+/** The building-rule pack the project screens pre-check against (#139, shared.md "Country picker"). The choice lives
+ * in the URL (`?pack=`): choosing writes it, nothing is stored or sent. Only on project routes, only with packs. */
+export function CountryPicker({ pack }: { pack: string | null }) {
   const { info } = useInfo();
-  const rules =
-    (info as { country_rules?: CountryRule[] } | null)?.country_rules ?? PENDING_COUNTRY_RULES;
-  const [chosenId, setChosenId] = useState<string | null>(null);
+  const packs = rulePacksOf(info);
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -66,8 +84,12 @@ export function CountryPicker() {
     };
   }, [open]);
 
-  const chosen = rules.find((r) => r.id === chosenId) ?? rules[0];
-  if (!chosen) return null;
+  if (packs.length === 0) return null;
+  const chosen = packs.find((p) => p.id === pack) ?? null;
+  const choose = (id: string | null) => {
+    setOpen(false);
+    window.location.hash = withPack(window.location.hash || '#/', id);
+  };
   return (
     <div
       className="country"
@@ -83,54 +105,53 @@ export function CountryPicker() {
         type="button"
         className="header-pill country-button v-press"
         aria-expanded={open}
-        aria-label={`Country rules: ${chosen.name}`}
-        data-pending="country-rules"
+        aria-label={`Country rules: ${chosen ? chosen.country_name : 'none'}`}
         onClick={() => {
           setOpen(!open);
         }}
       >
-        <Flag id={chosen.id} />
-        <span className="country-name">{chosen.name}</span>
+        {chosen && <Flag country={chosen.country} />}
+        <span className="country-name">{chosen ? chosen.country_name : 'No checks'}</span>
         <Chevron />
       </button>
       {open && (
         <div className="country-pop" role="group" aria-label="Building rules the agent follows">
           <p className="country-pop-title">Building rules the agent follows</p>
-          {rules.map((rule) => (
+          <button
+            type="button"
+            className="country-option v-press"
+            aria-pressed={chosen === null}
+            onClick={() => {
+              choose(null);
+            }}
+          >
+            <span className="country-option-text">
+              <span className="country-option-name">No checks</span>
+            </span>
+            {chosen === null && <Check />}
+          </button>
+          {packs.map((p) => (
             <button
-              key={rule.id}
+              key={p.id}
               type="button"
               className="country-option v-press"
-              aria-pressed={rule.id === chosen.id}
+              aria-pressed={p.id === chosen?.id}
               onClick={() => {
-                setChosenId(rule.id);
-                setOpen(false);
+                choose(p.id);
               }}
             >
-              <Flag id={rule.id} />
+              <Flag country={p.country} />
               <span className="country-option-text">
-                <span className="country-option-name">{rule.name}</span>
-                <span className="country-option-law">{rule.law}</span>
+                <span className="country-option-name">{p.country_name}</span>
+                <span className="country-option-law">{`${p.name} · ${p.version}`}</span>
               </span>
-              {rule.id === chosen.id && (
-                <svg
-                  className="country-check"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M5 12.5l4.5 4.5L19 7.5" />
-                </svg>
-              )}
+              {p.id === chosen?.id && <Check />}
             </button>
           ))}
-          <p className="country-pop-note">Rules are not applied yet.</p>
+          {/* The pack's note, verbatim (#142): a pre-check, not a certificate. */}
+          <p className="country-pop-note">
+            {chosen ? chosen.note : 'Choose a country to pre-check its building rules.'}
+          </p>
         </div>
       )}
     </div>

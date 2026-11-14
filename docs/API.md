@@ -640,6 +640,10 @@ Ingest's project status, plus `drawings`:
   - `set_aside`: not ingested (unsafe path, zip bomb, not a drawing, a photo not of a plan, a DXF or SVG with no
     sheet next to it, a stage that failed).
 - `route`: `bim`, `cad`, `vector`, `raster`, or null. `source`: the file the drawing was read from.
+- A multi-page PDF: page 1 is read with the file itself, as before. Each later page that holds a drawing (up to 50
+  after page 1) is listed as a file of its own, `<name>#p<n>.pdf` next to the PDF (e.g. `plans/set#p3.pdf`), later
+  in the list, with its own group, route and drawing; its first stage (`unpack`) says "page 3 of plans/set.pdf, as a
+  PDF of its own". The PDF's `reason` (or its `identify` stage) names those pages. Text pages are not split.
 - `drawings`: one entry per plan, for the workspace's list. The files of one plan (same folder and name: a PDF and
   its PNG) are one group; its entry is the sheet the drawing was read from when that is a sheet, else PDF before
   PNG before JPEG; the group's other drawings are `other_renderings`. A copy of the same content under another
