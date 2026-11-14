@@ -343,3 +343,18 @@ def test_edits_7_refusals_name_no_raw_ids(client: TestClient) -> None:
         "error": "this project has no such drawing: it may have been uploaded again"
     }
     assert "f" * 16 not in store.describe(store.selections["sel_1"])
+
+
+def test_list_walls_between_two_rooms_gives_only_the_walls_they_share(client: TestClient) -> None:
+    """A filtered query (chat-eval 2026-11-14): on a big plan the cut list may not hold it."""
+    store, drawing_id = upload(client, walled_flat())
+    whole = call(store, "list_walls", drawing_id=drawing_id, page=1)
+    labels = rooms_by_label(whole)
+    bagno, stanza = labels["Bagno 1.01"], labels["Stanza 1.02"]
+    found = call(store, "list_walls", drawing_id=drawing_id, page=1, room_a=bagno, room_b=stanza)
+    assert [{r["id"] for r in w["rooms"]} for w in found["walls"]] == [{bagno, stanza}]
+    assert found["rooms"] == whole["rooms"]
+    one = call(store, "list_walls", drawing_id=drawing_id, page=1, room_a=bagno)
+    assert one["walls"] and all(bagno in {r["id"] for r in w["rooms"]} for w in one["walls"])
+    unknown = call(store, "list_walls", drawing_id=drawing_id, page=1, room_a="R99")
+    assert "R99" in unknown["error"]

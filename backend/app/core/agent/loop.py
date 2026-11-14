@@ -37,6 +37,8 @@ OLD_TOOL_CHARS = 1000  # a tool message of an earlier turn is cut to this
 # ~6,800 compact, so 8,000 keeps every drawing's answer); the full result stays in the chat
 TOOL_CHARS = 8000
 GEOMETRY = frozenset({"box", "polygon", "holes"})  # the model cites ev ids, never coordinates
+# Run timings say nothing about the drawing, and their numbers could back a wrong claim
+NOT_FOR_MODEL = GEOMETRY | {"latency_s"}
 NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
 
@@ -543,16 +545,25 @@ def _too_long(arguments: str) -> str | None:
 
 
 def _for_model(found: Any) -> str:
-    """A tool result as the model reads it: compact JSON without geometry or empty fields, its
-    lists cut shorter until it fits TOOL_CHARS, else cut as text with a note."""
+    """A tool result as the model reads it: compact JSON without geometry or empty fields. Until
+    it fits TOOL_CHARS the longest list is halved, keeping its first items as they are; how many
+    were cut goes beside it as `<key>_more` (a cut top-level list becomes {items, items_more}).
+    Still too long: cut as text with a note."""
     slim = _slim(found)
-    text = ""
-    for keep in (0, 8, 4, 2, 1):
-        text = json.dumps(_cut(slim, keep) if keep else slim, ensure_ascii=False,
-                          separators=(",", ":"))  # fmt: skip
-        if len(text) <= TOOL_CHARS:
-            return text
-    return text[:TOOL_CHARS] + '\n{"truncated": true}'
+    keeps: dict[tuple[Any, ...], int] = {}
+    text = _compact(_cut(slim, keeps))
+    while len(text) > TOOL_CHARS:
+        longest = _longest(slim, keeps)
+        if longest is None:
+            return text[:TOOL_CHARS] + '\n{"truncated": true}'
+        path, kept = longest
+        keeps[path] = kept // 2
+        text = _compact(_cut(slim, keeps))
+    return text
+
+
+def _compact(found: Any) -> str:
+    return json.dumps(found, ensure_ascii=False, separators=(",", ":"))
 
 
 def _slim(found: Any) -> Any:
@@ -562,19 +573,47 @@ def _slim(found: Any) -> Any:
         return {
             key: _slim(value)
             for key, value in found.items()  # pyright: ignore[reportUnknownVariableType]
-            if key not in GEOMETRY and value not in (None, "", [], {})
+            if key not in NOT_FOR_MODEL and value not in (None, "", [], {})
         }
     return found
 
 
-def _cut(found: Any, keep: int) -> Any:
+def _cut(found: Any, keeps: Mapping[tuple[Any, ...], int], path: tuple[Any, ...] = ()) -> Any:
+    """`found` with the list at each path in `keeps` cut to its first `keeps[path]` items."""
     if isinstance(found, list):
-        items: list[Any] = [_cut(item, keep) for item in found[:keep]]  # pyright: ignore[reportUnknownVariableType]
-        more = len(found) - keep  # pyright: ignore[reportUnknownArgumentType]
-        return [*items, f"... {more} more"] if more > 0 else items
+        items: list[Any] = found  # pyright: ignore[reportUnknownVariableType]
+        kept = [_cut(item, keeps, (*path, at)) for at, item in enumerate(items[: keeps.get(path)])]
+        if path or len(kept) == len(items):
+            return kept
+        return {"items": kept, "items_more": len(items) - len(kept)}
     if isinstance(found, dict):
-        return {key: _cut(value, keep) for key, value in found.items()}  # pyright: ignore[reportUnknownVariableType]
+        out: Json = {}
+        for key, value in found.items():  # pyright: ignore[reportUnknownVariableType]
+            out[key] = cut = _cut(value, keeps, (*path, key))  # pyright: ignore[reportUnknownArgumentType]
+            if isinstance(value, list) and len(cut) < len(value):  # pyright: ignore[reportUnknownArgumentType]
+                out[f"{key}_more"] = len(value) - len(cut)  # pyright: ignore[reportUnknownArgumentType]
+        return out
     return found
+
+
+def _longest(
+    found: Any, keeps: Mapping[tuple[Any, ...], int], path: tuple[Any, ...] = ()
+) -> tuple[tuple[Any, ...], int] | None:
+    """The path and kept length of the list of more than one kept item that is longest as JSON
+    once cut, or None when every list is down to one item."""
+    best: tuple[int, tuple[Any, ...], int] | None = None
+    stack: list[tuple[Any, tuple[Any, ...]]] = [(found, path)]
+    while stack:
+        here, at = stack.pop()
+        if isinstance(here, list):
+            items: list[Any] = here[: keeps.get(at)]  # pyright: ignore[reportUnknownVariableType]
+            size = len(_compact(_cut(here, keeps, at)))
+            if len(items) > 1 and (best is None or size > best[0]):
+                best = (size, at, len(items))
+            stack += [(item, (*at, n)) for n, item in enumerate(items)]
+        elif isinstance(here, dict):
+            stack += [(value, (*at, key)) for key, value in here.items()]  # pyright: ignore[reportUnknownVariableType]
+    return None if best is None else (best[1], best[2])
 
 
 def _error(message: str) -> str:
