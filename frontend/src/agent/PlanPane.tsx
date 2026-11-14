@@ -1,5 +1,6 @@
-import { type KeyboardEvent, type ReactNode, useEffect, useRef } from 'react';
-import type { DrawingView, MarkView } from '../api';
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import type { DrawingView, Highlight, MarkView } from '../api';
+import { ModelDialog } from '../model3d/ModelDialog';
 import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import type { Box, View } from './agent';
@@ -33,8 +34,12 @@ export function PlanPane(props: {
   onDrawing: (drawingId: string) => void;
   /** Set when the pane is a sheet over the chat (chat-ux #9): a Close button in its head. */
   onClose?: () => void;
+  /** The shown drawing's 3D model (model-3d.md "More places"): its file and what to highlight. */
+  model?: { fileId: string; highlight: readonly Highlight[] } | null;
 }) {
-  const { projectId, pack, drawings, drawingId, drawing, focus, onDrawing } = props;
+  const { projectId, pack, drawings, drawingId, drawing, focus, onDrawing, model } = props;
+  const [open3d, setOpen3d] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
   // A view on another drawing than the shown one (the user switched) is not drawn.
   const view = props.view?.drawing_id === drawingId ? props.view : null;
   const label = drawings.find((d) => d.drawing_id === drawingId)?.label ?? drawing?.file ?? '';
@@ -53,6 +58,19 @@ export function PlanPane(props: {
         >
           Open in workspace
         </a>
+        {model && (
+          <button
+            ref={opener}
+            type="button"
+            className="en-chip v-press"
+            aria-label={`View in 3D: ${label}`}
+            onClick={() => {
+              setOpen3d(true);
+            }}
+          >
+            View in 3D
+          </button>
+        )}
         {props.onClose && (
           <button type="button" className="en-chip v-press ag-pane-close" onClick={props.onClose}>
             Close
@@ -92,6 +110,18 @@ export function PlanPane(props: {
           <p className="en-muted">Loading the plan…</p>
         )}
       </div>
+      {model && open3d && (
+        <ModelDialog
+          projectId={projectId}
+          fileId={model.fileId}
+          label={label}
+          highlight={model.highlight}
+          onClose={() => {
+            setOpen3d(false);
+            opener.current?.focus();
+          }}
+        />
+      )}
     </aside>
   );
 }

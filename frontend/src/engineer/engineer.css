@@ -571,8 +571,27 @@ button.en-ref:hover,
   justify-content: center;
   cursor: pointer;
 }
+.en-attach {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--v-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.en-attach:disabled,
 .en-send:disabled {
   cursor: default; /* filled accent even when empty, as the demo (EN-81) */
+}
+/* While a photo is read the paperclip is off, and looks it (qa-a r10 item 3). */
+.en-attach:disabled {
+  color: var(--v-muted);
+  opacity: 0.4;
 }
 .en-limit {
   text-align: center;

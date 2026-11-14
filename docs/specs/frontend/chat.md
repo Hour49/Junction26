@@ -111,6 +111,37 @@ routes (`App.tsx` today passes only `projectId`).
 - CH-15 `?ask=` empty or spaces: nothing asked, the empty start page; a project 404 or a project with no askable
   drawing: nothing asked. [component]
 
+## Adding a photo (board #203)
+
+Added 2026-11-14 by Beatrice's orchestrator (board #203, Tudor c6877812445, Bogdan c6877797817). The chat's ask
+bar gets a paperclip ("Add a photo"), an `<input type="file" accept="image/png,image/jpeg">`; `AskBox` shows it only
+when the chat passes `onAttach` (the engineer page's ask bar has none). Picking a file sends its bytes once with
+`POST /api/projects/{project_id}/files?name=<file name>` (`addProjectFile` in `src/api/client.ts`), which answers
+202 with the new file's `FileStatus`, queued. A status line under the heading says "Reading <name>…"; the chat then
+polls `GET /api/projects/{id}` every second until that file's `state` is no longer queued or running, and takes the
+new project (so the photo's drawing becomes askable and N counts it). While a photo is read the paperclip is
+disabled; asking still works. Both chats have it (amended 2026-11-14 by Bogdan's orchestrator, PR #208): the
+ask chat and the agent chat (`src/agent/AgentChat.tsx`, CH-43) share `usePhotoAdd` (`src/engineer/photoAdd.tsx`); the
+agent chat's next turn sees the new drawing because the backend reads the project afresh each turn.
+
+- CH-17 With `onAttach` the ask bar shows a button named "Add a photo" whose input accepts png and jpeg; without
+  it (the engineer page) there is none. [component]
+- CH-18 Picking `plan.jpg` posts its bytes to `/api/projects/{pid}/files?name=plan.jpg`; "Reading plan.jpg…" shows
+  and the paperclip is disabled and dimmed; once a poll answers the file `ready` the line says "plan.jpg is read:
+  you can ask about it." and the next ask is sent while N includes its drawing. [component; e2e chat-photo]
+- CH-19 The line uses the backend's own state; its reason, word for word, is behind a "Why" disclosure under the
+  line (amended 2026-11-14 after review r9, S1, and qa-a r10 live-add-photo item 2: the line itself stays short):
+  `flagged`: "plan.jpg is flagged." (the reason may say nothing was read, "not read: this setup has no reader ...",
+  so a flagged file never gets "you can ask"); `text_only`, `set_aside` or missing: "plan.jpg was not read as a
+  plan." [unit `readLine` + component]
+- CH-20 The post fails (409 project not done, 413, 415 not png/jpeg, network): "Could not add plan.jpg: <detail>";
+  nothing is polled and the paperclip works again. [component]
+- CH-21 A poll that fails after the post succeeded is retried on the next tick (the file is added either way); after
+  180 polls (3 minutes) still queued or running: "plan.jpg is still being read. Reload later to ask about it.", the
+  paperclip freed. Leaving the chat while a photo is read stops the polling. [component]
+- CH-22 On a phone (`max-width: 480px`) the chats' ask bar reads "Ask about the drawings", so the paperclip does not
+  cut the placeholder; the engineer page's ask bar (no `short`) is unchanged. [component]
+
 ## Demo parity (Tudor 16:25, brief `fe-demo-parity.md`)
 
 Added 2026-11-14 16:40 by fe-engineer. Ports the demo's chat (`demo/vellum/chat.js`, `style.css`; PRs #201, #204,
@@ -274,3 +305,5 @@ behaviour and cards in [docs/specs/agent-chat.md](../agent-chat.md) §3); otherw
 
 - Keeping the chat across reloads; suggestions; showing the plan in the chat (the agent chat's edit card does, by
   decision 0013).
+- Starter chips for an added photo: they are not refetched, so an empty chat suggests only the first drawings'
+  questions (#203).
