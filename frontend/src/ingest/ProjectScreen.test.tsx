@@ -570,7 +570,7 @@ describe('ProjectScreen', () => {
       expect(r).not.toContain('P(plan)');
     });
 
-    it('FT-3 a call shows whose; an undescribed file reads not judged', async () => {
+    it('FT-3 a call shows whose; the class rule and the unsure verdict show as pills', async () => {
       await show(triaged);
       const site = row('photos/site.jpg');
       expect(site).toContain('Not a floor plan: not a drawing · a building site with a crane');
@@ -578,12 +578,17 @@ describe('ProjectScreen', () => {
       expect(site).toContain('Ana’s call');
       const street = row('photos/street.jpg');
       expect(street).toContain('Not a floor plan: not a drawing');
-      expect(street).toContain('– Not judged');
+      expect(street).toContain('✕ Not related');
+      const sheet = row('photos/sheet.jpg');
+      expect(sheet).toContain(
+        'Not a floor plan: another kind of drawing · a photographed elevation of a church',
+      );
+      expect(sheet).toContain('? Unsure');
       expect(row('plans/flat-a.pdf')).not.toContain('floor plan');
     });
 
     it.each([
-      [triaged, '3 not floor plans: kept, not read'],
+      [triaged, '4 not floor plans: kept, not read'],
       [triagedVariants.notPlansZero, 'No image set aside as not a floor plan'],
     ])('FT-4 not_plans: %#', async (body, line) => {
       await show(body);
