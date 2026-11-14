@@ -22,6 +22,7 @@ KEPT: frozenset[str | None] = frozenset({"related", "unsure", None})
 EVERY: frozenset[str | None] = KEPT | {"unrelated"}
 NOTHING = "No file of this project has a description: file triage was off when it was ingested."
 LISTED = 30  # evidence_prompt lists each file up to this many
+PROMPT_CHARS = 6000  # the longest evidence_prompt, as the law tools' prompt
 CreditOf = Callable[[int, str], str | None]  # (size, sha256) -> the licence credit
 
 
@@ -157,7 +158,8 @@ class ProjectEvidence:
         ]
         if len(sources) <= LISTED:
             lines += [f"{s.file_id} {s.kind}: {s.description.subject}" for s in sources]
-        return "\n".join(lines)
+        text = "\n".join(lines)
+        return text if len(text) <= PROMPT_CHARS else text[: PROMPT_CHARS - 3] + "..."
 
 
 def _rank(ranking: FileRanking, file_id: str) -> int | None:

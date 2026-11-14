@@ -44,9 +44,10 @@ model file on the machine the index answers with BM25 alone and says so (the no-
 
 **Tools** (`backend/app/adapters/evidence_tools.py`, OpenAI function-calling JSON, as the law tools):
 `EVIDENCE_TOOLS` holds `search_evidence(query, k=5, include_unrelated=false)` and `get_evidence(id)`;
-`run_evidence_tool(index, name, arguments) -> str` (arguments as JSON text or a dict) never raises and answers a bad call with
-`{"error": "<sentence>"}`; `evidence_prompt(index) -> str` is a paragraph for the system prompt. The index is one
-project's: the agent loop binds it, the model passes no project id. A search returns at most one hit per file:
+`run_evidence_tool(index, name, arguments) -> str` (arguments as JSON text or a dict) never raises and answers a
+bad call with `{"error": "<sentence>"}`; `evidence_prompt(index) -> str` is a paragraph for the system prompt. The
+index is one project's: the agent loop binds it, the model passes no project id. A search returns at most one hit
+per file:
 
 ```json
 {"query": "south facade photo", "method": "hybrid: BM25 + multilingual MiniLM, reciprocal rank fusion",

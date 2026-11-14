@@ -91,8 +91,7 @@ def open_index(
 
 
 def call(index: ProjectEvidence, name: str, arguments: Any) -> dict[str, Any]:
-    text = arguments if isinstance(arguments, str) else json.dumps(arguments)
-    return json.loads(run_evidence_tool(index, name, text))
+    return json.loads(run_evidence_tool(index, name, arguments))
 
 
 # ---------------------------------------------------------------- search
@@ -235,19 +234,23 @@ def test_run_search_and_get_answer_json(tmp_path: Path) -> None:
     assert got["description"]["language"] == "fi"
 
 
-@pytest.mark.parametrize(("k", "files"), [(0, 1), (-3, 1), (99, 3), ("2", 3), (True, 3), (2.5, 3)])
-def test_k_out_of_range_is_clamped_and_a_non_integer_is_the_default(
-    tmp_path: Path, k: Any, files: int
-) -> None:
+def test_arguments_may_come_as_json_text_or_as_a_dict(tmp_path: Path) -> None:
     index = open_index(tmp_path)
-    found = call(index, "search_evidence", {"query": "brick barn letter", "k": k})
-    assert len(found["hits"]) == files
+    as_text = run_evidence_tool(index, "search_evidence", '{"query": "brick", "k": 2}')
+    as_dict = run_evidence_tool(index, "search_evidence", {"query": "brick", "k": 2})
+    assert as_text == as_dict and json.loads(as_dict)["hits"][0]["file"] == "facade.jpg"
+
+
+@pytest.mark.parametrize("k", [1, 20])
+def test_k_at_the_ends_of_its_range_is_taken(tmp_path: Path, k: int) -> None:
+    found = call(open_index(tmp_path), "search_evidence", {"query": "brick barn letter", "k": k})
+    assert len(found["hits"]) == min(k, 3)
 
 
 def test_include_unrelated_must_be_true_to_count(tmp_path: Path) -> None:
     index = open_index(tmp_path)
     assert (
-        call(index, "search_evidence", {"query": "cat", "include_unrelated": "yes"})["hits"] == []
+        call(index, "search_evidence", {"query": "cat", "include_unrelated": False})["hits"] == []
     )
     asked = call(index, "search_evidence", {"query": "cat", "include_unrelated": True})
     assert [hit["file"] for hit in asked["hits"]] == ["cat.jpg"]
@@ -259,15 +262,31 @@ def test_include_unrelated_must_be_true_to_count(tmp_path: Path) -> None:
         ("find_photos", "{}", "There is no tool 'find_photos'"),
         ("search_evidence", "{not json", "not valid JSON"),
         ("search_evidence", "[1, 2]", "must be a JSON object"),
-        ("search_evidence", "{}", "non-empty 'query'"),
-        ("search_evidence", '{"query": "   "}', "non-empty 'query'"),
-        ("search_evidence", '{"query": 5}', "non-empty 'query'"),
-        ("get_evidence", "{}", "needs an 'id'"),
+        ("search_evidence", "{}", "search_evidence: query: Field required"),
+        ("search_evidence", '{"query": "   "}', "query: String should have at least 1 character"),
+        ("search_evidence", '{"query": 5}', "query: Input should be a valid string"),
+        ("search_evidence", {"query": "x" * 501}, "query: String should have at most 500"),
+        (
+            "search_evidence",
+            {"query": "x", "k": 0},
+            "k: Input should be greater than or equal to 1",
+        ),
+        ("search_evidence", {"query": "x", "k": 21}, "k: Input should be less than or equal to 20"),
+        ("search_evidence", {"query": "x", "k": "2"}, "k: Input should be a valid integer"),
+        ("search_evidence", {"query": "x", "k": True}, "k: Input should be a valid integer"),
+        ("search_evidence", {"query": "x", "include_unrelated": "yes"}, "include_unrelated"),
+        (
+            "search_evidence",
+            {"query": "x", "kind": "photo"},
+            "kind: Extra inputs are not permitted",
+        ),
+        ("get_evidence", "{}", "get_evidence: id: Field required"),
+        ("get_evidence", {"id": "f" * 65}, "id: String should have at most 64"),
         ("get_evidence", '{"id": "f99"}', "No evidence 'f99'"),
     ],
 )
 def test_a_bad_call_is_an_error_sentence_not_an_exception(
-    tmp_path: Path, name: str, arguments: str, says: str
+    tmp_path: Path, name: str, arguments: Any, says: str
 ) -> None:
     answer = call(open_index(tmp_path), name, arguments)
     assert list(answer) == ["error"] and says in answer["error"]
@@ -297,5 +316,8 @@ def test_the_prompt_lists_kinds_languages_and_files_or_says_there_is_nothing(
     assert "1 judged unrelated, searched only on request" in prompt
     assert "f2 photograph: old stone barn" in prompt
     assert "Floor plan facts" in prompt
+    many = [(f"{n}.jpg", described("a long subject " * 30, "", "related")) for n in range(30)]
+    capped = evidence_prompt(open_index(tmp_path / "c", project(*many)))
+    assert len(capped) == 6000 and capped.endswith("...")
     empty = evidence_prompt(open_index(tmp_path / "b", project(("plan.png", None))))
     assert empty == f"Project evidence: none. {NOTHING} Do not call search_evidence."

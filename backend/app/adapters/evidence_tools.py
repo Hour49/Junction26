@@ -1,12 +1,14 @@
-"""The evidence index as tools for the chat agent (contract v1, .agents/exp/rag-evidence.md
-section 1; format of board #220: OpenAI function calling). `EVIDENCE_TOOLS` is the specs list the
+"""The evidence index as tools for the chat agent (decision 0012, contract v1.1; format of board
+#220: OpenAI function calling, as the law tools). `EVIDENCE_TOOLS` is the specs list the
 agent loop joins with the other tools; `run_evidence_tool` answers one call as JSON text and never
 raises, so a bad call comes back as {"error": "..."} the model can act on. `index` is one
 project's evidence (composition's `evidence_index(project_id)`): the model never names a project."""
 
 import json
 import logging
-from typing import Any, cast
+from typing import Annotated, Any, cast
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
 from app.adapters.evidence.project import ProjectEvidence
 
@@ -79,6 +81,20 @@ EVIDENCE_TOOLS: list[dict[str, Any]] = [
 ]
 
 
+class SearchArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    query: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    k: Annotated[int, Field(ge=K_MIN, le=K_MAX)] = K_DEFAULT
+    include_unrelated: bool = False
+
+
+class GetArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+
+
 def _json(body: Any) -> str:
     return json.dumps(body, ensure_ascii=False, separators=(",", ":"))
 
@@ -87,20 +103,43 @@ def _error(message: str) -> str:
     return _json({"error": message})
 
 
-def run_evidence_tool(index: ProjectEvidence, name: str, arguments_json: str) -> str:
-    """One tool call's answer as JSON text. Never raises."""
+def _invalid(name: str, error: ValidationError) -> str:
+    """The first problem with the arguments, as one sentence the model can act on."""
+    first = error.errors()[0]
+    where = ".".join(str(part) for part in first["loc"]) or "arguments"
+    return _error(f"Fix the arguments of {name}: {where}: {first['msg']}.")
+
+
+def run_evidence_tool(index: ProjectEvidence, name: str, arguments: str | dict[str, Any]) -> str:
+    """One tool call's answer as JSON text; `arguments` as JSON text or already parsed. Never
+    raises."""
     try:
-        try:
-            arguments = json.loads(arguments_json or "{}")
-        except (TypeError, ValueError):
-            return _error("The arguments are not valid JSON: send a JSON object.")
+        if isinstance(arguments, str):
+            try:
+                arguments = json.loads(arguments or "{}")
+            except ValueError:
+                return _error("The arguments are not valid JSON: send a JSON object.")
         if not isinstance(arguments, dict):
             return _error("The arguments must be a JSON object.")
         found = cast(dict[str, Any], arguments)
         if name == "search_evidence":
-            return _search(index, found)
+            try:
+                search = SearchArguments.model_validate(found)
+            except ValidationError as error:
+                return _invalid(name, error)
+            hits = index.search(search.query, search.k, search.include_unrelated)
+            return _json(hits.model_dump(mode="json"))
         if name == "get_evidence":
-            return _get(index, found)
+            try:
+                asked = GetArguments.model_validate(found).id
+            except ValidationError as error:
+                return _invalid(name, error)
+            detail = index.get(asked)
+            if detail is None:
+                return _error(
+                    f"No evidence {asked!r} in this project: use an id from search_evidence."
+                )
+            return _json(detail.model_dump(mode="json"))
         known = ", ".join(tool["function"]["name"] for tool in EVIDENCE_TOOLS)
         return _error(f"There is no tool {name!r}: use one of {known}.")
     except Exception:  # the agent must get an answer, whatever went wrong
@@ -108,28 +147,7 @@ def run_evidence_tool(index: ProjectEvidence, name: str, arguments_json: str) ->
         return _error("internal error")
 
 
-def _search(index: ProjectEvidence, arguments: dict[str, Any]) -> str:
-    query = arguments.get("query")
-    if not isinstance(query, str) or not query.strip():
-        return _error("search_evidence needs a non-empty 'query' string.")
-    k = arguments.get("k", K_DEFAULT)
-    if not isinstance(k, int) or isinstance(k, bool):
-        k = K_DEFAULT
-    unrelated = arguments.get("include_unrelated", False) is True
-    found = index.search(query.strip(), min(K_MAX, max(K_MIN, k)), unrelated)
-    return _json(found.model_dump(mode="json"))
-
-
-def _get(index: ProjectEvidence, arguments: dict[str, Any]) -> str:
-    asked = arguments.get("id")
-    if not isinstance(asked, str) or not asked.strip():
-        return _error("get_evidence needs an 'id' string from a search_evidence hit.")
-    found = index.get(asked)
-    if found is None:
-        return _error(f"No evidence {asked!r} in this project: use an id from search_evidence.")
-    return _json(found.model_dump(mode="json"))
-
-
 def evidence_prompt(index: ProjectEvidence) -> str:
-    """A paragraph for the agent's system prompt: what the project's evidence index holds."""
+    """A paragraph for the agent's system prompt: what the project's evidence index holds (at
+    most 6,000 characters, as the law tools' prompt)."""
     return index.prompt()
