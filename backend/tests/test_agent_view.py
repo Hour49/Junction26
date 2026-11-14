@@ -173,3 +173,19 @@ def test_places_and_answers_survive_the_chat_file(tmp_path: Any) -> None:
     got = again(kept, Model(step(call("show_on_plan", answer="latest", caption="The 3 doors")),
                             final(text="Here.")), tools)  # fmt: skip
     assert got.view is not None and len(got.view.marks) == 3 and len(got.answers) == 1
+
+
+def test_a_follow_up_may_state_the_numbers_of_the_answer_it_shows() -> None:
+    """Live 2026-11-14: "Show me where they are" → show_on_plan, then "the 3 doors" was refused
+    once (the shown answer's numbers did not back the text), a whole model step lost."""
+    chat = Chat("c3f9a1b2c4d5")
+    tools = Tools(ask_drawings=DOORS)
+    again(chat, Model(step(call("ask_drawings", question="how many doors")),
+                      final(text="There are 3 doors [ev_1].", evidence_ids=["ev_1"])),
+          tools, "How many doors?")  # fmt: skip
+    model = Model(
+        step(call("show_on_plan", answer="latest", caption="The doors")),
+        final(text="Here are the 3 doors on the plan."),
+    )
+    got = again(chat, model, tools, "Show me where they are")
+    assert (got.kind, got.text) == ("answer", "Here are the 3 doors on the plan.")
