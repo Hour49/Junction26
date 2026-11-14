@@ -181,12 +181,16 @@ def test_the_thinking_setting_reaches_the_model() -> None:
     from app.composition import chat_model
     from app.settings import Settings
 
-    settings = Settings(_env_file=None, chat_model="gemini", gemini_api_key=SecretStr(KEY),
-                        agent_thinking="none")  # fmt: skip
+    settings = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]
+        chat_model="gemini",
+        gemini_api_key=SecretStr(KEY),
+        agent_thinking="none",
+    )
     made, why = chat_model(settings)
     assert why is None and isinstance(made, OpenAiChatModel) and made.thinking == "none"
     # unchanged until chat-eval says otherwise
-    assert Settings(_env_file=None).agent_thinking == "low"
+    assert Settings(_env_file=None).agent_thinking == "low"  # pyright: ignore[reportCallIssue]
 
 
 def test_minimal_thinking_is_refused_at_startup() -> None:
@@ -196,4 +200,4 @@ def test_minimal_thinking_is_refused_at_startup() -> None:
     from app.settings import Settings
 
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, agent_thinking="minimal")  # pyright: ignore[reportArgumentType]
+        Settings(_env_file=None, agent_thinking="minimal")  # pyright: ignore[reportCallIssue, reportArgumentType]
