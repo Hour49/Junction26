@@ -70,18 +70,54 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await card.getByRole('button', { name: 'Modify' }).click();
     await card.getByRole('button', { name: /^A\b/ }).click();
     await expect(card).toContainText('Your choice');
+    // GP-37 (Tudor): a person's choice keeps "Modify", never "Change".
+    await expect(card.getByRole('button', { name: 'Modify' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Change', exact: true })).toHaveCount(0);
     await card.getByRole('button', { name: "Use the rule's value" }).click();
     await expect(card).toContainText('Settled by rule');
+    // GP-38: nothing needs a person, so "Start a new chat" (below the cards) is a link; the workspace a quiet link.
+    await expect(page.getByRole('link', { name: 'Start a new chat' })).toBeVisible();
+    await expect(page.getByText(/^Ask anything about/)).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Open the workspace' })).toBeVisible();
+  });
+
+  const DOORS = 'How many doors are there?';
+  await test.step('GP-39 GP-40: a new, empty chat over the project, then one question', async () => {
+    await page.getByRole('link', { name: 'Start a new chat' }).click();
+    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/chat$/);
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { level: 1, name: 'sample-project.zip' })).toBeVisible();
+    // Empty (chat.md, Tudor 12:58): the heading, the ask bar and 3 suggestion chips; no plan, image or marks.
+    await expect(main.getByText(/^Ask anything about/)).toHaveCount(0);
+    await expect(main.locator('img, figure, canvas, svg image')).toHaveCount(0);
+    await expect(main.getByRole('textbox', { name: 'Question' })).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Ask' })).toBeVisible();
+    const chips = main.getByRole('group', { name: 'Suggested questions' }).getByRole('button');
+    await expect(chips).toHaveText([
+      DOORS,
+      'What is the net floor area of all indoor rooms in m²?',
+      'How many windows are there?',
+    ]);
+    await shot(page, testInfo, '05a-chat', offline);
+
+    // A chip asks its question of the project; after the first ask the chips are gone.
+    await chips.filter({ hasText: DOORS }).click();
+    const answer = turn(DOORS);
+    // Several drawings answer: no total (they may show the same rooms), a note, then one line per drawing.
+    await expect(answer.getByTestId('answer-value')).toHaveCount(0);
+    await expect(answer).toContainText(
+      'These drawings may show the same rooms, so the numbers are not added up.',
+    );
+    await expect(answer).toContainText('plans/flat-b.pdf: 2');
+    await expect(answer.getByRole('link', { name: 'Show it on plans/flat-b.pdf' })).toBeVisible();
+    await expect(answer.locator('img, figure')).toHaveCount(0);
+    await expect(main.getByRole('group', { name: 'Suggested questions' })).toHaveCount(0);
+    await shot(page, testInfo, '05b-chat-answer', offline);
   });
 
   let drawingUrl = '';
-  await test.step('GP-32 V6 GP-5: flat-b through its conflict card, as engineer', async () => {
-    await page
-      .getByRole('article', { name: 'area of room (name Küche · 1.01)' })
-      .getByRole('link', { name: 'Open in the surveyor workspace' })
-      .click();
-    await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/d\/[0-9a-f]{16}\/surveyor\?q=/);
-    await page.getByRole('link', { name: 'Engineer', exact: true }).click();
+  await test.step('GP-32 V6 GP-5: "Show it on plans/flat-b.pdf" opens flat-b as engineer', async () => {
+    await turn(DOORS).getByRole('link', { name: 'Show it on plans/flat-b.pdf' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/d\/[0-9a-f]{16}\/engineer(\?q=.*)?$/);
     drawingUrl = page.url().replace(/\/engineer(\?.*)?$/, '');
     await expect(page.getByText('plans/flat-b.pdf').first()).toBeVisible();
@@ -183,7 +219,8 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
   });
 
   await test.step('GP-12 step 11: the engineer sees it verified', async () => {
-    await page.getByRole('link', { name: 'Engineer', exact: true }).click();
+    // The header has no Engineer tab any more (fe-shared, 12:50): open the drawing's engineer route directly.
+    await page.goto(`${drawingUrl}/engineer`);
     await page.getByRole('textbox', { name: 'Question' }).fill(AREA);
     await page.getByRole('button', { name: 'Ask' }).click();
     const verified = turn(AREA);
@@ -218,8 +255,8 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await expect(stat('Drawings')).toHaveText('5');
     // #131: the sample's one conflict (Küche · 1.01) is settled and signed off: nothing left to review.
     await expect(stat('To review')).toHaveText('0');
-    // #131: the sign-off on the room's row also signs its twin row (the room's other name).
-    await expect(stat('Signed off')).toHaveText(/^2 of \d+$/);
+    // One sign-off per room, though #131 signs the room's twin row too (fe-shared counts by room).
+    await expect(stat('Signed off')).toHaveText(/^1 of \d+$/);
     const titles = panel.locator('ol li strong');
     await expect(titles.first()).toHaveText('Uploaded sample-project.zip');
     const all = await titles.allTextContents();
@@ -229,6 +266,7 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     const settled = at(/^Conflict settled: area of room \(name Küche · 1\.01\)$/);
     expect(settled).toBeGreaterThan(1);
     expect(at(/^Signed off: area of room \(name Küche · 1\.01\)$/)).toBeGreaterThan(settled);
+    expect(all.filter((t) => t.startsWith('Signed off: ')).length).toBe(1);
     expect(at(/^Settled by a rule: /)).toBe(-1);
     await expect(panel).toContainText('by Ana');
     // GP-36: no user, no canvas sample data (the drawing credit names the team, so not 'Hour49').

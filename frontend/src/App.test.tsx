@@ -29,6 +29,7 @@ const stubs: Screens = {
   AccountScreen: () => <p>account screen</p>,
   ProjectScreen: ProjectStub,
   ConflictsScreen: ({ projectId }) => <p>conflicts {projectId}</p>,
+  ProjectChat: ({ projectId }) => <p>chat {projectId}</p>,
   FileTraceScreen: ({ fileId }) => <p>trace {fileId}</p>,
   EngineerPage: ({ drawingId }) => <p>engineer {drawingId}</p>,
   SurveyorScreen: ({ drawingId, query }) => (
@@ -104,13 +105,16 @@ describe('shell', () => {
     expect(links().map((l) => [l.text, l.href])).toEqual([
       ['Ingest', `#/p/${P}`],
       ['Conflicts', `#/p/${P}/conflicts`],
-      ['Engineer', `#/p/${P}/d/${D}/engineer?q=door`],
+      ['Chat', `#/p/${P}/chat`],
       ['Surveyor', `#/p/${P}/d/${D}/surveyor?q=door`],
     ]);
+    // Tudor 12:46: no Engineer tab; the engineer route still renders.
+    expect(screen.queryByRole('link', { name: 'Engineer' })).toBeNull();
+    expect(screen.getByText(`engineer ${D}`)).toBeTruthy();
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-56 the view links of each route; exactly the current one is marked', async () => {
+  it('SH-56 the view links of each route; at most the current one is marked', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
     const marked = () => links().map((l) => [l.text, l.href, l.current]);
@@ -134,8 +138,22 @@ describe('shell', () => {
     expect(marked()).toEqual([
       ['Ingest', `#/p/${P}`, null],
       ['Conflicts', `#/p/${P}/conflicts`, null],
-      ['Engineer', `#/p/${P}/d/${D}/engineer`, null],
+      ['Chat', `#/p/${P}/chat`, null],
       ['Surveyor', `#/p/${P}/d/${D}/surveyor`, 'page'],
+    ]);
+    go(`#/p/${P}/d/${D}/engineer`);
+    expect(marked().map(([, , current]) => current)).toEqual([null, null, null, null]);
+    await screen.findByText(OFFLINE);
+  });
+
+  it('SH-64 the chat route mounts ProjectChat; header shows Ingest and Conflicts, none current', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    go(`#/p/${P}/chat`);
+    expect(screen.getByText(`chat ${P}`)).toBeTruthy();
+    expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
+      ['Ingest', `#/p/${P}`, null],
+      ['Conflicts', `#/p/${P}/conflicts`, null],
     ]);
     await screen.findByText(OFFLINE);
   });

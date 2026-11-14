@@ -15,11 +15,16 @@ function viewLinks(route: Route): ViewLink[] {
     route.name !== 'project' &&
     route.name !== 'file' &&
     route.name !== 'conflicts' &&
+    route.name !== 'chat' &&
     route.name !== 'workspace'
   )
     return [];
   const links = [
-    { label: 'Ingest', href: `#/p/${route.projectId}`, current: route.name !== 'conflicts' },
+    {
+      label: 'Ingest',
+      href: `#/p/${route.projectId}`,
+      current: route.name === 'project' || route.name === 'file',
+    },
     {
       label: 'Conflicts',
       href: `#/p/${route.projectId}/conflicts`,
@@ -27,11 +32,15 @@ function viewLinks(route: Route): ViewLink[] {
     },
   ];
   if (route.name !== 'workspace') return links;
-  const role = (r: 'engineer' | 'surveyor') => routeHref({ ...route, role: r });
+  // No Engineer tab (Tudor 12:46): the engineer route is reached from the chat and drawing links; Chat takes its place.
   return [
     ...links.map((link) => ({ ...link, current: false })),
-    { label: 'Engineer', href: role('engineer'), current: route.role === 'engineer' },
-    { label: 'Surveyor', href: role('surveyor'), current: route.role === 'surveyor' },
+    { label: 'Chat', href: `#/p/${route.projectId}/chat`, current: false },
+    {
+      label: 'Surveyor',
+      href: routeHref({ ...route, role: 'surveyor' }),
+      current: route.role === 'surveyor',
+    },
   ];
 }
 

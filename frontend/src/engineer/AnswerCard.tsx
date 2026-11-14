@@ -520,8 +520,11 @@ export function AnswerCard(props: {
   busy: boolean;
   onAsk: (question: string) => void;
   onRetry: (turn: Turn) => void;
+  /** What the refusal headline says it cannot answer from (the project chat: "these drawings"). */
+  refusalFrom?: string;
 }) {
   const { turn, projectId, file, credit, place, busy, onAsk, onRetry } = props;
+  const from = props.refusalFrom ?? 'this drawing';
   const question = turn.status === 'done' ? turn.answer.question : turn.question;
   const note = turn.status === 'done' ? readAs(turn.answer.explanation) : null;
   const refusal = turn.status === 'done' ? turn.answer.refusal : null;
@@ -545,7 +548,7 @@ export function AnswerCard(props: {
       {refusal && (
         <div className="v-card en-refusal">
           <p>
-            <b>I can't answer that from this drawing.</b>
+            <b>I can't answer that from {from}.</b>
           </p>
           <p>{refusal.text}</p>
           <Suggestions

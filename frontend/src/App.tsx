@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ComponentType } from 'react';
 import { AccountScreen } from './account/AccountScreen';
 import { EngineerPage } from './engineer/EngineerPage';
+import { ProjectChat } from './engineer/ProjectChat';
 import { FileTraceScreen } from './ingest/FileTraceScreen';
 import { HomeScreen } from './ingest/HomeScreen';
 import { ProjectScreen } from './ingest/ProjectScreen';
@@ -19,6 +20,7 @@ export interface Screens {
   AccountScreen: ComponentType<Record<string, never>>;
   ProjectScreen: ComponentType<{ projectId: string }>;
   ConflictsScreen: ComponentType<{ projectId: string }>;
+  ProjectChat: ComponentType<{ projectId: string }>;
   FileTraceScreen: ComponentType<{ projectId: string; fileId: string }>;
   EngineerPage: ComponentType<{ projectId: string; drawingId: string; query: URLSearchParams }>;
   SurveyorScreen: ComponentType<{ projectId: string; drawingId: string; query: URLSearchParams }>;
@@ -29,6 +31,7 @@ const builtScreens: Screens = {
   AccountScreen,
   ProjectScreen,
   ConflictsScreen,
+  ProjectChat,
   FileTraceScreen,
   EngineerPage,
   SurveyorScreen,
@@ -52,6 +55,7 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
     AccountScreen: Account,
     ProjectScreen: Project,
     ConflictsScreen: Conflicts,
+    ProjectChat: Chat,
     FileTraceScreen: Trace,
   } = screens;
   const Work =
@@ -71,6 +75,9 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
       break;
     case 'conflicts':
       body = <Conflicts key={key} projectId={route.projectId} />;
+      break;
+    case 'chat':
+      body = <Chat key={key} projectId={route.projectId} />;
       break;
     case 'file':
       body = <Trace key={key} projectId={route.projectId} fileId={route.fileId} />;

@@ -5,6 +5,7 @@ import {
   type ProjectReview,
   type ProjectSummary,
   type ProjectView,
+  type Row,
   type Takeoff,
 } from '../api';
 import { formatMs, formatSize, plural, progressOf } from '../ingest/ingest';
@@ -28,11 +29,30 @@ export interface Stat {
 }
 
 /** Files, Drawings, Questions, To review, Signed off; a stat whose source is missing reads "–". */
+/** A room keyed under its number and its name is two rows but one disagreement, and one sign-off signs both (#131,
+ * Bogdan #14 c6875696292): rows of one drawing sharing `conflict` and `marks` are one entry; others are their own. */
+export function disagreements(takeoffs: Takeoff[]): { file: string; rows: Row[] }[] {
+  const groups = new Map<string, { file: string; rows: Row[] }>();
+  for (const t of takeoffs) {
+    for (const row of t.quantities) {
+      const key = `${t.drawing_id} ${row.conflict ? JSON.stringify([row.conflict, row.marks]) : row.key}`;
+      const group = groups.get(key);
+      if (group) group.rows.push(row);
+      else groups.set(key, { file: t.file, rows: [row] });
+    }
+  }
+  return [...groups.values()];
+}
+
+/** Files, Drawings, Questions, To review, Signed off; a stat whose source is missing reads "–". `takeoffs`: every
+ * review drawing's, or null while any is missing. */
 export function workspaceStats(
   project: ProjectView,
   review: ProjectReview | null,
   questions: ProjectQuestions | null = null,
+  takeoffs: Takeoff[] | null = null,
 ): Stat[] {
+  const entries = review && takeoffs ? disagreements(takeoffs) : null;
   const sum = (pick: (d: ProjectReview['drawings'][number]) => number) =>
     review ? review.drawings.reduce((n, d) => n + pick(d), 0) : 0;
   return [
@@ -42,8 +62,8 @@ export function workspaceStats(
     { label: 'To review', value: review ? String(sum((d) => d.to_review)) : '–' },
     {
       label: 'Signed off',
-      value: review
-        ? `${String(sum((d) => d.signed))} of ${String(sum((d) => d.quantities))}`
+      value: entries
+        ? `${String(entries.filter((e) => e.rows.some((r) => r.signed)).length)} of ${String(entries.length)}`
         : '–',
     },
   ];
@@ -166,19 +186,21 @@ export function historyEvents(
       });
     }
   }
-  for (const t of takeoffs) {
-    for (const q of t.quantities) {
-      if (!q.signed) continue;
-      events.push({
-        kind: 'signed',
-        at: q.signed.at,
-        title: `Signed off: ${q.label}`,
-        detail: `${t.file} · ${formatValue(q.signed.value, q.unit)} · by ${q.signed.by}`,
-      });
-    }
+  for (const { file, rows } of disagreements(takeoffs)) {
+    const q = rows.find((r) => r.signed);
+    if (!q?.signed) continue;
+    // The longest label is the printed-name one ("area of room (name Küche · 1.01)").
+    const label = rows.reduce((a, r) => (r.label.length > a.length ? r.label : a), q.label);
+    events.push({
+      kind: 'signed',
+      at: q.signed.at,
+      title: `Signed off: ${label}`,
+      detail: `${file} · ${formatValue(q.signed.value, q.unit)} · by ${q.signed.by}`,
+    });
   }
   const fileOf = (id: string) => project.drawings.find((d) => d.drawing_id === id)?.file ?? id;
-  for (const q of questions?.questions ?? []) {
+  // The log is newest first: walk it oldest first so the stable sort keeps same-second asks in order.
+  for (const q of [...(questions?.questions ?? [])].reverse()) {
     const said = q.refused
       ? 'not answered'
       : q.answer === null

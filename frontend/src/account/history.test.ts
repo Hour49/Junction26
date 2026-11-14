@@ -43,15 +43,15 @@ describe('workspacePill', () => {
 describe('workspaceStats', () => {
   it('AC-11 AC-29 sums the fixtures; Questions is the log length', () => {
     const toReview = projectReview.drawings.reduce((n, d) => n + d.to_review, 0);
-    const signed = projectReview.drawings.reduce((n, d) => n + d.signed, 0);
-    const total = projectReview.drawings.reduce((n, d) => n + d.quantities, 0);
-    expect(workspaceStats(project, projectReview, projectQuestions)).toEqual([
+    // takeoff.json: no two rows share a conflict and marks, so every row is its own disagreement.
+    expect(workspaceStats(project, projectReview, projectQuestions, [takeoff])).toEqual([
       { label: 'Files', value: String(project.files.length) },
       { label: 'Drawings', value: String(project.drawings.length) },
       { label: 'Questions', value: String(projectQuestions.questions.length) },
       { label: 'To review', value: String(toReview) },
-      { label: 'Signed off', value: `${String(signed)} of ${String(total)}` },
+      { label: 'Signed off', value: `0 of ${String(takeoff.quantities.length)}` },
     ]);
+    expect(must(workspaceStats(project, projectReview, projectQuestions, null)[4]).value).toBe('–');
   });
   it('AC-15 AC-29 without a review or a log those stats read "–"', () => {
     const stats = workspaceStats(project, null);
@@ -155,13 +155,14 @@ describe('historyEvents', () => {
     expect(failed).toMatchObject({ title: 'Ingest failed', detail: projectFailed.error });
   });
 
-  it('AC-29 each logged question is an "Asked" event at its time', () => {
+  it('AC-29 AC-33 each logged question is an "Asked" event at its time', () => {
     const asked = historyEvents(project, null, [], projectQuestions).filter(
       (e) => e.kind === 'asked',
     );
+    // The log is newest first; asks in the same second still show in the order they were asked.
     expect(asked.map((e) => [e.title, e.detail, e.time])).toEqual([
-      ['Asked: What colour is the roof?', 'plans/flat-a.pdf · not answered', '08:05'],
       ['Asked: How many doors are there?', 'plans/flat-a.pdf · 2', '08:05'],
+      ['Asked: What colour is the roof?', 'plans/flat-a.pdf · not answered', '08:05'],
     ]);
     const odd = {
       ...projectQuestions,
@@ -182,9 +183,26 @@ describe('historyEvents', () => {
       .filter((e) => e.kind === 'asked')
       .map((e) => e.detail);
     expect(details).toEqual([
-      'plans/flat-a.pdf · no answer',
       'plans/flat-a.pdf · ground floor',
+      'plans/flat-a.pdf · no answer',
       'ffffffffffffffff · 12.35 m²',
     ]);
+  });
+
+  it('AC-32 a room keyed twice is one disagreement: one sign-off counted, one event', () => {
+    const room = must(takeoff.quantities.find((q) => q.conflict));
+    const other = must(takeoff.quantities.find((q) => !q.conflict));
+    const sign = { by: 'Ana', at: '2026-11-14T09:40:00Z', value: 22.401 };
+    const twins: Takeoff = {
+      ...takeoff,
+      quantities: [
+        { ...room, key: 'area:room|name=küche', label: 'area of room (name Küche)', signed: sign },
+        { ...room, label: 'area of room (name Küche · 1.01)', signed: sign },
+        { ...other, signed: null },
+      ],
+    };
+    expect(must(workspaceStats(project, projectReview, null, [twins])[4]).value).toBe('1 of 2');
+    const signed = historyEvents(project, null, [twins]).filter((e) => e.kind === 'signed');
+    expect(signed.map((e) => e.title)).toEqual(['Signed off: area of room (name Küche · 1.01)']);
   });
 });
