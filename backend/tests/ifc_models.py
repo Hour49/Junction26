@@ -116,6 +116,9 @@ class IfcFile:
         return space.GlobalId
 
     def _body(self, solids: Sequence[tuple[Sequence[Point], float, float]]) -> Any:
+        return self._new("IfcProductDefinitionShape", Representations=[self._solids(solids)])
+
+    def _solids(self, solids: Sequence[tuple[Sequence[Point], float, float]]) -> Any:
         bodies = [
             self._new(
                 "IfcExtrudedAreaSolid",
@@ -134,16 +137,11 @@ class IfcFile:
             for outline, floor, height in solids
         ]
         return self._new(
-            "IfcProductDefinitionShape",
-            Representations=[
-                self._new(
-                    "IfcShapeRepresentation",
-                    ContextOfItems=self._context,
-                    RepresentationIdentifier="Body",
-                    RepresentationType="SweptSolid",
-                    Items=bodies,
-                )
-            ],
+            "IfcShapeRepresentation",
+            ContextOfItems=self._context,
+            RepresentationIdentifier="Body",
+            RepresentationType="SweptSolid",
+            Items=bodies,
         )
 
     def window(
@@ -176,6 +174,62 @@ class IfcFile:
             RelatedElements=[window],
         )
         return window.GlobalId
+
+    def window_copies(
+        self,
+        storey: str,
+        solid: tuple[Sequence[Point], float, float],
+        placed: Sequence[tuple[tuple[float, float, float], Point]],
+    ) -> list[str]:
+        """The windows of one type, as exporters write them: one shape (`solid`, in the
+        window's own coordinates) that every copy maps. Each copy is placed at a point in
+        metres, its x axis turned to a direction."""
+        shape = self._new(
+            "IfcRepresentationMap",
+            MappingOrigin=self._origin,
+            MappedRepresentation=self._solids([solid]),
+        )
+        copies: list[str] = []
+        for at, x_axis in placed:
+            mapped = self._new(
+                "IfcMappedItem",
+                MappingSource=shape,
+                MappingTarget=self._new(  # each copy has its own, all the same, as Revit writes
+                    "IfcCartesianTransformationOperator3D", LocalOrigin=self._point(0.0, 0.0, 0.0)
+                ),
+            )
+            window = self._rooted(
+                "IfcWindow",
+                Name=f"copy {len(copies) + 1}",
+                ObjectPlacement=self._new(
+                    "IfcLocalPlacement",
+                    RelativePlacement=self._new(
+                        "IfcAxis2Placement3D",
+                        Location=self._point(*at),
+                        Axis=self._new("IfcDirection", DirectionRatios=(0.0, 0.0, 1.0)),
+                        RefDirection=self._new("IfcDirection", DirectionRatios=(*x_axis, 0.0)),
+                    ),
+                ),
+                Representation=self._new(
+                    "IfcProductDefinitionShape",
+                    Representations=[
+                        self._new(
+                            "IfcShapeRepresentation",
+                            ContextOfItems=self._context,
+                            RepresentationIdentifier="Body",
+                            RepresentationType="MappedRepresentation",
+                            Items=[mapped],
+                        )
+                    ],
+                ),
+            )
+            self._rooted(
+                "IfcRelContainedInSpatialStructure",
+                RelatingStructure=self._file.by_guid(storey),
+                RelatedElements=[window],
+            )
+            copies.append(window.GlobalId)
+        return copies
 
     def boundary(self, space: str, element: str) -> None:
         """The model's own statement that `element` bounds `space` (IfcRelSpaceBoundary)."""

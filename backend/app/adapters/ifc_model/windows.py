@@ -14,13 +14,18 @@ window is linked to a space in three ways, any of which is enough:
 - a window without a shape is placed by its placement point alone, within POINT_SLACK_M of the
   footprint, heights overlapping (its height is the file's OverallHeight).
 
+A window's shape is built in the window's own coordinates and moved to where the file places it,
+which is where the kernel puts it too (the same points on all 872 windows of the nine dev
+models). So the copies of one window type, which exporters write as one shape placed many times,
+are built once: on one dev model seven roof windows share a shape that takes 3 s to build.
+
 A space's windows are known when it has at least one. That it has none is known only when the
 space has a solid, the model has windows and every one of them has a shape: a window placed by a
 point, or not placed at all, may be the one that was missed, and a model without windows does
 not model them.
 """
 
-from collections.abc import Mapping
+from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -44,8 +49,11 @@ class Solid:
     high: float
 
 
+type Points = frozenset[tuple[float, float, float]]
+
+
 def windows_of_spaces(
-    file: Any, solids: Mapping[str, Solid], settings: Any, m_per_unit: float
+    file: Any, solids: Mapping[str, Solid], m_per_unit: float
 ) -> dict[str, tuple[str, ...]]:
     """By a space's GlobalId, the GlobalIds of its windows in the file's order. A space whose
     windows are not known is left out. `solids`: the spaces that have one, by GlobalId;
@@ -61,9 +69,11 @@ def windows_of_spaces(
             linked.setdefault(space.GlobalId, []).append(window.GlobalId)
     order: dict[str, int] = {}
     shapeless = 0
+    settings = ifcopenshell.geom.settings()  # shapes in each window's own coordinates
+    built: dict[Hashable, Points | None] = {}
     for number, window in enumerate(file.by_type("IfcWindow")):
         order[window.GlobalId] = number
-        seen = _shape(window, settings)
+        seen = _shape(window, settings, built, m_per_unit)
         slack = SHAPE_SLACK_M
         if seen is None:
             shapeless += 1
@@ -84,18 +94,61 @@ def windows_of_spaces(
     return found
 
 
-def _shape(window: Any, settings: Any) -> tuple[BaseGeometry, float, float] | None:
-    """The window's shape seen from above and its lowest and highest point; None when the
-    geometry kernel has nothing it can build. ifcopenshell gives metres, in world coordinates."""
+def _shape(
+    window: Any, settings: Any, built: dict[Hashable, Points | None], m_per_unit: float
+) -> tuple[BaseGeometry, float, float] | None:
+    """The window's shape seen from above and its lowest and highest point, in metres; None when
+    the geometry kernel has nothing it can build. `built`: the shapes built so far, by what the
+    windows that share one have in common."""
+    shared = _shared(window)
+    if shared is None:
+        points = _built(window, settings)
+    else:
+        if shared not in built:
+            built[shared] = _built(window, settings)
+        points = built[shared]
+    if not points:
+        return None
+    placed: Any = ifcopenshell.util.placement.get_local_placement(window.ObjectPlacement)
+    rows = [[float(value) for value in placed[axis]] for axis in range(3)]
+    moved = [[a * x + b * y + c * z + d * m_per_unit for a, b, c, d in rows] for x, y, z in points]
+    from_above = MultiPoint([(x, y) for x, y, _ in moved]).convex_hull
+    return from_above, min(z for _, _, z in moved), max(z for _, _, z in moved)
+
+
+def _shared(window: Any) -> Hashable | None:
+    """What the windows with one shape have in common: all they are made of is mapped shapes,
+    the same ones, turned and scaled the same way. None: the window's shape is its own, as is
+    one with openings cut into it."""
+    if window.Representation is None or window.HasOpenings:
+        return None
+    made_of: list[Hashable] = []
+    for representation in window.Representation.Representations:
+        for item in representation.Items:
+            if not item.is_a("IfcMappedItem"):
+                return None
+            turned: Any = ifcopenshell.util.placement.get_mappeditem_transformation(item)
+            made_of.append(
+                (
+                    representation.RepresentationIdentifier,
+                    representation.RepresentationType,
+                    representation.ContextOfItems.id(),
+                    item.MappingSource.id(),
+                    turned.tobytes(),
+                )
+            )
+    return tuple(made_of) or None
+
+
+def _built(window: Any, settings: Any) -> Points | None:
+    """The corners of the window's shape in its own coordinates. ifcopenshell gives metres
+    whatever the file's unit."""
     try:
         shape: Any = ifcopenshell.geom.create_shape(settings, window)
     except RuntimeError:
         return None
     verts = shape.geometry.verts
-    if not verts:
-        return None
-    from_above = MultiPoint(list(zip(verts[0::3], verts[1::3], strict=True))).convex_hull
-    return from_above, min(verts[2::3]), max(verts[2::3])
+    return frozenset(zip(verts[0::3], verts[1::3], verts[2::3], strict=True))
 
 
 def _placed(window: Any, m_per_unit: float) -> tuple[BaseGeometry, float, float] | None:

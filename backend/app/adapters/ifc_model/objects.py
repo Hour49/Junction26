@@ -132,7 +132,7 @@ def _model(file: Any) -> Model:
         for entity in file.by_type("IfcSpace")
         if (solid := _solid(entity, settings)) is not None
     }
-    windows = windows_of_spaces(file, solids, settings, scales["LENGTHUNIT"])
+    windows = windows_of_spaces(file, solids, scales["LENGTHUNIT"])
     spaces: list[IfcObject] = []
     for entity in file.by_type("IfcSpace"):
         solid = solids.get(entity.GlobalId)

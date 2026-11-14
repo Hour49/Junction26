@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import ifcopenshell
+import ifcopenshell.geom
 import pytest
 from ifc_models import IfcFile, Schema, Shape, box, sheet_svg
 from jsonschema import Draft202012Validator
@@ -797,6 +798,41 @@ def test_a_model_in_millimetres_places_a_shapeless_window_in_metres() -> None:
     (space,) = read_model(model.ifc()).spaces
 
     assert (space.guid, space.windows) == (bedroom, (placed,))
+
+
+@pytest.mark.parametrize("millimetres", [False, True])
+def test_the_copies_of_one_window_shape_are_built_once_and_each_is_where_it_is_placed(
+    millimetres: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = IfcFile(millimetres=millimetres)
+    one = model.storey("Level 1")
+    south = model.space(one, "1.1", "Bedroom", (box(4, 0, 8, 3), 0.0, 2.5))
+    east = model.space(one, "1.2", "Bedroom", (box(24, 0, 28, 3), 0.0, 2.5))
+    turned = model.space(one, "1.3", "Bedroom", (box(40, 4, 44, 8), 0.0, 2.5))
+    # The shape is 5 to 6 m along its own x axis: in the first room's south wall as it is, in
+    # the second's moved 20 m, and in the third's west wall moved 40 m and turned a quarter.
+    copies = model.window_copies(
+        one,
+        (box(5, -0.1, 6, 0.1), 0.9, 1.2),
+        [
+            ((0.0, 0.0, 0.0), (1.0, 0.0)),
+            ((20.0, 0.0, 0.0), (1.0, 0.0)),
+            ((40.0, 0.0, 0.0), (0.0, 1.0)),
+        ],
+    )
+    built: list[str] = []
+    create_shape = ifcopenshell.geom.create_shape
+
+    def counted(settings: Any, inst: Any, *args: Any, **kwargs: Any) -> Any:
+        built.append(inst.is_a())
+        return create_shape(settings, inst, *args, **kwargs)
+
+    monkeypatch.setattr(ifcopenshell.geom, "create_shape", counted)
+
+    spaces = {space.guid: space.windows for space in read_model(model.ifc()).spaces}
+
+    assert spaces == {south: (copies[0],), east: (copies[1],), turned: (copies[2],)}
+    assert built.count("IfcWindow") == 1
 
 
 def test_a_listed_space_says_how_many_windows_it_has_and_which() -> None:
