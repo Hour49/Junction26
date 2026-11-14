@@ -57,6 +57,8 @@ OLD_TOOL_CHARS = 1000  # a tool message of an earlier turn is cut to this
 # ~6,800 compact, so 8,000 keeps every drawing's answer); the full result stays in the chat
 TOOL_CHARS = 8000
 GEOMETRY = frozenset({"box", "polygon", "holes"})  # the model cites ev ids, never coordinates
+# Run timings say nothing about the drawing, and their numbers could back a wrong claim
+NOT_FOR_MODEL = GEOMETRY | {"latency_s"}
 NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
 
@@ -730,7 +732,7 @@ def _slim(found: Any) -> Any:
         return {
             key: _slim(value)
             for key, value in found.items()  # pyright: ignore[reportUnknownVariableType]
-            if key not in GEOMETRY and value not in (None, "", [], {})
+            if key not in NOT_FOR_MODEL and value not in (None, "", [], {})
         }
     return found
 
