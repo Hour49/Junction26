@@ -25,7 +25,9 @@ SecondCounterName = Literal["hello", "pdf", "ifc"]
 RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normalise stage
 # File triage (decision 0010, app/adapters/triage). off: ingest as before triage existed.
 # rules: the content probe's kind, no model (sets aside what ingest sets aside today).
-TriageClassifierName = Literal["off", "rules"]
+# siglip: fixed register heads on a SigLIP2 embedding, CPU (data/models/triage/siglip2-512-v2/);
+# with DECISIONS_KIND, a plan when either it or the sheet-kind signal says so.
+TriageClassifierName = Literal["off", "rules", "siglip"]
 TriageDescriberName = Literal["off"]  # eu-big's measured describers are added here
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]

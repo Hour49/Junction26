@@ -64,6 +64,7 @@ from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
+from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
@@ -243,6 +244,12 @@ def _probe(settings: Settings) -> ContentProbe:
     """Ingest's content probe; with DECISIONS_KIND, the Gemini sheet-kind signal on top."""
     if not settings.decisions_kind:
         return FileProbe()
+    return KindProbe(FileProbe(), _kind_reader(settings))
+
+
+def _kind_reader(settings: Settings) -> KindReader:
+    """The sheet-kind signal; its replies are cached by file, so a second reader of the same
+    upload (triage's classifier after the probe) costs no second call."""
     client = (
         OpenVlmDecider(_eu(settings))
         if settings.kind_provider == "eu"
@@ -250,7 +257,7 @@ def _probe(settings: Settings) -> ContentProbe:
             settings.gemini_api_key.get_secret_value(), settings.decisions_timeout_s
         )
     )
-    return KindProbe(FileProbe(), KindReader(client, settings.decisions_cache_dir))
+    return KindReader(client, settings.decisions_cache_dir)
 
 
 def _triage(settings: Settings) -> TriageSteps | None:
@@ -260,6 +267,12 @@ def _triage(settings: Settings) -> TriageSteps | None:
             return None
         case "rules":
             classifier = RulesClassifier()
+        case "siglip":
+            kind = _kind_reader(settings) if settings.decisions_kind else None
+            try:
+                classifier = SiglipClassifier.from_folder(kind=kind)
+            except DomainError as error:
+                raise InvalidInputError(f"TRIAGE_CLASSIFIER=siglip: {error}") from error
     name = (
         f"classifier={settings.triage_classifier}, describer={settings.triage_describer}, "
         f"judge={settings.triage_judge}"
