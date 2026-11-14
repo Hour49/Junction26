@@ -2,6 +2,7 @@
 a bad call is {"error": ...}, never an exception."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.adapters.pipeline_tools import (
+    _RUNNERS,
     PIPELINE_TOOLS,
     PipelineStore,
     geometry_of,
@@ -223,3 +225,27 @@ def test_a_project_that_is_not_done_is_an_error(
     ):
         found = call(store, name, project_id=project["id"], **extra)
         assert "running" in found["error"]
+
+
+def test_a_bug_in_a_tool_is_logged_with_its_traceback_and_the_reply_stays_plain(
+    store: PipelineStore, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def broken(store: PipelineStore, arguments: object) -> None:
+        raise RuntimeError("secret internals")
+
+    monkeypatch.setitem(_RUNNERS, "list_drawings", broken)
+    with caplog.at_level(logging.ERROR, logger="app.adapters.pipeline_tools"):
+        reply = run_pipeline_tool(store, "list_drawings", '{"project_id": "0123456789ab"}')
+    assert json.loads(reply) == {"error": "list_drawings failed (RuntimeError)"}
+    (record,) = caplog.records
+    assert "pipeline tool list_drawings failed" in record.getMessage()
+    assert record.exc_info is not None and "secret internals" in str(record.exc_info[1])
+
+
+def test_a_refused_call_is_not_logged_as_a_bug(
+    store: PipelineStore, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.ERROR, logger="app.adapters.pipeline_tools"):
+        call(store, "list_drawings", project_id="0123456789ab")  # no such project
+        call(store, "nope")
+    assert caplog.records == []

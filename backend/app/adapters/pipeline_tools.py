@@ -20,6 +20,7 @@ guard as the route.
 """
 
 import json
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -40,6 +41,8 @@ from app.core.errors import DomainError
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.review.ports import ReviewStore
 from app.settings import Settings
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -153,7 +156,8 @@ def run_pipeline_tool(store: PipelineStore, name: str, arguments_json: str) -> s
         return _error(str(error))
     except DomainError as error:  # not found, not allowed, bad input: the route's own sentence
         return _error(str(error) or type(error).__name__)
-    except Exception as error:  # a bug: say so without the internals
+    except Exception as error:  # a bug: the model gets no internals, the server log the traceback
+        log.exception("pipeline tool %s failed", name)
         return _error(f"{name} failed ({type(error).__name__})")
 
 
