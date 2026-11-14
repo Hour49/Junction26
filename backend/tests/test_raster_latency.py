@@ -145,7 +145,7 @@ def test_the_sources_read_a_sheet_at_the_same_time_and_their_cost_is_the_caller_
     }
     before = cost.spent()
     found = composite({"plans": "a", "door": "b", "window": "c"}, readers).extract(FILE, SHEET)
-    assert cost.spent() - before == 0.875
+    assert cost.spent() - before == pytest.approx(0.875)  # a charge left on the thread rounds it
     assert [e.class_ for e in found.elements] == ["door", "window"]
     assert [n for n in found.notes if n.endswith("fake")] == ["a: fake", "b: fake", "c: fake"]
 
@@ -184,4 +184,4 @@ def test_every_source_s_spend_is_the_caller_s_also_when_a_source_fails() -> None
     before = cost.spent()
     with pytest.raises(RuntimeError, match="no answer"):
         composite({"plans": "a", "door": "b"}, readers).extract(FILE, SHEET)
-    assert cost.spent() - before == 0.75
+    assert cost.spent() - before == pytest.approx(0.75)
