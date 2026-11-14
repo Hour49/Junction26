@@ -31,7 +31,10 @@ NO_PACK = (
 )
 ROOM = re.compile(r"\broom\b")
 # Placing a room by its type's word ("Put a toilet here") rather than the word room (multi)
-PLACE = re.compile(r"\b(put|place|add|make|create|draw|build|turn|convert|mark|insert|new)\b")
+PLACE = re.compile(  # at the start: "Is this a good place for a kitchen?" asks (review-361 S2)
+    r"^\s*(please |can you |could you |let's |i want to )?"
+    r"(put|place|add|make|create|draw|build|turn|convert|mark|insert)\b"
+)
 # A word for a room, as Room.type names it
 ROOM_WORDS = {
     "bathroom": "bathroom", "bath": "bathroom", "washroom": "bathroom", "shower": "bathroom",
@@ -269,7 +272,14 @@ def _remove_wall(turn: _Turn, words: str) -> tuple[str, Json]:
     if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
         drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     if isinstance(drawings, list):
-        drawings = _sheet(words, drawings)  # pyright: ignore[reportUnknownArgumentType]
+        everything: list[Any] = drawings  # pyright: ignore[reportUnknownVariableType]
+        drawings, named = _sheet(words, everything)
+        if named and len(drawings) > 1:  # several sheets share the name the message gives
+            options = [{"label": str(d.get("title") or d.get("name"))[:60],
+                        "message": f"{turn.message} on {d.get('title') or d.get('name')}"[:300]}
+                       for d in drawings[:4]]  # fmt: skip
+            return _final("needs_input", "Several drawings have that name. Which one?",
+                          options=options)  # fmt: skip
     if isinstance(drawings, list) and len(walls_of) < min(TRIED, len(drawings)):  # pyright: ignore[reportUnknownArgumentType]
         drawing = drawings[len(walls_of)]
         return "list_walls", {"drawing_id": drawing["drawing_id"], "page": 1}
@@ -277,23 +287,27 @@ def _remove_wall(turn: _Turn, words: str) -> tuple[str, Json]:
     return _final("dont_know", f"I can't edit this plan: {reason or 'there is no plan to edit'}.")
 
 
-def _sheet(words: str, drawings: list[Any]) -> list[Any]:
-    """Only the drawings the message names, by plain name ("Drawn plan 2") or file name without
-    its extension, when it names any; else all of them, in order (multi: an edit of a named
-    sheet went to the first drawing with walls)."""
+def _sheet(words: str, drawings: list[Any]) -> tuple[list[Any], bool]:
+    """The drawings the message names best, by plain name ("Drawn plan 2") or file name
+    without its extension: the longest name it holds wins ("floor 2" over "floor", review-361
+    S1); else all of them, in order (multi: an edit of a named sheet went to the first drawing
+    with walls). Several left: they share the longest name, and the planner asks which."""
 
-    def named(drawing: Any) -> bool:
+    def named(drawing: Any) -> int:
         if not isinstance(drawing, dict):
-            return False
+            return 0
         given: Json = drawing  # pyright: ignore[reportUnknownVariableType]
         file = re.sub(r"\.[a-z0-9]+$", "", str(given.get("name") or "").lower())
         names = [str(given.get("title") or "").lower(), file, re.sub(r"[_-]+", " ", file)]
-        return any(
-            len(name) > 3 and re.search(rf"(?<![\w.]){re.escape(name)}(?![\w]|\.\d)", words)
+        return max(
+            len(name)
+            if len(name) > 3 and re.search(rf"(?<![\w.]){re.escape(name)}(?![\w]|\.\d)", words)
+            else 0
             for name in names
         )
 
-    return [d for d in drawings if named(d)] or drawings
+    best = max((named(d) for d in drawings), default=0)
+    return ([d for d in drawings if named(d) == best], True) if best else (drawings, False)
 
 
 def proposed_wall(turn: _Turn) -> Json | None:
