@@ -114,12 +114,12 @@ describe('ConflictsScreen', () => {
     expect(cards()).toHaveLength(3);
   });
 
-  it('CF-4 no conflicts: agree line, no cards, workspace unlocked', async () => {
+  it('CF-4 no conflicts: agree line, no cards, the chat button unlocked', async () => {
     show({ [PATH.review]: withConflicts([]) });
     expect((await ready()).textContent).toBe('No conflicts found');
     expect(screen.getByText('Both methods agree wherever two of them measured.')).toBeTruthy();
     expect(screen.queryAllByRole('article')).toHaveLength(0);
-    expect(screen.getByRole('link', { name: 'Open the workspace' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
   });
 
   it('CF-5 a rule card shows its kicker, label, file and lettered tiles', async () => {
@@ -214,7 +214,7 @@ describe('ConflictsScreen', () => {
     );
     expect((evidence(after).closest('details') as HTMLDetailsElement).open).toBe(true);
     // the card's mode still starts over from the server's new state
-    expect(within(after).getByRole('button', { name: 'Change' })).toBeTruthy();
+    expect(within(after).getByRole('button', { name: 'Modify' })).toBeTruthy();
     expect(disabled(tile(after, 'A'))).toBe(true);
   });
 
@@ -230,8 +230,9 @@ describe('ConflictsScreen', () => {
     expect(pressed(tile(c, 'A'))).toBe(true);
     expect(pressed(tile(c, 'B'))).toBe(false);
     expect(within(c).getByText("You kept A, over the rule's choice.")).toBeTruthy();
-    expect(within(c).getByRole('button', { name: 'Change' })).toBeTruthy();
+    expect(within(c).getByRole('button', { name: 'Modify' })).toBeTruthy();
     expect(within(c).getByRole('button', { name: "Use the rule's value" })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
   });
 
   it("CF-9 Use the rule's value sends unsettle at once and reloads the review", async () => {
@@ -286,10 +287,11 @@ describe('ConflictsScreen', () => {
     }
     expect(within(c).getByText('Tap the right value.')).toBeTruthy();
     expect(c.querySelector('details.cf-evidence')?.hasAttribute('open')).toBe(true);
-    const lock = screen.getByRole('button', { name: 'Open the workspace' });
+    const lock = screen.getByRole('button', { name: 'Start a new chat' });
     expect(disabled(lock)).toBe(true);
     const why = document.getElementById(lock.getAttribute('aria-describedby') ?? '');
     expect(why?.textContent).toBe('Settle the conflicts that need you first.');
+    expect(screen.queryByRole('link', { name: 'Start a new chat' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Open the workspace' })).toBeNull();
   });
 
@@ -389,12 +391,51 @@ describe('ConflictsScreen', () => {
     expect(screen.getByText(`Reading stopped: ${String(projectFailed.error)}.`)).toBeTruthy();
   });
 
-  it('CF-17 Open the workspace goes to the engineer route of the first drawing with quantities', async () => {
+  it('CF-17 Start a new chat goes to the project chat; a quiet link opens the workspace', async () => {
     show();
     await ready();
+    const chat = screen.getByRole('link', { name: 'Start a new chat' });
+    expect(chat.getAttribute('href')).toBe(`#/p/${pid}/chat`);
+    expect(screen.queryByText(/Ask anything about/)).toBeNull(); // Tudor: no line under the button
     const first = projectReview.drawings.find((d) => d.quantities > 0);
     expect(screen.getByRole('link', { name: 'Open the workspace' }).getAttribute('href')).toBe(
       `#/p/${pid}/d/${String(first?.drawing_id)}/engineer`,
+    );
+  });
+
+  it('CF-27 after a person picks a value on a card that needed one, the button is Modify', async () => {
+    let picked = false;
+    show({
+      [PATH.edit]: () => {
+        picked = true;
+        return {};
+      },
+      [PATH.review]: () =>
+        withConflicts([
+          picked
+            ? { ...needs, needs_person: false, settled: { value: 22.401, at: AT }, value: 22.401 }
+            : needs,
+        ]),
+    });
+    await ready();
+    click(tile(card(needs.label), 'A'));
+    await waitFor(() => {
+      expect(within(card(needs.label)).getByText('Your choice')).toBeTruthy();
+    });
+    expect(within(card(needs.label)).getByRole('button', { name: 'Modify' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
+  });
+
+  it('CF-28 the chat block comes after the last card, not in the heading', async () => {
+    show();
+    await ready();
+    const chat = screen.getByRole('link', { name: 'Start a new chat' });
+    const last = cards().at(-1);
+    if (!last) throw new Error('no card');
+    expect(last.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).closest('.cf-head')?.contains(chat)).toBe(
+      false,
     );
   });
 

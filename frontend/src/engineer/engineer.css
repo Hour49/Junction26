@@ -595,3 +595,81 @@ button.en-ref:hover,
   color: var(--v-warn);
   font-size: 14px;
 }
+
+/* Project chat (chat.md): empty until asked. */
+.en-chat-title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+.en-chatcard {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.en-chatcard p {
+  margin: 0;
+}
+.en-parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
+}
+.en-parts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.en-parts a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+/* The ask box at the bottom also while the chat is empty (sticky needs a page at least as tall as the view). */
+.en-chat {
+  min-height: calc(100dvh - var(--v-header-h, 0px));
+  box-sizing: border-box;
+}
+.en-chat .en-ask {
+  margin-top: auto;
+}
+/* The empty chat: heading, bar and starter chips in the upper middle, as a chat app's start page. */
+.en-chat--empty {
+  padding-top: max(14vh, 40px);
+  align-items: center;
+}
+.en-chat--empty > * {
+  width: 100%;
+  max-width: 720px;
+}
+.en-chat--empty .en-chat-title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 600;
+}
+.en-chat--empty .en-ask {
+  position: static;
+  margin-top: 0;
+  padding: 0;
+  background: none;
+}
+.en-chat--empty .en-suggest {
+  justify-content: center;
+}
+.en-chat--empty .en-empty {
+  text-align: center;
+}
+@media (max-width: 900px) {
+  /* The phone's header is tall and not sticky: less space above, so the bar stays in the upper half. */
+  .en-chat--empty {
+    padding-top: 24px;
+  }
+}

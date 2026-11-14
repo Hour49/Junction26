@@ -102,30 +102,6 @@ export function ConflictsScreen({ projectId }: { projectId: string }) {
           <h1>{conflictCount(k)}</h1>
           <p className="cf-sub">{subLine(conflicts)}</p>
         </div>
-        {target !== null &&
-          (locked ? (
-            <div className="cf-open">
-              <button type="button" className="cf-open-btn" disabled aria-describedby="cf-locked">
-                Open the workspace
-              </button>
-              <p id="cf-locked" className="cf-locked">
-                Settle the conflicts that need you first.
-              </p>
-            </div>
-          ) : (
-            <a
-              className="cf-open-btn"
-              href={routeHref({
-                name: 'workspace',
-                projectId,
-                drawingId: target,
-                role: 'engineer',
-                query: new URLSearchParams(),
-              })}
-            >
-              Open the workspace
-            </a>
-          ))}
       </div>
 
       {(project.state === 'queued' || project.state === 'running') && (
@@ -173,6 +149,40 @@ export function ConflictsScreen({ projectId }: { projectId: string }) {
           onEdit={(e) => edit(c.drawing_id, c.quantity, e)}
         />
       ))}
+
+      {/* Tudor 2026-11-14: the chat block sits at the bottom, after the last card */}
+      {target !== null &&
+        (locked ? (
+          <div className="cf-open">
+            <button type="button" className="cf-open-btn" disabled aria-describedby="cf-locked">
+              Start a new chat
+            </button>
+            <p id="cf-locked" className="cf-locked">
+              Settle the conflicts that need you first.
+            </p>
+          </div>
+        ) : (
+          <div className="cf-open">
+            <a
+              className="cf-open-btn"
+              href={routeHref({ name: 'chat', projectId, query: new URLSearchParams() })}
+            >
+              Start a new chat
+            </a>
+            <a
+              className="cf-quiet"
+              href={routeHref({
+                name: 'workspace',
+                projectId,
+                drawingId: target,
+                role: 'engineer',
+                query: new URLSearchParams(),
+              })}
+            >
+              Open the workspace
+            </a>
+          </div>
+        ))}
     </div>
   );
 }

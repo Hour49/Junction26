@@ -56,4 +56,12 @@ describe('parseRoute', () => {
     for (const hash of ['#/workspaces', `#/p/${P}/conflicts`, `#/p/${P}?view=advanced`])
       expect(routeHref(parseRoute(hash))).toBe(hash);
   });
+
+  it('SH-64 the chat route', () => {
+    for (const hash of [`#/p/${P}/chat`, `#/p/${P}/chat/`])
+      expect(parseRoute(hash)).toMatchObject({ name: 'chat', projectId: P });
+    for (const hash of ['#/p/XYZ/chat', `#/p/${P}/chat/x`])
+      expect(parseRoute(hash).name).toBe('not-found');
+    expect(routeHref(parseRoute(`#/p/${P}/chat`))).toBe(`#/p/${P}/chat`);
+  });
 });
