@@ -30,7 +30,7 @@
   // the answer key; the second reading and the rules show how Conflicts works today. match: the answer-key question it
   // decides (a substring), kind: its quantity.
   const pdf = D.files.find((f) => f.path.endsWith('.pdf')), png = D.files.find((f) => f.path.endsWith('.png'));
-  const aptA = keyOf(/apartment A/), indoor = net, doors = keyOf(/How many doors/), basins = keyOf(/washbasins/);
+  const aptA = keyOf(/apartment A/), indoor = net, doors = keyOf(/How many doors/), stanze = keyOf(/rooms labelled 'Stanza' are/);
   const CONFLICTS = !pdf || !png ? [] : [
     doors !== null && { id: 'c1', drawing: ID, quantity: 'door', match: 'How many doors', ai: 0, title: 'Doors on this floor',
       readers: { 'vector PDF': `${doors} doors`, 'PNG rendering': `${doors - 1} doors` }, files: `${pdf.path} ↔ ${png.path}`,
@@ -44,12 +44,13 @@
         { kind: 'area', value: indoor, label: `${indoor.toFixed(2)} m²`, src: 'Every numbered indoor room, the shared stair hall included' }],
       rules: ['A flat\'s area counts only its own rooms.', 'The stair hall (Vano scala) is shared, so it is not part of the flat.'],
       why: `The stair hall belongs to the building, not the flat: ${aptA.toFixed(2)} m².` },
-    basins !== null && { id: 'c3', drawing: ID, quantity: 'washbasin', match: 'washbasins', ai: null, title: 'How many washbasins?',
-      readers: { 'symbol count': `${basins} washbasins`, 'room check': `${basins - 1} washbasins` }, files: pdf.path, where: 'The basin symbol in question',
-      variants: [{ kind: 'washbasin', value: basins, label: `${basins} washbasins`, src: 'Every basin symbol drawn on the plan' },
-        { kind: 'washbasin', value: basins - 1, label: `${basins - 1} washbasins`, src: 'Only basins inside rooms labelled Bagno; one symbol sits outside them and may be a sink' }],
-      rules: ['Washbasins are counted wherever they are drawn.', 'A kitchen sink is not a washbasin.'],
-      why: 'The symbol outside the bathrooms could be a washbasin or a sink. The drawing does not say which.' },
+    stanze && stanze > 1 && { id: 'c3', drawing: ID, quantity: 'bedroom', match: null, ai: null, title: 'Bedrooms in apartment A: is one of the rooms the living room?',
+      readers: { 'room labels': `${stanze} × 'Stanza'`, 'room types': `${stanze} bedrooms, or ${stanze - 1} and a living room` }, files: pdf.path,
+      where: `The ${stanze} rooms labelled 'Stanza' (Italian for room)`,
+      variants: [{ kind: 'bedroom', value: stanze, label: `${stanze} bedrooms`, src: `Every room labelled 'Stanza' is a bedroom` },
+        { kind: 'bedroom', value: stanze - 1, label: `${stanze - 1} bedrooms + a living room`, src: 'No room is labelled living room (soggiorno), so one Stanza is it, the way Swiss listings count rooms' }],
+      rules: ['A bedroom is a habitable room that is not the living room.', `The plan labels all ${stanze} rooms 'Stanza' and none as the living room, so it does not say which one it is.`],
+      why: 'Only someone who knows the flat can say whether one of the rooms is the living room. It decides the bedroom count and which building-code room rules apply.' },
   ].filter(Boolean);
   // Hard-coded issues on the real files (Tudor, 15:35: things that might actually need a look, not the vision model's)
   const plans = ARCH.filter((f) => f.plan).map((f) => f.path), dxf = D.files.find((f) => f.path.endsWith('.dxf'));
@@ -59,7 +60,7 @@
     dxf && { severity: 'note', file: dxf.path, why: 'The same floor as the vector PDF: read once, from the PDF.' },
     png && { severity: 'note', file: png.path, why: 'A rendering of the same floor: used for pictures, not counted again.' },
   ].filter(Boolean);
-  const conflictFor = (q) => CONFLICTS.find((c) => q.question.includes(c.match)) || null;
+  const conflictFor = (q) => CONFLICTS.find((c) => c.match && q.question.includes(c.match)) || null;
 
   const drawing = (id) => {
     const d = DRAWINGS.find((x) => x.id === id);
