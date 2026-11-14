@@ -137,6 +137,22 @@ whose `label` equals `mark.label`, else the accent colour. An excluded mark is a
 - When `unit` is set and not `count`, a mark with a `value` shows it in its badge as `n · 22.40 m²`, formatted
   by `formatValue(value, unit)` from `src/api/format.ts` (shared.md): exactly 2 decimals, units m² m³ m ft² ft
   (`22.40 m²`). The badge then grows to fit its text.
+- **Label placement** (QA R2-qa-1-3; the rule of the backend's `evidence_render.py` `place_labels`, simplified).
+  No two badges overlap at any frame width. Once the frame's width `W` is known (measured, times the zoom),
+  `placeLabels` places the badges in frame pixels, smallest mark box first. Each badge is `max(24, 7.2 × chars +
+  14)` × 24 px, with 1 px of clearance to every badge already placed. A badge tries these spots in order and takes
+  the first free one inside the page:
+  1. the box centre;
+  2. a 5 × 5 grid inside the mark's box, nearest the centre first;
+  3. rings around the box in 8 directions (up first, clockwise), each ring one badge height further out.
+  A badge placed off its box centre gets a leader line from its mark's centre (SVG `line.vw-leader`). With no
+  free spot, a badge that shows a value retries with its number only. A badge that still finds none is not drawn,
+  and the legend says "<k> label(s) had no room on the page". The mark stays in the screen's mark list.
+- **Narrow frame**: when `W` is under 600 px, badges show the number only (`1`, `+3`, `×`, `–`), never the value,
+  so they cover little of the drawing. The value stays in the selected-mark line and in the screen's mark list.
+  Zooming to 200 % or more on a phone widens the frame and brings the values back.
+- The selected-mark line shows the value when the badge would: "1 · Küche · 22.40 m² · counted".
+- Before the width is known (the first render; jsdom), badges sit at their box centres with their full text.
 - Polygons are drawn largest box area first, so a room inside another room stays on top and can be clicked
   (`drawOrder`).
 - Highlighted (`highlighted` or hover): the outline is 4 px and the badge has a 3 px ink ring. Selected
@@ -303,6 +319,18 @@ Zoom, adding, layout
 - **VW-44** At 390x844 and 1440x900, with `answer_area.json` at zoom 100 % and 400 %, the document has no
   horizontal scroll (`scrollWidth <= innerWidth`). Switcher and zoom buttons are at least 44 × 44 px at 390. A
   screenshot of each is taken and looked at. [e2e, in the engineer flow]
+
+- **VW-45** (R2-qa-1-3) `placeLabels` on a dense derived fixture of 19 rooms puts no two badge rectangles in
+  overlap (their pixel rectangles do not intersect). The fixture is `answer_area.json` m1 copied 19 times, with
+  boxes in a 5 × 4 grid of 0.06 × 0.06 cells. This holds at `W` 358 (numbers only) and at `W` 1440 (with values,
+  `unit` m2). Each badge is placed or counted in the "had no room" line. A badge off its centre has a leader.
+  [unit]
+- **VW-46** (R2-qa-1-3) With the frame measured at 358 px, the `answer_area.json` badges read "1" and "2". At
+  1440 px they read "1 · 22.40 m²" and "2 · 2.49 m²". Their `aria-label`s are the same at both widths. With
+  `selected="m1"` at 358 px, the selected-mark line reads "1 · Küche · 22.40 m² · counted". [component]
+- **VW-47** (R2-qa-1-3) With the frame measured at 358 px and the 19-room derived fixture, the rendered badges'
+  rectangles never intersect. Each rectangle is centred at `left`/`top` (inline percentages times the frame size)
+  with the inline `width` and `height` in px. [component]
 
 ## Out of scope
 

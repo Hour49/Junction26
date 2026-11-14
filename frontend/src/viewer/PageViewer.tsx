@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { AnswerView, MarkView, PageView, QuantityConflict } from '../api/types';
 import { formatValue } from '../api/format';
 import { Credit } from '../shell/Credit';
@@ -11,6 +11,7 @@ import {
   markLook,
   normalisedNote,
   pickBox,
+  placeLabels,
   safeColour,
   startPage,
   STATE_WORDS,
@@ -38,6 +39,7 @@ export interface PageViewerProps {
 type Zoom = 1 | 2 | 4;
 
 const WARN = '#9a5b00';
+const NARROW = 600; // px of frame width under which badges show their number only
 const STATE_ORDER: MarkView['state'][] = ['counted', 'added', 'rejected', 'excluded'];
 const inPage = (v: number) => v >= 0 && v <= 1;
 
@@ -72,6 +74,22 @@ export function PageViewer({
   const [current, setCurrent] = useState<number | undefined>(() => pageOf(selected));
   const [lastSelected, setLastSelected] = useState(selected);
   const [zoom, setZoom] = useState<Zoom>(1);
+  const scroll = useRef<HTMLDivElement>(null);
+  const [frameWidth, setFrameWidth] = useState(0); // the frame at zoom 1; 0 until measured
+  useLayoutEffect(() => {
+    const el = scroll.current;
+    if (!el) return;
+    const measure = () => {
+      setFrameWidth(el.clientWidth);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
   // A newly selected mark on another page brings its page up; a highlight does not.
   if (selected !== lastSelected) {
     setLastSelected(selected);
@@ -104,12 +122,37 @@ export function PageViewer({
           (legend?.length === 1 ? legend[0] : legend?.find((e) => e.label === m.label))?.colour,
         );
   const showValue = unit !== null && unit !== 'count';
+  const valueOf = (m: MarkView) =>
+    showValue && m.value !== null && (m.state === 'counted' || m.state === 'added')
+      ? formatValue(m.value, unit)
+      : null;
+  // Badges are placed so no two overlap once the frame's width is known (R2-qa-1-3).
+  const W = frameWidth * zoom;
+  const H = (W * page.height) / page.width;
+  const narrow = W < NARROW;
+  const spots =
+    W > 0
+      ? placeLabels(
+          onPage.map((m) => {
+            const value = valueOf(m);
+            return {
+              box: m.box,
+              full: value !== null && !narrow ? `${badgeText(m)} · ${value}` : badgeText(m),
+              short: badgeText(m),
+            };
+          }),
+          W,
+          H,
+        )
+      : null;
+  const noRoom = spots?.filter((p) => p === null).length ?? 0;
   const states = STATE_ORDER.filter((s) => onPage.some((m) => m.state === s));
   const unlocatedLines = Object.entries(unlocated ?? {}).filter(([, k]) => k > 0);
   const chosen = onPage.find((m) => m.id === selected);
   const note = normalisedNote(page.normalised);
   const hasLegend =
     onPage.length > 0 || readings.length > 0 || unplaced > 0 || unlocatedLines.length > 0;
+  const chosenValue = chosen ? valueOf(chosen) : null;
 
   return (
     <figure
@@ -178,7 +221,7 @@ export function PageViewer({
           </button>
         </div>
       </div>
-      <div className="vw-scroll">
+      <div className="vw-scroll" ref={scroll}>
         <PageFrame
           zoom={zoom}
           className={onPick ? 'vw-picking' : undefined}
@@ -269,6 +312,24 @@ export function PageViewer({
                   cross,
                 ];
               })}
+              {onPage.map((m, i) => {
+                const spot = spots?.[i];
+                if (!spot?.leader) return null;
+                const [x0, y0, x1, y1] = m.box;
+                return (
+                  <line
+                    key={`${m.id}-leader`}
+                    className="vw-leader"
+                    x1={(x0 + x1) / 2}
+                    y1={(y0 + y1) / 2}
+                    x2={spot.x / W}
+                    y2={spot.y / H}
+                    stroke={colourOf(m)}
+                    strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                );
+              })}
               {tags.map((r) => {
                 const [x0, y0, x1, y1] = r.box ?? [0, 0, 0, 0];
                 return (
@@ -304,12 +365,11 @@ export function PageViewer({
               {r.tag}
             </span>
           ))}
-          {onPage.map((m) => {
+          {onPage.map((m, i) => {
             const [x0, y0, x1, y1] = m.box;
-            const value =
-              showValue && m.value !== null && (m.state === 'counted' || m.state === 'added')
-                ? ` · ${formatValue(m.value, unit)}`
-                : '';
+            const spot = spots?.[i];
+            if (spot === null) return null; // no free spot: counted in the legend
+            const value = valueOf(m);
             const name = `${m.label ?? 'item'}, ${words(m)}`;
             const isSelected = m.id === selected;
             return (
@@ -320,8 +380,17 @@ export function PageViewer({
                 aria-label={m.n === null ? name : `Mark ${String(m.n)}: ${name}`}
                 aria-pressed={isSelected}
                 style={{
-                  left: `${(((x0 + x1) / 2) * 100).toFixed(1)}%`,
-                  top: `${(((y0 + y1) / 2) * 100).toFixed(1)}%`,
+                  ...(spot
+                    ? {
+                        left: `${((spot.x / W) * 100).toFixed(3)}%`,
+                        top: `${((spot.y / H) * 100).toFixed(3)}%`,
+                        width: `${String(spot.w)}px`,
+                        height: `${String(spot.h)}px`,
+                      }
+                    : {
+                        left: `${(((x0 + x1) / 2) * 100).toFixed(1)}%`,
+                        top: `${(((y0 + y1) / 2) * 100).toFixed(1)}%`,
+                      }),
                   background: isSelected ? INK : '#fff',
                   color: isSelected ? '#fff' : INK,
                   borderColor: colourOf(m),
@@ -332,7 +401,7 @@ export function PageViewer({
                 onFocus={() => onHover?.(m.id)}
                 onBlur={() => onHover?.(null)}
               >
-                {badgeText(m) + value}
+                {spot ? spot.text : value === null ? badgeText(m) : `${badgeText(m)} · ${value}`}
               </button>
             );
           })}
@@ -367,11 +436,14 @@ export function PageViewer({
             </li>
           ))}
           {unplaced > 0 && <li>{unplaced} mark(s) could not be placed</li>}
+          {noRoom > 0 && <li>{noRoom} label(s) had no room on the page</li>}
         </ul>
       )}
       {chosen && (
         <p className="vw-selection">
-          {badgeText(chosen)} · {chosen.label ?? 'item'} · {words(chosen)}
+          {badgeText(chosen)} · {chosen.label ?? 'item'} ·{' '}
+          {chosenValue === null ? '' : `${chosenValue} · `}
+          {words(chosen)}
         </p>
       )}
       <figcaption className="vw-caption">

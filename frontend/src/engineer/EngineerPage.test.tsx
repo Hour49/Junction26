@@ -590,6 +590,36 @@ describe('extended answers', () => {
     }
   });
 
+  it('R2-2-1 EN-51 the read-as note is on the card, Details closed; answers and refusals', async () => {
+    const note = "read 'mnay' as 'many'";
+    const shownNote = "Read 'mnay' as 'many'";
+    const cases: AnswerView[] = [
+      { ...answer, explanation: `${note}; the scale is estimated from a door width` },
+      { ...answer, explanation: note },
+      { ...answerRefused, explanation: `${note}; ${answerRefused.explanation ?? ''}` },
+    ];
+    for (const a of cases) {
+      const t = await shownTurn({ ...a, question: 'How mnay doors are there?' });
+      const shown = within(t).getByText(shownNote);
+      expect(shown.closest('details')).toBeNull();
+      const details = t.querySelector('details');
+      if (details) expect(details.open).toBe(false);
+      const value = within(t).queryByTestId('answer-value');
+      if (value) {
+        expect(
+          shown.compareDocumentPosition(value) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      }
+      cleanup();
+    }
+    for (const a of [answer, answerRefused]) {
+      expect(a.explanation === null || !a.explanation.startsWith("read '")).toBe(true);
+      const t = await shownTurn(a);
+      expect(within(t).queryByText(/^Read '/)).toBeNull();
+      cleanup();
+    }
+  });
+
   it('EN-19 the arithmetic line for a sum; none when null', async () => {
     const t = await shownTurn(answerArea);
     expect(

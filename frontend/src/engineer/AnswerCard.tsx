@@ -34,6 +34,15 @@ function stateWords(m: MarkView): string | null {
   return null;
 }
 
+/** How a misspelt question was read: the explanation's first sentence when it starts with "read '"
+ * (backend #80), capitalised: "Read 'mnay' as 'many'". Shown on the card, since the typo reader can turn a
+ * real word into another question (R2-2-1). */
+function readAs(explanation: string | null): string | null {
+  if (!explanation?.startsWith("read '")) return null;
+  const note = explanation.split('; ')[0] ?? explanation;
+  return `R${note.slice(1)}`;
+}
+
 function cameFrom(r: Reader): string {
   // `none`: no second count ran for this drawing.
   const second =
@@ -212,9 +221,11 @@ export function AnswerCard(props: {
 }) {
   const { turn, projectId, file, credit, busy, onAsk, onRetry } = props;
   const question = turn.status === 'done' ? turn.answer.question : turn.question;
+  const note = turn.status === 'done' ? readAs(turn.answer.explanation) : null;
   return (
     <article className="en-turn" aria-label={question}>
       <p className="en-bubble">{question}</p>
+      {note && <p className="en-readas">{note}</p>}
       {turn.status === 'pending' && (
         <p className="en-pending" role="status">
           Reading {file}…
