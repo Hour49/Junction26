@@ -25,6 +25,30 @@
   const NAME = `Swiss apartment floor${flats ? `, ${flats} flat${flats === 1 ? '' : 's'}` : ''}${net ? `, ${Math.round(net)} m²` : ''}`;
   const DRAWINGS = [{ id: ID, name: NAME, lane: 'CAD', meta: D.files.map((f) => f.kind).join(' · '), image, check: [] }]
     .concat(ARCH.map((f, i) => (f.plan ? { id: planId(i), name: f.path.split('/').pop(), lane: 'Vision', meta: `${f.kind} · no answer key`, image: f.image, credit: f.credit, check: [] } : null)).filter(Boolean));
+  // The house set (OpeningDesign): real sheets of one house; its plan is a drawing, the elevations and section are
+  // other sheets of the same set. COMBINED: questions answered from several of them, read by eye (no answer key).
+  const HOUSE = D.house_files || [], hp = HOUSE.find((f) => f.sheet === 'floor_plan');
+  if (hp) {
+    DRAWINGS.push({ id: 'house', name: 'House with a new second floor', lane: 'CAD', meta: 'Vector PDF · no answer key', image: hp.image, check: [] });
+    for (const f of HOUSE) FILES.push({ ...f, lane: 'CAD', role: f.sheet === 'floor_plan' ? 'source' : 'sheet', drawing: 'house' });
+  }
+  const sheet = (word) => (HOUSE.find((f) => f.path.includes(word)) || {}).path;
+  const COMBINED = !hp ? [] : [
+    { q: 'How many storeys does the house have, and how many bathrooms are on its first floor?', keys: [/stor(e)?y/, /bath/],
+      lead: '2 storeys above ground and a basement. 1 bathroom on the first floor.',
+      refs: [[sheet('SOUTH'), 'Levels on the elevation: basement −7′-8″, 1st floor 0′-0″, 2nd floor 9′-0″, roof 16′-10″.'],
+        [sheet('SECTION'), 'North–south section looking west: the same levels, and the stair up to the new second floor.'],
+        [hp.path, 'One bathtub and one toilet on the first floor: one bathroom.']] },
+    { q: 'How many windows face south?', keys: [/window/, /south/],
+      lead: '7 windows face south: 4 upstairs and 3 downstairs, plus the front door.',
+      refs: [[sheet('SOUTH'), 'Upstairs windows 16, 18, 16, 16; downstairs 19, 19, 20; the front door is door 1.'],
+        [sheet('EAST'), 'The house from the east.'], [sheet('WEST'), 'The house from the west.'], [sheet('NORTH'), 'The house from the north.']] },
+    { q: 'How tall is the house?', keys: [/tall|height|high/],
+      lead: '25′-9″ from the ground to the top of the roof.',
+      refs: [[sheet('SOUTH'), 'Dimension on the south elevation: 25′-9″, ground to the top of the roof.'], [sheet('SECTION'), 'North–south section looking west: roof at 16′-10″ over the second floor at 9′-0″.']] },
+  ];
+  for (const c of COMBINED) c.refs = c.refs.filter(([path]) => path);
+  const combinedFor = (text) => { const t = text.toLowerCase(); return COMBINED.find((c) => c.keys.every((k) => k.test(t))) || null; };
   const TRIAGE = Object.fromEntries(ARCH.filter((f) => f.triage).map((f) => [f.path, { ...f.triage, image: f.image, credit: f.credit, example: true }]));
   // Hard-coded demo conflicts on the real floor (Tudor, 15:10: "show some conflicts"). Every value is a real one from
   // the answer key; the second reading and the rules show how Conflicts works today. match: the answer-key question it
@@ -130,7 +154,7 @@
     return { drawing: DRAWINGS[0], rooms, doors: keyCount('door'), windows: keyCount('window') };
   }
 
-  root.VData = { ...S, ARCHIVE: NAME, FLOOR_ID: D.archive, CREDIT: D.credit, FILES, DRAWINGS, TRIAGE, CONFLICTS, ISSUES, variantLabels: (c) => c.variants.map((v) => v.label), QUANTITIES, SUGGEST, drawing,
+  root.VData = { ...S, ARCHIVE: NAME, FLOOR_ID: D.archive, CREDIT: D.credit, FILES, DRAWINGS, TRIAGE, CONFLICTS, ISSUES, COMBINED, combinedFor, variantLabels: (c) => c.variants.map((v) => v.label), QUANTITIES, SUGGEST, drawing,
     answer, parseQuestion, noun, formatValue, ruleOf, askProject, extractFacts, crossChecks: () => [],
     valueOf: (marks, quantity) => { throw new Error(`no marks in Stoa mode (${quantity})`); } };
 })(window);

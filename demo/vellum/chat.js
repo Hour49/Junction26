@@ -4,11 +4,12 @@
   'use strict';
   const V = window.VData, T = window.VTriage, esc = window.VPlan.esc;
   const A = () => window.VApp;
-  const SUGGEST = V.SUGGEST ? V.SUGGEST.slice(0, 3) : ['How many doors are there?', 'What is the area of the kitchen?', 'How many windows are there?'];
+  const COMB = (V.COMBINED || []).map((c) => c.q);
+  const SUGGEST = V.SUGGEST ? COMB.slice(0, 1).concat(V.SUGGEST).slice(0, 3) : ['How many doors are there?', 'What is the area of the kitchen?', 'How many windows are there?'];
   // After the first answer: follow-ups, each answerable here (data.test.cjs/stoa.test.cjs check the data ones); the
   // elevation question first when the project holds an elevation triage set aside.
   const ELEVATION_Q = 'How many storeys does the building in the elevation have?';
-  const FOLLOW = (T.described(ELEVATION_Q, V.FILES) ? [ELEVATION_Q] : [])
+  const FOLLOW = COMB.concat(T.described(ELEVATION_Q, V.FILES) ? [ELEVATION_Q] : [])
     .concat(V.SUGGEST || [...SUGGEST, 'How many rooms are there?', 'What is the net floor area?', 'What is the area of the living room?']);
 
   // A drawing's value as the person left it: a sign-off wins over the live reading.
@@ -41,7 +42,28 @@
         <details class="tri-more"><summary>Full description</summary><p class="small">${esc(d.detail)}</p></details></div></div></article>`;
   }
 
+  // references with pictures: the current one large on the left with its name, arrows on its sides
+  function viewer(t, pics, render) {
+    const i = ((A().S.p.chatRef[t.id] || 0) % pics.length + pics.length) % pics.length;
+    const arrow = (dir, path, label) => `<button class="round press ref-arrow ${dir < 0 ? 'l' : 'r'}" data-act="chat-ref" data-t="${t.id}" data-i="${i + dir}" aria-label="${label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg></button>`;
+    return { i, html: `<figure aria-label="Reference ${i + 1} of ${pics.length}"><span class="mono" style="font-size:14px;font-weight:600">${esc(pics[i].path)}</span>
+      <div class="plan-box ref-view">${render(pics[i])}${pics.length > 1 ? arrow(-1, 'M15 6l-6 6 6 6', 'Previous reference') + arrow(1, 'M9 6l6 6-6 6', 'Next reference') : ''}</div></figure>` };
+  }
+
+  // an answer read from several sheets of the house set, the non-floor-plan sheets first
+  function combinedHtml(t, c) {
+    const pics = c.refs.map(([path, fact]) => ({ ...V.FILES.find((f) => f.path === path), fact }));
+    const v = viewer(t, pics, (f) => `<img class="plan" src="${esc(f.image)}" alt="${esc(f.path)}" loading="lazy">`);
+    const list = pics.map((f, n) => `<li><button class="ref press" data-act="chat-ref" data-t="${t.id}" data-i="${n}" aria-pressed="${n === v.i}"><span class="num">${n + 1}</span>
+      <span><span class="mono" style="font-weight:600">${esc(f.path.split('/').pop())}</span><span class="muted">${esc(f.fact)}</span></span></button></li>`).join('');
+    return `<article class="turn"><p class="bubble">${esc(t.question)}</p><p class="lead" style="margin:0"><strong>${esc(c.lead)}</strong></p>
+      <div class="card"><div class="answer">${v.html}<div class="side"><span><span class="pill grey">Read from the drawings</span></span>
+        <div style="display:flex;flex-direction:column;gap:8px"><span class="label">References</span><ol class="refs">${list}</ol></div></div></div></div></article>`;
+  }
+
   function turnHtml(t) {
+    const cx = V.combinedFor && V.combinedFor(t.question);
+    if (cx) return combinedHtml(t, cx);
     const x = T.described(t.question, V.FILES);
     if (x) return describedHtml(t, x);
     const r = V.askProject(t.question, A().picks());
@@ -106,6 +128,8 @@
     const p = A().S.p, question = text.trim().slice(0, 200);
     if (!question) return false;
     p.chat.push({ id: p.chat.length + 1, question });
+    const cx = V.combinedFor && V.combinedFor(question);
+    if (cx) { A().log(Date.now(), 'ask', question, `${cx.lead} · from ${cx.refs.length} sheets of the house set`); return true; }
     const x = T.described(question, V.FILES);
     if (x) A().log(Date.now(), 'ask', question, `From the description of ${x.path} · a preview, not checked by a person`);
     const r = x ? null : V.askProject(question, A().picks());
