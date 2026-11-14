@@ -258,10 +258,12 @@ An edit of a signed-off quantity (409):
 }
 ```
 
-`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `verda` or `decisions` source
-in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The screen then shows "running
-offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
-questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `regionrooms`, `verda` or
+`decisions` source in `RASTER_COMPONENTS`, `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`,
+`DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off, and no Gemini describer in file triage
+(`TRIAGE_DESCRIBER=gemini` with `TRIAGE_CLASSIFIER` on). The screen then shows "running offline". A reader
+named `hello` reads nothing: drawings on that route have no counts, and their questions are refused with the
+code `no-reader`. `limits` lets the screen refuse a file before uploading it.
 
 `gemini` is there only when a Gemini spend limit is set (`GEMINI_BUDGET_USD`, `GEMINI_BUDGET_USD_PER_HOUR`):
 `ok`, or `budget_exhausted` while the limit is used up. Then every Gemini step (room reader, Decisions count swap
@@ -8126,6 +8128,9 @@ unknown pack, `not-found` for an unknown project.
 - 2026-11-14, additive (QA R9 area 4, `tools/smoke.py`): `GET /api/info` gains `commit`, the git commit the backend
   was started from (setting `APP_COMMIT`, which `tools/qa-env.sh` sets to the exported commit), or null when
   unset. Fixture `info.json` gains it (last).
+- 2026-11-14, behaviour: `GET /api/info` `no_keys` is false also when a keyed source is in
+  `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`, or when `TRIAGE_DESCRIBER=gemini` runs (a triage
+  classifier on); it said true for these. No shape change.
 - 2026-11-14, additive (board #14, plain drawing names): `Issue.drawing_name`, the drawing's `name` from
   `GET /api/projects/{id}` (null with no drawing). The pages of `issues.zip` name the drawing by it instead of its
   file. `file` is unchanged.
