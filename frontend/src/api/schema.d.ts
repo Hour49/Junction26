@@ -316,6 +316,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/files/{file_id}/triage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Triage
+         * @description A person has a file triage set aside read as a floor plan: it is read in the background,
+         *     alone, while the project stays done. Returns the file, queued; poll the project. 409 until
+         *     the project is done or while a file of it is read again; 422 `not-triaged` for a file triage
+         *     did not set aside as not a floor plan. No undo: a reading is not unread.
+         */
+        post: operations["triage_api_projects__project_id__files__file_id__triage_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/issues": {
         parameters: {
             query?: never;
@@ -1244,6 +1267,16 @@ export interface components {
             values: components["schemas"]["MeasuredValue"][];
         };
         /**
+         * ReadAsPlan
+         * @description A person's call that a file triage set aside is a floor plan: it was read as one.
+         */
+        ReadAsPlan: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+        };
+        /**
          * Reader
          * @description How a drawing was read: its route, the file it was read from and that route's reader.
          */
@@ -1625,9 +1658,24 @@ export interface components {
             overruled?: components["schemas"]["Overrule"] | null;
             /** P Plan */
             p_plan: number;
+            read_as_plan?: components["schemas"]["ReadAsPlan"] | null;
             relevance?: components["schemas"]["Relevance"] | null;
             /** Verdict */
             verdict?: ("related" | "unrelated" | "unsure") | null;
+        };
+        /**
+         * TriageRequest
+         * @description A person's call that a file triage set aside is a floor plan (decision 0010): it is read
+         *     as one. `by` as a sign-off's.
+         */
+        TriageRequest: {
+            /** By */
+            by: string;
+            /**
+             * Class
+             * @constant
+             */
+            class: "floor_plan";
         };
         /** ValidationError */
         ValidationError: {
@@ -2233,6 +2281,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FileTrace"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    triage_api_projects__project_id__files__file_id__triage_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileStatus"];
                 };
             };
             /** @description Validation Error */

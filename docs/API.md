@@ -81,9 +81,10 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Unknown or malformed project, file or drawing id, unknown page, quantity key or mark id | 404 `not-found` |
 | Unknown rule pack (`?pack=`) | 404 `unknown-pack` |
 | A relevance call on a file triage did not describe (decision 0010) | 422 `no-description` |
+| Reading as a floor plan a file triage did not set aside as not a floor plan | 422 `not-triaged` |
 | `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
-| Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call before the project is `done` | 409 `not-allowed` |
+| Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
 | A method the path does not take (`GET /api/ask`) | 405 `method-not-allowed` |
@@ -113,6 +114,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects/{project_id}` | Project status: every file with its state and reason, one drawing per plan | #27 |
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
+| `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
@@ -797,6 +799,8 @@ the `identify` stage's line.
   project's `drawings`), `judge`. With no plan read in the project the verdict is `unsure`, "no floor plan in the
   project to compare with".
 - `overruled`: a person's call, `{verdict: related|unrelated, by, at}`; the judge's `relevance` stays as it was.
+- `read_as_plan`: `{by, at}` once a person had the file read as a floor plan (`POST …/triage`); `class` stays the
+  classifier's.
 - `verdict`: the one value that counts: `overruled.verdict`, else `relevance.verdict`, else null.
 - `note`: why `description` or `relevance` is null, a plain sentence: "a floor plan: it is read, so it is not
   described or judged"; "not described: no description model is set up, so it is not judged" (no describer: the
@@ -807,9 +811,10 @@ the `identify` stage's line.
 "not a floor plan: " are plain words, shown as they are. Description and judge costs count in the file's and the
 project's `cost_usd`; with no model set up they are 0.
 
-`not_plans` (on `ProjectView` and `ProjectSummary`): the files triage called not a floor plan, a person's call or
-not (a call changes the verdict, not the class). Never a file set aside for its format (`triage` null). Null until
-`done`, then final; left out when the project was ingested with triage off.
+`not_plans` (on `ProjectView` and `ProjectSummary`): the files triage called not a floor plan, a person's relevance
+call or not (it changes the verdict, not the class), less those a person had read as a floor plan (a class call).
+Never a file set aside for its format (`triage` null). Null until `done`, then final except when a person has a
+file read as a floor plan; left out when the project was ingested with triage off.
 
 A project with triage on (the test fakes: an elevation judged related, the site photo judged unrelated and then
 called related by a person, a photo the describer refused):
@@ -960,6 +965,7 @@ called related by a person, a photo the describer refused):
           "judge": "word judge"
         },
         "overruled": null,
+        "read_as_plan": null,
         "verdict": "related",
         "note": null
       }
@@ -1006,6 +1012,7 @@ called related by a person, a photo the describer refused):
           "by": "Ana",
           "at": "2026-11-14T08:05:00Z"
         },
+        "read_as_plan": null,
         "verdict": "related",
         "note": null
       }
@@ -1035,6 +1042,7 @@ called related by a person, a photo the describer refused):
         "description": null,
         "relevance": null,
         "overruled": null,
+        "read_as_plan": null,
         "verdict": null,
         "note": "not described: the model refused"
       }
@@ -1110,8 +1118,159 @@ verdict is a call too: it settles the file's issue. Returns the file's `FileStat
   or too long `by`, `undo` with a `verdict`.
 - `undo` with no call made: 200, the file unchanged.
 
-Reserved: `POST /api/projects/{project_id}/files/{file_id}/triage` `{class: "floor_plan", by}` will read a file
-triage set aside as a floor plan and return its `FileStatus`. It is not built yet.
+### `POST /api/projects/{project_id}/files/{file_id}/triage`
+
+A person says a file triage set aside is a floor plan, so it is read as one: in the background, that file alone,
+through the usual group, route and readers. The body is `{class: "floor_plan", by}` (`by` as in a sign-off). 202
+with the file's `FileStatus`, `queued`; poll `GET /api/projects/{project_id}`: the file goes `running`, then
+`ready`, `flagged` or `set_aside` like any file, and once read it has a `drawing_id` and is in `drawings`. The
+project stays `done` throughout.
+
+- `triage.read_as_plan` = `{by, at}`; `class` stays the classifier's. The file leaves `not_plans`.
+- Its `unrelated_file` issue stays, `settled`, with the same id, and "<by> had it read as a floor plan" in `why`.
+  The new drawing's own issues (a reading flag, a conflict) join the list; the issues already there keep their
+  order.
+- The trace adds a second `identify` line, "read as a floor plan, as <by> asked", then the usual stages.
+- A photo is read as a photo of a plan (framed and rectified like one).
+- No undo: a reading is not unread. A relevance call still works.
+- 404 `not-found` for an unknown file; 409 `not-allowed` until the project is `done`, while a file of it is read
+  again, or for a file already read this way; 422 `not-triaged` for a file triage did not set aside as not a floor
+  plan; 422 `validation` for a `class` other than `floor_plan` or no `by`.
+- A file whose reading a restart cut off is set aside, "not read as a floor plan: the server restarted during
+  ingest"; the project stays `done`.
+
+<!-- fixture: triage_request.json -->
+```json
+{
+  "class": "floor_plan",
+  "by": "Ana"
+}
+```
+
+<!-- fixture: triage_started.json -->
+```json
+{
+  "id": "f2",
+  "path": "elevations/south.png",
+  "size": 8835,
+  "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
+  "kind": "png_plan",
+  "state": "queued",
+  "reason": "queued to be read as a floor plan",
+  "group": null,
+  "route": null,
+  "source": null,
+  "drawing_id": null,
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": "identify",
+  "cost_usd": 0.0,
+  "normalised": null,
+  "triage": {
+    "class": "other_drawing",
+    "p_plan": 0.03,
+    "method": "fake classifier",
+    "description": {
+      "text": "A picture of the south elevation of a two-storey house.",
+      "subject": "the south elevation of a two-storey house",
+      "text_seen": [
+        "Küche",
+        "Süd"
+      ],
+      "language": "en",
+      "model": "fake describer",
+      "cost_usd": 0.0
+    },
+    "relevance": {
+      "verdict": "related",
+      "why": "Related: Küche is on the project's plans.",
+      "matched_on": [
+        "Küche"
+      ],
+      "plans": [
+        "6a47e9a1c33db404"
+      ],
+      "judge": "word judge"
+    },
+    "overruled": null,
+    "read_as_plan": {
+      "by": "Ana",
+      "at": "2026-11-14T08:05:00Z"
+    },
+    "verdict": "related",
+    "note": null
+  }
+}
+```
+
+The same file once read:
+
+<!-- fixture: file_read_as_plan.json -->
+```json
+{
+  "id": "f2",
+  "path": "elevations/south.png",
+  "size": 8835,
+  "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
+  "kind": "png_plan",
+  "state": "flagged",
+  "reason": "no reader for the image route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
+  "group": "elevations/south",
+  "route": "raster",
+  "source": "elevations/south.png",
+  "drawing_id": "90dc7849bebce83d",
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": "write",
+  "cost_usd": 0.0,
+  "normalised": {
+    "exif": null,
+    "rotated": 0,
+    "deskew_deg": 0.0,
+    "rectified": false,
+    "quad": null,
+    "width": 850,
+    "height": 1200,
+    "rectifier": null
+  },
+  "triage": {
+    "class": "other_drawing",
+    "p_plan": 0.03,
+    "method": "fake classifier",
+    "description": {
+      "text": "A picture of the south elevation of a two-storey house.",
+      "subject": "the south elevation of a two-storey house",
+      "text_seen": [
+        "Küche",
+        "Süd"
+      ],
+      "language": "en",
+      "model": "fake describer",
+      "cost_usd": 0.0
+    },
+    "relevance": {
+      "verdict": "related",
+      "why": "Related: Küche is on the project's plans.",
+      "matched_on": [
+        "Küche"
+      ],
+      "plans": [
+        "6a47e9a1c33db404"
+      ],
+      "judge": "word judge"
+    },
+    "overruled": null,
+    "read_as_plan": {
+      "by": "Ana",
+      "at": "2026-11-14T08:05:00Z"
+    },
+    "verdict": "related",
+    "note": null
+  }
+}
+```
 
 ### `GET /api/projects/{project_id}/files/{file_id}/trace`
 
@@ -2783,10 +2942,12 @@ Each issue:
   - `code_check_failed`: a failed rule of the pack (decision 0009). Not produced yet (#139).
   - `double_check`: an answer we can't vouch for, one issue per disputed place. Not produced yet (#129).
   - `unrelated_file` (file triage, decision 0010): a file triage called not a floor plan whose `triage.verdict`
-    is not `related` (also one not described or not judged), or one a person made a call on. `reason` is the
+    is not `related` (also one not described or not judged), or one a person made a call on or had read as a
+    floor plan. `reason` is the
     verdict (null while there is none), `page`, `box` and `drawing_id` are null. Its severity is the judge's:
     `needs_person` for `unsure`, else `note`. A person's call makes it `settled` and keeps its id, severity and
-    place in the list, whichever way the call went. Such a file has no `set_aside` issue as well.
+    place in the list, whichever way the call went; so does having it read as a floor plan. Such a file has no
+    `set_aside` issue as well, unless its reading as a floor plan set it aside.
   - All seven values are in the type now, so a screen can switch over them; `code_check_failed` and
     `double_check` appear once their work lands.
 - `severity`: `fails_rule` (a failed code check), `needs_person` (a conflict no rule decides and nobody settled),
@@ -6072,6 +6233,9 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0010, board #152 c6876693460): `POST /api/projects/{project_id}/files/{file_id}/triage`
+  reads a file triage set aside as a floor plan (202, in the background); `Triage.read_as_plan`; a new error code
+  `not-triaged` (422).
 - 2026-11-14, additive (decision 0010, file triage; board #152): `FileStatus.triage` (class, P(plan), method,
   description, relevance, a person's call, the verdict that counts, and a note when something is null),
   `ProjectView.not_plans` and `ProjectSummary.not_plans`, all left out of the JSON when triage is off (the

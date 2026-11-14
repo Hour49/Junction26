@@ -16,6 +16,7 @@ from app.core.ingest.model import (
     FileTrace,
     Overrule,
     ProjectStatus,
+    ReadAsPlan,
     SheetFile,
 )
 from app.core.review.ports import ReviewStore
@@ -48,6 +49,8 @@ class Ingest(Protocol):
     def upload_bytes(self, project_id: str, file_id: str) -> bytes: ...
 
     def overrule(self, project_id: str, file_id: str, overrule: Overrule | None) -> FileStatus: ...
+
+    def read_as_plan(self, project_id: str, file_id: str, call: ReadAsPlan) -> FileStatus: ...
 
     def close(self) -> None: ...
 

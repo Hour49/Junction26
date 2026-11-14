@@ -17,6 +17,7 @@ from app.core.ingest.model import (
     Overrule,
     Probed,
     ProjectContext,
+    ReadAsPlan,
     Relevance,
     Triage,
     TriageClass,
@@ -105,6 +106,22 @@ def overruled(triage: Triage, overrule: Overrule | None) -> Triage:
     return Triage.model_validate({**triage.model_dump(), "overruled": overrule})
 
 
+def read_as_plan(triage: Triage, call: ReadAsPlan) -> Triage:
+    return Triage.model_validate({**triage.model_dump(), "read_as_plan": call})
+
+
+def plan_kind(kind: ContentKind | None, file_format: FileKind | None) -> ContentKind | None:
+    """The kind a file a person had read as a floor plan is read as: a photo is a photo of a
+    plan, an image the probe called unknown is a drawing image; None: it can't be read as one."""
+    if kind == "photo":
+        return "photo_plan"
+    if kind == "unknown" and file_format == "png":
+        return "png_plan"
+    if kind == "unknown" and file_format == "jpeg":
+        return "jpeg_plan"
+    return kind if kind in TRIAGED_KINDS else None
+
+
 def kind_after(probed: Probed, triage: Triage | None, file_format: FileKind | None) -> Probed:
     """The probe's kind once triage has spoken. With triage on, the classifier alone decides
     plan or not: an image it calls a floor plan is read as one even where the probe (or the kind
@@ -130,8 +147,14 @@ def _how(found: TriageClass, p_plan: float, method: str) -> str:
     return f"{CLASS_WORDS[found]} (P(plan) {p_plan:.2f}, {method})"
 
 
-def is_not_plan(file: FileStatus) -> bool:
+def called_not_plan(file: FileStatus) -> bool:
+    """Triage's classifier called the file not a floor plan (a person may have had it read)."""
     return file.triage is not None and file.triage.class_ != "floor_plan"
+
+
+def is_not_plan(file: FileStatus) -> bool:
+    """Not a floor plan now: called so by triage, and no person had it read as one."""
+    return called_not_plan(file) and file.triage is not None and file.triage.read_as_plan is None
 
 
 def context_of(files: Iterable[FileStatus], drawings: Mapping[str, Drawing]) -> ProjectContext:
