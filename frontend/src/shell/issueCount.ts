@@ -21,9 +21,14 @@ const subscribe = (listener: () => void) => {
 };
 
 /** The Documents badge number for a project (shared.md "Documents badge"): the server's `issues_to_answer` (#223),
- * else `needsYou` over its issues with `Issue.answer` as answered; null while loading, on any error, for a failed
+ * else `needsYou` over its issues with `Issue.answer` as answered (always with a `pack`: the server count has no pack's
+ * rule issues, SH-88); null while loading, on any error, for a failed
  * project and without a project. `reload` asks again when it changes (the header passes the route). */
-export function useIssuesToAnswer(projectId: string | null, reload?: unknown): number | null {
+export function useIssuesToAnswer(
+  projectId: string | null,
+  reload?: unknown,
+  pack?: string | null,
+): number | null {
   const [loaded, setLoaded] = useState<{ projectId: string; count: number } | null>(null);
   const version = useSyncExternalStore(subscribe, () =>
     projectId === null ? 0 : (versions.get(projectId) ?? 0),
@@ -47,9 +52,9 @@ export function useIssuesToAnswer(projectId: string | null, reload?: unknown): n
         setLoaded(null);
         return;
       }
-      let count = project.issues_to_answer;
+      let count = pack ? null : project.issues_to_answer;
       if (count === null || count === undefined) {
-        count = needsYou((await getIssues(projectId, { signal })).issues);
+        count = needsYou((await getIssues(projectId, { signal, pack: pack ?? undefined })).issues);
       }
       setLoaded({ projectId, count });
     };
@@ -61,7 +66,7 @@ export function useIssuesToAnswer(projectId: string | null, reload?: unknown): n
       abort.abort();
       clearTimeout(timer);
     };
-  }, [projectId, reload, version]);
+  }, [projectId, reload, version, pack]);
 
   return projectId !== null && loaded?.projectId === projectId ? loaded.count : null;
 }

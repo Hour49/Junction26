@@ -58,6 +58,27 @@ describe('issues to answer', () => {
     expect(api.calls).toHaveLength(2);
   });
 
+  it("SH-88 with a pack: needsYou over the pack's issues, issues_to_answer ignored, re-asked on issuesChanged", async () => {
+    let rows = issues;
+    const api = mockApi({
+      [PROJECT]: done(0),
+      [GET]: (c: { url: string }) =>
+        c.url.endsWith('?pack=ch-zh') ? { ...list, issues: rows } : list,
+    });
+    const { result } = renderHook(() => useIssuesToAnswer(PID, undefined, 'ch-zh'));
+    await waitFor(() => {
+      expect(result.current).toBe(3);
+    });
+    rows = issues.filter((i) => i.id !== 'e');
+    act(() => {
+      issuesChanged(PID);
+    });
+    await waitFor(() => {
+      expect(result.current).toBe(2);
+    });
+    expect(api.calls.filter((c) => c.url.endsWith('?pack=ch-zh'))).toHaveLength(2);
+  });
+
   it('SH-87 issuesChanged(projectId) asks again (after an answer); another project is left alone', async () => {
     let toAnswer = 2;
     const api = mockApi({ [PROJECT]: () => done(toAnswer) });

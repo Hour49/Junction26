@@ -38,6 +38,7 @@ export function Header({ route }: { route: Route }) {
   const toAnswer = useIssuesToAnswer(
     'projectId' in route ? route.projectId : null,
     routePath(route),
+    packOf(route),
   );
   const wide = isWide(route);
   return (

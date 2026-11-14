@@ -313,7 +313,9 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
 - Source: `useIssuesToAnswer(projectId, reload?): number | null` in `src/shell/issueCount.ts` (fe-shared):
   `getProject(projectId)`, asked again every 1 s while `queued` or `running` (the issues answer 409 until the ingest
   is done, and the browser logs that as a console error: re-sweep item 9); `failed` → null; `done` → its
-  `issues_to_answer`, or when that is null one `getIssues(projectId)` and `needsYou`. Asked again on every change of
+  `issues_to_answer`, or when that is null one `getIssues(projectId)` and `needsYou`. With a pack chosen (the header
+  passes `packOf(route)`), `issues_to_answer` is ignored (the project GET counts no pack's rule issues) and the count is
+  `needsYou` over `getIssues(projectId, {pack})`. Asked again on every change of
   `reload` (the header passes the route) and on `issuesChanged(projectId)`. Any error, a load in flight or no
   project → `null` → no badge; 0 → no badge. The finished-ingest done line reads the same hook.
 - Badge: `<span class="tab-badge" aria-hidden="true">N</span>` inside the tab link; the link's accessible name
@@ -857,6 +859,9 @@ Vellum round (round 2)
   issues while the project is `running`, and the count comes once it reads `done`; a `failed` project gives null. In
   the header: the link's name "Documents, 2 issues to answer" (singular "1 issue"), the badge `aria-hidden`, none
   for 0 or null. [unit + component, mockApi]
+- SH-88 (orch) With `?pack=ch-zh` the badge ignores `issues_to_answer` and counts `needsYou` over
+  `GET /api/projects/{pid}/issues?pack=ch-zh` (an open `fails_rule` issue counts), asked again on `issuesChanged`;
+  without a pack the issues are not asked when `issues_to_answer` is set. [unit + component, mockApi]
 - SH-87 (#223) `answerIssue(pid, id, issue_answer_request.json)` and `answerIssue(pid, id, {undo: true})` post those
   bodies to `/api/projects/<pid>/issues/<id>/answer` and resolve with the issue; with `{pack: 'fi'}` the URL carries
   `?pack=fi` (a code check's issue: 404 without it); `issuesChanged(pid)` makes the hook

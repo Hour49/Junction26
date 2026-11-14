@@ -3,8 +3,15 @@ import { renderHook } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, type Screens } from './App';
-import type { ProjectList } from './api';
-import { error as errorBody, info, project, projectList, rulePackFi } from './api/fixtures';
+import type { Issue, ProjectList } from './api';
+import {
+  error as errorBody,
+  info,
+  project,
+  projectIssues,
+  projectList,
+  rulePackFi,
+} from './api/fixtures';
 import { issuesChanged } from './shell/issueCount';
 import { InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
@@ -310,6 +317,31 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
+  it("SH-88 the Documents badge under ?pack counts the pack's issues, not issues_to_answer", async () => {
+    const failsRule = {
+      ...(projectIssues.issues[0] as Issue),
+      id: 'r',
+      kind: 'reading_flag' as const,
+      severity: 'fails_rule' as const,
+      state: 'open' as const,
+      answer: null,
+    };
+    mockApi({
+      'GET /api/info': info,
+      'GET /api/projects': projectList,
+      [`GET /api/projects/${P}`]: { ...project, state: 'done', issues_to_answer: 0 },
+      [`GET /api/projects/${P}/issues`]: (c: { url: string }) =>
+        c.url.endsWith('?pack=ch-zh') ? { ...projectIssues, issues: [failsRule] } : projectIssues,
+    });
+    window.location.hash = `#/p/${P}?pack=ch-zh`;
+    render(<App screens={stubs} />);
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: /^Documents/ }).getAttribute('aria-label')).toBe(
+        'Documents, 1 issue to answer',
+      );
+    });
+  });
+
   it('SH-78 SH-87 the Documents badge: the server count, named on the link, refreshed by issuesChanged, gone at 0', async () => {
     let toAnswer = 2;
     const api = mockApi({
@@ -405,7 +437,9 @@ describe('shell', () => {
     fireEvent.keyDown(group(), { key: 'Escape' });
     expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
     expect(document.activeElement).toBe(button());
-    expect(api.calls.length).toBe(before);
+    // The badge re-reads the project on a pack change (SH-88); the picker itself asks nothing.
+    const notBadge = api.calls.slice(before).filter((c) => c.url !== `/api/projects/${P}`);
+    expect(notBadge).toEqual([]);
   });
 
   it('SH-69 the picker is not rendered off project routes, without packs, or while info loads', async () => {
