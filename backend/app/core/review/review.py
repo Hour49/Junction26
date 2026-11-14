@@ -16,7 +16,7 @@ and a conflict no rule decides is settled by a person before it can be signed of
 """
 
 from collections.abc import Mapping, Sequence
-from typing import get_args
+from typing import NamedTuple, get_args
 
 from app.core.drawing.model import Box, Drawing, ElementClass, Polygon, Room, RoomType, words
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
@@ -76,16 +76,31 @@ def parse_key(key: str) -> tuple[Measure, str, Scope]:
     return measure, subject, scope
 
 
-def label(key: str, drawing: Drawing | None = None) -> str:
+class RoomNames(NamedTuple):
+    """What `label` needs of a drawing's rooms: it depends on the drawing alone, so a caller that
+    labels many rows of one drawing builds it once (`room_names_of`)."""
+
+    printed: dict[str, str]  # each room name as a takeoff key keeps it -> as the drawing prints it
+    labelled: dict[str, str]  # a name only one room answers to -> that room's printed label
+
+
+def room_names_of(drawing: Drawing) -> RoomNames:
+    return RoomNames(_printed_names(drawing), _room_labels(drawing))
+
+
+def label(key: str, drawing: Drawing | None = None, names: RoomNames | None = None) -> str:
     """A readable name for a takeoff key: `area:room|indoor` is "area of room (indoor)". With
-    the drawing, a room's name or label is shown as printed ("MH1"), not as the key keeps it."""
+    the drawing, a room's name or label is shown as printed ("MH1"), not as the key keeps it.
+    `names`: `room_names_of(drawing)`, when the caller has it already (one per drawing, not per
+    row: building it walks every room of the drawing)."""
     _, *filters = key.split("|")
     measure, subject, _ = parse_key(key)
     name = " ".join(words(part) for part in subject.split(":"))
     text = f"{name} count" if measure == "count" else f"{measure} of {name}"
-    printed = {} if drawing is None else _printed_names(drawing)
-    labelled = {} if drawing is None else _room_labels(drawing)
     if filters:
+        if names is None:
+            names = RoomNames({}, {}) if drawing is None else room_names_of(drawing)
+        printed, labelled = names
         shown: list[str] = []
         for part in filters:
             kind, equals, value = part.partition("=")
@@ -264,7 +279,14 @@ def current_value(quantity: Quantity, views: Sequence[MarkView], state: ReviewSt
     return _typed(quantity, quantity.value + delta)
 
 
-def row(quantity: Quantity, drawing: Drawing, state: ReviewState, rules: Mapping[str, str]) -> Row:
+def row(
+    quantity: Quantity,
+    drawing: Drawing,
+    state: ReviewState,
+    rules: Mapping[str, str],
+    names: RoomNames | None = None,
+) -> Row:
+    """`names`: `room_names_of(drawing)`, built once by a caller making every row of a drawing."""
     views = mark_views(quantity, drawing, state)
     measure, subject, scope = parse_key(quantity.key)
     disputed = quantity.conflict
@@ -275,7 +297,7 @@ def row(quantity: Quantity, drawing: Drawing, state: ReviewState, rules: Mapping
     value = current_value(quantity, views, state)
     return Row(
         key=quantity.key,
-        label=label(quantity.key, drawing),
+        label=label(quantity.key, drawing, names),
         measure=measure,
         subject=subject,
         scope=scope,
