@@ -379,3 +379,18 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .mark.hot rect:first-child { stroke-width: 5; }
 .tri-text { white-space: pre-wrap; }
 .tri-part > .btn { align-self: flex-start; }
+/* the project chat's answer from a set-aside drawing's description (a preview) */
+.chat-card { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.chat-pills { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chat-ref { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; align-items: start; }
+.chat-ref > .label { grid-column: 1 / -1; }
+.chat-thumb { padding: 0; border: 1px solid #e5e5ea; border-radius: 10px; background: #fff; cursor: pointer; overflow: hidden; width: 120px; min-height: 40px; }
+.chat-thumb .plan { display: block; width: 100%; height: 84px; object-fit: cover; }
+.chat-ref-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.chat-big { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.chat-big .plan { display: block; width: 100%; height: auto; border: 1px solid #e5e5ea; border-radius: 10px; }
+.chat-pulled { display: flex; flex-direction: column; gap: 8px; }
+.chat-dl { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.chat-dl dt { font-size: 12px; font-weight: 500; color: var(--v-muted); }
+.chat-dl dd { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.tri-fig figcaption { padding: 6px 12px 10px; }

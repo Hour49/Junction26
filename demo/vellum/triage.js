@@ -11,7 +11,8 @@
 
   // Synthetic: four images of the sample upload, in the shapes of 0010 §8 (#152 c6877087844). register: the
   // sheet-register row; description: the describer's form. Relevance is not stored: relevanceOf applies the rule.
-  const TRIAGE = {
+  // Stoa mode hands its own (VData.TRIAGE: real scans, each with image, credit and example: a hand-picked example).
+  const SAMPLE = {
     'elevations/south-elevation.png': { picture: 'elevation',
       register: { kind: 'elevation', has_floor_plan: false, photo_of_sheet: false, scale_shown: 'ratio_text', quality: 'good', method: METHOD },
       description: { text: 'The south face of a four-storey block, drawn straight on, with a title block.', what_it_is: 'drawing', shows_building: true,
@@ -30,6 +31,7 @@
       description: { text: 'A faint pencil sketch of a few rooms with a north arrow; it could be a sketch plan or a site layout.', what_it_is: 'drawing', shows_building: true,
         visible_text: 'Annex\nKitchen', detail: 'Pencil on paper, scanned light. Three rectangles drawn freehand share walls; one is labelled Kitchen. Short gaps in the walls may be doors. The word Annex is written above.' } },
   };
+  const TRIAGE = root.VData && root.VData.TRIAGE ? root.VData.TRIAGE : SAMPLE;
 
   const CLASS_LABEL = { floor_plan: 'a floor plan', other_drawing: 'another kind of drawing', not_drawing: 'not a drawing' };
   const VERDICT = {
@@ -40,7 +42,9 @@
   };
   const NOT_JUDGED = 'not judged yet: the project is still being read';
   const PREVIEW_TIP = 'File triage is coming (decision 0010). It is off in today\'s demo config until its classifier passes its check.';
-  const STOP = new Set(['this', 'that', 'with', 'from', 'have', 'there', 'their', 'what', 'page', 'sheet', 'drawing', 'scale']);
+  // drawing words too: "floor plan" printed on a sheet says nothing about which project it belongs to
+  const STOP = new Set(['this', 'that', 'with', 'from', 'have', 'there', 'their', 'what', 'page', 'sheet', 'drawing', 'scale',
+    'floor', 'plan', 'plans', 'site', 'section', 'elevation', 'archive', 'level', 'north', 'south', 'east', 'west']);
 
   const of = (path) => TRIAGE[path] || null;
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -126,6 +130,7 @@
   // ---------- pictures (synthetic, drawn here; no real file) ----------
   function picture(path, label) {
     const t = of(path), a = `role="img" aria-label="${esc(label)}"`, box = 'viewBox="0 0 400 280" class="plan tri-pic"';
+    if (t.image) return `<img class="plan tri-pic" src="${esc(t.image)}" alt="${esc(label)}">`;
     if (t.picture === 'elevation') {
       let w = '';
       for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) if (!(r === 3 && (c === 2 || c === 3))) w += `<rect x="${92 + c * 36}" y="${52 + r * 40}" width="20" height="24" fill="none" stroke="#1d1d1f" stroke-width="1.5"/>`;
@@ -173,14 +178,30 @@
         <p class="small">If it is a floor plan after all, it is read like any drawing. This can't be undone.</p></div>` : '';
     return `<section class="card tri" aria-label="Is it a floor plan?"><div class="tri-top">${head}${pill}</div>
       <p class="small">Kind: ${esc(kindWords(t.register.kind))}</p>
-      <figure class="tri-fig">${picture(path, `${path} as uploaded`)}</figure>
+      <figure class="tri-fig">${picture(path, `${path} as uploaded`)}${t.credit ? `<figcaption class="small credit">Credit: ${esc(t.credit)}</figcaption>` : ''}</figure>
       <div class="tri-part"><h3>What is on it</h3><p>${esc(d.text)}</p>${seen}
-        <details class="tri-more"><summary>Full description (a model's description, not checked by a person)</summary><p class="small">${esc(d.detail)}</p></details></div>
+        <details class="tri-more"><summary>Full description (${t.example ? EXAMPLE : 'a model\'s description, not checked by a person'})</summary><p class="small">${esc(d.detail)}</p></details></div>
       ${belong}${callHtml}${read}</section>`;
   }
 
+  // ---------- the project chat's question about a set-aside elevation (a preview) ----------
+  // The backend keeps a non-plan's description for later AI use and does not answer from it yet: this shows what such
+  // an answer could pull. The quote is the description's sentences holding a word of the question, else its summary.
+  const EXAMPLE = 'a hand-picked example written for this demo: what a person saw, not a model\'s output';
+  const ASKS_ELEVATION = /\b(elevation|fa[cç]ade)s?\b/i;
+  const QSTOP = new Set(['many', 'does', 'building', 'show', 'shows', 'house', 'have', 'there']);
+  const stem = (w) => w.replace(/(ies|s)$/, '');
+  function described(question, files) {
+    if (!ASKS_ELEVATION.test(question)) return null;
+    const f = files.find((x) => of(x.path) && of(x.path).register.kind === 'elevation');
+    if (!f) return null;
+    const d = of(f.path).description, want = wordsOf(question).filter((w) => !QSTOP.has(w) && !ASKS_ELEVATION.test(w)).map(stem);
+    const said = `${d.text} ${d.detail}`.split(/(?<=\.)\s+/).filter((x) => want.some((w) => x.toLowerCase().includes(w)));
+    return { path: f.path, quote: said.length ? said.slice(0, 2).join(' ') : d.text, matched: said.length > 0, example: !!of(f.path).example };
+  }
+
   const API = { TRIAGE, CLASS_LABEL, VERDICT, RULE, NOT_JUDGED, PREVIEW_TIP, of, classOf, projectOf, relevanceOf, verdictOf, rapState,
-    notPlans, notPlansLine, rowLine, callLine, issueOf, picture, card };
+    notPlans, notPlansLine, rowLine, callLine, issueOf, picture, card, described, kindWords, EXAMPLE };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.VTriage = API;
 })(typeof window !== 'undefined' ? window : globalThis);

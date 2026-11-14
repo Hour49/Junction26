@@ -76,7 +76,7 @@
       <div class="card"><div class="answer">
         <figure aria-label="Drawing"><span style="display:flex;flex-direction:column"><span class="mono" style="font-size:14px;font-weight:600">${esc(d.name)}</span><span class="small">${esc(d.meta)}</span></span>
           <div class="plan-box">${P.answerPlan(d, a, { flagged, rejected: edits ? edits.rejected : null, added: edits ? edits.added : null, fixing, turn: t.id })}${sheet}</div>
-          <figcaption class="legend">${legend.join('')}</figcaption>${V.CREDIT ? `<p class="small credit">Credit: ${esc(V.CREDIT.replace(/^All files:\s*/, ''))}</p>` : ''}</figure>
+          <figcaption class="legend">${legend.join('')}</figcaption>${d.credit || V.CREDIT ? `<p class="small credit">Credit: ${esc((d.credit || V.CREDIT).replace(/^All files:\s*/, ''))}</p>` : ''}</figure>
         <div class="side">
           <div class="value"><b>${V.formatValue(a.quantity, value).split(' ')[0]}</b><span>${a.quantity === 'area' ? 'm² net' : nounOf(a.quantity, value)}</span>${status}</div>
           ${a.check ? checkHtml(t, a, ck, value) : a.key ? '' : '<p class="small">Certified: exact geometry and nothing in dispute. No person needs to check this.</p>'}
