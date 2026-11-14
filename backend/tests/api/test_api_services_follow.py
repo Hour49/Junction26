@@ -51,6 +51,30 @@ def test_sf15_on_every_lane_is_listed_and_a_project_without_models_says_so(
     assert turn["edit"]["rooms"] == plain["edit"]["rooms"]  # the edit itself is the same
 
 
+@pytest.mark.parametrize("value", ["off", "on"])
+def test_sf15_the_model_is_told_of_services_only_while_the_setting_is_on(
+    value: str, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.api.chat as chat_api
+    from app.core.agent.prompt import SERVICES, SYSTEM
+
+    contexts: list[str] = []
+    real = chat_api.run_turn
+
+    def recording(*args: Any, **kwargs: Any) -> Any:
+        contexts.append(kwargs["context"])
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(chat_api, "run_turn", recording)
+    chosen = settings.model_copy(
+        update={"services_follow": value, "projects_dir": settings.projects_dir / f"told-{value}"}
+    )
+    ingest = build_ingest(chosen, chosen.projects_dir, background=False)
+    edit_turn(TestClient(create_app(chosen, ingest)))
+    assert "services" not in SYSTEM  # off: the system prompt is main's
+    assert [SERVICES in context for context in contexts] == [value == "on"]
+
+
 def test_sf18_on_each_chat_turn_asks_for_the_models_to_be_read_ahead(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
