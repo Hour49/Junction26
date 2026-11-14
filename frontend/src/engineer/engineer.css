@@ -528,10 +528,3 @@ button.en-ref:hover,
     transform: translateY(-50%);
   }
 }
-.en-check {
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--v-warn-soft);
-  color: var(--v-warn);
-  font-size: 14px;
-}

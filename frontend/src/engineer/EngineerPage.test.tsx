@@ -1008,18 +1008,6 @@ describe('Vellum (screen 4)', () => {
     );
   });
 
-  it('EN-69 a check reason (#14 c6875035654) shows as a warning under the value; none without', async () => {
-    const reason = 'Please double-check: the readers disagree on 2 doors, marked on the drawing';
-    const t = await shownTurn({ ...answer, check: { reason, disputed: [] } } as AnswerView);
-    const line = within(t).getByRole('status');
-    expect(line.textContent).toBe(reason);
-    expect(line.getAttribute('data-pending')).toBe('AnswerView.check');
-    expect(line.previousElementSibling?.className).toBe('en-value-row');
-    cleanup();
-    const u = await shownTurn(answer);
-    expect(within(u).queryByRole('status')).toBeNull();
-  });
-
   it("EN-55 the meta passed to the viewer is kind and route only: storey and scale are the viewer's", async () => {
     const page = { ...(answer.pages[0] as AnswerView['pages'][number]), storey: 'Ground floor' };
     const t = await shownTurn({ ...answer, pages: [page] });
