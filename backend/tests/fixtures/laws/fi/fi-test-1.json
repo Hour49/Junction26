@@ -1,0 +1,41 @@
+{
+  "id": "fi-test-1",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "1/2026",
+  "title": "Testiasetus asuintiloista",
+  "title_en": "Test decree on residential spaces",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1",
+  "language": "fi",
+  "in_force": "2026-01-01",
+  "checked": "2026-11-14",
+  "status_note": "A made-up test law: its clauses point nowhere real.",
+  "clauses": [
+    {
+      "id": "fi-test-1-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Huoneala",
+      "heading_en": "Room area",
+      "text": "Asuintilan huonealan on oltava vähintään 7 neliömetriä.",
+      "text_en": "The room area of a residential space must be at least 7 square metres.",
+      "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+      "keywords": ["room area", "minimum area", "bedroom", "huoneala", "makuuhuone"],
+      "topics": ["rooms"],
+      "limits": [{"what": "habitable room area", "comparison": ">=", "value": 7, "unit": "m2"}],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-test-1-9-1",
+      "ref": "9 § 1 mom.",
+      "heading": "Uloskäytävät",
+      "heading_en": "Exits",
+      "text": "Asuinrakennuksessa on oltava vähintään kaksi toisistaan riippumatonta uloskäytävää.",
+      "text_en": "A residential building must have at least two independent exits.",
+      "summary_en": "A residential building needs two independent exits for escape in a fire.",
+      "keywords": ["exit", "escape route", "fire", "uloskäytävä", "poistumistie"],
+      "topics": ["fire", "escape-routes"],
+      "limits": [{"what": "independent exits", "comparison": ">=", "value": 2, "unit": "count"}],
+      "drawing_checkable": true
+    }
+  ]
+}

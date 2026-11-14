@@ -195,8 +195,14 @@ def test_the_source_arbiter_t1_runs_eight_views_one_view_and_l1(
 ) -> None:
     seen = []
 
-    def from_folder(files: object, folder: Path, thresholds: Path | None = None, views: int = 1):
-        seen.append((folder.name, thresholds and thresholds.name, views))
+    def from_folder(
+        files: object,
+        folder: Path,
+        thresholds: Path | None = None,
+        views: int = 1,
+        tiles: bool = False,
+    ):
+        seen.append((folder.name, thresholds and thresholds.name, views, tiles))
         return Read({})
 
     write_model(tmp_path / "models" / "arbiter")
@@ -207,4 +213,8 @@ def test_the_source_arbiter_t1_runs_eight_views_one_view_and_l1(
     monkeypatch.setenv("ARBITER_MODEL_DIR", str(tmp_path / "models" / "arbiter"))
     monkeypatch.setenv("RASTER_COMPONENTS", "elements=arbiter-t1:C:C-onnx-val,plans=one-plan")
     build_pipeline(Settings(), tmp_path)
-    assert seen == [("C", None, 8), ("C", "C-onnx-val.thresholds.json", 1)]
+    assert seen == [("C", None, 8, False), ("C", "C-onnx-val.thresholds.json", 1, False)]
+    seen.clear()
+    monkeypatch.setenv("RASTER_TILES", "auto")  # both of its detector reads are tiled
+    build_pipeline(Settings(), tmp_path)
+    assert seen == [("C", None, 8, True), ("C", "C-onnx-val.thresholds.json", 1, True)]

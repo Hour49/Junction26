@@ -1,0 +1,677 @@
+{
+  "id": "ch-sr-151-3",
+  "pack": "ch-zh",
+  "jurisdiction": "CH",
+  "number": "SR 151.3",
+  "title": "Bundesgesetz über die Beseitigung von Benachteiligungen von Menschen mit Behinderungen (Behindertengleichstellungsgesetz, BehiG)",
+  "title_en": "Federal Act on the Elimination of Discrimination against People with Disabilities (Disability Discrimination Act)",
+  "url": "https://www.fedlex.admin.ch/eli/cc/2003/667/de",
+  "language": "de",
+  "in_force": "2020-07-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version of 1 July 2020 (latest on fedlex). Included: Art. 1-4, 7, 9, 11, 12, 15 (purpose, definitions, scope, rights for buildings, proportionality). Technical requirements are in SIA 500 'Hindernisfreie Bauten' (not quoted) and in cantonal law (PBG § 239a ff., BBV I part VI).",
+  "clauses": [
+    {
+      "id": "ch-sr-151-3-1-1",
+      "ref": "Art. 1 Abs. 1",
+      "heading": "Zweck",
+      "heading_en": "Purpose",
+      "text": "Das Gesetz hat zum Zweck, Benachteiligungen zu verhindern, zu verringern oder zu beseitigen, denen Menschen mit Behinderungen ausgesetzt sind.",
+      "text_en": "The purpose of the Act is to prevent, reduce or eliminate disadvantages to which persons with disabilities are exposed.",
+      "summary_en": "The law aims to prevent or remove disadvantages faced by people with disabilities.",
+      "keywords": [
+        "disability discrimination",
+        "accessibility law",
+        "purpose",
+        "barrier-free",
+        "Behindertengleichstellungsgesetz",
+        "Benachteiligung",
+        "Behinderte",
+        "Zweck"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-1-2",
+      "ref": "Art. 1 Abs. 2",
+      "heading": "Zweck",
+      "heading_en": "Purpose",
+      "text": "Es setzt Rahmenbedingungen, die es Menschen mit Behinderungen erleichtern, am gesellschaftlichen Leben teilzunehmen und insbesondere selbstständig soziale Kontakte zu pflegen, sich aus- und weiterzubilden und eine Erwerbstätigkeit auszuüben.",
+      "text_en": "It sets framework conditions that make it easier for persons with disabilities to take part in social life, in particular to maintain social contacts independently, to undergo education and further training, and to take up employment.",
+      "summary_en": "The law sets framework conditions so that disabled people can take part in social life, education and work independently.",
+      "keywords": [
+        "participation",
+        "social life",
+        "education",
+        "employment",
+        "independent living",
+        "Teilhabe",
+        "Erwerbstätigkeit",
+        "Menschen mit Behinderungen"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-2-1",
+      "ref": "Art. 2 Abs. 1",
+      "heading": "Begriffe",
+      "heading_en": "Definitions",
+      "text": "In diesem Gesetz bedeutet Mensch mit Behinderungen (Behinderte, Behinderter) eine Person, der es eine voraussichtlich dauernde körperliche, geistige oder psychische Beeinträchtigung erschwert oder verunmöglicht, alltägliche Verrichtungen vorzunehmen, soziale Kontakte zu pflegen, sich fortzubewegen, sich aus- und weiterzubilden oder eine Erwerbstätigkeit auszuüben.",
+      "text_en": "In this Act, person with disabilities (disabled, disabled person) means a person who, due to a probably permanent physical, mental or psychological impairment, finds it difficult or impossible to carry out everyday activities, to maintain social contacts, to move about, to undergo education and further training, or to take up employment.",
+      "summary_en": "A person with disabilities is someone whose likely permanent impairment makes everyday tasks, mobility or work difficult or impossible.",
+      "keywords": [
+        "person with disabilities",
+        "definition",
+        "permanent impairment",
+        "mobility",
+        "Mensch mit Behinderungen",
+        "Behinderte",
+        "Beeinträchtigung",
+        "Begriff"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-2-2",
+      "ref": "Art. 2 Abs. 2",
+      "heading": "Begriffe",
+      "heading_en": "Definitions",
+      "text": "Eine Benachteiligung liegt vor, wenn Behinderte rechtlich oder tatsächlich anders als nicht Behinderte behandelt und dabei ohne sachliche Rechtfertigung schlechter gestellt werden als diese, oder wenn eine unterschiedliche Behandlung fehlt, die zur tatsächlichen Gleichstellung Behinderter und nicht Behinderter notwendig ist.",
+      "text_en": "A disadvantage exists when disabled persons are treated legally or actually differently from non-disabled persons and are placed in a worse position without objective justification, or when a differential treatment that is necessary for the actual equality of disabled and non-disabled persons is absent.",
+      "summary_en": "Discrimination occurs when disabled people are treated worse without justification, or when a differential treatment needed for equality is missing.",
+      "keywords": [
+        "disadvantage",
+        "discrimination",
+        "equal treatment",
+        "justification",
+        "Benachteiligung",
+        "Gleichstellung",
+        "Behinderte"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-2-3",
+      "ref": "Art. 2 Abs. 3",
+      "heading": "Begriffe",
+      "heading_en": "Definitions",
+      "text": "Eine Benachteiligung beim Zugang zu einer Baute, einer Anlage, einer Wohnung oder einer Einrichtung oder einem Fahrzeug des öffentlichen Verkehrs liegt vor, wenn der Zugang für Behinderte aus baulichen Gründen nicht oder nur unter erschwerenden Bedingungen möglich ist.",
+      "text_en": "A disadvantage in access to a building, an installation, a dwelling, or a facility or vehicle of public transport exists when, for structural reasons, access for disabled persons is impossible or only possible under aggravating conditions.",
+      "summary_en": "Structural barriers that make access to buildings, dwellings or public transport impossible or much harder for disabled people count as discrimination.",
+      "keywords": [
+        "hindernisfrei",
+        "barrierefrei",
+        "accessible",
+        "barrier-free access",
+        "building access",
+        "dwelling access",
+        "public transport access",
+        "structural barrier",
+        "Zugang",
+        "Baute",
+        "Wohnung"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-151-3-2-4",
+      "ref": "Art. 2 Abs. 4",
+      "heading": "Begriffe",
+      "heading_en": "Definitions",
+      "text": "Eine Benachteiligung bei der Inanspruchnahme einer Dienstleistung liegt vor, wenn diese für Behinderte nicht oder nur unter erschwerenden Bedingungen möglich ist.",
+      "text_en": "A disadvantage in using a service exists when that service is impossible for disabled persons or only possible under aggravating conditions.",
+      "summary_en": "A service that disabled people can use only with great difficulty counts as discrimination.",
+      "keywords": [
+        "service access",
+        "disadvantage",
+        "service provider",
+        "Dienstleistung",
+        "Benachteiligung"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-2-5",
+      "ref": "Art. 2 Abs. 5",
+      "heading": "Begriffe",
+      "heading_en": "Definitions",
+      "text": "Eine Benachteiligung bei der Inanspruchnahme von Aus- und Weiterbildung liegt insbesondere vor, wenn:\na. die Verwendung behindertenspezifischer Hilfsmittel oder der Beizug notwendiger persönlicher Assistenz erschwert werden;\nb. die Dauer und Ausgestaltung des Bildungsangebots sowie Prüfungen den spezifischen Bedürfnissen Behinderter nicht angepasst sind.",
+      "text_en": "A disadvantage in access to education and further training exists in particular if:\na. the use of disability-specific aids or the involvement of necessary personal assistance is made more difficult;\nb. the duration and design of the educational offer, as well as examinations, are not adapted to the specific needs of disabled persons.",
+      "summary_en": "Education is discriminatory if aids or personal assistance are hindered, or if courses and exams ignore the needs of disabled people.",
+      "keywords": [
+        "education",
+        "further training",
+        "assistive aids",
+        "personal assistance",
+        "exams",
+        "Aus- und Weiterbildung",
+        "Hilfsmittel",
+        "Assistenz"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-3",
+      "ref": "Art. 3",
+      "heading": "Geltungsbereich",
+      "heading_en": "Scope",
+      "text": "Das Gesetz gilt für:\na. öffentlich zugängliche Bauten und Anlagen, für welche nach Inkrafttreten dieses Gesetzes eine Bewilligung für den Bau oder für die Erneuerung der öffentlich zugänglichen Bereiche erteilt wird;\nb. öffentlich zugängliche Einrichtungen des öffentlichen Verkehrs (Bauten, Anlagen, Kommunikationssysteme, Billettbezug) und Fahrzeuge, die einem der folgenden Gesetze unterstehen:\n1. dem Eisenbahngesetz vom 20. Dezember 1957,\n2. …\n3. dem Personenbeförderungsgesetz vom 20. März 2009,\n4. dem Trolleybus-Gesetz vom 29. März 1950,\n5. dem Bundesgesetz vom 3. Oktober 1975 über die Binnenschifffahrt,\n6. dem Luftfahrtgesetz vom 21. Dezember 1948, oder\n7. dem Seilbahngesetz vom 23. Juni 2006, ausgenommen die Skilifte sowie Luftseilbahnen mit weniger als neun Plätzen pro Transporteinheit;\nc. Wohngebäude mit mehr als acht Wohneinheiten, für welche nach Inkrafttreten dieses Gesetzes eine Bewilligung für den Bau oder für die Erneuerung erteilt wird;\nd. Gebäude mit mehr als 50 Arbeitsplätzen, für welche nach Inkrafttreten dieses Gesetzes eine Bewilligung für den Bau oder für die Erneuerung erteilt wird;\ne. grundsätzlich von jedermann beanspruchbare Dienstleistungen Privater, der Unternehmen mit einer Infrastrukturkonzession nach Artikel 5 des Eisenbahngesetzes vom 20. Dezember 1957 oder einer Personenbeförderungskonzession nach Artikel 6 des Personenbeförderungsgesetzes vom 20. März 2009, weiterer konzessionierter Unternehmen und des Gemeinwesens;\nf. Aus- und Weiterbildung;\ng. Arbeitsverhältnisse nach dem Bundespersonalgesetz vom 24. März 2000.",
+      "text_en": "The Act applies to:\na. publicly accessible buildings and installations for which a permit for construction or for renewal of the publicly accessible areas is granted after this Act enters into force;\nb. publicly accessible facilities of public transport (buildings, installations, communication systems, ticket sales) and vehicles that are subject to one of the following acts:\n1. the Railway Act of 20 December 1957,\n2. …\n3. the Passenger Transport Act of 20 March 2009,\n4. the Trolleybus Act of 29 March 1950,\n5. the Federal Act of 3 October 1975 on Inland Navigation,\n6. the Aviation Act of 21 December 1948, or\n7. the Cableway Act of 23 June 2006, excluding ski lifts and aerial cableways with fewer than nine seats per transport unit;\nc. residential buildings with more than eight dwelling units for which a permit for construction or renewal is granted after this Act enters into force;\nd. buildings with more than 50 workplaces for which a permit for construction or renewal is granted after this Act enters into force;\ne. services generally available to anyone that are provided by private persons, by undertakings holding an infrastructure concession under Article 5 of the Railway Act of 20 December 1957 or a passenger transport concession under Article 6 of the Passenger Transport Act of 20 March 2009, by other concessioned undertakings, and by public bodies;\nf. education and further training;\ng. employment relationships under the Federal Personnel Act of 24 March 2000.",
+      "summary_en": "The rules apply to new or renovated public buildings, residential buildings with more than eight units, workplace buildings with more than 50 workplaces, public transport, and certain services.",
+      "keywords": [
+        "hindernisfrei",
+        "barrierefrei",
+        "accessible",
+        "scope",
+        "publicly accessible buildings",
+        "8 dwelling units",
+        "50 workplaces",
+        "public transport",
+        "Geltungsbereich",
+        "öffentlich zugängliche Bauten",
+        "Wohneinheiten",
+        "Arbeitsplätze"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "dwelling units per residential building (scope threshold)",
+          "comparison": ">",
+          "value": 8,
+          "unit": "count"
+        },
+        {
+          "what": "workplaces per building (scope threshold)",
+          "comparison": ">",
+          "value": 50,
+          "unit": "count"
+        },
+        {
+          "what": "seats per transport unit of aerial cableway (exclusion)",
+          "comparison": "<",
+          "value": 9,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-4",
+      "ref": "Art. 4",
+      "heading": "Verhältnis zum kantonalen Recht",
+      "heading_en": "Relationship to cantonal law",
+      "text": "Dieses Gesetz steht weitergehenden Bestimmungen der Kantone zu Gunsten der Menschen mit Behinderungen nicht entgegen.",
+      "text_en": "This Act does not preclude cantonal provisions that go further in favour of persons with disabilities.",
+      "summary_en": "Cantonal rules that protect disabled people more than this federal law remain valid.",
+      "keywords": [
+        "cantonal law",
+        "federal law",
+        "more favourable",
+        "disabled persons",
+        "kantonales Recht",
+        "Behinderte",
+        "weitergehend"
+      ],
+      "topics": [
+        "accessibility",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-7-1",
+      "ref": "Art. 7 Abs. 1",
+      "heading": "Rechtsansprüche bei Bauten, Einrichtungen oder Fahrzeugen",
+      "heading_en": "Legal claims for buildings, facilities or vehicles",
+      "text": "Wer im Sinne von Artikel 2 Absatz 3 benachteiligt wird, kann im Falle eines Neubaus oder einer Erneuerung einer Baute oder Anlage im Sinne von Artikel 3 Buchstaben a, c und d:\na. während des Baubewilligungsverfahrens von der zuständigen Behörde verlangen, dass die Benachteiligung unterlassen wird;\nb. nach Abschluss des Baubewilligungsverfahrens ausnahmsweise im Zivilverfahren einen Rechtsanspruch auf Beseitigung geltend machen, wenn das Fehlen der gesetzlich gebotenen Vorkehren im Baubewilligungsverfahren nicht erkennbar war.",
+      "text_en": "A person disadvantaged within the meaning of Article 2 paragraph 3 may, in the case of a new building or renovation of a building or installation within the meaning of Article 3 letters a, c and d:\na. during the building permit procedure, demand that the competent authority require the disadvantage to be refrained from;\nb. after the building permit procedure has concluded, exceptionally assert a legal claim to removal of the disadvantage in civil proceedings, if the absence of the legally required measures was not recognisable in the building permit procedure.",
+      "summary_en": "During a permit procedure, or afterwards in exceptional civil cases, disabled people can demand barrier-free construction for new or renovated buildings.",
+      "keywords": [
+        "hindernisfrei",
+        "barrierefrei",
+        "accessible",
+        "barrier-free construction",
+        "building permit",
+        "legal claim",
+        "removal of barrier",
+        "civil proceedings",
+        "Baubewilligung",
+        "Rechtsanspruch",
+        "Beseitigung"
+      ],
+      "topics": [
+        "accessibility",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-7-2",
+      "ref": "Art. 7 Abs. 2",
+      "heading": "Rechtsansprüche bei Bauten, Einrichtungen oder Fahrzeugen",
+      "heading_en": "Legal claims for buildings, facilities or vehicles",
+      "text": "Wer im Sinne von Artikel 2 Absatz 3 benachteiligt wird, kann im Falle einer Einrichtung oder eines Fahrzeuges des öffentlichen Verkehrs im Sinne von Artikel 3 Buchstabe b bei der zuständigen Behörde verlangen, dass das konzessionierte Unternehmen die Benachteiligung beseitigt oder unterlässt.",
+      "text_en": "A person disadvantaged within the meaning of Article 2 paragraph 3 may, in the case of a facility or vehicle of public transport within the meaning of Article 3 letter b, ask the competent authority to require the concessioned undertaking to remove the disadvantage or refrain from it.",
+      "summary_en": "For public transport facilities and vehicles, disabled people can ask the authority to order the concession holder to remove the barrier.",
+      "keywords": [
+        "public transport",
+        "vehicle",
+        "concessioned undertaking",
+        "barrier removal",
+        "Fahrzeug",
+        "öffentlicher Verkehr",
+        "Konzessionsunternehmen"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-9-1",
+      "ref": "Art. 9 Abs. 1",
+      "heading": "Beschwerde- und Klagelegitimation von Behindertenorganisationen",
+      "heading_en": "Right to appeal and sue of disability organisations",
+      "text": "Behindertenorganisationen gesamtschweizerischer Bedeutung, die seit mindestens zehn Jahren bestehen, können Rechtsansprüche auf Grund von Benachteiligungen, die sich auf eine grosse Zahl Behinderter auswirken, geltend machen.",
+      "text_en": "Disability organisations of nationwide significance that have existed for at least ten years may assert legal claims based on disadvantages that affect a large number of disabled persons.",
+      "summary_en": "Nationwide disability organisations at least ten years old can bring legal claims where many disabled people are affected.",
+      "keywords": [
+        "disability organisation",
+        "standing",
+        "legal claim",
+        "ten years",
+        "Behindertenorganisation",
+        "Klagelegitimation",
+        "Verbandsbeschwerde"
+      ],
+      "topics": [
+        "accessibility",
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "age of disability organisation",
+          "comparison": ">=",
+          "value": 10,
+          "unit": "years"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-9-2",
+      "ref": "Art. 9 Abs. 2",
+      "heading": "Beschwerde- und Klagelegitimation von Behindertenorganisationen",
+      "heading_en": "Right to appeal and sue of disability organisations",
+      "text": "Der Bundesrat bezeichnet die zur Beschwerde berechtigten Organisationen.",
+      "text_en": "The Federal Council designates the organisations entitled to appeal.",
+      "summary_en": "The Federal Council decides which disability organisations may file appeals.",
+      "keywords": [
+        "appeal right",
+        "Federal Council",
+        "disability organisation",
+        "Beschwerde",
+        "Bundesrat"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-9-3",
+      "ref": "Art. 9 Abs. 3",
+      "heading": "Beschwerde- und Klagelegitimation von Behindertenorganisationen",
+      "heading_en": "Right to appeal and sue of disability organisations",
+      "text": "Diesen Organisationen steht ein Beschwerderecht zu:\na. bei Zivilverfahren zur Feststellung einer Diskriminierung im Sinne von Artikel 6;\nb. bei Verfahren zur Erteilung einer Bewilligung für den Bau oder die Erneuerung von Bauten und Anlagen, um Ansprüche im Sinne von Artikel 7 geltend zu machen;\nc. bei Verfahren der Bundesbehörden zur Plangenehmigung sowie zur Zulassung oder Prüfung von Fahrzeugen nach:\n1. Artikel 13 Absatz 1 des Strassenverkehrsgesetzes vom 19. Dezember 1958,\n2. Artikel 18 und 18w des Eisenbahngesetzes vom 20. Dezember 1957,\n3. Artikel 11 und 13 des Bundesgesetzes vom 29. März 1950 über die Trolleybusunternehmungen,\n4. den Artikeln 8, 14 und 15b Absatz 2 des Bundesgesetzes vom 3. Oktober 1975 über die Binnenschifffahrt,\n5. Artikel 37 des Luftfahrtgesetzes vom 21. Dezember 1948,\n6. Artikel 9 des Seilbahngesetzes vom 23. Juni 2006;\nd. gegen Verfügungen der Bundesbehörden über die Erteilung von Konzessionen nach:\n1. Artikel 28 und 30 des Luftfahrtgesetzes vom 21. Dezember 1948,\n2. Artikel 14 des Fernmeldegesetzes vom 30. April 1997.\n3. Artikel 10 des Bundesgesetzes vom 21. Juni 1991 über Radio und Fernsehen.",
+      "text_en": "These organisations have a right of appeal:\na. in civil proceedings, to establish discrimination within the meaning of Article 6;\nb. in proceedings for the granting of a permit for the construction or renovation of buildings and installations, to assert claims within the meaning of Article 7;\nc. in proceedings of federal authorities for plan approval and for the admission or testing of vehicles under:\n1. Article 13 paragraph 1 of the Road Traffic Act of 19 December 1958,\n2. Articles 18 and 18w of the Railway Act of 20 December 1957,\n3. Articles 11 and 13 of the Federal Act of 29 March 1950 on Trolleybus Undertakings,\n4. Articles 8, 14 and 15b paragraph 2 of the Federal Act of 3 October 1975 on Inland Navigation,\n5. Article 37 of the Aviation Act of 21 December 1948,\n6. Article 9 of the Cableway Act of 23 June 2006;\nd. against decisions of federal authorities on the granting of concessions under:\n1. Articles 28 and 30 of the Aviation Act of 21 December 1948,\n2. Article 14 of the Telecommunications Act of 30 April 1997,\n3. Article 10 of the Federal Act of 21 June 1991 on Radio and Television.",
+      "summary_en": "Disability organisations may appeal building permits and certain federal approvals and concessions, and may bring discrimination claims in civil proceedings.",
+      "keywords": [
+        "appeal right",
+        "disability organisation",
+        "building permit",
+        "plan approval",
+        "concession",
+        "Beschwerderecht",
+        "Behindertenorganisation",
+        "Baubewilligung"
+      ],
+      "topics": [
+        "accessibility",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-9-4",
+      "ref": "Art. 9 Abs. 4",
+      "heading": "Beschwerde- und Klagelegitimation von Behindertenorganisationen",
+      "heading_en": "Right to appeal and sue of disability organisations",
+      "text": "Die Behörde eröffnet Verfügungen nach Absatz 3 Buchstaben c und d, die Gegenstand einer Beschwerde von Behindertenorganisationen sein können, den Organisationen durch schriftliche Mitteilung oder durch Veröffentlichung im Bundesblatt oder im kantonalen Publikationsorgan. Eine Organisation, die kein Rechtsmittel ergreift, kann sich am weiteren Verfahren nur noch als Partei beteiligen, wenn die Verfügung so geändert wird, dass Behinderte dadurch benachteiligt werden.",
+      "text_en": "The authority notifies the organisations of decisions under paragraph 3 letters c and d that may be the subject of an appeal by disability organisations, by written notice or by publication in the Federal Gazette or in the cantonal publication organ. An organisation that does not take legal action may only participate further in the proceedings as a party if the decision is amended in such a way that disabled persons are disadvantaged by it.",
+      "summary_en": "Authorities must notify disability organisations of appealable federal decisions; a non-appealing organisation can rejoin only if the decision is changed to disadvantage disabled people.",
+      "keywords": [
+        "notification",
+        "decision publication",
+        "appeal deadline",
+        "Federal Gazette",
+        "Verfügung",
+        "Bundesblatt",
+        "Mitteilung"
+      ],
+      "topics": [
+        "permits-procedure",
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-9-5",
+      "ref": "Art. 9 Abs. 5",
+      "heading": "Beschwerde- und Klagelegitimation von Behindertenorganisationen",
+      "heading_en": "Right to appeal and sue of disability organisations",
+      "text": "Wird vor dem Erlass der Verfügung ein Einspracheverfahren durchgeführt, ist das Gesuch nach Absatz 4 mitzuteilen. Eine Organisation ist nur beschwerdebefugt, wenn sie sich am Einspracheverfahren beteiligt hat.",
+      "text_en": "If an objection procedure is carried out before the decision is issued, the request under paragraph 4 is to be communicated. An organisation is only entitled to appeal if it has taken part in the objection procedure.",
+      "summary_en": "An organisation can appeal only if it took part in the objection procedure that precedes the decision.",
+      "keywords": [
+        "objection procedure",
+        "appeal entitlement",
+        "participation",
+        "Einsprache",
+        "Einspracheverfahren",
+        "Beschwerdebefugnis"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-11-1",
+      "ref": "Art. 11 Abs. 1",
+      "heading": "Allgemeine Grundsätze",
+      "heading_en": "General principles",
+      "text": "Das Gericht oder die Verwaltungsbehörde ordnet die Beseitigung der Benachteiligung nicht an, wenn der für Behinderte zu erwartende Nutzen in einem Missverhältnis steht, insbesondere:\na. zum wirtschaftlichen Aufwand;\nb. zu Interessen des Umweltschutzes sowie des Natur- und Heimatschutzes;\nc. zu Anliegen der Verkehrs- und Betriebssicherheit.",
+      "text_en": "The court or the administrative authority does not order the removal of the disadvantage if the benefit expected for disabled persons is disproportionate, in particular:\na. to the economic expense;\nb. to interests of environmental protection and of nature and heritage conservation;\nc. to concerns of traffic and operational safety.",
+      "summary_en": "A barrier-removal order can be refused when the benefit to disabled people is disproportionate to cost, environmental protection, or traffic and operational safety.",
+      "keywords": [
+        "proportionality",
+        "cost",
+        "environmental protection",
+        "heritage conservation",
+        "traffic safety",
+        "Verhältnismässigkeit",
+        "Nutzen",
+        "Aufwand",
+        "Heimatschutz"
+      ],
+      "topics": [
+        "accessibility",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-11-2",
+      "ref": "Art. 11 Abs. 2",
+      "heading": "Allgemeine Grundsätze",
+      "heading_en": "General principles",
+      "text": "Das Gericht trägt bei der Festsetzung der Entschädigung nach Artikel 8 Absatz 3 den Umständen, der Schwere der Diskriminierung und dem Wert der Dienstleistung Rechnung. Die Entschädigung beträgt höchstens 5000 Franken.",
+      "text_en": "When setting compensation under Article 8 paragraph 3, the court takes into account the circumstances, the severity of the discrimination and the value of the service. Compensation amounts to at most 5000 francs.",
+      "summary_en": "A court sets compensation for discrimination according to the severity and the value of the service, capped at 5000 francs.",
+      "keywords": [
+        "compensation",
+        "discrimination",
+        "5000 francs",
+        "damages",
+        "Entschädigung",
+        "Diskriminierung",
+        "Franken"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-12-1",
+      "ref": "Art. 12 Abs. 1",
+      "heading": "Besondere Fälle",
+      "heading_en": "Special cases",
+      "text": "Bei der Interessenabwägung nach Artikel 11 Absatz 1 ordnet das Gericht oder die Verwaltungsbehörde die Beseitigung der Benachteiligung beim Zugang zu Bauten, Anlagen und Wohnungen nach Artikel 3 Buchstaben a, c und d nicht an, wenn der Aufwand für die Anpassung 5 Prozent des Gebäudeversicherungswertes beziehungsweise des Neuwertes der Anlage oder 20 Prozent der Erneuerungskosten übersteigt.",
+      "text_en": "When weighing interests under Article 11 paragraph 1, the court or the administrative authority does not order the removal of the disadvantage in access to buildings, installations and dwellings under Article 3 letters a, c and d if the expense of adaptation exceeds 5 percent of the building insurance value or of the replacement value of the installation, or 20 percent of the renovation costs.",
+      "summary_en": "Barrier removal at building access need not be ordered if the adaptation cost exceeds 5% of the insured or replacement value, or 20% of the renovation costs.",
+      "keywords": [
+        "cost threshold",
+        "5%",
+        "20%",
+        "building insurance value",
+        "renovation costs",
+        "barrier removal",
+        "Gebäudeversicherungswert",
+        "Erneuerungskosten",
+        "Zugang"
+      ],
+      "topics": [
+        "accessibility",
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "adaptation cost as share of building insurance or replacement value",
+          "comparison": ">",
+          "value": 5,
+          "unit": "%"
+        },
+        {
+          "what": "adaptation cost as share of renovation costs",
+          "comparison": ">",
+          "value": 20,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-12-2",
+      "ref": "Art. 12 Abs. 2",
+      "heading": "Besondere Fälle",
+      "heading_en": "Special cases",
+      "text": "Das Gericht oder die Verwaltungsbehörde trägt bei der Interessenabwägung nach Artikel 11 Absatz 1 den Übergangsfristen für Anpassungen im öffentlichen Verkehr (Art. 22) Rechnung; dabei sind auch das Umsetzungskonzept des Bundes für die Ausrichtung der Finanzhilfen (Art. 23 Abs. 3) und die darauf gestützte Betriebs- und Investitionsplanung der Unternehmen des öffentlichen Verkehrs zu beachten.",
+      "text_en": "When weighing interests under Article 11 paragraph 1, the court or administrative authority shall take into account the transitional periods for adaptations in public transport (Art. 22); in doing so, it must also observe the federal implementation concept for aligning financial assistance (Art. 23 para. 3) and the operating and investment planning of public transport companies based on it.",
+      "summary_en": "Not a building requirement: it tells authorities to allow transition periods for public transport adaptations when weighing interests.",
+      "keywords": [
+        "accessibility",
+        "barrier-free",
+        "public transport",
+        "transitional period",
+        "Interessenabwägung",
+        "Behinderte",
+        "öffentlicher Verkehr",
+        "Übergangsfrist"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-12-3",
+      "ref": "Art. 12 Abs. 3",
+      "heading": "Besondere Fälle",
+      "heading_en": "Special cases",
+      "text": "Das Gericht oder die Verwaltungsbehörde verpflichtet das konzessionierte Unternehmen oder das Gemeinwesen, eine angemessene Ersatzlösung anzubieten, wenn es oder sie nach Artikel 11 Absatz 1 darauf verzichtet, die Beseitigung einer Benachteiligung anzuordnen.",
+      "text_en": "The court or administrative authority shall require the concessioned company or the public entity to offer an appropriate substitute solution if it or they, under Article 11 paragraph 1, waive ordering the removal of a disadvantage.",
+      "summary_en": "If a barrier cannot be removed in public transport, the operator or public entity must offer a reasonable substitute solution.",
+      "keywords": [
+        "substitute solution",
+        "Ersatzlösung",
+        "barrier-free",
+        "disadvantage",
+        "Benachteiligung",
+        "public transport",
+        "öffentlicher Verkehr"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-15-1",
+      "ref": "Art. 15 Abs. 1",
+      "heading": "Vorschriften über technische Normen",
+      "heading_en": "Technical standards regulations",
+      "text": "Um ein behindertengerechtes öffentliches Verkehrssystem sicherzustellen, erlässt der Bundesrat für die konzessionierten Unternehmen Vorschriften über die Gestaltung:\na. der Bahnhöfe und Haltestellen sowie der Flugplätze;\nb. der Kommunikationssysteme und der Billettausgabe;\nc. der Fahrzeuge.",
+      "text_en": "To ensure a barrier-free public transport system, the Federal Council shall issue regulations for the concessioned companies on the design of:\na. railway stations and stops, and airfields;\nb. communication systems and ticket issuing;\nc. vehicles.",
+      "summary_en": "The Federal Council sets design rules for stations, stops, airfields, ticketing and vehicles so public transport is usable by people with disabilities.",
+      "keywords": [
+        "barrier-free station",
+        "Bahnhof",
+        "Haltestelle",
+        "stop",
+        "ticket",
+        "Billett",
+        "vehicle",
+        "Fahrzeug",
+        "Behindertengerecht"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-151-3-15-2",
+      "ref": "Art. 15 Abs. 2",
+      "heading": "Vorschriften über technische Normen",
+      "heading_en": "Technical standards regulations",
+      "text": "Der Bundesrat erlässt für Bauten und Anlagen, die der Bund erstellt oder mitfinanziert, Vorschriften über Vorkehren zu Gunsten Behinderter.",
+      "text_en": "The Federal Council shall issue regulations on measures in favour of persons with disabilities for buildings and installations that the Confederation builds or co-finances.",
+      "summary_en": "Federally built or co-financed buildings must follow the Federal Council's barrier-free design rules.",
+      "keywords": [
+        "barrier-free building",
+        "Bauten",
+        "Anlagen",
+        "Behinderte",
+        "federal building",
+        "Bund",
+        "Vorkehren"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-151-3-15-3",
+      "ref": "Art. 15 Abs. 3",
+      "heading": "Vorschriften über technische Normen",
+      "heading_en": "Technical standards regulations",
+      "text": "Die Vorschriften nach den Absätzen 1 und 2 werden periodisch dem Stand der Technik angepasst. Der Bundesrat kann technische Normen oder andere Festlegungen privater Organisationen für verbindlich erklären.",
+      "text_en": "The regulations under paragraphs 1 and 2 shall be adapted periodically to the state of the art. The Federal Council may declare technical standards or other specifications of private organisations binding.",
+      "summary_en": "The barrier-free rules are updated as technology changes, and private technical standards can be made binding by the Federal Council.",
+      "keywords": [
+        "technical standard",
+        "Norm",
+        "state of the art",
+        "Stand der Technik",
+        "binding",
+        "verbindlich",
+        "barrier-free"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-15-4",
+      "ref": "Art. 15 Abs. 4",
+      "heading": "Vorschriften über technische Normen",
+      "heading_en": "Technical standards regulations",
+      "text": "Der Bundesrat hört die interessierten Kreise vor dem Erlass der Vorschriften nach den Absätzen 1 und 2 an.",
+      "text_en": "The Federal Council shall consult interested parties before issuing the regulations under paragraphs 1 and 2.",
+      "summary_en": "Interested parties must be consulted before the barrier-free rules are issued.",
+      "keywords": [
+        "consultation",
+        "Anhörung",
+        "interested parties",
+        "barrier-free",
+        "Vernehmlassung"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-151-3-15-5",
+      "ref": "Art. 15 Abs. 5",
+      "heading": "Vorschriften über technische Normen",
+      "heading_en": "Technical standards regulations",
+      "text": "Für bestehende und für neue Bauten, Anlagen, Kommunikations- und Billettausgabesysteme sowie Fahrzeuge können unterschiedliche Vorschriften erlassen werden.",
+      "text_en": "Different regulations may be issued for existing and new buildings, installations, communication and ticket-issuing systems, and vehicles.",
+      "summary_en": "Existing and new buildings and vehicles may be subject to different barrier-free requirements.",
+      "keywords": [
+        "existing building",
+        "Bestand",
+        "new building",
+        "Neubau",
+        "barrier-free",
+        "vehicle",
+        "Fahrzeug"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

@@ -76,6 +76,12 @@ class Transport:
         return reply  # type: ignore[return-value]
 
 
+@pytest.fixture(autouse=True)
+def own_cost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The calls here charge the thread's cost (app/core/cost.py) from 0, put back after."""
+    monkeypatch.setattr(cost._local, "usd", 0.0, raising=False)  # pyright: ignore[reportPrivateUsage]
+
+
 def resolver(
     tmp_path: Path, transport: Transport, budget: SpendGuard | None = None
 ) -> CarbonResolver:

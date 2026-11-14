@@ -115,6 +115,8 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
 | `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
+| `GET /api/projects/{project_id}/evidence/search?q=&k=&include_unrelated=` | Search the project's non-plan files by what they show and say (one hit per file) | 0012 |
+| `GET /api/projects/{project_id}/evidence/{evidence_id}` | One hit's passage with its file's description | 0012 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
@@ -130,6 +132,9 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
 | `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
 | `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
+| `GET /api/laws` | The building-law knowledge base: each pack's laws (table of contents) | 0014 |
+| `GET /api/laws/{pack}/search?q=&topic=&limit=` | Search one pack's law clauses, best first | 0014 |
+| `GET /api/laws/clauses/{clause_id}` | One clause, verbatim and in our English, with its law | 0014 |
 
 ## `GET /api/info`
 
@@ -210,7 +215,7 @@ An edit of a signed-off quantity (409):
       "country": "FI",
       "country_name": "Finland",
       "name": "Finland: homes and accessibility decrees",
-      "law": "Rakentamislaki 751/2023; decrees 1008/2017 (homes and rooms) and 241/2017 (accessibility), kept in force by the entry-into-force provision of Act 752/2023",
+      "law": "Rakentamislaki 751/2023; decrees 631/2024 (homes and rooms, in force since 2025-01-01, replacing 1008/2017; a project pending then follows the earlier rules, 631/2024 11 § 2 mom.) and 241/2017 (accessibility, as amended by 683/2024)",
       "version": "2026-11-14",
       "note": "A pre-check of a few rules, not a compliance certificate.",
       "fail_means": "It would not meet today's rule for a new building.",
@@ -237,7 +242,7 @@ An edit of a signed-off quantity (409):
               "Pranzo",
               "ALKOVI"
             ],
-            "note": "New buildings, extensions and substantial changes of use (decree 1008/2017 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
+            "note": "New buildings, extensions and substantial changes of use (decree 631/2024 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
           },
           "comparison": ">=",
           "comparison_text": "at least",
@@ -245,10 +250,10 @@ An edit of a signed-off quantity (409):
           "unit": "m2",
           "key": null,
           "clause": {
-            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
-            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
-            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+            "quote": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential or accommodation room and of a work space must, however, always be at least 7 square metres."
           }
         }
       ]
@@ -932,7 +937,7 @@ after a restart cut that run off:
 
 ### File triage (decision 0010)
 
-Off by default (`TRIAGE_CLASSIFIER=off`). With it on, every image file (a PNG or JPEG, a photo, a scanned PDF;
+Off by default (`TRIAGE_CLASSIFIER=off` and `SHEET_KIND=off`). With either on, every image file (a PNG or JPEG, a photo, a scanned PDF;
 not vector PDFs, IFC, DXF or SVG) is asked "is this a floor plan?" in the `identify` stage, before any reader. A
 floor plan goes on as before. Any other image is kept, set aside, described in words, and once the project's plans
 are read, judged against the project. Nothing is deleted, and a person's call is never a reading: an image called
@@ -982,6 +987,18 @@ the `identify` stage's line.
 - `read_as_plan`: `{by, at}` once a person had the file read as a floor plan (`POST …/triage`); `class` stays the
   classifier's.
 - `verdict`: the one value that counts: `overruled.verdict`, else `relevance.verdict`, else null.
+- `sheet` (left out unless `SHEET_KIND=carbon` asked about the file; off by default): what gemini-4-carbon calls
+  the sheet. `kind` (`architectural_floor_plan`, `multi_view_sheet`, `mep_plan`, `structural_plan`,
+  `roof_or_ceiling_plan`, `site_plan_or_map`, `elevation`, `section`, `detail`, `perspective_or_axonometric`,
+  `schedule_or_text`, `not_a_drawing`, `other`) with `kind_words` to show, `decision` (`set_aside`: no floor plan
+  on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT` (default 0.9), the file is set aside with the reason "not a
+  floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it; `doubt`: it is read, and every
+  answer with a value from it ends its `explanation` with "This sheet may not be a floor plan[: it looks like
+  <kind_words>]."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the sheet), `title`,
+  `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder than a clean scan
+  of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet), `seen`, `model`. A
+  call that fails leaves the file as triage would have it without the step ("triage not available: ...; read as
+  today" with no classifier). A model answer alone; never a certified value.
 - `note`: why `description` or `relevance` is null, a plain sentence: "a floor plan: it is read, so it is not
   described or judged"; "not described: no description model is set up, so it is not judged" (no describer: the
   offline demo); "not described: <why>" (the model refused or failed); "not judged yet: the project is still being
@@ -1540,6 +1557,111 @@ The same file once read:
     },
     "verdict": "related",
     "note": null
+  }
+}
+```
+
+### `GET /api/projects/{project_id}/evidence/search?q=<text>&k=5&include_unrelated=false` (decision 0012)
+
+A search over what the project's files that are not floor plans show and say: every file triage described and
+nobody read as a plan (photos, elevations, sections, site plans, maps, text pages). Floor-plan facts are not in it.
+The same JSON as the chat agent's `search_evidence` tool (`backend/app/adapters/evidence_tools.py`). Local only:
+SQLite FTS5 BM25 and a multilingual embedder on CPU, fused by reciprocal rank fusion; with no embedder model on the
+machine it searches with BM25 alone and `method` says so. Works in any project state: it answers from what is
+described so far; a project with triage off has `indexed_files: 0` and a `note`.
+
+- `q` 1-500 characters, not blank; `k` 1-20 (default 5) counts files: a file appears once, with its best-matching
+  passage. 422 `validation` otherwise; 404 `not-found` for an unknown project.
+- Files whose verdict (a person's call over the judge's) is `unrelated` are searched only with
+  `include_unrelated=true`; `unrelated_left_out` counts the ones skipped.
+- A hit: `id` (`f7-summary`, `f7-detail-2`, `f7-visible_text-1`), `file_id`, `file` (as uploaded; the picture is
+  `…/files/{file_id}/preview.png`), `page` (the PDF page of a page entry `<name>#p<n>.pdf`, else 1), `part`, `kind` (the register's kind, else the description's
+  `what_it_is`), `subject`, `snippet` (at most 300 characters around the matched words), `language`, `verdict`,
+  `credit`, `score` (orders one result's hits only) and `why` (`terms`: query words in the passage; `bm25_rank`,
+  `dense_rank`: the file's rank by each retriever, null when it did not rank it or did not run).
+- A hit is the closest file, not proof: read the snippet, then get the passage.
+
+<!-- fixture: evidence_search.json -->
+```json
+{
+  "query": "St. Anna",
+  "method": "BM25 (no embedder model on this machine)",
+  "indexed_files": 3,
+  "unrelated_left_out": 0,
+  "note": null,
+  "hits": [
+    {
+      "id": "f5-visible_text-1",
+      "file_id": "f5",
+      "file": "photos/sheet.jpg",
+      "page": 1,
+      "part": "visible_text",
+      "kind": "elevation",
+      "subject": "a photographed elevation of a church",
+      "snippet": "Kirche St. Anna",
+      "language": "en",
+      "verdict": "unsure",
+      "credit": null,
+      "score": 0.166667,
+      "why": {
+        "terms": [
+          "st",
+          "anna"
+        ],
+        "bm25_rank": 1,
+        "dense_rank": null
+      }
+    }
+  ]
+}
+```
+
+### `GET /api/projects/{project_id}/evidence/{evidence_id}`
+
+One hit's whole passage and its file's description, register and relevance as `GET /api/projects/{project_id}`
+gives them (without the description's `cost_usd`). A file id alone (`f7`) answers as its summary (`f7-summary`).
+A file judged unrelated is returned too. 404 `not-found` for an unknown project, an id not in the index or one
+that is not an evidence id. `description.detail` is a model's description no person checked.
+
+<!-- fixture: evidence_detail.json -->
+```json
+{
+  "id": "f5-visible_text-1",
+  "file_id": "f5",
+  "file": "photos/sheet.jpg",
+  "page": 1,
+  "part": "visible_text",
+  "text": "Kirche St. Anna",
+  "kind": "elevation",
+  "verdict": "unsure",
+  "credit": null,
+  "description": {
+    "subject": "a photographed elevation of a church",
+    "text": "A picture of a photographed elevation of a church.",
+    "detail": "A longer account of a photographed elevation of a church, for later use.",
+    "visible_text": "Kirche St. Anna",
+    "text_seen": [
+      "Kirche St. Anna"
+    ],
+    "language": "en",
+    "what_it_is": "drawing",
+    "shows_building": true,
+    "model": "fake describer"
+  },
+  "register": {
+    "kind": "elevation",
+    "has_floor_plan": false,
+    "photo_of_sheet": true,
+    "scale_shown": "bar",
+    "quality": "fair",
+    "method": "fake classifier"
+  },
+  "relevance": {
+    "verdict": "unsure",
+    "why": "Unsure: it shows a building, but none of its printed words is in the project's name, file and folder names or plan text.",
+    "matched_on": [],
+    "plans": [],
+    "judge": "rule on the words printed on it and whether it shows a building, no model"
   }
 }
 ```
@@ -4078,7 +4200,7 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
         ]
       ],
       "mark_id": "m1",
-      "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building. (Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.)",
+      "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building. (Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.)",
       "quantity": "area:room|name=4.02",
       "question": null,
       "reason": null,
@@ -8468,10 +8590,10 @@ ingest read it; review edits don't change it.
       "status": "fail",
       "why": "Of 3 checked: 1 fail, 2 pass.",
       "clause": {
-        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
-        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-        "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
-        "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+        "quote": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+        "quote_en": "The room area of a residential or accommodation room and of a work space must, however, always be at least 7 square metres."
       },
       "results": [
         {
@@ -8584,10 +8706,10 @@ ingest read it; review edits don't change it.
       "status": "fail",
       "why": "Of 3 checked: 1 fail, 2 pass.",
       "clause": {
-        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 5 § 1 mom. (as amended by 127/2018)",
-        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-        "quote": "Asuin- ja, majoitustilan ikkunan valoaukon on oltava vähintään 1/10 huonealasta.",
-        "quote_en": "The light opening of the window of a residential or accommodation space must be at least 1/10 of the room area."
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 5 § 1 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+        "quote": "Asuin- ja majoitushuoneen ikkunan valoaukon on oltava vähintään 1/10 huonealasta.",
+        "quote_en": "The light opening of the window of a residential or accommodation room must be at least 1/10 of the room area."
       },
       "results": [
         {
@@ -8841,10 +8963,10 @@ ingest read it; review edits don't change it.
           "status": "fail",
           "why": "Of 3 checked: 1 fail, 2 pass.",
           "clause": {
-            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
-            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
-            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+            "quote": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential or accommodation room and of a work space must, however, always be at least 7 square metres."
           },
           "results": [
             {
@@ -8911,6 +9033,79 @@ Every drawing of the project (in `GET /api/projects/{id}` `drawings` order), eac
 project is `done` (a drawing's own checks answer as soon as that drawing exists); 404 `unknown-pack` for an
 unknown pack, `not-found` for an unknown project.
 
+## Building law
+
+The law knowledge base the AI searches instead of carrying the laws in its prompt (decision
+[0014](decisions/0014-law-knowledge-base.md)): one file per law in `backend/app/laws/<pack>/`, one clause per
+subsection, `text` verbatim from the official source and `text_en` our unofficial translation. Packs are `fi` and
+`ch-zh` (Swiss federal law and the Canton of Zürich), the rule packs' ids. The examples are the test laws of
+`backend/tests/fixtures/laws/` (made up).
+
+### `GET /api/laws`
+
+Both packs, always; `laws: []` while a pack has none. `topics`: the topics its clauses use, in the closed list's
+order.
+
+```json
+{
+  "packs": [
+    {
+      "id": "fi",
+      "laws": [
+        {"law_id": "fi-test-1", "number": "1/2026", "title_en": "Test decree on residential spaces",
+         "clauses": 2, "topics": ["rooms", "fire", "escape-routes"]}
+      ]
+    },
+    {"id": "ch-zh", "laws": [...]}
+  ]
+}
+```
+
+### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
+
+`q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. Clauses with every word come first, then
+clauses with any word fill `limit`, each group by score. `topic` one of `rooms accessibility fire
+escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
+distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
+-BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.
+
+```json
+{
+  "pack": "fi",
+  "query": "minimum bedroom area",
+  "hits": [
+    {"id": "fi-test-1-4-2", "law_id": "fi-test-1", "ref": "4 § 2 mom.",
+     "title_en": "Test decree on residential spaces",
+     "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+     "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "score": 2.745}
+  ]
+}
+```
+
+### `GET /api/laws/clauses/{clause_id}`
+
+The clause as its file has it, plus its law's `law_id`, `law_number`, `law_title`, `law_title_en`, `url`,
+`language` (of `text`), `checked` and `status_note`. `text_en` is null only for a law in English; show it as an
+unofficial translation. An unknown id is 404 `not-found`.
+
+```json
+{
+  "id": "fi-test-1-4-2", "ref": "4 § 2 mom.", "heading": "Huoneala", "heading_en": "Room area",
+  "text": "Asuintilan huonealan on oltava vähintään 7 neliömetriä.",
+  "text_en": "The room area of a residential space must be at least 7 square metres.",
+  "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+  "keywords": ["room area", "minimum area", "bedroom", "huoneala", "makuuhuone"],
+  "topics": ["rooms"],
+  "limits": [{"what": "habitable room area", "comparison": ">=", "value": 7.0, "unit": "m2"}],
+  "drawing_checkable": true,
+  "law_id": "fi-test-1", "law_number": "1/2026", "law_title": "Testiasetus asuintiloista",
+  "law_title_en": "Test decree on residential spaces",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "language": "fi", "checked": "2026-11-14",
+  "status_note": "A made-up test law: its clauses point nowhere real."
+}
+```
+
 ## What is not in v1
 
 - Contested marks: a conflict is shown per quantity, with both values and, where the method has one, the `box` it
@@ -8928,6 +9123,15 @@ unknown pack, `not-found` for an unknown project.
   certified); its `cost_usd` includes the resolver's call. Also `conflicts_picked` on `GET /api/projects` and
   `GET /api/projects/{id}`, and `resolved` on issues (`Issue`). `RESOLVER=carbon` resolves an upload on its own
   once ingest is done.
+- 2026-11-14, additive (decision 0014): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
+  `GET /api/laws/clauses/{clause_id}`, the building-law knowledge base. An unknown pack is 404 `unknown-pack`.
+- 2026-11-14, additive (decision 0012): `GET /api/projects/{id}/evidence/search?q=&k=&include_unrelated=` and
+  `GET /api/projects/{id}/evidence/{evidence_id}`, the project's evidence index (described non-plan files; BM25 +
+  a local multilingual embedder). New fixtures `evidence_search`, `evidence_detail`.
+- 2026-11-14, content (board #220): the `fi` pack cites YMa 631/2024 (in force 2025-01-01, under the Building
+  Act 751/2023), which replaced 1008/2017: the 7 m2 rule is 4 § 2 mom. and the window rule 5 § 1 mom., each with
+  the decree's own sentence and its Finlex link; the limits are unchanged. Fixtures `info`, `checks`,
+  `project_checks` and `project_issues_checks` show the new citation. No shape change.
 - 2026-11-14, behaviour (safety rule, orchestrator): on the raster route, an answer on a drawing where the
   detector found no plan and no located element is never certified (`sure` false, `check` set) and its `level`
   is low with basis `page`. No shape change.

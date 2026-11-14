@@ -26,6 +26,8 @@ from app.core.answering.model import Answer, Unit
 from app.core.answering.ports import AnswerConfidence
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
+from app.core.ingest.model import DrawingInfo
+from app.core.ingest.triage import sheet_doubt
 from app.core.review.ask import Asked, ask
 from app.core.review.check import Check, Level
 from app.core.review.model import (
@@ -161,6 +163,17 @@ def asked_on(
     )
 
 
+def doubt_of(ingest: Ingest, named: DrawingInfo) -> str | None:
+    """The sheet-kind step's doubt line for the file the drawing was read from, in the project
+    that names it (SHEET_KIND, .agents/exp/vlm-kind.md); None when it had no doubt."""
+    try:
+        files = ingest.status(named.project_id).files
+    except NotFoundError:
+        return None
+    found = next((file for file in files if file.path == named.path), None)
+    return None if found is None else sheet_doubt(found.triage)
+
+
 def no_reader_of(drawing_id: str, ingest: Ingest, settings: Settings) -> bool:
     """The drawing's route is read by the do-nothing stand-in (`hello`): no reader at all."""
     route = ingest.drawing_info(drawing_id).route
@@ -251,6 +264,10 @@ def answer_view(
             else:
                 resolved = reply
     line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
+    doubt = None if asked.refusal is not None else doubt_of(ingest, named)
+    if doubt is not None:  # on an answer with a value only; it changes no value, check or level
+        explanation = "; ".join(said for said in (line.explanation, doubt) if said)
+        line = line.model_copy(update={"explanation": explanation})
     return AnswerView(
         question=question,
         drawing_id=drawing_id,

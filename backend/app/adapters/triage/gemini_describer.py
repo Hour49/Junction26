@@ -243,9 +243,9 @@ def cut(text: str, limit: int) -> str:
     return (head[:at] if at > 0 else head).rstrip()
 
 
-def encode(data: bytes) -> bytes:
-    """The image as sent when measured: RGB, long side at most MAX_SIDE (never enlarged), JPEG
-    quality 90. A PDF scan sends its first page, rendered to MAX_SIDE."""
+def encode(data: bytes, max_side: int = MAX_SIDE) -> bytes:
+    """The image as sent when measured: RGB, long side at most `max_side` (never enlarged), JPEG
+    quality 90. A PDF scan sends its first page, rendered to `max_side`."""
     if data.startswith(b"%PDF-"):
         import pypdfium2
 
@@ -253,13 +253,13 @@ def encode(data: bytes) -> bytes:
             pdf = pypdfium2.PdfDocument(data)
             try:
                 page = pdf[0]
-                image = page.render(scale=MAX_SIDE / max(page.get_size())).to_pil()
+                image = page.render(scale=max_side / max(page.get_size())).to_pil()
             finally:
                 pdf.close()
     else:
         image = Image.open(io.BytesIO(data))
     rgb = eight_bit(image).convert("RGB")
-    rgb.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
+    rgb.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
     out = io.BytesIO()
     rgb.save(out, format="JPEG", quality=JPEG_QUALITY)
     return out.getvalue()
