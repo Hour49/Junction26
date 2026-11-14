@@ -26,6 +26,7 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
+from app.adapters.count_arbiter import ArbiterCountExtractor
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
 from app.adapters.decisions.client import DecisionsClient
 from app.adapters.decisions.g1main import G1MainReader
@@ -504,6 +505,15 @@ def _raster_component(
         case "region" if where:
             region = Path(settings.region_model_dir) if settings.region_model_dir else None
             return RegionDetector.from_folders(files, inside(DETECTOR_DIR, where), region)
+        case "arbiter-t1" if where:
+            arm, _, run = where.partition(":")
+            folder = inside(DETECTOR_DIR, arm)
+            tuned = inside(DETECTOR_RUNS, f"{run}.thresholds.json") if run else None
+            base = OnnxDetector.from_folder(files, folder, views=8)
+            second = OnnxDetector.from_folder(files, folder, tuned)
+            return ArbiterCountExtractor.from_folder(
+                base, second, files, Path(settings.arbiter_model_dir)
+            )
         case "decisions" if where:
             inner = _raster_component(where, settings, files, decisions)
             return DecisionsCountExtractor(inner, files, decisions())
@@ -516,6 +526,7 @@ def _raster_component(
                 "exp:<track>/<arm>, dir:<path>, detector:<arm>[:<tune run>], "
                 "detector-v<2|4|8>:<arm>, photo:<arm>, "
                 "region:<arm>, verda, gemini, regionrooms, decisions:<source>, "
+                "arbiter-t1:<arm>[:<one-view tune run>], "
                 "decisions-s1536:<source> and one-plan"
             )
 
