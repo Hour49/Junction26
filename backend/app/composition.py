@@ -603,8 +603,6 @@ def build_ingest(
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
         names["raster_tiles"] = settings.raster_tiles
-    if settings.evidence_scope != "set_aside":  # the same
-        names["evidence_scope"] = settings.evidence_scope
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         names["carbon_reader"] = f"{settings.carbon_reader}:{READER_SHA[:12]}"

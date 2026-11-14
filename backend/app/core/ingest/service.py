@@ -654,7 +654,12 @@ class IngestService:
                 done.result()
 
     def _shown(self) -> dict[str, str]:
-        return {} if self._triage is None else {"triage": self._triage.name}
+        """Shown in the status, not part of the cache key: triage decides which files are read,
+        not how; the evidence step reads no drawing (decision 0012 sources v2)."""
+        shown = {} if self._triage is None else {"triage": self._triage.name}
+        if self._evidence_steps is not None:
+            shown["evidence_scope"] = "all_non_plan"
+        return shown
 
     # ---------------------------------------------------------------- helpers
 

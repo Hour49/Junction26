@@ -15,6 +15,7 @@ from pydantic import SecretStr
 from test_sheet_kind import CUT, PIPING, FakeModel, png, reply
 from test_triage_describer import FakeModel as FakeDescribeModel
 from test_triage_describer import answer, form
+from test_vector_pdf import swiss_sheet
 from triage_fakes import FakeDescriber
 
 from app.adapters.evidence.pictures import SheetKindPictures
@@ -135,7 +136,7 @@ def test_a_cached_kind_reply_and_description_cost_nothing_and_ask_no_model(
     )
 
 
-def test_the_scope_is_wired_named_in_the_reuse_key_only_when_on_and_counts_as_keys(
+def test_the_scope_is_wired_shown_only_when_on_and_counts_as_keys(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def urlopen(request: urllib.request.Request, timeout: float) -> Any:
@@ -161,6 +162,37 @@ def test_the_scope_is_wired_named_in_the_reuse_key_only_when_on_and_counts_as_ke
     assert found is not None and not found.indexed
     assert found.why.startswith("the kind call failed: the sheet-kind model could not answer")
     assert uses_keys(Settings(_env_file=None, evidence_scope="all_non_plan"))  # pyright: ignore[reportCallIssue]
+
+
+def test_the_scope_never_changes_a_drawing_id_and_a_reused_file_is_still_asked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """7.9 line 3 (first run: every drawing id differed): the step reads no drawing, so the scope
+    is shown in the status but is not part of the ingest cache key."""
+
+    def urlopen(request: urllib.request.Request, timeout: float) -> Any:
+        raise OSError("no network in tests")
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    sheet = swiss_sheet().pdf()
+
+    def ingested(root: Path, **on: Any) -> ProjectStatus:
+        settings = Settings(  # pyright: ignore[reportCallIssue]
+            _env_file=None, gemini_api_key=SecretStr("test-key-not-real"), **on
+        )
+        ingest = build_ingest(settings, root, background=False)
+        status = ingest.wait(ingest.start("plan.pdf", sheet))
+        ingest.close()
+        return status
+
+    off = ingested(tmp_path / "off")
+    on = ingested(tmp_path / "on", evidence_scope="all_non_plan")
+    assert off.files[0].drawing_id is not None
+    assert on.files[0].drawing_id == off.files[0].drawing_id
+    assert on.readers["evidence_scope"] == "all_non_plan"  # shown, as triage is
+    again = ingested(tmp_path / "off", evidence_scope="all_non_plan")  # the same folder
+    assert again.files[0].reused and again.files[0].drawing_id == off.files[0].drawing_id
+    assert again.files[0].evidence is not None  # a reused file is still asked
 
 
 def test_the_evidence_step_describes_with_carbon_when_set_even_with_triage_off(
