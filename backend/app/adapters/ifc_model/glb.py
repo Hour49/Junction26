@@ -46,6 +46,7 @@ MAX_BYTES = 60 * 1024 * 1024  # a larger GLB is too_big: a judge's laptop opens 
 THREADS = 2  # 4 doubled the peak memory of the spike's plumbing model; 1 took 63 s
 LEFT_OUT = ["IfcOpeningElement", "IfcSpace"]
 NO_GEOMETRY = 3  # the child's exit code for a model with no shape to draw
+FAILED = "the 3D model could not be built from this file"  # the details go to the log
 BACKEND = Path(__file__).resolve().parents[3]  # the child runs `-m` from here
 _ONE_AT_A_TIME = threading.Lock()  # per process: the app's worker and any direct call
 
@@ -98,9 +99,9 @@ class GlbModels:
     def _background(self, sha256: str, read: Callable[[], bytes]) -> Model3d:
         try:
             return self.convert(sha256, read())
-        except Exception as error:  # a bug or a disk error: said once, not retried in a loop
-            log.exception("3D view of %s failed", sha256)
-            return self._record(sha256, _unavailable("failed", f"the conversion failed: {error}"))
+        except Exception as error:  # a bug or a disk error: logged, never shown (it names paths)
+            log.exception("3D view of %s failed: %s", sha256, error)
+            return self._record(sha256, _unavailable("failed", FAILED))
         finally:
             with self._lock:
                 self._queued.pop(sha256, None)
@@ -145,6 +146,8 @@ class GlbModels:
             stderr=subprocess.PIPE,
             text=True,
             start_new_session=True,  # its own group: a kill reaches whatever it started
+            # one BLAS thread: each one's buffers count against RLIMIT_AS before any geometry
+            env={**os.environ, "OPENBLAS_NUM_THREADS": "1"},
             preexec_fn=None if limit is None else lambda: _cap(limit),
         )
         try:
@@ -163,9 +166,8 @@ class GlbModels:
             return _unavailable(
                 "too_big", f"its 3D model needs more than the {self._memory_mb} MB memory budget"
             )
-        last = (errors.strip().splitlines() or ["no message"])[-1][:200]
         log.warning("3D view conversion exited %s: %s", process.returncode, errors[-2000:])
-        return _unavailable("failed", f"the 3D model could not be built ({last})")
+        return _unavailable("failed", FAILED)  # the child's words name paths: the log only
 
 
 _SCOPE = ["systemd-run", "--user", "--scope", "--quiet", "-p", "MemorySwapMax=0"]
@@ -190,6 +192,7 @@ def _cap(limit: int) -> None:
 def _out_of_memory(errors: str) -> bool:
     """The child said it ran out (RLIMIT_AS fails an allocation, not always with a signal)."""
     words = ("MemoryError", "bad_alloc", "Cannot allocate", "failed to map", "out of memory")
+    words += ("Memory allocation",)  # OpenBLAS: "Memory allocation still failed after 10 retries"
     return any(word in errors for word in words)
 
 
