@@ -3452,7 +3452,8 @@ drawing does not have.
 ### `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=`
 
 The file as uploaded with only its EXIF turn applied, so the screen can show a phone photo before and after
-normalisation. Images and a PDF's first page; 404 for any other file. `width` as for pages.
+normalisation. Images and a PDF's first page; 404 for any other file, 422 `invalid` for an image or PDF that cannot be
+decoded (cut off or damaged). `width` as for pages.
 
 ## Answering
 

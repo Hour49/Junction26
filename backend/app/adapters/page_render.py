@@ -10,7 +10,7 @@ import pypdfium2
 from PIL import Image, ImageOps
 
 from app.adapters.pdfium_lock import PDFIUM
-from app.core.errors import NotFoundError
+from app.core.errors import InvalidInputError, NotFoundError
 from app.core.ingest.model import SheetFile
 
 MAX_PIXELS = 16_000_000  # a larger request is scaled down, so a tall page can't make a huge bitmap
@@ -35,14 +35,21 @@ def render_png(sheet: SheetFile, page: int, width: int) -> bytes:
 
 def render_upload(data: bytes, kind: str, width: int) -> bytes:
     """An uploaded file as it came, for a before/after view: an image with only its EXIF turn
-    applied, or a PDF's first page. `kind` is its content kind (pdf_vector, photo_plan...)."""
-    if kind.startswith("pdf_"):
-        image = _pdf_page(data, 1, width)
-    else:
-        with Image.open(io.BytesIO(data)) as found:
-            found.load()
-            image = (ImageOps.exif_transpose(found) or found).convert("RGB")
-        image = image.resize(_size(image.width, image.height, width), Image.Resampling.LANCZOS)
+    applied, or a PDF's first page. `kind` is its content kind (pdf_vector, photo_plan...).
+    InvalidInputError for bytes no decoder opens (cut off, damaged): a half-decoded picture would
+    show the grey of what is missing as if it were the file."""
+    try:
+        if kind.startswith("pdf_"):
+            image = _pdf_page(data, 1, width)
+        else:
+            with Image.open(io.BytesIO(data)) as found:
+                found.load()
+                image = (ImageOps.exif_transpose(found) or found).convert("RGB")
+            image = image.resize(_size(image.width, image.height, width), Image.Resampling.LANCZOS)
+    except (OSError, Image.DecompressionBombError, pypdfium2.PdfiumError) as error:
+        raise InvalidInputError(
+            f"the upload cannot be decoded, so it has no preview: {error}"
+        ) from error
     buffer = io.BytesIO()
     image.save(buffer, "PNG")
     return buffer.getvalue()
