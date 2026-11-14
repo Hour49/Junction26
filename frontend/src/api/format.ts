@@ -18,6 +18,7 @@ const READERS: Record<string, string> = {
   composite: 'image reader',
   pdf: 'PDF vector reader',
   ifc: 'IFC model',
+  ifc_sheet: 'IFC sheet reader', // a sheet read with its IFC model; the model is the second count
   templates: 'question templates',
   hello: 'not read',
   dev: 'best estimate from dev answers',

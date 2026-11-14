@@ -1106,7 +1106,8 @@ project that does not hold the drawing is 404.
 ```
 
 - `reader`: how the drawing was read: the route, the file it was read from (`source`), that route's reader
-  (`extractor`; `hello` reads nothing), the second counter that measured (`pdf` for any file that is no IFC
+  (`extractor`; `hello` reads nothing; a sheet read with its IFC model is `ifc_sheet` with the sheet as `source`,
+  since its counts are what the sheet draws and the model's count is the second count), the second counter that measured (`pdf` for any file that is no IFC
   model, since the `ifc` counter passes those on to the PDF one; `"none"` when it measured nothing on the
   drawing; in an answer, `"none"` unless it measured the answered quantity) and the question parser.
 - `credit`: the licence credit to show under every page of the drawing, or null. A file of the Stoa
@@ -3440,6 +3441,9 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (wording): `reader` of a sheet read with its IFC model (bim route, not the model itself)
+  is `extractor: "ifc_sheet"` with the sheet as `source` (was `ifc` and the .ifc), so the card names the sheet
+  for the shown count and the model as the second count (R3-qa-5-1).
 - 2026-11-14, additive (behaviour): review edits and sign-offs belong to the project (R1b-4-1). With `project`
   (takeoff, review, signoff, takeoff.csv, the new optional `project` on `evidence.png`) or `project_id` (ask)
   they are that project's; without one, a drawing-level state no project sees. Edits stored before this change

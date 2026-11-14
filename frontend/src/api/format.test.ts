@@ -22,6 +22,7 @@ it('R2-qa-3-1 (SH-47) readerName turns reader ids into plain labels', () => {
   expect(readerName('composite')).toBe('image reader');
   expect(readerName('pdf')).toBe('PDF vector reader');
   expect(readerName('ifc')).toBe('IFC model');
+  expect(readerName('ifc_sheet')).toBe('IFC sheet reader'); // R3-qa-5-1
   expect(readerName('templates')).toBe('question templates');
   expect(readerName('hello')).toBe('not read');
   expect(readerName('False')).toBe('off');
