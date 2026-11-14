@@ -88,7 +88,7 @@
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, conflicts: conflictsScreen,
       chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen, issues: window.VIssues.screen }[r.name](r);
     app.innerHTML = header(r) + screen + (V.CREDIT
-      ? `<p class="foot">Stoa mode, local only: a real drawing and its answer key from the Stoa dataset; the reading steps are illustrated. From the Stoa dataset's LICENSE.md: “${esc(V.CREDIT)}”</p>`
+      ? `<p class="foot">Stoa mode, local only: a real drawing and its answer key from the Stoa dataset${V.TRIAGE && Object.keys(V.TRIAGE).length ? ", and a folder of real archive scans (credit on each file)" : ""}; the reading steps are illustrated. From the Stoa dataset's LICENSE.md: “${esc(V.CREDIT)}”</p>`
       : '<p class="foot">Clickable demo · synthetic data drawn in the browser, no backend, nothing read from a real file.</p>');
     fill();
   }
