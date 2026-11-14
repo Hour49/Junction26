@@ -11,7 +11,6 @@ import {
 } from '../api';
 import { keepPolling, plural } from '../ingest/ingest';
 import { usePoll } from '../ingest/usePoll';
-import { useIssueAnswers } from '../shell/issueAnswers';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { DocumentLists } from './DocumentLists';
@@ -33,7 +32,6 @@ export function DocumentsScreen({
   const [issues, setIssues] = useState<{ list: Issue[] } | { error: unknown } | null>(null);
   const [reload, setReload] = useState(0);
   const [drawings, setDrawings] = useState<Record<string, DrawingView | null>>({});
-  const answers = useIssueAnswers(projectId);
 
   useEffect(() => {
     if (!done) return;
@@ -90,8 +88,11 @@ export function DocumentsScreen({
     set({ ...project, files: project.files.map((f) => (f.id === file.id ? file : f)) });
     setReload((n) => n + 1); // the issue's state follows the call
   };
+  const onIssue = (issue: Issue) => {
+    if (list) setIssues({ list: list.map((i) => (i.id === issue.id ? issue : i)) });
+  };
   const q = pack ? `?pack=${encodeURIComponent(pack)}` : '';
-  const left = list ? needsYou(list, answers) : 0;
+  const left = list ? needsYou(list) : 0;
   const failed = issues && 'error' in issues ? errorText(issues.error) : null;
 
   return (
@@ -159,6 +160,7 @@ export function DocumentsScreen({
                 drawing={issue.drawing_id ? drawings[issue.drawing_id] : null}
                 file={project.files.find((f) => f.id === issue.file_id)}
                 onFile={onFile}
+                onIssue={onIssue}
               />
             ))}
           </ol>

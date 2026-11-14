@@ -14,17 +14,13 @@ export function documentIssues(issues: readonly Issue[]): Row[] {
 export const isAnswerable = (i: Issue) =>
   i.kind !== 'conflict' && (i.kind === 'unrelated_file' || i.severity !== 'note');
 
-/** The one count rule (DOC-12): answerable, still open, not answered, notes excluded. Badge and done line use it. */
-export const needsYou = (issues: readonly Issue[], answers: ReadonlyMap<string, string>) =>
-  issues.filter(
-    (i) => isAnswerable(i) && i.severity !== 'note' && i.state === 'open' && !answers.has(i.id),
-  ).length;
+/** The one count rule (DOC-12): answerable, still open, no `Issue.answer`, notes excluded. Badge and done line use it. */
+export const needsYou = (issues: readonly Issue[]) =>
+  issues.filter((i) => isAnswerable(i) && i.severity !== 'note' && i.state === 'open' && !i.answer)
+    .length;
 
-export function pillOf(
-  issue: Issue,
-  answered: boolean,
-): { word: string; tone: '' | 'warn' | 'ok' } {
-  if (isAnswerable(issue) && (answered || issue.state !== 'open'))
+export function pillOf(issue: Issue): { word: string; tone: '' | 'warn' | 'ok' } {
+  if (isAnswerable(issue) && (issue.answer || issue.state !== 'open'))
     return { word: 'Answered', tone: 'ok' };
   if (issue.severity === 'note') return { word: 'Note', tone: '' };
   return { word: SEVERITY_LABEL[issue.severity], tone: 'warn' };
@@ -55,7 +51,9 @@ export function issueSource(
     return {
       name: issue.file,
       page,
-      places: located ? [{ label: issue.why, box: issue.box, polygon: issue.polygon }] : [],
+      places: located
+        ? [{ label: issue.label ?? issue.why, box: issue.box, polygon: issue.polygon }]
+        : [],
     };
   }
   if (!issue.file_id || !PREVIEWABLE.has(file?.kind ?? '')) return null;

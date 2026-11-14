@@ -9,8 +9,9 @@ import {
   projectTriaged,
   relevanceRequest,
 } from '../api/fixtures';
+import issueAnswerRequest from '@fixtures/issue_answer_request.json';
+import issueAnsweredJson from '@fixtures/issue_answered.json';
 import type { FileStatus, Issue, IssueList, ProjectView } from '../api';
-import { answerOf, setAnswer } from '../shell/issueAnswers';
 import { mockApi, reply } from '../test/mockApi';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { flush, must } from '../ingest/testing';
@@ -30,7 +31,9 @@ const needs: Issue = {
   id: 'needs',
   severity: 'needs_person',
   box: [0.1, 0.2, 0.3, 0.4],
+  suggestions: [],
 };
+const ANSWER = `POST /api/projects/${PID}/issues/needs/answer`;
 
 const drawingsOf = (issues: Issue[]) =>
   Object.fromEntries(
@@ -63,7 +66,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
-  for (const i of [needs, located]) setAnswer(PID, i.id, null);
 });
 
 describe('DocumentsScreen (documents.md)', () => {
@@ -132,7 +134,7 @@ describe('DocumentsScreen (documents.md)', () => {
     const calls = vi.mocked(SourceFigure).mock.calls.map(([p]) => p);
     const ofNeeds = must(calls.findLast((p) => p.label === 'Source of issue 1'));
     expect(ofNeeds.sources[0]?.places).toEqual([
-      { label: needs.why, box: needs.box, polygon: needs.polygon },
+      { label: needs.label, box: needs.box, polygon: needs.polygon },
     ]);
     expect(ofNeeds.sources[0]?.page).toEqual(drawing.pages.find((p) => p.page === needs.page));
     expect(ofNeeds.defaultOpen).toBeFalsy();
@@ -140,8 +142,17 @@ describe('DocumentsScreen (documents.md)', () => {
     expect(ofAside.sources[0]?.image).toContain(`/files/${String(aside.file_id)}/preview.png`);
   });
 
-  it('DOC-8 a typed answer: stored, shown, changed, cancelled; empty cannot be sent', async () => {
-    show(project, { ...projectIssues, issues: [needs] });
+  it('DOC-8 a typed answer: sent with the name, shown, changed, cancelled, undone', async () => {
+    localStorage.setItem(NAME_KEY, 'Ana');
+    const at = '2026-11-14T08:05:00Z';
+    const api = show(
+      project,
+      { ...projectIssues, issues: [needs] },
+      {
+        [ANSWER]: (c: { body: { text?: string; by?: string; undo?: boolean } }) =>
+          c.body.undo ? { ...needs, answer: null } : { ...needs, answer: { ...c.body, at } },
+      },
+    );
     await flush();
     const card = () => within(must(cards()[0]));
     const use = () => card().getByRole<HTMLButtonElement>('button', { name: 'Use my answer' });
@@ -155,12 +166,10 @@ describe('DocumentsScreen (documents.md)', () => {
     });
     fireEvent.click(use());
     await flush();
-    expect(answerOf(PID, needs.id)).toBe('1:100');
-    expect(card().getByText('You answered: “1:100”.')).toBeTruthy();
-    expect(
-      card().getByText('Kept in this tab only: the server does not save answers yet.'),
-    ).toBeTruthy();
+    expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual({ text: '1:100', by: 'Ana' });
+    expect(card().getByText(/“1:100” · Ana’s answer, /)).toBeTruthy();
     expect(card().getByText('Answered')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('Kept in this tab only');
     fireEvent.click(card().getByRole('button', { name: 'Change' }));
     expect(card().getByRole<HTMLInputElement>('textbox', { name: 'Your answer' }).value).toBe(
       '1:100',
@@ -169,7 +178,48 @@ describe('DocumentsScreen (documents.md)', () => {
       '140',
     );
     fireEvent.click(card().getByRole('button', { name: 'Cancel' }));
-    expect(card().getByText('You answered: “1:100”.')).toBeTruthy();
+    expect(card().getByText(/“1:100” · Ana’s answer/)).toBeTruthy();
+    fireEvent.click(card().getByRole('button', { name: 'Undo' }));
+    await flush();
+    expect(api.calls.filter((c) => c.method === 'POST').at(-1)?.body).toEqual({ undo: true });
+    expect(card().getByRole('textbox', { name: 'Your answer' })).toBeTruthy();
+    expect(card().queryByText('Answered')).toBeNull();
+  });
+
+  it('DOC-8 no name: nothing can be sent; a failed POST is worded, the form usable', async () => {
+    show(project, { ...projectIssues, issues: [needs] }, { [ANSWER]: reply(500, error) });
+    await flush();
+    const card = within(must(cards()[0]));
+    fireEvent.change(card.getByRole('textbox', { name: 'Your answer' }), {
+      target: { value: '1:100' },
+    });
+    const use = card.getByRole<HTMLButtonElement>('button', { name: 'Use my answer' });
+    expect(use.disabled).toBe(true);
+    fireEvent.change(card.getByRole('textbox', { name: 'Your name' }), {
+      target: { value: 'Ana' },
+    });
+    fireEvent.click(use);
+    await flush();
+    expect(card.getByRole('alert').textContent).toContain(`(${error.code})`);
+    expect(use.disabled).toBe(false);
+  });
+
+  it('DOC-9 a chip per suggestion sends it as the answer', async () => {
+    localStorage.setItem(NAME_KEY, 'Ana');
+    const chipped = { ...needs, suggestions: ['Check it on site', 'Not needed'] };
+    const api = show(
+      project,
+      { ...projectIssues, issues: [chipped] },
+      {
+        [ANSWER]: { ...chipped, answer: (issueAnsweredJson as unknown as Issue).answer },
+      },
+    );
+    await flush();
+    const card = within(must(cards()[0]));
+    fireEvent.click(card.getByRole('button', { name: 'Check it on site' }));
+    await flush();
+    expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual(issueAnswerRequest);
+    expect(card.getByText(/“Check it on site” · Ana’s answer/)).toBeTruthy();
   });
 
   describe('DOC-7 the call on a file that is not a floor plan', () => {

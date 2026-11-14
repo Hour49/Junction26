@@ -22,7 +22,7 @@ drawings, then every file that came in, each opening its file page. The header b
 | `src/documents/DocumentsScreen.tsx` (new) | route `#/p/<pid>/documents`, `DocumentsScreen({projectId, pack?})`: title, issues section, drawings, files |
 | `src/documents/IssueCard.tsx` (new) | one issue: number, pill, file, link to the file page, `why`, `SourceFigure`, the answer form or the answer |
 | `src/documents/DocumentLists.tsx` (new) | the drawings cards and the file rows, moved out of `src/ingest/ProjectScreen.tsx` (Ingest no longer lists them, per the brief: preqa-a removes them there) |
-| `src/documents/documents.ts` (new) | pure: `documentIssues`, `isAnswerable`, `needsYou`, `pillOf`, `issueSource`, `localAnswers` (read/write) |
+| `src/documents/documents.ts` (new) | pure: `documentIssues`, `isAnswerable`, `needsYou`, `pillOf`, `issueSource`, `shortReason` |
 | `src/documents/documents.css` (new) | demo look through `--v-*` tokens |
 | `src/issues/issues.ts` | kept: `KIND_LABEL`, `SEVERITY_LABEL`, `STATE_LABEL`, `kindOf`, `placeOf`, `routeOf`; `numbered`, `filterIssues`, `issueMarks`, `issueTones` lose their callers |
 | `src/issues/IssuesScreen.tsx`, `IssueList.tsx`, `IssuePlan.tsx`, `issues.css` | deleted with their tests (2026-11-14, after fe-shared's 31dd5ee wired Documents); `#/p/<pid>/issues` lands on Ingest |
@@ -54,15 +54,14 @@ not edited).
      does not belong" (`unrelated`), with the typed name field (the surveyor's saved name, as on the file page). Once
      called: "Related: Ana's call, <time>." and "Change" (sends `{undo: true}`, then the chips again). This is
      the only place the call is made now (the file page drops its "Does it belong to this project?" block, preqa-a);
-   - any **other answerable** issue (severity `fails_rule` or `needs_person`): "Your answer" with a text box (max
-     140 characters) and "Use my answer"; suggestion chips only when the API sends them (`Issue.suggestions`, API ask
-     2; none today, so none shown). Once answered: "You answered: “…”." and "Change" (the box again, prefilled,
-     with "Cancel"). **Client-side until API ask 1 lands**: kept in fe-shared's in-memory answer store
-     (`setAnswer` / `answerOf` / `useIssueAnswers`, `src/shell/issueAnswers.ts`, keyed by project and `Issue.id`),
-     so a reload forgets it; the card says "Kept in this tab only: the server does not save answers yet." under
-     the answer (frontend-orch, GO 17:00). **Typed answers are lost on reload** (and in another tab or browser):
-     the badge and the "need your answer" line then count those issues again (fe-shared's note, shared.md
-     "Answers store"). Only the `unrelated_file` call survives a reload: the API saves it.
+   - any **other answerable** issue (severity `fails_rule` or `needs_person`): the same name field, one chip per
+     `Issue.suggestions` entry (none when empty), then "Your answer" with a text box (max 140 characters) and "Use my
+     answer". A chip or "Use my answer" sends `answerIssue(pid, issue.id, {text, by})` (fe-shared, `POST
+     …/issues/{issue_id}/answer`, #223) with the saved name (`countersign.surveyorName`, as the triage call); the
+     returned `Issue` replaces the card's. Once `Issue.answer` is set: "“<text>” · <by>’s answer, <time>" with
+     "Change" (the chips and the box again, prefilled, with "Cancel") and "Undo" (sends `{undo: true}`). Answering
+     does not close an issue (`state` stays `open`); `Issue.answer` alone makes it answered. Saved by the API, so it
+     survives a reload.
 5. **Drawings**: one card each (`drawings[]`): the drawing's plain name `drawingLabel(d)` (fe-shared,
    `src/api/format.ts`; the API's `name` since #224, "Drawn plan 1") as the card's title, the file path as a small
    line under it, kind,
@@ -89,30 +88,26 @@ issue <n>"/>`, one `Source` per issue: `name` = the plain drawing name (fe-share
 | no `drawing_id`, the file anything else (a DXF, a text file) | no figure (live check: a DXF's preview is a 404) |
 | neither | no figure |
 
-`Place.label` = the issue's `why` until API ask 3 gives a short label. `getDrawing` failing → `page: null` for that
+`Place.label` = `Issue.label` when set (#223), else the issue's `why`. `getDrawing` failing → `page: null` for that
 drawing's cards. One file per issue, so the preview has no arrows; several need API ask 4.
 
 ## API calls
 
 - `GET /api/projects/{pid}` (`usePoll` while queued/running): `name`, `files[]`, `drawings[]`, `not_plans`.
 - `GET /api/projects/{pid}/issues?pack=` once `done` (409 `not-allowed` before: the "listed once read" line).
+- `POST /api/projects/{pid}/issues/{issue_id}/answer` `{text, by}` or `{undo: true}` → 200 with the `Issue` (via
+  fe-shared's `answerIssue`): the typed answer and the chips; the returned issue replaces it in the list.
 - `POST /api/projects/{pid}/files/{fid}/relevance` (as `file-triage.md` FT-9..13): the `unrelated_file` call; the
   answer's `FileStatus` replaces that file, then the issues are fetched again (the issue's `state` turns `settled`).
 - Page and preview images through `SourceFigure` (`pageUrl`, `previewUrl`).
 
 ## API asks (for Bogdan, via frontend-orch on #14)
 
-1. **Saving an issue's answer.** `POST /api/projects/{pid}/issues/{issue_id}/answer` `{text, by}` (text 1-140
-   characters, `by` as a sign-off's) or `{undo: true}`; `Issue.answer: {text, by, at} | null`, and the issue turns
-   `settled` when answered. Until then: `localStorage`, this browser only, said on the card.
-2. **`Issue.suggestions: string[]`** (0-4 short answers, only on answerable issues), so the chips are real. Until
-   then: no chips except the two relevance verdicts.
-3. **`Issue.label: str | null`**, a short (≤ 60 characters) name for the outlined place, for the numbered legend
-   ("the title block", "room 1.04"). Until then: "The place in question".
+1. **Landed in #223** (asks 1-3, 2026-11-14): `POST …/issues/{issue_id}/answer`, `Issue.answer`,
+   `Issue.suggestions`, `Issue.label`. Answering does not close an issue (`state` stays `open`).
 4. (later) **`Issue.sources[]`**: other files showing the same place (the demo's arrows between source files).
-5. (fe-shared may prefer) **`ProjectSummary.issues_to_answer`**: the badge count server-side (non-conflict issues,
-   severity not `note`, `open`), so the header needs no issues request. Until then `needsYou` (DOC-12) from
-   `getIssues`.
+5. **`issues_to_answer`** on the project GET (landed in #223): the badge count server-side (fe-shared's choice;
+   non-conflict, not `note`, `open`, unanswered); else `needsYou` (DOC-12) from `getIssues`.
 
 ## States
 
@@ -138,22 +133,24 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
   `why` as text. [component]
 - DOC-5: A note card has no answer form and no chips. [component]
 - DOC-6: `issueSource`: a located issue gives one `Source` with its drawing's page and one `Place` at `box` labelled
-  with `why`; no box → `places: []`; `page` null → `page: null`; no `drawing_id` but a `file_id` of an image or PDF →
+  with `label` (else `why`); no box → `places: []`; `page` null → `page: null`; no `drawing_id` but a `file_id` of an image or PDF →
   `page: null` and `image` = the file's preview; another file (DXF) or neither drawing nor file → no figure. The card passes it to `SourceFigure` (minimized), one `getDrawing` per drawing. [unit] [component]
 - DOC-7: An `unrelated_file` card offers "It belongs to this project" / "It does not belong" with the name field;
   a press sends `{verdict, by}` to `POST …/files/<file_id>/relevance` (`relevance_request.json` for related by Ana),
   then refetches the issues; the card shows the call and "Change"; "Change" sends `{undo: true}`. [component]
-- DOC-8: Another answerable card: typing "1:100" and "Use my answer" stores it with `setAnswer(pid, id, "1:100")`
-  and shows "You answered: “1:100”." and "Kept in this tab only: the server does not save answers yet."; "Change"
-  reopens the box prefilled, "Cancel" closes it unchanged; an empty or spaces-only answer cannot be sent.
-  [component]
-- DOC-9: No chips are shown on a typed-answer card without `suggestions` (no invented chips). [component]
+- DOC-8: Another answerable card, name "Ana" saved: typing "1:100" and "Use my answer" sends `{text: "1:100", by:
+  "Ana"}` to `POST …/issues/<id>/answer` and shows the returned answer "“1:100” · Ana’s answer, <time>" and the
+  pill "Answered"; "Change" reopens the box prefilled, "Cancel" closes it unchanged; "Undo" sends `{undo: true}` and
+  the form is back; an empty or spaces-only answer, or no name, cannot be sent; a failed POST is worded under the
+  card (`detail (code)`), the form usable. [component]
+- DOC-9: One chip per `Issue.suggestions` entry; a chip press sends `{text: <chip>, by}` (`issue_answer_request.json`
+  for "Check it on site" by Ana); no chips when `suggestions` is empty or missing (no invented chips). [component]
 - DOC-10: The drawings section lists every drawing with its plain name (`drawingLabel`: "Drawn plan 1") as the
   card's title and its file path as a small line, kind, route words and "Open" →
   `#/p/<pid>/d/<id>/engineer`; the files section lists every file linking to its file page. [component]
 - DOC-11: "Export" links with `download` to `/api/projects/<pid>/issues.zip` (`?pack=` kept). [component]
-- DOC-12: `needsYou(issues, answers: ReadonlyMap<id, text>)` (fe-shared's `useIssueAnswers`) = the issues Documents
-  lets you answer (not `conflict`), still `open`, not answered (no entry in `answers`), notes excluded (severity `note`, an `unrelated_file` note too);
+- DOC-12: `needsYou(issues)` = the issues Documents
+  lets you answer (not `conflict`), still `open`, without `Issue.answer`, notes excluded (severity `note`, an `unrelated_file` note too);
   the one count rule, used by fe-shared's `useIssuesToAnswer` (the badge) and preqa-a's done line. [unit]
 - DOC-16: The title row has one link "Building-code checks" → `#/p/<pid>/checks`, with `?pack=<id>` when a pack is
   set. [component]

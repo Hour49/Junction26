@@ -31,7 +31,6 @@ const needs: Issue = {
 const fails: Issue = { ...located, id: 'fails', kind: 'code_check_failed', severity: 'fails_rule' };
 const unsure: Issue = { ...aside, id: 'unsure', kind: 'unrelated_file', severity: 'needs_person' };
 const unrelatedNote: Issue = { ...aside, id: 'unote', kind: 'unrelated_file', severity: 'note' };
-const none: ReadonlyMap<string, string> = new Map();
 
 describe('documents.ts', () => {
   it('DOC-3 leaves conflicts out, groups by severity, numbers by position in this list', () => {
@@ -55,21 +54,23 @@ describe('documents.ts', () => {
     ]);
   });
 
-  it('DOC-12 needsYou: answerable, open, not answered, notes excluded', () => {
+  it('DOC-12 needsYou: answerable, open, without Issue.answer, notes excluded', () => {
     const all = [conflict, located, aside, needs, fails, unsure, unrelatedNote];
-    expect(needsYou(all, none)).toBe(3); // needs, fails, unsure
-    expect(needsYou(all, new Map([['needs', '1:100']]))).toBe(2);
-    expect(needsYou([...all, { ...unsure, id: 'done', state: 'settled' }], none)).toBe(3);
-    expect(needsYou([{ ...conflict, severity: 'needs_person', state: 'open' }], none)).toBe(0);
-    expect(needsYou([], none)).toBe(0);
+    const answer = { text: '1:100', by: 'Ana', at: '2026-11-14T08:05:00Z' };
+    expect(needsYou(all)).toBe(3); // needs, fails, unsure
+    expect(needsYou(all.map((i) => (i.id === 'needs' ? { ...i, answer } : i)))).toBe(2);
+    expect(needsYou([...all, { ...unsure, id: 'done', state: 'settled' }])).toBe(3);
+    expect(needsYou([{ ...conflict, severity: 'needs_person', state: 'open' }])).toBe(0);
+    expect(needsYou([])).toBe(0);
   });
 
   it('pillOf: note, severity while open, Answered once answered or settled', () => {
-    expect(pillOf(located, false)).toEqual({ word: 'Note', tone: '' });
-    expect(pillOf(needs, false)).toEqual({ word: 'Needs a person', tone: 'warn' });
-    expect(pillOf(fails, false)).toEqual({ word: 'Fails a rule', tone: 'warn' });
-    expect(pillOf(needs, true)).toEqual({ word: 'Answered', tone: 'ok' });
-    expect(pillOf({ ...unsure, state: 'settled' }, false)).toEqual({
+    const answer = { text: '1:100', by: 'Ana', at: '2026-11-14T08:05:00Z' };
+    expect(pillOf(located)).toEqual({ word: 'Note', tone: '' });
+    expect(pillOf(needs)).toEqual({ word: 'Needs a person', tone: 'warn' });
+    expect(pillOf(fails)).toEqual({ word: 'Fails a rule', tone: 'warn' });
+    expect(pillOf({ ...needs, answer })).toEqual({ word: 'Answered', tone: 'ok' });
+    expect(pillOf({ ...unsure, state: 'settled' })).toEqual({
       word: 'Answered',
       tone: 'ok',
     });
@@ -81,8 +82,13 @@ describe('documents.ts', () => {
     expect(issueSource(withDrawing, PID, drawing)).toEqual({
       name: withDrawing.file,
       page,
-      places: [{ label: withDrawing.why, box: [0.1, 0.2, 0.3, 0.4], polygon: withDrawing.polygon }],
+      places: [
+        { label: 'How it was read', box: [0.1, 0.2, 0.3, 0.4], polygon: withDrawing.polygon },
+      ],
     });
+    expect(issueSource({ ...withDrawing, label: null }, PID, drawing)?.places[0]?.label).toBe(
+      withDrawing.why,
+    ); // no Issue.label: the why
     expect(issueSource({ ...withDrawing, box: null, polygon: null }, PID, drawing)?.places).toEqual(
       [],
     );

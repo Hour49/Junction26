@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import {
+  answerIssue,
+  errorText,
+  formatTime,
   postRelevance,
   type DrawingView,
   type FileStatus,
   type Issue,
+  type IssueAnswerRequest,
   type RelevanceRequest,
 } from '../api';
 import { callError, callLine } from '../ingest/triage';
-import { answerOf, setAnswer, useIssueAnswers } from '../shell/issueAnswers';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { isAnswerable, issueSource, pillOf } from './documents';
 
@@ -27,6 +30,22 @@ function saveName(name: string) {
   } catch {
     // storage blocked: the name is not remembered, the call still works
   }
+}
+
+function NameField({ name, onName }: { name: string; onName: (name: string) => void }) {
+  return (
+    <label className="doc-small doc-name">
+      Your name
+      <input
+        type="text"
+        maxLength={100}
+        value={name}
+        onChange={(e) => {
+          onName(e.target.value);
+        }}
+      />
+    </label>
+  );
 }
 
 /** The call on a file triage set aside (decision 0010), saved by the API. */
@@ -76,17 +95,7 @@ function RelevanceCall(props: {
         </div>
       ) : (
         <>
-          <label className="doc-small doc-name">
-            Your name
-            <input
-              type="text"
-              maxLength={100}
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-              }}
-            />
-          </label>
+          <NameField name={name} onName={setName} />
           <div className="doc-chips">
             <button
               type="button"
@@ -120,31 +129,76 @@ function RelevanceCall(props: {
   );
 }
 
-/** A typed answer, kept in fe-shared's in-memory store until the API can save it (documents.md API ask 1). */
-function TypedAnswer({ projectId, issue }: { projectId: string; issue: Issue }) {
-  useIssueAnswers(projectId); // re-render when an answer changes
-  const answer = answerOf(projectId, issue.id);
+/** An issue's answer, saved by the API (#223): suggestion chips or a typed answer, with the saved name. */
+function IssueAnswerForm(props: {
+  projectId: string;
+  issue: Issue;
+  onIssue: (issue: Issue) => void;
+}) {
+  const { projectId, issue, onIssue } = props;
+  const answer = issue.answer ?? null;
+  const [name, setName] = useState(savedName);
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(answer ?? '');
+  const [text, setText] = useState(answer?.text ?? '');
+  const [sending, setSending] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const inputId = `answer-${issue.id}`;
 
-  if (answer !== null && !editing)
+  const send = async (body: IssueAnswerRequest) => {
+    setSending(true);
+    setFailed(null);
+    try {
+      const next = await answerIssue(projectId, issue.id, body);
+      setEditing(false);
+      setText(next.answer?.text ?? '');
+      onIssue(next);
+    } catch (e) {
+      const { detail, code } = errorText(e);
+      setFailed(`${detail} (${code})`);
+    } finally {
+      setSending(false);
+    }
+  };
+  const answerWith = (value: string) => {
+    const by = name.trim();
+    saveName(by);
+    void send({ text: value.trim(), by });
+  };
+  const noName = sending || name.trim() === '';
+  const error = failed && (
+    <p role="alert" className="doc-error">
+      {failed}
+    </p>
+  );
+
+  if (answer && !editing)
     return (
       <div className="doc-answer">
         <div className="doc-foot">
-          <span>You answered: “{answer}”.</span>
+          <span>
+            “{answer.text}” · {answer.by}’s answer, {formatTime(answer.at)}
+          </span>
           <button
             type="button"
             className="v-btn v-btn--secondary v-press"
+            disabled={sending}
             onClick={() => {
-              setText(answer);
+              setText(answer.text);
               setEditing(true);
             }}
           >
             Change
           </button>
+          <button
+            type="button"
+            className="v-btn v-btn--secondary v-press"
+            disabled={sending}
+            onClick={() => void send({ undo: true })}
+          >
+            Undo
+          </button>
         </div>
-        <p className="doc-small">Kept in this tab only: the server does not save answers yet.</p>
+        {error}
       </div>
     );
   return (
@@ -152,11 +206,27 @@ function TypedAnswer({ projectId, issue }: { projectId: string; issue: Issue }) 
       className="doc-answer"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!text.trim()) return;
-        setAnswer(projectId, issue.id, text.trim());
-        setEditing(false);
+        if (text.trim() && !noName) answerWith(text);
       }}
     >
+      <NameField name={name} onName={setName} />
+      {(issue.suggestions ?? []).length > 0 && (
+        <div className="doc-chips">
+          {issue.suggestions?.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="doc-chip v-press"
+              disabled={noName}
+              onClick={() => {
+                answerWith(s);
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
       <label className="doc-small" htmlFor={inputId}>
         Your answer
       </label>
@@ -170,10 +240,10 @@ function TypedAnswer({ projectId, issue }: { projectId: string; issue: Issue }) 
             setText(e.target.value);
           }}
         />
-        <button type="submit" className="v-btn v-press" disabled={!text.trim()}>
+        <button type="submit" className="v-btn v-press" disabled={noName || !text.trim()}>
           Use my answer
         </button>
-        {answer !== null && (
+        {answer && (
           <button
             type="button"
             className="v-btn v-btn--secondary v-press"
@@ -185,6 +255,7 @@ function TypedAnswer({ projectId, issue }: { projectId: string; issue: Issue }) 
           </button>
         )}
       </div>
+      {error}
     </form>
   );
 }
@@ -197,10 +268,10 @@ export function IssueCard(props: {
   drawing: DrawingView | null | undefined;
   file: FileStatus | undefined;
   onFile: (file: FileStatus) => void;
+  onIssue: (issue: Issue) => void;
 }) {
-  const { projectId, issue, n, drawing, file, onFile } = props;
-  const answered = useIssueAnswers(projectId).has(issue.id);
-  const pill = pillOf(issue, answered);
+  const { projectId, issue, n, drawing, file, onFile, onIssue } = props;
+  const pill = pillOf(issue);
   const source = issueSource(issue, projectId, drawing, file);
   return (
     <li className="v-card doc-issue">
@@ -222,7 +293,7 @@ export function IssueCard(props: {
         (issue.kind === 'unrelated_file' ? (
           file?.triage && <RelevanceCall projectId={projectId} file={file} onFile={onFile} />
         ) : (
-          <TypedAnswer projectId={projectId} issue={issue} />
+          <IssueAnswerForm projectId={projectId} issue={issue} onIssue={onIssue} />
         ))}
     </li>
   );
