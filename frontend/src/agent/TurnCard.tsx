@@ -15,14 +15,17 @@ import {
 import { EditCard } from './EditCard';
 import './agent.css';
 
-/** "Show it": the drawing in the engineer workspace at that place (engineer.md `?page=&box=`). */
-export function showHref(projectId: string, e: Evidence): string {
+/** "Show it": the drawing in the engineer workspace at that place (engineer.md `?page=&box=`), keeping the
+ * chat's country (`pack`, smoke-2) as an answer's Show it does. */
+export function showHref(projectId: string, e: Evidence, pack: string | null = null): string {
+  const query = new URLSearchParams({ page: String(e.page), box: e.box.join(',') });
+  if (pack) query.set('pack', pack);
   return routeHref({
     name: 'workspace',
     projectId,
     drawingId: e.drawing_id,
     role: 'engineer',
-    query: new URLSearchParams({ page: String(e.page), box: e.box.join(',') }),
+    query,
   });
 }
 
@@ -48,7 +51,15 @@ function Confidence({ level }: { level: Level }) {
 
 /** The turn's text (answers-1): paragraphs, lists, bold and http(s) links from the model's Markdown, as React
  * text (no HTML is ever parsed), with `[n]` source links. */
-function Text({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
+function Text({
+  turn,
+  projectId,
+  pack,
+}: {
+  turn: ChatTurn;
+  projectId: string;
+  pack: string | null;
+}) {
   const byN = new Map(turn.evidence.map((e) => [e.n, e]));
   const cites = (s: string) =>
     splitCites(s, [...byN.keys()]).map((part, i) => {
@@ -58,7 +69,7 @@ function Text({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
         <a
           key={i}
           className="ag-cite"
-          href={showHref(projectId, e)}
+          href={showHref(projectId, e, pack)}
           aria-label={`Source ${String(part)}: ${where(e)}`}
         >
           [{part}]
@@ -106,7 +117,15 @@ function Text({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
   );
 }
 
-function Sources({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
+function Sources({
+  turn,
+  projectId,
+  pack,
+}: {
+  turn: ChatTurn;
+  projectId: string;
+  pack: string | null;
+}) {
   return (
     <ol className="ag-sources" aria-label="Sources">
       {turn.evidence.map((e) => (
@@ -114,7 +133,7 @@ function Sources({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
           <span className="en-tag">{e.n}</span>
           <span>{where(e)}</span>
           {e.level && <Confidence level={e.level} />}
-          <a href={showHref(projectId, e)}>Show it</a>
+          <a href={showHref(projectId, e, pack)}>Show it</a>
         </li>
       ))}
     </ol>
@@ -170,7 +189,7 @@ export function TurnCard(props: {
           <b>{headline}</b>
         </p>
       )}
-      <Text turn={turn} projectId={projectId} />
+      <Text turn={turn} projectId={projectId} pack={pack} />
       {answers.map((a, i) => (
         <ChatAnswer key={i} ask={a} project={project} projectId={projectId} pack={pack} />
       ))}
@@ -209,7 +228,7 @@ export function TurnCard(props: {
         />
       )}
       {turn.evidence.length > 0 && answers.length === 0 && (
-        <Sources turn={turn} projectId={projectId} />
+        <Sources turn={turn} projectId={projectId} pack={pack} />
       )}
       <Steps turn={turn} />
     </div>
