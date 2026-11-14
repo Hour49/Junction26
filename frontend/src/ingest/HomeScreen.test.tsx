@@ -207,4 +207,24 @@ describe('HomeScreen', () => {
     await flush();
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
+
+  it('R1-1-1 the project row counts are singular for 1 and plural for 0 and 2', async () => {
+    const one = must(projectList.projects[0]);
+    mockApi({
+      [LIST]: {
+        projects: [
+          { ...one, id: 'aaaaaaaaaaaa', name: 'one.zip', files: 1, drawings: 1 },
+          { ...one, id: 'bbbbbbbbbbbb', name: 'two.zip', files: 0, drawings: 2 },
+        ],
+      },
+    });
+    render(<HomeScreen />);
+    await flush();
+    expect(must(screen.getByText('one.zip').closest('a')).textContent).toContain(
+      '1 file · 1 drawing',
+    );
+    expect(must(screen.getByText('two.zip').closest('a')).textContent).toContain(
+      '0 files · 2 drawings',
+    );
+  });
 });

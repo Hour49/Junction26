@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { formatTime, listProjects } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
+import { plural } from './ingest';
 import { usePoll } from './usePoll';
 
 const once = () => false;
@@ -26,7 +27,7 @@ export function ProjectList() {
               <span>{p.state}</span>
               <time dateTime={p.created_at}>{formatTime(p.created_at)}</time>
               <span>
-                {p.files} files · {p.drawings} drawings
+                {plural(p.files, 'file')} · {plural(p.drawings, 'drawing')}
               </span>
             </a>
           </li>

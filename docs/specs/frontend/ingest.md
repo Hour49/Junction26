@@ -134,7 +134,7 @@ when `rotated` is not 0, "deskewed <deskew_deg>°" when `deskew_deg` is not 0, "
 | State | Home | Project screen | File trace | Reach it on purpose |
 | --- | --- | --- | --- | --- |
 | Loading | list shows "Loading projects…" | "Loading project…" in place of the content | "Loading trace…" | delay the response (component test: a pending promise; e2e: `page.route` with a delay) |
-| Empty | "No projects yet. Upload a file or try the sample." | no files: "This upload has no files." No drawings: "No drawings: nothing in this upload could be read as a plan." | stages `[]`: "No stages yet." | variants `list-empty`, `no-drawings`, `no-files`, `trace-queued` |
+| Empty | "No projects yet. Upload a file or try the sample." | only once the project is `done` or `failed`: no files: "This upload has no files." No drawings: "No drawings: nothing in this upload could be read as a plan." While `queued` or `running` an empty list gives no verdict: it reads "Waiting for the files…", and with no files yet the progress line is left out (no "0 of 0") | stages `[]`: "No stages yet." | variants `list-empty`, `no-drawings`, `no-files`, `trace-queued`; `queued` with `files: []` |
 | Error | box: `detail` and `code` of the upload error; list: `ErrorView` with Retry | first load fails: `ErrorView` (its `not-found` link home) with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
 | Upload refused | `uploadTooLarge`'s sentence. No request sent | | | a `File` over the limit (component test: `new File` with a stubbed `size`) |
 | Busy / too large | box shows `detail` and `code` (`busy`, `too-large`) | | | `mockApi` 429 / 413 with `error.json` spread with that `code` |
@@ -316,6 +316,11 @@ Across the screens
   drawing" reaches the engineer route. [e2e]
 - IN-47: At 390x844 and 1440x900 the three screens (home, sample project done, the `plans/flat-a.png` trace) have
   no horizontal page scroll, and a screenshot of each is saved. [e2e]
+- IN-49 (R1-1-4): While the project is `queued` or `running`, an empty file or drawing list reads "Waiting for the
+  files…", never "This upload has no files." or "No drawings: …", and with no files the progress line ("0 of 0")
+  is not shown. [component, `queued` with `files: []`, `running` with `drawings: []`]
+- IN-50 (R1-1-1): Counts are singular for 1 and plural otherwise: "1 file · 1 drawing", "0 files · 2 drawings",
+  "1 of 1 file finished", "What it ends as: 1 quantity". [unit `plural` + component]
 
 ## Out of scope
 
