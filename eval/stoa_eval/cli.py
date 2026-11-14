@@ -43,13 +43,22 @@ from .ab import (
 from .check import (
     FLOOR,
     LAMBDA,
+    RECALL_RULE,
+    RULE,
     CheckFamily,
     CheckPolicyFile,
+    FlagUnits,
+    Point,
+    calibrations,
     crossfit,
     fit,
+    flag_always,
     point,
     pooled,
+    probabilities,
+    recall_fit,
     route_verdict,
+    thresholds_at,
 )
 from .coverage import format_coverage_table, load_answers, score_all
 from .exp_split import (
@@ -1105,9 +1114,9 @@ def _route_answers(run: Path) -> dict[str, list[bool]]:
 
 
 def run_check_policy(args: argparse.Namespace) -> None:
-    """The double-check policy (check_policy_v1) from a runtime config's val output: D455's
-    thresholds on all of val, the cross-fit estimate, and the route verdicts from golden v2's
-    holdout part of a pipeline run."""
+    """The double-check policy (check_policy_v1) from a runtime config's val output: the
+    thresholds on all of val (D455's, or D476's with --recall), the cross-fit estimate, and the
+    route verdicts from golden v2's holdout part of a pipeline run."""
     split, questions_path, questions = _exp_part(args.exp_dir, "val")
     files = split.parts["val"].files
     wanted = set(files)
@@ -1132,6 +1141,11 @@ def run_check_policy(args: argparse.Namespace) -> None:
             g1main_signal(_said(questions, families, answers), _g1main_dists(work / "g1.json"))
         )
     units = _units(questions, families, answers, None, preds or {}, {}, extra)
+    rules = [FlagUnits.model_validate_json(path.read_text("utf-8")) for path in args.always_flag]
+    for path, rule in zip(args.always_flag, rules, strict=True):
+        if (REPO / "eval" / rule.arm).resolve() != args.arm.resolve():
+            raise ValueError(f"{path}: flags {rule.arm}'s units, not {args.arm}'s")
+    units = flag_always(units, {pair for rule in rules for pair in rule.units})
     by_family: dict[str, list[Unit]] = {}
     for unit in units:
         by_family.setdefault(unit.family, []).append(unit)
@@ -1139,9 +1153,15 @@ def run_check_policy(args: argparse.Namespace) -> None:
     known = {made.name for made in extra}
     if missing := sorted({name for name, _ in signals.values()} - known):
         raise ValueError(f"no values for the signals {missing}: give their --signal-file")
-    chosen = fit(by_family, signals, args.lam, args.floor)
     first = set(halves(files, args.seed)[0])
-    held = crossfit(by_family, signals, args.lam, args.floor, lambda file: file in first)
+    cut, calibrated = None, {}
+    if args.recall is None:
+        chosen = fit(by_family, signals, args.lam, args.floor)
+        held = crossfit(by_family, signals, args.lam, args.floor, lambda file: file in first)
+    else:
+        cut, held = recall_fit(by_family, signals, args.recall, lambda file: file in first)
+        calibrated = calibrations(by_family, signals, probabilities(by_family, signals))
+        chosen = thresholds_at(calibrated, signals, cut)
     made_families = {
         family: CheckFamily(
             signal=signals[family][0],
@@ -1149,6 +1169,7 @@ def run_check_policy(args: argparse.Namespace) -> None:
             fixed=signals[family][1] is not None,
             val=point(units_of, signals[family][0], chosen[family]),
             crossfit=held[family],
+            calibration=calibrated.get(family),
         )
         for family, units_of in sorted(by_family.items())
     }
@@ -1162,8 +1183,12 @@ def run_check_policy(args: argparse.Namespace) -> None:
         generated=datetime.now(HELSINKI).isoformat(timespec="seconds"),
         split_sha256=_sha256(args.exp_dir / "split.json"),
         arm=_arm_name(str(args.arm), args.exp_dir),
+        rule=RULE if args.recall is None else RECALL_RULE,
         lambda_=args.lam,
         floor=args.floor,
+        recall=args.recall,
+        always_flag=[rule.name for rule in rules],
+        cut=cut,
         families=made_families,
         routes=routes,
         pooled_val=pooled({f: c.val for f, c in made_families.items()}),
@@ -1171,9 +1196,51 @@ def run_check_policy(args: argparse.Namespace) -> None:
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(made.model_dump_json(by_alias=True, indent=2) + "\n", "utf-8")
+    if args.recall is None:
+        _print_certified(made)
+    else:
+        _print_flagged(made)
+    for route, verdict in routes.items():
+        h = verdict.holdout
+        print(f"route {route}: {h.exact}/{h.certified} exact on golden v2 holdout, bound "
+              f"{verdict.lower_bound}, certified {verdict.certified}")  # fmt: skip
+    print(f"wrote {args.out}")
+
+
+def _print_flagged(made: CheckPolicyFile) -> None:
+    """D476's table: per family, the share of answers flagged, the share of the wrong ones
+    flagged (recall) and how many unflagged answers are exact, cross-fit and in-sample."""
+    print(f"P(wrong) cut {made.cut:.4f} for recall >= {made.recall:.0%}")
+    print("| family | signal | threshold | answers | wrong | no value "
+          "| cross-fit flagged / recall / unflagged exact | val in-sample |")  # fmt: skip
+    print("| --- | --- | --- | --- | --- | --- | --- | --- |")
+    rows = [*made.families.items(), ("pooled", None)]
+    for family, entry in rows:
+        val = made.pooled_val if entry is None else entry.val
+        held = made.pooled_crossfit if entry is None else entry.crossfit
+        what = " | " if entry is None else f"{entry.signal} | {_cut(entry)}"
+        print(f"| {family} | {what} | {held.units} | {held.wrong} | {held.no_value} | "
+              f"{_flagging(held)} | {_flagging(val)} |")  # fmt: skip
+
+
+def _cut(entry: CheckFamily) -> str:
+    if entry.threshold is None:
+        return "flag all"
+    return f"{entry.threshold:.4f}{' (fixed)' if entry.fixed else ''}"
+
+
+def _flagging(p: Point) -> str:
+    flagged = p.units - p.certified
+    caught = p.wrong - (p.certified - p.exact)
+    recall = f"{caught / p.wrong:.1%}" if p.wrong else "-"
+    exact = f"{p.exact / p.certified:.2%}" if p.certified else "-"
+    return f"{flagged / max(p.units, 1):.1%} / {recall} / {exact}"
+
+
+def _print_certified(made: CheckPolicyFile) -> None:
     print("| family | signal | threshold | val certified (exact) | cross-fit certified (exact) |")
     print("| --- | --- | --- | --- | --- |")
-    rows = [*made_families.items(), ("pooled", None)]
+    rows = [*made.families.items(), ("pooled", None)]
     for family, entry in rows:
         val = made.pooled_val if entry is None else entry.val
         held_point = made.pooled_crossfit if entry is None else entry.crossfit
@@ -1184,11 +1251,6 @@ def run_check_policy(args: argparse.Namespace) -> None:
             else f"{entry.signal} | {entry.threshold}{' (fixed)' if entry.fixed else ''}"
         )
         print(f"| {family} | {what or ' | '} | {cells[0]} | {cells[1]} |")
-    for route, verdict in routes.items():
-        h = verdict.holdout
-        print(f"route {route}: {h.exact}/{h.certified} exact on golden v2 holdout, bound "
-              f"{verdict.lower_bound}, certified {verdict.certified}")  # fmt: skip
-    print(f"wrote {args.out}")
 
 
 def _share(p: object) -> str:
@@ -2241,6 +2303,15 @@ def parser() -> argparse.ArgumentParser:
         "--family-signal", action="append", default=[], metavar="FAMILY=NAME[:CUT]",
         help="the signal a family is gated on (default g1main), with a fixed cut instead of the "
         "rule's",
+    )  # fmt: skip
+    check.add_argument(
+        "--recall", type=float,
+        help="D476: flag at least this share of val's wrong answers (cross-fit), e.g. 0.96; "
+        "default D455's lambda rule",
+    )  # fmt: skip
+    check.add_argument(
+        "--always-flag", type=Path, action="append", default=[],
+        help="a flag_units_v1 file: its units are flagged whatever their signal (repeat)",
     )  # fmt: skip
     check.add_argument("--lambda", dest="lam", type=float, default=LAMBDA)
     check.add_argument("--floor", type=float, default=FLOOR)
