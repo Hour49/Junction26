@@ -250,7 +250,7 @@ def ask(
             again, rooms = named
             code = "not-in-drawing"
             words = (
-                f"{len(rooms)} rooms on this drawing are printed {rooms[0].label}: "
+                f"{len(rooms)} rooms on this drawing are printed {again.name}: "
                 f"{', '.join(_room_lines(rooms, quantities))}. Which one? Ask with its number."
             )
             each = (
@@ -499,7 +499,7 @@ def _room_lines(rooms: Sequence[Room], quantities: Mapping[str, Quantity]) -> li
         keys = (quantity_key("area", "room", name=name) for name in room_names(room))
         found = next((quantities[key] for key in keys if key in quantities), None)
         number = room.attrs.get("number")
-        name = " ".join(str(part) for part in (room.label, number) if part)
+        name = " ".join(" ".join(str(part).split()) for part in (room.label, number) if part)
         lines.append(name if found is None else f"{name} {found.value:.2f} m²")
     return lines
 
