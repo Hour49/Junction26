@@ -198,6 +198,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/laws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Packs */
+        get: operations["law_packs_api_laws_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/laws/clauses/{clause_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Clause */
+        get: operations["law_clause_api_laws_clauses__clause_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/laws/{pack}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Search */
+        get: operations["law_search_api_laws__pack__search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects": {
         parameters: {
             query?: never;
@@ -853,6 +904,56 @@ export interface components {
             /** Url */
             url: string;
         };
+        /**
+         * ClauseView
+         * @description A clause with what citing it needs from its law.
+         */
+        ClauseView: {
+            /** Checked */
+            checked: string;
+            /** Drawing Checkable */
+            drawing_checkable: boolean;
+            /** Heading */
+            heading?: string | null;
+            /** Heading En */
+            heading_en?: string | null;
+            /** Id */
+            id: string;
+            /** Keywords */
+            keywords: string[];
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "fi" | "sv" | "de" | "fr" | "it" | "en";
+            /** Law Id */
+            law_id: string;
+            /** Law Number */
+            law_number: string;
+            /** Law Title */
+            law_title: string;
+            /** Law Title En */
+            law_title_en: string;
+            /**
+             * Limits
+             * @default []
+             */
+            limits: components["schemas"]["Limit"][];
+            /** Ref */
+            ref: string;
+            /** Status Note */
+            status_note: string | null;
+            /** Summary En */
+            summary_en: string;
+            /** Text */
+            text: string;
+            /** Text En */
+            text_en?: string | null;
+            /** Topics */
+            topics: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general")[];
+            /** Url */
+            url: string;
+        };
         /** ConflictEntry */
         ConflictEntry: {
             conflict: components["schemas"]["QuantityConflict"];
@@ -1368,6 +1469,27 @@ export interface components {
             /** Trace */
             trace: string | null;
         };
+        /** LawPack */
+        LawPack: {
+            /** Id */
+            id: string;
+            /** Laws */
+            laws: components["schemas"]["TocEntry"][];
+        };
+        /** LawPacks */
+        LawPacks: {
+            /** Packs */
+            packs: components["schemas"]["LawPack"][];
+        };
+        /** LawSearch */
+        LawSearch: {
+            /** Hits */
+            hits: components["schemas"]["SearchHit"][];
+            /** Pack */
+            pack: string;
+            /** Query */
+            query: string;
+        };
         /**
          * Level
          * @description How far to trust an answer: one of three levels, what it rests on, and one plain sentence
@@ -1386,6 +1508,23 @@ export interface components {
             level: "high" | "medium" | "low";
             /** Text */
             text: string;
+        };
+        /**
+         * Limit
+         * @description A number a drawing could be checked against: "habitable room area >= 7 m2".
+         */
+        Limit: {
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<" | "=";
+            /** Unit */
+            unit: string;
+            /** Value */
+            value: number;
+            /** What */
+            what: string;
         };
         /** Limits */
         Limits: {
@@ -2133,6 +2272,23 @@ export interface components {
             /** Storey */
             storey?: string | null;
         };
+        /** SearchHit */
+        SearchHit: {
+            /** Id */
+            id: string;
+            /** Law Id */
+            law_id: string;
+            /** Ref */
+            ref: string;
+            /** Score */
+            score: number;
+            /** Summary En */
+            summary_en: string;
+            /** Title En */
+            title_en: string;
+            /** Url */
+            url: string;
+        };
         /**
          * SecondCount
          * @description What the second method did on a drawing: quantities it measured and where it disagreed.
@@ -2154,6 +2310,43 @@ export interface components {
             note?: string | null;
             /** Value */
             value: number;
+        };
+        /**
+         * Sheet
+         * @description Classified.sheet and Triage.sheet: the sheet-kind model's reply and its decision. The
+         *     title, sheet number and printed scale are shown, never acted on.
+         */
+        Sheet: {
+            /** Advanced */
+            advanced: boolean;
+            /** Advanced Why */
+            advanced_why: string | null;
+            /** Confidence */
+            confidence: number;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "read" | "doubt" | "set_aside";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "architectural_floor_plan" | "multi_view_sheet" | "mep_plan" | "structural_plan" | "roof_or_ceiling_plan" | "site_plan_or_map" | "elevation" | "section" | "detail" | "perspective_or_axonometric" | "schedule_or_text" | "not_a_drawing" | "other";
+            /** Kind Words */
+            kind_words: string;
+            /** Model */
+            model: string;
+            /** Printed Scale */
+            printed_scale: string | null;
+            /** Seen */
+            seen: string;
+            /** Sheet Number */
+            sheet_number: string | null;
+            /** Takeoff Possible */
+            takeoff_possible: boolean;
+            /** Title */
+            title: string | null;
         };
         /** SignOff */
         SignOff: {
@@ -2274,6 +2467,22 @@ export interface components {
             review_queue: string[];
         };
         /**
+         * TocEntry
+         * @description One line of a pack's table of contents: what exists, for the prompt and the screen.
+         */
+        TocEntry: {
+            /** Clauses */
+            clauses: number;
+            /** Law Id */
+            law_id: string;
+            /** Number */
+            number: string;
+            /** Title En */
+            title_en: string;
+            /** Topics */
+            topics: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general")[];
+        };
+        /**
          * Triage
          * @description FileStatus.triage: what triage made of an image file (decision 0010). Build a changed one
          *     with `model_validate`, not `model_copy`, so `verdict` follows `overruled` and `relevance`.
@@ -2295,6 +2504,7 @@ export interface components {
             read_as_plan?: components["schemas"]["ReadAsPlan"] | null;
             register?: components["schemas"]["Register"] | null;
             relevance?: components["schemas"]["Relevance"] | null;
+            sheet?: components["schemas"]["Sheet"] | null;
             /** Verdict */
             verdict?: ("related" | "unrelated" | "unsure") | null;
         };
@@ -2727,6 +2937,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Info"];
+                };
+            };
+        };
+    };
+    law_packs_api_laws_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LawPacks"];
+                };
+            };
+        };
+    };
+    law_clause_api_laws_clauses__clause_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clause_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClauseView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    law_search_api_laws__pack__search_get: {
+        parameters: {
+            query: {
+                /** @description words to search for */
+                q: string;
+                /** @description only clauses of this topic */
+                topic?: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general") | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                pack: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LawSearch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

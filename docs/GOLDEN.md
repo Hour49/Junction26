@@ -92,6 +92,20 @@ of Part 2. Without that rule the slice would have added 2,276 questions, 1,738 o
 before and after it could not be compared (orchestrator's decision, 2026-11-13 23:29). The conflict questions among
 the extras cover the answering side.
 
+### The hard slice
+
+The Carbon-first work (sheet kind, a Carbon reader, big-sheet tiles, the printed scale) needs sheets our
+CubiCasa-trained readers were not made for: huge sheets, several plans on one sheet, colour or concept plans,
+photos and hand-drawn plans, and drawings that look like plans but are not (MEP, structural, site, elevations).
+The hard slice is those sheets, labelled by eye in `hard_set_v1` (`eval/stoa_eval/hard_scoring.py`): the sheet
+kind in the sheet-kind step's own words, whether a floor plan is on the sheet, the printed scale, and for each
+count family a range `[lo, hi]` or "cannot tell". It is not part of golden v2 and stays outside every headline.
+`stoa_eval hard` scores kind accuracy, floor-plan recall and precision, the share of counts inside their range (a
+refusal counts as a miss; "cannot tell" is left out), and the scale where one is printed. It reads a pipeline run of
+`stoa_eval hard-questions` (`app.cli answer`) and lines a classifier writes (`hard_pred_v1`). The images stay in the
+gitignored `data/inbox/`. Records hold aggregates only (`eval/results/hard/runs/`), and labels are committed only
+for files whose licence allows it.
+
 ### Schedules
 
 The opening_design sheets are mostly schedules. Their gold (review-8) lists the door, window, finish and keynote

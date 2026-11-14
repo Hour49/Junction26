@@ -43,7 +43,7 @@ from app.core.drawing.model import Box, Drawing, Polygon
 from app.core.errors import NotFoundError
 from app.core.ingest.judge import read_nothing
 from app.core.ingest.model import FileStatus, ProjectStatus
-from app.core.ingest.triage import CLASS_WORDS, called_not_plan, is_not_plan
+from app.core.ingest.triage import called_not_plan, is_not_plan, not_plan_words
 from app.core.review.model import MarkView, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import NO_PROOF, PALETTE, ClassKey, check
@@ -672,7 +672,7 @@ def _unrelated_files(status: ProjectStatus) -> Iterator[Issue]:
         if triage.verdict == "related" and not called:
             continue
         judged = triage.relevance.verdict if triage.relevance is not None else None
-        what = CLASS_WORDS[triage.class_]
+        what = not_plan_words(triage)
         if triage.description is not None:
             what = f"{what}: {triage.description.subject}"
         why = f"Not a floor plan ({what})."
