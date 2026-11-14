@@ -813,6 +813,19 @@ def test_a_room_number_printed_in_the_label_names_the_room() -> None:
     for number in ("3.50", "4.20", "1.5", "0.9", "2.1", "7.56", "1.2"):
         text = f"What is the net floor area of room {number}?"
         assert asked(text, others).answer.answer is None, number
+    # ... and the basement room answers by its signed number, as typed (review-354 re-check)
+    assert asked("What is the net floor area of room -1.2?", others).answer.answer == 9.0
+    assert asked("What is the area of Cantina -1.2?", others).answer.answer == 9.0
+    # a minus after a letter joins: "Zimmer-1.05" is room 1.05
+    joined = scaled(room(1, "Zimmer-1.05", 12.0))
+    assert asked("What is the net floor area of room 1.05?", joined).answer.answer == 12.0
+    # a label printing two numbers ("-1.4 Room 0.5", a stored bimspeed plan) names the room by
+    # neither, so it never takes another room's number from it (r2 is -1.4 by its IFC number)
+    ifc = Room(id="r2", type="other", label="Room", page=1, box=BOX_B, area_m2=4.0,
+               attrs={"number": "-1.4"})  # fmt: skip
+    both = scaled(ifc, room(9, "-1.4 Room 0.5", 2.0))
+    assert asked("What is the net floor area of room -1.4?", both).answer.answer == 4.0
+    assert asked("What is the net floor area of room 0.5?", both).answer.answer is None
     # a number two rooms print names neither: never one room's area for both, never a sum
     two = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno 1.07", 5.0, page=2))
     assert asked("What is the net floor area of room 1.07?", two).answer.answer is None
