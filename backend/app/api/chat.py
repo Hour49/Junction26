@@ -23,7 +23,7 @@ from app.api.views import View, drawings_of
 from app.composition import chat_caps, chat_model, spend_guard
 from app.core.agent import model
 from app.core.agent.loop import run_turn
-from app.core.agent.prompt import COUNTRY, NO_COUNTRY
+from app.core.agent.prompt import COUNTRY, NO_COUNTRY, SERVICES
 from app.core.checks.model import RulePack
 from app.core.errors import InvalidInputError, NotFoundError, UnknownPackError
 from app.core.plan_edit.model import Proposal, Selection
@@ -185,6 +185,8 @@ def _turn_runner(
             guard = SpendGuard() if settings.chat_model == "rules" else spend_guard(settings)
             caps = chat_caps(settings)
             context = _country(request.app, pack)
+            if settings.services_follow == "on":  # decision 0016
+                context = f"{context}\n{SERVICES}"
             turn = run_turn(current, body.message, body.selection, model, tools, caps, guard,
                             names=names, context=context, emit=emit)  # fmt: skip
             chats.put(project_id, current)

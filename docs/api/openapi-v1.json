@@ -2020,6 +2020,99 @@
         "title": "DescriptionView",
         "type": "object"
       },
+      "DisciplineFollow": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ServiceAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "discipline": {
+            "enum": [
+              "architecture",
+              "structural",
+              "plumbing",
+              "heating",
+              "ventilation",
+              "electrical",
+              "fire",
+              "site",
+              "other"
+            ],
+            "title": "Discipline",
+            "type": "string"
+          },
+          "elements": {
+            "default": 0,
+            "title": "Elements",
+            "type": "integer"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "marks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ServiceMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "enum": [
+              "checked",
+              "no_model",
+              "not_aligned"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary",
+            "default": {
+              "cut_off": 0,
+              "follows": 0,
+              "needs_decision": 0,
+              "new_run_m": 0.0,
+              "stays": 0
+            }
+          }
+        },
+        "required": [
+          "discipline",
+          "status",
+          "line"
+        ],
+        "title": "DisciplineFollow",
+        "type": "object"
+      },
       "Disputed": {
         "additionalProperties": false,
         "description": "One place to double-check, as the answer gives it.",
@@ -5553,6 +5646,16 @@
             "title": "Rooms",
             "type": "array"
           },
+          "services": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServicesFollow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "state": {
             "default": "proposed",
             "enum": [
@@ -6942,6 +7045,229 @@
         "title": "Selection",
         "type": "object"
       },
+      "ServiceAction": {
+        "additionalProperties": false,
+        "description": "One consequence of the edit in one discipline. `label` is the whole of it in plain words,\nnumbers included; the rest is for drawing it.",
+        "properties": {
+          "code": {
+            "enum": [
+              "reseat",
+              "in_wall",
+              "cut_off",
+              "through",
+              "riser",
+              "fire_damper",
+              "tally",
+              "opening",
+              "under",
+              "missing"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "moved_to": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moved To"
+          },
+          "paths": {
+            "default": [],
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Paths",
+            "type": "array"
+          },
+          "refs": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Refs",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "follows",
+              "stays",
+              "needs_decision",
+              "cut_off"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "code",
+          "label"
+        ],
+        "title": "ServiceAction",
+        "type": "object"
+      },
+      "ServiceMark": {
+        "additionalProperties": false,
+        "description": "One service element near the edit, for the overlay: a run as its line, anything else as\nits point. Page fractions.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "global_id": {
+            "title": "Global Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "line": {
+            "default": [],
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Line",
+            "type": "array"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "global_id",
+          "kind",
+          "label"
+        ],
+        "title": "ServiceMark",
+        "type": "object"
+      },
+      "ServicesFollow": {
+        "additionalProperties": false,
+        "properties": {
+          "credits": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Credits",
+            "type": "array"
+          },
+          "disciplines": {
+            "items": {
+              "$ref": "#/components/schemas/DisciplineFollow"
+            },
+            "title": "Disciplines",
+            "type": "array"
+          },
+          "storey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storey"
+          },
+          "unknowns": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "storey",
+          "disciplines"
+        ],
+        "title": "ServicesFollow",
+        "type": "object"
+      },
       "Settled": {
         "additionalProperties": false,
         "description": "The value a surveyor chose to keep for a quantity (the `settle` action).",
@@ -7410,6 +7736,38 @@
           "question"
         ],
         "title": "Suggestion",
+        "type": "object"
+      },
+      "Summary": {
+        "additionalProperties": false,
+        "properties": {
+          "cut_off": {
+            "default": 0,
+            "title": "Cut Off",
+            "type": "integer"
+          },
+          "follows": {
+            "default": 0,
+            "title": "Follows",
+            "type": "integer"
+          },
+          "needs_decision": {
+            "default": 0,
+            "title": "Needs Decision",
+            "type": "integer"
+          },
+          "new_run_m": {
+            "default": 0.0,
+            "title": "New Run M",
+            "type": "number"
+          },
+          "stays": {
+            "default": 0,
+            "title": "Stays",
+            "type": "integer"
+          }
+        },
+        "title": "Summary",
         "type": "object"
       },
       "Takeoff": {
