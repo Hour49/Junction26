@@ -288,5 +288,8 @@
   ],
   "review_queue": [
     "area:room|name=1.01"
+  ],
+  "disputes": [
+    "area:room|name=1.01"
   ]
 }

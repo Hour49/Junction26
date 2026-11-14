@@ -11,6 +11,7 @@ from app.composition import second_counter_of
 from app.core.drawing.model import Drawing, ScaleStatus
 from app.core.ingest.model import (
     DRAWING_KINDS,
+    ContentKind,
     DrawingInfo,
     FileState,
     FileTrace,
@@ -18,6 +19,12 @@ from app.core.ingest.model import (
     ProjectStatus,
 )
 from app.core.pipeline.model import Route
+
+# The kinds a drawing is read from: a sheet (stage 7 places the drawing model on its page) or a
+# model; DXF and SVG are other renderings only (pipeline/ingest.py NO_SHEET)
+GIVES_A_DRAWING: frozenset[ContentKind] = frozenset(
+    {"pdf_vector", "pdf_scan", "png_plan", "jpeg_plan", "photo_plan", "ifc"}
+)
 
 
 class View(BaseModel):
@@ -153,8 +160,8 @@ class ProjectView(ProjectStatus):
 
     drawings: tuple[DrawingEntry, ...]
     skipped: tuple[Skipped, ...]  # the files set aside, in upload order
-    # The drawings the upload holds, one per group of renderings, counted from the files identified
-    # so far: it can grow until ingest has identified every file. None while the project is queued.
+    # The drawings the upload holds, one per group of renderings that has a sheet or a model.
+    # None until it is known (queued, or files not grouped yet); then final: it never drops.
     expected_drawings: int | None
 
 
@@ -167,16 +174,30 @@ def skipped_of(status: ProjectStatus) -> tuple[Skipped, ...]:
 
 
 def expected_drawings_of(status: ProjectStatus) -> int | None:
-    """The groups of drawing files not set aside, where groups holding the same content (a copy
-    under another name) are one drawing, as `drawings_of` lists them."""
+    """The groups that give a drawing, where groups holding the same content (a copy under
+    another name) are one drawing, as `drawings_of` lists them. A group gives a drawing when it
+    holds a sheet or a model (`GIVES_A_DRAWING`); a group of only DXF or SVG files has no page
+    to place one on. None while the count is not known: the project is queued, or a file of the
+    running project is not grouped yet (each file would count as its own drawing). A file set
+    aside after it was grouped (its reading failed) still counts, so the number never drops."""
     if status.state == "queued":
         return None
+    if status.state == "running" and any(
+        file.group is None and file.state in ("queued", "running") for file in status.files
+    ):
+        return None
     groups: dict[str, set[str]] = {}
+    gives: set[str] = set()
     for file in status.files:
-        if file.kind in DRAWING_KINDS and file.state != "set_aside":
-            groups.setdefault(file.group or file.path, set()).add(file.sha256 or file.path)
+        if file.group is None or file.kind not in DRAWING_KINDS:
+            continue  # set aside or text before grouping
+        groups.setdefault(file.group, set()).add(file.sha256 or file.path)
+        if file.kind in GIVES_A_DRAWING:
+            gives.add(file.group)
     drawings: list[set[str]] = []
-    for contents in groups.values():
+    for key, contents in groups.items():
+        if key not in gives:
+            continue
         same = [found for found in drawings if found & contents]
         for found in same:
             drawings.remove(found)

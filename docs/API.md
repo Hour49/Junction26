@@ -700,7 +700,7 @@ after a restart cut that run off:
   "cost_usd": 0.0,
   "drawings": [],
   "skipped": [],
-  "expected_drawings": 1
+  "expected_drawings": null
 }
 ```
 
@@ -5007,6 +5007,9 @@ any project, which no project shows. A project that does not hold the drawing is
   ],
   "review_queue": [
     "area:room|name=1.01"
+  ],
+  "disputes": [
+    "area:room|name=1.01"
   ]
 }
 ```
@@ -5040,6 +5043,9 @@ any project, which no project shows. A project that does not hold the drawing is
   (decide's count swap adds them with `attrs.located` false). They are in `value` but have no mark; empty when
   there are none.
 - `review_queue`: the keys whose status is `conflict` or `estimate`.
+- `disputes`: the keys of the rows where two methods disagree (`conflict` set, settled or not), one per
+  disagreement: a storey's row or a room's other name that repeats another row's disagreement is left out. These
+  are the drawing's entries in `GET /api/projects/{id}/review` `conflicts`; count these, not the rows.
 - `value` is the current value (after review); `original_value` what ingest computed.
 
 ### `POST /api/drawings/{drawing_id}/review?zeros=<bool>`
@@ -5422,7 +5428,10 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
       "noun": null
     }
   ],
-  "review_queue": []
+  "review_queue": [],
+  "disputes": [
+    "area:room|name=1.01"
+  ]
 }
 ```
 
@@ -5449,6 +5458,11 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (QA R4-a-8): `Takeoff.disputes`, the keys of the rows where two methods disagree, one per
+  disagreement, the same ones the project review lists. Behaviour (QA R4-a-1): `ProjectView.expected_drawings` is
+  null while a running project's files are not grouped yet, then final (it overshot, 0/19 then 13/13 on the demo
+  zip, because each rendering counted until its group was read); groups of only DXF or SVG files no longer count,
+  and a file set aside after grouping still does. Ingest records every file's group before reading the first group.
 - 2026-11-14, additive (board #14, the project chat): `POST /api/projects/{project_id}/ask` with `{question}`
   returns `{question, parts: [{drawing_id, name, answer}], total, total_unit, total_sure, total_note}`, each part
   the `POST /api/ask` answer on one drawing of the project; a total only for one answering drawing or for drawings
@@ -5481,9 +5495,11 @@ formula in a spreadsheet.
     done or failed; null until then. Elapsed is `now - started_at`; there is no `eta_ms` (file times differ too much to
     estimate honestly).
   - `ProjectView.skipped`: `[{path, reason}]`, the files with state `set_aside`, in upload order (empty list if none).
-  - `ProjectView.expected_drawings`: the drawings the upload holds, one per group of renderings and one for a copy under
-    another name, counted from the files identified so far, so it can grow until ingest has identified every file;
-    null while the project is `queued`. Final once `done`; it can be above `drawings.length` when a drawing file fails.
+  - `ProjectView.expected_drawings`: the drawings the upload holds, one per group of renderings that has a sheet
+    (PDF, PNG, JPEG, photo of a plan) or a model (IFC), and one for a copy under another name. null while the project
+    is `queued` and while a file of a `running` project is not grouped yet (until then a plan's renderings would each
+    count as a drawing); once known it is final and never drops: a file set aside after it was grouped still counts,
+    so it can be above `drawings.length` when a drawing file fails. A group of only DXF or SVG files gives no drawing.
   - `GET /api/projects/{id}/trace`: `{project_id, files: FileTrace[]}`, every file's trace in upload order.
   - `second_count` on a file's trace (both trace routes): `{measured, conflicts}`, the quantities the second method
     measured and how many of them disagree; null when the file has no drawing yet or nothing was measured twice.

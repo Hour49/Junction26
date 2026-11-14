@@ -1344,6 +1344,8 @@ export interface components {
         };
         /** Takeoff */
         Takeoff: {
+            /** Disputes */
+            disputes: string[];
             /** Drawing Id */
             drawing_id: string;
             /** File */
