@@ -19,7 +19,16 @@ from app.core.errors import InvalidInputError
 from app.core.pipeline.model import Quantity, QuantityConflict
 from app.core.review.ask import Asked, ask, suggestions
 from app.core.review.model import Edit, MethodValue, ReviewState
-from app.core.review.review import NotAllowedError, apply, label, mark_views, row, sign
+from app.core.review.review import (
+    NotAllowedError,
+    apply,
+    disputes,
+    label,
+    mark_views,
+    review_queue,
+    row,
+    sign,
+)
 
 AT = "2026-11-14T01:00:00Z"
 PAGE = Page(page=1, width=100, height=100, unit="pt")
@@ -249,3 +258,37 @@ def test_an_area_of_a_room_type_on_a_sheet_without_scale_says_so() -> None:
 
 def replace_scale(*rooms: Room) -> Drawing:
     return Drawing(file="x.png", pages=(PAGE,), scale=Scale(status="no_scale"), rooms=rooms)
+
+
+def test_suggestions_spell_room_kinds_in_plain_english_plurals() -> None:
+    """R1-2-2: a Swiss sheet suggested "How many balconys are there?"."""
+    found = {
+        "room:balcony": quantity("room:balcony", 1, "count", BOX_A),
+        "room:living": quantity("room:living", 1, "count", BOX_A),
+        "room:kitchen": quantity("room:kitchen", 1, "count", BOX_A),
+    }
+    asked = [found.question for found in suggestions(found, TemplateParser(), 6)]
+    assert asked == [
+        "How many balconies are there?",
+        "How many living rooms are there?",
+        "How many kitchens are there?",
+    ]
+
+
+def test_a_disagreement_on_a_one_storey_sheet_is_listed_once() -> None:
+    """R1-2-4: a one-storey IFC sheet listed "window count" and "window count (storey p1)" with
+    the same 12 vs 18. The takeoff keeps the conflict on both rows (a question about the storey
+    reads the storey's), but the review lists the disagreement once, on the sheet's row; a storey
+    row whose sheet row measures something else (P2: 71 walls drawn, 70 of them on p2) stays."""
+    windows, walls = disputed(True), disputed(False)
+    rows = [
+        row(quantity(key, value, "count", BOX_A, conflict=found), DRAWING, ReviewState(), {})
+        for key, value, found in (
+            ("window", 2, windows),
+            ("window|storey=p1", 2, windows),
+            ("wall", 5, None),
+            ("wall|storey=p1", 2, walls),
+        )
+    ]
+    assert review_queue(rows) == ["window", "wall|storey=p1"]
+    assert [found.key for found in disputes(rows)] == ["window", "wall|storey=p1"]

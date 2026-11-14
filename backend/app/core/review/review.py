@@ -226,8 +226,41 @@ def needs_person(quantity: Quantity, state: ReviewState) -> bool:
 
 
 def review_queue(rows: Sequence[Row]) -> list[str]:
-    """The keys a surveyor should look at: methods disagree, or the value is an estimate."""
-    return [found.key for found in rows if found.status in ("conflict", "estimate")]
+    """The keys a surveyor should look at: methods disagree, or the value is an estimate. A
+    disagreement is listed once (`disputes`)."""
+    twins = _storey_twins(rows)
+    return [
+        found.key
+        for found in rows
+        if found.status in ("conflict", "estimate") and found.key not in twins
+    ]
+
+
+def disputes(rows: Sequence[Row]) -> list[Row]:
+    """The rows where two methods disagree, one per disagreement: on a sheet of one storey the
+    takeoff puts a disagreement on the sheet's row and on that storey's (so a question about
+    either shows it); the storey's row is left out when the sheet's row carries the same one."""
+    twins = _storey_twins(rows)
+    return [found for found in rows if found.conflict is not None and found.key not in twins]
+
+
+def _storey_twins(rows: Sequence[Row]) -> set[str]:
+    """The keys of storey rows whose sheet row (the same key without the storey) carries the
+    same disagreement."""
+    by_scope = {(found.measure, found.subject, found.scope): found for found in rows}
+    return {
+        found.key
+        for found in rows
+        if found.conflict is not None
+        and found.scope.storey is not None
+        and (
+            sheet := by_scope.get(
+                (found.measure, found.subject, found.scope.model_copy(update={"storey": None}))
+            )
+        )
+        is not None
+        and sheet.conflict == found.conflict
+    }
 
 
 def quantity_of(quantities: Mapping[str, Quantity], key: str | None) -> Quantity:

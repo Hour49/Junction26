@@ -22,7 +22,7 @@ from app.core.ingest.model import FileStatus, FileTrace, ProjectStatus
 from app.core.pipeline.model import QuantityConflict
 from app.core.review.model import ReviewState, Settled
 from app.core.review.ports import ReviewStore
-from app.core.review.review import reset
+from app.core.review.review import disputes, reset
 from scripts.make_sample_archive import build_archive
 
 log = logging.getLogger(__name__)
@@ -231,8 +231,8 @@ def project_review(project_id: ProjectId, ingest: IngestDep, reviews: ReviewsDep
                 settled=row.settled,
                 needs_person=row.needs_person,
             )
-            for row in found.quantities
-            if row.conflict is not None
+            for row in disputes(found.quantities)
+            if row.conflict is not None  # always: narrows the type
         ]
     return ProjectReview(drawings=drawings, conflicts=conflicts)
 
