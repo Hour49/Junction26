@@ -2,7 +2,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { errorText } from '../api';
 import { useInfo } from './info';
+import { Tip } from '@/components/ui/tip';
 import { OFFLINE_TEXT } from './strings';
+import { TIPS } from './tips';
 
 /** Under the header on every route: whether the app runs offline (ui-bugs 12: no "What runs"). */
 /** `wide`: the account and workspace routes, whose header row is 1280 px (shared.md "Header"). */
@@ -32,9 +34,11 @@ export function InfoBar({ wide = false }: { wide?: boolean }) {
   if (!info.no_keys) return null;
   return (
     <div className={`info-bar${width}`}>
-      <Badge variant="warn" className="px-2.5 py-[3px] text-[13px] font-semibold">
-        {OFFLINE_TEXT}
-      </Badge>
+      <Tip text={TIPS.offline} wrap>
+        <Badge variant="warn" className="px-2.5 py-[3px] text-[13px] font-semibold">
+          {OFFLINE_TEXT}
+        </Badge>
+      </Tip>
     </div>
   );
 }

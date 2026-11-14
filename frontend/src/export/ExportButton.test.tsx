@@ -12,8 +12,10 @@ import {
 import { Header } from '../shell/Header';
 import { parseRoute } from '../shell/route';
 import { mockApi, never, reply, type Route } from '../test/mockApi';
+import { stubResizeObserver } from '../test/resizeObserver';
 import { DONE_MS } from './ExportButton';
 
+beforeEach(stubResizeObserver);
 afterEach(cleanup);
 
 const pid = project.id;
@@ -122,7 +124,10 @@ describe('ExportButton in the header', () => {
     });
     expect(button.getAttribute('aria-busy')).toBe('true');
     expect(button.textContent).toContain('Preparing…');
-    expect(button.title).toBe("Loading the scan's data");
+    expect(button.title).toBe('');
+    fireEvent.pointerMove(button, { pointerType: 'mouse' });
+    expect(await screen.findByRole('tooltip')).toBeTruthy();
+    expect(screen.getAllByText("Loading the scan's data").length).toBeGreaterThan(0);
     const asked = api.calls.filter((c) => c.url === `/api/projects/${pid}`).length;
     fireEvent.click(button);
     await act(async () => {

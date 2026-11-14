@@ -16,6 +16,7 @@ import { issuesChanged } from './shell/issueCount';
 import { InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
+import { stubResizeObserver } from './test/resizeObserver';
 
 const P = '5e0c1a2b3d4f';
 const D = 'adeefbbcc17559fc';
@@ -103,6 +104,8 @@ function links() {
 beforeEach(() => {
   window.location.hash = '';
 });
+// The header's hover tips (components/ui/tip.tsx) need it when focus returns to the country pill.
+beforeEach(stubResizeObserver);
 afterEach(cleanup);
 
 describe('shell', () => {
