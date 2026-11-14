@@ -34,7 +34,7 @@
       <div class="chat-ref"><span class="label">References</span>
         <button class="chat-thumb press" data-act="chat-pic" data-t="${t.id}" aria-expanded="${open}" aria-label="${open ? 'Close' : 'Open'} the full image of ${esc(x.path)}">${T.picture(x.path, x.path).replace('class="plan tri-pic', 'class="plan thumb tri-pic')}</button>
         <span class="chat-ref-txt"><a class="mono" href="#/file/${file}">${esc(x.path)}</a><span class="small">${esc(T.CLASS_LABEL[T.classOf(x.path)])} · ${esc(T.kindWords(tr.register.kind))}</span>
-          ${tr.credit ? `<span class="small credit">Credit: ${esc(tr.credit)}</span>` : ''}</span></div>${big}
+</span></div>${big}
       <div class="chat-pulled"><span class="label">What it pulled from the picture</span><dl class="chat-dl">
         <div><dt>Description</dt><dd>${esc(d.text)}</dd></div><div><dt>Kind</dt><dd>${esc(T.kindWords(tr.register.kind))}</dd></div>
         <div><dt>Text printed on it</dt><dd class="tri-text">${d.visible_text ? esc(d.visible_text) : 'None'}</dd></div></dl>
@@ -56,13 +56,13 @@
     // a total only when the API gives one (one drawing answered); its value may have been signed off since
     const head = r.total === null
       ? `<p class="lead" style="margin:0">${rows.length} drawings answered. <span class="muted">${esc(r.total_note)}</span></p>`
-      : `<p class="lead" style="margin:0"><strong>${esc(V.formatValue(quantity, rows[0].value))}</strong>. <span class="muted">${esc(r.total_note)}</span></p>`;
+      : `<p class="lead" style="margin:0"><strong>${esc(V.formatValue(quantity, rows[0].value))}</strong></p>`;
     const lines = rows.map(({ a, value, status }) => {
       const d = V.drawing(a.drawing);
       return `<li class="chat-row"><span class="chat-line"><span class="mono">${esc(d.name)}</span>: <strong>${esc(V.formatValue(a.quantity, value))}</strong></span>
         <span class="pill ${status[0]}">${esc(status[1])}</span>
         <button class="chat-show press" data-act="show-on" data-d="${d.id}" data-q="${esc(t.question)}">Show it on ${esc(d.name)}</button></li>`;
-    }).join('') + refused.map((p) => `<li class="chat-row"><span class="chat-line muted"><span class="mono">${esc(p.name)}</span>: ${esc(p.answer.refusal)}</span></li>`).join('');
+    }).join('');
     const refs = ok.flatMap((p) => V.FILES.filter((f) => f.drawing === p.answer.drawing).map((f) => ({ f, d: V.drawing(p.answer.drawing), a: p.answer })));
     const pics = refs.filter((x) => x.f.image);
     if (!pics.length) {
@@ -72,8 +72,7 @@
     }
     // the references with their pictures: the current one large on the left, left/right through them (Tudor, 15:10)
     const i = ((A().S.p.chatRef[t.id] || 0) % pics.length + pics.length) % pics.length, cur = pics[i];
-    const arrow = (dir, path, label) => `<button class="round press" data-act="chat-ref" data-t="${t.id}" data-i="${i + dir}" aria-label="${label}"${pics.length < 2 ? ' disabled' : ''}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg></button>`;
-    const credit = cur.f.credit || cur.d.credit || V.CREDIT;
+    const arrow = (dir, path, label) => `<button class="round press ref-arrow ${dir < 0 ? 'l' : 'r'}" data-act="chat-ref" data-t="${t.id}" data-i="${i + dir}" aria-label="${label}"${pics.length < 2 ? ' disabled' : ''}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg></button>`;
     const list = refs.map((x, n) => {
       const k = pics.indexOf(x), body = `<span class="num">${n + 1}</span><span><span class="mono" style="font-weight:600">${esc(x.f.path)}</span><span class="muted">${esc(x.f.kind)} · ${esc(x.d.name)}${k < 0 ? ' · no preview' : ''}</span></span>`;
       return k < 0 ? `<li><span class="ref">${body}</span></li>`
@@ -81,12 +80,9 @@
     }).join('');
     return `<article class="turn">${q}<p class="lead" style="margin:0">${head.replace(/^<p class="lead" style="margin:0">|<\/p>$/g, '')}</p>
       <div class="card"><div class="answer">
-        <figure aria-label="Reference ${i + 1} of ${pics.length}"><div class="dwg-bar" style="padding:0"><div><span class="mono" style="font-size:14px;font-weight:600">${esc(cur.f.path)}</span>
-            <span class="small">${esc(cur.f.kind)} · ${esc(cur.d.name)} · <span aria-live="polite">${i + 1} / ${pics.length}</span></span></div>
-          ${arrow(-1, 'M15 6l-6 6 6 6', 'Previous reference')}${arrow(1, 'M9 6l6 6-6 6', 'Next reference')}</div>
-          <div class="plan-box">${window.VPlan.original(cur.d, cur.f, cur.a)}</div>
-          ${credit ? `<p class="small credit">Credit: ${esc(((m) => (m ? `${m[2]} (${m[1]})` : String(credit).replace(/^All files:\s*/, '')))(String(credit).match(/^All files:\s*(.+?)\.\s*Credit:\s*(.+)$/)))}</p>` : ''}</figure>
-        <div class="side"><p class="small" style="margin:0">${esc(V.ruleOf(ok[0].answer))}</p>
+        <figure aria-label="Reference ${i + 1} of ${pics.length}"><span class="mono" style="font-size:14px;font-weight:600">${esc(cur.f.path)}</span>
+          <div class="plan-box ref-view">${window.VPlan.original(cur.d, cur.f, cur.a)}${pics.length > 1 ? arrow(-1, 'M15 6l-6 6 6 6', 'Previous reference') + arrow(1, 'M9 6l6 6-6 6', 'Next reference') : ''}</div></figure>
+        <div class="side">
           <ul class="chat-rows" aria-label="Per drawing">${lines}</ul>
           <div style="display:flex;flex-direction:column;gap:8px"><span class="label">References</span><ol class="refs">${list}</ol></div></div></div></div></article>`;
   }

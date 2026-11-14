@@ -87,8 +87,7 @@
     slots = {};
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, conflicts: conflictsScreen,
       chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen, issues: window.VIssues.screen }[r.name](r);
-    app.innerHTML = header(r) + screen
-      + `<p class="foot">Clickable demo, built locally from the Stoa dataset: real files, the dataset's answer key${Object.keys(V.TRIAGE || {}).length ? ', and real archive scans (credit on each file)' : ''}; no backend, the reading steps are illustrated. From the dataset's LICENSE.md: “${esc(V.CREDIT)}”</p>`;
+    app.innerHTML = header(r) + screen;
     fill();
   }
   function fill() {

@@ -395,3 +395,7 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .chat-dl dd { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
 .tri-fig figcaption { padding: 6px 12px 10px; }
 .ask > section.card img.plan { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; margin: 0 auto; object-fit: contain; }
+/* chat references: arrows on the image's sides */
+.ref-view { position: relative; }
+.ref-arrow { position: absolute; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 10px rgba(0,0,0,.18); background: rgba(255,255,255,.92); }
+.ref-arrow.l { left: 8px; } .ref-arrow.r { right: 8px; }
