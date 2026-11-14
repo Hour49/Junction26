@@ -2094,7 +2094,7 @@ A question the drawing cannot answer:
 | `unsupported-question` | the question is not one the parser turns into a count, area, length or volume |
 | `not-in-drawing` | the drawing does not give this quantity (or no schedule on the sheet answers it) |
 | `not-read` | the reader of this drawing does not look for that class, so it has no count of it |
-| `no-reader` | nothing was read from the sheet (no reader for its route yet), that reader is less reliable than a guess for this kind of question (`prior:policy`), or the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked: 0 would be a guess |
+| `no-reader` | nothing was read from the sheet (no reader for its route yet), that reader is less reliable than a guess for this kind of question (`prior:policy`), the page was flagged at upload (a phone photo, a scan) and its reader found no element or no room at all for what was asked, or a room question on a raster page (an image, a photo, a scanned PDF; flagged or not) whose reader found no room at all: 0 would be a guess |
 | `no-scale` | an area or length on a sheet without a scale |
 | `no-drawing` | the file has no drawing model |
 

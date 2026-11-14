@@ -421,7 +421,9 @@ def photo(*rooms: Room, elements: tuple[Element, ...] = ()) -> Drawing:
     )
 
 
-def asked_flagged(text: str, drawing: Drawing, flags: tuple[str, ...]) -> Asked:
+def asked_flagged(
+    text: str, drawing: Drawing, flags: tuple[str, ...], *, raster: bool = False
+) -> Asked:
     return ask(
         text,
         drawing,
@@ -430,6 +432,7 @@ def asked_flagged(text: str, drawing: Drawing, flags: tuple[str, ...]) -> Asked:
         prior=NoPrior(),
         state=ReviewState(),
         flags=flags,
+        raster=raster,
     )
 
 
@@ -444,6 +447,27 @@ def test_a_flagged_photo_whose_reader_found_nothing_refuses_instead_of_counting_
     # Not flagged: the reader's 0 stays an answer (a clean scan with no doors has 0 doors)
     clean = asked_flagged("How many doors are there?", photo(), ())
     assert clean.refusal is None and clean.answer.answer == 0
+
+
+def test_a_raster_page_with_no_rooms_read_refuses_room_questions_flagged_or_not() -> None:
+    """F4-4 (qa-1's O3): an unflagged photo whose reader found 0 rooms answered "room count 0 ·
+    One method". On a raster page no room read means 0 would be a guess; element counts stay
+    answers (a page can have 0 saunas). A vector page with no rooms still counts 0."""
+    door = Element(id="e1", class_="door", page=1, box=BOX_A)
+    drawing = photo(elements=(door,))
+    for text in ("How many rooms?", "How many bedrooms are there?"):
+        found = asked_flagged(text, drawing, (), raster=True)
+        assert found.row is None and found.refusal is not None, text
+        assert found.refusal.code == "no-reader", text
+        assert found.refusal.text == (
+            "No rooms were read on this drawing, so 0 would be a guess, not a count."
+        )
+    for text, value in (("How many doors are there?", 1), ("How many windows are there?", 0)):
+        found = asked_flagged(text, drawing, (), raster=True)
+        assert found.refusal is None and found.answer.answer == value, text
+        assert found.row is not None and found.row.status == "single"
+    vector = asked_flagged("How many rooms?", drawing, (), raster=False)
+    assert vector.refusal is None and vector.answer.answer == 0
 
 
 def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:
