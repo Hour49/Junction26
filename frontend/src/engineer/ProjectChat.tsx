@@ -94,7 +94,11 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   const last = turns.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
   useEffect(() => {
-    if (lastKey) thread.current?.lastElementChild?.scrollIntoView({ block: 'start' });
+    if (!lastKey) return;
+    const turn = thread.current?.lastElementChild;
+    turn?.scrollIntoView({ block: 'start' });
+    // CH-47: on a phone the figure pushes the first row's value and reason under the ask bar; lift them clear
+    turn?.querySelector('.en-parts > li')?.scrollIntoView({ block: 'nearest' });
   }, [lastKey]);
 
   if (load.state === 'loading') return <Loading label="Loading the project…" />;

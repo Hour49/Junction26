@@ -204,6 +204,14 @@ def test_a_bad_conflict_is_refused(entry: dict[str, Any], message: str) -> None:
         extraction(rooms=[room("r1", R1)], conflicts=[entry])
 
 
+def test_a_room_type_is_a_conflict_class() -> None:
+    """A printed count of one room type (#256) names it as `counts` keys do: room:<type>."""
+    entry = conflict("c5", "room_count", {"kind": "class", "ref": "room:kitchen"}, "agree", (1, 1))
+    assert extraction(conflicts=[entry]).conflicts
+    with pytest.raises(ValidationError, match="not an element class or room:<type>"):
+        extraction(conflicts=[{**entry, "subject": {"kind": "class", "ref": "room:attic"}}])
+
+
 def test_truth_tables_needs_tables_and_no_elements() -> None:
     with pytest.raises(ValidationError, match="truth: tables needs tables"):
         schedule([])

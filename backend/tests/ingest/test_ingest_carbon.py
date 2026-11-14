@@ -970,3 +970,35 @@ def test_carbon_failure_on_a_two_door_page(tmp_path: Path) -> None:
     # over 4,000 px a failed call still drops the shipped elements (no fallback, as built in #269)
     large = CarbonThings(Shipped(), failed, lambda _: True, 3, took).extract(source, sheet)
     assert large.elements == () and took == set()
+
+
+def test_the_cli_path_flags_a_few_things_page_carbon_counted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Pipeline.flags (the golden/answer CLI, #302) sees the pages CarbonThings sent to Carbon for
+    few things found, as ingest's flag does: faint.png (0 things found) is flagged, flat.png (3
+    doors) is not."""
+    from app import composition
+
+    tile = tile_form(("door", [100, 100, 200, 130]))
+    monkeypatch.setattr(
+        "app.composition.CarbonClient", lambda *a, **k: FakeCarbon(page_form(), [tile, tile])
+    )
+    monkeypatch.setattr(composition.OnnxDetector, "from_folder", lambda *a, **k: Doors())
+    settings = carbon_settings(monkeypatch, tmp_path, CARBON_READER="large",
+                               RASTER_COMPONENTS="plans=one-plan,elements=detector:x")  # fmt: skip
+    data = tmp_path / "data"
+    data.mkdir()
+    for name in ("faint.png", "flat.png"):
+        (data / name).write_bytes(png_bytes(raster_plan()))
+    pipeline = build_pipeline(settings, data, lambda _: "png_plan")
+    assert pipeline.flags is not None
+    assert pipeline.flags("faint.png") == ()  # nothing read yet: nothing to flag
+
+    class Sink:
+        def write(self, drawing: object) -> None:
+            pass
+
+    pipeline.ingest(["faint.png", "flat.png"], Sink())
+    assert pipeline.flags("faint.png") == (CARBON_FLAG,)
+    assert pipeline.flags("flat.png") == ()

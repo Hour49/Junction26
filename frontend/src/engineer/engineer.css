@@ -802,6 +802,10 @@ button.en-cref {
 .en-parts .en-resolvernote {
   flex-basis: 100%;
 }
+/* CH-47: a row scrolled into view stops above the sticky ask bar */
+.en-parts > li {
+  scroll-margin-bottom: var(--en-ask-h);
+}
 /* CH-43/CH-44: why and the estimate, each a full row under the value */
 .en-parts .en-why,
 .en-parts .en-estimate {

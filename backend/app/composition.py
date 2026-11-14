@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import cache, partial
 from pathlib import Path
+from typing import cast
 
 from app.adapters.answer_policy import load_policy
 from app.adapters.answer_prior import DEV_PRIOR, NoPrior, TablePrior
@@ -112,7 +113,8 @@ from app.core.answering.ports import (
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
-from app.core.ingest.model import CarbonRead, ProjectStatus
+from app.core.ingest.judge import reading_flags
+from app.core.ingest.model import CarbonRead, ContentKind, ProjectStatus
 from app.core.ingest.ports import Classifier, ContentProbe, Describer, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
@@ -189,6 +191,9 @@ class Pipeline:
     # pages it sent for few things found, so asked after reading), "part" when a composite takes
     # a part from the `carbon` source; ingest flags those drawings. None: no file is
     carbon_read: Callable[[str], CarbonRead | None] | None = None
+    # How ingest read a file's page, by path (judge.reading_flags: a scan, a photo, Carbon): no
+    # answer on a flagged page is sure, on this path as in the product's ask. None: none is
+    flags: Callable[[str], tuple[str, ...]] | None = None
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
         return ingest(
@@ -216,6 +221,7 @@ class Pipeline:
             prior_families=self.prior_families,
             confidence=self.confidence,
             sure_at=self.sure_at,
+            flags=self.flags,
         )
 
 
@@ -240,6 +246,7 @@ def build_pipeline(
     with_models = settings.extractor_bim == "ifc"
     # One Decisions reader for the count swap and the confidence, made only when one is used.
     decisions = cache(lambda: decisions_reader(settings))
+    carbon_read = _carbon_counted(settings, _or_took(use_carbon, took), kind_of)
     return Pipeline(
         files=files,
         finder=DatasetSheetModels(dataset) if with_models else HelloSourceFinder(),
@@ -274,7 +281,8 @@ def build_pipeline(
         if settings.decisions_confidence
         else None,
         sure_at=_gate(settings),
-        carbon_read=_carbon_counted(settings, _or_took(use_carbon, took), kind_of),
+        carbon_read=carbon_read,
+        flags=partial(_page_flags, kind_of=kind_of, carbon_read=carbon_read),
     )
 
 
@@ -286,6 +294,21 @@ def _or_took(
     if use_carbon is None:
         return None
     return lambda path: use_carbon(path) or path in took
+
+
+def _page_flags(
+    path: str,
+    kind_of: Callable[[str], str | None],
+    carbon_read: Callable[[str], CarbonRead | None] | None,
+) -> tuple[str, ...]:
+    """The reading flags ingest stores for a file's page (judge.reading_flags), for the CLI's
+    answers (review-283 M1: without them a scanned or Carbon-read page could come back sure). A
+    photo's flag is worded as if not rectified (the CLI keeps no frame); only whether there is a
+    flag is used here. Carbon's flag is given whatever the route: a page another route read has
+    no Decisions probability, so it is not sure either way."""
+    kind = kind_of(path)
+    carbon = None if carbon_read is None else carbon_read(path)
+    return reading_flags(cast(ContentKind, kind), None, carbon)
 
 
 def _carbon_counted(

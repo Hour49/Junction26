@@ -384,7 +384,7 @@
   "skipped": [
     {
       "path": "photos/site.jpg",
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))"
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))"
     },
     {
       "path": "cad/detail.dxf",

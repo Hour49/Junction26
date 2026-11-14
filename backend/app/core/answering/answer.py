@@ -367,9 +367,11 @@ def answer_questions(
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
     sure_at: Mapping[str, float] | None = None,
+    flags: Callable[[str], Sequence[str]] | None = None,
 ) -> dict[str, int]:
     """Answers every question, file by file so each drawing model is loaded once, and writes the
-    answers to the sink. Returns how many answers each method gave."""
+    answers to the sink. Returns how many answers each method gave. `flags`: how ingest read a
+    file's page, by its path (answer_question's `flags`); None: no page is flagged."""
     by_file: dict[str, list[Question]] = {}
     for question in questions:
         by_file.setdefault(question.file, []).append(question)
@@ -378,6 +380,7 @@ def answer_questions(
         drawing = drawings.drawing(file)
         quantities = None if drawing is None else known_quantities(drawing)
         tables = () if drawing is None else drawing.tables or ()
+        read_as = () if flags is None else flags(file)
         reads = (
             parser
             if drawing is None or quantities is None
@@ -394,6 +397,7 @@ def answer_questions(
                 prior_families,
                 confidence,
                 sure_at,
+                read_as,
             )
             sink.write(answer)
             methods[answer.method] += 1
