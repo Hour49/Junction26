@@ -15,9 +15,14 @@ MARKS = 12  # the answer's own places listed per drawing (to cite); marks_count 
 # loop reviews the answer before the model's first step (one model call, not two: chat-eval
 # #339), and the rules planner answers from that review
 DOUBT = re.compile(
-    r"\b(are you (sure|certain)|you sure|double[- ]?check|how (sure|certain|confident)|"
-    r"could it (be|have) (about |around )?\d+|i count \d+|is (that|it) (right|correct))\b|really\?"
+    r"\b(are you (sure|certain)|you sure|double[- ]?check|how (sure|certain|confident))\b|really\?"
+    # a pushed number, and only that (review-339b M2: "Could it be 2 storeys high?" is a question)
+    r"|\bcould it (be|have) (about |around )?\d+\s*[^\W\d]{0,12}\s*\?*\s*$"
+    r"|^\s*i count \d+\s*[^\W\d]{0,12}\s*[.!]?\s*$"
+    r"|\bis (that|it) (right|correct)\s*\?*\s*$"
 )
+# the number a doubt offers: "I count 30. Could it be 30?" -> 30
+PUSHED = re.compile(r"\b(?:could it (?:be|have)|i count)\s+(?:about |around )?(\d+(?:[.,]\d+)?)")
 REVIEWED = "review_answer result (the server ran it for this doubt): "
 
 REVIEW_ANSWER_TOOL: dict[str, Any] = {
@@ -67,6 +72,8 @@ def review_of(found: Mapping[str, Any], names: Mapping[str, str]) -> dict[str, A
             "explanation": answer.get("explanation"),
             "marks": marks[:MARKS],
             "marks_count": len(marks),
+            # what the drawings support: the count give or take its disputed marks (a count only)
+            "range": _range(answer.get("answer"), answer.get("unit"), len(disputed)),
             "check": check.get("reason"),
             "disputed": [{k: v for k, v in d.items() if v is not None} for d in shown],
             "disputed_count": len(disputed),
@@ -83,3 +90,24 @@ def _evs(items: Any) -> list[str]:
         if isinstance(ev, str):
             out.append(ev)
     return out
+
+
+def _range(value: Any, unit: Any, disputed: int) -> list[int] | None:
+    if unit not in (None, "count") or not isinstance(value, int) or isinstance(value, bool):
+        return None
+    return [max(0, value - disputed), value + disputed]
+
+
+def pushed(message: str) -> float | None:
+    """The number a doubt offers ("could it be 30?"), None when it offers none."""
+    found = PUSHED.findall(message.lower())
+    return float(found[-1].replace(",", ".")) if found else None
+
+
+def outside(number: float, drawings: list[dict[str, Any]]) -> list[list[int]] | None:
+    """The ranges of the reviewed drawings when `number` lies outside every one; None when it
+    lies inside one or no drawing has a range."""
+    ranges: list[list[int]] = [d["range"] for d in drawings if d.get("range")]
+    if not ranges or any(low <= number <= high for low, high in ranges):
+        return None
+    return ranges
