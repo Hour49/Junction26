@@ -26,7 +26,7 @@ def render_png(sheet: SheetFile, page: int, width: int) -> bytes:
         with Image.open(io.BytesIO(sheet.data)) as found:
             found.load()
             image = found.convert("RGB")
-        size = _size(image.width, image.height, width)
+        size = fitted(image.width, image.height, width)
         image = image.resize(size, Image.Resampling.LANCZOS)
     buffer = io.BytesIO()
     image.save(buffer, "PNG")
@@ -45,7 +45,7 @@ def render_upload(data: bytes, kind: str, width: int) -> bytes:
             with Image.open(io.BytesIO(data)) as found:
                 found.load()
                 image = (ImageOps.exif_transpose(found) or found).convert("RGB")
-            image = image.resize(_size(image.width, image.height, width), Image.Resampling.LANCZOS)
+            image = image.resize(fitted(image.width, image.height, width), Image.Resampling.LANCZOS)
     except (OSError, Image.DecompressionBombError, pypdfium2.PdfiumError) as error:
         raise InvalidInputError(
             f"the upload cannot be decoded, so it has no preview: {error}"
@@ -55,7 +55,8 @@ def render_upload(data: bytes, kind: str, width: int) -> bytes:
     return buffer.getvalue()
 
 
-def _size(page_width: float, page_height: float, width: int) -> tuple[int, int]:
+def fitted(page_width: float, page_height: float, width: int) -> tuple[int, int]:
+    """`width` pixels wide at the page's aspect, scaled down to at most MAX_PIXELS."""
     height = page_height * width / page_width
     shrink = min(1.0, math.sqrt(MAX_PIXELS / (width * height)))
     return max(1, round(width * shrink)), max(1, round(height * shrink))
@@ -69,7 +70,7 @@ def _pdf_page(data: bytes, page: int, width: int) -> Image.Image:
                 raise NotFoundError(f"the sheet has {len(document)} page(s), not page {page}")
             found = document[page - 1]
             page_width, page_height = found.get_size()
-            scale = _size(page_width, page_height, width)[0] / page_width
+            scale = fitted(page_width, page_height, width)[0] / page_width
             return found.render(scale=scale).to_pil().convert("RGB")
         finally:
             document.close()

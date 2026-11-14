@@ -3,7 +3,14 @@ import { useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { methodName, type ConflictEntry, type ProjectReview } from '../api';
-import { drawing, error as errorBody, project, projectReview } from '../api/fixtures';
+import {
+  drawing,
+  error as errorBody,
+  project,
+  projectReview,
+  projectReviewResolved,
+  resolving,
+} from '../api/fixtures';
 import { mockApi, reply } from '../test/mockApi';
 import type { SourceFigureProps } from '../viewer/SourceFigure';
 import { ProjectReviewSide } from './ProjectReviewSide';
@@ -738,5 +745,91 @@ describe('ConflictsList', () => {
     await ready();
     expect(card(base.label).getAttribute('aria-current')).toBeNull();
     expect(scroll).not.toHaveBeenCalled();
+  });
+});
+
+// resolver.md RS-10..15 (#252): a model's pick on a conflict no rule decides.
+describe('ConflictsList with a resolver', () => {
+  const picked = projectReviewResolved.conflicts[0] as ConflictEntry;
+  const cannot = resolving.review.conflicts[0] as ConflictEntry;
+  const pickedCard = () => screen.getByRole('article', { name: picked.title });
+
+  it('RS-10 a pick in use: Picked by Carbon (model in the tooltip), the reason, You can change it, its tile in use', async () => {
+    show({ [PATH.review]: projectReviewResolved });
+    await ready();
+    const c = pickedCard();
+    expect(within(c).getAllByText('Picked by Carbon').length).toBeGreaterThan(0);
+    expect(within(c).getByTitle('gemini-4-carbon').textContent).toBe('Picked by Carbon');
+    expect(within(c).getByText(picked.resolved?.reason ?? '-')).toBeTruthy();
+    expect(within(c).getByText('You can change it.')).toBeTruthy();
+    expect(within(c).getByRole('button', { name: 'Modify' })).toBeTruthy();
+    expect(pressed(tile(c, 1))).toBe(true);
+    expect(pressed(tile(c, 2))).toBe(false);
+    expect(c.textContent).not.toMatch(/settled by a rule|Settled by rule|\bAI\b|gemini/i);
+  });
+
+  it("RS-11 the pick's marks are drawn on the card's plan beside value_marks, with their labels", async () => {
+    show({ [PATH.review]: projectReviewResolved });
+    await ready();
+    await screen.findByTestId('figure');
+    const places = fig.props.at(-1)?.sources[0]?.places ?? [];
+    const marks = picked.resolved?.marks ?? [];
+    expect(places).toHaveLength(2 + marks.length);
+    expect(places.slice(2)).toEqual(
+      marks.map((m) => ({ label: `Picked by Carbon: ${m.label}`, box: m.box })),
+    );
+  });
+
+  it('RS-12 cannot_tell: Needs you, Carbon could not tell and the reason, no tile in use', async () => {
+    show({ [PATH.review]: resolving.review });
+    await ready();
+    const c = screen.getByRole('article', { name: cannot.title });
+    expect(within(c).getByText('Needs you')).toBeTruthy();
+    expect(within(c).getByTitle('gemini-4-carbon').textContent).toBe('Carbon could not tell');
+    expect(within(c).getByText(cannot.resolved?.reason ?? '-')).toBeTruthy();
+    expect(pressed(tile(c, 1)) || pressed(tile(c, 2))).toBe(false);
+    expect(screen.getByText('1 needs you.')).toBeTruthy();
+  });
+
+  it('RS-13 the list line counts the pick apart and as settled', async () => {
+    show({ [PATH.review]: projectReviewResolved });
+    await ready();
+    expect(screen.getByText('1 picked by Carbon, check them.')).toBeTruthy();
+    expect(screen.getByText('1 of 1 settled')).toBeTruthy();
+  });
+
+  it("RS-14 settling a pick posts the settle and shows settled by you; Use Carbon's pick unsettles and the pick is back", async () => {
+    let state: 'picked' | 'yours' = 'picked';
+    const yoursNow = { ...picked, settled: { value: 30, at: AT }, value: 30 };
+    const { api } = show({
+      [PATH.review]: () => withConflicts([state === 'picked' ? picked : yoursNow]),
+      [PATH.edit]: ({ body }: { body: { action: string } }) => {
+        state = body.action === 'settle' ? 'yours' : 'picked';
+        return {};
+      },
+    });
+    await ready();
+    click(within(pickedCard()).getByRole('button', { name: 'Modify' }));
+    click(tile(pickedCard(), 2));
+    await waitFor(() => {
+      expect(within(pickedCard()).getByText('Your choice')).toBeTruthy();
+    });
+    expect(within(pickedCard()).getByText(/settled by you/)).toBeTruthy();
+    click(within(pickedCard()).getByRole('button', { name: "Use Carbon's pick" }));
+    await waitFor(() => {
+      expect(within(pickedCard()).getByText('You can change it.')).toBeTruthy();
+    });
+    expect(api.calls.filter((x) => x.method === 'POST').map((x) => x.body)).toEqual([
+      { quantity: QTY, action: 'settle', value: 30 },
+      { quantity: QTY, action: 'unsettle' },
+    ]);
+  });
+
+  it("RS-15 the card's why stops after 'No rule decides between them.'", async () => {
+    show({ [PATH.review]: projectReviewResolved });
+    await ready();
+    const why = within(pickedCard()).getByText(/^Why /).closest('details') as HTMLElement;
+    expect(why.textContent).toContain('No rule decides between them.');
+    expect(why.textContent).not.toMatch(/model|carbon:|gemini/);
   });
 });

@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react';
-import type { DrawingView, ProjectView } from '../api';
+import { drawingLabel, type DrawingView, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
@@ -50,7 +50,11 @@ export function placeOf(
     next: near(i + 1),
     also: self.other_renderings
       .filter((o) => o.drawing_id !== drawing.id)
-      .map((o) => ({ file: o.file, href: engineer(projectId, o.drawing_id) })),
+      // EN-87: the chat's name for the other rendering too
+      .map((o) => ({
+        file: drawingLabel(list.find((d) => d.drawing_id === o.drawing_id) ?? o),
+        href: engineer(projectId, o.drawing_id),
+      })),
     originalId: file?.id ?? null,
   };
 }
