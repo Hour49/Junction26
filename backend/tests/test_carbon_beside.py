@@ -7,6 +7,7 @@ first waits alone and the barrier breaks. Fakes stand in for every reader and mo
 
 import io
 import json
+import logging
 import threading
 import time
 from collections.abc import Iterator
@@ -97,21 +98,58 @@ def test_beside_returns_both_in_order_and_charges_the_other_threads_cost() -> No
     assert cost.spent() - before == pytest.approx(0.03)
 
 
-def test_beside_waits_for_the_other_and_charges_it_when_this_one_fails() -> None:
-    done = threading.Event()
+def test_when_this_read_fails_the_other_is_not_waited_for() -> None:
+    """review-306 S1: the shipped reader failed, so the Carbon read is not waited for (it may be
+    in flight; one not started yet is cancelled)."""
+    release, finished = threading.Event(), threading.Event()
 
     def here() -> None:
         raise ValueError("the reader failed")
 
     def there() -> None:
-        time.sleep(0.05)
-        cost.charge(0.02)
-        done.set()
+        release.wait(WAIT_S)
+        finished.set()
 
-    before = cost.spent()
     with pytest.raises(ValueError, match="the reader failed"):
         beside(here, there)
-    assert done.is_set() and cost.spent() - before == pytest.approx(0.02)
+    assert not finished.is_set()  # the error came back while the other read still ran
+    release.set()
+    assert finished.wait(WAIT_S)
+
+
+def test_the_other_reads_error_is_logged_when_this_one_failed(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """review-306 S2: nobody reads the other read's result after this one failed, so its error
+    is logged instead of lost."""
+    started, release = threading.Event(), threading.Event()
+
+    def here() -> None:
+        assert started.wait(WAIT_S)  # the other read is running, so it is not cancelled
+        raise ValueError("the reader failed")
+
+    def there() -> None:
+        started.set()
+        release.wait(WAIT_S)
+        raise RuntimeError("the Carbon call failed")
+
+    with caplog.at_level(logging.WARNING, logger="app.adapters.beside"):
+        with pytest.raises(ValueError, match="the reader failed"):
+            beside(here, there)
+        release.set()
+        deadline = time.monotonic() + WAIT_S
+        while not any(r.exc_info and "Carbon call failed" in str(r.exc_info[1])
+                      for r in caplog.records):  # fmt: skip
+            assert time.monotonic() < deadline, "the other read's error was not logged"
+            time.sleep(0.01)
+
+
+def test_an_error_of_the_other_read_reaches_the_caller_when_this_one_succeeded() -> None:
+    def there() -> None:
+        raise RuntimeError("the Carbon call failed")
+
+    with pytest.raises(RuntimeError, match="the Carbon call failed"):
+        beside(lambda: "here", there)
 
 
 def test_the_printed_scale_is_read_at_the_same_time_as_the_raster_reader() -> None:
