@@ -56,6 +56,8 @@ RasterScaleName = Literal["off", "priors"]
 # its estimated scale and check its counts (app/adapters/printed_scale/)
 RasterPrintedScaleName = Literal["off", "carbon"]
 RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
+# raster: a drawn PDF the vector reader has no sheet style for goes to the raster route
+VectorFallbackName = Literal["off", "raster"]
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
@@ -113,6 +115,11 @@ class Settings(BaseSettings):
     # Photo arms are not tiled. off: every page is letterboxed whole (a door on a 14k px sheet
     # is then a few px)
     raster_tiles: RasterTilesName = "off"
+    # raster: a drawn PDF whose page 1 matches no sheet style the vector reader has reading rules
+    # for (a Revit or AutoCAD plot: app/adapters/vector_pdf/unruled.py) is read on the raster
+    # route, as the image of its page like a scan (app/adapters/scan_images.py). Ingest flags it,
+    # so none of its answers is certified. off: it stays on the vector route and reads nothing
+    vector_fallback: VectorFallbackName = "off"
     # How the raster route types the rooms its rooms source read, whichever source that is.
     # gold-labels is for a source that reads printed labels: it turns every unlabelled bedroom
     # into `other`

@@ -8,7 +8,6 @@ import io
 import json
 import urllib.error
 import urllib.request
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -54,16 +53,6 @@ ZERO_PAGES = (
 NOT_DRAWING = Classified.model_validate(
     {"class": "not_drawing", "p_plan": 0.03, "method": "fake classifier"}
 )
-
-
-@pytest.fixture(autouse=True)
-def _cost_put_back() -> Iterator[None]:
-    """The describer charges this thread's running cost total, which nothing resets; it is put
-    back after each test, since a later test on the thread may compare a cost exactly
-    (tests/ingest/test_ingest_triage.py's 0.003 failed as 0.003000000000000001 after this file)."""
-    before = cost.spent()
-    yield
-    cost._local.usd = before  # pyright: ignore[reportPrivateUsage]
 
 
 def png(width: int = 64, height: int = 48, colour: str = "white") -> bytes:
@@ -131,21 +120,21 @@ def test_a_reply_becomes_the_description_form(tmp_path: Path) -> None:
 
 
 def test_the_cost_comes_from_usage_metadata_and_is_charged(tmp_path: Path) -> None:
-    before = cost.spent()
+    before = cost.mark()
     describe(FakeModel(answer(form())), tmp_path)
-    assert cost.spent() - before == pytest.approx(USD)
+    assert cost.since(before) == pytest.approx(USD)
 
 
 def test_a_file_is_paid_for_once(tmp_path: Path) -> None:
     model = FakeModel(answer(form()), answer(form(subject="another picture")))
     describer = GeminiDescriber(model, tmp_path)
     first = describer.describe(png(), NOT_DRAWING)
-    before = cost.spent()
+    before = cost.mark()
     again = describer.describe(png(), NOT_DRAWING)
     assert len(model.asked) == 1
     assert isinstance(first, Description) and isinstance(again, Description)
     assert again.subject == first.subject
-    assert again.cost_usd == 0.0 and cost.spent() == before  # a cached reply costs nothing
+    assert again.cost_usd == 0.0 and cost.since(before) == 0  # a cached reply costs nothing
     other = describer.describe(png(colour="black"), NOT_DRAWING)  # other bytes: asked again
     assert isinstance(other, Description) and other.subject == "another picture"
     assert len(model.asked) == 2
@@ -174,11 +163,11 @@ def test_an_unusable_reply_is_unavailable_charged_and_not_cached(
     tmp_path: Path, reply: dict[str, Any], said: str
 ) -> None:
     model = FakeModel(reply, answer(form()))
-    before = cost.spent()
+    before = cost.mark()
     found = describe(model, tmp_path)
     assert isinstance(found, Unavailable)
     assert said in found.note and found.note.startswith("the describer could not answer")
-    assert cost.spent() - before == pytest.approx(USD)  # it was paid for all the same
+    assert cost.since(before) == pytest.approx(USD)  # it was paid for all the same
     assert not list(tmp_path.iterdir())
     assert isinstance(describe(model, tmp_path), Description)  # asked again, not a cached failure
 
@@ -525,12 +514,12 @@ def test_a_carbon_reply_is_asked_at_low_thinking_and_charged_at_carbons_price(
     settings = carbon_settings(tmp_path)
     found = _triage(settings)
     assert found is not None and found.describer is not None
-    guard, trace = spend_guard(settings).spent_by().get("describer", 0.0), cost.spent()
+    guard, trace = spend_guard(settings).spent_by().get("describer", 0.0), cost.mark()
     described = found.describer.describe(png(), NOT_DRAWING)
     carbon_usd = (1092 * 4.00 + 600 * 20.00) / 1e6  # 4 / 20 USD per M, not Flash's 1.50 / 9.00
     assert isinstance(described, Description)
     assert described.cost_usd == pytest.approx(carbon_usd)
-    assert cost.spent() - trace == pytest.approx(carbon_usd)
+    assert cost.since(trace) == pytest.approx(carbon_usd)
     assert spend_guard(settings).spent_by()["describer"] - guard == pytest.approx(
         carbon_usd, abs=1e-6
     )
