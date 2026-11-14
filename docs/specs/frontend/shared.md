@@ -186,18 +186,17 @@ remount). `App`'s `Screens` gains `AccountScreen`, `ConflictsScreen` and `Projec
 
 ## Checks and issues (round 3: #139 building-code pre-check, #140 located issues; fe-checks-issues 13:26)
 
-Backend contract: board decision #142 (records 0009-building-code-checks.md, 0008-located-issues.md; PRs open, shapes
-may still move). Until Bogdan's PRs land, the shapes are typed by hand in `src/api/types.ts` exactly as #142 states
-them, with hand-made fixtures in `src/api/testing.ts`; when the PRs land they become `Schemas[...]` re-exports and the
-backend fixtures, and the hand-made ones are deleted. Product rules (#142, binding): the pack `note` is shown
+Backend contract: board decision #142 (records 0009-building-code-checks.md, 0008-located-issues.md). Since #147
+(issues) and #150 (#139 checks; c6876636649) every shape is a `schema.d.ts` re-export and the fixtures are the
+backend's; the hand-typed block and the hand-made `src/api/testing.ts` are gone. Product rules (#142, binding): the pack `note` is shown
 verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
 
 ### API client additions (`src/api/client.ts`)
 
 | Function | Request | Returns |
 | --- | --- | --- |
-| `getDrawingChecks(drawingId, {pack, project?, signal?})` | `GET /api/drawings/{drawing_id}/checks?pack=<id>[&project=<pid>]` | `DrawingChecks` `{drawing_id, pack, note, status, rules: RuleCheck[]}` |
-| `getProjectChecks(projectId, {pack, signal?})` | `GET /api/projects/{project_id}/checks?pack=<id>` | `ProjectChecks` (#142: "the same per drawing"; typed as `{project_id, pack, note, drawings: DrawingChecks[]}` until 0009 names it, Open point 18) |
+| `getDrawingChecks(drawingId, {pack, project?, signal?})` | `GET /api/drawings/{drawing_id}/checks?pack=<id>[&project=<pid>]` | `DrawingChecks` `{drawing_id, file, file_id, pack, note, status, rules: RuleCheck[]}` |
+| `getProjectChecks(projectId, {pack, signal?})` | `GET /api/projects/{project_id}/checks?pack=<id>` | `ProjectChecks` `{project_id, pack, note, status, drawings: DrawingChecks[]}` |
 | `getIssues(projectId, {pack?, signal?})` | `GET /api/projects/{project_id}/issues[?pack=<id>]` | `IssueList` `{project_id, pack, issues: Issue[]}` |
 | `issuesCsvUrl(projectId, pack?)` | URL only: `/api/projects/{project_id}/issues.csv[?pack=<id>]` | `string` |
 | `issuesZipUrl(projectId, pack?)` | URL only: `/api/projects/{project_id}/issues.zip[?pack=<id>]` (CHANGE 13:22: `issues.csv` with an `n` column + one PNG per drawing page with the issues drawn and numbered) | `string` |
@@ -206,29 +205,20 @@ verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
   go through `encodeURIComponent` like every other URL builder (D3). Errors are `ApiError` as everywhere (404 unknown
   project/pack, 409 issues before the project is done).
 - The rule packs need no request: they arrive with `GET /api/info` (`Info.rule_packs`), which `InfoProvider` already
-  loads once. Screens read them with `useInfo()` and `rulePacksOf(info)` (`src/api/format.ts`: `info?.rule_packs ?? []`,
-  read through a cast until the schema has the field). (The brief's `getRulePacks` is this; Open point 17.)
-- Hand-typed (`src/api/types.ts`, one block marked `// #142 shapes, hand-typed until the backend PRs land`):
-  `RulePack {id, country, country_name, name, law, version, note, rules: Rule[]}` (`country` ISO upper case "FI",
-  `country_name` "Finland", `name` the pack's display name; 13:44), `Rule {id, title, op, comparison,
-  comparison_text, limit, unit, applies_to, clause: Clause}` (`op` is never shown, `comparison_text` is: "at least";
-  `applies_to` holds `MarkView.room_type` values and element classes), `Clause {ref, url, quote, quote_en}`
-  (`quote_en` null when the law is in English), `DrawingChecks`, `RuleCheck {rule_id, title, status, why, clause,
-  results: CheckResult[]}`, `CheckResult {id, rule_id, status: 'pass' | 'fail' | 'cannot_tell', subject: {kind:
-  'room' | 'element' | 'sheet', ref, label}, value, limit, unit, comparison, comparison_text, why, mark_id,
-  quantity, marks: CheckMark[]}` (`mark_id` = the takeoff `MarkView.id`, null for a check-only result; `quantity` =
-  the takeoff `Row.key`),
-  `CheckMark {page, box, polygon, ref, label, role: 'subject' | 'counted'}`, `ProjectChecks`. `Issue` and `IssueList`
-  (= `Schemas['ProjectIssues']`) are `schema.d.ts` re-exports since #147: `IssueKind` adds `unrelated_file`; `check`
+  loads once. Screens read them with `useInfo()` and `rulePacksOf(info)` (`src/api/format.ts`: `info?.rule_packs ?? []`). (The brief's `getRulePacks` is this; Open point 17.)
+- Re-exports (`src/api/types.ts`): `Clause`, `Rule` (= `RuleView`), `RulePack` (= `RulePackView`, adds
+  `fail_means`), `CheckMark` (adds `quantity`, `mark_id`), `CheckResult` (status `pass | fail | cannot_tell`),
+  `RuleCheck`, `DrawingChecks` and `ProjectChecks` (status may also be `not_applicable`; `CheckStatus` is that wider
+  union), `Rule.applies_to` an object (room types, element classes). `Issue` and `IssueList`
+  (= `Schemas['ProjectIssues']`) since #147: `IssueKind` adds `unrelated_file`; `check`
   is a string `<pack>:<CheckResult.id>`; `file_id` is nullable; `file` is this project's path; `links` are API paths,
   screens build `#/p/…` routes from the ids; issues come ordered by severity, drawing in project order, page, box top
   (the screen keeps that order). Bogdan accepted all our #142 asks (c6876010899); the per-mark fields (mark id, status, value) are typed as
   the records 0009/0008 name them. Errors: an unknown pack is a 404 with code `unknown-pack` (distinct from an unknown
   project); the 409 code is the one the record names.
-- Fixtures (`src/api/testing.ts`, hand-made, no partner data): `rulePackFi` (two rules, the note verbatim),
-  `drawingChecks` (one rule with a pass, a fail and a cannot-tell result, marks on page 1), `projectChecks` (that
-  drawing plus one with no results). Issues use the backend's `project_issues.json` (`fx.projectIssues` in
-  `src/api/fixtures.ts`).
+- Fixtures: the backend's, in `src/api/fixtures.ts`: `drawingChecks` (`checks.json`), `projectChecks`
+  (`project_checks.json`), `projectIssues` (`project_issues.json`), and `rulePackFi` (the `fi` pack of `info.json`,
+  which lists `ch-zh` and `fi`).
 
 ### Country picker (real; replaces the mock)
 
@@ -312,7 +302,6 @@ API client, `frontend/src/api/`:
 - `types.ts`: named re-exports of the generated schemas (list below).
 - `format.ts`: `formatValue` and `formatTime` (below), used by viewer, engineer, surveyor and ingest.
 - `fixtures.ts`: every file of `backend/tests/fixtures/api_v1/` imported and exported under its type (list below).
-- `testing.ts` (checks round): hand-made #142 fixtures until the backend's land ("Checks and issues").
 
 Shell, `frontend/src/shell/`:
 
@@ -714,7 +703,7 @@ Vellum round (round 2)
   with `projectId` on it; the header shows Ingest, Conflicts and Chat there, Chat marked current. [unit + component]
 - SH-65 (checks) `getDrawingChecks('adeefbbcc17559fc', {pack: 'fi', project: '5e0c1a2b3d4f'})` sends
   `GET /api/drawings/adeefbbcc17559fc/checks?pack=fi&project=5e0c1a2b3d4f`; `getProjectChecks(pid, {pack: 'fi'})`,
-  `getIssues(pid)` and `getIssues(pid, {pack: 'fi'})` send their table rows; each resolves with its hand-made fixture
+  `getIssues(pid)` and `getIssues(pid, {pack: 'fi'})` send their table rows; each resolves with its backend fixture
   and passes the caller's signal; `issuesCsvUrl`/`issuesZipUrl` give the URLs with and without `?pack=`; a pack id
   with a space is percent-encoded (`%20`). [unit, mockApi]
 - SH-66 (checks) `parseRoute`: `#/p/<pid>/checks` → `checks`, `#/p/<pid>/issues` → `issues` (trailing `/` accepted;
@@ -727,7 +716,7 @@ Vellum round (round 2)
   route), in that order, each href carrying `?pack=fi` when the route has it (Surveyor also `?q`), exactly the
   current one marked (none on the engineer route); the project picker's choice keeps `?pack`. [component]
 - SH-69 (checks) Country picker: not rendered while info loads, with `rule_packs` absent or empty, or on home,
-  account and not-found; with `rulePackFi` on a project route: button "Country rules: none", popover "No checks"
+  account and not-found; with `info.json` (packs `ch-zh`, `fi`) on a project route: button "Country rules: none", popover "No checks"
   (pressed) and the pack (`country_name`, `name · version`), closing line "Choose a country…"; choosing the pack sets
   `?pack=fi` (keeping `?q`), renames the button "Country rules: Finland", and the closing line is the note verbatim;
   "No checks" removes `pack`; no request is sent by the picker; no `data-pending`; `src/shell/pending.ts` does not

@@ -53,9 +53,9 @@ describe('TriageCard (file-triage.md)', () => {
       'Subject: the south elevation of a two-storey house',
       'Described by fake describer',
       'Related to this project',
-      "Related: Küche is on the project's plans.",
-      'Matched on: Küche',
-      'Judged by word judge',
+      "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
+      "Matched on: 'kuche' (plan text)",
+      'Judged by rule on the words printed on it and whether it shows a building, no model',
     ])
       expect(text).toContain(s);
     const img = c.getByRole('img', { name: 'elevations/south.png as uploaded' });
@@ -78,11 +78,12 @@ describe('TriageCard (file-triage.md)', () => {
     expect(card().getByText('Preview not available')).toBeTruthy();
   });
 
-  it('FT-8 a file not described: the note once, no call buttons', async () => {
+  it('FT-8 a file not described: the note once, the call still offered (#183)', async () => {
     await show(street);
     const text = must(screen.getByRole('region', { name: 'Is it a floor plan?' }).textContent);
     expect(text.split('not described: the model refused').length).toBe(2);
-    expect(card().queryByRole('button', { name: /related/ })).toBeNull(); // no call: 422 no-description
+    expect(card().getByRole('button', { name: 'It is related' })).toBeTruthy();
+    expect(card().getByRole('button', { name: 'It is not related' })).toBeTruthy();
   });
 
   it('FT-9 "It is related" sends the request fixture and shows the answer in place', async () => {

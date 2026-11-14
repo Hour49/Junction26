@@ -52,8 +52,8 @@ def test_an_unknown_project_or_pack_is_404_and_a_running_one_409(
     for path in ("issues", "issues.csv"):
         assert client.get(f"/api/projects/0123456789ab/{path}").status_code == 404
     project = sample(client)
-    reply = client.get(f"/api/projects/{project['id']}/issues", params={"pack": "fi"})
-    assert reply.status_code == 404 and "fi" in reply.json()["detail"]  # no pack exists yet
+    reply = client.get(f"/api/projects/{project['id']}/issues", params={"pack": "xx"})
+    assert reply.status_code == 404 and "xx" in reply.json()["detail"]  # no such pack
     ingest = client.app.state.ingest  # type: ignore[attr-defined]
     running = ingest.status(project["id"]).model_copy(update={"state": "running"})
     monkeypatch.setattr(ingest, "status", lambda project_id: running)
@@ -234,9 +234,9 @@ def test_a_room_conflict_is_placed_on_the_takeoff_mark_with_its_outline(client: 
 def test_an_unknown_pack_has_its_own_code(client: TestClient) -> None:
     project = sample(client)
     for path in ("issues", "issues.csv", "issues.zip"):
-        reply = client.get(f"/api/projects/{project['id']}/{path}", params={"pack": "fi"})
+        reply = client.get(f"/api/projects/{project['id']}/{path}", params={"pack": "xx"})
         assert (reply.status_code, reply.json()["code"]) == (404, "unknown-pack")
-        missing = client.get(f"/api/projects/0123456789ab/{path}", params={"pack": "fi"})
+        missing = client.get(f"/api/projects/0123456789ab/{path}", params={"pack": "xx"})
         assert (missing.status_code, missing.json()["code"]) == (404, "not-found")
 
 

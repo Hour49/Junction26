@@ -112,8 +112,8 @@ The fields:
   - `unrelated_file` (decision 0010, file triage: an uploaded file that is not a floor plan, set aside until a
     person says it belongs).
   - Every planned kind is in the type from the start (orchestrator, 2026-11-14), so the frontend's exhaustive
-    switches never meet a new value. Not produced yet: `code_check_failed` (until #139 lands), `double_check`
-    (until #129 lands) and `unrelated_file` (until 0010 is built).
+    switches never meet a new value. `code_check_failed` is produced since #139 (with `?pack=`) and
+    `unrelated_file` since 0010; `double_check` is not produced yet (until #129 lands).
 - `severity`: what the finding asks of a person, not a made-up score. There are three values, in this order:
   - `fails_rule`: the drawing, as read, breaks a rule we check (`code_check_failed`). This is the strongest
     finding we make.

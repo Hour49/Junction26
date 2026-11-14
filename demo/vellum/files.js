@@ -21,7 +21,7 @@
     let line = f.reason ? `<span class="small">${esc(f.reason)}</span>` : '';
     if (T.of(f.path) && st !== 'queued') {
       const r = T.rowLine(f.path, ctx, !!f.drawing);
-      line = `<span class="small">${esc(r.text)}</span>${r.pill ? ` <span class="pill grey">${esc(r.pill)}</span>` : ''}${r.by ? `<span class="small"> · ${esc(r.by)}'s call</span>` : ''}`;
+      line = `<span class="small">${esc(r.text)}</span>${r.pill ? ` <span class="pill ${r.tone}">${esc(r.pill)}</span>` : ''}${r.by ? `<span class="small"> · ${esc(r.by)}'s call</span>` : ''}`;
     }
     return `<li><a class="file-row press" href="#/file/${i}"><span class="file-main"><span class="mono">${esc(f.path)}</span>${line ? `<span class="file-line">${line}</span>` : ''}</span>
       <span class="file-meta"><span class="pill ${st === 'ready' ? 'ok' : 'grey'}">${BADGE[st]}</span><span class="small">${esc(f.kind)} · ${esc(f.size)}</span></span></a></li>`;
@@ -45,9 +45,9 @@
     if (!f) return '<main class="w820"><a class="small" href="#/ingest">Back to the project</a><h1>No such file</h1></main>';
     const st = stateOf(f, i), d = f.drawing && st === 'ready' ? V.drawing(f.drawing) : null;
     const fact = (k, v) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`;
-    const facts = fact('Kind', f.kind) + fact('Size', f.size) + fact('State', BADGE[st])
-      + (d ? fact('Drawing', `${d.name} · ${d.lane === 'CAD' ? 'CAD route' : 'vision route'}`) : fact('Reason', f.reason || (T.of(f.path) ? `not a floor plan: ${T.CLASS_LABEL[T.classOf(f.path)]}` : '—')));
-    const card = T.of(f.path) && st !== 'queued' ? T.card(f.path, A().ctx(), A().S.signer, A().hhmm) : '';
+    const facts = fact('File type', f.kind) + fact('Size', f.size) + fact('State', BADGE[st])
+      + (d ? fact('Drawing', `${d.name} · ${d.lane === 'CAD' ? 'CAD route' : 'vision route'}`) : fact('Reason', f.reason || (T.of(f.path) ? T.rowLine(f.path, A().ctx(), false).text : '—')));
+    const card = T.of(f.path) && (st !== 'queued' || T.rapState(f.path, A().ctx())) ? T.card(f.path, A().ctx(), A().S.signer, A().hhmm) : '';
     return `<main class="w820"><a class="small" href="#/ingest">Back to the project</a>
       <div class="title-row"><div><span class="kicker">${BADGE[st]}</span><h1 class="mono trace-h">${esc(f.path)}</h1></div>
         ${d ? `<a class="btn btn-primary press" href="#/ask" data-act="open-drawing" data-d="${d.id}">Open the drawing</a>` : ''}</div>

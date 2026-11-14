@@ -31,11 +31,17 @@ What a reader saw is kept next to the drawing (`double_check`, by reader name: t
 looked for and its elements, renumbered and put on the plans like a part's) and is never
 counted. It is there for an answer to say where the readers disagree with it
 (app/core/pipeline/disputed_marks.py). A source that is also a part reads the sheet once.
+
+The distinct sources read a sheet at the same time, one thread each (they are independent, and
+most wait on ONNX Runtime or a model API); their results are merged in the same order as before,
+and what a source's calls cost is charged to the caller's thread (app/core/cost.py).
 """
 
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 
+from app.core import cost
 from app.core.drawing.model import (
     ELEMENT_CLASSES,
     ArbiterReading,
@@ -161,11 +167,34 @@ class CompositeRasterExtractor:
         self._room_policy = room_policy
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        found: dict[str, Extracted] = {}
+        components = {c.name: c for c in self._components()}
+        spent: dict[str, float] = {}  # what each source that ran paid for, failed or not
+        try:
+            with ThreadPoolExecutor(len(components), thread_name_prefix="raster") as pool:
+                pending = {
+                    name: pool.submit(_charged, component.reader, source, sheet, spent, name)
+                    for name, component in components.items()
+                }
+                try:
+                    return self._merge(pending)
+                finally:
+                    for future in pending.values():
+                        future.cancel()
+        finally:  # every started source has finished here: charge them all to the caller
+            cost.charge(sum(spent.values()))
+
+    def _components(self) -> list[Component]:
+        """Every source this composite reads a sheet with, the parts' first."""
+        rooms = [] if self._rooms is None else [self._rooms]
+        scale = [] if self._scale is None else [self._scale]
+        return [self._plans, *self._elements.values(), *rooms, *scale, *self._double_check.values()]
+
+    def _merge(self, pending: Mapping[str, "Future[Extracted]"]) -> Extracted:
+        found: dict[str, Extracted] = {}  # in the order the merge first asks for each source
 
         def read_by(component: Component) -> Extracted:
             if component.name not in found:
-                found[component.name] = component.reader.extract(source, sheet)
+                found[component.name] = pending[component.name].result()
             return found[component.name]
 
         plans = tuple(
@@ -254,6 +283,18 @@ class CompositeRasterExtractor:
         if self._scale is not None:
             parts["scale"] = self._scale.name
         return parts
+
+
+def _charged(
+    reader: Extractor, source: DrawingFile, sheet: Sheet, spent: dict[str, float], name: str
+) -> Extracted:
+    """The reader's result, read on this (worker) thread; what its calls cost goes in
+    `spent[name]` also when it fails."""
+    before = cost.spent()
+    try:
+        return reader.extract(source, sheet)
+    finally:
+        spent[name] = cost.spent() - before
 
 
 def _looked_for(read: Sequence[ReadClass] | None, kind: ReadClass) -> bool:

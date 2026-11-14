@@ -28,7 +28,8 @@ describe('triage.ts (file-triage.md FT-5)', () => {
     expect(VERDICT_LABEL.related.pill).toBe('✓ Related');
     expect(VERDICT_LABEL.unrelated.pill).toBe('✕ Not related');
     expect(VERDICT_LABEL.unsure.pill).toBe('? Unsure');
-    expect(verdictOf(t(street)).pill).toBe('– Not judged');
+    expect(verdictOf(t(street)).pill).toBe('✕ Not related'); // undescribed, judged by the class rule (#183)
+    expect(verdictOf({ verdict: null }).pill).toBe('– Not judged');
   });
 
   it('tells a non-plan from a plan and from a file triage never saw', () => {
@@ -54,10 +55,10 @@ describe('triage.ts (file-triage.md FT-5)', () => {
     expect(callLine(t(south))).toBeNull();
   });
 
-  it('allows a call only on a described non-plan', () => {
+  it('allows a call on any non-plan, described or not (#183 lifts the 422)', () => {
     expect(canCall(plan)).toBe(false);
     expect(canCall(south)).toBe(true);
-    expect(canCall(street)).toBe(false); // not described: 422 no-description
+    expect(canCall(street)).toBe(true); // not described: allowed since #183
     expect(canCall({ ...south, triage: { ...t(south), class: 'floor_plan' } })).toBe(false);
   });
 

@@ -26,7 +26,9 @@ RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normali
 # File triage (decision 0010, app/adapters/triage). off: ingest as before triage existed.
 # rules: the content probe's kind, no model (sets aside what ingest sets aside today).
 TriageClassifierName = Literal["off", "rules"]
-TriageDescriberName = Literal["off"]  # eu-big's measured describers are added here
+# gemini: gemini-3.5-flash fills the description form and its long text, GEMINI_API_KEY's
+# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/)
+TriageDescriberName = Literal["off", "gemini"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
@@ -134,9 +136,13 @@ class Settings(BaseSettings):
     # none: images are read as uploaded (EXIF turned upright); a rectifier undoes a photo's
     # perspective first (app/core/ingest/ports.py Rectifier)
     rectifier: RectifierName = "none"
+    # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
+    # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
+    rule_packs_dir: Path = Path(__file__).parent / "rules"
     # File triage (decision 0010): is each uploaded image a floor plan; a non-plan is kept, set
     # aside, described and judged against the project. The describer and judge run only with a
     # classifier on.
     triage_classifier: TriageClassifierName = "off"
     triage_describer: TriageDescriberName = "off"
+    triage_describer_cache_dir: Path = Path("../data/cache/triage-describer")
     triage_judge: TriageJudgeName = "off"

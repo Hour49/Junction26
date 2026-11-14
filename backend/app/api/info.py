@@ -1,10 +1,13 @@
 """GET /api/info: which reader each port uses and the upload limits, so the screen can say what it
-runs on and refuse a file before sending it. Names only: no keys, endpoints or local paths."""
+runs on and refuse a file before sending it, and the building-code rule packs the country picker
+offers. Names only: no keys, endpoints or local paths."""
 
 from fastapi import APIRouter
+from pydantic import Field
 
 from app.adapters.archive.unpack import MAX_ENTRIES, MAX_FILE, MAX_TOTAL
 from app.api.ask import QUESTION_CHARS
+from app.api.checks import RulePacksDep, RulePackView, pack_views
 from app.api.deps import SettingsDep
 from app.api.projects import MAX_UPLOAD
 from app.api.views import View
@@ -27,10 +30,12 @@ class Info(View):
     no_keys: bool  # no reader needs an API key or a model server
     readers: dict[str, str]
     limits: Limits
+    # The building-code packs GET /api/drawings/{id}/checks?pack= takes (decision 0009)
+    rule_packs: list[RulePackView] = Field(default_factory=list[RulePackView])
 
 
 @router.get("/info")
-def info(settings: SettingsDep) -> Info:
+def info(settings: SettingsDep, packs: RulePacksDep = ()) -> Info:
     return Info(
         no_keys=not uses_keys(settings),
         readers=readers(settings),
@@ -41,4 +46,5 @@ def info(settings: SettingsDep) -> Info:
             files=MAX_ENTRIES,
             question_chars=QUESTION_CHARS,
         ),
+        rule_packs=pack_views(packs),
     )

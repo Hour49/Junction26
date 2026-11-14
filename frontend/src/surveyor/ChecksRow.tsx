@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { ApiError, errorText, getProjectChecks, rulePacksOf, type ProjectChecks } from '../api';
 import { useInfo } from '../shell/info';
 import { routeHref } from '../shell/route';
-import { countParts, ruleCounts } from './conflicts';
+import { countParts, ruleCountsOf } from './conflicts';
 
 // `key` = the request it answers, so a new pack or a Retry shows loading without a reset in the effect
 type Load = { key: string } & ({ checks: ProjectChecks } | { error: unknown });
@@ -55,7 +55,7 @@ export function ChecksRow({ projectId, pack }: { projectId: string; pack: string
         </div>
       );
   } else {
-    const parts = countParts(ruleCounts(load.checks));
+    const parts = countParts(ruleCountsOf(load.checks));
     body = (
       <>
         {parts.length === 0 ? (

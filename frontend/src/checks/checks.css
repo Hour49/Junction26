@@ -38,13 +38,19 @@
 .ck-table caption {
   text-align: left;
   font-weight: 600;
-  padding: 0 0 8px;
+  /* inset: the table's rounded, clipped corner would cut the first letter */
+  padding: 12px 16px;
 }
 .ck-table th,
 .ck-table td {
+  overflow-wrap: normal;
+  word-break: normal;
   padding: 10px 16px;
   text-align: left;
   border-top: 1px solid var(--v-line);
+}
+.ck-table thead th {
+  white-space: nowrap;
 }
 .ck-table td {
   text-align: right;

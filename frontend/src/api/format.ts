@@ -62,7 +62,7 @@ export function methodName(id: string | null | undefined): string {
   return METHODS[id] ?? id;
 }
 
-/** The rule packs `/api/info` lists (#139); read through a cast until the generated schema has the field. */
+/** The rule packs `/api/info` lists (#139); none before info loads. */
 export function rulePacksOf(info: Info | null): RulePack[] {
-  return (info as { rule_packs?: RulePack[] } | null)?.rule_packs ?? [];
+  return info?.rule_packs ?? [];
 }

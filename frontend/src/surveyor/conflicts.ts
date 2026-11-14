@@ -1,5 +1,6 @@
 // The conflicts screen's pure parts (docs/specs/frontend/conflicts.md "Field map").
 import type { CheckStatus, ConflictEntry, DrawingReview, ProjectChecks } from '../api';
+import { ruleCounts, ruleSummary } from '../checks/checks';
 
 export type CardState = 'open' | 'rule' | 'yours';
 
@@ -54,33 +55,18 @@ export function workspaceDrawing(drawings: DrawingReview[]): string | null {
   return (drawings.find((d) => d.quantities > 0) ?? drawings[0])?.drawing_id ?? null;
 }
 
-const RANK: Record<CheckStatus, number> = { pass: 0, cannot_tell: 1, fail: 2 };
-
-/** Rules counted across every drawing: failed if any result fails, else cannot tell if any can't, else passed. */
-export function ruleCounts(checks: ProjectChecks): {
-  passed: number;
-  failed: number;
-  cannot: number;
-} {
-  const worst = new Map<string, CheckStatus>();
-  for (const d of checks.drawings)
-    for (const rule of d.rules)
-      for (const r of rule.results) {
-        const was = worst.get(rule.rule_id);
-        if (was === undefined || RANK[r.status] > RANK[was]) worst.set(rule.rule_id, r.status);
-      }
-  const n = (s: CheckStatus) => [...worst.values()].filter((v) => v === s).length;
-  return { passed: n('pass'), failed: n('fail'), cannot: n('cannot_tell') };
-}
+/** Rules by status, counted exactly as the checks screen (src/checks/checks.ts: a rule that cannot tell with no
+ * results is cannot tell; one that does not apply is not counted), so both screens agree on the same data. */
+export const ruleCountsOf = (checks: ProjectChecks) => ruleCounts(ruleSummary(checks, null));
 
 /** "1 rule passed", "1 failed", "1 cannot tell": zero parts left out, the noun on the first part only. */
 export function countParts(
-  c: ReturnType<typeof ruleCounts>,
+  c: ReturnType<typeof ruleCountsOf>,
 ): { kind: CheckStatus; text: string }[] {
   const parts = [
     { kind: 'pass' as const, n: c.passed, word: 'passed' },
     { kind: 'fail' as const, n: c.failed, word: 'failed' },
-    { kind: 'cannot_tell' as const, n: c.cannot, word: 'cannot tell' },
+    { kind: 'cannot_tell' as const, n: c.cannotTell, word: 'cannot tell' },
   ].filter((p) => p.n > 0);
   return parts.map((p, i) => ({
     kind: p.kind,

@@ -93,8 +93,8 @@ def test_a_bedroom_count_with_an_unlabelled_bedroom_always_asks_and_names_it() -
     found = asked("How many bedrooms are there?", sheet(rooms=BEDROOMS), score=0.95)
     assert found.check is not None
     assert found.check.reason == (
-        "Please double-check the room bedroom count: 1 room is drawn as a bedroom with no "
-        "printed label; please confirm."
+        "Please double-check the bedrooms: 1 room is drawn as a bedroom with no printed label; "
+        "please confirm."
     )
     r2 = next(mark.id for mark in found.marks if mark.ref == "r2")
     first = found.check.disputed[0]

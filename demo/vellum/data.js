@@ -1,150 +1,19 @@
-// Synthetic data for the Vellum clickable demo, and the pure functions that derive every count, mark and total
-// shown on screen. Nothing here comes from a real archive. Loaded as a plain script (global VData) and by node --test.
+// The demo's reading steps and the pure functions that derive counts, totals and progress from a project's data. It
+// holds no project: stoa.js fills VData with real files from the Stoa dataset (make_stoa_demo.py, local only), and
+// nothing on screen is generated (Tudor: "just take data from the real dataset"). Plain script (global VData) and
+// node-loadable.
 (function (root) {
   'use strict';
 
-  // Layouts: rooms as rectangles [x, y, w, h] in drawing units, `scale` units per metre.
-  // Openings: kind 'door' | 'window' | 'doorway' (an open doorway, left out by the door rule).
-  const LAYOUTS = {
-    twoFlats: {
-      view: [-15, -15, 630, 366], scale: 30,
-      rooms: [
-        ['a-living', 'Living', 0, 0, 150, 165], ['a-kitchen', 'Kitchen', 150, 0, 105, 96],
-        ['a-hall', 'Hall', 150, 96, 105, 69], ['a-bed', 'Bedroom', 0, 165, 126, 135],
-        ['a-bath', 'Bath', 126, 165, 69, 78], ['a-wc', 'WC', 195, 165, 60, 78], ['a-store', 'Store', 126, 243, 129, 57],
-        ['stair', 'Stair', 255, 0, 90, 300, 'common'],
-        ['b-living', 'Living', 450, 0, 150, 165], ['b-kitchen', 'Kitchen', 345, 0, 105, 96],
-        ['b-hall', 'Hall', 345, 96, 105, 69], ['b-bed', 'Bedroom', 474, 165, 126, 135],
-        ['b-bath', 'Bath', 405, 165, 69, 78], ['b-wc', 'WC', 345, 165, 60, 78], ['b-store', 'Store', 345, 243, 129, 57],
-      ],
-      outdoor: [[0, 300, 126, 36], [474, 300, 126, 36]],
-      openings: [
-        ['d1', 'door', 255, 132], ['d2', 'door', 150, 132], ['d3', 'door', 60, 165], ['d4', 'door', 177, 165],
-        ['d5', 'door', 225, 165], ['d6', 'door', 126, 273], ['d7', 'door', 60, 300], ['d8', 'door', 345, 132],
-        ['d9', 'door', 450, 132], ['d10', 'door', 540, 165], ['d11', 'door', 423, 165], ['d12', 'door', 375, 165],
-        ['d13', 'door', 474, 273], ['d14', 'door', 540, 300], ['o1', 'doorway', 198, 96], ['o2', 'doorway', 402, 96],
-        ['w1', 'window', 40, 0], ['w2', 'window', 110, 0], ['w3', 'window', 202, 0], ['w4', 'window', 398, 0],
-        ['w5', 'window', 490, 0], ['w6', 'window', 560, 0], ['w7', 'window', 0, 82], ['w8', 'window', 0, 232],
-        ['w9', 'window', 600, 82], ['w10', 'window', 600, 232], ['w11', 'window', 190, 300], ['w12', 'window', 410, 300],
-      ],
-    },
-    flatB: {
-      view: [-28, -28, 338, 296], scale: 24,
-      rooms: [
-        ['living', 'Living', 42, 0, 144, 138], ['kitchen', 'Kitchen', 186, 0, 96, 90], ['hall', 'Hall', 186, 90, 96, 48],
-        ['bed1', 'Bedroom', 42, 138, 102, 102], ['bed2', 'Bedroom', 144, 138, 78, 102], ['bath', 'Bath', 222, 138, 60, 60],
-        ['sauna', 'Sauna', 222, 198, 60, 42],
-      ],
-      outdoor: [[0, 18, 42, 90]],
-      openings: [
-        ['d1', 'door', 282, 114], ['d2', 'door', 186, 114], ['d3', 'door', 93, 138], ['d4', 'door', 183, 138],
-        ['d5', 'door', 252, 138], ['d6', 'door', 252, 198], ['d7', 'door', 42, 120],
-        ['w1', 'window', 114, 0], ['w2', 'window', 234, 0], ['w3', 'window', 42, 20], ['w4', 'window', 42, 189],
-        ['w5', 'window', 93, 240], ['w6', 'window', 183, 240],
-      ],
-    },
-    // the faint pencil sketch triage set aside; it becomes a drawing only when a person has it read as a floor plan
-    annex: {
-      view: [-10, -10, 300, 200], scale: 30,
-      rooms: [['x-kitchen', 'Kitchen', 0, 0, 150, 105], ['x-room', 'Room', 150, 0, 130, 180], ['x-store', 'Store', 0, 105, 150, 75]],
-      outdoor: [],
-      openings: [['xd1', 'door', 150, 50], ['xd2', 'door', 75, 105], ['xw1', 'window', 60, 0], ['xw2', 'window', 220, 0], ['xw3', 'window', 280, 90]],
-    },
-    groundFloor: {
-      view: [140, 130, 490, 280], scale: 26,
-      rooms: [
-        ['bath', 'Bath', 160, 150, 84, 110], ['hall', 'Hall', 244, 150, 132, 110], ['kitchen', 'Kitchen', 376, 150, 100, 110],
-        ['pantry', 'Pantry', 476, 150, 134, 110], ['room1', 'Room', 160, 260, 86, 130], ['living', 'Living', 246, 260, 154, 130],
-        ['dining', 'Dining', 400, 260, 126, 130], ['room2', 'Room', 526, 260, 84, 130],
-      ],
-      outdoor: [],
-      openings: [
-        ['d1', 'door', 310, 150], ['d2', 'door', 244, 205], ['d3', 'door', 376, 205], ['d4', 'door', 476, 205],
-        ['d5', 'door', 320, 260], ['d6', 'door', 246, 325], ['d7', 'door', 400, 325], ['d8', 'door', 526, 325],
-        ['w1', 'window', 200, 150], ['w2', 'window', 420, 150], ['w3', 'window', 543, 150], ['w4', 'window', 160, 325],
-        ['w5', 'window', 203, 390], ['w6', 'window', 323, 390], ['w7', 'window', 463, 390], ['w8', 'window', 568, 390],
-        ['w9', 'window', 610, 205], ['w10', 'window', 610, 325],
-      ],
-    },
-  };
+  const LAYOUTS = {};  // real drawings are images: no drawn layouts
 
-  const ARCHIVE = 'harbour-block-archive.zip';
+  const ARCHIVE = '';
 
-  // Every file in the sample archive, in archive order: [path, size, kind, lane, drawing id | null, role or why set aside].
-  const FILES = [
-    ['plans/floor-01.dxf', '1.2 MB', 'DXF', 'CAD', 'floor-01', 'read'],
-    ['model/harbour-block.ifc', '9.6 MB', 'IFC model', 'CAD', 'floor-01', 'second'],
-    ['plans/floor-02.dxf', '1.4 MB', 'DXF', 'CAD', 'floor-02', 'read'],
-    ['plans/floors.pdf', '1.1 MB', 'Vector PDF', 'CAD', 'floor-02', 'shown', 'page 2 holds a drawing, read as a file of its own'],
-    ['plans/floors#p2.pdf', '540 kB', 'Vector PDF', 'CAD', 'floor-03', 'shown'],
-    ['plans/floor-02.png', '413 kB', 'PNG scan', 'Vision', 'floor-02', 'second'],
-    ['plans/floor-03.dwg', '517 kB', 'DWG', 'CAD', 'floor-03', 'read'],
-    ['scans/flat-b12-scan.png', '2.1 MB', 'PNG scan', 'Vision', 'flat-b12', 'read'],
-    ['scans/flat-c03-photo.jpg', '38 kB', 'JPG photo', 'Vision', 'flat-c03', 'read'],
-    ['scans/ground-floor-scan.jpg', '554 kB', 'JPG scan', 'Vision', 'ground-floor', 'read'],
-    ['elevations/south-elevation.png', '690 kB', 'PNG scan', null, null, 'not a floor plan'],
-    ['photos/site.jpg', '1.8 MB', 'JPG photo', null, null, 'not a floor plan'],
-    ['misc/poster.jpg', '420 kB', 'JPG photo', null, null, 'not a floor plan'],
-    ['scans/annex-sketch.jpg', '310 kB', 'JPG scan', null, null, 'not a floor plan'],
-    ['readme.txt', '2 kB', 'Text', null, null, 'not a drawing', 'not a drawing'],
-    ['__MACOSX/._floor-01.dxf', '4 kB', 'System file', null, null, 'system file, skipped', 'a system file, skipped'],
-  ].map(([path, size, kind, lane, drawing, role, reason]) => ({ path, size, kind, lane, drawing, role, reason: reason || null }));
+  const FILES = [];
 
-  // Drawings: a layout, extra or changed openings, and the check items: places the readers do not agree on, in the
-  // shape of the API's answer.check (#14): mark_id (null: a place a reader saw that the answer did not count), why,
-  // readers {reader id: what it says}. Missed places carry their quantity and position.
-  const said = (answer, detector, seg) => ({ answer, 'detector-m': detector, seg });
-  const DRAWINGS = [
-    { id: 'floor-01', name: 'plans/floor-01', layout: 'twoFlats', lane: 'CAD', meta: 'DXF · vector',
-      extra: [['d15', 'door', 300, 300, 'c1']], check: [] },
-    { id: 'floor-02', name: 'plans/floor-02', layout: 'twoFlats', lane: 'CAD', meta: 'DXF · vector', extra: [], check: [] },
-    { id: 'floor-03', name: 'plans/floor-03', layout: 'twoFlats', lane: 'CAD', meta: 'DWG, converted to DXF once',
-      extra: [['g1', 'door', 345, 48, 'c2']], check: [] },
-    { id: 'flat-b12', name: 'scans/flat-b12-scan', layout: 'flatB', lane: 'Vision', meta: 'PNG scan',
-      extra: [['w7', 'window', 0, 63, 'c3']],
-      check: [
-        { mark_id: 'd6', why: 'Counted, but the detector sees nothing here: the door leaf is faint in the scan.', readers: said('a door', 'nothing', 'a door') },
-        { mark_id: null, id: 'x1', quantity: 'door', x: 222, y: 158, why: 'Not counted, but 2 of 3 readers see a door here.', readers: said('nothing', 'a door', 'a door') },
-        { mark_id: 'bath', why: 'The outline may be off: a wall line is broken in the scan.', readers: { answer: 'this outline', seg: 'a larger room' } },
-      ] },
-    { id: 'flat-c03', name: 'scans/flat-c03-photo', layout: 'flatB', lane: 'Vision', meta: 'JPG photo · low resolution',
-      extra: [],
-      check: [
-        { mark_id: 'd3', why: 'Counted, but only 1 of 3 readers sees a door leaf: the photo is low resolution.', readers: said('a door', 'nothing', 'an opening') },
-        { mark_id: null, id: 'x1', quantity: 'window', x: 282, y: 40, why: 'Not counted, but 2 of 3 readers see a window here.', readers: said('nothing', 'a window', 'a window') },
-        { mark_id: 'w5', why: 'Counted, but it could be a vent: the photo is low resolution.', readers: said('a window', 'a window', 'a vent') },
-        { mark_id: 'w6', why: 'Counted, but it could be a vent: the photo is low resolution.', readers: said('a window', 'a window', 'a vent') },
-        { mark_id: 'bed2', why: 'The label is not readable, so the room type is a guess.', readers: { answer: 'Bedroom', seg: 'no label' } },
-      ] },
-    { id: 'ground-floor', name: 'scans/ground-floor-scan', layout: 'groundFloor', lane: 'Vision', meta: 'JPG scan · pencil',
-      extra: [],
-      check: [
-        { mark_id: 'd4', why: 'Counted, but only 1 of 3 readers sees a door here.', readers: said('a door', 'nothing', 'nothing') },
-        { mark_id: null, id: 'x1', quantity: 'door', x: 160, y: 205, why: 'Not counted, but 2 of 3 readers see a door here.', readers: said('nothing', 'a door', 'a door') },
-        { mark_id: 'w3', why: 'Counted, but it is drawn faintly and may be a niche.', readers: said('a window', 'a window', 'nothing') },
-        { mark_id: 'pantry', why: 'The label is smudged, so the room type is a guess.', readers: { answer: 'Pantry', seg: 'no label' } },
-      ] },
-  ];
+  const DRAWINGS = [];
 
-  // Conflicts: one element, two readings. kind null = not counted at all.
-  const CONFLICTS = [
-    { id: 'c1', drawing: 'floor-01', element: 'd15', quantity: 'door', ai: 0,
-      title: 'Doors on storey 1', readers: { ifc: 'a door', cad: 'nothing' }, files: 'model/harbour-block.ifc ↔ plans/floor-01.dxf',
-      variants: [{ kind: 'door', src: 'IFC model: IfcDoor on storey 1' }, { kind: null, src: 'DXF: DOOR layer of floor-01' }],
-      rules: ['A BIM model outranks CAD when both carry the same revision.', 'Both files carry revision C.'],
-      why: 'Same revision, so the model wins. The extra door (the stair store) is drawn in the model and missing from the DXF.' },
-    { id: 'c2', drawing: 'floor-03', element: 'g1', quantity: 'door', ai: 1,
-      title: 'Glazed door on layer A-GLAZ', readers: { cad: 'a window', block: 'a door' }, files: 'plans/floor-03.dwg',
-      variants: [{ kind: 'window', label: 'Window', src: 'Layer A-GLAZ, where windows live' },
-        { kind: 'door', label: 'Door', src: 'Block has a door leaf and a swing arc' }],
-      rules: ['Glazed doors count as doors.', 'An opening with a leaf and a swing is a door, whatever its layer.'],
-      why: 'The block has a leaf and a swing arc, so it is a door. The layer name is overruled.' },
-    { id: 'c3', drawing: 'flat-b12', element: 'w7', quantity: 'window', ai: null,
-      title: 'Is the balcony glazing a window?', readers: { 'detector-m': 'nothing', vision: 'a window' }, files: 'scans/flat-b12-scan.png',
-      variants: [{ kind: null, src: 'Detector: glazing is not a window in a wall' }, { kind: 'window', src: 'Vision count: glazing counted as a window' }],
-      rules: ['One window per opening in a wall, whatever the number of panes.', 'Balcony glazing on an outdoor railing is not a wall.'],
-      why: 'The scan does not show whether the glazing sits in a wall or on the railing. Both readings follow the rules.' },
-  ];
+  const CONFLICTS = [];  // the dataset has one reading per drawing, so no conflicts
 
   const QUANTITIES = {
     door: { noun: ['door', 'doors'], rule: 'Doors with a leaf are counted. Open doorways without a leaf are left out.' },
@@ -357,10 +226,7 @@
 
   // "Read it as a floor plan" (decision 0010, POST …/triage): the annex sketch has a layout, so reading it gives drawing
   // 7; the other set-aside images have none, so their reading finds nothing and they get no drawing.
-  const READ_AS_PLAN = {
-    'scans/annex-sketch.jpg': { id: 'annex', name: 'scans/annex-sketch', layout: 'annex', lane: 'Vision', meta: 'JPG scan · faint pencil', extra: [],
-      check: [{ mark_id: 'xw3', why: 'Counted, but the pencil line is faint and may be a crack in the paper.', readers: said('a window', 'a window', 'nothing') }] },
-  };
+  const READ_AS_PLAN = {};  // a real set-aside file has no reading to give
   const BASE_DRAWINGS = DRAWINGS.length;
   // Returns the new drawing, or null when the file has no layout to read. Idempotent.
   function readAsPlan(path) {

@@ -14,6 +14,7 @@ import pytest
 from pydantic import BaseModel, TypeAdapter
 
 from app.api.ask import AnswerView, AskRequest
+from app.api.checks import DrawingChecks, ProjectChecks
 from app.api.drawings import DrawingView
 from app.api.info import Info
 from app.api.issues import ProjectIssues
@@ -72,6 +73,9 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "triage_request": TriageRequest,
     "triage_started": FileStatus,
     "file_read_as_plan": FileStatus,
+    "checks": DrawingChecks,
+    "project_checks": ProjectChecks,
+    "project_issues_checks": ProjectIssues,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 

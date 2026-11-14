@@ -1,8 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { drawing, error, info } from '../api/fixtures';
-import { rulePackFi } from '../api/testing';
-import type { Info, IssueList } from '../api';
+import { drawing, error, info, rulePackFi } from '../api/fixtures';
+import type { IssueList } from '../api';
 import { flush, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { PageViewer } from '../viewer/PageViewer';
@@ -11,7 +10,7 @@ import { DRAWING_B, DRAWING_IFC, PID, issueList, issueListFi, issues } from './t
 
 vi.mock('../viewer/PageViewer', () => ({ PageViewer: vi.fn(() => <p>the plan</p>) }));
 vi.mock('../shell/info', () => ({
-  useInfo: () => ({ info: { ...info, rule_packs: [rulePackFi] } as Info, error: null }),
+  useInfo: () => ({ info, error: null }),
 }));
 
 const GET = `GET /api/projects/${PID}/issues`;

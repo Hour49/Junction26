@@ -325,8 +325,9 @@ def relevance(
 ) -> FileStatus:
     """A person says whether a file triage set aside belongs to the project, or takes that back
     (`undo`; with no call made, nothing changes). The file stays set aside either way: a call
-    is no reading. 409 until the project is done; 422 `no-description` for a file triage did
-    not describe."""
+    is no reading. Any file triage called not a floor plan takes a call, described and judged
+    or not. 409 until the project is done; 422 `not-triaged` for a file triage did not set
+    aside as not a floor plan."""
     if body.undo:
         return ingest.overrule(project_id, file_id, None)
     assert body.verdict is not None and body.by is not None  # checked by the model

@@ -379,3 +379,46 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .mark.hot rect:first-child { stroke-width: 5; }
 .tri-text { white-space: pre-wrap; }
 .tri-part > .btn { align-self: flex-start; }
+/* the project chat's answer from a set-aside drawing's description (a preview) */
+.chat-card { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.chat-pills { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chat-ref { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; align-items: start; }
+.chat-ref > .label { grid-column: 1 / -1; }
+.chat-thumb { padding: 0; border: 1px solid #e5e5ea; border-radius: 10px; background: #fff; cursor: pointer; overflow: hidden; width: 120px; min-height: 40px; }
+.chat-thumb .plan { display: block; width: 100%; height: 84px; object-fit: cover; }
+.chat-ref-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.chat-big { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.chat-big .plan { display: block; width: 100%; height: auto; border: 1px solid #e5e5ea; border-radius: 10px; }
+.chat-pulled { display: flex; flex-direction: column; gap: 8px; }
+.chat-dl { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.chat-dl dt { font-size: 12px; font-weight: 500; color: var(--v-muted); }
+.chat-dl dd { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.tri-fig figcaption { padding: 6px 12px 10px; }
+.ask > section.card img.plan { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; margin: 0 auto; object-fit: contain; }
+/* chat references: arrows on the image's sides */
+.ref-view { position: relative; }
+.ref-arrow { position: absolute; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 10px rgba(0,0,0,.18); background: rgba(255,255,255,.92); }
+.ref-arrow.l { left: 8px; } .ref-arrow.r { right: 8px; }
+/* a person's own answer under a conflict's variants */
+.c-own { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.c-own-row { display: flex; gap: 8px; }
+.c-own-row input { flex: 1; min-width: 0; font: inherit; font-size: 15px; padding: 10px 14px; border: 1px solid var(--v-line, #d2d2d7); border-radius: 12px; background: #fff; }
+@media (max-width: 520px) { .c-own-row { flex-direction: column; } }
+/* source previews: the real image cropped to the place in question, outlined in orange and numbered */
+.src { position: relative; width: 100%; max-width: 640px; overflow: hidden; border-radius: 10px; background: #fff; }
+.src img { position: absolute; max-width: none; height: auto; }
+.hl { position: absolute; box-sizing: border-box; border: 2.5px solid var(--v-warn-mark); border-radius: 6px; background: rgba(217,134,11,0.12); }
+.hl b, .hl-legend b { width: 20px; height: 20px; border-radius: 50%; background: var(--v-warn-mark); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.hl b { position: absolute; top: -11px; left: -11px; box-shadow: 0 0 0 2px #fff; }
+.hl-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1 1 240px; }
+.hl-legend li { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--v-text-2); }
+.c-plan figcaption { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.seg a, .seg span { position: relative; }
+.seg .badge { position: absolute; top: -8px; right: -8px; min-width: 20px; min-height: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #e8740c; color: #fff;
+  font-size: 12px; font-weight: 700; justify-content: center; box-shadow: 0 0 0 2px #fff; }
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-card { background: var(--v-surface); border-radius: 20px; padding: 20px; width: min(1100px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.modal-card .src { max-width: none; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.iss-card { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.iss-card .iss-why { margin: 0; }
