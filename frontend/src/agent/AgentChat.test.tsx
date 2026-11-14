@@ -150,6 +150,14 @@ it("LC-11 every turn sends the route's ?pack=; none without one", async () => {
   expect(posts(bare)[0]).not.toHaveProperty('pack');
 });
 
+it('chat-ux #8 the empty chat says what was read from the drawings; the first turn replaces it', async () => {
+  open(answerTurn);
+  expect(await screen.findByRole('region', { name: 'What I read' })).toBeTruthy();
+  await send('How big is the bathroom?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  expect(screen.queryByRole('region', { name: 'What I read' })).toBeNull();
+});
+
 it('CH-18 agent chat: a photo read as a plan makes a project with no askable drawing askable', async () => {
   const added = { ...fileReadAsPlan, id: 'f9', path: 'plan.jpg', state: 'queued' as const };
   const before = { ...project, drawings: [] };
@@ -168,7 +176,7 @@ it('CH-18 agent chat: a photo read as a plan makes a project with no askable dra
   });
   expect(await screen.findByText('Reading plan.jpg…')).toBeTruthy();
   expect(
-    await screen.findByText(/^plan\.jpg is read: you can ask about it \(/, {}, { timeout: 4000 }),
+    await screen.findByText('plan.jpg is read: you can ask about it.', {}, { timeout: 4000 }),
   ).toBeTruthy();
   expect(screen.queryByText('No drawing in this project can be asked yet.')).toBeNull();
   const post = api.calls.find((c) => c.url.startsWith(`/api/projects/${PID}/files`));

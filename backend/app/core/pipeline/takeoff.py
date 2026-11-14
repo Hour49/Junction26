@@ -628,6 +628,17 @@ def rooms_estimate(rooms: Sequence[Room], scale: str | None) -> str | None:
     return scale
 
 
+def label_source(rooms: Sequence[Room]) -> str | None:
+    """Where the areas of `rooms` were printed, in words a user reads, when a raster label reader
+    read them in the rooms' labels (`area_source` printed); None when none was."""
+    n = sum(room.area_source == "printed" for room in rooms)
+    if n == 0:
+        return None
+    if n == len(rooms):
+        return "printed in the room's label" if n == 1 else "printed in the rooms' labels"
+    return f"{n} of {len(rooms)} room areas printed in the rooms' labels"
+
+
 # How an estimated room area was measured, in words (extraction_v1 `area_source`)
 _AREA_HOW = {
     "geometry_x_estimate": "measured on an estimated scale",
@@ -772,6 +783,7 @@ def _put(
     rule: CountingRule,
     estimate: str | None = None,
     excluded: Sequence[tuple[Mark, str]] = (),
+    source: str | None = None,
 ) -> None:
     found[key] = Quantity(
         key=key,
@@ -781,6 +793,7 @@ def _put(
         rule=rule.id,
         estimate=estimate,
         excluded=tuple(excluded),
+        source=source,
     )
 
 
@@ -800,7 +813,7 @@ def _area_sum(
         total = sum(area for area in areas if area is not None)
         marks = [_mark(room) for room in rooms]
         estimate = rooms_estimate(rooms, scale)
-        _put(found, key, "area", total, marks, rule, estimate, excluded)
+        _put(found, key, "area", total, marks, rule, estimate, excluded, label_source(rooms))
 
 
 def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
@@ -977,7 +990,10 @@ def _largest(
     if rooms and all(room.area_m2 is not None for room in rooms):
         top = max(rooms, key=lambda room: room.area_m2 or 0.0)
         area = top.area_m2 or 0.0
-        _put(found, key, "area", area, [_mark(top)], LARGEST_ROOM, rooms_estimate([top], scale))
+        estimate = rooms_estimate([top], scale)
+        _put(
+            found, key, "area", area, [_mark(top)], LARGEST_ROOM, estimate, (), label_source([top])
+        )
 
 
 def _add_room_sides(found: dict[str, Quantity], drawing: Drawing, scale: str | None) -> None:

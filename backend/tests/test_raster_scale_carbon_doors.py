@@ -3,6 +3,7 @@ found no door takes the door estimate from the Carbon reader's door boxes, in th
 shape CarbonDoorScale(CarbonThings(PriorScale(shipped), carbon)). Synthetic."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from test_raster_composite import FILE, SHEET, Fake, element
@@ -11,10 +12,10 @@ from app.adapters.carbon import CarbonThings
 from app.adapters.carbon.contract import SOURCE
 from app.adapters.raster_scale import PriorScale
 from app.adapters.raster_scale.carbon_doors import NO_DOOR, CarbonDoorScale
-from app.composition import build_pipeline
+from app.composition import build_ingest, build_pipeline
 from app.core.drawing.model import Element, Room
 from app.core.errors import InvalidInputError
-from app.core.pipeline.raster_scale import CARBON_DOOR_M, SPREAD_FEW
+from app.core.pipeline.raster_scale import CARBON_DOOR_M, SPREAD_FEW, SPREAD_MANY
 from app.settings import Settings
 
 LIVING = Room(id="r1", type="living", page=1, box=(0.0, 0.0, 0.5, 0.5))
@@ -78,4 +79,89 @@ def test_the_measure_script_scores_only_sheets_scaled_from_carbon_s_doors() -> N
         "b": {"pages": page, "scale": {"m_per_unit": 0.02, "source": "3 detected doors"}},
     }  # fmt: skip
     off = {"a": {"scale": {"status": "no_scale"}}}
-    assert rows(off, on, gold) == [("a", "no_scale", pytest.approx(0.1), 0.158)]
+    assert rows(off, on, gold) == []  # a source without the door width it used is not scored
+    on["a"]["scale"]["source"] = "a door is about 0.794 m wide; " + on["a"]["scale"]["source"]
+    assert rows(off, on, gold) == [("a", "no_scale", pytest.approx(0.1), 0.158, 0.794)]
+
+
+def test_carbon_doors_on_m1_the_script_prints_the_signed_error_and_the_width_that_zeroes_it() -> (
+    None
+):
+    """codecheck M1: Carbon's boxes include the swing, so the scale is about 14.5% low on golden;
+    integ pastes the fitted CARBON_DOOR_M."""
+    from scripts.carbon_door_scale import fit, rows
+
+    page = [{"width": 1000}]
+    source = "a door is about 0.794 m wide; median of 3 doors the Carbon reader found"
+    gold = {f: {"pages": page, "scale": {"m_per_unit": 0.01}} for f in "abc"}
+    on = {f: {"pages": page, "scale": {"m_per_unit": m, "uncertainty": 0.158, "source": source}}
+          for f, m in (("a", 0.0080), ("b", 0.00855), ("c", 0.0110))}  # fmt: skip
+    found = rows({}, on, gold)
+    assert [round(error, 4) for _, _, error, _, _ in found] == [-0.2, -0.145, 0.1]  # signed
+    width = fit(found)
+    assert width == pytest.approx(0.794 / 0.855)
+    again = [(1 + error) * width / 0.794 - 1 for _, _, error, _, _ in found]
+    assert sorted(again)[1] == pytest.approx(0.0)  # the fitted width zeroes the median
+
+
+def test_carbon_doors_on_s1_doors_snapped_to_unsure_detector_doors_are_left_out() -> None:
+    """codecheck S1: a detector with only doors under MIN_DOOR_SCORE also gets PriorScale's
+    no-door note, and CarbonThings snaps Carbon's doors onto those boxes: the median would mix
+    an opening with Carbon's swing boxes, and "the detector found none" would be false."""
+    unsure = element("door", (0.10, 0.10, 0.15, 0.12), score=0.2)  # 2 px: an opening
+    shipped = Fake(elements=[unsure], rooms=[LIVING])
+    carbon = Fake(elements=[carbon_door((0.05, 0.05, 0.30, 0.30)),  # holds it: snapped, left out
+                            carbon_door((0.50, 0.50, 0.75, 0.60)),  # 10 px
+                            carbon_door((0.60, 0.10, 0.80, 0.30))])  # 8 px # fmt: skip
+    found = CarbonDoorScale(things(shipped, carbon)).extract(FILE, SHEET)
+    assert found.scale.m_per_unit == pytest.approx(CARBON_DOOR_M / 9)  # 8 and 10 px only
+    assert "2 doors the Carbon reader found (the detector found no door it is sure of)" in (
+        found.scale.source or ""
+    )
+
+
+def test_carbon_doors_on_s2_a_non_carbon_door_is_not_counted() -> None:
+    other = element("door", (0.0, 0.0, 0.9, 0.9)).model_copy(update={"attrs": {"reader": "x"}})
+
+    class Mixed:  # a reading with a door that is not Carbon's (a later wrapper's, say)
+        def extract(self, source: Any, sheet: Any) -> Any:
+            found = things(Fake(rooms=[LIVING]), Fake(elements=[carbon_door((0.1, 0.1, 0.3, 0.3))]))
+            got = found.extract(source, sheet)
+            return got.model_copy(update={"elements": (*got.elements, other)})
+
+    found = CarbonDoorScale(Mixed()).extract(FILE, SHEET)
+    assert found.scale.m_per_unit == pytest.approx(CARBON_DOOR_M / 8)  # the 36 px door is not
+
+
+def test_carbon_doors_on_s2_only_priorscale_s_no_door_refusal_is_replaced() -> None:
+    # doors not read at all: another refusal, which Carbon's doors do not answer
+    shipped = Fake(rooms=[LIVING], read=["room"])
+    inner = things(shipped, Fake(elements=[carbon_door((0.1, 0.1, 0.3, 0.3))]))
+    found = CarbonDoorScale(inner).extract(FILE, SHEET)
+    assert found.scale.status == "no_scale" and found == inner.extract(FILE, SHEET)
+
+
+def test_carbon_doors_on_s2_the_band_is_the_widest_with_five_doors_or_more() -> None:
+    doors = [carbon_door((0.1 * i, 0.1, 0.1 * i + 0.2, 0.3)) for i in range(5)]
+    found = CarbonDoorScale(things(Fake(rooms=[LIVING]), Fake(elements=doors))).extract(FILE, SHEET)
+    assert found.scale.uncertainty == SPREAD_FEW != SPREAD_MANY
+
+
+def test_carbon_doors_on_s2_the_composition_wraps_carbon_s_things_and_names_it_in_the_key(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from ingest.test_ingest_carbon import carbon_settings
+
+    def built(**on: str) -> tuple[object, dict[str, str]]:
+        monkeypatch.delenv("SCALE_CARBON_DOORS", raising=False)
+        env = {"CARBON_READER": "large", "RASTER_SCALE": "priors", **on}
+        settings = carbon_settings(monkeypatch, tmp_path, **env)
+        raster = build_pipeline(settings, tmp_path).extractors["raster"]
+        ingest = build_ingest(settings, tmp_path / "projects", background=False)
+        ingest.close()
+        return raster._inner, ingest._names  # pyright: ignore[reportAttributeAccessIssue, reportPrivateUsage]
+
+    wrapped, names = built(SCALE_CARBON_DOORS="on")
+    assert isinstance(wrapped, CarbonDoorScale) and names["scale_carbon_doors"] == "on"
+    plain, names = built()
+    assert isinstance(plain, CarbonThings) and "scale_carbon_doors" not in names

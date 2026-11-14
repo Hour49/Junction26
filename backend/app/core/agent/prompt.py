@@ -83,3 +83,11 @@ NO_COUNTRY = (
     "No country is chosen. You may search the law, but name no clause as met or not met by the "
     "plan: ask the person to pick a country in the header first."
 )
+# decision 0016: a turn's line while SERVICES_FOLLOW is on (off: the prompt is unchanged)
+SERVICES = (
+    "A plan tool's result may carry `services`: what the change does to the building's plumbing, "
+    "ventilation, heating and electrical models, worked out by the server. Say each checked "
+    "discipline's line with its numbers, name what is cut off and what a person has to decide, "
+    "and say which disciplines were not checked. It is a proposal: never call it coordinated or "
+    "approved."
+)
