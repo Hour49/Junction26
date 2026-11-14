@@ -175,10 +175,11 @@ class _Edit:
             before={rid: (labels[rid], shape) for rid, shape in page.room_shapes().items()},
             after=[(r.label, page.shape(r.polygon), r.was) for r in proposal.rooms],
             doors=shapely.unary_union(doors),
+            # a room the edit places; a split room's further parts ("r4.2") also start at 0 m²
             new=[
                 (r.label, page.shape(r.polygon), r.was)
                 for r in proposal.rooms
-                if r.area_before_m2 == 0 and r.was
+                if r.area_before_m2 == 0 and r.was and r.id.split(".")[0] not in r.was
             ],
         )
 

@@ -341,10 +341,14 @@ def floor(small: str = "other") -> PlanPage:
 
 
 def carved(
-    *elements: ServiceElement, name: str = "Meeting room", small: str = "other", east: float = 0.3
+    *elements: ServiceElement,
+    name: str = "Meeting room",
+    small: str = "other",
+    west: float = 0.0,
+    east: float = 0.3,
 ) -> Any:
     sheet = floor(small)
-    proposal = place_room(sheet, "p1", (0.0, 0.32, east, 0.8), name)
+    proposal = place_room(sheet, "p1", (west, 0.32, east, 0.8), name)
     lane = Lane("heating", "checked", "Heating model", elements=elements)
     return follow(sheet, proposal, [lane], HEIGHTS).disciplines[0]
 
@@ -416,6 +420,16 @@ def test_sf19_what_fewer_than_four_in_five_of_the_rooms_have_is_not_called_missi
     assert [a.code for a in found.actions] == ["tally"]
     three = carved(RADIATORS[0], RADIATORS[1], RADIATORS[3], PIPE)  # 3 of 4: under 80%
     assert [a.code for a in three.actions] == ["tally"]
+
+
+def test_sf19_a_split_rooms_second_part_is_not_a_new_room() -> None:
+    # a room across the middle of the open room leaves it in two parts, west and east
+    sheet = floor()
+    proposal = place_room(sheet, "p1", (0.3, 0.32, 0.6, 0.8), "Meeting room")
+    assert [r.id for r in proposal.rooms if r.area_before_m2 == 0] == ["N1", "r4.2"]
+    found = carved(*RADIATORS, *OUTLETS, PIPE, west=0.3, east=0.6)
+    said = [a.label.split(" has ")[0] for a in found.actions if " has " in a.label]
+    assert said == ["Meeting room", "Meeting room"]  # its tally and its missing radiator
 
 
 def test_sf19_what_the_new_room_has_itself_is_not_missing() -> None:

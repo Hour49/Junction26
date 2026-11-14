@@ -191,3 +191,9 @@
   font-weight: 400;
   color: var(--v-text-2);
 }
+
+/* Under a discipline tab the plan is the services': the room badges of the edit would cover the marks and the
+   proposed connections. The rooms and their areas stay in the change list. */
+.ag-planbox:has(.ms-layer) .ag-badges {
+  display: none;
+}
