@@ -55,26 +55,28 @@ def room_disputes(
     rooms: Sequence[Room],
     *,
     second: Sequence[Room] | None = None,
-    printed: Sequence[Room] = (),
+    printed: Sequence[Room] | None = None,
     typed: Sequence[Room] | None = None,
     answer: int | None = None,
     limit: int = LIMIT,
 ) -> tuple[Disputed, ...]:
     """The disputed places for the count of `kind` rooms among `rooms`, strongest first, at most
-    `limit`. `second` is another room reader's rooms (None: no such reader ran), `printed` the
-    text reader's labels as typed boxes, `typed` the rooms a one-room-at-a-time typer read, with
-    its types (`other` for a room it sees as unlabelled). `answer` is the count given when it is
-    not the number of `kind` rooms (a prior answers "1 kitchen" whatever was read): every counted
-    room is then a place to look at."""
+    `limit`. `second` is another room reader's rooms and `printed` the text reader's labels as
+    typed boxes (None: that reader did not run, which is not the same as finding nothing),
+    `typed` the rooms a one-room-at-a-time typer read, with its types (`other` for a room it sees
+    as unlabelled). `answer` is the count given when it is not the number of `kind` rooms (a prior
+    answers "1 kitchen" whatever was read): every counted room is then a place to look at."""
     counted = [room for room in rooms if room.type == kind]
     found: list[tuple[int, Disputed]] = []
     for room in counted:
-        ranked = _counted(kind, room, second, printed, typed)
+        ranked = _counted(
+            kind, room, second, printed or (), typed, second is None and printed is None
+        )
         if ranked is None and answer is not None and answer != len(counted):
             ranked = _not_the_answer(kind, room, len(counted), answer)
         if ranked is not None:
             found.append(ranked)
-    found.extend(_missed(kind, rooms, counted, second or (), printed, typed or ()))
+    found.extend(_missed(kind, rooms, counted, second or (), printed or (), typed or ()))
     found.sort(key=lambda ranked: ranked[0])
     return tuple(disputed for _, disputed in found[:limit])
 
@@ -85,7 +87,9 @@ def _counted(
     second: Sequence[Room] | None,
     printed: Sequence[Room],
     typed: Sequence[Room] | None,
+    alone: bool,
 ) -> tuple[int, Disputed] | None:
+    """`alone`: no other reader ran, so "nobody confirms it" says nothing about the room."""
     noun = NOUN.get(kind, kind)
     label = _first_line(room)
     inside = [text for text in printed if _holds(room.box, text.box)]
@@ -125,7 +129,7 @@ def _counted(
             2,
             f'Counted as a {noun}, but its printed label "{label}" is not a usual {noun} label.',
         )
-    if not label and not (second_same or reads_same):
+    if not label and not (second_same or reads_same) and not alone:
         return listed(
             3,
             f"Counted as a {noun} from what is drawn in it; no printed label was read and no "
@@ -139,7 +143,7 @@ def _counted(
     if typer is not None and typer.type != kind:
         says = "a room without a printed label" if typer.type == "other" else f"a {typer.type}"
         return listed(4, f"Counted as a {noun}; the room-type model reads it as {says}.")
-    if not (second_same or reads_same):
+    if not (second_same or reads_same) and not alone:
         return listed(
             5,
             f"Counted as a {noun} by one reader only; the segmentation and the text reader do "

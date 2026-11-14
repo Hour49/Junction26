@@ -47,11 +47,19 @@ def test_a_counted_room_where_the_second_reader_has_no_room_is_listed() -> None:
     assert place.readers["segmentation"] is None
 
 
-def test_without_a_second_reader_a_labelled_room_is_listed_only_as_read_by_one_reader() -> None:
+def test_a_room_no_other_reader_confirms_is_listed_only_when_another_reader_ran() -> None:
     rooms = [room("balcony", label="PARVEKE")]
-    (place,) = room_disputes("balcony", rooms)
+    assert room_disputes("balcony", rooms) == ()
+    (place,) = room_disputes("balcony", rooms, printed=[])
     assert place.why.startswith("Counted as a balcony by one reader only")
     assert room_disputes("balcony", rooms, printed=[room("balcony", IN_A)]) == ()
+
+
+def test_an_unlabelled_room_is_listed_even_when_no_other_reader_ran() -> None:
+    (place,) = room_disputes("balcony", [room("balcony")])
+    assert place.why.endswith("no printed label was read in the room.")
+    (place,) = room_disputes("balcony", [room("balcony")], printed=[])
+    assert place.why.endswith("no printed label was read and no other reader confirms it.")
 
 
 def test_a_label_that_is_not_a_label_of_the_type_is_listed() -> None:
