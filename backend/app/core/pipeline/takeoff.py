@@ -960,19 +960,22 @@ def _add_scope(
 
 
 def _add_apartments(found: dict[str, Quantity], drawing: Drawing, scale: str | None) -> None:
+    """The apartment count and areas. Only the Swiss vector reader reads apartments, so a drawing
+    with none read has no count: a raster sheet of five flats is not "0 apartments" (jf06)."""
     apartments = drawing.apartments
     rooms_of: dict[str, list[Room]] = defaultdict(list)
     for room in drawing.rooms:
         if room.apartment is not None:
             rooms_of[room.apartment].append(room)
-    _put(
-        found,
-        quantity_key("count", "apartment"),
-        "count",
-        len(apartments),
-        [],  # an apartment has no box of its own in the drawing model
-        EACH_ONCE,
-    )
+    if apartments:
+        _put(
+            found,
+            quantity_key("count", "apartment"),
+            "count",
+            len(apartments),
+            [],  # an apartment has no box of its own in the drawing model
+            EACH_ONCE,
+        )
     for apartment in apartments:
         if apartment.label is not None:
             key = quantity_key("area", "apartment", apartment=apartment.label)
