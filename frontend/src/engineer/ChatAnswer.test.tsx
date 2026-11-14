@@ -4,7 +4,14 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
 import { drawingLabel } from '../api';
-import { answer, answerArea, answerResolved, project, projectAsk } from '../api/fixtures';
+import {
+  answer,
+  answerArea,
+  answerConflict,
+  answerResolved,
+  project,
+  projectAsk,
+} from '../api/fixtures';
 import { routeLabel } from '../ingest/ingest';
 import type { PageViewer } from '../viewer/PageViewer';
 import { ChatAnswer } from './ChatAnswer';
@@ -482,4 +489,13 @@ it('ui-bugs 5: one round "3D" button by the image: the shown drawing\'s model, e
   cleanup();
   show();
   expect(screen.queryByRole('button', { name: /in 3D/ })).toBeNull();
+});
+
+it('CH-50 methods that disagree say which value was kept and why under the value; a check reason still wins', () => {
+  show({ ...projectAsk, parts: [{ ...flatA, answer: answerConflict }] });
+  expect(rows()[0]?.querySelector('.en-why')?.textContent).toBe(answerConflict.explanation);
+  cleanup();
+  const check = { ...(answerMedium.check as NonNullable<typeof answerMedium.check>) };
+  show({ ...projectAsk, parts: [{ ...flatA, answer: { ...answerConflict, check } }] });
+  expect(rows()[0]?.querySelector('.en-why')?.textContent).toBe(check.reason);
 });
