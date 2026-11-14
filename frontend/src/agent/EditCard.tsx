@@ -126,18 +126,33 @@ export function placeOf(
   return room ? room.polygon : null;
 }
 
-function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: Point[] | null }) {
+function EditPlan({
+  p,
+  projectId,
+  hot,
+  reveal,
+}: {
+  p: Proposal;
+  projectId: string;
+  hot: Point[] | null;
+  reveal: number;
+}) {
   const fig = useRef<HTMLElement>(null);
-  // LC-15: a picked subject may be far below the plan (phone): bring the plan into view.
+  // LC-15: a picked subject may be far below the plan (phone): bring the plan into view; so does Show it.
   useEffect(() => {
     const reduce =
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches; // robust-8
-    if (hot)
+    if (hot || reveal > 0)
       fig.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-  }, [hot]);
+  }, [hot, reveal]);
   const [load, setLoad] = useState<PageLoad>({ state: 'loading' });
   const [after, setAfter] = useState(true);
+  const [revealed, setRevealed] = useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    setAfter(true);
+  }
   const services = useServiceTabs(p, after); // a tab per discipline (services-follow.md)
   const hatch = `ag-hatch-${useId().replace(/[^\w-]/g, '')}`;
   const box = useRef<HTMLDivElement>(null);
@@ -270,6 +285,8 @@ export function EditCard(props: {
   /** The turn's sources: a law finding's `ev` mark is one of them (LC-15). */
   evidence?: Evidence[];
   onDecided?: (p: Proposal) => void;
+  /** Bumped by the turn's Show it: the plan shows After and comes into view. */
+  reveal?: number;
 }) {
   const { projectId, chatId, onDecided } = props;
   const [p, setP] = useState(props.proposal);
@@ -296,7 +313,7 @@ export function EditCard(props: {
   };
   return (
     <div className="ag-edit">
-      <EditPlan p={p} projectId={projectId} hot={hot} />
+      <EditPlan p={p} projectId={projectId} hot={hot} reveal={props.reveal ?? 0} />
       <div className="ag-side">
         <h4 className="en-label">Changes</h4>
         <ul className="ag-changes">
