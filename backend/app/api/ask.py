@@ -160,7 +160,7 @@ def ask_route(
         question=body.question,
         drawing_id=drawing_id,
         file=drawing.file if body.project_id is None else named.path,
-        pages=page_views(drawing_id, drawing.pages, info.normalised),
+        pages=page_views(drawing_id, drawing, info.normalised),
         answer=value,
         unit=None if asked.refusal is not None else line.unit,
         confidence=signal_of(asked, answering),

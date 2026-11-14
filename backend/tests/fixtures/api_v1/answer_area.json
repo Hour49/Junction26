@@ -9,7 +9,15 @@
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "answer": 52.269,
@@ -76,7 +84,8 @@
         "value": 22.401,
         "label": "Küche",
         "ref": "r1",
-        "reason": null
+        "reason": null,
+        "room_type": "kitchen"
       },
       {
         "id": "m2",
@@ -110,11 +119,13 @@
         "value": 2.489,
         "label": "Reduit",
         "ref": "r2",
-        "reason": null
+        "reason": null,
+        "room_type": "storage"
       }
     ],
     "signed": null,
-    "unlocated": {}
+    "unlocated": {},
+    "noun": null
   },
   "marks": [
     {
@@ -149,7 +160,8 @@
       "value": 22.401,
       "label": "Küche",
       "ref": "r1",
-      "reason": null
+      "reason": null,
+      "room_type": "kitchen"
     },
     {
       "id": "m2",
@@ -183,7 +195,8 @@
       "value": 2.489,
       "label": "Reduit",
       "ref": "r2",
-      "reason": null
+      "reason": null,
+      "room_type": "storage"
     }
   ],
   "refusal": null,

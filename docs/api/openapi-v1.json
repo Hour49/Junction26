@@ -419,6 +419,27 @@
                 "type": "null"
               }
             ]
+          },
+          "signed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignOff"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
           }
         },
         "required": [
@@ -428,7 +449,9 @@
           "label",
           "conflict",
           "settled",
-          "needs_person"
+          "needs_person",
+          "signed",
+          "value"
         ],
         "title": "ConflictEntry",
         "type": "object"
@@ -1066,6 +1089,16 @@
             "title": "Project Id",
             "type": "string"
           },
+          "second_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecondCount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "stages": {
             "items": {
               "$ref": "#/components/schemas/StageTrace"
@@ -1282,6 +1315,31 @@
               }
             ],
             "title": "Ref"
+          },
+          "room_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bedroom",
+                  "kitchen",
+                  "bathroom",
+                  "wc",
+                  "sauna",
+                  "balcony",
+                  "living",
+                  "hall",
+                  "storage",
+                  "outdoor",
+                  "shaft",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Type"
           },
           "state": {
             "enum": [
@@ -1641,6 +1699,31 @@
             "title": "Page",
             "type": "integer"
           },
+          "scale": {
+            "$ref": "#/components/schemas/ScaleView"
+          },
+          "scale_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale Text"
+          },
+          "storey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storey"
+          },
           "unit": {
             "enum": [
               "px",
@@ -1664,7 +1747,10 @@
           "height",
           "unit",
           "url",
-          "normalised"
+          "normalised",
+          "scale",
+          "scale_text",
+          "storey"
         ],
         "title": "PageView",
         "type": "object"
@@ -1756,6 +1842,28 @@
         "title": "ProjectSummary",
         "type": "object"
       },
+      "ProjectTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileTrace"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "files"
+        ],
+        "title": "ProjectTrace",
+        "type": "object"
+      },
       "ProjectView": {
         "additionalProperties": false,
         "description": "Ingest's project status, plus the project's drawings, one per plan.",
@@ -1805,6 +1913,17 @@
             ],
             "title": "Error"
           },
+          "expected_drawings": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Drawings"
+          },
           "files": {
             "default": [],
             "items": {
@@ -1812,6 +1931,17 @@
             },
             "title": "Files",
             "type": "array"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
           },
           "id": {
             "title": "Id",
@@ -1834,6 +1964,24 @@
             "title": "Readers",
             "type": "object"
           },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/Skipped"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
           "state": {
             "enum": [
               "queued",
@@ -1850,7 +1998,9 @@
           "name",
           "state",
           "created_at",
-          "drawings"
+          "drawings",
+          "skipped",
+          "expected_drawings"
         ],
         "title": "ProjectView",
         "type": "object"
@@ -2211,6 +2361,17 @@
             "title": "Needs Person",
             "type": "boolean"
           },
+          "noun": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Noun"
+          },
           "original_value": {
             "anyOf": [
               {
@@ -2343,6 +2504,63 @@
           "text"
         ],
         "title": "RuleText",
+        "type": "object"
+      },
+      "ScaleView": {
+        "additionalProperties": false,
+        "description": "The sheet's scale as read. `ratio`: N of a printed \"1:N\", None when the text is no ratio.",
+        "properties": {
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "enum": [
+              "scaled",
+              "no_scale",
+              "not_to_scale",
+              "estimated"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "status",
+          "text",
+          "ratio",
+          "source"
+        ],
+        "title": "ScaleView",
         "type": "object"
       },
       "Schedule": {
@@ -2551,6 +2769,28 @@
         "title": "Scope",
         "type": "object"
       },
+      "SecondCount": {
+        "additionalProperties": false,
+        "description": "What the second method did on a drawing: quantities it measured and where it disagreed.",
+        "properties": {
+          "conflicts": {
+            "minimum": 0.0,
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "measured": {
+            "minimum": 0.0,
+            "title": "Measured",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "measured",
+          "conflicts"
+        ],
+        "title": "SecondCount",
+        "type": "object"
+      },
       "Settled": {
         "additionalProperties": false,
         "description": "The value a surveyor chose to keep for a quantity (the `settle` action).",
@@ -2662,6 +2902,26 @@
           "calibrated"
         ],
         "title": "Signal",
+        "type": "object"
+      },
+      "Skipped": {
+        "additionalProperties": false,
+        "description": "A file ingest set aside, with the reason.",
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "reason"
+        ],
+        "title": "Skipped",
         "type": "object"
       },
       "StageTrace": {
@@ -3751,6 +4011,46 @@
           }
         },
         "summary": "Project Review"
+      }
+    },
+    "/api/projects/{project_id}/trace": {
+      "get": {
+        "description": "Every file's trace in one request, in the order the upload lists the files.",
+        "operationId": "project_trace_api_projects__project_id__trace_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectTrace"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Trace"
       }
     },
     "/health": {

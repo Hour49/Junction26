@@ -28,5 +28,6 @@
       "failure": "unsafe path: it could be written outside the project folder",
       "cost_usd": 0.0
     }
-  ]
+  ],
+  "second_count": null
 }

@@ -88,7 +88,7 @@ def drawing(
         file=found.file if project is None else named.path,
         reader=reader_of(named, found.conflicts is not None, readers(settings)),
         credit=credit_of(named, ingest, credits),
-        pages=page_views(drawing_id, found.pages, info.normalised),
+        pages=page_views(drawing_id, found, info.normalised),
         suggestions=list(
             suggestions(known_quantities(found), answering.parser, SUGGESTIONS, found.tables or ())
         ),

@@ -305,6 +305,14 @@ def test_a_drawing_has_its_pages_reader_and_suggestions(
             "unit": "pt",
             "url": f"/api/drawings/{drawing_id}/pages/1.png",
             "normalised": None,
+            "scale": {
+                "status": "scaled",
+                "text": "1:100",
+                "ratio": 100.0,
+                "source": "sheet text 1:100; no scale bar found",
+            },
+            "scale_text": "1:100",
+            "storey": None,
         }
     ]
     assert body["reader"]["question_parser"] == "templates"

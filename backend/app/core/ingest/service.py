@@ -123,6 +123,12 @@ class IngestService:
             raise NotFoundError(f"project {project_id} has no file {file_id}")
         return traces[file_id]
 
+    def traces(self, project_id: str) -> tuple[FileTrace, ...]:
+        """The trace of every file of the project, in the order the upload lists them."""
+        run = self._running(project_id)
+        found = run.traces() if run is not None else self._store.load_project(project_id)[1]
+        return tuple(found[file_id] for file_id in sorted(found, key=lambda key: int(key[1:])))
+
     def drawing(self, drawing_id: str) -> Drawing:
         return self._store.drawing(drawing_id)
 
@@ -209,7 +215,7 @@ class IngestService:
         started = self._clock()
         state: ProjectState = "done"
         error: str | None = None
-        run.set_project(state="running")
+        run.set_project(state="running", started_at=self._now())
         try:
             frames: dict[str, Normalised] = {}
             drawings = self._unpack(run, name, data, frames)
@@ -226,7 +232,7 @@ class IngestService:
             for path in run.unfinished():
                 run.finish(path, "set_aside", f"not ingested: {error}")
         ms = (self._clock() - started) * 1000
-        run.set_project(state=state, error=error, ms=ms)
+        run.set_project(state=state, error=error, ms=ms, finished_at=self._now())
         self._save(run)
         with self._lock:
             del self._live[run.id]

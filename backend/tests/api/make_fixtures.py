@@ -91,6 +91,7 @@ def responses() -> dict[str, Any]:
     found["project_list"] = client.get("/api/projects").json()
     files = {file["path"]: file for file in project["files"]}
     flat_a, flat_b = files["plans/flat-a.pdf"], files["plans/flat-b.pdf"]
+    found["project_trace"] = client.get(f"{started['url']}/trace").json()
     found["trace"] = client.get(f"{started['url']}/files/{flat_a['id']}/trace").json()
     found["drawing"] = client.get(f"/api/drawings/{flat_a['drawing_id']}").json()
     ask = {"drawing_id": flat_a["drawing_id"], "question": "How many doors are there?"}
@@ -272,7 +273,7 @@ def _fixed(value: Any) -> Any:
     for key, item in value.items():
         if key in DURATIONS and isinstance(item, int | float):
             out[key] = DURATIONS[key]
-        elif key == "created_at":
+        elif key in ("created_at", "started_at", "finished_at") and isinstance(item, str):
             out[key] = CREATED_AT
         elif key == "at" and isinstance(item, str):  # when an edit or sign-off was made
             out[key] = EDITED_AT

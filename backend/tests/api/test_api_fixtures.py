@@ -18,7 +18,7 @@ from app.api.drawings import DrawingView
 from app.api.info import Info
 from app.api.projects import ProjectList, ProjectReview, Started
 from app.api.takeoff import SignOffRequest, Takeoff
-from app.api.views import ErrorBody, ProjectView
+from app.api.views import ErrorBody, ProjectTrace, ProjectView
 from app.core.ingest.model import FileTrace
 from app.core.review.model import Edit
 
@@ -30,6 +30,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "project": ProjectView,
     "project_list": ProjectList,
     "trace": FileTrace,
+    "project_trace": ProjectTrace,
     "project_review": ProjectReview,
     "drawing": DrawingView,
     "ask_request": AskRequest,
