@@ -82,6 +82,19 @@ def test_sv23_list_services_filters_and_stays_short_with_a_more_count() -> None:
     assert all(i["kind"] == "space_heater" for i in found["items"])
 
 
+def test_sv22_sv26_list_services_narrows_to_the_room_of_a_selection() -> None:
+    store = _store(sel_1=_region(7.5, 2.0))  # inside SR2
+    found = _run(store, "list_services", drawing_id="d1", selection_id="sel_1")
+    assert found["room"]["id"] == "SR2" and {i["id"] for i in found["items"]} == {"E3"}
+    outside = _store(sel_1=_region(-1.5, 2.0))  # off every room, still on the storey (page 1)
+    found = _run(outside, "list_services", drawing_id="d1", selection_id="sel_1")
+    assert "room" not in found and {i["id"] for i in found["items"]} == {"E1", "E2", "E3"}
+    assert "error" in _run(_store(), "list_services", drawing_id="d1", selection_id="sel_1")
+    other = _region(7.5, 2.0).model_copy(update={"drawing_id": "d2"})
+    assert "error" in _run(_store(sel_1=other), "list_services", drawing_id="d1",
+                           selection_id="sel_1")  # fmt: skip
+
+
 def test_sv23_list_services_bad_ids_say_so() -> None:
     assert "error" in _run(_store(), "list_services", drawing_id="nope")
     assert "error" in _run(_store(), "list_services", drawing_id="d1", room_id="SR9")

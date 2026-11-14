@@ -37,6 +37,9 @@ class _Ingest:
             id=PROJECT, name="p", state="done", created_at="2026-11-14T00:00:00Z", files=(heating,)
         )
 
+    def drawing(self, drawing_id: str) -> Any:
+        raise NotFoundError(f"drawing {drawing_id} not read")  # list_drawings: pages unknown
+
 
 def _call(name: str, n: int, **arguments: Any) -> dict[str, Any]:
     return {"id": f"c{n}", "type": "function",
@@ -167,3 +170,37 @@ def test_sv25_the_six_tools_are_offered(
     _turn(client, monkeypatch, Looking(_step(_call("final_answer", 1, kind="dont_know", text="?"))))
     assert {"list_services", "ask_services", "propose_move_terminal", "propose_add_terminal",
             "propose_remove_element", "propose_resize"} <= set(seen)  # fmt: skip
+
+
+def _rules(client: TestClient, message: str, chat_id: str | None = None) -> dict[str, Any]:
+    """A turn of the no-keys rules model (CHAT_MODEL=rules, the fixture's setting)."""
+    body = {"message": message, **({"chat_id": chat_id} if chat_id else {})}
+    response = client.post(f"/api/projects/{PROJECT}/chat", json=body)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_sv26_the_rules_model_moves_a_radiator_then_again_on_the_accepted_copy(
+    client: TestClient,
+) -> None:
+    first = _rules(client, "Move radiator E2 to another wall")
+    assert first["kind"] == "edit", first
+    change = first["edit"]["services_change"]
+    assert change["op"] == "move_terminal" and change["moved"][0]["id"] == "E2"
+    assert change["based_on"] == [] and "Radiator 22-600" in first["text"]
+    chat_id = first["chat_id"]
+    accepted = client.post(
+        f"/api/projects/{PROJECT}/chat/{chat_id}/proposals/p1", json={"action": "accept"}
+    )
+    assert accepted.status_code == 200 and accepted.json()["state"] == "accepted"
+    second = _rules(client, "Move radiator E2 to wall SW5", chat_id)
+    assert second["kind"] == "edit", second
+    change = second["edit"]["services_change"]
+    assert second["edit"]["proposal_id"] == "p2" and change["based_on"] == ["p1"]
+    assert change["moved"][0]["from"][1] < 0.5  # from the north wall p1 put it on
+
+
+def test_sv26_the_rules_model_answers_what_feeds_from_ask_services(client: TestClient) -> None:
+    turn = _rules(client, "What feeds radiator E2?")
+    assert turn["kind"] == "answer", turn
+    assert turn["text"].startswith("E2 is fed by E1")

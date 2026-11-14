@@ -235,6 +235,9 @@ class _ListArgs(_DrawingArgs):
     system: str | None = Field(default=None, max_length=120, description="a system's name")
     room_id: str | None = Field(default=None, pattern=r"^SR\d{1,5}$", description="a room (SR...)")
     kind: str | None = Field(default=None, max_length=60, description="e.g. space_heater")
+    selection_id: str | None = Field(
+        default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
+    )
 
 
 class _AskArgs(_DrawingArgs):
@@ -345,6 +348,13 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
     storey = _storey_of(model, args.storey) if args.storey else None
     room = _room(model, args.room_id) if args.room_id else None
+    if args.selection_id and room is None:  # SV-22: the selection's room, else its storey
+        selection = _selection(store, args.drawing_id, args.selection_id)
+        resolved = resolve_selection(model, selection)
+        if resolved is not None:
+            room = _room(model, resolved.room_id)
+        elif storey is None and 1 <= selection.page <= len(pages):
+            storey = _storeys(model)[selection.page - 1]
     systems = _systems(model)
     found: dict[str, Any] = {
         "drawing_id": args.drawing_id,
@@ -458,10 +468,7 @@ def _place(
     """The wall, position and room an edit goes to: a wall id with a position word, or the
     user's selection (its nearest wall and the point)."""
     if args.selection_id:
-        selection = store.selections.get(args.selection_id)
-        if selection is None:
-            raise ToolError(f"no selection {args.selection_id} in this turn")
-        found = resolve_selection(model, selection)
+        found = resolve_selection(model, _selection(store, args.drawing_id, args.selection_id))
         if found is None or found.wall_id is None:
             raise ToolError(f"{args.selection_id} is in no room of this services model")
         return found.wall_id, found.point, found.room_id
@@ -470,6 +477,15 @@ def _place(
             "name the wall (wall_id, from list_services with room_id) or a selection_id"
         )
     return args.wall_id, args.position, None
+
+
+def _selection(store: ServicesToolStore, drawing_id: str, selection_id: str) -> Selection:
+    selection = store.selections.get(selection_id)
+    if selection is None:
+        raise ToolError(f"no selection {selection_id} in this turn")
+    if selection.drawing_id != drawing_id:
+        raise ToolError(f"{selection_id} is on another drawing, not {drawing_id}")
+    return selection
 
 
 def _proposed(store: ServicesToolStore, drawing_id: str, change: ServicesChange) -> dict[str, Any]:

@@ -55,6 +55,18 @@ OTHER_AREAS = " I used the first area you drew, not the second: ask again for th
 TRY_THESE = re.compile(r"\s*Try one of these instead\.?")  # the card labels its own options
 ONE_ROOM = "area:room|name="  # a suggestion about one room, by its printed name
 TRIED = 3  # drawings tried for an editable plan before giving up
+# SV-26: services rules (decision 0017), used only when the services tools are offered
+MOVE = re.compile(r"\b(move|relocate|shift)\b")
+TERMINALS = {"radiator": "space_heater", "heater": "space_heater", "socket": "outlet",
+             "outlet": "outlet", "air terminal": "air_terminal", "diffuser": "air_terminal",
+             "boiler": "boiler"}  # fmt: skip
+TERMINAL = re.compile(r"\b(" + "|".join(TERMINALS) + r")s?\b")
+ASKS = (  # the network question a message asks, in ask_services' words
+    (re.compile(r"\bwhat (feeds|supplies)\b"), "feeds"),
+    (re.compile(r"\bwhat\b.*\bcuts? off\b"), "cut_off"),
+    (re.compile(r"\bwhat (does|do)\b.*\bserve\b"), "terminals_served"),
+)
+ELEMENT, WALL = re.compile(r"\be\d{1,6}\b"), re.compile(r"\bsw\d{1,5}\b")
 
 
 @dataclass
@@ -128,6 +140,12 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     words = turn.message.lower()
     if STRUCTURE.search(words):
         return _final("dont_know", LOAD)
+    if "list_services" in offered:  # before the plan rules: "move the radiator in this room"
+        if MOVE.search(words) and TERMINAL.search(words) and "propose_move_terminal" in offered:
+            return _move_terminal(turn, words)
+        op = next((op for pattern, op in ASKS if pattern.search(words)), None)
+        if op is not None and "ask_services" in offered:
+            return _ask_services(turn, words, op)
     # a drawn area, or a sideways drag described as "a line ..., not an area" (QA robust-10):
     # propose_room gives the true reason for that one
     regions = [line.split(":")[0] for line in turn.selections if REGION.search(line)]
@@ -156,6 +174,135 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         if (picked := _rooms(rooms)) is not None:
             return picked
     return _answer(found)
+
+
+def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
+    """This turn's first list_services that worked (narrowed by the terminal word and the
+    selection), or the next call to find the drawing with a services model: list_drawings, then
+    list_services per drawing, a drawing a selection names first, then IFC files (TRIED)."""
+    listed = [(a, f) for n, a, f in turn.done if n == "list_services" and "room_id" not in a]
+    ok = next((f for _, f in listed if isinstance(f, dict) and "error" not in f), None)
+    if ok is not None:
+        return ok
+    drawings = turn.result("list_drawings")
+    if drawings is None:
+        return "list_drawings", {}
+    if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
+        drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    found: list[Json] = [d for d in drawings or [] if isinstance(d, dict)]  # pyright: ignore[reportUnknownVariableType]
+
+    def selected(d: Json) -> str | None:
+        return next((line.split(":")[0] for line in turn.selections
+                     if f" on {d.get('name')} page " in line), None)  # fmt: skip
+
+    found.sort(key=lambda d: (selected(d) is None, d.get("kind") != "ifc"))
+    if len(listed) < min(TRIED, len(found)):
+        drawing = found[len(listed)]
+        args: Json = {"drawing_id": drawing["drawing_id"]}
+        if word := TERMINAL.search(words):
+            args["kind"] = TERMINALS[word[1]]
+        if sel := selected(drawing):
+            args["selection_id"] = sel
+        return "list_services", args
+    why = next((str(f.get("error")) for _, f in listed if isinstance(f, dict)), None)
+    return _final("dont_know", f"I can't find the building's services: {why or 'no drawings'}.")
+
+
+def _picked(words: str, items: list[Json]) -> tuple[str | None, list[Json]]:
+    """The element id the message names (kept even when the list was cut), else the listed
+    terminals that match."""
+    named = ELEMENT.search(words)
+    if named:
+        name = named[0].upper()
+        return name, [i for i in items if i.get("id") == name]
+    return None, items
+
+
+def _move_terminal(turn: _Turn, words: str) -> tuple[str, Json]:
+    found = _services(turn, words)
+    if isinstance(found, tuple):
+        return found
+    drawing, word = found["drawing_id"], TERMINAL.search(words)[1]  # pyright: ignore[reportOptionalSubscript]
+    named, items = _picked(words, [i for i in found.get("items") or [] if isinstance(i, dict)])
+    if named is None and len(items) != 1:
+        if not items:
+            return _final("dont_know", f"I found no {word} in the services model to move.")
+        options = [{"label": f"{i.get('label')} ({i['id']})"[:60],
+                    "message": f"Move {word} {i['id']}"} for i in items[:4]]  # fmt: skip
+        evs = [str(i["ev"]) for i in items[:4] if i.get("ev")]
+        return _final("needs_input", f"Several {word}s match. Which one?", evs, options=options)
+    element = items[0] if items else {"id": named}
+    move: Json = {"drawing_id": drawing, "element_id": element["id"]}
+    if wall := WALL.search(words):
+        walls = [wall[0].upper()]
+    else:
+        room = element.get("room")
+        if room is None:
+            return _final("dont_know", f"{element['id']} is in no room of the model: name a wall.")
+        walled = turn.result("list_services", room_id=room)
+        if walled is None:
+            return "list_services", {"drawing_id": drawing, "room_id": room}
+        sides = [w for w in walled.get("walls") or [] if element["id"] not in w.get("mounted", [])]
+        walls = [w["id"] for w in sorted(sides, key=lambda w: -(w.get("free_m") or 0))]
+    tried = [(a, f) for n, a, f in turn.done if n == "propose_move_terminal"]
+    made = next((f for _, f in tried if f.get("status") == "ok"), None)
+    if made is not None:
+        cited = [str(element["ev"])] if element.get("ev") else []
+        return _services_edit(made, tried[-1][0]["wall_id"], cited)
+    left = [w for w in walls if w not in {a.get("wall_id") for a, _ in tried}]
+    if left and len(tried) < TRIED:
+        return "propose_move_terminal", {**move, "wall_id": left[0]}
+    why = next((f.get("reason") or f.get("error") for _, f in reversed(tried)), None)
+    return _final("dont_know", f"I can't move it: {why or 'its room has no other wall'}")
+
+
+def _services_edit(found: Json, wall: str, evidence: list[str]) -> tuple[str, Json]:
+    """The proposal in words from its short view: what moves where, the facts before → after
+    and every check that fails."""
+    proposal = found["proposal"]
+    moved = [f"{m['label']} ({m['id']})" for m in proposal.get("moved") or []]
+    text = f"Proposed: move {' and '.join(moved) or 'it'} to wall {wall}."
+    for fact in (proposal.get("facts") or [])[:4]:
+        about = ", ".join(str(fact[k]) for k in ("system", "size") if fact.get(k))
+        text += f" {fact['what']}{f' ({about})' if about else ''}: {fact['before']} → "
+        text += f"{fact['after']} {fact['unit']}."
+    text += "".join(f" {c['text']}" for c in proposal.get("checks") or [] if not c.get("ok"))
+    text += "".join(f" {unknown}" for unknown in proposal.get("unknowns") or [])
+    return _final("edit", text, evidence, proposal_id=proposal["proposal_id"])
+
+
+def _ask_services(turn: _Turn, words: str, op: str) -> tuple[str, Json]:
+    found = _services(turn, words)
+    if isinstance(found, tuple):
+        return found
+    named, items = _picked(words, [i for i in found.get("items") or [] if isinstance(i, dict)])
+    if named is None and len(items) != 1:
+        if not items:
+            return _final("dont_know", "Which element? Name it by its id from the services list.")
+        ask = {"feeds": "What feeds {}?", "cut_off": "What is cut off if {} closes?",
+               "terminals_served": "What does {} serve?"}[op]  # fmt: skip
+        options = [{"label": f"{i.get('label')} ({i['id']})"[:60], "message": ask.format(i["id"])}
+                   for i in items[:4]]  # fmt: skip
+        evs = [str(i["ev"]) for i in items[:4] if i.get("ev")]
+        return _final("needs_input", "Which one do you mean?", evs, options=options)
+    element = named or items[0]["id"]
+    answer = turn.result("ask_services")
+    if answer is None:
+        return "ask_services", {"drawing_id": found["drawing_id"], "op": op, "element_id": element}
+    if "error" in answer or answer.get("status") != "ok":
+        why = answer.get("reason") or answer.get("error") or "the model does not say"
+        return _final("dont_know", f"I can't tell: {why}.")
+    elements: list[Json] = [e for e in answer.get("elements") or [] if isinstance(e, dict)]
+    cited = ", ".join(f"{e['id']} [{e['ev']}]" if e.get("ev") else e["id"] for e in elements[:10])
+    if op == "feeds":
+        text = f"{element} is fed by {cited}."
+    elif op == "terminals_served":
+        text = f"{element} serves {answer['value']} terminals: {cited}."
+    else:
+        text = (f"Closing {element} cuts off {answer['value']} elements, "
+                f"{answer.get('terminals', 0)} of them terminals: {cited}.")  # fmt: skip
+    evs = [str(e["ev"]) for e in elements[:10] if e.get("ev")]
+    return _final("answer", text, evs)
 
 
 # the parser's words for a measure it found without a room or element (app/core/review/ask.py)
