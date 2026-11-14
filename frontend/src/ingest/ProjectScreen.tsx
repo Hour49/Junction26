@@ -5,7 +5,7 @@ import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { parseRoute, useHash } from '../shell/route';
 import { PROJECT_STATE_LABEL, STATE_LABEL, keepPolling } from './ingest';
-import { DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
+import { ChatRow, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
 import './ingest.css';
@@ -154,12 +154,13 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
       ) : nothingRead ? (
         <NothingRead projectId={projectId} project={project} />
       ) : (
-        // the drawings and files are on Documents now (ingest.md v3); here the card, then once done the
-        // conflicts and the chat row
+        // the drawings and files are on Documents now (ingest.md v3); here the card (chat row under "Ready",
+        // IN-88), then once done the conflicts
         <>
           <ProgressCard
             project={project}
             now={at}
+            actions={<ChatRow projectId={projectId} project={project} counts={counts} />}
             footer={<DoneLine projectId={projectId} project={project} counts={counts} />}
           />
           <IngestFinished
@@ -167,6 +168,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
             project={project}
             query={query}
             onCounts={setCounts}
+            withChatRow={false}
           />
         </>
       )}
