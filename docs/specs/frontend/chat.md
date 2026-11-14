@@ -130,7 +130,12 @@ disabled; asking still works.
 - CH-19 The file ends `text_only` or `set_aside`: "plan.jpg was not read as a plan: <reason>." [component]
 - CH-20 The post fails (409 project not done, 413, 415 not png/jpeg, network): "Could not add plan.jpg: <detail>";
   nothing is polled and the paperclip works again. [component]
+- CH-21 A poll that fails after the post succeeded is retried on the next tick (the file is added either way); after
+  180 polls (3 minutes) still queued or running: "plan.jpg is still being read. Reload later to ask about it.", the
+  paperclip freed. [component]
 
 ## Out of scope
 
 - Keeping the chat across reloads; suggestions; showing the plan in the chat.
+- Starter chips for an added photo: they are not refetched, so an empty chat suggests only the first drawings'
+  questions (#203).

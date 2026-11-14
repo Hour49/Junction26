@@ -6,6 +6,7 @@ import {
   formatValue,
   getDrawing,
   getProject,
+  type FileStatus,
   type ProjectAnswer,
   type ProjectView,
   type Suggestion,
@@ -31,6 +32,7 @@ interface Photo {
 }
 
 const POLL_MS = 1000;
+const MAX_POLLS = 180; // 3 minutes, then the paperclip is freed (Tudor #203 c6877912716)
 
 type Load =
   | { state: 'loading' }
@@ -110,29 +112,42 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
       const { signal } = abort;
       const name = file.name;
       setPhoto({ line: `Reading ${name}…`, reading: true });
+      let added: FileStatus;
       try {
-        const added = await addProjectFile(projectId, file, { signal });
-        for (;;) {
-          await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-          if (signal.aborted) return;
-          const project = await getProject(projectId, { signal });
-          const read = project.files.find((f) => f.id === added.id);
-          if (read && (read.state === 'queued' || read.state === 'running')) continue;
-          setLoad({ state: 'ready', project });
-          const asked = read?.state === 'ready' || read?.state === 'flagged';
-          const why = (read?.reason ?? 'it is not in the project').replace(/\.$/, '');
-          setPhoto({
-            line: asked
-              ? `${name} is read: you can ask about it.`
-              : `${name} was not read as a plan: ${why}.`,
-            reading: false,
-          });
-          return;
-        }
+        added = await addProjectFile(projectId, file, { signal });
       } catch (error) {
         if (!signal.aborted) {
           setPhoto({ line: `Could not add ${name}: ${errorText(error).detail}`, reading: false });
         }
+        return;
+      }
+      for (let poll = 0; poll < MAX_POLLS; poll++) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+        if (signal.aborted) return;
+        let project: ProjectView;
+        try {
+          project = await getProject(projectId, { signal });
+        } catch {
+          continue; // the file is added either way: a failed check is retried on the next tick
+        }
+        const read = project.files.find((f) => f.id === added.id);
+        if (read && (read.state === 'queued' || read.state === 'running')) continue;
+        setLoad({ state: 'ready', project });
+        const asked = read?.state === 'ready' || read?.state === 'flagged';
+        const why = (read?.reason ?? 'it is not in the project').replace(/\.$/, '');
+        setPhoto({
+          line: asked
+            ? `${name} is read: you can ask about it.`
+            : `${name} was not read as a plan: ${why}.`,
+          reading: false,
+        });
+        return;
+      }
+      if (!signal.aborted) {
+        setPhoto({
+          line: `${name} is still being read. Reload later to ask about it.`,
+          reading: false,
+        });
       }
     },
     [projectId],

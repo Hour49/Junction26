@@ -415,3 +415,32 @@ it('CH-20 a refused post says so, polls nothing and frees the paperclip', async 
     api.calls.filter((c) => c.method === 'GET' && c.url === `/api/projects/${PID}`),
   ).toHaveLength(1);
 });
+
+it('CH-21 a failed poll is retried; a file never read frees the paperclip after 3 minutes', async () => {
+  openWithPhoto(added, [reply(500, error) as unknown as ProjectView, withPhoto('ready')]);
+  await pick();
+  expect(await screen.findByText(`${PHOTO} is read: you can ask about it.`, {}, slow)).toBeTruthy();
+  cleanup();
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    openWithPhoto(added, [withPhoto('running')]);
+    render(<ProjectChat projectId={PID} />);
+    await vi.waitFor(() => screen.getByTestId('photo-input'));
+    fireEvent.change(screen.getByTestId('photo-input'), {
+      target: { files: [new File(['jpeg'], PHOTO, { type: 'image/jpeg' })] },
+    });
+    // one tick at a time: each poll's fetch settles on a real macrotask, not a faked timer
+    for (let t = 0; t < 182; t++) {
+      await vi.advanceTimersByTimeAsync(1000);
+      await new Promise((r) => setImmediate(r));
+    }
+    expect(
+      screen.getByText(`${PHOTO} is still being read. Reload later to ask about it.`),
+    ).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Add a photo' }).disabled).toBe(
+      false,
+    );
+  } finally {
+    vi.useRealTimers();
+  }
+}, 10000);
