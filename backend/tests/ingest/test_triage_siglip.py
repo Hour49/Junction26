@@ -5,6 +5,8 @@ model and data) the same embedding as training."""
 import hashlib
 import io
 import json
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -13,7 +15,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from app.adapters.decisions_kind import KindReader, KindSignal, KindUnavailable
+from app.adapters.decisions.client import DecisionsError
+from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
 from app.adapters.triage.siglip import MODEL_DIR, Heads, SiglipClassifier, page_1024
 from app.core.errors import InvalidInputError, NotFoundError
@@ -61,26 +64,15 @@ class FakeSession:
         return [np.array([self.vector], np.float32)]
 
 
-@dataclass
-class FakeKind:
-    found: KindSignal | KindUnavailable
-    asked: int = 0
-
-    def read(self, data: bytes) -> KindSignal | KindUnavailable:
-        self.asked += 1
-        return self.found
-
-
 def png(mode: str = "RGB", colour: Any = (0, 0, 0)) -> bytes:
     out = io.BytesIO()
     Image.new(mode, (300, 200), colour).save(out, format="PNG")
     return out.getvalue()
 
 
-def classify(vector: list[float], kind: FakeKind | None = None) -> Classified:
-    found = SiglipClassifier(FakeSession(vector), heads(-5.0), EMBEDDING, kind).classify(
-        png(), PROBED
-    )
+def classify(vector: list[float], p_plan_sheet: float | None = None) -> Classified:
+    probed = PROBED.model_copy(update={"p_plan_sheet": p_plan_sheet})
+    found = SiglipClassifier(FakeSession(vector), heads(-5.0), EMBEDDING).classify(png(), probed)
     assert isinstance(found, Classified)
     return found
 
@@ -117,9 +109,7 @@ def test_every_register_field_is_filled() -> None:
 
 
 def test_gemini_says_plan_so_a_plan_though_the_local_head_says_no() -> None:
-    kind = FakeKind(KindSignal({"floor_plan": 0.15, "photo_plan": 0.1}, "cached"))
-    found = classify([0, 1, 0, 0], kind)
-    assert kind.asked == 1
+    found = classify([0, 1, 0, 0], p_plan_sheet=0.25)
     assert found.class_ == "floor_plan"
     assert found.register_ is not None
     assert found.register_.has_floor_plan
@@ -128,19 +118,17 @@ def test_gemini_says_plan_so_a_plan_though_the_local_head_says_no() -> None:
 
 
 def test_gemini_below_its_threshold_leaves_the_local_answer() -> None:
-    kind = FakeKind(KindSignal({"floor_plan": 0.1, "not_drawing": 0.9}, "cached"))
-    assert classify([0, 1, 0, 0], kind).class_ == "not_drawing"
+    assert classify([0, 1, 0, 0], p_plan_sheet=0.1).class_ == "not_drawing"
 
 
 def test_no_kind_signal_reply_means_the_local_head_alone() -> None:
-    kind = FakeKind(KindUnavailable("kind signal not available: timeout"))
-    found = classify([0, 1, 0, 0], kind)
+    found = classify([0, 1, 0, 0], p_plan_sheet=None)
     assert found.class_ == "not_drawing"
-    assert "kind signal not available: timeout" in found.method
+    assert "Gemini" not in found.method
 
 
 def test_bytes_no_decoder_opens_are_unavailable_not_a_crash() -> None:
-    classifier = SiglipClassifier(FakeSession([1, 0, 0, 0]), heads(-5.0), EMBEDDING, None)
+    classifier = SiglipClassifier(FakeSession([1, 0, 0, 0]), heads(-5.0), EMBEDDING)
     found = classifier.classify(b"not an image", PROBED)
     assert isinstance(found, Unavailable)
     assert "cannot be decoded" in found.note
@@ -148,9 +136,7 @@ def test_bytes_no_decoder_opens_are_unavailable_not_a_crash() -> None:
 
 def test_the_model_sees_512_px_in_minus_one_to_one_and_transparency_on_white() -> None:
     session = FakeSession([1, 0, 0, 0])
-    SiglipClassifier(session, heads(-5.0), EMBEDDING, None).classify(
-        png("RGBA", (0, 0, 0, 0)), PROBED
-    )
+    SiglipClassifier(session, heads(-5.0), EMBEDDING).classify(png("RGBA", (0, 0, 0, 0)), PROBED)
     (fed,) = session.fed
     assert fed.shape == (1, 3, 512, 512)
     assert fed.dtype == np.float32
@@ -225,6 +211,7 @@ class CountingDecider:
 
     probs: dict[str, float]
     calls: int = 0
+    fail: bool = False  # a timeout: every call raises
 
     @property
     def model(self) -> str:
@@ -232,6 +219,8 @@ class CountingDecider:
 
     def decide(self, body: dict[str, Any]) -> dict[str, Any]:
         self.calls += 1
+        if self.fail:
+            raise DecisionsError("timed out after 30 s")
         return {"answers": {"kind": {"probabilities": self.probs}}}
 
 
@@ -250,12 +239,17 @@ def scanned_pdf() -> bytes:
 
 
 def ingest(
-    tmp_path: Path, kind: ContentKind, data: bytes, form: FileKind, probs: dict[str, float]
+    tmp_path: Path,
+    kind: ContentKind,
+    data: bytes,
+    form: FileKind,
+    probs: dict[str, float],
+    fail: bool = False,
 ) -> tuple[Triaged, CountingDecider, FakeSession, Probed]:
-    decider = CountingDecider(probs)
+    decider = CountingDecider(probs, fail=fail)
     reader = KindReader(decider, tmp_path / "cache")
     session = FakeSession([0, 1, 0, 0])  # the local head alone: not a plan, not_architecture
-    classifier = SiglipClassifier(session, heads(-5.0), EMBEDDING, reader)
+    classifier = SiglipClassifier(session, heads(-5.0), EMBEDDING)
     probed = KindProbe(InnerProbe(kind), reader).probe(data)
     steps = TriageSteps(classifier=classifier, describer=None, judge=None, name="test")
     return triaged(steps, data, probed, form), decider, session, probed
@@ -299,8 +293,106 @@ def test_a_drawing_image_the_probe_asked_about_reuses_its_reply(
     tmp_path: Path, probs: dict[str, float], kind_after: ContentKind
 ) -> None:
     found, decider, _, probed = ingest(tmp_path, "png_plan", png(), "png", probs)
-    assert decider.calls == 1  # the probe's call; the classifier's read was a cache hit
+    assert decider.calls == 1  # the probe's call; the classifier reads its reply off Probed
     assert found.triage is not None
     assert found.triage.class_ == "floor_plan"  # the OR with Gemini's P(plan)
     assert "OR Gemini kind" in found.triage.method
     assert probed.kind == kind_after  # kept a drawing, or made a photo by the signal
+
+
+@pytest.mark.parametrize("kind", ["png_plan", "jpeg_plan"])
+def test_a_failed_kind_read_is_not_retried_by_the_classifier(
+    tmp_path: Path, kind: ContentKind
+) -> None:
+    found, decider, _, probed = ingest(tmp_path, kind, png(), "png", {}, fail=True)
+    assert decider.calls == 1  # the probe's attempt only, not a second paid call or timeout
+    assert "kind signal not available" in probed.did
+    assert probed.p_plan_sheet is None
+    assert found.triage is not None
+    assert found.triage.class_ == "not_drawing"  # the local head alone
+    assert "Gemini" not in found.triage.method
+
+
+def test_16_bit_greyscale_is_scaled_to_8_bits_not_clipped_to_white() -> None:
+    out = io.BytesIO()
+    grey = np.full((200, 300), 32896, np.uint16)  # 50% grey in 16 bits (128 * 257)
+    grey[90:110, :] = 0  # a black line
+    Image.fromarray(grey).save(out, format="PNG")  # a 16-bit greyscale PNG
+    page = np.asarray(page_1024(out.getvalue()), np.float32)
+    assert abs(float(np.median(page)) - 128) <= 2  # Pillow's convert alone makes this 255
+    assert float(page[100].mean()) < 20  # the line stays black
+
+
+@pytest.mark.skipif(not Path("/proc/self/clear_refs").exists(), reason="needs Linux /proc")
+def test_a_huge_png_is_shrunk_holding_about_one_decoded_image(tmp_path: Path) -> None:
+    """Peak memory of one call on a 48 Mpx RGBA PNG (192 MB decoded), in a fresh process whose
+    peak is reset first (ru_maxrss would carry pytest's own peak over the fork). Before the strips
+    it grew 550 MB: full-size RGBA, white, composite and RGB copies."""
+    path = tmp_path / "huge.png"
+    page = Image.new("RGBA", (8000, 6000), (255, 255, 255, 0))
+    page.paste((0, 0, 0, 255), (0, 2990, 8000, 3010))
+    page.save(path, format="PNG", compress_level=1)
+    del page
+    script = (
+        "import sys\n"
+        "from app.adapters.triage.siglip import page_1024\n"
+        "def mb(key):\n"
+        "    line = next(x for x in open('/proc/self/status') if x.startswith(key))\n"
+        "    return int(line.split()[1]) // 1024\n"
+        "data = open(sys.argv[1], 'rb').read()\n"
+        "open('/proc/self/clear_refs', 'w').write('5')  # the peak restarts at the current RSS\n"
+        "before = mb('VmRSS')\n"
+        "out = page_1024(data)\n"
+        "print(mb('VmHWM') - before, out.size[0], out.size[1])\n"
+    )
+    done = subprocess.run(
+        [sys.executable, "-c", script, str(path)],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=Path(__file__).resolve().parents[2],
+    )
+    grew_mb, width, height = (int(v) for v in done.stdout.split())
+    assert (width, height) == (1024, 768)
+    assert grew_mb < 288, f"{grew_mb} MB for a 192 MB decoded image"  # 1.5 decoded images
+
+
+def training_copy(data: bytes) -> Image.Image:
+    """prototypes/triage/shrink.py one(), the copy the heads were trained on, at full size."""
+    with Image.open(io.BytesIO(data)) as image:
+        image.draft("RGB", (2048, 2048))
+        if image.mode in ("RGBA", "LA", "P"):
+            image = image.convert("RGBA")
+            white = Image.new("RGBA", image.size, (255, 255, 255, 255))
+            image = Image.alpha_composite(white, image)
+        image = image.convert("RGB")
+        image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+    out = io.BytesIO()
+    image.save(out, format="JPEG", quality=90)
+    out.seek(0)
+    return Image.open(out).convert("RGB")
+
+
+@pytest.mark.parametrize(
+    ("mode", "size", "form"),
+    [
+        ("RGB", (5003, 3001), "PNG"),
+        ("L", (3001, 6007), "PNG"),
+        ("RGBA", (4101, 2203), "PNG"),
+        ("LA", (2500, 2049), "PNG"),
+        ("P", (3000, 2000), "PNG"),
+        ("RGB", (900, 700), "PNG"),
+        ("RGB", (6000, 4000), "JPEG"),
+    ],
+)
+def test_the_strips_give_training_s_pixels(mode: str, size: tuple[int, int], form: str) -> None:
+    rng = np.random.default_rng(7)
+    bands = {"RGB": 3, "L": 1, "RGBA": 4, "LA": 2, "P": 1}[mode]
+    noise = rng.integers(0, 256, (size[1], size[0], bands), np.uint8)
+    image = Image.fromarray(noise[..., 0] if bands == 1 else noise)
+    image = image.convert("P") if mode == "P" else image
+    assert image.mode == mode
+    out = io.BytesIO()
+    image.save(out, format=form)
+    data = out.getvalue()
+    assert np.array_equal(np.asarray(page_1024(data)), np.asarray(training_copy(data)))
