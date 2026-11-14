@@ -4,7 +4,7 @@
   'use strict';
   const V = window.VData, esc = window.VPlan.esc;
   const A = () => window.VApp;
-  const N = V.DRAWINGS.length;
+  const SUGGEST = ['How many doors are there?', 'What is the area of the kitchen?', 'How many windows are there?'];
 
   // A drawing's value as the person left it: a sign-off wins over the live reading.
   function rowOf(a) {
@@ -32,18 +32,20 @@
         <button class="chat-show press" data-act="show-on" data-d="${d.id}" data-q="${esc(t.question)}">Show it on ${esc(d.name)}</button></li>`;
     }).join('');
     return `<article class="turn">${q}<div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
-      ${head}<p class="small" style="margin:0">${esc(V.QUANTITIES[r.quantity].rule)}</p>
+      ${head}<p class="small" style="margin:0">${esc(V.ruleOf(r.rows[0]))}</p>
       <ul class="chat-rows" aria-label="Per drawing">${lines}</ul></div></article>`;
   }
 
   function screen() {
     const p = A().S.p;
-    const empty = p.chat.length ? '' : `<p class="chat-empty muted">Ask anything about the ${N} drawings in this project</p>`;
-    return `<main class="w820 chat"><h1 class="chat-title">${esc(V.ARCHIVE)}</h1>
-      <section aria-label="Chat" class="chat-thread">${empty}${p.chat.map(turnHtml).join('')}</section>
+    const start = !p.chat.length;
+    // an empty chat: the bar sits high with suggested questions under it; after the first question it goes to the bottom
+    const chips = start ? `<div class="chips-row chat-suggest" aria-label="Suggested questions">${SUGGEST.map((x) => `<button class="qchip press" data-act="chat-ask" data-q="${esc(x)}">${esc(x)}</button>`).join('')}</div>` : '';
+    return `<main class="w820 chat${start ? ' start' : ''}"><h1 class="chat-title">${esc(V.ARCHIVE)}</h1>
+      ${start ? '' : `<section aria-label="Chat" class="chat-thread">${p.chat.map(turnHtml).join('')}</section>`}
       <form class="askbar" data-chat><label class="sr" for="cq">Question</label>
         <input id="cq" name="q" autocomplete="off" placeholder="Ask about the project's drawings" maxlength="200">
-        <button class="round press" aria-label="Ask" type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></button></form></main>`;
+        <button class="round press" aria-label="Ask" type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></button></form>${chips}</main>`;
   }
 
   function ask(text) {

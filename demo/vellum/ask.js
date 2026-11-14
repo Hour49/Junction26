@@ -65,7 +65,7 @@
       <span class="num">${i + 1}</span><span><span class="mono" style="font-weight:600">${esc(f.path)}</span><span class="muted">${esc(ROLE[f.role])}</span></span></button></li>`).join('');
     const status = !a.check
       ? `<span class="tip" tabindex="0"><span class="pill ok">Sure</span><span role="tooltip" class="tip-body">${SURE_TIP}</span></span>` : '';
-    return `<article class="turn">${q}<p class="lead">${lead} <span class="muted">${esc(V.QUANTITIES[a.quantity].rule)}</span></p>
+    return `<article class="turn">${q}<p class="lead">${lead} <span class="muted">${esc(V.ruleOf(a))}</span></p>
       <div class="card"><div class="answer">
         <figure aria-label="Drawing"><span style="display:flex;flex-direction:column"><span class="mono" style="font-size:14px;font-weight:600">${esc(d.name)}</span><span class="small">${esc(d.meta)}</span></span>
           <div class="plan-box">${P.answerPlan(d, a, { flagged, rejected: edits ? edits.rejected : null, added: edits ? edits.added : null, fixing, turn: t.id })}${sheet}</div>

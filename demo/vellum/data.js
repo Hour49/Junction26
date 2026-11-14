@@ -241,6 +241,8 @@
     return null;
   }
 
+  const ROOM_LABELS = [...new Set(DRAWINGS.flatMap((d) => rooms(d).filter((r) => !r.common).map((r) => r.label)))];
+
   function answer(drawingId, question, picks) {
     const d = drawing(drawingId);
     const quantity = parseQuestion(question);
@@ -248,14 +250,26 @@
       return { drawing: d.id, question, quantity: null,
         refusal: 'I can count doors, windows and rooms and measure the net floor area on a drawing. This question asks for something the drawing model does not hold, so there is no number to point at.' };
     }
-    const marks = numbered(marksFor(d, quantity, picks));
+    let all = marksFor(d, quantity, picks);
+    // an area question that names rooms ("the kitchen") sums those rooms only; a drawing without them does not answer
+    const named = quantity === 'area' ? ROOM_LABELS.filter((l) => new RegExp(`\\b${l}\\b`, 'i').test(question)) : [];
+    if (named.length) {
+      all = all.filter((m) => named.includes(m.room.label));
+      if (!all.length) return { drawing: d.id, question, quantity: null, refusal: `This drawing has no ${named.join(' or ').toLowerCase()}.` };
+    }
+    const marks = numbered(all);
     const dis = disputed(d, marks);
     const certified = d.lane === 'CAD' && dis.length === 0;
     const reason = dis.some((x) => x.why.startsWith('Not settled'))
       ? 'A conflict on this drawing is not settled yet.'
       : 'Read from a scan by vision, and the readers do not all agree.';
-    return { drawing: d.id, question, quantity, refusal: null, marks,
+    return { drawing: d.id, question, quantity, refusal: null, marks, rooms: named,
       value: valueOf(marks, quantity, null), check: certified ? null : { reason, disputed: dis } };
+  }
+
+  // The counting rule shown under an answer; an area of named rooms says which rooms.
+  function ruleOf(a) {
+    return a.rooms && a.rooms.length ? `Net floor area of the ${a.rooms.join(' and ').toLowerCase()}, inside the walls.` : QUANTITIES[a.quantity].rule;
   }
 
   function noun(quantity, value) {
@@ -319,7 +333,7 @@
   }
 
   const API = { askProject, LAYOUTS, ARCHIVE, FILES, DRAWINGS, CONFLICTS, QUANTITIES, STEPS, drawing, layoutOf, rooms, openings,
-    marksFor, valueOf, disputed, parseQuestion, answer, noun, formatValue, variantLabels, crossChecks, progress, readingOf };
+    marksFor, valueOf, disputed, parseQuestion, answer, ruleOf, noun, formatValue, variantLabels, crossChecks, progress, readingOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.VData = API;
 })(typeof window !== 'undefined' ? window : globalThis);
