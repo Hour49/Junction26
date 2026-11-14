@@ -9,8 +9,11 @@ below the prior (.agents/exp/ocr.md, arm G). This module reproduces arm G4:
   three times as much for the same counts) and returns the reply text. The key goes in a request
   header, never in a URL, a note or an error. Any failure (HTTP error, timeout, a blocked or empty
   answer) is a `GeminiError`.
-- `GeminiRoomReader` caches each reply on disk under the image's sha256, the prompt version, the
-  model and the thinking level, so a sheet read once is never paid for again.
+- `GeminiRoomReader` caches each reply on disk under the sha256 of the decoded page (RGB pixels
+  and size, not the file's bytes: the same plan saved again or with bytes appended is the same
+  page), the prompt version, the model and the thinking level, so a page read once is never paid
+  for again and gives the same rooms every time. Gemini itself does not: fresh reads of one page
+  differ (seed and temperature 0 were tried, QA R1-1-5).
 - `GeminiRoomExtractor` is the `Extractor`. When Gemini fails, the sheet's rooms are not read
   (`read` is empty and a note says why): the answer stays unknown, and nothing falls back to
   another reader behind the user's back.
@@ -226,14 +229,20 @@ class GeminiRooms:
     note: str
 
 
+def pixel_digest(image: Image.Image) -> str:
+    """sha256 of the page as decoded (RGB, as `encode` sends it) and its size."""
+    rgb = image.convert("RGB")
+    return hashlib.sha256(f"{rgb.width}x{rgb.height}:".encode() + rgb.tobytes()).hexdigest()
+
+
 class GeminiRoomReader:
     def __init__(self, model: RoomModel, cache_dir: Path | None) -> None:
         self._model = model
         self._cache = cache_dir
 
-    def read(self, image_bytes: bytes, image: Image.Image) -> GeminiRooms:
+    def read(self, image: Image.Image) -> GeminiRooms:
         """Raises `GeminiError` when Gemini gives no usable answer (nothing is cached then)."""
-        digest = hashlib.sha256(image_bytes).hexdigest()
+        digest = pixel_digest(image)
         name = re.sub(r"[^A-Za-z0-9.-]", "_", f"{digest}-{PROMPT_VERSION}-{self._model.name}")
         path = None if self._cache is None else self._cache / f"{name}.json"
         if path is not None and path.is_file():
@@ -263,7 +272,7 @@ class GeminiRoomExtractor:
         data = self._files.read(source.path)
         with Image.open(io.BytesIO(data)) as image:
             try:
-                found = self._gemini.read(data, image)
+                found = self._gemini.read(image)
             except GeminiError as error:
                 return Extracted(
                     method="printed_label",

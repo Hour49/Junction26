@@ -39,3 +39,19 @@ def test_stop_needs_an_environment_it_made() -> None:
     assert found.returncode == 1
     assert "qa-env: no environment" in found.stderr
     assert run("stop").returncode == 1  # no commit: usage
+
+
+def test_the_demo_config_reads_the_sheet_kind_signal() -> None:
+    """R1-1-2: without DECISIONS_KIND only camera EXIF makes an image a photo, so 27 of 30 real
+    phone photos (EXIF stripped) went unrectified. The demo config turns the signal on."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    config = found.stdout.split()
+    assert "DECISIONS_KIND=true" in config
+    assert "RECTIFIER=r3" in config and "DECISIONS_CONFIDENCE=true" in config
+    assert not any(line.startswith("GEMINI_API_KEY") for line in config)  # never the key
+
+
+def test_the_backend_starts_with_the_printed_config() -> None:
+    script = SCRIPT.read_text()
+    assert 'env "${DEMO_ENV[@]}" uv run --locked uvicorn' in script

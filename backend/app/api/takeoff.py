@@ -12,7 +12,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import Response
 from pydantic import Field
 
-from app.api.deps import DrawingId, Ingest, IngestDep, ReviewsDep, now
+from app.api.deps import DrawingId, Ingest, IngestDep, ReviewsDep, as_uploaded, now
 from app.api.views import View
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import RULES
@@ -23,6 +23,9 @@ from app.core.review.review import apply, quantity_of, reset, review_queue, row,
 router = APIRouter(prefix="/api/drawings")
 
 ZEROS = Query(description="also list the rows whose value is 0 and nothing happened to")
+PROJECT = Query(
+    description="the project it is shown in: names the file as that project uploaded it"
+)
 CSV_COLUMNS = (
     "drawing", "key", "label", "value", "unit", "status", "original_value", "first_method",
     "first_value", "second_method", "second_value", "settled_value", "rule", "estimate",
@@ -44,16 +47,26 @@ class SignOffRequest(View):
     undo: bool = False
 
 
-def takeoff_rows(drawing_id: str, ingest: Ingest, reviews: ReviewStore, zeros: bool) -> Takeoff:
+def takeoff_rows(
+    drawing_id: str,
+    ingest: Ingest,
+    reviews: ReviewStore,
+    zeros: bool,
+    project: str | None = None,
+) -> Takeoff:
     """The drawing's rows in takeoff order, edits applied. Without `zeros`, a row is left out
-    when its value is 0 and it has no conflict, edit or sign-off."""
+    when its value is 0 and it has no conflict, edit or sign-off. With `project`, the file is
+    named as that project uploaded it (a drawing is shared by content)."""
     drawing = ingest.drawing(drawing_id)
+    file = drawing.file
+    if project is not None:
+        file = as_uploaded(ingest, ingest.drawing_info(drawing_id), project).path
     state = reviews.get(drawing_id)
     rows = [row(found, drawing, state, RULES) for found in known_quantities(drawing).values()]
     if not zeros:
         rows = [found for found in rows if found.value != 0 or found.status != "single"]
     return Takeoff(
-        drawing_id=drawing_id, file=drawing.file, quantities=rows, review_queue=review_queue(rows)
+        drawing_id=drawing_id, file=file, quantities=rows, review_queue=review_queue(rows)
     )
 
 
@@ -63,8 +76,9 @@ def takeoff(
     ingest: IngestDep,
     reviews: ReviewsDep,
     zeros: Annotated[bool, ZEROS] = False,
+    project: Annotated[str | None, PROJECT] = None,
 ) -> Takeoff:
-    return takeoff_rows(drawing_id, ingest, reviews, zeros)
+    return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 
 @router.post("/{drawing_id}/review")
@@ -74,6 +88,7 @@ def review(
     ingest: IngestDep,
     reviews: ReviewsDep,
     zeros: Annotated[bool, ZEROS] = False,
+    project: Annotated[str | None, PROJECT] = None,
 ) -> Takeoff:
     if edit.action == "reset" and edit.quantity is None:
         reviews.update(drawing_id, lambda state: reset(state, None))
@@ -82,7 +97,7 @@ def review(
         found = quantity_of(known_quantities(drawing), edit.quantity)
         at = now()
         reviews.update(drawing_id, lambda state: apply(state, edit, found, drawing, at))
-    return takeoff_rows(drawing_id, ingest, reviews, zeros)
+    return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 
 @router.post("/{drawing_id}/signoff")
@@ -92,6 +107,7 @@ def signoff(
     ingest: IngestDep,
     reviews: ReviewsDep,
     zeros: Annotated[bool, ZEROS] = False,
+    project: Annotated[str | None, PROJECT] = None,
 ) -> Takeoff:
     drawing = ingest.drawing(drawing_id)
     found = quantity_of(known_quantities(drawing), body.quantity)
@@ -100,7 +116,7 @@ def signoff(
     else:
         at = now()
         reviews.update(drawing_id, lambda state: sign(state, found, drawing, body.by, at))
-    return takeoff_rows(drawing_id, ingest, reviews, zeros)
+    return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 
 @router.get(
@@ -113,8 +129,9 @@ def takeoff_csv(
     ingest: IngestDep,
     reviews: ReviewsDep,
     zeros: Annotated[bool, ZEROS] = False,
+    project: Annotated[str | None, PROJECT] = None,
 ) -> Response:
-    found = takeoff_rows(drawing_id, ingest, reviews, zeros)
+    found = takeoff_rows(drawing_id, ingest, reviews, zeros, project)
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\n")
     writer.writerow(CSV_COLUMNS)
