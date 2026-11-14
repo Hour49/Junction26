@@ -10,7 +10,7 @@ from typing import Any
 
 from app.core.agent.loop import NUDGE, UNBACKED
 from app.core.agent.ports import Reply
-from app.core.agent.review import DOUBT, REVIEWED
+from app.core.agent.review import DOUBT, REVIEWED, pushed
 from app.core.agent.rooms import name_words
 
 Json = dict[str, Any]
@@ -220,6 +220,15 @@ def _sure(turn: _Turn) -> tuple[str, Json]:
     sure = all(d.get("level") == "high" and not d.get("disputed_count") for d in answered)
     question = found.get("question")
     about = f'About "{question}": ' if question else ""
+    offered = pushed(turn.message)
+    ranged = [d["range"] for d in answered if d.get("range")]
+    if offered is not None and ranged:  # never "Yes" to a number the drawings do not show
+        low, high = ranged[0]
+        where = "within" if low <= offered <= high else "outside"
+        said = f"{offered:g} is {where} what the drawings show ({low} to {high})."
+        if where == "outside":
+            said += " A person counting on the plan would settle it."
+        return _final("answer", f"{about}" + " ".join(lines) + f" {said}", cited)
     lead = "Yes, as far as the checks go." if sure else "Not for certain."
     return _final("answer", f"{about}{lead} " + " ".join(lines), cited)
 
