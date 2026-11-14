@@ -176,10 +176,12 @@ def test_the_thinking_level_is_sent_as_reasoning_effort(thinking: str, sent: str
 
 
 def test_the_thinking_setting_reaches_the_model() -> None:
+    from pydantic import SecretStr
+
     from app.composition import chat_model
     from app.settings import Settings
 
-    settings = Settings(chat_model="gemini", gemini_api_key=KEY, agent_thinking="none")  # pyright: ignore[reportCallIssue]
+    settings = Settings(chat_model="gemini", gemini_api_key=SecretStr(KEY), agent_thinking="none")
     made, why = chat_model(settings)
     assert why is None and isinstance(made, OpenAiChatModel) and made.thinking == "none"
     assert Settings().agent_thinking == "low"  # unchanged until chat-eval says otherwise
