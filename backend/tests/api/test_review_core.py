@@ -467,6 +467,16 @@ def test_a_raster_page_with_no_rooms_read_refuses_room_questions_flagged_or_not(
         found = asked_flagged(text, drawing, (), raster=True)
         assert found.refusal is None and found.answer.answer == value, text
         assert found.row is not None and found.row.status == "single"
+    # F4-4b (qa-3): every room question is refused the same way, its key in the takeoff or not
+    estimated = drawing.model_copy(update={"scale": Scale(status="estimated")})
+    for text in (
+        "What is the net floor area of all indoor rooms in m²?",
+        "What is the area of the kitchen?",
+        "How big is room 1.01?",
+    ):
+        for flags in ((), (PHOTO_FLAG,)):
+            found = asked_flagged(text, estimated, flags, raster=True)
+            assert found.refusal is not None and found.refusal.code == "no-reader", (text, flags)
     vector = asked_flagged("How many rooms?", drawing, (), raster=False)
     assert vector.refusal is None and vector.answer.answer == 0
 

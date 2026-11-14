@@ -163,7 +163,7 @@ def ask(
     refusal = None
     if answer.method not in (TAKEOFF, SCHEDULE):
         code, words = _refusal(answer.method, parsed, query, drawing)
-        if query is not None and query in unread:
+        if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
         if code == "not-in-drawing" and isinstance(parsed, Query):
@@ -183,9 +183,10 @@ def _flagged(
     quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
 ) -> tuple[dict[str, Quantity], set[str]]:
     """On a page ingest flagged (a phone photo, a scan), a group its reader found nothing of
-    (no element at all, no room at all) is unknown, not 0: those keys are left out and returned
-    as `unread`. Every other quantity carries the flag as its estimate, so the answer says what
-    it rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
+    (no element at all, no room at all) is unknown, not 0: its keys are left out and the group
+    is returned as `unread`, so any question on it is refused, its key in the takeoff or not
+    (F4-4b). Every other quantity carries the flag as its estimate, so the answer says what it
+    rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
     page can have 0 saunas, but not 0 rooms (F4-4)."""
     empty: set[str] = set()
     if flags and not drawing.elements:
@@ -194,20 +195,23 @@ def _flagged(
         empty.add("room")
     if not flags and not empty:
         return dict(quantities), set()
-    unread: set[str] = set()
     kept: dict[str, Quantity] = {}
     note = f"read from a page flagged at upload: {'; '.join(flags)}"
     for key, found in quantities.items():
-        parts = {part.split(":", 1)[0] for part in parse_key(key)[1].split("+")}
-        if parts <= empty:
-            unread.add(key)
+        if _groups(key) <= empty:
             continue
         if not flags:
             kept[key] = found
             continue
         said = note if found.estimate is None else f"{found.estimate}; {note}"
         kept[key] = found.model_copy(update={"estimate": said})
-    return kept, unread
+    return kept, empty
+
+
+def _groups(key: str) -> set[str]:
+    """The groups a quantity key rests on: "area:room|indoor" -> {"room"}, "door+window" ->
+    {"door", "window"}."""
+    return {part.split(":", 1)[0] for part in parse_key(key)[1].split("+")}
 
 
 def _unread_text(query: str, flags: Sequence[str]) -> str:
