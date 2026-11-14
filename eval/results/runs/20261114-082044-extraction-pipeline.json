@@ -1,0 +1,249 @@
+{
+  "recorded_at": "2026-11-14T08:20:44.573519+02:00",
+  "commit": "5fa8464",
+  "dirty": false,
+  "committed_at": "2026-11-14T08:15:56+02:00",
+  "eval_commit": "5fa8464",
+  "eval_dirty": false,
+  "settings": {
+    "log_level": "INFO",
+    "extractor_bim": "ifc",
+    "extractor_cad": "hello",
+    "extractor_vector": "pdf",
+    "extractor_raster": "composite",
+    "tables": "pdf",
+    "raster_components": "sha256:4448f99e9eaa",
+    "raster_photo_components": "sha256:e3b0c44298fc",
+    "raster_scale": "priors",
+    "gemini_api_key": "sha256:6e9ba2d4743b",
+    "gemini_model": "gemini-3.5-flash",
+    "gemini_timeout_s": "60.0",
+    "gemini_cache_dir": "sha256:1aadd8ef582d",
+    "decisions_confidence": "True",
+    "decisions_timeout_s": "30.0",
+    "decisions_cache_dir": "sha256:97d173a8f3a7",
+    "decisions_kind": "True",
+    "eu_vlm_base_url": "sha256:8d629f3b12ac",
+    "eu_vlm_api_key": "sha256:e3b0c44298fc",
+    "eu_vlm_model": "sha256:466b8aaefcdc",
+    "eu_vlm_timeout_s": "300.0",
+    "rooms_provider": "gemini",
+    "decisions_provider": "gemini",
+    "kind_provider": "gemini",
+    "verda_reader_url": "sha256:e3b0c44298fc",
+    "verda_inference_api_key": "sha256:e3b0c44298fc",
+    "verda_reader_max_in_flight": "4",
+    "region_model_dir": "sha256:4b197e641e7f",
+    "second_counter": "ifc",
+    "question_parser": "templates",
+    "answer_prior": "dev",
+    "answer_policy": "sha256:e3b0c44298fc",
+    "projects_dir": "sha256:c7690527b5a5",
+    "sample_archive": "sha256:06aa07bd7490",
+    "credit_dataset": "sha256:8943873073fb",
+    "credit_photos": "sha256:707a4bc6bf72",
+    "rectifier": "r3"
+  },
+  "name": "pipeline",
+  "note": "given: RASTER_COMPONENTS=elements=decisions-s1536:detector:C-yolo26l,plans=decisions-s1536:detector:C-yolo26l,rooms=regionrooms EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CONFIDENCE=true DECISIONS_KIND=true RASTER_SCALE=priors. tools/qa-env.sh config at 5fa8464 (config C, #102) as it is, rooms=regionrooms read at runtime: one Gemini read per page (gemini-3.5-flash, thinking low), all 79 CubiCasa golden pages from the backend's pixel-keyed runtime cache, filled by one real-key run on 11b40a5 (70 reads, 0 failures, about 0.44 USD); this run had no key, every reply cached, no spend. A re-read can differ (R1-1-5). Against 2e1c0b0 (rooms from the precomputed exp:ocr/G4-regpred-golden): headline 2701 to 2709. Runtime rooms alone (11b40a5, config A, not recorded): 2697, -4, room questions only (balcony +4, bedroom +2, bathroom -8, wc -2; 30 values changed); estimate extras 5/13 to 4/13 right. Config C detector alone (11b40a5 to 5fa8464, same rooms): +12 (door +2, sink +6, toilet +6, window -2; shower+bathtub same total, 24 values changed); estimate extras labelled 7/13 to 6/13. No answer outside CubiCasa changed",
+  "part": "extraction",
+  "against": "golden",
+  "golden_version": "v2",
+  "milestone": false,
+  "gold_sha256": "0720a04d5fd9f41ff567a6bc75d673661059450a34f0c296e56073db144a8bf1",
+  "score_sha256": "a3033da71b10ea203db00b2cf3701e3a262b0ade81f7f7595a7167a232e15747",
+  "files": 155,
+  "predicted": 155,
+  "multiplicity": false,
+  "elements_f1": 0.9598559615897573,
+  "elements_f1_by_source": {
+    "cubicasa5k": 0.8508176100628931,
+    "ifc_models": 1.0,
+    "opening_design": 0.0,
+    "swiss_dwellings": 1.0
+  },
+  "room_f1": 0.9372756793710477,
+  "room_type_accuracy": 0.9405543398978847,
+  "room_area_accuracy": 0.9640976543800862,
+  "room_area_estimates": {
+    "cubicasa5k": {
+      "rooms": 653,
+      "missing": 9,
+      "median_error": 0.18655518173203067,
+      "within_10": 0.2996894409937888,
+      "within_20": 0.5263975155279503
+    }
+  },
+  "plans_exact": {
+    "n": 143,
+    "correct": 140,
+    "rate": 0.9790209790209791
+  },
+  "counts_exact": {
+    "n": 2649,
+    "correct": 2252,
+    "rate": 0.8501321253303133
+  },
+  "counts_exact_by_source": {
+    "cubicasa5k": {
+      "n": 1355,
+      "correct": 962,
+      "rate": 0.7099630996309964
+    },
+    "ifc_models": {
+      "n": 270,
+      "correct": 270,
+      "rate": 1.0
+    },
+    "opening_design": {
+      "n": 4,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "swiss_dwellings": {
+      "n": 1020,
+      "correct": 1020,
+      "rate": 1.0
+    }
+  },
+  "scale_status": {
+    "n": 153,
+    "correct": 110,
+    "rate": 0.7189542483660131
+  },
+  "scale_status_by_source": {
+    "cubicasa5k": {
+      "n": 77,
+      "correct": 35,
+      "rate": 0.45454545454545453
+    },
+    "ifc_models": {
+      "n": 15,
+      "correct": 15,
+      "rate": 1.0
+    },
+    "opening_design": {
+      "n": 1,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "swiss_dwellings": {
+      "n": 60,
+      "correct": 60,
+      "rate": 1.0
+    }
+  },
+  "scale_m_per_unit": {
+    "n": 105,
+    "correct": 75,
+    "rate": 0.7142857142857143
+  },
+  "scale_m_per_unit_by_case": {
+    "nothing": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "not_to_scale": {
+      "n": 0,
+      "correct": 0,
+      "rate": null
+    },
+    "dimension_lines": {
+      "n": 14,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "printed_areas": {
+      "n": 15,
+      "correct": 0,
+      "rate": 0.0
+    },
+    "scale_text_or_bar": {
+      "n": 76,
+      "correct": 75,
+      "rate": 0.9868421052631579
+    }
+  },
+  "scale_estimate_median_error": 0.0739215139829745,
+  "scale_estimate_within_20": 0.8297872340425532,
+  "tables": {
+    "files": 2,
+    "tables_found": {
+      "n": 7,
+      "correct": 7,
+      "rate": 1.0
+    },
+    "tables_extra": 0,
+    "row_recall": {
+      "n": 170,
+      "correct": 170,
+      "rate": 1.0
+    },
+    "row_precision": {
+      "n": 170,
+      "correct": 170,
+      "rate": 1.0
+    },
+    "cell_accuracy": {
+      "n": 1686,
+      "correct": 1685,
+      "rate": 0.9994068801897983
+    }
+  },
+  "conflicts": {
+    "files": 62,
+    "overall": {
+      "found": {
+        "n": 14,
+        "correct": 14,
+        "rate": 1.0
+      },
+      "agree": 102,
+      "false_alarms": 0,
+      "unlisted": 123
+    },
+    "by_quantity": {
+      "element_count": {
+        "found": {
+          "n": 10,
+          "correct": 10,
+          "rate": 1.0
+        },
+        "agree": 48,
+        "false_alarms": 0,
+        "unlisted": 121
+      },
+      "room_area": {
+        "found": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "agree": 30,
+        "false_alarms": 0,
+        "unlisted": 0
+      },
+      "room_count": {
+        "found": {
+          "n": 4,
+          "correct": 4,
+          "rate": 1.0
+        },
+        "agree": 20,
+        "false_alarms": 0,
+        "unlisted": 2
+      },
+      "scale": {
+        "found": {
+          "n": 0,
+          "correct": 0,
+          "rate": null
+        },
+        "agree": 4,
+        "false_alarms": 0,
+        "unlisted": 0
+      }
+    }
+  }
+}
