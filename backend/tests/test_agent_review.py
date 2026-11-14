@@ -13,7 +13,7 @@ from test_agent_view import DOORS, NAMES, again
 from app.adapters.chat_rules import RulesChatModel
 from app.core.agent.loop import run_turn
 from app.core.agent.model import Caps, Chat
-from app.core.agent.review import DOUBT, REVIEWED
+from app.core.agent.review import DOUBT, REVIEWED, review_of
 from app.core.spend import SpendGuard
 
 Json = dict[str, Any]
@@ -178,6 +178,22 @@ def test_review_339_n1_every_drawing_is_named_with_its_level() -> None:
     assert "other.pdf: 3. Low confidence. No other" in got.text
 
 
+def test_tudor_nit_the_review_says_which_drawing_the_disagreement_is_inside() -> None:
+    """Tudor's smoke: on two flats the reply said the plans disagree; the disputed marks were
+    inside one of them."""
+    two: Json = levelled("high")
+    other = json.loads(json.dumps(levelled("high", disputed=False)["parts"][0]))
+    other["drawing_id"], other["name"] = "fedcba9876543210", "other.pdf"
+    two["parts"].append(other)
+    found = review_of(two, {})
+    disputed, calm = found["drawings"]
+    assert disputed["where"] == (
+        "inside plan.pdf: its own readers disagree on 1 of its marks; other drawings are "
+        "separate plans, not part of this disagreement"
+    )
+    assert "where" not in calm
+
+
 REFUSED: Json = {"question": "how big is the kitchen", "parts": [{
     "drawing_id": DRAWING, "name": "plan.pdf",
     "answer": {"answer": None, "refusal": {"text": "The drawing has no scale."}}}]}  # fmt: skip
@@ -306,3 +322,20 @@ def test_review_339b_s1_a_fresh_ask_does_not_get_the_reviewed_answers_places() -
     model = Model(step(call("ask_drawings", question="windows")), final(text="There is one."))
     got = again(chat, model, tools, "Is that right?")
     assert not {e.id for e in got.evidence} & {"ev_1", "ev_2", "ev_3"}
+
+
+@pytest.mark.parametrize("message", ["Are you sure?", "Why is that low?"])
+def test_review_339b_n1_a_second_review_in_one_turn_gives_the_same_review_without_a_step(
+    message: str,
+) -> None:
+    """Probe P5: the model called review_answer after the server's pre-run review (or twice on
+    its own): the review ran again, as a second step."""
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
+    counted(chat, tools)
+    calls = [step(call("review_answer"))] * (1 if message == "Are you sure?" else 2)
+    model = Model(*calls, final(text="Not for certain: it is Low [ev_4].", evidence_ids=["ev_4"]))
+    got = again(chat, model, tools, message)
+    assert [s.tool for s in got.steps] == ["review_answer"]
+    reply = json.loads(model.sent[-1][-1]["content"])
+    assert reply["drawings"][0]["level"] == "low"  # the model still gets the review
+    assert got.kind == "answer" and len(got.answers) == 1

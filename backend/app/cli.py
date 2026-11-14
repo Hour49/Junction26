@@ -148,6 +148,23 @@ def _answer(
         print(f"  {count:6d}  {method}")
 
 
+def run_services_build(args: argparse.Namespace, settings: Settings) -> None:
+    from app.adapters.services_store import ServicesStore  # ifcopenshell only when asked
+
+    building = args.architecture.read_bytes() if args.architecture else None
+    store = ServicesStore(args.cache)
+    model = store.build(args.model.name, args.model.read_bytes(), building)
+    if model is None:
+        raise InvalidInputError(f"{args.model}: not an IFC file ifcopenshell can read")
+    print(
+        f"{len(model.elements)} elements, {len(model.connections)} connections, "
+        f"{len(model.rooms)} rooms, {len(model.walls)} walls, {len(model.openings)} openings; "
+        f"connectivity {model.connectivity.state}"
+        + (f" ({model.connectivity.reason})" if model.connectivity.reason else "")
+        + f"; stored as {store.path(model.source.sha256)}"
+    )
+
+
 def run_disc_render(args: argparse.Namespace, settings: Settings) -> None:
     from app.adapters.ifc_model import plan_picture  # ifcopenshell only when asked
 
@@ -195,6 +212,14 @@ def parser() -> argparse.ArgumentParser:
         "--split-dir", type=Path, default=SPLIT_DIR, help="the sealed split (its manifest.json)"
     )
     answer.set_defaults(run=run_answer)
+    services = commands.add_parser("services", help="services models").add_subparsers(
+        dest="step", required=True
+    )
+    build = services.add_parser("build", help="build and store the services model of an IFC file")
+    build.add_argument("--model", type=Path, required=True, help="a services model (.ifc)")
+    build.add_argument("--architecture", type=Path, help="the same building's architecture (.ifc)")
+    build.add_argument("--cache", type=Path, required=True, help="where models are kept")
+    build.set_defaults(run=run_services_build)
     bench = commands.add_parser("disc-bench", help="discipline picture bench").add_subparsers(
         dest="step", required=True
     )

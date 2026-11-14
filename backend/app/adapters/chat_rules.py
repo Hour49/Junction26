@@ -11,6 +11,7 @@ from typing import Any
 from app.core.agent.loop import NUDGE, UNBACKED
 from app.core.agent.ports import Reply
 from app.core.agent.review import DOUBT, REVIEWED, pushed
+from app.core.agent.rooms import name_words
 
 Json = dict[str, Any]
 
@@ -29,6 +30,15 @@ NO_PACK = (
     "and ask again."
 )
 ROOM = re.compile(r"\broom\b")
+# "Where are they?" about the last answer (the "Show them on the plan" chip, contract F)
+SHOW = re.compile(
+    r"\b(show me where|where are they|show (them|it|me them) on the plan|mark them)\b"
+)
+# Placing a room by its type's word ("Put a toilet here") rather than the word room (multi)
+PLACE = re.compile(  # at the start: "Is this a good place for a kitchen?" asks (review-361 S2)
+    r"^\s*(please |can you |could you |let's |i want to )?"
+    r"(put|place|add|make|create|draw|build|turn|convert|mark|insert)\b"
+)
 # A word for a room, as Room.type names it
 ROOM_WORDS = {
     "bathroom": "bathroom", "bath": "bathroom", "washroom": "bathroom", "shower": "bathroom",
@@ -121,7 +131,8 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     # a drawn area, or a sideways drag described as "a line ..., not an area" (QA robust-10):
     # propose_room gives the true reason for that one
     regions = [line.split(":")[0] for line in turn.selections if REGION.search(line)]
-    if regions and ROOM.search(words) and "propose_room" in offered:
+    placing = ROOM.search(words) or (ROOM_WORD.search(words) and PLACE.search(words))
+    if regions and placing and "propose_room" in offered:
         found = turn.result("propose_room")
         if found is None:
             return "propose_room", {"selection_id": regions[0], "name": _room_name(words)}
@@ -132,10 +143,70 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         return _law(turn, offered)
     if DOUBT.search(words) and ("review_answer" in offered or turn.result("review_answer")):
         return _sure(turn)
+    if SHOW.search(words) and "show_on_plan" in offered:
+        return _show(turn)
     found = turn.result("ask_drawings")
     if found is None:
         return "ask_drawings", {"question": turn.message[:500]}
+    words = name_words(turn.message)
+    if "find_rooms" in offered and words and _refused_room(found):
+        rooms = turn.result("find_rooms")
+        if rooms is None:
+            return "find_rooms", {"query": " ".join(words)}
+        if (picked := _rooms(rooms)) is not None:
+            return picked
     return _answer(found)
+
+
+# the parser's words for a measure it found without a room or element (app/core/review/ask.py)
+NO_SUBJECT = "not which room or element"
+
+
+def _refused_room(found: Json) -> bool:
+    """Whether every drawing refused the question as one it can't parse or whose room it lacks
+    (item 6: the drawings may still print a room by that name)."""
+    parts: list[Json] = [p for p in found.get("parts") or [] if isinstance(p, dict)]
+    answers: list[Json] = [p.get("answer") or {} for p in parts]
+    if not answers or any(a.get("answer") is not None for a in answers):
+        return False
+    refusals: list[Json] = [a.get("refusal") or {} for a in answers]
+    return all(_no_subject(r) for r in refusals)
+
+
+def _no_subject(refusal: Json) -> bool:
+    """A refusal that could not tell which room the question means: the type is not on the
+    drawing, or the parser found a measure without a room or element (its own words)."""
+    code, text = refusal.get("code"), str(refusal.get("text") or "")
+    return code == "not-in-drawing" or (code == "unsupported-question" and NO_SUBJECT in text)
+
+
+def _rooms(found: Json) -> tuple[str, Json] | None:
+    """The printed rooms find_rooms gave: one is shown, several are asked about; None: none."""
+    rooms: list[Json] = [r for r in found.get("rooms") or [] if isinstance(r, dict) and "ev" in r]
+    count = found.get("count") or 0
+    if found.get("status") != "ok" or not rooms:
+        return None
+    if count == 1:
+        room = rooms[0]
+        text = f"The drawings can't measure that as asked, but {room['label']} is printed here"
+        return _final("answer", f"{text} [{room['ev']}].", [room["ev"]])
+    options = [{"label": str(r["label"])[:60], "message": f"Where is {r['label']}?"[:300]}
+               for r in rooms[:4]]  # fmt: skip
+    cites = " ".join(f"[{r['ev']}]" for r in rooms[:4])
+    some = f"; here are {len(options)}" if count > len(options) else ""
+    text = f"The drawings print {count} rooms with that name{some}: which one do you mean? {cites}"
+    return _final("needs_input", text, [str(r["ev"]) for r in rooms[:4]], options=options)
+
+
+def _show(turn: _Turn) -> tuple[str, Json]:
+    """The latest answer's marks on the plan (show_on_plan answer: latest), its card with them."""
+    shown = turn.result("show_on_plan")
+    if shown is None:
+        return "show_on_plan", {"answer": "latest", "caption": ""}
+    if shown.get("status") != "ok":
+        why = str(shown.get("error") or "there is nothing to show").removeprefix("show_on_plan: ")
+        return _final("dont_know", f"I can't show that on the plan: {why}.")
+    return _final("answer", "Here they are on the plan.")
 
 
 def _sure(turn: _Turn) -> tuple[str, Json]:
@@ -226,11 +297,50 @@ def _remove_wall(turn: _Turn, words: str) -> tuple[str, Json]:
         return "list_drawings", {}
     if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
         drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    if isinstance(drawings, list):
+        everything: list[Any] = drawings  # pyright: ignore[reportUnknownVariableType]
+        drawings, named = _sheet(words, everything)
+        if named and len(drawings) > 1:  # several sheets share the name the message gives
+            options = [{"label": f"{d.get('title') or d.get('name')} ({d.get('name')})"[:60],
+                        "message": f"{turn.message} on {d.get('name')}"[:300]}
+                       for d in drawings[:4]]  # fmt: skip
+            return _final("needs_input", "Several drawings have that name. Which one?",
+                          options=options)  # fmt: skip
     if isinstance(drawings, list) and len(walls_of) < min(TRIED, len(drawings)):  # pyright: ignore[reportUnknownArgumentType]
         drawing = drawings[len(walls_of)]
         return "list_walls", {"drawing_id": drawing["drawing_id"], "page": 1}
     reason = next((f.get("reason") or f.get("error") for _, f in walls_of), None)
     return _final("dont_know", f"I can't edit this plan: {reason or 'there is no plan to edit'}.")
+
+
+def _sheet(words: str, drawings: list[Any]) -> tuple[list[Any], bool]:
+    """The drawings the message names best, by plain name ("Drawn plan 2") or file name
+    without its extension: the longest name it holds wins ("floor 2" over "floor", review-361
+    S1); else all of them, in order (multi: an edit of a named sheet went to the first drawing
+    with walls). Several left: they share the longest name, and the planner asks which."""
+
+    def named(drawing: Any) -> tuple[bool, int]:
+        """(the message holds its whole file name, the longest of its names it holds): a file
+        name ("b.pdf") beats a title two drawings share (review-361)."""
+        if not isinstance(drawing, dict):
+            return (False, 0)
+        given: Json = drawing  # pyright: ignore[reportUnknownVariableType]
+        whole = str(given.get("name") or "").lower()
+        file = re.sub(r"\.[a-z0-9]+$", "", whole)
+        names = [str(given.get("title") or "").lower(), file, re.sub(r"[_-]+", " ", file)]
+        longest = max(
+            len(name)
+            if len(name) > 3 and re.search(rf"(?<![\w.]){re.escape(name)}(?![\w]|\.\d)", words)
+            else 0
+            for name in names
+        )
+        exact = re.search(rf"(?<![\w.]){re.escape(whole)}(?!\w)", words) if whole else None
+        return (exact is not None, longest)
+
+    best = max((named(d) for d in drawings), default=(False, 0))
+    if best == (False, 0):
+        return drawings, False
+    return [d for d in drawings if named(d) == best], True
 
 
 def proposed_wall(turn: _Turn) -> Json | None:
@@ -247,6 +357,10 @@ def _pick_wall(turn: _Turn, words: str, args: Json, found: Json) -> tuple[str, J
     rooms: list[Json] = found.get("rooms") or []
     named = {m.upper() for m in re.findall(r"\bw\d+\b", words)}
     chosen = [w for w in walls if w["id"] in named]
+    if len(named) == 1 and not chosen and found.get("walls_more"):
+        # the wall the message names was cut from the list: propose it by its id (multi, W36)
+        place = {"drawing_id": args["drawing_id"], "page": args["page"]}
+        return "propose_remove_wall", {**place, "wall_id": next(iter(named))}
     if not chosen:
         # each clicked room is its own group (edits-2); a word naming a room already clicked
         # ("this bathroom") narrows that group instead of adding one (edits-3)

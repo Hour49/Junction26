@@ -8575,6 +8575,10 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
 
+Levels only where measured (added 2026-11-14): when a number in an `answer` or `conflict` turn's `text` comes only from
+`get_plan_geometry`, `get_takeoff` or `list_walls` (no confidence level) and from no `ask_drawings` answer or the
+user's message, the server appends one sentence saying it is not rated.
+
 "Are you sure?" (added 2026-11-14): the agent calls `review_answer`, which gives back the chat's latest `ask_drawings`
 answer as its readers judged it (value, level and why, the check's reason, the disputed marks with their evidence
 ids), so the turn answers from the level and the disputed marks, cites them, and returns that answer in `answers`.
@@ -8587,6 +8591,13 @@ after the cited ones. `source: "evidence"`: the page of `[1]` with every cited p
 the proposal's page around its geometry. `box` is the marks' union with a margin, the box to focus; each mark's `n`
 is its `evidence` item. Places minted in earlier turns stay citable: a follow-up may cite them (numbers in `text`
 still come from this turn's tool results).
+
+`next` (added 2026-11-14) is 0 to 3 follow-up chips after a complete `answer` or `conflict` turn, `[{label,
+message}]` like `options`; a click sends `message` as the next message. The server builds them from the turn's tool
+results, never from the model's text, in this order: "Show them on the plan" (`message` "Show me where they are")
+when the answer has more marks than the view shows; "Are you sure?" when an answer is rated Medium or Low or has
+disputed marks, not after a review; "How big is <label>?" when the answer names a room `find_rooms` returned without
+an area. `next` is `[]` on a turn with `options` and on every other kind.
 
 <!-- fixture: chat_answer.json -->
 ```json
@@ -9379,7 +9390,13 @@ still come from this turn's tool results).
     ],
     "caption": null,
     "source": "evidence"
-  }
+  },
+  "next": [
+    {
+      "label": "Show them on the plan",
+      "message": "Show me where they are"
+    }
+  ]
 }
 ```
 
@@ -9913,7 +9930,8 @@ budget, the same call a third time) ends a turn the same way.
       "refused_note": "5 drawings can't answer this question."
     }
   ],
-  "view": null
+  "view": null,
+  "next": []
 }
 ```
 
@@ -10146,7 +10164,8 @@ without wall fills) gets `dont_know` saying so.
     ],
     "caption": null,
     "source": "evidence"
-  }
+  },
+  "next": []
 }
 ```
 

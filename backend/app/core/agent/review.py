@@ -77,6 +77,8 @@ def review_of(found: Mapping[str, Any], names: Mapping[str, str]) -> dict[str, A
             "check": check.get("reason"),
             "disputed": [{k: v for k, v in d.items() if v is not None} for d in shown],
             "disputed_count": len(disputed),
+            # Tudor's smoke: two flats' review read as "the plans disagree" (it was inside one)
+            "where": _where(name, len(disputed)),
         }
         drawings.append({k: v for k, v in drawing.items() if v is not None})
     return {"status": "ok", "question": found.get("question"), "drawings": drawings}
@@ -90,6 +92,15 @@ def _evs(items: Any) -> list[str]:
         if isinstance(ev, str):
             out.append(ev)
     return out
+
+
+def _where(name: Any, disputed: int) -> str | None:
+    if not disputed:
+        return None
+    return (
+        f"inside {name}: its own readers disagree on {disputed} of its marks; other drawings "
+        "are separate plans, not part of this disagreement"
+    )
 
 
 def _range(value: Any, unit: Any, disputed: int) -> list[int] | None:

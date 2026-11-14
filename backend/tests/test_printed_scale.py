@@ -5,6 +5,7 @@ off the drawing without replacing them. A fake reader stands in for the Carbon c
 
 import io
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from PIL import Image
@@ -15,7 +16,7 @@ from app.adapters.raster_scale import PriorScale
 from app.composition import build_ingest
 from app.core.answering.answer import answer_question
 from app.core.answering.model import Answer, Query, Question, Unsupported
-from app.core.drawing.model import Drawing, Element, Page, Room, Scale
+from app.core.drawing.model import Drawing, Element, MeasuredValue, Page, Room, Scale, Subject
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
 from app.core.pipeline.printed import (
@@ -23,6 +24,7 @@ from app.core.pipeline.printed import (
     PrintedSheet,
     ScaleBar,
     bar_m_per_px,
+    fact_measurements,
     imperial_scales,
     printed_scale,
     ratio_of,
@@ -224,6 +226,24 @@ def test_the_printed_bar_replaces_the_door_estimate_and_measures_the_rooms_again
     assert side.estimate is None
 
 
+def test_label_boxes_a_label_boxed_as_its_room_gets_no_area_at_the_printed_scale() -> None:
+    """pipe-label-boxes: the printed scale made "LOBBY 0.18 m²" read as exact."""
+    inner = Fixed(side_px=DOOR_M / 0.02)
+    hall = Room(id="r2", type="living", page=1, box=(0.2, 0.1, 0.3, 0.25))  # 4 x 3 m at 0.02
+    lobby = Room(id="r3", type="other", label="LOBBY", page=1, box=(0.12, 0.32, 0.135, 0.335))
+    inner.found = inner.found.model_copy(update={"rooms": (*inner.found.rooms, hall, lobby)})
+    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+    assert found.scale.status == "scaled"
+    _, hall_read, lobby_read = found.rooms
+    assert hall_read.area_m2 == pytest.approx(4 * 3 / BOX_RATIO, abs=0.01)
+    assert lobby_read.area_m2 is None and lobby_read.label == "LOBBY"
+    said = [note for note in found.notes if note.startswith("room area:")]
+    assert said == [  # once, at the printed scale (the estimate's note is replaced)
+        "room area: r3 not measured, its box is 0.60 x 0.30 m (0.18 m²), smaller than any room "
+        "(a door leaf's footprint, 0.5 m²)"
+    ]
+
+
 def test_a_printed_ratio_wins_over_the_door_estimate_too(tmp_path: Path) -> None:
     # 1:100 at 150 dpi is 0.0169 m/px; the doors say 1.5x that
     found = read(Fixed(side_px=DOOR_M / 0.0254), PrintedSheet(printed_scale="1:100"), dpi=150.0)
@@ -397,7 +417,7 @@ def test_label_source_says_the_area_was_read_off_the_image() -> None:
         "read from the rooms' labels on the image (a digit can be misread)"
     )
     assert label_source([one, two, plain]) == (
-        "2 of 3 room areas read from the rooms' labels on the image"
+        "2 of 3 room areas read from the rooms' labels on the image (a digit can be misread)"
     )
     assert label_source([plain]) is None
 
@@ -491,3 +511,81 @@ def test_the_setting_is_part_of_the_ingest_reuse_key_only_when_on(tmp_path: Path
 
 def test_the_setting_is_off_by_default() -> None:
     assert Settings(_env_file=None).raster_printed_scale == "off"  # pyright: ignore[reportCallIssue]
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["4H+K", "3h+k+s", "2h+kt", "1h+kk", "5H+K+S+SAU", "4 h + k", "Asunto B 12, 3h+k+s 78 m²"],
+)
+def test_a_flat_type_is_never_a_room_count(text: str) -> None:
+    """A Finnish flat type (4H+K: four rooms and a kitchen) names the flat, it does not count the
+    rooms drawn (live project d8c0e57b1ac4: 4H+K against 18 rooms read)."""
+    assert fact_measurements([PrintedFact(text=text, subject="room", value=4, unit="count")]) == []
+
+
+def test_a_printed_room_count_that_is_no_flat_type_is_still_a_room_count() -> None:
+    (found,) = fact_measurements(
+        [PrintedFact(text="4 ROOMS", subject="room", value=4, unit="count")]
+    )
+    assert (found.quantity, found.value.value) == ("room_count", 4)
+
+
+def counts(
+    read: float, printed: float, door: bool = False, kind: str | None = None
+) -> list[Measurement]:
+    """A count read and one printed: of all rooms, of one room type, or of doors."""
+    quantity: Literal["room_count", "element_count"] = "element_count" if door else "room_count"
+    subject = (
+        Subject(kind="class", ref="door")
+        if door
+        else Subject(kind="class", ref=kind)
+        if kind
+        else Subject(kind="sheet", ref=None)
+    )
+    return [
+        Measurement(
+            quantity=quantity,
+            subject=subject,
+            value=MeasuredValue(value=read, unit="count", method="plan_drawing"),
+        ),
+        Measurement(
+            quantity=quantity,
+            subject=subject,
+            value=MeasuredValue(value=printed, unit="count", method="printed_total"),
+        ),
+    ]
+
+
+def test_rooms_read_more_than_twice_the_printed_count_keep_the_reading_and_ask_no_person() -> None:
+    """18 read, 4 printed: no rule decides, but a printed number that much smaller counts
+    something else; the reading is kept and shown, with no card for a person."""
+    read, printed = counts(18, 4)
+    (entry,) = second_count([read], [printed])
+    assert entry.status == "conflict"  # both values stay on the entry
+    assert entry.resolution is not None and entry.resolution.value == 18
+    assert "more than 2x the other count" in entry.resolution.rule
+
+
+@pytest.mark.parametrize(
+    ("read", "printed", "door"),
+    [
+        (0, 3, False),  # nothing read
+        (6, 5, False),  # within 2x
+        (80, 48, False),
+        (4, 12, False),  # more printed than read: the reader may have missed rooms
+        (3, 12, True),  # doors: the rule is for rooms only
+        (18, 4, True),
+    ],
+)
+def test_other_count_pairs_are_left_to_a_person(read: int, printed: int, door: bool) -> None:
+    first, second = counts(read, printed, door)
+    (entry,) = second_count([first], [second])
+    assert entry.status == "conflict" and entry.resolution is None
+
+
+def test_a_room_type_count_far_above_the_printed_one_still_asks_a_person() -> None:
+    """qa-a on #385: 120 bedrooms read against a printed '48 DORMS' is a real disagreement about
+    one type, not a flat type; only the sheet's total room count keeps the reading."""
+    read, printed = counts(120, 48, kind="room:bedroom")
+    (entry,) = second_count([read], [printed])
+    assert entry.status == "conflict" and entry.resolution is None

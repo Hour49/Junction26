@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { drawing, fileReadAsPlan, project } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
@@ -131,6 +131,40 @@ it('CH-45 follow-up chips after an answer (questions not asked yet); none after 
   await send('Is that wall load-bearing?');
   await screen.findByText("I don't know.");
   expect(screen.queryByRole('group', { name: 'Follow-up questions' })).toBeNull();
+});
+
+it("#369 the answer's own next chips (at most 3) replace the drawing follow-ups; a click asks its message", async () => {
+  const next = [
+    { label: 'Show them on the plan', message: 'Show me where they are' },
+    { label: 'Which is the largest?', message: 'Which bathroom is the largest?' },
+    { label: 'Total area', message: 'What is the total bathroom area?' },
+    { label: 'A fourth', message: 'never shown' },
+  ];
+  const api = open({ ...answerTurn, next });
+  await send('How big is the bathroom?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  const group = screen.getByRole('group', { name: 'Follow-up questions' });
+  expect(
+    within(group)
+      .getAllByRole('button')
+      .map((b) => b.textContent),
+  ).toEqual(['Show them on the plan', 'Which is the largest?', 'Total area']);
+  fireEvent.click(within(group).getByRole('button', { name: 'Show them on the plan' }));
+  await waitFor(() => {
+    expect(posts(api).at(-1)).toEqual({
+      chat_id: answerTurn.chat_id,
+      message: 'Show me where they are',
+    });
+  });
+});
+
+it('#369 a turn without a next field (kept from an older server) gets the drawing follow-ups', async () => {
+  open({ ...answerTurn, next: undefined });
+  await send('How many doors are there?');
+  await screen.findByText(/is 7.56 m²/);
+  expect(screen.getByRole('group', { name: 'Follow-up questions' }).textContent).toContain(
+    'How many windows are there?',
+  );
 });
 
 it("LC-11 every turn sends the route's ?pack=; none without one", async () => {

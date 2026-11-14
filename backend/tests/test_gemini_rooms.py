@@ -184,8 +184,9 @@ def test_an_area_printed_in_the_label_is_the_rooms_area_and_a_number_without_m2_
     assert [r.area_m2 for r in found.rooms] == [9.7, 12.5, 1.3, None, None, None, None]
     assert (found.rooms[0].area_status, found.rooms[0].area_source) == ("exact", "printed")
     assert found.rooms[4].area_status is None
-    scale = Scale(status="estimated", m_per_unit=0.01, uncertainty=0.1)
-    kept = rooms_with_areas(found.rooms, scale, [Page(page=1, width=300, height=200, unit="px")])
+    # a room-sized box (3 x 2.8 m): #349 refuses label-sized ones (under MIN_BOX_M2)
+    scale = Scale(status="estimated", m_per_unit=1.0, uncertainty=0.1)
+    kept, _ = rooms_with_areas(found.rooms, scale, [Page(page=1, width=300, height=200, unit="px")])
     assert kept[0] == found.rooms[0]
     assert kept[4].area_source == "geometry_x_estimate"
 

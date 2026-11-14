@@ -198,7 +198,8 @@ export function TurnCard(props: {
   onShow?: (e: Evidence) => void;
 }) {
   const { turn, projectId, project, pack, busy, onAsk } = props;
-  // The ask chat's card for each answer some drawing answered; it lists the references, so no sources list then.
+  // The ask chat's card for each answer some drawing answered. Its References number drawings, so the Sources list
+  // stays: the text's [n] number the marks (Tudor's smoke 3).
   const answers = turn.answers.filter((a) => a.parts.some((p) => p.answer.refusal === null));
   const headline = HEADLINE[turn.kind];
   const options = turn.options ?? [];
@@ -256,7 +257,7 @@ export function TurnCard(props: {
           reveal={reveal}
         />
       )}
-      {turn.evidence.length > 0 && answers.length === 0 && (
+      {turn.evidence.length > 0 && (
         <Sources turn={turn} projectId={projectId} pack={pack} onShow={onShow} />
       )}
       <Steps turn={turn} />

@@ -38,11 +38,13 @@ from app.core.drawing.model import (
     Resolution,
     Room,
     Scale,
+    Table,
 )
 from app.core.pipeline.model import (
     Counted,
     CountingRule,
     Measure,
+    Partial,
     Quantity,
     QuantityConflict,
     QuantityUnit,
@@ -142,7 +144,77 @@ def take_off(drawing: Drawing, counted: Mapping[str, Counted]) -> dict[str, Quan
         _add_sheet(found, drawing, counted)
     if drawing.model_objects is not None:
         _add_model(found, drawing)
+    _mark_partial(found, drawing)
     return _read_only(_with_conflicts(found, drawing), drawing.read)
+
+
+# The whole-sheet room totals ("what is the total area?"); a sum of rooms by label or name is not
+PARTIAL_RULES = frozenset({ROOMS_TOTAL.id, INDOOR_TOTAL.id, SHEET_DWELLING.id})
+# A room schedule is told by its columns, not its title (a FINISH KEY's title says "finish" and
+# its rows are finish codes): a room-number column, and a room named in it or in a name column.
+# shortcut: English headers only; add other languages' headers when a sheet needs them
+NUMBER_HEADER = re.compile(r"(room|rm)?\s*(no|nr|number|#)?", re.IGNORECASE)
+STOREY_DIGITS = re.compile(r"\d{1,2}$")  # a room number less its last two digits: its storey
+
+
+def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
+    """Marks each whole-sheet room total that may leave rooms out (label-area task 2, partial
+    totals): its rooms were picked off a picture by a room reader (`attrs["reader"]`: Gemini,
+    the EU model, Carbon), which can miss rooms, or a room schedule on the sheet names rooms of
+    this storey the drawing does not have. A vector or IFC room list, complete by construction,
+    is partial only when a schedule says so."""
+    missing, schedule = _unlisted(drawing)
+    read = any("reader" in room.attrs for room in drawing.rooms)
+    if not (read or missing):
+        return
+    for key, quantity in found.items():
+        if quantity.rule in PARTIAL_RULES and "label=" not in key and "name=" not in key:
+            partial = Partial(
+                counted=len(quantity.marks), missing=missing, read=read, schedule=schedule
+            )
+            found[key] = quantity.model_copy(update={"partial": partial})
+
+
+def _room_columns(table: Table) -> tuple[int, int | None] | None:
+    """A room schedule's room-number column and its name column (None: it has none); None when
+    the table is not a room schedule."""
+    headers = [" ".join(h.replace(".", " ").split()) for h in table.columns]
+    number = next((at for at, h in enumerate(headers) if h and NUMBER_HEADER.fullmatch(h)), None)
+    named = next((at for at, h in enumerate(headers) if "name" in h.lower()), None)
+    said = [headers[at].lower() for at in (number, named) if at is not None]
+    if number is None or not any("room" in h or h.startswith("rm") for h in said):
+        return None
+    return number, named
+
+
+def _unlisted(drawing: Drawing) -> tuple[tuple[str, ...], str | None]:
+    """The rooms a room schedule prints (number and name, as printed) that no room of the drawing
+    answers to by number, name or label, kept to this sheet's storey: the row's number less its
+    last two digits is one the drawing's own room numbers have (a building-wide schedule names
+    other floors' rooms). A drawing without room numbers has no storey to keep, so none. With
+    them, the title of the first table that lists one (None: it has none)."""
+    printed = {room.attrs.get(key) for room in drawing.rooms for key in ROOM_NUMBERS}
+    numbers = {n.strip() for n in printed if isinstance(n, str) and n.strip()}
+    storeys = {STOREY_DIGITS.sub("", n) for n in numbers}
+    have = {name for room in drawing.rooms for name in room_names(room)}
+    out: list[str] = []
+    title: str | None = None
+    for table in drawing.tables or ():
+        if (columns := _room_columns(table)) is None:
+            continue
+        number, named = columns
+        for row in table.rows:
+            at_number = row.cells[number] if number < len(row.cells) else None
+            if not at_number or STOREY_DIGITS.sub("", at_number.strip()) not in storeys:
+                continue
+            at_name = row.cells[named] if named is not None and named < len(row.cells) else None
+            texts = [cell.strip() for cell in (at_number, at_name) if cell and cell.strip()]
+            if not any(normalised(text) in have for text in texts):
+                shown = " ".join(dict.fromkeys(texts))
+                if shown not in out:
+                    title = title if out else (table.title or "").strip() or None
+                    out.append(shown)
+    return tuple(out), title
 
 
 def _add_sheet(
@@ -638,7 +710,10 @@ def label_source(rooms: Sequence[Room]) -> str | None:
         if n == 1:
             return "read from the room's label on the image (a digit can be misread)"
         return "read from the rooms' labels on the image (a digit can be misread)"
-    return f"{n} of {len(rooms)} room areas read from the rooms' labels on the image"
+    return (
+        f"{n} of {len(rooms)} room areas read from the rooms' labels on the image "
+        "(a digit can be misread)"
+    )
 
 
 # How an estimated room area was measured, in words (extraction_v1 `area_source`)
@@ -851,6 +926,40 @@ def _label_numbers(label: str) -> set[str]:
     return found if len(found) == 1 else set()
 
 
+# A room number of whole digits printed after the room's words ("LOBBY\n104", "OPEN OFFICE 102":
+# US sheets number rooms so), not a measure ("12 m²"), not part of another number
+WHOLE_NUMBER = re.compile(r"(?<![\w.,\-])\d{2,4}(?![\w.,])")
+# a number with its unit, left out of a label's words ("PH 4.5 m²" → "PH"); one joined to letters
+# is part of the name ("MH1")
+LABEL_MEASURE = re.compile(
+    r"(?<![^\W\d_])-?\d+(?:[.,]\d+)?\s*(?:m²|m2|qm|sqm|sq\.?\s*ft|ft²|ft|cm|mm|m|%)?(?![^\W\d_])",
+    re.IGNORECASE,
+)
+
+
+GENERIC = frozenset({"room", "rm", "space"})  # a label's word that names no one room
+
+
+def _label_parts(label: str) -> set[str]:
+    """A label's words without its numbers and measures ("LOBBY\n104" → "LOBBY", "Stanza 1.07" →
+    "Stanza"), and the one whole room number it prints ("104"). The raster room reader keeps a
+    label as printed, where the vector reader stores name and number apart, so "the area of the
+    lobby" and "open office 102" were refused on the USCG scans (fable-rooms r10)."""
+    found: set[str] = set()
+    tokens = LABEL_MEASURE.sub(" ", label).split()
+    words = " ".join(t.strip(".,:;-") for t in tokens if any(c.isalpha() for c in t))
+    if words and words != " ".join(label.split()) and words.casefold() not in GENERIC:
+        found.add(words)
+    numbers = {
+        number.group()
+        for number in WHOLE_NUMBER.finditer(label)
+        if not MEASURE_AFTER.match(label, number.end())
+    }
+    if words and len(numbers) == 1 and not _label_numbers(label):
+        found |= numbers
+    return found
+
+
 def room_names(room: Room) -> tuple[str, ...]:
     """Every name a room answers to (its numbers, names, printed label, and a room number printed
     in the label), normalised and sorted, so the takeoff's keys come in the same order on every
@@ -863,7 +972,7 @@ def room_names(room: Room) -> tuple[str, ...]:
 
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
-    found |= _label_numbers(room.label or "")
+    found |= _label_numbers(room.label or "") | _label_parts(room.label or "")
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
     return tuple(sorted({normalised(value) for value in found}))
 

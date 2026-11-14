@@ -21,6 +21,7 @@ from app.core.agent.model import (
     ChatTurn,
     Json,
     Level,
+    Option,
     Step,
     TurnKind,
     View,
@@ -37,10 +38,13 @@ from app.core.agent.review import (
     pushed,
     review_of,
 )
+from app.core.agent.rooms import FIND_ROOMS
 from app.core.agent.validate import (
     FINAL_ANSWER_TOOL,
     TEXT_CHARS,
     FinalAnswer,
+    backed,
+    claims,
     failed,
     numbers,
     problems,
@@ -72,6 +76,33 @@ GEOMETRY = frozenset({"box", "polygon", "holes"})  # the model cites ev ids, nev
 NOT_FOR_MODEL = GEOMETRY | {"latency_s"}
 NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
+# Levels only where measured (item 4): these tools' numbers are read from the drawing as it is,
+# with no confidence level; an answer whose number rests only on them says so, in no digits
+SHOW_THEM = "Show me where they are"  # the "Show them on the plan" chip (contract F)
+AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
+UNRATED_TOOLS = frozenset({"get_plan_geometry", "get_takeoff", "list_walls"})
+UNRATED = (
+    "That number is read straight from the drawing's geometry and has no confidence level; ask "
+    "about it directly for a rated answer."
+)
+UNRATED_TAKEOFF = (  # get_takeoff: the readers' counts, not geometry (review-342 S1)
+    "That number is read straight from the drawing's takeoff and has no confidence level; ask "
+    "about it directly for a rated answer."
+)
+UNRATED_BOTH = (
+    "Those numbers are read straight from the drawing's takeoff and geometry and have no "
+    "confidence level; ask about them directly for a rated answer."
+)
+# the model already said it (the prompt asks it to): not said twice (review-342 N3)
+SAID_UNRATED = re.compile(
+    r"\b(no|without( a)?|not have a|has no) confidence level|\bunrated\b|\bnot rated\b", re.I
+)
+# a number the user names a place by ("floor 3", "room 102") is no quantity they state
+NAMED_BY = re.compile(
+    r"\b(floors?|levels?|storeys?|stor(y|ies)|rooms?|pages?|sheets?|plans?|drawings?|units?|"
+    r"flats?|apartments?|stairs?|stairwells?|wings?|blocks?|buildings?|no\.?|#)\s*\d+(?:[.,]\d+)?",
+    re.I,
+)
 
 # a reply that opens by agreeing ("Yes, it could be 30")
 AGREE = re.compile(
@@ -105,6 +136,8 @@ LABELS = {
     "get_clause": "Read clause {clause_id}",
     "search_evidence": "Searched the evidence for: {query}",
     "get_evidence": "Read evidence {evidence_id}",
+    "find_rooms": "Looked for rooms labelled {query}",
+    "get_counting_rules": "Read what counts as {quantity}",
 }
 # A proposal the plan tool refused is no proposal (QA edits-6)
 FAILED_LABELS = {
@@ -129,6 +162,8 @@ PLAIN = {
     "get_evidence": "Read a piece of evidence",
     "show_on_plan": "Showed places on the plan",
     "review_answer": "Reviewed the last answer",
+    "find_rooms": "Looked for rooms by their printed labels",
+    "get_counting_rules": "Read the counting rules",
 }
 FAILED_PLAIN = {
     "propose_remove_wall": "Could not remove a wall",
@@ -203,6 +238,10 @@ class _Run:
         self.known: dict[str, Json] = dict(chat.evidence)  # earlier turns' places
         self.proposals: dict[str, Proposal] = {}
         self.sources: list[str] = []
+        # what rates a number: rated tool results (ask_drawings, review_answer, an answer shown)
+        # and the user's message; numbers only an UNRATED_TOOLS result gives carry no level
+        self.rated: list[str] = []
+        self.unrated: list[tuple[str, str]] = []  # (tool, result text)
         self.failures: list[bool] = []
         self.steps: list[Step] = []
         self.seen: Counter[tuple[str, str]] = Counter()
@@ -213,6 +252,9 @@ class _Run:
         self.reattached: list[Json] = []  # earlier ask_drawings results show_on_plan showed
         self.reviewed: list[str] = []  # the places of the answer review_answer reviewed
         self.reviewed_refusal = False  # the reviewed answer was a refusal on every drawing
+        self.printed: set[str] = set()  # the room labels find_rooms returned this turn
+        self.did_review = False  # review_answer ran this turn (no "Are you sure?" chip after it)
+        self.review_text = ""  # what the model read of this turn's review (a repeat call gets it)
         self.review: list[Json] = []  # the reviewed drawings (value, level, range)
         self.pushed: float | None = None  # the number a doubt offers ("could it be 30?")
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
@@ -235,6 +277,11 @@ class _Run:
                 lines.append(REVIEWED + reviewed)
         chat.messages.append({"role": "user", "content": "\n".join([message, *lines])})
         self.sources.append(message)
+        self.rated.append(NAMED_BY.sub(" ", message))  # the numbers the user states
+        # an earlier turn's rated answers (review-342 N5): the answer review_answer reviews or
+        # show_on_plan shows is one of them
+        for given in chat.asked:
+            self.rated += _values(given["answer"])
         try:
             answer = self._loop()
         except _EndedError as ended:
@@ -378,7 +425,7 @@ class _Run:
         if long:  # cut by the server, so the retry's reason and a second failure are true
             arguments = json.dumps({**json.loads(arguments), "text": shortened(long)})
         try:
-            answer = FinalAnswer.model_validate_json(arguments)
+            answer, offered = self._printed_only(FinalAnswer.model_validate_json(arguments))
             wrong = problems(
                 answer,
                 set(self.ledger) | set(self.known),
@@ -386,6 +433,8 @@ class _Run:
                 self.sources,
                 bool(self.failures) and all(self.failures),
             )
+            if offered:
+                wrong.append(f"offer only rooms find_rooms returned, not {', '.join(offered)}")
             if (gave_in := self._gives_in(answer.text)) is not None:
                 wrong.append(gave_in)
         except ValidationError as error:
@@ -500,6 +549,10 @@ class _Run:
             found: Any = json.loads(out)
         except json.JSONDecodeError:
             found = out
+        if name in (ASK, "get_takeoff"):
+            found = _as_shown(found)  # what the model reads and what backs its numbers
+        if name == "list_drawings" and isinstance(found, list):
+            found = self._titled(found)  # pyright: ignore[reportUnknownArgumentType]
         before = set(self.ledger)
         mint(found, self.ledger, self.chat.minted + 1)
         if name == ASK and isinstance(found, dict):  # kept as the route gives it, without ev ids
@@ -519,6 +572,16 @@ class _Run:
         self._law_results(name, out)
         text = out if isinstance(found, str) else json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
+        if name == FIND_ROOMS and isinstance(found, dict):
+            listed: list[Any] = found.get("rooms") or []  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            for room in listed:  # pyright: ignore[reportUnknownVariableType]
+                label: Any = room.get("label") if isinstance(room, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                if isinstance(label, str) and label:
+                    self.printed.add(label)
+        if name == ASK:
+            self.rated += _values(found)  # the answers' own values (review-342 S2)
+        elif name in UNRATED_TOOLS:
+            self.unrated.append((name, text))
         self.failures.append(failed(found))
         self.chat.results.append({"tool": name, "arguments": arguments, "result": found})
         bad = self.failures[-1]  # an error, or refused / cannot_edit / unknown (QA edits-6)
@@ -591,6 +654,25 @@ class _Run:
             self.sources.append(json.dumps(entry["answer"]))
         self._show_step(call, start, label, "ok", text)
 
+    def _printed_only(self, answer: FinalAnswer) -> tuple[FinalAnswer, list[str]]:
+        """A needs_input answer on a turn that looked rooms up offers only rooms find_rooms
+        returned (review-360 S1): the others are dropped; with fewer than 2 left, the dropped
+        labels for the model's retry."""
+        if not self.printed or answer.kind != "needs_input" or not answer.options:
+            return answer, []
+        printed = [label.casefold() for label in self.printed]
+
+        def known(option: Option) -> bool:
+            said = f"{option.label} {option.message}".casefold()
+            return any(label in said for label in printed)
+
+        kept = tuple(option for option in answer.options if known(option))
+        if len(kept) == len(answer.options):
+            return answer, []
+        dropped = [option.label for option in answer.options if not known(option)]
+        answer = answer.model_copy(update={"options": kept or None})
+        return answer, dropped if len(kept) < 2 else []
+
     def _gives_in(self, text: str) -> str | None:
         """Why a reply may not go out when it agrees with a number the user offered that lies
         outside what every reviewed drawing supports (chat-eval #339 t3: "Yes, it could be 30"
@@ -616,6 +698,8 @@ class _Run:
         """review_answer (item 3): the chat's latest ask_drawings result as its readers judged
         it. It is a tool result of this turn (its numbers back the answer) and its answer card
         comes back with the turn."""
+        if self.did_review:  # review-339b N1: reviewed already this turn: no second step
+            return self._reply(call, self.review_text)
         start = self.clock()
         reviewed = self._reviewed()
         if reviewed is None:
@@ -636,6 +720,7 @@ class _Run:
         if minted is None:
             return None
         found = review_of(minted, self.names)
+        self.did_review = True
         text = json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
         self.reattached.append([*self.chat.asked, *self.asked][-1]["answer"])
@@ -644,7 +729,8 @@ class _Run:
         drawings: list[Json] = found["drawings"]
         self.review = drawings
         self.reviewed_refusal = bool(drawings) and all("refused" in d for d in drawings)
-        return _for_model(found)
+        self.review_text = _for_model(found)
+        return self.review_text
 
     def _loop_step(self, start: float, label: str, status: str, tool: str) -> None:
         """The step of a tool the loop runs itself: its tool_result event."""
@@ -669,6 +755,16 @@ class _Run:
         """The step of a tool the loop runs itself (show_on_plan, review_answer)."""
         self._loop_step(start, label, status, tool)
         self._reply(call, reply)
+
+    def _titled(self, drawings: list[Any]) -> list[Any]:
+        """list_drawings with each drawing's plain name as `title`: the name the user sees
+        ("Drawn plan 2") and may name it by, which the result gives only as its file."""
+        out: list[Any] = []
+        for drawing in drawings:
+            given: Json = drawing if isinstance(drawing, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+            title = self.names.get(str(given.get("drawing_id")))
+            out.append({**given, "title": title} if title else drawing)
+        return out
 
     def _name(self, drawing_id: str, place: Json) -> str:
         """A drawing's plain name ("Drawn plan 1"), else the name its place came with."""
@@ -741,17 +837,21 @@ class _Run:
             # "are you sure?" about a refusal is answered by its review: the refusal stands and
             # why. Not "I don't know." over "Yes, ..." (qa-a live, r10 live-photo #7)
             kind = "answer"
+        if kind in ("answer", "conflict") and (said := self._unrated(answer.text)):
+            text = f"{text.rstrip()} {said}"
         answers = self._answers(set(cited) | set(shown), kind)
         if kind == "answer" and any(_conflicted(given) for given in answers):
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
+        evidence = tuple(self._evidence(n, ev) for ev, n in number.items())
+        view = self._view(kind, cited, number, answer.proposal_id)
         return ChatTurn(
             chat_id=self.chat.chat_id,
             turn=len(self.chat.turns) + 1,
             kind=kind,
             text=text,
-            evidence=tuple(self._evidence(n, ev) for ev, n in number.items()),
+            evidence=evidence,
             edit=self._edit(answer.proposal_id) if kind == "edit" else None,
             options=answer.options,
             steps=tuple(self.steps),
@@ -759,8 +859,60 @@ class _Run:
             cost_usd=round(self.cost, 6),
             latency_s=round(self.clock() - self.started, 3),
             answers=answers,
-            view=self._view(kind, cited, number, answer.proposal_id),
+            view=view,
+            next=self._follow_ups(kind, answers, view, evidence, answer),
         )
+
+    def _follow_ups(
+        self,
+        kind: TurnKind,
+        answers: tuple[Json, ...],
+        view: View | None,
+        evidence: tuple[ChatEvidence, ...],
+        answer: FinalAnswer,
+    ) -> tuple[Option, ...]:
+        """`ChatTurn.next` (contract F), from what the tools returned, in this order: show the
+        answer's marks the plan does not show yet; ask whether it is sure about a Medium or Low
+        answer or one with disputed marks (not after a review); the size of a printed room the
+        answer names without an area. Each message is one both planners route to a tool."""
+        if answer.options or kind not in ("answer", "conflict"):
+            return ()
+        out: list[Option] = []
+        marks = sum(len(_marks_of(given)) for given in answers)
+        # not after a show: it showed the page with the most marks, the rest are on other
+        # pages, and the same chip would come back after every click (review-379)
+        if not self.shown and marks > (len(view.marks) if view is not None else 0):
+            out.append(Option(label="Show them on the plan", message=SHOW_THEM))
+        if not self.did_review and any(_doubtful(given) for given in answers):
+            out.append(Option(label="Are you sure?", message="Are you sure?"))
+        named = [e.label for e in evidence if e.label in self.printed]
+        if kind == "answer" and named and not AREA_WORDS.search(answer.text):
+            ask = f"How big is {named[0]}?"
+            out.append(Option(label=ask[:60], message=ask))
+        return tuple(out[:3])
+
+    def _unrated(self, text: str) -> str | None:
+        """The sentence for a number in `text` that rests only on unrated places (an
+        UNRATED_TOOLS result of this turn gives it; no rated answer's value, earlier ones
+        included, nor the user's message does), worded for the tools that gave it; None: no
+        such number, or the text says so already. A label's number ("LOBBY 104") is a name."""
+        if SAID_UNRATED.search(text):
+            return None
+        for label in _labels([_json(found) for _, found in self.unrated]):
+            text = re.sub(re.escape(label), " ", text, flags=re.I)
+        rated = numbers(self.rated)
+        tools = {
+            tool
+            for n in claims(text)
+            if not backed(n, rated)
+            for tool, found in self.unrated
+            if backed(n, numbers([found]))
+        }
+        if not tools:
+            return None
+        if tools == {"get_takeoff"}:
+            return UNRATED_TAKEOFF
+        return UNRATED_BOTH if "get_takeoff" in tools else UNRATED
 
     def _view(
         self, kind: TurnKind, cited: list[str], number: Mapping[str, int], proposal_id: str | None
@@ -872,6 +1024,94 @@ def _evs(items: Any) -> list[str]:
     return out
 
 
+def _as_shown(found: Any) -> Any:
+    """`found` with every measured value as the screen shows it: an area on an estimated scale
+    in whole m² (ask.shown_value, #294), any other measure with 2 decimals (formatValue). The raw
+    4.88 beside the shown 5, or 7.557 beside the card's 7.56, made the model say the raw one."""
+    if isinstance(found, list):
+        return [_as_shown(item) for item in found]  # pyright: ignore[reportUnknownVariableType]
+    if not isinstance(found, dict):
+        return found
+    given: Json = {key: _as_shown(value) for key, value in found.items()}  # pyright: ignore[reportUnknownVariableType]
+    unit = given.get("unit")
+    if unit in (None, "count"):
+        return given
+    whole = unit == "m2" and given.get("estimate")
+    for key in ("value", "answer"):
+        if isinstance(given.get(key), float):
+            given[key] = round(given[key]) if whole else round(given[key], 2)
+    return given
+
+
+def _marks_of(given: Json) -> list[Any]:
+    """Every mark of a ProjectAnswer's drawings."""
+    out: list[Any] = []
+    parts: list[Any] = given.get("parts") or []
+    for part in parts:
+        each: Json = part if isinstance(part, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+        line: Json = each.get("answer") or {}
+        marks: list[Any] = line.get("marks") or []
+        out += marks
+    return out
+
+
+def _doubtful(given: Json) -> bool:
+    """Whether a drawing's answer is rated Medium or Low or has marks the readers dispute."""
+    parts: list[Any] = given.get("parts") or []
+    for part in parts:
+        line: Any = part.get("answer") if isinstance(part, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        if not isinstance(line, dict) or line.get("answer") is None:  # pyright: ignore[reportUnknownMemberType]
+            continue
+        level: Any = line.get("level") or {}  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        check: Any = line.get("check") or {}  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        if level.get("level") in ("medium", "low") or check.get("disputed"):  # pyright: ignore[reportUnknownMemberType]
+            return True
+    return False
+
+
+def _values(found: Any) -> list[str]:
+    """The values a rated result gives, as text: each drawing's answer of an ask_drawings result
+    (ProjectAnswer `parts`) or of a review (`drawings`); not its ids, pages or labels."""
+    if not isinstance(found, dict):
+        return []
+    given: Json = found  # pyright: ignore[reportUnknownVariableType]
+    out: list[str] = []
+    parts: list[Any] = [*(given.get("parts") or []), *(given.get("drawings") or [])]
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        each: Json = part  # pyright: ignore[reportUnknownVariableType]
+        value: Any = each.get("answer")
+        if isinstance(value, dict):  # a part's answer line
+            line: Json = value  # pyright: ignore[reportUnknownVariableType]
+            value = line.get("answer")
+        if value is not None:
+            out.append(json.dumps(value, ensure_ascii=False))
+    return out
+
+
+def _json(text: str) -> Any:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def _labels(found: Any) -> list[str]:
+    """Every `label` with a digit in a result, longest first ("LOBBY 104")."""
+    out: set[str] = set()
+    if isinstance(found, dict):
+        for key, value in found.items():  # pyright: ignore[reportUnknownVariableType]
+            if key == "label" and isinstance(value, str) and any(c.isdigit() for c in value):
+                out.add(value)
+            else:
+                out.update(_labels(value))
+    elif isinstance(found, list):
+        for item in found:  # pyright: ignore[reportUnknownVariableType]
+            out.update(_labels(item))
+    return sorted(out, key=len, reverse=True)
+
+
 def _showed(caption: str) -> str:
     """show_on_plan's step label from its checked caption: "Showed the 3 doors on the plan"."""
     lower = caption[:1].lower() + caption[1:] if caption[1:2].islower() else caption
@@ -906,6 +1146,9 @@ def _summary(name: str, found: Any, names: Mapping[str, str]) -> str | None:
         return f"{len(walls)} walls, {len(rooms)} rooms"
     if name.startswith("propose_"):
         return "Proposal ready"
+    if name == "find_rooms":
+        count = result.get("count") or 0
+        return f"{count} room{'' if count == 1 else 's'} found"
     return None
 
 
