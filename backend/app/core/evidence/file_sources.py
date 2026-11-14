@@ -42,9 +42,13 @@ _HOUSE = (  # 12, 12a, 12 B 4, 12-14, 12 as 4
     r"(?:[ \t]+(?:as[ \t]+)?\d{1,3})?\b"
 )
 _STREET_NUMBER = re.compile(rf"\b({_STREET})[ \t]+{_HOUSE}")
+# "14 Baker Street", "1021 HIGH ST", "220 W 5th Ave.": a number, one to three capitalised (or
+# all-caps) words or an ordinal, then a street word or its abbreviation, in any case
 _ENGLISH_STREET = re.compile(
-    r"\b\d{1,5}[a-zA-Z]?[ \t]+((?:[A-Z][a-z]+[ \t]+){1,3}"
-    r"(?:Street|Road|Avenue|Lane|Drive|Way|Close|Court|Place|Square|Crescent)\b)"
+    r"\b\d{1,5}[a-zA-Z]?[ \t]+"
+    r"((?:(?:[A-Z][A-Za-z']*|\d{1,3}(?:st|nd|rd|th|ST|ND|RD|TH))[ \t]+){1,3}"
+    r"(?i:street|st|road|rd|avenue|ave|lane|ln|drive|dr|boulevard|blvd|way|highway|hwy|"
+    r"parkway|pkwy|court|place|square|crescent|close|terrace)\b\.?)"
 )
 _ZIP = re.compile(r"\b([A-Z]{2})[ \t]+\d{5}(?:-\d{4})?\b")  # "WI 54751": a US state and ZIP
 _POSTAL_CODE = re.compile(r"(,?[ \t]*)(?:[A-Z]{1,2}-)?\d{5}(?=[ \t]+[A-ZÅÄÖÜ])")

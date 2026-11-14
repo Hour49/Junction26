@@ -17,7 +17,7 @@ from app.core.drawing.model import (
     TableRow,
 )
 from app.core.errors import InvalidInputError
-from app.core.ingest.judge import CARBON_FLAG
+from app.core.ingest.judge import CARBON_FLAG, CARBON_PART_FLAG
 from app.core.pipeline.model import Quantity, QuantityConflict
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import Asked, ask, suggestions
@@ -506,6 +506,10 @@ def test_a_class_carbon_counted_and_found_none_of_answers_0_flagged() -> None:
         assert sinks.row is None and sinks.refusal is not None, flags  # Carbon could not count
     shipped = asked_flagged("How many doors are there?", carbon, (PHOTO_FLAG,), raster=True)
     assert shipped.refusal is not None and shipped.refusal.code == "no-reader"
+    # fail-1's S-D: Carbon read a part (a composite's plans or rooms), so the elements are not
+    # known to be Carbon's: no element is still unread, as F4-4b says
+    part = asked_flagged("How many doors are there?", carbon, (CARBON_PART_FLAG,), raster=True)
+    assert part.refusal is not None and part.refusal.code == "no-reader"
 
 
 def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:
