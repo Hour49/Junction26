@@ -1,0 +1,9 @@
+# Footage shows team members' faces and the repo is public: media never gets committed.
+media/
+*.mp4
+*.mov
+*.webm
+*.wav
+*.mp3
+*.png
+*.jpg
