@@ -77,7 +77,7 @@ def element_counts(found: Extracted) -> list[Measurement]:
     object of the floor below, seen through the cut), and a second count of the storey does not
     have it either."""
     shown = {plan.id: plan.storey for plan in found.plans}
-    numbers = Counter(e.class_ for e in found.elements if _of_its_plans_storey(e, shown))
+    numbers = Counter(e.class_ for e in found.elements if of_its_plans_storey(e, shown))
     return [
         Measurement(
             quantity="element_count",
@@ -89,7 +89,10 @@ def element_counts(found: Extracted) -> list[Measurement]:
     ]
 
 
-def _of_its_plans_storey(element: Element, shown: Mapping[str, int | str | None]) -> bool:
+def of_its_plans_storey(element: Element, shown: Mapping[str, int | str | None]) -> bool:
+    """Whether `element` is of the storey its plan shows (`shown`: each plan's storey), or names
+    no storey, or is on no plan with a storey. One that names another is drawn on the sheet
+    without being that storey's: seen through the cut."""
     own = element.attrs.get("storey")
     plans = shown.get(element.plan) if element.plan is not None else None
     return own is None or plans is None or str(own) == str(plans)

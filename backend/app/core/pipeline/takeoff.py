@@ -20,7 +20,7 @@ the entry does not matter.
 """
 
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 
 from app.core.drawing.model import (
@@ -68,7 +68,7 @@ from app.core.pipeline.rules import (
     apply_rules,
     combine_totals,
 )
-from app.core.pipeline.second_count import differ
+from app.core.pipeline.second_count import differ, of_its_plans_storey
 
 # An element sum an estimated scale makes an estimate (a volume is the model's, not the sheet's).
 SCALED_MEASURES: tuple[Measure, ...] = ("area", "length")
@@ -149,7 +149,8 @@ def _add_sheet(
     """What the sheet draws, for the whole sheet and each storey. With a building model, the
     storeys' sums and space areas are the model's (`_add_model`), not the sheet's."""
     scale = scale_estimate(drawing.scale)
-    _add_scope(found, counted, drawing.elements, drawing.rooms, storey=None, scale=scale)
+    sheet = _without_seen_through(counted, drawing)
+    _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale)
     _add_apartments(found, drawing, scale)
     _add_room_sides(found, drawing, scale)
     plans = {plan.id: plan.storey for plan in drawing.plans}
@@ -166,6 +167,48 @@ def _add_sheet(
         on_storey = apply_rules(_listed(elements, rooms))
         sums = drawing.model_objects is None
         _add_scope(found, on_storey, elements, rooms, storey=storey, scale=scale, sums=sums)
+
+
+def _without_seen_through(counted: Mapping[str, Counted], drawing: Drawing) -> dict[str, Counted]:
+    """The sheet's counts as stage 8 counts the sheet (`second_count.element_counts`): an
+    element of another storey than its plan's, seen through the cut, is left out of the counts
+    of its class and of the combined counts made of it, with the reason; its own storey's count
+    has it. So on a sheet of one storey the sheet's count is that storey's, and a disagreement
+    with the model is on both (R2-qa-1-1)."""
+    shown = {plan.id: plan.storey for plan in drawing.plans}
+    through: dict[str, Counter[Mark]] = defaultdict(Counter)
+    why: dict[Mark, str] = {}
+    for element in drawing.elements:
+        if not of_its_plans_storey(element, shown):
+            mark = _mark(element)
+            through[element.class_][mark] += 1
+            why[mark] = (
+                f"on storey {element.attrs['storey']} in the building model, seen through the cut"
+            )
+    if not through:
+        return dict(counted)
+    parts = {rule.key: rule.parts for rule in COMBINED}
+    out: dict[str, Counted] = {}
+    for key, chosen in counted.items():
+        left: Counter[Mark] = Counter()
+        for part in parts.get(key, (key,)):
+            left.update(through.get(part, {}))
+        kept: list[Mark] = []
+        dropped: list[tuple[Mark, str]] = []
+        for mark in chosen.marks:
+            if left[mark] > 0:
+                left[mark] -= 1
+                dropped.append((mark, why[mark]))
+            else:
+                kept.append(mark)
+        out[key] = (
+            chosen
+            if not dropped
+            else chosen.model_copy(
+                update={"marks": tuple(kept), "excluded": (*chosen.excluded, *dropped)}
+            )
+        )
+    return out
 
 
 def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
