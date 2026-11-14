@@ -189,7 +189,11 @@ function Answer(props: {
         </details>
         {/* The server's picture still prints the old probability line: only without a score. */}
         {a.confidence === null && (
-          <a href={evidenceUrl(a.drawing_id, a.question)} target="_blank" rel="noopener">
+          <a
+            href={evidenceUrl(a.drawing_id, a.question, { project: projectId })}
+            target="_blank"
+            rel="noopener"
+          >
             Picture of this answer
           </a>
         )}

@@ -532,11 +532,11 @@ describe('extended answers', () => {
     expect(within(r).queryByRole('link', { name: 'Send to surveyor' })).toBeNull();
   });
 
-  it('EN-29 the picture link only when confidence is null', async () => {
+  it('#90 EN-29 the picture link carries the project; only when confidence is null', async () => {
     const t = await shownTurn(answer);
     const link = within(t).getByRole('link', { name: 'Picture of this answer' });
     expect(link.getAttribute('href')).toBe(
-      '/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600',
+      `/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600&project=${PROJECT}`,
     );
     expect(link.getAttribute('target')).toBe('_blank');
     cleanup();
