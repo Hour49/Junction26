@@ -22,7 +22,9 @@ const oneAnswers: ProjectAnswer = {
   parts: [flatA, refusedPart],
   total: 2,
   total_unit: 'count',
-  total_note: 'The total is the one drawing that answered; 1 drawing has no reader for it.',
+  total_note: 'The total is the one drawing that answered.',
+  why_no_total: null,
+  refused_note: null,
 };
 /** Every drawing refuses (CH-6). */
 const noneAnswers: ProjectAnswer = {
@@ -203,7 +205,7 @@ it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row
 it('CH-5 project_ask.json: two drawings answer, no total, its note, then a line per drawing', async () => {
   open(projectAsk);
   const turn = await answered('How many doors are there?');
-  expect(within(turn).getByText(projectAsk.total_note)).toBeTruthy();
+  expect(within(turn).getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();
   expect(within(turn).queryByTestId('answer-value')).toBeNull();
   for (const p of [flatA, flatB]) {
     expect(line(turn, p.name).textContent).toContain(`${p.name}: 2`);

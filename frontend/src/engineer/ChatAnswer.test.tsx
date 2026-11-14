@@ -70,16 +70,30 @@ it('CH-30 a sheet that is not a floor plan comes first, in the rows and the refe
   expect(refs()[0]?.textContent).toContain(flatA.name);
 });
 
-it('CH-31 the lead: the note alone without a total; a total in bold with its note', () => {
+it('CH-31 the lead: why_no_total without a total, never the refused drawings; a total with its note', () => {
   show();
-  expect(screen.getByText(projectAsk.total_note)).toBeTruthy();
+  expect(screen.getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();
+  expect(screen.queryByText(projectAsk.refused_note ?? 'x', { exact: false })).toBeNull();
+  expect(screen.queryByText(projectAsk.total_note)).toBeNull();
   expect(screen.queryByTestId('answer-value')).toBeNull();
   cleanup();
-  show({ ...projectAsk, total: 4, total_unit: 'count', total_note: 'Two floors.' });
+  show({ ...projectAsk, why_no_total: null });
+  expect(screen.getByText(projectAsk.total_note)).toBeTruthy();
+  cleanup();
+  const total = { ...projectAsk, total: 4, total_unit: 'count' as const, why_no_total: null };
+  show({ ...total, total_note: 'Two floors.', refused_note: null });
   const value = screen.getByTestId('answer-value');
   expect(value.textContent).toBe('4');
   expect(value.closest('strong, .en-lead')).toBeTruthy();
   expect(screen.getByText('Two floors.')).toBeTruthy();
+  cleanup();
+  show({
+    ...total,
+    total_note: 'Two floors; 1 drawing has no reader for it.',
+    refused_note: '1 drawing has no reader for it.',
+  });
+  expect(screen.getByTestId('answer-value').textContent).toBe('4');
+  expect(document.body.textContent).not.toContain('no reader');
 });
 
 it('CH-32 reference 1 is drawn large by the viewer with its marks and legend; no credit', () => {

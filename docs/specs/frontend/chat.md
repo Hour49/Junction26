@@ -128,9 +128,10 @@ plans, each group in the API's order. "Not a floor plan" = the part's file (`pro
 reference *n*.
 
 - **Lead line** above the card (17 px, max 62ch, `.en-lead`): with a `total`, the total in bold in `total_unit` (+
-  the "Sure" badge when `total_sure`, CH-13), test id `answer-value`, then `total_note` muted; without one,
-  `total_note` alone (the backend's sentence already says how many drawings answered; the demo's own "<n> drawings
-  answered." prefix would repeat it). The quantity label (small) stays above it.
+  the "Sure" badge when `total_sure`, CH-13), test id `answer-value`, then `total_note` muted only when
+  `refused_note` is null (with refused drawings the note ends with them and there is no field without them: API
+  ask 4); without one, `why_no_total` (PR #221; `total_note` when it is null) alone (the backend's sentence
+  already says how many drawings answered). `refused_note` is never shown (#204). The quantity label (small) stays above it.
 - **Card**: two columns (`minmax(0, 1.4fr) minmax(0, 1fr)`), one column at ≤900 px (figure first).
   - **Left, the current reference** (`<figure aria-label="Reference <i> of <n>">`): the reference's page drawn by the
     shared viewer with that part's answer (`PageViewer` through `Plan`: `file` = the part's `name`, so its name sits
@@ -161,7 +162,10 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
 - CH-30 Two answering parts, the second one's file triaged `other_drawing`: rows and references list it first; row
   1 and reference 1 name the same drawing. [unit `orderParts` + component, `project.json` with a derived `files[]`
   triage, `project_ask.json`]
-- CH-31 The lead line: `project_ask.json` (no total) reads its `total_note` and no `answer-value`; a derived total
+- CH-31 (updated for #221) The lead line: `project_ask.json` (no total) reads its `why_no_total` ("3 drawings
+  answered; they may show the same rooms, so the numbers are not added up.") and neither its `refused_note` nor
+  `total_note`, no `answer-value`; with `why_no_total` null it reads `total_note`; a derived total with
+  `refused_note` set shows the value and no note; a derived total
   2 shows "2" in bold with test id `answer-value`, the Sure badge only when `total_sure` (CH-13 kept). [component]
 - CH-32 The figure shows reference 1: `figure` named "Reference 1 of 2", the viewer gets the part's `name`, `pages`,
   `marks` and `legend`, and no credit text shows in the turn. [component, `PageViewer` spy]
@@ -194,6 +198,9 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
    given for no total).
 2. Answers that combine several sheets (an elevation's storey count with a floor plan, demo #210): the API answers per
    read drawing only; set-aside elevations/sections give no part. Until there is one, no such answer, nothing mocked.
+4. (after #221) With a total, `total_note` is "<what the total is over>; <refused drawings>." and `why_no_total`
+   is null, so no field says what the total is over without the refused drawings: add one (e.g. `total_over`).
+   Until then the screen shows the total without a note when `refused_note` is set.
 3. Optional: `ProjectAnswerPart.sheet_class` (the file's triage class) so the order needs no `files[]` lookup.
 
 ### Not done here

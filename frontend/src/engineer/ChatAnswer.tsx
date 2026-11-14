@@ -56,11 +56,13 @@ export function ChatAnswer(props: {
           <strong className="en-value" data-testid="answer-value">
             {formatValue(ask.total, ask.total_unit)}
           </strong>
-          {ask.total_sure && <Sure />} <span className="en-muted">{ask.total_note}</span>
+          {ask.total_sure && <Sure />}{' '}
+          {/* total_note ends with the refused drawings when there are any: never shown (#204, API ask 4) */}
+          {ask.refused_note === null && <span className="en-muted">{ask.total_note}</span>}
         </p>
       ) : (
-        // The backend's sentence already says how many drawings answered.
-        <p className="en-lead">{ask.total_note}</p>
+        // The backend's sentence already says how many drawings answered; the refused ones are left out (#221).
+        <p className="en-lead">{ask.why_no_total ?? ask.total_note}</p>
       )}
       <div className="v-card en-chatcard">
         {current && (
