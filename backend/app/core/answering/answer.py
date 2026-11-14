@@ -297,6 +297,9 @@ HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates'
 BARE_NUMBER = re.compile(r"-?U?\d+\.\d+", re.IGNORECASE)  # as question_templates' ROOM_NUMBER
 SHORT_LABEL = re.compile(r"[^\W\d_a-zäöå]{2}")  # MH, OH, KT: two capitals
 CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
+WHOLE_NUMBER = re.compile(r"\d{2,4}")  # a room number of whole digits ("104"; takeoff's)
+LETTERS = re.compile(r"[^\W\d_]{3}")
+DOTTED = re.compile(r"\d[.,]\d")
 
 
 class RoomByType:
@@ -377,6 +380,27 @@ class RoomByType:
         return self._area_of(rooms[0], again) if again.measure == "area" else again
 
 
+def _printed_names(room: Room) -> list[tuple[str, re.Pattern[str]]]:
+    """The names of a room a question may hold without quotes, each with how it is found (its
+    group "name" is what the question is read with). A name of 3 letters or more in any case,
+    with a whole number in it or not ("lobby", "open office 102"); a dotted room number stays
+    the parser's ("1.07"). A 2-letter label (MH, OH) or one of letters and digits (MH1) only as
+    printed, case-sensitive: never a word ("of", "is"). A whole room number alone ("104") only
+    after "room" ("room 104"): never any number in the question."""
+    found: list[tuple[str, re.Pattern[str]]] = []
+    for name in room_names(room):
+        if WHOLE_NUMBER.fullmatch(name):
+            words = rf"(?<!\w)(?:room|rm\.?)\s+(?P<name>{re.escape(name)})(?![\w.])"
+            found.append((name, re.compile(words, re.IGNORECASE)))
+        elif len(name) > 2 and LETTERS.search(name) and not DOTTED.search(name):
+            words = rf"(?<!\w)(?P<name>{re.escape(name)})(?!\w)"
+            found.append((name, re.compile(words, re.IGNORECASE)))
+    if room.label and (SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)):
+        words = rf"(?<!\w)(?P<name>{re.escape(room.label)})(?!\w)"
+        found.append((normalised(room.label), re.compile(words)))
+    return found
+
+
 def printed_rooms(
     parser: QuestionParser, drawing: Drawing, text: str
 ) -> tuple[Query, list[Room]] | None:
@@ -387,23 +411,28 @@ def printed_rooms(
     found: dict[str, list[Room]] = {}
     at: dict[str, re.Match[str]] = {}
     for room in drawing.rooms:
-        names = [(name, name, re.IGNORECASE) for name in room_names(room) if len(name) > 2]
-        # a 2-letter label (MH, OH) or one of letters and digits (MH1) only as printed,
-        # case-sensitive: never a word ("of", "is"); a room number stays the parser's
-        if room.label and (SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)):
-            names.append((normalised(room.label), room.label, re.NOFLAG))
-        for name, printed, flags in names:
-            if flags and any(char.isdigit() for char in name):
-                continue
-            match = re.search(rf"(?<!\w){re.escape(printed)}(?!\w)", text, flags)
+        for name, pattern in _printed_names(room):
+            match = pattern.search(text)
             if match is not None:
                 found.setdefault(name, []).append(room)
                 at[name] = match
+    # "open office 102" holds "open office" too (three rooms print it): the longer name is meant
+    inside = {
+        name
+        for name, match in at.items()
+        for other in at.values()
+        if other is not match
+        and other.start() <= match.start()
+        and match.end() <= other.end()
+        and other.end() - other.start() > match.end() - match.start()
+    }
+    found = {name: rooms for name, rooms in found.items() if name not in inside}
     if len(found) != 1:
         return None
     ((name, rooms),) = found.items()
     match = at[name]
-    again = parser.parse(f"{text[: match.start()]}room '{match.group()}'{text[match.end() :]}")
+    named = match.group("name")
+    again = parser.parse(f"{text[: match.start()]}room '{named}'{text[match.end() :]}")
     if not (isinstance(again, Query) and again.name is not None):
         return None
     if again.measure == "area":

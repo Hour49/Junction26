@@ -926,6 +926,40 @@ def _label_numbers(label: str) -> set[str]:
     return found if len(found) == 1 else set()
 
 
+# A room number of whole digits printed after the room's words ("LOBBY\n104", "OPEN OFFICE 102":
+# US sheets number rooms so), not a measure ("12 m²"), not part of another number
+WHOLE_NUMBER = re.compile(r"(?<![\w.,\-])\d{2,4}(?![\w.,])")
+# a number with its unit, left out of a label's words ("PH 4.5 m²" → "PH"); one joined to letters
+# is part of the name ("MH1")
+LABEL_MEASURE = re.compile(
+    r"(?<![^\W\d_])-?\d+(?:[.,]\d+)?\s*(?:m²|m2|qm|sqm|sq\.?\s*ft|ft²|ft|cm|mm|m|%)?(?![^\W\d_])",
+    re.IGNORECASE,
+)
+
+
+GENERIC = frozenset({"room", "rm", "space"})  # a label's word that names no one room
+
+
+def _label_parts(label: str) -> set[str]:
+    """A label's words without its numbers and measures ("LOBBY\n104" → "LOBBY", "Stanza 1.07" →
+    "Stanza"), and the one whole room number it prints ("104"). The raster room reader keeps a
+    label as printed, where the vector reader stores name and number apart, so "the area of the
+    lobby" and "open office 102" were refused on the USCG scans (fable-rooms r10)."""
+    found: set[str] = set()
+    tokens = LABEL_MEASURE.sub(" ", label).split()
+    words = " ".join(t.strip(".,:;-") for t in tokens if any(c.isalpha() for c in t))
+    if words and words != " ".join(label.split()) and words.casefold() not in GENERIC:
+        found.add(words)
+    numbers = {
+        number.group()
+        for number in WHOLE_NUMBER.finditer(label)
+        if not MEASURE_AFTER.match(label, number.end())
+    }
+    if words and len(numbers) == 1 and not _label_numbers(label):
+        found |= numbers
+    return found
+
+
 def room_names(room: Room) -> tuple[str, ...]:
     """Every name a room answers to (its numbers, names, printed label, and a room number printed
     in the label), normalised and sorted, so the takeoff's keys come in the same order on every
@@ -938,7 +972,7 @@ def room_names(room: Room) -> tuple[str, ...]:
 
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
-    found |= _label_numbers(room.label or "")
+    found |= _label_numbers(room.label or "") | _label_parts(room.label or "")
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
     return tuple(sorted({normalised(value) for value in found}))
 

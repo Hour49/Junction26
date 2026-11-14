@@ -829,3 +829,29 @@ def test_a_room_number_printed_in_the_label_names_the_room() -> None:
     # a number two rooms print names neither: never one room's area for both, never a sum
     two = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno 1.07", 5.0, page=2))
     assert asked("What is the net floor area of room 1.07?", two).answer.answer is None
+
+
+def test_a_room_is_asked_by_its_label_s_words_or_whole_number() -> None:
+    """fable-rooms r10 (USCG scanned PDFs): the raster room reader keeps "LOBBY\\n104" and "OPEN
+    OFFICE\\n102" as one label each, so "What is the area of the lobby?" and "... of open office
+    102?" were refused as "no element, room or apartment named"."""
+
+    def room(n: int, label: str, area: float) -> Room:
+        return Room(id=f"r{n}", type="other", label=label, page=1, box=BOX_A, area_m2=area,
+                    attrs={"reader": "gemini"})  # fmt: skip
+
+    drawing = scaled(
+        room(1, "LOBBY\n104", 45.51), room(2, "OPEN OFFICE\n102", 17.46),
+        room(3, "OPEN OFFICE\n110", 1.2), room(4, "OPEN OFFICE\n114", 1.3),
+    )  # fmt: skip
+    assert asked("What is the area of the lobby?", drawing).answer.answer == 45.51
+    assert asked("What is the area of room 104?", drawing).answer.answer == 45.51
+    # three rooms print OPEN OFFICE: the number after it says which
+    assert asked("What is the area of open office 102?", drawing).answer.answer == 17.46
+    which = asked("What is the area of the open office?", drawing)
+    assert which.answer.answer is None and which.refusal is not None
+    assert which.refusal.text.startswith(
+        "3 rooms on this drawing are printed open office: OPEN OFFICE 102 17.46 m², "
+    )
+    # a whole number names a room only after "room": never any number in the question
+    assert asked("What is the area of 102?", drawing).answer.answer != 17.46
