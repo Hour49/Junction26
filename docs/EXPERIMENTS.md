@@ -539,10 +539,10 @@ elements, which it does not do yet.
 ## 14. Round "local": fewer hosted calls, and answers that say when they are unsure (2026-11-14 from 09:42; logs: `fail-1` to `fail-5`, `think-acc.md`, `think-local.md`, `local-dec.md`, `fable-rooms.md`, `integ.md`, `golden.md`, `tables-fix.md`)
 
 **Status of this section: draft, first written 2026-11-14 about 12:30 and extended the same day with the work after
-12:08 (14.7 to 14.11).** The single test read of C1-T1 is in (14.2); the rest of the
-section is val numbers from the logs, plus golden dev numbers where a log gives them. Still open, marked `TODO` below:
-the certificate rows of the test read (flagged share, error recall, unflagged exact), which wait for a measurement fix
-in the certificate script; the final config confirmation; the golden series point; arm 3's per-style result.
+12:08 (14.7 to 14.11).** The single test read of C1-T1 and its certificate are in
+(14.2); the rest of the section is val numbers from the logs, plus golden dev numbers where a log gives them. Still open,
+marked `TODO` below: the paired interval against config C (integ-14, running); the golden series point; arm 3's
+per-style result.
 
 The round had two goals. First, find out where the 13.5% of val questions that config C gets wrong come from, and take
 whatever is cheap. Second, replace the hosted calls (Gemini's count swap, its gate score, its photo flag) with local
@@ -626,16 +626,19 @@ toilet, shower and bathtub from `arbiter-t1:C-yolo26l:C-yolo26l-onnx-val`; rooms
 on; the runtime check policy; the dev prior; `ROOM_POLICY=gold-labels`. The read is the CLI (`app.cli answer`), which has
 no rectifier and no reading flags; on these CubiCasa scans that matches the API.
 
-**C1-T1 on test: 87.2% exact (5,860 of 6,718)**, against 56.3% for a guess from the train prior (+31.0 [+28.9, +33.0]).
-Config C, read once at 07:47, scored 85.0% (5,708 of 6,718), so C1-T1 is +2.2 pp, 152 more questions. That difference is
-unpaired: no paired C1-T1 against C test comparison was run, and the log records no interval for it. The log also gives
-no interval for the 87.2% itself, so none is quoted here.
+**C1-T1 on test: 87.0% exact through the API (5,846 of 6,718), 87.2% through the CLI read (5,860).** The number for the
+product is 87.0%. The two differ on kitchen only. The CLI read answers CubiCasa kitchens from the dev prior, because the
+answer policy keys on a dataset path (`data/cubicasa5k/...`). The API never does that for an uploaded file, which keeps
+its bare name, so there the kitchen count comes from the drawing: 476 of 516 kitchen questions exact (92.2%) against 490
+of 516 for the prior (95.0%). Quote 87.0% as the product's test accuracy and 87.2% only as the CLI read with the prior.
+Against the train prior (56.3%) the CLI read is +31.0 [+28.9, +33.0]; the log gives no interval for the API figure.
 
-C's 07:47 row was read without the answer policy, so the kitchen figures below are not like for like: C1-T1 answers
-kitchens from the dev prior under that policy (95.0 against 91.5 is partly that). Bedroom also changed, by switching to
-`gold-labels`.
+Config C, read once at 07:47, scored 85.0% (5,708 of 6,718): C1-T1 is +2.0 pp through the API and +2.2 through the CLI,
+unpaired (no paired test comparison existed when this was written; integ-14 is running one). C's 07:47 read had no
+answer policy, so its kitchen figure (91.5) is not like for like with the CLI's prior-based 95.0; its bedroom (77.6) was
+read without `gold-labels`, which is most of the 88.4 against 77.6.
 
-| family | C1-T1, test | C at 07:47, test | note |
+| family | C1-T1 CLI read, test | C at 07:47, test | note |
 | --- | --- | --- | --- |
 | door | 74.4 | 73.3 | |
 | window | 55.9 | 53.7 | |
@@ -645,24 +648,44 @@ kitchens from the dev prior under that policy (95.0 against 91.5 is partly that)
 | sauna | 98.5 | 98.1 | |
 | plan | 98.9 | 99.2 | |
 | bedroom | 88.4 | 77.6 | `gold-labels` rooms |
-| kitchen | 95.0 | 91.5 | prior policy, C had none |
+| kitchen | 95.0 (API: 92.2) | 91.5 | CLI uses the prior, API the drawing; C had no policy |
 | bathroom | 89.3 | 89.8 | |
 | wc | 96.2 | 96.7 | |
 | balcony | 91.5 | 91.5 | |
 
-Val said 88.5% for the same config, so test is 1.3 pp lower; config C lost 1.5 pp between val (86.5%) and test (85.0%).
-The thresholds and the policy are fitted on val too. The weak families are the same as on val: window, door, shower+bathtub
-and sink.
+Val said 88.5% for the same config, so test is 1.3 pp lower on the CLI read (1.5 pp on the API figure), and config C
+lost 1.5 pp between val (86.5%) and test (85.0%). The thresholds and the policy are fitted on val too. The weak families are the same as on val: window, door, shower+bathtub and sink.
 
-**TODO(certificate):** flagged share, error recall and unflagged exact on the test read, per family and pooled. The
-certificate script rated kitchen on the drawing's count, while the product answers kitchen from the prior (56 of the
-kitchen answers differ between the two); the numbers are being re-run and will be filled in from that re-run only.
+**The test certificate (golden, PR #215, `GOLDEN.md` "The test certificate (config C1-T1)").** The certificate is the
+backend's own `ask()` with the committed val policy on the drawings the test read stored, then joined with the truth, so it
+is the code the API runs. Counts are questions (two per page and family, one answer each). Raster route only: vector and
+BIM are certified on golden's holdout.
 
-**TODO (final config confirmation):** the test read used C1-T1 with the settings above; the orchestrator confirms it as
-the demo and scored config.
+**On test, the double-check flagged 97.0% of the wrong answers (846 of 872; one-sided 95% bound 95.3%) and asked on 62.1%
+of answers; 98.98% of the answers it did not flag are exact (2,518 of 2,544).**
 
-**TODO (golden series point):** the golden v2 series row for the picked config (commit, time, all, holdout). The
-schedule fixes (14.6) are in main but are an answer-only rerun, not a series point. Add the row to `GOLDEN.md` too.
+| read | rated | wrong | flagged | wrong flagged | 95% bound | unflagged exact |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| val, shipped thresholds (in-sample) | 6,764 | 800 | 3,962 (58.6%) | 782/800 (97.8%) | 96.1% | 2,784/2,802 (99.36%) |
+| val, cross-fit | 6,764 | 800 | 3,730 (55.1%) | 768/800 (96.0%) | 94.0% | 3,002/3,034 (98.95%) |
+| **test, once** | 6,718 | 872 | 4,174 (62.1%) | 846/872 (97.0%) | 95.3% | 2,518/2,544 (98.98%) |
+
+The val cross-fit row is the honest val estimate; the 96% target is a point above the 95% rule, as a margin for choosing
+the cut on val. The first run of the certificate (58.2% flagged, 94.2% of wrong flagged, 98.22% exact) is superseded: it
+took kitchen's score from the prior's hit rate and certified all 516 kitchen answers, 26 of them wrong. The corrected run
+scores the drawing's count as the API does and judges the answer the API gives; only the kitchen lines change (266 of
+them now ask) and the 6,202 lines answered from the drawing in both runs have equal scores.
+
+Per family on test (questions: flagged, wrong flagged, unflagged exact): door 100%, 142/142, none unflagged; plan 9.3%,
+8/8, 682/682; balcony 94.3%, 18/18, 12/12; bathroom 52.4%, 40/40, 178/178; bedroom 69.4%, 48/54, 136/142; kitchen 51.6%,
+38/40, 248/250; wc 57.4%, 6/14, 148/156; sauna 5.3%, 4/8, 500/504; shower+bathtub 100%, 94/94; sink 90.8%, 86/86, 68/68;
+toilet 26.6%, 30/36, 546/552; window 100%, 332/332. The families that miss wrong answers are wc (6 of 14) and toilet (30
+of 36) and bedroom (48 of 54), with few wrong answers each. Not covered: photos (the CLI has no rectifier or reading
+flags, and the test pages are scans, so neither would apply), and the sauna gate reads the arbiter's score next to an
+answer that can differ from its pick (5 such pages on val, all ask).
+
+**Config.** C1-T1 is the demo and the scored config (decision D489, final pick; PR #205 is its demo config). The settings
+are the ones listed above for the test read.
 
 ### 14.3 Double-check: answers that say when they are unsure
 
@@ -711,7 +734,7 @@ Caveats, all stated in the logs: the per-family signal was picked on val by a ki
 accuracy at 97, 98 or 99%), so these are slightly optimistic; 421 wrong answers is a small sample, and differences of 2
 to 3 points between signals are noise; the recall rule's signals other than Gemini's have no runtime scorer yet, so the
 backend loads the file today and certifies only the plan family on the raster route. The runtime version of this table is
-in 14.8. **TODO(certificate):** the test-read recall, flagged share and unflagged exact (see 14.2).
+in 14.8; the test certificate is in 14.2.
 
 ### 14.4 What we learned
 
@@ -855,8 +878,8 @@ runtime gates. **TODO:** the golden table with the runtime gates, and the series
 extra readers, the runtime policy, the dev prior, `ROOM_POLICY=gold-labels`). On val the runtime C1-T1 differs from the
 precomputed splice on 6 of 6,764 answers, all explained. Both score 88.5%: +0.2 [-0.1, +0.6] against shipped C1 (the
 runtime run gives +0.2 [-0.15, +0.57]) and +1.6 [+0.9, +2.3] against shipped C (table in 14.2).
-The single read is in 14.2: 87.2% exact on test. **TODO(certificate):** flagged share, error recall and unflagged exact
-on test, pending the corrected re-run.
+The single read and its certificate are in 14.2: 87.0% exact through the API (87.2% through the CLI), 97.0% of wrong
+answers flagged on test, 62.1% asked, 98.98% exact among the rest.
 
 ### 14.9 Drawing styles: what the detectors miss, and a training arm that was not shippable
 
@@ -959,7 +982,7 @@ street addresses from two sheets, and a no-personal-data rule and a contact-reda
 ### 14.12 Gaps in this section
 
 - Every val number is from precomputed arms or the backend runtime on the same 376 pages the rules were chosen on, and
-  is optimistic by the size of the choice (about 0.4 pp for C1). The single test read is the real number (14.2): 87.2%, 1.3 pp under the val figure.
+  is optimistic by the size of the choice (about 0.4 pp for C1). The single test read is the real number (14.2): 87.0% through the API, 87.2% through the CLI, 88.5% on val.
 - T1's element part is the only learned part fitted off val; its rooms (A6) and the thresholds are fitted on val halves
   or all val.
 - Missing intervals: the gate-score rows are AUROCs without intervals; the D455 and D476 tables are single draws of the
