@@ -34,6 +34,8 @@ from app.core.agent.review import (
     REVIEW_ANSWER,
     REVIEW_ANSWER_TOOL,
     REVIEWED,
+    outside,
+    pushed,
     review_of,
 )
 from app.core.agent.rooms import FIND_ROOMS
@@ -99,6 +101,12 @@ SAID_UNRATED = re.compile(
 NAMED_BY = re.compile(
     r"\b(floors?|levels?|storeys?|stor(y|ies)|rooms?|pages?|sheets?|plans?|drawings?|units?|"
     r"flats?|apartments?|stairs?|stairwells?|wings?|blocks?|buildings?|no\.?|#)\s*\d+(?:[.,]\d+)?",
+    re.I,
+)
+
+# a reply that opens by agreeing ("Yes, it could be 30")
+AGREE = re.compile(
+    r"^\W*(yes|yeah|yep|correct|right|indeed|sure|possibly|it (could|may|might|can) (well )?be)\b",
     re.I,
 )
 
@@ -246,6 +254,8 @@ class _Run:
         self.reviewed_refusal = False  # the reviewed answer was a refusal on every drawing
         self.printed: set[str] = set()  # the room labels find_rooms returned this turn
         self.did_review = False  # review_answer ran this turn (no "Are you sure?" chip after it)
+        self.review: list[Json] = []  # the reviewed drawings (value, level, range)
+        self.pushed: float | None = None  # the number a doubt offers ("could it be 30?")
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
         self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
         self.searched: set[str] = set()  # clause ids search_law returned this turn
@@ -257,6 +267,7 @@ class _Run:
         chat.starts.append(len(chat.messages))
         lines = [self.toolbox.describe(chosen) for chosen in selection]
         if DOUBT.search(message.lower()):  # reviewed before the model's first step
+            self.pushed = pushed(message)
             start = self.clock()
             if (reviewed := self._reviewed()) is not None:
                 label = PLAIN[REVIEW_ANSWER]
@@ -423,6 +434,8 @@ class _Run:
             )
             if offered:
                 wrong.append(f"offer only rooms find_rooms returned, not {', '.join(offered)}")
+            if (gave_in := self._gives_in(answer.text)) is not None:
+                wrong.append(gave_in)
         except ValidationError as error:
             answer, wrong = None, [f"bad final_answer arguments: {error.errors()[0]['msg']}"]
         soft, fixed = self._law(answer) if answer is not None else ([], None)
@@ -659,6 +672,27 @@ class _Run:
         answer = answer.model_copy(update={"options": kept or None})
         return answer, dropped if len(kept) < 2 else []
 
+    def _gives_in(self, text: str) -> str | None:
+        """Why a reply may not go out when it agrees with a number the user offered that lies
+        outside what every reviewed drawing supports (chat-eval #339 t3: "Yes, it could be 30"
+        over a reading of 19)."""
+        if self.pushed is None or self.asked:
+            return None
+        ranges = outside(self.pushed, self.review)
+        number = f"{self.pushed:g}"
+        agrees = AGREE.search(text) or re.search(
+            rf"\b(could|may|might|can) (well )?be (about |around )?{re.escape(number)}\b",
+            text,
+            re.I,
+        )
+        if ranges is None or not agrees:
+            return None
+        said = ", ".join(f"{low} to {high}" for low, high in ranges)
+        return (
+            f"the user offered {number}, which is outside what the drawings show ({said}): do not "
+            "agree with it; say what the drawings show, its level and what would settle it"
+        )
+
     def _review(self, call: Json) -> None:
         """review_answer (item 3): the chat's latest ask_drawings result as its readers judged
         it. It is a tool result of this turn (its numbers back the answer) and its answer card
@@ -690,6 +724,7 @@ class _Run:
         latest = [*self.chat.asked, *self.asked][-1]
         self.reviewed = [ev for ev in latest["marks"] if ev in {**self.known, **self.ledger}]
         drawings: list[Json] = found["drawings"]
+        self.review = drawings
         self.reviewed_refusal = bool(drawings) and all("refused" in d for d in drawings)
         return _for_model(found)
 
@@ -784,7 +819,7 @@ class _Run:
         # The sources are the places the text cites, in its order; evidence_ids only when the
         # text cites none (AC-5)
         cited = list(dict.fromkeys(re.findall(r"ev_\d+", answer.text) or answer.evidence_ids))
-        if not cited and answer.kind == "answer" and self.reviewed:
+        if not cited and answer.kind == "answer" and self.reviewed and not self.asked:
             cited = self.reviewed[:MARKS]  # a review's answer is about the reviewed answer's places
         shown = self.shown[0] if self.shown else []
         # the places show_on_plan showed are sources too, numbered after the cited ones
@@ -794,7 +829,7 @@ class _Run:
             text = text.replace(file, self.names.get(drawing_id) or file)
         text = _plain_ids(text)
         kind: TurnKind = answer.kind
-        if kind == "dont_know" and self.reviewed_refusal:
+        if kind == "dont_know" and self.reviewed_refusal and not self.asked:
             # "are you sure?" about a refusal is answered by its review: the refusal stands and
             # why. Not "I don't know." over "Yes, ..." (qa-a live, r10 live-photo #7)
             kind = "answer"
