@@ -298,7 +298,9 @@ def listed_issues(
     last = len(drawings) + len(files)
 
     def order(issue: Issue) -> tuple[int, int, int, float, str, str]:
-        drawing = drawings.get(issue.drawing_id or "")
+        # a file's unrelated_file issue keeps the file's place, also once it has a drawing
+        placed = issue.drawing_id if issue.kind != "unrelated_file" else None
+        drawing = drawings.get(placed or "")
         at = drawing if drawing is not None else len(drawings) + files.get(issue.file, last)
         top = issue.box[1] if issue.box is not None else 2.0  # no box: after the boxed ones
         ref = issue.check or issue.quantity or issue.question or issue.reason or ""
@@ -345,11 +347,13 @@ def _issue(
     drawing_id: str | None,
     ref: str,
     checks: str | None = None,
+    by_file: bool = False,
     **fields: object,
 ) -> Issue:
-    """An issue of the file, its id hashed from what names it, its links filled in (`checks`:
-    the drawing's checks for the pack, for a failed code check)."""
-    named = drawing_id if drawing_id is not None else file.id
+    """An issue of the file, its id hashed from what names it (`by_file`: the file, even once it
+    has a drawing), its links filled in (`checks`: the drawing's checks for the pack, for a failed
+    code check)."""
+    named = drawing_id if drawing_id is not None and not by_file else file.id
     digest = hashlib.sha256("\0".join((kind, named, ref)).encode()).hexdigest()  # per project
     at = f"?project={project_id}"
     links = IssueLinks(
@@ -578,8 +582,9 @@ def _unrelated_files(status: ProjectStatus) -> Iterator[Issue]:
             "unrelated_file",
             status.id,
             file,
-            None,
+            file.drawing_id,  # once read as a floor plan, a link to open it (R6-a-4)
             file.path,
+            by_file=True,  # the same id before and after it is read
             severity="needs_person" if judged == "unsure" else "note",
             state="settled" if called else "open",
             why=why,

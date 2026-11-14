@@ -75,7 +75,7 @@ test('ingest progress ends with every file through and every drawing ready', () 
   assert.equal(end.done, true);
   assert.equal(end.through, V.FILES.length);
   assert.equal(end.ready, V.DRAWINGS.length);
-  assert.equal(end.aside, 2);
+  assert.equal(end.aside, 6);  // 4 images triage set aside + readme.txt + the __MACOSX file
 });
 
 test('the project chat adds nothing up across drawings, or refuses with what can be asked', () => {

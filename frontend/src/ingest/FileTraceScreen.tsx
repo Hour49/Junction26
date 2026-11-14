@@ -13,6 +13,7 @@ import {
 } from './ingest';
 import { BeforeAfter } from './BeforeAfter';
 import { StaleNote, StateBadge, TitleRow } from './ProjectScreen';
+import { TriageCard } from './TriageCard';
 import { usePoll } from './usePoll';
 import './ingest.css';
 
@@ -24,7 +25,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
     (signal: AbortSignal) => getTrace(projectId, fileId, { signal }),
     [projectId, fileId],
   );
-  const { data: trace, error, failedAt, retry } = usePoll(load, live);
+  const { data: trace, error, failedAt, retry, set } = usePoll(load, live);
   const back = (
     <a className="ingest-back" href={`#/p/${projectId}`}>
       Back to the project
@@ -79,6 +80,14 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           ) : null,
         )}
       </dl>
+      <TriageCard
+        projectId={projectId}
+        file={file}
+        onFile={(next) => {
+          set({ ...trace, file: next });
+          if (!isFinished(next)) retry(); // read again as a plan: follow it until it is finished
+        }}
+      />
       {file.normalised && file.drawing_id && (
         <BeforeAfter
           projectId={projectId}

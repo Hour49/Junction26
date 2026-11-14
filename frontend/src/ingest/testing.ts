@@ -1,7 +1,7 @@
 // Test helpers for the ingest screens: derived fixtures (docs/specs/frontend/ingest.md "Variants") and a flush.
 import { act } from '@testing-library/react';
-import { project, projectList, trace } from '../api/fixtures';
-import type { FileStatus, FileTrace, ProjectView } from '../api';
+import { project, projectList, projectTriaged, trace } from '../api/fixtures';
+import type { FileStatus, FileTrace, ProjectView, Triage } from '../api';
 
 /** The value, or a thrown error naming what was missing. */
 export function must<T>(value: T | null | undefined): T {
@@ -126,3 +126,62 @@ export const traceVariants = {
     },
   },
 };
+
+// File triage (docs/specs/frontend/file-triage.md "Variants").
+export const triaged = projectTriaged;
+
+const withTriage = (p: ProjectView, index: number, changes: Partial<Triage>): FileStatus[] =>
+  p.files.map((f, i) =>
+    i === index && f.triage ? { ...f, triage: { ...f.triage, ...changes } } : f,
+  );
+
+const site = must(must(triaged.files[2]).triage);
+
+export const triagedVariants = {
+  running: {
+    ...triaged,
+    state: 'running',
+    not_plans: null,
+    files: triaged.files.map((f, i) =>
+      f.triage && i !== 3
+        ? {
+            ...f,
+            triage: {
+              ...f.triage,
+              relevance: null,
+              overruled: null,
+              verdict: null,
+              note: 'not judged yet: the project is still being read',
+            },
+          }
+        : f,
+    ),
+  } as ProjectView,
+  unsure: {
+    ...triaged,
+    files: withTriage(triaged, 2, {
+      overruled: null,
+      relevance: {
+        ...must(site.relevance),
+        verdict: 'unsure',
+        why: 'no floor plan in the project to compare with',
+      },
+      verdict: 'unsure',
+    }),
+  },
+  open: { ...triaged, files: withTriage(triaged, 2, { overruled: null, verdict: 'unrelated' }) },
+  offline: {
+    ...triaged,
+    files: withTriage(triaged, 3, {
+      note: 'not described: no description model is set up, so it is not judged',
+    }),
+  },
+  notPlansZero: { ...triaged, not_plans: 0 },
+};
+
+/** The trace of one triaged file: `trace.json`'s stages up to and including `identify`. */
+export const triageTrace = (file: FileStatus): FileTrace => ({
+  ...trace,
+  file,
+  stages: trace.stages.slice(0, trace.stages.findIndex((s) => s.stage === 'identify') + 1),
+});

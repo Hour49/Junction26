@@ -17,6 +17,8 @@ import {
   evidenceUrl,
   getModel,
   postReview,
+  postRelevance,
+  readAsPlan,
   postSignoff,
   previewUrl,
   startSample,
@@ -161,6 +163,23 @@ describe('API client', () => {
     for (const edit of fx.reviewRequests) expect(await postReview(tid, edit)).toEqual(fx.takeoff);
     expect(await postSignoff(tid, fx.signoffRequest)).toEqual(fx.takeoff);
     expect(api.calls.map((c) => c.body)).toEqual([...fx.reviewRequests, fx.signoffRequest]);
+  });
+
+  it('SH-73 postRelevance sends the request fixture and resolves with the file', async () => {
+    const pid = fx.projectTriaged.id;
+    const file = fx.projectTriaged.files.find((f) => f.id === 'f2');
+    const api = mockApi({ [`POST /api/projects/${pid}/files/f2/relevance`]: file });
+    expect(await postRelevance(pid, 'f2', fx.relevanceRequest)).toEqual(file);
+    expect(api.calls.map((c) => c.body)).toEqual([fx.relevanceRequest]);
+  });
+
+  it('SH-74 readAsPlan sends the triage request fixture and resolves with the queued file', async () => {
+    const pid = fx.projectTriaged.id;
+    const api = mockApi({
+      [`POST /api/projects/${pid}/files/f2/triage`]: reply(202, fx.triageStarted),
+    });
+    expect(await readAsPlan(pid, 'f2', fx.triageRequest.by)).toEqual(fx.triageStarted);
+    expect(api.calls.map((c) => c.body)).toEqual([fx.triageRequest]);
   });
 
   it('SH-27 (#121) an unsettle edit and a settling sign-off are sent as given', async () => {

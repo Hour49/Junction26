@@ -5,6 +5,7 @@ import type {
   AskRequest,
   DrawingView,
   Edit,
+  FileStatus,
   FileTrace,
   ProjectTrace,
   ProjectQuestions,
@@ -13,6 +14,8 @@ import type {
   ProjectList,
   ProjectReview,
   ProjectView,
+  RelevanceRequest,
+  TriageRequest,
   SignOffRequest,
   Started,
   Takeoff,
@@ -149,6 +152,27 @@ export const postSignoff = (drawingId: string, body: SignOffRequest, opts: Zeros
       project: opts.project,
     }),
     body,
+    opts,
+  );
+
+/** A person's call on a triaged file (decision 0010, file-triage.md); answers the file as it now stands. */
+export const postRelevance = (
+  projectId: string,
+  fileId: string,
+  body: RelevanceRequest,
+  opts?: Opts,
+) =>
+  postJson<FileStatus>(
+    `/api/projects/${seg(projectId)}/files/${seg(fileId)}/relevance`,
+    body,
+    opts,
+  );
+
+/** "Read it as a plan" (0010, #152): queues the file for a plan read; answers 202 with the file, queued. */
+export const readAsPlan = (projectId: string, fileId: string, by: string, opts?: Opts) =>
+  postJson<FileStatus>(
+    `/api/projects/${seg(projectId)}/files/${seg(fileId)}/triage`,
+    { class: 'floor_plan', by } satisfies TriageRequest,
     opts,
   );
 

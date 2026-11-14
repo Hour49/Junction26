@@ -557,6 +557,7 @@ export interface components {
         AnswerView: {
             /** Answer */
             answer: number | string | null;
+            check: components["schemas"]["Check"] | null;
             confidence: components["schemas"]["Signal"] | null;
             /** Cost Usd */
             cost_usd: number;
@@ -644,6 +645,16 @@ export interface components {
             refused: boolean;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+        };
+        /**
+         * Check
+         * @description The double-check request on an answer that is not certified.
+         */
+        Check: {
+            /** Disputed */
+            disputed: components["schemas"]["Disputed"][];
+            /** Reason */
+            reason: string;
         };
         /**
          * CheckMark
@@ -825,6 +836,29 @@ export interface components {
              * @default []
              */
             text_seen: string[];
+        };
+        /**
+         * Disputed
+         * @description One place to double-check, as the answer gives it.
+         */
+        Disputed: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Mark Id */
+            mark_id: string | null;
+            /** Page */
+            page: number;
+            /** Readers */
+            readers: {
+                [key: string]: string;
+            };
+            /** Why */
+            why: string;
         };
         /** DrawingChecks */
         DrawingChecks: {
