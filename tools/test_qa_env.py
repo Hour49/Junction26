@@ -52,6 +52,15 @@ def test_the_demo_config_reads_the_sheet_kind_signal() -> None:
     assert not any(line.startswith("GEMINI_API_KEY") for line in config)  # never the key
 
 
+def test_the_demo_config_estimates_raster_areas() -> None:
+    """QA R1: every CubiCasa area question was refused (no printed scale). The demo config gives
+    a raster sheet with detected doors an estimated scale and its rooms estimated areas (#81,
+    calibrated in #82; a sheet without a detected door stays refused)."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    assert "RASTER_SCALE=priors" in found.stdout.split()
+
+
 def test_the_backend_starts_with_the_printed_config() -> None:
     script = SCRIPT.read_text()
     assert 'env "${DEMO_ENV[@]}" uv run --locked uvicorn' in script

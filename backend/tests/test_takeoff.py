@@ -200,7 +200,9 @@ def test_areas_and_lengths_on_an_estimated_or_not_to_scale_sheet_say_what_they_r
     estimated = Scale(status="estimated", m_per_unit=0.02, source="door widths", uncertainty=0.15)
     found = known_quantities(drawing(scale=estimated, **items))
     area = found[Query(measure="area", subject="room", label="OH").key()]
-    assert area.estimate == "an estimated scale (door widths), uncertainty 0.15"
+    assert area.estimate == (
+        "measured on an estimated scale (door widths), which may be off by about ±15%"
+    )
     assert found[Query(measure="length", subject="wall").key()].estimate == area.estimate
     assert found[Query(measure="volume", subject="wall").key()].estimate is None
     assert found[Query(subject="room").key()].estimate is None  # a count needs no scale
@@ -256,7 +258,7 @@ def test_a_room_area_sum_is_an_estimate_when_one_of_its_rooms_is_estimated() -> 
     total = found[Query(measure="area", subject="room").key()]
     assert (
         total.estimate
-        == "1 of 2 room areas estimated (geometry_x_estimate, uncertainty up to 0.35)"
+        == "1 of 2 room areas is measured on an estimated scale; the area may be off by about ±35%"
     )
     assert found[Query(measure="area", subject="room", name="K").key()].estimate is None
     # a printed (exact) area does not rest on the sheet's estimated scale; an unset one does
@@ -265,12 +267,12 @@ def test_a_room_area_sum_is_an_estimate_when_one_of_its_rooms_is_estimated() -> 
     assert on_guess[Query(measure="area", subject="room", name="K").key()].estimate is None
     # an outline at an estimated scale also says how that scale was estimated
     assert on_guess[Query(measure="area", subject="room").key()].estimate == (
-        "1 of 2 room areas estimated (geometry_x_estimate, uncertainty up to 0.35), "
-        "at an estimated scale (door widths)"
+        "1 of 2 room areas is measured on an estimated scale (door widths); "
+        "the area may be off by about ±35%"
     )
     unset = known_quantities(drawing(scale=guessed, rooms=(room(3, "hall", 5.0, label="ET"),)))
     assert unset[Query(measure="area", subject="room").key()].estimate == (
-        "an estimated scale (door widths)"
+        "measured on an estimated scale (door widths)"
     )
 
 
@@ -414,7 +416,7 @@ def test_a_rectangular_room_s_longer_side_at_the_sheet_s_scale() -> None:
     found = known_quantities(sheet)
     side = found[Query(measure="length", subject="room", name="OH").key()]
     assert (side.value, side.unit) == (4.0, "m")
-    assert side.estimate == "an estimated scale (door widths)"
+    assert side.estimate == "measured on an estimated scale (door widths)"
     assert value(found, Query(measure="length", subject="room:balcony")) == 4.0
     assert (
         value(found, Query(measure="length", subject="room", name="MH")) is None
