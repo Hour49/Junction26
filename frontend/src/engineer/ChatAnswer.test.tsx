@@ -8,6 +8,7 @@ import { project, projectAsk } from '../api/fixtures';
 import { routeLabel } from '../ingest/ingest';
 import type { PageViewer } from '../viewer/PageViewer';
 import { ChatAnswer } from './ChatAnswer';
+import { answerHigh, answerMedium } from './testing';
 import { kindName } from './format';
 
 type ViewerProps = ComponentProps<typeof PageViewer>;
@@ -66,12 +67,12 @@ afterEach(() => {
 it('CH-30 a sheet that is not a floor plan comes first, in the rows and the references alike', () => {
   show(projectAsk, projectWith('other_drawing'));
   expect(rows()[0]?.textContent).toContain(LB);
-  expect(refs()[0]?.textContent).toContain(flatB.name);
+  expect(refs()[0]?.textContent).toContain(LB);
   expect(rows()[1]?.textContent).toContain(LA);
   cleanup();
   show(projectAsk, projectWith(null));
   expect(rows()[0]?.textContent).toContain(LA);
-  expect(refs()[0]?.textContent).toContain(flatA.name);
+  expect(refs()[0]?.textContent).toContain(LA);
 });
 
 it('CH-31 the lead: why_no_total without a total, never the refused drawings; a total with its note', () => {
@@ -132,7 +133,7 @@ it('CH-34 the references: numbered buttons, kind and route in words, the current
   const b1 = within(one).getByRole('button');
   const b2 = within(two).getByRole('button');
   expect(b1.textContent).toContain('1');
-  expect(b1.textContent).toContain(flatA.name);
+  expect(b1.textContent).toContain(LA);
   expect(b1.textContent).toContain(`${kindName('pdf_vector')} · ${routeLabel('vector')}`);
   expect(b2.textContent).toContain(`${kindName('png_plan')} · ${routeLabel('raster')}`);
   expect(b1.getAttribute('aria-pressed')).toBe('true');
@@ -178,7 +179,7 @@ it('CH-39 the viewer is bare; each row is one sentence with the value in bold, o
   expect(viewers.at(-1)?.bare).toBe(true);
   // bare drops the viewer's own name: the card prints it, mono, above the image
   const name = figure().querySelector('.en-chatname');
-  expect(name?.textContent).toBe(flatA.name);
+  expect(name?.textContent).toBe(LA);
   expect(name?.compareDocumentPosition(screen.getByTestId('viewer'))).toBe(
     Node.DOCUMENT_POSITION_FOLLOWING,
   );
@@ -190,12 +191,12 @@ it('CH-39 the viewer is bare; each row is one sentence with the value in bold, o
   cleanup();
   show({
     ...projectAsk,
-    parts: [{ ...flatA, answer: { ...flatA.answer, line: { ...flatA.answer.line, sure: true } } }],
+    parts: [{ ...flatA, answer: { ...flatA.answer, level: answerHigh.level } }],
   });
   const [sure] = rows() as [HTMLElement];
   expect(
     [...sure.querySelectorAll('.v-pill')].map((x) => x.textContent.replace(/\..*/, '')),
-  ).toEqual(['Sure']);
+  ).toEqual(['High confidence']);
 });
 
 it('CH-40 drawings by their plain name (#224), files by their path; a part not in the project by its file name', () => {
@@ -204,9 +205,38 @@ it('CH-40 drawings by their plain name (#224), files by their path; a part not i
   const [a] = rows() as [HTMLElement];
   expect(a.textContent).toContain('Drawn plan 1: 2 doors');
   expect(within(a).getByRole('link', { name: 'Show it on Drawn plan 1' })).toBeTruthy();
-  expect(refs()[0]?.textContent).toContain(flatA.name);
-  expect(figure().querySelector('.en-chatname')?.textContent).toBe(flatA.name);
+  // CH-41: the figure's title and the references by the drawing's name too
+  expect(refs()[0]?.textContent).toContain('Drawn plan 1');
+  expect(refs()[0]?.textContent).not.toContain(flatA.name);
+  expect(figure().querySelector('.en-chatname')?.textContent).toBe('Drawn plan 1');
   cleanup();
   show(projectAsk, { ...project, drawings: [], files: [] });
   expect(rows()[0]?.textContent).toContain('flat-a.pdf: 2 doors');
+});
+
+it('CH-42 one pill per row: Signed off, else the level with its text, else the status; the total level', () => {
+  const signed = { ...flatB.answer, level: answerHigh.level };
+  if (!signed.quantity) throw new Error('flat-b has a quantity');
+  signed.quantity = { ...signed.quantity, status: 'signed' };
+  show({
+    ...projectAsk,
+    parts: [
+      { ...flatA, answer: { ...flatA.answer, level: answerMedium.level } },
+      { ...flatB, answer: signed },
+    ],
+  });
+  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  const pill = a.querySelector('.v-pill') as HTMLElement;
+  expect(pill.textContent).toBe('Medium confidence');
+  expect(pill.getAttribute('title')).toBe(answerMedium.level?.text);
+  expect(b.querySelector('.v-pill')?.textContent).toBe('Signed off');
+  expect(document.body.textContent).not.toMatch(/Sure/);
+  cleanup();
+  show({ ...projectAsk, total: 4, total_unit: 'count', total_level: 'low', total_sure: true });
+  const lead = document.querySelector('.en-lead') as HTMLElement;
+  expect(lead.textContent).toContain('Low confidence');
+  expect(lead.textContent).not.toContain('Sure');
+  cleanup();
+  show({ ...projectAsk, total: 4, total_unit: 'count', total_level: null });
+  expect((document.querySelector('.en-lead') as HTMLElement).querySelector('.v-pill')).toBeNull();
 });

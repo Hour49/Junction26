@@ -476,6 +476,14 @@ Thread and pages
   translucency only shows the band). The arrows on plans and chat references (`.en-nav`) are 92% surface with the
   demo's `0 2px 10px` shadow at 18% `--v-text`. Amends EN-71's "the pill uses no transparent or backdrop-filter".
   [unit on the CSS text; browser 1440 and 390]
+- EN-82 (Bogdan #14 c6879176847, #233; replaces EN-53's Sure badge and EN-67's derived grade) Confidence comes from
+  the backend: `gradeOf(a)` = `a.level?.level` (High / Medium / Low; null without `level`, no score rule). The block
+  is labelled "Confidence" (not "Grade"): the level pill (tooltip `level.text`), the 3-step bar, and `level.text`
+  as its small line. No `level`: no block. No "Sure" badge and no `SURE_TIP` anywhere (the old gate certificate).
+  [component, `answer_certified.json` (high), `answer_double_check.json` (medium), derived low, `answer.json` (none)]
+- EN-83 A signed-off value (`quantity.status: "signed"`) shows "Signed off" in the Confidence block, with no level,
+  bar or level text, even when `level` is set. The double-check panel follows `check` (Medium and Low come with one
+  from the backend) and is never mounted for a High answer. [component, `answer_signed.json` + a derived level]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)

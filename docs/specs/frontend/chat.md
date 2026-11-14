@@ -201,6 +201,13 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   not in the list: `drawingLabel({file: part.name})`): the row's "<label>: <b>value</b>" and "Show it on <label>".
   FILES keep their path: the figure's name above the image and the References list. [component, `project.json`
   (#224 names), `project_ask.json`]
+- CH-41 (orch follow-ups; amends CH-40) The figure's title above the image and each References row name the drawing
+  by `drawingLabel(d)` too ("Drawn plan 1", not the file path; plain names are not mono); the References sub-line
+  stays "<kind words> · <route words>". [component]
+- CH-42 (Bogdan #14 c6879176847, #233; replaces the "Sure" pills of CH-13/CH-39) Each row's one pill: "Signed off"
+  for a signed value, else "<Level> confidence" from `answer.level` (tooltip `level.text`), else the status word.
+  The lead's pill where a total shows: "<Level> confidence" from `total_level` (no `total_sure` badge); none when
+  `total_level` is null. [component, `answer_certified.json`, `answer_double_check.json`, derived `total_level`]
 - CH-4/CH-5 amended: their "one line per drawing" is CH-35's row; the "no figure or img" part is replaced by CH-32.
   CH-11 amended: after the first ask the "Suggested questions" group is gone and "Follow-up questions" (CH-36) takes
   its place after the thread.
