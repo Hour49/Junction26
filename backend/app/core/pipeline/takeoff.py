@@ -330,7 +330,7 @@ def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Q
             values=entry.values,
             resolution=entry.resolution,
             note=entry.note,
-            value_marks=_value_marks(entry, drawing, plans),
+            value_marks=_value_marks(entry, drawing),
         )
         for key in _conflict_keys(entry, drawing, storey, plans):
             _attach(out, key, disputed, entry.tolerance)
@@ -345,21 +345,20 @@ def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Q
             resolution=entry.resolution,
             note=entry.note,
             status="agree",
-            value_marks=_value_marks(entry, drawing, plans),
+            value_marks=_value_marks(entry, drawing),
         )
         for key in _conflict_keys(entry, drawing, storey, plans):
             _agree(out, key, agreed, entry.tolerance)
     return out
 
 
-def _value_marks(
-    entry: Conflict, drawing: Drawing, plans: Mapping[str, object]
-) -> tuple[tuple[ValueMark, ...], ...]:
+def _value_marks(entry: Conflict, drawing: Drawing) -> tuple[tuple[ValueMark, ...], ...]:
     """Where each value's items are, aligned with `entry.values`: a count of an element class or
     of rooms lists what the method counted (what the plan draws; the model's objects the sheet
     draws, a model object it does not draw has no position); any other value is its own
     position (page and box) when it has one. () when no value has a position."""
     ref = entry.subject.ref
+    shown_storeys = {plan.id: plan.storey for plan in drawing.plans}
     elements = {e.id: e for e in drawing.elements}
     rooms = {r.id: r for r in drawing.rooms}
     drawn: list[tuple[ValueMark, ...]] = []
@@ -368,7 +367,7 @@ def _value_marks(
         if entry.quantity == "element_count" and entry.subject.kind == "class" and ref:
             if value.method == "plan_drawing":
                 shown = [e for e in drawing.elements if e.class_ == ref]
-                shown = [e for e in shown if of_its_plans_storey(e, plans)]
+                shown = [e for e in shown if of_its_plans_storey(e, shown_storeys)]
             elif value.method == "ifc_model":
                 shown = [
                     elements[o.element]
