@@ -11,7 +11,7 @@ import {
 import type { FileStatus } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { FileTraceScreen } from './FileTraceScreen';
-import { flush, must, triageTrace, triaged, triagedVariants } from './testing';
+import { flush, must, sheet, triageTrace, triaged, triagedVariants } from './testing';
 
 const PID = triaged.id;
 const NAME_KEY = 'countersign.surveyorName';
@@ -40,6 +40,15 @@ const unrelated = () => card().getByRole('button', { name: 'It is not related' }
 const nameField = () => card().getByRole('textbox', { name: 'Your name' });
 
 describe('TriageCard (file-triage.md)', () => {
+  it('FT-24 the heading takes the sheet words when the sheet set the file aside', async () => {
+    await show({ ...south, triage: { ...must(south.triage), sheet } });
+    expect(
+      card().getByRole('heading', {
+        name: 'Not a floor plan: an elevation (South elevation, A-201)',
+      }),
+    ).toBeTruthy();
+  });
+
   it('FT-6 FT-22 shows class, chance, preview, description; no relevance, judge or describer', async () => {
     await show(south);
     const c = card();
