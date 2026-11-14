@@ -61,6 +61,7 @@ from app.core.review.check import (
     schedule_check,
     score_of,
     summed_check,
+    unmeasured_room,
 )
 from app.core.review.check import SCHEDULE as SCHEDULE_ROUTE
 from app.core.review.model import (
@@ -176,7 +177,8 @@ def ask(
     `carbon_ladder` (CARBON_LEVELS=ladder) a Medium answer Carbon read the same is High and asks
     nothing, yet stays not `sure`: Carbon never certifies an answer. On the raster route a count
     `room_words` doubts (check.room_word_doubt: its rooms' printed labels) is not certified
-    and gets no High from Carbon either; its level is otherwise the score's."""
+    and gets no High from Carbon either; its level is otherwise the score's, except Low on an image
+    printing words of a plan kind the policy was not measured on (check.unmeasured_room)."""
     quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
@@ -259,6 +261,7 @@ def ask(
             agrees = confidence.probability(drawing.file, family, answer.answer).agrees
         blank = found_nothing(drawing)
         doubt = room_word_doubt(shown, drawing, room_words) if route == "raster" else None
+        unmeasured = shown.measure == "count" and unmeasured_room(drawing, room_words) is not None
         sure = reason is None and doubt is None and certified(
             check, route=route, family=family, score=score, flags=flags, agrees=agrees,
             blank=blank,
@@ -266,7 +269,7 @@ def ask(
         if shown.signed is None and shown.settled is None:
             level = level_of(
                 check, sure=sure, route=route, family=family, score=score, flags=flags,
-                held=reason is not None, blank=blank,
+                held=reason is not None, blank=blank, unmeasured=unmeasured,
             )  # fmt: skip
             if level is not None and drawing.carbon_check is not None:
                 carbon = carbon_answer(

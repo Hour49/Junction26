@@ -260,7 +260,7 @@ def room_word_doubt(row: Row, drawing: Drawing, words: RoomWords) -> Found | Non
                 "read as another type."
             ),
         )
-    printed = next((room for room, word in named if word.unmeasured), None)
+    printed = unmeasured_room(drawing, words)
     if printed is not None:
         return Found(
             reason=(
@@ -270,6 +270,19 @@ def room_word_doubt(row: Row, drawing: Drawing, words: RoomWords) -> Found | Non
             )
         )
     return None
+
+
+def unmeasured_room(drawing: Drawing, words: RoomWords) -> Room | None:
+    """The first room whose label is a word of a sheet the policy was not measured on (a Swiss
+    room name); None: no such room. A count on such an image is Low (`level_of` `unmeasured`)."""
+    return next(
+        (
+            room
+            for room in drawing.rooms
+            if room.label and (w := words(room.label)) and w.unmeasured
+        ),
+        None,
+    )
 
 
 def _label_line(room: Room) -> str:
@@ -319,6 +332,10 @@ HELD_TEXT = (
     "request says why." + ASK["low"]
 )
 UNRATED_TEXT = "Low confidence: we have no measurement behind this answer." + ASK["low"]
+UNMEASURED_TEXT = (
+    "Low confidence: plans of this kind are not in our validation, so no measurement stands "
+    "behind this answer." + ASK["low"]
+)
 BLANK_TEXT = (
     "Low confidence: nothing was found on this page (no plan, no element), so the readers "
     "agreeing is not evidence." + ASK["low"]
@@ -380,12 +397,15 @@ def level_of(
     flags: Sequence[str],
     held: bool = False,
     blank: bool = False,
+    unmeasured: bool = False,
 ) -> Level | None:
     """The level of an answer `policy` rated `sure` or not (None: the policy file carries no
     levels). High exactly when sure. Else Low on a flagged page, on a raster drawing where
-    nothing was found (`blank`, `found_nothing`) and on a value `held` for a check (its score, if
-    any, did not rate what is shown); off the raster route, the route's own level;
-    on it, Medium at or above the family's `medium` score and Low below. A family with no
+    nothing was found (`blank`, `found_nothing`), on a value `held` for a check (its score, if
+    any, did not rate what is shown) and on a raster count on a plan of a kind the policy was not
+    measured on (`unmeasured`: a Swiss image, `unmeasured_room`; its Medium would quote the
+    validation's counts, orchestrator gen 29, 2026-11-14); off the raster route, the route's
+    own level; on it, Medium at or above the family's `medium` score and Low below. A family with no
     threshold, an answer with no score and a route with no level are Low: nothing was measured."""
     if policy.counts is None:
         return None
@@ -399,6 +419,8 @@ def level_of(
         return Level(level="low", basis="page", text=BLANK_TEXT)
     if held:
         return Level(level="low", basis="held", text=HELD_TEXT)
+    if unmeasured and route == "raster":
+        return Level(level="low", basis="unrated", text=UNMEASURED_TEXT)
     if route != "raster":
         made = None if route is None else policy.route_levels.get(route)
         if made is None or made == "high":  # no level, or a certified route's answer that asks

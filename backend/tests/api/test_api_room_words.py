@@ -73,6 +73,6 @@ def test_a_lone_swiss_image_counts_its_labelled_bathrooms_and_is_not_certified(
     ask = {"drawing_id": project["drawings"][0]["drawing_id"], "question": "How many bathrooms?"}
     answer = client.post("/api/ask", json=ask).json()
     assert answer["answer"] == 2  # was 1: "Bagno 1.09" typed other
-    assert (answer["level"]["level"], answer["level"]["basis"]) == ("medium", "score")  # was High
+    assert (answer["level"]["level"], answer["level"]["basis"]) == ("low", "unrated")  # was High
     assert answer["line"]["sure"] is False
     assert "not in our validation" in answer["check"]["reason"]

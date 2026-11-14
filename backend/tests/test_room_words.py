@@ -14,7 +14,13 @@ from app.adapters.raster.room_words import room_word, swiss_label_rooms, swiss_n
 from app.composition import _room_policy, build_answering, build_ingest
 from app.core.drawing.model import Box, CarbonCheck, Drawing, Element, Plan, Room, Scale
 from app.core.review.ask import Asked, ask
-from app.core.review.check import CheckPolicy, RoomWord, RoomWords, no_room_words
+from app.core.review.check import (
+    UNMEASURED_TEXT,
+    CheckPolicy,
+    RoomWord,
+    RoomWords,
+    no_room_words,
+)
 from app.core.review.model import ReviewState
 from app.settings import Settings
 from tests.test_carbon_ladder import Agreeing
@@ -194,7 +200,7 @@ def test_room_counts_on_an_image_with_swiss_room_names_are_never_high() -> None:
     rooms = (room(1, "bathroom", "Bagno\n1.01"), room(2, "bathroom", "Bagno\n1.09"))
     found = asked(rooms, SWISS)
     assert found.answer.answer == 2 and found.answer.sure is False
-    assert made(found) == ("medium", "score") and found.check is not None
+    assert made(found) == ("low", "unrated") and found.check is not None
     assert found.check.reason == (
         'Please double-check the bathrooms: this image prints room names such as "Bagno", and '
         "counts on plans of this kind are not in our validation, so none is certified."
@@ -211,11 +217,24 @@ def test_no_element_count_on_an_image_with_swiss_room_names_is_high() -> None:
     assert made(asked(swiss, text=toilets)) == ("high", "certified")  # without the table
     found = asked(swiss, SWISS, text=toilets)
     assert found.answer.answer == 1 and found.answer.sure is False
-    assert made(found) == ("medium", "score") and found.check is not None
+    assert made(found) == ("low", "unrated") and found.check is not None
     assert "not in our validation" in found.check.reason
-    assert made(asked(swiss, SWISS, text=toilets, score=0.3)) == ("low", "score")
     # a Finnish label is a sheet of the validation's kind: its element counts are as before
     assert made(asked(FINNISH_ROOMS, FINNISH, text=toilets)) == ("high", "certified")
+
+
+@pytest.mark.parametrize("score", [0.95, 0.79, 0.4, 0.1])
+@pytest.mark.parametrize("text", ["How many toilets are there?", "How many bathrooms are there?"])
+def test_a_count_on_an_image_with_swiss_room_names_is_low_whatever_its_score(
+    score: float, text: str
+) -> None:
+    """Orchestrator gen 29, 2026-11-14: a Medium there would quote "on our validation plans,
+    92% ... were exact" beside "this kind of plan is not in our validation"; element Medium on
+    think-acc's 19 paid Swiss sheets was 8 of 25 exact."""
+    rooms = (room(1, "bathroom", "Bagno\n1.01"), room(2, "bathroom", "Bagno\n1.09"))
+    found = asked(rooms, SWISS, text=text, score=score)
+    assert found.level is not None and (found.level.level, found.level.basis) == ("low", "unrated")
+    assert found.level.text == UNMEASURED_TEXT
 
 
 def test_the_doubt_is_for_the_raster_route_only() -> None:
@@ -231,8 +250,12 @@ def test_carbon_agreeing_does_not_make_a_doubted_count_high() -> None:
     rooms = (room(1, "bathroom", "Bagno\n1.01"), room(2, "bathroom", "Bagno\n1.09"))
     carbon = CarbonCheck(read=("room",), plans=PLANS, rooms=rooms)
     assert made(asked(rooms, score=0.5, carbon=carbon)) == ("high", "carbon")  # no table
-    assert made(asked(rooms, SWISS, score=0.5, carbon=carbon)) == ("medium", "score")
+    assert made(asked(rooms, SWISS, score=0.5, carbon=carbon)) == ("low", "unrated")
     things = CarbonCheck(read=("toilet", "room"), plans=PLANS, elements=TOILETS, rooms=rooms)
     toilets = "How many toilets are there?"
     assert made(asked(rooms, score=0.5, carbon=things, text=toilets)) == ("high", "carbon")
-    assert made(asked(rooms, SWISS, score=0.5, carbon=things, text=toilets)) == ("medium", "score")
+    assert made(asked(rooms, SWISS, score=0.5, carbon=things, text=toilets)) == ("low", "unrated")
+    # a label naming the asked type on a room typed otherwise keeps its Medium, not Carbon's High
+    finnish = CarbonCheck(read=("room",), plans=PLANS, rooms=FINNISH_ROOMS)
+    assert made(asked(FINNISH_ROOMS, score=0.5, carbon=finnish)) == ("high", "carbon")
+    assert made(asked(FINNISH_ROOMS, FINNISH, score=0.5, carbon=finnish)) == ("medium", "score")
