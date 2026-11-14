@@ -42,6 +42,10 @@ test('CH-17 CH-18: a photo added from the agent chat is read, then a question is
     mimeType: 'image/png',
     buffer: planPng(testInfo.config.rootDir),
   });
+  // While the photo is read the paperclip is disabled and looks it (qa-a r10 item 3): dimmed, then back.
+  const clip = page.getByRole('button', { name: 'Add a photo' });
+  await expect(clip).toBeDisabled();
+  expect(Number(await clip.evaluate((b) => getComputedStyle(b).opacity))).toBeLessThan(0.6);
   const line = page.getByRole('status').filter({ hasText: 'phone.png' });
   await expect(line).toHaveText(
     /^phone\.png (is read: you can ask about it|is flagged|was not read)/,
@@ -50,6 +54,7 @@ test('CH-17 CH-18: a photo added from the agent chat is read, then a question is
     },
   );
   await expect(page.getByRole('button', { name: 'Add a photo' })).toBeEnabled();
+  expect(await clip.evaluate((b) => getComputedStyle(b).opacity)).toBe('1');
   const after = (
     (await (await page.request.get(`/api/projects/${id}`)).json()) as {
       files: { path: string }[];
