@@ -265,6 +265,8 @@ def _edit(found: Json, evidence: list[str], more: str = "") -> tuple[str, Json]:
     if removed:
         text += " Removed: " + "; ".join(removed) + "."
     text += "".join(f" {unknown}" for unknown in proposal.get("unknowns", [])) + more
+    if services := (found.get("services") or {}).get("text"):  # SERVICES_FOLLOW=on
+        text += f" {services}"
     law: Json = found.get("law") or {}
     for finding in law.get("findings") or []:  # LC-8: name each rule the change newly breaks
         if finding.get("change") == "newly_fails" and finding.get("ev"):

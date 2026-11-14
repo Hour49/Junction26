@@ -238,6 +238,10 @@ class Settings(BaseSettings):
     agent_price_out_per_m: float = Field(default=9.00, ge=0)
     agent_turn_usd: float = Field(default=0.10, gt=0)
     agent_max_steps: int = Field(default=8, ge=1, le=20)
+    # on: every plan edit the chat proposes is followed through the project's service models
+    # (plumbing, ventilation, heating, electrical IFC files), decision 0016. Reading a model
+    # takes about 0.2 GB of memory that is not given back
+    services_follow: Literal["off", "on"] = "off"
     # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
     # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
     # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set

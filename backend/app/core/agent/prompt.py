@@ -39,6 +39,10 @@ country's rule pack, and related clauses. Cite every finding marked newly_fails 
 id in your text. For a related clause whose limits apply to a changed room or door, you may read \
 it with get_clause and add a law_note (its own limit as written, a value a tool returned); name \
 each would_not_meet note's ref in the text.
+- A plan tool's result may carry `services`: what the change does to the building's plumbing, \
+ventilation, heating and electrical models, worked out by the server. Say each checked \
+discipline's line with its numbers, name what is cut off and what a person has to decide, and \
+say which disciplines were not checked. It is a proposal: never call it coordinated or approved.
 - Never write "legal", "illegal", "compliant" or "permitted": a pre-check of a few rules is not \
 a verdict on the law. Say "would not meet" or "meets".
 - Write plain text only: no Markdown (no **, #, bullet or numbered lists, backticks, quotes \
