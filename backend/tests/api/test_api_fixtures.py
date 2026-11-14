@@ -18,7 +18,8 @@ from app.api.drawings import DrawingView
 from app.api.info import Info
 from app.api.projects import ProjectList, ProjectReview, Started
 from app.api.takeoff import SignOffRequest, Takeoff
-from app.api.views import ErrorBody, ProjectTrace, ProjectView, TraceView
+from app.api.views import ErrorBody, ProjectTrace, ProjectView
+from app.core.ingest.model import FileTrace
 from app.core.review.model import Edit
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "api_v1"
@@ -28,7 +29,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "project_started": Started,
     "project": ProjectView,
     "project_list": ProjectList,
-    "trace": TraceView,
+    "trace": FileTrace,
     "project_trace": ProjectTrace,
     "project_review": ProjectReview,
     "drawing": DrawingView,
@@ -43,7 +44,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "answer_schedule": AnswerView,
     "takeoff_edited": Takeoff,
     "error_not_allowed": ErrorBody,
-    "trace_set_aside": TraceView,
+    "trace_set_aside": FileTrace,
     "project_running": ProjectView,
     "project_failed": ProjectView,
     "takeoff": Takeoff,

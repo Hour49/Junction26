@@ -21,14 +21,12 @@ from app.api.views import (
     ProjectTrace,
     ProjectView,
     Rendering,
-    SecondCount,
-    TraceView,
     View,
     expected_drawings_of,
     skipped_of,
 )
 from app.core.errors import NotFoundError
-from app.core.ingest.model import FileStatus, FileTrace, ProjectStatus
+from app.core.ingest.model import FileStatus, FileTrace, ProjectStatus, SecondCount
 from app.core.pipeline.model import QuantityConflict
 from app.core.review.model import ReviewState, Settled, SignOff
 from app.core.review.ports import ReviewStore
@@ -214,7 +212,7 @@ def project(project_id: ProjectId, ingest: IngestDep) -> ProjectView:
 
 
 @router.get("/{project_id}/files/{file_id}/trace")
-def trace(project_id: ProjectId, file_id: FileId, ingest: IngestDep) -> TraceView:
+def trace(project_id: ProjectId, file_id: FileId, ingest: IngestDep) -> FileTrace:
     return trace_view(ingest.trace(project_id, file_id), ingest)
 
 
@@ -227,7 +225,7 @@ def project_trace(project_id: ProjectId, ingest: IngestDep) -> ProjectTrace:
     )
 
 
-def trace_view(found: FileTrace, ingest: Ingest) -> TraceView:
+def trace_view(found: FileTrace, ingest: Ingest) -> FileTrace:
     """The trace with its file's second count, read from the drawing's conflicts."""
     second = None
     drawing_id = found.file.drawing_id
@@ -238,7 +236,7 @@ def trace_view(found: FileTrace, ingest: Ingest) -> TraceView:
                 measured=len(measured),
                 conflicts=sum(entry.status == "conflict" for entry in measured),
             )
-    return TraceView(**dict(found), second_count=second)
+    return found.model_copy(update={"second_count": second})
 
 
 @router.get(

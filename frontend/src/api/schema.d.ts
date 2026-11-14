@@ -611,6 +611,15 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** FileTrace */
+        FileTrace: {
+            file: components["schemas"]["FileStatus"];
+            /** Project Id */
+            project_id: string;
+            second_count?: components["schemas"]["SecondCount"] | null;
+            /** Stages */
+            stages: components["schemas"]["StageTrace"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -835,7 +844,7 @@ export interface components {
         /** ProjectTrace */
         ProjectTrace: {
             /** Files */
-            files: components["schemas"]["TraceView"][];
+            files: components["schemas"]["FileTrace"][];
             /** Project Id */
             project_id: string;
         };
@@ -1248,18 +1257,6 @@ export interface components {
             quantities: components["schemas"]["Row"][];
             /** Review Queue */
             review_queue: string[];
-        };
-        /**
-         * TraceView
-         * @description A file's trace, plus its second count (None: no drawing yet, or nothing measured twice).
-         */
-        TraceView: {
-            file: components["schemas"]["FileStatus"];
-            /** Project Id */
-            project_id: string;
-            second_count: components["schemas"]["SecondCount"] | null;
-            /** Stages */
-            stages: components["schemas"]["StageTrace"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -1793,7 +1790,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TraceView"];
+                    "application/json": components["schemas"]["FileTrace"];
                 };
             };
             /** @description Validation Error */

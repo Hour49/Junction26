@@ -185,19 +185,6 @@ def expected_drawings_of(status: ProjectStatus) -> int | None:
     return len(drawings)
 
 
-class SecondCount(View):
-    """What the second method did on a drawing: quantities it measured and where it disagreed."""
-
-    measured: int
-    conflicts: int
-
-
-class TraceView(FileTrace):
-    """A file's trace, plus its second count (None: no drawing yet, or nothing measured twice)."""
-
-    second_count: SecondCount | None
-
-
 class ProjectTrace(View):
     project_id: str
-    files: list[TraceView]
+    files: list[FileTrace]

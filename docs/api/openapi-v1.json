@@ -1079,6 +1079,42 @@
         "title": "FileStatus",
         "type": "object"
       },
+      "FileTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/FileStatus"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "second_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecondCount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageTrace"
+            },
+            "title": "Stages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "file",
+          "stages"
+        ],
+        "title": "FileTrace",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1811,7 +1847,7 @@
         "properties": {
           "files": {
             "items": {
-              "$ref": "#/components/schemas/TraceView"
+              "$ref": "#/components/schemas/FileTrace"
             },
             "title": "Files",
             "type": "array"
@@ -2738,10 +2774,12 @@
         "description": "What the second method did on a drawing: quantities it measured and where it disagreed.",
         "properties": {
           "conflicts": {
+            "minimum": 0.0,
             "title": "Conflicts",
             "type": "integer"
           },
           "measured": {
+            "minimum": 0.0,
             "title": "Measured",
             "type": "integer"
           }
@@ -3061,44 +3099,6 @@
           "review_queue"
         ],
         "title": "Takeoff",
-        "type": "object"
-      },
-      "TraceView": {
-        "additionalProperties": false,
-        "description": "A file's trace, plus its second count (None: no drawing yet, or nothing measured twice).",
-        "properties": {
-          "file": {
-            "$ref": "#/components/schemas/FileStatus"
-          },
-          "project_id": {
-            "title": "Project Id",
-            "type": "string"
-          },
-          "second_count": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SecondCount"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "stages": {
-            "items": {
-              "$ref": "#/components/schemas/StageTrace"
-            },
-            "title": "Stages",
-            "type": "array"
-          }
-        },
-        "required": [
-          "project_id",
-          "file",
-          "stages",
-          "second_count"
-        ],
-        "title": "TraceView",
         "type": "object"
       },
       "ValidationError": {
@@ -3953,7 +3953,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TraceView"
+                  "$ref": "#/components/schemas/FileTrace"
                 }
               }
             },

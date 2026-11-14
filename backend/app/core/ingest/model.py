@@ -151,10 +151,19 @@ class ProjectStatus(Frozen):
     cost_usd: float = Field(default=0.0, ge=0)
 
 
+class SecondCount(Frozen):
+    """What the second method did on a drawing: quantities it measured and where it disagreed."""
+
+    measured: int = Field(ge=0)
+    conflicts: int = Field(ge=0)
+
+
 class FileTrace(Frozen):
     project_id: str
     file: FileStatus
     stages: tuple[StageTrace, ...]
+    # Set by the API from the file's drawing (None: no drawing yet, or nothing measured twice)
+    second_count: SecondCount | None = None
 
 
 SheetKind = Literal["pdf", "png", "jpeg", "ifc"]  # a file a drawing model is written for
