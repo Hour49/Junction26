@@ -739,6 +739,23 @@ to 3 points between signals are noise; the recall rule's signals other than Gemi
 backend loads the file today and certifies only the plan family on the raster route. The runtime version of this table is
 in 14.8; the test certificate is in 14.2.
 
+**Confidence levels on test (PR #233, #242).** The backend gives each answer one of three levels: High (answers without a
+check), Medium and Low (both ask for a check). The levels were scored on the same single read of the 376 test pages as
+the certificate, not on a second read. The rule and its thresholds were written down with their sha256 on 2026-11-14
+at 16:48:46, before any test number of the levels existed, and nothing was refit afterwards. The counts are answers (3,359,
+one per page and family). Intervals are Wilson 95%. The per-family table and the full method are in
+[GOLDEN.md](GOLDEN.md), section "Confidence levels on test (config C1-T1)".
+
+| level | test: share (answers) | test: exact | test: wrong | val cross-fit: share, exact |
+| --- | ---: | ---: | ---: | ---: |
+| High | 37.9% (1,272) | 99.0% [98.3, 99.4] | 13 | 44.9%, 98.9% |
+| Medium | 41.1% (1,381) | 92.8% [91.3, 94.0] | 100 | 34.6%, 91.6% |
+| Low | 21.0% (706) | 54.2% [50.6, 57.9] | 323 | 20.4%, 58.6% |
+
+The levels order the answers as intended: exactness falls from 99.0% to 92.8% to 54.2%, and 323 of the 436 wrong
+answers are Low. High is a smaller share on test than the cross-fit on val gave (37.9% against 44.9%) at the same exact rate,
+and Low is a little worse on test (54.2% against 58.6%).
+
 ### 14.4 What we learned
 
 - **A blind spot we can measure: 17% of the wrong answers are wrong in every reader.** For the 421 wrong answers of C1
