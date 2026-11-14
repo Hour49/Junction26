@@ -82,7 +82,8 @@ def test_sure_is_the_confidence_at_or_above_the_family_threshold() -> None:
     assert sure(0.81, {"door": 0.8}) is True
     assert sure(0.8, {"door": 0.8}) is True  # at the threshold
     assert sure(0.79, {"door": 0.8}) is False
-    assert sure(None, {"door": 0.8}) is False  # gated, but no probability: not sure
+    # gated, but no probability (a vector or IFC page, a failed read): the gate has no verdict
+    assert sure(None, {"door": 0.8}) is None
     assert sure(0.99, {"toilet": 0.5}) is None  # doors are not gated
     assert sure(0.99, None) is None  # no gate file
     assert rated("How many doors?", drawing(), FakeConfidence(0.99)).sure is None

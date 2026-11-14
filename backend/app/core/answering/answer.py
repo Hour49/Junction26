@@ -62,8 +62,8 @@ def answer_question(
     (with the prior's `confidence`), else None. With `confidence` (DECISIONS_CONFIDENCE), a
     takeoff answer gets its probability as `confidence`; when there is none, the reason is
     logged, never added to the answer. `sure_at` (GATE_POLICY: family -> threshold on that
-    confidence's signal) sets `sure`: true at or above the family's threshold, false below it or
-    without a probability, None for a family it doesn't gate."""
+    confidence's signal) sets `sure`: true at or above the family's threshold, false below it,
+    None without a probability or for a family it doesn't gate."""
     start = clock()
     parsed = parser.parse(question.text)
     read = _read(parsed)
@@ -145,9 +145,9 @@ def answer_question(
 
 
 def _sure(sure_at: Mapping[str, float] | None, family: str, value: float | None) -> bool | None:
-    if sure_at is None or family not in sure_at:
-        return None
-    return value is not None and value >= sure_at[family]
+    if sure_at is None or family not in sure_at or value is None:
+        return None  # no score (a vector or IFC page, a failed read): the gate has no verdict
+    return value >= sure_at[family]
 
 
 def _read(parsed: Query | TableQuery | Unsupported) -> Callable[[Answer], Answer]:

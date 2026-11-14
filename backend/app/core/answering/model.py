@@ -157,7 +157,7 @@ class Answer(Frozen):
     latency_s: float = Field(ge=0)
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)  # answer_v1.1
     sure: bool | None = (
-        None  # answer_v1.1: confidence at or above the gate (GATE_POLICY); None: ungated
+        None  # answer_v1.1: confidence at or above the gate (GATE_POLICY); None: no verdict
     )
     abstain: bool | None = None  # answer_v1.1: True on a refusal; `answer` may hold a prior
     explanation: str | None = None  # answer_v1.1: why it was refused, or what an estimate rests on
