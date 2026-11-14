@@ -193,5 +193,31 @@
   "model": "rules",
   "cost_usd": 0.0,
   "latency_s": 0.002,
-  "answers": []
+  "answers": [],
+  "view": {
+    "drawing_id": "5c4ed01e00000003",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.1367,
+      0.22,
+      0.5278,
+      0.4926
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "W1",
+        "box": [
+          0.2999,
+          0.25,
+          0.32257,
+          0.4626
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  }
 }

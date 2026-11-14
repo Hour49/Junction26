@@ -121,6 +121,7 @@
   "chat": {
     "model": "rules",
     "available": true,
-    "reason": null
+    "reason": null,
+    "stream": true
   }
 }

@@ -265,7 +265,8 @@ An edit of a signed-off quantity (409):
   "chat": {
     "model": "rules",
     "available": true,
-    "reason": null
+    "reason": null,
+    "stream": true
   }
 }
 ```
@@ -8635,7 +8636,33 @@ still come from this turn's tool results).
       "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
       "refused_note": "2 drawings have no reader for it."
     }
-  ]
+  ],
+  "view": {
+    "drawing_id": "adeefbbcc17559fc",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.4633,
+      0.195,
+      0.5367,
+      0.305
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "door",
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  }
 }
 ```
 
@@ -9163,7 +9190,8 @@ budget, the same call a third time) ends a turn the same way.
       "why_no_total": "No drawing answered it.",
       "refused_note": "5 drawings can't answer this question."
     }
-  ]
+  ],
+  "view": null
 }
 ```
 
@@ -9369,7 +9397,33 @@ without wall fills) gets `dont_know` saying so.
   "model": "rules",
   "cost_usd": 0.0,
   "latency_s": 0.002,
-  "answers": []
+  "answers": [],
+  "view": {
+    "drawing_id": "5c4ed01e00000003",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.1367,
+      0.22,
+      0.5278,
+      0.4926
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "W1",
+        "box": [
+          0.2999,
+          0.25,
+          0.32257,
+          0.4626
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  }
 }
 ```
 
