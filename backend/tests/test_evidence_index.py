@@ -376,7 +376,6 @@ def test_a_second_first_open_waits_for_the_writer_instead_of_failing_locked(
     project used to give up after the busy timeout ('database is locked')."""
     import sqlite3
     import threading
-    import time
 
     from app.adapters.evidence import store as store_module
 
@@ -384,13 +383,28 @@ def test_a_second_first_open_waits_for_the_writer_instead_of_failing_locked(
     monkeypatch.setattr(
         store_module.sqlite3, "connect", lambda *a, **k: real(*a, **{**k, "timeout": 0.1})
     )
-    inside_embed, release = threading.Event(), threading.Event()
+    inside_embed, release, waiting = threading.Event(), threading.Event(), threading.Event()
+    guard = getattr(store_module, "_WRITERS_GUARD", None)  # None: no writer lock at all
 
     class Slow(Embedder):
         def embed(self, texts: Sequence[str]) -> NDArray[np.float32]:
             inside_embed.set()
             assert release.wait(10)
             return super().embed(texts)
+
+    class Seen:
+        """Tells when the second writer has passed the registry, so it is next on the writer
+        lock (or, without the lock, already failing in SQLite)."""
+
+        def __enter__(self) -> None:
+            assert guard is not None
+            guard.__enter__()
+
+        def __exit__(self, *error: object) -> None:
+            assert guard is not None
+            guard.__exit__(*error)
+            if threading.current_thread() is second:
+                waiting.set()
 
     store = index(tmp_path, Slow())
     errors: list[BaseException] = []
@@ -405,8 +419,11 @@ def test_a_second_first_open_waits_for_the_writer_instead_of_failing_locked(
     second = threading.Thread(target=run, args=(project(("a.jpg", described("a wall"))),))
     first.start()
     assert inside_embed.wait(10)
+    if guard is not None:
+        monkeypatch.setattr(store_module, "_WRITERS_GUARD", Seen())
     second.start()
-    time.sleep(0.5)  # well past the 0.1 s busy timeout
+    while not waiting.wait(0.01) and second.is_alive():
+        pass  # until the second waits on the lock, or has ended (failed)
     release.set()
     first.join(10)
     second.join(10)
