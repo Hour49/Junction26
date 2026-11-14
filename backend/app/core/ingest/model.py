@@ -5,9 +5,9 @@ files with their state and reason, `FileTrace` adds one `StageTrace` per stage t
 through.
 """
 
-from typing import Literal
+from typing import Literal, cast
 
-from pydantic import Field
+from pydantic import ConfigDict, Field, model_validator
 
 from app.core.model import Frozen
 from app.core.pipeline.model import Route
@@ -72,6 +72,115 @@ class Probed(Frozen):
     did: str
 
 
+# File triage (decision 0010): is an uploaded image a floor plan, and if not, what is it and does
+# it belong to the project. Unsure means floor_plan: a plan set aside would never be read.
+TriageClass = Literal["floor_plan", "other_drawing", "not_drawing"]
+Verdict = Literal["related", "unrelated", "unsure"]
+# The probe kinds triage looks at: images and scans (vector PDFs, models and CAD are not triaged).
+TRIAGED_KINDS: frozenset[ContentKind] = frozenset(
+    {"png_plan", "jpeg_plan", "photo_plan", "pdf_scan", "photo"}
+)
+
+
+class _Classed(Frozen):
+    """`class` is a Python keyword, so the field is `class_` under the JSON name `class`."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        serialize_by_alias=True,
+        validate_by_name=True,
+        validate_by_alias=True,
+    )
+
+
+class Classified(_Classed):
+    """Step 1: what the classifier made of one image."""
+
+    class_: TriageClass = Field(alias="class")
+    p_plan: float = Field(ge=0, le=1)  # P(a floor plan anywhere on the page)
+    method: str  # in plain words, e.g. "local classifier v1 (EfficientNet-B0, CPU)"
+    cost_usd: float = Field(default=0.0, ge=0)
+
+
+class Description(Frozen):
+    """Step 2, for a file that is not a floor plan: what the picture shows, in words."""
+
+    text: str  # 1-3 plain sentences
+    subject: str  # a short label: "south elevation of a two-storey house"
+    text_seen: tuple[str, ...] = Field(default=(), max_length=20)  # words printed on it
+    language: str | None = None  # of text_seen, ISO 639-1; None: none read
+    model: str  # which describer
+    cost_usd: float = Field(default=0.0, ge=0)
+
+
+class Relevance(Frozen):
+    """Step 3, once the project's plans are read: does the described file belong to it."""
+
+    verdict: Verdict
+    why: str  # one sentence naming what matched or what is missing
+    matched_on: tuple[str, ...] = ()
+    plans: tuple[str, ...] = ()  # drawing ids of the project's plans it relates to
+    judge: str  # which judge, in plain words
+
+
+class Overrule(Frozen):
+    """A person's call on a file's relevance; the judge's own verdict stays as it was."""
+
+    verdict: Literal["related", "unrelated"]
+    by: str
+    at: str  # ISO 8601, UTC
+
+
+class Triage(_Classed):
+    """FileStatus.triage: what triage made of an image file (decision 0010). Build a changed one
+    with `model_validate`, not `model_copy`, so `verdict` follows `overruled` and `relevance`."""
+
+    class_: TriageClass = Field(alias="class")
+    p_plan: float = Field(ge=0, le=1)
+    method: str
+    description: Description | None = None  # only for a file that is not a floor plan
+    relevance: Relevance | None = None  # set when the project's ingest finishes
+    overruled: Overrule | None = None
+    # What counts now: the person's call, else the judge's; None while not judged
+    verdict: Verdict | None = None
+    # Why `description` or `relevance` is null, in a plain sentence; None when both are set
+    note: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _verdict(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        fields = cast(dict[str, object], data)
+        said = [_verdict_of(fields.get("overruled")), _verdict_of(fields.get("relevance"))]
+        return {**fields, "verdict": next((found for found in said if found), None)}
+
+
+def _verdict_of(found: object) -> str | None:
+    """The verdict of an overrule or relevance, given as a model or as its fields."""
+    if isinstance(found, dict):
+        verdict = cast(dict[str, object], found).get("verdict")
+    else:
+        verdict = getattr(found, "verdict", None)
+    return verdict if isinstance(verdict, str) else None
+
+
+class Unavailable(Frozen):
+    """A triage port's declared degraded mode: it could not answer, and says why."""
+
+    note: str
+
+
+class ProjectContext(Frozen):
+    """What a described file is judged against: the project's own data, once its plans are read."""
+
+    plans: tuple[str, ...]  # drawing ids of the project's floor plans
+    plan_text: tuple[str, ...]  # text read on them: room and flat labels, storeys, table titles
+    file_names: tuple[str, ...]  # every file's path in the upload
+    descriptions: tuple[str, ...]  # the other described files' subjects
+
+
 class StageTrace(Frozen):
     stage: Stage
     did: str  # what the stage did, one readable line
@@ -132,6 +241,8 @@ class FileStatus(Frozen):
     )
     cost_usd: float = Field(default=0.0, ge=0)
     normalised: Normalised | None = None  # an image sheet: how its frame was made
+    # Set for an image file when triage is on (decision 0010); left out of the JSON otherwise
+    triage: Triage | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectStatus(Frozen):

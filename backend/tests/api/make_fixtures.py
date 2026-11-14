@@ -36,9 +36,21 @@ sys.path[:0] = [
 import test_pdf_tables as tables  # noqa: E402  # pyright: ignore[reportMissingImports]
 from conftest import plan_png, raster_arm  # noqa: E402  # pyright: ignore[reportMissingImports]
 from fastapi.testclient import TestClient  # noqa: E402
-from make_sample_archive import build_archive  # noqa: E402  # pyright: ignore[reportMissingImports]
+from make_sample_archive import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+    build_archive,
+    jpeg_bytes,
+    png_bytes,
+    raster_plan,
+    site_photo,
+)
 from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
+from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+    FakeClassifier,
+    FakeDescriber,
+    WordJudge,
+    steps,
+)
 
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
@@ -133,7 +145,8 @@ def responses() -> dict[str, Any]:
     others.append(set_aside(client, found))
     others += in_flight(root / "flight", settings, found)
     found["project_ask"] = project_ask(client, started["id"])  # the frontend reads by name
-    found["project_issues"] = project_issues(client, started["id"], files)  # last
+    found["project_issues"] = project_issues(client, started["id"], files)
+    others.append(triaged(root / "triage", settings, found))  # last
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
@@ -180,6 +193,44 @@ def project_issues(
     body = {"drawing_id": scan, "question": "How many doors are there?", "project_id": project_id}
     assert client.post("/api/ask", json=body).status_code == 200
     return client.get(f"/api/projects/{project_id}/issues").json()
+
+
+def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
+    """File triage on (decision 0010), with the test fakes: the sample's flat-a plan, an image
+    described and judged related (it prints "Küche", a room of flat-a), the site photo judged
+    unrelated and then called related by a person, and a photo the describer refused."""
+    with zipfile.ZipFile(io.BytesIO(build_archive())) as sample:
+        plan, photo = sample.read("plans/flat-a.pdf"), sample.read("photos/site.jpg")
+    elevation = png_bytes(raster_plan().rotate(90, expand=True))
+    refused = jpeg_bytes(site_photo().rotate(180))
+    classes = {elevation: "other_drawing", photo: "not_drawing", refused: "not_drawing"}
+    subjects = {
+        elevation: ("the south elevation of a two-storey house", ("Küche", "Süd")),
+        photo: ("a building site with a crane", ()),
+    }
+    triage = steps(FakeClassifier(classes), FakeDescriber(subjects), WordJudge())  # type: ignore[arg-type]
+    settings = settings.model_copy(update={"projects_dir": root / "projects"})
+    ingest = build_ingest(settings, settings.projects_dir, background=False, triage=triage)
+    client = TestClient(create_app(settings, ingest))
+    files = {
+        "plans/flat-a.pdf": plan,
+        "elevations/south.png": elevation,
+        "photos/site.jpg": photo,
+        "photos/street.jpg": refused,
+    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for path, data in files.items():
+            archive.writestr(path, data)
+    started = client.post("/api/projects", params={"name": "site.zip"}, content=buffer.getvalue())
+    project_id = started.json()["id"]
+    site = client.get(started.json()["url"]).json()
+    site_id = next(file["id"] for file in site["files"] if file["path"] == "photos/site.jpg")
+    found["relevance_request"] = {"verdict": "related", "by": "Ana"}
+    url = f"/api/projects/{project_id}/files/{site_id}/relevance"
+    assert client.post(url, json=found["relevance_request"]).status_code == 200
+    found["project_triaged"] = client.get(f"/api/projects/{project_id}").json()
+    return project_id
 
 
 def project_ask(client: TestClient, project_id: str) -> dict[str, Any]:
