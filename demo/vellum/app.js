@@ -436,7 +436,11 @@
     if (!S.p) return;
     const was = S.p.doneLogged; logDone();
     // the end of the reading or of a re-read changes whole screens (issues, trace, the drawing switcher)
-    if (window.VFiles.tick() || (was !== S.p.doneLogged && ['workspaces', 'issues', 'file'].includes(route().name))) render(); else fill();
+    // a file's trace follows its re-read: queued, running, ready (R7-c-1)
+    const rapNow = Object.keys(S.p.rap).map((p) => window.VTriage.rapState(p, ctx())).join();
+    const rapMoved = rapNow !== S.p.rapSeen;
+    S.p.rapSeen = rapNow;
+    if (window.VFiles.tick() || (was !== S.p.doneLogged && ['workspaces', 'issues', 'file'].includes(route().name)) || (rapMoved && route().name === 'file')) render(); else fill();
   }, 250);
 
   window.VApp = { S, render, log, picks, esc, hhmm, progress, ctx };

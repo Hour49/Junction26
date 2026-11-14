@@ -394,3 +394,4 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .chat-dl dt { font-size: 12px; font-weight: 500; color: var(--v-muted); }
 .chat-dl dd { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
 .tri-fig figcaption { padding: 6px 12px 10px; }
+.ask > section.card img.plan { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; margin: 0 auto; object-fit: contain; }
