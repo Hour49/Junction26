@@ -104,7 +104,7 @@ NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)"
 PLURALS = {"living": "living rooms"}
 SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
 NO_SCALE = ("no_scale", "not_to_scale")
-ROOM_NUMBER = re.compile(r"U?\d+\.\d+")  # a room number the parser reads without quotes
+ROOM_NUMBER = re.compile(r"-?U?\d+\.\d+")  # a room number the parser reads without quotes
 TEXTS = {
     "unsupported-question": "This question isn't one I can turn into a count, area, length or "
     "volume. Try one of these instead.",

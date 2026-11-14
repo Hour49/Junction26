@@ -457,3 +457,14 @@ def test_a_room_number_after_level_is_not_a_floor() -> None:
     assert PARSE("What is the area of level 1.5?") == Query(
         measure="area", subject="room", name="1.5"
     )
+
+
+def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
+    """review-354 re-check: "room -1.2" is the basement room -1.2 (its label keeps the sign), not
+    room 1.2; "Zimmer-1.05" is room 1.05."""
+    assert PARSE("What is the area of room -1.2?") == Query(
+        measure="area", subject="room", name="-1.2"
+    )
+    assert PARSE("What is the area of Zimmer-1.05?") == Query(
+        measure="area", subject="room", name="1.05"
+    )
