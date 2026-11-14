@@ -5,8 +5,8 @@
 <h1 align="center">Vellum</h1>
 
 <p align="center">
-  Upload old building drawings, scans and photos. Get counts, areas and answers you can check on the plan,<br>
-  each with how sure it is.
+  Upload old building drawings, scans and photos. Get counts, areas and answers you can check on the plan, each
+  with how sure it is.
 </p>
 
 <h3 align="center">
@@ -117,8 +117,8 @@ A surveyor gets every quantity of a drawing as a table to review, sign off and e
 The same screens at phone width:
 
 <p align="center">
-  <img src="docs/media/phone-home.png" width="31%" alt="The start page on a phone: drop a drawing or a zip, or try the sample project.">
-  <img src="docs/media/phone-answer.png" width="31%" alt="A chat answer on a phone: 2 toilets, Medium confidence, with the marked plan.">
+  <img src="docs/media/phone-home.png" width="31%" alt="The start page on a phone: drop a drawing or a zip, or try the sample project.">&nbsp;
+  <img src="docs/media/phone-answer.png" width="31%" alt="A chat answer on a phone: 2 toilets, Medium confidence, with the marked plan.">&nbsp;
   <img src="docs/media/phone-rules.png" width="31%" alt="An edit card on a phone: the building rules of the Canton of Zürich, two rules met, each with its clause.">
 </p>
 <p align="center"><sub>Plan: Swiss Dwellings v3.0.0, Archilyse AG, CC BY 4.0.</sub></p>
