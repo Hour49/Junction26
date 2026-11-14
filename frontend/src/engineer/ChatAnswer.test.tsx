@@ -176,6 +176,15 @@ it('CH-33 ui-bugs 4: no arrows on the image; the references switch it and sit un
       .getByTestId('viewer')
       .compareDocumentPosition(screen.getByRole('list', { name: 'References' })),
   ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  // W2: the one drawing card sits between the image and the references, in the same column
+  const card = screen.getByRole('list', { name: 'Per drawing' });
+  expect(figure().contains(card)).toBe(true);
+  expect(screen.getByTestId('viewer').compareDocumentPosition(card)).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  expect(card.compareDocumentPosition(screen.getByRole('list', { name: 'References' }))).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
   fireEvent.click(within(refs()[1] as HTMLElement).getByRole('button'));
   expect(figure().getAttribute('aria-label')).toBe('Reference 2 of 2');
   expect(viewers.at(-1)?.file).toBe(flatB.name);
@@ -482,26 +491,32 @@ it('CH-49 nothing when no part is partial', () => {
   expect(document.querySelector('.en-partial')).toBeNull();
 });
 
-it('ui-bugs 5: one round "3D" button by the image: the shown drawing\'s model, else the answer\'s; none without', () => {
+it('W3 the round "3D" button only when the shown drawing has a model; a 2D drawing names the building model', () => {
   const ready = { state: 'ready' as const, reason: '', elements: 6 };
+  const base = projectWith(null);
+  const [d0, d1] = base.drawings as [ProjectView['drawings'][0], ProjectView['drawings'][0]];
+  const proj = { ...base, drawings: [d0, { ...d1, kind: 'ifc' as const }] };
   const bim = {
     ...flatB,
     answer: { ...flatB.answer, pages: [] },
     model_file_id: 'f8',
     model_3d: ready,
   };
-  show({ ...projectAsk, parts: [flatA, bim] });
+  show({ ...projectAsk, parts: [flatA, bim] }, proj);
+  // the shown 2D plan has no model of its own: no button, though the answer has a building model
+  expect(screen.queryByRole('button', { name: /in 3D/ })).toBeNull();
+  fireEvent.click(within(refs()[1] as HTMLElement).getByRole('button'));
   const open = screen.getByRole('button', { name: `View in 3D: ${LB}` });
   expect(open.textContent).toBe('3D');
   expect(open.closest('.en-chathead')).toBeTruthy();
-  expect(screen.getAllByRole('button', { name: /in 3D/ })).toHaveLength(1);
-  expect(screen.queryByText('View in 3D')).toBeNull();
   fireEvent.click(open);
   expect(screen.getByRole('dialog', { name: `3D: ${LB}` })).toBeTruthy();
   cleanup();
-  const own = { ...flatA, model_file_id: 'f9', model_3d: ready };
-  show({ ...projectAsk, parts: [own, bim] });
-  expect(screen.getByRole('button', { name: `View in 3D: ${LA}` })).toBeTruthy();
+  // a 2D drawing linked to the building's model: the button says it is the building model
+  const linked = { ...flatA, model_file_id: 'f8', model_3d: ready };
+  show({ ...projectAsk, parts: [linked, bim] }, proj);
+  expect(screen.getByRole('button', { name: 'View the building model in 3D' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^View in 3D/ })).toBeNull();
   cleanup();
   show();
   expect(screen.queryByRole('button', { name: /in 3D/ })).toBeNull();

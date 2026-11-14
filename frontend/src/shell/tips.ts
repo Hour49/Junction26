@@ -43,7 +43,7 @@ export const TIPS = {
   secondScore:
     'How much a second, independent reader agrees. Higher is better; it is not a probability.',
   flagged: 'Vellum read this drawing, but something looks off. Check the answer against the plan.',
-  photo: 'Add a photo of a plan (png or jpeg) and ask about it.',
+  photo: 'Add a photo of a plan (png, jpeg, tiff or webp) and ask about it.',
   sendBusy: 'Wait for the answer to this question first.',
   sendTooLong: 'The question is too long. Shorten it to send it.',
   sendDrawing: 'Finish drawing on the plan first, then ask.',

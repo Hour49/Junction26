@@ -12,7 +12,7 @@ import {
   projectAsk,
 } from '../api/fixtures';
 import { mockApi, never, reply } from '../test/mockApi';
-import { AskBox } from './AskBox';
+import { AskBox, PHOTO_ACCEPT } from './AskBox';
 import { ProjectChat } from './ProjectChat';
 
 const PID = project.id;
@@ -421,11 +421,11 @@ async function pick() {
 const slow = { timeout: 4000 };
 const READ = `${PHOTO} is read: you can ask about it.`; // the why (what was read) is behind "Why"
 
-it('CH-17 the chat has "Add a photo" for png and jpeg; the ask bar without onAttach has none', async () => {
+it('CH-17 the chat has "Add a photo" for png, jpeg, tiff and webp (#425); the ask bar without onAttach has none', async () => {
   openWithPhoto(added, [withPhoto('ready')]);
   render(<ProjectChat projectId={PID} />);
   expect(await screen.findByRole('button', { name: 'Add a photo' })).toBeTruthy();
-  expect(screen.getByTestId('photo-input').getAttribute('accept')).toBe('image/png,image/jpeg');
+  expect(screen.getByTestId('photo-input').getAttribute('accept')).toBe(PHOTO_ACCEPT);
   cleanup();
   render(<AskBox file="x" busy={false} asked={0} onAsk={() => undefined} />);
   expect(screen.queryByRole('button', { name: 'Add a photo' })).toBeNull();
