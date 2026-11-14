@@ -31,6 +31,9 @@ TablesName = Literal["off", "pdf"]
 ProviderName = Literal["gemini", "eu"]
 # off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
 RasterScaleName = Literal["off", "priors"]
+# furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
+# on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
+RoomPolicyName = Literal["furniture", "gold-labels"]
 
 
 class Settings(BaseSettings):
@@ -52,6 +55,10 @@ class Settings(BaseSettings):
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
     raster_scale: RasterScaleName = "off"
+    # How the raster route types the rooms its rooms source read, whichever source that is.
+    # gold-labels is for a source that reads printed labels: it turns every unlabelled bedroom
+    # into `other`
+    room_policy: RoomPolicyName = "furniture"
     # The Gemini room reader of the raster route (app/adapters/raster_ocr/gemini.py), built only
     # when RASTER_COMPONENTS names it: its key (never logged), model, time limit per page, and
     # the folder its replies are cached in (gitignored)
