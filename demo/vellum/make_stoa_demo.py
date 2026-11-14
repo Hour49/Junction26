@@ -116,12 +116,12 @@ def build(dataset, out, stem, picks):
     }
     (out / "data.js").write_text("window.VStoaData = " + json.dumps(data, indent=1) + ";\n", encoding="utf-8")
     # stoa/index.html: the demo's page one folder down (no <base>: it would send the #/ links back to ../index.html)
-    page = (HERE / "index.html").read_text(encoding="utf-8")
+    page = (HERE / "app.html").read_text(encoding="utf-8")
     page = re.sub(r'(src|href)="(?!https?:|#)', r'\1="../', page)
     page, n = re.subn(r'(<script src="\.\./data\.js"></script>)',
                       r'\1\n<script src="data.js"></script>\n<script src="../stoa.js"></script>', page, count=1)
     if not n:
-        sys.exit("index.html changed shape: no data.js script to anchor on")
+        sys.exit("app.html changed shape: no data.js script to anchor on")
     shutil.copyfile(HERE / "vellum-logo.png", out / "vellum-logo.png")  # the header loads it relative to the page
     (out / "index.html").write_text(page, encoding="utf-8")
     return stem, len(mine)

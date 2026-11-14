@@ -12,6 +12,14 @@ are out, with no link to them.
 
 ## Purpose
 
+**Real data only (Tudor, 2026-11-14: "just take data from the real dataset").** The synthetic sample is removed: no
+drawn plans, no synthetic images, no made-up layouts, conflicts or double-check items. `index.html` points to
+`stoa/index.html`, which `make_stoa_demo.py` builds locally from `app.html` and the Stoa dataset (Stoa mode below is
+now the only mode). Every drawing and picture is a real file; numbers are the dataset's answer key; descriptions are
+what a person saw on the real image. Sections below that describe the synthetic sample (its six drawings, three
+conflicts, double-check items, the annex sketch) record the removed version; with real data the conflicts screen
+shows "No conflicts found" and answers carry no marks.
+
 A static, offline click-through of the whole Vellum story: drop files, watch them being read (simple and advanced),
 see which files were set aside and why (file triage, a preview), settle the conflicts, ask with proof, work
 through the issues list, see the workspace history. No build step, no network, no backend: open
@@ -122,7 +130,7 @@ committed, pushed or uploaded.
   (gitignored): the floor's PNG, `data.js` (`window.VStoaData`: the real file names and sizes, the English questions
   with their answer-key values and units, the licence line from the source's `LICENSE.md`), and `index.html`, the
   demo page with `../` paths plus `stoa/data.js` and `../stoa.js` after `../data.js`.
-- Open `stoa/index.html`; plain `index.html` stays synthetic. Plain `index.html` does not probe for `stoa/data.js`:
+- Open `stoa/index.html` (plain `index.html` only points there). The template is `app.html`. No page probes for `stoa/data.js`:
   a script tag to a missing file always logs a console error. (`<base href="../">` is not used either: it would send
   the `#/` links back to the synthetic page.)
 - `stoa.js` builds `VData` from it. One drawing (a Swiss Dwellings floor is one drawing), shown as its PNG, with no
