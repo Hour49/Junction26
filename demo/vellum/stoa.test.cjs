@@ -10,7 +10,7 @@ function load(archiveFiles) {
   window.window = window;
   window.VStoaData = {
     archive: 'site1_bldg1_floor1', source: 'swiss_dwellings', credit: 'All files: CC-BY-4.0. Credit: test.',
-    files: [{ path: 'f.pdf', size: '1 kB', kind: 'Vector PDF', lane: 'CAD', role: 'source' },
+    files: [{ path: 'f.pdf', size: '1 kB', kind: 'Vector PDF', lane: 'CAD', role: 'source', image: 'f.pdf.webp' },
       { path: 'f.png', size: '1 kB', kind: 'PNG rendering', lane: 'Vision', role: 'same', image: 'f.png' }],
     questions: [
       { question: 'How many doors (interior and entrance) are drawn on this floor plan?', answer: 12, unit: 'count', type: 'count' },
@@ -82,4 +82,17 @@ test('the archive folder: a plan is a drawing with no answer key, any other kind
   const x = T.described('How many storeys does the building in the elevation have?', V.FILES);
   assert.equal(x.quote, 'A two-storey house. Two storeys under a roof.');
   assert.ok(T.picture('archive/e.jpg', 'e').startsWith('<img'));
+});
+
+test('every conflict and issue preview points at a real file and outlines places inside its crop', () => {
+  const plan = (p) => ({ path: p, size: '1 kB', kind: 'JPG scan', image: p, credit: 'c', lane: 'Vision', role: 'source', plan: true });
+  const V = load([plan('archive/a.jpg'), plan('archive/b.jpg')]);
+  const items = V.CONFLICTS.concat(V.ISSUES).filter((x) => x.src);
+  assert.equal(V.ISSUES.filter((x) => x.severity !== 'note').length, 2);
+  assert.ok(items.length >= 3);
+  for (const { src } of items) {
+    const [vx, vy, vw, vh] = src.view;
+    for (const p of src.files) assert.ok(V.FILES.find((f) => f.path === p && f.image), p);
+    for (const { box: [x, y, w, h] } of src.marks) assert.ok(x >= vx && y >= vy && x + w <= vx + vw && y + h <= vy + vh, `${x},${y} outside ${src.view}`);
+  }
 });

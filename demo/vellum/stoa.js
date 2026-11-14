@@ -55,19 +55,26 @@
   // decides (a substring), kind: its quantity.
   const pdf = D.files.find((f) => f.path.endsWith('.pdf')), png = D.files.find((f) => f.path.endsWith('.png'));
   const aptA = keyOf(/apartment A/), indoor = net, doors = keyOf(/How many doors/), stanze = keyOf(/rooms labelled 'Stanza' are/);
+  // src: where each conflict and issue sits on its real source image, placed by eye. files: the images (the first is
+  // shown in the card), view: the crop shown and box: the place in question, both in % of the image (x, y, w, h);
+  // ratio: the image's width / height. The floor sits in the middle of an A3 sheet, so its crop is FLOOR.
+  const A3 = 1600 / 1131, FLOOR = [31, 22, 38, 42];
+  const floorSrc = (files, marks) => ({ files, view: FLOOR, ratio: A3, marks });
   const CONFLICTS = !pdf || !png ? [] : [
     doors !== null && { id: 'c1', drawing: ID, quantity: 'door', match: 'How many doors', ai: 0, title: 'Doors on this floor',
       readers: { 'vector PDF': `${doors} doors`, 'PNG rendering': `${doors - 1} doors` }, files: `${pdf.path} ↔ ${png.path}`,
       variants: [{ kind: 'door', value: doors, label: `${doors} doors`, src: 'Vector PDF: every door symbol, the flat\'s entrance door included' },
         { kind: 'door', value: doors - 1, label: `${doors - 1} doors`, src: 'PNG rendering: the entrance door is drawn on the stair-hall wall and was read as wall' }],
       rules: ['Vector geometry outranks a raster rendering of the same sheet.', 'The flat\'s entrance door counts as a door.'],
-      why: `Same sheet in two formats, so the vector PDF wins: ${doors} doors.` },
+      why: `Same sheet in two formats, so the vector PDF wins: ${doors} doors.`,
+      src: floorSrc([pdf.path, png.path], [{ box: [44.8, 30, 4.2, 5], label: 'The flat\'s entrance door, on the stair-hall wall' }]) },
     aptA !== null && indoor !== null && { id: 'c2', drawing: ID, quantity: 'area', match: 'apartment A', ai: 0, title: 'Net floor area of apartment A',
       readers: { 'room table': `${aptA.toFixed(2)} m²`, 'outline sum': `${indoor.toFixed(2)} m²` }, files: pdf.path,
       variants: [{ kind: 'area', value: aptA, label: `${aptA.toFixed(2)} m²`, src: 'The flat\'s own rooms, balcony left out' },
         { kind: 'area', value: indoor, label: `${indoor.toFixed(2)} m²`, src: 'Every numbered indoor room, the shared stair hall included' }],
       rules: ['A flat\'s area counts only its own rooms.', 'The stair hall (Vano scala) is shared, so it is not part of the flat.'],
-      why: `The stair hall belongs to the building, not the flat: ${aptA.toFixed(2)} m².` },
+      why: `The stair hall belongs to the building, not the flat: ${aptA.toFixed(2)} m².`,
+      src: floorSrc([pdf.path], [{ box: [39.4, 25.5, 9.2, 9.3], label: 'The stair hall (Vano scala 1.10), shared by the building' }]) },
     stanze && stanze > 1 && { id: 'c3', drawing: ID, quantity: 'bedroom', match: null, ai: null, title: 'Bedrooms in apartment A: is one of the rooms the living room?',
       readers: { 'room labels': `${stanze} × 'Stanza'`, 'room types': `${stanze} bedrooms, or ${stanze - 1} and a living room` }, files: pdf.path,
       where: `The ${stanze} rooms labelled 'Stanza' (Italian for room)`,
@@ -76,15 +83,23 @@
       rules: ['A bedroom is a habitable room that is not the living room.', `The plan labels all ${stanze} rooms 'Stanza' and none as the living room, so it does not say which one it is.`],
       why: 'Only someone who knows the flat can say whether one of the rooms is the living room. It decides the bedroom count and which building-code room rules apply.',
       placeholder: 'e.g. 3 bedrooms, room 1.02 is the living room',
+      src: floorSrc([pdf.path], [['1.02', [58.2, 25.8, 7.4, 14.5]], ['1.06', [55.8, 40.3, 9.8, 9.9]], ['1.07', [39.4, 46.9, 12.9, 12.8]], ['1.08', [52.4, 49.9, 13.1, 9.8]]]
+        .map(([n, box]) => ({ box, label: `Stanza ${n}` }))),
       suggest: ['3 bedrooms, room 1.02 is the living room', '3 bedrooms and a study', '2 bedrooms, a living room and a study'] },
   ].filter(Boolean);
   // Hard-coded issues on the real files (Tudor, 15:35: things that might actually need a look, not the vision model's)
   const plans = ARCH.filter((f) => f.plan).map((f) => f.path), dxf = D.files.find((f) => f.path.endsWith('.dxf'));
+  // A person answers a needs_person issue on Documents; a note is only shown (and not counted on the tab).
   const ISSUES = [
-    plans[1] && { severity: 'needs_person', file: plans[1], why: 'No scale bar or dimension was read on this scan, so areas on it are not measured. Add the scale to measure them.' },
-    plans[0] && { severity: 'needs_person', file: plans[0], why: 'Some hand-written room names on this archive plan could not be read, so those rooms have no type.' },
-    dxf && { severity: 'note', file: dxf.path, why: 'The same floor as the vector PDF: read once, from the PDF.' },
-    png && { severity: 'note', file: png.path, why: 'A rendering of the same floor: used for pictures, not counted again.' },
+    plans[1] && { id: 'i1', severity: 'needs_person', file: plans[1], why: 'No scale bar or dimension was read on this scan, so areas on it are not measured. Add the scale to measure them.',
+      src: { files: [plans[1]], view: [0, 0, 100, 100], ratio: 931 / 537, marks: [{ box: [20, 0, 57, 10], label: 'The title gives no scale, and no dimension is written on the plan' }] },
+      placeholder: 'e.g. 1/8 inch to 1 foot', suggest: ['1/8 inch to 1 foot (1:96)', '1/16 inch to 1 foot (1:192)', 'Leave it unmeasured'] },
+    plans[0] && { id: 'i2', severity: 'needs_person', file: plans[0], why: 'Some hand-written room names on this archive plan could not be read, so those rooms have no type.',
+      src: { files: [plans[0]], view: [0, 0, 100, 100], ratio: A3, marks: [{ box: [34.2, 30.6, 8.4, 5.4], label: '“V.c”?' }, { box: [74.5, 34.6, 9.5, 5], label: '“Dom.”?' }] },
+      placeholder: 'e.g. V.c is a WC', suggest: ['V.c is a WC, Dom. is a maid\'s room', 'Leave those rooms without a type'] },
+    dxf && { id: 'i3', severity: 'note', file: dxf.path, why: 'The same floor as the vector PDF: read once, from the PDF.' },
+    png && { id: 'i4', severity: 'note', file: png.path, why: 'A rendering of the same floor: used for pictures, not counted again.',
+      src: floorSrc([png.path], [{ box: [32.5, 24.5, 35.5, 37], label: 'The same floor as the vector PDF' }]) },
   ].filter(Boolean);
   const conflictFor = (q) => CONFLICTS.find((c) => c.match && q.question.includes(c.match)) || null;
 
