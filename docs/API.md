@@ -6043,7 +6043,8 @@ that call gives, the project's review edits applied. An unknown project is 404; 
   counted twice. The question must also be a count, or an area or length over each whole drawing, in one unit.
   Null otherwise: no drawing answered, the drawings may show the same rooms, the question is about one room (two
   kitchens on two drawings are two parts, not one sum), the answer came from a printed table, or the units differ.
-  The total only adds the parts' `answer` values.
+  The total adds the parts' measured values (`answer.quantity.value`). When one of them is an area on an estimated
+  scale, the total is that sum in whole m², as such a part's `answer` is (#294).
 - `total_sure`: true only when there is a total and every part in it is sure (`answer.line.sure`); false
   otherwise.
 - `total_level`: the lowest confidence level among the total's parts that have one (`answer.level.level`): `high`,
@@ -10873,6 +10874,9 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-14, value only (keycheck review-315, chat-ux): `POST /api/projects/{project_id}/ask`'s `total` is in
+  whole m² when a summed part is an area on an estimated scale, as that part's `answer` already was (#294): the
+  Finnish flat's kitchen gave `answer` 5 and `total` 4.88, now 5 and 5 (`total_note` too). Shapes unchanged.
 - 2026-11-15, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
   missing feature say what was and wasn't read. A `no-reader` refusal on a route with no reader: "This sheet wasn't
   read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask

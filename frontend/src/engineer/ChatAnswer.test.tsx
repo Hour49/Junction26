@@ -327,29 +327,51 @@ it('CH-46 a check reason that already gives the estimate is the one line: no est
   expect(row.textContent).not.toContain('about 19');
 });
 
-it('CH-48 a row shows the measured value the total adds up, not the rounded golden answer (4.88 m², not 5.00 m²)', () => {
-  // The Finnish flat's kitchen: `answer` is the golden format (an integer), `quantity.value` the measured area.
-  const kitchen = {
-    ...answerArea,
-    answer: 5,
-    quantity: {
-      ...(answerArea.quantity as NonNullable<typeof answerArea.quantity>),
-      value: 4.88,
-      original_value: 4.88,
-    },
-  };
+/** The Finnish flat's kitchen as the API sends it (#294): measured 4.88 m² on an estimated scale, shown in whole m². */
+const KITCHEN_WHY = 'the scale estimated from the doors';
+const kitchen = {
+  ...answerArea,
+  answer: 5,
+  quantity: {
+    ...(answerArea.quantity as NonNullable<typeof answerArea.quantity>),
+    value: 4.88,
+    original_value: 4.88,
+    estimate: KITCHEN_WHY,
+  },
+};
+/** Every number printed in an element's text. */
+const numbers = (el: Element) => el.textContent.match(/\d+(?:\.\d+)?/g) ?? [];
+
+it('CH-48 an estimated area reads one number everywhere: lead, row and estimate line say 5 m², never 4.88 or 5.00', () => {
   const ask: ProjectAnswer = {
     ...projectAsk,
     parts: [{ ...flatA, answer: kitchen }],
-    total: 4.88,
+    total: 5, // the backend's _total: whole m² when a summed part is an estimate
     total_unit: 'm2',
     why_no_total: null,
   };
   show(ask);
-  expect(screen.getByTestId('answer-value').textContent).toBe('4.88 m²');
+  expect(screen.getByTestId('answer-value').textContent).toBe('5 m²');
   const [row] = rows() as [HTMLElement];
-  expect(row.textContent).toContain(`${LA}: 4.88 m²`);
-  expect(document.body.textContent).not.toContain('5.00');
+  expect(row.textContent).toContain(`${LA}: 5 m²`);
+  expect(row.querySelector('.en-estimate')?.textContent).toBe(`about 5 m², ${KITCHEN_WHY}`);
+  const lead = screen.getByTestId('answer-value');
+  // the drawing's name ("Drawn plan 1") carries a number too: only the value's numbers count
+  const values = [...numbers(lead), ...numbers(row).filter((n) => !LA.includes(n))];
+  expect(new Set(values)).toEqual(new Set(['5']));
+});
+
+it('CH-48 a measured (not estimated) area keeps its two decimals in the lead and the row', () => {
+  const plain = { ...kitchen, answer: 4.88, quantity: { ...kitchen.quantity, estimate: null } };
+  show({
+    ...projectAsk,
+    parts: [{ ...flatA, answer: plain }],
+    total: 4.88,
+    total_unit: 'm2',
+    why_no_total: null,
+  });
+  expect(screen.getByTestId('answer-value').textContent).toBe('4.88 m²');
+  expect((rows()[0] as HTMLElement).textContent).toContain(`${LA}: 4.88 m²`);
 });
 
 it('CH-48 a printed-table answer (no quantity) still shows its own answer', () => {
