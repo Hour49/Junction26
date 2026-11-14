@@ -73,13 +73,17 @@ start by `app/adapters/rule_packs.py`, model `app/core/checks/model.py`):
 | A room with no area; a door with no scale, or an element with no position (`attrs.located` false) | no value |
 | A door on an `estimated` scale | the raster route estimates that scale from the doors themselves |
 | An estimated area whose band reaches the limit, or with no stated error; any estimated area under the limit | estimate |
-| Route `raster`: a room under the limit from a read outline (a printed area still fails); a room with no window found; a narrow door box | read off a picture: 0 of 9 area fails and 1 of 10 window fails on the dev drawings were real |
-| A room with no window but a door to a balcony, an outdoor room, or to no room at all | the door may be glazed (478 of 516 Swiss rooms with no window near shared a door with a balcony) |
+| Route `raster`, or a route not known (taken as a picture; S2, 2026-11-14): a room under the limit from a read outline (a printed area still fails); a room with no window found; any door box, narrow or wide (S3, 2026-11-14) | read off a picture: 0 of 9 area fails and 1 of 10 window fails on the dev drawings were real; a detector's door box is not a measurement in either direction |
+| A room with no window (drawn, or the model's count) but a door to a balcony, an outdoor room, or to no room at all | the door may be glazed (478 of 516 Swiss rooms with no window near shared a door with a balcony) |
+| No room of the kinds a room rule names, but rooms of a kind we could not tell (`other`: the label matched no word); for a door rule, the same with no room of its kinds at all (S1, 2026-11-14) | they may be bedrooms (vitoria's HAB1 and SAL rooms, gdynia's "Room 1.3") |
 | A room with no window on a sheet drawn from a building model whose spaces carry no window count | 54 of Warmond's 110 IfcWindows have no shape and are not drawn |
 | A takeoff quantity two methods dispute with no rule deciding, or that rests on an estimate | no single value |
 
 A rule whose drawing has nothing it applies to (no bedroom; no door into a habitable room) is `not_applicable`,
-not cannot tell (review 9).
+not cannot tell (review 9). That is said only when no room of the drawing could be of a kind the rule names: rooms
+typed as a known other kind (a store, a hall) are not applicable, rooms of a kind we could not tell are cannot tell
+(S1). A building model file whose sheets are in the project (a sheet's group holds it and was read from it) is
+`not_applicable`, "checked on its sheets"; a model with no sheet in the project stays cannot tell (N3, 2026-11-14).
 
 **API** (additive to v1; docs/API.md "Building-code checks", `openapi-v1.json`, fixtures `checks.json` and
 `project_checks.json` appended last; `info.json` gains `rule_packs` at its end):
@@ -134,13 +138,17 @@ After the holds (codecheck, same run, all 171 drawings, `fi` pack):
 | --- | --- | --- | --- | --- | --- |
 | raster (91) | room area | 250 | 49 | 0 | |
 | | window | 283 | 16 | 0 | |
-| | door width | 13 | 234 | 0 | |
+| | door width | 0 | 247 | 0 | |
 | vector (36) | room area | 94 | 0 | 0 | |
 | | window | 91 | 3 | 0 | |
 | | door width | 24 | 86 | 6 | 6 |
 | IFC (44) | room area | 66 | 0 | 0 | |
 | | window | 23 | 43 | 0 | |
 | | door width | 4 | 0 | 0 | |
+
+Raster doors after S3 (2026-11-14): the 13 passes there were before are cannot tell. The IFC rows are before #162
+(spaces' window counts); on #162's extraction the 44 IFC sheets give area 219/0/8, window 223/4/0, door 96/0/0
+(pass/cannot tell/fail; the 8 area fails are a 6.83 m2 bedroom on 4 storeys of the two vitoria models).
 
 "Real": the gold drawing's door or room at the same place (overlap IoU at least 0.3) fails too. The 6 are kitchen
 doors of 0.70-0.76 m on two Swiss plans: real as drawn under the Finnish rule.

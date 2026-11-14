@@ -6597,7 +6597,9 @@ ingest read it; review edits don't change it.
 - `status` (the drawing's) and each rule's `status`: `fail` when one result fails, else `cannot_tell` when one
   cannot tell, else `pass`; `not_applicable` when the drawing has nothing the rule applies to (rooms were read and
   none is a bedroom; no door leads to a habitable room). A rule with no results and `cannot_tell` could not be
-  checked at all (`why` says what was not read).
+  checked at all (`why` says what was not read, or that rooms are of a kind we could not tell and may be ones the
+  rule names). A building model file is `not_applicable` ("checked on its sheets") when its sheets are in
+  `project`, else `cannot_tell`.
 - A result is one rule on one room, door or the sheet: `status` is `pass`, `fail` or `cannot_tell`; `id` is
   `<rule_id>:<room or element id>` (`:sheet` for a sheet quantity), the same on every call for the same drawing.
   `value` is what was measured, in `unit`; null when nothing was measured; a value too uncertain to judge is kept
@@ -6607,9 +6609,9 @@ ingest read it; review edits don't change it.
   `page`, `box`, `polygon` (a room's outline, else null), `ref` (the room or element id), `label`, and its
   takeoff row `quantity` with `mark_id`, its `MarkView.id` in that row (the row's own ids; null when the takeoff
   has no row with it).
-- A fail stands only on reliable inputs: on a drawing read off a picture (route `raster`) a small room from a read
-  outline, a room with no window found and a narrow door box are `cannot_tell`, never `fail`; a printed area still
-  decides. A door's width is measured from its symbol (or the building model), which bounds the clear opening
+- A fail stands only on reliable inputs: on a drawing read off a picture (route `raster`, or a route not known) a
+  small room from a read outline and a room with no window found are `cannot_tell`, never `fail`; a printed area
+  still decides. A door there is `cannot_tell` whatever its box measures. A door's width is measured from its symbol (or the building model), which bounds the clear opening
   from above; the 0.10 m allowed for the frame is ours, not the law's, and the `why` says so.
 
 ### `GET /api/projects/{project_id}/checks?pack=<pack id>`
