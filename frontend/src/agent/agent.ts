@@ -215,3 +215,68 @@ export const LEVEL_WORD: Record<Level['level'], string> = {
   medium: 'Medium',
   low: 'Low',
 };
+
+/** A place on the plan the turn wants on screen (`.agents/chat/contract.md` A): every mark is also in `evidence`. */
+export interface ViewMark {
+  n: number;
+  label: string | null;
+  box: Box;
+  polygon: Point[] | null;
+}
+/** `ChatTurn.view` (contract A): the drawing page to open, its marks, the box to focus and the server's caption. */
+export interface View {
+  drawing_id: string;
+  name: string | null;
+  page: number;
+  box: Box;
+  marks: ViewMark[];
+  caption: string | null;
+  source: 'show_on_plan' | 'evidence';
+}
+
+const MARGIN = 0.02; // page fractions around the marks' union, as the server's view box
+
+/** The union of boxes with a margin, clamped to the page. */
+export function unionBox(boxes: Box[]): Box {
+  const c = (v: number) => Math.min(Math.max(v, 0), 1);
+  return [
+    c(Math.min(...boxes.map((b) => b[0])) - MARGIN),
+    c(Math.min(...boxes.map((b) => b[1])) - MARGIN),
+    c(Math.max(...boxes.map((b) => b[2])) + MARGIN),
+    c(Math.max(...boxes.map((b) => b[3])) + MARGIN),
+  ];
+}
+
+/** The plan the turn shows: the server's `view`; from a server without it, contract A's "evidence" rule (the page
+ * of `[1]`, every evidence item on that drawing and page); null with no evidence. */
+export function viewOf(turn: ChatTurn): View | null {
+  const sent = (turn as ChatTurn & { view?: View | null }).view;
+  if (sent !== undefined) return sent;
+  const first = turn.evidence[0];
+  if (!first) return null;
+  const here = turn.evidence.filter(
+    (e) => e.drawing_id === first.drawing_id && e.page === first.page,
+  );
+  return {
+    drawing_id: first.drawing_id,
+    name: first.name,
+    page: first.page,
+    box: unionBox(here.map((e) => e.box)),
+    marks: here.map((e) => ({ n: e.n, label: e.label, box: e.box, polygon: null })),
+    caption: null,
+    source: 'evidence',
+  };
+}
+
+/** One source's place as a view of its own, for a `[n]` that is not on the shown page. */
+export function evidenceView(e: Evidence): View {
+  return {
+    drawing_id: e.drawing_id,
+    name: e.name,
+    page: e.page,
+    box: unionBox([e.box]),
+    marks: [{ n: e.n, label: e.label, box: e.box, polygon: null }],
+    caption: null,
+    source: 'evidence',
+  };
+}
