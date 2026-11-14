@@ -31,7 +31,7 @@ from app.core.answering.model import (
 )
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table, words
+from app.core.drawing.model import ELEMENT_CLASSES, CarbonCheck, Drawing, Room, Table, words
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
@@ -44,6 +44,7 @@ from app.core.review.check import (
     Disputes,
     Level,
     Scorer,
+    carbon_checked,
     certified,
     disagree,
     double_check,
@@ -53,6 +54,7 @@ from app.core.review.check import (
     no_disputes,
     schedule_check,
     score_of,
+    summed_check,
 )
 from app.core.review.check import SCHEDULE as SCHEDULE_ROUTE
 from app.core.review.model import (
@@ -244,10 +246,18 @@ def ask(
                 check, sure=sure, route=route, family=family, score=score, flags=flags,
                 held=reason is not None, blank=blank,
             )  # fmt: skip
+            if level is not None and drawing.carbon_check is not None:
+                carbon = carbon_answer(
+                    question, drawing, drawing.carbon_check, parser, clock, prior, prior_families
+                )
+                level = carbon_checked(level, drawing.carbon_check, carbon, answer.answer)
         if not sure:
             if reason is None and agrees is False:
                 reason = disagree(shown)
             request = double_check(shown, marks, disputes(drawing, shown), reason)
+    elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
+        request, level = summed_check(check)
+        sure = False
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
         sure = request is None
@@ -268,6 +278,44 @@ def ask(
     )
 
 
+def carbon_answer(
+    question: Question,
+    drawing: Drawing,
+    check: CarbonCheck,
+    parser: QuestionParser,
+    clock: Clock,
+    prior: AnswerPrior,
+    prior_families: Set[tuple[str, str]],
+) -> int | float | str | None:
+    """Carbon's answer to the question (CARBON_LEVELS): its reading on the drawing's pages and
+    scale, answered as the drawing's own reading is (the same parser, prior and answer policy,
+    as integ's test answered both). None: it refuses (a class it did not count, a scope it has
+    no plan for), which changes nothing."""
+    seen = Drawing(
+        file=drawing.file,
+        pages=drawing.pages,
+        scale=drawing.scale,
+        plans=check.plans,
+        elements=check.elements,
+        rooms=check.rooms,
+        read=check.read,
+    )
+    quantities = known_quantities(seen)
+    once = _Once(RoomByType(parser, seen, quantities))
+    found = answer_question(question, quantities, once, clock, prior, (), prior_families)
+    return found.answer
+
+
+def _summed(parsed: object, answer: Answer) -> bool:
+    """A schedule answer outside the single-cell lookups the schedule route was measured on: a
+    room's area the room schedule gives for a takeoff question (answering's fallback), or a sum
+    over more than one row."""
+    if isinstance(parsed, Query):
+        return True
+    summing = isinstance(parsed, TableQuery) and parsed.op in ("sum", "count_sum")
+    return summing and len(answer.evidence) > 1
+
+
 def _flagged(
     quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
 ) -> tuple[dict[str, Quantity], set[str]]:
@@ -278,7 +326,8 @@ def _flagged(
     rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
     page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
     the classes it could not count (left out of `read`), so on a drawing whose elements are
-    Carbon's a class it read with no element is a read 0, still flagged (brief r8 BD)."""
+    Carbon's (CARBON_FLAG, which ingest sets only then) a class it read with no element is a
+    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b."""
     empty: set[str] = set()
     if flags and not drawing.elements:
         empty.update(ELEMENT_CLASSES)

@@ -107,6 +107,7 @@ const ask = (why: string, prefix = 'Please double-check') => `${prefix}: ${why}`
 type Zoom = 1 | 2 | 4;
 
 const NARROW = 600; // px of frame width under which badges show their number only
+const CROWD = 50; // more badges than this in a narrow frame: outlines only (carbon flag, VW-96)
 const STATE_ORDER: MarkView['state'][] = ['counted', 'added', 'rejected', 'excluded'];
 const inPage = (v: number) => v >= 0 && v <= 1;
 /** A box in page fractions: four numbers in 0..1, x0 <= x1, y0 <= y1. */
@@ -294,7 +295,7 @@ export function PageViewer({
     return t ? TONE_WORDS[t] : words(m);
   };
   // Counted marks of a check are context: a shape, no badge (viewer.md OP 17).
-  const badged = onPage.filter((m) => toneOf(m) !== 'counted');
+  const allBadged = onPage.filter((m) => toneOf(m) !== 'counted');
   const colourOf = (m: MarkView) => {
     const t = toneOf(m);
     return t ? TONE_COLOUR[t] : stateColour(m);
@@ -344,6 +345,9 @@ export function PageViewer({
   const W = frameWidth * zoom;
   const H = (W * page.height) / page.width;
   const narrow = W < NARROW;
+  // Too many to number legibly here (a flagged 200-door sheet): keep the outlines and the selected mark's badge.
+  const crowded = allBadged.length > CROWD && W < NARROW;
+  const badged = crowded ? allBadged.filter((m) => m.id === selected) : allBadged;
   const spots =
     W > 0
       ? placeLabels(
@@ -862,6 +866,12 @@ export function PageViewer({
           })}
         </PageFrame>
       </div>
+      {crowded && (
+        <p className="vw-many">
+          {allBadged.length} marks, too many to number at this size
+          {!bare && ': zoom in to see their numbers'}
+        </p>
+      )}
       {!bare && (
         <p className="vw-pagemeta">
           {pageMeta.map((text) => `${text} · `)}

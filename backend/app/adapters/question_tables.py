@@ -15,7 +15,9 @@ note, a door by its number). From its words:
 3. Which table: the one it names, else the kind of row it counts or names (doors, windows,
    rooms).
 
-Two quantities in one question, a superlative or rows it can't name are `Unsupported`.
+Two quantities in one question, a superlative or rows it can't name are `Unsupported`. A read
+that names no row ("the width and height of a window in the window schedule") reads every row:
+the core answers it only when they all print the same value (tables._read).
 """
 
 import re
@@ -132,8 +134,6 @@ def parse_table(text: str) -> TableQuery | Unsupported:
         column = tuple(tuple(part.split()) for part in re.split(r"\s+and\s+", match.group(1)))
     else:
         return Unsupported(reason="no count, area or schedule cell asked for")
-    if op == "read" and not filters:
-        return Unsupported(reason="a schedule cell without saying which row")
     return TableQuery(
         op=op,
         kind=kind,

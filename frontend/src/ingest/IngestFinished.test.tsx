@@ -96,6 +96,12 @@ describe('IngestFinished and DoneLine (ingest.md v3)', () => {
     ).toBe(true);
   });
 
+  it('IN-88 withChatRow false: the list only (Simple has the row in its card)', () => {
+    render(<IngestFinished projectId={ID} project={project} withChatRow={false} />);
+    expect(screen.getByText('the conflicts list')).toBeTruthy();
+    expect(screen.queryByText('Start a new chat')).toBeNull();
+  });
+
   it('IN-87 no issue count is asked for before the project is done (the API answers 409 until then)', () => {
     vi.mocked(useIssuesToAnswer).mockClear();
     for (const p of [variants.running, variants.queued, variants.noDrawings]) {

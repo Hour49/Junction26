@@ -13,6 +13,7 @@ from test_ingest_triage import PHOTO, PLAN, SCAN, file_of, zipped
 from triage_fakes import FakeClassifier, FakeDescriber, steps
 
 from app.adapters.evidence.store import SqliteEvidenceIndex
+from app.adapters.evidence.texts import FileTextReader
 from app.core.evidence.chunks import passages
 from app.core.evidence.model import sources
 from app.core.evidence.pictures import FLOOR_PLAN, NO_DESCRIBER, EvidenceSteps
@@ -43,7 +44,9 @@ SUBJECTS = {
 
 def on(kinds: FakeKinds | None = None, describer: FakeDescriber | None = None) -> EvidenceSteps:
     return EvidenceSteps(
-        kinds=kinds or FakeKinds(KINDS), describer=describer or FakeDescriber(SUBJECTS, usd=0.03)
+        kinds=kinds or FakeKinds(KINDS),
+        describer=describer or FakeDescriber(SUBJECTS, usd=0.03),
+        texts=FileTextReader(),
     )
 
 
@@ -114,7 +117,7 @@ def test_a_failed_kind_call_or_no_describer_leaves_the_file_out_with_why(
     make_service: MakeService, tmp_path: Path
 ) -> None:
     kinds = FakeKinds({PLAN: KINDS[PLAN], SCAN: KINDS[SCAN]})  # the elevation's call fails
-    steps_on = EvidenceSteps(kinds=kinds, describer=None)
+    steps_on = EvidenceSteps(kinds=kinds, describer=None, texts=FileTextReader())
     status = ingest(make_service, tmp_path / "on", FILES, evidence_steps=steps_on)
     elevation = file_of(status, "A200 elevation.pdf").evidence
     assert elevation is not None and not elevation.indexed
@@ -132,7 +135,7 @@ def test_a_step_that_raises_is_the_files_why_never_the_projects(
         def kind(self, image: bytes) -> object:
             raise RuntimeError("socket closed")
 
-    steps_on = EvidenceSteps(kinds=Raising(), describer=None)  # pyright: ignore[reportArgumentType]
+    steps_on = EvidenceSteps(kinds=Raising(), describer=None, texts=FileTextReader())  # pyright: ignore[reportArgumentType]
     status = ingest(make_service, tmp_path / "on", FILES, evidence_steps=steps_on)
     assert status.state == "done"
     elevation = file_of(status, "A200 elevation.pdf").evidence

@@ -16,14 +16,17 @@ const ICON = { done: '✓', working: '◌', waiting: '○' } as const;
 /** Screen 2's card: the step, a ring with the share of files finished, the stats and the 8 steps. */
 /** `now`: browser time of the last poll, so Elapsed moves with each answer. */
 /** `footer`: the finished screen's done line, the card's last row (ingest.md v3). */
+/** `actions`: the chat row, right under "Ready" so it is seen without scrolling (IN-88). */
 export function ProgressCard({
   project,
   now,
   footer,
+  actions,
 }: {
   project: ProjectView;
   now: number;
   footer?: ReactNode;
+  actions?: ReactNode;
 }) {
   const { files, state } = project;
   const live = isLive(project);
@@ -57,6 +60,7 @@ export function ProgressCard({
           <span aria-hidden="true">{percent}%</span>
         </div>
       </div>
+      {actions}
       <dl className="ingest-stats">
         <div>
           <dt>Elapsed</dt>

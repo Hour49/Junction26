@@ -20,6 +20,7 @@ from app.composition import Pipeline, build_pipeline
 from app.composition import readers as readers_of
 from app.core.evidence.pictures import EvidenceSteps
 from app.core.evidence.ports import EvidenceIndex
+from app.core.ingest.model import CarbonRead
 from app.core.ingest.ports import ContentProbe, Rectifier, Runner
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
@@ -48,7 +49,7 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
         triage: TriageSteps | None = None,
         evidence: EvidenceIndex | None = None,
         evidence_steps: EvidenceSteps | None = None,
-        carbon_read: Callable[[str], bool] | None = None,
+        carbon_read: Callable[[str], CarbonRead | None] | None = None,
     ) -> IngestService:
         store = store or DiskProjectStore(root)
 

@@ -42,7 +42,7 @@ from pydantic import Field
 
 from app.core.answering.answer import AGREEING_FAMILIES
 from app.core.answering.local_gate import READER_FAMILIES, LocalGateModel, reading_of, score
-from app.core.drawing.model import Box, Drawing, Room
+from app.core.drawing.model import Box, CarbonCheck, Drawing, Room
 from app.core.model import Frozen
 from app.core.pipeline.count_arbiter import count_arbiter_reading
 from app.core.review.model import MarkView, Row
@@ -61,8 +61,8 @@ LevelName = Literal["high", "medium", "low"]
 LEVELS: tuple[LevelName, ...] = ("low", "medium", "high")  # lowest first
 # What a level rests on: the policy's certificate on a raster answer; the route's own reference
 # answers; the answer's score against its family's Medium threshold; a page flagged at upload; a
-# value held for a check whatever its score; nothing measured
-Basis = Literal["certified", "route", "score", "page", "held", "unrated"]
+# value held for a check whatever its score; nothing measured; Gemini Carbon reading it otherwise
+Basis = Literal["certified", "route", "score", "page", "held", "unrated", "carbon"]
 
 
 class Counts(Frozen):
@@ -231,6 +231,14 @@ PAGE_TEXT = (
     "Low confidence: this page was flagged when it was uploaded, and answers on such pages are "
     "not measured." + ASK["low"]
 )
+SUMMED_REASON = (
+    "Please double-check this value against the schedule printed on the sheet: it is added up "
+    "from several rows, or a room's area taken from the schedule, which is not measured."
+)
+SUMMED_TEXT = (
+    "Low confidence: this value is added up from schedule rows or taken from the room schedule, "
+    "and such values are not measured." + ASK["low"]
+)
 HELD_TEXT = (
     "Low confidence: this value is held for a check whatever its score; the double-check "
     "request says why." + ASK["low"]
@@ -240,6 +248,33 @@ BLANK_TEXT = (
     "Low confidence: nothing was found on this page (no plan, no element), so the readers "
     "agreeing is not evidence." + ASK["low"]
 )
+
+# integ's pre-registered test of CARBON_LEVELS=demote on 256 unseen val pages (.agents/exp/integ.md
+# AW pre-registration 2, 2026-11-14): of the 109 Medium answers Carbon counted otherwise, 80 exact
+CARBON_DEMOTED = Counts(units=109, exact=80)
+
+
+def carbon_checked(level: Level, check: CarbonCheck, carbon: object, said: object) -> Level:
+    """CARBON_LEVELS=demote on an answer's level: a Medium answer whose question Carbon answers
+    with another value (`carbon`) than the one shown (`said`) becomes Low; Carbon agreeing or
+    refusing (None) changes nothing. When Carbon checked nothing (`check.failed`), the level stays
+    and its sentence says so. Other levels are left as they are."""
+    if level.level != "medium":
+        return level
+    if check.failed is not None:
+        return level.model_copy(
+            update={"text": f"{level.text} Gemini Carbon did not check it: {check.failed}."}
+        )
+    if carbon is None or carbon == said:
+        return level
+    read = int(carbon) if isinstance(carbon, float) and carbon.is_integer() else carbon
+    measured = round(100 * CARBON_DEMOTED.exact / CARBON_DEMOTED.units)
+    text = (
+        f"Low confidence: Gemini Carbon, read as a second reader, counted {read} here. On our "
+        f"validation plans, {measured}% of the answers it counted differently were exact "
+        f"({CARBON_DEMOTED.exact} of {CARBON_DEMOTED.units})." + ASK["low"]
+    )
+    return Level(level="low", basis="carbon", text=text)
 
 
 def level_of(
@@ -395,6 +430,14 @@ def double_check(
 def schedule_check(policy: CheckPolicy) -> Check | None:
     """The request on a value read from a schedule: none when the policy certified the route."""
     return None if SCHEDULE in policy.routes else Check(reason=SCHEDULE_REASON, disputed=())
+
+
+def summed_check(policy: CheckPolicy) -> tuple[Check, Level | None]:
+    """The request and level on a value a schedule gives by adding up several rows, or a room's
+    area read from the room schedule because the plan has no such room: never certified, since
+    the schedule route was measured on single-cell lookups, not on these."""
+    level = None if policy.counts is None else Level(level="low", basis="held", text=SUMMED_TEXT)
+    return Check(reason=SUMMED_REASON, disputed=()), level
 
 
 def _shown(row: Row, value: float) -> str:

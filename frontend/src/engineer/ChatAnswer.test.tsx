@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
 import { drawingLabel } from '../api';
-import { answerResolved, project, projectAsk } from '../api/fixtures';
+import { answer, answerArea, answerResolved, project, projectAsk } from '../api/fixtures';
 import { routeLabel } from '../ingest/ingest';
 import type { PageViewer } from '../viewer/PageViewer';
 import { ChatAnswer } from './ChatAnswer';
@@ -267,4 +267,43 @@ it('RS-23 the chat rows show the pick, cannot_tell and resolver_note lines as th
     ],
   });
   expect(rows()[0]?.querySelector('.en-resolved')?.textContent).toContain('Carbon could not tell');
+});
+
+it('CH-43 each row prints why under its value: check.reason, else level.text, else nothing', () => {
+  show({
+    ...projectAsk,
+    parts: [
+      { ...flatA, answer: answerMedium },
+      { ...flatB, answer: { ...answerHigh, check: null } },
+    ],
+  });
+  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  expect(a.querySelector('.en-why')?.textContent).toBe(answerMedium.check?.reason);
+  expect(b.querySelector('.en-why')?.textContent).toBe(answerHigh.level?.text);
+  cleanup();
+  show({ ...projectAsk, parts: [{ ...flatA, answer: { ...answer, check: null, level: null } }] });
+  expect(rows()[0]?.querySelector('.en-why')).toBeNull();
+});
+
+it('CH-44 an estimated value adds "about <n> <unit>, <estimate>" under the row', () => {
+  const est = {
+    ...answerArea,
+    answer: 179.6,
+    quantity: {
+      ...(answerArea.quantity as NonNullable<typeof answerArea.quantity>),
+      estimate: 'the scale estimated from the doors',
+    },
+  };
+  show({
+    ...projectAsk,
+    parts: [
+      { ...flatA, answer: est },
+      { ...flatB, answer: answerArea },
+    ],
+  });
+  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  expect(a.querySelector('.en-estimate')?.textContent).toBe(
+    'about 180 m², the scale estimated from the doors',
+  );
+  expect(b.querySelector('.en-estimate')).toBeNull();
 });
