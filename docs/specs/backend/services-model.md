@@ -124,7 +124,11 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   elements, panel and circuit of a device, system info. A junction is any element with three or more ports.
 - SV-11 Definitions the operations must follow, each with a hand-traced test: "what feeds X" returns the set of
   equipment X reaches (not the nearest by hop count), preferring a heat or air source over a pump when both are
-  reached; adjacent equipment pieces count as one unit; cut-off needs a stated flow direction on at least 90% of
+  reached; a walk passes through pumps and fans (flow-moving devices sit inline in a run) and stops at any other
+  equipment; a heat or air source is known by its IFC class or PredefinedType (energy conversion devices such as
+  boilers, heaters, coils, heat exchangers and AHUs; water heaters; storage tanks and pressure vessels, not
+  expansion vessels); with no such source the answer is every equipment unit reached, and with no equipment
+  reached it refuses: "its network reaches no equipment"; adjacent equipment pieces count as one unit; cut-off needs a stated flow direction on at least 90% of
   the system's ports, else it refuses: "this model does not say which way the water flows here".
 - SV-12 A full re-derive (facts, graph, checks) runs after every edit. *Measured*: 6 ms for 1,795 elements.
 
