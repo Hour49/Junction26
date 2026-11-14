@@ -21,8 +21,6 @@ per entry; an entry goes when its fix is merged.
   235 dataset conflicts and add 29 false ones, so the link stays SVG-only. Every dataset sheet ships with its SVG;
   only an upload without it is affected. Without the link the sheet has no wall geometry either, so no wall edit can
   be proposed on it and the services follow-up has nothing to follow (#413, read from the code, not run) (Sat 15:10)
-- K7 · minor · frontend · The project chat lists only the drawings that answered; refused ones are only counted in
-  the note, not named (ProjectChat.tsx `answering`; QA R6-c-3) (Sat 15:10)
 - K8 · limit · backend · Sketches: we claim no door counting. On 14 hand-drawn sheets (mostly historical, 2026-11-14
   fail test, `prototypes/handdrawn/`) the door count was in range on 0 of 10 sheets with doors; windows 4 of 10, only on
   clean line drawings. Every door, window, room and WC count asked for a check; the exception is plans on a page, sure
