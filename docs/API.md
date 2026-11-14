@@ -4350,6 +4350,8 @@ so every client shows the same one: show `level` as the pill and `text` with it,
   - `route`: the drawing's route, from its own reference answers. A certified route (vector PDF, IFC model) is
     high; a value read from a printed schedule takes the `schedule` route's level.
   - `page`: the page was flagged at upload (a phone photo, a scan). Low: levels are not measured on such pages.
+    Also a raster page on which the detector found no plan and no element: nothing on it is certified, and its
+    answers are low (`text` says so), because readers that all saw nothing agree on 0 without evidence.
   - `held`: the value is held for a check whatever its score (two methods disagree, an estimate, edited and not
     signed off, a bedroom with no printed label). Low; `check.reason` says why.
   - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
@@ -8191,6 +8193,9 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, behaviour (safety rule, orchestrator): on the raster route, an answer on a drawing where the
+  detector found no plan and no located element is never certified (`sure` false, `check` set) and its `level`
+  is low with basis `page`. No shape change.
 - 2026-11-14, behaviour: the Gemini describer's prompt is `describe-6` (`Description.model` ends
   `describe-6`): a home address is written without its house number and postal code in every field
   (decision 0010); `describe-5` kept a house's street address on all 8 of its sheets that print one. No
