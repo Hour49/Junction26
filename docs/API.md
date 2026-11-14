@@ -5392,7 +5392,8 @@ Only while `MODEL_3D` is on (off: 404, and no payload changes). An IFC file's 3D
 each node named by its element's GlobalId (openings and rooms left out), `model/gltf-binary`, gzipped
 (`Content-Encoding: gzip`) when the request accepts it. The first request starts the conversion: 409 `converting`
 until it is built (poll this route or the file's `model_3d`). 422 with `code` `too_big` (over the memory budget,
-the time limit or 60 MB of GLB), `no_geometry` (nothing to draw) or `failed`, and the reason as `detail`. 404 for a
+the CPU-time limit or 60 MB of GLB), `no_geometry` (nothing to draw) or `failed` (the file could not be read, or the
+server was too busy: that one is not kept, the next request tries again), and the reason as `detail`. 404 for a
 file that is not IFC.
 
 `FileStatus.model_3d` in `GET /api/projects/{project_id}` (IFC files only, left out otherwise and when off):
@@ -10113,7 +10114,8 @@ without wall fills) gets `dont_know` saying so.
         "text": "A wet room changes: its waterproofing is redone and inspected."
       }
     ],
-    "law": null
+    "law": null,
+    "services": null
   },
   "options": null,
   "steps": [
@@ -10342,7 +10344,8 @@ unchanged.
       "text": "A wet room changes: its waterproofing is redone and inspected."
     }
   ],
-  "law": null
+  "law": null,
+  "services": null
 }
 ```
 

@@ -1374,6 +1374,50 @@ export interface components {
              */
             what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
         };
+        /** DisciplineFollow */
+        DisciplineFollow: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["ServiceAction"][];
+            /**
+             * Discipline
+             * @enum {string}
+             */
+            discipline: "architecture" | "structural" | "plumbing" | "heating" | "ventilation" | "electrical" | "fire" | "site" | "other";
+            /**
+             * Elements
+             * @default 0
+             */
+            elements: number;
+            /** Line */
+            line: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ServiceMark"][];
+            /** Reason */
+            reason?: string | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "checked" | "no_model" | "not_aligned";
+            /**
+             * @default {
+             *       "cut_off": 0,
+             *       "follows": 0,
+             *       "needs_decision": 0,
+             *       "new_run_m": 0,
+             *       "stays": 0
+             *     }
+             */
+            summary: components["schemas"]["Summary"];
+        };
         /**
          * Disputed
          * @description One place to double-check, as the answer gives it.
@@ -2418,6 +2462,7 @@ export interface components {
              * @default []
              */
             rooms: components["schemas"]["RoomChange"][];
+            services?: components["schemas"]["ServicesFollow"] | null;
             /**
              * State
              * @default proposed
@@ -2918,6 +2963,92 @@ export interface components {
             ref?: string | null;
         };
         /**
+         * ServiceAction
+         * @description One consequence of the edit in one discipline. `label` is the whole of it in plain words,
+         *     numbers included; the rest is for drawing it.
+         */
+        ServiceAction: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "reseat" | "in_wall" | "cut_off" | "through" | "riser" | "fire_damper" | "tally" | "opening" | "under" | "missing";
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Moved To */
+            moved_to?: [
+                number,
+                number
+            ] | null;
+            /**
+             * Paths
+             * @default []
+             */
+            paths: [
+                number,
+                number
+            ][][];
+            /**
+             * Refs
+             * @default []
+             */
+            refs: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "follows" | "stays" | "needs_decision" | "cut_off";
+            /** System */
+            system?: string | null;
+        };
+        /**
+         * ServiceMark
+         * @description One service element near the edit, for the overlay: a run as its line, anything else as
+         *     its point. Page fractions.
+         */
+        ServiceMark: {
+            /** At */
+            at?: [
+                number,
+                number
+            ] | null;
+            /** Global Id */
+            global_id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /**
+             * Line
+             * @default []
+             */
+            line: [
+                number,
+                number
+            ][];
+            /** Ref */
+            ref: string;
+        };
+        /** ServicesFollow */
+        ServicesFollow: {
+            /**
+             * Credits
+             * @default []
+             */
+            credits: string[];
+            /** Disciplines */
+            disciplines: components["schemas"]["DisciplineFollow"][];
+            /** Storey */
+            storey: string | null;
+            /**
+             * Unknowns
+             * @default []
+             */
+            unknowns: string[];
+        };
+        /**
          * Settled
          * @description The value a surveyor chose to keep for a quantity (the `settle` action).
          */
@@ -3088,6 +3219,34 @@ export interface components {
             quantity: string;
             /** Question */
             question: string;
+        };
+        /** Summary */
+        Summary: {
+            /**
+             * Cut Off
+             * @default 0
+             */
+            cut_off: number;
+            /**
+             * Follows
+             * @default 0
+             */
+            follows: number;
+            /**
+             * Needs Decision
+             * @default 0
+             */
+            needs_decision: number;
+            /**
+             * New Run M
+             * @default 0
+             */
+            new_run_m: number;
+            /**
+             * Stays
+             * @default 0
+             */
+            stays: number;
         };
         /** Takeoff */
         Takeoff: {

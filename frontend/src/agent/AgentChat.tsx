@@ -14,6 +14,7 @@ import { Suggestions } from '../engineer/DrawingHeader';
 import { usePhotoAdd } from '../engineer/photoAdd';
 import { askable, followUps, starters } from '../engineer/projectAsk';
 import { ErrorView } from '../shell/ErrorView';
+import { useInfo } from '../shell/info';
 import { Loading } from '../shell/Loading';
 import {
   evidenceView,
@@ -25,14 +26,18 @@ import {
   type Selection,
   type View,
 } from './agent';
+import { LiveSteps } from './LiveSteps';
+import { canShow3d, paneHighlight } from '../model3d/model3d';
 import { PlanPane, PlanSheet } from './PlanPane';
 import { PlanPointer } from './PlanPointer';
+import { LIVE_START, liveStep, streamTurn, type Live } from './stream';
 import { TurnCard } from './TurnCard';
+import { WhatIRead } from './WhatIRead';
 import '../engineer/engineer.css';
 
 type Sent = { id: number; message: string; chips: string[] };
 type Row =
-  | (Sent & { status: 'pending' })
+  | (Sent & { status: 'pending'; live?: Live })
   | (Sent & { status: 'error'; error: unknown; selection: Selection[] })
   | (Sent & { status: 'done'; turn: ChatTurn });
 
@@ -117,6 +122,12 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   useEffect(() => {
     packNow.current = pack;
   }, [pack]);
+  // chat-ux #2: the stream route only where /api/info says the server has it (contract C); read at send time.
+  const { info } = useInfo();
+  const streams = useRef(false);
+  useEffect(() => {
+    streams.current = info?.chat?.stream === true;
+  }, [info]);
   const [pointed, setPointed] = useState<Pointed[]>([]);
   const [pointing, setPointing] = useState(false);
   const chatId = useRef<string | undefined>(start.chatId);
@@ -135,12 +146,30 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         pending.current = false;
         setRows((rs) => rs.map((x) => (x.id === r.id ? r : x)));
       };
-      chatTurn(projectId, {
+      const body = {
         ...(chatId.current ? { chat_id: chatId.current } : {}),
         message: row.message,
         ...(selection.length ? { selection } : {}),
         ...(packNow.current ? { pack: packNow.current } : {}), // LC-11: the country picker's rule pack, as the checks screen sends it
-      }).then(
+      };
+      // chat-ux #2: the stream route with its live steps where the server has it, else the sync route (contract C)
+      const turn = streams.current
+        ? streamTurn(projectId, body, (e) => {
+            // A new chat's id is known from the first event: a failure later still continues this chat.
+            if (e.type === 'turn') chatId.current = e.chat_id;
+            // show_on_plan's view moves the plan while the turn runs; the answer's view has the last word.
+            if (e.type === 'view')
+              setShown({ drawingId: e.view.drawing_id, view: e.view, focus: null });
+            setRows((rs) =>
+              rs.map((x) =>
+                x.id === row.id && x.status === 'pending'
+                  ? { ...x, live: liveStep(x.live ?? LIVE_START, e) }
+                  : x,
+              ),
+            );
+          })
+        : chatTurn(projectId, body);
+      turn.then(
         (turn) => {
           chatId.current = turn.chat_id;
           settle({ ...row, status: 'done', turn });
@@ -264,6 +293,18 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     if (!wide) setSheet(true);
   };
   const paneId = shown?.drawingId ?? plans[0]?.drawing_id;
+  // model-3d.md "More places": the shown drawing's 3D model, its newest answer's elements highlighted
+  const modelFile = project.files.find((f) => f.drawing_id === paneId && canShow3d(f.model_3d));
+  const model =
+    modelFile && paneId
+      ? {
+          fileId: modelFile.id,
+          highlight: paneHighlight(
+            rows.flatMap((r) => (r.status === 'done' ? [r.turn] : [])),
+            paneId,
+          ),
+        }
+      : null;
   const plan = paneId && (
     <PlanPane
       projectId={projectId}
@@ -276,6 +317,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       drawing={drawn ? (drawn[paneId] ?? null) : undefined}
       view={shown?.view ?? null}
       focus={shown?.focus ?? null}
+      model={model}
       onDrawing={(id) => {
         setShown((s) => ({ drawingId: id, view: s?.view ?? null, focus: null }));
       }}
@@ -318,11 +360,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         {r.chips.length > 0 && <span className="ag-bubble-sel">{r.chips.join(' · ')}</span>}
         {r.message}
       </p>
-      {r.status === 'pending' && (
-        <p className="en-pending" role="status">
-          Working on it…
-        </p>
-      )}
+      {r.status === 'pending' && <LiveSteps live={r.live} />}
       {r.status === 'error' && (
         <div className="v-card en-error" role="alert">
           <p>The message could not be answered: {errorText(r.error).detail}</p>
@@ -436,6 +474,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     return split(
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
+        <WhatIRead project={project} />
         {photo.line}
         {pointer}
         {bar}

@@ -3,11 +3,15 @@ element's GlobalId so the view can highlight elements by id. Openings and rooms 
 an opening is a hole, not a thing, and a room's volume hides what bounds it.
 
 ifcopenshell's own glTF serializer writes it (no new dependency). Geometry of a big model can
-take gigabytes (spike 2026-11-14: 25 s and 2.2 GB peak for a 25 MB plumbing model with 4
-threads), so each conversion runs alone, in a subprocess, under a memory cap: a systemd user
-scope (MemoryMax) where the machine has one, else RLIMIT_AS at 1.5x the budget (it counts
-address space, which runs ahead of memory used). Over the cap or the time limit the child is
-killed and the model is too_big; the app never shares its memory.
+take gigabytes (DigitalHub plumbing, 25 MB: 2.2 GB peak with 4 threads, 1.7-2.0 GB with 2,
+1.27 GB and 56 s with 1, 2026-11-14), so each conversion runs alone, on one thread, in a
+subprocess, under a memory cap: a systemd user scope (MemoryMax) where the machine has one, else
+RLIMIT_AS at 1.5x the budget (it counts address space, which runs ahead of memory used). Over the
+cap, or over its computing time (RLIMIT_CPU: CPU seconds, so a busy machine does not count), the
+child is killed and the model is too_big; the app never shares its memory. A child still running
+at 3x its time in wall-clock seconds is stuck or starved: killed, said as busy, and not recorded,
+so the next request tries again. One conversion per cache at a time across processes too: the app
+and `python -m app.cli glb` take turns on the cache's lock file.
 
 Cache, beside the projects' drawing models, by content (`<sha256>` of the IFC file):
 
@@ -21,9 +25,11 @@ To retry a model that was unavailable (say, with a bigger budget), `python -m ap
 Run as a script, it is the child: `python -m app.adapters.ifc_model.glb <in.ifc> <out.glb>`.
 """
 
+import fcntl
 import gzip
 import json
 import logging
+import math
 import os
 import resource
 import shutil
@@ -32,8 +38,9 @@ import subprocess
 import sys
 import tempfile
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
 
@@ -43,10 +50,13 @@ from app.core.ingest.model import Model3d, Model3dCode
 log = logging.getLogger(__name__)
 
 MAX_BYTES = 60 * 1024 * 1024  # a larger GLB is too_big: a judge's laptop opens it slowly
-THREADS = 2  # 4 doubled the peak memory of the spike's plumbing model; 1 took 63 s
+THREADS = 1  # DigitalHub plumbing: 1.27 GB peak on 1, up to 2.0 GB on 2 (the live app has 4 GB)
 LEFT_OUT = ["IfcOpeningElement", "IfcSpace"]
 NO_GEOMETRY = 3  # the child's exit code for a model with no shape to draw
 FAILED = "the 3D model could not be built from this file"  # the details go to the log
+BUSY = "the server was too busy to build the 3D model; it is tried again on the next request"
+LOCK = ".convert.lock"  # in the cache folder: one conversion at a time across processes
+CHILD = [sys.executable, "-m", __name__]  # the converter; tests swap in one that spins or hangs
 BACKEND = Path(__file__).resolve().parents[3]  # the child runs `-m` from here
 _ONE_AT_A_TIME = threading.Lock()  # per process: the app's worker and any direct call
 
@@ -109,10 +119,16 @@ class GlbModels:
     def convert(self, sha256: str, data: bytes) -> Model3d:
         """Converts one IFC file, alone, and records the result."""
         self._root.mkdir(parents=True, exist_ok=True)
-        with _ONE_AT_A_TIME, tempfile.TemporaryDirectory(dir=self._root, prefix=".glb-") as work:
+        with (
+            _ONE_AT_A_TIME,
+            _one_per_cache(self._root),
+            tempfile.TemporaryDirectory(dir=self._root, prefix=".glb-") as work,
+        ):
             source, out = Path(work) / "model.ifc", Path(work) / "model.glb"
             source.write_bytes(data)
             found = self._run(source, out)
+            if found.reason == BUSY:
+                return found  # the machine's state, not the model's: not recorded
             if found.state == "ready":
                 size = out.stat().st_size
                 if size > self._max_bytes:
@@ -133,12 +149,13 @@ class GlbModels:
         return found
 
     def _run(self, source: Path, out: Path) -> Model3d:
-        child = [sys.executable, "-m", __name__, str(source), str(out)]
-        limit = None
+        child = [*CHILD, str(source), str(out)]
+        memory = None
         if has_systemd_scope():
             child = [*_SCOPE, "-p", f"MemoryMax={self._memory_mb}M", *child]
         else:
-            limit = int(self._memory_mb * 1.5 * 2**20)
+            memory = int(self._memory_mb * 1.5 * 2**20)
+        cpu = max(1, math.ceil(self._timeout_s))  # RLIMIT_CPU counts whole seconds
         process = subprocess.Popen(
             child,
             cwd=BACKEND,
@@ -148,15 +165,18 @@ class GlbModels:
             start_new_session=True,  # its own group: a kill reaches whatever it started
             # one BLAS thread: each one's buffers count against RLIMIT_AS before any geometry
             env={**os.environ, "OPENBLAS_NUM_THREADS": "1"},
-            preexec_fn=None if limit is None else lambda: _cap(limit),
+            preexec_fn=lambda: _cap(cpu, memory),  # kept across systemd-run's exec
         )
         try:
-            said, errors = process.communicate(timeout=self._timeout_s)
+            said, errors = process.communicate(timeout=self._timeout_s * 3)
         except subprocess.TimeoutExpired:
             os.killpg(process.pid, signal.SIGKILL)
             process.communicate()
+            log.warning("3D view conversion still running after %g s: killed", self._timeout_s * 3)
+            return _unavailable("failed", BUSY)
+        if process.returncode == -signal.SIGXCPU:
             return _unavailable(
-                "too_big", f"its 3D model took longer than {self._timeout_s:g} s to build"
+                "too_big", f"its 3D model needs more than {cpu} s of computing time to build"
             )
         if process.returncode == 0:
             return Model3d(state="ready", elements=int(json.loads(said)["elements"]))
@@ -185,8 +205,21 @@ def has_systemd_scope() -> bool:
     return probe.returncode == 0
 
 
-def _cap(limit: int) -> None:
-    resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+def _cap(cpu: int, memory: int | None) -> None:
+    resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu + 5))  # SIGXCPU at the soft limit
+    if memory is not None:
+        resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
+
+
+@contextmanager
+def _one_per_cache(root: Path) -> Iterator[None]:
+    """Holds the cache's lock file while one conversion runs, whichever process runs it."""
+    with (root / LOCK).open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(held, fcntl.LOCK_UN)
 
 
 def _out_of_memory(errors: str) -> bool:

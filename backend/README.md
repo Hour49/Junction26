@@ -98,16 +98,19 @@ recognised.
 ## 3D views of IFC files (MODEL_3D)
 
 `MODEL_3D=true` turns on `GET /api/projects/{id}/files/{file_id}/model.glb` and `FileStatus.model_3d` (off: 404
-and no payload changes). The first request converts the file in the background (409 `converting`), one at a time,
-in a subprocess capped at `MODEL_3D_MEMORY_MB` and `MODEL_3D_TIMEOUT_S`; over either, or a GLB over 60 MB, is 422
-`too_big`. GLBs are cached by content in `<PROJECTS_DIR>/models-3d/`. For a deploy, build them ahead, before the
-app starts:
+and no payload changes). The first request converts the file in the background (409 `converting`), one at a time
+(the app and the CLI take turns on `<PROJECTS_DIR>/models-3d/.convert.lock`), on one thread, in a subprocess capped
+at `MODEL_3D_MEMORY_MB` (default 1500, inside the live app's 4 GB) and `MODEL_3D_TIMEOUT_S` CPU seconds (default
+120); over either, or a GLB over 60 MB, is 422 `too_big`. A conversion still running at 3x that in wall-clock time
+(a starved machine) is 422 `failed` saying the server was busy, and is tried again on the next request. GLBs are
+cached by content in `<PROJECTS_DIR>/models-3d/`. For a deploy, build them ahead, before the app starts:
 
 ```bash
 uv run python -m app.cli glb <project id or file.ifc> ...   # exit 1 when one is not ready
 ```
 
-Spike 2026-11-14 (4 threads, 3 GB cap): 0.7-25 s, GLB 0.4-47 MB (gzip about -78%), peak 0.1-2.2 GB per model.
+Measured 2026-11-14, DigitalHub v2 (MIT), 1 thread: plumbing 52-56 s, peak 1.27-1.32 GB, GLB 8.0 MB (2.6 MB gzipped); arc,
+heating and ventilation under 0.4 GB and 15 s each. The largest dataset model (85 MB) peaked at 0.85 GB on 4 threads.
 
 ## Adding a real extractor, second counter or question parser
 

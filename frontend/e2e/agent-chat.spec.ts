@@ -43,14 +43,38 @@ async function ask(page: Page, message: string) {
   return page.getByRole('article', { name: message }).last();
 }
 
-test('AC-30 AC-31: a question gets an answer card with its steps line', async ({
+test('AC-39: the empty chat says what was read, and the ask box stays above the fold', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const id = await sampleDone(page);
   await page.goto(`/#/p/${id}/chat`);
+  await expect(page.getByRole('button', { name: 'Point at the plan' })).toBeVisible();
+  const read = page.getByRole('region', { name: 'What I read' });
+  await expect(read).toBeVisible();
+  // the first screen is where a judge types: its ask box is fully in view, the block notwithstanding (keycheck 334)
+  const box = await page.getByRole('textbox', { name: 'Question' }).boundingBox();
+  const viewport = page.viewportSize();
+  expect(box && viewport).toBeTruthy();
+  if (box && viewport) expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  await shot(page, testInfo, 'agent-empty', offline);
+  expect(errors).toEqual([]);
+});
+
+test('AC-30 AC-31 AC-37: a question goes over the step stream and gets an answer card with its steps line', async ({
+  page,
+}, testInfo) => {
+  const errors = watchErrors(page);
+  const offline = await noKeys(page);
+  const id = await sampleDone(page);
+  await page.goto(`/#/p/${id}/chat`);
+  // /api/info says chat.stream: the turn goes to the stream route, not the sync one (AC-37)
+  const streamed = page.waitForRequest(
+    (r) => r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/chat/stream'),
+  );
   const turn = await ask(page, 'How many doors are there?');
+  await streamed;
   const card = turn.locator('.ag-card');
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(card).toHaveClass(/ag-card--(answer|dont_know)/);
