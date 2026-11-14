@@ -35,6 +35,7 @@ def test_k5_doors_that_disagree_still_give_a_scale_never_a_refusal() -> None:
 
 
 def test_k5_the_band_is_the_page_s_spread_bucket_s(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert rs.door_band(DISAGREE) == 0.142  # shipped: 5+ doors, spread >= 0.20 (integ #14)
     monkeypatch.setattr(rs, "BANDS_MANY", (0.06, 0.09, 0.25))
     assert rs.door_band(AGREE) == 0.06
     assert rs.door_band(DISAGREE) == 0.25

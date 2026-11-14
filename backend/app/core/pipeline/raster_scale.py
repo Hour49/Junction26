@@ -41,10 +41,13 @@ BOX_RATIO = 1.104  # a room's box area over its outline area, val median
 OUTLINE_SPREAD = 0.157  # 68% |log| of that ratio around its median, val
 SPREAD_EDGES = (0.10, 0.20)  # door width log spread buckets: < 0.10, 0.10-0.20, >= 0.20 (K5)
 # The 68% relative scale error per spread bucket, with 1-4 doors and with 5 or more (K5).
-# shortcut: every bucket holds main's SPREAD_FEW / SPREAD_MANY, because the C1-T1 val door
-# detections are not on the machine this was written on; paste `k5_band.py --fit`'s output here
+# Bogdan's integ `k5_band.py --fit` (board #14, comment 6883082176): main's bands hold everywhere
+# except 5+ doors with spread >= 0.20 (16 / 14 pages on halves A / B), where main's ±8% held only
+# 44% / 50%; fitted ±14.2% / ±14.3%, checked on the other half 64% / 69%. Post-hoc choice: the
+# pre-stated 15-page minimum said keep main's band there; widened anyway because both halves
+# agree and the wider band moves toward the measured error (conservative). Others stay main's.
 BANDS_FEW = (SPREAD_FEW, SPREAD_FEW, SPREAD_FEW)
-BANDS_MANY = (SPREAD_MANY, SPREAD_MANY, SPREAD_MANY)
+BANDS_MANY = (SPREAD_MANY, SPREAD_MANY, 0.142)
 
 
 def door_sides(elements: Sequence[Element], pages: Sequence[Page]) -> list[float]:
