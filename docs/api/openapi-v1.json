@@ -1899,6 +1899,21 @@
       "Info": {
         "additionalProperties": false,
         "properties": {
+          "gemini": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "budget_exhausted"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gemini"
+          },
           "limits": {
             "$ref": "#/components/schemas/Limits"
           },

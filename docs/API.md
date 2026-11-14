@@ -262,6 +262,13 @@ in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The
 offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
 questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
 
+`gemini` is there only when a Gemini spend limit is set (`GEMINI_BUDGET_USD`, `GEMINI_BUDGET_USD_PER_HOUR`):
+`ok`, or `budget_exhausted` while the limit is used up. Then every Gemini step (room reader, Decisions count swap
+and answer confidence, sheet-kind signal, describer) answers as when Gemini fails: nothing new is read, the
+answer stays unknown or unchanged, and the file's trace or the answer's note says "Gemini budget used up".
+Replies cached earlier still serve. With the hourly limit it clears as the last hour's spend ages out; with the
+total limit only a restart clears it. The screen can say so instead of showing empty readings.
+
 `rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
 below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
 writes ("Finland", "Canton of Zürich": Swiss building law is cantonal, so that pack is the canton's, never

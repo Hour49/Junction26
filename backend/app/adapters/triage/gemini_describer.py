@@ -53,6 +53,7 @@ from app.adapters.whole_file import write_whole
 from app.core import cost
 from app.core.errors import InvalidInputError
 from app.core.ingest.model import Classified, Description, Unavailable
+from app.core.spend import SpendGuard
 
 log = logging.getLogger(__name__)
 
@@ -277,7 +278,12 @@ class DescribeModel(Protocol):
 
 class GeminiDescribeClient:
     def __init__(
-        self, api_key: str, timeout_s: float, model: str = MODEL, thinking: str = THINKING
+        self,
+        api_key: str,
+        timeout_s: float,
+        model: str = MODEL,
+        thinking: str = THINKING,
+        budget: SpendGuard | None = None,
     ) -> None:
         if not api_key:
             raise InvalidInputError("GEMINI_API_KEY is empty: the Gemini describer needs a key")
@@ -285,6 +291,7 @@ class GeminiDescribeClient:
         self.model = model
         self.thinking = thinking
         self._timeout = timeout_s
+        self._budget = budget  # GEMINI_BUDGET_USD (app/core/spend.py); None: no limit
 
     @property
     def name(self) -> str:
@@ -294,6 +301,8 @@ class GeminiDescribeClient:
         return f"GeminiDescribeClient({self.name})"
 
     def ask(self, jpeg: bytes) -> dict[str, Any]:
+        if self._budget is not None and (refused := self._budget.exhausted()):
+            raise GeminiError(refused)
         request = urllib.request.Request(
             f"{URL}/{self.model}:generateContent",
             data=json.dumps(request_body(jpeg, self.thinking)).encode(),
@@ -301,13 +310,16 @@ class GeminiDescribeClient:
         )
         try:
             with urllib.request.urlopen(request, timeout=self._timeout) as response:
-                return json.load(response)
+                answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
         except (OSError, http.client.HTTPException) as error:  # URLError, timeouts, resets
             raise GeminiError(f"no answer: {type(error).__name__}") from None
         except json.JSONDecodeError:
             raise GeminiError("the answer is not JSON") from None
+        if self._budget is not None:  # the describer charges the thread's trace (`cost`) itself
+            self._budget.charge(price(answer), "describer")
+        return answer
 
 
 class GeminiDescriber:
