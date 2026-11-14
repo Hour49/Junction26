@@ -261,3 +261,47 @@ def test_disjoint_sheets_are_different_storeys_of_one_model() -> None:
 def test_a_model_file_is_never_disjoint_from_its_sheets() -> None:
     model = sheet(("Ground",)).model_copy(update={"pages": (), "plans": ()})
     assert not project_ask._disjoint([model, sheet(("First",))], [row(), row()])
+
+
+ESTIMATE = "the scale estimated from the doors"
+
+
+def estimated(value: float) -> Any:
+    """The view as the API gives an area measured on an estimated scale: the row keeps the
+    measured `value` with its `estimate`, `answer` is it in whole m² (ask.shown_value, #294)."""
+
+    def change(view: AnswerView) -> AnswerView:
+        if view.refusal is not None or view.quantity is None:
+            return view
+        row = view.quantity.model_copy(update={"value": value, "estimate": ESTIMATE})
+        return view.model_copy(update={"quantity": row, "answer": round(value)})
+
+    return change
+
+
+def test_an_estimated_area_totals_in_whole_m2_as_its_part_shows(
+    client: TestClient, plan_pdf: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The Finnish flat's kitchen: measured 4.88 m² on an estimated scale, shown as 5 m² (#294);
+    # the total said 4.88 beside a part that said 5.
+    changed(monkeypatch, estimated(4.88))
+    found = ask(client, upload(client, plan_pdf), "What is the total indoor area?")
+    (part,) = found["parts"]
+    assert (part["answer"]["answer"], part["answer"]["quantity"]["value"]) == (5, 4.88)
+    assert (found["total"], found["total_unit"]) == (5, "m2")
+    assert found["total_note"] == "area of room (indoor): 5 m² from 1 drawing."
+
+
+def test_a_sum_with_an_estimated_area_is_whole_m2(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = sample(client)
+    disjoint(monkeypatch)
+    first = project["drawings"][0]["drawing_id"]
+    one = estimated(20.4)
+    changed(monkeypatch, lambda view: one(view) if view.drawing_id == first else view)
+    found = ask(client, project["id"], "What is the total indoor area?")
+    rows = [p["answer"]["quantity"] for p in found["parts"] if p["answer"]["refusal"] is None]
+    assert len(rows) >= 2 and any(r["estimate"] for r in rows)
+    assert found["total"] == round(sum(r["value"] for r in rows))
+    assert isinstance(found["total"], int)
