@@ -6,7 +6,8 @@ import type { Source } from '../viewer/SourceFigure';
 /** The issues Documents lists: conflicts left out (answered on Ingest), grouped by severity, in the API's order
  * within a group; `n` = the position in this list (Issue.id is the reference, not `n`). */
 export function documentIssues(issues: readonly Issue[]): Row[] {
-  const shown = issues.filter((i) => i.kind !== 'conflict');
+  // a conflict Carbon looked at is listed here too (resolver.md RS-30/31): its pick needs a person's look
+  const shown = issues.filter((i) => i.kind !== 'conflict' || i.resolved);
   return numbered(SEVERITIES.flatMap((s) => shown.filter((i) => i.severity === s)));
 }
 
@@ -16,8 +17,10 @@ export const isAnswerable = (i: Issue) =>
 
 /** The one count rule (DOC-12): answerable, still open, no `Issue.answer`, notes excluded. Badge and done line use it. */
 export const needsYou = (issues: readonly Issue[]) =>
-  issues.filter((i) => isAnswerable(i) && i.severity !== 'note' && i.state === 'open' && !i.answer)
-    .length;
+  issues.filter(
+    (i) =>
+      (isAnswerable(i) || !!i.resolved) && i.severity !== 'note' && i.state === 'open' && !i.answer,
+  ).length;
 
 export function pillOf(issue: Issue): { word: string; tone: '' | 'warn' | 'ok' } {
   if (isAnswerable(issue) && (issue.answer || issue.state !== 'open'))

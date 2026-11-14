@@ -99,10 +99,15 @@ fe-engineer (answer card + chat, `src/engineer` (ProjectChat lives there)):
 - RS-23 Chat's answer card (CH-*) shows the same lines as RS-20..22.
 
 fe-ingest (Documents issue rows + ingest gate, `src/documents`, `src/ingest`):
-- RS-30 An issue with `resolved` (picked, severity note): the row shows "Picked by Carbon", the reason and "You can
-  change it"; pill "Note"; not in `needsYou`.
-- RS-31 An issue with `resolved.verdict: 'cannot_tell'` (needs_person): pill as before (needs you) plus "Carbon
-  could not tell" and the reason; counted.
+- RS-30 An issue with `resolved` (picked, severity note): the row shows "Picked by Carbon" (the model id as its
+  `title`, `resolverName`/`resolverModel`), the reason and a link "You can change it" → the conflict card
+  (`issueRoute`, fe-surveyor); pill "Note"; not in `needsYou`. Only conflict issues carry `resolved` (backend
+  `app/api/issues.py`) and Documents leaves conflicts out (DOC-3), so a conflict issue WITH `resolved` is listed
+  on Documents (fe-ingest, 2026-11-14): Carbon's picks need a person's look; conflicts without it stay on Ingest.
+- RS-31 An issue with `resolved.verdict: 'cannot_tell'` (needs_person): pill as before ("Needs a person") plus
+  "Carbon could not tell", the reason and a link "Settle the conflict" → the conflict card; counted by `needsYou`
+  (as the server's `issues_to_answer`, which counts every open non-note issue). No answer form on either: a conflict
+  is settled on its card.
 - RS-32 IngestFinished with `projectResolved` + `projectReviewResolved`: "Start a new chat" is not locked (the pick
   needs nobody); with `resolving.review` it stays locked.
 

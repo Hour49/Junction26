@@ -128,7 +128,8 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
   from them" from `project.json`. [component]
 - DOC-2: While the project runs, no issues request is made and the Issues section reads "The issues are listed once
   the project is read."; drawings and files are shown. [component]
-- DOC-3: Done: the cards follow the API's order with `conflict` issues left out, grouped fails_rule, needs_person,
+- DOC-3: Done: the cards follow the API's order with `conflict` issues left out (except one carrying `resolved`,
+  Carbon's pick or can't-tell: resolver.md RS-30/31), grouped fails_rule, needs_person,
   note; each card's number is its position in this list. [unit] [component]
 - DOC-4: A card shows its pill, `drawing_name` ("Plan image 1", not the path; the file path when null), "Open the file" → `#/p/<pid>/f/<file_id>` (none without `file_id`), and
   `why` as text. [component]
@@ -152,7 +153,7 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
   `#/p/<pid>/d/<id>/engineer`; the files section lists every file linking to its file page. [component]
 - DOC-11: "Export" links with `download` to `/api/projects/<pid>/issues.zip` (`?pack=` kept). [component]
 - DOC-12: `needsYou(issues)` = the issues Documents
-  lets you answer (not `conflict`), still `open`, without `Issue.answer`, notes excluded (severity `note`, an `unrelated_file` note too);
+  lets you answer (not `conflict`, except a `cannot_tell` one, RS-31), still `open`, without `Issue.answer`, notes excluded (severity `note`, an `unrelated_file` note too);
   the one count rule, used by fe-shared's `useIssuesToAnswer` (the badge) and preqa-a's done line. [unit]
 - DOC-16: The title row has one link "Building-code checks" → `#/p/<pid>/checks`, with `?pack=<id>` when a pack is
   set. [component]

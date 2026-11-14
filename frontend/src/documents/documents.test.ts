@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { drawing, projectIssues } from '../api/fixtures';
+import { drawing, projectIssues, projectReviewResolved, resolving } from '../api/fixtures';
 import type { Issue } from '../api';
 import {
   documentIssues,
@@ -31,6 +31,21 @@ const needs: Issue = {
 const fails: Issue = { ...located, id: 'fails', kind: 'code_check_failed', severity: 'fails_rule' };
 const unsure: Issue = { ...aside, id: 'unsure', kind: 'unrelated_file', severity: 'needs_person' };
 const unrelatedNote: Issue = { ...aside, id: 'unote', kind: 'unrelated_file', severity: 'note' };
+// resolver.md: no Issue fixture carries `resolved`; the conflict issue with the review fixtures' replies
+const picked: Issue = {
+  ...conflict,
+  id: 'picked',
+  state: 'open',
+  severity: 'note',
+  resolved: projectReviewResolved.conflicts[0]?.resolved,
+};
+const cannotTell: Issue = {
+  ...conflict,
+  id: 'cannot',
+  state: 'open',
+  severity: 'needs_person',
+  resolved: resolving.review.conflicts[0]?.resolved,
+};
 
 describe('documents.ts', () => {
   it('DOC-3 leaves conflicts out, groups by severity, numbers by position in this list', () => {
@@ -41,6 +56,19 @@ describe('documents.ts', () => {
       [3, located.id],
       [4, aside.id],
     ]);
+  });
+
+  it('RS-30 RS-31 a conflict Carbon looked at is listed; its can-not-tell is counted, its pick is not', () => {
+    expect(documentIssues([conflict, picked, cannotTell]).map((r) => r.issue.id)).toEqual([
+      'cannot',
+      'picked',
+    ]);
+    expect(needsYou([picked])).toBe(0);
+    expect(needsYou([cannotTell])).toBe(1);
+    expect(needsYou([{ ...cannotTell, state: 'settled' }])).toBe(0);
+    expect(pillOf(picked)).toEqual({ word: 'Note', tone: '' });
+    expect(pillOf(cannotTell)).toEqual({ word: 'Needs a person', tone: 'warn' });
+    expect(isAnswerable(cannotTell)).toBe(false); // settled on its conflict card, not here
   });
 
   it('answerable: not a conflict, and not a note unless it is an unrelated_file', () => {
