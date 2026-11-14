@@ -539,7 +539,9 @@ class IngestService:
             groups.run(run, self._readers(run.id), {path: drawing}, lambda: self._save(run))
             read = run.file(path)
             if read.state == "set_aside":  # a reader failed: the group caught it and said why
-                self._unread(run, path, read.reason)
+                # the screen prefixes a trace line's failure with "Failed:", so the line
+                # says "at extract: ..." where the file's reason says "failed at extract: ..."
+                self._unread(run, path, read.reason, read.reason.removeprefix("failed "))
             else:
                 run.set(path, kind=kind, normalised=frames.get(path, read.normalised))
         except DomainError as failure:
@@ -553,13 +555,14 @@ class IngestService:
                 del self._live[run.id]
             run.done.set()
 
-    def _unread(self, run: Run, path: str, failure: str) -> None:
+    def _unread(self, run: Run, path: str, failure: str, line: str | None = None) -> None:
         """A re-read that failed: the file is set aside with why and back to triage's call (no
-        `read_as_plan`), so a person can ask again; its trace line says the re-read failed."""
+        `read_as_plan`), so a person can ask again; its trace line says the re-read failed, with
+        `line` (default `failure`) as the line's failure."""
         triage = run.file(path).triage
         if triage is not None:
             if triage.read_as_plan is not None:
-                run.fail_stage(path, _asked(triage.read_as_plan.by), failure)
+                run.fail_stage(path, _asked(triage.read_as_plan.by), line or failure)
             run.set(path, triage=read_as_plan(triage, None))
         run.finish(path, "set_aside", f"not read as a floor plan: {failure}")
 
