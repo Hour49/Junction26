@@ -4,12 +4,16 @@ A question is about a schedule when it names one ("door schedule", "finish room 
 asks for what only a schedule prints (a hardware group, a door or frame material, a finish, a
 note, a door by its number). From its words:
 
-1. What is done: "how many" ("count the", "number of") counts rows; an area sums the area
-   column; "what"/"which" reads the cells of the column the words before "of"/"for"/"is" name.
-2. Which rows: the codes (A1, WD-1, F0), door numbers (121.A), room numbers ("room 128"),
-   names ("named OFFICE"), notes ("note A") and dimensions ("3'-0\" wide") it mentions, each
-   with the few words before it, which pick the column when several hold the value.
-3. Which table: the one it names, else the kind of row it counts or names (doors, rooms).
+1. What is done: "how many" ("count the", "number of") a kind of row counts rows (or adds a
+   schedule's Count column); an area sums the area column; "what"/"which" reads the cells of
+   the column the words before "of"/"for"/"is" name.
+2. Which rows: the codes (A1, WD-1, F0, "type SS"), door numbers (121.A), room numbers ("room
+   128"), names ("named OFFICE"), notes ("note A") and dimensions ("3'-0\" wide") it mentions,
+   each with the few words before it, which pick the column when several hold the value; and
+   words a description has or starts with (the counted phrase's capitalised names, "on the 3rd
+   floor", "starts with 'SWING'").
+3. Which table: the one it names, else the kind of row it counts or names (doors, windows,
+   rooms).
 
 Two quantities in one question, a superlative or rows it can't name are `Unsupported`.
 """
@@ -22,7 +26,9 @@ TABLE_CUES = re.compile(
     r"schedul|\bfinish|\bhardware\b|\bmaterial\b|\bmatl\b|\bdoor types?\b|\bframes?\b"
     r"|\bnotes? [A-Z]\b|\bbase\b|(?<![\w.])[A-Z]?\d{2,4}\.[A-Z]\d?(?![\w.])",
 )
-CONTEXT = re.compile(r"^\s*on sheet [^,]*,\s*", re.IGNORECASE)  # "On sheet A-801 of the ..., "
+# "On sheet A-801 of the ..., ", "On sheet A700 of the ... drawings (1750 N Oxford Ave, Eau Claire,
+# WI), ": the context ends at the first comma outside parentheses.
+CONTEXT = re.compile(r"^\s*on sheet (?:[^,(]|\([^)]*\))*,\s*", re.IGNORECASE)
 NAMED_TABLE = re.compile(r"\b(?:in|from|on|does)\s+the\s+([\w ]*?)\s*schedule\b", re.IGNORECASE)
 TWO_QUANTITIES = re.compile(r"\bhow many\b.*\band\b.*\b(?:total|area|sum)\b", re.IGNORECASE)
 BREAKDOWN = re.compile(
@@ -32,9 +38,22 @@ SUPERLATIVE = re.compile(r"\b(?:largest|smallest|biggest|longest|shortest|most|l
 MEANING = re.compile(r"\bmean|\bwhat kind\b|\bstand for\b|\bdescri", re.IGNORECASE)
 WHOLE_TABLE = re.compile(r"\ball\b|\blisted\b", re.IGNORECASE)
 AREA = re.compile(r"\barea\b", re.IGNORECASE)
-# "how many doors", "count the doors", "the number of rooms"
+# "how many doors", "count the doors", "the number of rooms", "how many unit entry doors (type
+# U01) are", "how many 2-wide window assemblies": the counted noun phrase runs to a parenthesis or
+# the first verb or preposition ("the room number of" is no count).
 COUNTED = re.compile(
-    r"\b(?:how many|count(?:\s+the)?|number of)\s+(doors?|rooms?)\b", re.IGNORECASE
+    r"\b(?:how many|count(?:\s+the)?|(?:the|a|total)\s+number of)\s+([^?()]*?)\s*"
+    r"(?=[(?]|$|\b(?:are|is|in|on|of|does|do|with|have|has|carry|that|listed|scheduled|for)\b)",
+    re.IGNORECASE,
+)
+# A counted phrase names a kind of row (below) or is one of these words for any row; anything
+# else ("how many hardware sets", "how many square feet") is not a count of a schedule's rows.
+ANY_ROW = re.compile(r"\b(?:items?|entries|entry|rows?)$", re.IGNORECASE)
+# What a counted phrase or a named table is a row of.
+ROW_KINDS = (
+    ("door", re.compile(r"\b(?:doors?|gates?|leaf|leaves|openings?)\b", re.IGNORECASE)),
+    ("window", re.compile(r"\bwindows?\b", re.IGNORECASE)),
+    ("room", re.compile(r"\brooms?\b|\bfinish", re.IGNORECASE)),
 )
 READ_COLUMNS = re.compile(
     r"^(?:what|which)\s+(?:(?:is|are)\s+)?(?:the\s+)?(.+?)\s+(?:of|for|is|are)\b", re.IGNORECASE
@@ -49,6 +68,20 @@ EVERY_WALL = re.compile(r"\ball (?:four |4 )?walls\b[^?]*?\b([A-Z]{1,3}-?\d{1,2}
 # one parenthesis joined by "or"/"and" are one filter: "(AL-1 or AL-2)".
 CODE = r"[A-Z]{1,3}-?\d{1,2}[A-Z]?"
 CODE_GROUP = re.compile(rf"(?<![\w.-])({CODE}(?:\s*(?:,|or|and)\s*{CODE})*)(?![\w.-])")
+# Type marks of capitals only (SS, RR) are codes only right after "type(s)":
+# "(types SS, TT and UU)".
+LETTER_CODE = r"[A-Z]{1,3}"
+TYPE_LETTERS = re.compile(
+    rf"\btypes?\s+({LETTER_CODE}(?:\s*(?:,|or|and)\s*{LETTER_CODE})*)(?![\w.-])"
+)
+# Rows a counted phrase describes by a name the schedule prints in a description ("Marvin
+# Essential sliding patio doors", "Vistagrande fiberglass entry doors"): its capitalised words.
+PROPER_NAME = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b")
+FLOOR = re.compile(r"\bon the (\d+(?:st|nd|rd|th) floor)\b", re.IGNORECASE)  # "on the 3rd floor"
+QUOTE = "'‘’\"“”"  # noqa: RUF001
+STARTS = re.compile(
+    rf"\b(?:starts?|begins?) with [{QUOTE}]([^{QUOTE}]+)[{QUOTE}]", re.IGNORECASE
+)  # "whose description starts with 'SWING'"
 CUE_WORDS = 3  # how many words before a value say which column it is in
 
 
@@ -66,10 +99,15 @@ def parse_table(text: str) -> TableQuery | Unsupported:
     if TWO_QUANTITIES.search(body):
         return Unsupported(reason="two quantities in one question")
     named = NAMED_TABLE.search(body)
-    kind = _kind(named.group(1) if named else "", body)
+    table_name = named.group(1) if named else ""
+    counted = _counted(body)
+    kind = _kind(table_name, counted, body)
     rest = NAMED_TABLE.sub(" ", body)
     filters, rest = _filters(rest)
-    if COUNTED.search(body):
+    if counted is not None:
+        filters += [
+            TableFilter(values=(name,), match="contains") for name in PROPER_NAME.findall(counted)
+        ]
         op, column = "count", ()
     elif AREA.search(body):
         op, column = "sum", (("area",),)
@@ -83,6 +121,7 @@ def parse_table(text: str) -> TableQuery | Unsupported:
     return TableQuery(
         op=op,
         kind=kind,
+        table=tuple(table_name.casefold().split()),
         column=column,
         filters=tuple(filters),
         every_row=not filters and WHOLE_TABLE.search(body) is not None,
@@ -90,14 +129,24 @@ def parse_table(text: str) -> TableQuery | Unsupported:
     )
 
 
-def _kind(table_name: str, body: str) -> str | None:
-    lower = table_name.casefold()
-    if "door" in lower:
-        return "door"
-    if "room" in lower or "finish" in lower:
-        return "room"
-    if counted := COUNTED.search(body):
-        return "door" if counted.group(1).casefold().startswith("door") else "room"
+def _counted(body: str) -> str | None:
+    """The counted noun phrase of a count of rows, or None when it asks no such count."""
+    match = COUNTED.search(body)
+    if match is None:
+        return None
+    phrase = match.group(1).strip()
+    return phrase if _row_kind(phrase) or ANY_ROW.search(phrase) else None
+
+
+def _row_kind(text: str) -> str | None:
+    return next((kind for kind, words in ROW_KINDS if words.search(text)), None)
+
+
+def _kind(table_name: str, counted: str | None, body: str) -> str | None:
+    if table_name and (kind := _row_kind(table_name)):
+        return kind
+    if counted and (kind := _row_kind(counted)):
+        return kind
     if DOOR_ID.search(body) or re.search(r"\bdoors\b", body, re.IGNORECASE):
         return "door"
     if ROOM_NUMBER.search(body) or re.search(r"\brooms\b", body, re.IGNORECASE):
@@ -131,6 +180,12 @@ def _filters(text: str) -> tuple[list[TableFilter], str]:
     if every := EVERY_WALL.search(text):
         found.append(TableFilter(values=(every.group(1),), cue=("wall",), every=True))
         text = text[: every.start(1)] + " _ " + text[every.end(1) :]
+    for match in STARTS.finditer(text):
+        found.append(TableFilter(values=(match.group(1),), match="starts"))
+    text = STARTS.sub(" _ ", text)
+    for match in FLOOR.finditer(text):
+        found.append(TableFilter(values=(match.group(1),), match="contains"))
+    text = FLOOR.sub(" _ ", text)
     take(DOOR_ID)
     take(ROOM_NUMBER, ("room", "number"))
     take(NOTE, ("note",))
@@ -138,6 +193,11 @@ def _filters(text: str) -> tuple[list[TableFilter], str]:
         found.append(TableFilter(values=(match.group(1),), cue=(match.group(2),)))
     text = DIMENSION.sub(" _ ", text)
     take(NAMED, ("name",))
+    for match in TYPE_LETTERS.finditer(text):
+        found.append(
+            TableFilter(values=tuple(re.findall(LETTER_CODE, match.group(1))), cue=("type",))
+        )
+    text = TYPE_LETTERS.sub(" type _ ", text)
     for match in CODE_GROUP.finditer(text):
         codes = tuple(re.findall(CODE, match.group(1)))
         start = match.start() - 1 if text[: match.start()].endswith("(") else match.start()

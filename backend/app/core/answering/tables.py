@@ -28,6 +28,7 @@ MEANING_WHY = "what the code means is copied from the sheet's key; the wording a
 # Which tables a kind of row lives in, by title words.
 KIND_WORDS: Mapping[str, frozenset[str]] = {
     "door": frozenset({"door"}),
+    "window": frozenset({"window"}),
     "room": frozenset({"room", "finish"}),
 }
 # Header and question words that mean the same, after case folding.
@@ -42,6 +43,8 @@ SYNONYMS: Mapping[str, str] = {
     "notes": "note",
     "specs": "spec",
     "hw": "hardware",
+    "qty": "count",
+    "quantity": "count",
 }
 STOP_WORDS = frozenset(
     {"the", "a", "an", "of", "in", "on", "is", "are", "for", "with", "and", "or", "see", "have",
@@ -67,9 +70,12 @@ class TableAnswer(Frozen):
 
 
 def answer_table(query: TableQuery, tables: Sequence[Table]) -> TableAnswer | None:
-    """The answer from the one table the query resolves on, or None."""
+    """The answer from the one table the query resolves on, or None. When the question names
+    the schedule, a table whose title has every word of that name is the one asked about."""
     legends = [table for table in tables if _is_legend(table)]
     candidates = [table for table in tables if not _is_legend(table) and _of_kind(table, query)]
+    named = words(" ".join(query.table))
+    candidates = [t for t in candidates if named and named <= words(t.title or "")] or candidates
     found = [answer for table in candidates if (answer := _on(table, query, legends))]
     return found[0] if len(found) == 1 else None
 
@@ -110,8 +116,23 @@ def _cell(row: TableRow, column: int) -> str | None:
     return row.cells[column] if column < len(row.cells) else None
 
 
+def _holds(cell: str | None, wanted: TableFilter) -> bool:
+    """Whether the cell is (has, starts with) one of the filter's values."""
+    if wanted.match == "cell":
+        return bool(_tokens(cell) & {_flat(value) for value in wanted.values})
+    text = _spaced(cell or "")
+    for value in wanted.values:
+        found = re.search(rf"(?<![^\W_]){re.escape(_spaced(value))}(?![^\W_])", text)
+        if found and (wanted.match == "contains" or found.start() == 0):
+            return True
+    return False
+
+
+def _spaced(text: str) -> str:
+    return " ".join(text.translate(QUOTES).casefold().split())
+
+
 def _filter_columns(table: Table, wanted: TableFilter) -> list[int] | None:
-    values = {_flat(value) for value in wanted.values}
     cue = words(" ".join(wanted.cue))
     named = [i for i, header in enumerate(table.columns) if words(header) & cue]
     if wanted.every:
@@ -119,7 +140,7 @@ def _filter_columns(table: Table, wanted: TableFilter) -> list[int] | None:
     holding = [
         i
         for i in range(len(table.columns))
-        if any(_tokens(_cell(row, i)) & values for row in table.rows)
+        if any(_holds(_cell(row, i), wanted) for row in table.rows)
     ]
     narrowed = [i for i in holding if i in named] or holding
     return narrowed if len(narrowed) == 1 else None
@@ -135,8 +156,7 @@ def _rows(table: Table, query: TableQuery) -> list[TableRow] | None:
         columns = _filter_columns(table, wanted)
         if columns is None:
             return None
-        values = {_flat(value) for value in wanted.values}
-        rows = [row for row in rows if all(_tokens(_cell(row, i)) & values for i in columns)]
+        rows = [row for row in rows if all(_holds(_cell(row, i), wanted) for i in columns)]
     return rows
 
 
@@ -163,7 +183,7 @@ def _on(table: Table, query: TableQuery, legends: Sequence[Table]) -> TableAnswe
         return None
     boxes = tuple(row.box or table.box for row in rows) or (table.box,)
     if query.op == "count":
-        return TableAnswer(value=len(rows), unit="count", page=table.page, boxes=boxes)
+        return _count(table, rows, boxes)
     columns = [_column(table, named) for named in query.column]
     if not columns or any(column is None for column in columns):
         return None
@@ -191,6 +211,21 @@ def _on(table: Table, query: TableQuery, legends: Sequence[Table]) -> TableAnswe
     else:
         text = "; ".join(texts)
     return TableAnswer(value=text, unit=None, page=table.page, boxes=boxes, abstain_why=why)
+
+
+def _count(table: Table, rows: Sequence[TableRow], boxes: tuple[Box, ...]) -> TableAnswer | None:
+    """How many items the rows are: a row per item, or, in a schedule with a Count (Qty) column,
+    a row per type with its count printed; a count cell that is no whole number is no answer."""
+    counted = [i for i, header in enumerate(table.columns) if words(header) == {"count"}]
+    if len(counted) != 1:
+        return TableAnswer(value=len(rows), unit="count", page=table.page, boxes=boxes)
+    total = 0
+    for row in rows:
+        cell = (_cell(row, counted[0]) or "").strip()
+        if not cell.isdigit():
+            return None
+        total += int(cell)
+    return TableAnswer(value=total, unit="count", page=table.page, boxes=boxes)
 
 
 def _sum(
