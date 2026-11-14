@@ -812,10 +812,24 @@ def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
 
 
 # A room number printed inside a label ("Stanza 1.07"), as the parser reads one (U1.05, 4.01),
-# and not a measure ("PH 4.5 m²")
-LABEL_NUMBER = re.compile(
-    r"(?<![\w.])(U?\d+\.\d+)(?![\w.])(?!\s*(?:m\b|m2|m²|cm\b|mm\b|ft\b|sq\b|%))"
+# with its sign ("-1.2" is a basement room, not 1.2)
+LABEL_NUMBER = re.compile(r"(?<![\w.\-])(-?U?\d+\.\d+)(?![\w.])", re.IGNORECASE)
+# ... and not a measure: a times sign on either side ("x 1.5", "3.50 x 4.20") or a unit after it
+# ("PH 4.5 m²", "7.56 qm"; review-354 S1)
+TIMES_BEFORE = re.compile(r"(?:^|[\W\d_])[x\u00d7*]\s*$", re.IGNORECASE)
+MEASURE_AFTER = re.compile(
+    r"\s*(?:[x\u00d7*](?![^\W\d_])|m\b|m2|m²|qm\b|sqm\b|sq\b|cm\b|mm\b|ft\b|%|'|\")", re.IGNORECASE
 )
+
+
+def _label_numbers(label: str) -> set[str]:
+    """The room numbers printed in a label (LABEL_NUMBER), leaving out dimensions and measures."""
+    return {
+        found.group(1)
+        for found in LABEL_NUMBER.finditer(label)
+        if not TIMES_BEFORE.search(label, 0, found.start())
+        and not MEASURE_AFTER.match(label, found.end())
+    }
 
 
 def room_names(room: Room) -> tuple[str, ...]:
@@ -830,7 +844,7 @@ def room_names(room: Room) -> tuple[str, ...]:
 
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
-    found |= set(LABEL_NUMBER.findall(room.label or ""))
+    found |= _label_numbers(room.label or "")
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
     return tuple(sorted({normalised(value) for value in found}))
 

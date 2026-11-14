@@ -802,8 +802,17 @@ def test_a_room_number_printed_in_the_label_names_the_room() -> None:
     drawing = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno\n4.5 m²", 4.5))
     assert asked("What is the area of Stanza 1.07?", drawing).answer.answer == 19.98
     assert asked("What is the net floor area of room 1.07?", drawing).answer.answer == 19.98
-    # a measure in the label is not a room number
+    # a measure or a dimension in the label is not a room number (review-354 S1), and a sign
+    # stays: a basement room -1.2 is not room 1.2
     assert asked("What is the net floor area of room 4.5?", drawing).answer.answer is None
+    others = scaled(
+        room(1, "Ripostiglio 3.50 x 4.20", 14.7), room(2, "Disimpegno x 1.5", 3.0),
+        room(3, "Porta 0.9 \u00d7 2.1", 1.0), room(4, "Kammer 7.56 qm", 7.56),
+        room(5, "Cantina -1.2", 9.0),
+    )  # fmt: skip
+    for number in ("3.50", "4.20", "1.5", "0.9", "2.1", "7.56", "1.2"):
+        text = f"What is the net floor area of room {number}?"
+        assert asked(text, others).answer.answer is None, number
     # a number two rooms print names neither: never one room's area for both, never a sum
     two = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno 1.07", 5.0, page=2))
     assert asked("What is the net floor area of room 1.07?", two).answer.answer is None
