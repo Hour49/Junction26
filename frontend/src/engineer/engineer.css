@@ -496,6 +496,14 @@ button.en-ref:hover,
   background: var(--v-surface);
   box-shadow: var(--v-shadow);
 }
+/* The ring follows the pill, not a square box around the input (QA R4b-3); same ring as the shell's. */
+.en-askpill:has(input:focus-visible) {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 2px;
+}
+.en-askpill input:focus-visible {
+  outline: none;
+}
 .en-askpill input {
   flex: 1;
   min-width: 0;
@@ -588,14 +596,6 @@ button.en-ref:hover,
     transform: translateY(-50%);
   }
 }
-.en-check {
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--v-warn-soft);
-  color: var(--v-warn);
-  font-size: 14px;
-}
-
 /* Project chat (chat.md): empty until asked. */
 .en-chat-title {
   margin: 0;

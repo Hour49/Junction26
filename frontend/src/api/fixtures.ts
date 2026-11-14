@@ -24,6 +24,7 @@ import reviewRequestsJson from '@fixtures/review_requests.json';
 import signoffRequestJson from '@fixtures/signoff_request.json';
 import takeoffJson from '@fixtures/takeoff.json';
 import takeoffEditedJson from '@fixtures/takeoff_edited.json';
+import projectIssuesJson from '@fixtures/project_issues.json';
 import projectQuestionsJson from '@fixtures/project_questions.json';
 import projectTraceJson from '@fixtures/project_trace.json';
 import traceJson from '@fixtures/trace.json';
@@ -40,6 +41,7 @@ import type {
   ProjectList,
   ProjectReview,
   ProjectTrace,
+  IssueList,
   ProjectQuestions,
   ProjectView,
   SignOffRequest,
@@ -57,6 +59,7 @@ export const trace = traceJson as unknown as FileTrace;
 export const traceSetAside = traceSetAsideJson as unknown as FileTrace;
 export const projectTrace = projectTraceJson as unknown as ProjectTrace;
 export const projectQuestions = projectQuestionsJson as unknown as ProjectQuestions;
+export const projectIssues = projectIssuesJson as unknown as IssueList;
 export const projectReview = projectReviewJson as unknown as ProjectReview;
 export const drawing = drawingJson as unknown as DrawingView;
 export const askRequest: AskRequest = askRequestJson;

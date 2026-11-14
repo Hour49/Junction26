@@ -1,15 +1,17 @@
 import { useEffect, useRef, type ComponentType } from 'react';
 import { AccountScreen } from './account/AccountScreen';
+import { ChecksScreen } from './checks/ChecksScreen';
 import { EngineerPage } from './engineer/EngineerPage';
 import { ProjectChat } from './engineer/ProjectChat';
 import { FileTraceScreen } from './ingest/FileTraceScreen';
 import { HomeScreen } from './ingest/HomeScreen';
+import { IssuesScreen } from './issues/IssuesScreen';
 import { ProjectScreen } from './ingest/ProjectScreen';
 import { Header, isWide } from './shell/Header';
 import { InfoBar } from './shell/InfoBar';
 import { InfoProvider } from './shell/info';
 import { NotFound } from './shell/NotFound';
-import { parseRoute, routePath, useHash } from './shell/route';
+import { packOf, parseRoute, routePath, useHash } from './shell/route';
 import './shell/shell.css';
 import { ConflictsScreen } from './surveyor/ConflictsScreen';
 import { SurveyorScreen } from './surveyor/SurveyorScreen';
@@ -19,8 +21,10 @@ export interface Screens {
   HomeScreen: ComponentType;
   AccountScreen: ComponentType<Record<string, never>>;
   ProjectScreen: ComponentType<{ projectId: string }>;
-  ConflictsScreen: ComponentType<{ projectId: string }>;
-  ProjectChat: ComponentType<{ projectId: string }>;
+  ConflictsScreen: ComponentType<{ projectId: string; query?: URLSearchParams }>;
+  ProjectChat: ComponentType<{ projectId: string; query: URLSearchParams }>;
+  ChecksScreen: ComponentType<{ projectId: string; pack: string | null }>;
+  IssuesScreen: ComponentType<{ projectId: string; pack?: string | null }>;
   FileTraceScreen: ComponentType<{ projectId: string; fileId: string }>;
   EngineerPage: ComponentType<{ projectId: string; drawingId: string; query: URLSearchParams }>;
   SurveyorScreen: ComponentType<{ projectId: string; drawingId: string; query: URLSearchParams }>;
@@ -32,6 +36,8 @@ const builtScreens: Screens = {
   ProjectScreen,
   ConflictsScreen,
   ProjectChat,
+  ChecksScreen,
+  IssuesScreen,
   FileTraceScreen,
   EngineerPage,
   SurveyorScreen,
@@ -48,6 +54,8 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
     if (shown.current === key) return;
     shown.current = key;
     main.current?.focus();
+    // A DOM write inside this effect, which is what the rule asks for; the compiler misreads it here.
+    // eslint-disable-next-line react-hooks/immutability
     document.documentElement.scrollTop = 0;
   }, [key]);
   const {
@@ -56,6 +64,8 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
     ProjectScreen: Project,
     ConflictsScreen: Conflicts,
     ProjectChat: Chat,
+    ChecksScreen: Checks,
+    IssuesScreen: Issues,
     FileTraceScreen: Trace,
   } = screens;
   const Work =
@@ -74,10 +84,16 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
       body = <Project key={key} projectId={route.projectId} />;
       break;
     case 'conflicts':
-      body = <Conflicts key={key} projectId={route.projectId} />;
+      body = <Conflicts key={key} projectId={route.projectId} query={route.query} />;
       break;
     case 'chat':
-      body = <Chat key={key} projectId={route.projectId} />;
+      body = <Chat key={key} projectId={route.projectId} query={route.query} />;
+      break;
+    case 'checks':
+      body = <Checks key={key} projectId={route.projectId} pack={packOf(route)} />;
+      break;
+    case 'issues':
+      body = <Issues key={key} projectId={route.projectId} pack={packOf(route)} />;
       break;
     case 'file':
       body = <Trace key={key} projectId={route.projectId} fileId={route.fileId} />;

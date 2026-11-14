@@ -65,11 +65,20 @@ class Entry(Frozen):
     refused: str | None = None  # set: the file is set aside before it is read
 
 
+class LaterPage(Frozen):
+    """A page after page 1 of a PDF that holds a drawing, as a PDF of its own: ingest reads it as
+    a file `<name>#p<number>.pdf` (a set's page 1 is read with the file itself)."""
+
+    number: int = Field(ge=2)
+    data: bytes = Field(repr=False)
+
+
 class Probed(Frozen):
     """Stage 3: the content kind, and how it was decided, in words."""
 
     kind: ContentKind
     did: str
+    pages: tuple[LaterPage, ...] = ()  # a multi-page PDF's later drawn pages, in page order
 
 
 class StageTrace(Frozen):

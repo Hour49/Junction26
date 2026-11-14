@@ -1,6 +1,6 @@
 import { useEffect, useState, type JSX } from 'react';
 import type { FileStatus, ProjectView } from '../api';
-import { STEPS, formatCost, formatMs, isFinished, stepOf } from '../ingest/ingest';
+import { STEPS, formatCost, formatMs, formatSize, isFinished, stepOf } from '../ingest/ingest';
 import {
   STATUS_WORD,
   STEP_VIEW,
@@ -77,6 +77,7 @@ export function AdvancedIngest({
   const stats = (): Stat[] => {
     const files = project.files;
     const setAside = files.filter((f) => f.state === 'set_aside').length;
+    const opened = files.filter((f) => f.stage != null).length;
     const dash = (n: number | null) => (n === null ? '–' : String(n));
     switch (view.visual) {
       case 'files':
@@ -84,7 +85,8 @@ export function AdvancedIngest({
           elapsed(),
           {
             label: 'Files opened',
-            value: `${String(files.filter((f) => f.stage != null).length)} / ${String(files.length)}`,
+            // nothing opened yet: no "0 / 0" (AV-32, as Simple's IN-49)
+            value: opened ? `${String(opened)} / ${String(files.length)}` : '–',
           },
           { label: 'Set aside', value: String(setAside) },
           { label: 'Cost', value: formatCost(project.cost_usd) },
@@ -125,7 +127,7 @@ export function AdvancedIngest({
           { label: 'Agree', value: count(pairs.filter((p) => p.row.status === 'agree').length) },
           {
             label: 'Conflicts',
-            value: count(pairs.filter((p) => p.row.status === 'conflict').length),
+            value: count(pairs.filter((p) => p.disputed).length),
           },
         ];
       }
@@ -173,6 +175,11 @@ export function AdvancedIngest({
     }
   };
   const live = lines.at(-1);
+  // Unpack's headline is the file and its size; a hash belongs in the mono log only (AV-33).
+  const liveFile = step === 1 ? project.files.find((f) => f.path === live?.path) : undefined;
+  const liveText = !live
+    ? 'Nothing yet.'
+    : `${live.path}: ${liveFile ? formatSize(liveFile.size) : live.what}`;
 
   return (
     <div className="adv">
@@ -217,7 +224,7 @@ export function AdvancedIngest({
             <h2>{view.heading}</h2>
             <p>{view.explain}</p>
             <p className="adv-live" aria-live={isCurrent ? 'polite' : undefined}>
-              {live ? `${live.path}: ${live.what}` : 'Nothing yet.'}
+              {liveText}
             </p>
             <ol className="adv-log" aria-label="Log" tabIndex={0}>
               {step === 1 &&

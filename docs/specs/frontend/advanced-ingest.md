@@ -190,7 +190,8 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   list, each with a filled dot when the drawing's file is `ready` or `flagged`, and a link "Ask this drawing" to
   `#/p/<projectId>/d/<drawing_id>/engineer`. No drawings: "No drawing to ask yet."
 - Stats, Cross-check: **Elapsed**, **Measured twice** (pairs), **Agree** (`status === 'agree'`), **Conflicts**
-  (`status === 'conflict'`), from the takeoffs, once every finished drawing's takeoff has loaded or failed; "–" until then (AV-31). Index: **Elapsed**, **Drawings** (`drawings.length`), **Questions ready** (keys of the drawings' files'
+  (`status === 'conflict'`), from the takeoffs, once every finished drawing's takeoff has loaded or failed; "–" until then (AV-31); Conflicts
+  counts `Takeoff.disputes` (AV-34). Index: **Elapsed**, **Drawings** (`drawings.length`), **Questions ready** (keys of the drawings' files'
   `takeoff`, summed over `project.drawings`), **Cost** (`formatCost(project.cost_usd)`).
 
 ## States
@@ -297,6 +298,17 @@ Layout and access
 - AV-31 (R4-a-8): Cross-check's Measured twice, Agree and Conflicts show "–" until every finished drawing's takeoff
   has loaded or failed, then the counts; they never show a partial sum that changes as takeoffs arrive (QA saw
   100/8, 27/0, 61/8). [component: one takeoff pending -> "–"; all loaded -> counts]
+- AV-32 (R4-a-9): As in Simple (IN-49, IN-71), Unpack leaves the counts out while nothing is opened: no file with a
+  stage gives Files opened "–" (never "0 / 0"), and with no files the strip has no caption (never "0 files, 0 B").
+  [component: `queued` with `files: []`]
+- AV-33 (R4-a-11): No reader or route id in the Route/Identify lanes: each reader reads "<routeLabel>: <readerName>"
+  ("drawn PDF route: PDF vector reader", "image route: not read"), never "bim:", "cad:", "vector:", "raster:". The
+  Unpack live line is "<path>: <formatSize(size)>" of the file of its last line; hashes stay in the mono log only.
+  [component]
+- AV-34 (R4-a-8, API `Takeoff.disputes`, #149): Cross-check counts one conflict per entry of `Takeoff.disputes` (the
+  keys the project review lists): a `conflict` row whose key is not in `disputes` (a storey or room-name twin of
+  another row's disagreement) is not listed or counted; Conflicts = disputed pairs. A takeoff without `disputes`
+  (older backend) keeps the old rule (`status === 'conflict'`). [unit `pairsOf`; component]
 
 ## Not in the API
 

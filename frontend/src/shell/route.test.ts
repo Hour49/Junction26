@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRoute, routeHref } from './route';
+import { packOf, parseRoute, routeHref, withPack } from './route';
 
 const P = '5e0c1a2b3d4f';
 const D = 'adeefbbcc17559fc';
@@ -63,5 +63,23 @@ describe('parseRoute', () => {
     for (const hash of ['#/p/XYZ/chat', `#/p/${P}/chat/x`])
       expect(parseRoute(hash).name).toBe('not-found');
     expect(routeHref(parseRoute(`#/p/${P}/chat`))).toBe(`#/p/${P}/chat`);
+  });
+
+  it('SH-66 checks and issues routes, packOf and withPack', () => {
+    for (const name of ['checks', 'issues'] as const) {
+      for (const hash of [`#/p/${P}/${name}`, `#/p/${P}/${name}/`])
+        expect(parseRoute(hash)).toMatchObject({ name, projectId: P });
+      for (const hash of [`#/p/XYZ/${name}`, `#/p/${P}/${name}/x`])
+        expect(parseRoute(hash).name).toBe('not-found');
+      expect(routeHref(parseRoute(`#/p/${P}/${name}?pack=fi`))).toBe(`#/p/${P}/${name}?pack=fi`);
+    }
+    expect(packOf(parseRoute(`#/p/${P}/checks?pack=fi`))).toBe('fi');
+    expect(packOf(parseRoute(`#/p/${P}`))).toBeNull();
+    const surveyor = `#/p/${P}/d/${D}/surveyor?q=a`;
+    expect(withPack(surveyor, 'fi')).toBe(`#/p/${P}/d/${D}/surveyor?q=a&pack=fi`);
+    expect(withPack(`${surveyor}&pack=fi`, null)).toBe(surveyor);
+    expect(withPack(`#/p/${P}?pack=fi`, 'ch')).toBe(`#/p/${P}?pack=ch`);
+    expect(withPack(`#/p/${P}`, null)).toBe(`#/p/${P}`);
+    expect(withPack(`#/p/${P}/chat`, 'a b')).toBe(`#/p/${P}/chat?pack=a+b`);
   });
 });

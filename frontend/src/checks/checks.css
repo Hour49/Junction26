@@ -1,0 +1,205 @@
+/* Checks screen (docs/specs/frontend/checks.md): --v-* tokens only. */
+.ck {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ck-head h1 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 34px);
+  letter-spacing: -0.02em;
+}
+.ck-law {
+  margin: 4px 0 0;
+  color: var(--v-muted);
+}
+.ck-note {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--v-fill);
+  font-weight: 600;
+}
+.ck-line {
+  margin: 0;
+  font-size: 17px;
+}
+.ck-muted {
+  color: var(--v-muted);
+}
+.ck-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--v-surface);
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  overflow: hidden;
+}
+.ck-table caption {
+  text-align: left;
+  font-weight: 600;
+  padding: 0 0 8px;
+}
+.ck-table th,
+.ck-table td {
+  padding: 10px 16px;
+  text-align: left;
+  border-top: 1px solid var(--v-line);
+}
+.ck-table td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ck-table th small {
+  display: block;
+  color: var(--v-muted);
+  font-weight: 400;
+}
+.ck-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+.ck-results {
+  min-width: 0;
+}
+.ck-results h2 {
+  font-size: 15px;
+  font-family: ui-monospace, Menlo, monospace;
+  margin: 16px 0 4px;
+  overflow-wrap: anywhere;
+}
+.ck-sub {
+  margin: 0 0 8px;
+}
+.ck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ck-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow);
+  border: 2px solid transparent;
+  overflow-wrap: anywhere;
+}
+.ck-card[aria-current='true'] {
+  border-color: var(--v-accent);
+}
+.ck-card h3 {
+  margin: 4px 0;
+  font-size: 16px;
+}
+.ck-card p {
+  margin: 6px 0;
+}
+.ck-status {
+  display: inline-block;
+  font-weight: 600;
+  border-radius: 980px;
+  padding: 2px 10px;
+}
+.ck-fail .ck-status {
+  color: var(--v-danger);
+  background: var(--v-danger-soft);
+}
+/* "cannot tell" is its own look: never the pass or fail colours */
+.ck-cannot_tell .ck-status {
+  color: var(--v-warn);
+  background: var(--v-warn-soft);
+}
+.ck-value {
+  font-variant-numeric: tabular-nums;
+}
+.ck-clause {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--v-line);
+  background: var(--v-bg);
+  border-radius: 0 10px 10px 0;
+  font-size: 14px;
+}
+.ck-clause blockquote {
+  margin: 4px 0;
+  font-style: italic;
+}
+.ck-ref {
+  font-weight: 600;
+}
+.ck-en {
+  color: var(--v-muted);
+}
+.ck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+.ck-actions button,
+.ck-actions a,
+.ck-clause a,
+.ck-sub a,
+.ck-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.ck-actions button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 980px;
+  background: var(--v-fill);
+  color: var(--v-text);
+  cursor: pointer;
+}
+.ck-viewer {
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .ck-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  }
+  .ck-viewer {
+    position: sticky;
+    top: calc(var(--v-header-h) + 16px);
+    align-self: start;
+  }
+}
+/* 390 px: the table becomes one card per rule */
+@media (max-width: 600px) {
+  .ck-table thead {
+    display: none;
+  }
+  .ck-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid var(--v-line);
+  }
+  .ck-table th[scope='row'] {
+    grid-column: 1 / -1;
+    border-top: 0;
+  }
+  .ck-table td {
+    border-top: 0;
+    text-align: left;
+  }
+  .ck-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    color: var(--v-muted);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ck * {
+    animation: none;
+    transition: none;
+  }
+}
