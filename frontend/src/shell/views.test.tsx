@@ -1,10 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api';
-import { drawing, error as errorBody, project } from '../api/fixtures';
+import { error as errorBody, project } from '../api/fixtures';
 import { ProjectScreen } from '../ingest/ProjectScreen';
 import { mockApi, reply } from '../test/mockApi';
-import { Credit } from './Credit';
 import { ErrorView } from './ErrorView';
 import { Loading } from './Loading';
 import { cleanup } from '@testing-library/react';
@@ -36,21 +35,6 @@ describe('common views', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it('SH-40 Credit shows the credit as text, or that none is recorded', () => {
-    const credit = drawing.credit;
-    if (!credit) throw new Error('drawing.json has no credit');
-    const { container, unmount } = render(<Credit credit={credit} />);
-    expect(container.textContent).toBe(`Credit: ${credit}`);
-    unmount();
-    const uncredited = { ...drawing, credit: null };
-    const { container: none, unmount: unmountNone } = render(<Credit credit={uncredited.credit} />);
-    expect(none.textContent).toBe('Credit: none recorded for this file');
-    unmountNone();
-    const { container: other } = render(<Credit credit="<b>x</b>" />);
-    expect(other.textContent).toBe('Credit: <b>x</b>');
-    expect(other.querySelector('b')).toBeNull();
-  });
-
   it('R2-qa-3-2 (SH-48) a 404 offers Back to workspaces, not Retry', () => {
     const retry = vi.fn();
     for (const notFound of [
@@ -80,16 +64,5 @@ describe('common views', () => {
     expect(back.getAttribute('href')).toBe('#/workspaces');
     expect(screen.getByRole('alert').textContent).toContain(errorBody.detail);
     expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
-  });
-
-  it('R3-credit (SH-50) the line says Credit: once, prefixed or not', () => {
-    const text = 'Plan © Example, CC BY 4.0';
-    for (const credit of [`Credit: ${text}`, text, `credit:${text}`, `CREDIT:  ${text}`]) {
-      const { container, unmount } = render(<Credit credit={credit} />);
-      expect(container.textContent).toBe(`Credit: ${text}`);
-      unmount();
-    }
-    const { container } = render(<Credit credit={null} />);
-    expect(container.textContent).toBe('Credit: none recorded for this file');
   });
 });

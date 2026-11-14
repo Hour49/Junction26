@@ -1,0 +1,199 @@
+/* Documents tab (documents.md), the demo's look (style.css .iss-card, .c-own, .qchip, .dwg-list, .file-row) */
+.doc {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.doc-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.doc-title h1,
+.doc p {
+  margin: 0;
+}
+.doc-kicker {
+  color: var(--v-ok);
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.doc-muted {
+  color: var(--v-muted);
+  font-size: 15px;
+}
+.doc-small {
+  color: var(--v-muted);
+  font-size: 13px;
+}
+.doc-mono {
+  font-family: var(--v-mono);
+  overflow-wrap: anywhere;
+}
+.doc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.doc-h {
+  margin: 0;
+  font-size: 20px;
+}
+.doc-title a.doc-small {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.doc-issues,
+.doc-dwgs,
+.doc-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.doc-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.doc-issue {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.doc-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.doc-n {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 22px;
+}
+.doc-open {
+  margin-left: auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.doc-why {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.doc-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.doc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.doc-chip {
+  font: inherit;
+  font-size: 14px;
+  background: var(--v-fill);
+  color: var(--v-text);
+  border: 0;
+  border-radius: 980px;
+  padding: 9px 14px;
+  min-height: 44px;
+  cursor: pointer;
+  text-align: left;
+}
+.doc-chip:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.doc-own {
+  display: flex;
+  gap: 8px;
+}
+.doc-own input,
+.doc-name input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  font: inherit;
+  font-size: 16px; /* no iOS zoom on focus */
+  padding: 0 14px;
+  border: 1px solid var(--v-line);
+  border-radius: 12px;
+  background: var(--v-surface);
+  color: var(--v-text);
+}
+.doc-name {
+  display: grid;
+  gap: 4px;
+  max-width: 320px;
+}
+.doc-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.doc-error {
+  color: var(--v-danger);
+}
+.doc-dwgs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+.doc-dwg {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.doc-files > li + li {
+  border-top: 1px solid var(--v-line);
+}
+.doc-file {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding: 12px 18px;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+}
+.doc-file-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+.doc-file-main .reason {
+  color: var(--v-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.doc-file-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+@media (max-width: 520px) {
+  .doc-own {
+    flex-direction: column;
+  }
+  .doc-file-meta {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+}

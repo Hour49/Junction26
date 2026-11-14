@@ -1,10 +1,6 @@
-import { useCallback, useState } from 'react';
-import { getDrawing, pageUrl, previewUrl, type Normalised } from '../api';
-import { Credit } from '../shell/Credit';
+import { useState } from 'react';
+import { pageUrl, previewUrl, type Normalised } from '../api';
 import { normalisedSteps } from './ingest';
-import { usePoll } from './usePoll';
-
-const once = () => false;
 
 function Picture({ src, alt, missing }: { src: string; alt: string; missing: string }) {
   const [broken, setBroken] = useState(false);
@@ -20,7 +16,7 @@ function Picture({ src, alt, missing }: { src: string; alt: string; missing: str
   );
 }
 
-/** The upload next to the normalised page, with what normalisation did and the drawing's credit. */
+/** The upload next to the normalised page, with what normalisation did (no credit on screens: IN-80). */
 export function BeforeAfter({
   projectId,
   fileId,
@@ -34,9 +30,6 @@ export function BeforeAfter({
   drawingId: string;
   normalised: Normalised;
 }) {
-  const load = useCallback((signal: AbortSignal) => getDrawing(drawingId, { signal }), [drawingId]);
-  // One request; on failure the credit reads as null.
-  const { data: drawing, error } = usePoll(load, once);
   const steps = normalisedSteps(normalised);
   return (
     <section aria-label="Before and after" className="v-card ingest-before-after">
@@ -56,7 +49,6 @@ export function BeforeAfter({
             missing="Page not available"
           />
           <figcaption>After normalisation</figcaption>
-          {(drawing !== null || error !== null) && <Credit credit={drawing?.credit ?? null} />}
         </figure>
       </div>
       <ul>

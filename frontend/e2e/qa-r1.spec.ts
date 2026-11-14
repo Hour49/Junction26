@@ -1,6 +1,6 @@
 // QA round 1 layout bugs (board #14), as browser tests on the live no-keys backend. Each fails while its bug is there.
 import { expect, test } from '@playwright/test';
-import { noKeys, openSurveyor, shot, startSample } from './support';
+import { fileFromDocuments, noKeys, openSurveyor, shot, startSample } from './support';
 
 // No hyphens or spaces: nothing the browser may break the line at.
 const LONG_NAME = 'Hafenstrasse_12_Bauabschnitt_B_Ausfuehrungsplaene_Rev07a.txt';
@@ -20,8 +20,11 @@ test('R1-5-4 / R1-4-1: a long project name does not widen the page at 390x844', 
 
   for (const project of [id, sample]) {
     await page.goto(`/#/p/${project}`);
-    // Loaded and done (#146: an upload with nothing readable shows "Nothing could be read", no stats).
-    await expect(page.getByRole('main').getByText('Done', { exact: true }).first()).toBeVisible();
+    // Loaded and done (#146: an upload with nothing readable shows "Nothing could be read", no stats);
+    // IN-84 (parity): the done kicker reads "Analysis done".
+    await expect(
+      page.getByRole('main').getByText('Analysis done', { exact: true }).first(),
+    ).toBeVisible();
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width, `#/p/${project}: page width at a 390 px viewport`).toBeLessThanOrEqual(390);
   }
@@ -70,8 +73,7 @@ test('R1-4-2: the takeoff shows at least 10 whole rows at 1440x900', async ({ pa
 
 test('R1 engineer: an IFC answer fits 390x844', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone', 'a phone-width check');
-  await startSample(page);
-  await page.locator('a[href*="/f/f"]').filter({ hasText: 'model/house.ifc' }).click();
+  await fileFromDocuments(page, 'model/house.ifc');
   await page.getByRole('link', { name: 'Open the drawing' }).click();
   await expect(page).toHaveURL(/\/d\/[0-9a-f]{16}\/engineer$/);
   const drawingId = /\/d\/([0-9a-f]{16})\//.exec(page.url())?.[1] ?? '';

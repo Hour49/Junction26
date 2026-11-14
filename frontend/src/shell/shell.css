@@ -19,6 +19,15 @@
   --v-danger-soft: #fdecea;
   --v-accent-soft: #e6eeea;
   --v-fill: #f0f1f0;
+  /* Demo parity (shared.md "Demo parity", round 6): the demo's style.css values. */
+  --v-warn-mark: #d9860b;
+  --v-warn-mark-fill: rgba(217, 134, 11, 0.12);
+  --v-badge: #e8740c;
+  --v-seg: #e8e8ed;
+  --v-grey: #ececf0;
+  --v-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  /* The paper a drawing sits on in the viewer (demo; fe-viewer's ask). */
+  --v-plan: #fbf8ef;
   /* What the sticky header covers at the top of the viewport: other sticky elements use `top: var(--v-header-h)`.
      76px = row padding 14 + 14 and the 48 px pills; 0 on the phone, where the header is not sticky. */
   --v-header-h: 76px;
@@ -74,7 +83,7 @@ input:focus-visible,
 textarea:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--v-accent);
+  outline: 3px solid var(--v-accent);
   outline-offset: 2px;
 }
 /* App focuses <main tabindex=-1> on a route change so screen readers start there; it is not a control, so no
@@ -332,8 +341,9 @@ main[tabindex='-1']:focus-visible {
 /* A native <select> sizes to its longest option: cap it so a long project name never widens the page
    (R1-5-4). The open list still shows each option in full. */
 .project-picker {
-  flex: 0 1 320px;
-  min-width: 0;
+  /* SH-84: a large shrink weight, so it gives way first (never below 200px); then the country pill truncates. */
+  flex: 0 1000 320px;
+  min-width: 200px;
   max-width: 100%;
   margin-left: auto;
   padding-right: 36px;
@@ -362,13 +372,36 @@ main[tabindex='-1']:focus-visible {
 }
 .view-links {
   flex: 0 0 auto;
+  background: var(--v-seg);
+}
+.view-links > a {
+  position: relative;
+}
+/* Documents: issues still to answer (demo .seg .badge); the number is aria-hidden, the link's name says it. */
+.tab-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--v-badge);
+  color: var(--v-surface);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--v-surface);
 }
 
 /* Country picker (shared.md "Country picker"). */
 .country {
   position: relative;
-  /* One line at every width (SH-71): the project picker gives way first; a long name ellipsises at the cap. */
-  flex: 0 0 auto;
+  /* One line at every width (SH-71). SH-84: the project picker (shrink weight 1000) gives way first; the pill
+     truncates its name only once the picker is at its 200px floor. */
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: 240px;
 }
 .country-button {
@@ -584,6 +617,7 @@ main {
   .project-picker {
     order: 3;
     flex: 1 1 180px;
+    min-width: 0;
     max-width: 100%;
     margin-left: 0;
   }
@@ -629,6 +663,15 @@ main {
   .country-name {
     display: none;
   }
+  .brand-logo {
+    width: 36px;
+    height: 36px;
+    padding: 5px;
+    border-radius: 10px;
+  }
+  .brand-name {
+    font-size: 22px;
+  }
   .info-bar {
     padding: 8px 16px;
   }
@@ -650,4 +693,43 @@ main {
   .v-press:active {
     transform: none;
   }
+}
+
+/* Footer and About (shared.md "Credits move to an About page"; demo .foot). */
+.app-foot {
+  padding: 0 24px 32px;
+  font-size: 12px;
+  color: var(--v-muted);
+  text-align: center;
+}
+.app-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--v-muted);
+}
+.about h2 {
+  margin: 0;
+  font-size: 24px;
+}
+.about-project {
+  margin: 0;
+  font-weight: 600;
+}
+.about-credits {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.about-credits li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.about-file {
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }

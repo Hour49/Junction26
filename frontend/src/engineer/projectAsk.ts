@@ -1,5 +1,5 @@
 // The project chat's helpers (docs/specs/frontend/chat.md); the ask itself is `askProject` in src/api/client.ts.
-import type { ProjectView, Suggestion } from '../api';
+import type { ProjectAnswer, ProjectView, Suggestion } from '../api';
 
 type Entry = ProjectView['drawings'][number];
 
@@ -16,10 +16,39 @@ const rank = (s: Suggestion) => {
   return i < 0 ? STARTER_RANK.length : i;
 };
 
+/** The first question of each kind ("door", "area", …), a door count, an area and a window count first. */
+function firstPerKind(all: Suggestion[]): Suggestion[] {
+  const seen = new Set<string>();
+  const firsts = all.filter((s) => !seen.has(kind(s)) && seen.add(kind(s)));
+  return firsts.sort((a, b) => rank(a) - rank(b));
+}
+
 /** Up to three starter questions from the drawings' own suggestions (never invented): the first question of
  * each kind ("door", "area", …), a door count, an area and a window count first. */
 export function starters(lists: Suggestion[][]): Suggestion[] {
+  return firstPerKind(lists.flat()).slice(0, 3);
+}
+
+/** CH-36: up to three questions not asked yet, from the same suggestions: the starters' order, then the rest in
+ * drawing order; one chip per question text. */
+export function followUps(lists: Suggestion[][], asked: string[]): Suggestion[] {
+  const done = new Set(asked.map((q) => q.trim()));
+  const firsts = firstPerKind(lists.flat());
   const seen = new Set<string>();
-  const firsts = lists.flat().filter((s) => !seen.has(kind(s)) && seen.add(kind(s)));
-  return firsts.sort((a, b) => rank(a) - rank(b)).slice(0, 3);
+  return [...firsts, ...lists.flat().filter((s) => !firsts.includes(s))]
+    .filter((s) => !done.has(s.question.trim()) && !seen.has(s.question) && seen.add(s.question))
+    .slice(0, 3);
+}
+
+type Part = ProjectAnswer['parts'][number];
+
+/** CH-30: the answering parts, sheets that are not floor plans first (the file's triage class), each group in the
+ * API's order; no triage counts as a floor plan. */
+export function orderParts(parts: Part[], files: ProjectView['files']): Part[] {
+  const answering = parts.filter((p) => p.answer.refusal === null);
+  const notPlan = (p: Part) => {
+    const c = files.find((f) => f.drawing_id === p.drawing_id)?.triage?.class;
+    return c === 'other_drawing' || c === 'not_drawing';
+  };
+  return [...answering.filter(notPlan), ...answering.filter((p) => !notPlan(p))];
 }

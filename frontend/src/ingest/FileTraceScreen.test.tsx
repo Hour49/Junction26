@@ -4,7 +4,7 @@ import { drawing, error, trace } from '../api/fixtures';
 import type { FileTrace } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { FileTraceScreen } from './FileTraceScreen';
-import { formatMs, kindLabel, normalisedSteps } from './ingest';
+import { formatMs, kindLabel, normalisedSteps, routeLabel } from './ingest';
 import { flush, must, traceVariants } from './testing';
 
 const PID = trace.project_id;
@@ -44,7 +44,7 @@ describe('FileTraceScreen', () => {
     for (const s of [
       f.reason,
       kindLabel(f.kind),
-      must(f.route),
+      routeLabel(f.route), // IN-83: "drawn PDF route", not "vector"
       must(f.source),
       must(f.group),
       '$0.00',
@@ -57,6 +57,10 @@ describe('FileTraceScreen', () => {
     // pre-QA: the Read from fact holds the path only, and the eyebrow has one marker (the badge, no dot)
     expect(must(document.querySelector('.ingest-facts')).textContent).not.toContain('read from');
     expect(document.querySelector('.ingest-head .ingest-dot')).toBeNull();
+    const route = [...document.querySelectorAll('.ingest-facts dt')].find(
+      (d) => d.textContent === 'Route',
+    );
+    expect(must(route).nextElementSibling?.textContent).toBe(routeLabel(f.route));
   });
 
   it('IN-33 every stage in order with label, did, ms; output only when it adds something', async () => {
@@ -86,14 +90,14 @@ describe('FileTraceScreen', () => {
     );
   });
 
-  it('IN-43 a 404 shows detail, code and "Back to the project"', async () => {
+  it('IN-43 IN-79 a 404 shows detail, code and "Back to Documents"', async () => {
     mockApi({ [GET]: reply(404, error) });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
     expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Back to the project' }).getAttribute('href')).toBe(
-      `#/p/${PID}`,
+    expect(screen.getByRole('link', { name: 'Back to Documents' }).getAttribute('href')).toBe(
+      `#/p/${PID}/documents`,
     );
   });
 
@@ -159,7 +163,7 @@ describe('FileTraceScreen', () => {
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     const entries = Object.entries(trace.file.takeoff ?? {});
-    const details = must(document.querySelector('details'));
+    const details = must(document.querySelector<HTMLDetailsElement>('details.ingest-takeoff'));
     expect(details.open).toBe(false);
     expect(must(details.querySelector('summary')).textContent).toBe(
       `What it ends as: ${String(entries.length)} quantities`,
@@ -221,46 +225,40 @@ describe('FileTraceScreen', () => {
     expect(screen.getByText('Page not available')).toBeTruthy();
   });
 
-  it('IN-48 the credit line goes under the after image only, from one GET /api/drawings/<id>', async () => {
+  it('IN-80 no credit on the before/after and no GET /api/drawings/<id> for it', async () => {
     const api = showImage();
     await flush();
-    expect(api.calls.filter((c) => c.url === `/api/drawings/${must(IMG.drawing_id)}`)).toHaveLength(
-      1,
-    );
-    const credit = screen.getByText(`Credit: ${must(drawing.credit)}`);
-    expect(credit.closest('figure')?.textContent).toContain('After normalisation');
-    expect(document.querySelectorAll('.credit')).toHaveLength(1);
-    cleanup();
+    expect(screen.getByText('After normalisation')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('Credit');
+    expect(api.calls.some((c) => c.url.startsWith('/api/drawings/'))).toBe(false);
+  });
 
-    showImage(traceVariants.image, { ...drawing, credit: null });
-    await flush();
-    expect(screen.getByText('Credit: none recorded for this file')).toBeTruthy();
-    cleanup();
-
-    showImage(traceVariants.image, reply(500, error));
-    await flush();
-    expect(screen.getByText('Credit: none recorded for this file')).toBeTruthy();
-    cleanup();
-
-    const plain = mockApi({ [GET]: trace });
+  it('IN-83 the stages are folded in a closed <details> "How it was read: N stages"', async () => {
+    mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
-    expect(plain.calls.some((c) => c.url.startsWith('/api/drawings/'))).toBe(false);
+    const fold = must(
+      screen.getByText(`How it was read: ${String(trace.stages.length)} stages`).closest('details'),
+    );
+    expect(fold.open).toBe(false);
+    expect(fold.querySelectorAll('.ingest-trace > li')).toHaveLength(trace.stages.length);
   });
 
   it('R1-1-1 a takeoff of one quantity reads "What it ends as: 1 quantity"', async () => {
     mockApi({ [GET]: { ...trace, file: { ...trace.file, takeoff: { door: 2 } } } });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
-    expect(must(document.querySelector('summary')).textContent).toBe('What it ends as: 1 quantity');
+    expect(must(document.querySelector('.ingest-takeoff summary')).textContent).toBe(
+      'What it ends as: 1 quantity',
+    );
   });
 
   it('IN-65 the restyled trace keeps its names; done stages carry "done", a failed one "failed"', async () => {
     mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
-    expect(screen.getByRole('link', { name: 'Back to the project' }).getAttribute('href')).toBe(
-      `#/p/${PID}`,
+    expect(screen.getByRole('link', { name: 'Back to Documents' }).getAttribute('href')).toBe(
+      `#/p/${PID}/documents`,
     );
     expect(screen.getByRole('heading', { level: 1, name: trace.file.path })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open the drawing' })).toBeTruthy();

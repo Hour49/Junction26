@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from 'react';
 import type { FileStatus, ProjectView } from '../api';
+import { DoneLine, IngestFinished, type ConflictCounts } from '../ingest/IngestFinished';
 import { STEPS, formatCost, formatMs, formatSize, isFinished, stepOf } from '../ingest/ingest';
 import {
   STATUS_WORD,
@@ -28,7 +29,7 @@ const STEP_VIEW_FIRST = { heading: '', visual: 'files', explain: '' } as const;
 const NOW_WORD = {
   working: 'Now',
   waiting: 'Waiting',
-  done: 'Done',
+  done: 'Done · replaying what this step did',
   none: 'No file got here',
 } as const;
 
@@ -41,6 +42,7 @@ export function AdvancedIngest({
   project: ProjectView;
 }): JSX.Element {
   const [picked, setPicked] = useState<number | null>(null);
+  const [counts, setCounts] = useState<ConflictCounts | null>(null);
   const step = picked ?? defaultStep(project);
   const view = STEP_VIEW[step - 1] ?? STEP_VIEW_FIRST;
   // A clock for Elapsed (now - started_at): ticks once a second; render itself stays pure.
@@ -169,9 +171,9 @@ export function AdvancedIngest({
           />
         );
       case 'pairs':
-        return <CheckPairs projectId={projectId} pairs={pairs} />;
+        return <CheckPairs pairs={pairs} done={project.state === 'done'} />;
       case 'ready':
-        return <ReadyList projectId={projectId} project={project} views={data.views} />;
+        return <ReadyList project={project} views={data.views} />;
     }
   };
   const live = lines.at(-1);
@@ -217,7 +219,7 @@ export function AdvancedIngest({
         <div className="adv-body">
           {visual()}
           <div className="adv-text">
-            <span className="adv-now">
+            <span className={isCurrent ? 'adv-now' : `adv-now ${status}`}>
               {isCurrent && <span className="adv-spin" aria-hidden="true" />}
               {isCurrent ? 'Now' : NOW_WORD[status]}
             </span>
@@ -271,7 +273,10 @@ export function AdvancedIngest({
             </div>
           ))}
         </dl>
+        <DoneLine projectId={projectId} project={project} counts={counts} />
       </section>
+      {/* the same finished block as Simple (AV-35); both render nothing until done */}
+      <IngestFinished projectId={projectId} project={project} onCounts={setCounts} />
     </div>
   );
 }
