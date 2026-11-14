@@ -91,6 +91,7 @@ class ChatTurn(Frozen):
 class Caps:
     max_steps: int = 8
     calls_per_step: int = 4
+    parallel: int = 4  # a step's tool calls run at most this many at a time
     turn_usd: float = 0.10
     seconds: float = 60.0
 

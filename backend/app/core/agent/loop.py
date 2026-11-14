@@ -7,6 +7,7 @@ import re
 import time
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from pydantic import ValidationError
@@ -271,7 +272,9 @@ class _Run:
 
     def _calls(self, calls: list[Json]) -> FinalAnswer | None:
         """Runs one step's tool calls in order; every call gets its tool message, even when the
-        turn ends before it (the next request is refused otherwise)."""
+        turn ends before it (the next request is refused otherwise). The step's first plain tool
+        calls run at the same time (`_together`); their results are used in call order."""
+        ready = self._together(calls)
         for at, call in enumerate(calls):
             function: Json = call.get("function") or {}
             name = str(function.get("name", ""))
@@ -291,6 +294,9 @@ class _Run:
                 self.seen[(name, arguments)] += 1
                 if self.seen[(name, arguments)] >= 3:
                     raise _EndedError(STOPS["repeat"])
+                if at in ready:  # ran already, its tool_call announced
+                    self._tool(call, name, arguments, ready[at])
+                    continue
                 label = self._label(name, arguments)
                 self.emit("tool_call", {"n": len(self.steps) + 1, "tool": name, "label": label})
                 if name == SHOW_ON_PLAN:
@@ -301,6 +307,37 @@ class _Run:
                 self._skip(calls[at:])
                 raise
         return None
+
+    def _together(self, calls: list[Json]) -> dict[int, tuple[str, float]]:
+        """Runs the step's leading plain tool calls (2 or more, within the cap; not final_answer,
+        show_on_plan or a plan proposal, which numbers itself in the chat) at the same time, at
+        most `caps.parallel` at once: their (result, ms) by position."""
+        lead: list[tuple[str, str]] = []
+        for call in calls[: self.caps.calls_per_step]:
+            function: Json = call.get("function") or {}
+            name = str(function.get("name", ""))
+            if name in ("final_answer", SHOW_ON_PLAN) or name.startswith("propose_"):
+                break
+            given: Any = function.get("arguments") or "{}"
+            found = (name, given if isinstance(given, str) else json.dumps(given))
+            if self.seen[found] + lead.count(found) >= 2:
+                break  # its third time ends the turn (_calls): it must not run
+            lead.append(found)
+        if len(lead) < 2 or self.caps.parallel < 2:
+            return {}
+        for at, (name, arguments) in enumerate(lead):
+            label = self._label(name, arguments)
+            self.emit("tool_call", {"n": len(self.steps) + at + 1, "tool": name, "label": label})
+
+        def timed(found: tuple[str, str]) -> tuple[str, float]:
+            name, arguments = found
+            start = self.clock()
+            out = self.toolbox.run(name, arguments)
+            return out, round((self.clock() - start) * 1000, 1)
+
+        with ThreadPoolExecutor(min(self.caps.parallel, len(lead))) as pool:
+            done = list(pool.map(timed, lead))
+        return dict(enumerate(done))
 
     def _final(self, call: Json, arguments: str) -> FinalAnswer | None:
         """The answer when it passes the validator; else the model is told why once, and the
@@ -415,10 +452,16 @@ class _Run:
                 found.setdefault(clause_id, ClauseView.model_validate(given))
         return found
 
-    def _tool(self, call: Json, name: str, arguments: str) -> None:
-        start = self.clock()
-        out = self.toolbox.run(name, arguments)
-        ms = round((self.clock() - start) * 1000, 1)
+    def _tool(
+        self, call: Json, name: str, arguments: str, ran: tuple[str, float] | None = None
+    ) -> None:
+        """One tool call: runs it (or takes `ran`, its result and ms when it ran already), mints
+        its places, records its step and answers the model."""
+        if ran is None:
+            start = self.clock()
+            out = self.toolbox.run(name, arguments)
+            ran = (out, round((self.clock() - start) * 1000, 1))
+        out, ms = ran
         try:
             found: Any = json.loads(out)
         except json.JSONDecodeError:
