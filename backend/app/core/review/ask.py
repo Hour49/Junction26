@@ -174,8 +174,8 @@ def ask(
     about at once. The answer's `level` comes from the same verdict (check.level_of): High
     exactly when sure; none on a value a person signed or settled, which is theirs. With
     `carbon_ladder` (CARBON_LEVELS=ladder) a Medium answer Carbon read the same is High and asks
-    nothing, yet stays not `sure`: Carbon never certifies an answer. On the raster route a room
-    count `room_words` doubts (check.room_word_doubt: its rooms' printed labels) is not certified
+    nothing, yet stays not `sure`: Carbon never certifies an answer. On the raster route a count
+    `room_words` doubts (check.room_word_doubt: its rooms' printed labels) is not certified
     and gets no High from Carbon either; its level is otherwise the score's."""
     quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))

@@ -12,7 +12,7 @@ from app.adapters.answer_prior import NoPrior
 from app.adapters.question_templates import TemplateParser
 from app.adapters.raster.room_words import room_word, swiss_label_rooms, swiss_name, swiss_type
 from app.composition import _room_policy, build_answering, build_ingest
-from app.core.drawing.model import Box, CarbonCheck, Drawing, Plan, Room, Scale
+from app.core.drawing.model import Box, CarbonCheck, Drawing, Element, Plan, Room, Scale
 from app.core.review.ask import Asked, ask
 from app.core.review.check import CheckPolicy, RoomWord, RoomWords, no_room_words
 from app.core.review.model import ReviewState
@@ -116,15 +116,16 @@ def test_what_a_label_names_for_the_check() -> None:
 
 # Bathrooms certified at 0.8, Medium from 0.4
 POLICY = CheckPolicy(
-    thresholds={"room:bathroom": 0.8, "room:kitchen": 0.8, "door": 0.8},
+    thresholds={"room:bathroom": 0.8, "room:kitchen": 0.8, "toilet": 0.8},
     routes=frozenset({"vector"}),
-    medium={"room:bathroom": 0.4, "room:kitchen": 0.4},
+    medium={"room:bathroom": 0.4, "room:kitchen": 0.4, "toilet": 0.4},
     route_levels={"vector": "high"},
     counts=COUNTS,
 )
 
 
 PLANS = (Plan(id="p1", page=1, box=(0.0, 0.0, 1.0, 1.0)),)  # a read page (check.found_nothing)
+TOILETS = (Element(id="e1", class_="toilet", page=1, box=(0.1, 0.1, 0.15, 0.15)),)
 
 
 def words(**table: RoomWord) -> RoomWords:
@@ -148,7 +149,7 @@ def asked(
 ) -> Asked:
     drawing = Drawing(
         file="plan.png", pages=(PAGE,), scale=Scale(status="no_scale"), plans=PLANS,
-        rooms=rooms, carbon_check=carbon,
+        elements=TOILETS, rooms=rooms, carbon_check=carbon,
     )  # fmt: skip
     return ask(
         text, drawing, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
@@ -196,23 +197,42 @@ def test_room_counts_on_an_image_with_swiss_room_names_are_never_high() -> None:
     assert made(found) == ("medium", "score") and found.check is not None
     assert found.check.reason == (
         'Please double-check the bathrooms: this image prints room names such as "Bagno", and '
-        "room counts on plans of this kind are not in our validation, so none is certified."
+        "counts on plans of this kind are not in our validation, so none is certified."
     )
     assert found.check.disputed == ()
     assert made(asked(rooms)) == ("high", "certified")  # without the table: as before
 
 
-def test_the_doubt_is_for_room_counts_on_the_raster_route_only() -> None:
+def test_no_element_count_on_an_image_with_swiss_room_names_is_high() -> None:
+    """B(2) widened (orchestrator gen 29, 21:59): think-acc's paid read of 19 lone Swiss PNGs
+    found its two High-and-wrong answers in toilet counts, certified by a local gate."""
+    swiss = (room(1, "bathroom", "Bagno\n1.01"),)
+    toilets = "How many toilets are there?"
+    assert made(asked(swiss, text=toilets)) == ("high", "certified")  # without the table
+    found = asked(swiss, SWISS, text=toilets)
+    assert found.answer.answer == 1 and found.answer.sure is False
+    assert made(found) == ("medium", "score") and found.check is not None
+    assert "not in our validation" in found.check.reason
+    assert made(asked(swiss, SWISS, text=toilets, score=0.3)) == ("low", "score")
+    # a Finnish label is a sheet of the validation's kind: its element counts are as before
+    assert made(asked(FINNISH_ROOMS, FINNISH, text=toilets)) == ("high", "certified")
+
+
+def test_the_doubt_is_for_the_raster_route_only() -> None:
     rooms = (room(1, "bathroom", "Bagno\n1.01"), room(2, "other", "Bagno\n1.09"))
     assert made(asked(rooms, SWISS, route="vector")) == ("high", "route")  # the drawn route
-    doors = asked(rooms, SWISS, text="How many doors are there?")
-    assert doors.check is None or "room names" not in doors.check.reason
+    toilets = asked(rooms, SWISS, text="How many toilets are there?", route="vector")
+    assert made(toilets) == ("high", "route")
     photo = asked(rooms, SWISS, flags=(PHOTO_FLAG,))
     assert made(photo) == ("low", "page")  # a flagged page stays as it was
 
 
-def test_carbon_agreeing_does_not_make_a_doubted_room_count_high() -> None:
+def test_carbon_agreeing_does_not_make_a_doubted_count_high() -> None:
     rooms = (room(1, "bathroom", "Bagno\n1.01"), room(2, "bathroom", "Bagno\n1.09"))
     carbon = CarbonCheck(read=("room",), plans=PLANS, rooms=rooms)
     assert made(asked(rooms, score=0.5, carbon=carbon)) == ("high", "carbon")  # no table
     assert made(asked(rooms, SWISS, score=0.5, carbon=carbon)) == ("medium", "score")
+    things = CarbonCheck(read=("toilet", "room"), plans=PLANS, elements=TOILETS, rooms=rooms)
+    toilets = "How many toilets are there?"
+    assert made(asked(rooms, score=0.5, carbon=things, text=toilets)) == ("high", "carbon")
+    assert made(asked(rooms, SWISS, score=0.5, carbon=things, text=toilets)) == ("medium", "score")

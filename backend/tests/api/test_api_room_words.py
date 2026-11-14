@@ -1,6 +1,6 @@
 """A Swiss floor uploaded as a lone image, through the API (think-acc's certified-wrong bathroom,
 .agents/exp/certified-bathroom.md): its rooms take their printed Swiss names' types on the raster
-route, and a room count on it is not certified, whatever its score."""
+route, and no count on it is certified, whatever its score."""
 
 import json
 from pathlib import Path

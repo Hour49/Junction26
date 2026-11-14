@@ -222,16 +222,19 @@ def no_room_words(label: str) -> RoomWord | None:
 
 
 def room_word_doubt(row: Row, drawing: Drawing, words: RoomWords) -> Found | None:
-    """Why a room count on an image is not certified, whatever its score, from the labels read
-    in its rooms (think-acc's certified-wrong Swiss bathroom, .agents/exp/certified-bathroom.md,
-    orchestrator 2026-11-14): a room whose label names the asked type is typed otherwise (each
-    such room is a place, not counted), or a label is a word of a sheet the policy was not
-    measured on, where the readers and the signal both carry CubiCasa's conventions. None:
-    neither. It holds the certificate only: the level stays what the score gives (on CubiCasa
-    val 0 High answers and 2 Medium ones have such a room; the Medium ones keep their level)."""
-    if row.measure != "count" or not (row.subject == "room" or row.subject.startswith("room:")):
+    """Why a count on an image is not certified, whatever its score, from the labels read in its
+    rooms (think-acc's certified-wrong Swiss bathroom, .agents/exp/certified-bathroom.md,
+    orchestrator 2026-11-14): for a count of a room type, a room whose label names that type is
+    typed otherwise (each such room is a place, not counted); for any count, a label is a word
+    of a sheet the policy was not measured on, where the readers and the signals carry
+    CubiCasa's conventions (orchestrator gen 29, 21:59, post hoc and conservative: think-acc's
+    paid read of 19 lone Swiss PNGs found its two High-and-wrong answers in toilet counts,
+    certified by a local gate). None: neither. It holds the certificate only: the level stays
+    what the score gives (on CubiCasa val 0 High answers and 2 Medium ones have such a room; the
+    Medium ones keep their level)."""
+    if row.measure != "count":
         return None
-    kind = row.subject.partition(":")[2]
+    kind = row.subject.removeprefix("room:") if row.subject.startswith("room:") else ""
     what = row.noun or row.label
     named = [(room, word) for room in drawing.rooms if room.label and (word := words(room.label))]
     off = [room for room, word in named if kind and word.kind == kind and room.type != kind]
@@ -262,7 +265,7 @@ def room_word_doubt(row: Row, drawing: Drawing, words: RoomWords) -> Found | Non
         return Found(
             reason=(
                 f"Please double-check the {what}: this image prints room names such as "
-                f'"{_label_line(printed)}", and room counts on plans of this kind are not in our '
+                f'"{_label_line(printed)}", and counts on plans of this kind are not in our '
                 "validation, so none is certified."
             )
         )
