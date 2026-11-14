@@ -27,7 +27,14 @@ from app.core.agent.model import (
 )
 from app.core.agent.ports import ChatModel, ChatModelError, Toolbox
 from app.core.agent.prompt import SYSTEM
-from app.core.agent.review import NOTHING, REVIEW_ANSWER, REVIEW_ANSWER_TOOL, review_of
+from app.core.agent.review import (
+    DOUBT,
+    NOTHING,
+    REVIEW_ANSWER,
+    REVIEW_ANSWER_TOOL,
+    REVIEWED,
+    review_of,
+)
 from app.core.agent.validate import (
     FINAL_ANSWER_TOOL,
     TEXT_CHARS,
@@ -209,6 +216,7 @@ class _Run:
         self.asked: list[Json] = []  # this turn's ask_drawings results, as Chat.asked keeps them
         self.shown: tuple[list[str], str] | None = None  # show_on_plan's places and caption
         self.reattached: list[Json] = []  # earlier ask_drawings results show_on_plan showed
+        self.reviewed: list[str] = []  # the places of the answer review_answer reviewed
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
         self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
         self.searched: set[str] = set()  # clause ids search_law returned this turn
@@ -219,6 +227,13 @@ class _Run:
         self.emit("turn", {"chat_id": chat.chat_id, "turn": len(chat.turns) + 1})
         chat.starts.append(len(chat.messages))
         lines = [self.toolbox.describe(chosen) for chosen in selection]
+        if DOUBT.search(message.lower()):  # reviewed before the model's first step
+            start = self.clock()
+            if (reviewed := self._reviewed()) is not None:
+                label = PLAIN[REVIEW_ANSWER]
+                self.emit("tool_call", {"n": 1, "tool": REVIEW_ANSWER, "label": label})
+                self._loop_step(start, label, "ok", REVIEW_ANSWER)
+                lines.append(REVIEWED + reviewed)
         chat.messages.append({"role": "user", "content": "\n".join([message, *lines])})
         self.sources.append(message)
         self.rated.append(message)
@@ -587,21 +602,39 @@ class _Run:
         it. It is a tool result of this turn (its numbers back the answer) and its answer card
         comes back with the turn."""
         start = self.clock()
+        reviewed = self._reviewed()
+        if reviewed is None:
+            reply = json.dumps({"status": "unknown", "reason": NOTHING})
+            return self._show_step(call, start, "Could not review the last answer", "error",
+                                   reply, REVIEW_ANSWER)  # fmt: skip
+        self._show_step(call, start, PLAIN[REVIEW_ANSWER], "ok", reviewed, REVIEW_ANSWER)
+
+    def _reviewed(self) -> str | None:
+        """The review of the chat's latest ask_drawings result, as the model reads it; None when
+        there is none. Its numbers back the answer, its card comes back with the turn and its
+        places are the turn's sources when the answer cites none."""
         minted = next(
-            (r["result"] for r in reversed(self.chat.results)
+            (r["result"] for r in reversed([*self.chat.results])
              if r.get("tool") == ASK and isinstance(r.get("result"), dict)),
             None,
         )  # fmt: skip
         if minted is None:
-            reply = json.dumps({"status": "unknown", "reason": NOTHING})
-            return self._show_step(call, start, "Could not review the last answer", "error",
-                                   reply, REVIEW_ANSWER)  # fmt: skip
-        text = json.dumps(review_of(minted, self.names), ensure_ascii=False)
+            return None
+        found = review_of(minted, self.names)
+        text = json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
         self.rated.append(text)
         self.reattached.append([*self.chat.asked, *self.asked][-1]["answer"])
-        self._show_step(call, start, "Reviewed the last answer", "ok",
-                        _for_model(json.loads(text)), REVIEW_ANSWER)  # fmt: skip
+        latest = [*self.chat.asked, *self.asked][-1]
+        self.reviewed = [ev for ev in latest["marks"] if ev in {**self.known, **self.ledger}]
+        return _for_model(found)
+
+    def _loop_step(self, start: float, label: str, status: str, tool: str) -> None:
+        """The step of a tool the loop runs itself: its tool_result event."""
+        ms = round((self.clock() - start) * 1000, 1)
+        self.steps.append(Step(n=len(self.steps) + 1, tool=tool, label=label,
+                               status="ok" if status == "ok" else "error", ms=ms))  # fmt: skip
+        self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": None})
 
     def _show_failed(self, call: Json, start: float, why: str) -> None:
         self._show_step(call, start, "Could not show that on the plan", "error",
@@ -617,10 +650,7 @@ class _Run:
         tool: str = SHOW_ON_PLAN,
     ) -> None:
         """The step of a tool the loop runs itself (show_on_plan, review_answer)."""
-        ms = round((self.clock() - start) * 1000, 1)
-        self.steps.append(Step(n=len(self.steps) + 1, tool=tool, label=label,
-                               status="ok" if status == "ok" else "error", ms=ms))  # fmt: skip
-        self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": None})
+        self._loop_step(start, label, status, tool)
         self._reply(call, reply)
 
     def _name(self, drawing_id: str, place: Json) -> str:
@@ -680,6 +710,8 @@ class _Run:
         # The sources are the places the text cites, in its order; evidence_ids only when the
         # text cites none (AC-5)
         cited = list(dict.fromkeys(re.findall(r"ev_\d+", answer.text) or answer.evidence_ids))
+        if not cited and answer.kind == "answer" and self.reviewed:
+            cited = self.reviewed[:MARKS]  # a review's answer is about the reviewed answer's places
         shown = self.shown[0] if self.shown else []
         # the places show_on_plan showed are sources too, numbered after the cited ones
         number = {ev: n for n, ev in enumerate(dict.fromkeys([*cited, *shown]), start=1)}
