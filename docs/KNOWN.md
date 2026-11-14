@@ -29,8 +29,10 @@ per entry; an entry goes when its fix is merged.
   search of an index already in step never waits (Sat 18:40)
 - K11 · limit · backend · Evidence text drops a street address's house number and postal code by regex
   (`without_addresses`, decision 0010), firms' too; not caught: a street with no street word in the list (Broadway,
-  Esplanadi 5), a number before a Nordic/German street, a postal code or ZIP on another line than its street, a ZIP
-  with no state before it (200 dataset PDFs: 52 of 52 changed lines were real addresses; #259) (Sat 19:20)
+  Esplanadi 5), a -platz/-weg street with no postal code after it (kept so Parkplatz 12, Fluchtweg 2 keep theirs),
+  a number before a Nordic/German street, a postal code or ZIP on another line than its street, a ZIP with no state
+  before it, an English street followed by a lowercase word (200 dataset PDFs: 52 of 52 changed lines were real
+  addresses; #259) (Sat 19:20)
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).
