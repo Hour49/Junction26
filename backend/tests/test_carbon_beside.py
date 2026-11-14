@@ -9,6 +9,7 @@ import io
 import json
 import threading
 import time
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,16 @@ PAGE_FORM = {
 }  # fmt: skip
 TILE_FORM = {"elements": [], "rooms_seen": [], "unreadable": []}
 BARS_FORM = {"printed_scale": None, "scale_bars": []}
+
+
+@pytest.fixture(autouse=True)
+def _cost_put_back() -> Iterator[None]:
+    """These reads charge this thread's running cost total, which nothing resets; put back after
+    each test, so a later test comparing a cost exactly (test_cost) is not off by a float
+    rounding (as in tests/test_evidence_pictures.py)."""
+    before = cost.spent()
+    yield
+    cost._local.usd = before  # pyright: ignore[reportPrivateUsage]
 
 
 def envelope(form: object) -> dict[str, Any]:
