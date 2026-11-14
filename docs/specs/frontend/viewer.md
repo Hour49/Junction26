@@ -120,8 +120,11 @@ Shapes are drawn in an SVG laid over the image with `viewBox="0 0 1 1"` and `pre
 stroke has `vector-effect="non-scaling-stroke"`, so it keeps its pixel width. A stretched SVG would distort text
 and circles, so badges are HTML elements placed in percent, as in API.md's recipe. Each badge sits at its mark's
 box centre and is a 24 × 24 CSS px `<button>` with a white background, ink text and a 2 px border in the mark's
-colour, so its contrast does not depend on the class colour. The colour is the `legend` entry whose `label` equals
-`mark.label`, else the accent colour. A colour that is not `#rrggbb` also gets the accent (`safeColour`).
+colour, so its contrast does not depend on the class colour. The colour of a mark follows the backend's
+`evidence.png` (`evidence_render.py`): when `legend` has exactly one entry, every mark takes that entry's colour
+(a room count's legend is one `room` entry while its marks carry the room labels); otherwise it is the entry
+whose `label` equals `mark.label`, else the accent colour. An excluded mark is always grey. A colour that is not
+`#rrggbb` also gets the accent (`safeColour`). (QA R1-3-2.)
 
 | `state` | Shape | Badge text | Words (legend, `aria-label`) |
 | --- | --- | --- | --- |
@@ -226,7 +229,9 @@ Marks
 - **VW-20** A conflict value with `box: null` (derived) draws no tag but is still listed in the legend.
   [component]
 - **VW-21** With `legend` from `answer_area.json`, the Küche polygon's stroke is `#d62728` and the Reduit
-  polygon's is `#1f77b4`. Without `legend`, both use the accent colour. [component, `answer_area.json`]
+  polygon's is `#1f77b4`. Without `legend`, both use the accent colour. With a one-entry legend
+  (derived: `[{label: "room", colour: "#1f77b4", …}]`), both polygons and both badge borders are `#1f77b4`
+  although no mark is labelled `room` (R1-3-2). [component, `answer_area.json`]
 - **VW-22** `safeColour` returns the input for `#d62728` and the accent for `red`, `#d6272`,
   `url(x)` and `#d62728;x`. [unit]
 - **VW-23** Badges have a white background, ink text and a border in the mark's colour, whatever the colour.

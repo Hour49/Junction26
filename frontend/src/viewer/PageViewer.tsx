@@ -97,7 +97,12 @@ export function PageViewer({
   }));
   const tags = readings.filter((r) => r.page === page.page && r.box && r.box.every(inPage));
   const colourOf = (m: MarkView) =>
-    m.state === 'excluded' ? GREY : safeColour(legend?.find((e) => e.label === m.label)?.colour);
+    m.state === 'excluded'
+      ? GREY
+      : // one entry (a room count's "room"): every mark takes it, as evidence_render.py does
+        safeColour(
+          (legend?.length === 1 ? legend[0] : legend?.find((e) => e.label === m.label))?.colour,
+        );
   const showValue = unit !== null && unit !== 'count';
   const states = STATE_ORDER.filter((s) => onPage.some((m) => m.state === s));
   const unlocatedLines = Object.entries(unlocated ?? {}).filter(([, k]) => k > 0);

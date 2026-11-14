@@ -22,6 +22,8 @@ export interface Opts {
 }
 export interface ZerosOpts extends Opts {
   zeros?: boolean;
+  /** The project the screen shows the drawing in (backend PR #74): the takeoff's names are its names. */
+  project?: string;
 }
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -87,8 +89,13 @@ export const getTrace = (projectId: string, fileId: string, opts?: Opts) =>
 export const getProjectReview = (projectId: string, opts?: Opts) =>
   call<ProjectReview>('GET', `/api/projects/${seg(projectId)}/review`, opts);
 
-export const getDrawing = (drawingId: string, opts?: Opts) =>
-  call<DrawingView>('GET', `/api/drawings/${seg(drawingId)}`, opts);
+/** `project`: the project the screen shows the drawing in, so `file` and `reader.source` are its names. */
+export const getDrawing = (drawingId: string, opts: Opts & { project?: string } = {}) =>
+  call<DrawingView>(
+    'GET',
+    withQuery(`/api/drawings/${seg(drawingId)}`, { project: opts.project }),
+    opts,
+  );
 
 /** extraction_v1, not typed in the OpenAPI document. */
 export const getModel = (drawingId: string, opts?: Opts) =>
@@ -100,20 +107,29 @@ export const askQuestion = (body: AskRequest, opts?: Opts) =>
 export const getTakeoff = (drawingId: string, opts: ZerosOpts = {}) =>
   call<Takeoff>(
     'GET',
-    withQuery(`/api/drawings/${seg(drawingId)}/takeoff`, { zeros: opts.zeros }),
+    withQuery(`/api/drawings/${seg(drawingId)}/takeoff`, {
+      zeros: opts.zeros,
+      project: opts.project,
+    }),
     opts,
   );
 
 export const postReview = (drawingId: string, edit: Edit, opts: ZerosOpts = {}) =>
   postJson<Takeoff>(
-    withQuery(`/api/drawings/${seg(drawingId)}/review`, { zeros: opts.zeros }),
+    withQuery(`/api/drawings/${seg(drawingId)}/review`, {
+      zeros: opts.zeros,
+      project: opts.project,
+    }),
     edit,
     opts,
   );
 
 export const postSignoff = (drawingId: string, body: SignOffRequest, opts: ZerosOpts = {}) =>
   postJson<Takeoff>(
-    withQuery(`/api/drawings/${seg(drawingId)}/signoff`, { zeros: opts.zeros }),
+    withQuery(`/api/drawings/${seg(drawingId)}/signoff`, {
+      zeros: opts.zeros,
+      project: opts.project,
+    }),
     body,
     opts,
   );
@@ -124,8 +140,14 @@ export const pageUrl = (drawingId: string, page: number, width: PageWidth = 1600
 export const previewUrl = (projectId: string, fileId: string, width: PageWidth = 1600) =>
   withQuery(`/api/projects/${seg(projectId)}/files/${seg(fileId)}/preview.png`, { width });
 
-export const takeoffCsvUrl = (drawingId: string, opts: { zeros?: boolean } = {}) =>
-  withQuery(`/api/drawings/${seg(drawingId)}/takeoff.csv`, { zeros: opts.zeros });
+export const takeoffCsvUrl = (
+  drawingId: string,
+  opts: { zeros?: boolean; project?: string } = {},
+) =>
+  withQuery(`/api/drawings/${seg(drawingId)}/takeoff.csv`, {
+    zeros: opts.zeros,
+    project: opts.project,
+  });
 
 export const evidenceUrl = (drawingId: string, question: string, width: PageWidth = 1600) =>
   withQuery(`/api/drawings/${seg(drawingId)}/evidence.png`, { question, width });

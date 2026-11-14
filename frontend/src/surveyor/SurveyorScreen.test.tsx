@@ -104,8 +104,8 @@ describe('loading and routing', () => {
     await waitFor(() => {
       expect(api.calls.map((c) => c.url)).toEqual(
         expect.arrayContaining([
-          `/api/drawings/${did}/takeoff`,
-          `/api/drawings/${did}`,
+          `/api/drawings/${did}/takeoff?project=${pid}`,
+          `/api/drawings/${did}?project=${pid}`,
           `/api/projects/${pid}/review`,
         ]),
       );
@@ -691,7 +691,9 @@ describe('zeros, export', () => {
     await ready();
     fireEvent.click(screen.getByLabelText('Show rows with value 0'));
     await waitFor(() => {
-      expect(api.calls.some((c) => c.url === `/api/drawings/${did}/takeoff?zeros=true`)).toBe(true);
+      expect(
+        api.calls.some((c) => c.url === `/api/drawings/${did}/takeoff?zeros=true&project=${pid}`),
+      ).toBe(true);
     });
     await waitFor(() => {
       expect(screen.getByRole('link', { name: 'Export CSV' }).getAttribute('href')).toContain(
@@ -714,7 +716,7 @@ describe('zeros, export', () => {
     show();
     await ready();
     const link = screen.getByRole('link', { name: 'Export CSV' });
-    expect(link.getAttribute('href')).toBe(`/api/drawings/${did}/takeoff.csv`);
+    expect(link.getAttribute('href')).toBe(`/api/drawings/${did}/takeoff.csv?project=${pid}`);
     expect(link.hasAttribute('download')).toBe(true);
   });
 });
@@ -758,7 +760,7 @@ describe('QA round 1', () => {
       expect(screen.getByRole('table', { name }).parentElement).toBe(panel);
     }
     const head = panel.querySelector('header.sv-panel-head');
-    expect(head?.textContent).toContain(`Takeoff: ${takeoff.file}`);
+    expect(head?.textContent).toContain(`Takeoff: ${drawing.file}`);
     expect(head?.textContent).toContain('0 of 3 quantities signed off');
     expect(head?.querySelector('a[download]')?.textContent).toBe('Export CSV');
     const css = readFileSync('src/surveyor/surveyor.css', 'utf8'); // vitest runs in frontend/;
@@ -766,5 +768,55 @@ describe('QA round 1', () => {
     expect(css).not.toMatch(/40vh/);
     expect(css).toMatch(/\.sv-panel-head\s*\{[^}]*position:\s*sticky/);
     expect(css).toMatch(/\.sv-work \.sv-panel\s*\{[^}]*overflow-y:\s*auto/);
+  });
+});
+
+describe('QA round 1, project scope', () => {
+  it('R1-PS-1 the drawing is read as this project uploaded it (?project=)', async () => {
+    const api = show();
+    await ready();
+    expect(
+      api.calls.filter((c) => c.url.startsWith(`/api/drawings/${did}?`)).map((c) => c.url),
+    ).toEqual([`/api/drawings/${did}?project=${pid}`]);
+  });
+
+  it("R1-PS-2 the title and the viewer use the project's name of the drawing, not the takeoff's", async () => {
+    show('', { [PATH.drawing]: { ...drawing, file: 'plans/kitchen-b.pdf' } });
+    await ready();
+    expect(screen.getByRole('heading', { name: 'Takeoff: plans/kitchen-b.pdf' })).toBeTruthy();
+    expect(screen.queryByText(`Takeoff: ${takeoff.file}`)).toBeNull();
+    expect(viewer.props?.file).toBe('plans/kitchen-b.pdf');
+  });
+  it('R1-PS-3 takeoff, review, sign-off and the CSV link carry project=<pid>', async () => {
+    localStorage.setItem('countersign.surveyorName', 'Ana');
+    const api = show('q=door', { [PATH.edit]: takeoff, [PATH.sign]: takeoff });
+    await ready();
+    fireEvent.click(nth(within(detail()).getAllByRole('button', { name: 'Reject' }), 0));
+    await waitFor(() => {
+      expect(posted(api, PATH.edit)).toHaveLength(1);
+    });
+    fireEvent.click(within(detail()).getByRole('button', { name: 'Sign off 2' }));
+    await waitFor(() => {
+      expect(posted(api, PATH.sign)).toHaveLength(1);
+    });
+    fireEvent.click(screen.getByLabelText('Show rows with value 0'));
+    await waitFor(() => {
+      expect(api.calls.filter((c) => c.url.includes('/takeoff?'))).toHaveLength(2);
+    });
+    const scoped = api.calls.filter(
+      (c) => /\/(takeoff|review|signoff)(\?|$)/.test(c.url) && c.url.includes(`/drawings/${did}/`),
+    );
+    expect(scoped.map((c) => `${c.method} ${c.url.split('?')[0] ?? ''}`)).toEqual([
+      `GET /api/drawings/${did}/takeoff`,
+      `POST /api/drawings/${did}/review`,
+      `POST /api/drawings/${did}/signoff`,
+      `GET /api/drawings/${did}/takeoff`,
+    ]);
+    for (const c of scoped)
+      expect(new URLSearchParams(c.url.split('?')[1]).get('project')).toBe(pid);
+    const csv = screen.getByRole('link', { name: 'Export CSV' }).getAttribute('href') ?? '';
+    expect(csv.split('?')[0]).toBe(`/api/drawings/${did}/takeoff.csv`);
+    expect(new URLSearchParams(csv.split('?')[1]).get('project')).toBe(pid);
+    expect(new URLSearchParams(csv.split('?')[1]).get('zeros')).toBe('true');
   });
 });

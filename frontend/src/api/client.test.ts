@@ -222,4 +222,53 @@ describe('API client', () => {
     expect(signals).toHaveLength(13);
     expect(signals.every((s) => s === signal)).toBe(true);
   });
+
+  it('R1-PS-1 (SH-44) getDrawing passes the project when given', async () => {
+    const api = mockApi({ [`GET /api/drawings/${did}`]: fx.drawing });
+    expect(await getDrawing(did, { project: pid })).toEqual(fx.drawing);
+    expect(await getDrawing(did)).toEqual(fx.drawing);
+    expect(api.calls.map((c) => c.url)).toEqual([
+      `/api/drawings/${did}?project=${pid}`,
+      `/api/drawings/${did}`,
+    ]);
+  });
+
+  it('R1-PS-2 (SH-45) askQuestion sends project_id as given, and none when absent', async () => {
+    const api = mockApi({ 'POST /api/ask': fx.answer });
+    await askQuestion({ ...fx.askRequest, project_id: pid });
+    await askQuestion(fx.askRequest);
+    expect(api.calls.map((c) => c.body)).toEqual([
+      { ...fx.askRequest, project_id: pid },
+      fx.askRequest,
+    ]);
+    expect(api.calls[1]?.body).not.toHaveProperty('project_id');
+  });
+
+  it('R1-PS-3 (SH-46) the takeoff calls pass the project when given, after zeros', async () => {
+    const api = mockApi({
+      [`GET /api/drawings/${tid}/takeoff`]: fx.takeoff,
+      [reviewPath]: fx.takeoff,
+      [signoffPath]: fx.takeoff,
+    });
+    const edit = fx.reviewRequests[0];
+    if (!edit) throw new Error('review_requests.json is empty');
+    await getTakeoff(tid, { project: pid });
+    await getTakeoff(tid, { zeros: true, project: pid });
+    await postReview(tid, edit, { project: pid });
+    await postSignoff(tid, fx.signoffRequest, { zeros: false, project: pid });
+    await getTakeoff(tid);
+    expect(api.calls.map((c) => c.url.split('?')[1] ?? '')).toEqual([
+      `project=${pid}`,
+      `zeros=true&project=${pid}`,
+      `project=${pid}`,
+      `zeros=false&project=${pid}`,
+      '',
+    ]);
+    expect(takeoffCsvUrl(tid, { project: pid })).toBe(
+      `/api/drawings/${tid}/takeoff.csv?project=${pid}`,
+    );
+    expect(takeoffCsvUrl(tid, { zeros: true, project: pid })).toBe(
+      `/api/drawings/${tid}/takeoff.csv?zeros=true&project=${pid}`,
+    );
+  });
 });

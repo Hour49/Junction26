@@ -49,9 +49,12 @@ Uses, does not own: the API client (`frontend/src/api/`, shared.md), the shell, 
 
 ## API calls
 
-### `GET /api/drawings/{drawing_id}` (API.md "Drawings")
+### `GET /api/drawings/{drawing_id}?project=<project_id>` (API.md "Drawings")
 
-Called once when the route opens (and again when `drawing_id` in the route changes). Fixture: `drawing.json`.
+Called once when the route opens (and again when `drawing_id` in the route changes), always with `project` = the
+route's project id (client: `getDrawing(drawingId, {project: projectId})`). A drawing is shared by content across
+projects; with `project` its `file` and `reader.source` are the names this project uploaded. A project that does not
+hold the drawing answers 404 (the Drawing error state). Fixture: `drawing.json`.
 
 | Field | Drives |
 | --- | --- |
@@ -64,7 +67,9 @@ Called once when the route opens (and again when `drawing_id` in the route chang
 
 ### `POST /api/ask` (API.md "Answering")
 
-Body `{"drawing_id": <route drawing id>, "question": <trimmed input>}` (shape: `ask_request.json`). Called on Ask,
+Body `{"drawing_id": <route drawing id>, "question": <trimmed input>, "project_id": <route project id>}` (shape:
+`ask_request.json`; `project_id` is optional in the API and always sent here, so the answer's `file` and
+`reader.source` are this project's names). Called on Ask,
 Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (count), `answer_area.json` (sum of rooms),
 `answer_confidence.json` (count with a model score), `answer_model.json` (building model, no page),
 `answer_refused.json` (refusal).
@@ -246,6 +251,8 @@ Thread and pages
 - EN-46 The question input has the accessible name "Question" (a `<label>`) and the submit button the name "Ask". [component, `drawing.json`]
 - EN-47 Each thread turn is an `<article>` whose `aria-label` is its question: after asking "How many doors are there?" there is `getByRole("article", {name: "How many doors are there?"})`, and it holds that turn's pending line, answer, refusal or error. [component, `answer.json`, `answer_refused.json`]
 - EN-48 The big value of an answer has `data-testid="answer-value"` with the formatted value as its text ("2" for `answer.json`, "52.27 m²" for `answer_area.json`); a refusal or an error turn has no element with that test id. [component, `answer.json`, `answer_area.json`, `answer_refused.json`]
+- EN-49 The drawing is requested with the route's project: `GET /api/drawings/adeefbbcc17559fc?project=5e0c1a2b3d4f`. [component, `drawing.json`]
+- EN-50 Every ask body carries `project_id`: a suggestion click, a typed question, a `can_answer` click and "Try again" each send `{"drawing_id", "question", "project_id": "5e0c1a2b3d4f"}`. [component, `answer.json`, `answer_refused.json`]
 
 [e2e] criteria are built by the e2e worker (golden-path.md); this spec's build worker writes no file in `frontend/e2e/`.
 

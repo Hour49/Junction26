@@ -126,7 +126,7 @@ fails, `<Credit>` gets null. No credit line under the upload preview.
 normalisation", with alt texts "<path> as uploaded" and "<path> after normalisation", and under them the list
 `normalisedSteps(normalised)`: "EXIF orientation <exif> applied" when `exif` is set and not 1, "turned <rotated>°"
 when `rotated` is not 0, "deskewed <deskew_deg>°" when `deskew_deg` is not 0, "perspective corrected" when
-`rectified` (plus " (<rectifier>)" when `rectifier` is set); when none applies, the one line "Nothing to correct: the upload was already upright". Then
+`rectified` (plus " (<rectifier>)" when `rectifier` is set); when none applies, the one line "No turn, deskew or perspective correction applied (rotation is not checked)". Then
 "<width> × <height> px". The page image's aspect ratio comes from the loaded image, never stretched.
 
 ## States
@@ -292,7 +292,7 @@ File trace
   number of `file.takeoff` keys, and opening it lists each key and value. [component, `trace.json`]
 - IN-40: `trace.json` (`normalised: null`) shows no before/after; `trace-image` shows two images with `src`
   `/api/projects/<id>/files/<fid>/preview.png?width=1600` and `/api/drawings/<drawing_id>/pages/1.png?width=1600`,
-  captions "As uploaded" and "After normalisation", and "Nothing to correct: the upload was already upright" and
+  captions "As uploaded" and "After normalisation", and "No turn, deskew or perspective correction applied (rotation is not checked)" and
   "1200 × 800 px". [component]
 - IN-41: `normalisedSteps` of `trace-rotated` gives "EXIF orientation 6 applied", "turned 90°", "deskewed 1.5°";
   with `rectified: true` it adds "perspective corrected". [unit]

@@ -106,12 +106,12 @@ as below or rejects with `ApiError`. Path ids go through `encodeURIComponent`; q
 | `getProject(projectId, opts?)` | `GET /api/projects/{project_id}` | `ProjectView` |
 | `getTrace(projectId, fileId, opts?)` | `GET /api/projects/{project_id}/files/{file_id}/trace` | `FileTrace` |
 | `getProjectReview(projectId, opts?)` | `GET /api/projects/{project_id}/review` | `ProjectReview` |
-| `getDrawing(drawingId, opts?)` | `GET /api/drawings/{drawing_id}` | `DrawingView` |
+| `getDrawing(drawingId, opts?: {project?: string, signal?})` | `GET /api/drawings/{drawing_id}[?project=<project_id>]` (a screen inside a project passes it, so `file` and `reader.source` are that project's names; API.md "GET /api/drawings/{drawing_id}?project=") | `DrawingView` |
 | `getModel(drawingId, opts?)` | `GET /api/drawings/{drawing_id}/model` | `Record<string, unknown>` (extraction_v1; not typed in OpenAPI) |
-| `askQuestion(body: AskRequest, opts?)` | `POST /api/ask`, JSON body | `AnswerView` |
-| `getTakeoff(drawingId, opts?: {zeros?, signal?})` | `GET /api/drawings/{drawing_id}/takeoff[?zeros=]` | `Takeoff` |
-| `postReview(drawingId, edit: Edit, opts?: {zeros?, signal?})` | `POST /api/drawings/{drawing_id}/review[?zeros=]`, JSON body | `Takeoff` |
-| `postSignoff(drawingId, body: SignOffRequest, opts?: {zeros?, signal?})` | `POST /api/drawings/{drawing_id}/signoff[?zeros=]`, JSON body | `Takeoff` |
+| `askQuestion(body: AskRequest, opts?)` | `POST /api/ask`, JSON body sent as given (`project_id` optional in `AskRequest`; the caller sets it from the route) | `AnswerView` |
+| `getTakeoff(drawingId, opts?: {zeros?, project?, signal?})` | `GET /api/drawings/{drawing_id}/takeoff[?zeros=][&project=]` | `Takeoff` |
+| `postReview(drawingId, edit: Edit, opts?: {zeros?, project?, signal?})` | `POST /api/drawings/{drawing_id}/review[?zeros=][&project=]`, JSON body | `Takeoff` |
+| `postSignoff(drawingId, body: SignOffRequest, opts?: {zeros?, project?, signal?})` | `POST /api/drawings/{drawing_id}/signoff[?zeros=][&project=]`, JSON body | `Takeoff` |
 
 URL builders (no request; for `<img src>` and `<a href download>`):
 
@@ -119,7 +119,7 @@ URL builders (no request; for `<img src>` and `<a href download>`):
 | --- | --- |
 | `pageUrl(drawingId, page: number, width: PageWidth = 1600)` | `/api/drawings/{drawing_id}/pages/{page}.png?width={width}` |
 | `previewUrl(projectId, fileId, width: PageWidth = 1600)` | `/api/projects/{project_id}/files/{file_id}/preview.png?width={width}` |
-| `takeoffCsvUrl(drawingId, opts?: {zeros?})` | `/api/drawings/{drawing_id}/takeoff.csv[?zeros=]` |
+| `takeoffCsvUrl(drawingId, opts?: {zeros?, project?})` | `/api/drawings/{drawing_id}/takeoff.csv[?zeros=][&project=]` |
 | `evidenceUrl(drawingId, question: string, width: PageWidth = 1600)` | `/api/drawings/{drawing_id}/evidence.png?question={question}&width={width}` (API.md "GET …/evidence.png"; `question` encoded by `encodeURIComponent`) |
 
 `PageWidth = 400 | 1600 | 3200` (API.md: thumbnail, view, zoom), so another width does not type-check. The width is
@@ -348,6 +348,16 @@ Formatting
 - SH-43 `formatValue` gives the four examples of "Formatting", `1.5, "ft2"` → `1.50 ft²` and `3, null` → `3`; `formatTime` gives
   `2026-11-14 08:00 UTC` for `project_list.json`'s `created_at` with the process time zone set to
   `Europe/Helsinki`. [unit]
+
+Project scope (QA R1 batch 2: a drawing is shared by content across projects)
+
+- SH-44 `getDrawing(id, {project: "5e0c1a2b3d4f"})` sends `GET /api/drawings/<id>?project=5e0c1a2b3d4f`;
+  `getDrawing(id)` sends no query; both resolve with `drawing.json`. [unit, R1-PS-1]
+- SH-45 `askQuestion({...askRequest, project_id: "5e0c1a2b3d4f"})` sends that body unchanged (with `project_id`);
+  without `project_id` the body has none. [unit, R1-PS-2]
+- SH-46 `getTakeoff`, `postReview`, `postSignoff` and `takeoffCsvUrl` with `{project: "5e0c1a2b3d4f"}` add
+  `project=5e0c1a2b3d4f` to the query (after `zeros` when both are given); without `project` there is none
+  (backend PR #74, R1-4-4: the takeoff's `file` names are that project's). [unit, R1-PS-3]
 
 ## Out of scope
 
