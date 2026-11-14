@@ -52,6 +52,10 @@ RULES: dict[str, str] = {
     found.id: found.text for found in vars(rule_pack).values() if isinstance(found, CountingRule)
 }
 SUGGESTIONS = 6
+# Parser reasons (question_templates.py) for a supported kind of question about a subject it
+# didn't recognise, or one without that quantity ("no area is taken off for door")
+NO_SUBJECT = "no element, room or apartment named"
+NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)")
 # Plurals plain English rules don't give (a kind's id is not always the word a person uses)
 PLURALS = {"sauna_stove": "sauna stoves", "living": "living rooms"}
 SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
@@ -265,6 +269,24 @@ def _phrasings(key: str) -> Iterable[str]:
         yield "What is the total area of all rooms?"
 
 
+def _unknown_subject(reason: str) -> str | None:
+    """The words for a question of a kind the takeoff answers (a count, area, length or volume)
+    whose room or element wasn't recognised, or that has no such quantity (R3-qa-1-1): saying the
+    kind is unsupported would be false."""
+    if reason == NO_SUBJECT:
+        return (
+            "I can see what this asks to measure, but not which room or element it is about. "
+            "Name a room type (kitchen, sauna...), a room label printed on the drawing, a room "
+            "number, or an element (doors, windows...). Try one of these instead."
+        )
+    if found := NO_QUANTITY.fullmatch(reason):
+        measure, subject = found.groups()
+        kind = subject.split(":", 1)[-1].replace("_", " ")
+        things = PLURALS.get(kind, kind if kind.endswith("s") else f"{kind}s")
+        return f"The takeoff has no {measure} for {things}. Try one of these instead."
+    return None
+
+
 def _refusal(
     method: str,
     parsed: Query | TableQuery | Unsupported,
@@ -280,6 +302,8 @@ def _refusal(
             return "not-in-drawing", "No schedule on this sheet answers this question."
         if isinstance(parsed, Unsupported) and parsed.reason in PARTS:
             return "unsupported-question", PARTS[parsed.reason]
+        if isinstance(parsed, Unsupported) and (words := _unknown_subject(parsed.reason)):
+            return "unsupported-question", words
         return "unsupported-question", TEXTS["unsupported-question"]
     if drawing.read == () and not drawing.model_objects:
         return "no-reader", TEXTS["no-reader"]

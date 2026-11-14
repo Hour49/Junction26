@@ -11,6 +11,7 @@ from app.core.drawing.model import (
     MeasuredValue,
     Page,
     Room,
+    RoomType,
     Scale,
     Table,
     TableRow,
@@ -347,3 +348,59 @@ def test_settling_or_signing_a_one_storey_sheet_s_row_decides_its_storey_twin_to
     # an edit or sign-off sent for the storey's row is made on the sheet's row
     assert sheet_row(found, "window|storey=p1").key == "window"
     assert sheet_row(found, "wall|storey=p1").key == "wall|storey=p1"
+
+
+def test_the_area_of_every_room_type_is_that_room_s_area() -> None:
+    """R3-qa-1-1: "What is the area of the sauna?" was refused as "isn't a count, area, length or
+    volume" although the drawing has one sauna room with an area; so were the WC and the hall."""
+    cases: tuple[tuple[RoomType, str, tuple[str, ...]], ...] = (
+        ("sauna", "S", ("What is the area of the sauna?", "How big is the sauna room?")),
+        ("wc", "WC", ("What is the area of the WC?", "How big is the toilet?")),
+        ("hall", "ET", ("What is the area of the hall?", "How big is the hallway?")),
+        ("outdoor", "TERASSI", ("What is the area of the terrace?",)),
+    )
+    for kind, printed, questions in cases:
+        room = Room(id="r1", type=kind, label=printed, page=1, box=BOX_A, area_m2=5.55)
+        bath = Room(id="r2", type="bathroom", label="KPH", page=1, box=BOX_B, area_m2=4.0)
+        for text in questions:
+            found = asked(text, scaled(room, bath))
+            assert found.refusal is None, (text, found.refusal)
+            assert (found.answer.answer, found.answer.unit) == (5.55, "m2"), text
+
+
+def test_a_two_letter_printed_label_names_its_room_only_as_printed() -> None:
+    """R3-qa-1-1: "What is the area of the MH?" was refused (printed names needed 3 letters). A
+    2-letter name matches only in the drawing's own capitals, never a word ("of", "is")."""
+    mh = Room(id="r1", type="bedroom", label="MH", page=1, box=BOX_A, area_m2=11.5)
+    oh = Room(id="r2", type="living", label="OH", page=1, box=BOX_B, area_m2=20.0)
+    found = asked("What is the area of the MH?", scaled(mh, oh))
+    assert found.refusal is None and found.answer.answer == 11.5
+    assert asked("What is the area of the mh?", scaled(mh, oh)).answer.answer is None
+    is_room = Room(id="r3", type="other", label="IS", page=1, box=BOX_A, area_m2=3.0)
+    assert asked("What is the area of the MH?", scaled(is_room, oh)).answer.answer is None
+
+
+def test_a_refusal_says_the_room_was_not_recognised_not_that_areas_are_unsupported() -> None:
+    """R3-qa-1-1: a supported kind of question whose room or element wasn't recognised said
+    "isn't one I can turn into a count, area, length or volume"."""
+    bath = Room(id="r2", type="bathroom", label="KPH", page=1, box=BOX_B, area_m2=4.0)
+    for text in ("What is the area of the gazebo?", "What is the area of the doors?"):
+        refusal = asked(text, scaled(bath)).refusal
+        assert refusal is not None and refusal.code == "unsupported-question"
+        assert "isn't one I can turn" not in refusal.text, text
+    gazebo = asked("What is the area of the gazebo?", scaled(bath)).refusal
+    assert gazebo is not None and "which room or element" in gazebo.text
+    doors = asked("What is the area of the doors?", scaled(bath)).refusal
+    assert doors is not None and "no area for doors" in doors.text
+
+
+def test_the_area_of_the_one_room_of_a_type_without_a_printed_name_is_answered() -> None:
+    """R3-qa-1-1 on colorful-444: the one sauna room was read from its furniture (no label, no
+    number), so no room name keyed its area, and "the area of the sauna" was not-in-drawing."""
+    sauna = Room(id="r16", type="sauna", page=1, box=BOX_A, area_m2=5.55)
+    bath = Room(id="r2", type="bathroom", label="KPH", page=1, box=BOX_B, area_m2=4.0)
+    for text in ("What is the area of the sauna?", "How big is the sauna room?"):
+        found = asked(text, scaled(sauna, bath))
+        assert found.refusal is None, (text, found.refusal)
+        assert (found.answer.answer, found.answer.unit) == (5.55, "m2")
+        assert len(found.marks) == 1

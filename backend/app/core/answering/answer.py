@@ -26,7 +26,7 @@ from app.core.answering.ports import (
 from app.core.answering.tables import answer_table
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.pipeline.model import Quantity
-from app.core.pipeline.takeoff import known_quantities, room_names
+from app.core.pipeline.takeoff import known_quantities, normalised, room_names
 
 logger = logging.getLogger(__name__)
 
@@ -201,13 +201,15 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
 class RoomByType:
     """The parser, with the area of a room asked by its type ("the area of the kitchen") turned
     into that room's own area (the key "room 2.01" answers under) when the drawing has exactly one
-    room of the type and the takeoff has its area: one row, with its conflict and review. Any
-    other question, or a type several rooms (or none) have, stays as parsed.
+    room of the type and the takeoff has its area: one row, with its conflict and review (a room
+    with no name, read from its furniture, by the largest of its type: itself). Any other
+    question, or a type several rooms (or none) have, stays as parsed.
 
     The same for a room asked by a printed label or name the parser has no word for ("the area
     of the Reduit"), when the parser refuses the question as typed: when one room on the drawing
-    carries that name (3 letters or more, no digits), the question is read with it as the room's
-    name, and answers when that is an area (R2-2-3)."""
+    carries that name (3 letters or more, no digits; a 2-letter one only in the capitals it is
+    printed in, "the MH"), the question is read with it as the room's name, and answers when that
+    is an area (R2-2-3, R3-qa-1-1)."""
 
     def __init__(
         self, parser: QuestionParser, drawing: Drawing, quantities: Mapping[str, Quantity]
@@ -222,7 +224,13 @@ class RoomByType:
             return self._printed(text) or parsed
         if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
             return parsed
-        return self._area_of(rooms[0], parsed) or parsed
+        return self._area_of(rooms[0], parsed) or self._only_one(parsed) or parsed
+
+    def _only_one(self, parsed: Query) -> Query | None:
+        """The one room of the type has no name to key its area by (read from its furniture):
+        the largest room of that type is that room."""
+        query = parsed.model_copy(update={"largest": True})
+        return query if query.key() in self._quantities else None
 
     def _area_of(self, room: Room, parsed: Query) -> Query | None:
         """The area query of `room` by the first of its names the takeoff has a row for."""
@@ -241,10 +249,19 @@ class RoomByType:
         found: dict[str, list[Room]] = {}
         at: dict[str, re.Match[str]] = {}
         for room in self._drawing.rooms:
-            for name in room_names(room):
-                if len(name) < 3 or any(char.isdigit() for char in name):
+            names = [(name, name, re.IGNORECASE) for name in room_names(room) if len(name) > 2]
+            # a 2-letter label (MH, OH) only as printed, in capitals: never a word ("of", "is")
+            if (
+                room.label
+                and len(room.label) == 2
+                and room.label.isalpha()
+                and room.label.isupper()
+            ):
+                names.append((normalised(room.label), room.label, re.NOFLAG))
+            for name, printed, flags in names:
+                if any(char.isdigit() for char in name):
                     continue
-                match = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.IGNORECASE)
+                match = re.search(rf"(?<!\w){re.escape(printed)}(?!\w)", text, flags)
                 if match is not None:
                     found.setdefault(name, []).append(room)
                     at[name] = match
