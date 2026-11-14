@@ -782,7 +782,8 @@ def test_carbon_reader_large_sends_only_images_over_4000_px_to_carbon(
     assert use("big.png") and not use("cubicasa.png")
     assert uses_keys(settings)
     names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
-    assert names["carbon_reader"] == f"large+few3:{c.READER_SHA[:12]}"  # 5.9's clause re-reads
+    # 5.9's clause and #310's door snap read stored files again
+    assert names["carbon_reader"] == f"large+few3+snap:{c.READER_SHA[:12]}"
 
 
 class Doors:
@@ -1050,3 +1051,51 @@ def test_a_carbon_door_takes_the_box_of_the_shipped_door_inside_it_and_counts_st
     assert found["c3"].box == carbon[2].box and found["c4"].box == carbon[3].box
     assert all(e.attrs["reader"] == c.SOURCE for e in found.values())  # still Carbon-read
     assert [k for k, e in found.items() if e.attrs.get("box_from") == "detector"] == ["c1", "c2"]
+
+
+# --- review-310 (codecheck) probes P1-P4 on the door snap ---
+
+
+def _el(id_: str, kind: str, box: tuple[float, float, float, float], page: int = 1) -> Any:
+    from app.core.drawing.model import Element
+
+    return Element(id=id_, class_=kind, page=page, box=box, attrs={"reader": "carbon:x"})  # pyright: ignore[reportArgumentType]
+
+
+def _snapped(carbon: list[Any], shipped: list[Any]) -> dict[str, tuple[Any, Any]]:
+    from app.adapters.carbon import _snapped_doors  # pyright: ignore[reportPrivateUsage]
+
+    return {e.id: (e.box, e.attrs.get("box_from")) for e in _snapped_doors(carbon, shipped)}
+
+
+def test_p1_every_door_snaps_when_a_full_matching_exists_whatever_the_reply_order() -> None:
+    """S1: c1's arc box holds both openings and overlaps d2 more; c2's holds only d2. A greedy
+    match in reply order gives d2 to c1 and leaves c2 on its arc box; c1 -> d1, c2 -> d2 snaps
+    both."""
+    d1 = _el("d1", "door", (0.10, 0.10, 0.12, 0.12))
+    d2 = _el("d2", "door", (0.14, 0.10, 0.20, 0.13))
+    c1 = _el("c1", "door", (0.10, 0.10, 0.20, 0.20))
+    c2 = _el("c2", "door", (0.15, 0.10, 0.25, 0.20))
+    for order in ([c1, c2], [c2, c1]):
+        got = _snapped(order, [d1, d2])
+        assert got == {"c1": (d1.box, "detector"), "c2": (d2.box, "detector")}
+
+
+def test_p2_the_best_overlap_wins_not_the_first_listed() -> None:
+    far = _el("d1", "door", (0.10, 0.18, 0.12, 0.20))  # centre inside, small overlap
+    near = _el("d2", "door", (0.10, 0.10, 0.20, 0.12))  # centre inside, the opening
+    assert _snapped([_el("c1", "door", (0.10, 0.10, 0.20, 0.20))], [far, near])["c1"][0] == near.box
+
+
+def test_p3_a_window_with_a_detector_door_inside_keeps_its_box() -> None:
+    window = _el("c4", "window", (0.40, 0.40, 0.50, 0.45))
+    got = _snapped([window], [_el("d9", "door", (0.44, 0.41, 0.46, 0.43))])
+    assert got["c4"] == (window.box, None)
+
+
+def test_p4_a_door_never_takes_a_shipped_window_or_sink_box_or_another_pages() -> None:
+    door = _el("c1", "door", (0.10, 0.10, 0.20, 0.20))
+    shipped = [_el("w1", "window", (0.12, 0.12, 0.18, 0.13)),
+               _el("s1", "sink", (0.14, 0.14, 0.16, 0.16)),
+               _el("d2", "door", (0.12, 0.12, 0.18, 0.13), page=2)]  # fmt: skip
+    assert _snapped([door], shipped)["c1"] == (door.box, None)

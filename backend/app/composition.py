@@ -707,7 +707,7 @@ def build_ingest(
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         rule = (
-            f"large+few{FEW_THINGS}"
+            f"large+few{FEW_THINGS}+snap"  # +snap: door boxes on the detector's (#310)
             if settings.carbon_reader == "large"
             else settings.carbon_reader
         )
