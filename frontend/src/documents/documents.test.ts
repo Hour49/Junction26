@@ -149,7 +149,10 @@ describe('documents.ts', () => {
       shortReason({ state: 'ready', reason: 'read on the drawn PDF route: 7 elements' }),
     ).toBeNull();
     expect(
-      shortReason({ state: 'flagged', reason: 'no reader for the image route yet' }),
+      shortReason({
+        state: 'flagged',
+        reason: 'not read: this setup has no reader for the image route',
+      }),
     ).toBeNull();
     expect(
       shortReason({ state: 'text_only', reason: 'a text document, not a drawing (page 1)' }),

@@ -36,7 +36,15 @@ from shapely.geometry.base import BaseGeometry
 
 from app.adapters.vector_pdf import frame
 from app.adapters.vector_pdf.frame import Reading
-from app.adapters.vector_pdf.objects import FILL_NONE, Bounds, PdfPage, Point, Rgb, bounds_of
+from app.adapters.vector_pdf.objects import (
+    FILL_NONE,
+    Bounds,
+    PdfPage,
+    PdfPath,
+    Point,
+    Rgb,
+    bounds_of,
+)
 from app.core.drawing.model import (
     Attr,
     Box,
@@ -113,9 +121,12 @@ class _Drawn:
 
 
 def matches(page: PdfPage) -> bool:
-    return any(
-        path.fill_mode != FILL_NONE and path.fill in (SPACE_FILL, SOLID_FILL) for path in page.paths
-    )
+    return any(matches_path(path) for path in page.paths)
+
+
+def matches_path(path: PdfPath) -> bool:
+    """Whether a path is drawn in this style: a filled space or solid (its style alone)."""
+    return path.fill_mode != FILL_NONE and path.fill in (SPACE_FILL, SOLID_FILL)
 
 
 def read(page: PdfPage, m_per_pt: float | None) -> Reading:
