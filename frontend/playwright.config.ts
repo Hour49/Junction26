@@ -2,11 +2,14 @@ import { defineConfig } from '@playwright/test';
 
 // E2E_API_URL: a backend already running (real services, by hand); else the no-keys one started below.
 const backend = process.env.E2E_API_URL ?? `http://127.0.0.1:${process.env.E2E_API_PORT ?? '8010'}`;
-const preview = 'http://127.0.0.1:4173'; // vite.config.ts preview.port; 127.0.0.1, not localhost (::1 first)
+// E2E_WEB_PORT / E2E_API_PORT: other ports, so two e2e runs on one machine don't collide (default as
+// vite.config.ts preview.port). 127.0.0.1, not localhost (::1 first).
+const webPort = process.env.E2E_WEB_PORT ?? '4173';
+const preview = `http://127.0.0.1:${webPort}`;
 
 const servers = [
   {
-    command: 'npx vite preview --host 127.0.0.1',
+    command: `npx vite preview --host 127.0.0.1 --port ${webPort} --strictPort`,
     url: preview,
     env: { BACKEND_URL: backend },
     reuseExistingServer: false,

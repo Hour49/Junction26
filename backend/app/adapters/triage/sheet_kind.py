@@ -44,6 +44,7 @@ from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, reply_text
 from app.adapters.triage.gemini_describer import encode
 from app.adapters.whole_file import write_whole
 from app.core import cost
+from app.core.discipline import discipline_from_sheet
 from app.core.errors import InvalidInputError
 from app.core.ingest.model import (
     Classified,
@@ -416,6 +417,7 @@ def sheet_of(found: SheetReply, image: bytes, cut: float, set_aside: bool = True
         advanced_why=why,
         seen=form["seen"],
         model=found.model,
+        discipline=discipline_from_sheet(form["sheet_kind"], form["title"], form["sheet_number"]),
     )
 
 

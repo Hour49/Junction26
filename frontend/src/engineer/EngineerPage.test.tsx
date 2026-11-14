@@ -794,10 +794,13 @@ describe('drawing header states', () => {
     open({ [DRAWING_ROUTE]: drawingHello });
     await screen.findByText('No ready questions for this drawing.');
     const page = document.body.textContent;
-    expect(page).toContain('not read (no reader for this route yet)');
+    expect(page).toContain('not read (this setup has no reader for this kind of sheet)');
+    expect(page).not.toContain('yet');
     expect(page).not.toContain('by hello');
     expect(
-      screen.getByText('Its route has no reader yet, so questions will be refused.'),
+      screen.getByText(
+        "This setup has no reader for this kind of sheet, so nothing on it was counted or measured. You can still ask about the project's other drawings.",
+      ),
     ).toBeTruthy();
   });
 

@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from app.core.drawing.model import Drawing, Page
+from app.core.picture_facts import PictureReading
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
 from app.core.pipeline.printed import PrintedSheet
 
@@ -58,6 +59,14 @@ class PrintedReader(Protocol):
     bars' labelled ends, the printed facts (app/core/pipeline/printed.py)."""
 
     def read(self, source: DrawingFile, sheet: Sheet) -> PrintedSheet: ...
+
+
+class PictureReader(Protocol):
+    """One reader of a services or structural plan that is a picture (app/core/picture_facts.py):
+    the legend, the symbols it saw and the runs it measured on page 1. It raises nothing on a
+    model failure: it says what it looked for (`read`, `()` for nothing) and why in `notes`."""
+
+    def read(self, source: DrawingFile, sheet: Sheet) -> PictureReading: ...
 
 
 class DrawingSink(Protocol):

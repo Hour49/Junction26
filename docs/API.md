@@ -1554,7 +1554,7 @@ The same file once read:
   "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
   "kind": "png_plan",
   "state": "flagged",
-  "reason": "no reader for the image route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
+  "reason": "not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet)",
   "group": "elevations/south",
   "route": "raster",
   "source": "elevations/south.png",
@@ -2524,7 +2524,7 @@ upload lists the files, instead of one request per file.
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
         "kind": "png_plan",
         "state": "flagged",
-        "reason": "no reader for the image route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
+        "reason": "not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet)",
         "group": "scans/ground-floor",
         "route": "raster",
         "source": "scans/ground-floor.png",
@@ -2638,7 +2638,7 @@ upload lists the files, instead of one request per file.
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
         "kind": "png_plan",
         "state": "flagged",
-        "reason": "no reader for the image route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
+        "reason": "not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet)",
         "group": "scans/ground-floor-copy",
         "route": "raster",
         "source": "scans/ground-floor-copy.png",
@@ -2760,7 +2760,7 @@ upload lists the files, instead of one request per file.
         "sha256": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
         "kind": "photo_plan",
         "state": "flagged",
-        "reason": "no reader for the image route yet: nothing was read; a phone photo, read without perspective correction (0 elements, 0 rooms, no scale on the sheet)",
+        "reason": "not read: this setup has no reader for the image route; a phone photo, read without perspective correction (0 elements, 0 rooms, no scale on the sheet)",
         "group": "photos/plan-photo",
         "route": "raster",
         "source": "photos/plan-photo.jpg",
@@ -4356,10 +4356,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "No reader for the image route yet: nothing was read.",
+      "why": "Not read: this setup has no reader for the image route.",
       "quantity": null,
       "question": null,
-      "reason": "no reader for the image route yet: nothing was read",
+      "reason": "not read: this setup has no reader for the image route",
       "check": null,
       "links": {
         "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
@@ -4388,7 +4388,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "No answer to \"How many doors are there?\": the drawing has no reader for it.",
+      "why": "No answer to \"How many doors are there?\": the drawing gives no reliable number for it.",
       "quantity": null,
       "question": "How many doors are there?",
       "reason": null,
@@ -4420,10 +4420,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "A phone photo, read without perspective correction; no reader for the image route yet: nothing was read.",
+      "why": "A phone photo, read without perspective correction; not read: this setup has no reader for the image route.",
       "quantity": null,
       "question": null,
-      "reason": "a phone photo, read without perspective correction; no reader for the image route yet: nothing was read",
+      "reason": "a phone photo, read without perspective correction; not read: this setup has no reader for the image route",
       "check": null,
       "links": {
         "drawing": "/api/drawings/37f6819bd17d65d9?project=5e0c1a2b3d4f",
@@ -6051,11 +6051,11 @@ that call gives, the project's review edits applied. An unknown project is 404; 
 - `total_note`: one plain sentence to show with the total, or instead of it: what was added over how many drawings,
   how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), or
   why there is no total, and which drawings gave no answer and why, e.g. `2 doors from 1 drawing.` or `3 drawings
-  answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.`
+  answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.`
 - `why_no_total` and `refused_note`: `total_note` in its two parts. `why_no_total`: why there is no total, as a
   sentence (`3 drawings answered; they may show the same rooms, so the numbers are not added up.`, or `No drawing
   answered it.`); null when there is a total. `refused_note`: the drawings that gave no answer and why (`2 drawings
-  have no reader for it.`); null when none refused.
+  give no reliable number for it.`); null when none refused.
 - The question is kept in the project's question list (`GET /api/projects/{id}/questions`) as one line per drawing
   that answered, with its own `answer` and `unit`, or one refused line per drawing when none answered; its lines
   share one `project_ask` id.
@@ -6522,7 +6522,7 @@ is no total):
         "marks": [],
         "refusal": {
           "code": "no-reader",
-          "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+          "text": "This sheet wasn't read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask about the project's other drawings.",
           "can_answer": []
         },
         "method": "refused:not-in-drawing",
@@ -6570,9 +6570,9 @@ is no total):
   "total_unit": null,
   "total_sure": false,
   "total_level": null,
-  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
   "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
-  "refused_note": "2 drawings have no reader for it."
+  "refused_note": "2 drawings give no reliable number for it."
 }
 ```
 
@@ -8498,7 +8498,7 @@ still come from this turn's tool results).
             "marks": [],
             "refusal": {
               "code": "no-reader",
-              "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+              "text": "This sheet wasn't read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask about the project's other drawings.",
               "can_answer": []
             },
             "method": "refused:not-in-drawing",
@@ -8582,7 +8582,7 @@ still come from this turn's tool results).
             "marks": [],
             "refusal": {
               "code": "no-reader",
-              "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+              "text": "This sheet wasn't read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask about the project's other drawings.",
               "can_answer": []
             },
             "method": "refused:not-in-drawing",
@@ -8630,9 +8630,9 @@ still come from this turn's tool results).
       "total_unit": null,
       "total_sure": false,
       "total_level": null,
-      "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+      "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
       "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
-      "refused_note": "2 drawings have no reader for it."
+      "refused_note": "2 drawings give no reliable number for it."
     }
   ],
   "view": {
@@ -10935,6 +10935,14 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
+  missing feature say what was and wasn't read. A `no-reader` refusal on a route with no reader: "This sheet wasn't
+  read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask
+  about the project's other drawings."; the policy refusal: "On sheets like this one, our reader got this kind of
+  question wrong too often when we measured it, so no number is given."; a file's `reason` with no reader: "not
+  read: this setup has no reader for the image route"; a DWG: "DWG files can't be opened here; export it as a PDF
+  and upload that"; `total_note`/`refused_note` and issue `why`: "gives/give no reliable number for it" (was
+  "has/have no reader for it"). Shapes unchanged.
 - 2026-11-14, additive (decision 0013, agent chat): `POST /api/projects/{project_id}/chat` and
   `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`; `GET /api/info` gains `chat`
   (`model`, `available`, `reason`; last). Settings `CHAT_MODEL`, `AGENT_MODEL`, `AGENT_BASE_URL`,
