@@ -4495,7 +4495,7 @@ policy").
     ],
     "signed": null,
     "unlocated": {},
-    "noun": null
+    "noun": "bedrooms"
   },
   "marks": [
     {
@@ -4602,7 +4602,7 @@ policy").
     "check": null
   },
   "check": {
-    "reason": "Please double-check the room bedroom count: the readers disagree at 2 places, marked on the drawing.",
+    "reason": "Please double-check the bedrooms: the readers disagree at 2 places, marked on the drawing.",
     "disputed": [
       {
         "mark_id": "m2",
