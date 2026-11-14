@@ -923,7 +923,9 @@ Ingest's project status, plus `drawings`:
         }
       ],
       "name": "Drawn plan 1",
-      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": false,
+      "not_drawable_reason": "no walls are drawn as geometry on this page"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -935,7 +937,9 @@ Ingest's project status, plus `drawings`:
       "state": "flagged",
       "other_renderings": [],
       "name": "Drawn plan 2",
-      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": false,
+      "not_drawable_reason": "no walls are drawn as geometry on this page"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -952,7 +956,9 @@ Ingest's project status, plus `drawings`:
         }
       ],
       "name": "Plan image 1",
-      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": false,
+      "not_drawable_reason": "this plan is a scan: its walls are not geometry"
     },
     {
       "drawing_id": "37f6819bd17d65d9",
@@ -964,7 +970,9 @@ Ingest's project status, plus `drawings`:
       "state": "flagged",
       "other_renderings": [],
       "name": "Plan photo 1",
-      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": false,
+      "not_drawable_reason": "this plan is a photo: its walls are not geometry"
     },
     {
       "drawing_id": "1db9bcf1e67e27a3",
@@ -976,7 +984,9 @@ Ingest's project status, plus `drawings`:
       "state": "ready",
       "other_renderings": [],
       "name": "Building model 1",
-      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": false,
+      "not_drawable_reason": "this building model has no drawn plan to edit"
     }
   ],
   "skipped": [
@@ -1648,7 +1658,9 @@ photo of an elevation sheet with its register, showing a building that matches n
       "state": "ready",
       "other_renderings": [],
       "name": "Drawn plan 1",
-      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": false,
+      "not_drawable_reason": "no walls are drawn as geometry on this page"
     }
   ],
   "skipped": [
@@ -4261,7 +4273,9 @@ tell, and an uncertain answer with the model's check:
       "state": "flagged",
       "other_renderings": [],
       "name": "Drawn plan 1",
-      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": false,
+      "not_drawable_reason": "no walls are drawn as geometry on this page"
     }
   ],
   "skipped": [],
