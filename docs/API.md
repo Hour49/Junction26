@@ -80,9 +80,10 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | --- | --- |
 | Unknown or malformed project, file or drawing id, unknown page, quantity key or mark id | 404 `not-found` |
 | Unknown rule pack (`?pack=`) | 404 `unknown-pack` |
+| A relevance call on a file triage did not describe (decision 0010) | 422 `no-description` |
 | `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
-| Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity | 409 `not-allowed` |
+| Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call before the project is `done` | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
@@ -112,6 +113,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects` | All projects, newest first | #27 |
 | `GET /api/projects/{project_id}` | Project status: every file with its state and reason, one drawing per plan | #27 |
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
+| `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
@@ -326,6 +328,7 @@ over its drawings (the review queue). `conflicts_open`: the conflicts a person s
 with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
 decided ("settled by a rule") or a person settled is not open. A room's several names count once.
 `issues_open`: the issues in state `open` in `GET /api/projects/{id}/issues` without a pack; null until `done`.
+`not_plans`: as in `GET /api/projects/{id}` (file triage); left out when the project was ingested with triage off.
 
 <!-- fixture: project_list.json -->
 ```json
@@ -883,6 +886,346 @@ after a restart cut that run off:
   "expected_drawings": 0
 }
 ```
+
+### File triage (decision 0010)
+
+Off by default (`TRIAGE_CLASSIFIER=off`). With it on, every image file (a PNG or JPEG, a photo, a scanned PDF;
+not vector PDFs, IFC, DXF or SVG) is asked "is this a floor plan?" in the `identify` stage, before any reader. A
+floor plan goes on as before. Any other image is kept, set aside, described in words, and once the project's plans
+are read, judged against the project. Nothing is deleted, and a person's call is never a reading: an image called
+`related` stays `set_aside`, with no drawing. There is no new file state and no new trace stage: the triage is in
+the `identify` stage's line.
+
+`FileStatus.triage` (left out when triage did not look at the file):
+
+- `class`: `floor_plan`, `other_drawing` (an elevation, section, site plan, detail, schedule sheet or cover) or
+  `not_drawing` (a photo, a music score, a text page, an icon). A closed list: map it to words. Unsure is
+  `floor_plan`, because a plan set aside would never be read.
+- `p_plan`: P(a floor plan anywhere on the page), 0 to 1. `method`: how, in plain words.
+- `description` (only for a file that is not a floor plan): `text` (1-3 sentences), `subject` (a short label),
+  `text_seen` (words printed on it: title-block and caption text only; the describer is told not to transcribe
+  personal data such as private people's names, phone numbers, number plates or home addresses), `language`
+  (ISO 639-1 of `text_seen`, null when none), `model`, `cost_usd`.
+- `relevance` (set once the project's ingest is done): `verdict` `related`, `unrelated` or `unsure`, `why` (one
+  sentence naming what matched or what is missing), `matched_on`, `plans` (drawing ids, always among this
+  project's `drawings`), `judge`. With no plan read in the project the verdict is `unsure`, "no floor plan in the
+  project to compare with".
+- `overruled`: a person's call, `{verdict: related|unrelated, by, at}`; the judge's `relevance` stays as it was.
+- `verdict`: the one value that counts: `overruled.verdict`, else `relevance.verdict`, else null.
+- `note`: why `description` or `relevance` is null, a plain sentence: "a floor plan: it is read, so it is not
+  described or judged"; "not described: no description model is set up, so it is not judged" (no describer: the
+  offline demo); "not described: <why>" (the model refused or failed); "not judged yet: the project is still being
+  read"; "not judged: no relevance judge is set up"; "not judged: <why>". Null when both are set.
+
+`description.subject`, `method`, `relevance.judge`, `matched_on` items, and the part of the file's `reason` after
+"not a floor plan: " are plain words, shown as they are. Description and judge costs count in the file's and the
+project's `cost_usd`; with no model set up they are 0.
+
+`not_plans` (on `ProjectView` and `ProjectSummary`): the files triage called not a floor plan, a person's call or
+not (a call changes the verdict, not the class). Never a file set aside for its format (`triage` null). Null until
+`done`, then final; left out when the project was ingested with triage off.
+
+A project with triage on (the test fakes: an elevation judged related, the site photo judged unrelated and then
+called related by a person, a photo the describer refused):
+
+<!-- fixture: project_triaged.json -->
+```json
+{
+  "id": "5e0c1a2b3d52",
+  "name": "site.zip",
+  "state": "done",
+  "created_at": "2026-11-14T08:00:00+00:00",
+  "started_at": "2026-11-14T08:00:00+00:00",
+  "finished_at": "2026-11-14T08:00:00+00:00",
+  "files": [
+    {
+      "id": "f1",
+      "path": "plans/flat-a.pdf",
+      "size": 2263,
+      "sha256": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
+      "kind": "pdf_vector",
+      "state": "ready",
+      "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
+      "group": "plans/flat-a",
+      "route": "vector",
+      "source": "plans/flat-a.pdf",
+      "drawing_id": "6a47e9a1c33db404",
+      "reused": false,
+      "takeoff": {
+        "apartment": 1,
+        "area:apartment": 52.27,
+        "area:apartment|apartment=a": 52.27,
+        "area:room": 64.714,
+        "area:room:balcony|largest": 12.445,
+        "area:room:bathroom|largest": 12.445,
+        "area:room:kitchen|largest": 22.401,
+        "area:room:other|largest": 14.934,
+        "area:room:storage|largest": 2.489,
+        "area:room|indoor": 52.269,
+        "area:room|label=bad": 12.445,
+        "area:room|label=bad|largest": 12.445,
+        "area:room|label=balkon": 12.445,
+        "area:room|label=balkon|largest": 12.445,
+        "area:room|label=küche": 22.401,
+        "area:room|label=küche|largest": 22.401,
+        "area:room|label=reduit": 2.489,
+        "area:room|label=reduit|largest": 2.489,
+        "area:room|label=zimmer": 14.934,
+        "area:room|label=zimmer|largest": 14.934,
+        "area:room|name=1.01": 22.401,
+        "area:room|name=1.02": 2.489,
+        "area:room|name=1.03": 12.445,
+        "area:room|name=1.04": 12.445,
+        "area:room|name=1.05": 14.934,
+        "area:room|name=bad": 12.445,
+        "area:room|name=balkon": 12.445,
+        "area:room|name=küche": 22.401,
+        "area:room|name=reduit": 2.489,
+        "area:room|name=zimmer": 14.934,
+        "bathtub": 1,
+        "door": 2,
+        "length:room:balcony": 7.056,
+        "length:room:bathroom": 3.528,
+        "length:room:kitchen": 7.056,
+        "length:room:other": 4.233,
+        "length:room:storage": 1.764,
+        "length:room|name=1.01": 7.056,
+        "length:room|name=1.02": 1.764,
+        "length:room|name=1.03": 3.528,
+        "length:room|name=1.04": 7.056,
+        "length:room|name=1.05": 4.233,
+        "length:room|name=bad": 3.528,
+        "length:room|name=balkon": 7.056,
+        "length:room|name=küche": 7.056,
+        "length:room|name=reduit": 1.764,
+        "length:room|name=zimmer": 4.233,
+        "plan": 1,
+        "room": 5,
+        "room:balcony": 1,
+        "room:bathroom": 1,
+        "room:bedroom": 0,
+        "room:hall": 0,
+        "room:kitchen": 1,
+        "room:living": 0,
+        "room:other": 1,
+        "room:outdoor": 0,
+        "room:sauna": 0,
+        "room:shaft": 0,
+        "room:storage": 1,
+        "room:wc": 0,
+        "room|label=bad": 1,
+        "room|label=balkon": 1,
+        "room|label=küche": 1,
+        "room|label=reduit": 1,
+        "room|label=zimmer": 1,
+        "shower": 0,
+        "shower+bathtub": 1,
+        "sink": 1,
+        "toilet": 1,
+        "window": 2
+      },
+      "ms": 12.5,
+      "stage": "write",
+      "cost_usd": 0.0,
+      "normalised": null
+    },
+    {
+      "id": "f2",
+      "path": "elevations/south.png",
+      "size": 8835,
+      "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
+      "kind": "png_plan",
+      "state": "set_aside",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover) (P(plan) 0.03, fake classifier)",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null,
+      "triage": {
+        "class": "other_drawing",
+        "p_plan": 0.03,
+        "method": "fake classifier",
+        "description": {
+          "text": "A picture of the south elevation of a two-storey house.",
+          "subject": "the south elevation of a two-storey house",
+          "text_seen": [
+            "Küche",
+            "Süd"
+          ],
+          "language": "en",
+          "model": "fake describer",
+          "cost_usd": 0.0
+        },
+        "relevance": {
+          "verdict": "related",
+          "why": "Related: Küche is on the project's plans.",
+          "matched_on": [
+            "Küche"
+          ],
+          "plans": [
+            "6a47e9a1c33db404"
+          ],
+          "judge": "word judge"
+        },
+        "overruled": null,
+        "verdict": "related",
+        "note": null
+      }
+    },
+    {
+      "id": "f3",
+      "path": "photos/site.jpg",
+      "size": 524600,
+      "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
+      "kind": "photo",
+      "state": "set_aside",
+      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null,
+      "triage": {
+        "class": "not_drawing",
+        "p_plan": 0.03,
+        "method": "fake classifier",
+        "description": {
+          "text": "A picture of a building site with a crane.",
+          "subject": "a building site with a crane",
+          "text_seen": [],
+          "language": null,
+          "model": "fake describer",
+          "cost_usd": 0.0
+        },
+        "relevance": {
+          "verdict": "unrelated",
+          "why": "Unrelated: no word on it is on the project's plans or in its file names.",
+          "matched_on": [],
+          "plans": [],
+          "judge": "word judge"
+        },
+        "overruled": {
+          "verdict": "related",
+          "by": "Ana",
+          "at": "2026-11-14T08:05:00Z"
+        },
+        "verdict": "related",
+        "note": null
+      }
+    },
+    {
+      "id": "f4",
+      "path": "photos/street.jpg",
+      "size": 524553,
+      "sha256": "735c66abcf63f04a3756987b74897e4c83b1e87d76245eeb806623045c2c55fd",
+      "kind": "photo",
+      "state": "set_aside",
+      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null,
+      "triage": {
+        "class": "not_drawing",
+        "p_plan": 0.03,
+        "method": "fake classifier",
+        "description": null,
+        "relevance": null,
+        "overruled": null,
+        "verdict": null,
+        "note": "not described: the model refused"
+      }
+    }
+  ],
+  "counts": {
+    "ready": 1,
+    "set_aside": 3
+  },
+  "readers": {
+    "bim": "ifc",
+    "cad": "hello",
+    "vector": "pdf",
+    "raster": "hello",
+    "raster_components": "",
+    "tables": "pdf",
+    "second_counter": "ifc",
+    "rectifier": "none",
+    "decisions_kind": "False",
+    "triage": "fakes"
+  },
+  "error": null,
+  "ms": 12.5,
+  "cost_usd": 0.0,
+  "drawings": [
+    {
+      "drawing_id": "6a47e9a1c33db404",
+      "group": "plans/flat-a",
+      "file": "plans/flat-a.pdf",
+      "kind": "pdf_vector",
+      "route": "vector",
+      "source": "plans/flat-a.pdf",
+      "state": "ready",
+      "other_renderings": []
+    }
+  ],
+  "skipped": [
+    {
+      "path": "elevations/south.png",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover) (P(plan) 0.03, fake classifier)"
+    },
+    {
+      "path": "photos/site.jpg",
+      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)"
+    },
+    {
+      "path": "photos/street.jpg",
+      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)"
+    }
+  ],
+  "expected_drawings": 1,
+  "not_plans": 3
+}
+```
+
+### `POST /api/projects/{project_id}/files/{file_id}/relevance`
+
+A person's call on a triaged file. The body is `{verdict: "related"|"unrelated", by}`, or `{undo: true}` to take
+the call back. `by` is the name the person types, as in a sign-off (1-100 characters). Confirming the judge's own
+verdict is a call too: it settles the file's issue. Returns the file's `FileStatus`.
+
+<!-- fixture: relevance_request.json -->
+```json
+{
+  "verdict": "related",
+  "by": "Ana"
+}
+```
+
+- 409 `not-allowed` until the project is `done`; 404 `not-found` for an unknown project or file.
+- 422 `no-description` for a file triage did not describe (there is nothing to judge, so nothing to overrule).
+- 422 `validation` for a body outside the shape: a `verdict` other than `related` or `unrelated`, no `by`, an empty
+  or too long `by`, `undo` with a `verdict`.
+- `undo` with no call made: 200, the file unchanged.
+
+Reserved: `POST /api/projects/{project_id}/files/{file_id}/triage` `{class: "floor_plan", by}` will read a file
+triage set aside as a floor plan and return its `FileStatus`. It is not built yet.
 
 ### `GET /api/projects/{project_id}/files/{file_id}/trace`
 
@@ -2556,13 +2899,17 @@ Each issue:
     that cannot tell is not an issue. `check` + `drawing_id` is its `CheckResult` in
     `GET /api/drawings/{id}/checks?pack=`; `why` is the result's `why` followed by the clause ref in brackets.
   - `double_check`: an answer we can't vouch for, one issue per disputed place. Not produced yet (#129).
-  - `unrelated_file`: an upload that is not a floor plan (decision 0010, file triage). Not produced yet.
-  - All seven values are in the type now, so a screen can switch over them; the last two appear once their
+  - `unrelated_file` (file triage, decision 0010): a file triage called not a floor plan whose `triage.verdict`
+    is not `related` (also one not described or not judged), or one a person made a call on. `reason` is the
+    verdict (null while there is none), `page`, `box` and `drawing_id` are null. Its severity is the judge's:
+    `needs_person` for `unsure`, else `note`. A person's call makes it `settled` and keeps its id, severity and
+    place in the list, whichever way the call went. Such a file has no `set_aside` issue as well.
+  - All seven values are in the type now, so a screen can switch over them; `double_check` appears once its
     work lands.
 - `severity`: `fails_rule` (a failed code check), `needs_person` (a conflict no rule decides and nobody settled),
   or `note` (everything else: decided conflicts, refusals, reading flags, set-aside files).
-- `state`: `open`, `settled` (a person settled it, or a rule decides it) or `signed_off`. Only a conflict can be
-  other than `open`.
+- `state`: `open`, `settled` (a person settled it, or a rule decides it) or `signed_off`. Only a conflict or an
+  `unrelated_file` can be other than `open`.
 - `file` is the file as **this project** uploaded it. `file_id` is its `FileStatus.id` (`f3`). `drawing_id` is null
   for a file with no drawing.
 - `floor`: the storey, only where the source states it (an IFC storey: the plan's on the page, or the quantity
@@ -2586,7 +2933,7 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
 <!-- fixture: project_issues_checks.json -->
 ```json
 {
-  "project_id": "5e0c1a2b3d52",
+  "project_id": "5e0c1a2b3d53",
   "pack": "fi",
   "issues": [
     {
@@ -2630,10 +2977,10 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
       "reason": null,
       "check": "fi:fi-habitable-room-area:r2",
       "links": {
-        "drawing": "/api/drawings/5c4ed01e00000002?project=5e0c1a2b3d52",
-        "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d52",
-        "trace": "/api/projects/5e0c1a2b3d52/files/f1/trace",
-        "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d52"
+        "drawing": "/api/drawings/5c4ed01e00000002?project=5e0c1a2b3d53",
+        "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d53",
+        "trace": "/api/projects/5e0c1a2b3d53/files/f1/trace",
+        "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d53"
       }
     }
   ]
@@ -6270,7 +6617,7 @@ ingest read it; review edits don't change it.
 <!-- fixture: project_checks.json -->
 ```json
 {
-  "project_id": "5e0c1a2b3d52",
+  "project_id": "5e0c1a2b3d53",
   "pack": "fi",
   "note": "A pre-check of a few rules, not a compliance certificate.",
   "status": "fail",
@@ -6374,6 +6721,11 @@ unknown pack, `not-found` for an unknown project.
   `GET /api/projects/{id}/checks?pack=`. An unknown pack is 404 `unknown-pack`, as for the issues.
   `GET /api/projects/{id}/issues?pack=` (and `.csv`, `.zip`) now lists the pack's failed checks as
   `code_check_failed` issues (severity `fails_rule`, `links.checks` set); without a pack the list is unchanged.
+- 2026-11-14, additive (decision 0010, file triage; board #152): `FileStatus.triage` (class, P(plan), method,
+  description, relevance, a person's call, the verdict that counts, and a note when something is null),
+  `ProjectView.not_plans` and `ProjectSummary.not_plans`, all left out of the JSON when triage is off (the
+  default); `POST /api/projects/{project_id}/files/{file_id}/relevance`; the `unrelated_file` issues; a new error
+  code `no-description` (422). No new `FileState` or `Stage`.
 - 2026-11-14, text only (QA R4-a-10): a file's `reason` and the route stage's `did` name the route in the words the
   screens use ("read on the drawn PDF route: …", "no reader for the image route yet", "BIM model route, read from
   …"; was "vector", "raster", "bim"), from `ROUTE_WORDS` in `app/core/wording.py`. The fields `route` and the route

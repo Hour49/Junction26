@@ -31,6 +31,7 @@ from app.core.checks.model import CheckResult, RuleCheck, RulePack
 from app.core.drawing.model import Box, Drawing, Polygon
 from app.core.ingest.judge import read_nothing
 from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.ingest.triage import CLASS_WORDS, is_not_plan
 from app.core.review.model import MarkView, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import NO_PROOF, PALETTE, ClassKey, check
@@ -41,8 +42,8 @@ from app.settings import Settings
 router = APIRouter(prefix="/api/projects")
 
 # Every kind planned, so a screen's exhaustive switch never meets a new one (decision 0008). Not
-# produced yet: double_check (#129: an uncertified answer, one issue per disputed place),
-# unrelated_file (decision 0010: file triage). code_check_failed only with ?pack= (decision 0009).
+# produced yet: double_check (#129: an uncertified answer, one issue per disputed place).
+# code_check_failed only with ?pack= (decision 0009).
 IssueKind = Literal[
     "conflict",
     "refused_answer",
@@ -289,6 +290,7 @@ def listed_issues(
         *_conflicts(status, where, ingest, reviews, takeoffs or {}),
         *_reading_flags(status, where, ingest, settings),
         *_set_aside(status, where),
+        *_unrelated_files(status),
         *_refusals(status, where, settings),
     ]
     drawings = {entry.drawing_id: at for at, entry in enumerate(drawings_of(status))}
@@ -530,8 +532,10 @@ def _reading_flags(
 
 
 def _set_aside(status: ProjectStatus, where: _Files) -> Iterator[Issue]:
+    """Files set aside at ingest, but not those triage called not a floor plan: those are
+    `unrelated_file` issues (decision 0010)."""
     for file in status.files:
-        if file.state == "set_aside":
+        if file.state == "set_aside" and not is_not_plan(file):
             yield _issue(
                 "set_aside",
                 status.id,
@@ -542,6 +546,41 @@ def _set_aside(status: ProjectStatus, where: _Files) -> Iterator[Issue]:
                 why=f"Set aside at ingest: {file.reason}.",
                 reason=file.reason,
             )
+
+
+def _unrelated_files(status: ProjectStatus) -> Iterator[Issue]:
+    """One issue per file triage called not a floor plan whose verdict is not `related`
+    (unjudged and undescribed ones too), and per such file a person made a call on (decision
+    0010, board #152). The severity is the judge's (`unsure` needs a person), so a person's call
+    settles the issue in place: same id, same place in the list."""
+    for file in status.files:
+        triage = file.triage
+        if triage is None or not is_not_plan(file):
+            continue
+        if triage.verdict == "related" and triage.overruled is None:
+            continue
+        judged = triage.relevance.verdict if triage.relevance is not None else None
+        what = CLASS_WORDS[triage.class_]
+        if triage.description is not None:
+            what = f"{what}: {triage.description.subject}"
+        why = f"Not a floor plan ({what})."
+        if triage.relevance is not None:
+            why += f" {triage.relevance.why}"
+        elif triage.note is not None:
+            why += f" {triage.note[0].upper()}{triage.note[1:]}."
+        if triage.overruled is not None:
+            why += f" {triage.overruled.by} says it is {triage.overruled.verdict}."
+        yield _issue(
+            "unrelated_file",
+            status.id,
+            file,
+            None,
+            file.path,
+            severity="needs_person" if judged == "unsure" else "note",
+            state="open" if triage.overruled is None else "settled",
+            why=why,
+            reason=triage.verdict,
+        )
 
 
 def _refusals(status: ProjectStatus, where: _Files, settings: Settings) -> Iterator[Issue]:

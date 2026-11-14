@@ -31,7 +31,13 @@ from app.api import (
 from app.api.deps import Ingest
 from app.api.views import ErrorBody
 from app.composition import build_answering, build_ingest
-from app.core.errors import DomainError, InvalidInputError, NotFoundError, UnknownPackError
+from app.core.errors import (
+    DomainError,
+    InvalidInputError,
+    NoDescriptionError,
+    NotFoundError,
+    UnknownPackError,
+)
 from app.core.review.review import NotAllowedError
 from app.settings import Settings
 
@@ -42,7 +48,10 @@ STATUS_BY_ERROR: dict[type[DomainError], int] = {
     NotAllowedError: 409,
 }
 # A domain error with a code of its own, not its status's
-CODE_BY_ERROR: dict[type[DomainError], str] = {UnknownPackError: "unknown-pack"}
+CODE_BY_ERROR: dict[type[DomainError], str] = {
+    UnknownPackError: "unknown-pack",
+    NoDescriptionError: "no-description",
+}
 CODES = {
     404: "not-found",
     405: "method-not-allowed",

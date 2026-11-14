@@ -1,5 +1,5 @@
 {
-  "project_id": "5e0c1a2b3d52",
+  "project_id": "5e0c1a2b3d53",
   "pack": "fi",
   "issues": [
     {
@@ -43,10 +43,10 @@
       "reason": null,
       "check": "fi:fi-habitable-room-area:r2",
       "links": {
-        "drawing": "/api/drawings/5c4ed01e00000002?project=5e0c1a2b3d52",
-        "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d52",
-        "trace": "/api/projects/5e0c1a2b3d52/files/f1/trace",
-        "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d52"
+        "drawing": "/api/drawings/5c4ed01e00000002?project=5e0c1a2b3d53",
+        "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d53",
+        "trace": "/api/projects/5e0c1a2b3d53/files/f1/trace",
+        "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d53"
       }
     }
   ]
