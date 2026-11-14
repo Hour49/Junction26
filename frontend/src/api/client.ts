@@ -9,6 +9,7 @@ import type {
   ProjectTrace,
   ProjectQuestions,
   Info,
+  ProjectAnswer,
   ProjectList,
   ProjectReview,
   ProjectView,
@@ -113,6 +114,10 @@ export const getModel = (drawingId: string, opts?: Opts) =>
 
 export const askQuestion = (body: AskRequest, opts?: Opts) =>
   postJson<AnswerView>('/api/ask', body, opts);
+
+/** One question on every drawing of the project (#135): the parts, and a total only where one means something. */
+export const askProject = (projectId: string, question: string, opts?: Opts) =>
+  postJson<ProjectAnswer>(`/api/projects/${seg(projectId)}/ask`, { question }, opts);
 
 export const getTakeoff = (drawingId: string, opts: ZerosOpts = {}) =>
   call<Takeoff>(

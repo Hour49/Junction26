@@ -28,7 +28,7 @@ methodName, errorText), `src/shell/` (Loading, ErrorView, routeHref), `src/viewe
 
 | When | Call | Used for |
 | --- | --- | --- |
-| mount | `getProject(pid)` and `getProjectReview(pid)`, in parallel | heading line, the conflicts, the workspace link |
+| mount | `getProject(pid)` and `getProjectReview(pid)`, in parallel | heading line, the conflicts, the chat button |
 | a card's evidence opens | `getDrawing(drawing_id, {project: pid})`, once per drawing id (kept in a map) | `pages`, `credit`, `file` for the PageViewer |
 | Keep a variant | `postReview(drawing_id, {quantity, action: "settle", value}, {project: pid})` | then `getProjectReview(pid)` again |
 | Use the rule's value | `postReview(drawing_id, {quantity, action: "unsettle"}, {project: pid})` | then `getProjectReview(pid)` again |
@@ -69,8 +69,10 @@ Heading, from `project` and `review`:
   agree wherever two of them measured."
 - progress: one segment per conflict, filled (`--v-accent`) when it does not need a person; text "`s` of `k`
   settled". More than 12 conflicts: the segments join into one bar (gap 0) so they stay visible.
-- "Open the workspace": link to the engineer workspace (screen 4) of the first drawing in `review.drawings` with
-  `quantities > 0`, else the first drawing; hidden with no drawings.
+- **"Start a new chat"** (Tudor 2026-11-14, brief fe-chat.md; replaces "Open the workspace" as the primary action):
+  link to `#/p/<pid>/chat` (ProjectChat, an empty chat over the whole project), no line under it (Tudor 12:45: "remove
+  ask anything about the … drawing project"); hidden with no drawings. Beside it a quiet text link "Open the workspace" to the engineer workspace (screen 4) of the first drawing
+  in `review.drawings` with `quantities > 0`, else the first drawing; shown only when the chat button is unlocked.
 
 ## States
 
@@ -82,7 +84,7 @@ Screen:
 - Project not done (`project.state` `queued`/`running`): a line under the heading "Still reading the drawings: these
   are the conflicts so far." and a "Check again" button that reloads both GETs. `failed`: "Reading stopped: `error`."
   The cards still show.
-- No conflicts: heading as above, no cards, the workspace link unlocked.
+- No conflicts: heading as above, no cards, "Start a new chat" unlocked.
 
 Per card (`mode` is local state, keyed by `drawing_id + quantity`, reset when the card's server state changes):
 
@@ -91,7 +93,7 @@ Per card (`mode` is local state, keyed by `drawing_id + quantity`, reset when th
 | `needs_person` | open | "Needs you" (warn) | enabled, none pressed | "Tap the right value." | (none) |
 | rule, not settled | rule | "Settled by rule" (ok) | disabled, rule's pressed | (empty) | Modify |
 | rule, not settled | choosing | "Choosing" (muted) | enabled, rule's pressed | "Tap the right value." | Cancel |
-| `settled` | yours | "Your choice" (accent) | disabled, in-use pressed | "You kept `X`." / "You kept `X`, over the rule's choice." / "You settled it at `formatValue(settled.value)` in the surveyor workspace." (no tile matches) | Change; plus "Use the rule's value" when `resolution` |
+| `settled` | yours | "Your choice" (accent) | disabled, in-use pressed | "You kept `X`." / "You kept `X`, over the rule's choice." / "You settled it at `formatValue(settled.value)` in the surveyor workspace." (no tile matches) | Modify (never "Change", Tudor: a person's choice keeps Modify); plus "Use the rule's value" when `resolution` |
 | `settled` | choosing | "Choosing" | enabled | "Tap the right value." | Cancel |
 | any | saving | unchanged | all disabled | "Saving…" | disabled |
 
@@ -113,15 +115,17 @@ Per card (`mode` is local state, keyed by `drawing_id + quantity`, reset when th
   otherwise; the drawing is fetched when it first opens (Loading inside; an error line with Retry inside the
   details, not the whole screen). Values with no `box` are listed as "`X`: not located on the page."
 
-Workspace link: while any card needs a person it is a disabled button "Open the workspace" with the text "Settle
-the conflicts that need you first." (`aria-describedby`); otherwise an `<a>`.
+Chat button: while any card needs a person it is a disabled button "Start a new chat" with the text "Settle the
+conflicts that need you first." (`aria-describedby`) and no workspace link; otherwise an `<a>` and the quiet "Open the workspace" link.
 
 ## Layout
 
 The design's: header (shell's), then the shell's `.v-page.v-page--narrow` frame (820px, its padding), 20px between parts.
 
-- Heading row: kicker (13px, 600, `--v-ok`), h1 44px/1.1 700, sub line 16px `--v-muted`; the workspace link on the
-  right (pill, 980px radius, `--v-accent` fill, white, 44px tall; locked: `--v-fill` fill, `--v-muted` text).
+- Heading row: kicker (13px, 600, `--v-ok`), h1 44px/1.1 700, sub line 16px `--v-muted`; nothing on the right.
+- Chat block (Tudor 2026-11-14: "put start a new chat at the bottom"): after the last card (after the heading and
+  progress when there are no cards), centred: the chat button (pill, 980px radius, `--v-accent` fill, white, 44px
+  tall; locked: `--v-fill` fill, `--v-muted` text), the locked reason (only while locked) 13px `--v-muted` under it, the quiet workspace link 13px `--v-accent` under that (40px tall at ≤600px).
 - Progress row: segments 180px wide, 6px tall, 3px radius, 4px gap; text 13px tabular numbers.
 - Cards: `--v-surface`, radius `--v-radius` (the design's 22px folds into it), `--v-shadow`, padding 24px 24px 20px, 16px gap. Top: kicker
   12px muted, h2 24px 600, file line monospace (`ui-monospace, Menlo, monospace`, no web font) 12px, wraps
@@ -129,7 +133,7 @@ The design's: header (shell's), then the shell's `.v-page.v-page--narrow` frame 
   padding, 16px radius, 1px `--v-line` border; pressed: 2px `--v-accent` border, `--v-accent-soft` background and the
   check badge "in use". Why: `<details>` on `--v-fill`, 14px radius. Actions row: the action text left, the
   buttons right (pills, 44px tall) in every state, also when a long action line puts the buttons on their own line.
-- Phone 390: the heading row stacks (link under the text), each card's pill sits above its kicker and title (the
+- Phone 390: the heading row is text only; the chat block stays centred at the bottom, each card's pill sits above its kicker and title (the
   title gets the card's full width), tiles one column, the h1 32px, no sideways scroll,
   every button at least 44px tall.
 - Motion: the design's press scale (0.97) and chevron turn, none under `prefers-reduced-motion`.
@@ -144,7 +148,7 @@ the same props-recording double as SurveyorScreen.test.tsx):
   rule." for `projectReview` as is.
 - CF-3: a review with three conflicts (one `needs_person`, one rule, one `settled`) shows "3 conflicts found",
   "1 settled by a rule. 1 settled by you. 1 needs you.", "2 of 3 settled", and two filled segments of three.
-- CF-4: an empty `conflicts` shows "No conflicts found", the agree line, no cards, and an enabled workspace link.
+- CF-4: an empty `conflicts` shows "No conflicts found", the agree line, no cards, and an enabled "Start a new chat" link.
 - CF-5: a card shows "Conflict 1 of 1 · settled by a rule", `label`, `file`, tile A "22.40 m²" with
   `methodName('polygon_x_scale')`, page 1, and tile B "30.00 m²" with "· the rule's choice" and pressed.
 - CF-6: a rule card's tiles are disabled; Modify enables them and shows Cancel; Cancel restores it, no request.
@@ -152,12 +156,12 @@ the same props-recording double as SurveyorScreen.test.tsx):
   `{"quantity": "area:room|name=1.01", "action": "settle", "value": 22.401}`, shows "Saving…", then reloads
   `GET …/review` and renders the reloaded data.
 - CF-8: a `settled` card at 22.401 shows "Your choice", tile A pressed, "You kept A, over the rule's choice." and
-  both "Change" and "Use the rule's value".
+  both "Modify" and "Use the rule's value"; no "Change" button anywhere.
 - CF-9: "Use the rule's value" sends `{"quantity": …, "action": "unsettle"}` at once (no confirm) with
   `?project=<pid>`, then reloads the review: the pill reads "Settled by rule". CF-9b: a 409 on it shows "This value
   is signed off. Undo the sign-off in the surveyor workspace first." (role alert) and the card stays "Your choice".
-- CF-10: a `needs_person` card shows "Needs you", enabled tiles with none pressed, the evidence open, and the
-  workspace link disabled with "Settle the conflicts that need you first."
+- CF-10: a `needs_person` card shows "Needs you", enabled tiles with none pressed, the evidence open, "Start a new
+  chat" a disabled button described by "Settle the conflicts that need you first.", and no "Open the workspace".
 - CF-11: a `settled` value matching no tile shows no tile pressed and "You settled it at … in the surveyor
   workspace."
 - CF-12: opening the evidence sends `GET /api/drawings/<did>?project=<pid>` once per drawing (two cards of one
@@ -168,7 +172,11 @@ the same props-recording double as SurveyorScreen.test.tsx):
   returns to choosing mode.
 - CF-15: a load 404 shows "Back to workspaces" (`#/workspaces`) and no Retry; a 500 shows Retry, which reloads both GETs.
 - CF-16: `project.state` "running" shows "Still reading the drawings…" and "Check again" reloads both GETs.
-- CF-17: "Open the workspace" links to `#/p/<pid>/d/<first drawing with quantities>/engineer`.
+- CF-17: with nothing needing a person, "Start a new chat" links to `#/p/<pid>/chat`, has no "Ask anything …" line under it, and the quiet "Open the workspace" links to
+  `#/p/<pid>/d/<first drawing with quantities>/engineer`.
+- CF-28: the chat block follows the last card in the DOM and is not inside the heading row.
+- CF-27: after a person picks a value on a card that needed a person (reloaded as settled), the card's button is
+  "Modify", never "Change".
 - CF-18: each card's "Open in the surveyor workspace" links to `#/p/<pid>/d/<did>/surveyor?q=<quantity encoded>`.
 - CF-19: ProjectReviewSide shows "Settle the conflicts" linking to `#/p/<pid>/conflicts` when the project has at
   least one conflict.
@@ -179,7 +187,7 @@ the same props-recording double as SurveyorScreen.test.tsx):
 - CF-24: a rule card with `value: 27.5` (no tile has it) presses no tile and reads "In use: 27.50 m²."; nothing on
   the screen carries `data-pending`.
 - CF-25: opening "Why …" and "Where each value was read", then Modify and a tile, leaves both open after the
-  reload; the card shows "Your choice" with Change and disabled tiles (its mode starts over).
+  reload; the card shows "Your choice" with Modify and disabled tiles (its mode starts over).
 - CF-26: at ≤600px `.cf-card-top` is `column-reverse`, `align-items: flex-start` (the pill above the title). [CSS
   text; browser at 390]
 - CF-27: `.cf-buttons` has `margin-left: auto` and `justify-content: flex-end` (right-aligned in every state).

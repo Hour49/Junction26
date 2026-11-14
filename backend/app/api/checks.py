@@ -9,8 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.api.deps import DrawingId, Ingest, IngestDep, ProjectId, as_uploaded
-from app.api.projects import drawings_of
-from app.api.views import View
+from app.api.views import View, drawings_of
 from app.core.checks.check import check_drawing, overall
 from app.core.checks.model import (
     COMPARISON_TEXT,
@@ -24,20 +23,13 @@ from app.core.checks.model import (
     RulePack,
     RuleStatus,
 )
-from app.core.errors import NotFoundError
+from app.core.errors import UnknownPackError
 from app.core.ingest.model import ProjectStatus
 from app.core.review.review import NotAllowedError
 
 router = APIRouter(prefix="/api")
 
 PACK = Query(description="the rule pack to check against: an id from GET /api/info rule_packs")
-
-
-class UnknownPackError(NotFoundError):
-    """A `?pack=` no pack has: 404 with its own code, so the screen resets its picker rather
-    than saying the project or drawing is gone."""
-
-    code = "unknown-pack"
 
 
 class RuleView(View):

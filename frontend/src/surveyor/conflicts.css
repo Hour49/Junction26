@@ -34,8 +34,22 @@
   font-size: 13px;
   margin-top: 6px;
 }
+/* the chat block, at the bottom after the last card (Tudor 2026-11-14), centred */
 .cf-open {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  padding-top: 8px;
+}
+.cf-quiet {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v-accent);
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
 }
 .cf-open-btn,
 .cf-btn,
@@ -277,8 +291,8 @@
     flex-direction: column;
     align-items: stretch;
   }
-  .cf-open {
-    text-align: left;
+  .cf-quiet {
+    min-height: 40px;
   }
   .cf-head h1 {
     font-size: 32px;

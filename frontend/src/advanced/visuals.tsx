@@ -8,7 +8,14 @@ import {
   type Takeoff,
 } from '../api';
 import { formatValue, methodName, readerName } from '../api/format';
-import { formatSize, isFinished, kindLabel, normalisedSteps, plural } from '../ingest/ingest';
+import {
+  formatSize,
+  isFinished,
+  kindLabel,
+  normalisedSteps,
+  plural,
+  routeLabel,
+} from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
 import { drawingFiles, previewNote, scaleChip, type Pair } from './advanced';
 
@@ -116,7 +123,7 @@ export function RouteLanes({
             : null,
         ],
         ['scale', scaleChip(page?.scale)],
-        ['route', file.route ? `route ${file.route}` : null],
+        ['route', file.route ? routeLabel(file.route) : null],
         ['source', file.source && file.source !== file.path ? `read from ${file.source}` : null],
         ['reused', file.reused ? 'read before' : null],
       ]

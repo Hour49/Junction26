@@ -1,7 +1,14 @@
 // Pure parts of the Advanced view (docs/specs/frontend/advanced-ingest.md). The step list and the stage-to-step
 // mapping are screen 2's (`STEPS`, `stepOf`, `activeStep` in src/ingest/ingest.ts), so both views agree.
 import type { DrawingView, FileStatus, FileTrace, ProjectView, Row, Takeoff } from '../api';
-import { STAGE_LABEL, activeStep, isFinished, kindLabel, stepOf } from '../ingest/ingest';
+import {
+  STAGE_LABEL,
+  activeStep,
+  isFinished,
+  kindLabel,
+  routeLabel,
+  stepOf,
+} from '../ingest/ingest';
 
 export type Visual = 'files' | 'lanes' | 'plan' | 'pairs' | 'ready';
 
@@ -115,7 +122,15 @@ export function stepLines(
     (traces.get(file.id)?.stages ?? [])
       .filter((s) => stepOf(s.stage) === k)
       .map((s, i) => {
-        const what = shortHashes(s.stage === 'cache' ? `Cached: ${s.did}` : s.output || s.did);
+        // the output in words; an output that is just the file's own path says nothing, so `did` (AV-29)
+        const out = s.output === file.path ? '' : s.output;
+        const said =
+          s.stage === 'identify' && out
+            ? kindLabel(out)
+            : s.stage === 'route' && out
+              ? routeLabel(out)
+              : out || s.did;
+        const what = shortHashes(s.stage === 'cache' ? `Cached: ${s.did}` : said);
         return {
           key: `${file.id}-${String(i)}-${s.stage}`,
           path: file.path,
@@ -230,5 +245,5 @@ export function previewNote(file: FileStatus): string | null {
   if (PREVIEW_KINDS.has(file.kind)) return null;
   return file.kind === 'ifc'
     ? 'A model: no picture to show'
-    : `No preview for a ${kindLabel(file.kind)}`;
+    : `${kindLabel(file.kind)}: no preview`;
 }

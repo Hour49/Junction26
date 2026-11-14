@@ -14,6 +14,10 @@ Every step was run by hand on the no-keys backend of main 5092dc3 (sample archiv
 
 ## Vellum redesign: how the path walks the new screens
 
+Header tabs on every project route (chat round, 13:14): Ingest, Conflicts, Chat (current on the chat page), and Surveyor
+on a drawing; no Engineer tab, so the path reaches
+the engineer view through the chat's "Show it on <file>" (V6) and, after the surveyor steps, by its URL (V13).
+
 Round 2 (frontend-orch, 2026-11-14 11:00): the app is restyled to Tudor's Vellum canvas, screens 1-5 and 9-12. The
 story of the path does not change (one drawing, flat-b, from upload to a signed-off value and its CSV); it now
 passes through the new screens and ends on the workspace history. Same harness (no-keys backend from
@@ -26,16 +30,18 @@ checks on every screenshot (offline strip, no horizontal scroll, no console erro
 | V2 | Reading the drawings, `#/p/<id>` Simple (2) | press the sample button | the project name; progress reaches done; the Simple / Advanced control |
 | V3 | Advanced, `#/p/<id>?view=advanced` (9-12) | choose Advanced, then Simple | the step rail (navigation "Steps"); back on Simple, `plans/flat-b.pdf` reads "flagged" |
 | V4 | File trace, `#/p/<id>/f/<fid>` | open `plans/flat-b.pdf` | as GP-4: "flagged", "1 conflict(s) between the two methods", the second-count line, the write stage |
-| V5 | Settle the conflicts, `#/p/<id>/conflicts` (3) | header "Conflicts"; on the 1.01 card Modify, tap A, then "Use the rule's value" (CF-22) | "2 conflicts found"; the 1.01 card on `plans/flat-b.pdf` "Settled by rule", then "Your choice", then "Settled by rule" again |
-| V6 | Ask, with proof, `…/d/<did>/engineer` (4) | the 1.01 card's "Open in the surveyor workspace", then the Engineer view link | as GP-5: the page, its credit, the suggested questions |
+| V5 | Settle the conflicts, `#/p/<id>/conflicts` (3) | header "Conflicts"; on the "Küche · 1.01" card Modify, tap A, then "Use the rule's value" (CF-22) | "1 conflict found" (#131: one per room); the card on `plans/flat-b.pdf` "Settled by rule", then "Your choice" with Modify (never "Change"), then "Settled by rule"; "Start a new chat" (below the cards) is the primary link, "Open the workspace" a quiet link; no "Ask anything …" line |
+| V5a | New chat, `#/p/<id>/chat` (chat.md) | "Start a new chat" | the project name, the ask bar in the upper middle and the group "Suggested questions": "How many doors are there?", "What is the net floor area of all indoor rooms in m²?", "How many windows are there?"; no "Ask anything …" line, no plan, image or marks |
+| V5b | (chat) | click the chip "How many doors are there?" (the chips go, the bar moves to the bottom) | one card from one `POST /api/projects/{pid}/ask` (#135): several drawings answer, so no total and the backend's note "… they may show the same rooms, so the numbers are not added up"; a line per drawing ("plans/flat-b.pdf: 2"), each with "Show it on <file>"; no image |
+| V6 | Ask, with proof, `…/d/<did>/engineer` (4) | "Show it on plans/flat-b.pdf" | as GP-5: the page, its credit, the suggested questions |
 | V7-V9 | (4) | the door count, the room 1.01 area, the roof refusal | as GP-6, GP-7, GP-8 |
 | V10-V12 | Surveyor, `…/surveyor` (restyle) | settle 1.01 on 22.40 m², sign off as "Ana" | as GP-9, GP-10, GP-11 |
 | V13 | (4) | ask the 1.01 area again | as GP-12: "22.40 m²", "Verified by Ana, …" |
 | V14 | Surveyor | Export CSV | as GP-13 |
-| V15 | Workspaces, `#/workspaces` (5) | follow "Workspaces" in the header | the sample workspace first and selected; stats Files 11, Drawings 5, To review 1, Signed off "1 of <n>"; history in order: "Uploaded sample-project.zip", "Analysis done", "Decided by rule: area of room (name Küche)", "Conflict settled: area of room (name 1.01)" (kept 22.40 m²), "Signed off: area of room (name 1.01)" (… by Ana) |
+| V15 | Workspaces, `#/workspaces` (5) | follow "Workspaces" in the header | the sample workspace first and selected; stats Files 11, Drawings 5, To review 0, Signed off "1 of <n>" (one per room, though #131 signs the room's twin row too); history: "Uploaded sample-project.zip", "Analysis done", then (with the "Asked: …" events) "Conflict settled: area of room (name Küche · 1.01)" (kept 22.40 m²) before "Signed off: area of room (name Küche · 1.01)" (… by Ana); no "Settled by a rule" left |
 
 Screenshots per width (`frontend/screenshots/<desktop|phone>/`): `01-home`, `02-project`, `03-advanced`,
-`04-trace`, `05-conflicts`, `06-engineer`, `07-count`, `08-area-conflict`, `09-refusal`, `10-surveyor-queue`,
+`04-trace`, `05-conflicts`, `05a-chat`, `05b-chat-answer`, `06-engineer`, `07-count`, `08-area-conflict`, `09-refusal`, `10-surveyor-queue`,
 `11-signed`, `12-verified`, `13-workspaces`. Each is opened and looked at against its canvas screen (QA.md §3).
 
 Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the new screens):
@@ -46,17 +52,27 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
   is reached from Simple's file list (V4, GP-4; the Advanced view has no per-file trace link). [e2e]
 - GP-31 V5: `#/p/<id>/conflicts` shows "2 conflicts found" and both conflicts with "22.40 m² vs 30.00 m²"; no
   conflict "needs you" on the sample. [e2e]
-- GP-32 V6: the 1.01 card's "Open in the surveyor workspace" (CF-18) reaches flat-b's
-  `#/p/<id>/d/<16 hex>/surveyor?q=…`, and the Engineer view link there reaches `…/engineer`. "Open the workspace"
-  (CF-17) goes to the first drawing with quantities, which need not be flat-b, so the path does not use it. [e2e]
+- GP-32 V6: in the chat answer, "Show it on plans/flat-b.pdf" reaches flat-b's `#/p/<id>/d/<16 hex>/engineer`
+  (chat.md). The path no longer goes through the card's surveyor link or "Open the workspace". [e2e]
 - GP-33 V15: "Workspaces" in the header reaches `#/workspaces`; the first workspace is "sample-project.zip" with
-  `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 1 and Signed off matching `/^1 of \d+$/`.
+  `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 0 and Signed off matching `/^1 of \d+$/` (one per room).
   [e2e]
-- GP-34 V15: the history holds, in this order, "Uploaded sample-project.zip", "Analysis done", "Conflict settled:
-  area of room (name 1.01)" and "Signed off: area of room (name 1.01)" (with "by Ana"), and
-  "Decided by rule: area of room (name küche)" (case-insensitive, #108) before the settled one. [e2e]
-- GP-35 Thirteen screenshots per width, named as above, each with the offline strip and no horizontal scroll.
+- GP-34 V15: the history starts "Uploaded sample-project.zip", "Analysis done"; later "Conflict settled: area of room
+  (name Küche · 1.01)" comes before "Signed off: area of room (name Küche · 1.01)" (with "by Ana"), the only "Signed off" event; "Asked: How many doors are there?" twice (the chat's one
+  grouped entry and the engineer's ask); no "Settled by a
+  rule" event is left (#131: the one conflict was settled by a person). [e2e]
+- GP-35 Fifteen screenshots per width, named as above, each with the offline strip and no horizontal scroll.
   [e2e]
+- GP-37 V5: after a person picks a value, the card's button is "Modify"; no "Change" button on the screen
+  (CF-27). [e2e]
+- GP-38 V5: with nothing needing a person, "Start a new chat" (below the cards) is a link and "Open the workspace"
+  a link; no "Ask anything …" line (CF-17). [e2e]
+- GP-39 V5a: `#/p/<id>/chat` shows the `h1` project name, the textbox "Question", "Ask" and the group "Suggested
+  questions" with exactly the three chips above; no "Ask anything …" line; inside `main` no `img`, `figure` or
+  canvas. Clicking the doors chip asks it (V5b), and the group is gone after the first ask. [e2e]
+- GP-40 V5b: the doors question gives one turn with no `answer-value`, text matching "may show the same rooms, so
+  the numbers are not added up", "plans/flat-b.pdf: 2", the link "Show it on plans/flat-b.pdf", and no `img` or
+  `figure` in the turn. The Chat tab is `aria-current="page"` on the chat page. [e2e]
 - GP-36 No screen on the path shows a user name, initials, avatar or country picker, and no mock value from the
   canvas ("harbour-block-archive.zip", "Beatrice", "Hour49"). [e2e: text checks on every screenshot step]
 
@@ -138,7 +154,7 @@ reads the scans); the e2e always runs on no keys (`start-backend.sh` forces ever
 | --- | --- | --- | --- |
 | 1 | Open the app at `/#/` | Home: drop zone, "Choose a file", "Try the sample project", the list of earlier projects; the strip "Running offline: no API keys, no models" | yes |
 | 2 | Click "Try the sample project" | `#/p/<id>`: "sample-project.zip", the files turn finished one by one, then "Done", "11 of 11 files finished", cost $0.00; every file row has its state in words (no keys: 3 ready, 4 flagged, 2 set aside, 2 text only; with keys the raster reader reads the two scans: 5 ready, 2 flagged, 2 set aside, 2 text only); 5 drawings listed | yes |
-| 3 | Click the file `plans/flat-b.pdf` | `#/p/<id>/f/<file_id>` (`f3` today): state "flagged", reason "1 conflict between the two methods (room_area) …"; ten stages unpack → write, `second_count` reading "5 quantities measured twice, 1 conflict" | yes |
+| 3 | Click the file `plans/flat-b.pdf` | `#/p/<id>/f/<file_id>` (`f3` today): state "flagged", reason "1 conflict between the two methods (room areas) …"; ten stages unpack → write, `second_count` reading "5 quantities measured twice, 1 conflict" | yes |
 | 4 | Click "Open the drawing" | `#/p/<id>/d/<drawing_id>/engineer`: "plans/flat-b.pdf", "vector route, read from plans/flat-b.pdf by pdf …", page 1 of the plan, six suggested questions | yes |
 | 5 | Click "How many doors are there?" | Answer `2`, "door count", two numbered marks 1 and 2 on the doors, "Counting rule: every element, room and plan the drawing lists counts once", "One method", Cost $0 | yes |
 | 6 | Type "What is the net floor area of room 1.01?", Ask | Answer `30.00 m²`, the kitchen shaded, status "Methods disagree": "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas", "Kept 30.00 m²: the printed label over the outline at the sheet's scale" | yes |

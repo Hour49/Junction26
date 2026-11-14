@@ -15,23 +15,33 @@ function viewLinks(route: Route): ViewLink[] {
     route.name !== 'project' &&
     route.name !== 'file' &&
     route.name !== 'conflicts' &&
+    route.name !== 'chat' &&
     route.name !== 'workspace'
   )
     return [];
   const links = [
-    { label: 'Ingest', href: `#/p/${route.projectId}`, current: route.name !== 'conflicts' },
+    {
+      label: 'Ingest',
+      href: `#/p/${route.projectId}`,
+      current: route.name === 'project' || route.name === 'file',
+    },
     {
       label: 'Conflicts',
       href: `#/p/${route.projectId}/conflicts`,
       current: route.name === 'conflicts',
     },
+    // The chat is project-level: on every project route. No Engineer tab (Tudor 12:46): the engineer route is
+    // reached from the chat's and the drawings' links.
+    { label: 'Chat', href: `#/p/${route.projectId}/chat`, current: route.name === 'chat' },
   ];
   if (route.name !== 'workspace') return links;
-  const role = (r: 'engineer' | 'surveyor') => routeHref({ ...route, role: r });
   return [
-    ...links.map((link) => ({ ...link, current: false })),
-    { label: 'Engineer', href: role('engineer'), current: route.role === 'engineer' },
-    { label: 'Surveyor', href: role('surveyor'), current: route.role === 'surveyor' },
+    ...links,
+    {
+      label: 'Surveyor',
+      href: routeHref({ ...route, role: 'surveyor' }),
+      current: route.role === 'surveyor',
+    },
   ];
 }
 

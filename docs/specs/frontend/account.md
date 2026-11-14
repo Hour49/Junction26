@@ -60,8 +60,9 @@ and `getProjectReview`, in parallel. `questions[]` newest first: `question`, `an
 `drawing_id`, `at`, `refused`. Only asks that sent `project_id` are logged. Drives the Questions stat and the
 "Asked" events.
 
-**`getTakeoff(drawingId, { project: id })` → `GET /api/drawings/{id}/takeoff?project=<id>`** (`takeoff.json`). Only
-for the review's drawings with `signed > 0`, after the review arrives, in parallel. `project` is required here:
+**`getTakeoff(drawingId, { project: id })` → `GET /api/drawings/{id}/takeoff?project=<id>`** (`takeoff.json`). For
+every review drawing with `quantities > 0` (the "Signed off" stat counts rows, see below), after the review arrives,
+in parallel. `project` is required here:
 sign-offs are kept per project (API.md "GET …/takeoff"), and without it the takeoff is the drawing's state outside
 any project. Fields: `quantities[].signed` (`by`, `at`, `value`), `.label`,
 `.unit`. A drawing with `signed: 0` is not requested.
@@ -74,9 +75,9 @@ Five cells, in this order (the design's three, plus to review and sign-offs):
 | --- | --- |
 | Files | `project.files.length` |
 | Drawings | `project.drawings.length` |
-| Questions | `questions.length` of the log; "–" while it is loading or failed |
+| Questions | the number of questions asked: log lines sharing a `project_ask` id (one project-chat question asks every drawing, Bogdan #135) count once, a line without one counts as itself; "–" while the log is loading or failed |
 | To review | sum of `review.drawings[].to_review` |
-| Signed off | "<sum of `signed`> of <sum of `quantities`>" |
+| Signed off | "<signed disagreements> of <disagreements>" over the takeoffs (Bogdan #14 c6875696292): a room keyed under its number and its name is two rows but one disagreement, and one sign-off signs both, so rows of one drawing that share `Row.conflict` and `Row.marks` count once; a row with `conflict` null counts as itself. "–" while the review or the takeoffs are missing (loading or failed). |
 
 ### History (`historyEvents`)
 
@@ -94,8 +95,8 @@ nothing relies on the colour.
 | rule | a conflict with `settled` null and `conflict.resolution` set | `created_at` | "Settled by a rule: <label>" (conflicts.md wording, never "AI") | "<file> · kept <resolution.value, formatValue> · <resolution.rule>" |
 | needs you | a conflict with `needs_person` true | `created_at` | "Conflict waiting for you: <label>" | "<file> · <values joined ' vs '>" |
 | settled | a conflict with `settled` set | `settled.at` | "Conflict settled: <label>" | "<file> · kept <settled.value, formatValue>" |
-| signed | a takeoff row with `signed` set | `signed.at` | "Signed off: <label>" | "<file> · <signed.value, formatValue> · by <signed.by>" |
-| asked | each entry of the questions log | `at` | "Asked: <question>" | "<file> · <answer, formatValue with unit>" (a text `answer` as is); refused: "<file> · not answered"; `answer` null and not refused: "<file> · no answer". `<file>`: the project drawing with that `drawing_id`, else the id |
+| signed | a disagreement (rows grouped as for the stat) whose rows are signed: one event, not one per row | `signed.at` | "Signed off: <label>", the group's longest label (the printed-name one, e.g. "area of room (name Küche · 1.01)") | "<file> · <signed.value, formatValue> · by <signed.by>" |
+| asked | each question: a line without `project_ask`, or one group of lines sharing a `project_ask` | `at` (a group: its earliest) | "Asked: <question>" | "<file> · <answer, formatValue with unit>" (a text `answer` as is); refused: "<file> · not answered"; `answer` null and not refused: "<file> · no answer". `<file>`: the project drawing with that `drawing_id`, else the id. A `project_ask` group: "answered on <n> of <m> drawings" (`n` = lines not refused with an `answer`, `m` = lines; "1 drawing" singular), or "not answered" when `n` is 0. The log is newest first; asks with the same `at` show in the order they were asked (the log is walked oldest first before the stable sort) |
 
 ## States
 
@@ -156,9 +157,9 @@ Panel
 - AC-10 With the item selected, `GET /api/projects/5e0c1a2b3d4f` and `GET /api/projects/5e0c1a2b3d4f/review` are
   sent; the panel shows "Archive · created 2026-11-14 08:00 UTC", the name, and a link "Open workspace" to
   `#/p/5e0c1a2b3d4f`. [component, `project.json`, `project_review.json`]
-- AC-11 Stats with `project.json`, `project_review.json` and `project_questions.json`: Files "3", Drawings "5",
-  Questions "2", To review "2", Signed off
-  "0 of 157" (the fixture's sums). [unit `workspaceStats`]
+- AC-11 Stats with `project.json`, `project_review.json`, `project_questions.json` and `takeoff.json`: Files "3",
+  Drawings "5", Questions "2", To review "2", Signed off "0 of <the takeoff's row count>"; without takeoffs Signed
+  off reads "–". [unit `workspaceStats`]
 - AC-12 "New workspace" is a link to `#/`. [component]
 - AC-13 While the project is loading the panel reads "Loading sample-project.zip…". [component, pending]
 - AC-14 A 404 for the project shows `ErrorView` in the panel only; the list stays; Retry requests the project
@@ -182,8 +183,15 @@ History
   needs you, settled, signed). [unit]
 - AC-21 `state: "running"` gives "Reading the drawings" with "<finished> of <n> files" and no "Analysis done";
   `state: "failed"` gives "Ingest failed" with the `error` text. [unit]
-- AC-22 Only drawings with `signed > 0` get a `GET …/takeoff?project=<id>`; with `project_review.json` (all `signed: 0`) none is
-  sent. [component]
+- AC-22 Every review drawing with `quantities > 0` gets a `GET …/takeoff?project=<id>` (with `project_review.json`:
+  flat-a, flat-b and house.ifc, not the two with 0); none is sent for a drawing with 0. [component]
+- AC-32 (#131) Two rows of one drawing with the same `conflict` and `marks`, labels "area of room (name Küche)" and
+  "area of room (name Küche · 1.01)", both signed, plus one unsigned row with `conflict` null: Signed off "1 of 2",
+  and one event "Signed off: area of room (name Küche · 1.01)". [unit]
+- AC-33 Two asks in the same second, logged newest first, show in asked order. [unit]
+- AC-34 (#135) Five lines sharing `project_ask` "pa1" (two answered, three refused) plus one line without it: Questions
+  "2"; one event "Asked: How many doors are there?" with "answered on 2 of 5 drawings", and the single line's event
+  as before; a group with no answer reads "not answered". [unit]
 - AC-23 A 500 for a takeoff shows "Sign-offs not loaded: internal error (internal)" and every other event.
   [component]
 - AC-24 Each event's glyph is `aria-hidden`; its title says the kind in words ("Uploaded", "Analysis done",

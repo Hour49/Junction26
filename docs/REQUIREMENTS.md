@@ -88,6 +88,7 @@ Priority: **M** must have for the demo, **S** should, **C** could.
 | R4 | Sign off a quantity (who, when). Signed values are marked verified everywhere. | S |
 | R5 | Export the takeoff as CSV. | S |
 | R6 | Corrections are kept as labelled examples for evaluating and improving the extractors. | C |
+| R7 | Every finding in a project is one located issue (conflict, refused answer, reading flag, set-aside file, failed code check): kind, severity, drawing, floor where the source states it, page and box, one sentence of why, state. One list per project as JSON, CSV and a zip with the pages marked (story #140, decision 0008; MUST DO, Bogdan 2026-11-14). | M |
 
 ### Building-code pre-check (story #139, Bogdan 2026-11-14 12:20: must do)
 

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { drawing, error, project, projectTrace, takeoff, trace } from '../api/fixtures';
+import { drawing, error, project, takeoff, trace } from '../api/fixtures';
 import type { FileTrace, ProjectView } from '../api';
 import { flush, variants, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
@@ -240,7 +240,7 @@ describe('AdvancedIngest', () => {
       `/api/projects/${PID}/files/d1/preview.png?width=400`,
     ]);
     expect(strip.textContent).toContain('A model: no picture to show');
-    expect(strip.textContent).toContain('No preview for a DXF');
+    expect(strip.textContent).toContain('DXF: no preview');
     expect(strip.textContent).toContain('photo of a plan'); // kindLabel, never the raw id
     expect(strip.textContent).not.toContain('photo_plan');
     expect(strip.textContent).toContain('Not identified yet');
@@ -397,14 +397,16 @@ describe('AdvancedIngest', () => {
     expect(within(list).getAllByRole('listitem')).toHaveLength(7);
   });
 
-  it("Cross-check: before the takeoffs load, the counts are the traces' second_count", async () => {
-    const r: Record<string, unknown> = { [TRACE]: projectTrace };
-    for (const d of project.drawings) r[`GET /api/drawings/${d.drawing_id}/takeoff`] = never();
-    await show(project, r);
+  it('AV-31 Cross-check: "–" until every takeoff has loaded, never a partial count', async () => {
+    const last = must(project.drawings.at(-1));
+    await show(project, { [`GET /api/drawings/${last.drawing_id}/takeoff`]: never() });
     await pick(/^Cross-check/);
-    expect(stat('Measured twice').textContent).toContain('15'); // project_trace.json f1-f3: 5 each
-    expect(stat('Conflicts').textContent).toContain('1');
-    expect(stat('Agree').textContent).toContain('14');
+    for (const label of ['Measured twice', 'Agree', 'Conflicts'])
+      expect(stat(label).textContent).toBe(`${label}–`);
+    cleanup();
+    await show();
+    await pick(/^Cross-check/);
+    expect(stat('Measured twice').textContent).not.toContain('–');
   });
 
   it('AV-20 Index: questions ready per drawing, the suggestions, and Ask this drawing', async () => {
@@ -439,6 +441,11 @@ describe('AdvancedIngest', () => {
   });
 
   it('AV-24/25 the CSS turns animation off for reduced motion and has no colour literal', () => {
+    const pickRule = (css: string) => css.match(/\.adv-pick \{[^}]*\}/)?.[0] ?? '';
+    // AV-30: the picker label never breaks inside "File"
+    expect(pickRule(readFileSync('src/advanced/advanced.css', 'utf8'))).toContain(
+      'overflow-wrap: normal',
+    );
     const css = readFileSync('src/advanced/advanced.css', 'utf8');
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none/);
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);

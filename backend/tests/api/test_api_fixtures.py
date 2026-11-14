@@ -17,6 +17,7 @@ from app.api.ask import AnswerView, AskRequest
 from app.api.checks import DrawingChecks, ProjectChecks
 from app.api.drawings import DrawingView
 from app.api.info import Info
+from app.api.issues import ProjectIssues
 from app.api.project_ask import ProjectAnswer
 from app.api.projects import ProjectList, ProjectReview, Started
 from app.api.questions import ProjectQuestions
@@ -57,6 +58,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "signoff_settle_request": SignOffRequest,
     "error": ErrorBody,
     "project_ask": ProjectAnswer,
+    "project_issues": ProjectIssues,
     "checks": DrawingChecks,
     "project_checks": ProjectChecks,
 }
