@@ -262,7 +262,7 @@ def _shown(row: Row, value: float) -> str:
 
 
 def _reason(row: Row, places: int) -> str:
-    what = row.noun or row.label  # "doors"; "room bedroom count" for a count of no one class
+    what = row.noun or row.label  # "doors", "bedrooms"; "plan count" for no one class or type
     if places:
         where = "one place" if places == 1 else f"{places} places"
         return (
