@@ -3,6 +3,7 @@ other threads while the run writes it."""
 
 import logging
 import threading
+from collections.abc import Sequence
 
 from app.core.errors import NotFoundError
 from app.core.ingest.model import (
@@ -102,6 +103,12 @@ class Run:
                 }
             )
 
+    def fail_stage(self, path: str, did: str, failure: str) -> None:
+        """Marks `path`'s last trace line that says `did` as failed with `failure`."""
+        with self._lock:
+            file_id = self._files[self._index[path]].id
+            self._stages[file_id] = list(failed_stage(self._stages[file_id], did, failure))
+
     def finish(self, path: str, state: FileState, reason: str) -> None:
         self.set(path, state=state, reason=reason)
         status = self.file(path)
@@ -136,3 +143,12 @@ class Run:
         with self._lock:
             ids = list(self._stages)
         return {file_id: self.trace(file_id) for file_id in ids}
+
+
+def failed_stage(stages: Sequence[StageTrace], did: str, failure: str) -> tuple[StageTrace, ...]:
+    """`stages` with the last line that says `did` marked as failed with `failure`."""
+    at = next((i for i in reversed(range(len(stages))) if stages[i].did == did), None)
+    if at is None:
+        return tuple(stages)
+    failed = stages[at].model_copy(update={"failure": failure})
+    return (*stages[:at], failed, *stages[at + 1 :])

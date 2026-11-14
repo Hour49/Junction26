@@ -41,6 +41,7 @@ from app.core.ingest.model import (
     ProjectStatus,
     ReadAsPlan,
     SheetFile,
+    StageTrace,
     Unavailable,
     page_path,
 )
@@ -56,7 +57,7 @@ from app.core.ingest.ports import (
     Runner,
     Unpacker,
 )
-from app.core.ingest.progress import Run
+from app.core.ingest.progress import Run, failed_stage
 from app.core.ingest.triage import (
     NOTE_FAILED,
     NOTE_JUDGE_FAILED,
@@ -90,7 +91,8 @@ PROBES_IN_FLIGHT = 4
 
 IMAGE_KINDS = frozenset({"png_plan", "jpeg_plan", "photo_plan"})
 RESTARTED = "the server restarted during ingest"
-REREAD_CUT = "not read as a floor plan: the server restarted while it was read as a floor plan"
+REREAD_CUT_WHY = "the server restarted while it was read as a floor plan"
+REREAD_CUT = f"not read as a floor plan: {REREAD_CUT_WHY}"
 
 
 class IngestService:
@@ -234,7 +236,12 @@ class IngestService:
                 for file in status.files
             )
             traces = {
-                key: trace.model_copy(update={"file": files[int(key[1:]) - 1]})
+                key: trace.model_copy(
+                    update={
+                        "file": files[int(key[1:]) - 1],
+                        "stages": _cut_stages(trace, status.files[int(key[1:]) - 1], cut),
+                    }
+                )
                 for key, trace in traces.items()
             }
             counts: dict[FileState, int] = {}
@@ -499,8 +506,9 @@ class IngestService:
 
     def _reread(self, run: Run, path: str, call: ReadAsPlan) -> None:
         """Reads one file of a finished project as a floor plan: framed as an image, then its
-        group, route and readers as at upload. A failure sets the file aside with its reason;
-        the project stays done."""
+        group, route and readers as at upload. A failure, raised or a reader's that the group
+        caught (R6-c-6), sets the file aside with its reason, back to triage's call; the
+        project stays done. Its kind and frame change only once it has a drawing (R6-c-9)."""
         started = self._clock()
         run.set(path, state="running", reason="being read as a floor plan")
         self._save(run)
@@ -517,38 +525,43 @@ class IngestService:
                 framed = self._upright(data, kind)
                 if framed is not None:
                     upright, frames[path] = framed
-                    run.set(path, normalised=frames[path])
                     if upright is not data:
                         self._store.put_upload(run.id, path, data)
                         self._store.put_file(run.id, path, upright)
                         data = upright
-            run.stage(path, "identify", f"read as a floor plan, as {call.by} asked",
-                      self._ms(started), output=kind_words(kind))  # fmt: skip
-            run.set(path, kind=kind)
+            run.stage(path, "identify", _asked(call.by), self._ms(started),
+                      output=kind_words(kind))  # fmt: skip
             run.kinds[path] = kind
             drawing = DrawingFile(
                 path=path, size=len(data), sha256=hashlib.sha256(data).hexdigest(), kind=file_format
             )
             groups = Groups(self._store, self._clock, self._names, frames)
             groups.run(run, self._readers(run.id), {path: drawing}, lambda: self._save(run))
+            read = run.file(path)
+            if read.state == "set_aside":  # a reader failed: the group caught it and said why
+                self._unread(run, path, read.reason)
+            else:
+                run.set(path, kind=kind, normalised=frames.get(path, read.normalised))
         except DomainError as failure:
-            self._unread(run, path, f"not read as a floor plan: {failure}")
+            self._unread(run, path, str(failure))
         except Exception as failure:  # a bug: the file says so, the project stays done
             logger.exception("reading %s of project %s as a floor plan failed", path, run.id)
-            self._unread(run, path, f"not read as a floor plan: {type(failure).__name__}")
+            self._unread(run, path, type(failure).__name__)
         finally:
             self._save(run)
             with self._lock:
                 del self._live[run.id]
             run.done.set()
 
-    def _unread(self, run: Run, path: str, reason: str) -> None:
-        """A re-read that failed: the file is set aside with its reason and back to triage's
-        call (no `read_as_plan`), so a person can ask again."""
+    def _unread(self, run: Run, path: str, failure: str) -> None:
+        """A re-read that failed: the file is set aside with why and back to triage's call (no
+        `read_as_plan`), so a person can ask again; its trace line says the re-read failed."""
         triage = run.file(path).triage
         if triage is not None:
+            if triage.read_as_plan is not None:
+                run.fail_stage(path, _asked(triage.read_as_plan.by), failure)
             run.set(path, triage=read_as_plan(triage, None))
-        run.finish(path, "set_aside", reason)
+        run.finish(path, "set_aside", f"not read as a floor plan: {failure}")
 
     def _judge(self, run: Run, failed: bool) -> None:
         """Triage step 3, once every file is finished: each described file (and, for a judge
@@ -606,6 +619,20 @@ class IngestService:
 
     def _save(self, run: Run) -> None:
         self._store.save_project(run.status(), run.traces())
+
+
+def _asked(by: str) -> str:
+    """The trace line of a re-read as a floor plan: who asked."""
+    return f"read as a floor plan, as {by} asked"
+
+
+def _cut_stages(trace: FileTrace, file: FileStatus, ingesting: bool) -> tuple[StageTrace, ...]:
+    """The trace of a file a restart cut off while it was read again as a floor plan: its
+    last re-read line says so (R6-c-9). Any other trace is kept as it is."""
+    asked = None if file.triage is None else file.triage.read_as_plan
+    if ingesting or file.state not in ("queued", "running") or asked is None:
+        return trace.stages
+    return failed_stage(trace.stages, _asked(asked.by), REREAD_CUT_WHY)
 
 
 def _cut(file: FileStatus, ingesting: bool) -> dict[str, object]:
