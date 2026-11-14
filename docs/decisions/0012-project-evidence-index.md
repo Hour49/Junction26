@@ -1,12 +1,12 @@
 # 0012: A project's files that are not floor plans are searchable through a local hybrid index (BM25 + a multilingual embedder), offered to the chat agent as two tools
 
-- Status: proposed
+- Status: accepted by Bogdan's orchestrator (2026-11-14: "contract, eval (hybrid k=5 92/100), ADR and manifest
+  accepted"); the tool shapes confirmed by Tudor's agent orchestrator (board #220, c6879237435); built in PR #235
 - Date: 2026-11-14 16:52 (Europe/Helsinki)
 - Decided by: agent rag (worker, in charge of the design), for Bogdan ("Are we lacking a free form LLM chat agent?
   WIth tool calls s othat will work with the hybrid rag and other tool calls? [...] Tudor will work on the agent
   chat and I was thinking for you to work on the hybrid rag. In the rag there should be the descriptions of the
-  other sources of evidence not floor plans", 2026-11-14); to be approved by Bogdan's orchestrator and reviewed by
-  Tudor's fleet
+  other sources of evidence not floor plans", 2026-11-14)
 - Board thread: #220 (the tool format)
 
 ## Context
@@ -36,7 +36,8 @@ file but not searched.
 - BM25: SQLite FTS5 (`unicode61 remove_diacritics 2`), the query's words joined by OR.
 - Dense: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (Apache-2.0), its 8-bit ONNX file (118 MB)
   on CPU through onnxruntime and `tokenizers`; mean pooling, unit length, 384 numbers; a passage is embedded as
-  `<subject>. <passage>`; vectors are float32 blobs in the same SQLite file, compared by brute force. The model
+  `<subject>. <passage>`, one text per model run (the 8-bit model's vector for a text shifts a little with the
+  other texts in a batch); vectors are float32 blobs in the same SQLite file, compared by brute force. The model
   and tokenizer are pinned by revision and sha256 in `data/models/rag/manifest.json`.
 
 Files a person or the judge called unrelated are left out before ranking unless the caller asks for them. With no
@@ -50,8 +51,8 @@ index is one project's: the agent loop binds it, the model passes no project id.
 per file:
 
 ```json
-{"query": "south facade photo", "method": "hybrid: BM25 + multilingual MiniLM, reciprocal rank fusion",
- "indexed_files": 14, "unrelated_left_out": 3, "note": null,
+{"query": "south facade photo",
+ "method": "hybrid: BM25 + paraphrase-multilingual-MiniLM-L12-v2, reciprocal rank fusion", "indexed_files": 14, "unrelated_left_out": 3, "note": null,
  "hits": [{"id": "f7-detail-2", "file_id": "f7", "file": "photos/IMG_0412.jpg", "page": 1, "part": "detail",
            "kind": "photograph", "subject": "south facade of a two-storey brick house",
            "snippet": "The south facade is red brick with three windows on the upper floor ...",
