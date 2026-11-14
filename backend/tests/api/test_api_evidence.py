@@ -250,7 +250,7 @@ def test_a_sum_s_headline_is_rounded_as_its_arithmetic_and_its_key_has_no_count(
     assert asked.proof.kind == "sum"
     total = number(float(asked.answer.answer or 0))
     assert headline(question, asked) == f"{question}  ->  {total} m2"
-    assert asked.proof.arithmetic is not None and f"= {total} m2" in asked.proof.arithmetic
+    assert asked.proof.arithmetic is not None and f"= {total} m²" in asked.proof.arithmetic
     lines = _legend_lines(asked.proof, _font(14), 14, 1600)
     texts = [text for line in lines for _, _, text in line]
     assert texts == [key.label for key in asked.proof.legend if key.count]

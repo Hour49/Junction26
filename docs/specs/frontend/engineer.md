@@ -92,7 +92,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `pages` | passed to the viewer (no second request). `[]`: no viewer, `ModelProof` instead |
 | `proof.kind` | which proof block shows: `count`/`sum` the viewer and mark list, `model` `ModelProof`, `schedule` the schedule table, `none` nothing |
 | `proof.legend[]` | the viewer's `legend` prop: it draws the colour key and the `note` lines (items counted without a mark), so this screen shows no separate legend |
-| `proof.arithmetic` | one line under the mark list ("22.4 + 2.49 + … = 52.27 m2; left out: Balkon 12.45 (outdoor room)"), when not null |
+| `proof.arithmetic` | one line under the mark list ("22.4 + 2.49 + … = 52.27 m²; left out: Balkon 12.45 (outdoor room)"), when not null |
 | `proof.objects[]` | `ModelProof` table: `name`, `class`, `storey`, `global_id` |
 | `proof.storeys[]` | `ModelProof` table: one row per storey, one column per class in `counts` |
 | `proof.schedule` | table `title`, `columns` as header, `rows[].cells` (null cell = empty), "<rows> of <of> rows" |
@@ -215,7 +215,7 @@ Answers
 - EN-16 The mark list has one row per mark: "1 door", "2 door"; for a sum the row carries the value: "1 Küche 22.40 m²". [component, `answer.json`, `answer_area.json`]
 - EN-17 Hovering or focusing a mark-list row passes its id as the viewer's `highlighted` (mark m2's outline is 4 px, VW-38); clicking badge 2 in the viewer marks the row "2 door" as selected (`aria-selected="true"`). [component, `answer.json`]
 - EN-18 The rule shows "Counting rule: every element, room and plan the drawing lists counts once". [component, `answer.json`]
-- EN-19 The arithmetic line "22.4 + 2.49 + 12.45 + 14.93 = 52.27 m2; left out: Balkon 12.45 (outdoor room)" shows for the sum; no arithmetic line shows for `answer.json` (whose `proof.arithmetic` is null). [component, `answer_area.json`, `answer.json`]
+- EN-19 The arithmetic line "22.4 + 2.49 + 12.45 + 14.93 = 52.27 m²; left out: Balkon 12.45 (outdoor room)" shows for the sum; no arithmetic line shows for `answer.json` (whose `proof.arithmetic` is null). [component, `answer_area.json`, `answer.json`]
 - EN-20 The viewer gets `proof.legend` as `legend`: the Küche polygon's stroke is `#d62728` and the Reduit polygon's `#1f77b4` (VW-21); a derived legend `note` "1 counted without a mark (second reader)" shows as text. [component, `answer_area.json`, derived `answer.json`]
 - EN-21 An excluded mark shows in the list with the sign "–" and no number, as "– Balkon left out by the rule: outdoor room". [component, derived `answer_area.json`]
 - EN-22 The viewer gets `quantity.conflict` as `conflict`: tags "A" and "B" are on the page for the derived conflict answer; `answer.json` (conflict null) has no tag. [component, derived conflict, `answer.json`]

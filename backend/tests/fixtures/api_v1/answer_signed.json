@@ -238,10 +238,10 @@
         "note": null
       }
     ],
-    "arithmetic": "30 = 30 m2",
+    "arithmetic": "30 = 30 m²",
     "objects": null,
     "storeys": null,
     "schedule": null,
-    "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m2, the printed room areas 30 m2; kept 30 m2: the printed label over the outline at the sheet's scale"
+    "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
   }
 }
