@@ -22,6 +22,10 @@ export function showHref(projectId: string, e: Evidence): string {
   });
 }
 
+/** "Bagno 1.01 · Drawn plan 1, page 1"; the server may leave the label or the drawing's name out. */
+const where = (e: Evidence) =>
+  `${e.label ?? 'Place'} · ${e.name ?? 'the drawing'}, page ${String(e.page)}`;
+
 const LEVEL_TONE: Record<Level['level'], string> = {
   high: ' v-pill--ok',
   medium: ' v-pill--warn',
@@ -31,9 +35,9 @@ const LEVEL_TONE: Record<Level['level'], string> = {
 /** "Confidence: High" with the level's text as its tooltip (ADR 0011, Bogdan 16:53). */
 function Confidence({ level }: { level: Level }) {
   return (
-    <span className={`v-pill${LEVEL_TONE[level.level]}`} title={level.text}>
+    <span className={`v-pill${LEVEL_TONE[level.level]}`} title={level.text ?? undefined}>
       Confidence: {LEVEL_WORD[level.level]}
-      <span className="en-sr">. {level.text}</span>
+      {level.text && <span className="en-sr">. {level.text}</span>}
     </span>
   );
 }
@@ -50,7 +54,7 @@ function Text({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
             key={i}
             className="ag-cite"
             href={showHref(projectId, e)}
-            aria-label={`Source ${String(part)}: ${e.label}, ${e.name}, page ${String(e.page)}`}
+            aria-label={`Source ${String(part)}: ${where(e)}`}
           >
             [{part}]
           </a>
@@ -66,9 +70,7 @@ function Sources({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
       {turn.evidence.map((e) => (
         <li key={e.id}>
           <span className="en-tag">{e.n}</span>
-          <span>
-            {e.label} · {e.name}, page {e.page}
-          </span>
+          <span>{where(e)}</span>
           {e.level && <Confidence level={e.level} />}
           <a href={showHref(projectId, e)}>Show it</a>
         </li>

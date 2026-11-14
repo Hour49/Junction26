@@ -1,102 +1,22 @@
-// The agent chat's turn (decision 0013, docs/specs/agent-chat.md §3) and its pure helpers.
-// shortcut: typed by hand from decision 0013's example; switch to Schemas['ChatTurn'] once `npm run api:gen` has it.
+// The agent chat's turn (decision 0013, docs/specs/agent-chat.md §3), typed from the OpenAPI schema, and its pure helpers.
+import type { components } from '../api/schema';
+
+type Schemas = components['schemas'];
 
 export type Box = [number, number, number, number];
 export type Point = [number, number];
 
+export type ChatTurn = Schemas['ChatTurn'];
+export type ChatRequest = Schemas['ChatRequest'];
+export type Evidence = Schemas['ChatEvidence'];
 /** ADR 0011 confidence level of an ask_drawings answer part. */
-export interface Level {
-  level: 'high' | 'medium' | 'low';
-  basis: string;
-  text: string;
-}
-
-export interface Evidence {
-  n: number;
-  id: string;
-  drawing_id: string;
-  name: string;
-  page: number;
-  box: number[];
-  label: string;
-  sure: boolean;
-  level?: Level | null;
-}
-
-export interface Step {
-  n: number;
-  tool: string;
-  label: string;
-  status: 'ok' | 'error';
-  ms: number;
-}
-
-export interface GeomItem {
-  id: string;
-  polygon: Point[];
-  label: string;
-}
-
-export interface RoomChange extends GeomItem {
-  area_before_m2: number | null; // null: a newly placed room (propose_room)
-  area_after_m2: number;
-  was: string[];
-}
-
-export interface Flag {
-  code: string;
-  text: string;
-}
-
-export type ProposalState = 'proposed' | 'accepted' | 'rejected';
-
-export interface Proposal {
-  proposal_id: string;
-  drawing_id: string;
-  page: number;
-  state: ProposalState;
-  removed: GeomItem[];
-  added: GeomItem[];
-  rooms: RoomChange[];
-  unknowns: string[];
-  flags: Flag[];
-}
-
-export interface ChatOption {
-  label: string;
-  message: string;
-}
-
-export type TurnKind = 'answer' | 'dont_know' | 'conflict' | 'needs_input' | 'edit';
-
-export interface ChatTurn {
-  chat_id: string;
-  turn: number;
-  kind: TurnKind;
-  text: string;
-  evidence: Evidence[];
-  edit: Proposal | null;
-  options: ChatOption[] | null;
-  steps: Step[];
-  model: string;
-  cost_usd: number;
-  latency_s: number;
-}
-
-export interface Selection {
-  id: string;
-  kind: 'room' | 'region';
-  drawing_id: string;
-  page: number;
-  ref?: string;
-  box?: Box;
-}
-
-export interface ChatRequest {
-  chat_id?: string;
-  message: string;
-  selection?: Selection[];
-}
+export type Level = Schemas['app__core__agent__model__Level'];
+export type Step = Schemas['Step'];
+export type Proposal = Schemas['Proposal'];
+export type GeomItem = Schemas['Item'];
+/** `area_before_m2` 0: a room the edit places (propose_room), or a new part of a split room. */
+export type RoomChange = Schemas['RoomChange'];
+export type Selection = Schemas['Selection'];
 
 /** The text cut into plain runs and `[n]` citations of a source the turn lists; other brackets stay text. */
 export function splitCites(text: string, ns: number[]): (string | number)[] {
@@ -122,7 +42,7 @@ export function signedArea(d: number): string {
 
 /** "24.04 → 24.56 m²", or "new, 3.40 m²" for a room that did not exist. */
 export function areaChange(r: RoomChange): string {
-  if (r.area_before_m2 === null) return `new, ${two(r.area_after_m2)} m²`;
+  if (r.area_before_m2 === 0) return `new, ${two(r.area_after_m2)} m²`;
   return `${two(r.area_before_m2)} → ${two(r.area_after_m2)} m²`;
 }
 
@@ -132,7 +52,7 @@ export function changeLines(p: Proposal): string[] {
     ...p.removed.map((g) => `Removed: ${g.label}`),
     ...p.added.map((g) => `New: ${g.label}`),
     ...p.rooms.map((r) =>
-      r.area_before_m2 === null
+      r.area_before_m2 === 0
         ? `${r.label}: ${areaChange(r)}`
         : `${r.label}: ${areaChange(r)} (${signedArea(r.area_after_m2 - r.area_before_m2)})`,
     ),

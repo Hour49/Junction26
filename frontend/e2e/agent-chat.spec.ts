@@ -36,7 +36,9 @@ async function uploaded(page: Page, name: string, body: Buffer): Promise<string>
 }
 
 async function ask(page: Page, message: string) {
-  await page.getByLabel('Question').fill(message);
+  // A cold load shows the ask chat until /api/info answers (chat.md CH-43): type into the agent chat.
+  await expect(page.getByRole('button', { name: 'Point at the plan' })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Question' }).fill(message);
   await page.getByRole('button', { name: 'Ask' }).click();
   return page.getByRole('article', { name: message }).last();
 }

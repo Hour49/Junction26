@@ -9,7 +9,7 @@ import {
 } from '../api';
 import { AskBox } from '../engineer/AskBox';
 import { Suggestions } from '../engineer/DrawingHeader';
-import { askable, starters } from '../engineer/projectAsk';
+import { askable, followUps, starters } from '../engineer/projectAsk';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import type { ChatTurn, Selection } from './agent';
@@ -31,11 +31,14 @@ type Load =
 type Pointed = { sel: Selection; chip: string };
 
 /** The agent chat thread (AC-30): one turn pending at a time, `chat_id` kept from the first turn, selections from
- * "Point at the plan" go with the next message and are cleared after it (AC-33). */
-export function AgentChat({ projectId }: { projectId: string }) {
+ * "Point at the plan" go with the next message and are cleared after it (AC-33). As the project chat: `?ask=` is
+ * sent on open, starter chips when empty, follow-up chips after a turn (chat.md). */
+export function AgentChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [rows, setRows] = useState<Row[]>([]);
-  const [chips, setChips] = useState<Suggestion[]>([]);
+  // The drawings' own suggestions, for the starter and follow-up chips; failures leave fewer (or none).
+  const [lists, setLists] = useState<Suggestion[][]>([]);
+  const openAsk = query?.get('ask')?.trim() ?? '';
   const [pointed, setPointed] = useState<Pointed[]>([]);
   const [pointing, setPointing] = useState(false);
   const chatId = useRef<string | undefined>(undefined);
@@ -84,14 +87,20 @@ export function AgentChat({ projectId }: { projectId: string }) {
     const abort = new AbortController();
     getProject(projectId, { signal: abort.signal }).then(
       (project) => {
+        if (abort.signal.aborted) return; // StrictMode's first run: only the live load asks
         setLoad({ state: 'ready', project });
+        if (openAsk && askable(project.drawings).length > 0) {
+          const row: Sent = { id: nextId.current++, message: openAsk, chips: [] };
+          setRows([{ ...row, status: 'pending' }]);
+          send(row, []);
+        }
         void Promise.allSettled(
           askable(project.drawings).map((d) =>
             getDrawing(d.drawing_id, { project: projectId, signal: abort.signal }),
           ),
         ).then((rs) => {
           if (abort.signal.aborted) return;
-          setChips(starters(rs.map((r) => (r.status === 'fulfilled' ? r.value.suggestions : []))));
+          setLists(rs.map((r) => (r.status === 'fulfilled' ? r.value.suggestions : [])));
         });
       },
       (error: unknown) => {
@@ -101,7 +110,7 @@ export function AgentChat({ projectId }: { projectId: string }) {
     return () => {
       abort.abort();
     };
-  }, [projectId]);
+  }, [projectId, openAsk, send]);
 
   const last = rows.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
@@ -121,6 +130,18 @@ export function AgentChat({ projectId }: { projectId: string }) {
   const { project } = load;
   const plans = askable(project.drawings).map((d) => ({ drawing_id: d.drawing_id, name: d.name }));
   const busy = rows.some((r) => r.status === 'pending');
+  const chips = starters(lists);
+  // Hidden while the newest turn offers its own chips or does not know (CH-36's rule for a refusal).
+  const newest = rows.at(-1);
+  const ownChoice =
+    newest?.status === 'done' &&
+    (newest.turn.kind === 'dont_know' || (newest.turn.options ?? []).length > 0);
+  const next = ownChoice
+    ? []
+    : followUps(
+        lists,
+        rows.map((r) => r.message),
+      );
 
   const row = (r: Row) => (
     <article key={r.id} className="en-turn" aria-label={r.message}>
@@ -227,10 +248,13 @@ export function AgentChat({ projectId }: { projectId: string }) {
   }
   return (
     <div className="en-page en-chat">
-      <h1 className="en-chat-title">{project.name}</h1>
+      <h1 className="en-sr">{project.name}</h1>
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {rows.map(row)}
       </section>
+      {next.length > 0 && (
+        <Suggestions items={next} busy={busy} onAsk={ask} label="Follow-up questions" />
+      )}
       {pointer}
       {bar}
     </div>

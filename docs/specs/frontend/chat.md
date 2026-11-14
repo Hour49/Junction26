@@ -234,6 +234,21 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   "no credit text" needs fe-viewer / fe-shared to take it off screens (rule 4, About page). This screen passes no
   credit.
 
+## Agent chat (decision 0013)
+
+When `GET /api/info` has `chat.available: true`, this route shows the agent chat (`src/agent/AgentChat.tsx`,
+behaviour and cards in [docs/specs/agent-chat.md](../agent-chat.md) §3); otherwise everything above stays as it is.
+
+- CH-43 `ProjectChat` renders `AgentChat` when `info.chat.available` is true, and the ask chat above when it is
+  false, when `chat` is null or `model` is `off`, and until `/api/info` has answered.
+- CH-44 The agent chat keeps what the ask chat has: `?ask=` sent once on open (also in StrictMode), the starter chips
+  when empty, the title hidden once the thread has a turn.
+- CH-45 Follow-up chips (CH-36's list) after an agent turn, hidden while the newest turn is `dont_know` or offers
+  its own option chips.
+- Known limit: a cold deep link with `?ask=` that renders before `/api/info` answers asks the ask chat first, then
+  the agent chat again.
+
 ## Out of scope
 
-- Keeping the chat across reloads; suggestions; showing the plan in the chat.
+- Keeping the chat across reloads; suggestions; showing the plan in the chat (the agent chat's edit card does, by
+  decision 0013).

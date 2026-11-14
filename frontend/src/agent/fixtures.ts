@@ -3,11 +3,10 @@ import type { ChatTurn, Proposal } from './agent';
 
 export const DID = 'adeefbbcc17559fc';
 
-const base = { chat_id: 'c3f9a1b2c4d5', model: 'rules', cost_usd: 0, latency_s: 0.3 };
+const base = { chat_id: 'c3f9a1b2c4d5', turn: 1, model: 'rules', cost_usd: 0, latency_s: 0.3 };
 
 export const answerTurn: ChatTurn = {
   ...base,
-  turn: 1,
   kind: 'answer',
   text: 'Bagno 1.01 is 7.56 m² [1].',
   evidence: [
@@ -43,7 +42,6 @@ export const answerTurn: ChatTurn = {
 
 export const dontKnowTurn: ChatTurn = {
   ...base,
-  turn: 3,
   kind: 'dont_know',
   text: 'This drawing does not say which walls carry load. Structural drawings, a building model with LoadBearing, or an engineer would settle it.',
   evidence: [],
@@ -58,7 +56,6 @@ export const dontKnowTurn: ChatTurn = {
 /** A dont_know with the pipeline's suggested questions as options. */
 export const dontKnowOptionsTurn: ChatTurn = {
   ...dontKnowTurn,
-  turn: 7,
   text: 'The drawings do not say how high the ceilings are.',
   options: [
     { label: 'How many doors are there?', message: 'How many doors are there?' },
@@ -68,7 +65,6 @@ export const dontKnowOptionsTurn: ChatTurn = {
 
 export const conflictTurn: ChatTurn = {
   ...base,
-  turn: 4,
   kind: 'conflict',
   text: 'The drawings disagree: the plan counts 11 doors [1], the door schedule lists 12 [2].',
   evidence: [
@@ -102,7 +98,6 @@ export const conflictTurn: ChatTurn = {
 
 export const needsInputTurn: ChatTurn = {
   ...base,
-  turn: 5,
   kind: 'needs_input',
   text: 'There are two bathrooms. Which one do you mean?',
   evidence: [],
@@ -157,7 +152,6 @@ export const proposal: Proposal = {
 
 export const editTurn: ChatTurn = {
   ...base,
-  turn: 2,
   kind: 'edit',
   text: 'Removing the wall between Bagno 1.01 and Stanza 1.02 makes one room of 24.56 m² (+0.52 m²) [1].',
   evidence: [answerTurn.evidence[0] as ChatTurn['evidence'][number]],
@@ -184,7 +178,6 @@ export const editTurn: ChatTurn = {
 /** A new room drawn by the user (AC-18): one added room, a room that shrinks, new walls. */
 export const roomTurn: ChatTurn = {
   ...base,
-  turn: 6,
   kind: 'edit',
   text: 'A storage room of 3.40 m² fits there; Stanza 1.02 shrinks to 13.08 m².',
   evidence: [],
@@ -216,7 +209,7 @@ export const roomTurn: ChatTurn = {
           [0.7, 0.48],
           [0.6, 0.48],
         ],
-        area_before_m2: null,
+        area_before_m2: 0,
         area_after_m2: 3.4,
         was: [],
       },

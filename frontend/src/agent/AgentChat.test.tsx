@@ -4,7 +4,7 @@ import { drawing, project } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
 import { AgentChat } from './AgentChat';
 import type { ChatRequest } from './agent';
-import { answerTurn, model, needsInputTurn } from './fixtures';
+import { answerTurn, dontKnowTurn, model, needsInputTurn } from './fixtures';
 
 const PID = project.id;
 const CHAT = `POST /api/projects/${PID}/chat`;
@@ -117,4 +117,17 @@ it('AC-33 a click on a room sends its model id and the chip names it', async () 
   expect(posts(api)[0]?.selection).toEqual([
     expect.objectContaining({ id: 'sel_1', kind: 'room', ref: 'R3', page: 1 }),
   ]);
+});
+
+it('CH-45 follow-up chips after an answer (questions not asked yet); none after a dont_know', async () => {
+  let n = 0;
+  open(() => (n++ === 0 ? answerTurn : dontKnowTurn));
+  await send('How many doors are there?');
+  await screen.findByText(/is 7.56 m²/);
+  const next = screen.getByRole('group', { name: 'Follow-up questions' });
+  expect(next.textContent).not.toContain('How many doors are there?');
+  expect(next.textContent).toContain('How many windows are there?');
+  await send('Is that wall load-bearing?');
+  await screen.findByText("I don't know.");
+  expect(screen.queryByRole('group', { name: 'Follow-up questions' })).toBeNull();
 });
