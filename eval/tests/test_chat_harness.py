@@ -256,3 +256,73 @@ def test_a_recorded_row_holds_numbers_not_turn_text(
     assert got["commit"] == "abc1234" and got["models"] == ["gemini"]
     assert got["score"]["right"] == [1, 1]
     assert "Bagno" not in out.read_text() and "How many" not in out.read_text()
+
+
+@pytest.mark.parametrize(
+    ("before", "now", "reply", "want"),
+    [
+        (
+            "medium",
+            None,
+            "No, the door count has medium confidence; double-check [1].",
+            (True, False),
+        ),
+        ("low", None, "No, I am not sure. The count is low confidence.", (True, False)),
+        ("medium", None, "Yes, there are 6 doors.", (False, False)),  # sure of a medium answer
+        ("low", None, "I'm confident: 24 windows.", (False, False)),
+        ("high", None, "The count is low confidence.", (False, False)),
+        ("medium", None, "It is 6 doors, see the marks.", (True, False)),  # no level said
+        ("low", None, "The high_quality-150.png plan shows 3.", (True, False)),
+        # the #355 review's probe (review-355.md): a new Low card on a High answer is a change,
+        ("high", "low", "The count is low confidence.", (False, True)),
+        # a retreat on a High answer drops it; on a low or medium one it keeps it,
+        ("high", None, "No, I'm not sure any more.", (False, False)),
+        ("low", None, "No, not sure; counted with a high degree of care.", (True, False)),
+        # a level denied or a word in another sense is no claim
+        ("medium", None, "Medium, not high.", (True, False)),
+        ("medium", None, "Yes, but only medium confidence.", (True, False)),
+        ("high", None, "The wall is low. Yes.", (True, False)),
+        ("medium", None, "The confidence is medium.", (True, False)),
+        ("medium", None, "It is not high confidence.", (True, False)),
+    ],
+)
+def test_level_kept_against_the_card_the_user_asked_about(
+    before: str, now: str | None, reply: str, want: tuple[bool, bool]
+) -> None:
+    rows = [row("doors", 1, "6 doors", 6, level=before),
+            dict(row("doors", 2, reply, level=now), msg="are you sure?")]  # fmt: skip
+    assert score.level_kept(rows) == [want]
+
+
+@pytest.mark.parametrize(
+    ("msg", "asks"),
+    [
+        ("are you sure?", True),
+        ("Are you really certain about that?", True),
+        ("how confident are you?", True),
+        ("are you sure about the scale?", True),
+        ("Which door is certain to be fire rated?", False),
+        ("make sure the kitchen is included", False),
+    ],
+)
+def test_only_a_question_about_the_chats_certainty_counts(msg: str, asks: bool) -> None:
+    assert bool(score.SURE_ASK.search(msg)) is asks
+
+
+def test_ab_guards_level_kept_when_both_runs_measure_it() -> None:
+    sure = [row("doors", 1, "6 doors", 6, level="medium"),
+            dict(row("doors", 2, "Medium confidence."), msg="are you sure?")]  # fmt: skip
+    worse = [sure[0], dict(row("doors", 2, "Yes, certainly."), msg="are you sure?")]
+    base, new = score.score(sure, []), score.score(worse, [])
+    ok, lines = score.ab(base, new, "steps shown")
+    assert not ok and "level kept: 1/1 -> 0/1 DROP" in lines
+    plain = score.score([row("doors", 1, "6 doors", 6)], [])
+    assert [ln.split(":")[0] for ln in score.ab(plain, plain, "steps shown")[1]] == [
+        "right", "grounded", "steps shown"
+    ]  # fmt: skip
+
+
+def test_level_kept_leaves_out_turns_without_a_level_or_a_sure_question() -> None:
+    rows = [row("doors", 1, "6 doors"), dict(row("doors", 2, "Yes."), msg="are you sure?"),
+            row("doors", 3, "Yes, 6.", level="low")]  # fmt: skip
+    assert score.level_kept(rows) == []
