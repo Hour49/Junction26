@@ -48,12 +48,19 @@ from.
 - The chat can edit a plan: "remove the wall between the bathroom and the bedroom", or drag a box and say "put a
   storage room here". Geometry code computes the new rooms and areas, and the change is checked against a few
   building rules for Finland or the Canton of Zürich before anyone accepts it.
+- With the building's plumbing, ventilation and heating models (IFC), Vellum follows every plan edit through them:
+  the answer lists the pipes and ducts on a removed wall and the radiators or vents that would lose their
+  connection. The chat can also say what feeds a radiator and propose moving, adding or removing one, drawn on
+  the storey before and after.
+- A question the drawing's quantities do not cover can be answered from what an IFC model states (its fact
+  sheet), marked Low because those answers are not measured yet. An IFC file also opens in a 3D view.
 
 ## A look at the app
 
-Every picture below is the real app, run from a production build of main with the demo settings. They use two
-drawings: a scanned sheet from the Historic American Buildings Survey, and a three-room flat we drew ourselves as a
-vector PDF.
+Every picture below is the real app, run from a production build of main with the demo settings on 14 November.
+Since then the screens have moved to shadcn/ui components and the chat lists the project's files beside it, so
+today's app looks a little different. The pictures use two drawings: a scanned sheet from the Historic American Buildings
+Survey, and a three-room flat we drew ourselves as a vector PDF.
 
 ### An answer you can check
 
@@ -88,9 +95,10 @@ the PDF reader has no rules for, so nothing was read from it. Asked about it, Ve
 
 The chat is an agent that calls the same tools the app uses. It picks walls and rooms by id and never writes a
 coordinate or a number itself: geometry code works out the new outline and the areas. With a key the tools are
-driven by a Gemini model, as in these pictures; without one, keyword rules choose the tools. On a wide screen the
-plan sits beside the chat and follows each answer. Here a box is dragged over part of a bedroom and the agent is
-asked for a storage room. The bedroom drops from 12.00 to 8.76 m², which would not meet the Canton of Zürich's
+driven by a Gemini model, as in these pictures; without one, keyword rules choose the tools. To point at the plan,
+the pen turns on draw mode: click a room or drag a box. On a scan or photo the pen is greyed out and says why,
+since their walls are pixels. Here a box is dragged over part of a bedroom and the agent is asked for a storage
+room. The bedroom drops from 12.00 to 8.76 m², which would not meet the Canton of Zürich's
 10 m² minimum, and the card says so and quotes the clause.
 
 <p align="center">
@@ -150,7 +158,7 @@ flowchart TD
     CONFLICT --> TAKEOFF
     TAKEOFF --> MODEL[("Drawing model, one JSON per plan")]
     MODEL --> ASK["Ask: the question becomes a lookup"]
-    MODEL --> CHAT["Agent chat: tools over the same model, plan edits by geometry code"]
+    MODEL --> CHAT["Agent chat: tools over the same model, plan edits by geometry code, followed through the services models"]
     MODEL --> RULES["Building-rule pre-check: Finland, Canton of Zürich"]
     ASK --> ANSWER["Value, marks on the plan, High / Medium / Low, or a refusal with its reason"]
 ```
@@ -166,7 +174,8 @@ The thresholds behind High, Medium and Low were fixed on validation plans and wr
 numbers were computed.
 
 The backend is ports and adapters. Every reader is one adapter chosen by a setting, so a reader can be swapped or
-switched off without touching the rest.
+switched off without touching the rest. The settings the live demo runs with, and the readers we left off on
+purpose with what we measured, are in [docs/PIPELINE.md §4](docs/PIPELINE.md#4-settings-the-demo-config-and-what-stays-off).
 
 The full pipeline with every stage and what it writes: [docs/PIPELINE.md](docs/PIPELINE.md). The API:
 [docs/API.md](docs/API.md). Why each decision was made: [docs/decisions/](docs/decisions/README.md).
@@ -178,7 +187,8 @@ as wrong.
 
 | What | Result | What it means |
 | --- | --- | --- |
-| The whole pipeline on our golden set, 2,948 Stoa questions on a fixed set of drawings | 2,749 right (93.2%); 95.0% on the holdout questions; 3.8% abstained | Files in, answers out, every reader on, run from a clean export of commit 240e620. The holdout questions come from the 20% of the dataset we sealed and never tuned on. |
+| The whole pipeline on our golden set, 2,948 Stoa questions on a fixed set of drawings | 2,749 right (93.2%); 95.0% on the holdout questions; 3.8% abstained | Files in, answers out, in the demo settings, run from a clean export of commit 030abbb. The holdout questions come from the 20% of the dataset we sealed and never tuned on. |
+| Room areas on the golden set's CubiCasa images | 57 of 82 within 2% | Up from 9 of 82 once an area printed in a room's label is read as that room's area. |
 | Plan images, 376 CubiCasa test pages read once | 87.0% exact (5,846 of 6,718) | The image route alone. Always answering with the most common answer gets 56.3%. |
 | Confidence levels on those test pages (3,359 answers) | High: 37.9% of answers, 99.0% exact. Medium: 41.1%, 92.8% exact. Low: 21.0%, 54.2% exact | The level tells you how far to trust the answer. Windows are always Low, and 55.9% of those answers are exact. |
 | Double-check requests on those test pages | 97.0% of the wrong answers flagged (846 of 872); 98.98% of the unflagged answers exact | The price is that it asks about 62.1% of all answers, so a person also reviews many right ones. |
@@ -187,7 +197,7 @@ as wrong.
 
 The golden score over the event, each point a clean run of a merge commit: 0% (Friday 23:24, nothing read yet),
 42.8% (23:55, drawn PDFs), 74.7% (Saturday 01:43, IFC models added), 91.6% (04:56, the image route added), 93.2%
-(19:34).
+(19:34), 93.2% (Sunday 00:41, after the evening's merges; no golden answer changed).
 
 Method, per-family tables and every run: [docs/GOLDEN.md](docs/GOLDEN.md). What we tried on the image route and
 what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md). All numbers with their caveats:
@@ -198,11 +208,15 @@ what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md). All numbers with their
 - Sketches: we claim no door counting on hand-drawn plans. On 14 hand-drawn sheets the door count was in range on
   0 of the 10 that have doors.
 - On an image, areas come from an estimated scale unless a printed scale can be measured. They are labelled as
-  estimates and can be far off.
+  estimates and can be far off. The estimate comes from the doors, so a scan with no door found and no readable
+  scale gets no areas at all.
 - Windows on images stayed at about 45 to 55% in every approach we tried.
 - A drawn PDF in a style the vector reader has no rules for is flagged and its questions are refused, as in the
   refusal above.
 - Plan edits need a drawn plan. A scan's walls are pixels, and the agent says so.
+- Building services are read from IFC models only. Pipes and radiators drawn on a scanned services plan are not
+  read: our readers for that missed too often on our bench to switch on.
+- Answers from an IFC model's fact sheet are not measured on any gold yet, so they are always Low.
 - The building-rule pre-check covers a few rules, in Finland and the Canton of Zürich only.
 - There is no login. The live demo sits behind a shared access code.
 
@@ -236,7 +250,11 @@ The vector PDF reader, the IFC reader, the second count and the question parser 
 the detectors when their weights are in `data/models`; the weights are not in this repo (see the credits).
 
 `tools/qa-env.sh <commit> [port] --frontend` exports a commit and runs it with the settings the live demo uses;
-`tools/qa-env.sh config` prints them.
+`tools/qa-env.sh config` prints them, and [docs/PIPELINE.md §4](docs/PIPELINE.md#4-settings-the-demo-config-and-what-stays-off)
+says what each one does. Two things are built ahead for the demo, in `backend/`: the services models the chat's
+services tools read (`uv run python -m app.cli services build`; nothing builds them at upload yet, so a model not
+built ahead is not offered) and the 3D views (`uv run python -m app.cli glb`; without it the first view converts
+on demand, 4 to 52 s on our models).
 
 Guides: [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md),
 [eval/README.md](eval/README.md). The golden path a release is checked against: [docs/QA.md](docs/QA.md).
@@ -246,7 +264,7 @@ Guides: [backend/README.md](backend/README.md), [frontend/README.md](frontend/RE
 | Path | What |
 | --- | --- |
 | `backend/` | Python 3.13, FastAPI. `app/core` is the pure pipeline, `app/adapters` the readers and outside services. |
-| `frontend/` | React, Vite, TypeScript. The app in the pictures above. |
+| `frontend/` | React, Vite, TypeScript, shadcn/ui components on Tailwind, light theme only. The app in the pictures above. |
 | `eval/` | The scorer, the sealed split, the golden set and every recorded run. |
 | `site/`, `demo/` | The access gate in front of the live demo, and the click-through demo it serves without a code. |
 | `docs/` | [Product](docs/PRODUCT.md), [pipeline](docs/PIPELINE.md), [golden set](docs/GOLDEN.md), [eval in short](docs/EVAL.md), [experiments](docs/EXPERIMENTS.md), [API](docs/API.md), [decisions](docs/decisions/README.md), [engineering standard](docs/ENGINEERING.md), [QA](docs/QA.md). |

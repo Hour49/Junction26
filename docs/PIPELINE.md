@@ -1,6 +1,6 @@
 # Pipeline (Stoa challenge)
 
-Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26; rows 3-4, 5, 7 (vector, raster) and 10 checked again 2026-11-14 21:30 against the merges of that evening. It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
+Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26; rows 3-4, 5, 7 (vector, raster) and 10 checked again 2026-11-14 21:30 against the merges of that evening; the golden paragraph, rows 1-2 and 5 and §4-§6 (demo config, parallel ingest, memory, drawable sheets, services) checked 2026-11-15 01:30 against main 3d0dc59. It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
 methods). The per-plan output, the drawing model, becomes decision record 0004.
 
 ## 1. Ingestion: from files to one drawing model per plan
@@ -54,19 +54,22 @@ Every stage is a module in `backend/app/core/pipeline/` (record [0005](decisions
 adapters are real by default: the vector PDF extractor (`EXTRACTOR_VECTOR=pdf`), the IFC reader (`EXTRACTOR_BIM=ifc`),
 the second counter (`SECOND_COUNTER=ifc`, which also runs the PDF one), the schedule reader (`TABLES=pdf`) and the question parser
 (`QUESTION_PARSER=templates`); everything else is still a do-nothing
-`hello` adapter (the raster extractor, `EXTRACTOR_RASTER`, is `hello` unless the config says `composite`). "Today" says what each stage does now; the golden numbers in the paragraph below are from 2026-11-14 00:26.
+`hello` adapter (the raster extractor, `EXTRACTOR_RASTER`, is `hello` unless the config says `composite`). The
+demo config turns most of the rest on; §4 lists what it turns on and what stays off, and why. "Today" says what
+each stage does now.
 
-Golden v2 (2,948 questions), checked 2026-11-14: end to end (pipeline drawings), with ifc on, 2201 of 2948 (74.7%,
-`ANSWER_PRIOR=dev`; 2013, 68.3%, before the IFC route; all 1542 answers that do not abstain are right); on the gold drawings 2876 of 2948 (97.6%). The prior: a question the
-drawing gives no value for (a class not read, a schedule not read) gets the dev split's best estimate, marked
-`abstain: true`; without it the same run scores 1436 of 2948 (48.7%). Extraction, Part 1 element F1: swiss 100%, ifc_models
-80.4%, CubiCasa 0% (the raster route is not read yet; it waits on the literature campaign).
+Golden v2 (2,948 questions), end to end in the demo config of main 030abbb (2026-11-15 00:41, no key, cached
+replies): 2749 of 2948 (93.2%; dev 92.8%, holdout 95.0%, 3.8% abstained). Part 1 element F1: CubiCasa 86.3%,
+ifc_models 100%, swiss 100%; CubiCasa rooms whose area is within 2%: 57 of 82. The prior (`ANSWER_PRIOR=dev`): a
+question the drawing gives no value for (a class not read, a schedule not read) gets the dev split's best estimate,
+marked `abstain: true`. The whole series, from 0% on 2026-11-13 23:24, is in [GOLDEN.md](GOLDEN.md) "The pipeline
+series".
 
 | Stage | Writes | Requirement | Today | Next |
 | --- | --- | --- | --- | --- |
-| 1-2 Unpack, hash | file inventory with sha256 | I1, I2 | module: size and sha256 per file | store by hash, unpack archives |
+| 1-2 Unpack, hash | file inventory with sha256 | I1, I2 | `ZipUnpacker` (`adapters/archive/unpack.py`) unpacks a zip safely: at most 5,000 entries, 600 MB per file, 2 GB in all, 200x expansion per entry over 1 MB (a zip bomb), one nested zip level; what it skips is listed with the reason. Size and sha256 per file. What a group ended as is stored by content (the files' and the group's sha256 plus the readers), so the same group uploaded again is reused unless the run is fresh | |
 | 3-4 Identify, group | drawing groups, set-aside list with reasons | I3 | module: format from the first bytes; group = same folder and name. The sheet-kind step (`SHEET_KIND=carbon`, off by default) also puts a sheet's discipline (architecture, structural, plumbing, heating, ventilation, electrical, fire, site, other) on the file, from the sheet kind, title and number: a display hint, nothing reads it yet (#311) | tell non-drawings apart; IFC model with its sheets |
-| 5 Route | the chosen source per drawing | I4 | module: richest format wins (bim, cad, vector, raster). A scanned PDF goes to the raster route: `ScanImages` renders its page 1 once, at 150 px per inch (fewer when the page would pass the pixel cap), and every raster reader shares that render (#280). The renders are kept by content hash, the last 8 files; a render holds up only readers of its own page, and answers share it (#295). The render states its resolution, so a printed ratio on a scan can become the sheet's scale, if its resolution passes the trust check (§2; #300, #340), when `RASTER_PRINTED_SCALE=carbon` is on (default `off`; on in the demo config). A printed scale more than 2x from the door estimate is left to a person: a bar still wins, a ratio does not (§2). `VECTOR_FALLBACK=raster` (default `off`) sends a drawn PDF that matches no sheet style the same way, flagged, never certified (#283) | scanned PDF vs drawn PDF by the page itself, not the file |
+| 5 Route | the chosen source per drawing | I4 | module: richest format wins (bim, cad, vector, raster). A scanned PDF goes to the raster route: `ScanImages` renders its page 1 once, at 150 px per inch (fewer when the page would pass the pixel cap), and every raster reader shares that render (#280). The renders are kept by content hash, the last 8 files; a render holds up only readers of its own page, and answers share it (#295). The render states its resolution, so a printed ratio on a scan can become the sheet's scale, if its resolution passes the trust check (§2; #300, #340), when `RASTER_PRINTED_SCALE=carbon` is on (default `off`; on in the demo config). A printed scale more than 2x from the door estimate is left to a person: a bar still wins, a ratio does not (§2). `VECTOR_FALLBACK=raster` (default `off`) sends a drawn PDF that matches no sheet style the same way, flagged, never certified (#283). Stages 4-10 run per drawing group, several groups at once when `INGEST_GROUPS_IN_FLIGHT` is above 1 (§5) | scanned PDF vs drawn PDF by the page itself, not the file |
 | 6 Normalise | page renderings, rotation, plans per sheet, scale and its source | I5, I6, I7 | module: pages as the file gives them. The scale is read by the vector extractor in stage 7, not here | rotation, rendering, plan split |
 | 7 Extract: vector | rooms, openings, fixtures, apartments | I8 | `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`, default): reads page 1 of a drawn PDF, and the PNG of the same sheet, in two styles: swiss_dwellings plans (element F1 100%, rooms and areas 100%) and sheets IfcConvert drew from an IFC model (rooms and areas 100%, element F1 80.4%). Reads the scale from text and bar. Printed scales: metric `1:N` is read per line of page text and imperial (`1/4" = 1'-0"`) per text object. A ratio next to a slope word ("1:12 RAMP SLOPE", "1:10 MAX") is not a scale. A sheet that prints several different scales and has no scale bar gets none, with a note; a bar still gives the scale (#282). A bar counts only when its labels carry one unit, metres or feet; a view callout with a number is not a bar (#301). It says which classes it looked for (`read`), so an unread class gets no count | columns, stairs, railings, slabs and beams on IFC-style sheets; other styles (only their scale is read); pages after the first; SVG |
 | 7 Extract: raster | room labels (OCR), symbols (detector), plans | I8 | `hello` (default), reads nothing: CubiCasa element F1 0%, and its questions are refused or get the dev prior. `EXTRACTOR_RASTER=composite` reads a sheet with the components `RASTER_COMPONENTS` names (detector, room readers, `carbon`). `CARBON_READER=large` (default `off`; on in the demo config): on an image over 4,000 px, or a smaller page where the shipped reader found fewer than 3 things (#293), Carbon counts the things drawn (its doors, windows and fixtures replace the shipped reader's) and the shipped reader keeps the rooms. On a big sheet the two reads run at the same time (#306); the few-things case runs after the shipped read. Carbon's door boxes snap to the detector's door opening where one lies inside (#310). `RASTER_PRINTED_SCALE=carbon` (default `off`; on in the demo config) reads the printed scale beside the reader (§2). CubiCasa gold from the SVGs (4,787 files); detector training on dev boxes allowed (0003) | detector and OCR adapter |
@@ -208,3 +211,102 @@ Measured on the pipeline's dev drawings (run `pipeline-bd2471f-20261114-101635`,
 2026-11-14): 6 fails, all on drawn Swiss sheets (kitchen doors of 0.70-0.76 m), and all 6 fail on the gold
 drawing too; 0 fails on the 91 raster and 44 IFC drawings, where the inputs are held as cannot tell. The fails
 before those holds, and why each was or was not real, are in decision 0009.
+
+## 4. Settings: the demo config and what stays off
+
+Every reader beyond the five defaults above is off until a setting turns it on; `backend/.env.example` has one
+commented line per setting. The live demo runs with the settings `tools/qa-env.sh config` prints (checked
+2026-11-15 on main 3d0dc59):
+
+| In the demo | Default | What it turns on |
+| --- | --- | --- |
+| `EXTRACTOR_RASTER=composite` with `RASTER_COMPONENTS` | `hello` | The image route: the C-yolo26l detector in eight views, the local count arbiter T1 for doors, windows, sinks, toilets, showers and bathtubs, and Gemini rooms through the region filter |
+| `RECTIFIER=r3` | `none` | A camera photo of a plan is flattened before it is read |
+| `RASTER_SCALE=priors` | `off` | A scan that prints no scale gets one estimated from its doors; its areas are labelled estimates with a band |
+| `RASTER_PRINTED_SCALE=carbon` | `off` | A measured printed scale (a bar, or a ratio at a resolution the file states) replaces the estimate (§2) |
+| `CARBON_READER=large` | `off` | Carbon counts what is drawn on an image over 4,000 px, or on a page where the shipped reader found fewer than 3 things; flagged, never certified |
+| `CARBON_LEVELS=ladder` | `off` | Carbon reads every raster drawing: a Medium answer it disagrees with drops to Low, one it agrees with rises to High |
+| `DECISIONS_CONFIDENCE`, `DECISIONS_KIND`, `GATE_POLICY`, `ANSWER_POLICY`, `CHECK_POLICY`, `DOUBLE_CHECK_READERS`, `LOCAL_GATES` | off or empty | The confidence levels and the double-check, from policy files frozen in `eval/results/` (fitted on val, certified once on test) |
+| `ANSWER_PRIOR=dev` | `none` | A question the drawing gives no value for gets the dev split's best estimate, marked `abstain: true` |
+| `SHEET_KIND=carbon`, `SHEET_KIND_SET_ASIDE=false` | `off`, `true` | Carbon says what each sheet looks like; a sheet that may not be a floor plan is read and flagged, never set aside |
+| `CHAT_MODEL=gemini` | `rules` | The chat agent runs on a Gemini model; with `rules`, keyword rules choose the tools |
+| `IFC_FACTS=true` | `false` | An IFC model's fact sheet answers what the takeoff does not, in the batch answers and in the chat (§6) |
+| `MODEL_3D=true` | `false` | The 3D view of an IFC file (`GET .../files/{file_id}/model.glb`), converted alone in a child process held to 1,500 MB and 120 CPU seconds; `app.cli glb` converts ahead |
+| `TRIAGE_DESCRIBER=carbon`, `TRIAGE_JUDGE=rules`, `EVIDENCE_SCOPE=all_non_plan` | `off`, `off`, `set_aside` | A set-aside image is described by Carbon for the evidence index (about 0.005 USD an image), rules judge whether a set-aside file belongs to the project, and the index holds every non-plan file and PDF page (decision 0012) |
+| `SERVICES_FOLLOW=on` | `off` | A project's plumbing, ventilation and heating models are followed through every plan edit, and the chat gets the services tools (§6) |
+
+Off in the demo on purpose, with what was measured:
+
+| Setting | Why it stays off |
+| --- | --- |
+| `SCALE_CARBON_DOORS` | Meant for a scan whose detector found no door: the area scale would come from Carbon's door boxes (door width `CARBON_DOOR_M` 1.069 m, fitted on one half of a set of rendered scans with a known scale; 11 of 11 sheets of the other half inside the band; #401). On a fresh set of 68 questions about public scans nobody on the team had used (truths by eye, hashed before any run), main 030abbb with it off gave 36 right, 12 wrong, 20 refused; with it on 37, 14, 17. All three changes were on one sheet with a hand-written 1/4" scale the reader did not read: the kitchen came out 16 m² against 9.8 and the house 149 m² against 100, both outside the ±16% band the answer printed (the third change was a right answer). A wrong number whose stated band does not hold is worse than a refusal, so it stays off. #417 now gives no door scale when a printed scale was seen but not read; that has not been measured with the setting on. On golden v2 the setting changes nothing (Carbon reads elements only on images over 4,000 px) |
+| Services on pictures (`DISCIPLINE_PICTURES`, PR #414; on main only the local readers in `adapters/discipline_pictures/`, not wired into ingest) | Reading radiators, pipes and ducts off a scanned services plan, decision 0015. Tudor's per-class bench on pictures rendered from the services models (#281): counts within ±10% 49% of the time on clean renders, 37% on scans, 35% at 100 dpi and 36% on photos; on scans precision falls to 0.05-0.2; 8% of run lengths within 10%. Run end to end on #414 with the readers on (10 bench pictures), nothing reached a user. It stays off until a bench passes |
+| `RASTER_TILES` | Large sheets took 77 to 95 s longer each in the all-on run, and its CubiCasa criterion failed (#381) |
+| `VECTOR_FALLBACK` | Failed its pre-registered check (#381) |
+| `RESOLVER=carbon` | The pilot was inconclusive, and its cost is paid inline on every answer (#381) |
+| `TRIAGE_CLASSIFIER` | No arm passed the gate (#381) |
+| `INGEST_GROUPS_IN_FLIGHT` (stays 1) | Memory on the live host's 8 GB cap (§5, KNOWN K12) |
+
+## 5. Ingest at scale: parallel groups and memory
+
+Ingest reads a project's drawing groups on a pool of `INGEST_GROUPS_IN_FLIGHT` threads (`core/ingest/groups.py`,
+#395). The default, 1, reads them one after another as before. Groups that share a file, a source (a building's
+sheets and its IFC model) or a file's content form one lane and are read in upload order, so no source is read by
+two groups at once and a copy still reuses the first reading. A group that fails does not stop the others; the
+project still fails with the first error. Each group keeps its own stage clock and counts its own cost, so every
+stage's time and cost stay with its file, and the status is saved only on the run's thread.
+
+Two limits hold whatever the setting: at most 8 Carbon calls are in flight per process (every `CarbonClient` call,
+around the HTTP call only), and the image route's local reading runs one sheet at a time per process
+(`adapters/one_at_a_time.py`), while the Carbon reads beside it stay outside that lock. Without the lock, 4 groups
+at once swapped 16 GB. Measured on a cold upload of 6 images (one run each, real Gemini): 253.0 s one group at a
+time, 78.9 s at 4 groups. On the same upload replayed from cached replies the stored drawings are byte-identical,
+and golden v2 changes no answer (0 of 3058) and no extraction file (204 of 204).
+
+Memory. A big greyscale page is held once, in its own mode (#405, #410): no reader makes a full-page RGB copy.
+The pixel digest hashes 256-row strips, Carbon's and the printed-scale reader's JPEG is resized before it becomes
+RGB, and the detector keeps a grey page grey and builds only its letterbox canvas in RGB. On a 14000 x 9902 px
+scan (138 Mpx) the image readers' peak went from 11.13 to 2.84 GB cold and from 9.30 to 1.51 GB warm, with the same
+bytes sent, the same cache keys and the same golden answers. A services IFC is read in a child process held to
+3,000 MB and 120 s (`adapters/ifc_services.py`, #399), because ifcopenshell keeps what it parsed until its process
+ends: after 16 models read in the API process it had grown by 2.9 GB, and with the child by 85 MB. The 3D view's
+conversion runs the same way (§4). What is still open is in KNOWN K12.
+
+## 6. After ingest: fact sheets, drawable sheets and building services
+
+IFC fact sheets (`IFC_FACTS=true` in the demo; #327, #420). A model's fact sheet holds what the file states, as plain
+numbers and names per discipline, such as each space's net floor area (`core/ifc_facts.py`). When the takeoff, the printed schedules and the dev prior give
+nothing for a question, the answer is read from the sheet by rules and written from a template, with no model call
+(`core/answering/facts.py`). These answers are not measured on any gold, so they are Low, never sure, and ask for a
+double-check. The chat and the engineer's ask read stored sheets only (`adapters/ifc_model/facts_store.py`): the API
+process never parses an IFC when a question comes. On a miss the question is answered as before, and one build starts
+off the request in a child process held to 3,000 MB and 600 s; builds run one at a time, once per file, and a failed
+build is not retried. `python -m app.cli facts build --model <file.ifc> --cache <IFC_FACTS_CACHE>` builds a sheet
+ahead.
+
+Drawable sheets (#407). `GET /api/projects/{id}` says for each drawing whether a plan edit can be drawn on it
+(`drawable`) and, if not, why (`not_drawable_reason`): a scan or photo ("its walls are not geometry"), a building
+model with no drawn plan, a sheet with no scale, rooms without outlines, no wall geometry, or a drawing still being
+read. It runs the same check (`_editable()` in `adapters/plan_tools.py`) the plan tools refuse an edit with, so
+the list and the tools cannot disagree. The frontend's pen uses it (#416). It costs about 57 ms per GET on the
+demo project: no IFC read and no image decode.
+
+Building services (decisions 0016 and 0017, `SERVICES_FOLLOW=on` in the demo). Each services IFC file (plumbing,
+ventilation, heating) becomes one stored, editable services model: elements, ports, connections and, where the
+architecture model lines up, rooms and walls (`core/services/stored.py`). `app.cli services build` builds it ahead
+into `SERVICES_CACHE_DIR`, so no IFC is read when a question comes; the deploy builds the demo's. Nothing builds it
+at upload yet, so the chat's services tools are offered only for models built ahead (KNOWN K14). From that model:
+
+- Facts and graph answers are derived, never stored: 13 operations such as what feeds a terminal, which terminals
+  a valve cuts off, run lengths and open ends. A question the model cannot answer is refused with the reason (no
+  connections, loose equipment, no stated flow). Facts from the stored model equal the IFC fact sheet: 669 of 669
+  and 718 of 718 on the two bench buildings (#357).
+- The chat's services tools (#397): list the services, ask one of the graph operations, and propose to move, add,
+  remove or resize a radiator or air terminal. The tools take ids only, so the model never writes a coordinate; a
+  move is rerouted along the room's walls and checked again on a copy, and a failed check refuses. A proposal is
+  accepted or rejected by a person, and the edit card draws the storey before and after. A services IFC set aside
+  at upload (it has no sheet of its own) is still offered (#413).
+- The follow-up (#333): every plan edit the chat proposes is tested against each services element by geometry
+  (on the removed wall, inside it, through it) and against the model's port graph, per system, for terminals that
+  lose their connection. No model call; the result rides on the proposal. It needs the edited sheet on the IFC
+  route with its wall geometry (KNOWN K6).
