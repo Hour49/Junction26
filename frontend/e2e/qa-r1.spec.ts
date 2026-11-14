@@ -1,6 +1,6 @@
 // QA round 1 layout bugs (board #14), as browser tests on the live no-keys backend. Each fails while its bug is there.
 import { expect, test } from '@playwright/test';
-import { filesThrough, noKeys, openSurveyor, shot, startSample } from './support';
+import { noKeys, openSurveyor, shot, startSample } from './support';
 
 // No hyphens or spaces: nothing the browser may break the line at.
 const LONG_NAME = 'Hafenstrasse_12_Bauabschnitt_B_Ausfuehrungsplaene_Rev07a.txt';
@@ -20,7 +20,8 @@ test('R1-5-4 / R1-4-1: a long project name does not widen the page at 390x844', 
 
   for (const project of [id, sample]) {
     await page.goto(`/#/p/${project}`);
-    await expect(filesThrough(page)).toHaveText(/^\d+ \/ \d+$/);
+    // Loaded and done (#146: an upload with nothing readable shows "Nothing could be read", no stats).
+    await expect(page.getByRole('main').getByText('Done', { exact: true }).first()).toBeVisible();
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width, `#/p/${project}: page width at a 390 px viewport`).toBeLessThanOrEqual(390);
   }

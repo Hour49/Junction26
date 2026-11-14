@@ -35,6 +35,7 @@ from typing import Any, Protocol, cast
 from PIL import Image
 
 from app.adapters.whole_file import write_whole
+from app.core import cost
 from app.core.drawing.model import Room, RoomType, Scale
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
@@ -44,6 +45,11 @@ URL = "https://generativelanguage.googleapis.com/v1beta/models"
 PROMPT_VERSION = "rooms2g-1"  # change it with PROMPT or the page encoding: the cache key holds it
 MAX_SIDE = 2048  # the page is resized (up or down) to this long side, as on val
 MAX_TOKENS = 16384
+# Dollars per million tokens of gemini-3.5-flash. Not from Google's page: third-party trackers
+# citing ai.google.dev pricing (.agents/exp/agent.md), so check against billing. Thinking tokens
+# are billed as output.
+USD_PER_M_INPUT = 1.50
+USD_PER_M_OUTPUT = 9.00
 LOOP = 6  # one text more than this many times on one row or column is a generation loop
 PROMPT = (
     "This is a floor plan, most often Finnish; the page may be rotated or mirrored. List every "
@@ -117,6 +123,7 @@ class GeminiClient:
             raise GeminiError(f"no answer: {type(error).__name__}") from None
         except json.JSONDecodeError:
             raise GeminiError("the answer is not JSON") from None
+        cost.charge(price(answer))  # a call that was paid for counts even when its text is unusable
         return reply_text(answer)
 
 
@@ -127,6 +134,14 @@ def _status(error: urllib.error.HTTPError) -> str:
     except (json.JSONDecodeError, OSError, AttributeError):
         return ""
     return status if isinstance(status, str) and status.replace("_", "").isalpha() else ""
+
+
+def price(answer: dict[str, Any]) -> float:
+    """Dollars of one reply from its `usageMetadata`; 0 when the reply carries none."""
+    usage = answer.get("usageMetadata") or {}
+    tokens_in = int(usage.get("promptTokenCount", 0))
+    tokens_out = int(usage.get("candidatesTokenCount", 0)) + int(usage.get("thoughtsTokenCount", 0))
+    return (tokens_in * USD_PER_M_INPUT + tokens_out * USD_PER_M_OUTPUT) / 1e6
 
 
 def reply_text(answer: dict[str, Any]) -> str:

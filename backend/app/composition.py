@@ -26,6 +26,7 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
+from app.adapters.check_policy import load_check
 from app.adapters.count_arbiter import ArbiterCountExtractor
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
 from app.adapters.decisions.client import DecisionsClient
@@ -41,6 +42,7 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.local_gate import load_local_gate
 from app.adapters.openvlm.client import OpenVlmClient
 from app.adapters.openvlm.decider import OpenVlmDecider
 from app.adapters.openvlm.rooms import OpenVlmRoomExtractor, OpenVlmRoomModel
@@ -60,6 +62,9 @@ from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
+from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
+from app.adapters.triage.rules import RulesClassifier
+from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
@@ -74,6 +79,7 @@ from app.core.answering.ports import (
 from app.core.errors import DomainError, InvalidInputError
 from app.core.ingest.ports import ContentProbe, Rectifier
 from app.core.ingest.service import IngestService
+from app.core.ingest.triage import TriageSteps
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import IngestReport, Route
 from app.core.pipeline.ports import (
@@ -86,6 +92,15 @@ from app.core.pipeline.ports import (
 )
 from app.core.pipeline.room_policy import gold_label_rooms
 from app.core.pipeline.route import RICHEST_FIRST
+from app.core.review.check import (
+    NO_SCORERS,
+    CheckPolicy,
+    Disputes,
+    Scorer,
+    gate_scorer,
+    no_disputes,
+)
+from app.core.review.disputes import find_disputes
 from app.settings import (
     AnswerPriorName,
     ExtractorName,
@@ -239,6 +254,27 @@ def _probe(settings: Settings) -> ContentProbe:
     return KindProbe(FileProbe(), KindReader(client, settings.decisions_cache_dir))
 
 
+def _triage(settings: Settings) -> TriageSteps | None:
+    """File triage (decision 0010); None when the classifier is off, whatever else is set."""
+    match settings.triage_classifier:
+        case "off":
+            return None
+        case "rules":
+            classifier = RulesClassifier()
+    name = (
+        f"classifier={settings.triage_classifier}, describer={settings.triage_describer}, "
+        f"judge={settings.triage_judge}"
+    )
+    judge = RulesJudge() if settings.triage_judge == "rules" else None
+    describer = None
+    if settings.triage_describer == "gemini":
+        client = GeminiDescribeClient(
+            settings.gemini_api_key.get_secret_value(), settings.gemini_timeout_s
+        )
+        describer = GeminiDescriber(client, settings.triage_describer_cache_dir)
+    return TriageSteps(classifier=classifier, describer=describer, judge=judge, name=name)
+
+
 def _rectifier(name: RectifierName) -> Rectifier:
     match name:
         case "none":
@@ -273,6 +309,9 @@ class Answering:
     confidence: Callable[[DrawingFiles], AnswerConfidence] | None = None
     signal: str | None = None  # what that confidence's score is, by name (`g1main`)
     sure_at: Mapping[str, float] | None = None  # GATE_POLICY on that signal; None: ungated
+    check: CheckPolicy | None = None  # CHECK_POLICY; None: off, no answer asks for a check
+    disputes: Disputes = no_disputes  # where a double-check request points
+    scorers: Mapping[str, Scorer] = NO_SCORERS  # LOCAL_GATES, by signal name (lower case)
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -282,6 +321,8 @@ def build_answering(settings: Settings) -> Answering:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
         confidence = partial(DecisionsConfidence, reader=reader)
         signal = DECISIONS_SIGNAL
+    # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
+    scorers = _scorers(settings.local_gates) if settings.check_policy else {}
     return Answering(
         parser=_parser(settings.question_parser),
         prior=_prior(settings.answer_prior),
@@ -290,6 +331,13 @@ def build_answering(settings: Settings) -> Answering:
         confidence=confidence,
         signal=signal,
         sure_at=_gate(settings),
+        check=(
+            load_check(Path(settings.check_policy), signal, scorers)
+            if settings.check_policy
+            else None
+        ),
+        disputes=find_disputes,
+        scorers=scorers,
     )
 
 
@@ -324,11 +372,18 @@ def uses_keys(settings: Settings) -> bool:
     return raster or settings.decisions_confidence or settings.decisions_kind
 
 
-def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> IngestService:
+def build_ingest(
+    settings: Settings,
+    root: Path,
+    *,
+    background: bool = True,
+    triage: TriageSteps | None = None,
+) -> IngestService:
     """Project ingest over the projects folder `root` (data/projects/). `background` False runs
     each upload inside `start` (CLI, tests). The readers' names are part of the cache key, so a
     changed reader ingests a file again. Reader settings that do not build raise here, so the
-    app fails at startup instead of setting every upload aside."""
+    app fails at startup instead of setting every upload aside. `triage`: file triage's ports,
+    instead of the settings' (tests)."""
     build_pipeline(settings, root)
     store = DiskProjectStore(root)
     names = {
@@ -364,6 +419,7 @@ def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> 
         clock=time.perf_counter,
         now=lambda: datetime.now(UTC).isoformat(timespec="seconds"),
         new_id=lambda: secrets.token_hex(6),
+        triage=triage or _triage(settings),
     )
     service.recover()  # a project a restart cut off is marked failed, not left running
     return service
@@ -605,6 +661,18 @@ def _gate(settings: Settings) -> dict[str, float] | None:
     if not settings.gate_policy or not settings.decisions_confidence:
         return None
     return load_gate(Path(settings.gate_policy), DECISIONS_SIGNAL)
+
+
+def _scorers(paths: str) -> dict[str, Scorer]:
+    """LOCAL_GATES: the local gate models a check policy's family may be certified on, by their
+    signal name in lower case (app/adapters/check_policy.py compares names without case)."""
+    scorers: dict[str, Scorer] = {}
+    for path in filter(None, (part.strip() for part in paths.split(","))):
+        model = load_local_gate(Path(path))
+        if (name := model.name.lower()) in scorers:
+            raise InvalidInputError(f"LOCAL_GATES: two models are named {model.name}")
+        scorers[name] = gate_scorer(model)
+    return scorers
 
 
 def _policy(path: str) -> frozenset[tuple[str, str]]:

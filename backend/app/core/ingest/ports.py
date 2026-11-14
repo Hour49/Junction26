@@ -6,14 +6,20 @@ from typing import Protocol
 
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import (
+    Classified,
     ContentKind,
+    Description,
     Entry,
     FileTrace,
     Normalised,
     Outcome,
     Probed,
+    ProjectContext,
     ProjectStatus,
     Rectified,
+    Relevance,
+    TriageClass,
+    Unavailable,
 )
 from app.core.pipeline.model import Route
 from app.core.pipeline.ports import (
@@ -56,6 +62,38 @@ class Rectifier(Protocol):
     so every box is in its frame. The default reads nothing and returns None."""
 
     def rectify(self, image: bytes, kind: ContentKind) -> Rectified | None: ...
+
+
+class Classifier(Protocol):
+    """Triage step 1 (decision 0010): is this image a floor plan, another drawing or not a
+    drawing. It gets the bytes and what the probe said. Unsure must come back as `floor_plan`
+    (a plan set aside is never read). `Unavailable`: the file goes on as today."""
+
+    def classify(self, image: bytes, probed: Probed) -> Classified | Unavailable: ...
+
+
+class Describer(Protocol):
+    """Triage step 2: what a file that is not a floor plan shows, in words. An adapter tells
+    its model not to transcribe personal data (names of private people, phone numbers, number
+    plates, home addresses): `text_seen` is title-block and caption text only. The repo and
+    demo are public (decision 0010, board #152 item 11)."""
+
+    def describe(self, image: bytes, classified: Classified) -> Description | Unavailable: ...
+
+
+class RelevanceJudge(Protocol):
+    """Triage step 3: does a described file belong to the project, judged against the project's
+    own data once its plans are read. Always a suggestion; a person can overrule it. `kind`:
+    what the classifier called the file (never `floor_plan`: a plan is not judged).
+    `description`: None only for a judge that does not read it (`reads_description` False),
+    which then judges the files nothing described too."""
+
+    @property
+    def reads_description(self) -> bool: ...
+
+    def judge(
+        self, kind: TriageClass, description: Description | None, context: ProjectContext
+    ) -> Relevance | Unavailable: ...
 
 
 class Readers(Protocol):

@@ -29,6 +29,7 @@ from app.core.review.model import Edit, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.review import (
     apply,
+    disputes,
     reset,
     review_queue,
     row,
@@ -60,6 +61,10 @@ class Takeoff(View):
     file: str
     quantities: list[Row]
     review_queue: list[str]
+    # The keys of the rows where two methods disagree, one per disagreement (a storey's row or a
+    # room's other name repeating a sheet row's disagreement is left out): the conflicts the
+    # project review lists for this drawing (QA R4-a-8)
+    disputes: list[str]
 
 
 def _no_default(field: dict[str, Any]) -> None:
@@ -99,7 +104,11 @@ def takeoff_rows(
     if not zeros:
         rows = [found for found in rows if found.value != 0 or found.status != "single"]
     return Takeoff(
-        drawing_id=drawing_id, file=file, quantities=rows, review_queue=review_queue(rows)
+        drawing_id=drawing_id,
+        file=file,
+        quantities=rows,
+        review_queue=review_queue(rows),
+        disputes=[found.key for found in disputes(rows)],
     )
 
 

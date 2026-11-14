@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { never, mockApi, reply } from '../test/mockApi';
 import {
   ApiError,
+  askProject,
   askQuestion,
   getDrawing,
   getInfo,
@@ -16,6 +17,8 @@ import {
   evidenceUrl,
   getModel,
   postReview,
+  postRelevance,
+  readAsPlan,
   postSignoff,
   previewUrl,
   startSample,
@@ -23,6 +26,14 @@ import {
   uploadProject,
 } from '.';
 import * as fx from './fixtures';
+import {
+  getDrawingChecks,
+  getIssues,
+  getProjectChecks,
+  issuesCsvUrl,
+  issuesZipUrl,
+  rulePacksOf,
+} from '.';
 import type { Edit, SignOffRequest } from './types';
 
 const pid = fx.project.id;
@@ -95,6 +106,16 @@ describe('API client', () => {
     await expect(askQuestion(fx.askRequest)).resolves.toEqual(fx.answerRefused);
   });
 
+  it('CH-9 askProject posts {question} to the project and resolves project_ask.json; a 409 rejects', async () => {
+    const api = mockApi({ [`POST /api/projects/${pid}/ask`]: fx.projectAsk });
+    expect(await askProject(pid, fx.projectAsk.question)).toEqual(fx.projectAsk);
+    expect(api.calls[0]?.body).toEqual({ question: fx.projectAsk.question });
+    const init = api.fetch.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+    mockApi({ [`POST /api/projects/${pid}/ask`]: reply(409, fx.errorNotAllowed) });
+    await expect(askProject(pid, 'q')).rejects.toMatchObject({ status: 409 });
+  });
+
   it('SH-29 pageUrl builds the fixture page URL with the width', () => {
     const first = fx.drawing.pages[0];
     expect(pageUrl(did, 1)).toBe(`${first?.url ?? ''}?width=1600`);
@@ -142,6 +163,23 @@ describe('API client', () => {
     for (const edit of fx.reviewRequests) expect(await postReview(tid, edit)).toEqual(fx.takeoff);
     expect(await postSignoff(tid, fx.signoffRequest)).toEqual(fx.takeoff);
     expect(api.calls.map((c) => c.body)).toEqual([...fx.reviewRequests, fx.signoffRequest]);
+  });
+
+  it('SH-73 postRelevance sends the request fixture and resolves with the file', async () => {
+    const pid = fx.projectTriaged.id;
+    const file = fx.projectTriaged.files.find((f) => f.id === 'f2');
+    const api = mockApi({ [`POST /api/projects/${pid}/files/f2/relevance`]: file });
+    expect(await postRelevance(pid, 'f2', fx.relevanceRequest)).toEqual(file);
+    expect(api.calls.map((c) => c.body)).toEqual([fx.relevanceRequest]);
+  });
+
+  it('SH-74 readAsPlan sends the triage request fixture and resolves with the queued file', async () => {
+    const pid = fx.projectTriaged.id;
+    const api = mockApi({
+      [`POST /api/projects/${pid}/files/f2/triage`]: reply(202, fx.triageStarted),
+    });
+    expect(await readAsPlan(pid, 'f2', fx.triageRequest.by)).toEqual(fx.triageStarted);
+    expect(api.calls.map((c) => c.body)).toEqual([fx.triageRequest]);
   });
 
   it('SH-27 (#121) an unsettle edit and a settling sign-off are sent as given', async () => {
@@ -300,5 +338,44 @@ describe('API client', () => {
     expect(takeoffCsvUrl(tid, { zeros: true, project: pid })).toBe(
       `/api/drawings/${tid}/takeoff.csv?zeros=true&project=${pid}`,
     );
+  });
+
+  it('SH-65 the checks and issues functions send their rows and resolve with the fixtures', async () => {
+    const signal = new AbortController().signal;
+    const api = mockApi({
+      [`GET /api/drawings/${did}/checks`]: fx.drawingChecks,
+      [`GET /api/projects/${pid}/checks`]: fx.projectChecks,
+      [`GET /api/projects/${pid}/issues`]: fx.projectIssues,
+    });
+    expect(await getDrawingChecks(did, { pack: 'fi', project: pid, signal })).toEqual(
+      fx.drawingChecks,
+    );
+    expect(await getProjectChecks(pid, { pack: 'fi', signal })).toEqual(fx.projectChecks);
+    expect(await getIssues(pid, { signal })).toEqual(fx.projectIssues);
+    expect(await getIssues(pid, { pack: 'fi' })).toEqual(fx.projectIssues);
+    expect(await getDrawingChecks(did, { pack: 'a b' })).toEqual(fx.drawingChecks);
+    expect(api.calls.map((c) => c.url)).toEqual([
+      `/api/drawings/${did}/checks?pack=fi&project=${pid}`,
+      `/api/projects/${pid}/checks?pack=fi`,
+      `/api/projects/${pid}/issues`,
+      `/api/projects/${pid}/issues?pack=fi`,
+      `/api/drawings/${did}/checks?pack=a%20b`,
+    ]);
+    const signals = api.fetch.mock.calls.slice(0, 3).map(([, init]) => init?.signal);
+    expect(signals.every((s) => s === signal)).toBe(true);
+  });
+
+  it('SH-65 issues CSV and zip URLs, with and without a pack', () => {
+    expect(issuesCsvUrl(pid)).toBe(`/api/projects/${pid}/issues.csv`);
+    expect(issuesCsvUrl(pid, 'fi')).toBe(`/api/projects/${pid}/issues.csv?pack=fi`);
+    expect(issuesZipUrl(pid)).toBe(`/api/projects/${pid}/issues.zip`);
+    expect(issuesZipUrl(pid, 'a b')).toBe(`/api/projects/${pid}/issues.zip?pack=a%20b`);
+  });
+
+  it('SH-65 rulePacksOf reads Info.rule_packs, [] when absent or before info', () => {
+    expect(rulePacksOf(null)).toEqual([]);
+    expect(rulePacksOf({ ...fx.info, rule_packs: undefined })).toEqual([]);
+    expect(rulePacksOf(fx.info).map((p) => p.id)).toEqual(['ch-zh', 'fi']);
+    expect(rulePacksOf(fx.info)).toContain(fx.rulePackFi);
   });
 });

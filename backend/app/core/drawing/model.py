@@ -222,6 +222,17 @@ class ReaderView(Frozen):
     elements: tuple[Element, ...] = ()
 
 
+class ArbiterReading(Frozen):
+    """What the local count arbiter (`arbiter-t1`) read of one count family on the sheet. Never
+    counted: the answer's local gate reads it (app/core/answering/local_gate.py)."""
+
+    # L1's P(count = i), i = 0, 1, ... (the page-level count model, one per family)
+    probs: tuple[Annotated[float, Field(ge=0, le=1)], ...] = Field(min_length=1)
+    # the arbiter's P that the count it kept or set is right; None: it sets no count of this
+    # family (plan, the rooms, a family its readers did not look for)
+    p: Annotated[float, Field(ge=0, le=1)] | None = None
+
+
 def _absent(value: object) -> bool:
     return value is None
 
@@ -249,6 +260,9 @@ class Drawing(Frozen):
     # What each double-check reader saw, by the reader's name. None: none ran, and then no dump
     # has the field, so a drawing without readers is written exactly as before there were any.
     double_check: dict[str, ReaderView] | None = Field(default=None, exclude_if=_absent)
+    # What the local count arbiter read, by count family (`door`, `room:wc`, `sauna_stove`...).
+    # None: it did not run, and then no dump has the field, as with `double_check`.
+    count_arbiter: dict[str, ArbiterReading] | None = Field(default=None, exclude_if=_absent)
     notes: tuple[str, ...] = ()
 
     @model_validator(mode="after")

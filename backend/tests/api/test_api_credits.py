@@ -2,17 +2,21 @@
 and a synthetic Commons manifest, never in data/."""
 
 import hashlib
+import io
 import json
 import zipfile
 from pathlib import Path
 
+import pypdfium2
 from conftest import upload
 from fastapi.testclient import TestClient
+from test_vector_pdf import swiss_sheet
 
 from app.adapters.credits import SAMPLE, DatasetCredits, parse_licence
 from app.composition import build_ingest
 from app.main import create_app
 from app.settings import Settings
+from scripts.make_sample_archive import text_pdf
 
 TABLE = """# plans
 
@@ -101,6 +105,41 @@ def test_the_drawing_view_carries_the_credit_of_a_dataset_file_and_none_for_an_u
     shown = client.get(f"/api/drawings/{dataset_id['drawing_id']}").json()
     assert shown["credit"] == "Ana; Own work (CC BY-SA 4.0)"
     assert client.get(f"/api/drawings/{own_id['drawing_id']}").json()["credit"] is None
+
+
+def drawing_set() -> bytes:
+    """A notes cover, then a drawn plan: ingest reads page 2 as a file of its own."""
+    document = pypdfium2.PdfDocument.new()
+    for page in (text_pdf(), swiss_sheet().pdf()):
+        document.import_pages(pypdfium2.PdfDocument(page))
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def test_a_page_of_a_dataset_set_carries_the_credit_of_the_pdf_it_was_split_from(
+    settings: Settings,
+) -> None:
+    """R5-c-3: a page file's own bytes are no dataset file, so its drawing showed no credit while
+    the set it came from is CC BY-SA (the Sports Complex permit set)."""
+    source = settings.credit_dataset / "data" / "plans"
+    write(source / "LICENSE.md", TABLE.encode())
+    dataset_set = write(source / "a.pdf", drawing_set())
+    ingest = build_ingest(settings, settings.projects_dir, background=False)
+    client = TestClient(create_app(settings, ingest))
+
+    def credits_of(data: bytes) -> dict[str, str | None]:
+        pid = upload(client, data, "set.pdf")
+        views = [
+            client.get(f"/api/drawings/{drawing['drawing_id']}?project={pid}").json()
+            for drawing in client.get(f"/api/projects/{pid}").json()["drawings"]
+        ]
+        return {view["file"]: view["credit"] for view in views}
+
+    credit = "Ana; Own work (CC BY-SA 4.0)"
+    assert credits_of(dataset_set) == {"set#p2.pdf": credit}
+    own_set = dataset_set.replace(b"%%EOF", b"%%EOF\n% own copy")
+    assert credits_of(own_set) == {"set#p2.pdf": None}
 
 
 def test_the_sample_is_credited_when_its_archive_is_built_after_the_first_lookup(

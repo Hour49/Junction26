@@ -1,24 +1,9 @@
 // Workspaces screen (docs/specs/frontend/account.md) on the live no-keys backend: AC-25, AC-26, AC-27.
-import { expect, test, type Page } from '@playwright/test';
-import { noKeys, shot, watchErrors } from './support';
+import { expect, test } from '@playwright/test';
+import { noKeys, sampleDone, shot, watchErrors } from './support';
 
 // No hyphens or spaces: nothing the browser may break the line at (as qa-r1).
 const LONG_NAME = 'Hafenstrasse_12_Bauabschnitt_B_Ausfuehrungsplaene_Rev07a.txt';
-
-/** The sample through the API (not the ingest screen, whose wording is its own spec's), read to the end. */
-async function sampleDone(page: Page): Promise<string> {
-  const started = await page.request.post('/api/projects/sample?fresh=true');
-  expect(started.status()).toBe(202);
-  const { id } = (await started.json()) as { id: string };
-  await expect
-    .poll(
-      async () =>
-        ((await (await page.request.get(`/api/projects/${id}`)).json()) as { state: string }).state,
-      { timeout: 30_000 },
-    )
-    .toBe('done');
-  return id;
-}
 
 test('AC-25 AC-26 AC-27 the workspaces list and the selected one', async ({ page }, testInfo) => {
   const errors = watchErrors(page);

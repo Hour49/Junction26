@@ -62,17 +62,39 @@ PLAN = "p1"
 LOOKS_FOR: tuple[ReadClass, ...] = ("room", "wall", "window", "door")
 # The sheet title ends "<project> — <"Floor plan" in the sheet's language>: <storey>".
 STOREY = re.compile(r" — [^:]+: (.+)$")
+# A room's type from the words of its label, the first row that matches. The words are those the
+# models' authors wrote, in their languages; a label no row knows is "other". Added on 2026-11-14
+# from the space names of the nine dev models, each only where a label was "other" before:
+# Estonian (tualett, vannituba, magamistuba, elutuba, köök, koridor, fuajee, esik, panipaik,
+# saun), Spanish flat codes as in "2IZQ-HAB3" (-hab, -sal, -coc, -bañ, -dist; rellano, portal,
+# salón), Dutch (douche, kast), German (Zimmer on its own: a flat's room; Vorraum, "Vorr.";
+# Einstellraum) and English (communication).
 ROOM_WORDS: tuple[tuple[RoomType, str], ...] = (
-    ("wc", r"\bwc\b|toilet|toilette|aseo|wc-|sanit"),
-    ("bathroom", r"\bbad\b|bath|badkamer|badrum|bagno|baño|łazienk|kylpy|vonn"),
-    ("bedroom", r"schlaf|bedroom|slaap|soverom|sypialn|dormitor|camera|habitaci|makuu"),
-    ("kitchen", r"küche|kuche|kitchen|keuken|køkken|kokken|kuchn|cocina|cucina|keitti"),
-    ("living", r"wohn|living|woon|stue|salon|soggiorno|olohuone"),
-    ("hall", r"flur|gang\b|hall|corridor|korytarz|pasillo|gang |trappe|vestibul|foyer"),
-    ("storage", r"abstell|storage|lager|bod\b|berging|depot|boiler|technik"),
+    ("wc", r"\bwc\b|toilet|toilette|aseo|wc-|sanit|tualett"),
+    (
+        "bathroom",
+        r"\bbad\b|bath|badkamer|badrum|bagno|baño|łazienk|kylpy|vonn|vannituba|douche|-bañ\b",
+    ),
+    (
+        "bedroom",
+        r"schlaf|bedroom|slaap|soverom|sypialn|dormitor|camera|habitaci|makuu|magamistuba"
+        r"|-hab\d*\b|\bzimmer\b",
+    ),
+    ("living", r"elutuba"),  # before the kitchens: "ELUTUBA+KÖÖK" is a living room with its kitchen
+    ("kitchen", r"küche|kuche|kitchen|keuken|køkken|kokken|kuchn|cocina|cucina|keitti|köök|-coc\b"),
+    ("living", r"wohn|living|woon|stue|salon|salón|soggiorno|olohuone|-sal\b"),
+    (
+        "hall",
+        r"flur|gang\b|hall|corridor|korytarz|pasillo|gang |trappe|vestibul|foyer|koridor|fuajee"
+        r"|\besik\b|-dist\b|rellano|portal|vorraum|\bvorr\b|comm?unication",
+    ),
+    (
+        "storage",
+        r"abstell|storage|lager|bod\b|berging|depot|boiler|technik|kast\b|panipaik|einstellr",
+    ),
     ("shaft", r"schacht|skakt|shaft|schaft"),
     ("balcony", r"balkon|balcon|terras|terrace|loggia"),
-    ("sauna", r"sauna"),
+    ("sauna", r"sauna|\bsaun\b"),
 )
 
 

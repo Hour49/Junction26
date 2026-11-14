@@ -1,0 +1,83 @@
+{
+  "project_id": "5e0c1a2b3d53",
+  "pack": "fi",
+  "note": "A pre-check of a few rules, not a compliance certificate.",
+  "status": "fail",
+  "drawings": [
+    {
+      "drawing_id": "5c4ed01e00000002",
+      "file": "flat-fi.pdf",
+      "file_id": "f1",
+      "pack": "fi",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "status": "fail",
+      "rules": [
+        {
+          "rule_id": "fi-habitable-room-area",
+          "title": "A bedroom or living room is at least 7 m2",
+          "status": "fail",
+          "why": "Of 3 checked: 1 fail, 2 pass.",
+          "clause": {
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+          },
+          "results": [
+            {
+              "id": "fi-habitable-room-area:r2",
+              "rule_id": "fi-habitable-room-area",
+              "status": "fail",
+              "subject": {
+                "kind": "room",
+                "ref": "r2",
+                "label": "Schlafzimmer 4.02"
+              },
+              "value": 6.03,
+              "limit": 7.0,
+              "unit": "m2",
+              "comparison": ">=",
+              "comparison_text": "at least",
+              "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building.",
+              "quantity": "area:room|name=4.02",
+              "marks": [
+                {
+                  "page": 1,
+                  "box": [
+                    0.28833,
+                    0.15,
+                    0.43,
+                    0.2925
+                  ],
+                  "polygon": [
+                    [
+                      0.28833,
+                      0.15
+                    ],
+                    [
+                      0.28833,
+                      0.2925
+                    ],
+                    [
+                      0.43,
+                      0.2925
+                    ],
+                    [
+                      0.43,
+                      0.15
+                    ]
+                  ],
+                  "ref": "r2",
+                  "label": "Schlafzimmer 4.02",
+                  "role": "subject",
+                  "quantity": "area:room|name=4.02",
+                  "mark_id": "m1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

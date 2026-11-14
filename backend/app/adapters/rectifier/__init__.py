@@ -26,8 +26,10 @@ from app.core.ingest.model import ContentKind, Quad, Rectified
 # caption or legend at 5.5-6.1% (037, 040, 041, 042) and does well from 6.8% (033) up.
 FILLS_FRAME = 0.065
 JPEG_QUALITY = 95
-CLASSICAL = "R1c paper border"
-LEARNED = "UVDoc dewarp"
+# How each method is named to a person (`Normalised.rectifier`, shown in reasons and traces):
+# R1c's paper border and UVDoc's dewarp in plain words (QA R4, 2026-11-14).
+CLASSICAL = "paper edges"
+LEARNED = "page flattening"
 
 
 class R3Rectifier:

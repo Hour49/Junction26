@@ -123,6 +123,7 @@ class DecisionsCountExtractor:
 class Confidence:
     value: float | None  # None: no probability (the note says why)
     note: str
+    agrees: bool | None = None  # Gemini's most likely count is the answered one
 
 
 class DecisionsConfidence:
@@ -144,5 +145,6 @@ class DecisionsConfidence:
                 self._pages[path] = self._reader.read(self._files.read(path))
         except DecisionsError as error:
             return Confidence(None, f"decisions: {UNAVAILABLE}: {error}")
-        page = self._pages[path]
-        return Confidence(page.families[family].p(int(value)), f"decisions: {page.note}")
+        page, count = self._pages[path], int(value)
+        counts = page.families[family]
+        return Confidence(counts.p(count), f"decisions: {page.note}", agrees=counts.top == count)

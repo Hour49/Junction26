@@ -53,6 +53,18 @@ export function kindLabel(kind: string | null | undefined): string {
   return kind ? (KIND_LABEL[kind] ?? kind) : 'not identified';
 }
 
+const ROUTE_LABEL: Record<string, string> = {
+  bim: 'BIM model',
+  cad: 'CAD',
+  vector: 'drawn PDF',
+  raster: 'image',
+};
+
+/** A route id (`FileStatus.route`) in words, "drawn PDF route"; an unknown id as sent. */
+export function routeLabel(route: string | null | undefined): string {
+  return `${route ? (ROUTE_LABEL[route] ?? route) : 'no'} route`;
+}
+
 /** Word and icon per file state: status is never shown by colour alone. */
 export const STATE_LABEL: Record<FileState, { word: string; icon: string }> = {
   queued: { word: 'queued', icon: '…' },
@@ -126,6 +138,10 @@ export function percentDone(files: readonly Pick<FileStatus, 'state'>[]): number
 
 export const isLive = (p: Pick<ProjectView, 'state'>) =>
   p.state === 'queued' || p.state === 'running';
+
+/** Poll while the project runs, or a done project's file is read again (file-triage.md FT-20). */
+export const keepPolling = (p: ProjectView) =>
+  isLive(p) || (p.state === 'done' && !p.files.every(isFinished)); // a failed one's queued files never move
 
 /** Elapsed ms: the project's `ms` once ingest ends; while live, `now − started_at` (never below 0); null before it starts. */
 export function elapsedMs(p: ProjectView, now: number): number | null {

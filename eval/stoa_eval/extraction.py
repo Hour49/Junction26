@@ -319,6 +319,20 @@ class ReaderView(_Strict):
     elements: list[Element] = Field(default_factory=list[Element])
 
 
+class ArbiterReading(_Strict):
+    """What the local count arbiter read of one count family on the sheet. Never scored, never
+    counted."""
+
+    probs: list[Fraction] = Field(
+        min_length=1, description="the page-level count model L1's P(count = i), i = 0, 1, ..."
+    )
+    p: Fraction | None = Field(
+        default=None,
+        description="the arbiter's P that the count it kept or set is right; null: it sets no "
+        "count of this family",
+    )
+
+
 class Extraction(_Strict):
     """One drawing file: its pages, plans, elements, rooms, apartments and, optionally, its
     schedules, stage-8 conflicts and the objects of its BIM model (extraction_v1)."""
@@ -362,6 +376,11 @@ class Extraction(_Strict):
         default=None,
         description="what other readers saw on the sheet, by reader name, for marking where "
         "they disagree with a count; never scored; null: none ran",
+    )
+    count_arbiter: dict[str, ArbiterReading] | None = Field(
+        default=None,
+        description="what the local count arbiter read, by count family (door, room:wc, "
+        "sauna_stove...), for the answer's local gate; never scored; null: it did not run",
     )
     notes: list[str] = Field(default_factory=list[str])
 

@@ -36,12 +36,29 @@ sys.path[:0] = [
 import test_pdf_tables as tables  # noqa: E402  # pyright: ignore[reportMissingImports]
 from conftest import plan_png, raster_arm  # noqa: E402  # pyright: ignore[reportMissingImports]
 from fastapi.testclient import TestClient  # noqa: E402
-from make_sample_archive import build_archive  # noqa: E402  # pyright: ignore[reportMissingImports]
+from make_sample_archive import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+    build_archive,
+    jpeg_bytes,
+    png_bytes,
+    raster_plan,
+    site_photo,
+)
 from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
+from test_api_checks import checks_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
+from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+    FakeClassifier,
+    FakeDescriber,
+    steps,
+)
 
+from app.adapters.triage.rules_judge import RulesJudge  # noqa: E402
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
+from app.core.drawing.model import Drawing  # noqa: E402
+from app.core.ingest.model import Register  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
+from app.core.review.check import CheckPolicy, Found, Place  # noqa: E402
+from app.core.review.model import Row  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
 
@@ -61,6 +78,7 @@ class Rated:
 
     value: float | None = 0.87
     note: str = "decisions: example"
+    agrees: bool | None = None
 
 
 class ExampleConfidence:
@@ -132,8 +150,16 @@ def responses() -> dict[str, Any]:
     found["answer_schedule"] = schedule_answer(client)
     others.append(set_aside(client, found))
     others += in_flight(root / "flight", settings, found)
+    found["project_ask"] = project_ask(client, started["id"])  # the frontend reads it by name
+    found["project_issues"] = project_issues(client, started["id"], files)
+    others.append(triaged(root / "triage", settings, found))
+    others.append(code_checks(client, found))  # checks, project checks, their issues
+    found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
+        found["checks"]["drawing_id"]: "5c4ed01e00000002",
+        # an issue's id hashes its drawing's: the first failed check's, the one the fixture keeps
+        found["project_issues_checks"]["issues"][0]["id"]: "code_check_failed-5c4ed01e0002",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
     }
     return stable(trimmed(found), [started["id"], *others], variable)
@@ -168,6 +194,99 @@ def reviewed(client: TestClient, drawing_id: str, found: dict[str, Any]) -> list
     return []
 
 
+def project_issues(
+    client: TestClient, project_id: str, files: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """The sample's located issues (no pack), after a door question on the scan, which has no
+    reader in no-keys mode: a refused answer joins the conflict, reading flags and set-aside
+    files."""
+    scan = files["scans/ground-floor.png"]["drawing_id"]
+    body = {"drawing_id": scan, "question": "How many doors are there?", "project_id": project_id}
+    assert client.post("/api/ask", json=body).status_code == 200
+    return client.get(f"/api/projects/{project_id}/issues").json()
+
+
+def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
+    """File triage on (decision 0010), with the test fakes and the rules judge: the sample's
+    flat-a plan, an image described and judged related (it prints "Küche", a room of flat-a),
+    the site photo judged unrelated and then called related by a person, a photo the describer
+    refused (judged by its class alone), and a camera photo of a sheet with its register,
+    showing a building that matches nothing (unsure)."""
+    with zipfile.ZipFile(io.BytesIO(build_archive())) as sample:
+        plan, photo = sample.read("plans/flat-a.pdf"), sample.read("photos/site.jpg")
+    elevation = png_bytes(raster_plan().rotate(90, expand=True))
+    refused = jpeg_bytes(site_photo().rotate(180))
+    sheet = jpeg_bytes(raster_plan().rotate(270, expand=True))
+    classes = {elevation: "other_drawing", photo: "not_drawing", refused: "not_drawing"}
+    registers = {
+        sheet: Register(
+            kind="elevation",
+            has_floor_plan=False,
+            photo_of_sheet=True,
+            scale_shown="bar",
+            quality="fair",
+            method="fake classifier",
+        )
+    }
+    subjects = {
+        elevation: ("the south elevation of a two-storey house", ("Küche", "Süd")),
+        photo: ("a building site with a crane", ()),
+        sheet: ("a photographed elevation of a church", ("Kirche St. Anna",)),
+    }
+    triage = steps(
+        FakeClassifier(classes, registers=registers),  # type: ignore[arg-type]
+        FakeDescriber(subjects, buildings=frozenset({sheet})),
+        RulesJudge(),
+    )
+    settings = settings.model_copy(update={"projects_dir": root / "projects"})
+    ingest = build_ingest(settings, settings.projects_dir, background=False, triage=triage)
+    client = TestClient(create_app(settings, ingest))
+    files = {
+        "plans/flat-a.pdf": plan,
+        "elevations/south.png": elevation,
+        "photos/site.jpg": photo,
+        "photos/street.jpg": refused,
+        "photos/sheet.jpg": sheet,
+    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for path, data in files.items():
+            archive.writestr(path, data)
+    started = client.post("/api/projects", params={"name": "site.zip"}, content=buffer.getvalue())
+    project_id = started.json()["id"]
+    site = client.get(started.json()["url"]).json()
+    site_id = next(file["id"] for file in site["files"] if file["path"] == "photos/site.jpg")
+    found["relevance_request"] = {"verdict": "related", "by": "Ana"}
+    url = f"/api/projects/{project_id}/files/{site_id}/relevance"
+    assert client.post(url, json=found["relevance_request"]).status_code == 200
+    found["project_triaged"] = client.get(f"/api/projects/{project_id}").json()
+    # then a person has the elevation read as a floor plan (POST …/triage): queued, then read
+    south = next(file["id"] for file in site["files"] if file["path"] == "elevations/south.png")
+    found["triage_request"] = {"class": "floor_plan", "by": "Ana"}
+    url = f"/api/projects/{project_id}/files/{south}/triage"
+    started = client.post(url, json=found["triage_request"])
+    assert started.status_code == 202, started.text
+    found["triage_started"] = started.json()
+    read = client.get(f"/api/projects/{project_id}").json()["files"]
+    found["file_read_as_plan"] = next(file for file in read if file["id"] == south)
+    return project_id
+
+
+def project_ask(client: TestClient, project_id: str) -> dict[str, Any]:
+    """The door count asked on the whole sample project, trimmed to three parts (two that
+    answered, one refused); the total and its note are over all five."""
+    url = f"/api/projects/{project_id}/ask"
+    found = client.post(url, json={"question": "How many doors are there?"}).json()
+    parts = found["parts"]
+    found["parts"] = parts[:2] + [part for part in parts if part["answer"]["refusal"]][:1]
+    for part in found["parts"]:
+        _marks(part["answer"])
+        refusal = part["answer"]["refusal"]
+        if refusal is not None:
+            refusal["can_answer"] = refusal["can_answer"][:2]
+    return found
+
+
 def door_schedule_pdf() -> bytes:
     """A sheet that prints a door schedule (tests/test_pdf_tables.py's, with door numbers as
     real schedules write them)."""
@@ -191,6 +310,24 @@ def schedule_answer(client: TestClient) -> dict[str, Any]:
     upload = client.post("/api/projects", params={"name": "doors.pdf"}, content=door_schedule_pdf())
     drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
     return ask_on(client, drawing_id, "What are the width and height of door 111.B?")
+
+
+def code_checks(client: TestClient, found: dict[str, Any]) -> str:
+    """A flat checked against the Finnish pack (tests/api/test_api_checks.py checks_sheet): a
+    pass, a fail and a cannot tell, each with its marks; the same as its project's checks; and
+    its project's issues with the pack (a failed check)."""
+    upload = client.post("/api/projects", params={"name": "flat-fi.pdf"}, content=checks_sheet())
+    project = client.get(upload.json()["url"]).json()
+    drawing_id = project["drawings"][0]["drawing_id"]
+    params = {"pack": "fi", "project": project["id"]}
+    found["checks"] = client.get(f"/api/drawings/{drawing_id}/checks", params=params).json()
+    found["project_checks"] = client.get(
+        f"/api/projects/{project['id']}/checks", params={"pack": "fi"}
+    ).json()
+    found["project_issues_checks"] = client.get(
+        f"/api/projects/{project['id']}/issues", params={"pack": "fi"}
+    ).json()
+    return project["id"]
 
 
 def set_aside(client: TestClient, found: dict[str, Any]) -> str:
@@ -258,6 +395,71 @@ def rated(root: Path, settings: Settings) -> dict[str, Any]:
         os.chdir(here)
 
 
+def example_disputes(drawing: Drawing, row: Row) -> Found:
+    """A dispute finder's stand-in (core/pipeline/disputed_marks, room_disputes give these): on
+    the arm's sheet, the second door or bedroom is disputed and one place was not counted."""
+    if row.key == "door":
+        return Found(places=(
+            Place(item_id="e2", page=1, box=(0.6, 0.1, 0.65, 0.2),
+                  why="Counted as a door, but 2 of the 3 other readers see nothing here.",
+                  readers={"answer": "door, score 0.41", "L one view": None,
+                           "M one view": None, "seg": "door, score 0.62"}),
+            Place(item_id=None, page=1, box=(0.3, 0.85, 0.36, 0.9),
+                  why="Not counted, but 2 of the 3 other readers see a door here.",
+                  readers={"answer": None, "L one view": "door, score 0.55",
+                           "M one view": "door, score 0.48", "seg": None}),
+        ))  # fmt: skip
+    return Found(places=(
+        Place(item_id="r2", page=1, box=(0.55, 0.1, 0.9, 0.9),
+              why="Counted as a bedroom; the segmentation reader sees a living room here.",
+              readers={"reader": "bedroom", "label": "Makuuhuone 2", "segmentation": "living",
+                       "printed_label": None}),
+        Place(item_id=None, page=1, box=(0.46, 0.1, 0.54, 0.4),
+              why="Not counted, but the segmentation reader and the printed label see a bedroom.",
+              readers={"reader": None, "label": None, "segmentation": "bedroom",
+                       "printed_label": "bedroom"}),
+    ))  # fmt: skip
+
+
+def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
+    """CHECK_POLICY on the raster arm, with DECISIONS_CONFIDENCE's stand-in (0.87): a door count
+    certified (threshold 0.8: `check` null), the same count and a bedroom count not certified
+    (0.9), with the places `example_disputes` lists: a counted mark, a counted room, and a
+    place each answer did not count (`mark_id` null)."""
+    raster_arm(root / "arm", "plan.png")
+    settings = settings.model_copy(
+        update={
+            "projects_dir": root / "projects",
+            "extractor_raster": "composite",
+            "raster_components": "elements=dir:arm,plans=dir:arm,rooms=dir:arm",
+        }
+    )
+    here = Path.cwd()
+    os.chdir(root)
+    try:
+        ingest = build_ingest(settings, settings.projects_dir, background=False)
+        app = create_app(settings, ingest)
+        client = TestClient(app)
+        upload = client.post("/api/projects", params={"name": "plan.png"}, content=plan_png())
+        drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
+        found: dict[str, Any] = {}
+        for name, threshold, question in (
+            ("answer_certified", 0.8, "How many doors are there?"),
+            ("answer_double_check", 0.9, "How many doors are there?"),
+            ("answer_double_check_rooms", 0.9, "How many bedrooms are there?"),
+        ):
+            policy = CheckPolicy(thresholds={"door": threshold, "room:bedroom": threshold})
+            app.state.answering = replace(
+                app.state.answering, confidence=ExampleConfidence, signal=DECISIONS_SIGNAL,
+                check=policy, disputes=example_disputes,
+            )  # fmt: skip
+            ask = {"drawing_id": drawing_id, "question": question}
+            found[name] = client.post("/api/ask", json=ask).json()
+        return found
+    finally:
+        os.chdir(here)
+
+
 def stable(
     found: dict[str, Any], project_ids: list[str], variable: dict[str, str] | None = None
 ) -> dict[str, Any]:
@@ -321,6 +523,16 @@ def trimmed(found: dict[str, Any]) -> dict[str, Any]:
     edited["review_queue"] = sorted(edited["review_queue"])
     for answer in (found["answer_conflict"], found["answer_signed"], found["answer_schedule"]):
         _marks(answer)
+    for pack in found["info"]["rule_packs"]:
+        pack["rules"] = pack["rules"][:1]
+    for rule in found["checks"]["rules"]:  # a pass and a fail, or a fail and a cannot tell
+        rule["results"] = rule["results"][-2:]
+    for drawing in found["project_checks"]["drawings"]:
+        drawing["rules"] = drawing["rules"][:1]
+        for rule in drawing["rules"]:
+            rule["results"] = rule["results"][1:2]  # the fail
+    issues = found["project_issues_checks"]["issues"]
+    issues[:] = [issue for issue in issues if issue["kind"] == "code_check_failed"][:1]
     return found
 
 

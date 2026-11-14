@@ -23,6 +23,14 @@ RasterExtractorName = Literal["hello", "composite"]
 SecondCounterName = Literal["hello", "pdf", "ifc"]
 # r3: the paper border (R1c), else UVDoc unless the plan fills the photo (app/adapters/rectifier)
 RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normalise stage
+# File triage (decision 0010, app/adapters/triage). off: ingest as before triage existed.
+# rules: the content probe's kind, no model (sets aside what ingest sets aside today).
+TriageClassifierName = Literal["off", "rules"]
+# gemini: gemini-3.5-flash fills the description form and its long text, GEMINI_API_KEY's
+# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/)
+TriageDescriberName = Literal["off", "gemini"]
+# rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
+TriageJudgeName = Literal["off", "rules"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
@@ -110,6 +118,13 @@ class Settings(BaseSettings):
     # golden's gate.json (gate_policy_v1): per family, the confidence at or above which an answer
     # is marked sure (app/adapters/gate_policy.py); needs DECISIONS_CONFIDENCE; "" none
     gate_policy: str = ""
+    # golden's check policy (check_policy_v1): the answers certified as they are; every other
+    # takeoff answer asks for a double-check (app/core/review/check.py); "" off
+    check_policy: str = ""
+    # local-dec's local gate models (local_gate_v1, comma separated): a check policy family whose
+    # threshold is on one of their signals is scored by it (app/core/review/check.py); read only
+    # with CHECK_POLICY set; "" none
+    local_gates: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
@@ -121,3 +136,13 @@ class Settings(BaseSettings):
     # none: images are read as uploaded (EXIF turned upright); a rectifier undoes a photo's
     # perspective first (app/core/ingest/ports.py Rectifier)
     rectifier: RectifierName = "none"
+    # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
+    # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
+    rule_packs_dir: Path = Path(__file__).parent / "rules"
+    # File triage (decision 0010): is each uploaded image a floor plan; a non-plan is kept, set
+    # aside, described and judged against the project. The describer and judge run only with a
+    # classifier on.
+    triage_classifier: TriageClassifierName = "off"
+    triage_describer: TriageDescriberName = "off"
+    triage_describer_cache_dir: Path = Path("../data/cache/triage-describer")
+    triage_judge: TriageJudgeName = "off"

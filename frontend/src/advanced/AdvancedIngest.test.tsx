@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { drawing, error, project, projectTrace, takeoff, trace } from '../api/fixtures';
+import { drawing, error, project, takeoff, trace } from '../api/fixtures';
 import type { FileTrace, ProjectView } from '../api';
+import { formatSize } from '../ingest/ingest';
 import { flush, variants, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from './AdvancedIngest';
@@ -240,7 +241,7 @@ describe('AdvancedIngest', () => {
       `/api/projects/${PID}/files/d1/preview.png?width=400`,
     ]);
     expect(strip.textContent).toContain('A model: no picture to show');
-    expect(strip.textContent).toContain('No preview for a DXF');
+    expect(strip.textContent).toContain('DXF: no preview');
     expect(strip.textContent).toContain('photo of a plan'); // kindLabel, never the raw id
     expect(strip.textContent).not.toContain('photo_plan');
     expect(strip.textContent).toContain('Not identified yet');
@@ -380,6 +381,7 @@ describe('AdvancedIngest', () => {
       ...must(takeoff.quantities[0]),
       key: `k${String(i)}`,
       status: 'agree' as const,
+      conflict: null, // an agreeing row has no conflict
     });
     const long = {
       ...takeoff,
@@ -397,14 +399,52 @@ describe('AdvancedIngest', () => {
     expect(within(list).getAllByRole('listitem')).toHaveLength(7);
   });
 
-  it("Cross-check: before the takeoffs load, the counts are the traces' second_count", async () => {
-    const r: Record<string, unknown> = { [TRACE]: projectTrace };
-    for (const d of project.drawings) r[`GET /api/drawings/${d.drawing_id}/takeoff`] = never();
-    await show(project, r);
+  it('AV-31 Cross-check: "–" until every takeoff has loaded, never a partial count', async () => {
+    const last = must(project.drawings.at(-1));
+    await show(project, { [`GET /api/drawings/${last.drawing_id}/takeoff`]: never() });
     await pick(/^Cross-check/);
-    expect(stat('Measured twice').textContent).toContain('15'); // project_trace.json f1-f3: 5 each
-    expect(stat('Conflicts').textContent).toContain('1');
-    expect(stat('Agree').textContent).toContain('14');
+    for (const label of ['Measured twice', 'Agree', 'Conflicts'])
+      expect(stat(label).textContent).toBe(`${label}–`);
+    cleanup();
+    await show();
+    await pick(/^Cross-check/);
+    expect(stat('Measured twice').textContent).not.toContain('–');
+  });
+
+  it('AV-34 Cross-check: Conflicts counts Takeoff.disputes, not every conflict row', async () => {
+    const real = must(takeoff.quantities.find((r) => r.status === 'conflict'));
+    const twin = { ...real, key: 'area:room|name=Küche' };
+    const over: Record<string, unknown> = {};
+    for (const d of project.drawings)
+      over[`GET /api/drawings/${d.drawing_id}/takeoff`] = {
+        ...takeoff,
+        drawing_id: d.drawing_id,
+        quantities: [...takeoff.quantities, twin],
+        disputes: [real.key],
+      };
+    await show(project, over);
+    await pick(/^Cross-check/);
+    expect(stat('Conflicts').textContent).toBe(`Conflicts${String(project.drawings.length)}`);
+  });
+
+  it('AV-32 a queued project with no files: no "0 / 0", no "0 files, 0 B"', async () => {
+    await show({ ...variants.queued, files: [] });
+    await pick(/^Unpack/);
+    expect(stat('Files opened').textContent).toBe('Files opened–');
+    expect(document.body.textContent).not.toMatch(/0 files|0 \/ 0/);
+  });
+
+  it('AV-33 lanes and the Unpack headline in words: no reader ids, no hash', async () => {
+    await show();
+    await pick(/^Route/);
+    const lanes = [...document.querySelectorAll('.adv-lane')].map((l) => l.textContent).join(' ');
+    expect(lanes).not.toMatch(/\b(bim|cad|vector|raster):/);
+    expect(lanes).toContain('drawn PDF route: PDF vector reader');
+    await pick(/^Unpack/);
+    const last = must(project.files.at(-1));
+    expect(must(document.querySelector('.adv-live')).textContent).toBe(
+      `${last.path}: ${formatSize(last.size)}`,
+    );
   });
 
   it('AV-20 Index: questions ready per drawing, the suggestions, and Ask this drawing', async () => {
@@ -439,6 +479,11 @@ describe('AdvancedIngest', () => {
   });
 
   it('AV-24/25 the CSS turns animation off for reduced motion and has no colour literal', () => {
+    const pickRule = (css: string) => css.match(/\.adv-pick \{[^}]*\}/)?.[0] ?? '';
+    // AV-30: the picker label never breaks inside "File"
+    expect(pickRule(readFileSync('src/advanced/advanced.css', 'utf8'))).toContain(
+      'overflow-wrap: normal',
+    );
     const css = readFileSync('src/advanced/advanced.css', 'utf8');
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none/);
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);

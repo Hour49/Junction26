@@ -13,6 +13,7 @@ import {
   percentDone,
   plural,
   progressOf,
+  routeLabel,
   stepFiles,
   stepOf,
 } from './ingest';
@@ -21,6 +22,14 @@ import { must, variants } from './testing';
 type Stage = StageTrace['stage'];
 
 describe('ingest.ts', () => {
+  it('IN-73 routeLabel gives each route in words; an unknown id as sent', () => {
+    expect(routeLabel('vector')).toBe('drawn PDF route');
+    expect(routeLabel('raster')).toBe('image route');
+    expect(routeLabel('bim')).toBe('BIM model route');
+    expect(routeLabel('cad')).toBe('CAD route');
+    expect(routeLabel('other')).toBe('other route');
+  });
+
   it('IN-17 progressOf counts ready, flagged, text_only and set_aside as finished', () => {
     const states = ['ready', 'flagged', 'text_only', 'set_aside', 'queued', 'running'] as const;
     expect(progressOf(states.map((state) => ({ state })))).toEqual({ done: 4, total: 6 });

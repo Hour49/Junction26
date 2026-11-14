@@ -14,13 +14,22 @@ import pytest
 from pydantic import BaseModel, TypeAdapter
 
 from app.api.ask import AnswerView, AskRequest
+from app.api.checks import DrawingChecks, ProjectChecks
 from app.api.drawings import DrawingView
 from app.api.info import Info
-from app.api.projects import ProjectList, ProjectReview, Started
+from app.api.issues import ProjectIssues
+from app.api.project_ask import ProjectAnswer
+from app.api.projects import (
+    ProjectList,
+    ProjectReview,
+    RelevanceRequest,
+    Started,
+    TriageRequest,
+)
 from app.api.questions import ProjectQuestions
 from app.api.takeoff import SignOffRequest, Takeoff
 from app.api.views import ErrorBody, ProjectTrace, ProjectView
-from app.core.ingest.model import FileTrace
+from app.core.ingest.model import FileStatus, FileTrace
 from app.core.review.model import Edit
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "api_v1"
@@ -44,6 +53,9 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "answer_conflict": AnswerView,
     "answer_signed": AnswerView,
     "answer_schedule": AnswerView,
+    "answer_certified": AnswerView,
+    "answer_double_check": AnswerView,
+    "answer_double_check_rooms": AnswerView,
     "takeoff_edited": Takeoff,
     "error_not_allowed": ErrorBody,
     "trace_set_aside": FileTrace,
@@ -54,6 +66,16 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "signoff_request": SignOffRequest,
     "signoff_settle_request": SignOffRequest,
     "error": ErrorBody,
+    "project_ask": ProjectAnswer,
+    "project_issues": ProjectIssues,
+    "relevance_request": RelevanceRequest,
+    "project_triaged": ProjectView,
+    "triage_request": TriageRequest,
+    "triage_started": FileStatus,
+    "file_read_as_plan": FileStatus,
+    "checks": DrawingChecks,
+    "project_checks": ProjectChecks,
+    "project_issues_checks": ProjectIssues,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 

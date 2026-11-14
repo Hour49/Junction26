@@ -42,4 +42,13 @@ describe('surveyor styles', () => {
     expect(panel).toContain('top: var(--v-header-h, 0px);');
     expect(panel).toMatch(/max-height: calc\(100vh - var\(--v-header-h, 0px\)( - \d+px)?\);/);
   });
+
+  it('SV-55 no .sv-screen button rule reaches the viewer (its badges and bar keep their look)', () => {
+    const selectors = [...surveyorCss.matchAll(/([^{}]+)\{/g)].flatMap((m) =>
+      (m[1] ?? '').split(',').map((s) => s.trim()),
+    );
+    const buttons = selectors.filter((s) => /\.sv-screen button\b/.test(s));
+    expect(buttons.length).toBeGreaterThan(0);
+    expect(buttons.filter((s) => !s.includes('button:not(:where(.vw *))'))).toEqual([]);
+  });
 });

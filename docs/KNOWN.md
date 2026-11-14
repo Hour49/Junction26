@@ -11,6 +11,11 @@ per entry; an entry goes when its fix is merged.
 - K5 · minor · backend · An estimated raster area (RASTER_SCALE=priors) can be far off while printing a narrow band
   when the detector finds the wrong doors: golden colorful-10706 living room +74% at ±24% (13 doors),
   high_quality-17 +100% at ±40% (1 door), colorful-7513 kitchen −37% at ±24% (10 doors, QA R3). The band is a 68% one, honest on val overall (Sat 06:45)
+- K6 · minor · backend · An IFC uploaded with its PDF sheets but without their SVG renderings is not linked to
+  them: no sheet-vs-model conflicts (vitoria plan-02-p1.pdf: 4 conflicts beside its SVG, none without; QA R6-c-2)
+  (Sat 15:10)
+- K7 · minor · frontend · The project chat lists only the drawings that answered; refused ones are only counted in
+  the note, not named (ProjectChat.tsx `answering`; QA R6-c-3) (Sat 15:10)
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).

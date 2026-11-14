@@ -5,16 +5,23 @@ import type {
   AskRequest,
   DrawingView,
   Edit,
+  FileStatus,
   FileTrace,
   ProjectTrace,
   ProjectQuestions,
   Info,
+  ProjectAnswer,
   ProjectList,
   ProjectReview,
   ProjectView,
+  RelevanceRequest,
+  TriageRequest,
   SignOffRequest,
   Started,
   Takeoff,
+  DrawingChecks,
+  IssueList,
+  ProjectChecks,
 } from './types';
 
 export type PageWidth = 400 | 1600 | 3200;
@@ -114,6 +121,10 @@ export const getModel = (drawingId: string, opts?: Opts) =>
 export const askQuestion = (body: AskRequest, opts?: Opts) =>
   postJson<AnswerView>('/api/ask', body, opts);
 
+/** One question on every drawing of the project (#135): the parts, and a total only where one means something. */
+export const askProject = (projectId: string, question: string, opts?: Opts) =>
+  postJson<ProjectAnswer>(`/api/projects/${seg(projectId)}/ask`, { question }, opts);
+
 export const getTakeoff = (drawingId: string, opts: ZerosOpts = {}) =>
   call<Takeoff>(
     'GET',
@@ -144,6 +155,27 @@ export const postSignoff = (drawingId: string, body: SignOffRequest, opts: Zeros
     opts,
   );
 
+/** A person's call on a triaged file (decision 0010, file-triage.md); answers the file as it now stands. */
+export const postRelevance = (
+  projectId: string,
+  fileId: string,
+  body: RelevanceRequest,
+  opts?: Opts,
+) =>
+  postJson<FileStatus>(
+    `/api/projects/${seg(projectId)}/files/${seg(fileId)}/relevance`,
+    body,
+    opts,
+  );
+
+/** "Read it as a plan" (0010, #152): queues the file for a plan read; answers 202 with the file, queued. */
+export const readAsPlan = (projectId: string, fileId: string, by: string, opts?: Opts) =>
+  postJson<FileStatus>(
+    `/api/projects/${seg(projectId)}/files/${seg(fileId)}/triage`,
+    { class: 'floor_plan', by } satisfies TriageRequest,
+    opts,
+  );
+
 export const pageUrl = (drawingId: string, page: number, width: PageWidth = 1600) =>
   withQuery(`/api/drawings/${seg(drawingId)}/pages/${String(page)}.png`, { width });
 
@@ -171,3 +203,37 @@ export const evidenceUrl = (
     width: opts.width ?? 1600,
     project: opts.project,
   });
+
+// #139 / #140 (board #142; shared.md "Checks and issues"). `pack` is required for checks: the server 404s without it.
+
+export const getDrawingChecks = (
+  drawingId: string,
+  opts: Opts & { pack: string; project?: string },
+) =>
+  call<DrawingChecks>(
+    'GET',
+    withQuery(`/api/drawings/${seg(drawingId)}/checks`, { pack: opts.pack, project: opts.project }),
+    opts,
+  );
+
+export const getProjectChecks = (projectId: string, opts: Opts & { pack: string }) =>
+  call<ProjectChecks>(
+    'GET',
+    withQuery(`/api/projects/${seg(projectId)}/checks`, { pack: opts.pack }),
+    opts,
+  );
+
+export const getIssues = (projectId: string, opts: Opts & { pack?: string } = {}) =>
+  call<IssueList>(
+    'GET',
+    withQuery(`/api/projects/${seg(projectId)}/issues`, { pack: opts.pack }),
+    opts,
+  );
+
+/** The issues as CSV (same rows as `getIssues`). */
+export const issuesCsvUrl = (projectId: string, pack?: string) =>
+  withQuery(`/api/projects/${seg(projectId)}/issues.csv`, { pack });
+
+/** The export bundle: issues.csv (with an `n` column) plus one PNG per drawing page with the issues drawn and numbered. */
+export const issuesZipUrl = (projectId: string, pack?: string) =>
+  withQuery(`/api/projects/${seg(projectId)}/issues.zip`, { pack });

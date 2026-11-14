@@ -20,6 +20,7 @@ from app.composition import Pipeline, build_pipeline
 from app.composition import readers as readers_of
 from app.core.ingest.ports import ContentProbe, Rectifier, Runner
 from app.core.ingest.service import IngestService
+from app.core.ingest.triage import TriageSteps
 from app.core.pipeline.ports import DrawingFiles, Extractor
 from app.settings import Settings
 
@@ -41,8 +42,10 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
         rectifier: Rectifier | None = None,
         clock: Callable[[], float] | None = None,
         probe: ContentProbe | None = None,
+        store: DiskProjectStore | None = None,
+        triage: TriageSteps | None = None,
     ) -> IngestService:
-        store = DiskProjectStore(root)
+        store = store or DiskProjectStore(root)
 
         def readers(project_id: str) -> Pipeline:
             pipeline = build_pipeline(settings, store.files_dir(project_id))
@@ -63,6 +66,7 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
             clock=clock or (lambda: 0.0),
             now=lambda: next(days),
             new_id=lambda: next(ids),
+            triage=triage,
         )
 
     return make

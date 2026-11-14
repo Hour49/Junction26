@@ -34,8 +34,22 @@
   font-size: 13px;
   margin-top: 6px;
 }
+/* the chat block, at the bottom after the last card (Tudor 2026-11-14), centred */
 .cf-open {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  padding-top: 8px;
+}
+.cf-quiet {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v-accent);
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
 }
 .cf-open-btn,
 .cf-btn,
@@ -277,8 +291,8 @@
     flex-direction: column;
     align-items: stretch;
   }
-  .cf-open {
-    text-align: left;
+  .cf-quiet {
+    min-height: 40px;
   }
   .cf-head h1 {
     font-size: 32px;
@@ -298,4 +312,50 @@
   .cf-tile:active:not(:disabled) {
     transform: none;
   }
+}
+
+/* checks + issues (backend issues 139 and 140) */
+.cf-card.cf-focused {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 2px;
+}
+.cf-card h2:focus {
+  outline: none; /* the card's outline marks it */
+}
+.cf-checks {
+  background: var(--v-surface);
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.cf-checks p {
+  margin: 0;
+}
+.cf-checks-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.cf-checks-counts {
+  color: var(--v-muted);
+}
+.cf-check-pass {
+  color: var(--v-ok);
+  background: var(--v-ok-soft);
+}
+.cf-check-fail {
+  color: var(--v-danger);
+  background: var(--v-danger-soft);
+}
+.cf-check-cannot_tell {
+  color: var(--v-text-2);
+  background: var(--v-fill);
+}
+.cf-checks-note {
+  font-size: 12px;
+  color: var(--v-muted);
 }

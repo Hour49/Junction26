@@ -239,6 +239,12 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
             for model in (True, False) if not drawing.pages else (True,):
                 key = quantity_key("count", subject, storey=storey, model=model)
                 _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
+    if not drawing.pages:  # the model file itself: its spaces' areas over every storey too
+        spaces = [item for item in objects if item.class_ == SPACE]
+        for model in (True, False):
+            for indoor in (False, True):  # an IFC space is a room inside the building
+                key = quantity_key("area", "room", indoor=indoor, model=model)
+                _add_model_spaces(found, None, spaces, rooms, marks, scale, key)
     for storey, items in sorted(by_storey.items()):
         for (cls, measure), quantity in MODEL_MEASURED.items():
             same = [item for item in items if item.class_ == cls]
@@ -253,15 +259,17 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
 
 def _add_model_spaces(
     found: dict[str, Quantity],
-    storey: str,
+    storey: str | None,
     spaces: Sequence[ModelObject],
     rooms: Mapping[str, Room],
     marks: Callable[[Iterable[ModelObject]], list[Mark]],
     scale: str | None,
+    total_key: str | None = None,
 ) -> None:
-    """A storey's space areas: the total and each space by name. A space's area is the one the
-    model states, else that of the room the sheet draws it as (measured at the sheet's scale);
-    a space with neither leaves the total unknown."""
+    """A storey's space areas: the total and each space by name; with `total_key`, only the
+    total of `spaces` under that key (the model file's whole-model totals). A space's area is
+    the one the model states, else that of the room the sheet draws it as (measured at the
+    sheet's scale); a space with neither leaves the total unknown."""
 
     def put(key: str, chosen: Sequence[ModelObject]) -> None:
         found_areas = [_space_area(space, rooms) for space in chosen]
@@ -271,6 +279,9 @@ def _add_model_spaces(
             estimate = rooms_estimate(measured, scale) if measured else None
             _put(found, key, "area", total, marks(chosen), MODEL_SPACES, estimate)
 
+    if total_key is not None:
+        put(total_key, spaces)
+        return
     put(quantity_key("area", "room", storey=storey), spaces)
     named: dict[str, list[ModelObject]] = defaultdict(list)
     for space in spaces:

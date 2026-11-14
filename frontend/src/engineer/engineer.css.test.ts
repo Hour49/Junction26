@@ -44,3 +44,16 @@ it('EN-71 a turn scrolled into view stops below the sticky site header', () => {
     /scroll-margin-top:\s*calc\(var\(--v-header-h[^)]*\)\s*\+\s*\d+px\)/,
   );
 });
+
+it('EN-79 the ask bar focus ring follows the pill, not a square box around the input (QA R4b-3)', () => {
+  expect(rulesFor('.en-askpill input:focus-visible')).toMatch(/outline:\s*none/);
+  const ring = rulesFor('.en-askpill:has(input:focus-visible)');
+  expect(ring).toMatch(/outline:\s*2px solid var\(--v-accent\)/);
+  expect(ring).toMatch(/outline-offset:\s*2px/);
+  expect(rulesFor('.en-askpill')).toMatch(/border-radius:\s*980px/);
+});
+
+it('EN-80 the place row and the file name share the row without covering each other (QA R5-c-2)', () => {
+  expect(rulesFor('.en-plan:has(> .en-place) .vw-name')).toMatch(/max-width:\s*50%/);
+  expect(rulesFor('.en-place')).toMatch(/max-width:\s*calc\(50% - 32px\)/);
+});

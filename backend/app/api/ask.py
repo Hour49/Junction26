@@ -24,6 +24,7 @@ from app.core.answering.ports import AnswerConfidence
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
 from app.core.review.ask import Asked, ask
+from app.core.review.check import Check
 from app.core.review.model import MarkView, Refusal, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
@@ -68,6 +69,9 @@ class AnswerView(View):
     latency_s: float
     line: Answer  # the answer_v1.1 line as the scorer reads it
     proof: Proof  # what to draw as the proof: colour key, arithmetic, model objects, schedule
+    # CHECK_POLICY: the answer is not certified, so a person is asked to double-check it at the
+    # places where the readers disagree; None: certified, signed off, a refusal, or the policy off
+    check: Check | None
 
 
 class _SheetFiles:
@@ -123,7 +127,11 @@ def asked_on(
         sure_at=answering.sure_at,
         flags=info.flags,
         raster=info.route == "raster",
+        check=answering.check,
+        route=info.route,
+        disputes=answering.disputes,
         no_reader=no_reader,
+        scorers=answering.scorers,
     )
 
 
@@ -157,38 +165,55 @@ def ask_route(
     answering: AnsweringDep,
     settings: SettingsDep,
 ) -> AnswerView:
-    drawing_id = drawing_id_of(body.drawing_id)
+    view = answer_view(
+        body.question, body.drawing_id, body.project_id, ingest, reviews, answering, settings
+    )
+    if body.project_id is not None:  # asked in a project (checked to hold the drawing): kept
+        record(
+            settings.projects_dir,
+            body.project_id,
+            AskedQuestion(
+                question=body.question,
+                answer=view.answer,
+                unit=view.unit,
+                drawing_id=view.drawing_id,
+                at=now(),
+                refused=view.refusal is not None,
+                refusal=None if view.refusal is None else view.refusal.code,
+            ),
+        )
+    return view
+
+
+def answer_view(
+    question: str,
+    drawing_id: str,
+    project_id: str | None,
+    ingest: Ingest,
+    reviews: ReviewStore,
+    answering: Answering,
+    settings: Settings,
+) -> AnswerView:
+    """What POST /api/ask answers for `question` on one drawing, asked in `project_id` (its
+    edits and its names) or in none; nothing is recorded."""
+    drawing_id = drawing_id_of(drawing_id)
     drawing = ingest.drawing(drawing_id)
     info = ingest.drawing_info(drawing_id)
-    named = as_uploaded(ingest, info, body.project_id)
-    owner = None if body.project_id is None else named.project_id
+    named = as_uploaded(ingest, info, project_id)
+    owner = None if project_id is None else named.project_id
     spent = cost.spent()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
     asked = asked_on(
-        body.question, drawing, drawing_id, reviews, answering, ingest, owner,
+        question, drawing, drawing_id, reviews, answering, ingest, owner,
         no_reader_of(drawing_id, ingest, settings),
     )  # fmt: skip
     line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
     shown = asked.row
-    value = shown_value(asked)
-    if owner is not None:  # asked in a project: kept for its question list
-        record(
-            settings.projects_dir,
-            owner,
-            AskedQuestion(
-                question=body.question,
-                answer=value,
-                unit=None if asked.refusal is not None else line.unit,
-                drawing_id=drawing_id,
-                at=now(),
-                refused=asked.refusal is not None,
-            ),
-        )
     return AnswerView(
-        question=body.question,
+        question=question,
         drawing_id=drawing_id,
-        file=drawing.file if body.project_id is None else named.path,
+        file=drawing.file if project_id is None else named.path,
         pages=page_views(drawing_id, drawing, info.normalised),
-        answer=value,
+        answer=shown_value(asked),
         unit=None if asked.refusal is not None else line.unit,
         confidence=signal_of(asked, answering),
         quantity=shown,
@@ -201,4 +226,5 @@ def ask_route(
         latency_s=line.latency_s,
         line=line,
         proof=asked.proof,
+        check=asked.check,
     )

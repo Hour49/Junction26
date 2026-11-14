@@ -23,7 +23,17 @@ const twoProjects: ProjectList = {
   ],
 };
 
+// Every review drawing with quantities gets its takeoff (the Signed off stat counts rows).
+const takeoffs = Object.fromEntries(
+  projectReview.drawings
+    .filter((d) => d.quantities > 0)
+    .map((d) => [
+      `GET /api/drawings/${d.drawing_id}/takeoff`,
+      { ...takeoff, drawing_id: d.drawing_id, file: d.file },
+    ]),
+);
 const routes = {
+  ...takeoffs,
   [LIST]: projectList,
   [PROJECT]: project,
   [REVIEW]: projectReview,
@@ -116,6 +126,7 @@ describe('AccountScreen list', () => {
       [LIST]: { projects: [{ ...must(projectList.projects[0]), name }] },
       [PROJECT]: { ...project, name },
       [REVIEW]: projectReview,
+      ...takeoffs,
       [QUESTIONS]: noQuestions,
     });
     const { container } = render(<AccountScreen />);
@@ -148,14 +159,14 @@ describe('AccountScreen panel', () => {
       dt.textContent,
       dt.nextElementSibling?.textContent,
     ]);
-    const sum = (k: 'to_review' | 'signed' | 'quantities') =>
-      projectReview.drawings.reduce((n, d) => n + d[k], 0);
+    const sum = (k: 'to_review') => projectReview.drawings.reduce((n, d) => n + d[k], 0);
+    const rows = Object.keys(takeoffs).length * takeoff.quantities.length;
     expect(cells).toEqual([
       ['Files', String(project.files.length)],
       ['Drawings', String(project.drawings.length)],
       ['Questions', '0'],
       ['To review', String(sum('to_review'))],
-      ['Signed off', `${String(sum('signed'))} of ${String(sum('quantities'))}`],
+      ['Signed off', `0 of ${String(rows)}`],
     ]);
     // #121: every stat is real, none is marked pending.
     expect(document.querySelector('[data-pending]')).toBeNull();
@@ -174,6 +185,7 @@ describe('AccountScreen panel', () => {
       [LIST]: projectList,
       [PROJECT]: () => (++n === 1 ? reply(500, internal) : project),
       [REVIEW]: projectReview,
+      ...takeoffs,
       [QUESTIONS]: noQuestions,
     });
     render(<AccountScreen />);
@@ -235,11 +247,17 @@ describe('AccountScreen history', () => {
   };
   const TAKEOFF = `GET /api/drawings/${takeoff.drawing_id}/takeoff`;
 
-  it('AC-22 no takeoff request when nothing is signed', async () => {
+  it('AC-22 every drawing with quantities gets its takeoff, none with 0', async () => {
     const api = mockApi(routes);
     render(<AccountScreen />);
     await flush();
-    expect(api.calls.some((c) => c.url.includes('/takeoff'))).toBe(false);
+    const urls = api.calls.filter((c) => c.url.includes('/takeoff')).map((c) => c.url);
+    expect(urls.sort()).toEqual(
+      projectReview.drawings
+        .filter((d) => d.quantities > 0)
+        .map((d) => `/api/drawings/${d.drawing_id}/takeoff?project=${ID}`)
+        .sort(),
+    );
   });
 
   it('AC-22 a signed drawing gets its takeoff with the project', async () => {
@@ -252,7 +270,7 @@ describe('AccountScreen history', () => {
     render(<AccountScreen />);
     await flush();
     const urls = api.calls.filter((c) => c.url.includes('/takeoff')).map((c) => c.url);
-    expect(urls).toEqual([`/api/drawings/${takeoff.drawing_id}/takeoff?project=${ID}`]);
+    expect(urls).toContain(`/api/drawings/${takeoff.drawing_id}/takeoff?project=${ID}`);
     expect(within(panel()).getByText(`Signed off: ${row.label}`)).toBeTruthy();
   });
 

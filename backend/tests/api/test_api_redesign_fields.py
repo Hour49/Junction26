@@ -14,6 +14,7 @@ from app.api import takeoff
 from app.api.views import expected_drawings_of, page_views
 from app.core.drawing.model import Drawing, Page, Plan, Scale
 from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.review.review import noun
 
 ROOM = "area:room|name=1.01"  # the sample's flat-b conflict
 
@@ -52,9 +53,11 @@ def test_a_project_lists_the_files_set_aside_with_their_reason(client: TestClien
 
 
 def test_expected_drawings_counts_a_group_and_a_copy_once() -> None:
-    def file(path: str, group: str, sha: str, state: str = "ready") -> FileStatus:
+    def file(
+        path: str, group: str | None, sha: str, state: str = "ready", kind: str = "png_plan"
+    ) -> FileStatus:
         return FileStatus.model_validate(
-            {"id": "f1", "path": path, "size": 1, "sha256": sha, "kind": "png_plan",
+            {"id": "f1", "path": path, "size": 1, "sha256": sha, "kind": kind,
              "group": group, "state": state}
         )  # fmt: skip
 
@@ -63,7 +66,9 @@ def test_expected_drawings_counts_a_group_and_a_copy_once() -> None:
         file("a.png", "a", "2"),  # another rendering of a
         file("copy.png", "copy", "2"),  # a copy of a's png under another name
         file("b.png", "b", "3"),
-        file("c.png", "c", "4", state="set_aside"),
+        file("c.png", None, "4", state="set_aside"),  # set aside before grouping
+        file("d.dxf", "d", "5", state="set_aside", kind="dxf"),  # no sheet: no drawing
+        file("e.png", "e", "6", state="set_aside"),  # grouped, then its reading failed
     )
 
     def status(state: str) -> ProjectStatus:
@@ -71,7 +76,7 @@ def test_expected_drawings_counts_a_group_and_a_copy_once() -> None:
             {"id": "p", "name": "p", "state": state, "created_at": "t", "files": files}
         )
 
-    assert expected_drawings_of(status("running")) == 2
+    assert expected_drawings_of(status("running")) == 3  # a, b, e: e still counts (never drops)
     assert expected_drawings_of(status("queued")) is None
 
 
@@ -168,6 +173,37 @@ def test_a_row_names_what_it_counts_and_a_mark_its_room_type(client: TestClient)
                for mark in row["marks"])  # fmt: skip
 
 
+def test_a_count_of_one_room_type_names_it() -> None:
+    """The double-check request read "the room kitchen count": a room type is named too."""
+    assert noun("count", "room:kitchen", 2) == "kitchens"
+    assert noun("count", "room:kitchen", 1) == "kitchen"
+    assert noun("count", "room:bedroom", 3) == "bedrooms"
+    assert noun("count", "room:living", 2) == "living rooms"
+    assert noun("count", "room:wc", 2) == "WCs"
+    assert noun("count", "door", 2) == "doors"  # unchanged
+    assert noun("count", "room", 4) is None  # all the rooms: no one type
+    assert noun("count", "room:nonsense", 4) is None
+    assert noun("area", "room:kitchen", 12.5) is None  # counts only
+
+
+def test_every_countable_noun_has_a_correct_plural() -> None:
+    """A live request read "Please double-check the balconys": the plural was `name + "s"`."""
+    from typing import get_args
+
+    from app.core.drawing.model import ElementClass, RoomType
+
+    subjects = [*get_args(ElementClass), *(f"room:{kind}" for kind in get_args(RoomType))]
+    plurals = {subject: noun("count", subject, 2) for subject in subjects}
+    assert plurals["room:balcony"] == "balconies"
+    assert plurals["room:other"] == "other rooms"
+    for subject, text in plurals.items():
+        if subject == "furniture":  # uncounted: no plural
+            continue
+        assert text is not None
+        assert not text.endswith(("ys", "ss")), (subject, text)  # balconys, hallss
+        assert text.endswith("s"), (subject, text)
+
+
 def test_unsettle_drops_the_settled_value_and_keeps_the_mark_edits(client: TestClient) -> None:
     _, project = sample(client)
     flat_b = next(file for file in project["files"] if file["path"] == "plans/flat-b.pdf")
@@ -207,13 +243,15 @@ def test_the_project_list_counts_what_is_left_to_review(client: TestClient) -> N
 
 
 def test_a_project_still_running_has_no_counts() -> None:
-    from app.api.projects import summary_of
+    from app.api.projects import KeptReviews, summary_of
 
     status = ProjectStatus.model_validate(
         {"id": "p", "name": "p", "state": "running", "created_at": "t"}
     )
-    found = summary_of(status, None, None)  # type: ignore[arg-type]  # never read while running
-    assert (found.to_review, found.conflicts_open) == (None, None)
+    found = KeptReviews().counts(status, None, None, None)  # type: ignore[arg-type]  # never read
+    assert found is None
+    summary = summary_of(status, found)
+    assert (summary.to_review, summary.conflicts_open, summary.issues_open) == (None, None, None)
 
 
 def test_the_questions_asked_in_a_project_are_listed_newest_first(client: TestClient) -> None:
@@ -258,3 +296,24 @@ def test_signoff_with_settle_signs_a_conflict_in_one_call(
     assert again.status_code == 409  # signed off already, as for any edit
     undo = {**plain, "settle": True, "undo": True}
     assert client.post(f"{drawing}/signoff", params=at, json=undo).status_code == 422
+
+
+def test_a_takeoff_lists_each_disagreement_once_as_the_review_counts_it(
+    client: TestClient, plan_pdf: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QA R4-a-8: on a sheet of one storey a disagreement sits on the sheet's row and on the
+    storey's; screen 11 counted both (16 on the demo zip, the review 8). `disputes` lists it once,
+    the rows the project review counts."""
+    windows = disputed(False)
+    found = {
+        key: quantity(key, 2, "count", BOX_A, conflict=windows)
+        for key in ("window", "window|storey=p1")
+    }
+    monkeypatch.setattr(takeoff, "known_quantities", lambda drawing: found)
+    project = upload(client, plan_pdf)
+    (entry,) = client.get(f"/api/projects/{project}").json()["drawings"]
+    shown = client.get(f"/api/drawings/{entry['drawing_id']}/takeoff").json()
+    assert sum(row["conflict"] is not None for row in shown["quantities"]) == 2
+    assert shown["disputes"] == ["window"]
+    review = client.get(f"/api/projects/{project}/review").json()
+    assert [found["quantity"] for found in review["conflicts"]] == shown["disputes"]

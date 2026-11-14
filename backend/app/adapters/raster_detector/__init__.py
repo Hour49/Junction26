@@ -32,6 +32,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from app.adapters.raster_detector import post
+from app.adapters.raster_detector.sessions import shared_session
 from app.adapters.raster_detector.views import (
     MIN_SCORE,
     VIEWS,
@@ -104,8 +105,14 @@ def _valid[T: BaseModel](path: Path, kind: type[T], body: Any) -> T:
 
 
 def onnx_session(model: Path) -> Session:
+    """The process's one session for this model file, which remembers its recent outputs
+    (sessions.py): readers that feed it the same input share one run."""
     if not model.is_file():
         raise NotFoundError(f"{model} is missing (weights live only in data/models/detector/)")
+    return shared_session(model, _load)
+
+
+def _load(model: Path) -> Session:
     import onnxruntime
 
     options = onnxruntime.SessionOptions()

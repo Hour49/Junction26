@@ -18,5 +18,103 @@
     "unpacked_mb": 2048,
     "files": 5000,
     "question_chars": 2000
-  }
+  },
+  "rule_packs": [
+    {
+      "id": "ch-zh",
+      "country": "CH",
+      "country_name": "Canton of Zürich",
+      "name": "Canton of Zürich building act",
+      "law": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), as in force on 1 January 2026",
+      "version": "2026-11-14",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "fail_means": "It would not meet the Canton of Zürich's rule; other cantons set their own.",
+      "rules": [
+        {
+          "id": "ch-zh-room-area",
+          "title": "A bedroom or living room is at least 10 m2 (canton of Zürich)",
+          "op": "room_area",
+          "applies_to": {
+            "room_types": [
+              "bedroom",
+              "living"
+            ],
+            "element_classes": [],
+            "not_room_types": [],
+            "skip_labels": [
+              "R",
+              "RT",
+              "RH",
+              "RUOK",
+              "RUOKAILU",
+              "Essen",
+              "Repas",
+              "Pranzo",
+              "ALKOVI"
+            ],
+            "note": "Canton of Zürich only: Swiss building law is cantonal and there is no national limit. Rooms for living and sleeping (PBG s. 299). Not in single-family houses and comparable dwellings (s. 303). A dining area that is part of an open room (Essen, Repas, Pranzo) is not a room of its own and is not checked; kitchens are left out (the government may set other rules for them)."
+          },
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "limit": 10.0,
+          "unit": "m2",
+          "key": null,
+          "clause": {
+            "ref": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), § 303 Abs. 1",
+            "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/3B9E9F2232301FF3C1258D2A00290112/$File/700.1_7.9.75_131.pdf",
+            "quote": "Die Mindestfläche von Räumen, ausser solchen in Einfamilienhäusern und bei vergleichbaren Wohnungsarten, beträgt 10 m².",
+            "quote_en": "The minimum area of rooms, except those in single-family houses and comparable kinds of dwelling, is 10 m2."
+          }
+        }
+      ]
+    },
+    {
+      "id": "fi",
+      "country": "FI",
+      "country_name": "Finland",
+      "name": "Finland: homes and accessibility decrees",
+      "law": "Rakentamislaki 751/2023; decrees 1008/2017 (homes and rooms) and 241/2017 (accessibility), kept in force by the entry-into-force provision of Act 752/2023",
+      "version": "2026-11-14",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "fail_means": "It would not meet today's rule for a new building.",
+      "rules": [
+        {
+          "id": "fi-habitable-room-area",
+          "title": "A bedroom or living room is at least 7 m2",
+          "op": "room_area",
+          "applies_to": {
+            "room_types": [
+              "bedroom",
+              "living"
+            ],
+            "element_classes": [],
+            "not_room_types": [],
+            "skip_labels": [
+              "R",
+              "RT",
+              "RH",
+              "RUOK",
+              "RUOKAILU",
+              "Essen",
+              "Repas",
+              "Pranzo",
+              "ALKOVI"
+            ],
+            "note": "New buildings, extensions and substantial changes of use (decree 1008/2017 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
+          },
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "limit": 7.0,
+          "unit": "m2",
+          "key": null,
+          "clause": {
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+          }
+        }
+      ]
+    }
+  ]
 }

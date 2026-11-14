@@ -12,6 +12,8 @@ import {
   type Reader,
   type Row,
 } from '../api';
+import { routeLabel } from '../ingest/ingest';
+import { DoubleCheck } from '../doublecheck/DoubleCheck';
 import { routeHref } from '../shell/route';
 import { ChecksPanel } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
@@ -63,7 +65,7 @@ function cameFrom(r: Reader): string {
     r.second_counter === 'none'
       ? 'no second count'
       : `second count by ${readerName(r.second_counter)}`;
-  return `${readerName(r.extractor)} read ${r.source ?? 'no file'} (${r.route ?? 'no'} route), ${second}`;
+  return `${readerName(r.extractor)} read ${r.source ?? 'no file'} (${routeLabel(r.route)}), ${second}`;
 }
 
 function MarkList(props: {
@@ -106,7 +108,7 @@ function MarkList(props: {
 }
 
 // Golden's certified gate (backend #98): plan-level, on held-out CubiCasa test plans, 95% bound.
-const SURE_TIP =
+export const SURE_TIP =
   'Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact';
 
 const TONE: Record<Row['status'], string> = {
@@ -321,8 +323,9 @@ function Answer(props: {
   projectId: string;
   credit: string | null;
   place: Place | null;
+  onChanged: (answer: AnswerView) => void;
 }) {
-  const { a, projectId, credit, place } = props;
+  const { a, projectId, credit, place, onChanged } = props;
   const [selected, setSelected] = useState<string | null>(null);
   const [hot, setHot] = useState<string | null>(null);
   const [open, setOpen] = useState<RefKind | null>(null);
@@ -351,8 +354,6 @@ function Answer(props: {
   const overlay = openRef && <Overlay refItem={openRef} n={opened + 1} onClose={close} />;
   // Row.noun ("doors"); null for areas and where the backend has none: then the label sentence.
   const noun = typeof a.answer === 'number' ? (row?.noun ?? null) : null;
-  // Bogdan's coming field (#14 c6875035654), shape not final: only its reason, no mock.
-  const check = (a as unknown as { check?: { reason?: string } | null }).check?.reason;
   const grade = gradeOf(a);
   return (
     <>
@@ -414,11 +415,13 @@ function Answer(props: {
               </span>
             )}
           </div>
-          {check && (
-            <p className="en-check" role="status" data-pending="AnswerView.check">
-              {check}
-            </p>
-          )}
+          {/* Decides itself whether to ask (null when certified); onChanged swaps this turn's answer. */}
+          <DoubleCheck
+            answer={a}
+            projectId={projectId}
+            drawingId={a.drawing_id}
+            onChanged={onChanged}
+          />
           {row?.signed && (
             <p className="en-verified">
               Verified by {row.signed.by}, {formatTime(row.signed.at)}
@@ -520,8 +523,13 @@ export function AnswerCard(props: {
   busy: boolean;
   onAsk: (question: string) => void;
   onRetry: (turn: Turn) => void;
+  /** What the refusal headline says it cannot answer from (the project chat: "these drawings"). */
+  refusalFrom?: string;
+  /** DoubleCheck's new answer for this turn (an edit, or the re-ask after a sign-off). */
+  onChanged: (turn: Turn, answer: AnswerView) => void;
 }) {
-  const { turn, projectId, file, credit, place, busy, onAsk, onRetry } = props;
+  const { turn, projectId, file, credit, place, busy, onAsk, onRetry, onChanged } = props;
+  const from = props.refusalFrom ?? 'this drawing';
   const question = turn.status === 'done' ? turn.answer.question : turn.question;
   const note = turn.status === 'done' ? readAs(turn.answer.explanation) : null;
   const refusal = turn.status === 'done' ? turn.answer.refusal : null;
@@ -545,7 +553,7 @@ export function AnswerCard(props: {
       {refusal && (
         <div className="v-card en-refusal">
           <p>
-            <b>I can't answer that from this drawing.</b>
+            <b>I can't answer that from {from}.</b>
           </p>
           <p>{refusal.text}</p>
           <Suggestions
@@ -558,7 +566,15 @@ export function AnswerCard(props: {
         </div>
       )}
       {turn.status === 'done' && !refusal && (
-        <Answer a={turn.answer} projectId={projectId} credit={credit} place={place} />
+        <Answer
+          a={turn.answer}
+          projectId={projectId}
+          credit={credit}
+          place={place}
+          onChanged={(answer) => {
+            onChanged(turn, answer);
+          }}
+        />
       )}
     </article>
   );

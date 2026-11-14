@@ -10,6 +10,7 @@ import {
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { routeHref } from '../shell/route';
+import { ChecksRow } from './ChecksRow';
 import { ConflictCard, type DrawingLoad } from './ConflictCard';
 import { conflictCount, keyOf, progressText, subLine, workspaceDrawing } from './conflicts';
 import './conflicts.css';
@@ -17,7 +18,20 @@ import './conflicts.css';
 type Load = { project: ProjectView; review: ProjectReview } | { error: unknown } | null;
 
 /** Screen 3, "Settle the conflicts" (docs/specs/frontend/conflicts.md), at #/p/<pid>/conflicts. */
-export function ConflictsScreen({ projectId }: { projectId: string }) {
+export function ConflictsScreen({
+  projectId,
+  query,
+}: {
+  projectId: string;
+  query?: URLSearchParams; // the route's query: `pack`, and `d` + `q` from an issue link
+}) {
+  const pack = query?.get('pack') || null;
+  const focusKey =
+    query?.get('d') && query.get('q')
+      ? `${String(query.get('d'))} ${String(query.get('q'))}`
+      : null;
+  const withPack = (q: Record<string, string> = {}) =>
+    new URLSearchParams(pack ? { ...q, pack } : q);
   const [load, setLoad] = useState<Load>(null);
   const [attempt, setAttempt] = useState(0);
   const [drawings, setDrawings] = useState<Record<string, DrawingLoad>>({});
@@ -102,30 +116,6 @@ export function ConflictsScreen({ projectId }: { projectId: string }) {
           <h1>{conflictCount(k)}</h1>
           <p className="cf-sub">{subLine(conflicts)}</p>
         </div>
-        {target !== null &&
-          (locked ? (
-            <div className="cf-open">
-              <button type="button" className="cf-open-btn" disabled aria-describedby="cf-locked">
-                Open the workspace
-              </button>
-              <p id="cf-locked" className="cf-locked">
-                Settle the conflicts that need you first.
-              </p>
-            </div>
-          ) : (
-            <a
-              className="cf-open-btn"
-              href={routeHref({
-                name: 'workspace',
-                projectId,
-                drawingId: target,
-                role: 'engineer',
-                query: new URLSearchParams(),
-              })}
-            >
-              Open the workspace
-            </a>
-          ))}
       </div>
 
       {(project.state === 'queued' || project.state === 'running') && (
@@ -158,6 +148,8 @@ export function ConflictsScreen({ projectId }: { projectId: string }) {
         </div>
       )}
 
+      {pack !== null && <ChecksRow projectId={projectId} pack={pack} />}
+
       {conflicts.map((c, i) => (
         <ConflictCard
           // stable: a reload keeps the card (and its open Why / evidence); the card resets its own mode
@@ -166,6 +158,8 @@ export function ConflictsScreen({ projectId }: { projectId: string }) {
           index={i}
           total={k}
           projectId={projectId}
+          pack={pack}
+          focused={keyOf(c) === focusKey}
           drawing={drawings[c.drawing_id]}
           onNeedDrawing={(retry) => {
             needDrawing(c.drawing_id, retry);
@@ -173,6 +167,40 @@ export function ConflictsScreen({ projectId }: { projectId: string }) {
           onEdit={(e) => edit(c.drawing_id, c.quantity, e)}
         />
       ))}
+
+      {/* Tudor 2026-11-14: the chat block sits at the bottom, after the last card */}
+      {target !== null &&
+        (locked ? (
+          <div className="cf-open">
+            <button type="button" className="cf-open-btn" disabled aria-describedby="cf-locked">
+              Start a new chat
+            </button>
+            <p id="cf-locked" className="cf-locked">
+              Settle the conflicts that need you first.
+            </p>
+          </div>
+        ) : (
+          <div className="cf-open">
+            <a
+              className="cf-open-btn"
+              href={routeHref({ name: 'chat', projectId, query: withPack() })}
+            >
+              Start a new chat
+            </a>
+            <a
+              className="cf-quiet"
+              href={routeHref({
+                name: 'workspace',
+                projectId,
+                drawingId: target,
+                role: 'engineer',
+                query: withPack(),
+              })}
+            >
+              Open the workspace
+            </a>
+          </div>
+        ))}
     </div>
   );
 }

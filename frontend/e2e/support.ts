@@ -58,3 +58,18 @@ export async function openSurveyor(page: Page) {
   await page.getByRole('link', { name: 'Surveyor', exact: true }).click();
   await expect(page).toHaveURL(/\/d\/[0-9a-f]{16}\/surveyor/);
 }
+
+/** The sample through the API (not the ingest screen, whose wording is its own spec's), read to the end. */
+export async function sampleDone(page: Page): Promise<string> {
+  const started = await page.request.post('/api/projects/sample?fresh=true');
+  expect(started.status()).toBe(202);
+  const { id } = (await started.json()) as { id: string };
+  await expect
+    .poll(
+      async () =>
+        ((await (await page.request.get(`/api/projects/${id}`)).json()) as { state: string }).state,
+      { timeout: 30_000 },
+    )
+    .toBe('done');
+  return id;
+}

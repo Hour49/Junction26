@@ -7,6 +7,9 @@ export type Route =
   | { name: 'account'; query: URLSearchParams }
   | { name: 'project'; projectId: string; query: URLSearchParams }
   | { name: 'conflicts'; projectId: string; query: URLSearchParams }
+  | { name: 'chat'; projectId: string; query: URLSearchParams }
+  | { name: 'checks'; projectId: string; query: URLSearchParams }
+  | { name: 'issues'; projectId: string; query: URLSearchParams }
   | { name: 'file'; projectId: string; fileId: string; query: URLSearchParams }
   | { name: 'workspace'; projectId: string; drawingId: string; role: Role; query: URLSearchParams }
   | { name: 'not-found'; hash: string; query: URLSearchParams };
@@ -16,6 +19,9 @@ const FILE = new RegExp(`^/p/${PROJECT}/f/(f\\d+)$`);
 const WORKSPACE = new RegExp(`^/p/${PROJECT}/d/([0-9a-f]{16})/(engineer|surveyor)$`);
 const PROJECT_ONLY = new RegExp(`^/p/${PROJECT}$`);
 const CONFLICTS = new RegExp(`^/p/${PROJECT}/conflicts$`);
+const CHAT = new RegExp(`^/p/${PROJECT}/chat$`);
+// Project-level screens that take only the project id: `#/p/<pid>/<name>`.
+const SECTION = new RegExp(`^/p/${PROJECT}/(checks|issues)$`);
 
 /** The route of a location hash (`#/p/<id>/d/<id>/engineer?q=door`); ids off their pattern are not found. */
 export function parseRoute(hash: string): Route {
@@ -30,6 +36,11 @@ export function parseRoute(hash: string): Route {
   if (m?.[1]) return { name: 'project', projectId: m[1], query };
   m = CONFLICTS.exec(path);
   if (m?.[1]) return { name: 'conflicts', projectId: m[1], query };
+  m = CHAT.exec(path);
+  if (m?.[1]) return { name: 'chat', projectId: m[1], query };
+  m = SECTION.exec(path);
+  if (m?.[1] && (m[2] === 'checks' || m[2] === 'issues'))
+    return { name: m[2], projectId: m[1], query };
   m = FILE.exec(path);
   if (m?.[1] && m[2]) return { name: 'file', projectId: m[1], fileId: m[2], query };
   m = WORKSPACE.exec(path);
@@ -51,6 +62,10 @@ export function routePath(route: Route): string {
       return `/p/${route.projectId}`;
     case 'conflicts':
       return `/p/${route.projectId}/conflicts`;
+    case 'chat':
+    case 'checks':
+    case 'issues':
+      return `/p/${route.projectId}/${route.name}`;
     case 'file':
       return `/p/${route.projectId}/f/${route.fileId}`;
     case 'workspace':
@@ -78,4 +93,20 @@ const currentHash = () => window.location.hash;
 /** The location hash, re-read on every `hashchange`. */
 export function useHash(): string {
   return useSyncExternalStore(subscribe, currentHash);
+}
+
+/** The chosen rule pack (`?pack=`, #139): a screen choice carried in the URL, not stored on the project. */
+export function packOf(route: Route): string | null {
+  return route.query.get('pack');
+}
+
+/** `hash` with `?pack=` set, or removed when `pack` is null; other query keys are kept. */
+export function withPack(hash: string, pack: string | null): string {
+  const mark = hash.indexOf('?');
+  const path = mark < 0 ? hash : hash.slice(0, mark);
+  const query = new URLSearchParams(mark < 0 ? '' : hash.slice(mark + 1));
+  if (pack === null) query.delete('pack');
+  else query.set('pack', pack);
+  const rest = query.toString();
+  return rest ? `${path}?${rest}` : path;
 }

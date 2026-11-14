@@ -224,3 +224,34 @@ def test_no_key_refuses_to_start_and_the_setting_hides_it(
     settings = Settings()
     assert settings.gemini_api_key.get_secret_value() == KEY
     assert KEY not in repr(settings) and KEY not in str(settings.model_dump())
+
+
+def test_a_paid_call_is_charged_to_the_cost_and_a_cached_reply_is_not(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core import cost
+
+    answer = {
+        "candidates": [{"content": {"parts": [{"text": reply(room("hall", "", [0, 0, 9, 9]))}]}}],
+        "usageMetadata": {
+            "promptTokenCount": 1000,
+            "candidatesTokenCount": 200,
+            "thoughtsTokenCount": 300,
+        },
+    }
+    calls: list[int] = []
+
+    def answer_once(request: urllib.request.Request, timeout: float) -> Any:
+        calls.append(1)
+        return io.BytesIO(json.dumps(answer).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", answer_once)
+    reader = GeminiRoomReader(GeminiClient(KEY, "gemini-3.5-flash", timeout_s=5), tmp_path)
+    image = Image.open(io.BytesIO(png()))
+    before = cost.spent()
+    reader.read(image)
+    assert cost.spent() - before == pytest.approx((1000 * 1.50 + 500 * 9.00) / 1e6)
+    before = cost.spent()
+    reader.read(image)  # cached: no call, no new spend
+    assert len(calls) == 1
+    assert cost.spent() == before

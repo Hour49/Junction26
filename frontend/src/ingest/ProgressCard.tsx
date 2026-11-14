@@ -79,14 +79,13 @@ export function ProgressCard({ project, now }: { project: ProjectView; now: numb
                   {ICON[st]}
                 </span>
                 <span className="ingest-step-name">{s.name}</span>
-                {bar && (
-                  <>
-                    <span className="ingest-step-hint">{s.hint}</span>
-                    <span className="ingest-step-bar">
-                      <progress value={bar.passed} max={bar.through || 1} aria-hidden="true" />
-                      {`${String(bar.passed)} / ${String(bar.through)} files`}
-                    </span>
-                  </>
+                {bar && <span className="ingest-step-hint">{s.hint}</span>}
+                {bar && bar.through > 0 && (
+                  // no "0 / 0 files" before any file reached the step (IN-71)
+                  <span className="ingest-step-bar">
+                    <progress value={bar.passed} max={bar.through} aria-hidden="true" />
+                    {`${String(bar.passed)} / ${String(bar.through)} files`}
+                  </span>
                 )}
               </li>
             );

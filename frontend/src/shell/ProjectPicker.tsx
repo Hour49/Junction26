@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
+import { withPack } from './route';
 import { errorText, formatTime, listProjects, type ProjectSummary } from '../api';
 
 /** The header's project list (`GET /api/projects`); choosing one opens its ingest status. */
-export function ProjectPicker({ projectId }: { projectId: string | null }) {
+/** `pack`: the route's rule pack, kept when switching project (the country is a screen choice). */
+export function ProjectPicker({
+  projectId,
+  pack,
+}: {
+  projectId: string | null;
+  pack: string | null;
+}) {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
@@ -66,7 +74,7 @@ export function ProjectPicker({ projectId }: { projectId: string | null }) {
       aria-label="Project"
       value={known ? projectId : ''}
       onChange={(event) => {
-        if (event.target.value) window.location.hash = `#/p/${event.target.value}`;
+        if (event.target.value) window.location.hash = withPack(`#/p/${event.target.value}`, pack);
       }}
     >
       <option value="" disabled>

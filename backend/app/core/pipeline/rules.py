@@ -3,8 +3,8 @@
 The dataset's conventions are data here, not branches in the question parser or the takeoff:
 `COMBINED` says which counts are made of other counts, `MEASURED` which element quantity a sum of
 lengths, areas or volumes reads, and the room rules which rooms a total keeps. Each rule's `text`
-is shown with the answer. Where a rule follows the dataset's answers against the question's own
-wording, the text says so.
+is shown with the answer, in words for the person reading it: where a rule differs from the
+question's own wording, the text says so (why it does stays in the comments here).
 """
 
 from collections.abc import Mapping
@@ -19,10 +19,10 @@ EACH_ONCE = CountingRule(
 AS_GIVEN = CountingRule(
     id="as-given", text="the total the source states; the items behind it are not listed"
 )
+# The dataset's answers count this way in 2648 of 2655 CubiCasa5K questions.
 SAUNA_ROOM_ELSE_STOVE = CountingRule(
     id="sauna-room-else-stove",
-    text="one per sauna room; a drawing without sauna rooms counts its sauna stoves, as the "
-    "dataset's answers do (2648 of 2655 CubiCasa5K questions)",
+    text="one per sauna room; a drawing without a sauna room counts its sauna stoves instead",
 )
 SHOWERS_AND_BATHTUBS = CountingRule(
     id="showers-and-bathtubs", text="showers and bathtubs together, each counted once"
@@ -32,10 +32,11 @@ ROOMS_TOTAL = CountingRule(
     id="rooms-total",
     text="the sum of the rooms' net floor areas; unknown when one of them has no area",
 )
+# Shafts, lifts and stairwells stay in because the dataset's answers keep them.
 INDOOR_TOTAL = CountingRule(
     id="indoor-rooms-total",
-    text="every room that is not outdoor; shafts, lifts and stairwells stay in, as the "
-    "dataset's answers do although the question says shafts are left out",
+    text="every room that is not outdoor; shafts, lifts and stairwells are counted in, "
+    "though the question says shafts are left out",
 )
 APARTMENT_AREA = CountingRule(
     id="apartment-area",

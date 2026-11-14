@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import ContentKind, FileState, Normalised, Stage, StageTrace
 from app.core.pipeline.model import Route
+from app.core.wording import CONFLICT_WORDS, ROUTE_WORDS, SCALE_WORDS, count, route_words
 
 # The pipeline's trace line prefixes (app/core/pipeline/ingest.py) after stage 5, by stage.
 # The counting rules and the takeoff run together, so they are one timed stage.
@@ -28,29 +29,37 @@ def judge(
     with every reason a person should look at it. `reader`: the route's adapter name; `frame`:
     how an image was normalised."""
     if drawing.model_objects is not None and not drawing.pages:
-        found = f"{len(drawing.model_objects)} model objects"
+        found = count(len(drawing.model_objects), "model object")
     else:
         tables = len(drawing.tables or ())
-        schedules = f"{tables} schedule{'s' if tables > 1 else ''}, " if tables else ""
+        schedules = f"{count(tables, 'schedule')}, " if tables else ""
         found = (
-            f"{len(drawing.elements)} elements, {len(drawing.rooms)} rooms, {schedules}"
-            f"scale {drawing.scale.status}"
+            f"{count(len(drawing.elements), 'element')}, {count(len(drawing.rooms), 'room')}, "
+            f"{schedules}{SCALE_WORDS[drawing.scale.status]}"
         )
     flags: list[str] = []
     conflicts = [entry for entry in drawing.conflicts or () if entry.status == "conflict"]
     if conflicts:
-        what = ", ".join(sorted({entry.quantity for entry in conflicts}))
-        flags.append(f"{len(conflicts)} conflict(s) between the two methods ({what})")
-    read_nothing = drawing.read == () and not drawing.tables  # a schedule sheet reads tables
-    if read_nothing and reader == "hello":
-        flags.append(f"no reader for the {route} route yet: nothing was read")
-    elif read_nothing:
-        why = drawing.notes[0] if drawing.notes else "nothing it knows was found"
-        flags.append(f"the {route} reader read nothing: {why}")
+        what = ", ".join(sorted({CONFLICT_WORDS[entry.quantity] for entry in conflicts}))
+        flags.append(f"{count(len(conflicts), 'conflict')} between the two methods ({what})")
+    empty = read_nothing(drawing, route, reader)
+    if empty is not None:
+        flags.append(empty)
     flags += reading_flags(kind, frame)
     if flags:
         return "flagged", f"{'; '.join(flags)} ({found})"
-    return "ready", f"read on the {route} route: {found}"
+    return "ready", f"read on the {route_words(route)}: {found}"
+
+
+def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:
+    """Why the route's reader read nothing from the drawing, or None when it read something
+    (a schedule sheet reads tables). `reader` "hello" is the do-nothing stand-in."""
+    if drawing.read != () or drawing.tables:
+        return None
+    if reader == "hello":
+        return f"no reader for the {route_words(route)} yet: nothing was read"
+    why = drawing.notes[0] if drawing.notes else "nothing it knows was found"
+    return f"the {ROUTE_WORDS[route]} reader read nothing: {why}"
 
 
 def reading_flags(kind: ContentKind, frame: Normalised | None) -> tuple[str, ...]:

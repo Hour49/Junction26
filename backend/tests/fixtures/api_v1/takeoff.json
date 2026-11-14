@@ -1,5 +1,5 @@
 {
-  "drawing_id": "6d153ea15dca9ab4",
+  "drawing_id": "44cc9f0d991eafe3",
   "file": "plans/flat-b.pdf",
   "quantities": [
     {
@@ -195,14 +195,14 @@
         "model": false,
         "largest": false
       },
-      "value": 59.868,
+      "value": 52.998,
       "unit": "m2",
-      "original_value": 59.868,
+      "original_value": 52.998,
       "status": "single",
       "needs_person": false,
       "rule": {
         "id": "indoor-rooms-total",
-        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
+        "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
       },
       "estimate": null,
       "first": null,
@@ -287,6 +287,9 @@
     }
   ],
   "review_queue": [
+    "area:room|name=1.01"
+  ],
+  "disputes": [
     "area:room|name=1.01"
   ]
 }

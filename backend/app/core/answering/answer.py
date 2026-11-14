@@ -40,6 +40,11 @@ UNSUPPORTED_QUESTION = "refused:unsupported-question"
 NOT_IN_DRAWING = "refused:not-in-drawing"
 PRIOR_BY_POLICY = "prior:policy"  # the answer policy sends this family to the prior
 POLICY_WHY = "raster reader below prior on val for this family"
+# Families whose answer is sure only when the confidence signal's own most likely value is the
+# answered one (two independent readers agree), whatever the score. Plans on page: the gate
+# certified every val plan answer (threshold 0.014), and hand-drawn sketches got sure, wrong plan
+# counts where Gemini's own count differed (.agents/exp/handdrawn.md; answer-next, 2026-11-14).
+AGREEING_FAMILIES = frozenset({"plan"})
 
 
 def answer_question(
@@ -64,9 +69,11 @@ def answer_question(
     takeoff answer gets its probability as `confidence`; when there is none, the reason is
     logged, never added to the answer. `sure_at` (GATE_POLICY: family -> threshold on that
     confidence's signal) sets `sure`: true at or above the family's threshold, false below it,
-    None without a probability or for a family it doesn't gate. `flags`: how ingest read the
-    page (judge.reading_flags: a phone photo, a scan); on a flagged page `sure` is None, since
-    the gate was certified on CubiCasa scans, not on photos (orchestrator, 2026-11-14 O1)."""
+    None without a probability or for a family it doesn't gate; for a family in
+    `AGREEING_FAMILIES` also false when the signal's own value is another (`agrees`). `flags`:
+    how ingest read the page (judge.reading_flags: a phone photo, a scan); on a flagged page
+    `sure` is None, since the gate was certified on CubiCasa scans, not on photos
+    (orchestrator, 2026-11-14 O1)."""
     start = clock()
     parsed = parser.parse(question.text)
     read = _read(parsed)
@@ -121,7 +128,7 @@ def answer_question(
         if confidence is None or isinstance(parsed, Unsupported | TableQuery):
             return read(answer)
         rated = confidence.probability(question.file, parsed.family(), answer.answer)
-        sure = _sure(sure_at, parsed.family(), rated.value, flags)
+        sure = _sure(sure_at, parsed.family(), rated.value, flags, rated.agrees)
         if rated.value is None:  # why goes to the log: nothing a reader of the answer can act on
             logger.info("question %d: no confidence: %s", question.id, rated.note)
             return read(answer.model_copy(update={"sure": sure}))
@@ -148,12 +155,18 @@ def answer_question(
 
 
 def _sure(
-    sure_at: Mapping[str, float] | None, family: str, value: float | None, flags: Sequence[str]
+    sure_at: Mapping[str, float] | None,
+    family: str,
+    value: float | None,
+    flags: Sequence[str],
+    agrees: bool | None = None,
 ) -> bool | None:
     if sure_at is None or family not in sure_at or value is None:
         return None  # no score (a vector or IFC page, a failed read): the gate has no verdict
     if flags:
         return None  # a photo or a scanned PDF: the gate's certificate is on CubiCasa scans
+    if family in AGREEING_FAMILIES and agrees is not True:
+        return False  # the signal's own count differs: two readers disagree, nothing is sure
     return value >= sure_at[family]
 
 

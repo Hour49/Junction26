@@ -1,5 +1,6 @@
 // The conflicts screen's pure parts (docs/specs/frontend/conflicts.md "Field map").
-import type { ConflictEntry, DrawingReview } from '../api';
+import type { CheckStatus, ConflictEntry, DrawingReview, ProjectChecks } from '../api';
+import { ruleCounts, ruleSummary } from '../checks/checks';
 
 export type CardState = 'open' | 'rule' | 'yours';
 
@@ -52,4 +53,24 @@ export function progressText(conflicts: ConflictEntry[]): string {
 /** The drawing "Open the workspace" goes to: the first with quantities, else the first. */
 export function workspaceDrawing(drawings: DrawingReview[]): string | null {
   return (drawings.find((d) => d.quantities > 0) ?? drawings[0])?.drawing_id ?? null;
+}
+
+/** Rules by status, counted exactly as the checks screen (src/checks/checks.ts: a rule that cannot tell with no
+ * results is cannot tell; one that does not apply is not counted), so both screens agree on the same data. */
+export const ruleCountsOf = (checks: ProjectChecks) => ruleCounts(ruleSummary(checks, null));
+
+/** "1 rule passed", "1 failed", "1 cannot tell": zero parts left out, the noun on the first part only. */
+export function countParts(
+  c: ReturnType<typeof ruleCountsOf>,
+): { kind: CheckStatus; text: string }[] {
+  const parts = [
+    { kind: 'pass' as const, n: c.passed, word: 'passed' },
+    { kind: 'fail' as const, n: c.failed, word: 'failed' },
+    { kind: 'cannot_tell' as const, n: c.cannotTell, word: 'cannot tell' },
+  ].filter((p) => p.n > 0);
+  return parts.map((p, i) => ({
+    kind: p.kind,
+    text:
+      i === 0 ? `${String(p.n)} rule${p.n === 1 ? '' : 's'} ${p.word}` : `${String(p.n)} ${p.word}`,
+  }));
 }

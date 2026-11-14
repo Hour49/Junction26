@@ -12,17 +12,26 @@ import askRequestJson from '@fixtures/ask_request.json';
 import drawingJson from '@fixtures/drawing.json';
 import errorJson from '@fixtures/error.json';
 import errorNotAllowedJson from '@fixtures/error_not_allowed.json';
+import checksJson from '@fixtures/checks.json';
 import infoJson from '@fixtures/info.json';
 import projectJson from '@fixtures/project.json';
 import projectFailedJson from '@fixtures/project_failed.json';
 import projectListJson from '@fixtures/project_list.json';
+import projectAskJson from '@fixtures/project_ask.json';
 import projectReviewJson from '@fixtures/project_review.json';
 import projectRunningJson from '@fixtures/project_running.json';
 import projectStartedJson from '@fixtures/project_started.json';
+import projectTriagedJson from '@fixtures/project_triaged.json';
+import fileReadAsPlanJson from '@fixtures/file_read_as_plan.json';
+import triageRequestJson from '@fixtures/triage_request.json';
+import triageStartedJson from '@fixtures/triage_started.json';
+import relevanceRequestJson from '@fixtures/relevance_request.json';
 import reviewRequestsJson from '@fixtures/review_requests.json';
 import signoffRequestJson from '@fixtures/signoff_request.json';
 import takeoffJson from '@fixtures/takeoff.json';
 import takeoffEditedJson from '@fixtures/takeoff_edited.json';
+import projectChecksJson from '@fixtures/project_checks.json';
+import projectIssuesJson from '@fixtures/project_issues.json';
 import projectQuestionsJson from '@fixtures/project_questions.json';
 import projectTraceJson from '@fixtures/project_trace.json';
 import traceJson from '@fixtures/trace.json';
@@ -35,11 +44,19 @@ import type {
   Edit,
   FileTrace,
   Info,
+  ProjectAnswer,
   ProjectList,
   ProjectReview,
   ProjectTrace,
+  DrawingChecks,
+  IssueList,
+  ProjectChecks,
+  RulePack,
   ProjectQuestions,
   ProjectView,
+  FileStatus,
+  RelevanceRequest,
+  TriageRequest,
   SignOffRequest,
   Started,
   Takeoff,
@@ -55,6 +72,12 @@ export const trace = traceJson as unknown as FileTrace;
 export const traceSetAside = traceSetAsideJson as unknown as FileTrace;
 export const projectTrace = projectTraceJson as unknown as ProjectTrace;
 export const projectQuestions = projectQuestionsJson as unknown as ProjectQuestions;
+export const projectIssues = projectIssuesJson as unknown as IssueList;
+export const drawingChecks = checksJson as unknown as DrawingChecks;
+export const projectChecks = projectChecksJson as unknown as ProjectChecks;
+const fi = info.rule_packs?.find((p) => p.id === 'fi');
+if (!fi) throw new Error('info.json lists no fi rule pack');
+export const rulePackFi: RulePack = fi;
 export const projectReview = projectReviewJson as unknown as ProjectReview;
 export const drawing = drawingJson as unknown as DrawingView;
 export const askRequest: AskRequest = askRequestJson;
@@ -66,9 +89,15 @@ export const answerConflict = answerConflictJson as unknown as AnswerView;
 export const answerSigned = answerSignedJson as unknown as AnswerView;
 export const answerSchedule = answerScheduleJson as unknown as AnswerView;
 export const answerRefused = answerRefusedJson as unknown as AnswerView;
+export const projectAsk = projectAskJson as unknown as ProjectAnswer;
 export const takeoff = takeoffJson as unknown as Takeoff;
 export const takeoffEdited = takeoffEditedJson as unknown as Takeoff;
 export const reviewRequests = reviewRequestsJson as unknown as Edit[];
 export const signoffRequest = signoffRequestJson as unknown as SignOffRequest;
+export const projectTriaged = projectTriagedJson as unknown as ProjectView;
+export const relevanceRequest = relevanceRequestJson as unknown as RelevanceRequest;
+export const triageRequest = triageRequestJson as unknown as TriageRequest;
+export const triageStarted = triageStartedJson as unknown as FileStatus;
+export const fileReadAsPlan = fileReadAsPlanJson as unknown as FileStatus;
 export const error: ErrorBody = errorJson;
 export const errorNotAllowed: ErrorBody = errorNotAllowedJson;

@@ -1,6 +1,8 @@
+import { rulePacksOf } from '../api';
 import { CountryPicker } from './CountryPicker';
+import { useInfo } from './info';
 import { ProjectPicker } from './ProjectPicker';
-import { routeHref, type Route } from './route';
+import { packOf, routeHref, withPack, type Route } from './route';
 import { PRODUCT_NAME } from './strings';
 import logo from './vellum-logo.png';
 
@@ -10,28 +12,34 @@ interface ViewLink {
   current: boolean;
 }
 
-function viewLinks(route: Route): ViewLink[] {
-  if (
-    route.name !== 'project' &&
-    route.name !== 'file' &&
-    route.name !== 'conflicts' &&
-    route.name !== 'workspace'
-  )
-    return [];
+function viewLinks(route: Route, packs: readonly string[]): ViewLink[] {
+  if (!('projectId' in route)) return [];
+  const pid = route.projectId;
+  const pack = packOf(route);
+  const tab = (label: string, path: string, current: boolean) => ({
+    label,
+    href: withPack(`#/p/${pid}${path}`, pack),
+    current,
+  });
+  // shared.md "Header tabs": Checks only with a pack info lists (or on its own route); Surveyor only on drawing
+  // routes. No Engineer tab (Tudor 12:46): the engineer route is reached from the chat's and the drawings' links.
   const links = [
-    { label: 'Ingest', href: `#/p/${route.projectId}`, current: route.name !== 'conflicts' },
-    {
-      label: 'Conflicts',
-      href: `#/p/${route.projectId}/conflicts`,
-      current: route.name === 'conflicts',
-    },
+    tab('Ingest', '', route.name === 'project' || route.name === 'file'),
+    tab('Conflicts', '/conflicts', route.name === 'conflicts'),
+    ...((pack !== null && packs.includes(pack)) || route.name === 'checks'
+      ? [tab('Checks', '/checks', route.name === 'checks')]
+      : []),
+    tab('Issues', '/issues', route.name === 'issues'),
+    tab('Chat', '/chat', route.name === 'chat'),
   ];
   if (route.name !== 'workspace') return links;
-  const role = (r: 'engineer' | 'surveyor') => routeHref({ ...route, role: r });
   return [
-    ...links.map((link) => ({ ...link, current: false })),
-    { label: 'Engineer', href: role('engineer'), current: route.role === 'engineer' },
-    { label: 'Surveyor', href: role('surveyor'), current: route.role === 'surveyor' },
+    ...links,
+    {
+      label: 'Surveyor',
+      href: routeHref({ ...route, role: 'surveyor' }),
+      current: route.role === 'surveyor',
+    },
   ];
 }
 
@@ -39,7 +47,11 @@ function viewLinks(route: Route): ViewLink[] {
 export const isWide = (route: Route) => route.name === 'account' || route.name === 'workspace';
 
 export function Header({ route }: { route: Route }) {
-  const links = viewLinks(route);
+  const { info } = useInfo();
+  const links = viewLinks(
+    route,
+    rulePacksOf(info).map((p) => p.id),
+  );
   const wide = isWide(route);
   return (
     <header className="app-header">
@@ -57,8 +69,11 @@ export function Header({ route }: { route: Route }) {
             ))}
           </nav>
         )}
-        <ProjectPicker projectId={'projectId' in route ? route.projectId : null} />
-        <CountryPicker />
+        <ProjectPicker
+          projectId={'projectId' in route ? route.projectId : null}
+          pack={packOf(route)}
+        />
+        {'projectId' in route && <CountryPicker pack={packOf(route)} />}
         <a
           className="header-pill workspaces-link v-press"
           href="#/workspaces"

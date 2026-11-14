@@ -1,10 +1,18 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { methodName, type ConflictEntry, type ProjectReview } from '../api';
+import {
+  methodName,
+  type CheckResult,
+  type ConflictEntry,
+  type ProjectChecks,
+  type RuleCheck,
+  type ProjectReview,
+} from '../api';
 import {
   drawing,
   error as errorBody,
   project,
+  projectChecks,
   projectFailed,
   projectReview,
   projectRunning,
@@ -53,14 +61,19 @@ const withConflicts = (conflicts: ConflictEntry[]): ProjectReview => ({
   conflicts,
 });
 
-function show(routes: Record<string, unknown> = {}) {
+function show(routes: Record<string, unknown> = {}, query?: string) {
   const api = mockApi({
     [PATH.project]: project,
     [PATH.review]: projectReview,
     [PATH.drawing]: drawing,
     ...routes,
   });
-  const view = render(<ConflictsScreen projectId={pid} />);
+  const view = render(
+    <ConflictsScreen
+      projectId={pid}
+      query={query === undefined ? undefined : new URLSearchParams(query)}
+    />,
+  );
   return { api, ...view };
 }
 const ready = () => screen.findByRole('heading', { level: 1 });
@@ -114,12 +127,12 @@ describe('ConflictsScreen', () => {
     expect(cards()).toHaveLength(3);
   });
 
-  it('CF-4 no conflicts: agree line, no cards, workspace unlocked', async () => {
+  it('CF-4 no conflicts: agree line, no cards, the chat button unlocked', async () => {
     show({ [PATH.review]: withConflicts([]) });
     expect((await ready()).textContent).toBe('No conflicts found');
     expect(screen.getByText('Both methods agree wherever two of them measured.')).toBeTruthy();
     expect(screen.queryAllByRole('article')).toHaveLength(0);
-    expect(screen.getByRole('link', { name: 'Open the workspace' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
   });
 
   it('CF-5 a rule card shows its kicker, label, file and lettered tiles', async () => {
@@ -214,7 +227,7 @@ describe('ConflictsScreen', () => {
     );
     expect((evidence(after).closest('details') as HTMLDetailsElement).open).toBe(true);
     // the card's mode still starts over from the server's new state
-    expect(within(after).getByRole('button', { name: 'Change' })).toBeTruthy();
+    expect(within(after).getByRole('button', { name: 'Modify' })).toBeTruthy();
     expect(disabled(tile(after, 'A'))).toBe(true);
   });
 
@@ -230,8 +243,9 @@ describe('ConflictsScreen', () => {
     expect(pressed(tile(c, 'A'))).toBe(true);
     expect(pressed(tile(c, 'B'))).toBe(false);
     expect(within(c).getByText("You kept A, over the rule's choice.")).toBeTruthy();
-    expect(within(c).getByRole('button', { name: 'Change' })).toBeTruthy();
+    expect(within(c).getByRole('button', { name: 'Modify' })).toBeTruthy();
     expect(within(c).getByRole('button', { name: "Use the rule's value" })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
   });
 
   it("CF-9 Use the rule's value sends unsettle at once and reloads the review", async () => {
@@ -286,10 +300,11 @@ describe('ConflictsScreen', () => {
     }
     expect(within(c).getByText('Tap the right value.')).toBeTruthy();
     expect(c.querySelector('details.cf-evidence')?.hasAttribute('open')).toBe(true);
-    const lock = screen.getByRole('button', { name: 'Open the workspace' });
+    const lock = screen.getByRole('button', { name: 'Start a new chat' });
     expect(disabled(lock)).toBe(true);
     const why = document.getElementById(lock.getAttribute('aria-describedby') ?? '');
     expect(why?.textContent).toBe('Settle the conflicts that need you first.');
+    expect(screen.queryByRole('link', { name: 'Start a new chat' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Open the workspace' })).toBeNull();
   });
 
@@ -389,12 +404,51 @@ describe('ConflictsScreen', () => {
     expect(screen.getByText(`Reading stopped: ${String(projectFailed.error)}.`)).toBeTruthy();
   });
 
-  it('CF-17 Open the workspace goes to the engineer route of the first drawing with quantities', async () => {
+  it('CF-17 Start a new chat goes to the project chat; a quiet link opens the workspace', async () => {
     show();
     await ready();
+    const chat = screen.getByRole('link', { name: 'Start a new chat' });
+    expect(chat.getAttribute('href')).toBe(`#/p/${pid}/chat`);
+    expect(screen.queryByText(/Ask anything about/)).toBeNull(); // Tudor: no line under the button
     const first = projectReview.drawings.find((d) => d.quantities > 0);
     expect(screen.getByRole('link', { name: 'Open the workspace' }).getAttribute('href')).toBe(
       `#/p/${pid}/d/${String(first?.drawing_id)}/engineer`,
+    );
+  });
+
+  it('CF-27 after a person picks a value on a card that needed one, the button is Modify', async () => {
+    let picked = false;
+    show({
+      [PATH.edit]: () => {
+        picked = true;
+        return {};
+      },
+      [PATH.review]: () =>
+        withConflicts([
+          picked
+            ? { ...needs, needs_person: false, settled: { value: 22.401, at: AT }, value: 22.401 }
+            : needs,
+        ]),
+    });
+    await ready();
+    click(tile(card(needs.label), 'A'));
+    await waitFor(() => {
+      expect(within(card(needs.label)).getByText('Your choice')).toBeTruthy();
+    });
+    expect(within(card(needs.label)).getByRole('button', { name: 'Modify' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
+  });
+
+  it('CF-28 the chat block comes after the last card, not in the heading', async () => {
+    show();
+    await ready();
+    const chat = screen.getByRole('link', { name: 'Start a new chat' });
+    const last = cards().at(-1);
+    if (!last) throw new Error('no card');
+    expect(last.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).closest('.cf-head')?.contains(chat)).toBe(
+      false,
     );
   });
 
@@ -465,5 +519,230 @@ describe('ConflictsScreen', () => {
     const c = card(base.label);
     expect(pressed(tile(c, 'A')) || pressed(tile(c, 'B'))).toBe(false);
     expect(within(c).getByText('In use: 27.50 m².')).toBeTruthy();
+  });
+
+  describe('checks and issues (#139 / #140)', () => {
+    const CHECKS = `GET /api/projects/${pid}/checks`;
+    const NOTE = 'A pre-check of a few rules, not a compliance certificate.';
+    const result = (rule: string, status: CheckResult['status']): CheckResult => ({
+      id: `${rule}-${status}`,
+      rule_id: rule,
+      status,
+      subject: { kind: 'room', ref: null, label: 'room' },
+      value: status === 'cannot_tell' ? null : 1,
+      limit: 1,
+      unit: 'm',
+      comparison: '>=',
+      comparison_text: 'at least',
+      why: 'a plain sentence',
+      quantity: null,
+      marks: [],
+    });
+    /** Hand-made counting cases: rules per drawing, as [rule id, statuses]. */
+    const checks = (...drawings: [string, CheckResult['status'][]][][]): ProjectChecks => ({
+      project_id: pid,
+      pack: 'fi',
+      note: NOTE,
+      status: 'pass',
+      drawings: drawings.map((rules, i) => ({
+        drawing_id: `d${String(i)}`,
+        file: `plans/d${String(i)}.pdf`,
+        file_id: null,
+        pack: 'fi',
+        note: NOTE,
+        status: 'pass',
+        rules: rules.map(([rule, statuses]) => ({
+          rule_id: rule,
+          title: rule,
+          // as the backend: a rule with no result here does not apply (its status comes from its results otherwise)
+          status: statuses.length ? 'pass' : 'not_applicable',
+          why: '',
+          clause: { ref: '§1', url: 'https://example.org', quote: 'q', quote_en: null },
+          results: statuses.map((st) => result(rule, st)),
+        })),
+      })),
+    });
+    const four = checks(
+      [
+        ['R1', ['pass']],
+        ['R2', ['pass']],
+        ['R3', ['pass']],
+        ['R4', []],
+      ],
+      [
+        ['R1', ['pass']],
+        ['R2', ['fail']],
+        ['R3', ['cannot_tell']],
+      ],
+    );
+    const row = () => screen.getByRole('region', { name: /^Building-code pre-check/ });
+
+    it('CF-29 d + q in the query bring that card into view, mark it, open its evidence, focus its title', async () => {
+      const scroll = vi.fn();
+      Element.prototype.scrollIntoView = scroll;
+      show({}, `d=${did}&q=${encodeURIComponent(QTY)}`);
+      await ready();
+      const c = card(base.label);
+      await waitFor(() => {
+        expect(scroll.mock.contexts).toContain(c);
+      });
+      expect(c.getAttribute('aria-current')).toBe('true');
+      expect(c.querySelector('details.cf-evidence')?.hasAttribute('open')).toBe(true);
+      expect(document.activeElement).toBe(within(c).getByRole('heading', { level: 2 }));
+      cleanup();
+      scroll.mockClear();
+      show({}, `d=${did}&q=nope`);
+      await ready();
+      expect(card(base.label).getAttribute('aria-current')).toBeNull();
+      expect(scroll).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('CF-30 with a pack: one checks request, counts per rule, the note verbatim, a link to the checks', async () => {
+      const { api } = show({ [CHECKS]: four }, 'pack=fi');
+      await ready();
+      await waitFor(() => {
+        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe(
+          '1 rule passed · 1 failed · 1 cannot tell',
+        );
+      });
+      expect(
+        api.calls.filter((c) => c.url.startsWith(`/api/projects/${pid}/checks`)).map((c) => c.url),
+      ).toEqual([`/api/projects/${pid}/checks?pack=fi`]);
+      expect(within(row()).getByText(NOTE)).toBeTruthy();
+      expect(within(row()).getByRole('link', { name: 'See the checks' }).getAttribute('href')).toBe(
+        `#/p/${pid}/checks?pack=fi`,
+      );
+      cleanup();
+      const plain = show();
+      await ready();
+      expect(screen.queryByRole('region', { name: /^Building-code pre-check/ })).toBeNull();
+      expect(plain.api.calls.some((c) => c.url.includes('/checks'))).toBe(false);
+    });
+
+    it('CF-31 cannot tell is its own count; fail beats cannot tell; no results: nothing to check', async () => {
+      show(
+        {
+          [CHECKS]: checks([
+            ['R1', ['cannot_tell']],
+            ['R2', ['cannot_tell', 'cannot_tell']],
+          ]),
+        },
+        'pack=fi',
+      );
+      await ready();
+      await waitFor(() => {
+        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe('2 rules cannot tell');
+      });
+      cleanup();
+      show({ [CHECKS]: checks([['R1', ['fail', 'cannot_tell']]]) }, 'pack=fi');
+      await ready();
+      await waitFor(() => {
+        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe('1 rule failed');
+      });
+      cleanup();
+      show({ [CHECKS]: checks([['R1', []]]) }, 'pack=fi');
+      await ready();
+      expect(
+        await within(row()).findByText('Nothing on these drawings that these rules check.'),
+      ).toBeTruthy();
+    });
+
+    it('CF-30b counts like the checks screen: a rule that cannot tell with no results is cannot tell, not_applicable is not counted', async () => {
+      const d0 = projectChecks.drawings[0];
+      const rule0 = d0?.rules[0];
+      if (!d0 || !rule0) throw new Error('project_checks.json has no rule');
+      const blind = (rule_id: string, status: RuleCheck['status']): RuleCheck => ({
+        ...rule0,
+        rule_id,
+        title: rule_id,
+        status,
+        results: [],
+      });
+      // Bogdan's fixture as is: one rule, failed
+      show({ [CHECKS]: projectChecks }, 'pack=fi');
+      await ready();
+      await waitFor(() => {
+        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe('1 rule failed');
+      });
+      cleanup();
+      const passed = {
+        ...rule0,
+        rule_id: 'Z',
+        status: 'pass' as const,
+        results: rule0.results[0]
+          ? [{ ...rule0.results[0], rule_id: 'Z', status: 'pass' as const }]
+          : [],
+      };
+      const derived: ProjectChecks = {
+        ...projectChecks,
+        drawings: [
+          { ...d0, rules: [rule0, passed] },
+          {
+            ...d0,
+            drawing_id: 'second',
+            rules: [
+              blind(rule0.rule_id, 'cannot_tell'), // its fail elsewhere still wins
+              blind('X', 'cannot_tell'), // nothing read: cannot tell, not left out
+              blind('Y', 'not_applicable'), // never pass or fail: not counted
+              blind('Z', 'cannot_tell'), // passed on the first drawing, blind here: cannot tell
+            ],
+          },
+        ],
+      };
+      show({ [CHECKS]: derived }, 'pack=fi');
+      await ready();
+      await waitFor(() => {
+        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe(
+          '1 rule failed · 2 cannot tell',
+        );
+      });
+    });
+
+    it('CF-32 checks errors stay inside the row; Retry re-sends only the checks', async () => {
+      const cases: [unknown, string][] = [
+        [reply(409, { ...errorBody, code: 'not_done' }), 'The checks run when reading is done.'],
+        [
+          reply(404, { ...errorBody, code: 'unknown-pack' }),
+          'These rules are not available. Pick another country.',
+        ],
+      ];
+      for (const [answer, words] of cases) {
+        show({ [CHECKS]: answer }, 'pack=fi');
+        await ready();
+        expect(await within(row()).findByText(words)).toBeTruthy();
+        expect(cards()).toHaveLength(1);
+        expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
+        cleanup();
+      }
+      let fail = true;
+      const { api } = show(
+        { [CHECKS]: () => (fail ? reply(500, { ...errorBody, detail: 'boom' }) : four) },
+        'pack=fi',
+      );
+      await ready();
+      const alert = await within(row()).findByRole('alert');
+      expect(alert.textContent).toContain('boom');
+      fail = false;
+      click(within(alert).getByRole('button', { name: 'Retry' }));
+      await waitFor(() => {
+        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe(
+          '1 rule passed · 1 failed · 1 cannot tell',
+        );
+      });
+      expect(api.calls.filter((c) => c.url.includes('/checks'))).toHaveLength(2);
+      expect(api.calls.filter((c) => c.url === `/api/projects/${pid}/review`)).toHaveLength(1);
+    });
+
+    it('CF-33 with a pack, the chat button, the workspace link and a card link carry it', async () => {
+      show({ [CHECKS]: four }, 'pack=fi');
+      await ready();
+      const hrefs = [
+        screen.getByRole('link', { name: 'Start a new chat' }),
+        screen.getByRole('link', { name: 'Open the workspace' }),
+        within(card(base.label)).getByRole('link', { name: 'Open in the surveyor workspace' }),
+      ].map((a) => new URLSearchParams(a.getAttribute('href')?.split('?')[1]).get('pack'));
+      expect(hrefs).toEqual(['fi', 'fi', 'fi']);
+    });
   });
 });

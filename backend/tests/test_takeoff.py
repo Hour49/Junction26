@@ -548,6 +548,26 @@ def test_a_model_file_without_a_page_answers_from_its_objects_alone() -> None:
     assert Query(subject="plan").key() not in found  # a model draws no plans
 
 
+def test_a_model_file_gives_the_area_of_all_its_spaces_over_every_storey() -> None:
+    """R4b-4: "net floor area of all indoor rooms" on a .ifc file is its spaces' areas summed."""
+    file = Drawing(
+        file="data/demo/m.ifc", pages=(), scale=Scale(status="scaled"), model_objects=MODEL
+    )
+    found = known_quantities(file)
+    for indoor in (False, True):
+        for model in (False, True):
+            query = Query(measure="area", subject="room", indoor=indoor, model=model)
+            assert value(found, query) == 35.0  # 20 + 15, both spaces of EG
+    lacking = (*MODEL, model_object(8, "space", "OG", name="2.01"))  # a space with no area
+    unknown = known_quantities(file.model_copy(update={"model_objects": lacking}))
+    assert Query(measure="area", subject="room", indoor=True).key() not in unknown
+
+
+def test_a_sheet_with_a_model_gives_no_whole_model_area() -> None:
+    found = known_quantities(drawing(**SHEET, model_objects=MODEL))
+    assert Query(measure="area", subject="room", indoor=True, model=True).key() not in found
+
+
 def test_a_name_two_of_a_storey_s_spaces_share_names_neither() -> None:
     wcs = tuple(
         model_object(n, "space", "OG", area_m2=2.0, name=f"2.0{n}", long_name="WC") for n in (8, 9)

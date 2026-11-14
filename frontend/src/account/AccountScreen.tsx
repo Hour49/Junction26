@@ -115,11 +115,12 @@ function Panel({ summary }: { summary: ProjectSummary }) {
   );
   const questionsData = questions.error ? null : questions.data;
   const reviewData = review.error ? null : review.data;
-  const signed = reviewData?.drawings.filter((d) => d.signed > 0) ?? [];
+  // Every drawing with rows: the Signed off stat counts disagreements over them (account.md).
+  const measured = reviewData?.drawings.filter((d) => d.quantities > 0) ?? [];
   const takeoffs = usePoll(
     useCallback(
       (signal: AbortSignal) =>
-        Promise.all(signed.map((d) => getTakeoff(d.drawing_id, { project: id, signal }))),
+        Promise.all(measured.map((d) => getTakeoff(d.drawing_id, { project: id, signal }))),
       // Only a new review changes which drawings are asked for.
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [id, reviewData],
@@ -158,7 +159,15 @@ function Panel({ summary }: { summary: ProjectSummary }) {
           </a>
         </div>
         <dl className="account-stats">
-          {workspaceStats(p, reviewData, questionsData).map((s) => (
+          {workspaceStats(
+            p,
+            reviewData,
+            questionsData,
+            // Until every drawing's takeoff is in (the first load answers [] before the review), "–".
+            reviewData && !takeoffs.error && takeoffs.data?.length === measured.length
+              ? takeoffs.data
+              : null,
+          ).map((s) => (
             <div key={s.label}>
               <dt>{s.label}</dt>
               <dd>{s.value}</dd>

@@ -8,7 +8,7 @@
       "quantities": 63
     },
     {
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "file": "plans/flat-b.pdf",
       "to_review": 1,
       "signed": 0,
@@ -33,12 +33,12 @@
       "file": "model/house.ifc",
       "to_review": 0,
       "signed": 0,
-      "quantities": 31
+      "quantities": 35
     }
   ],
   "conflicts": [
     {
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "file": "plans/flat-b.pdf",
       "quantity": "area:room|name=1.01",
       "label": "area of room (name Küche · 1.01)",

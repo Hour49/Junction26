@@ -26,6 +26,7 @@ export type Reader = Schemas['Reader'];
 export type Suggestion = Schemas['Suggestion'];
 export type AskRequest = Schemas['AskRequest'];
 export type AnswerView = Schemas['AnswerView'];
+export type ProjectAnswer = Schemas['ProjectAnswer'];
 export type Refusal = Schemas['Refusal'];
 export type MarkView = Schemas['MarkView'];
 export type Row = Schemas['Row'];
@@ -38,6 +39,31 @@ export type Proof = Schemas['Proof'];
 export type Takeoff = Schemas['Takeoff'];
 export type Edit = Schemas['Edit'];
 export type SignOffRequest = Schemas['SignOffRequest'];
+export type Triage = Schemas['Triage'];
+export type Description = Schemas['Description'];
+export type Relevance = Schemas['Relevance'];
+export type Overrule = Schemas['Overrule'];
+export type RelevanceRequest = Schemas['RelevanceRequest'];
+export type TriageRequest = Schemas['TriageRequest'];
+export type ReadAsPlan = Schemas['ReadAsPlan'];
 
 /** The answer confidence (board #14): `score` is a raw model choice score, never a probability. */
 export type Signal = Schemas['Signal'];
+
+// Building-code checks (#139, record 0009-building-code-checks) and located issues (#147, record 0008).
+export type Clause = Schemas['Clause'];
+export type Rule = Schemas['RuleView'];
+export type RulePack = Schemas['RulePackView'];
+export type CheckMark = Schemas['CheckMark'];
+export type CheckResult = Schemas['CheckResult'];
+export type RuleCheck = Schemas['RuleCheck'];
+export type DrawingChecks = Schemas['DrawingChecks'];
+export type ProjectChecks = Schemas['ProjectChecks'];
+/** A rule's, drawing's or project's status; a single result is never `not_applicable`. */
+export type CheckStatus = RuleCheck['status'];
+
+export type Issue = Schemas['Issue'];
+export type IssueList = Schemas['ProjectIssues'];
+export type IssueKind = Issue['kind'];
+export type IssueSeverity = Issue['severity'];
+export type IssueState = Issue['state'];

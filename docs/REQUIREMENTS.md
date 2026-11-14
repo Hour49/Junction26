@@ -63,6 +63,7 @@ Priority: **M** must have for the demo, **S** should, **C** could.
 | I11 | Precompute the known question types with their marks. | M |
 | I12 | Show ingest progress per file and per stage, with a readable trace of what each stage found. | M |
 | I13 | Open encrypted PDFs that have an empty password; convert DWG to DXF. | S |
+| I14 | Triage every uploaded image before any reader: a floor plan or not (unsure = plan). A non-plan is kept and set aside, described in words, and judged against the project's plans (related, unrelated, unsure) as a suggestion a person can overrule; never deleted (decision 0010; Bogdan 2026-11-14). | S |
 
 ### Answering (engineer)
 
@@ -88,6 +89,17 @@ Priority: **M** must have for the demo, **S** should, **C** could.
 | R4 | Sign off a quantity (who, when). Signed values are marked verified everywhere. | S |
 | R5 | Export the takeoff as CSV. | S |
 | R6 | Corrections are kept as labelled examples for evaluating and improving the extractors. | C |
+| R7 | Every finding in a project is one located issue (conflict, refused answer, reading flag, set-aside file, failed code check): kind, severity, drawing, floor where the source states it, page and box, one sentence of why, state. One list per project as JSON, CSV and a zip with the pages marked (story #140, decision 0008; MUST DO, Bogdan 2026-11-14). | M |
+
+### Building-code pre-check (story #139, Bogdan 2026-11-14 12:20: must do)
+
+| Id | Requirement | Pri |
+| --- | --- | --- |
+| C1 | Pick a country's rule pack (one at a time, or none); each drawing gets pass, fail or cannot tell per rule and per room or door, with the marks of the items involved. | M |
+| C2 | Every limit quotes a clause someone read: reference, link, the sentence as printed and in English. A rule without one does not load. | M |
+| C3 | No scale, a quantity not read, an estimate whose error reaches the limit or an input read off a picture never fails: it is cannot tell, with the reason. | M |
+| C4 | Screens and API say it is a pre-check of a few rules, not a compliance certificate, and what a fail means under that law. | M |
+| C5 | A failed check is a located issue in the project's issue list (#140). | S |
 
 ## 5. Non-functional requirements
 
