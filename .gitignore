@@ -9,3 +9,8 @@ node_modules/
 junction-pitch/05-team/
 # per-person agent briefs, reports and handoffs (local paths; this repo is public)
 .agents/
+# frontend build and Playwright output
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/screenshots/
