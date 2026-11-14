@@ -802,26 +802,6 @@ export interface components {
             /** Value */
             value: number;
         };
-        /** DrawingChecks */
-        DrawingChecks: {
-            /** Drawing Id */
-            drawing_id: string;
-            /** File */
-            file: string;
-            /** File Id */
-            file_id: string | null;
-            /** Note */
-            note: string;
-            /** Pack */
-            pack: string;
-            /** Rules */
-            rules: components["schemas"]["RuleCheck"][];
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
-        };
         /**
          * Description
          * @description Step 2, for a file that is not a floor plan: what the picture shows, in words.
@@ -845,6 +825,26 @@ export interface components {
              * @default []
              */
             text_seen: string[];
+        };
+        /** DrawingChecks */
+        DrawingChecks: {
+            /** Drawing Id */
+            drawing_id: string;
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string | null;
+            /** Note */
+            note: string;
+            /** Pack */
+            pack: string;
+            /** Rules */
+            rules: components["schemas"]["RuleCheck"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
         };
         /**
          * DrawingEntry
