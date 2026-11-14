@@ -189,16 +189,49 @@ describe('the plan beside the chat (wide window)', () => {
   });
 });
 
-describe('a narrow window', () => {
-  it('has no plan beside the chat; [n] stays a link to the workspace', async () => {
+describe('a narrow window: the plan as a sheet (chat-ux #9)', () => {
+  const dialog = () => screen.queryByRole('dialog', { name: 'The plan' });
+
+  it('no plan beside the chat; "Show the plan" opens it over the chat, Escape closes it and focus returns', async () => {
+    wide = false;
+    open(viewTurn);
+    await send('Where is Bagno 1.01?');
+    await screen.findByRole('link', { name: /^Source 1:/ });
+    expect(dialog()).toBeNull();
+    const button = screen.getByRole('button', { name: 'Show the plan' });
+    button.focus();
+    fireEvent.click(button);
+    const sheet = dialog() as HTMLElement;
+    expect(within(sheet).getByRole('complementary', { name: 'Plan' })).toBeTruthy();
+    expect(within(sheet).getByText('Bagno 1.01 on the plan')).toBeTruthy();
+    expect(document.activeElement).toBe(sheet);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(dialog()).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('[n] opens the sheet at that place instead of leaving the chat; Close shuts it', async () => {
     wide = false;
     open(viewTurn);
     await send('Where is Bagno 1.01?');
     const cite = await screen.findByRole('link', { name: /^Source 1:/ });
-    expect(screen.queryByRole('complementary', { name: 'Plan' })).toBeNull();
     const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
-    cite.dispatchEvent(click);
-    expect(click.defaultPrevented).toBe(false);
-    expect(cite.getAttribute('href')).toContain(`/d/${DID}`);
+    act(() => {
+      cite.dispatchEvent(click);
+    });
+    expect(click.defaultPrevented).toBe(true);
+    const sheet = dialog() as HTMLElement;
+    expect(viewer().focus).toEqual({ page: 1, box: unionBox([[0.31, 0.22, 0.38, 0.29]]) });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+    expect(dialog()).toBeNull();
+    expect(cite.getAttribute('href')).toContain(`/d/${DID}`); // a modified click still opens the workspace
+  });
+
+  it('a wide window has neither the button nor a Close', async () => {
+    open(viewTurn);
+    await send('Where is Bagno 1.01?');
+    await within(pane()).findByText('Bagno 1.01 on the plan');
+    expect(screen.queryByRole('button', { name: 'Show the plan' })).toBeNull();
+    expect(within(pane()).queryByRole('button', { name: 'Close' })).toBeNull();
   });
 });
