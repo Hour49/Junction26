@@ -28,7 +28,15 @@ from app.composition import DECISIONS_SIGNAL
 from app.core.drawing.model import Table, TableRow
 from app.core.review.ask import Asked
 from app.core.review.model import MarkView
-from app.core.review.proof import NO_PROOF, ClassKey, colour, number, schedule_proof
+from app.core.review.proof import (
+    NO_PROOF,
+    ClassKey,
+    ModelItem,
+    StoreyRow,
+    colour,
+    number,
+    schedule_proof,
+)
 from app.settings import Settings
 from scripts.make_sample_archive import build_archive
 
@@ -320,3 +328,19 @@ def test_a_label_or_reason_with_a_line_break_is_drawn_on_one_line() -> None:
     )
     png = render(buffer.getvalue(), 1, [left_out], proof, "What is the area?  ->  24 m2", None, 800)
     assert Image.open(io.BytesIO(png)).width == 800
+
+
+def test_a_model_fact_with_line_breaks_in_its_names_is_drawn_without_a_page() -> None:
+    """review-365 S1: an IFC name can carry a decoded carriage return (\\X2\\000D\\X0\\); the
+    no-page tables drew it raw and raqm failed (500)."""
+    item = ModelItem(
+        id="o1",
+        class_="IfcDoor\r",
+        name="Door\r\nD01\x85left",
+        storey="Ground\u2029Floor",
+        global_id="2O2Fr$t4X7Zf8NOew3FLOH",
+    )
+    storeys = (StoreyRow(storey="Ground\u2029Floor", counts={"IfcDoor\r": 1}),)
+    proof = NO_PROOF.model_copy(update={"kind": "model", "objects": (item,), "storeys": storeys})
+    png = render(None, 1, [], proof, "How many doors?  ->  1", None, 1600)
+    assert Image.open(io.BytesIO(png)).width == 1600

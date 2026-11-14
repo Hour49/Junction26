@@ -329,8 +329,9 @@ def _tables(proof: Proof) -> Image.Image:
     if objects:
         lines += ["Objects (GlobalId, class, name, storey)"]
         lines += [
-            f"  {item.global_id or '-'}  {item.class_}  {item.name or '-'}  {item.storey or '-'}"
+            "  " + "  ".join(_one_line(text or "-") for text in fields)
             for item in objects[:MAX_OBJECTS]
+            for fields in [(item.global_id, item.class_, item.name, item.storey)]
         ]
         if len(objects) > MAX_OBJECTS:
             lines.append(f"  ... and {len(objects) - MAX_OBJECTS} more")
@@ -338,8 +339,8 @@ def _tables(proof: Proof) -> Image.Image:
     if proof.storeys:
         lines.append("Storeys (objects per class)")
         for row in proof.storeys:
-            counts = ", ".join(f"{name} {count}" for name, count in row.counts.items())
-            lines.append(f"  {row.storey}: {counts}")
+            counts = ", ".join(f"{_one_line(name)} {count}" for name, count in row.counts.items())
+            lines.append(f"  {_one_line(row.storey)}: {counts}")
     if not lines:
         lines = ["No page and no model objects to show."]
     font = _font(18)
