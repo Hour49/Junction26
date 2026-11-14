@@ -14,7 +14,13 @@ A removed wall strip:
 - a vertical run in it that goes on to another storey cannot follow a one-storey edit.
 
 An added partition: the runs it crosses need openings, a run along it and a terminal under it
-need a person. Nothing is ever called approved or blocked: the facts are stated.
+need a person.
+
+A new room: what it has and what the room it was cut from keeps; and what it lacks, measured
+against this floor's rooms of its own type (a kind of terminal that at least 80% of them have),
+with a right-angle estimate of a connection from the nearest run of such a system.
+
+Nothing is ever called approved or blocked: the facts are stated.
 """
 
 import math
@@ -28,7 +34,9 @@ from shapely.geometry import LineString, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import nearest_points
 
+from app.core.drawing.model import words
 from app.core.ifc_facts import Discipline
+from app.core.plan_edit.law_check import ROOM_WORDS
 from app.core.plan_edit.model import Proposal
 from app.core.plan_edit.walls import PlanPage, length_of
 from app.core.services.graph import ServiceGraph
@@ -58,6 +66,8 @@ ROOM_REACH_M = 0.4  # a wall-mounted terminal's room is the nearest one within t
 NEAR_M = 3.0  # how far around the edit the overlay shows the discipline
 BELOW_M = 1.0  # a new connection may start from a run this far under the floor
 PASSAGE_M = 0.5  # pipework this long inside a wall runs along it; shorter, it only crosses
+USUAL_SHARE = 0.8  # a kind of terminal this share of a type's rooms have is usual for the type
+COMPARED_MIN = 2  # fewer rooms of a type say nothing about the type
 IN_WALL_KINDS = {"air_terminal"}  # on a wall only when in it: most hang from the ceiling
 
 LETTER: Mapping[Discipline, str] = {
@@ -146,6 +156,7 @@ class _Edit:
     before: dict[str, tuple[str, Polygon]]  # room id -> label, shape
     after: list[tuple[str, Polygon, tuple[str, ...]]]  # label, shape, the rooms it was
     doors: BaseGeometry
+    new: list[tuple[str, Polygon, tuple[str, ...]]]  # rooms the edit makes: as `after`
     taken: list[BaseGeometry] = field(default_factory=list[BaseGeometry])  # wall spots in use
 
     @classmethod
@@ -164,16 +175,26 @@ class _Edit:
             before={rid: (labels[rid], shape) for rid, shape in page.room_shapes().items()},
             after=[(r.label, page.shape(r.polygon), r.was) for r in proposal.rooms],
             doors=shapely.unary_union(doors),
+            new=[
+                (r.label, page.shape(r.polygon), r.was)
+                for r in proposal.rooms
+                if r.area_before_m2 == 0 and r.was
+            ],
         )
 
-    def room_of(self, element: ServiceElement) -> str | None:
-        """The label of the room a terminal is in before the edit: the one holding its point,
-        else the nearest within reach (a wall-mounted terminal's point is in the wall)."""
+    def room_id_of(self, element: ServiceElement) -> str | None:
+        """The room a terminal is in before the edit: the one holding its point, else the
+        nearest within reach (a wall-mounted terminal's point is in the wall)."""
         at = Point(element.at[:2])
         near = min(
-            ((shape.distance(at), label) for label, shape in self.before.values()), default=None
+            ((shape.distance(at), rid) for rid, (_, shape) in self.before.items()), default=None
         )
         return near[1] if near is not None and near[0] <= ROOM_REACH_M else None
+
+    def room_of(self, element: ServiceElement) -> str | None:
+        """That room's label."""
+        room = self.room_id_of(element)
+        return None if room is None else self.before[room][0]
 
     def fraction(self, point: Point2) -> Point2:
         return (round(point[0] / self.page.width_m, 5), round(point[1] / self.page.height_m, 5))
@@ -190,7 +211,8 @@ def follow(
     """The proposal followed through every lane. `heights`: the storey's floor and the floor
     above, in the model's metres: what stands between them meets the walls of this page."""
     edit = _Edit.of(page, proposal)
-    changed = shapely.unary_union([edit.removed, edit.added])
+    # the overlay shows what is around the changed walls and in the rooms the edit makes
+    changed = shapely.unary_union([edit.removed, edit.added, *(shape for _, shape, _ in edit.new)])
     on_storey = {
         lane.discipline: [e for e in lane.elements if _between(e, heights)] for lane in lanes
     }
@@ -245,6 +267,8 @@ def _lane(
         found += _removed_wall(edit, lane, here, heights)
     if not edit.added.is_empty:
         found += _added_wall(edit, here)
+    if edit.new:
+        found += _new_rooms(edit, here)
     marks, refs = _marks(edit, lane.discipline, here, found, changed)
     actions = tuple(
         ServiceAction(
@@ -294,6 +318,9 @@ def _line(found: list[_Found], summary: Summary) -> str:
         counted(codes["fire_damper"], "fire damper") if codes["fire_damper"] else "",
         f"{counted(codes['opening'], 'system')} needing openings" if codes["opening"] else "",
         f"{codes['under']} under or along the new wall" if codes["under"] else "",
+        f"{counted(codes['missing'], 'kind')} of terminal missing in the new room"
+        if codes["missing"]
+        else "",
         f"{counted(codes['through'], 'system')} passing through" if codes["through"] else "",
         f"{summary.needs_decision} for a person to decide" if summary.needs_decision else "",
     ]
@@ -335,6 +362,8 @@ def _removed_wall(
         else:
             inside += [element for element, relation in chain if relation == "inside"]
             stubs += [element for element, relation in chain if relation == "ends_in"]
+    # a fire damper is said once, as the damper in this wall, not again as a run passing through
+    through = [e for e in through if e not in dampers]
     gone = {e.guid for e in (*inside, *stubs, *hosted)}
     trunks = {
         system: (graph.largest(system), graph.largest(system, gone))
@@ -698,6 +727,115 @@ def _added_wall(edit: _Edit, here: list[ServiceElement]) -> list[_Found]:
             )
         )
     return found
+
+
+# --- a new room ----------------------------------------------------------------------------------
+
+
+def room_type(name: str) -> str:
+    """A room's type from its name, as the plan edit's law check reads a new room's."""
+    low = name.lower()
+    return next((kind for kind, pattern in ROOM_WORDS if re.search(pattern, low)), "other")
+
+
+def _new_rooms(edit: _Edit, here: list[ServiceElement]) -> list[_Found]:
+    """Per room the edit makes: the terminals it has and the room it was cut from keeps, and
+    each kind of terminal that is usual for this floor's rooms of its type and that it lacks."""
+    terminals = [e for e in here if e.is_terminal]
+    if not terminals:
+        return []
+    home = {e.guid: edit.room_id_of(e) for e in terminals}
+    types = {r.id: r.type for r in edit.page.rooms if not r.outdoor and r.id in edit.before}
+    found: list[_Found] = []
+    for label, shape, was in edit.new:
+        others = [other for name, other, of in edit.after if of == was and name != label]
+        from_parent = [e for e in terminals if home[e.guid] in was]
+        mine = [e for e in from_parent if _nearer(e, shape, others)]
+        kept = [e for e in from_parent if e not in mine]
+        parent = edit.before[was[0]][0] if was[0] in edit.before else "the room it was cut from"
+        kind = room_type(label)
+        peers = [rid for rid, of_type in types.items() if of_type == kind]
+        if mine or kept:
+            has = _counts(mine) or "none of this model's terminals"
+            keeps = f"; {parent} keeps {_counts(kept)}" if kept else ""
+            found.append(_Found("stays", "tally", f"{label} has {has}{keeps}."))
+        if len(peers) < COMPARED_MIN:
+            continue
+        rooms_with: dict[str, set[str]] = {}
+        systems: dict[str, set[str]] = {}
+        for element in terminals:
+            if (room := home[element.guid]) in peers:
+                rooms_with.setdefault(plain(element), set()).add(room or "")
+                systems.setdefault(plain(element), set()).update(element.systems)
+        had = {plain(e) for e in mine}
+        for word, rooms in sorted(rooms_with.items()):
+            if word in had or len(rooms) < USUAL_SHARE * len(peers):
+                continue
+            usual = (
+                f"{label} has no {word}: {len(rooms)} of the {len(peers)} rooms of its type on "
+                f"this floor ({words(kind)}) have one."
+            )
+            found.append(_missing(edit, here, shape, usual, systems[word]))
+    return found
+
+
+def _nearer(element: ServiceElement, shape: Polygon, others: Sequence[Polygon]) -> bool:
+    at = Point(element.at[:2])
+    return all(shape.distance(at) <= other.distance(at) for other in others)
+
+
+def _counts(terminals: Sequence[ServiceElement]) -> str:
+    kinds = Counter(plain(e) for e in terminals)
+    return ", ".join(counted(count, word) for word, count in sorted(kinds.items()))
+
+
+def _missing(
+    edit: _Edit, here: list[ServiceElement], room: Polygon, usual: str, systems: set[str]
+) -> _Found:
+    """What the room lacks, and where the nearest run of such a system is: the estimate of a
+    connection from there to the room's nearest wall face, right-angled, with the walls it
+    passes. Always for a person: whether the room needs it is not this check's to say."""
+    runs = [e for e in here if e.is_run and systems & set(e.systems) and _length(e) > VERTICAL_M]
+    if not runs:
+        return _Found("needs_decision", "missing", f"{usual} No run to connect one to was found.")
+    shapes = [_shape(e) for e in runs]
+    nearest = int(shapely.distance(shapes, room).argmin())  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+    run = runs[nearest]
+    system = ", ".join(sorted(systems & set(run.systems)))
+    what = f"{plain(run)} of {system}"
+    waste = (
+        " The fall and venting of a waste branch are not checked here."
+        if _DRAINS.search(system)
+        else ""
+    )
+    start, target = nearest_points(shapes[nearest], room)
+    apart = start.distance(target)
+    if apart <= IN_M:
+        return _Found(
+            "needs_decision",
+            "missing",
+            f"{usual} A {what} already runs through the room: one could connect to it there."
+            f"{waste}",
+            (run.guid,),
+            system,
+        )
+    path = ((start.x, start.y), (target.x, start.y), (target.x, target.y))
+    metres = round(abs(start.x - target.x) + abs(start.y - target.y), 1)
+    crossed = LineString(path).intersection(
+        shapely.unary_union([edit.page.wall_mass(), edit.added])
+    )
+    walls = len([part for part in shapely.get_parts(crossed) if part.length > IN_M])
+    passing = f" and pass {counted(walls, 'wall')}" if walls else ""
+    return _Found(
+        "needs_decision",
+        "missing",
+        f"{usual} The nearest {what} is {apart:.1f} m from the room: a connection to it would "
+        f"be about {metres} m{passing}. An estimate, not a routed design.{waste}",
+        (run.guid,),
+        system,
+        paths=(path,),
+        new_run_m=metres,
+    )
 
 
 # --- shared --------------------------------------------------------------------------------------

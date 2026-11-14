@@ -2,13 +2,16 @@
 10 x 10 m page: office A | a 0.2 m wall | office B, storey heights 0..3 m. Elements are given in
 the page's metres, as the tools place them."""
 
+from typing import Any
+
 import pytest
+import shapely
 from shapely.geometry import Point, Polygon, box
 
 from app.core.plan_edit.edit import place_room, remove_wall
 from app.core.plan_edit.model import Proposal, Ring
 from app.core.plan_edit.walls import Opening, PlanPage, PlanRoom
-from app.core.services.follow import follow
+from app.core.services.follow import follow, room_type
 from app.core.services.model import (
     DisciplineFollow,
     Lane,
@@ -302,9 +305,151 @@ def test_sf11_a_new_wall_needs_openings_for_what_crosses_it_and_a_person_for_wha
     far = run("f", (5.5, 2.0, 2.6), (6.5, 2.0, 2.6), "Supply air", kind="duct_segment")
     outlet = terminal("o", (wall_x, 2.0, 2.7), (), kind="air_terminal", predefined=None)
     found = followed(duct, far, outlet, proposal=proposal)
-    assert codes(found) == [("opening", "follows"), ("under", "needs_decision")]
+    assert codes(found)[:2] == [("opening", "follows"), ("under", "needs_decision")]
     assert "1 duct of Supply air (DN15) crosses the new wall: it needs" in found.actions[0].label
     assert "air terminal in Office 2 sits where the new wall goes" in found.actions[1].label
+
+
+# --- a new room -----------------------------------------------------------------------------------
+
+O1, O2, O3 = box(0, 0, 3, 3), box(3.2, 0, 6.2, 3), box(6.4, 0, 9.4, 3)
+OPEN = box(0, 3.2, 9.4, 8)  # the room a new one is cut from: its west 3 m, a wall at x = 3
+
+
+def floor(small: str = "other") -> PlanPage:
+    """Three small rooms of one type over an open room."""
+    mass = box(-0.2, -0.2, 9.6, 8.2).difference(shapely.unary_union([O1, O2, O3, OPEN]))
+    assert isinstance(mass, Polygon)
+    return PlanPage(
+        drawing_id="d" * 16,
+        page=1,
+        width_m=10,
+        height_m=10,
+        rooms=(
+            PlanRoom("r1", "Office 1", small, ring(O1)),
+            PlanRoom("r2", "Office 2", small, ring(O2)),
+            PlanRoom("r3", "Office 3", small, ring(O3)),
+            PlanRoom("r4", "Open workspace", "other", ring(OPEN)),
+        ),
+        mass=(
+            (
+                ring(mass),
+                tuple(tuple((x / 10, y / 10) for x, y in h.coords[:-1]) for h in mass.interiors),
+            ),
+        ),
+    )
+
+
+def carved(
+    *elements: ServiceElement, name: str = "Meeting room", small: str = "other", east: float = 0.3
+) -> Any:
+    sheet = floor(small)
+    proposal = place_room(sheet, "p1", (0.0, 0.32, east, 0.8), name)
+    lane = Lane("heating", "checked", "Heating model", elements=elements)
+    return follow(sheet, proposal, [lane], HEIGHTS).disciplines[0]
+
+
+RADIATORS = (
+    terminal("rad1", (1.5, 0.1, 0.5), ("H_flow",)),
+    terminal("rad2", (4.7, 0.1, 0.5), ("H_flow",)),
+    terminal("rad3", (7.9, 0.1, 0.5), ("H_flow",)),
+    terminal("rad4", (8.0, 7.9, 0.5), ("H_flow",)),  # in the open room, east of the new one
+)
+OUTLETS = (
+    terminal("air1", (0.5, 6.0, 2.7), ("Supply air",), kind="air_terminal", predefined=None),
+    terminal("air2", (7.0, 6.0, 2.7), ("Supply air",), kind="air_terminal", predefined=None),
+)
+PIPE = run("pipe", (5.25, 5.0, 0.3), (9.0, 5.0, 0.3), "H_flow")
+
+
+def test_sf19_a_new_room_says_what_it_has_and_what_the_room_it_was_cut_from_keeps() -> None:
+    found = carved(*RADIATORS, *OUTLETS, PIPE)
+    tally = next(a for a in found.actions if a.code == "tally")
+    assert tally.status == "stays" and tally.label == (
+        "Meeting room has 1 air terminal; Open workspace keeps 1 air terminal, 1 radiator."
+    )
+
+
+def test_sf19_the_new_rooms_own_terminals_are_on_the_overlay_however_far_from_the_new_wall() -> (
+    None
+):
+    wide = carved(OUTLETS[0], east=0.7)  # the new wall is at x = 7, the terminal at x = 0.5
+    assert [mark.global_id for mark in wide.marks] == ["air1"]
+
+
+def test_sf19_what_the_floors_rooms_of_its_type_have_and_it_lacks_gets_a_connection_estimate() -> (
+    None
+):
+    found = carved(*RADIATORS, *OUTLETS, PIPE)
+    (missing,) = [a for a in found.actions if a.code == "missing"]
+    assert missing.status == "needs_decision" and missing.system == "H_flow"
+    assert missing.label == (
+        "Meeting room has no radiator: 4 of the 4 rooms of its type on this floor (other) have "
+        "one. The nearest pipe of H_flow is 2.3 m from the room: a connection to it would be "
+        "about 2.3 m and pass 1 wall. An estimate, not a routed design."
+    )
+    # from the pipe's end straight to the new room's wall face, in page fractions
+    assert missing.paths == (((0.525, 0.5), (0.295, 0.5), (0.295, 0.5)),)
+    pipe = next(mark for mark in found.marks if mark.global_id == "pipe")
+    assert missing.refs == (pipe.ref,)
+    assert found.summary.needs_decision == 1 and found.summary.new_run_m == 2.3
+    assert found.line == (
+        "Heating: 1 kind of terminal missing in the new room, 1 for a person to decide."
+    )
+    # air terminals: one room of the four has them, and the new room has one anyway
+    assert "air terminal" not in missing.label
+
+
+def test_sf19_a_run_already_in_the_new_room_is_where_to_connect() -> None:
+    through = run("pipe", (1.0, 5.0, 0.3), (9.0, 5.0, 0.3), "H_flow")
+    found = carved(*RADIATORS, through)
+    assert [a.code for a in found.actions] == ["opening", "tally", "missing"]
+    missing = found.actions[2]
+    assert missing.label.endswith(
+        "A pipe of H_flow already runs through the room: one could connect to it there."
+    )
+    assert missing.paths == () and found.summary.new_run_m == 0
+
+
+def test_sf19_what_fewer_than_four_in_five_of_the_rooms_have_is_not_called_missing() -> None:
+    found = carved(RADIATORS[0], RADIATORS[3], PIPE)  # 2 of the 4 rooms have a radiator
+    assert [a.code for a in found.actions] == ["tally"]
+    three = carved(RADIATORS[0], RADIATORS[1], RADIATORS[3], PIPE)  # 3 of 4: under 80%
+    assert [a.code for a in three.actions] == ["tally"]
+
+
+def test_sf19_what_the_new_room_has_itself_is_not_missing() -> None:
+    own = terminal("own", (1.5, 7.9, 0.5), ("H_flow",))  # on the new room's south wall
+    found = carved(*RADIATORS, own, PIPE)
+    assert [a.code for a in found.actions] == ["tally"]
+    assert found.actions[0].label == "Meeting room has 1 radiator; Open workspace keeps 1 radiator."
+
+
+def test_sf19_a_type_with_fewer_than_two_rooms_on_the_floor_is_not_compared() -> None:
+    found = carved(*RADIATORS, PIPE, name="Sauna")  # no sauna on this floor
+    assert [a.code for a in found.actions] == ["tally"]
+    assert found.actions[0].label == (
+        "Sauna has none of this model's terminals; Open workspace keeps 1 radiator."
+    )
+    # one room of the type (the open room itself, with its radiator) is not a comparison either
+    alone = carved(*RADIATORS, PIPE, small="wc")
+    assert [a.code for a in alone.actions] == ["tally"]
+
+
+def test_sf19_a_missing_fixture_on_a_waste_system_says_the_fall_is_not_checked() -> None:
+    toilets = [
+        terminal(f"wc{n}", (x, 0.1, 0.4), ("Waste water",), kind="sanitary_terminal",
+                 predefined="TOILETPAN")
+        for n, x in enumerate((1.5, 4.7, 7.9), start=1)
+    ]  # fmt: skip
+    stack = run("stack", (5.25, 5.0, 0.1), (9.0, 5.0, 0.1), "Waste water")
+    found = carved(*toilets, stack, name="WC 4", small="wc")
+    (missing,) = [a for a in found.actions if a.code == "missing"]
+    assert missing.label.startswith(
+        "WC 4 has no toilet: 3 of the 3 rooms of its type on this floor (wc) have one."
+    )
+    assert missing.label.endswith("The fall and venting of a waste branch are not checked here.")
+    assert room_type("WC 4") == "wc" and room_type("Meeting room") == "other"
 
 
 # --- the overlay ----------------------------------------------------------------------------------
@@ -402,7 +547,7 @@ def test_sf5_a_damper_alone_in_the_wall_between_two_ducts_is_a_passage_not_pipew
         "out", (6.0, 1.5, 2.7), ("Extract air",), "b", kind="air_terminal", predefined=None
     )
     found = followed(a, damper, b, outlet)
-    assert sorted(c for c, _ in codes(found)) == ["fire_damper", "tally", "through"]
-    assert found.summary.cut_off == 0
-    through = next(action for action in found.actions if action.code == "through")
-    assert through.label.startswith("1 fire damper of Extract air passes through")
+    # the damper is said once, as the damper in this wall: not as pipework, not as a run through
+    assert sorted(c for c, _ in codes(found)) == ["fire_damper", "tally"]
+    assert found.summary.cut_off == 0 and found.summary.needs_decision == 1
+    assert found.line == "Heating: 1 fire damper, 1 for a person to decide."

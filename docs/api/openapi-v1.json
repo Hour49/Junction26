@@ -6881,7 +6881,8 @@
               "fire_damper",
               "tally",
               "opening",
-              "under"
+              "under",
+              "missing"
             ],
             "title": "Code",
             "type": "string"

@@ -2833,7 +2833,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "reseat" | "in_wall" | "cut_off" | "through" | "riser" | "fire_damper" | "tally" | "opening" | "under";
+            code: "reseat" | "in_wall" | "cut_off" | "through" | "riser" | "fire_damper" | "tally" | "opening" | "under" | "missing";
             /** Id */
             id: string;
             /** Label */

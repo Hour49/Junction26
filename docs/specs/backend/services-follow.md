@@ -72,7 +72,8 @@ A removed wall strip:
 - **SF-6 riser.** An upright run in the strip is `needs_decision`. When the column it belongs to passes the
   storey's heights, the action says it goes on to another storey.
 - **SF-7 fire damper.** A fire damper in or at the strip: `needs_decision`, "probably a fire compartment
-  boundary, which this check cannot confirm".
+  boundary, which this check cannot confirm". It is said once: a damper is not listed again among the runs
+  that pass through.
 - **SF-8 heights.** Elements outside the storey's heights are not tested.
 - **SF-9 tally.** The merged room's terminals by kind and by the room they came from (`stays`).
 
@@ -80,6 +81,22 @@ An added partition:
 
 - **SF-11.** Each run it crosses needs an opening (`follows`, per system with sizes). A run along it or a
   terminal under it is `needs_decision`.
+
+A new room (a room of the proposal that did not exist before), per lane that has terminals on the storey:
+
+- **SF-19 has and keeps.** One `stays` action: the new room's terminals by kind, and what the room it was cut
+  from keeps. A terminal belongs to the new room when it was in the old room and the new room's outline is the
+  nearer of the two.
+- **SF-19 lacks.** The new room's type is read from its name as the law check reads it (`wc`, `kitchen`, ...;
+  anything else is `other`, so offices and meeting rooms are one type). It is measured against this floor's
+  rooms of that type as they are before the edit: a kind of terminal that at least 80% of them have and the new
+  room has none of is `needs_decision`, code `missing`, worded "3 of the 3 rooms of its type on this floor (wc)
+  have one". Fewer than two rooms of the type: no comparison. Whether the room needs it is for a person.
+- **SF-19 connection estimate.** With each lack: the nearest run of a system those rooms' terminals are on. Inside
+  the new room: "already runs through the room". Otherwise a right-angle line from the run to the room's nearest
+  wall face, drawn dashed, with its length and the walls it passes; on a system that drains, the sentence that
+  fall and venting are not checked.
+- The overlay also shows the terminals inside a new room, however far from the new walls.
 
 Always:
 
@@ -91,8 +108,8 @@ Always:
   estimates, sizes, flows and waste falls are not checked.
 - Nothing is called approved, blocked or coordinated.
 
-Not built yet: what a new room has and misses compared with this building's rooms of its type, with a proposed
-branch for what it misses; choosing between re-seat options in conversation; electrical circuits.
+Not built yet: choosing between re-seat options in conversation; electrical circuits. The comparison of a new
+room is with the rooms of one sheet, not of the whole building.
 
 ## API (additive to v1)
 
@@ -118,6 +135,7 @@ type DisciplineFollow = {
     id: string
     status: "follows" | "stays" | "needs_decision" | "cut_off"
     code: "reseat" | "in_wall" | "cut_off" | "through" | "riser" | "fire_damper" | "tally" | "opening" | "under"
+        | "missing"
     label: string                      // the whole consequence in plain words, numbers included
     refs: string[]                     // the marks it is about
     system: string | null
@@ -158,7 +176,7 @@ not read: at most 8 are followed.").
 
 ## Tests
 
-- `tests/test_services_follow.py` (SF-1..SF-13): each rule on a hand-built page and ten elements, the frame fit
+- `tests/test_services_follow.py` (SF-1..SF-13, SF-19): each rule on a hand-built page and ten elements, the frame fit
   and its refusals, the graph.
 - `tests/test_ifc_services.py` (SF-14): the reader on IFC files built in the test.
 - `tests/test_service_tools.py` (SF-16..SF-18): the project wiring on a scripted project, the cut note, the

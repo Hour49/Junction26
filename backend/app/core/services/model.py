@@ -128,8 +128,9 @@ class Lane:
 
 Status = Literal["follows", "stays", "needs_decision", "cut_off"]
 Code = Literal[
-    "reseat", "in_wall", "cut_off", "through", "riser", "fire_damper", "tally", "opening", "under"
-]
+    "reseat", "in_wall", "cut_off", "through", "riser", "fire_damper", "tally", "opening", "under",
+    "missing",
+]  # fmt: skip
 
 
 class ServiceMark(Frozen):
