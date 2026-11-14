@@ -253,7 +253,8 @@ An edit of a signed-off quantity (409):
         }
       ]
     }
-  ]
+  ],
+  "commit": null
 }
 ```
 
@@ -8110,6 +8111,9 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (QA R9 area 4, `tools/smoke.py`): `GET /api/info` gains `commit`, the git commit the backend
+  was started from (setting `APP_COMMIT`, which `tools/qa-env.sh` sets to the exported commit), or null when
+  unset. Fixture `info.json` gains it (last).
 - 2026-11-14, additive (board #14, Tudor's conflict card asks 8-10): `Edit.note` on `settle` (1-280 characters, a
   typed answer in words; without `value` the value in use is kept) and `Settled.note` (null when none); a `note`
   on another action, empty or too long is 422 `validation`. `settle` with neither `value` nor `note` stays 422

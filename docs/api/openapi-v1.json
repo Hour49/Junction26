@@ -1986,6 +1986,17 @@
       "Info": {
         "additionalProperties": false,
         "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
           "gemini": {
             "anyOf": [
               {

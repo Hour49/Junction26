@@ -105,3 +105,9 @@ def test_the_demo_config_answers_kitchens_from_goldens_frozen_policy() -> None:
     assert (frozen["schema"], frozen["part"]) == ("answer_policy_v1", "val")
     to_prior = [family for family, pick in frozen["families"].items() if pick["source"] == "prior"]
     assert to_prior == ["room:kitchen"]
+
+
+def test_the_backend_is_told_which_commit_it_runs() -> None:
+    """GET /api/info `commit` (APP_COMMIT): tools/smoke.py prints which build it talks to."""
+    script = SCRIPT.read_text()
+    assert 'APP_COMMIT="$SHA" GEMINI_API_KEY="$KEY"' in script
