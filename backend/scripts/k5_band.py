@@ -1,42 +1,56 @@
-"""K5 metric and threshold sweep: the share of true room areas inside the printed band on CubiCasa
-val pages with gold areas, before (main: the prior's band by door count) and after the door-spread
-rule of app/core/pipeline/raster_scale.py (band widened past DISAGREE, no estimate past REFUSE).
+"""K5: does the doors' width spread change how far off the door scale is, and what 68% band should
+each page print? Measured on CubiCasa val pages with gold room areas.
 
-    cd backend && uv run --locked python scripts/k5_band.py --arm <arm dir> \
-        --gold ../data/stoa/extraction_gold/cubicasa5k --split ../data/stoa/exp/split.json [--sweep]
+    cd backend && PYTHONPATH=. uv run --locked python scripts/k5_band.py --arm <arm dir> \
+        --gold ../data/stoa/extraction_gold/cubicasa5k --split ../data/stoa/exp/split.json [--fit]
 
---arm: extraction_v1 files of the val images with the detected doors (the shipped detector's arm).
---gold: the dev gold extraction (rooms with area_m2 and an outline). --split: the exp split; its val
-part is cut in two halves by image the way stoa_eval's gate does (`gate.halves`: seeded order,
-GATE_SEED; reimplemented here, the backend does not import eval). --files <list> replaces the split
-(one dataset path per line; the halves are then cut from it).
+--arm: extraction_v1 files of the val images with the detected doors (the demo config's detector,
+C1-T1). --gold: the dev gold extraction (rooms with area_m2 and an outline). --split: the exp split;
+its val part is cut in two halves by image the way stoa_eval's gate does (`gate.halves`: seeded
+order, GATE_SEED; reimplemented here, the backend does not import eval). --files <list> replaces
+the split (one dataset path per line; the halves are then cut from it).
 
-Each gold room's outline (page fractions) at the arm's door scale is the estimate, so only the door
-estimate and its band are measured, not a room reader. Inside: |true - estimate| <= uncertainty x
-estimate. "inside" is the share of the answered rooms; "refused" the share of rooms with no
-estimate. Sheets with no detected door are left out (no estimate before or after).
+A page's scale error is how far the door scale is from the gold: the median over its gold rooms of
+log(true area / outline area at the door scale) / 2 (the gold outlines, so no room reader's error
+is in it). A page is inside a band b when |error| <= log(1 + b). The right band covers 68% of the
+pages, as narrow as that allows: the 68% quantile of |error|. Pages are grouped by door count (1-4,
+5 or more: FEW_DOORS) and spread bucket (`door_spread` cut at --edges). Sheets with no detected
+door are left out (no estimate either way).
 
-Without --sweep: the shipped DISAGREE / REFUSE on val (both halves). With --sweep: every pair of
-DISAGREE 0.10..0.40 and REFUSE 0.30..0.80 (step 0.05) on half A, then the best pair (highest inside
-share with refused < 10%; ties: fewer refused) checked on half B against main. The thresholds are
-set by assigning the module's constants (estimate_scale reads them at call time).
+Without --fit: per group and bucket, the page coverage and the mean band of the shipped bands
+(raster_scale.BANDS_FEW / BANDS_MANY) and of main's (SPREAD_FEW / SPREAD_MANY), on both halves,
+plus the rooms inside their area band (the band rooms_with_areas prints: scale twice and the
+outline's spread; on gold outlines it is wider than the outline needs, so above 68%).
+With --fit: each bucket's band fitted on half A and checked on half B, and the other way; the
+fitted band is the mean of the two. Spread changes the error when, in a group, a bucket with at
+least MIN_PAGES pages on each half fits a band more than SPREAD_MATTERS times (or under 1 /
+SPREAD_MATTERS of) the group's own band on both halves; otherwise every bucket gets its group's
+band. A bucket whose fitted band is above NOT_AN_ANSWER is listed with the rooms main had inside
+its band there: refusing it would drop those. It prints the constants to paste into
+app/core/pipeline/raster_scale.py.
 """
 
 import argparse
 import hashlib
 import json
+import math
 import statistics
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from app.adapters.extraction_v1 import ExtractionV1Reader
-from app.core.drawing.model import Page, Room, Scale
+from app.core.drawing.model import Page, Room
 from app.core.pipeline import raster_scale as rs
 
 GATE_SEED = 20261114  # eval/stoa_eval/gate.py
-MAX_REFUSED = 0.10
-DISAGREES = [round(0.10 + 0.05 * i, 2) for i in range(7)]  # 0.10 .. 0.40
-REFUSES = [round(0.30 + 0.05 * i, 2) for i in range(11)]  # 0.30 .. 0.80
+TARGET = 0.68
+MIN_PAGES = 15  # a bucket with fewer pages on a half gets its group's band
+SPREAD_MATTERS = 1.25  # a bucket's band this many times its group's (or under 1/x) is its own
+# A relative scale error above this is no answer: the page-size prior's 68% error starts at 37%
+# (raster_scale's docstring), and the area is then off by about 90%
+NOT_AN_ANSWER = 0.37
+GROUPS = ("few", "many")
 
 
 @dataclass
@@ -44,31 +58,69 @@ class Sheet:
     file: str
     sides: list[float]
     pages: tuple[Page, ...]
-    rooms: list[Room]  # gold rooms, area_m2 cleared
-    truths: list[float]
-
-
-@dataclass
-class Result:
-    rooms: int = 0
-    answered: int = 0
-    inside: int = 0
-    refused: int = 0
-
-    def line(self) -> str:
-        share = self.inside / self.answered if self.answered else 0.0
-        return (
-            f"inside {self.inside}/{self.answered} ({share:.1%}), "
-            f"refused {self.refused}/{self.rooms} ({self.refused_share:.1%})"
-        )
+    rooms: list[Room]  # gold rooms with an outline
+    truths: list[float]  # their gold areas
 
     @property
-    def share(self) -> float:
-        return self.inside / self.answered if self.answered else 0.0
+    def group(self) -> str:
+        return "few" if len(self.sides) < rs.FEW_DOORS else "many"
 
-    @property
-    def refused_share(self) -> float:
-        return self.refused / self.rooms if self.rooms else 0.0
+    def bucket(self, edges: Sequence[float]) -> int:
+        return sum(rs.door_spread(self.sides) >= edge for edge in edges)
+
+    def outlines(self) -> list[float]:
+        """Each room's outline area in page units squared."""
+        page = {p.page: p for p in self.pages}
+        return [_shoelace(r.polygon or ()) * page[r.page].width * page[r.page].height
+                for r in self.rooms]  # fmt: skip
+
+    def error(self) -> float:
+        """log(true scale / door scale), the median over the page's rooms."""
+        m = rs.DOOR_M / statistics.median(self.sides)
+        pairs = zip(self.truths, self.outlines(), strict=True)
+        logs = [0.5 * math.log(true / (unit * m * m)) for true, unit in pairs if unit > 0]
+        return statistics.median(logs)
+
+    def rooms_inside(self, band: float) -> tuple[int, int]:
+        """(rooms inside their printed area band, rooms) at scale band `band`; the area band is
+        rooms_with_areas' (the scale's spread twice, with the outline's)."""
+        m = rs.DOOR_M / statistics.median(self.sides)
+        area_band = math.expm1(math.hypot(2 * math.log1p(band), rs.OUTLINE_SPREAD))
+        inside = sum(abs(true - unit * m * m) <= area_band * unit * m * m
+                     for true, unit in zip(self.truths, self.outlines(), strict=True))  # fmt: skip
+        return inside, len(self.rooms)
+
+
+def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
+    pairs = zip(polygon, [*polygon[1:], polygon[0]], strict=True)
+    return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in pairs)) / 2
+
+
+def quantile(values: Sequence[float], q: float = TARGET) -> float:
+    """Nearest rank: the smallest value with a share `q` of the values at or below it."""
+    ranked = sorted(values)
+    return ranked[max(0, math.ceil(q * len(ranked)) - 1)]
+
+
+def fitted_band(sheets: Sequence[Sheet]) -> float | None:
+    """The relative scale error 68% of `sheets` are within; None for no sheet."""
+    if not sheets:
+        return None
+    return round(math.expm1(quantile([abs(sheet.error()) for sheet in sheets])), 4)
+
+
+def coverage(sheets: Sequence[Sheet], band_of: Callable[[Sheet], float]) -> str:
+    """Pages inside their band, the mean band, and rooms inside their area band, in words."""
+    if not sheets:
+        return "no pages"
+    bands = [band_of(sheet) for sheet in sheets]
+    inside = sum(abs(s.error()) <= math.log1p(b) for s, b in zip(sheets, bands, strict=True))
+    rooms = [s.rooms_inside(b) for s, b in zip(sheets, bands, strict=True)]
+    rin, rall = sum(r[0] for r in rooms), sum(r[1] for r in rooms)
+    return (
+        f"pages {inside}/{len(sheets)} ({inside / len(sheets):.0%}) mean band "
+        f"±{statistics.mean(bands):.1%}; rooms {rin}/{rall} ({rin / max(rall, 1):.0%})"
+    )
 
 
 def halves(files: list[str]) -> tuple[list[str], list[str]]:
@@ -87,43 +139,68 @@ def load(arm: ExtractionV1Reader, gold: ExtractionV1Reader, files: list[str]) ->
         if found is None or truth is None:
             continue
         rooms = [r for r in truth.rooms if r.area_m2 and r.polygon]
-        if not rooms:
-            continue
         sides = rs.door_sides(found.elements, found.pages)
-        if not sides:  # no door: no estimate on main either, so the rule changes nothing here
-            continue
-        bare = [r.model_copy(update={"area_m2": None}) for r in rooms]
-        truths = [r.area_m2 or 0.0 for r in rooms]
-        sheets.append(Sheet(file, sides, found.pages, bare, truths))
+        if rooms and sides:
+            sheets.append(Sheet(file, sides, found.pages, rooms, [r.area_m2 or 0.0 for r in rooms]))
     return sheets
 
 
-def measure(sheets: list[Sheet], main: bool = False) -> Result:
-    """The rooms inside their band; `main`: the prior's band, never refused (before K5)."""
-    out = Result()
-    for sheet in sheets:
-        out.rooms += len(sheet.rooms)
-        if main:
-            prior = rs.SPREAD_FEW if len(sheet.sides) < rs.FEW_DOORS else rs.SPREAD_MANY
-            m = rs.DOOR_M / statistics.median(sheet.sides)
-            scale = Scale(status="estimated", m_per_unit=m, uncertainty=prior)
-        else:
-            scale = rs.estimate_scale(sheet.sides)
-        if scale is None:
-            out.refused += len(sheet.rooms)
+def main_band(sheet: Sheet) -> float:
+    return rs.SPREAD_FEW if sheet.group == "few" else rs.SPREAD_MANY
+
+
+def fit(a: list[Sheet], b: list[Sheet], edges: Sequence[float]) -> dict[str, list[float]]:
+    """The bands per group, one per bucket, from half A and half B both ways; prints the table."""
+    buckets = range(len(edges) + 1)
+    bands: dict[str, list[float]] = {}
+    for group in GROUPS:
+        ga, gb = ([s for s in h if s.group == group] for h in (a, b))
+        pooled_a, pooled_b = fitted_band(ga), fitted_band(gb)
+        if pooled_a is None or pooled_b is None:
+            print(f"{group}: no pages on a half; keeps main's band")
+            bands[group] = [rs.SPREAD_FEW if group == "few" else rs.SPREAD_MANY] * len(buckets)
             continue
-        for room, true in zip(rs.rooms_with_areas(sheet.rooms, scale, sheet.pages), sheet.truths,
-                              strict=True):  # fmt: skip
-            out.answered += 1
-            estimate, spread = room.area_m2, room.area_uncertainty
-            if estimate is not None and spread is not None:
-                out.inside += abs(true - estimate) <= spread * estimate
-    return out
+        pooled = round((pooled_a + pooled_b) / 2, 4)
+        print(f"{group}: group band A ±{pooled_a:.1%} B ±{pooled_b:.1%} -> ±{pooled:.1%}")
+        own: list[float] = []
+        for k in buckets:
+            ka, kb = (
+                [s for s in ga if s.bucket(edges) == k],
+                [s for s in gb if s.bucket(edges) == k],
+            )
+            fa, fb = fitted_band(ka), fitted_band(kb)
+            print(f"  bucket {k} ({_bucket_name(edges, k)}): pages A {len(ka)} B {len(kb)}")
+            print(f"    main     A: {coverage(ka, main_band)} | B: {coverage(kb, main_band)}")
+            if fa is None or fb is None:
+                own.append(pooled)
+                print("    no pages on a half: the group's band")
+                continue
+            print(f"    fit A ±{fa:.1%} on B: {coverage(kb, lambda _, fa=fa: fa)}")
+            print(f"    fit B ±{fb:.1%} on A: {coverage(ka, lambda _, fb=fb: fb)}")
+            band = round((fa + fb) / 2, 4)
+            matters = min(len(ka), len(kb)) >= MIN_PAGES and all(
+                f > SPREAD_MATTERS * p or f < p / SPREAD_MATTERS
+                for f, p in ((fa, pooled_a), (fb, pooled_b))
+            )
+            own.append(band if matters else pooled)
+            verdict = (
+                "its own band" if matters else "the group's band (spread does not matter here)"
+            )
+            print(f"    fitted ±{band:.1%}: {verdict}")
+            if band > NOT_AN_ANSWER:
+                kept = [s.rooms_inside(main_band(s)) for s in (*ka, *kb)]
+                print(
+                    f"    above NOT_AN_ANSWER ±{NOT_AN_ANSWER:.0%}: refusing it would drop "
+                    f"{sum(r[0] for r in kept)} rooms main had inside its band, of "
+                    f"{sum(r[1] for r in kept)}"
+                )
+        bands[group] = own
+    return bands
 
 
-def with_thresholds(sheets: list[Sheet], disagree: float, refuse: float) -> Result:
-    rs.DISAGREE, rs.REFUSE = disagree, refuse
-    return measure(sheets)
+def _bucket_name(edges: Sequence[float], k: int) -> str:
+    low = "0" if k == 0 else f"{edges[k - 1]:g}"
+    return f"spread {low}+" if k == len(edges) else f"spread {low}-{edges[k]:g}"
 
 
 def main() -> None:
@@ -132,7 +209,8 @@ def main() -> None:
     parser.add_argument("--gold", type=Path, required=True)
     parser.add_argument("--split", type=Path, help="data/stoa/exp/split.json (its val part)")
     parser.add_argument("--files", type=Path, help="a file list instead of the split's val")
-    parser.add_argument("--sweep", action="store_true")
+    parser.add_argument("--fit", action="store_true")
+    parser.add_argument("--edges", default=",".join(f"{e:g}" for e in rs.SPREAD_EDGES))
     args = parser.parse_args()
     if args.files:
         files = args.files.read_text().split()
@@ -140,31 +218,23 @@ def main() -> None:
         files = json.loads(args.split.read_text())["parts"]["val"]["files"]
     else:
         parser.error("give --split or --files")
+    edges = tuple(float(e) for e in args.edges.split(","))
     arm, gold = ExtractionV1Reader(args.arm), ExtractionV1Reader(args.gold)
     half_a, half_b = (load(arm, gold, half) for half in halves(files))
-    shipped = (rs.DISAGREE, rs.REFUSE)
     print(f"val sheets with doors and gold areas: half A {len(half_a)}, half B {len(half_b)}")
-    if not args.sweep:
-        for name, sheets in (("A", half_a), ("B", half_b), ("A+B", half_a + half_b)):
-            print(f"half {name}: main {measure(sheets, main=True).line()}")
-            print(f"half {name}: K5 {shipped} {measure(sheets).line()}")
+    if not args.fit:
+        for name, sheets in (("A", half_a), ("B", half_b)):
+            for k in range(len(edges) + 1):
+                some = [s for s in sheets if s.bucket(edges) == k]
+                print(f"half {name} {_bucket_name(edges, k)}: main {coverage(some, main_band)}")
+                print(f"half {name} {_bucket_name(edges, k)}: shipped "
+                      f"{coverage(some, lambda s: rs.door_band(s.sides))}")  # fmt: skip
         return
-    print(f"half A main: {measure(half_a, main=True).line()}")
-    rows: list[tuple[float, float, Result]] = []
-    for disagree in DISAGREES:
-        for refuse in REFUSES:
-            got = with_thresholds(half_a, disagree, refuse)
-            rows.append((disagree, refuse, got))
-            print(f"A DISAGREE {disagree:.2f} REFUSE {refuse:.2f}: {got.line()}")
-    allowed = [row for row in rows if row[2].refused_share < MAX_REFUSED]
-    if not allowed:
-        print(f"no pair keeps refused under {MAX_REFUSED:.0%} on half A")
-        return
-    disagree, refuse, best = max(allowed, key=lambda row: (row[2].share, -row[2].refused_share))
-    print(f"best on A: DISAGREE {disagree:.2f} REFUSE {refuse:.2f}: {best.line()}")
-    print(f"half B main: {measure(half_b, main=True).line()}")
-    print(f"half B best pair: {with_thresholds(half_b, disagree, refuse).line()}")
-    print(f"half B shipped {shipped}: {with_thresholds(half_b, *shipped).line()}")
+    bands = fit(half_a, half_b, edges)
+    print("\n# paste into app/core/pipeline/raster_scale.py")
+    print(f"SPREAD_EDGES = {tuple(edges)}")
+    print(f"BANDS_FEW = {tuple(bands['few'])}")
+    print(f"BANDS_MANY = {tuple(bands['many'])}")
 
 
 if __name__ == "__main__":

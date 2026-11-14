@@ -4,22 +4,13 @@
 `no_scale` gets the scale app/core/pipeline/raster_scale.py estimates from the doors the inner
 reader detected, status `estimated`, and every room without an area gets its outline's area at
 that scale, `area_status` estimated. A sheet whose doors were not read, or where no door was
-detected, or whose detected doors disagree too much to give one (K5), keeps `no_scale` with a
-note saying why: area and length questions are then refused.
+detected, keeps `no_scale` with a note saying why: area and length questions are then refused.
 A scale the inner reader found is kept as it is.
 """
 
-import math
-
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.raster_scale import (
-    REFUSE,
-    door_sides,
-    door_spread,
-    estimate_scale,
-    rooms_with_areas,
-)
+from app.core.pipeline.raster_scale import door_sides, estimate_scale, rooms_with_areas
 
 
 class PriorScale:
@@ -33,16 +24,9 @@ class PriorScale:
         if found.read is not None and "door" not in found.read:
             note = "scale estimate: not made, the doors were not read"
             return found.model_copy(update={"notes": (*found.notes, note)})
-        sides = door_sides(found.elements, sheet.pages)
-        scale = estimate_scale(sides)
+        scale = estimate_scale(door_sides(found.elements, sheet.pages))
         if scale is None:
-            spread = door_spread(sides)
-            note = (
-                f"scale estimate: not made, the {len(sides)} detected doors disagree "
-                f"(widths ±{math.expm1(spread):.0%})"
-                if spread > REFUSE
-                else "scale estimate: not made, no door was detected"
-            )
+            note = "scale estimate: not made, no door was detected"
             return found.model_copy(update={"notes": (*found.notes, note)})
         return found.model_copy(
             update={

@@ -11,10 +11,12 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   FEW_DOORS, else SPREAD_MANY, each the 68% quantile of the scale error, fitted on one half of val
   and checked on the other, both ways, then averaged (prototypes/areas/calibrate.py). One
   uncertainty for every sheet covered sheets with 1-4 doors only 41% of the time (held out).
-- The doors' own spread (K5): when the detected door widths disagree, some boxes are not door
-  leaves (a double door, a wardrobe, a window), and the median can rest on the wrong ones. The
-  robust log spread of the widths (1.4826 x their median |log| distance from the median) above
-  DISAGREE widens the scale's uncertainty to that spread; above REFUSE no estimate is made.
+- The doors' own spread (K5): when the detected door widths disagree, some boxes may not be door
+  leaves (a double door, a wardrobe, a window). The band is the 68% scale error of the page's door
+  count group and spread bucket (`door_spread`, the robust log spread of the widths, cut at
+  SPREAD_EDGES): BANDS_FEW / BANDS_MANY, fitted with `scripts/k5_band.py --fit` (closest to 68%
+  coverage, as narrow as that allows; half A checked on half B, both ways, averaged). No spread
+  refuses a scale: an estimate main had inside its band stays an answer.
 - No door detected: no estimate. The page-size prior (a door is about 5% of the page's long side)
   is 37-72% off on 68% of such val sheets; an area off by that much is not an answer.
 - A room's area is its outline's pixel area times the scale squared. A box (the raster room
@@ -23,6 +25,7 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   log spread, combined with the scale's (twice, for an area) into `area_uncertainty`.
 """
 
+import bisect
 import math
 import statistics
 from collections.abc import Sequence
@@ -36,10 +39,12 @@ SPREAD_FEW = 0.158  # 68% relative scale error with 1-4 doors, val two-way
 SPREAD_MANY = 0.0795  # with 5 or more doors
 BOX_RATIO = 1.104  # a room's box area over its outline area, val median
 OUTLINE_SPREAD = 0.157  # 68% |log| of that ratio around its median, val
-# shortcut: DISAGREE and REFUSE are set by hand, not fitted on val (no val door detections on the
-# machine this was written on); fit them with `scripts/k5_band.py --sweep` (K5) and set them here
-DISAGREE = 0.2  # door width log spread above which the prior's uncertainty is too narrow
-REFUSE = 0.45  # above it the doors are too unlike one another to give a scale
+SPREAD_EDGES = (0.10, 0.20)  # door width log spread buckets: < 0.10, 0.10-0.20, >= 0.20 (K5)
+# The 68% relative scale error per spread bucket, with 1-4 doors and with 5 or more (K5).
+# shortcut: every bucket holds main's SPREAD_FEW / SPREAD_MANY, because the C1-T1 val door
+# detections are not on the machine this was written on; paste `k5_band.py --fit`'s output here
+BANDS_FEW = (SPREAD_FEW, SPREAD_FEW, SPREAD_FEW)
+BANDS_MANY = (SPREAD_MANY, SPREAD_MANY, SPREAD_MANY)
 
 
 def door_sides(elements: Sequence[Element], pages: Sequence[Page]) -> list[float]:
@@ -69,22 +74,25 @@ def door_spread(sides: Sequence[float]) -> float:
     return 1.4826 * statistics.median(abs(math.log(side / middle)) for side in sides)
 
 
+def door_band(sides: Sequence[float]) -> float:
+    """The 68% relative scale error of a page whose detected doors are `sides` (K5): its door
+    count group's band in its spread bucket."""
+    bands = BANDS_FEW if len(sides) < FEW_DOORS else BANDS_MANY
+    return bands[bisect.bisect_right(SPREAD_EDGES, door_spread(sides))]
+
+
 def estimate_scale(sides: Sequence[float]) -> Scale | None:
-    """The scale from the door prior over `sides`; None without a door or when the doors
-    disagree beyond REFUSE (the caller says which, with `door_spread`)."""
-    spread = door_spread(sides)
-    if not sides or spread > REFUSE:
+    """The scale from the door prior over `sides`; None without a door."""
+    if not sides:
         return None
-    prior = SPREAD_FEW if len(sides) < FEW_DOORS else SPREAD_MANY
+    band = door_band(sides)
     source = f"a door is about {DOOR_M} m wide; median of {len(sides)} detected doors"
-    if spread > DISAGREE:  # K5: the doors disagree, so the prior's band is too narrow
-        source += f", whose widths disagree (±{math.expm1(spread):.0%})"
+    if band > (BANDS_FEW if len(sides) < FEW_DOORS else BANDS_MANY)[0]:  # K5: a wider bucket
+        source += f", whose widths disagree (±{math.expm1(door_spread(sides)):.0%})"
     return Scale(
-        status="estimated",
-        m_per_unit=DOOR_M / statistics.median(sides),
-        source=source,
-        uncertainty=max(prior, round(math.expm1(spread), 3)) if spread > DISAGREE else prior,
-    )
+        status="estimated", m_per_unit=DOOR_M / statistics.median(sides), source=source,
+        uncertainty=band,
+    )  # fmt: skip
 
 
 def rooms_with_areas(rooms: Sequence[Room], scale: Scale, pages: Sequence[Page]) -> list[Room]:
