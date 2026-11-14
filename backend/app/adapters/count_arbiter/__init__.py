@@ -110,12 +110,12 @@ class L1PageCounts:
     def page(self, data: bytes) -> np.ndarray:
         """The model's input: (1, 1, size, size) float32."""
         with Image.open(BytesIO(data)) as image:
-            gray = image.convert("L")
-        w, h = gray.size
-        scale = self._size / max(w, h)
-        gray = gray.resize(
-            (max(1, round(w * scale)), max(1, round(h * scale))), Image.Resampling.LANCZOS
-        )
+            gray = image if image.mode == "L" else image.convert("L")  # no copy of a grey page
+            w, h = gray.size
+            scale = self._size / max(w, h)
+            gray = gray.resize(
+                (max(1, round(w * scale)), max(1, round(h * scale))), Image.Resampling.LANCZOS
+            )
         canvas = Image.new("L", (self._size, self._size), 255)
         canvas.paste(gray, (0, 0))
         return (np.asarray(canvas, np.float32) / 255.0)[None, None]
