@@ -274,7 +274,7 @@ def test_swiss_rooms_have_number_label_type_and_net_area() -> None:
     rooms = {room.attrs["number"]: room for room in found.rooms}
     assert list(rooms) == ["2.01", "2.02", "2.03", "2.04", "2.05", "3.01"]
     assert [room.type for room in rooms.values()] == [
-        "kitchen", "storage", "bathroom", "balcony", "shaft", "other",
+        "kitchen", "storage", "bathroom", "balcony", "shaft", "bedroom",
     ]  # fmt: skip
     assert [room.label for room in rooms.values()] == [
         "Küche", "Reduit", "Bad", "Balkon", "Lift", "Zimmer",
@@ -342,7 +342,9 @@ def test_without_a_scale_swiss_rooms_are_listed_with_unknown_areas() -> None:
         ("Balcone", 228, ("balcony", True)),
         (None, 243, ("shaft", False)),
         ("Treppenhaus", 255, ("shaft", False)),
-        ("Zimmer", 243, ("other", False)),  # a named room keeps its name's type
+        ("Zimmer", 243, ("bedroom", False)),  # a named room keeps its name's type
+        ("Pièce", 255, ("bedroom", False)),  # a lone "room" is a flat's bedroom, in each language
+        ("Stanza", 255, ("bedroom", False)),
         ("Séjour/repas", 255, ("living", False)),
         (None, 255, ("other", False)),
     ],
