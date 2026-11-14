@@ -416,3 +416,18 @@ def test_get_counting_rules_has_a_plain_step_label() -> None:
         "Read what counts as closet doors",
         "Read the counting rules",
     ]
+
+
+def test_queue_1_an_estimated_area_reaches_the_model_in_whole_m2() -> None:
+    """The ask result showed 5 but carried the raw 4.88 (quantity, line): the model said 4.88."""
+    shown = {"question": "kitchen area", "parts": [{"drawing_id": DRAWING, "name": "plan.pdf",
+             "answer": {"answer": 5, "unit": "m2",
+                        "quantity": {"value": 4.88, "unit": "m2", "estimate": {"basis": "doors"}},
+                        "line": {"answer": 4.88, "unit": "m2", "estimate": "doors"},
+                        "marks": []}}]}  # fmt: skip
+    model = Model(step(call("ask_drawings", question="kitchen area")),
+                  final(text="The kitchen is 4.88 m²."),
+                  final(text="The kitchen is about 5 m²."))  # fmt: skip
+    got = turn(model, Tools(ask_drawings=shown))
+    assert "4.88" not in model.sent[1][-1]["content"]
+    assert got.text == "The kitchen is about 5 m²."  # 4.88 is no longer backed

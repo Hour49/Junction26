@@ -535,6 +535,8 @@ class _Run:
             found: Any = json.loads(out)
         except json.JSONDecodeError:
             found = out
+        if name in (ASK, "get_takeoff"):
+            found = _whole_estimates(found)  # what the model reads and what backs its numbers
         if name == "list_drawings" and isinstance(found, list):
             found = self._titled(found)  # pyright: ignore[reportUnknownArgumentType]
         before = set(self.ledger)
@@ -979,6 +981,21 @@ def _evs(items: Any) -> list[str]:
         if isinstance(ev, str):
             out.append(ev)
     return out
+
+
+def _whole_estimates(found: Any) -> Any:
+    """`found` with every area measured on an estimated scale in whole m², as the screen shows
+    it (ask.shown_value, #294): the raw 4.88 beside the shown 5 made the model say 4.88."""
+    if isinstance(found, list):
+        return [_whole_estimates(item) for item in found]  # pyright: ignore[reportUnknownVariableType]
+    if not isinstance(found, dict):
+        return found
+    given: Json = {key: _whole_estimates(value) for key, value in found.items()}  # pyright: ignore[reportUnknownVariableType]
+    if given.get("unit") == "m2" and given.get("estimate"):
+        for key in ("value", "answer"):
+            if isinstance(given.get(key), float):
+                given[key] = round(given[key])
+    return given
 
 
 def _marks_of(given: Json) -> list[Any]:
