@@ -352,7 +352,8 @@ ProjectScreen, as now). A done project with no drawings: whatever `IngestFinishe
   `.say`, `.log`, `.stats`, `.kicker`, `.done-row`), with `--v-*` tokens only (AV-25 still holds): rail track
   radius 18 px / padding 4 px, step radius 14 px; panel padding 28 px (20 px under 760), gap 28 px; stats cells
   padding 14px 20px, `dt` 12 px muted, `dd` 20 px 600 tabular; log padding 12px 14px, radius 14 px; finished
-  step's kicker "Done · replaying what this step did" in `--v-ok` (replaces "Done"). Differences preqa-b lists in
+  step's kicker "Done · replaying what this step did" in `--v-ok` (replaces "Done"); the done line inside the card
+  padded as the demo's `.done-row`, 0 32px 28px (0 20px 22px under 760 px; re-sweep item 4). Differences preqa-b lists in
   `.agents/preqa-parity.md` for Advanced are folded in here before phase 2. [unit: CSS text; browser 1440/390]
 - AV-42: At 390 px with a done project: no horizontal scroll, the finished block's buttons full width (demo
   `.chat-cta .btn { width: 100% }`, from the block), 44 px taps; at 1440 px the block sits in the same column as

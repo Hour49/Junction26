@@ -574,6 +574,11 @@ describe('AdvancedIngest', () => {
 
   it('AV-41 CSS: the demo look (kicker ok, done row padding)', () => {
     const css = readFileSync('src/advanced/advanced.css', 'utf8');
+    // demo .done-row: 0 32px 28px, phone 0 20px 22px (re-sweep item 4)
+    expect(css).toMatch(/\.adv-panel > \.ingest-done-line \{[^}]*padding: 0 32px 28px/);
+    expect(css).toMatch(
+      /@media \(max-width: 760px\)[^@]*\.adv-panel > \.ingest-done-line \{[^}]*padding: 0 20px 22px/,
+    );
     expect(css).toMatch(/\.adv-now\.done \{[^}]*color: var\(--v-ok\)/);
     expect(css).toMatch(/\.adv-verdict button \{[^}]*min-height: 44px/);
   });

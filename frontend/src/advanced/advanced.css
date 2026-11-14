@@ -443,6 +443,9 @@
   background: var(--v-ok-soft);
   color: var(--v-ok);
 }
+.adv-panel > .ingest-done-line {
+  padding: 0 32px 28px;
+}
 .adv-now.done {
   color: var(--v-ok);
 }
@@ -543,6 +546,9 @@
   }
 }
 @media (max-width: 760px) {
+  .adv-panel > .ingest-done-line {
+    padding: 0 20px 22px;
+  }
   .adv-rail {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
