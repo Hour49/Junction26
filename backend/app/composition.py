@@ -365,11 +365,14 @@ KEYED_SOURCES = frozenset({"gemini", "regionrooms", "verda", "decisions", "decis
 
 
 def uses_keys(settings: Settings) -> bool:
-    """Whether a reader or the answer confidence calls a service that needs an API key."""
+    """Whether a reader, the answer confidence or file triage calls a service that needs an API
+    key."""
     sources = [part.partition("=")[2] for part in settings.raster_components.split(",") if part]
     keyed = any(source.split(":", 1)[0] in KEYED_SOURCES for source in sources)
     raster = settings.extractor_raster == "composite" and keyed
-    return raster or settings.decisions_confidence or settings.decisions_kind
+    # the describer is built only when triage is on (`_triage`)
+    describer = settings.triage_classifier != "off" and settings.triage_describer == "gemini"
+    return raster or settings.decisions_confidence or settings.decisions_kind or describer
 
 
 def build_ingest(

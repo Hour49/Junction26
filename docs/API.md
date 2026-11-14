@@ -258,7 +258,8 @@ An edit of a signed-off quantity (409):
 ```
 
 `no_keys: true` when no reader needs an API key or a model server: no `gemini`, `verda` or `decisions` source
-in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The screen then shows "running
+in `RASTER_COMPONENTS`, `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off, and no Gemini describer in file triage
+(`TRIAGE_DESCRIBER=gemini` with `TRIAGE_CLASSIFIER` on). The screen then shows "running
 offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
 questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
 

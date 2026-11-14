@@ -388,6 +388,8 @@ def test_info_names_the_readers_and_the_limits(client: TestClient) -> None:
             {"raster_components": "elements=dir:arm,plans=dir:arm", "decisions_confidence": True},
             False,
         ),
+        ({"triage_classifier": "rules", "triage_describer": "gemini"}, False),
+        ({"triage_describer": "gemini"}, True),  # triage off: the describer is never built
     ],
 )
 def test_info_says_when_a_reader_calls_a_keyed_service(
