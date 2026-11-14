@@ -19,8 +19,9 @@
 # and golden's answer policy (eval/results/policy/policy-C-L-swap.json, frozen in the repo: CubiCasa
 # kitchens are answered from the prior, which beats config C's readers on both val halves). The
 # double-check: the readers l1 (C-yolo26l, one view) and m1 (C-yolo26m, one view) are kept on
-# each drawing, and golden's check policy (golden-22 rt-full-small, scored by local-dec's local
-# gates in data/models/arbiter/T1) certifies an answer or asks for a double-check.
+# each drawing, and golden's check policy (golden-22 rt-full-small, a frozen, committed copy in
+# eval/results/check/, scored by local-dec's local gates in data/models/arbiter/T1) certifies an
+# answer or asks for a double-check.
 # It reads
 # the repo's data/models, data/stoa, data/cache, data/demo and data/external through symlinks and
 # keeps its own data/projects. GEMINI_API_KEY comes from the repo-root .env, into this process's
@@ -43,7 +44,7 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   DECISIONS_KIND=true RASTER_SCALE=priors GATE_POLICY=../eval/results/gate/gate-C-L-swap.json
   ANSWER_POLICY=../eval/results/policy/policy-C-L-swap.json
   DOUBLE_CHECK_READERS=l1=detector:C-yolo26l,m1=detector:C-yolo26m
-  CHECK_POLICY=../data/stoa/exp/golden22/check-C1-T1-recall96-rt-full-small.json
+  CHECK_POLICY=../eval/results/check/check-C1-T1-recall96-rt-full-small.json
   LOCAL_GATES=../data/models/arbiter/T1/lgate2-rt-C1T1.json,../data/models/arbiter/T1/lgate-rt-noL1-C1T1.json)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
