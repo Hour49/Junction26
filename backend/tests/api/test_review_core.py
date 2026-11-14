@@ -423,7 +423,12 @@ def photo(*rooms: Room, elements: tuple[Element, ...] = ()) -> Drawing:
 
 
 def asked_flagged(
-    text: str, drawing: Drawing, flags: tuple[str, ...], *, raster: bool = False
+    text: str,
+    drawing: Drawing,
+    flags: tuple[str, ...],
+    *,
+    raster: bool = False,
+    no_reader: bool = False,
 ) -> Asked:
     return ask(
         text,
@@ -434,6 +439,7 @@ def asked_flagged(
         state=ReviewState(),
         flags=flags,
         raster=raster,
+        no_reader=no_reader,
     )
 
 
@@ -566,3 +572,22 @@ def test_a_flagged_page_s_answers_are_never_marked_sure() -> None:
     assert sure((PHOTO_FLAG,)) == (1, 0.99, None)
     assert sure(("a scanned PDF, read as an image",)) == (1, 0.99, None)
     assert sure(()) == (1, 0.99, True)  # the same page unflagged: the gate's verdict
+
+
+def test_every_no_reader_refusal_says_so_when_the_route_has_no_reader() -> None:
+    """A route on the stand-in has no reader, so no refusal blames one that "found no elements":
+    the flagged photo's, the raster page's no rooms, and the empty drawing's."""
+    nothing = photo().model_copy(update={"read": ()})
+    cases = (
+        ("How many doors are there?", nothing, (PHOTO_FLAG,)),  # flagged, nothing read
+        ("How many rooms?", nothing, ()),  # a raster page with no rooms
+        ("How many doors are there?", nothing, ()),  # read is empty
+    )
+    for text, drawing, flags in cases:
+        found = asked_flagged(text, drawing, flags, raster=True, no_reader=True)
+        assert found.refusal is not None and found.refusal.code == "no-reader", text
+        assert found.refusal.text == (
+            "Nothing was read from this sheet: there is no reader for this kind of sheet yet."
+        ), (text, flags)
+        again = asked_flagged(text, drawing, flags, raster=True)  # a reader that read nothing
+        assert again.refusal is not None and "no reader" not in again.refusal.text

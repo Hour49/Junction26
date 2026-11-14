@@ -4,7 +4,7 @@
   "quantities": [
     {
       "key": "area:room|name=1.01",
-      "label": "area of room (name 1.01)",
+      "label": "area of room (name Küche · 1.01)",
       "measure": "area",
       "subject": "room",
       "scope": {
@@ -287,7 +287,6 @@
     }
   ],
   "review_queue": [
-    "area:room|name=1.01",
-    "area:room|name=küche"
+    "area:room|name=1.01"
   ]
 }

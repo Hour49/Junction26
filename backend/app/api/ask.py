@@ -27,6 +27,7 @@ from app.core.review.ask import Asked, ask
 from app.core.review.model import MarkView, Refusal, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
+from app.settings import Settings
 
 router = APIRouter(prefix="/api")
 
@@ -105,6 +106,7 @@ def asked_on(
     answering: Answering,
     ingest: Ingest,
     project_id: str | None,
+    no_reader: bool = False,
 ) -> Asked:
     """The question on the drawing, with the surveyor's edits of it in `project_id` applied (a
     checked id: deps.project_of)."""
@@ -121,7 +123,14 @@ def asked_on(
         sure_at=answering.sure_at,
         flags=info.flags,
         raster=info.route == "raster",
+        no_reader=no_reader,
     )
+
+
+def no_reader_of(drawing_id: str, ingest: Ingest, settings: Settings) -> bool:
+    """The drawing's route is read by the do-nothing stand-in (`hello`): no reader at all."""
+    route = ingest.drawing_info(drawing_id).route
+    return route is not None and readers(settings)[route] == "hello"
 
 
 def signal_of(asked: Asked, answering: Answering) -> Signal | None:
@@ -154,7 +163,10 @@ def ask_route(
     named = as_uploaded(ingest, info, body.project_id)
     owner = None if body.project_id is None else named.project_id
     spent = cost.spent()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
-    asked = asked_on(body.question, drawing, drawing_id, reviews, answering, ingest, owner)
+    asked = asked_on(
+        body.question, drawing, drawing_id, reviews, answering, ingest, owner,
+        no_reader_of(drawing_id, ingest, settings),
+    )  # fmt: skip
     line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
     shown = asked.row
     value = shown_value(asked)

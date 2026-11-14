@@ -61,7 +61,7 @@ class ProjectSummary(View):
     files: int
     drawings: int
     to_review: int | None  # quantities left to review over all drawings; None until `done`
-    conflicts_open: int | None  # conflicts nobody settled or signed off; None until `done`
+    conflicts_open: int | None  # conflicts a person still has to settle; None until `done`
 
 
 class ProjectList(View):
@@ -143,9 +143,7 @@ def summary_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> P
     if status.state == "done":
         found = review_of(status, ingest, reviews)
         to_review = sum(drawing.to_review for drawing in found.drawings)
-        conflicts_open = sum(
-            entry.settled is None and entry.signed is None for entry in found.conflicts
-        )
+        conflicts_open = sum(entry.needs_person for entry in found.conflicts)
     return ProjectSummary(
         id=status.id,
         name=status.name,

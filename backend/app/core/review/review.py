@@ -18,11 +18,11 @@ and a conflict no rule decides is settled by a person before it can be signed of
 from collections.abc import Mapping, Sequence
 from typing import get_args
 
-from app.core.drawing.model import Box, Drawing, ElementClass, Polygon, RoomType, words
+from app.core.drawing.model import Box, Drawing, ElementClass, Polygon, Room, RoomType, words
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
 from app.core.pipeline.model import Measure, Quantity
 from app.core.pipeline.rules import ROOM_NAMES, ROOM_NUMBERS
-from app.core.pipeline.takeoff import normalised, quantity_key
+from app.core.pipeline.takeoff import normalised, quantity_key, room_names
 from app.core.review.model import (
     Added,
     Edit,
@@ -83,13 +83,40 @@ def label(key: str, drawing: Drawing | None = None) -> str:
     name = " ".join(words(part) for part in subject.split(":"))
     text = f"{name} count" if measure == "count" else f"{measure} of {name}"
     printed = {} if drawing is None else _printed_names(drawing)
+    labelled = {} if drawing is None else _room_labels(drawing)
     if filters:
         shown: list[str] = []
         for part in filters:
             kind, equals, value = part.partition("=")
-            shown.append(f"{kind} {printed.get(value, value)}" if equals else kind)
+            said = printed.get(value, value)
+            if kind == "name" and value in labelled:
+                said = _by_printed_name(labelled[value], value, said)
+            shown.append(f"{kind} {said}" if equals else kind)
         text += " (" + ", ".join(shown) + ")"
     return text
+
+
+def _by_printed_name(label: str, value: str, text: str) -> str:
+    """A room asked for by another name than its printed one ("1.01" for "Küche") is shown by
+    the printed name, with the name it was asked by after it, so each row of a room reads
+    differently: "Küche · 1.01"; its own name is "Küche"."""
+    own = normalised(label)
+    if value == own:
+        return label
+    rest = value.removeprefix(own).strip(" ()") if value.startswith(own) else text
+    return f"{label} · {rest}"
+
+
+def _room_labels(drawing: Drawing) -> dict[str, str]:
+    """Each name a room answers to (`room_names`) and the room's printed label, for the rooms
+    that print one and answer to the name alone: "1.01" is "Küche" on its sheet."""
+    owners: dict[str, list[Room]] = {}
+    for room in drawing.rooms:
+        for name in room_names(room):
+            owners.setdefault(name, []).append(room)
+    return {
+        name: rooms[0].label for name, rooms in owners.items() if len(rooms) == 1 and rooms[0].label
+    }
 
 
 def _printed_names(drawing: Drawing) -> dict[str, str]:
@@ -295,9 +322,14 @@ def disputes(rows: Sequence[Row]) -> list[Row]:
 
 
 def storey_twins(found: Mapping[str, Quantity] | Mapping[str, Row]) -> dict[str, str]:
-    """Each storey row whose sheet row (the same key without the storey) carries the same
-    disagreement, with that sheet row's key. On a sheet of one storey the takeoff puts a
-    disagreement on both rows (so a question about either shows it): it is one disagreement."""
+    """Each row that repeats the disagreement of another row, with the key of the row it
+    repeats: one disagreement, one row, one decision. Two kinds of repeat:
+    - a storey row whose sheet row (the same key without the storey) carries the same
+      disagreement: on a sheet of one storey the takeoff puts it on both rows, so a question
+      about either shows it;
+    - a room's other names: the takeoff keys a room under each name it answers to (its number,
+      its name, "name (number)"), so a disagreement about the room is on each of those rows.
+      The row with the first key in order stands for the room."""
     twins: dict[str, str] = {}
     for key, item in found.items():
         measure, subject, scope = parse_key(key)
@@ -308,6 +340,27 @@ def storey_twins(found: Mapping[str, Quantity] | Mapping[str, Row]) -> dict[str,
         )
         if (other := found.get(sheet)) is not None and other.conflict == item.conflict:
             twins[key] = sheet
+    rooms: dict[tuple[object, ...], str] = {}  # the room's other names, by what they share
+    for key in sorted(found):
+        item = found[key]
+        measure, subject, scope = parse_key(key)
+        if item.conflict is None or scope.name is None:
+            continue
+        shared = (
+            measure,
+            subject,
+            scope.model_copy(update={"name": None}),
+            item.conflict,
+            tuple((mark.page, mark.box) for mark in item.marks),
+        )
+        first = rooms.setdefault(shared, key)
+        if first != key:
+            twins[key] = first
+    # A storey row of a repeated name stands for the repeat's own storey row, then for the room
+    for key, target in list(twins.items()):
+        while target in twins:
+            target = twins[target]
+        twins[key] = target
     return twins
 
 

@@ -112,25 +112,26 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await page.getByRole('link', { name: 'Surveyor', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`^${escape(drawingUrl)}/surveyor(\\?.*)?$`));
     for (const text of [
-      'area of room (name 1.01)',
-      /area of room \(name küche\)/i,
+      'area of room (name Küche · 1.01)',
       '22.40 m² vs 30.00 m²',
       'decided by rule',
     ]) {
       await expect(page.getByText(text).first()).toBeVisible();
     }
     const queue = page.getByRole('table', { name: 'To review' });
-    await expect(row(page, 'area of room (name 1.01)', queue)).toContainText('Methods disagree');
-    // The room name as printed ('Küche') since #108, lower case before it.
-    await expect(row(page, /^area of room \(name küche\)$/i, queue)).toContainText(
+    await expect(row(page, 'area of room (name Küche · 1.01)', queue)).toContainText(
       'Methods disagree',
     );
+    // One room, one conflict: its number and its name are one row of the queue
+    await expect(queue.getByRole('row', { name: /area of room/ })).toHaveCount(1);
     await shot(page, testInfo, '08-surveyor-queue', offline);
   });
 
-  const kitchen = row(page, 'area of room (name 1.01)');
+  const kitchen = row(page, 'area of room (name Küche · 1.01)');
   await test.step('GP-10 step 9: settle on the drawn outline', async () => {
-    await kitchen.getByRole('button', { name: 'area of room (name 1.01)', exact: true }).click();
+    await kitchen
+      .getByRole('button', { name: 'area of room (name Küche · 1.01)', exact: true })
+      .click();
     await page
       .getByRole('button', { name: `Keep A: 22.40 m² (${methodName('polygon_x_scale')})` })
       .click();

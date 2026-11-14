@@ -8,7 +8,7 @@ test('SV-47, SV-48: reject and restore a door, sign off and undo', async ({ page
   const offline = await noKeys(page);
   await openSurveyor(page);
   await expect(page.getByRole('table', { name: 'To review' })).toContainText(
-    'area of room (name 1.01)',
+    'area of room (name Küche · 1.01)',
   );
   await shot(page, testInfo, 'surveyor-1-open', offline);
 
