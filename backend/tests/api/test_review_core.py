@@ -788,3 +788,44 @@ def test_a_room_s_names_are_one_disagreement_only_when_the_rows_point_at_one_roo
     assert storey_twins(rooms()) == {}  # no marks: not known to be one room
     assert len(disputes([row(q, DRAWING, ReviewState(), {}) for q in rooms().values()])) == 2
     assert storey_twins(rooms(BOX_A)) == {"area:room|name=kitchen": "area:room|name=1.01"}
+
+
+def test_a_room_number_printed_in_the_label_names_the_room() -> None:
+    """fail-1, .agents/qa/r10/stanza-107.md: the raster room reader keeps "Stanza 1.07" as one
+    label (the vector reader stores the number apart), so "What is the area of Stanza 1.07?"
+    (the parser's name 1.07) was refused on the PNG while the PDF answered 19.98 m²."""
+
+    def room(n: int, label: str, area: float, page: int = 1) -> Room:
+        return Room(id=f"r{n}", type="bedroom", label=label, page=page, box=BOX_A, area_m2=area,
+                    attrs={"reader": "gemini"})  # fmt: skip
+
+    drawing = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno\n4.5 m²", 4.5))
+    assert asked("What is the area of Stanza 1.07?", drawing).answer.answer == 19.98
+    assert asked("What is the net floor area of room 1.07?", drawing).answer.answer == 19.98
+    # a measure or a dimension in the label is not a room number (review-354 S1), and a sign
+    # stays: a basement room -1.2 is not room 1.2
+    assert asked("What is the net floor area of room 4.5?", drawing).answer.answer is None
+    others = scaled(
+        room(1, "Ripostiglio 3.50 x 4.20", 14.7), room(2, "Disimpegno x 1.5", 3.0),
+        room(3, "Porta 0.9 \u00d7 2.1", 1.0), room(4, "Kammer 7.56 qm", 7.56),
+        room(5, "Cantina -1.2", 9.0),
+    )  # fmt: skip
+    for number in ("3.50", "4.20", "1.5", "0.9", "2.1", "7.56", "1.2"):
+        text = f"What is the net floor area of room {number}?"
+        assert asked(text, others).answer.answer is None, number
+    # ... and the basement room answers by its signed number, as typed (review-354 re-check)
+    assert asked("What is the net floor area of room -1.2?", others).answer.answer == 9.0
+    assert asked("What is the area of Cantina -1.2?", others).answer.answer == 9.0
+    # a minus after a letter joins: "Zimmer-1.05" is room 1.05
+    joined = scaled(room(1, "Zimmer-1.05", 12.0))
+    assert asked("What is the net floor area of room 1.05?", joined).answer.answer == 12.0
+    # a label printing two numbers ("-1.4 Room 0.5", a stored bimspeed plan) names the room by
+    # neither, so it never takes another room's number from it (r2 is -1.4 by its IFC number)
+    ifc = Room(id="r2", type="other", label="Room", page=1, box=BOX_B, area_m2=4.0,
+               attrs={"number": "-1.4"})  # fmt: skip
+    both = scaled(ifc, room(9, "-1.4 Room 0.5", 2.0))
+    assert asked("What is the net floor area of room -1.4?", both).answer.answer == 4.0
+    assert asked("What is the net floor area of room 0.5?", both).answer.answer is None
+    # a number two rooms print names neither: never one room's area for both, never a sum
+    two = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno 1.07", 5.0, page=2))
+    assert asked("What is the net floor area of room 1.07?", two).answer.answer is None

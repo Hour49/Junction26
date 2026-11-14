@@ -261,7 +261,7 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
 
 
 HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates' PARENTHESES
-BARE_NUMBER = re.compile(r"U?\d+\.\d+", re.IGNORECASE)  # as question_templates' ROOM_NUMBER
+BARE_NUMBER = re.compile(r"-?U?\d+\.\d+", re.IGNORECASE)  # as question_templates' ROOM_NUMBER
 SHORT_LABEL = re.compile(r"[^\W\d_a-zäöå]{2}")  # MH, OH, KT: two capitals
 CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
 
