@@ -13,6 +13,7 @@ from PIL import Image
 from app.adapters.carbon import contract
 from app.adapters.carbon import reader as carbon_reader
 from app.adapters.count_arbiter import L1PageCounts
+from app.adapters.printed_scale.carbon import CarbonPrinted
 from app.adapters.raster_detector import post
 from app.adapters.raster_ocr import gemini
 
@@ -28,10 +29,10 @@ def noise(mode: str, width: int, height: int) -> Image.Image:
 @pytest.fixture
 def converted(monkeypatch):
     """Pixel counts of the images `convert` was called on (and the mode asked for)."""
-    calls: list[tuple[int, str]] = []
+    calls: list[tuple[int, str | None]] = []
     original = Image.Image.convert
 
-    def spy(self, mode=None, *args, **kwargs):
+    def spy(self: Image.Image, mode: str | None = None, *args, **kwargs):
         calls.append((self.width * self.height, mode))
         return original(self, mode, *args, **kwargs)
 
@@ -129,3 +130,58 @@ def test_l1_input_is_the_same_and_a_grey_page_is_not_copied(converted):
     canvas = Image.new("L", (64, 64), 255)
     canvas.paste(gray, (0, 0))
     assert np.array_equal(got, (np.asarray(canvas, np.float32) / 255.0)[None, None])
+
+
+@pytest.mark.parametrize("mode", ["RGB", "RGBA", "P"])
+def test_l1_input_of_a_colour_page_is_converted_to_grey(mode):
+    buffer = io.BytesIO()
+    image = noise("RGB", 80, 60) if mode == "RGB" else noise("RGBA", 80, 60)
+    image = image.convert("P") if mode == "P" else image
+    image.save(buffer, format="PNG")
+    counts = object.__new__(L1PageCounts)
+    counts._size = 32
+    got = counts.page(buffer.getvalue())
+    with Image.open(io.BytesIO(buffer.getvalue())) as opened:
+        gray = opened.convert("L").resize((32, 24), Image.Resampling.LANCZOS)
+    canvas = Image.new("L", (32, 32), 255)
+    canvas.paste(gray, (0, 0))
+    assert np.array_equal(got, (np.asarray(canvas, np.float32) / 255.0)[None, None])
+
+
+def png_of(mode: str) -> bytes:
+    buffer = io.BytesIO()
+    noise(mode, 64, 48).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def test_carbon_page_is_loaded_before_the_pool_threads_share_it(monkeypatch):
+    """A lazily decoded image decodes on the first thread that touches it: load it first."""
+    loaded: list[bool] = []
+
+    def stop(self, kind, image):
+        loaded.append(image._im is not None)
+        raise RuntimeError("stop")
+
+    monkeypatch.setattr(carbon_reader.CarbonReader, "_ask", stop)
+    with Image.open(io.BytesIO(png_of("L"))) as lazy:
+        assert lazy._im is None  # the premise: opened, not decoded
+        with pytest.raises(RuntimeError):
+            carbon_reader.CarbonReader(None, None).read(lazy)  # type: ignore[arg-type]
+    assert loaded and all(loaded)
+
+
+def test_printed_scale_page_is_loaded_before_its_file_closes(monkeypatch):
+    """The page is used after `with Image.open` ends: it has to be decoded by then."""
+    seen: list[tuple[int, int]] = []
+
+    def stop(self, kind, image, notes):
+        seen.append(image.crop((0, 0, 8, 8)).size)  # a closed, undecoded image cannot do this
+        raise RuntimeError("stop")
+
+    monkeypatch.setattr(CarbonPrinted, "_ask", stop)
+    files = type("Files", (), {"read": lambda self, path: png_of("L")})()
+    printed = CarbonPrinted(None, files, None)  # type: ignore[arg-type]
+    source = type("Source", (), {"path": "x.png"})()
+    with pytest.raises(RuntimeError):
+        printed.read(source, None)  # type: ignore[arg-type]
+    assert seen and set(seen) == {(8, 8)}
