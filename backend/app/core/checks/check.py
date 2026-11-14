@@ -372,7 +372,13 @@ def _room_area(drawing: Drawing, rule: CodeRule, quantities: Quantities, picture
         shown = _num(area, "m2")
         if room.area_status != "estimated":
             status: CheckStatus = "pass" if holds(area, rule.comparison, rule.limit) else "fail"
-            why = f"{name} is {shown} m2; the rule asks {_limit(rule)}."
+            # a printed area on a picture was read by a label reader: say so (review-341-level)
+            read = (
+                " (read from its label on the image)"
+                if picture and room.area_source == "printed"
+                else ""
+            )
+            why = f"{name} is {shown} m2{read}; the rule asks {_limit(rule)}."
         elif room.area_uncertainty is None:
             status = "cannot_tell"
             why = (

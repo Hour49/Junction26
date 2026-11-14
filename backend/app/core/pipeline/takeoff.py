@@ -627,14 +627,16 @@ def rooms_estimate(rooms: Sequence[Room], scale: str | None) -> str | None:
 
 
 def label_source(rooms: Sequence[Room]) -> str | None:
-    """Where the areas of `rooms` were printed, in words a user reads, when a raster label reader
-    read them in the rooms' labels (`area_source` printed); None when none was."""
+    """Where the areas of `rooms` came from, in words a user reads, when a raster label reader
+    read them in the rooms' labels on the image (`area_source` printed); None when none was."""
     n = sum(room.area_source == "printed" for room in rooms)
     if n == 0:
         return None
     if n == len(rooms):
-        return "printed in the room's label" if n == 1 else "printed in the rooms' labels"
-    return f"{n} of {len(rooms)} room areas printed in the rooms' labels"
+        if n == 1:
+            return "read from the room's label on the image (a digit can be misread)"
+        return "read from the rooms' labels on the image (a digit can be misread)"
+    return f"{n} of {len(rooms)} room areas read from the rooms' labels on the image"
 
 
 # How an estimated room area was measured, in words (extraction_v1 `area_source`)
