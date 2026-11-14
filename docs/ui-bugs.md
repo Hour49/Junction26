@@ -335,3 +335,45 @@ bug 1/2 work. Brief for it:
 
 ### Backend
 - None (`GET /api/projects` stays: the Workspaces page uses it).
+
+## 12. Delete the "What runs" panel
+
+### What the user wants
+- Remove the "▼ What runs" panel (BIM model → IFC model, Vector PDF → PDF vector reader, … photo/sheet check → on)
+  shown in the info bar under the header. It is developer detail, not for users.
+
+### Where (frontend only)
+- `frontend/src/shell/InfoBar.tsx:38-48`: `<details className="what-runs">`. The "Running offline" badge above it
+  (`:33-37`) stays.
+- Labels: `READER_LABELS` in `shell/strings.ts:3` (delete if nothing else uses it); `readerName` in InfoBar.
+- CSS: `.what-runs` in `shell/shell.css`; a comment in `engineer/engineer.css:422` refers to it.
+- Tests: `App.test.tsx:523-564` (SH-17, SH-18 and one more) expect it.
+
+### Problems to fix
+| # | Where | Problem |
+|---|---|---|
+| 12a | `InfoBar.tsx:38-48` | Delete the panel; if the bar is then empty with keys set, render nothing (no empty strip). |
+| 12b | `strings.ts`, `shell.css` | Delete `READER_LABELS`, `readerName`, `.what-runs` if unused. |
+| 12c | Tests | Rewrite SH-17/SH-18: no "What runs" text; offline badge still shown without keys; no empty bar with keys. |
+| 12d | Spec | Update the shell spec in `docs/specs/frontend/` (SH-17/18) to match. |
+
+### Backend
+- None. `GET /api/info` `readers` stays (the About page / debugging may use it).
+
+## 13. Delete "Open in workspace" in the chat's plan pane
+
+### What the user wants
+- Remove the "Open in workspace" link at the top right of the plan pane beside the chat.
+
+### Where (frontend only)
+- `frontend/src/agent/PlanPane.tsx` (pane head, `ag-pane-open`, `routeHref({ name: 'workspace', … })`); bug 2
+  moved it to each file row: remove it there too.
+
+### Consequences
+- With bug 8 (no "Show it on") this removes the last link from the chat to the drawing's workspace page. The
+  workspace page stays reachable from the project screen (Documents / drawing list); check the golden path in
+  `docs/QA.md` (GP-32/GP-51) and `e2e/golden-path.spec.ts`: they must reach the workspace from the project
+  screen, or drop that step.
+
+### Tests
+- No "Open in workspace" link in the plan pane; e2e golden path updated.

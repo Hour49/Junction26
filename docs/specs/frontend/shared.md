@@ -5,7 +5,7 @@ where they differ. Earlier: round 1 fixes applied.  Story: #33.  API: docs/API.m
 
 ## Purpose
 
-Every screen sits inside one app shell: a header with the product name, the project picker and the links between
+Every screen sits inside one app shell: a header with the product name and the links between
 Ingest, Engineer and Surveyor; a strip that says the app runs offline and which readers are active; a hash router.
 Every screen talks to the backend through one typed client in `frontend/src/api/` and shows its loading and error
 states with the same two components. It also owns the typed fixtures module and the fetch mock that every
@@ -77,11 +77,10 @@ As in every design's `<header>`, without the avatar (common brief: not built). T
   on drawing routes. Hrefs: Ingest `#/p/<pid>`, Conflicts `#/p/<pid>/conflicts`, Chat `#/p/<pid>/chat`, Surveyor as SH-13 (keeps
   `?q=`). The engineer route itself stays (the chat's "Show it on <file>" and drawing links go there); only its tab is
   gone.
-- Right (`margin-left: auto`): the project picker, the country picker, then a "Workspaces" link to `#/workspaces`.
-  All three are pills as
-  the design's header controls: `background: var(--v-fill)`, `border-radius: 980px`, `min-height: 48px`,
-  `padding: 4px 16px`, `16px`, weight 600, colour `--v-text`. The picker keeps its R1-5-4 sizing (`flex: 0 1 320px;
-  min-width: 0; max-width: 100%`). "Workspaces" has `aria-current="page"` on `#/workspaces`.
+- Right (`.country` has `margin-left: auto`): the country picker, then Export (project routes only). Pills as the
+  design's header controls: `background: var(--v-fill)`, `border-radius: 980px`, `min-height: 48px`,
+  `padding: 4px 16px`, `16px`, weight 600, colour `--v-text`. No project picker and no "Workspaces" link
+  (docs/ui-bugs.md 10, 11): earlier projects are on `#/workspaces`, linked from the home page.
 - Country picker (`src/shell/CountryPicker.tsx`, as the designs' `cty` popover): a button named
   "Country rules: <name>" with `aria-expanded`, showing the flag (inline SVG, `aria-hidden`), the name and a chevron;
   it carries `data-pending="country-rules"`. Open, a popover below it (right-aligned, `width: 300px`, max
@@ -95,8 +94,7 @@ As in every design's `<header>`, without the avatar (common brief: not built). T
 - Under the header row, the info strip as today (offline text only; SH-15 to SH-20), restyled:
   `13px`, `--v-warn` on `--v-warn-soft` for the offline sentence, the strip itself transparent, same max-width as
   the header row.
-- Phone (≤720 px): the row wraps: logo + name + "Workspaces" on the first line, the project picker (growing) and
-  the country picker on the second, the view links full width (equal segments, each ≥44 px high) on the third. No horizontal scroll at
+- Phone (≤720 px): the row wraps: logo + name, the country picker and Export on the first line, the view links full width (equal segments, each ≥44 px high) on the third. No horizontal scroll at
   390 px (R1-5-4 still holds). The header is not sticky there (`position: static`, `--v-header-h: 0px`): its three
   rows (about 190 px) would cover a quarter of a 390x844 screen; it scrolls away with the page.
 
@@ -229,13 +227,7 @@ verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
   `country_name`, chevron; accessible name "Country rules: <country_name>", or "Country rules: none" with no pack
   (no pack is preselected and "no pack" is a valid choice, 13:44). No `data-pending`.
 - The button stays on one line at every width (QA 13:30: "No checks" wrapped at 1440): `white-space: nowrap`; it is
-  at most 240px wide and a long `country_name` ends in an ellipsis; flag and chevron never shrink. Who gives way
-  (follow-up 17:20, "Canton of Zürich" squeezed the project picker to "sa…"): the project picker first, down to
-  `min-width: 200px` (above 1100 px; below, it has its own line and `min-width: 0`), then the country pill. The
-  picker's shrink weight is 1000 (`flex: 0 1000 320px`), the pill's 1 (`.country` `flex: 0 1 auto`, `min-width: 0`),
-  so the pill keeps its full width while the picker can still shrink and truncates its name only after the picker
-  reached 200px. (A near-zero weight on the pill does not work: free space is scaled down when the shrink weights
-  left sum to less than 1.) Supersedes the
+  at most 240px wide and a long `country_name` ends in an ellipsis; flag and chevron never shrink. Since the header lost its project picker (ui-bugs 11) the pill is the only element that gives way. Supersedes the
   `flex: 0 0 auto` of SH-71.
 - The popover (group "Building rules the agent follows"): first "No checks" (pressed when the route has no `?pack`),
   then one button per pack (flag, `country_name`, under it the pack `name` · `version` in `--v-muted`, check on the
@@ -251,8 +243,7 @@ verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
 
 - `packOf(route): string | null` reads `route.query.get('pack')`; `withPack(hash, pack)` returns the hash with
   `pack` set (or removed when null), other query keys kept (encoded as `routeHref`). Every link between project
-  routes keeps the pack: the header's view links and the project picker (switching project keeps the country) use
-  it; screens that link to another project route (conflicts → chat, chat → engineer, issues → drawing, …) use
+  routes keeps the pack: the header's view links use it; screens that link to another project route (conflicts → chat, chat → engineer, issues → drawing, …) use
   `withPack` (their owners; issues.md, checks.md, conflicts.md, chat.md say so).
 - `routePath` ignores the query, so choosing a pack does not remount the screen; `ChecksScreen` and `IssuesScreen`
   get the new `pack` prop.
@@ -357,7 +348,7 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
   instead of the demo's literals; the demo's #e9efec (soft button) and #f2f2f5 (tag) map to `--v-accent-soft` and
   `--v-fill` (no new token for a near-equal shade). `--v-plan: #fbf8ef` (re-sweep 9): the paper a drawing sits on.
 - Header: as the demo's `.top-in`: padding 14px 24px, gap 12px; brand 44px logo (radius 12px, `--v-text` backing,
-  6px padding) and "Vellum" 26px/700, letter-spacing -0.025em; Workspaces pill as `.pill-link` (`rgba(0,0,0,0.04)`
+  6px padding) and "Vellum" 26px/700, letter-spacing -0.025em; header pills as `.pill-link` (`rgba(0,0,0,0.04)`
   fill, 980px radius, min-height 48px, 600); at ≤720 px the logo is 36px (padding 5px, radius 10px) and "Vellum"
   22px. Focus ring 3px `--v-accent`, offset 2px (was 2px; SH-58). The badge has a 2px `--v-surface` ring. The
   offline strip stays (no-keys honesty; the demo has neither). The header stays solid (`--v-surface`, Open point 23 decided), not the demo's glass.
@@ -413,7 +404,7 @@ API client, `frontend/src/api/`:
 Shell, `frontend/src/shell/`:
 
 - `frontend/src/App.tsx` (replaced: providers, header, info bar, the route's screen),
-  `route.ts` (`parseRoute`, `routeHref`, `useRoute`), `Header.tsx`, `ProjectPicker.tsx`, `CountryPicker.tsx`,
+  `route.ts` (`parseRoute`, `routeHref`, `useRoute`), `Header.tsx`, `ProjectPicker.tsx` (deleted, ui-bugs 11), `CountryPicker.tsx`,
   `pending.ts` (the mocked country rules; deleted in the checks round), `InfoBar.tsx`,
   `info.tsx` (`InfoProvider`, `useInfo`), `limits.ts` (`uploadTooLarge`), `Loading.tsx`, `ErrorView.tsx`,
   `NotFound.tsx`, `Credit.tsx`, `strings.ts` (`PRODUCT_NAME = "Vellum"`, the reader names), `shell.css`
@@ -426,10 +417,11 @@ Tests: `*.test.ts(x)` next to each file above. [e2e] criteria are built by the e
 
 ## User flow
 
-1. The user opens the app at `#/` (or any deep link). The header shows "Vellum", the project picker and,
+1. The user opens the app at `#/` (or any deep link). The header shows "Vellum" and,
    below it, the info strip "Checking the server…" until `GET /api/info` answers; then "Running offline: no API
    keys, no models" (no strip at all with keys). The route's screen fills the rest.
-2. The user picks a project in the picker: the hash becomes `#/p/<project_id>` and the ingest screen shows it.
+2. The user opens a project from Workspaces (`#/workspaces`, linked from the home page) or by its link: the hash
+   becomes `#/p/<project_id>` and the ingest screen shows it. The header has no project picker (ui-bugs 11).
 3. On a drawing route (`#/p/<pid>/d/<did>/engineer` or `/surveyor`) the header shows three links, Ingest, Engineer,
    Surveyor; the current one is marked. Clicking Surveyor while on Engineer changes the hash to the same drawing's
    surveyor route; Ingest goes to `#/p/<pid>`.
@@ -453,11 +445,8 @@ The shell calls two endpoints itself; the client covers every endpoint of API.md
 - Fixture: `backend/tests/fixtures/api_v1/info.json` (ten ports; `cad` and `raster` are `hello`; `no_keys: true`).
   Every fixture named in this spec is in that folder.
 
-**`GET /api/projects`** (API.md "GET /api/projects"). When the shell mounts, and again whenever the route names a
-project id that the loaded list does not hold (a project just uploaded). Fields: `projects[].id` (option value),
-`name` and `created_at` (option label `<name> · <formatTime(created_at)>`), newest first as the API gives them.
-`state`, `files`, `drawings` are not shown in the picker (the ingest screen shows them). Fixture:
-`project_list.json`.
+**`GET /api/projects`** (API.md "GET /api/projects"). The shell no longer calls it (the header project picker was
+removed, ui-bugs 11); the Workspaces screen does (account.md). Fixture: `project_list.json`.
 
 **The client** (`frontend/src/api/client.ts`). Every function takes an optional last argument `opts` with
 `signal?: AbortSignal` (and the query flags listed), builds a relative URL, and resolves with the parsed JSON typed
@@ -576,10 +565,7 @@ request no route matches with a thrown error naming it, so a test fails on an un
 | Info error | Strip: "The server did not answer: `<detail>` (`<code>`)" and a Retry button that calls `GET /api/info` again. | Mock `{status: 500, body: error fixture}` or a rejected fetch; in the browser, stop the backend. |
 | No-keys | Strip: "Running offline: no API keys, no models", on every route, the not-found view included. | `info.json` (`no_keys: true`); the backend today always says so. |
 | Keys present | No strip at all (no empty bar). | `info.json` with `no_keys` set to false in the test. |
-| Projects loading | Picker disabled, one option "Loading projects…". | `GET /api/projects` → `never()`. |
-| Projects empty | Picker disabled, one option "No projects yet". | `{projects: []}`. |
-| Projects error | Picker replaced by "Projects: `<detail>` (`<code>`)" and a Retry button. | Mock 500 / network error. |
-| No project in route | Picker shows the placeholder option "Choose a project" selected; no view links. | `#/`. |
+| No project in route | No view links, no country picker, no Export. | `#/`. |
 | Not found | `NotFound`: heading "Page not found", text "Nothing at `<hash>`" (as text), link "Go to the start" (`#/`). No request is made for it. | `#/nope`, `#/p/XYZ`, `#/p/<pid>/d/<did>` (no role). |
 | Screen loading | `Loading` with the screen's label, e.g. "Loading the project…" (`role="status"`, `aria-live="polite"`). | per screen spec. |
 | Screen error | `ErrorView`: heading, `detail`, "code: `<code>`", HTTP status when not 0, Retry when the screen passes `onRetry` and the error is not a 404; for a 404 (`status` 404) no Retry (asking again finds nothing) and a link "Back to workspaces" to `#/workspaces` (the project list; `#/` lists none since the Vellum round). `role="alert"`. | per screen spec; `error.json` for a 404. |
@@ -593,12 +579,10 @@ Reference: the mock (`demo/index.html`) has no global header; its workspace has 
 surveyor" buttons. The header replaces those with one place for the role switch. Colours and type follow the mock's
 `style.css` tokens.
 
-- **Desktop 1440x900.** One header row, 56 px: "Vellum" (link to `#/`) left; the project picker (max 320 px
-  wide, shrinks with the header) next to it; the view links Ingest · Engineer · Surveyor centred (only on project, file and drawing routes);
-  nothing on the right. Under it the info strip, one line, 32 px: offline text left (no strip with keys). The route's screen
+- **Desktop 1440x900.** One header row, 56 px: "Vellum" (link to `#/`) left; the view links Ingest · Engineer · Surveyor centred (only on project, file and drawing routes);
+  the country picker and Export on the right (project routes). Under it the info strip, one line, 32 px: offline text left (no strip with keys). The route's screen
   fills the rest, max width 1440, no horizontal scroll.
-- **Phone 390x844.** Header in rows: "Vellum"; the picker full width and never wider (a long project name is cut
-  off in the closed select and shown in full in its open list, R1-5-4); the view links as three equal
+- **Phone 390x844.** Header in rows: "Vellum" with the country picker and Export; the view links as three equal
   tabs full width, each at least 44 px high. The strip under them wraps the full offline text (no shortened form). No horizontal scroll
   at 390 px with the longest fixture name.
 - The current view link has `aria-current="page"` and is bold with a 2 px underline, so it never relies on colour
@@ -631,19 +615,10 @@ Router
   `#/`; no request other than info and projects is sent. [component]
 - SH-6 On a route change, focus is on `main#main`. [component]
 
-Header and project picker
+Header
 
 - SH-7 The header shows "Vellum" (round 2; was "Countersign") as a link to `#/` on every route, not-found included. [component]
-- SH-8 The picker lists `project_list.json`'s project with the label `sample-project.zip · <date>` where the date
-  is `2026-11-14 08:00 UTC`, whatever the browser's time zone. [component, `project_list.json`]
-- SH-9 On `#/p/5e0c1a2b3d4f` that option is selected; choosing another option sets the hash to `#/p/<its id>`.
-  [component]
-- SH-10 On a route whose project id is not in the loaded list, `GET /api/projects` is sent again (exactly once per
-  such id). [component]
-- SH-11 Loading, empty and error states of the picker show as in States; Retry sends `GET /api/projects` again.
-  [component]
-- SH-12 A project name `<img src=x onerror=alert(1)>` shows as that literal text in the picker, and no `img`
-  element is created. [component]
+- SH-8 to SH-12 (removed with the header project picker, ui-bugs 11.)
 - SH-13 On a drawing route the view links Ingest, Conflicts, Chat, Surveyor point to `#/p/<pid>`,
   `#/p/<pid>/conflicts`, `#/p/<pid>/chat`, `#/p/<pid>/d/<did>/surveyor`; any `?q=` on the current route is kept on
   the Surveyor link. No link is named "Engineer" (Tudor 12:46).
@@ -775,8 +750,8 @@ Vellum round (round 2)
   `#/p/<pid>/conflicts`; changing only `?view=advanced` on a project route does not remount `ProjectScreen`.
   [component, stub screens]
 - SH-55 The header has one link named "Vellum" to `#/` holding the logo image (`alt=""`, `src` the bundled
-  `vellum-logo.png`) and the text "Vellum"; a "Workspaces" link to `#/workspaces` with `aria-current="page"` only
-  on that route; the project picker; the country picker; no user name or avatar. [component]
+  `vellum-logo.png`) and the text "Vellum"; no "Workspaces" link and no project picker (`select`) on any route
+  (ui-bugs 10, 11); no country picker off project routes; no user name or avatar. [component]
 - SH-56 The view links per route are those of the Header table (none on home, account and not-found; Ingest,
   Conflicts and Chat on project, file, conflicts and chat; Ingest, Conflicts, Chat, Surveyor on workspace), with the
   hrefs given, and at most the current one has `aria-current="page"` (Chat on chat; none on the engineer route). Supersedes SH-14. [component]
@@ -812,7 +787,7 @@ Vellum round (round 2)
   null` without it, `IssuesScreen` with `{projectId, pack}`; changing only `?pack` does not remount. [component]
 - SH-68 (checks) The header tabs per route are those of "Header tabs" (Checks only with a pack, or on the checks
   route), in that order, each href carrying `?pack=fi` when the route has it (Surveyor also `?q`), exactly the
-  current one marked (none on the engineer route); the project picker's choice keeps `?pack`. [component]
+  current one marked (none on the engineer route). [component]
 - SH-69 (checks) Country picker: not rendered while info loads, with `rule_packs` absent or empty, or on home,
   account and not-found; with `info.json` (packs `ch-zh`, `fi`) on a project route: button "Country rules: none", popover "No checks"
   (pressed) and the pack (`country_name`, `name · version`), closing line "Choose a country…"; choosing the pack sets
@@ -869,14 +844,12 @@ Vellum round (round 2)
   #ececf0`, `--v-mono`; `.tab-badge` uses `var(--v-badge)` with a `0 0 0 2px var(--v-surface)` ring; the focus ring is 3px; at ≤720 px
   `.brand-logo` is 36px and `.brand-name` 22px; the segmented control uses `var(--v-seg)`; no colour
   literal outside `:root` (the existing token test). [unit: parse the CSS]
-- SH-84 (follow-up) Header give-way order: `.project-picker` has `min-width: 200px` (and `min-width: 0` in the
-  ≤1100 px block); `.project-picker` `flex: 0 1000 320px`; `.country` has `flex: 0 1 auto` and `min-width: 0`, still `max-width: 240px`; at 1440x900,
-  1110x800 and 390x844 with `?pack=ch-zh` and without a pack: the picker ≥200px wide above 1100 px, "No checks"
-  never cut, no horizontal scroll, one header row above 1100 px. [unit: parse the CSS; browser]
+- SH-84 (follow-up) The country pill truncates rather than widening the header: `.country` has `flex: 0 1 auto`,
+  `min-width: 0`, `max-width: 240px` and `margin-left: auto`; no `.project-picker` or `.workspaces-link` rule
+  remains (ui-bugs 10, 11). No horizontal scroll at 1440x900, 1110x800 and 390x844. [unit: parse the CSS; browser]
 - SH-85 (#224) `drawingLabel({name: 'Drawn plan 1', file: 'plans/flat-a.pdf'})` → `Drawn plan 1`; with `name` null,
   empty or absent → `flat-a.pdf`. [unit]
-- SH-86 (re-sweep 9) On `#/about` and `#/about?project=<pid>` there is no "About and credits" footer link; the
-  header's project picker shows the `?project` project (none without it); `:root` has `--v-plan: #fbf8ef` (the paper
+- SH-86 (re-sweep 9) On `#/about` and `#/about?project=<pid>` there is no "About and credits" footer link; `:root` has `--v-plan: #fbf8ef` (the paper
   a drawing sits on, fe-viewer); every `:focus-visible` ring in fe-shared's CSS (`shell.css`, `account.css`) is 3px.
   [component + unit: parse the CSS]
 - SH-82 (parity) `drawingName('plans/flat-a.pdf')` → `flat-a.pdf`, `drawingName('flat-a.pdf')` → `flat-a.pdf`,
@@ -961,7 +934,7 @@ Vellum round (round 2)
     (account.md), not in this spec; whoever owns src/account then can add "<n> issues open" like "to review".
 19. **Picker off project routes**: not rendered on home, account and not-found (no project to check, and the pack
     lives on project routes). Alternative: show it disabled there. Recommendation: hidden.
-20. **Compact header up to 1100 px** (was 720): six tabs plus the pickers do not fit one row below ~1100 px. The
+20. **Compact header up to 1100 px** (was 720): six tabs plus the header controls do not fit one row below ~1100 px. The
     alternative (a horizontally scrolling tab strip) hides tabs. Recommendation: the 1100 px breakpoint.
 21. **`IssuesScreen` prop** is `pack?: string` and `ChecksScreen`'s is `pack: string | null`, as the brief fixes them;
     the shell passes `undefined` / `null` for no pack.
@@ -970,7 +943,8 @@ Vellum round (round 2)
     drawings, no blur cost); switch only if Tudor wants the exact demo look. Orchestrator's call.
 24. **Pickers stay** (parity; DECIDED 16:50 orch: keep both): the demo's header has no project picker and no country picker. Proposal: keep both
     (switching projects and the rule pack are real features the demo never had); the demo changes did not remove
-    them. Orchestrator's call.
+    them. Orchestrator's call. Superseded 2026-11-15 (ui-bugs 10, 11): the project picker and the Workspaces
+    pill are gone; the country picker stays.
 25. **Checks route without a tab** (parity; DECIDED 16:50 orch: checks page stays, no tab, linked from Documents): the brief drops the Checks tab; `#/p/<pid>/checks` stays as a route,
     reached from Documents' code-check issues ("See the check"). If Tudor wants checks gone entirely, the route goes
     too.
