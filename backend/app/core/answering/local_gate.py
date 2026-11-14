@@ -13,6 +13,8 @@ What a score reads, by the model's blocks (`LocalGateModel.blocks`):
   of the share;
 - `extras` (lgate2): the counted elements' scores (lowest, mean, how many below 0.5; elements
   without a score are left out) and the number of plans;
+- `rooms` (room families): the counted rooms of the family's type, how many of them carry a
+  printed label, all rooms on the drawing and the share of them with a label;
 - `arbiter_p` (lgate2 on the T1 config): the count arbiter's P of its pick (0 for a family it
   does not pick);
 - the family, one-hot over the model's families.
@@ -29,6 +31,7 @@ from app.core.pipeline.disputed_marks import counted_elements, reader_elements
 
 PRIOR_FLOOR = 1e-4
 PROB_FLOOR = 1e-5
+ROOM = "room:"
 CAP = 3  # |reader - answer| is capped here
 # the families double-check readers count (they store no plans and no rooms)
 READER_FAMILIES = ("door", "window", "sink", "toilet", "shower+bathtub", "sauna")
@@ -48,6 +51,17 @@ class LocalGateModel:
 
 
 @dataclass(frozen=True)
+class RoomCounts:
+    """The counted rooms: of the answered type, and on the whole drawing; `labelled`: with a
+    printed label."""
+
+    of_type: int
+    labelled: int
+    total: int
+    total_labelled: int
+
+
+@dataclass(frozen=True)
 class GateReading:
     """What the local readers give about one answered family of one page."""
 
@@ -59,6 +73,7 @@ class GateReading:
     scores: tuple[float | None, ...] = ()  # the counted elements' scores (None: unscored)
     plans: int = 0
     arbiter_p: float | None = None
+    rooms: RoomCounts | None = None  # for a room family
 
 
 def features(model: LocalGateModel, family: str, reading: GateReading) -> list[float]:
@@ -88,6 +103,13 @@ def features(model: LocalGateModel, family: str, reading: GateReading) -> list[f
             sum(s < 0.5 for s in scores),
             reading.plans,
         ]
+    if "rooms" in model.blocks:
+        r = reading.rooms if family.startswith(ROOM) else None
+        x += (
+            [r.of_type, r.labelled, r.total, r.total_labelled / max(r.total, 1)]
+            if r is not None
+            else [0, 0, 0, 0.0]
+        )
     if "arbiter_p" in model.blocks:
         x += [reading.arbiter_p if reading.arbiter_p is not None else 0.0]
     x += [family == f for f in model.families]
@@ -115,7 +137,7 @@ def reading_of(
     arbiter_p: float | None = None,
 ) -> GateReading:
     """The reading of one answered family from the stored drawing: the double-check readers'
-    counts (DOUBLE_CHECK_READERS), the counted elements' scores and the plans. L1's
+    counts (DOUBLE_CHECK_READERS), the counted elements' scores, the plans and the rooms. L1's
     probabilities and the arbiter's P are not stored with the drawing: the caller passes them."""
     readers = (
         {name: len(seen) for name, seen in reader_elements(drawing, family).items()}
@@ -127,4 +149,13 @@ def reading_of(
         else None
         for e in (counted_elements(drawing, family) if family in READER_FAMILIES else ())
     )  # fmt: skip
-    return GateReading(answer, probs, readers, scores, len(drawing.plans), arbiter_p)
+    rooms = None
+    if family.startswith(ROOM):
+        kind = family.removeprefix(ROOM)
+        labelled = [bool((room.label or "").strip()) for room in drawing.rooms]
+        mine = [room.type == kind for room in drawing.rooms]
+        rooms = RoomCounts(
+            sum(mine), sum(m and lab for m, lab in zip(mine, labelled, strict=True)),
+            len(drawing.rooms), sum(labelled),
+        )  # fmt: skip
+    return GateReading(answer, probs, readers, scores, len(drawing.plans), arbiter_p, rooms)

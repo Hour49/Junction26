@@ -17,7 +17,7 @@ from app.core.answering.local_gate import LocalGateModel
 from app.core.errors import InvalidInputError, NotFoundError
 
 SCHEMA = "local_gate_v1"
-BLOCKS = frozenset({"l1", "readers", "extras", "arbiter_p"})
+BLOCKS = frozenset({"l1", "readers", "extras", "rooms", "arbiter_p"})
 
 
 def load_local_gate(path: Path) -> LocalGateModel:
