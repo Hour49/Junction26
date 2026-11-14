@@ -25,10 +25,12 @@ def judge(
     reader: str | None,
     frame: Normalised | None = None,
     carbon: bool = False,
+    sheet: str | None = None,
 ) -> tuple[FileState, str]:
     """`ready` when the route's reader read the drawing and nothing needs a look; `flagged`
     with every reason a person should look at it. `reader`: the route's adapter name; `frame`:
-    how an image was normalised; `carbon`: the Carbon reader read it alone (CARBON_READER)."""
+    how an image was normalised; `carbon`: the Carbon reader read it alone (CARBON_READER);
+    `sheet`: the sheet-kind step's flag (triage.sheet_flag)."""
     if drawing.model_objects is not None and not drawing.pages:
         found = count(len(drawing.model_objects), "model object")
     else:
@@ -46,7 +48,7 @@ def judge(
     empty = read_nothing(drawing, route, reader)
     if empty is not None:
         flags.append(empty)
-    flags += reading_flags(kind, frame, carbon)
+    flags += reading_flags(kind, frame, carbon, sheet)
     if flags:
         return "flagged", f"{'; '.join(flags)} ({found})"
     return "ready", f"read on the {route_words(route)}: {found}"
@@ -67,12 +69,12 @@ def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | No
 
 
 def reading_flags(
-    kind: ContentKind, frame: Normalised | None, carbon: bool = False
+    kind: ContentKind, frame: Normalised | None, carbon: bool = False, sheet: str | None = None
 ) -> tuple[str, ...]:
     """The flags about how the page itself was read (a phone photo, a scan, by Gemini Carbon
-    alone): every answer on the drawing carries them, none of its answers is certified, and a
-    group the reader found nothing of is not a count of 0 (review/ask.py). A conflict or an
-    empty read is said where it shows (its row, no-reader)."""
+    alone, a sheet that may not be a floor plan): every answer on the drawing carries them, none
+    of its answers is certified, and a group the reader found nothing of is not a count of 0
+    (review/ask.py). A conflict or an empty read is said where it shows (its row, no-reader)."""
     flags: tuple[str, ...] = ()
     if kind == "pdf_scan":
         flags = ("a scanned PDF, read as an image",)
@@ -82,6 +84,8 @@ def reading_flags(
         flags = ("a phone photo, read without perspective correction",)
     if carbon:  # its counts have no measured level yet (.agents/exp/carbon-reader.md 1.4)
         flags += (CARBON_FLAG,)
+    if sheet is not None:
+        flags += (sheet,)
     return flags
 
 

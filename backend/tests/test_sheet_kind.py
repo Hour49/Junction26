@@ -40,7 +40,7 @@ from app.core.ingest.model import (
     Triage,
     Unavailable,
 )
-from app.core.ingest.triage import set_aside_reason, sheet_doubt
+from app.core.ingest.triage import set_aside_reason, sheet_doubt, sheet_flag
 from app.core.spend import SpendGuard
 from app.settings import Settings
 
@@ -168,7 +168,7 @@ def test_an_mep_plan_is_set_aside_with_its_kind_title_and_number_and_no_register
     assert set_aside_reason(triage) == (
         "not a floor plan: a piping, plumbing, ventilation or electrical plan (PIPING PLAN, M-101A)"
     )
-    assert sheet_doubt(triage) is None  # set aside, not doubted
+    assert sheet_doubt(triage) is None and sheet_flag(triage) is None  # set aside, not doubted
 
 
 def test_a_schedule_is_set_aside_as_not_a_drawing(tmp_path: Path) -> None:
@@ -192,14 +192,16 @@ def test_a_doubt_is_read_keeps_the_inner_register_and_its_answers_say_so(tmp_pat
     assert (found.class_, found.register_) == ("floor_plan", register)
     assert found.method == "fake classifier; Gemini sheet kind (gemini-4-carbon, sheet-kind-2)"
     triage = triage_of(found)
-    assert sheet_doubt(triage) == (
-        "This sheet may not be a floor plan: it looks like a structural plan (foundation, slab, "
-        "framing or reinforcement)."
+    assert sheet_doubt(triage) is None  # a non-plan kind: flagged instead, with its kind
+    assert sheet_flag(triage) == (
+        "the sheet may not be a floor plan: it looks like a structural plan (foundation, slab, "
+        "framing or reinforcement)"
     )
     plan_kind = form("architectural_floor_plan", False, False, 0.9)
     found = classifier(tmp_path / "2", FakeModel(reply(plan_kind))).classify(png(), PNG_PROBED)
     assert isinstance(found, Classified) and found.sheet is not None
     assert sheet_doubt(triage_of(found)) == ("This sheet may not be a floor plan.")
+    assert sheet_flag(triage_of(found)) is None  # a plan kind: read, warned, not flagged
 
 
 def test_a_plan_is_read_with_no_line(tmp_path: Path) -> None:
@@ -207,6 +209,7 @@ def test_a_plan_is_read_with_no_line(tmp_path: Path) -> None:
     assert isinstance(found, Classified) and found.sheet is not None
     assert (found.class_, found.p_plan, found.sheet.decision) == ("floor_plan", 0.97, "read")
     assert sheet_doubt(triage_of(found)) is None
+    assert sheet_flag(triage_of(found)) is None
 
 
 def test_no_call_when_the_inner_classifier_already_says_not_a_plan(tmp_path: Path) -> None:

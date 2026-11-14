@@ -247,14 +247,26 @@ def not_plan_words(triage: Triage) -> str:
 
 def sheet_doubt(triage: Triage | None) -> str | None:
     """The line every answer read off this file carries when the sheet-kind step doubted it is a
-    floor plan; None otherwise, and once a person had it read as a floor plan."""
+    floor plan but called it a plan kind; None otherwise, and once a person had it read as a
+    floor plan. A doubted non-plan kind is flagged instead (sheet_flag), and the flag's note on
+    each answer says what it looks like."""
     if triage is None or triage.sheet is None or triage.read_as_plan is not None:
         return None
-    if triage.sheet.decision != "doubt":
+    if triage.sheet.decision != "doubt" or triage.sheet.kind not in SHEET_PLAN_KINDS:
         return None
-    if triage.sheet.kind in SHEET_PLAN_KINDS:
-        return "This sheet may not be a floor plan."
-    return f"This sheet may not be a floor plan: it looks like {triage.sheet.kind_words}."
+    return "This sheet may not be a floor plan."
+
+
+def sheet_flag(triage: Triage | None) -> str | None:
+    """The reading flag for a sheet the sheet-kind step doubted and called a non-plan kind (a
+    warn-only set-aside, SHEET_KIND_SET_ASIDE=false): the drawing is flagged at upload like a
+    Carbon-alone read, so none of its answers is certified and each is Low (orchestrator,
+    2026-11-14). None otherwise, and once a person had it read as a floor plan."""
+    if triage is None or triage.sheet is None or triage.read_as_plan is not None:
+        return None
+    if triage.sheet.decision != "doubt" or triage.sheet.kind in SHEET_PLAN_KINDS:
+        return None
+    return f"the sheet may not be a floor plan: it looks like {triage.sheet.kind_words}"
 
 
 def _how(found: TriageClass, p_plan: float, method: str) -> str:

@@ -22,6 +22,7 @@ from app.core.ingest.timing import (
     TimedExtractor,
     TimedPages,
 )
+from app.core.ingest.triage import sheet_flag
 from app.core.pipeline.group import group, key_of
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, DrawingGroup, FileKind, Route
@@ -156,6 +157,7 @@ class Groups:
             if file.path in sheets and drawing is not None:
                 carbon_read = readers.carbon_read
                 carbon = route_name == "raster" and bool(carbon_read and carbon_read(file.path))
+                sheet = sheet_flag(run.file(file.path).triage)
                 stages = pipeline_stages(
                     sheets[file.path].trace,
                     timer.ms.get(file.path, {}),
@@ -171,9 +173,11 @@ class Groups:
                     self._readers.get(route_name),
                     self._frames.get(file.path),
                     carbon,
+                    sheet,
                 )
                 takeoff = sheets[file.path].takeoff
-                flags = reading_flags(run.kinds[file.path], self._frames.get(file.path), carbon)
+                frame = self._frames.get(file.path)
+                flags = reading_flags(run.kinds[file.path], frame, carbon, sheet)
             elif file.path in aside:
                 state, reason = "set_aside", aside[file.path]
             elif file == source:

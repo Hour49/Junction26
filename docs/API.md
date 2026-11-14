@@ -994,8 +994,9 @@ the `identify` stage's line.
   on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT` (default 0.9) and `SHEET_KIND_SET_ASIDE=true`
   (the default; `false` makes such a sheet a `doubt` instead: read, with the kind in its answers), the file is set
   aside with the reason "not a floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it;
-  `doubt`: it is read, and every answer with a value from it ends its `explanation` with "This sheet may not be a
-  floor plan[: it looks like <kind_words>]."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
+  `doubt`: it is read; with a non-plan kind the file is `flagged` ("the sheet may not be a floor plan: it looks like
+  <kind_words>"), so none of its answers is certified and each is Low with that flag in its `explanation`; with a plan
+  kind every answer with a value ends its `explanation` with "This sheet may not be a floor plan."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
   sheet), `title`, `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
   than a clean scan of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet),
   `seen`, `model`. A call that fails leaves the file as triage would have it without the step ("triage not
