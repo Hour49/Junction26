@@ -62,6 +62,23 @@ test('AC-30 AC-31: a question gets an answer card with its steps line', async ({
   expect(errors).toEqual([]);
 });
 
+test("#369: the answer's own next chip asks its question", async ({ page }) => {
+  const errors = watchErrors(page);
+  await noKeys(page);
+  const id = await sampleDone(page);
+  await page.goto(`/#/p/${id}/chat`);
+  await expect((await ask(page, 'How many doors are there?')).locator('.ag-card')).toBeVisible({
+    timeout: 30_000,
+  });
+  await page
+    .getByRole('group', { name: 'Follow-up questions' })
+    .getByRole('button', { name: 'Show them on the plan' })
+    .click();
+  const shown = page.getByRole('article', { name: 'Show me where they are' });
+  await expect(shown.locator('.ag-card')).toBeVisible({ timeout: 30_000 });
+  expect(errors).toEqual([]);
+});
+
 test('AC-32 AC-35: removing the wall between two rooms gives an edit card that can be accepted', async ({
   page,
 }, testInfo) => {

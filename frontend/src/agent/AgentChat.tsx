@@ -240,6 +240,11 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const ownChoice =
     newest?.status === 'done' &&
     (newest.turn.kind === 'dont_know' || (newest.turn.options ?? []).length > 0);
+  // #369: the answer's own next questions (the server's), at most 3, before the drawings' generic ones.
+  const own =
+    newest?.status === 'done' && !newest.turn.options?.length
+      ? ((newest.turn.next as ChatTurn['next'] | undefined) ?? []).slice(0, 3)
+      : [];
   const next = ownChoice
     ? []
     : followUps(
@@ -445,8 +450,27 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {rows.map(row)}
       </section>
-      {next.length > 0 && (
-        <Suggestions items={next} busy={busy} onAsk={ask} label="Follow-up questions" />
+      {own.length > 0 ? (
+        <div className="en-suggest" role="group" aria-label="Follow-up questions">
+          {own.map((o) => (
+            <button
+              key={o.message}
+              type="button"
+              className="en-chip v-press"
+              title={o.message}
+              disabled={busy}
+              onClick={() => {
+                ask(o.message);
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        next.length > 0 && (
+          <Suggestions items={next} busy={busy} onAsk={ask} label="Follow-up questions" />
+        )
       )}
       {pointer}
       {bar}
