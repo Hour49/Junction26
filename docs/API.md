@@ -84,6 +84,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
+| A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
 | A method the path does not take (`GET /api/ask`) | 405 `method-not-allowed` |
@@ -127,6 +128,8 @@ An edit of a signed-off quantity (409):
 | `POST /api/drawings/{drawing_id}/review` | Reject, restore or add a mark; settle, unsettle; reset. Returns the takeoff | #32 |
 | `POST /api/drawings/{drawing_id}/signoff` | Sign off one quantity, or undo it. Returns the takeoff | #32 |
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
+| `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
+| `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
 
 ## `GET /api/info`
 
@@ -152,7 +155,105 @@ An edit of a signed-off quantity (409):
     "unpacked_mb": 2048,
     "files": 5000,
     "question_chars": 2000
-  }
+  },
+  "rule_packs": [
+    {
+      "id": "ch-zh",
+      "country": "CH",
+      "country_name": "Canton of Zürich",
+      "name": "Canton of Zürich building act",
+      "law": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), as in force on 1 January 2026",
+      "version": "2026-11-14",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "fail_means": "It would not meet the Canton of Zürich's rule; other cantons set their own.",
+      "rules": [
+        {
+          "id": "ch-zh-room-area",
+          "title": "A bedroom or living room is at least 10 m2 (canton of Zürich)",
+          "op": "room_area",
+          "applies_to": {
+            "room_types": [
+              "bedroom",
+              "living"
+            ],
+            "element_classes": [],
+            "not_room_types": [],
+            "skip_labels": [
+              "R",
+              "RT",
+              "RH",
+              "RUOK",
+              "RUOKAILU",
+              "Essen",
+              "Repas",
+              "Pranzo",
+              "ALKOVI"
+            ],
+            "note": "Canton of Zürich only: Swiss building law is cantonal and there is no national limit. Rooms for living and sleeping (PBG s. 299). Not in single-family houses and comparable dwellings (s. 303). A dining area that is part of an open room (Essen, Repas, Pranzo) is not a room of its own and is not checked; kitchens are left out (the government may set other rules for them)."
+          },
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "limit": 10.0,
+          "unit": "m2",
+          "key": null,
+          "clause": {
+            "ref": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), § 303 Abs. 1",
+            "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/3B9E9F2232301FF3C1258D2A00290112/$File/700.1_7.9.75_131.pdf",
+            "quote": "Die Mindestfläche von Räumen, ausser solchen in Einfamilienhäusern und bei vergleichbaren Wohnungsarten, beträgt 10 m².",
+            "quote_en": "The minimum area of rooms, except those in single-family houses and comparable kinds of dwelling, is 10 m2."
+          }
+        }
+      ]
+    },
+    {
+      "id": "fi",
+      "country": "FI",
+      "country_name": "Finland",
+      "name": "Finland: homes and accessibility decrees",
+      "law": "Rakentamislaki 751/2023; decrees 1008/2017 (homes and rooms) and 241/2017 (accessibility), kept in force by the entry-into-force provision of Act 752/2023",
+      "version": "2026-11-14",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "fail_means": "It would not meet today's rule for a new building.",
+      "rules": [
+        {
+          "id": "fi-habitable-room-area",
+          "title": "A bedroom or living room is at least 7 m2",
+          "op": "room_area",
+          "applies_to": {
+            "room_types": [
+              "bedroom",
+              "living"
+            ],
+            "element_classes": [],
+            "not_room_types": [],
+            "skip_labels": [
+              "R",
+              "RT",
+              "RH",
+              "RUOK",
+              "RUOKAILU",
+              "Essen",
+              "Repas",
+              "Pranzo",
+              "ALKOVI"
+            ],
+            "note": "New buildings, extensions and substantial changes of use (decree 1008/2017 s. 1); in a repair the original solution may be kept. Habitable rooms only: not a hall, corridor, bathroom or the like (s. 2). A dining nook that is part of an open room (labels R, RT, RH, RUOK, RUOKAILU, Essen, Repas, Pranzo) is not a room of its own and is not checked, nor is an alcove (ALKOVI). Kitchens are left out: a plan does not tell a kitchen (a habitable room) from a kitchenette. Floor under 1.6 m of headroom does not count (s. 2), which a plan does not show."
+          },
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "limit": 7.0,
+          "unit": "m2",
+          "key": null,
+          "clause": {
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+          }
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -160,6 +261,19 @@ An edit of a signed-off quantity (409):
 in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The screen then shows "running
 offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
 questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+
+`rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
+below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
+writes ("Finland", "Canton of Zürich": Swiss building law is cantonal, so that pack is the canton's, never
+"Switzerland"), `name` the pack's display name, `law` the law line. `note` is always "A pre-check of a few rules,
+not a compliance certificate."; `fail_means` (null: nothing) says what a fail means under that law ("It would
+not meet today's rule for a new building."). Each rule: `title`; `op`, the check type, never shown; `comparison`
+(`>=`, `>`, `<=`, `<`) with `comparison_text`, the words to show ("at least"); `limit` and `unit` (`m2`, `m`,
+`count`, as the takeoff writes units); `applies_to` (`room_types` as `MarkView.room_type`, `element_classes` as
+the drawing model's classes, `not_room_types`, `skip_labels` and a `note` on scope and exceptions, to show with
+the rule); `key`, the takeoff key of a `takeoff` rule, else null; and `clause` `{ref, url, quote, quote_en}`:
+the clause the limit comes from, its sentence as printed, and our English (null when the law is in English: show
+`quote` alone). No pack is preselected and choosing none is valid: then nothing is checked.
 
 ## Projects and ingest
 
@@ -3030,8 +3144,9 @@ methods, refused answers, pages read with a caveat, files set aside, and with a 
 checks. The decision record, with the reasons for each choice, is
 [0008](decisions/0008-located-issues.md). The list makes no model call.
 
-- `pack` is optional: a rule pack's id (decision 0009). Its failed checks (`code_check_failed`) are listed only
-  when a pack is given, since the country is chosen on the screen. Until the code checks land there is no pack.
+- `pack` is optional: a rule pack's id from `GET /api/info` `rule_packs` (decision 0009). Its failed checks
+  (`code_check_failed`) are listed only when a pack is given, since the country is chosen on the screen.
+  `ProjectSummary.issues_open` counts the list without a pack.
 - Errors: an unknown project is 404 `not-found`. An unknown pack is 404 `unknown-pack`. A project that is not
   `done` is 409 `not-allowed`. The CSV and zip routes answer errors the same way (JSON), so offer the downloads
   once the project is `done`.
@@ -3051,7 +3166,9 @@ Each issue:
     parser can't read are left out.
   - `reading_flag`: the page was read with a caveat (a phone photo, a scan), or its reader read nothing.
   - `set_aside`: ingest set the file aside, with `reason`.
-  - `code_check_failed`: a failed rule of the pack (decision 0009). Not produced yet (#139).
+  - `code_check_failed`: a failed rule of the pack (decision 0009), one per failing room, door or sheet. A check
+    that cannot tell is not an issue. `check` + `drawing_id` is its `CheckResult` in
+    `GET /api/drawings/{id}/checks?pack=`; `why` is the result's `why` followed by the clause ref in brackets.
   - `double_check`: an answer we can't vouch for, one issue per disputed place. Not produced yet (#129).
   - `unrelated_file` (file triage, decision 0010): a file triage called not a floor plan whose `triage.verdict`
     is not `related` (also one not described or not judged), or one a person made a call on or had read as a
@@ -3060,8 +3177,8 @@ Each issue:
     `needs_person` for `unsure`, else `note`. A person's call makes it `settled` and keeps its id, severity and
     place in the list, whichever way the call went; so does having it read as a floor plan. Such a file has no
     `set_aside` issue as well, unless its reading as a floor plan set it aside.
-  - All seven values are in the type now, so a screen can switch over them; `code_check_failed` and
-    `double_check` appear once their work lands.
+  - All seven values are in the type now, so a screen can switch over them; `double_check` appears once its
+    work lands.
 - `severity`: `fails_rule` (a failed code check), `needs_person` (a conflict no rule decides and nobody settled),
   or `note` (everything else: decided conflicts, refusals, reading flags, set-aside files).
 - `state`: `open`, `settled` (a person settled it, or a rule decides it) or `signed_off`. Only a conflict or an
@@ -3074,6 +3191,8 @@ Each issue:
   - A quantity with one takeoff mark (a room) gives that mark: its page, box, `polygon` and `mark_id` (its
     `MarkView.id` in the takeoff, so the viewer can select it).
   - Otherwise the box a method read, or the sheet's only plan, with `polygon` and `mark_id` null.
+  - A failed check gives its room's or door's mark (`CheckResult.marks`, role `subject`): page, box, `polygon`
+    and `mark_id`, as the takeoff draws it. A check on the whole sheet has no place.
   - A reading flag gives the page of a one-page drawing and no box. A refused answer and a set-aside file have
     no page.
 - `why`: one plain sentence.
@@ -3081,6 +3200,65 @@ Each issue:
   the source refs, null where they don't apply.
 - `links`: API paths (not screen routes) to the drawing and its takeoff in this project, the file's trace, and for a
   code check the drawing's checks.
+
+A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
+
+<!-- fixture: project_issues_checks.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d53",
+  "pack": "fi",
+  "issues": [
+    {
+      "id": "code_check_failed-5c4ed01e0002",
+      "kind": "code_check_failed",
+      "severity": "fails_rule",
+      "state": "open",
+      "drawing_id": "5c4ed01e00000002",
+      "file": "flat-fi.pdf",
+      "file_id": "f1",
+      "floor": null,
+      "page": 1,
+      "box": [
+        0.28833,
+        0.15,
+        0.43,
+        0.2925
+      ],
+      "polygon": [
+        [
+          0.28833,
+          0.15
+        ],
+        [
+          0.28833,
+          0.2925
+        ],
+        [
+          0.43,
+          0.2925
+        ],
+        [
+          0.43,
+          0.15
+        ]
+      ],
+      "mark_id": "m1",
+      "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building. (Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.)",
+      "quantity": "area:room|name=4.02",
+      "question": null,
+      "reason": null,
+      "check": "fi:fi-habitable-room-area:r2",
+      "links": {
+        "drawing": "/api/drawings/5c4ed01e00000002?project=5e0c1a2b3d53",
+        "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d53",
+        "trace": "/api/projects/5e0c1a2b3d53/files/f1/trace",
+        "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d53"
+      }
+    }
+  ]
+}
+```
 
 The sample after a door question on its scan (no reader in no-keys mode):
 
@@ -3381,7 +3559,8 @@ drawing does not have.
 ### `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=`
 
 The file as uploaded with only its EXIF turn applied, so the screen can show a phone photo before and after
-normalisation. Images and a PDF's first page; 404 for any other file. `width` as for pages.
+normalisation. Images and a PDF's first page; 404 for any other file, 422 `invalid` for an image or PDF that cannot be
+decoded (cut off or damaged). `width` as for pages.
 
 ## Answering
 
@@ -7119,6 +7298,474 @@ plans/flat-b.pdf,door,door count,2,count,signed,2,,,,,,each-once,,Ana,2026-11-14
 A text cell that starts with `=`, `+`, `-` or `@` is written with a leading `'`, so a room label can't run as a
 formula in a spreadsheet.
 
+## Building-code checks
+
+A pre-check of a few rules, not a compliance certificate (story #139, decision
+[0009](decisions/0009-building-code-checks.md)). The screen picks one pack from `GET /api/info` `rule_packs` and
+passes its id as `pack` (required; one pack at a time). The check runs on each request over the drawing model as
+ingest read it; review edits don't change it.
+
+### `GET /api/drawings/{drawing_id}/checks?pack=<pack id>&project=<project_id>`
+
+<!-- fixture: checks.json -->
+```json
+{
+  "drawing_id": "5c4ed01e00000002",
+  "file": "flat-fi.pdf",
+  "file_id": "f1",
+  "pack": "fi",
+  "note": "A pre-check of a few rules, not a compliance certificate.",
+  "status": "fail",
+  "rules": [
+    {
+      "rule_id": "fi-habitable-room-area",
+      "title": "A bedroom or living room is at least 7 m2",
+      "status": "fail",
+      "why": "Of 3 checked: 1 fail, 2 pass.",
+      "clause": {
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+        "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+        "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+      },
+      "results": [
+        {
+          "id": "fi-habitable-room-area:r2",
+          "rule_id": "fi-habitable-room-area",
+          "status": "fail",
+          "subject": {
+            "kind": "room",
+            "ref": "r2",
+            "label": "Schlafzimmer 4.02"
+          },
+          "value": 6.03,
+          "limit": 7.0,
+          "unit": "m2",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building.",
+          "quantity": "area:room|name=4.02",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.28833,
+                0.15,
+                0.43,
+                0.2925
+              ],
+              "polygon": [
+                [
+                  0.28833,
+                  0.15
+                ],
+                [
+                  0.28833,
+                  0.2925
+                ],
+                [
+                  0.43,
+                  0.2925
+                ],
+                [
+                  0.43,
+                  0.15
+                ]
+              ],
+              "ref": "r2",
+              "label": "Schlafzimmer 4.02",
+              "role": "subject",
+              "quantity": "area:room|name=4.02",
+              "mark_id": "m1"
+            }
+          ]
+        },
+        {
+          "id": "fi-habitable-room-area:r3",
+          "rule_id": "fi-habitable-room-area",
+          "status": "pass",
+          "subject": {
+            "kind": "room",
+            "ref": "r3",
+            "label": "Wohnen 4.03"
+          },
+          "value": 19.97,
+          "limit": 7.0,
+          "unit": "m2",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The living room \"Wohnen 4.03\" is 19.97 m2; the rule asks at least 7 m2.",
+          "quantity": "area:room|name=4.03",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.43,
+                0.15,
+                0.66667,
+                0.4325
+              ],
+              "polygon": [
+                [
+                  0.43,
+                  0.15
+                ],
+                [
+                  0.43,
+                  0.4325
+                ],
+                [
+                  0.66667,
+                  0.4325
+                ],
+                [
+                  0.66667,
+                  0.15
+                ]
+              ],
+              "ref": "r3",
+              "label": "Wohnen 4.03",
+              "role": "subject",
+              "quantity": "area:room|name=4.03",
+              "mark_id": "m1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "fi-habitable-room-window",
+      "title": "A bedroom or living room has a window",
+      "status": "fail",
+      "why": "Of 3 checked: 1 fail, 2 pass.",
+      "clause": {
+        "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 5 § 1 mom. (as amended by 127/2018)",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+        "quote": "Asuin- ja, majoitustilan ikkunan valoaukon on oltava vähintään 1/10 huonealasta.",
+        "quote_en": "The light opening of the window of a residential or accommodation space must be at least 1/10 of the room area."
+      },
+      "results": [
+        {
+          "id": "fi-habitable-room-window:r2",
+          "rule_id": "fi-habitable-room-window",
+          "status": "fail",
+          "subject": {
+            "kind": "room",
+            "ref": "r2",
+            "label": "Schlafzimmer 4.02"
+          },
+          "value": 0.0,
+          "limit": 1.0,
+          "unit": "count",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The bedroom \"Schlafzimmer 4.02\" has no window on its outline; the rule asks at least 1. It would not meet today's rule for a new building.",
+          "quantity": "area:room|name=4.02",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.28833,
+                0.15,
+                0.43,
+                0.2925
+              ],
+              "polygon": [
+                [
+                  0.28833,
+                  0.15
+                ],
+                [
+                  0.28833,
+                  0.2925
+                ],
+                [
+                  0.43,
+                  0.2925
+                ],
+                [
+                  0.43,
+                  0.15
+                ]
+              ],
+              "ref": "r2",
+              "label": "Schlafzimmer 4.02",
+              "role": "subject",
+              "quantity": "area:room|name=4.02",
+              "mark_id": "m1"
+            }
+          ]
+        },
+        {
+          "id": "fi-habitable-room-window:r3",
+          "rule_id": "fi-habitable-room-window",
+          "status": "pass",
+          "subject": {
+            "kind": "room",
+            "ref": "r3",
+            "label": "Wohnen 4.03"
+          },
+          "value": 1.0,
+          "limit": 1.0,
+          "unit": "count",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The living room \"Wohnen 4.03\" has 1 window on its outline; the rule asks at least 1.",
+          "quantity": "area:room|name=4.03",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.43,
+                0.15,
+                0.66667,
+                0.4325
+              ],
+              "polygon": [
+                [
+                  0.43,
+                  0.15
+                ],
+                [
+                  0.43,
+                  0.4325
+                ],
+                [
+                  0.66667,
+                  0.4325
+                ],
+                [
+                  0.66667,
+                  0.15
+                ]
+              ],
+              "ref": "r3",
+              "label": "Wohnen 4.03",
+              "role": "subject",
+              "quantity": "area:room|name=4.03",
+              "mark_id": "m1"
+            },
+            {
+              "page": 1,
+              "box": [
+                0.5,
+                0.14,
+                0.6,
+                0.155
+              ],
+              "polygon": null,
+              "ref": "e5",
+              "label": "window",
+              "role": "counted",
+              "quantity": "window",
+              "mark_id": "m2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "fi-door-clear-width",
+      "title": "A door to a habitable room is at least 0.80 m clear",
+      "status": "fail",
+      "why": "Of 3 checked: 1 fail, 1 cannot tell, 1 pass.",
+      "clause": {
+        "ref": "Valtioneuvoston asetus rakennuksen esteettömyydestä 241/2017, 4 § 2 mom.",
+        "url": "https://www.finlex.fi/fi/lainsaadanto/2017/241",
+        "quote": "Muun rakennuksen kuin asuinrakennuksen huonetiloihin sekä asuinrakennuksen asuinhuoneisiin, asumista palveleviin välttämättömiin tiloihin ja rakennuksen käyttöä palveleviin tiloihin johtavan oven ja kulkuaukon vapaan leveyden on oltava vähintään 800 millimetriä.",
+        "quote_en": "The clear width of a door or passage opening leading to the rooms of a building other than a residential building, and to the habitable rooms of a residential building, the necessary spaces serving the dwelling and the spaces serving the use of the building, must be at least 800 millimetres."
+      },
+      "results": [
+        {
+          "id": "fi-door-clear-width:e2",
+          "rule_id": "fi-door-clear-width",
+          "status": "fail",
+          "subject": {
+            "kind": "element",
+            "ref": "e2",
+            "label": "the door between the bedroom \"Schlafzimmer 4.01\" and the bedroom \"Schlafzimmer 4.02\""
+          },
+          "value": 0.706,
+          "limit": 0.8,
+          "unit": "m",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The door between the bedroom \"Schlafzimmer 4.01\" and the bedroom \"Schlafzimmer 4.02\": its symbol measures 0.71 m, so its clear opening cannot be at least 0.8 m. It would not meet today's rule for a new building.",
+          "quantity": "door",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.28167,
+                0.2,
+                0.295,
+                0.25
+              ],
+              "polygon": null,
+              "ref": "e2",
+              "label": "door",
+              "role": "subject",
+              "quantity": "door",
+              "mark_id": "m2"
+            }
+          ]
+        },
+        {
+          "id": "fi-door-clear-width:e3",
+          "rule_id": "fi-door-clear-width",
+          "status": "cannot_tell",
+          "subject": {
+            "kind": "element",
+            "ref": "e3",
+            "label": "the door between the living room \"Wohnen 4.03\" and the hall \"Korridor 4.04\""
+          },
+          "value": 0.847,
+          "limit": 0.8,
+          "unit": "m",
+          "comparison": ">=",
+          "comparison_text": "at least",
+          "why": "The door between the living room \"Wohnen 4.03\" and the hall \"Korridor 4.04\": its symbol measures 0.85 m; its clear opening is up to 10 cm (our allowance for the frame, not the law's) less, so it may or may not be at least 0.8 m.",
+          "quantity": "door",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.42333,
+                0.3725,
+                0.43667,
+                0.4325
+              ],
+              "polygon": null,
+              "ref": "e3",
+              "label": "door",
+              "role": "subject",
+              "quantity": "door",
+              "mark_id": "m3"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `file` and `file_id` are the file as `project` uploaded it (a drawing shared by two projects is named as each
+  uploaded it); without `project`, the drawing's stored name and `file_id` null.
+- `status` (the drawing's) and each rule's `status`: `fail` when one result fails, else `cannot_tell` when one
+  cannot tell, else `pass`; `not_applicable` when the drawing has nothing the rule applies to (rooms were read and
+  none is a bedroom; no door leads to a habitable room). A rule with no results and `cannot_tell` could not be
+  checked at all (`why` says what was not read, or that rooms are of a kind we could not tell and may be ones the
+  rule names). A building model file is `not_applicable` ("checked on its sheets") when its sheets are in
+  `project`, else `cannot_tell`.
+- A result is one rule on one room, door or the sheet: `status` is `pass`, `fail` or `cannot_tell`; `id` is
+  `<rule_id>:<room or element id>` (`:sheet` for a sheet quantity), the same on every call for the same drawing.
+  `value` is what was measured, in `unit`; null when nothing was measured; a value too uncertain to judge is kept
+  with `cannot_tell`. `why` is one plain sentence (a fail ends with the pack's `fail_means`).
+- `quantity` is the subject's takeoff row (`Row.key`) for the surveyor's view, null when the takeoff has none.
+  Each mark has `role` (`subject`: the room or door checked; `counted`: what was counted for it, a room's windows),
+  `page`, `box`, `polygon` (a room's outline, else null), `ref` (the room or element id), `label`, and its
+  takeoff row `quantity` with `mark_id`, its `MarkView.id` in that row (the row's own ids; null when the takeoff
+  has no row with it).
+- A fail stands only on reliable inputs: on a drawing read off a picture (route `raster`, or a route not known) a
+  small room from a read outline and a room with no window found are `cannot_tell`, never `fail`; a printed area
+  still decides. A door there is `cannot_tell` whatever its box measures. A door's width is measured from its symbol (or the building model), which bounds the clear opening
+  from above; the 0.10 m allowed for the frame is ours, not the law's, and the `why` says so.
+
+### `GET /api/projects/{project_id}/checks?pack=<pack id>`
+
+<!-- fixture: project_checks.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d53",
+  "pack": "fi",
+  "note": "A pre-check of a few rules, not a compliance certificate.",
+  "status": "fail",
+  "drawings": [
+    {
+      "drawing_id": "5c4ed01e00000002",
+      "file": "flat-fi.pdf",
+      "file_id": "f1",
+      "pack": "fi",
+      "note": "A pre-check of a few rules, not a compliance certificate.",
+      "status": "fail",
+      "rules": [
+        {
+          "rule_id": "fi-habitable-room-area",
+          "title": "A bedroom or living room is at least 7 m2",
+          "status": "fail",
+          "why": "Of 3 checked: 1 fail, 2 pass.",
+          "clause": {
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
+            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+          },
+          "results": [
+            {
+              "id": "fi-habitable-room-area:r2",
+              "rule_id": "fi-habitable-room-area",
+              "status": "fail",
+              "subject": {
+                "kind": "room",
+                "ref": "r2",
+                "label": "Schlafzimmer 4.02"
+              },
+              "value": 6.03,
+              "limit": 7.0,
+              "unit": "m2",
+              "comparison": ">=",
+              "comparison_text": "at least",
+              "why": "The bedroom \"Schlafzimmer 4.02\" is 6.03 m2; the rule asks at least 7 m2. It would not meet today's rule for a new building.",
+              "quantity": "area:room|name=4.02",
+              "marks": [
+                {
+                  "page": 1,
+                  "box": [
+                    0.28833,
+                    0.15,
+                    0.43,
+                    0.2925
+                  ],
+                  "polygon": [
+                    [
+                      0.28833,
+                      0.15
+                    ],
+                    [
+                      0.28833,
+                      0.2925
+                    ],
+                    [
+                      0.43,
+                      0.2925
+                    ],
+                    [
+                      0.43,
+                      0.15
+                    ]
+                  ],
+                  "ref": "r2",
+                  "label": "Schlafzimmer 4.02",
+                  "role": "subject",
+                  "quantity": "area:room|name=4.02",
+                  "mark_id": "m1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Every drawing of the project (in `GET /api/projects/{id}` `drawings` order), each as above with this project's
+`file` and `file_id`; `status` over the drawings as a drawing's is over its rules. 409 `not-allowed` until the
+project is `done` (a drawing's own checks answer as soon as that drawing exists); 404 `unknown-pack` for an
+unknown pack, `not-found` for an unknown project.
+
 ## What is not in v1
 
 - Contested marks: a conflict is shown per quantity, with both values and, where the method has one, the `box` it
@@ -7148,6 +7795,11 @@ formula in a spreadsheet.
   an estimate or a person's unsigned edit always asks; a settle or sign-off lifts the request. Not
   `proof.check` (unchanged: how a second method measured the value). Behaviour: with `CHECK_POLICY` on, `sure`
   is true exactly when the answer is certified (`GATE_POLICY` no longer sets it), null on a refusal.
+- 2026-11-14, additive (story #139, decision 0009): `GET /api/info` gains `rule_packs` (the building-code packs,
+  `[]` when none is installed). New `GET /api/drawings/{id}/checks?pack=&project=` and
+  `GET /api/projects/{id}/checks?pack=`. An unknown pack is 404 `unknown-pack`, as for the issues.
+  `GET /api/projects/{id}/issues?pack=` (and `.csv`, `.zip`) now lists the pack's failed checks as
+  `code_check_failed` issues (severity `fails_rule`, `links.checks` set); without a pack the list is unchanged.
 - 2026-11-14, additive (decision 0010, board #152 c6876693460): `POST /api/projects/{project_id}/files/{file_id}/triage`
   reads a file triage set aside as a floor plan (202, in the background); `Triage.read_as_plan`; a new error code
   `not-triaged` (422).

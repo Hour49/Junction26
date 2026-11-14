@@ -11,7 +11,8 @@
 
   // Synthetic: four images of the sample upload, in the shapes of 0010 §8 (#152 c6877087844). register: the
   // sheet-register row; description: the describer's form. Relevance is not stored: relevanceOf applies the rule.
-  const TRIAGE = {
+  // Stoa mode hands its own (VData.TRIAGE: real scans, each with image, credit and example: a hand-picked example).
+  const SAMPLE = {
     'elevations/south-elevation.png': { picture: 'elevation',
       register: { kind: 'elevation', has_floor_plan: false, photo_of_sheet: false, scale_shown: 'ratio_text', quality: 'good', method: METHOD },
       description: { text: 'The south face of a four-storey block, drawn straight on, with a title block.', what_it_is: 'drawing', shows_building: true,
@@ -27,9 +28,10 @@
         visible_text: 'Autumn Concert\n7 pm', detail: 'A printed poster on a dark background. The title is set large across the top, a time below it, and a violin drawn in light lines fills the middle.' } },
     'scans/annex-sketch.jpg': { picture: 'sketch',
       register: { kind: 'site_plan_or_map', has_floor_plan: false, photo_of_sheet: false, scale_shown: 'none', quality: 'poor', method: METHOD },
-      description: { text: 'A faint pencil sketch of a few rooms with a north arrow; it could be a sketch plan or a site layout.', what_it_is: 'drawing', shows_building: true,
-        visible_text: 'Annex\nKitchen', detail: 'Pencil on paper, scanned light. Three rectangles drawn freehand share walls; one is labelled Kitchen. Short gaps in the walls may be doors. The word Annex is written above.' } },
+      description: { text: 'A faint pencil sketch of a few rooms; it could be a sketch plan or a site layout.', what_it_is: 'drawing', shows_building: true,
+        visible_text: 'Annex', detail: 'Pencil on paper, scanned light. Three rectangles drawn freehand share walls; any room names are too faint to read. Short gaps in the walls may be doors. The word Annex is written above.' } },
   };
+  const TRIAGE = root.VData && root.VData.TRIAGE ? root.VData.TRIAGE : SAMPLE;
 
   const CLASS_LABEL = { floor_plan: 'a floor plan', other_drawing: 'another kind of drawing', not_drawing: 'not a drawing' };
   const VERDICT = {
@@ -39,12 +41,18 @@
     none: { pill: '– Not judged' },
   };
   const NOT_JUDGED = 'not judged yet: the project is still being read';
-  const PREVIEW_TIP = 'File triage is coming (decision 0010). It is off in today\'s demo config until its classifier passes its check.';
-  const STOP = new Set(['this', 'that', 'with', 'from', 'have', 'there', 'their', 'what', 'page', 'sheet', 'drawing', 'scale']);
+  const PREVIEW_TIP = 'File triage is coming. It is switched off in today\'s app until its classifier passes its check.';
+  // drawing words too: "floor plan" printed on a sheet says nothing about which project it belongs to
+  const STOP = new Set(['this', 'that', 'with', 'from', 'have', 'there', 'their', 'what', 'page', 'sheet', 'drawing', 'scale',
+    'floor', 'plan', 'plans', 'site', 'section', 'elevation', 'archive', 'level', 'north', 'south', 'east', 'west']);
 
   const of = (path) => TRIAGE[path] || null;
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  const kindWords = (k) => k.replace(/_/g, ' ');
+  // the register's kind in plain words (R7-c-8)
+  const KIND_WORDS = { floor_plan: 'a floor plan', elevation: 'an elevation (a face of the building)', section: 'a section (a cut through the building)',
+    site_plan_or_map: 'a site plan or map', cover_or_text_sheet: 'a cover or text page', photograph: 'a photo',
+    not_architecture: 'a picture that is not of a building design', other: 'another kind of picture' };
+  const kindWords = (k) => KIND_WORDS[k] || k.replace(/_/g, ' ');
   // 0010 §8: the class follows the register (unsure counts as a plan)
   function classOf(path) {
     const r = of(path).register;
@@ -90,12 +98,14 @@
     const ms = ctx.now - r.at;
     return ms < 1000 ? 'queued' : ms < 3000 ? 'running' : 'ready';
   }
-  const notPlans = (files, ctx) => files.filter((f) => of(f.path) && classOf(f.path) !== 'floor_plan' && !ctx.rap[f.path]).length;
+  // a file read as a plan counts once it has a drawing; one where the read found nothing stays set aside (R7-c-7)
+  const notPlans = (files) => files.filter((f) => of(f.path) && classOf(f.path) !== 'floor_plan' && !f.drawing).length;
   function notPlansLine(n) {
     return n === 0 ? 'No image set aside as not a floor plan' : n === 1 ? '1 not a floor plan: kept, not read' : `${n} not floor plans: kept, not read`;
   }
 
-  // The file row's line: { text, pill (null: none), by (null: no call) }. hasDrawing: the re-read found a drawing.
+  const pillClass = (v) => (v === 'related' ? 'ok' : v === 'unsure' ? 'warn' : 'grey');
+  // The file row's line: { text, pill (null: none), tone (the pill's colour), by (null: no call) }. hasDrawing: the re-read found a drawing.
   function rowLine(path, ctx, hasDrawing) {
     const r = ctx.rap[path];
     if (r) {
@@ -103,7 +113,7 @@
       return { text: st === 'ready' && !hasDrawing ? 'read as a floor plan: no rooms or openings were found on it' : `Read as a floor plan on ${r.by}'s call`, pill: null, by: null };
     }
     const v = verdictOf(path, ctx), call = ctx.calls[path];
-    return { text: `Not a floor plan: ${CLASS_LABEL[classOf(path)]} · ${kindWords(of(path).register.kind)}`, pill: VERDICT[v || 'none'].pill, by: call ? call.by : null };
+    return { text: `Not a floor plan: ${CLASS_LABEL[classOf(path)]} · ${kindWords(of(path).register.kind)}`, pill: VERDICT[v || 'none'].pill, tone: pillClass(v), by: call ? call.by : null };
   }
   function callLine(path, ctx, time) {
     const call = ctx.calls[path];
@@ -126,6 +136,7 @@
   // ---------- pictures (synthetic, drawn here; no real file) ----------
   function picture(path, label) {
     const t = of(path), a = `role="img" aria-label="${esc(label)}"`, box = 'viewBox="0 0 400 280" class="plan tri-pic"';
+    if (t.image) return `<img class="plan tri-pic" src="${esc(t.image)}" alt="${esc(label)}">`;
     if (t.picture === 'elevation') {
       let w = '';
       for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) if (!(r === 3 && (c === 2 || c === 3))) w += `<rect x="${92 + c * 36}" y="${52 + r * 40}" width="20" height="24" fill="none" stroke="#1d1d1f" stroke-width="1.5"/>`;
@@ -141,7 +152,9 @@
     }
     // the sketch: the annex layout in the scan look (plan.js), since it really is a plan
     const P = root.VPlan, V = root.VData, d = V.READ_AS_PLAN && V.READ_AS_PLAN[path];
-    return d && P ? P.plain(d, 'scan', label).replace('class="plan ', 'class="plan tri-pic ') : `<svg ${box} ${a}><rect width="400" height="280" fill="#f3eedd"/></svg>`;
+    if (!d || !P) return `<svg ${box} ${a}><rect width="400" height="280" fill="#f3eedd"/></svg>`;
+    return P.plain(d, 'scan', label).replace('class="plan ', 'class="plan tri-pic ').replace(/<text\b[^>]*>[^<]*<\/text>/g, '')
+      .replace('</svg>', '<text x="140" y="-2.5" font-family="Georgia, serif" font-style="italic" font-size="7.5" fill="#5b5446" text-anchor="middle">Annex</text></svg>');
   }
 
   // ---------- the trace's triage card ----------
@@ -154,7 +167,7 @@
     const seen = d.visible_text
       ? `<details class="tri-more"><summary>Text printed on it</summary><p class="small tri-text">${esc(d.visible_text)}</p></details>` : '<p class="small">No text printed on it.</p>';
     const vp = v ? VERDICT[v] : VERDICT.none, rel = ctx.done ? relevanceOf(path, ctx.project) : null;
-    const belong = `<div class="tri-part"><h3>Does it belong to this project?</h3><p><span class="pill ${v === 'related' ? 'ok' : v === 'unsure' ? 'warn' : 'grey'}">${vp.pill}</span>
+    const belong = `<div class="tri-part"><h3>Does it belong to this project?</h3><p><span class="pill ${pillClass(v)}">${vp.pill}</span>
       ${v ? `<span>${vp.sentence}</span>` : `<span class="muted">${NOT_JUDGED}</span>`}</p>
       ${rel ? `<p class="small">The rule says ${esc(rel.why)}.</p>${rel.matched_on.length ? `<p class="small">Matched on: ${esc(rel.matched_on.join(', '))}</p>` : ''}<p class="small muted">Decided by the ${esc(rel.judge)}.</p>` : ''}</div>`;
     const off = signer.trim() ? '' : ' disabled';
@@ -172,15 +185,31 @@
       : ctx.done ? `<div class="tri-part"><button class="btn btn-plain press" data-act="tri-read" data-path="${esc(path)}" data-needs-name${off}>Read it as a floor plan</button>
         <p class="small">If it is a floor plan after all, it is read like any drawing. This can't be undone.</p></div>` : '';
     return `<section class="card tri" aria-label="Is it a floor plan?"><div class="tri-top">${head}${pill}</div>
-      <p class="small">Kind: ${esc(kindWords(t.register.kind))}</p>
-      <figure class="tri-fig">${picture(path, `${path} as uploaded`)}</figure>
+      <p class="small">What triage saw: ${esc(kindWords(t.register.kind))}</p>
+      <figure class="tri-fig">${picture(path, `${path} as uploaded`)}${t.credit ? `<figcaption class="small credit">Credit: ${esc(t.credit)}</figcaption>` : ''}</figure>
       <div class="tri-part"><h3>What is on it</h3><p>${esc(d.text)}</p>${seen}
-        <details class="tri-more"><summary>Full description (a model's description, not checked by a person)</summary><p class="small">${esc(d.detail)}</p></details></div>
+        <details class="tri-more"><summary>Full description (${t.example ? EXAMPLE : 'a model\'s description, not checked by a person'})</summary><p class="small">${esc(d.detail)}</p></details></div>
       ${belong}${callHtml}${read}</section>`;
   }
 
+  // ---------- the project chat's question about a set-aside elevation (a preview) ----------
+  // The backend keeps a non-plan's description for later AI use and does not answer from it yet: this shows what such
+  // an answer could pull. The quote is the description's sentences holding a word of the question, else its summary.
+  const EXAMPLE = 'a hand-picked example written for this demo: what a person saw, not a model\'s output';
+  const ASKS_ELEVATION = /\b(elevation|fa[cç]ade)s?\b/i;
+  const QSTOP = new Set(['many', 'does', 'building', 'show', 'shows', 'house', 'have', 'there']);
+  const stem = (w) => w.replace(/(ies|s)$/, '');
+  function described(question, files) {
+    if (!ASKS_ELEVATION.test(question)) return null;
+    const f = files.find((x) => of(x.path) && of(x.path).register.kind === 'elevation');
+    if (!f) return null;
+    const d = of(f.path).description, want = wordsOf(question).filter((w) => !QSTOP.has(w) && !ASKS_ELEVATION.test(w)).map(stem);
+    const said = `${d.text} ${d.detail}`.split(/(?<=\.)\s+/).filter((x) => want.some((w) => x.toLowerCase().includes(w)));
+    return { path: f.path, quote: said.length ? said.slice(0, 2).join(' ') : d.text, matched: said.length > 0, example: !!of(f.path).example };
+  }
+
   const API = { TRIAGE, CLASS_LABEL, VERDICT, RULE, NOT_JUDGED, PREVIEW_TIP, of, classOf, projectOf, relevanceOf, verdictOf, rapState,
-    notPlans, notPlansLine, rowLine, callLine, issueOf, picture, card };
+    notPlans, notPlansLine, rowLine, callLine, issueOf, picture, card, described, kindWords, EXAMPLE };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.VTriage = API;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -5,6 +5,12 @@ Local only. The Stoa data is partner data and never gets committed: demo/vellum/
     python3 -I demo/vellum/make_stoa_demo.py --dataset ~/Junction26/data/stoa/full/junction-dataset
 
 Then open demo/vellum/stoa/index.html (served from demo/vellum/, see README.md). Stdlib only.
+
+The archive folder (file triage, a preview): with --picks (default data/stoa/demo-triage.json next to the dataset,
+also gitignored) the real scans it names are copied into stoa/archive/ with their register row and description, and
+the per-file credit from their source's LICENSE.md. The picks name partner files and hold text read from them, so
+they stay local too: {"picks": [{"source", "file", "register": {...}, "description": {...}}]}, a register kind
+floor_plan makes the file a drawing (no answer key), any other kind sets it aside.
 """
 
 import argparse
@@ -40,10 +46,48 @@ def credit(source_dir):
     sys.exit(f"no 'All files:' licence line in {source_dir / 'LICENSE.md'}")
 
 
+ARCHIVES = ("finna", "europeana", "habs", "wikimedia")  # the mixed-kind sources; never cubicasa5k (NC, eval leakage)
+PICK_METHOD = "hand-picked example: what a person saw, not a model's output"
+
+
+def file_credit(source_dir, name):
+    """The file's row in its source's LICENSE.md table: 'credit (licence)'. NC files are refused."""
+    for line in (source_dir / "LICENSE.md").read_text(encoding="utf-8").splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if cells[0] == name and len(cells) >= 4:
+            if "NC" in cells[2]:
+                sys.exit(f"{name} is {cells[2]}: NonCommercial files stay out of the demo")
+            return f"{cells[3]} ({cells[2]})"
+    sys.exit(f"{name} has no row in {source_dir / 'LICENSE.md'}")
+
+
+def archive(dataset, out, picks_path):
+    """The archive folder's files, copied into out/archive/; [] when there are no picks."""
+    if not picks_path.is_file():
+        return []
+    files = []
+    (out / "archive").mkdir(exist_ok=True)
+    for p in json.loads(picks_path.read_text(encoding="utf-8"))["picks"]:
+        if p["source"] not in ARCHIVES or not re.fullmatch(r"[\w.-]+\.(jpg|png)", p["file"]):  # it becomes a path
+            sys.exit(f"bad pick {p['source']}/{p['file']}")
+        src = dataset / "data" / p["source"] / p["file"]
+        shutil.copyfile(src, out / "archive" / p["file"])
+        path = f"archive/{p['file']}"
+        entry = {"path": path, "size": size_text(src.stat().st_size), "kind": "JPG scan", "image": path,
+                 "credit": file_credit(dataset / "data" / p["source"], p["file"])}
+        register = {**p["register"], "method": PICK_METHOD}
+        if register["kind"] == "floor_plan":
+            entry.update(lane="Vision", role="source", plan=True)
+        else:
+            entry.update(lane=None, role="not a floor plan", triage={"register": register, "description": p["description"]})
+        files.append(entry)
+    return files
+
+
 KINDS = {".pdf": ("Vector PDF", "CAD"), ".dxf": ("DXF", "CAD"), ".png": ("PNG rendering", "Vision")}
 
 
-def build(dataset, out, stem):
+def build(dataset, out, stem, picks):
     questions = [json.loads(line) for line in (dataset / "questions.jsonl").open(encoding="utf-8") if line.strip()]
     mine = floor_questions(questions, stem)
     source_dir = dataset / "data" / SOURCE
@@ -68,6 +112,7 @@ def build(dataset, out, stem):
         "credit": credit(source_dir),
         "files": files,
         "questions": [{k: q[k] for k in ("question", "answer", "unit", "type")} for q in mine],
+        "archive_files": archive(dataset, out, picks),
     }
     (out / "data.js").write_text("window.VStoaData = " + json.dumps(data, indent=1) + ";\n", encoding="utf-8")
     # stoa/index.html: the demo's page one folder down (no <base>: it would send the #/ links back to ../index.html)
@@ -87,13 +132,15 @@ def main():
     ap.add_argument("--dataset", type=Path, default=HERE.parents[1] / "data/stoa/full/junction-dataset",
                     help="the unzipped Stoa junction-dataset folder (default: the repo's data/stoa/full/...)")
     ap.add_argument("--floor", default=FLOOR, help=f"the {SOURCE} floor to show (default {FLOOR})")
+    ap.add_argument("--picks", type=Path, help="the archive folder's picks (default: <dataset>/../../demo-triage.json)")
     ap.add_argument("--out", type=Path, default=HERE / "stoa", help=argparse.SUPPRESS)
     a = ap.parse_args()
     if not (a.dataset / "questions.jsonl").is_file():
         sys.exit(f"no questions.jsonl in {a.dataset}; pass --dataset (python3 tools/fetch_stoa_data.py full)")
     if not re.fullmatch(r"site\d+_bldg\d+_floor\d+", a.floor):  # it becomes a file name: no paths
         sys.exit(f"--floor must look like {FLOOR}")
-    stem, n = build(a.dataset.expanduser(), a.out, a.floor)
+    dataset = a.dataset.expanduser()
+    stem, n = build(dataset, a.out, a.floor, (a.picks or dataset.parents[1] / "demo-triage.json").expanduser())
     print(f"{stem}: {n} questions -> {a.out}/ (local only, never commit it). Open stoa/index.html.")
 
 

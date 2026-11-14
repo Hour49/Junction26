@@ -199,8 +199,9 @@ def test_a_reread_whose_reader_fails_goes_back_to_triage_and_can_be_asked_again(
     assert failed.triage is not None and failed.triage.read_as_plan is None
     assert (failed.kind, failed.normalised) == (photo.kind, photo.normalised)  # triage's
     asked = [s for s in ingest.trace(project.id, photo.id).stages if s.did.endswith("Ana asked")]
-    assert [s.failure for s in asked] == ["failed at extract: OSError: image file is truncated "
-                                          "(0 bytes not processed)"]  # fmt: skip
+    assert [s.failure for s in asked] == [
+        "at extract: OSError: image file is truncated (0 bytes not processed)"
+    ]  # R6-c-10: the screen adds "Failed:"
     ingest.read_as_plan(project.id, photo.id, CALL)  # no 409
     read = file_of(ingest.wait(project.id), "site.jpg")
     assert read.state in ("ready", "flagged") and read.drawing_id is not None
