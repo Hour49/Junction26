@@ -17,6 +17,7 @@ from app.api.questions import AskedQuestion, record
 from app.api.views import View, drawings_of
 from app.core.answering.model import Unit
 from app.core.drawing.model import Drawing
+from app.core.review.check import LevelName, lowest
 from app.core.review.model import RefusalCode, Row
 from app.core.review.proof import SHOWN_UNITS
 from app.core.review.review import NotAllowedError, noun
@@ -54,6 +55,9 @@ class ProjectAnswer(View):
     total: int | float | None
     total_unit: Unit | None  # the unit of `total`; None with it
     total_sure: bool  # every part in the total is sure (`line.sure`); False with no total
+    # The lowest confidence level among the total's parts that have one (`answer.level`); None
+    # with no total, or when no part has a level
+    total_level: LevelName | None
     total_note: str  # one plain sentence: what the total is over, what is left out and why
     # total_note in its two parts. why_no_total: why there is no total, as a sentence; None with
     # a total. refused_note: the drawings that refused and what each lacks, as a sentence; None
@@ -68,6 +72,7 @@ class Total:
     total: int | float | None = None
     unit: Unit | None = None
     sure: bool = False
+    level: LevelName | None = None
     why_not: str | None = None
     left_out: str | None = None
 
@@ -119,6 +124,7 @@ def project_ask(
         total=total.total,
         total_unit=total.unit,
         total_sure=total.sure,
+        total_level=total.level,
         total_note=total.note,
         why_no_total=total.why_not,
         refused_note=total.left_out,
@@ -164,6 +170,7 @@ def _total(parts: list[ProjectAnswerPart], drawing_of: Callable[[str], Drawing])
         total=total,
         unit=unit,
         sure=sure,
+        level=lowest(view.level.level for view in answered if view.level is not None),
         note=_sentence(note, left_out),
         left_out=_dotted(left_out),
     )

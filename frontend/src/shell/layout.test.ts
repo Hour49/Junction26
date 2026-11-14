@@ -21,9 +21,9 @@ function rulesFor(selector: string, source: string): string {
 it('R1-5-4 the header project picker is constrained to the header width (jsdom has no layout)', () => {
   // A native <select> is as wide as its longest option unless min-width and max-width stop it.
   const all = rulesFor('.project-picker', css);
-  expect(all).toMatch(/min-width:\s*0/);
   expect(all).toMatch(/max-width:\s*100%/);
   const compact = css.slice(css.indexOf('@media (max-width: 1100px)'));
+  expect(rulesFor('.project-picker', compact)).toMatch(/min-width:\s*0/);
   expect(rulesFor('.project-picker', compact)).toMatch(/width:\s*100%/);
 });
 
@@ -119,7 +119,7 @@ it('SH-58 focus ring on every focusable element, no outline: none, reduced motio
   const focusable = ['a', 'button', 'select', 'input', 'textarea', 'summary', '[tabindex]'];
   for (const el of focusable) {
     const ring = rulesFor(`${el}:focus-visible`, css);
-    expect(ring, el).toMatch(/outline:\s*2px solid var\(--v-accent\)/);
+    expect(ring, el).toMatch(/outline:\s*3px solid var\(--v-accent\)/); // SH-81: the demo's 3px
     expect(ring, el).toMatch(/outline-offset:\s*2px/);
   }
   // The one exception: App focuses <main tabindex=-1> on a route change; it is not a control (pre-QA 12:00).
@@ -189,9 +189,47 @@ it('SH-70 the compact header applies up to 1100 px: not sticky, tabs wrap and st
 it('SH-71 the country button stays on one line and ellipsises a long name', () => {
   expect(rulesFor('.country-button', css)).toMatch(/white-space:\s*nowrap/);
   const country = rulesFor('.country', css);
-  expect(country).toMatch(/flex:\s*0 0 auto/);
   expect(country).toMatch(/max-width:\s*240px/);
   const name = rulesFor('.country-name', css);
   expect(name).toMatch(/overflow:\s*hidden/);
   expect(name).toMatch(/text-overflow:\s*ellipsis/);
+});
+
+it('SH-81 the demo-parity tokens and the badge and tabs use them', () => {
+  const root = declarations(rulesFor(':root', css));
+  for (const [name, value] of Object.entries({
+    '--v-warn-mark': '#d9860b',
+    '--v-warn-mark-fill': 'rgba(217, 134, 11, 0.12)',
+    '--v-badge': '#e8740c',
+    '--v-seg': '#e8e8ed',
+    '--v-grey': '#ececf0',
+    '--v-mono': '"JetBrains Mono", ui-monospace, Menlo, monospace',
+  }))
+    expect(root.get(name), name).toBe(same(value));
+  expect(rulesFor('.tab-badge', css)).toMatch(/background:\s*var\(--v-badge\)/);
+  expect(rulesFor('.view-links', css)).toMatch(/background:\s*var\(--v-seg\)/);
+});
+
+it('SH-81 the demo look: 3px focus ring, a surface ring round the badge, the smaller phone logo', () => {
+  expect(rulesFor('a:focus-visible', css)).toMatch(/outline:\s*3px solid var\(--v-accent\)/);
+  expect(rulesFor('.tab-badge', css)).toMatch(/box-shadow:\s*0 0 0 2px var\(--v-surface\)/);
+  const phone = css.slice(css.indexOf('@media (max-width: 720px)'));
+  const logo = rulesFor('.brand-logo', phone);
+  expect(logo).toMatch(/width:\s*36px/);
+  expect(logo).toMatch(/height:\s*36px/);
+  expect(rulesFor('.brand-name', phone)).toMatch(/font-size:\s*22px/);
+});
+
+it('SH-84 the project picker gives way first, down to 200px; then the country pill truncates', () => {
+  const desktop = css.slice(0, css.indexOf('@media (max-width: 1100px)'));
+  expect(rulesFor('.project-picker', desktop)).toMatch(/min-width:\s*200px/);
+  const country = rulesFor('.country', desktop);
+  expect(rulesFor('.project-picker', desktop)).toMatch(/flex:\s*0 1000 320px/);
+  expect(country).toMatch(/flex:\s*0 1 auto/);
+  expect(country).toMatch(/min-width:\s*0/);
+  expect(country).toMatch(/max-width:\s*240px/);
+});
+
+it('SH-86 the plan paper token for the viewer (fe-viewer ask)', () => {
+  expect(declarations(rulesFor(':root', css)).get('--v-plan')).toBe('#fbf8ef');
 });

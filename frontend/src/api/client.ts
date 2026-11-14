@@ -20,6 +20,8 @@ import type {
   Started,
   Takeoff,
   DrawingChecks,
+  Issue,
+  IssueAnswerRequest,
   IssueList,
   ProjectChecks,
 } from './types';
@@ -192,6 +194,20 @@ export const readAsPlan = (projectId: string, fileId: string, by: string, opts?:
   postJson<FileStatus>(
     `/api/projects/${seg(projectId)}/files/${seg(fileId)}/triage`,
     { class: 'floor_plan', by } satisfies TriageRequest,
+    opts,
+  );
+
+/** A person's answer to an issue, or `{undo: true}` (#223); answers the issue as it now stands. Answering does
+ * not close it. A code check's issue needs its `pack` (404 without). */
+export const answerIssue = (
+  projectId: string,
+  issueId: string,
+  body: IssueAnswerRequest,
+  opts: Opts & { pack?: string } = {},
+) =>
+  postJson<Issue>(
+    withQuery(`/api/projects/${seg(projectId)}/issues/${seg(issueId)}/answer`, { pack: opts.pack }),
+    body,
     opts,
   );
 

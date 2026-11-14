@@ -641,6 +641,7 @@ export interface components {
             file: string;
             /** Latency S */
             latency_s: number;
+            level: components["schemas"]["app__core__review__check__Level"] | null;
             line: components["schemas"]["Answer"];
             /** Marks */
             marks: components["schemas"]["MarkView"][];
@@ -733,7 +734,7 @@ export interface components {
             id: string;
             /** Label */
             label: string | null;
-            level?: components["schemas"]["Level"] | null;
+            level?: components["schemas"]["app__core__agent__model__Level"] | null;
             /** N */
             n: number;
             /** Name */
@@ -1360,21 +1361,6 @@ export interface components {
                 number
             ][];
         };
-        /**
-         * Level
-         * @description An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').
-         */
-        Level: {
-            /** Basis */
-            basis?: string | null;
-            /**
-             * Level
-             * @enum {string}
-             */
-            level: "high" | "medium" | "low";
-            /** Text */
-            text?: string | null;
-        };
         /** Limits */
         Limits: {
             /** File Mb */
@@ -1575,6 +1561,8 @@ export interface components {
             refused_note: string | null;
             /** Total */
             total: number | null;
+            /** Total Level */
+            total_level: ("high" | "medium" | "low") | null;
             /** Total Note */
             total_note: string;
             /** Total Sure */
@@ -2437,6 +2425,40 @@ export interface components {
             label: string;
             /** Page */
             page: number;
+        };
+        /**
+         * Level
+         * @description An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').
+         */
+        app__core__agent__model__Level: {
+            /** Basis */
+            basis?: string | null;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /** Text */
+            text?: string | null;
+        };
+        /**
+         * Level
+         * @description How far to trust an answer: one of three levels, what it rests on, and one plain sentence
+         *     with the measured counts behind it.
+         */
+        app__core__review__check__Level: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "certified" | "route" | "score" | "page" | "held" | "unrated";
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /** Text */
+            text: string;
         };
     };
     responses: never;

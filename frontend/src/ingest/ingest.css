@@ -84,6 +84,11 @@
   justify-content: space-between;
   align-items: flex-end;
 }
+/* the project screen: the Simple/Advanced segment on its own row under the h1 (demo .title-row wrapped, IN-85) */
+.ingest-head--stack {
+  flex-direction: column;
+  align-items: flex-start;
+}
 .ingest-head h1 {
   margin: 4px 0 0;
 }
@@ -94,6 +99,12 @@
   color: var(--v-accent);
   font-size: 14px;
   font-weight: 600;
+}
+.ingest-eyebrow.ok {
+  color: var(--v-ok);
+}
+.ingest-eyebrow.ok .ingest-dot {
+  background: var(--v-ok);
 }
 .ingest-dot {
   width: 8px;
@@ -156,27 +167,39 @@
   -webkit-mask: radial-gradient(farthest-side, transparent 80%, var(--v-text) 81%);
   mask: radial-gradient(farthest-side, transparent 80%, var(--v-text) 81%);
 }
+/* the demo's hairline grid, edge to edge across the card (style.css .stats) */
 .ingest-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin: 0;
-  padding: 16px 0;
-  border-top: 1px solid var(--v-line);
-  border-bottom: 1px solid var(--v-line);
+  gap: 1px;
+  margin: 0 -24px;
+  padding: 0;
+  background: var(--v-fill);
+  border-top: 1px solid var(--v-fill);
+  border-bottom: 1px solid var(--v-fill);
+}
+.ingest-stats > div {
+  background: var(--v-surface);
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .ingest-stats dt {
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--v-muted);
 }
 .ingest-stats dd {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 .ingest-steps {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 .ingest-step {
   display: grid;
@@ -184,6 +207,11 @@
   align-items: center;
   gap: 4px 12px;
   min-height: 40px;
+  padding: 6px 14px;
+  border-radius: 14px;
+}
+.ingest-step.is-working {
+  background: var(--v-accent-soft);
 }
 .ingest-step.is-waiting {
   color: var(--v-muted);
@@ -228,8 +256,40 @@
   height: 6px;
   accent-color: var(--v-accent);
 }
-.ingest-next {
+/* Screen 2 finished: the done line (the card's last row) and the chat row under the conflicts (demo .done-row,
+   .chat-cta) */
+.ingest-done-line {
+  margin: 0;
+  font-size: 15px;
+  color: var(--v-text-2);
+}
+.ingest-done-line a {
+  color: var(--v-accent);
+  font-weight: 600;
+}
+.ingest-chat-row {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-top: 8px;
+}
+.ingest-chat-row .v-btn[disabled] {
+  opacity: 1;
+  background: var(--v-fill);
+  color: var(--v-muted);
+  cursor: not-allowed;
+}
+.ingest-chat-why {
+  font-size: 13px;
+  color: var(--v-muted);
+}
+.ingest-chat-link {
+  font-size: 13px;
+  color: var(--v-accent);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Screen 2: a done upload with no drawings (IN-72) */
@@ -253,52 +313,54 @@
   font-size: 14px;
 }
 
-/* Screen 2: drawings and files */
-.ingest-drawings ul {
-  display: grid;
-  gap: 12px;
-}
-.ingest-drawings li {
-  display: grid;
-  gap: 6px;
-  justify-items: start;
-}
-.ingest-files ul {
-  padding: 8px 24px;
-}
-.ingest-files li + li {
-  border-top: 1px solid var(--v-line);
-}
-.ingest-files a {
-  display: grid;
-  gap: 4px;
-  padding: 12px 0;
-  color: inherit;
-  text-decoration: none;
-  min-height: 44px;
-}
-.ingest-files .reason {
-  color: var(--v-muted);
-  font-size: 14px;
-}
 .badge {
   white-space: nowrap;
 }
 
 /* File trace */
-.ingest-facts {
+/* the file page as the demo's (files.js traceScreen): mono path, back link small, hairline facts (IN-83) */
+.ingest-file .v-title {
+  font-family: var(--v-mono);
+  font-size: 28px;
+  line-height: 1.2;
+}
+.ingest-file .ingest-back {
+  font-size: 13px;
+  color: var(--v-muted);
+}
+.v-card.ingest-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 24px;
+  gap: 1px;
   margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--v-fill);
+}
+.ingest-facts > div {
+  background: var(--v-surface);
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .ingest-facts dt {
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--v-muted);
 }
 .ingest-facts dd {
   margin: 0;
+  font-size: 15px;
+  font-weight: 600;
   overflow-wrap: anywhere;
+}
+.ingest-stages summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
 }
 .ingest-trace li {
   display: grid;
@@ -431,13 +493,17 @@
   }
   .ingest-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0 -20px; /* the card's phone padding (shell.css .v-card) */
   }
   .ingest-pair,
-  .ingest-facts {
+  .v-card.ingest-facts {
     grid-template-columns: 1fr;
   }
-  .ingest-files ul {
-    padding: 4px 16px;
+  .ingest-file .v-title {
+    font-size: 22px;
+  }
+  .ingest-chat-row .v-btn {
+    width: 100%;
   }
   .ingest-triage-call {
     flex-direction: column;

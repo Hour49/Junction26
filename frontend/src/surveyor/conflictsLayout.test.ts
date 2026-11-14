@@ -30,10 +30,15 @@ function media(query: string): string {
   return css.slice(at);
 }
 
-it('CF-26 on a phone the pill sits above the card title, which gets the full width', () => {
+it('CF-26 on a phone the pill comes after the title block (demo .c-head column), which gets the full width', () => {
   const phone = media('(max-width: 600px)');
-  expect(rulesFor('.cf-card-top', phone)).toMatch(/flex-direction:\s*column-reverse/);
+  expect(rulesFor('.cf-card-top', phone)).toMatch(/flex-direction:\s*column;/);
   expect(rulesFor('.cf-card-top', phone)).toMatch(/align-items:\s*flex-start/);
+});
+
+it("CF-47 Modify is the demo's soft button: accent text on the soft accent", () => {
+  expect(rulesFor('.cf-btn.cf-soft')).toMatch(/background:\s*var\(--v-accent-soft\)/);
+  expect(rulesFor('.cf-btn.cf-soft')).toMatch(/color:\s*var\(--v-accent\)/);
 });
 
 it('CF-27 the button row stays right-aligned whatever the action line says (also when it wraps)', () => {

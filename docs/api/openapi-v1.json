@@ -268,6 +268,16 @@
             "title": "Latency S",
             "type": "number"
           },
+          "level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__core__review__check__Level"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "line": {
             "$ref": "#/components/schemas/Answer"
           },
@@ -357,7 +367,8 @@
           "latency_s",
           "line",
           "proof",
-          "check"
+          "check",
+          "level"
         ],
         "title": "AnswerView",
         "type": "object"
@@ -631,7 +642,7 @@
           "level": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Level"
+                "$ref": "#/components/schemas/app__core__agent__model__Level"
               },
               {
                 "type": "null"
@@ -2748,48 +2759,6 @@
         "title": "Item",
         "type": "object"
       },
-      "Level": {
-        "additionalProperties": false,
-        "description": "An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').",
-        "properties": {
-          "basis": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Basis"
-          },
-          "level": {
-            "enum": [
-              "high",
-              "medium",
-              "low"
-            ],
-            "title": "Level",
-            "type": "string"
-          },
-          "text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Text"
-          }
-        },
-        "required": [
-          "level"
-        ],
-        "title": "Level",
-        "type": "object"
-      },
       "Limits": {
         "additionalProperties": false,
         "properties": {
@@ -3468,6 +3437,22 @@
             ],
             "title": "Total"
           },
+          "total_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Level"
+          },
           "total_note": {
             "title": "Total Note",
             "type": "string"
@@ -3513,6 +3498,7 @@
           "total",
           "total_unit",
           "total_sure",
+          "total_level",
           "total_note",
           "why_no_total",
           "refused_note"
@@ -5980,6 +5966,86 @@
           "label"
         ],
         "title": "ValueMark",
+        "type": "object"
+      },
+      "app__core__agent__model__Level": {
+        "additionalProperties": false,
+        "description": "An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').",
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "level": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "Level",
+        "type": "object"
+      },
+      "app__core__review__check__Level": {
+        "additionalProperties": false,
+        "description": "How far to trust an answer: one of three levels, what it rests on, and one plain sentence\nwith the measured counts behind it.",
+        "properties": {
+          "basis": {
+            "enum": [
+              "certified",
+              "route",
+              "score",
+              "page",
+              "held",
+              "unrated"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "basis",
+          "text"
+        ],
+        "title": "Level",
         "type": "object"
       }
     }

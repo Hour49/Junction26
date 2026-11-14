@@ -47,9 +47,9 @@ RoomPolicyName = Literal["furniture", "gold-labels"]
 # The project chat's model (decision 0013). gemini: Gemini's OpenAI-compatible endpoint
 # (AGENT_*, GEMINI_API_KEY). rules: a deterministic planner, no key. off: no agent chat
 ChatModelName = Literal["gemini", "rules", "off"]
-# Dollars above zero; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
+# Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
-    Annotated[float, Field(gt=0)] | None,
+    Annotated[float, Field(ge=0)] | None,
     BeforeValidator(lambda value: None if value == "" else value),
 ]
 
@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     # (room reader, Decisions, sheet-kind signal, describer, answer confidence) may spend in total,
     # and in any hour. Past either, the Gemini steps answer as when Gemini fails (the answer stays
     # unknown, the note says why; cached replies still serve) and GET /api/info says
-    # `gemini: budget_exhausted`. Unset: no limit
+    # `gemini: budget_exhausted`. Unset: no limit. 0: no Gemini call at all (the kill switch)
     gemini_budget_usd: Usd = None
     gemini_budget_usd_per_hour: Usd = None
     # Gemini Decisions count distributions (app/adapters/decisions/, same GEMINI_API_KEY). The

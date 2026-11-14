@@ -44,7 +44,7 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   DECISIONS_KIND=true RASTER_SCALE=priors GATE_POLICY=../eval/results/gate/gate-C-L-swap.json
   ANSWER_POLICY=../eval/results/policy/policy-C-L-swap.json
   DOUBLE_CHECK_READERS=l1=detector:C-yolo26l,m1=detector:C-yolo26m
-  CHECK_POLICY=../eval/results/check/check-C1-T1-recall96-rt-full-small.json
+  CHECK_POLICY=../eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json
   LOCAL_GATES=../data/models/arbiter/T1/lgate2-rt-C1T1.json,../data/models/arbiter/T1/lgate-rt-noL1-C1T1.json)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G

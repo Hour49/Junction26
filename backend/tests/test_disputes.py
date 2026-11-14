@@ -5,7 +5,7 @@ ROOM_POLICY=furniture (app/core/review/check.py)."""
 from app.adapters.answer_prior import NoPrior
 from app.adapters.question_templates import TemplateParser
 from app.composition import build_answering
-from app.core.drawing.model import Drawing, Element, Page, ReaderView, Room, Scale
+from app.core.drawing.model import Drawing, Element, Page, Plan, ReaderView, Room, Scale
 from app.core.review.ask import Asked, ask
 from app.core.review.check import UNLABELLED, CheckPolicy
 from app.core.review.disputes import find_disputes
@@ -104,7 +104,10 @@ def test_a_bedroom_count_with_an_unlabelled_bedroom_always_asks_and_names_it() -
 
 def test_labelled_bedrooms_are_certified_on_their_score() -> None:
     labelled = (BEDROOMS[0], BEDROOMS[1].model_copy(update={"label": "MH2"}))
-    assert asked("How many bedrooms are there?", sheet(rooms=labelled), score=0.95).check is None
+    read = sheet(rooms=labelled, plans=(Plan(id="p1", page=1, box=(0.0, 0.0, 1.0, 1.0)),))
+    assert asked("How many bedrooms are there?", read, score=0.95).check is None
+    # with no plan and no element found nothing is certified (check.found_nothing)
+    assert asked("How many bedrooms are there?", sheet(rooms=labelled), score=0.95).check
 
 
 def test_the_api_answers_with_the_finders() -> None:

@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
-import type { ProjectAnswer, ProjectView } from '../api';
+import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { answerArea, answerRefused, drawing, error, project, projectAsk } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
 import { ProjectChat } from './ProjectChat';
@@ -16,13 +16,18 @@ const [flatA, flatB, refusedPart] = projectAsk.parts as [
   ProjectAnswer['parts'][number],
   ProjectAnswer['parts'][number],
 ];
+/** The drawing's on-screen name in the card (CH-40): its #224 name in project.json, else the file name. */
+const label = (p: { drawing_id: string; name: string }) =>
+  drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
 /** project_ask.json with only flat-a answering: a total of 2 doors (CH-4). */
 const oneAnswers: ProjectAnswer = {
   ...projectAsk,
   parts: [flatA, refusedPart],
   total: 2,
   total_unit: 'count',
-  total_note: 'The total is the one drawing that answered; 1 drawing has no reader for it.',
+  total_note: 'The total is the one drawing that answered.',
+  why_no_total: null,
+  refused_note: null,
 };
 /** Every drawing refuses (CH-6). */
 const noneAnswers: ProjectAnswer = {
@@ -132,7 +137,10 @@ it('CH-11 a chip asks the project; then the thread, the bar at the bottom, no ch
   expect(posts(api).map((c) => c.body)).toEqual([{ question: q }]);
   expect(screen.queryByRole('group', { name: 'Suggested questions' })).toBeNull();
   expect(document.querySelector('.en-chat--empty')).toBeNull();
+  // CH-36 takes the starters' place after the thread
+  const follow = await screen.findByRole('group', { name: 'Follow-up questions' });
   const thread = screen.getByRole('region', { name: 'Chat' });
+  expect(thread.compareDocumentPosition(follow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const form = screen.getByRole('textbox', { name: 'Question' }).closest('form') as HTMLFormElement;
   expect(thread.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
@@ -180,17 +188,20 @@ async function answered(question: string) {
 const line = (turn: HTMLElement, name: string) =>
   within(turn).getByText(name, { selector: '.en-part-name' }).closest('li') as HTMLElement;
 
-it('CH-4 one drawing answers: the total, the note, one line <name>: <value> with Show it on <name>; no plan', async () => {
+it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row with Show it on <name>, its reference', async () => {
   open(oneAnswers);
   const turn = await answered('How many doors are there?');
-  expect((await within(turn).findByTestId('answer-value')).textContent).toBe('2');
-  expect(within(turn).getByText(oneAnswers.total_note)).toBeTruthy();
-  const li = line(turn, flatA.name);
-  expect(li.textContent).toContain(`${flatA.name}: 2`);
-  const show = within(li).getByRole('link', { name: `Show it on ${flatA.name}` });
+  // CH-39: the lead is the value with its noun only, no total_note
+  expect((await within(turn).findByTestId('answer-value')).textContent).toBe('2 doors');
+  expect(within(turn).queryByText(oneAnswers.total_note)).toBeNull();
+  const li = line(turn, label(flatA));
+  expect(li.textContent).toContain(`${label(flatA)}: 2`);
+  const show = within(li).getByRole('link', { name: `Show it on ${label(flatA)}` });
   expect(show.getAttribute('href')).toMatch(`#/p/${PID}/d/${flatA.drawing_id}/engineer?ask=`);
-  expect(within(turn).getAllByRole('listitem')).toHaveLength(1);
-  expect(turn.querySelector('figure, img')).toBeNull();
+  expect(
+    within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
+  ).toHaveLength(1);
+  expect(within(turn).getByRole('figure', { name: 'Reference 1 of 1' })).toBeTruthy();
   expect(turn.textContent).not.toContain("I can't answer");
   expect(within(turn).queryByText(/^Sure/)).toBeNull();
 });
@@ -198,30 +209,33 @@ it('CH-4 one drawing answers: the total, the note, one line <name>: <value> with
 it('CH-5 project_ask.json: two drawings answer, no total, its note, then a line per drawing', async () => {
   open(projectAsk);
   const turn = await answered('How many doors are there?');
-  expect(within(turn).getByText(projectAsk.total_note)).toBeTruthy();
+  expect(within(turn).getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();
   expect(within(turn).queryByTestId('answer-value')).toBeNull();
   for (const p of [flatA, flatB]) {
-    expect(line(turn, p.name).textContent).toContain(`${p.name}: 2`);
+    expect(line(turn, label(p)).textContent).toContain(`${label(p)}: 2`);
     expect(
-      within(line(turn, p.name)).getByRole('link', { name: `Show it on ${p.name}` }),
+      within(line(turn, label(p))).getByRole('link', { name: `Show it on ${label(p)}` }),
     ).toBeTruthy();
   }
-  expect(within(turn).getAllByRole('listitem')).toHaveLength(2);
+  expect(
+    within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
+  ).toHaveLength(2);
 });
 
-it('CH-13 the total in total_unit; the Sure badge only when total_sure', async () => {
+it('CH-13 (CH-42) the total in total_unit with its total_level, never a Sure badge', async () => {
   const area: ProjectAnswer = {
     ...oneAnswers,
     parts: [{ ...flatA, answer: answerArea }],
     total: 52.27,
     total_unit: 'm2',
     total_sure: true,
+    total_level: 'high',
   };
   open(area);
   const turn = await answered('What is the net floor area of all indoor rooms in m²?');
   expect(within(turn).getByTestId('answer-value').textContent).toBe('52.27 m²');
-  const badge = within(turn).getByText(/^Sure/);
-  expect(badge.getAttribute('title')).toMatch(/^Certified: /);
+  expect(within(turn).getByText('High confidence')).toBeTruthy();
+  expect(within(turn).queryByText(/^Sure/)).toBeNull();
 });
 
 it('CH-6 nobody answers: one refusal for the project; its questions ask every drawing again', async () => {
@@ -302,12 +316,44 @@ it('CH-16 Show it on <name> opens that drawing asking this question; ?pack= is k
       .getAttribute('href') ?? '';
   open(projectAsk);
   await answered(q);
-  expect(href(flatA.name)).toBe(
+  expect(href(label(flatA))).toBe(
     `#/p/${PID}/d/${flatA.drawing_id}/engineer?${new URLSearchParams({ ask: q }).toString()}`,
   );
   cleanup();
   open(projectAsk, project, drawingRoutes(), 'pack=fi');
   await answered(q);
-  const query = new URLSearchParams(href(flatB.name).split('?')[1]);
+  const query = new URLSearchParams(href(label(flatB)).split('?')[1]);
   expect([query.get('ask'), query.get('pack')]).toEqual([q, 'fi']);
+});
+
+it('CH-36 follow-ups after an answer: up to 3 unasked questions, a click asks; hidden after a refusal', async () => {
+  const q = 'How many doors are there?';
+  const api = open(oneAnswers);
+  await answered(q);
+  const group = await screen.findByRole('group', { name: 'Follow-up questions' });
+  const offered = within(group)
+    .getAllByRole('button')
+    .map((b) => b.textContent);
+  expect(offered.length).toBeGreaterThan(0);
+  expect(offered.length).toBeLessThanOrEqual(3);
+  expect(offered).not.toContain(q);
+  const next = offered[0] ?? '';
+  fireEvent.click(within(group).getByRole('button', { name: next }));
+  await screen.findByRole('article', { name: next });
+  expect(posts(api).map((c) => c.body)).toEqual([{ question: q }, { question: next }]);
+  cleanup();
+  open(noneAnswers);
+  const turn = await ask('What colour is the roof?');
+  await within(turn).findByText("I can't answer that from these drawings.");
+  expect(screen.queryByRole('group', { name: 'Follow-up questions' })).toBeNull();
+});
+
+it('CH-38 once the thread starts the project name is for screen readers only', async () => {
+  open(oneAnswers);
+  const h1 = await screen.findByRole('heading', { level: 1, name: project.name });
+  expect(h1.className).not.toContain('en-sr');
+  await answered('How many doors are there?');
+  expect(screen.getByRole('heading', { level: 1, name: project.name }).className).toContain(
+    'en-sr',
+  );
 });
