@@ -7137,7 +7137,10 @@ formula in a spreadsheet.
   takes a call on any file triage set aside, described or not (was 422 `no-description` for an undescribed one),
   so every `unrelated_file` issue can be settled; a file triage did not set aside is 422 `not-triaged`, and the
   code `no-description` is no longer returned. Fixture `project_triaged.json` gains `photos/sheet.jpg` (f5).
-
+- 2026-11-14, behaviour (golden-25): with `CHECK_POLICY` on, a plan count is certified (`sure` true, `check` null)
+  only when the answer confidence's own most likely plan count is the answered one, the rule `GATE_POLICY` applies
+  since #174; otherwise it asks, with `check.reason` "Please double-check the plan count: two readers count the
+  plans differently." when that count is another. No shape change.
 - 2026-11-14, additive (golden-21, board #14): `check` on `POST /api/ask`'s answer: `{reason, disputed: [{mark_id,
   page, box, why, readers}]}` or null, the double-check request of an answer `CHECK_POLICY` does not certify (the
   value stays; not a refusal). Null for every answer while `CHECK_POLICY` is off (the default). New fixtures
