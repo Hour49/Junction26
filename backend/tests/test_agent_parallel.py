@@ -81,3 +81,42 @@ def test_parallel_one_runs_the_calls_one_after_the_other() -> None:
     tools = Tools(ask_drawings=ASKED)
     turn(model, tools, caps=Caps(parallel=1))
     assert [json.loads(args)["question"] for _, args in tools.ran] == ["a", "b"]
+
+
+def test_a_call_made_a_third_time_in_one_step_is_not_run() -> None:
+    """Review 330 S1: the third identical call ends the turn, as one after the other."""
+    same = [call("ask_drawings", n, question="same") for n in range(1, 4)]
+    tools = Tools(ask_drawings=ASKED)
+    done = turn(Model(step(*same), final(kind="dont_know", text="No.")), tools)
+    assert len(tools.ran) == 2
+    assert done.kind == "dont_know" and "repeating" in done.text
+
+
+def test_at_most_parallel_calls_run_at_once() -> None:
+    """Review 330 S2: 6 calls, cap 4: the first 4 meet at a barrier, so 4 run at once; they then
+    wait a moment for a fifth, which over the cap would be running beside them."""
+
+    class Peak(Together):
+        def __init__(self, **results: Any) -> None:
+            super().__init__(4, **results)
+            self.now = self.most = 0
+            self.fifth = threading.Event()
+
+        def run(self, name: str, arguments: str) -> str:
+            with self.lock:
+                self.now += 1
+                self.most = max(self.most, self.now)
+            if json.loads(arguments)["question"] in "1234":
+                self.barrier.wait()
+                self.fifth.wait(0.2)
+            else:
+                self.fifth.set()
+            with self.lock:
+                self.now -= 1
+                return Tools.run(self, name, arguments)
+
+    calls = [call("ask_drawings", n, question=str(n)) for n in range(1, 7)]
+    tools = Peak(ask_drawings=ASKED)
+    turn(Model(step(*calls), final(kind="dont_know", text="No.")), tools,
+         caps=Caps(calls_per_step=6, parallel=4))  # fmt: skip
+    assert tools.most == 4 and len(tools.ran) == 6
