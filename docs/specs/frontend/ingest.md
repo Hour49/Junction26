@@ -218,8 +218,9 @@ The header is the shell's (logo, "Vellum", "Workspaces"); these screens draw non
 - The drop card (`section`, `aria-label` "Drop drawings or an archive"): white, radius 28 px, max 760 px; inside it a
   dashed inner zone (radius 20 px) with the upload icon, "Drop a drawing or a .zip here" (24 px semibold), the
   buttons "Choose a file" (accent, pill) and "Try the sample project" (grey pill), the sample note, and the busy,
-  refusal and error lines. Under the inner zone the format chips: "IFC models", "DXF", "Vector PDF · SVG",
-  "PNG · JPG scans and photos", "ZIP archives".
+  refusal and error lines. Under the inner zone the format chips: "IFC models", "DXF", "PDF, drawn or scanned",
+  "SVG", "PNG · JPG scans and photos", "ZIP archives" (a scanned PDF is named, since ingest routes it to the raster
+  reader; user-facing copy changed 2026-11-14).
 - Under the card, centred: "Earlier uploads are in Workspaces" (a link to `#/workspaces`).
 - Not built: the edit-plan link, the country picker, the avatar (common brief).
 

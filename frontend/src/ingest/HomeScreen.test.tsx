@@ -168,7 +168,7 @@ describe('HomeScreen', () => {
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
-  it('IN-52 home: the hero, the five format chips and no edit-plan link', async () => {
+  it('IN-52 home: the hero, the six format chips (a scanned PDF named) and no edit-plan link', async () => {
     mockApi({});
     render(<HomeScreen />);
     expect(
@@ -182,7 +182,8 @@ describe('HomeScreen', () => {
     ).toEqual([
       'IFC models',
       'DXF',
-      'Vector PDF · SVG',
+      'PDF, drawn or scanned',
+      'SVG',
       'PNG · JPG scans and photos',
       'ZIP archives',
     ]);
