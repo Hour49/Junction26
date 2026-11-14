@@ -317,3 +317,13 @@ it('CH-18 agent chat: a photo read as a plan makes a project with no askable dra
   await send('How many doors are there?');
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
 }, 8000);
+
+it('#425 the photo picker takes TIFF and WebP too, by type and by extension', async () => {
+  open(answerTurn);
+  const accept = ((await screen.findByTestId('photo-input')).getAttribute('accept') ?? '').split(
+    ',',
+  );
+  for (const kind of ['image/png', 'image/jpeg', 'image/tiff', 'image/webp'])
+    expect(accept).toContain(kind);
+  for (const ext of ['.tif', '.tiff', '.webp']) expect(accept).toContain(ext);
+});
