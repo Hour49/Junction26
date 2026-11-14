@@ -24,6 +24,8 @@ package = false # a tool run with `python -m stoa_eval`, nothing gets built
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+# byte copies of the scripts the C1-T1 test certificate ran (docs/GOLDEN.md), kept as they ran
+extend-exclude = ["certificate"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "RUF", "N"]

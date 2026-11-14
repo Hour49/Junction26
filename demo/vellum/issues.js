@@ -51,7 +51,7 @@
   const list = () => issuesOf(V, T, A().ctx());
 
   function jump(x) {
-    if (x.kind === 'conflict') return [x.state === 'open' ? 'Settle' : 'See the conflict', '#/conflicts'];
+    if (x.kind === 'conflict') return [x.state === 'open' ? 'Settle' : 'See the conflict', '#/ingest'];
     if (x.kind === 'set_aside') return ['Why it was set aside', `#/file/${x.file_id.slice(1)}`];
     return [x.state === 'open' ? 'Make a call' : 'See the call', `#/file/${x.file_id.slice(1)}`];
   }

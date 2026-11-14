@@ -40,6 +40,7 @@ from app.core.drawing.model import Room, RoomType, Scale
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles
+from app.core.spend import SpendGuard
 
 URL = "https://generativelanguage.googleapis.com/v1beta/models"
 PROMPT_VERSION = "rooms2g-1"  # change it with PROMPT or the page encoding: the cache key holds it
@@ -82,13 +83,21 @@ class RoomModel(Protocol):
 
 
 class GeminiClient:
-    def __init__(self, api_key: str, model: str, timeout_s: float, thinking: str = "low") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        timeout_s: float,
+        thinking: str = "low",
+        budget: SpendGuard | None = None,
+    ) -> None:
         if not api_key:
             raise InvalidInputError("GEMINI_API_KEY is empty: the Gemini room reader needs a key")
         self._key = api_key
         self.model = model
         self._timeout = timeout_s
         self.thinking = thinking
+        self._budget = budget  # GEMINI_BUDGET_USD (app/core/spend.py); None: no limit
 
     @property
     def name(self) -> str:
@@ -98,6 +107,8 @@ class GeminiClient:
         return f"GeminiClient({self.name})"
 
     def ask(self, png: bytes, prompt: str) -> str:
+        if self._budget is not None and (refused := self._budget.exhausted()):
+            raise GeminiError(refused)
         body = {
             "contents": [{"role": "user", "parts": [
                 {"inlineData": {"mimeType": "image/png", "data": base64.b64encode(png).decode()}},
@@ -123,7 +134,10 @@ class GeminiClient:
             raise GeminiError(f"no answer: {type(error).__name__}") from None
         except json.JSONDecodeError:
             raise GeminiError("the answer is not JSON") from None
-        cost.charge(price(answer))  # a call that was paid for counts even when its text is unusable
+        usd = price(answer)
+        cost.charge(usd)  # a call that was paid for counts even when its text is unusable
+        if self._budget is not None:
+            self._budget.charge(usd, "gemini rooms")
         return reply_text(answer)
 
 

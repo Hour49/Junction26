@@ -106,6 +106,8 @@ def page_png(data: bytes) -> bytes:
     """The image sent: a PDF's page 1 rendered, or the image, long side <= MAX_SIDE, as PNG."""
     from PIL import Image
 
+    from app.adapters.eight_bit import eight_bit
+
     if data.startswith(b"%PDF-"):
         import pypdfium2
 
@@ -119,7 +121,7 @@ def page_png(data: bytes) -> bytes:
                 pdf.close()
     else:
         try:
-            image = Image.open(io.BytesIO(data)).convert("RGB")
+            image = eight_bit(Image.open(io.BytesIO(data))).convert("RGB")
         except OSError as error:
             raise DecisionsError(f"the file is not an image or PDF: {error}") from None
     image.thumbnail((MAX_SIDE, MAX_SIDE))

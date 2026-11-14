@@ -9,9 +9,9 @@ adapter adds its name to the Literal of its port and a case in composition.py.
 """
 
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, SecretStr
+from pydantic import BeforeValidator, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # pdf: the vector route's reader of drawn PDFs. ifc: the model route's reader of a plan sheet
@@ -25,8 +25,12 @@ SecondCounterName = Literal["hello", "pdf", "ifc"]
 RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normalise stage
 # File triage (decision 0010, app/adapters/triage). off: ingest as before triage existed.
 # rules: the content probe's kind, no model (sets aside what ingest sets aside today).
-TriageClassifierName = Literal["off", "rules"]
-TriageDescriberName = Literal["off"]  # eu-big's measured describers are added here
+# siglip: fixed register heads on a SigLIP2 embedding, CPU (data/models/triage/siglip2-512-v2/);
+# with DECISIONS_KIND, a plan when either it or the sheet-kind signal says so.
+TriageClassifierName = Literal["off", "rules", "siglip"]
+# gemini: gemini-3.5-flash fills the description form and its long text, GEMINI_API_KEY's
+# key and time limit, replies cached in TRIAGE_DESCRIBER_CACHE_DIR (app/adapters/triage/)
+TriageDescriberName = Literal["off", "gemini"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
@@ -40,6 +44,11 @@ RasterScaleName = Literal["off", "priors"]
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
+# Dollars above zero; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
+Usd = Annotated[
+    Annotated[float, Field(gt=0)] | None,
+    BeforeValidator(lambda value: None if value == "" else value),
+]
 
 
 class Settings(BaseSettings):
@@ -77,6 +86,13 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.5-flash"
     gemini_timeout_s: float = 60.0
     gemini_cache_dir: Path = Path("../data/cache/gemini-rooms")
+    # The Gemini spend guard (app/core/spend.py): the dollars every Gemini call of this process
+    # (room reader, Decisions, sheet-kind signal, describer, answer confidence) may spend in total,
+    # and in any hour. Past either, the Gemini steps answer as when Gemini fails (the answer stays
+    # unknown, the note says why; cached replies still serve) and GET /api/info says
+    # `gemini: budget_exhausted`. Unset: no limit
+    gemini_budget_usd: Usd = None
+    gemini_budget_usd_per_hour: Usd = None
     # Gemini Decisions count distributions (app/adapters/decisions/, same GEMINI_API_KEY). The
     # count swap is on when RASTER_COMPONENTS names decisions:<source>; the answer confidence when
     # DECISIONS_CONFIDENCE is true. Seconds per request, and the folder replies are cached in
@@ -142,4 +158,5 @@ class Settings(BaseSettings):
     # classifier on.
     triage_classifier: TriageClassifierName = "off"
     triage_describer: TriageDescriberName = "off"
+    triage_describer_cache_dir: Path = Path("../data/cache/triage-describer")
     triage_judge: TriageJudgeName = "off"

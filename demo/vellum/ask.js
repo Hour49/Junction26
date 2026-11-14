@@ -6,7 +6,7 @@
   const A = () => window.VApp;
   const ROLE = { read: 'Read: the value comes from this file', shown: 'Shown: the rendering the marks are drawn on',
     second: 'Checked: an independent second count', source: 'Asked about: the answer key\'s question is on this file',
-    same: 'The same floor in another format' };
+    same: 'The same floor in another format', sheet: 'Another sheet of the same set' };
   const SUGGEST = ['How many doors are on this floor?', 'How many windows?', 'What is the net floor area?', 'How many rooms?',
     'What fire rating do the stair doors need?'];
   const KEY_TIP = 'Answer key: the value the Stoa dataset gives for this question. Vellum did not read it from the drawing here.';
@@ -77,7 +77,7 @@
       <div class="card"><div class="answer">
         <figure aria-label="Drawing"><span style="display:flex;flex-direction:column"><span class="mono" style="font-size:14px;font-weight:600">${esc(d.name)}</span><span class="small">${esc(d.meta)}</span></span>
           <div class="plan-box">${P.answerPlan(d, a, { flagged, rejected: edits ? edits.rejected : null, added: edits ? edits.added : null, fixing, turn: t.id })}${sheet}</div>
-          <figcaption class="legend">${legend.join('')}</figcaption>${d.credit || V.CREDIT ? `<p class="small credit">Credit: ${esc(d.credit || creditOf(V.CREDIT))}</p>` : ''}</figure>
+          <figcaption class="legend">${legend.join('')}</figcaption></figure>
         <div class="side">
           <div class="value"><b>${V.formatValue(a.quantity, value).split(' ')[0]}</b><span>${a.quantity === 'area' ? 'm² net' : nounOf(a.quantity, value)}</span>${status}</div>
           ${a.check ? checkHtml(t, a, ck, value) : a.key ? '' : '<p class="small">Certified: exact geometry and nothing in dispute. No person needs to check this.</p>'}
@@ -86,17 +86,12 @@
         </div></div></div></article>`;
   }
 
-  // "All files: CC-BY-4.0. Credit: Swiss Dwellings …" → "Swiss Dwellings … (CC-BY-4.0)": one Credit line (R7-c-8)
-  function creditOf(line) {
-    const m = line.match(/^All files:\s*(.+?)\.\s*Credit:\s*(.+)$/);
-    return m ? `${m[2]} (${m[1]})` : line.replace(/^All files:\s*/, '');
-  }
 
   function methodLine(d, a) {
     if (a.key) return `From the dataset's answer key: “${esc(a.keyQuestion)}” The data has no positions, so there are no marks.`;
     const pk = A().picks();
     const c = V.CONFLICTS.find((x) => x.drawing === d.id && x.variants.some((v) => v.kind === a.quantity));
-    if (c && pk[c.id] === null) return 'A conflict on this drawing is open: <a href="#/conflicts">settle it in Conflicts</a>.';
+    if (c && pk[c.id] === null) return 'A conflict on this drawing is open: <a href="#/ingest">settle it under Ingest</a>.';
     if (c) return `${esc(c.title)}: settled in Conflicts (${A().S.p.conflicts[c.id].mode === 'own' ? 'your choice' : 'AI decision approved'}).`;
     const second = V.FILES.find((f) => f.drawing === d.id && f.role === 'second');
     if (second) return `Read from the geometry, then checked against <span class="mono">${esc(second.path)}</span>, an independent second reading: the same value.`;

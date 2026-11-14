@@ -4,11 +4,12 @@
   'use strict';
   const V = window.VData, T = window.VTriage, esc = window.VPlan.esc;
   const A = () => window.VApp;
-  const SUGGEST = V.SUGGEST ? V.SUGGEST.slice(0, 3) : ['How many doors are there?', 'What is the area of the kitchen?', 'How many windows are there?'];
+  const COMB = (V.COMBINED || []).map((c) => c.q);
+  const SUGGEST = V.SUGGEST ? COMB.slice(0, 1).concat(V.SUGGEST).slice(0, 3) : ['How many doors are there?', 'What is the area of the kitchen?', 'How many windows are there?'];
   // After the first answer: follow-ups, each answerable here (data.test.cjs/stoa.test.cjs check the data ones); the
   // elevation question first when the project holds an elevation triage set aside.
   const ELEVATION_Q = 'How many storeys does the building in the elevation have?';
-  const FOLLOW = (T.described(ELEVATION_Q, V.FILES) ? [ELEVATION_Q] : [])
+  const FOLLOW = COMB.concat(T.described(ELEVATION_Q, V.FILES) ? [ELEVATION_Q] : [])
     .concat(V.SUGGEST || [...SUGGEST, 'How many rooms are there?', 'What is the net floor area?', 'What is the area of the living room?']);
 
   // A drawing's value as the person left it: a sign-off wins over the live reading.
@@ -34,14 +35,35 @@
       <div class="chat-ref"><span class="label">References</span>
         <button class="chat-thumb press" data-act="chat-pic" data-t="${t.id}" aria-expanded="${open}" aria-label="${open ? 'Close' : 'Open'} the full image of ${esc(x.path)}">${T.picture(x.path, x.path).replace('class="plan tri-pic', 'class="plan thumb tri-pic')}</button>
         <span class="chat-ref-txt"><a class="mono" href="#/file/${file}">${esc(x.path)}</a><span class="small">${esc(T.CLASS_LABEL[T.classOf(x.path)])} · ${esc(T.kindWords(tr.register.kind))}</span>
-          ${tr.credit ? `<span class="small credit">Credit: ${esc(tr.credit)}</span>` : ''}</span></div>${big}
+</span></div>${big}
       <div class="chat-pulled"><span class="label">What it pulled from the picture</span><dl class="chat-dl">
         <div><dt>Description</dt><dd>${esc(d.text)}</dd></div><div><dt>Kind</dt><dd>${esc(T.kindWords(tr.register.kind))}</dd></div>
         <div><dt>Text printed on it</dt><dd class="tri-text">${d.visible_text ? esc(d.visible_text) : 'None'}</dd></div></dl>
         <details class="tri-more"><summary>Full description</summary><p class="small">${esc(d.detail)}</p></details></div></div></article>`;
   }
 
+  // references with pictures: the current one large on the left with its name, arrows on its sides
+  function viewer(t, pics, render) {
+    const i = ((A().S.p.chatRef[t.id] || 0) % pics.length + pics.length) % pics.length;
+    const arrow = (dir, path, label) => `<button class="round press ref-arrow ${dir < 0 ? 'l' : 'r'}" data-act="chat-ref" data-t="${t.id}" data-i="${i + dir}" aria-label="${label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg></button>`;
+    return { i, html: `<figure aria-label="Reference ${i + 1} of ${pics.length}"><span class="mono" style="font-size:14px;font-weight:600">${esc(pics[i].path)}</span>
+      <div class="plan-box ref-view">${render(pics[i])}${pics.length > 1 ? arrow(-1, 'M15 6l-6 6 6 6', 'Previous reference') + arrow(1, 'M9 6l6 6-6 6', 'Next reference') : ''}</div></figure>` };
+  }
+
+  // an answer read from several sheets of the house set, the non-floor-plan sheets first
+  function combinedHtml(t, c) {
+    const pics = c.refs.map(([path, fact]) => ({ ...V.FILES.find((f) => f.path === path), fact }));
+    const v = viewer(t, pics, (f) => `<img class="plan" src="${esc(f.image)}" alt="${esc(f.path)}" loading="lazy">`);
+    const list = pics.map((f, n) => `<li><button class="ref press" data-act="chat-ref" data-t="${t.id}" data-i="${n}" aria-pressed="${n === v.i}"><span class="num">${n + 1}</span>
+      <span><span class="mono" style="font-weight:600">${esc(f.path.split('/').pop())}</span><span class="muted">${esc(f.fact)}</span></span></button></li>`).join('');
+    return `<article class="turn"><p class="bubble">${esc(t.question)}</p><p class="lead" style="margin:0"><strong>${esc(c.lead)}</strong></p>
+      <div class="card"><div class="answer">${v.html}<div class="side"><span><span class="pill grey">Read from the drawings</span></span>
+        <div style="display:flex;flex-direction:column;gap:8px"><span class="label">References</span><ol class="refs">${list}</ol></div></div></div></div></article>`;
+  }
+
   function turnHtml(t) {
+    const cx = V.combinedFor && V.combinedFor(t.question);
+    if (cx) return combinedHtml(t, cx);
     const x = T.described(t.question, V.FILES);
     if (x) return describedHtml(t, x);
     const r = V.askProject(t.question, A().picks());
@@ -56,13 +78,13 @@
     // a total only when the API gives one (one drawing answered); its value may have been signed off since
     const head = r.total === null
       ? `<p class="lead" style="margin:0">${rows.length} drawings answered. <span class="muted">${esc(r.total_note)}</span></p>`
-      : `<p class="lead" style="margin:0"><strong>${esc(V.formatValue(quantity, rows[0].value))}</strong>. <span class="muted">${esc(r.total_note)}</span></p>`;
+      : `<p class="lead" style="margin:0"><strong>${esc(V.formatValue(quantity, rows[0].value))}</strong></p>`;
     const lines = rows.map(({ a, value, status }) => {
       const d = V.drawing(a.drawing);
       return `<li class="chat-row"><span class="chat-line"><span class="mono">${esc(d.name)}</span>: <strong>${esc(V.formatValue(a.quantity, value))}</strong></span>
         <span class="pill ${status[0]}">${esc(status[1])}</span>
         <button class="chat-show press" data-act="show-on" data-d="${d.id}" data-q="${esc(t.question)}">Show it on ${esc(d.name)}</button></li>`;
-    }).join('') + refused.map((p) => `<li class="chat-row"><span class="chat-line muted"><span class="mono">${esc(p.name)}</span>: ${esc(p.answer.refusal)}</span></li>`).join('');
+    }).join('');
     const refs = ok.flatMap((p) => V.FILES.filter((f) => f.drawing === p.answer.drawing).map((f) => ({ f, d: V.drawing(p.answer.drawing), a: p.answer })));
     const pics = refs.filter((x) => x.f.image);
     if (!pics.length) {
@@ -72,8 +94,7 @@
     }
     // the references with their pictures: the current one large on the left, left/right through them (Tudor, 15:10)
     const i = ((A().S.p.chatRef[t.id] || 0) % pics.length + pics.length) % pics.length, cur = pics[i];
-    const arrow = (dir, path, label) => `<button class="round press" data-act="chat-ref" data-t="${t.id}" data-i="${i + dir}" aria-label="${label}"${pics.length < 2 ? ' disabled' : ''}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg></button>`;
-    const credit = cur.f.credit || cur.d.credit || V.CREDIT;
+    const arrow = (dir, path, label) => `<button class="round press ref-arrow ${dir < 0 ? 'l' : 'r'}" data-act="chat-ref" data-t="${t.id}" data-i="${i + dir}" aria-label="${label}"${pics.length < 2 ? ' disabled' : ''}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg></button>`;
     const list = refs.map((x, n) => {
       const k = pics.indexOf(x), body = `<span class="num">${n + 1}</span><span><span class="mono" style="font-weight:600">${esc(x.f.path)}</span><span class="muted">${esc(x.f.kind)} · ${esc(x.d.name)}${k < 0 ? ' · no preview' : ''}</span></span>`;
       return k < 0 ? `<li><span class="ref">${body}</span></li>`
@@ -81,12 +102,9 @@
     }).join('');
     return `<article class="turn">${q}<p class="lead" style="margin:0">${head.replace(/^<p class="lead" style="margin:0">|<\/p>$/g, '')}</p>
       <div class="card"><div class="answer">
-        <figure aria-label="Reference ${i + 1} of ${pics.length}"><div class="dwg-bar" style="padding:0"><div><span class="mono" style="font-size:14px;font-weight:600">${esc(cur.f.path)}</span>
-            <span class="small">${esc(cur.f.kind)} · ${esc(cur.d.name)} · <span aria-live="polite">${i + 1} / ${pics.length}</span></span></div>
-          ${arrow(-1, 'M15 6l-6 6 6 6', 'Previous reference')}${arrow(1, 'M9 6l6 6-6 6', 'Next reference')}</div>
-          <div class="plan-box">${window.VPlan.original(cur.d, cur.f, cur.a)}</div>
-          ${credit ? `<p class="small credit">Credit: ${esc(((m) => (m ? `${m[2]} (${m[1]})` : String(credit).replace(/^All files:\s*/, '')))(String(credit).match(/^All files:\s*(.+?)\.\s*Credit:\s*(.+)$/)))}</p>` : ''}</figure>
-        <div class="side"><p class="small" style="margin:0">${esc(V.ruleOf(ok[0].answer))}</p>
+        <figure aria-label="Reference ${i + 1} of ${pics.length}"><span class="mono" style="font-size:14px;font-weight:600">${esc(cur.f.path)}</span>
+          <div class="plan-box ref-view">${window.VPlan.original(cur.d, cur.f, cur.a)}${pics.length > 1 ? arrow(-1, 'M15 6l-6 6 6 6', 'Previous reference') + arrow(1, 'M9 6l6 6-6 6', 'Next reference') : ''}</div></figure>
+        <div class="side">
           <ul class="chat-rows" aria-label="Per drawing">${lines}</ul>
           <div style="display:flex;flex-direction:column;gap:8px"><span class="label">References</span><ol class="refs">${list}</ol></div></div></div></div></article>`;
   }
@@ -110,6 +128,8 @@
     const p = A().S.p, question = text.trim().slice(0, 200);
     if (!question) return false;
     p.chat.push({ id: p.chat.length + 1, question });
+    const cx = V.combinedFor && V.combinedFor(question);
+    if (cx) { A().log(Date.now(), 'ask', question, `${cx.lead} · from ${cx.refs.length} sheets of the house set`); return true; }
     const x = T.described(question, V.FILES);
     if (x) A().log(Date.now(), 'ask', question, `From the description of ${x.path} · a preview, not checked by a person`);
     const r = x ? null : V.askProject(question, A().picks());
