@@ -224,3 +224,22 @@ def test_rows_are_named_by_words_their_description_has_or_starts_with() -> None:
     # whole words only: "Marvin Ess" is no name the schedule prints
     part = TableFilter(values=("Marvin Ess",), match="contains")
     assert on_types("count", part, kind="door") is None
+
+
+def test_the_largest_or_smallest_row_is_named_with_its_value() -> None:
+    area = (("area",),)
+    assert ask("max", kind="room", column=area) == ("Room 101 OFFICE (145 SF)", None)
+    assert ask("min", kind="room", column=area) == ("Room 100 VEST. (108 SF)", None)
+    office = TableFilter(values=("OFFICE",), cue=("name",))
+    assert ask("min", office, kind="room", column=area) == ("Room 102 OFFICE (123 SF)", None)
+    tied = table("ROOM SCHEDULE", ("Room", "Area"), ("1", "50 SF"), ("2", "50 SF"), ("3", "9 SF"))
+    query = TableQuery(op="max", kind="room", column=area)
+    assert answer_table(query, (tied,)) is None  # two rooms are the largest: no one answer
+
+
+def test_a_count_and_total_area_give_both_numbers() -> None:
+    area = (("area",),)
+    office = TableFilter(values=("OFFICE",), cue=("name",))
+    assert ask("count_sum", office, kind="room", column=area) == ("2 rooms, 268 SF", None)
+    f4 = TableFilter(values=("F4",), cue=("floor",))
+    assert ask("count_sum", f4, kind="room", column=area) == ("1 room, 145 SF", None)

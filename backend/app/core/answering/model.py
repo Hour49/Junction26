@@ -105,12 +105,14 @@ class TableFilter(Frozen):
 
 class TableQuery(Frozen):
     """A question about a schedule printed on the sheet (Drawing.tables): count its rows, sum a
-    column, or read cells. `kind`: what its rows are ("door", "window", "room"); `table`: the words
-    of the schedule's name when the question names one ("door type"); `column` (sum, read): the
-    words that name the column(s) to sum or read; `meaning`: a read also gives what each code
-    means, from the sheet's legend tables."""
+    column, read cells, name the row with the largest or smallest value of a column ("max",
+    "min"), or count rows and sum a column of the same rows ("count_sum"). `kind`: what its rows
+    are ("door", "window", "room"); `table`: the words of the schedule's name when the question
+    names one ("door type"); `column` (sum, read, max, min, count_sum): the words that name the
+    column(s) to sum, read or rank; `meaning`: a read also gives what each code means, from the
+    sheet's legend tables."""
 
-    op: Literal["count", "sum", "read"]
+    op: Literal["count", "sum", "read", "max", "min", "count_sum"]
     kind: str | None = None
     table: tuple[str, ...] = ()
     column: tuple[tuple[str, ...], ...] = ()  # one tuple of words per column read or summed
