@@ -11,6 +11,7 @@ import {
 } from '../api';
 import { AskBox } from '../engineer/AskBox';
 import { Suggestions } from '../engineer/DrawingHeader';
+import { usePhotoAdd } from '../engineer/photoAdd';
 import { askable, followUps, starters } from '../engineer/projectAsk';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
@@ -123,6 +124,9 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const nextSel = useRef(1);
   const pending = useRef(false);
   const thread = useRef<HTMLElement>(null);
+  const photo = usePhotoAdd(projectId, (project) => {
+    setLoad({ state: 'ready', project });
+  });
 
   const send = useCallback(
     (row: Sent, selection: Selection[]) => {
@@ -421,6 +425,9 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         busy={busy || plans.length === 0}
         asked={rows.length}
         onAsk={ask}
+        onAttach={photo.attach}
+        short="the drawings"
+        attaching={photo.attaching}
       />
     </div>
   );
@@ -429,6 +436,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     return split(
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
+        {photo.line}
         {pointer}
         {bar}
         {plans.length === 0 ? (
@@ -442,6 +450,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   return split(
     <div className="en-page en-chat">
       <h1 className="en-sr">{project.name}</h1>
+      {photo.line}
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {rows.map(row)}
       </section>

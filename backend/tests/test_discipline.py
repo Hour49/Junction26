@@ -104,3 +104,7 @@ def test_sheet_kind_reply_gives_the_discipline_without_a_new_call() -> None:
     assert discipline_from_sheet("architectural_floor_plan", "Heizung EG", None) == "heating"
     assert discipline_from_sheet("architectural_floor_plan", None, "A-101") == "architecture"
     assert discipline_from_sheet("detail", None, None) is None
+    # weak title words do not override the kind: a post office, a pump house are floor plans
+    kind = "architectural_floor_plan"
+    assert discipline_from_sheet(kind, "POST OFFICE - FIRST FLOOR PLAN", None) == "architecture"
+    assert discipline_from_sheet(kind, "PUMP HOUSE FLOOR PLAN", None) == "architecture"

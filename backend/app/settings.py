@@ -199,6 +199,11 @@ class Settings(BaseSettings):
     second_counter: SecondCounterName = "ifc"
     question_parser: QuestionParserName = "templates"
     answer_prior: AnswerPriorName = "none"
+    # An IFC model's fact sheet (app/adapters/ifc_model/facts_source.py) answers what the takeoff
+    # does not (app/core/answering/facts.py): off until measured. IFC_FACTS_CACHE: a folder that
+    # keeps each sheet as JSON across runs; "" keeps them in memory only
+    ifc_facts: bool = False
+    ifc_facts_cache: str = ""
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when
     # the drawing gives a value (app/adapters/answer_policy.py); "" none
     answer_policy: str = ""
