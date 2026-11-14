@@ -149,45 +149,46 @@ describe('ingest.ts', () => {
     expect(kindLabel(null)).toBe('not identified');
   });
 
+  // Styled with Tailwind classes since the shadcn migration: the rules live in the components and ui.ts.
+  const src = (name: string) => readFileSync(`src/ingest/${name}`, 'utf8');
+
   it('IN-70 phone tap targets: the Workspaces link, Back to the project and the takeoff summary are 44 px', () => {
-    const css = readFileSync('src/ingest/ingest.css', 'utf8');
-    const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^}]*)\}/g)].map(
-      (m) => ({
-        selectors: (m[1] ?? '').split(',').map((x) => x.trim()),
-        body: m[2] ?? '',
-      }),
+    expect(src('ui.ts')).toMatch(/TAP = 'inline-flex min-h-11 items-center'/);
+    expect(src('ui.ts')).toMatch(/SUMMARY = 'flex min-h-11 /);
+    expect(src('HomeScreen.tsx')).toMatch(/<a className=\{TAP\} href="#\/workspaces">/);
+    expect(src('FileTraceScreen.tsx')).toMatch(
+      /className=\{cn\(TAP, [^)]*\)\}\s*href=\{`#\/p\/\$\{projectId\}\/documents`\}/,
     );
+    expect(src('FileTraceScreen.tsx')).toMatch(/<summary className=\{SUMMARY\}>\s*What it ends as/);
     // IN-81: the chat row's "Open the workspace" too
-    for (const selector of [
-      '.ingest-earlier a',
-      '.ingest-back',
-      '.ingest-takeoff summary',
-      '.ingest-chat-link',
-    ])
-      expect(
-        rules.some((r) => r.selectors.includes(selector) && r.body.includes('min-height: 44px')),
-        selector,
-      ).toBe(true);
+    expect(src('IngestFinished.tsx')).toMatch(
+      /className=\{cn\(TAP, [^)]*\)\}\s*href=\{`#\/p\/\$\{projectId\}\/d\//,
+    );
   });
 
   it('IN-83 the file page: mono 28 px path, hairline facts', () => {
-    const css = readFileSync('src/ingest/ingest.css', 'utf8');
-    expect(css).toMatch(
-      /\.ingest-file \.v-title \{[^}]*font-family: var\(--v-mono[^}]*font-size: 28px/,
-    );
-    expect(css).toMatch(/\.ingest-facts \{[^}]*gap: 1px/);
+    const tsx = src('FileTraceScreen.tsx');
+    expect(tsx).toContain('[&_h1]:font-mono! [&_h1]:text-[28px]!');
+    expect(tsx).toMatch(/'ingest-facts [^']*gap-px/);
   });
 
   it('IN-85 the stacked title row puts the segment on its own row, left-aligned', () => {
-    const css = readFileSync('src/ingest/ingest.css', 'utf8');
-    expect(css).toMatch(
-      /\.ingest-head--stack \{[^}]*flex-direction: column[^}]*align-items: flex-start/,
-    );
+    expect(src('ProjectScreen.tsx')).toContain("stack ? 'flex-col items-start'");
   });
 
-  it('IN-66 ingest.css has no colour literal: every colour is a var(--v-…)', () => {
-    const css = readFileSync('src/ingest/ingest.css', 'utf8');
-    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+  it('IN-66 the ingest screens have no colour literal: every colour is a token', () => {
+    for (const name of [
+      'BeforeAfter.tsx',
+      'FileTraceScreen.tsx',
+      'HomeScreen.tsx',
+      'IngestFinished.tsx',
+      'ProgressCard.tsx',
+      'ProjectScreen.tsx',
+      'TriageCard.tsx',
+      'UploadBox.tsx',
+      'ui.ts',
+    ])
+      expect(src(name), name).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
   });
 
   it('IN-34 formatMs, formatCost and formatSize', () => {

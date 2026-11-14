@@ -17,7 +17,22 @@ import { StaleNote, StateBadge, TitleRow } from './ProjectScreen';
 import { TriageCard } from './TriageCard';
 import { usePoll } from './usePoll';
 import { ModelCard } from '../model3d/ModelView';
-import './ingest.css';
+import { MUTED, PAGE, PANEL, SUMMARY, TAP } from './ui';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+
+/** The file page as the demo's (files.js traceScreen): mono 28 px path (22 px on a phone), hairline facts (IN-83). */
+const FILE_PAGE = cn(
+  'v-page v-page--narrow',
+  PAGE,
+  '[&_h1]:font-mono! [&_h1]:text-[28px]! [&_h1]:leading-[1.2]! max-[720px]:[&_h1]:text-[22px]!',
+);
+/** The hairline grid: 1 px gaps on the fill colour. */
+const FACTS = cn(
+  PANEL,
+  'ingest-facts m-0 grid grid-cols-2 gap-px overflow-hidden bg-muted p-0 max-[720px]:grid-cols-1 max-[720px]:p-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-0.5 [&>div]:bg-card [&>div]:px-5 [&>div]:py-3.5 [&_dt]:text-xs [&_dt]:font-medium [&_dt]:text-muted-foreground [&_dd]:m-0 [&_dd]:text-[15px] [&_dd]:font-semibold [&_dd]:[overflow-wrap:anywhere]',
+);
 
 const live = (t: FileTrace) => !isFinished(t.file);
 
@@ -30,14 +45,17 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
   const { data: trace, error, failedAt, retry, set } = usePoll(load, live);
   const back = (
     // the file rows are on Documents now (ingest.md v3, IN-79)
-    <a className="ingest-back" href={`#/p/${projectId}/documents`}>
+    <a
+      className={cn(TAP, 'self-start text-[13px] text-muted-foreground')}
+      href={`#/p/${projectId}/documents`}
+    >
       Back to Documents
     </a>
   );
 
   if (trace === null) {
     return (
-      <div className="v-page v-page--narrow ingest">
+      <div className={FILE_PAGE}>
         {back}
         {error !== null ? (
           <ErrorView error={error} onRetry={retry} />
@@ -61,19 +79,19 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
     ['Cost', formatCost(file.cost_usd)],
   ];
   return (
-    <div className="v-page v-page--narrow ingest ingest-file">
+    <div className={FILE_PAGE}>
       {back}
       {error !== null && <StaleNote error={error} failedAt={failedAt} onRetry={retry} />}
       <TitleRow eyebrow={<StateBadge state={file.state} />} title={file.path}>
         {file.drawing_id && (
-          <a className="v-btn v-press" href={`#/p/${projectId}/d/${file.drawing_id}/engineer`}>
-            Open the drawing
-          </a>
+          <Button asChild size="pill" className="no-underline hover:text-primary-foreground">
+            <a href={`#/p/${projectId}/d/${file.drawing_id}/engineer`}>Open the drawing</a>
+          </Button>
         )}
       </TitleRow>
-      {file.reason && <p className="reason">{file.reason}</p>}
+      {file.reason && <p>{file.reason}</p>}
       {file.reused && <p>reused: read before, not recomputed</p>}
-      <dl className="v-card ingest-facts">
+      <dl className={FACTS}>
         {facts.map(([label, value]) =>
           value ? (
             <div key={label}>
@@ -101,48 +119,63 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           normalised={file.normalised}
         />
       )}
-      <section aria-label="Stages" className="v-card">
+      <Card role="region" aria-label="Stages" className={cn(PANEL, 'block')}>
         {stages.length === 0 ? (
           <p>No stages yet.</p>
         ) : (
           // folded: the demo's file page shows no stages, and nothing is lost (IN-83)
-          <details className="ingest-stages">
-            <summary>How it was read: {plural(stages.length, 'stage')}</summary>
+          <details>
+            <summary className={cn(SUMMARY, 'font-semibold')}>
+              How it was read: {plural(stages.length, 'stage')}
+            </summary>
             <ol className="ingest-trace">
               {stages.map((s, i) => (
-                <li key={String(i)} className={s.failure ? 'failed' : undefined}>
+                <li
+                  key={String(i)}
+                  className={cn(
+                    'grid grid-cols-[28px_1fr_auto] items-center gap-x-3 gap-y-0.5 py-3 [&+li]:border-t [&+li]:border-border [&>p]:col-[2/-1]',
+                    s.failure && 'failed',
+                  )}
+                >
                   <span
-                    className="ingest-step-icon"
+                    className={cn(
+                      'grid size-6 place-items-center rounded-full text-[13px] text-card',
+                      s.failure ? 'bg-danger' : 'bg-primary',
+                    )}
                     role="img"
                     aria-label={s.failure ? 'failed' : 'done'}
                   >
                     {s.failure ? '✕' : '✓'}
                   </span>
                   <b>{STAGE_LABEL[s.stage]}</b>
-                  <span className="ms">{formatMs(s.ms)}</span>
+                  <span className={MUTED}>{formatMs(s.ms)}</span>
                   <p>{s.stage === 'cache' ? `Cached: ${s.did}` : s.did}</p>
                   {s.stage === 'cache' && (
-                    <p className="output">
+                    <p className={cn('output', MUTED)}>
                       the stages below are from the first ingest of this content
                     </p>
                   )}
-                  {s.output && s.output !== s.did && <p className="output">{s.output}</p>}
+                  {s.output && s.output !== s.did && (
+                    <p className={cn('output', MUTED)}>{s.output}</p>
+                  )}
                   {s.cost_usd > 0 && <p>Cost: {formatCost(s.cost_usd)}</p>}
-                  {s.failure && <p className="ingest-error">Failed: {s.failure}</p>}
+                  {s.failure && <p className="font-semibold text-danger">Failed: {s.failure}</p>}
                 </li>
               ))}
             </ol>
           </details>
         )}
-      </section>
+      </Card>
       {takeoff.length > 0 && (
-        <details className="v-card ingest-takeoff">
-          <summary>What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}</summary>
-          <dl>
+        <details className={cn(PANEL, 'ingest-takeoff block')}>
+          <summary className={SUMMARY}>
+            What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}
+          </summary>
+          <dl className="mt-2 mb-0 grid grid-cols-[minmax(0,1fr)_auto] [&>div]:contents">
             {takeoff.map(([key, value]) => (
               <div key={key}>
-                <dt>{key}</dt>
-                <dd>{value}</dd>
+                <dt className="[overflow-wrap:anywhere]">{key}</dt>
+                <dd className="m-0 text-right">{value}</dd>
               </div>
             ))}
           </dl>

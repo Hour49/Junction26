@@ -1,14 +1,17 @@
 import { UploadBox } from './UploadBox';
-import './ingest.css';
+import { PAGE, TAP } from './ui';
+import { cn } from '@/lib/utils';
 
 /** Route `#/` (screen 1): start a project; earlier ones are on screen 5. */
 export function HomeScreen() {
   return (
-    <div className="v-page ingest ingest-home">
-      <h1 className="v-hero">Every answer, pointed at the drawing.</h1>
+    <div className={cn('v-page items-center text-center', PAGE)}>
+      <h1 className="v-hero mx-auto! mb-4!">Every answer, pointed at the drawing.</h1>
       <UploadBox />
-      <p className="ingest-earlier">
-        <a href="#/workspaces">Earlier uploads are in Workspaces</a>
+      <p className="text-[15px]">
+        <a className={TAP} href="#/workspaces">
+          Earlier uploads are in Workspaces
+        </a>
       </p>
     </div>
   );
