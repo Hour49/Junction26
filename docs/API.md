@@ -991,14 +991,19 @@ the `identify` stage's line.
   the sheet. `kind` (`architectural_floor_plan`, `multi_view_sheet`, `mep_plan`, `structural_plan`,
   `roof_or_ceiling_plan`, `site_plan_or_map`, `elevation`, `section`, `detail`, `perspective_or_axonometric`,
   `schedule_or_text`, `not_a_drawing`, `other`) with `kind_words` to show, `decision` (`set_aside`: no floor plan
-  on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT` (default 0.9), the file is set aside with the reason "not a
-  floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it; `doubt`: it is read, and every
-  answer with a value from it ends its `explanation` with "This sheet may not be a floor plan[: it looks like
-  <kind_words>]."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the sheet), `title`,
-  `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder than a clean scan
-  of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet), `seen`, `model`. A
-  call that fails leaves the file as triage would have it without the step ("triage not available: ...; read as
-  today" with no classifier). A model answer alone; never a certified value.
+  on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT` (default 0.9) and `SHEET_KIND_SET_ASIDE=true`
+  (the default; `false` makes such a sheet a `doubt` instead: read and flagged, below), the file is set
+  aside with the reason "not a floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it;
+  `doubt`: it is read; with a non-plan kind, in either mode (an unsure one with `SHEET_KIND_SET_ASIDE=true` too), the
+  file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; "), none of
+  its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
+  issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
+  drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
+  plan."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
+  sheet), `title`, `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
+  than a clean scan of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet),
+  `seen`, `model`. A call that fails leaves the file as triage would have it without the step ("triage not
+  available: ...; read as today" with no classifier). A model answer alone; never a certified value.
 - `note`: why `description` or `relevance` is null, a plain sentence: "a floor plan: it is read, so it is not
   described or judged"; "not described: no description model is set up, so it is not judged" (no describer: the
   offline demo); "not described: <why>" (the model refused or failed); "not judged yet: the project is still being
@@ -1458,6 +1463,10 @@ project stays `done` throughout.
   is back to triage's call: `read_as_plan` is null again, it is in `not_plans`, its `unrelated_file` issue is
   `open` again, and it can be asked again (R6-a-1).
 - While it is read, the file's `reason` is "being read as a floor plan".
+- A sheet the sheet-kind step doubted with a non-plan kind (`triage.sheet.decision` `doubt`, flagged) was read
+  already: the call is accepted the same way, nothing is read again, and the 202 returns the file as it ends: its
+  reading's state and reason without the sheet-kind flag, `read_as_plan` set, and an `identify` trace line "read as
+  a floor plan, as <by> asked: the reading is kept, the sheet-kind flag is dropped". Its answers lose the flag.
 
 <!-- fixture: triage_request.json -->
 ```json

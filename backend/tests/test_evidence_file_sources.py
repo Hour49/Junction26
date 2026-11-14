@@ -223,6 +223,40 @@ def test_an_all_caps_us_title_block_address_loses_its_number_and_zip() -> None:
         assert without_addresses(line) == line, line
 
 
+def test_building_words_and_sums_keep_their_numbers() -> None:
+    """codecheck's re-check of #259 (p2_addresses.py): German -platz/-weg compounds, a sum before
+    a currency, English and Finnish words that only look like streets keep their numbers."""
+    for line in (
+        "Parkplatz 12 und 13 im Untergeschoss",
+        "Fluchtweg 2 führt ins Treppenhaus B",
+        "Arbeitsplatz 4: 2 Steckdosen",
+        "Rettungsweg 1 Breite 1.20 m",
+        "Abstellplatz 3, Kosten 12000 CHF",
+        "Allee 5 Bäume",
+        "15 Min Drive from the station",
+        "2 Fire Exit Way signs",
+        "Huoneisto A 12, Rinne 3 kpl",
+        "Ranta 2 venepaikkaa",
+    ):
+        assert without_addresses(line) == line, line
+
+
+def test_postal_codes_go_only_on_a_line_with_a_street_ch_at_and_se_included() -> None:
+    """codecheck's re-check of #259: CH/AT 4-digit and Swedish codes after a street go; a
+    -platz/-weg street counts with its postal code; a sum stays, with a street (before CHF) or
+    without one (N4: no street on the line, no postal code cut)."""
+    for line, kept in (
+        ("Bahnhofstrasse 12, 8001 Zürich", "Bahnhofstrasse, Zürich"),
+        ("Bahnhofstrasse 12, CH-8001 Zürich", "Bahnhofstrasse, Zürich"),
+        ("Feldweg 12, A-1010 Wien", "Feldweg, Wien"),
+        ("Bahnhofplatz 1, 3011 Bern", "Bahnhofplatz, Bern"),
+        ("Storgatan 5, 114 51 Stockholm", "Storgatan, Stockholm"),
+        ("Bahnhofstrasse 12, 12000 CHF", "Bahnhofstrasse, 12000 CHF"),
+        ("Kosten 12000 Franken total", "Kosten 12000 Franken total"),
+    ):
+        assert without_addresses(line) == kept, line
+
+
 def test_a_long_drawn_page_is_not_a_source() -> None:
     """S3 (F2): a drawn page with a title block of notes (200+ characters) is still drawn."""
     sheet = drawn_page()

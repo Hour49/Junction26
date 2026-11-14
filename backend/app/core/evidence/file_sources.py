@@ -35,13 +35,23 @@ SUMMARY_CHARS = 300  # of the text, in the summary passage
 # address found is cut the same way; a number that does not follow a street word stays.
 _STREET = (
     r"[A-ZÅÄÖÜ][\w-]*(?:tie|katu|kuja|polku|kaari|väylä|raitti|rinne|ranta|tori|aukio|vägen|"
-    r"gatan|gränd|stigen|straße|strasse|weg|gasse|platz|allee)"
+    r"gatan|gränd|stigen|straße|strasse|gasse|allee)"
 )
+# German -platz and -weg are everyday compounds (Parkplatz 12, Fluchtweg 2: codecheck r9), so
+# they count as a street only with a postal code and town right after the number
+_STREET_IF_POSTAL = r"[A-ZÅÄÖÜ][\w-]*(?:platz|weg)"
 _HOUSE = (  # 12, 12a, 12 B 4, 12-14, 12 as 4
     r"\d{1,4}(?:[ \t]?[a-zA-Z]\b)?(?:[ \t]*[-\u2013][ \t]*\d{1,4})?"
     r"(?:[ \t]+(?:as[ \t]+)?\d{1,3})?\b"
 )
-_STREET_NUMBER = re.compile(rf"\b({_STREET})[ \t]+{_HOUSE}")
+# a postal code (fi/de/fr 5 digits, CH/AT 4, sv "114 51") before a town: not before a 2-3 letter
+# all-caps word such as CHF, EUR or MM
+_CODE = r"(?:(?:[A-Z]{1,2}-)?\d{4,5}|\d{3}[ \t]\d{2})"
+_TOWN = r"(?=[ \t]+(?![A-Z]{2,3}\b)[A-ZÅÄÖÜ])"
+_STREET_NUMBER = re.compile(
+    rf"\b({_STREET})[ \t]+{_HOUSE}"
+    rf"|\b({_STREET_IF_POSTAL})[ \t]+{_HOUSE}(?=,?[ \t]*{_CODE}{_TOWN})"
+)
 # "14 Baker Street", "1021 HIGH ST", "220 W 5th Ave.": a number, one to three capitalised (or
 # all-caps) words or an ordinal, then a street word or its abbreviation, in any case
 _ENGLISH_STREET = re.compile(
@@ -49,9 +59,10 @@ _ENGLISH_STREET = re.compile(
     r"((?:(?:[A-Z][A-Za-z']*|\d{1,3}(?:st|nd|rd|th|ST|ND|RD|TH))[ \t]+){1,3}"
     r"(?i:street|st|road|rd|avenue|ave|lane|ln|drive|dr|boulevard|blvd|way|highway|hwy|"
     r"parkway|pkwy|court|place|square|crescent|close|terrace)\b\.?)"
+    r"(?![ \t]+[a-z])"  # "15 Min Drive from the station", "2 Fire Exit Way signs" are not one
 )
 _ZIP = re.compile(r"\b([A-Z]{2})[ \t]+\d{5}(?:-\d{4})?\b")  # "WI 54751": a US state and ZIP
-_POSTAL_CODE = re.compile(r"(,?[ \t]*)(?:[A-Z]{1,2}-)?\d{5}(?=[ \t]+[A-ZÅÄÖÜ])")
+_POSTAL_CODE = re.compile(rf"(,?[ \t]*){_CODE}{_TOWN}")
 
 
 @dataclass(frozen=True)
@@ -90,12 +101,13 @@ def name_words(path: str) -> str:
 
 
 def without_addresses(text: str) -> str:
-    """`text` with each street address's house number taken out, and on a line that has one, a
-    postal code before a town name ("Esimerkkitie 12 B 4, 00100 Helsinki" -> "Esimerkkitie,
-    Helsinki"). Line by line, as `without_contacts`."""
+    """`text` with each street address's house number taken out, and only on a line that has one,
+    a postal code before a town name ("Esimerkkitie 12 B 4, 00100 Helsinki" -> "Esimerkkitie,
+    Helsinki"; "Bahnhofstrasse 12, CH-8001 Zürich" -> "Bahnhofstrasse, Zürich"). Line by line, as
+    `without_contacts`."""
     out: list[str] = []
     for line in text.split("\n"):
-        found = _STREET_NUMBER.sub(r"\1", line)
+        found = _STREET_NUMBER.sub(lambda match: match.group(1) or match.group(2), line)
         found = _ENGLISH_STREET.sub(r"\1", found)
         if found != line:
             found = _POSTAL_CODE.sub(lambda match: ", " if "," in match.group(1) else " ", found)
