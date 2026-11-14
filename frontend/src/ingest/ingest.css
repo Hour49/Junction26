@@ -84,6 +84,11 @@
   justify-content: space-between;
   align-items: flex-end;
 }
+/* the project screen: the Simple/Advanced segment on its own row under the h1 (demo .title-row wrapped, IN-85) */
+.ingest-head--stack {
+  flex-direction: column;
+  align-items: flex-start;
+}
 .ingest-head h1 {
   margin: 4px 0 0;
 }
@@ -94,6 +99,12 @@
   color: var(--v-accent);
   font-size: 14px;
   font-weight: 600;
+}
+.ingest-eyebrow.ok {
+  color: var(--v-ok);
+}
+.ingest-eyebrow.ok .ingest-dot {
+  background: var(--v-ok);
 }
 .ingest-dot {
   width: 8px;

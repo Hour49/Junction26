@@ -534,6 +534,17 @@ progress card's last row (`ProgressCard` gets a `footer` slot); Advanced places 
   Route fact as `routeLabel` ("drawn PDF route", never the bare id "vector").
   [component: the summary and `open` false, the Route fact; unit: the CSS rules]
 
+- IN-84 (re-sweep item 3): the done project's kicker reads "Analysis done" in `--v-ok` (demo `.kicker.ok`); running
+  "Analysing now", queued "Waiting to start", failed "Ingest failed" as before. [component]
+- IN-85 (re-sweep item 3): on the project screen the Simple/Advanced segment is its own row under the `h1`,
+  left-aligned (demo `.title-row` wrapped, `.seg` on its own row), at 1440 and 390; the file page keeps "Open the
+  drawing" on the right. `TitleRow` takes `stack` for this. [component: class; unit: the CSS rule; browser]
+- IN-86 (re-sweep item 3, orch 16:43 reversing P2: Tudor asked for the demo's look): the card's 4th stat is
+  "Set aside" = files with `state === 'set_aside'` (the demo's "Set aside 6"), not Cost. [component]
+- IN-87 (re-sweep console): no `GET /api/projects/<id>/issues` while the project is `queued` or `running` (the API
+  answers 409 `not-allowed` until `done`): `DoneLine` asks for the issue count only once the project is done with
+  drawings. The header badge's own request is fe-shared's. [component]
+
 Superseded by v3: IN-18, IN-19, IN-20, IN-21, IN-22, IN-26, IN-73 (the rows and cards move to Documents: the same
 criteria apply there, fe-ingest); IN-49's list half (no lists while running; its "—" for Files through stays);
 IN-63 (no "Settle the conflicts"); IN-64; IN-48 (no credit; IN-80); IN-65's "Back to the project" (IN-79); IN-72's
@@ -564,7 +575,8 @@ IN-63 (no "Settle the conflicts"); IN-64; IN-48 (no credit; IN-80); IN-65's "Bac
 ### Decisions (GO, frontend-orch 16:27)
 
 - P1: "Back to Documents" (IN-79), not the demo's "Back to the project" (that screen no longer lists files).
-- P2: the card keeps Cost (no demo PR changed it to Set aside).
+- P2: the card keeps Cost (no demo PR changed it to Set aside). Reversed 16:43 by orch (Tudor asked for the demo's
+  look): "Set aside" replaces Cost (IN-86).
 
 ## Out of scope
 

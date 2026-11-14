@@ -4,7 +4,6 @@ import {
   STEPS,
   activeStep,
   elapsedMs,
-  formatCost,
   formatMs,
   isLive,
   percentDone,
@@ -72,8 +71,9 @@ export function ProgressCard({
           <dd>{expected === null ? ready : `${ready} / ${String(expected)}`}</dd>
         </div>
         <div>
-          <dt>Cost</dt>
-          <dd>{formatCost(project.cost_usd)}</dd>
+          {/* the demo's 4th stat (IN-86) */}
+          <dt>Set aside</dt>
+          <dd>{files.filter((f) => f.state === 'set_aside').length}</dd>
         </div>
       </dl>
       {state !== 'failed' && (

@@ -153,6 +153,13 @@ describe('ingest.ts', () => {
     expect(css).toMatch(/\.ingest-facts \{[^}]*gap: 1px/);
   });
 
+  it('IN-85 the stacked title row puts the segment on its own row, left-aligned', () => {
+    const css = readFileSync('src/ingest/ingest.css', 'utf8');
+    expect(css).toMatch(
+      /\.ingest-head--stack \{[^}]*flex-direction: column[^}]*align-items: flex-start/,
+    );
+  });
+
   it('IN-66 ingest.css has no colour literal: every colour is a var(--v-…)', () => {
     const css = readFileSync('src/ingest/ingest.css', 'utf8');
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);

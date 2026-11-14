@@ -24,21 +24,27 @@ export function DoneLine({
   project: ProjectView;
   counts: ConflictCounts | null;
 }): JSX.Element | null {
-  // the Documents badge's own count, so the line and the badge never disagree; null while unknown
-  const issues = useIssuesToAnswer(projectId);
   if (!finished(project)) return null;
   return (
     <p className="ingest-done-line">
       {`${plural(project.drawings.length, 'drawing')} ready.`}
       {counts !== null && counts.total > 0 && ' Conflicts are below.'}
-      {issues !== null && issues > 0 && (
-        <>
-          {' '}
-          <a href={`#/p/${projectId}/documents`}>{`${plural(issues, 'issue')} in Documents`}</a>
-          {issues === 1 ? ' needs you.' : ' need you.'}
-        </>
-      )}
+      {/* mounted only once done: the API answers 409 to the issues list until then (IN-87) */}
+      <IssuesSentence projectId={projectId} />
     </p>
+  );
+}
+
+/** " 2 issues in Documents need you." with the Documents badge's own count; nothing while it is unknown or 0. */
+function IssuesSentence({ projectId }: { projectId: string }) {
+  const issues = useIssuesToAnswer(projectId);
+  if (issues === null || issues === 0) return null;
+  return (
+    <>
+      {' '}
+      <a href={`#/p/${projectId}/documents`}>{`${plural(issues, 'issue')} in Documents`}</a>
+      {issues === 1 ? ' needs you.' : ' need you.'}
+    </>
   );
 }
 

@@ -81,6 +81,15 @@ describe('IngestFinished and DoneLine (ingest.md v3)', () => {
     );
   });
 
+  it('IN-87 no issue count is asked for before the project is done (the API answers 409 until then)', () => {
+    vi.mocked(useIssuesToAnswer).mockClear();
+    for (const p of [variants.running, variants.queued, variants.noDrawings]) {
+      render(<DoneLine projectId={ID} project={p} counts={null} />);
+      cleanup();
+    }
+    expect(vi.mocked(useIssuesToAnswer)).not.toHaveBeenCalled();
+  });
+
   it('IN-76 the done line: drawings ready, conflicts below, issues in Documents', () => {
     const line = (counts: ConflictCounts | null, issues: number | null) => {
       vi.mocked(useIssuesToAnswer).mockReturnValue(issues);

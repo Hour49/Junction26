@@ -71,7 +71,10 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByRole('heading', { level: 1, name: project.name })).toBeTruthy();
-    expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.getByText('Analysis done')).toBeTruthy(); // IN-84
+    expect(must(screen.getByText('Analysis done').closest('.ingest-eyebrow')).className).toContain(
+      'ok',
+    );
     expect(screen.getByText('All 8 steps done')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Ready' })).toBeTruthy();
     expect(screen.getByRole('img', { name: '100 percent done' })).toBeTruthy();
@@ -79,7 +82,20 @@ describe('ProjectScreen', () => {
     expect(stat('Drawings ready')).toMatch(
       new RegExp(`^${String(project.drawings.length)}( / \\d+)?$`),
     );
-    expect(stat('Cost')).toBe('$0.00');
+    // IN-86: the demo's 4th stat; project.json has no set-aside file
+    expect(stat('Set aside')).toBe('0');
+    expect(
+      [...document.querySelectorAll('.ingest-stats dt')].map((d) => d.textContent),
+    ).not.toContain('Cost');
+    // IN-85: the Simple/Advanced segment on its own row under the h1
+    expect(must(document.querySelector('.ingest-head')).className).toContain('ingest-head--stack');
+  });
+
+  it('IN-86 Set aside counts the files set aside', async () => {
+    mockApi({ [GET]: variants.setAside });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(stat('Set aside')).toBe('1');
   });
 
   it('IN-24 running or queued: the next request goes 500 ms after the answer, none before', async () => {

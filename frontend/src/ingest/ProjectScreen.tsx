@@ -50,19 +50,24 @@ export function StateBadge({ state }: { state: FileStatus['state'] }) {
 }
 
 /** The title row of screen 2 and the trace: state eyebrow over the `h1`, an action on the right. */
+/** `ok`: the eyebrow in the ok colour (a finished analysis); `stack`: `children` on their own row under the `h1`. */
 export function TitleRow({
   eyebrow,
   title,
   children,
+  ok = false,
+  stack = false,
 }: {
   eyebrow: ReactNode;
   title: string;
   children?: ReactNode;
+  ok?: boolean;
+  stack?: boolean;
 }) {
   return (
-    <header className="ingest-head">
+    <header className={stack ? 'ingest-head ingest-head--stack' : 'ingest-head'}>
       <div>
-        <p className="ingest-eyebrow">
+        <p className={ok ? 'ingest-eyebrow ok' : 'ingest-eyebrow'}>
           {/* a word gets the accent dot; a badge (the trace) is its own marker */}
           {typeof eyebrow === 'string' && <span aria-hidden="true" className="ingest-dot" />}
           {eyebrow}
@@ -125,7 +130,12 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   const nothingRead = project.state === 'done' && project.drawings.length === 0;
   return (
     <div className="v-page v-page--narrow ingest">
-      <TitleRow eyebrow={PROJECT_STATE_LABEL[project.state] ?? project.state} title={project.name}>
+      <TitleRow
+        eyebrow={PROJECT_STATE_LABEL[project.state] ?? project.state}
+        title={project.name}
+        ok={project.state === 'done'}
+        stack
+      >
         <div role="group" aria-label="View" className="v-segmented">
           <a href={base} aria-current={advanced ? undefined : 'page'}>
             Simple
