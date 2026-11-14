@@ -5,3 +5,7 @@
 e1cbdd0e5475923962a4dc3e16e6c56055272d95:.gitleaksignore:generic-api-key:2
 # Fake key in a unit test (the KEY constant in backend/tests/test_triage_describer.py), no real credential.
 e50cebfa067498074ad3227db55e9821da89e530:backend/tests/test_triage_describer.py:generic-api-key:42
+# Fake keys in unit tests (the KEY constants in backend/tests/test_carbon_levels.py and
+# backend/tests/ingest/test_ingest_carbon.py), no real credential.
+08270efb565dbdcd20ffdae84fea4eb675f80880:backend/tests/test_carbon_levels.py:generic-api-key:21
+9683389eacc15e8c06dde8185e84d1bd68ebdb11:backend/tests/ingest/test_ingest_carbon.py:generic-api-key:28
