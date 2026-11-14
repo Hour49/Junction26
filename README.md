@@ -37,8 +37,8 @@ that show where on the drawing they came from. In the order a user meets it:
    detectors and a room reader, an IFC model through its own objects. Every drawing lists what was looked
    for, so a class that was not read says so instead of showing a zero ([docs/PIPELINE.md](docs/PIPELINE.md)).
 4. Ask with proof. A question in plain words (11 languages) gets a value with its unit, marks on the plan page,
-   the method that produced it, and the credit for any licensed data. The model's score is never shown as a
-   percentage. Where the evidence is too weak the answer says it does not know.
+   the method that produced it, and the credit for any licensed data. Its confidence is a level, High, Medium or
+   Low (#233), never a model score as a percentage. Where the evidence is too weak the answer says it does not know.
 5. Double-check requests. An answer the system cannot certify asks a person to look: it shows the disputed
    marks, and the person signs it off or fixes it, instead of a silent guess
    ([spec](docs/specs/frontend/double-check.md)).
@@ -92,11 +92,13 @@ and runs it with the demo config. Guides: [backend/README.md](backend/README.md)
 
 What needs a key: the Gemini readers (`GEMINI_API_KEY`: rooms on images and photos, the count distributions behind
 the confidence, the sheet-kind signal) and the EU open-model alternative (`EU_VLM_*`). Put keys only in the
-gitignored `backend/.env` (template: `backend/.env.example`). What runs fully local: the vector PDF reader, the IFC
+gitignored `backend/.env` (template: `backend/.env.example`). `GEMINI_BUDGET_USD=0` refuses every Gemini call
+and the pipeline answers without them (`/api/info` then says `"gemini":"budget_exhausted"`). What runs fully local: the vector PDF reader, the IFC
 reader, the second count, the question parser, the dev answer prior, and the detectors when their weights are in
 `data/models`.
 
-Verified 2026-11-14: `uv sync --locked`, `make_sample_archive.py`, the backend start, `GET /health`, `GET /api/info`
+Verified 2026-11-14, and the sample project again on main 7b5d697 with no key (3 ready, 4 flagged, 2 set aside, 2
+text only, 5 drawings): `uv sync --locked`, `make_sample_archive.py`, the backend start, `GET /health`, `GET /api/info`
 and `POST /api/projects/sample?fresh=true` (project `done` in 440 ms, no keys); then `npm ci`, `npm run build` and
 `npm run preview` against that backend (the page answers 200 on 4173, `/health` and `/api/info` pass through the
 proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a browser.
@@ -116,12 +118,16 @@ proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a 
   98.98% of the answers it leaves alone are exact (2518 of 2544). On validation it asked on 55.1% and flagged
   96.0%. The certificate covers the raster route; vector and BIM are certified on golden v2's holdout
   ([docs/GOLDEN.md](docs/GOLDEN.md)).
+- Confidence levels on the same test read (3,359 answers, one per page and family): High is 37.9% of answers and
+  99.0% exact (95% interval [98.3, 99.4]), Medium 41.1% and 92.8% [91.3, 94.0], Low 21.0% and 54.2% [50.6, 57.9].
+  The rule and its thresholds were written down before the test numbers were computed.
 
 ### Limits
 
 - Sketches: we claim no door counting. On 14 hand-drawn sheets the door count was in range on 0 of 10, and every
   door, window and room count asked for a check (K8 in [docs/KNOWN.md](docs/KNOWN.md)).
-- The double-check policy asks about 62% of answers on the test pages to catch 97% of the wrong ones, so a person reviews many right answers too (K9).
+- The double-check policy asks about 62% of answers on the test pages to catch 97% of the wrong ones, so a
+  person reviews many right answers too (K9).
 - On an image, areas come from an estimated scale (`RASTER_SCALE=priors`) and are labelled estimates. One can be
   far off while printing a narrow band (K5: +74%, +100% and -37% on three golden rooms).
 - On plans without printed room labels the reader types rooms by furniture, while the gold labels only count
