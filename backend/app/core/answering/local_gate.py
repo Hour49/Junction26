@@ -27,6 +27,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from app.core.drawing.model import Drawing
+from app.core.pipeline.count_arbiter import count_arbiter_reading
 from app.core.pipeline.disputed_marks import counted_elements, reader_elements
 
 PRIOR_FLOOR = 1e-4
@@ -138,7 +139,12 @@ def reading_of(
 ) -> GateReading:
     """The reading of one answered family from the stored drawing: the double-check readers'
     counts (DOUBLE_CHECK_READERS), the counted elements' scores, the plans and the rooms. L1's
-    probabilities and the arbiter's P are not stored with the drawing: the caller passes them."""
+    probabilities and the arbiter's P come from the drawing's `count_arbiter` (stored when the
+    arbiter ran) unless the caller passes them."""
+    stored = count_arbiter_reading(drawing, family)
+    if stored is not None:
+        probs = stored.probs if probs is None else probs
+        arbiter_p = stored.p if arbiter_p is None else arbiter_p
     readers = (
         {name: len(seen) for name, seen in reader_elements(drawing, family).items()}
         if family in READER_FAMILIES
