@@ -3,6 +3,8 @@ so /openapi.json describes every response; unknown fields are refused so a fixtu
 from the code fails its test (tests/api/test_api_fixtures.py)."""
 
 import re
+from collections import Counter
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,6 +13,7 @@ from app.composition import second_counter_of
 from app.core.drawing.model import Drawing, ScaleStatus
 from app.core.ingest.model import (
     DRAWING_KINDS,
+    PAGE_NUMBER,
     ContentKind,
     DrawingInfo,
     FileState,
@@ -148,6 +151,8 @@ class DrawingEntry(View):
     source: str | None
     state: FileState
     other_renderings: list[Rendering]
+    name: str  # a plain name, never the file name: "Drawn plan 2", "Drawn plan 3, page 2"
+    credit: str | None  # the licence credit of `file`, as GET /api/drawings/{id} gives it
 
 
 class Skipped(View):
@@ -229,11 +234,35 @@ class ProjectTrace(View):
 SHEET_KINDS = ("pdf_vector", "pdf_scan", "pdf_text", "png_plan", "jpeg_plan", "photo_plan")
 
 
-def drawings_of(status: ProjectStatus) -> tuple[DrawingEntry, ...]:
+# A drawing's name: these words by the kind of the file it is shown on, else "Drawing", then its
+# number among the project's drawings with the same words (board #14 item 6)
+NAME_WORDS: dict[str, str] = {
+    "pdf_vector": "Drawn plan",
+    "dxf": "Drawn plan",
+    "svg": "Drawn plan",
+    "pdf_scan": "Scanned plan",
+    "png_plan": "Plan image",
+    "jpeg_plan": "Plan image",
+    "photo_plan": "Plan photo",
+    "ifc": "Building model",
+}
+
+
+def no_credit(path: str) -> str | None:
+    return None
+
+
+def drawings_of(
+    status: ProjectStatus, credit_of: Callable[[str], str | None] = no_credit
+) -> tuple[DrawingEntry, ...]:
     """One entry per group of renderings: the sheet it was read from when that is a sheet, else
     PDF before PNG before JPEG; the group's other drawings are its other renderings. A group with
     the same content as one listed before is the same drawing: its files join that entry's other
-    renderings, so every name the drawing was uploaded under is shown."""
+    renderings, so every name the drawing was uploaded under is shown.
+
+    Each is named by its kind and numbered in this order, with the page for a page read as a file
+    of its own; the numbers are final once the project is done (a file read early can come
+    first while it runs). `credit_of`: the credit of the file at a path; none by default."""
     groups: dict[str, list[FileStatus]] = {}
     for file in status.files:
         if file.drawing_id is not None:
@@ -247,23 +276,31 @@ def drawings_of(status: ProjectStatus) -> tuple[DrawingEntry, ...]:
             continue
         others = [file for file in files if file is not primary]
         entries[primary.drawing_id] = (group, primary, others)
-    return tuple(
-        DrawingEntry(
-            drawing_id=drawing_id,
-            group=group,
-            file=primary.path,
-            kind=primary.kind,
-            route=primary.route,
-            source=primary.source,
-            state=primary.state,
-            other_renderings=[
-                Rendering(drawing_id=file.drawing_id, file=file.path)
-                for file in others
-                if file.drawing_id is not None
-            ],
+    numbers: Counter[str] = Counter()
+    listed: list[DrawingEntry] = []
+    for drawing_id, (group, primary, others) in entries.items():
+        words = NAME_WORDS.get(primary.kind or "", "Drawing")
+        numbers[words] += 1
+        page = PAGE_NUMBER.search(primary.path)
+        listed.append(
+            DrawingEntry(
+                drawing_id=drawing_id,
+                group=group,
+                file=primary.path,
+                kind=primary.kind,
+                route=primary.route,
+                source=primary.source,
+                state=primary.state,
+                other_renderings=[
+                    Rendering(drawing_id=file.drawing_id, file=file.path)
+                    for file in others
+                    if file.drawing_id is not None
+                ],
+                name=f"{words} {numbers[words]}" + (f", page {page[1]}" if page else ""),
+                credit=credit_of(primary.path),
+            )
         )
-        for drawing_id, (group, primary, others) in entries.items()
-    )
+    return tuple(listed)
 
 
 def _preference(file: FileStatus) -> tuple[bool, bool, int]:

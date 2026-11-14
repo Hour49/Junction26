@@ -1321,6 +1321,17 @@
         "additionalProperties": false,
         "description": "One drawing of a project: one per group of renderings of the same plan.",
         "properties": {
+          "credit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit"
+          },
           "drawing_id": {
             "title": "Drawing Id",
             "type": "string"
@@ -1343,6 +1354,10 @@
               }
             ],
             "title": "Kind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
           },
           "other_renderings": {
             "items": {
@@ -1400,7 +1415,9 @@
           "route",
           "source",
           "state",
-          "other_renderings"
+          "other_renderings",
+          "name",
+          "credit"
         ],
         "title": "DrawingEntry",
         "type": "object"
