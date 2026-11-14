@@ -3,12 +3,22 @@ the pipeline judged it, whole: per drawing its value, confidence level and why, 
 reason, and the marks the readers dispute with their ev ids. Earlier turns' tool results reach
 the model cut short, so the agent could not answer a doubt from them."""
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
 REVIEW_ANSWER = "review_answer"
 DISPUTED = 8  # disputed marks listed per drawing; disputed_count says how many there are
 NOTHING = "there is no answer in this chat to review yet: ask a question about the drawings first"
+MARKS = 12  # the answer's own places listed per drawing (to cite); marks_count says how many
+# A doubt about the last answer: "are you sure", "really?", "I count 30. Could it be 30?". The
+# loop reviews the answer before the model's first step (one model call, not two: chat-eval
+# #339), and the rules planner answers from that review
+DOUBT = re.compile(
+    r"\b(are you (sure|certain)|you sure|double[- ]?check|how (sure|certain|confident)|"
+    r"could it (be|have) (about |around )?\d+|i count \d+|is (that|it) (right|correct))\b|really\?"
+)
+REVIEWED = "review_answer result (the server ran it for this doubt): "
 
 REVIEW_ANSWER_TOOL: dict[str, Any] = {
     "type": "function",
@@ -43,6 +53,8 @@ def review_of(found: Mapping[str, Any], names: Mapping[str, str]) -> dict[str, A
             continue
         level: dict[str, Any] = answer.get("level") or {}
         check: dict[str, Any] = answer.get("check") or {}
+        quantity: dict[str, Any] = answer.get("quantity") or {}
+        marks = _evs(answer.get("marks") or quantity.get("marks"))
         listed: list[Any] = check.get("disputed") or []
         disputed: list[dict[str, Any]] = [d for d in listed if isinstance(d, dict)]
         shown = [{"ev": d.get("ev"), "why": d.get("why")} for d in disputed[:DISPUTED]]
@@ -53,9 +65,21 @@ def review_of(found: Mapping[str, Any], names: Mapping[str, str]) -> dict[str, A
             "level": level.get("level"),
             "level_text": level.get("text"),
             "explanation": answer.get("explanation"),
+            "marks": marks[:MARKS],
+            "marks_count": len(marks),
             "check": check.get("reason"),
             "disputed": [{k: v for k, v in d.items() if v is not None} for d in shown],
             "disputed_count": len(disputed),
         }
         drawings.append({k: v for k, v in drawing.items() if v is not None})
     return {"status": "ok", "question": found.get("question"), "drawings": drawings}
+
+
+def _evs(items: Any) -> list[str]:
+    """The ev ids of a minted list of places."""
+    out: list[str] = []
+    for item in items if isinstance(items, list) else []:  # pyright: ignore[reportUnknownVariableType]
+        ev: Any = item.get("ev") if isinstance(item, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        if isinstance(ev, str):
+            out.append(ev)
+    return out
