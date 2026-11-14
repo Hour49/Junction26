@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, type Screens } from './App';
 import type { ProjectList } from './api';
-import { error as errorBody, info, projectList } from './api/fixtures';
-import { rulePackFi } from './api/testing';
+import { error as errorBody, info, projectList, rulePackFi } from './api/fixtures';
 import { InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
@@ -26,7 +25,8 @@ function ChecksStub({ projectId, pack }: { projectId: string; pack: string | nul
   );
 }
 
-const withPacks = { ...info, rule_packs: [rulePackFi] } as typeof info;
+const withPacks = info;
+const noPacks = { ...info, rule_packs: [] };
 
 function ProjectStub({ projectId }: { projectId: string }) {
   const [mount] = useState(() => ++projectMounts);
@@ -342,7 +342,7 @@ describe('shell', () => {
     go(`#/p/${P}`);
     expect(screen.getByRole('button', { name: /^Country rules/ })).toBeTruthy();
     unmount();
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': noPacks, 'GET /api/projects': projectList });
     const second = render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     expect(screen.queryByRole('button', { name: /^Country rules/ })).toBeNull();
