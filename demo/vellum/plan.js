@@ -42,13 +42,18 @@
     return `<svg class="plan ${extraClass || ''}" viewBox="${vx} ${vy} ${vw} ${vh}" role="img" aria-label="${esc(label)}">`;
   }
 
+  // A drawing that is an image file (Stoa mode): shown as it is, never with invented marks.
+  const img = (src, label) => `<img class="plan" src="${esc(src)}" alt="${esc(label)}">`;
+
   // A plain drawing, no marks (the drawing card and the advanced panels).
   function plain(d, lookName, label) {
+    if (d.image) return img(d.image, label || d.name);
     return svgOpen(d, label || `${d.name}, ${lookName === 'clean' ? 'drawing' : 'source file'}`) + base(d, lookName, `${d.id}-${lookName}`) + '</svg>';
   }
 
   // The answer plan. opts: { flagged: Map id → why, rejected: Set, added: Set, fixing: bool, turn: turn id }.
   function answerPlan(d, a, opts) {
+    if (d.image) return img(d.image, `${d.name}; the data has no positions, so there are no marks`);
     const flagged = opts.flagged || new Map(), rej = opts.rejected || new Set(), add = opts.added || new Set();
     let s = svgOpen(d, `${d.name} with ${a.marks.filter((m) => m.n).length} numbered marks`) + base(d, 'clean', `${d.id}-a`);
     for (const m of a.marks) {
@@ -84,6 +89,7 @@
 
   // The original file with what the answer used highlighted, in that file's look.
   function original(d, file, a) {
+    if (d.image) return img(file.image, file.path);
     const look = lookOfFile(file.kind), counted = a.marks.filter((m) => m.counted);
     const noun = V.noun(a.quantity, 2);
     let s = svgOpen(d, `${file.path} with the ${counted.length} ${noun} of the answer highlighted`) + base(d, look, `${d.id}-o-${look}`);
@@ -103,11 +109,13 @@
 
   // A small thumbnail for the unpack film strip.
   function thumb(file) {
-    if (!file.drawing) {
-      return `<svg class="thumb" viewBox="0 0 120 156" aria-hidden="true"><rect width="120" height="156" rx="8" fill="#2c2c2e"/><path d="M30 30h44l16 16v80H30z" fill="#3a3a3c" stroke="#636366"/><text x="60" y="140" font-family="ui-monospace, monospace" font-size="10" fill="#8e8e93" text-anchor="middle">${esc(file.kind)}</text></svg>`;
-    }
+    if (!file.drawing) return P_DOC(file);
     const d = V.drawing(file.drawing);
+    if (d.image) return file.image ? img(file.image, file.path).replace('class="plan"', 'class="plan thumb"') : P_DOC(file);
     return plain(d, lookOfFile(file.kind), file.path).replace('class="plan ', 'class="plan thumb ');
+  }
+  function P_DOC(file) {
+      return `<svg class="thumb" viewBox="0 0 120 156" aria-hidden="true"><rect width="120" height="156" rx="8" fill="#2c2c2e"/><path d="M30 30h44l16 16v80H30z" fill="#3a3a3c" stroke="#636366"/><text x="60" y="140" font-family="ui-monospace, monospace" font-size="10" fill="#8e8e93" text-anchor="middle">${esc(file.kind)}</text></svg>`;
   }
 
   window.VPlan = { plain, answerPlan, original, thumb, lookOfFile, esc };

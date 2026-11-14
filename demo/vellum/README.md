@@ -8,7 +8,7 @@ uncertain answers, see the workspace history. Spec and click map: `../../docs/sp
 
 Everything in it is synthetic. The plans are drawn as SVG by `plan.js` from the one data structure in `data.js`, and
 every count, area, conflict value, cross-check and mark on screen is derived from it, so they always agree. File
-names, sizes and timings are illustrative, not measured. Nothing from the Stoa dataset is in this folder. The
+names, sizes and timings are illustrative, not measured. Nothing from the Stoa dataset is committed in this folder. The
 double-check items use the backend's `answer.check` shape (`reason`, `disputed[]` with `mark_id`, `why`, `readers`).
 
 It shows only what the backend has: no country picker, login or user name (a sign-off takes a typed name), no ETA,
@@ -19,3 +19,9 @@ Routes: `#/` drop, `#/ingest` reading (`/unpack`, `/identify`, `/extract`, `/che
 each answer's "Show it on <file>" opens `#/ask` on that drawing), `#/ask` (no header tab), `#/workspaces`. Opening a later route directly starts the sample already read.
 
 Check: `node --test demo/vellum/*.test.cjs` (the counts derived from the data).
+
+Stoa mode, local only: `python3 -I demo/vellum/make_stoa_demo.py --dataset <path to junction-dataset>` copies one
+real Swiss Dwellings floor (CC BY 4.0) and its answer key into `demo/vellum/stoa/` (gitignored, never commit it).
+Serve this folder (`python3 -m http.server 8765` in `demo/vellum/`) and open `http://localhost:8765/stoa/index.html`.
+It shows the real drawing, the real questions and the answer key's values, with no marks (the data has no positions)
+and the dataset's credit in the footer.

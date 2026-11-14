@@ -303,7 +303,7 @@
   }
 
   // Ingest progress at t seconds: the running step, overall fraction, and the derived stats.
-  function progress(t) {
+  function progress(t, files = FILES, drawingCount = DRAWINGS.length) {
     const total = STEPS.reduce((s, x) => s + x.secs, 0);
     let acc = 0, step = STEPS.length, within = 1;
     for (let i = 0; i < STEPS.length; i++) {
@@ -312,27 +312,38 @@
     }
     const done = step >= STEPS.length;
     const frac = done ? 1 : Math.max(0, t) / total;
-    const drawings = DRAWINGS.length, files = FILES.length, aside = FILES.filter((f) => !f.drawing).length;
+    const drawings = drawingCount, aside = files.filter((f) => !f.drawing).length;
+    files = files.length;
     // files move through during Unpack..Route; drawings become ready during Extract..Index
     const through = done ? files : Math.min(files, Math.floor(files * Math.min(1, (step + within) / 3)));
     const ready = done ? drawings : Math.max(0, Math.min(drawings, Math.floor(drawings * ((step + within) - 4) / 4)));
     return { step, within, done, frac, total, files, through, drawings, ready, aside: step >= 1 || done ? aside : 0 };
   }
 
-  // The project chat: one question asked of every drawing, answers in drawing order. A total only when exactly one
-  // drawing answers (Bogdan, #14 c6875696652): drawings may show the same rooms, so parts are not added up. The other
-  // case of the rule (known disjoint parts, storeys of one IFC model) does not occur in this sample.
+  // The project chat, in the shape of POST /api/projects/{id}/ask (#135): one question asked of every drawing; parts
+  // that answered first, then those that refused. A total only when exactly one drawing answers (Bogdan, #14
+  // c6875696652): drawings may show the same rooms, so parts are not added up. The other case of the rule (storeys of
+  // one IFC model) does not occur in this sample. total_note is always one sentence.
   const CAN_ANSWER = ['How many doors are there?', 'How many windows are there?', 'What is the net floor area?', 'How many rooms are there?'];
   const TOTAL_NOTE = 'These drawings may show the same rooms, so the numbers are not added up.';
   function askProject(question, picks) {
     const answers = DRAWINGS.map((d) => answer(d.id, question, picks));
-    const rows = answers.filter((a) => !a.refusal);
-    if (!rows.length) return { question, refusal: answers[0].refusal, canAnswer: CAN_ANSWER };
-    const one = rows.length === 1;
-    return { question, quantity: rows[0].quantity, rows, total: one ? rows[0].value : null, total_note: one ? null : TOTAL_NOTE };
+    const ok = answers.filter((a) => !a.refusal);
+    const parts = ok.concat(answers.filter((a) => a.refusal)).map((a) => ({ drawing_id: a.drawing, name: drawing(a.drawing).name, answer: a }));
+    const one = ok.length === 1 ? ok[0] : null;
+    return { question, parts, total: one ? one.value : null, total_unit: one ? (one.quantity === 'area' ? 'm2' : 'count') : null,
+      total_sure: !!one && !one.check,
+      total_note: one ? `From ${drawing(one.drawing).name}, the one drawing that answered.` : ok.length ? TOTAL_NOTE : 'No drawing can answer this.',
+      canAnswer: ok.length ? null : CAN_ANSWER };
   }
 
-  const API = { askProject, LAYOUTS, ARCHIVE, FILES, DRAWINGS, CONFLICTS, QUANTITIES, STEPS, drawing, layoutOf, rooms, openings,
+  // What the Extract panel shows: the drawing, its rooms and the counts read from it.
+  function extractFacts() {
+    const d = drawing('ground-floor');
+    return { drawing: d, rooms: rooms(d), doors: valueOf(marksFor(d, 'door', {}), 'door'), windows: valueOf(marksFor(d, 'window', {}), 'window') };
+  }
+
+  const API = { extractFacts, askProject, LAYOUTS, ARCHIVE, FILES, DRAWINGS, CONFLICTS, QUANTITIES, STEPS, drawing, layoutOf, rooms, openings,
     marksFor, valueOf, disputed, parseQuestion, answer, ruleOf, noun, formatValue, variantLabels, crossChecks, progress, readingOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.VData = API;

@@ -17,7 +17,9 @@ settle the conflicts, ask with proof, see the workspace history. No build step, 
 `index.html` (shell), `style.css` (Vellum tokens as in shared.md), `data.js` (the one synthetic data structure and
 the pure functions that derive every count, mark and total), `plan.js` (plans as SVG), `app.js` (routes, screens
 1-3, 5, 9-12), `ask.js` (screen 4), `chat.js` (the project chat), `data.test.cjs` (`node --test demo/vellum/*.test.cjs`), `README.md`, `vellum-logo.png` (the canvas logo asset). Nothing from
-the Stoa dataset; the canvas `.jpg` archive plans are not used: every plan is SVG drawn from `data.js`.
+the Stoa dataset is committed; the canvas `.jpg` archive plans are not used: every plan is SVG drawn from `data.js`.
+Stoa mode adds `make_stoa_demo.py`, `stoa.js` and `stoa.test.cjs` (see Stoa mode below); its output folder `stoa/` is
+gitignored.
 
 ## Data rules
 
@@ -33,6 +35,33 @@ the Stoa dataset; the canvas `.jpg` archive plans are not used: every plan is SV
   shape (Bogdan, #14 c6875279504): at most 5 items, strongest first (most readers against the answer); each item
   `mark_id` (null: a place a reader saw that the answer did not count, offered as "Add it here"), `why` (one
   sentence), `readers` (`{reader id: what it says}`).
+- The project chat uses the shape of `POST /api/projects/{id}/ask` (#135): `{question, parts: [{drawing_id, name,
+  answer}], total, total_unit, total_sure, total_note}`, answering parts first, then refused ones; `total` only when
+  exactly one drawing answers (else null, with the note that drawings may show the same rooms); `total_unit` `count`
+  or `m2`; `total_sure` only for a total from a sure part; `total_note` always one sentence. `canAnswer` (chips when
+  every drawing refuses) is the demo's own.
+- An area question that names a room ("the kitchen") sums those rooms only; a drawing without that room refuses.
+
+## Stoa mode (local only)
+
+Tudor 12:35: "make the clicky demo be something from the stoa dataset". The Stoa data is partner data: it is never
+committed, pushed or uploaded.
+
+- `python3 -I demo/vellum/make_stoa_demo.py [--dataset <junction-dataset>]` (stdlib; the default dataset is the repo's
+  `data/stoa/full/junction-dataset`, from `tools/fetch_stoa_data.py full`) picks one floor of `swiss_dwellings`
+  (CC BY 4.0): the one with the most English questions, ties to the first name. It writes into `demo/vellum/stoa/`
+  (gitignored): the floor's PNG, `data.js` (`window.VStoaData`: the real file names and sizes, the English questions
+  with their answer-key values and units, the licence line from the source's `LICENSE.md`), and `index.html`, the
+  demo page with `../` paths plus `stoa/data.js` and `../stoa.js` after `../data.js`.
+- Open `stoa/index.html`; plain `index.html` stays synthetic. Plain `index.html` does not probe for `stoa/data.js`:
+  a script tag to a missing file always logs a console error. (`<base href="../">` is not used either: it would send
+  the `#/` links back to the synthetic page.)
+- `stoa.js` builds `VData` from it. One drawing (a Swiss Dwellings floor is one drawing), shown as its PNG, with no
+  marks: the data has no positions. Answers are the answer key's values, marked "Answer key", with the method line
+  quoting the key's question. A question matches by exact text, or by the one key question that holds all its
+  content words; several or none gives no answer, with the candidates (or the suggestions) as chips. No conflicts, no
+  cross-checks. The reading screens replay the synthetic steps over the real file, and the footer says so and quotes
+  the licence line.
 
 ## Screens and click map
 
@@ -56,13 +85,14 @@ Deep links: a project route opened first starts the sample already analysed (con
 - Ingest: running (step n of 8) / done. Advanced panels keep animating after done (they illustrate the step).
 - Conflict: `ai` (Approved), `modify` (Choosing, remembers what to Cancel back to), `own` (Your choice: Modify,
   plus "Use the AI decision" where the AI had one), `open` (Needs you).
-- Chat: empty / answered (total and per drawing) / refused by every drawing.
+- Chat: empty / answered (total and per drawing, refused drawings listed after) / refused by every drawing.
 - Answer: certified / needs check / fixing / confirming / checked / refused.
 - Workspaces: empty / one workspace.
 
 ## Checks
 
 - `node --test demo/vellum/*.test.cjs`: counts derived from the layouts (doors, windows, area), conflict variants change the
-  answer, certification rule, ingest stats, the project chat (no total across drawings, the note, refusal).
+  answer, certification rule, ingest stats, the project chat (API shape, no total across drawings, the note,
+  refusal), room area by name, and Stoa mode against a small made-up fixture (`stoa.test.cjs`).
 - Real browser (Playwright) at 1440 and 390 wide: every path clicked, no sideways scroll, no console errors.
 - `prefers-reduced-motion`: animations off.

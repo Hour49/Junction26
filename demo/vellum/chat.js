@@ -4,35 +4,38 @@
   'use strict';
   const V = window.VData, esc = window.VPlan.esc;
   const A = () => window.VApp;
-  const SUGGEST = ['How many doors are there?', 'What is the area of the kitchen?', 'How many windows are there?'];
+  const SUGGEST = V.SUGGEST ? V.SUGGEST.slice(0, 3) : ['How many doors are there?', 'What is the area of the kitchen?', 'How many windows are there?'];
 
   // A drawing's value as the person left it: a sign-off wins over the live reading.
   function rowOf(a) {
     const ck = A().S.p.checks[`${a.drawing}:${a.quantity}`];
     if (ck && ck.state === 'checked') return { a, value: ck.value, status: ['ok', `Checked by ${ck.by}`] };
+    if (a.key) return { a, value: a.value, status: ['grey', 'Answer key'] };
     return { a, value: a.value, status: a.check ? ['warn', 'Please double-check'] : ['ok', 'Sure'] };
   }
 
   function turnHtml(t) {
     const r = V.askProject(t.question, A().picks());
     const q = `<p class="bubble">${esc(t.question)}</p>`;
-    if (r.refusal) {
+    const ok = r.parts.filter((p) => !p.answer.refusal), refused = r.parts.slice(ok.length);
+    if (!ok.length) {
       return `<article class="turn">${q}<div class="refusal"><h3 style="margin:0;font-size:17px">I can't answer that from these drawings.</h3>
-        <p style="margin:0">${esc(r.refusal)}</p><div class="chips-row">${r.canAnswer.map((x) => `<button class="qchip press" data-act="chat-ask" data-q="${esc(x)}">${esc(x)}</button>`).join('')}</div></div></article>`;
+        <p style="margin:0">${esc(r.parts[0].answer.refusal)}</p><div class="chips-row">${r.canAnswer.map((x) => `<button class="qchip press" data-act="chat-ask" data-q="${esc(x)}">${esc(x)}</button>`).join('')}</div></div></article>`;
     }
-    const rows = r.rows.map(rowOf);
-    // a total only when one drawing answers (r.total set); its value may have been signed off since
+    const rows = ok.map((p) => rowOf(p.answer));
+    const quantity = ok[0].answer.quantity;
+    // a total only when the API gives one (one drawing answered); its value may have been signed off since
     const head = r.total === null
       ? `<p class="lead" style="margin:0">${rows.length} drawings answered. <span class="muted">${esc(r.total_note)}</span></p>`
-      : `<p class="lead" style="margin:0"><strong>${esc(V.formatValue(r.quantity, rows[0].value))}</strong> on the one drawing that answered.</p>`;
+      : `<p class="lead" style="margin:0"><strong>${esc(V.formatValue(quantity, rows[0].value))}</strong>. <span class="muted">${esc(r.total_note)}</span></p>`;
     const lines = rows.map(({ a, value, status }) => {
       const d = V.drawing(a.drawing);
       return `<li class="chat-row"><span class="chat-line"><span class="mono">${esc(d.name)}</span>: <strong>${esc(V.formatValue(a.quantity, value))}</strong></span>
         <span class="pill ${status[0]}">${esc(status[1])}</span>
         <button class="chat-show press" data-act="show-on" data-d="${d.id}" data-q="${esc(t.question)}">Show it on ${esc(d.name)}</button></li>`;
-    }).join('');
+    }).join('') + refused.map((p) => `<li class="chat-row"><span class="chat-line muted"><span class="mono">${esc(p.name)}</span>: ${esc(p.answer.refusal)}</span></li>`).join('');
     return `<article class="turn">${q}<div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
-      ${head}<p class="small" style="margin:0">${esc(V.ruleOf(r.rows[0]))}</p>
+      ${head}<p class="small" style="margin:0">${esc(V.ruleOf(ok[0].answer))}</p>
       <ul class="chat-rows" aria-label="Per drawing">${lines}</ul></div></article>`;
   }
 
@@ -53,8 +56,9 @@
     if (!question) return false;
     p.chat.push({ id: p.chat.length + 1, question });
     const r = V.askProject(question, A().picks());
-    A().log(Date.now(), 'ask', question, r.refusal ? 'No answer · not in the drawing model'
-      : r.total === null ? `${r.rows.length} drawings answered, not added up · project chat` : `${V.formatValue(r.quantity, r.total)} on one drawing · project chat`);
+    const ok = r.parts.filter((x) => !x.answer.refusal);
+    A().log(Date.now(), 'ask', question, !ok.length ? 'No answer · not in the drawing model'
+      : r.total === null ? `${ok.length} drawings answered, not added up · project chat` : `${V.formatValue(ok[0].answer.quantity, r.total)} on one drawing · project chat`);
     requestAnimationFrame(() => { const all = document.querySelectorAll('.turn'); if (all.length) all[all.length - 1].scrollIntoView({ block: 'start', behavior: 'smooth' }); });
     return true;
   }
