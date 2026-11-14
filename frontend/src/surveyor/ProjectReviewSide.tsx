@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ApiError,
+  drawingLabel,
   formatValue,
   getProjectReview,
   type ConflictEntry,
@@ -14,6 +15,8 @@ interface Props {
   drawingId: string;
   /** Bump to fetch the review again (after an edit or a sign-off). */
   reload?: number;
+  /** Drawing id → plain name (#224), from the workspace's one project GET; absent: the file name. */
+  names?: Record<string, string>;
 }
 
 type Load = { review: ProjectReview } | { error: unknown } | null;
@@ -33,7 +36,9 @@ function conflictState(c: ConflictEntry): string {
 }
 
 /** The surveyor's side panel: the project's drawings with what is left to review, and its conflicts. */
-export function ProjectReviewSide({ projectId, drawingId, reload = 0 }: Props) {
+export function ProjectReviewSide({ projectId, drawingId, reload = 0, names = {} }: Props) {
+  const nameOf = (d: { drawing_id: string; file: string }) =>
+    names[d.drawing_id] ?? drawingLabel(d);
   const [load, setLoad] = useState<Load>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -99,7 +104,7 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0 }: Props) {
                 href={surveyorHref(projectId, d.drawing_id)}
                 aria-current={isCurrent ? 'page' : undefined}
               >
-                {d.file}
+                {nameOf(d)}
               </a>
               <small>
                 {[
@@ -120,7 +125,7 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0 }: Props) {
       {conflicts.length > 0 && (
         <a
           className="sv-settle"
-          href={routeHref({ name: 'conflicts', projectId, query: new URLSearchParams() })}
+          href={routeHref({ name: 'project', projectId, query: new URLSearchParams() })}
         >
           Settle the conflicts
         </a>
@@ -129,7 +134,7 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0 }: Props) {
         {conflicts.map((c) => (
           <li key={`${c.drawing_id} ${c.quantity}`}>
             <a href={surveyorHref(projectId, c.drawing_id, c.quantity)}>{c.label}</a>
-            <small>{c.file}</small>
+            <small>{nameOf(c)}</small>
             <small>
               {c.conflict.values.map((v) => formatValue(v.value, v.unit ?? null)).join(' vs ')} ·{' '}
               {conflictState(c)}

@@ -1,10 +1,9 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { ProjectView } from '../api';
 import {
   STEPS,
   activeStep,
   elapsedMs,
-  formatCost,
   formatMs,
   isLive,
   percentDone,
@@ -16,7 +15,16 @@ const ICON = { done: '✓', working: '◌', waiting: '○' } as const;
 
 /** Screen 2's card: the step, a ring with the share of files finished, the stats and the 8 steps. */
 /** `now`: browser time of the last poll, so Elapsed moves with each answer. */
-export function ProgressCard({ project, now }: { project: ProjectView; now: number }) {
+/** `footer`: the finished screen's done line, the card's last row (ingest.md v3). */
+export function ProgressCard({
+  project,
+  now,
+  footer,
+}: {
+  project: ProjectView;
+  now: number;
+  footer?: ReactNode;
+}) {
   const { files, state } = project;
   const live = isLive(project);
   const step = activeStep(files);
@@ -63,8 +71,9 @@ export function ProgressCard({ project, now }: { project: ProjectView; now: numb
           <dd>{expected === null ? ready : `${ready} / ${String(expected)}`}</dd>
         </div>
         <div>
-          <dt>Cost</dt>
-          <dd>{formatCost(project.cost_usd)}</dd>
+          {/* the demo's 4th stat (IN-86) */}
+          <dt>Set aside</dt>
+          <dd>{files.filter((f) => f.state === 'set_aside').length}</dd>
         </div>
       </dl>
       {state !== 'failed' && (
@@ -92,6 +101,7 @@ export function ProgressCard({ project, now }: { project: ProjectView; now: numb
           })}
         </ol>
       )}
+      {footer}
     </section>
   );
 }

@@ -81,8 +81,8 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Unknown or malformed project, file or drawing id, unknown page, quantity key or mark id | 404 `not-found` |
 | Unknown rule pack (`?pack=`) | 404 `unknown-pack` |
 | A relevance call on, or reading as a floor plan, a file triage did not set aside as not a floor plan | 422 `not-triaged` |
-| `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
-| A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
+| `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value` or `note`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
+| A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action, a `note` on an edit other than `settle`, an empty `note` or one over 280 characters) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
@@ -256,14 +256,25 @@ An edit of a signed-off quantity (409):
         }
       ]
     }
-  ]
+  ],
+  "commit": null
 }
 ```
 
-`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `verda` or `decisions` source
-in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The screen then shows "running
-offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
-questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+`no_keys: true` when no reader needs an API key or a model server: no `gemini`, `regionrooms`, `verda` or
+`decisions` source in `RASTER_COMPONENTS`, `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`,
+`DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off, and no Gemini describer in file triage
+(`TRIAGE_DESCRIBER=gemini` with `TRIAGE_CLASSIFIER` on). The screen then shows "running offline". A reader
+named `hello` reads nothing: drawings on that route have no counts, and their questions are refused with the
+code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+
+`gemini` is there only when a Gemini spend limit is set (`GEMINI_BUDGET_USD`, `GEMINI_BUDGET_USD_PER_HOUR`):
+`ok`, or `budget_exhausted` while the limit is used up. Then every Gemini step (room reader, Decisions count swap
+and answer confidence, sheet-kind signal, describer) answers as when Gemini fails: nothing new is read, the
+answer stays unknown or unchanged, and the file's trace or the answer's note says "Gemini budget used up".
+Replies cached earlier still serve. With the hourly limit it clears as the last hour's spend ages out; with the
+total limit only a restart clears it. A limit of 0 refuses every Gemini call from the first one. The screen can
+say so instead of showing empty readings.
 
 `rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
 below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
@@ -332,6 +343,8 @@ over its drawings (the review queue). `conflicts_open`: the conflicts a person s
 with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
 decided ("settled by a rule") or a person settled is not open. A room's several names count once.
 `issues_open`: the issues in state `open` in `GET /api/projects/{id}/issues` without a pack; null until `done`.
+`issues_to_answer`: of those, the ones that wait for a person's answer: not a `note` and no `answer` yet (an answer
+does not change an issue's `state`); null until `done`.
 `not_plans`: as in `GET /api/projects/{id}` (file triage); left out when the project was ingested with triage off.
 
 <!-- fixture: project_list.json -->
@@ -347,7 +360,8 @@ decided ("settled by a rule") or a person settled is not open. A room's several 
       "drawings": 5,
       "to_review": 1,
       "conflicts_open": 0,
-      "issues_open": 4
+      "issues_open": 4,
+      "issues_to_answer": 0
     }
   ]
 }
@@ -684,7 +698,9 @@ Ingest's project status, plus `drawings`:
           "drawing_id": "c9b719f715357201",
           "file": "plans/flat-a.png"
         }
-      ]
+      ],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -694,7 +710,9 @@ Ingest's project status, plus `drawings`:
       "route": "vector",
       "source": "plans/flat-b.pdf",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Drawn plan 2",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -709,7 +727,9 @@ Ingest's project status, plus `drawings`:
           "drawing_id": "3b3ce7db34257f63",
           "file": "scans/ground-floor-copy.png"
         }
-      ]
+      ],
+      "name": "Plan image 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "37f6819bd17d65d9",
@@ -719,7 +739,9 @@ Ingest's project status, plus `drawings`:
       "route": "raster",
       "source": "photos/plan-photo.jpg",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Plan photo 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "1db9bcf1e67e27a3",
@@ -729,7 +751,9 @@ Ingest's project status, plus `drawings`:
       "route": "bim",
       "source": "model/house.ifc",
       "state": "ready",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Building model 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     }
   ],
   "skipped": [
@@ -742,10 +766,15 @@ Ingest's project status, plus `drawings`:
       "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
     }
   ],
-  "expected_drawings": 5
+  "expected_drawings": 5,
+  "conflicts_open": 0,
+  "issues_open": 4,
+  "issues_to_answer": 0
 }
 ```
 
+- `conflicts_open`, `issues_open`, `issues_to_answer`: the same numbers as the project's entry in
+  `GET /api/projects`; null until `done`.
 - Project `state`: `queued`, `running`, `done`, `failed`. `failed` only when ingest itself broke (e.g. not a
   readable zip), with `error` set; one bad file never fails the project, it becomes a `set_aside` file.
 - File `kind`, by content: `pdf_vector`, `pdf_scan`, `pdf_text`, `png_plan`, `jpeg_plan`, `photo_plan`, `ifc`,
@@ -770,6 +799,13 @@ Ingest's project status, plus `drawings`:
   PNG before JPEG; the group's other drawings are `other_renderings`. A copy of the same content under another
   name is listed once. An IFC model asked about on its own is an entry with no pages. An upload with no drawing
   gives `"drawings": []`.
+- `name` on each drawing: a plain name to show instead of the file name, from the kind of `file` and a number
+  counted per name in the list's order: "Drawn plan" (vector PDF, DXF, SVG), "Scanned plan", "Plan image" (PNG,
+  JPEG), "Plan photo", "Building model" (IFC), else "Drawing"; a page read as a file of its own adds its page
+  ("Drawn plan 3, page 2"). Once the project is done, the same upload always gives the same names; while it
+  runs, a number can still move (a drawing read before an earlier file is counted first). `credit` on each
+  drawing: the licence credit of `file`, the same as `GET /api/drawings/{id}` gives (a page has the credit of the
+  PDF it was split from), or null for a file that is not from the dataset, the Commons photos or the sample.
 - `stage`: the stage a running file is in, or the last one it finished, so the ingest screen needs no trace
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
@@ -829,7 +865,10 @@ after a restart cut that run off:
   "cost_usd": 0.0,
   "drawings": [],
   "skipped": [],
-  "expected_drawings": null
+  "expected_drawings": null,
+  "conflicts_open": null,
+  "issues_open": null,
+  "issues_to_answer": null
 }
 ```
 
@@ -887,7 +926,10 @@ after a restart cut that run off:
       "reason": "not ingested: the server restarted during ingest"
     }
   ],
-  "expected_drawings": 0
+  "expected_drawings": 0,
+  "conflicts_open": null,
+  "issues_open": null,
+  "issues_to_answer": null
 }
 ```
 
@@ -1289,7 +1331,9 @@ photo of an elevation sheet with its register, showing a building that matches n
       "route": "vector",
       "source": "plans/flat-a.pdf",
       "state": "ready",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     }
   ],
   "skipped": [
@@ -1311,7 +1355,10 @@ photo of an elevation sheet with its register, showing a building that matches n
     }
   ],
   "expected_drawings": 1,
-  "not_plans": 4
+  "not_plans": 4,
+  "conflicts_open": 0,
+  "issues_open": 2,
+  "issues_to_answer": 1
 }
 ```
 
@@ -3126,12 +3173,44 @@ many quantities are left to review and how many are signed off, and every confli
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "needs_person": false,
       "signed": null,
-      "value": 30.0
+      "value": 30.0,
+      "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+      "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. Settled by a rule (the printed label over the outline at the sheet's scale): 30.00 m² is used.",
+      "suggestions": [
+        "22.40 m²",
+        "30.00 m²"
+      ]
     }
   ]
 }
@@ -3139,6 +3218,16 @@ many quantities are left to review and how many are signed off, and every confli
 
 `needs_person: true` marks a conflict no rule decides and nobody settled ("needs you"); the others were decided by
 a rule ("AI decision") or settled by a surveyor.
+
+The conflict card's words, rule-based from the conflict's values (no model, no paid call):
+
+- `title`: the conflict as a question, each value once: "Door count: 13 or 11?", "Area of room (name Küche ·
+  1.01): 22.40 m² or 30.00 m²?".
+- `why`: what each method read and how it is decided: "The methods disagree: 22.40 m² by the room outlines at the
+  sheet's scale, 30.00 m² by the printed room areas." then "Settled by a rule (<the rule>): 30.00 m² is used." or
+  "No rule decides between them, so a person has to choose." A stage-8 `conflict.note` sits between the two.
+- `suggestions`: short answers to tap, one per value read, as a person would type them: "13 doors", "1 door",
+  "22.40 m²". A tapped one goes back as a `settle` with its number in `value` (and the words in `note` if wanted).
 
 ### `GET /api/projects/{project_id}/issues?pack=<pack id>`
 
@@ -3188,6 +3277,9 @@ Each issue:
   `unrelated_file` can be other than `open`.
 - `file` is the file as **this project** uploaded it. `file_id` is its `FileStatus.id` (`f3`). `drawing_id` is null
   for a file with no drawing.
+- `drawing_name`: the drawing's plain name as `GET /api/projects/{id}` `drawings[].name` gives it ("Drawn plan 2",
+  the same numbering; another rendering of a drawing has that drawing's name), null for a file with no drawing.
+  Show it to a person instead of `file`, which can be a dataset's file name.
 - `floor`: the storey, only where the source states it (an IFC storey: the plan's on the page, or the quantity
   key's); null otherwise, never guessed.
 - `page`, `box`, `polygon`, `mark_id`: where to open the drawing, in page fractions as on `MarkView`.
@@ -3203,6 +3295,18 @@ Each issue:
   the source refs, null where they don't apply.
 - `links`: API paths (not screen routes) to the drawing and its takeoff in this project, the file's trace, and for a
   code check the drawing's checks.
+- `label`: short legend text for the issue's mark: a conflict's quantity label ("Area of room (name Küche ·
+  1.01)"), else by kind: "No answer", "Set aside", "How it was read", "Fails a rule", "Double-check", "Not a floor
+  plan".
+- `suggestions`: short answers a person can pick (chips), by kind, with no model call; none only restates a
+  value (Tudor, board #14). A conflict: "Check it on site". A refused answer: "Not needed", "I'll send
+  a drawing that shows it". A set-aside file: "Not needed", "I'll send a readable copy". A reading flag: "The
+  reading is fine", "I'll send a better copy". A failed check: "Accepted as drawn", "To be fixed in the design".
+  `unrelated_file`: "It belongs to the project", "It does not belong here". Any text can be answered, not only
+  these.
+- `answer`: a person's answer, `{text, by, at}` (`POST …/issues/{id}/answer` below), or null. It is a note on the
+  issue: it settles nothing and does not change `state` (settle a conflict with `POST …/review`, make a call on a
+  file with `POST …/relevance`).
 
 A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
 
@@ -3218,6 +3322,7 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
       "severity": "fails_rule",
       "state": "open",
       "drawing_id": "5c4ed01e00000002",
+      "drawing_name": "Drawn plan 1",
       "file": "flat-fi.pdf",
       "file_id": "f1",
       "floor": null,
@@ -3257,7 +3362,13 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
         "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d53",
         "trace": "/api/projects/5e0c1a2b3d53/files/f1/trace",
         "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d53"
-      }
+      },
+      "label": "Fails a rule",
+      "suggestions": [
+        "Accepted as drawn",
+        "To be fixed in the design"
+      ],
+      "answer": null
     }
   ]
 }
@@ -3277,6 +3388,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "settled",
       "drawing_id": "44cc9f0d991eafe3",
+      "drawing_name": "Drawn plan 2",
       "file": "plans/flat-b.pdf",
       "file_id": "f3",
       "floor": null,
@@ -3316,7 +3428,12 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
         "checks": null
-      }
+      },
+      "label": "Area of room (name Küche · 1.01)",
+      "suggestions": [
+        "Check it on site"
+      ],
+      "answer": null
     },
     {
       "id": "reading_flag-b8584dc30c73",
@@ -3324,6 +3441,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "3b3ce7db34257f63",
+      "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
       "file_id": "f4",
       "floor": null,
@@ -3341,7 +3459,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
         "checks": null
-      }
+      },
+      "label": "How it was read",
+      "suggestions": [
+        "The reading is fine",
+        "I'll send a better copy"
+      ],
+      "answer": null
     },
     {
       "id": "refused_answer-3b5adbf71a63",
@@ -3349,6 +3473,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "3b3ce7db34257f63",
+      "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
       "file_id": "f4",
       "floor": null,
@@ -3366,7 +3491,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
         "checks": null
-      }
+      },
+      "label": "No answer",
+      "suggestions": [
+        "Not needed",
+        "I'll send a drawing that shows it"
+      ],
+      "answer": null
     },
     {
       "id": "reading_flag-2b11c57c0ff6",
@@ -3374,6 +3505,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "37f6819bd17d65d9",
+      "drawing_name": "Plan photo 1",
       "file": "photos/plan-photo.jpg",
       "file_id": "f6",
       "floor": null,
@@ -3391,7 +3523,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/37f6819bd17d65d9/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f6/trace",
         "checks": null
-      }
+      },
+      "label": "How it was read",
+      "suggestions": [
+        "The reading is fine",
+        "I'll send a better copy"
+      ],
+      "answer": null
     },
     {
       "id": "set_aside-02a5f0314890",
@@ -3399,6 +3537,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": null,
+      "drawing_name": null,
       "file": "photos/site.jpg",
       "file_id": "f7",
       "floor": null,
@@ -3416,7 +3555,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": null,
         "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
         "checks": null
-      }
+      },
+      "label": "Set aside",
+      "suggestions": [
+        "Not needed",
+        "I'll send a readable copy"
+      ],
+      "answer": null
     },
     {
       "id": "set_aside-ac138023ff60",
@@ -3424,6 +3569,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": null,
+      "drawing_name": null,
       "file": "cad/detail.dxf",
       "file_id": "f9",
       "floor": null,
@@ -3441,7 +3587,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": null,
         "trace": "/api/projects/5e0c1a2b3d4f/files/f9/trace",
         "checks": null
-      }
+      },
+      "label": "Set aside",
+      "suggestions": [
+        "Not needed",
+        "I'll send a readable copy"
+      ],
+      "answer": null
     }
   ]
 }
@@ -3461,9 +3613,92 @@ The issues with the floor plans, saved as `<project name>-issues[-<pack>].zip`:
 - `issues.csv`: the CSV above with a first column `n`, the issue's number in the list.
 - One PNG per drawing page that has issues with a box, named `<file stem>-p<page>.png` (`-2`, `-3`… when two files
   share a stem). It is the page at 1600 px with each such issue drawn (its polygon, else its box), coloured by
-  severity and labelled with its `n`. Under the page are the issues' sentences, a colour key and the drawing's
+  severity and labelled with its `n`, under the line "`<drawing_name>`, page `<n>`: `<k>` issues". Under the page
+  are the issues' sentences, a colour key and the drawing's
   licence credit.
 - An issue with no page or no box is only in the CSV, and a page with no such issue has no PNG.
+
+#### `POST /api/projects/{project_id}/issues/{issue_id}/answer?pack=`
+
+A person's answer to an issue: `{text, by}` (`text` 1-500 characters, `by` as a sign-off's), or `{undo: true}` to
+take it back (nothing else; with no answer kept, nothing changes). A new answer replaces the one before. Returns
+the issue as the list gives it, with its `answer`. The answer is kept with the project (`<projects dir>/api/
+issue_answers/<project id>.json`), so it survives a reload and a restart, and keeps to the issue's `id`: an issue
+that leaves the list (a refused question answered later) takes its answer with it, and gets it back if it returns.
+
+- A failed code check's issue needs its `pack`, as the list does.
+- Errors: an unknown project, pack or issue is 404; a project that is not `done` is 409 `not-allowed`; a body with
+  no `text` or `by`, an empty one, or `undo` with either is 422 `validation`.
+- The project's `issues_to_answer` drops by one when an open issue that is not a note gets its first answer.
+
+<!-- fixture: issue_answer_request.json -->
+```json
+{
+  "text": "Check it on site",
+  "by": "Ana"
+}
+```
+
+<!-- fixture: issue_answered.json -->
+```json
+{
+  "id": "conflict-efcb1b52a852",
+  "kind": "conflict",
+  "severity": "note",
+  "state": "settled",
+  "drawing_id": "44cc9f0d991eafe3",
+  "drawing_name": "Drawn plan 2",
+  "file": "plans/flat-b.pdf",
+  "file_id": "f3",
+  "floor": null,
+  "page": 1,
+  "box": [
+    0.16667,
+    0.125,
+    0.5,
+    0.375
+  ],
+  "polygon": [
+    [
+      0.16667,
+      0.125
+    ],
+    [
+      0.16667,
+      0.375
+    ],
+    [
+      0.5,
+      0.375
+    ],
+    [
+      0.5,
+      0.125
+    ]
+  ],
+  "mark_id": "m1",
+  "why": "Area of room (name Küche · 1.01): checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale.",
+  "quantity": "area:room|name=1.01",
+  "question": null,
+  "reason": null,
+  "check": null,
+  "links": {
+    "drawing": "/api/drawings/44cc9f0d991eafe3?project=5e0c1a2b3d4f",
+    "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
+    "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
+    "checks": null
+  },
+  "label": "Area of room (name Küche · 1.01)",
+  "suggestions": [
+    "Check it on site"
+  ],
+  "answer": {
+    "text": "Check it on site",
+    "by": "Ana",
+    "at": "2026-11-14T08:05:00Z"
+  }
+}
+```
 
 ## Drawings
 
@@ -3783,7 +4018,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -3793,8 +4029,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
   Decisions' choice distribution for the answered count, on when the server runs with
   `DECISIONS_CONFIDENCE=true`), `score` (0 to 1) and `calibrated` (false: the score was not checked against
   right answers, so it is **not** a probability that the answer is right; a correct 4-bedroom answer scored
-  0.38). Don't show it as one: the proof and `evidence.png` leave it out. A "sure" badge comes later from
-  golden's gate thresholds. Only a drawing read on the raster route is scored (Decisions reads images). Null
+  0.38). Don't show it as one: the proof and `evidence.png` leave it out. What to show is `level` (below), which
+  is measured. Only a drawing read on the raster route is scored (Decisions reads images). Null
   when it is off, for other routes, when there is no score (the reason is in `explanation`), or on a
   refusal. `line.confidence` carries the same raw score, because the scorer's answer_v1.1 line has that
   field.
@@ -4048,7 +4284,8 @@ from a stand-in, not Gemini; `marks` trimmed to two):
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -4094,6 +4331,41 @@ So the screen never shows Sure next to a double-check request. The policy is fit
 `ROOM_POLICY=gold-labels`; under `furniture` (the demo) room counts are certified outside those conditions, except
 that a bedroom count including a bedroom with no printed label always asks (docs/GOLDEN.md, "The double-check
 policy").
+
+#### Confidence level: `level`
+
+With `CHECK_POLICY` set to a policy file that carries levels (decision 0011; `stoa_eval check-policy --medium`
+writes them), every answer the policy rates also carries `level`: `{level, basis, text}`. The backend computes it,
+so every client shows the same one: show `level` as the pill and `text` with it, and don't derive a level from
+`confidence.score`.
+
+- `level`: `high`, `medium` or `low`.
+  - `high`: the answer is certified. It is high exactly when `line.sure` is true and `check` is null, so a level
+    never contradicts the request.
+  - `medium`: the answer asks for a double-check, and its score is at or above its family's Medium threshold: the
+    calibrated chance that it is wrong is at most the policy's cut (0.20).
+  - `low`: every other rated answer. It asks for a double-check too.
+- `basis`: what the level rests on.
+  - `certified`: the policy's certificate on a raster answer (high).
+  - `score`: the answer's score against its family's Medium threshold (medium or low). A family with no Medium
+    threshold, because its Medium answers were too few or too often wrong on validation, is low.
+  - `route`: the drawing's route, from its own reference answers. A certified route (vector PDF, IFC model) is
+    high; a value read from a printed schedule takes the `schedule` route's level.
+  - `page`: the page was flagged at upload (a phone photo, a scan). Low: levels are not measured on such pages.
+  - `held`: the value is held for a check whatever its score (two methods disagree, an estimate, edited and not
+    signed off, a bedroom with no printed label). Low; `check.reason` says why.
+  - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
+    route with no level). Low.
+- `text`: one plain sentence to show with the pill. For `certified` and `score` it quotes the validation counts of
+  that level from the policy file, e.g. `Medium confidence: on our validation plans, 91% of the answers rated this
+  way were exact (1084 of 1185). Please double-check it.`; for `route`, the route's reference counts.
+
+`level` is null on a refusal, on a value a person signed off or settled (it is theirs: show the sign-off and no
+level), when `CHECK_POLICY` is off, and with a policy file that has no `levels` block: an older file still
+certifies and asks, and gives no level instead of calling every answer low. `line` (answer_v1.1) is unchanged.
+What each level measured on validation, on golden v2 and on the test read is in
+[decision 0011](decisions/0011-confidence-levels.md). The three examples show `check` and `level` together: high,
+medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Medium threshold here).
 
 <!-- fixture: answer_certified.json -->
 ```json
@@ -4309,7 +4581,12 @@ policy").
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": {
+    "level": "high",
+    "basis": "certified",
+    "text": "High confidence: on our validation plans, 99% of the answers rated this way were exact (1501 of 1517)."
+  }
 }
 ```
 
@@ -4565,6 +4842,11 @@ policy").
         }
       }
     ]
+  },
+  "level": {
+    "level": "medium",
+    "basis": "score",
+    "text": "Medium confidence: on our validation plans, 91% of the answers rated this way were exact (1084 of 1185). Please double-check it."
   }
 }
 ```
@@ -4821,6 +5103,11 @@ policy").
         }
       }
     ]
+  },
+  "level": {
+    "level": "low",
+    "basis": "score",
+    "text": "Low confidence: on our validation plans, 58% of the answers rated this way were exact (397 of 680). Check it before you use it."
   }
 }
 ```
@@ -4845,10 +5132,16 @@ that call gives, the project's review edits applied. An unknown project is 404; 
   The total only adds the parts' `answer` values.
 - `total_sure`: true only when there is a total and every part in it is sure (`answer.line.sure`); false
   otherwise.
+- `total_level`: the lowest confidence level among the total's parts that have one (`answer.level.level`): `high`,
+  `medium` or `low`. Null with no total, or when no part has a level.
 - `total_note`: one plain sentence to show with the total, or instead of it: what was added over how many drawings,
   how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), or
   why there is no total, and which drawings gave no answer and why, e.g. `2 doors from 1 drawing.` or `3 drawings
   answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.`
+- `why_no_total` and `refused_note`: `total_note` in its two parts. `why_no_total`: why there is no total, as a
+  sentence (`3 drawings answered; they may show the same rooms, so the numbers are not added up.`, or `No drawing
+  answered it.`); null when there is a total. `refused_note`: the drawings that gave no answer and why (`2 drawings
+  have no reader for it.`); null when none refused.
 - The question is kept in the project's question list (`GET /api/projects/{id}/questions`) as one line per drawing
   that answered, with its own `answer` and `unit`, or one refused line per drawing when none answered; its lines
   share one `project_ask` id.
@@ -5064,7 +5357,8 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     },
     {
@@ -5269,7 +5563,8 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     },
     {
@@ -5352,14 +5647,18 @@ is no total):
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     }
   ],
   "total": null,
   "total_unit": null,
   "total_sure": false,
-  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
+  "total_level": null,
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+  "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+  "refused_note": "2 drawings have no reader for it."
 }
 ```
 
@@ -5673,7 +5972,8 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -5786,7 +6086,8 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -5873,7 +6174,8 @@ A question the drawing cannot answer:
     "schedule": null,
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -5986,7 +6288,33 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
       },
       "note": null,
       "derived": null,
-      "status": "conflict"
+      "status": "conflict",
+      "value_marks": [
+        [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "polygon_x_scale"
+          }
+        ],
+        [
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "printed_label"
+          }
+        ]
+      ]
     },
     "settled": null,
     "marks": [
@@ -6150,7 +6478,8 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "schedule": null,
     "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6248,7 +6577,33 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
       },
       "note": null,
       "derived": null,
-      "status": "conflict"
+      "status": "conflict",
+      "value_marks": [
+        [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "polygon_x_scale"
+          }
+        ],
+        [
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "printed_label"
+          }
+        ]
+      ]
     },
     "settled": null,
     "marks": [
@@ -6416,7 +6771,8 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "schedule": null,
     "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6555,7 +6911,8 @@ rests on:
     },
     "check": null
   },
-  "check": null
+  "check": null,
+  "level": null
 }
 ```
 
@@ -6639,7 +6996,33 @@ any project, which no project shows. A project that does not hold the drawing is
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "marks": [
@@ -6881,7 +7264,8 @@ any project, which no project shows. A project that does not hold the drawing is
   or a scan, with the flag in `estimate`), `edited` (a review changed it), `agree` (two methods agree), `single`
   (one method).
 - `needs_person`: the methods disagree, no rule decides and nobody settled it. Such a row can't be signed off.
-- `settled`: the value a surveyor chose with `settle`, and when.
+- `settled`: the value a surveyor chose with `settle`, and when; `note`: their answer in words when they typed one
+  (else null).
 - `marks`: one per counted item (count) or per room in the sum (area), in the order the screen numbers them.
   - `n`: the number to draw, null for a mark that is not counted.
   - `state`: `counted`, `rejected` (by a surveyor), `added` (by a surveyor), `excluded` (left out by the counting
@@ -6957,7 +7341,10 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
   it. `restore` on an `excluded` mark (`x1`…) counts it in; `reject` on it leaves it out again.
 - `add`: a missed item, on a count only. The new mark gets an id `a1`, `a2`…
 - `settle`: the value to keep (one of the conflict's values, or any value the surveyor counted). It holds until
-  the next mark edit of that quantity.
+  the next mark edit of that quantity. Optional `note` (1-280 characters): the person's answer in words, kept in
+  `settled.note` (the conflict card's typed answer). With `note` and no `value`, the value in use is kept with the
+  note and the quantity counts as settled; the screen sends `value` too when the typed answer has a number.
+  `unsettle` drops the note with the value.
 - `unsettle`: drop the settled value of the quantity and nothing else: mark edits and the rest of the drawing stay
   (`reset` also drops them and the sign-off). Needs `quantity`; nothing settled is not an error; a signed-off
   quantity is 409 as for any edit.
@@ -7123,7 +7510,8 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
       "conflict": null,
       "settled": {
         "value": 3,
-        "at": "2026-11-14T08:05:00Z"
+        "at": "2026-11-14T08:05:00Z",
+        "note": null
       },
       "marks": [
         {
@@ -7232,7 +7620,33 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "marks": [
@@ -7854,6 +8268,45 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 - 2026-11-14, additive (decision 0014): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
   `GET /api/laws/clauses/{clause_id}`, the building-law knowledge base. An unknown pack is 404 `unknown-pack`.
+- 2026-11-14, additive (decision 0011, Bogdan: "the confidence levels should be high medium low"): `level` on
+  `POST /api/ask`'s answer: `{level: high|medium|low, basis, text}` or null, computed by the backend from the
+  check policy; high exactly when the answer is certified (`check` null). `total_level` on the project ask: the
+  lowest level among the total's parts. `CHECK_POLICY`'s file may carry `medium` per family, `level` and `dev` per
+  route and a `levels` block; a file without them loads as before and gives `level` null. Every answer fixture
+  gains `level`; `answer_certified`, `answer_double_check` and `answer_double_check_rooms` show high, medium and
+  low. `line` (answer_v1.1) is unchanged.
+- 2026-11-14, additive (QA R9 area 4, `tools/smoke.py`): `GET /api/info` gains `commit`, the git commit the backend
+  was started from (setting `APP_COMMIT`, which `tools/qa-env.sh` sets to the exported commit), or null when
+  unset. Fixture `info.json` gains it (last).
+- 2026-11-14, behaviour: `GET /api/info` `no_keys` is false also when a keyed source is in
+  `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`, or when `TRIAGE_DESCRIBER=gemini` runs (a triage
+  classifier on); it said true for these. No shape change.
+- 2026-11-14, additive (board #14, plain drawing names): `Issue.drawing_name`, the drawing's `name` from
+  `GET /api/projects/{id}` (null with no drawing). The pages of `issues.zip` name the drawing by it instead of its
+  file. `file` is unchanged.
+- 2026-11-14, additive (board #14, Tudor's conflict card asks 8-10): `Edit.note` on `settle` (1-280 characters, a
+  typed answer in words; without `value` the value in use is kept) and `Settled.note` (null when none); a `note`
+  on another action, empty or too long is 422 `validation`. `settle` with neither `value` nor `note` stays 422
+  `invalid`. `ConflictEntry` (`GET /api/projects/{id}/review`) gains `title`, `why` and `suggestions`. Fixtures
+  `project_review.json` and `takeoff_edited.json` gain the new fields (last in each object).
+- 2026-11-14, additive (board #14, Tudor's asks 1, 3, 4): new `POST /api/projects/{id}/issues/{issue_id}/answer`
+  (`{text, by}` or `{undo: true}`), kept with the project. `Issue` gains `answer` (`{text, by, at}` or null),
+  `suggestions` (answer chips by kind) and `label` (short legend text). `GET /api/projects/{id}` gains
+  `conflicts_open`, `issues_open` and `issues_to_answer`, the same numbers as `GET /api/projects`, which gains
+  `issues_to_answer` (open issues that are not notes and have no answer). An answer does not change an issue's
+  `state`. New fixtures `issue_answer_request`, `issue_answered`.
+- 2026-11-14, additive (board #14 item 6): each entry of `GET /api/projects/{id}`'s `drawings` gains `name` (a
+  plain name from its kind, number and page, never the file name) and `credit` (its licence credit, as on
+  `GET /api/drawings/{id}`, or null). Fixtures `project.json` and `project_triaged.json` show both.
+- 2026-11-14, additive (board #14, Tudor's asks 2, 5 and 11): `value_marks` on every conflict and agreement of a
+  quantity (`QuantityConflict`, in the takeoff, the review's conflicts and an answer): `value_marks[i]` lists
+  `{page, box, label}` for each item of `values[i]`, so a legend can outline them. A count of an element class or
+  of rooms lists what each method counted: the elements or rooms the plan draws, and the objects of the building
+  model that the sheet draws (a model object the sheet does not draw has no position, so a list can be shorter
+  than the count). Any other value with a `page` and `box` (a room area, a scale, a schedule's count) is one mark,
+  labelled with its method. `[]` when no value has a position. `ProjectAnswer.why_no_total` and `refused_note`:
+  the parts of `total_note` (why there is no total; which drawings refused and why). Fixtures `answer_conflict`,
+  `answer_signed`, `project_ask`, `project_review`, `takeoff`, `takeoff_edited` gain the fields.
 - 2026-11-14, additive (decision 0010 section 8, board #152, PR #183): `Triage.register` (the sheet register:
   kind, has_floor_plan, photo_of_sheet, scale_shown, quality, method; null with no register-reading classifier);
   `Description.what_it_is`, `shows_building`, `visible_text` and `detail`. `TRIAGE_JUDGE=rules` judges a

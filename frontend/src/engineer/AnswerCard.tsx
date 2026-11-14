@@ -21,7 +21,6 @@ import {
   formatCost,
   formatLatency,
   formatScore,
-  GRADE_TIP,
   gradeOf,
   statusTip,
   statusWord,
@@ -107,10 +106,6 @@ function MarkList(props: {
   );
 }
 
-// Golden's certified gate (backend #98): plan-level, on held-out CubiCasa test plans, 95% bound.
-export const SURE_TIP =
-  'Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact';
-
 const TONE: Record<Row['status'], string> = {
   signed: ' v-pill--ok',
   agree: ' v-pill--ok',
@@ -121,7 +116,7 @@ const TONE: Record<Row['status'], string> = {
 };
 
 /** The status in words, with its explanation as a tooltip on hover and focus. */
-function StatusPill({ status }: { status: Row['status'] }) {
+export function StatusPill({ status }: { status: Row['status'] }) {
   const id = useId();
   const [tip, setTip] = useState(false);
   const show = () => {
@@ -150,7 +145,7 @@ function StatusPill({ status }: { status: Row['status'] }) {
   );
 }
 
-const GRADE_TONE: Record<Grade, string> = {
+export const GRADE_TONE: Record<Grade, string> = {
   High: ' v-pill--ok',
   Medium: ' v-pill--warn',
   Low: ' v-pill--danger',
@@ -409,39 +404,49 @@ function Answer(props: {
               {value}
             </span>
             {noun && <span className="en-noun">{noun}</span>}
-            {a.line.sure === true && (
-              <span className="en-sure v-pill v-pill--ok" title={SURE_TIP}>
-                Sure<span className="en-sr">. {SURE_TIP}</span>
-              </span>
-            )}
           </div>
-          {/* Decides itself whether to ask (null when certified); onChanged swaps this turn's answer. */}
-          <DoubleCheck
-            answer={a}
-            projectId={projectId}
-            drawingId={a.drawing_id}
-            onChanged={onChanged}
-          />
+          {/* Decides itself whether to ask (null when certified); never for a High answer (EN-83). */}
+          {a.level?.level !== 'high' && (
+            <DoubleCheck
+              answer={a}
+              projectId={projectId}
+              drawingId={a.drawing_id}
+              onChanged={onChanged}
+            />
+          )}
           {row?.signed && (
             <p className="en-verified">
               Verified by {row.signed.by}, {formatTime(row.signed.at)}
             </p>
           )}
-          {grade && (
+          {row?.status === 'signed' ? (
+            // A person's sign-off replaces the level (EN-83).
             <div className="en-grade">
               <div className="en-labelrow">
-                <h4 className="en-label">Grade</h4>
-                <span className={`v-pill${GRADE_TONE[grade]}`} title={GRADE_TIP}>
-                  {grade}
-                </span>
+                <h4 className="en-label">Confidence</h4>
+                <span className="v-pill v-pill--ok">Signed off</span>
               </div>
-              <span className="en-bar" aria-hidden="true">
-                {[1, 2, 3].map((s) => (
-                  <span key={s} className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'} />
-                ))}
-              </span>
-              <p className="en-small">{GRADE_TIP}</p>
             </div>
+          ) : (
+            grade && (
+              <div className="en-grade">
+                <div className="en-labelrow">
+                  <h4 className="en-label">Confidence</h4>
+                  <span className={`v-pill${GRADE_TONE[grade]}`} title={a.level?.text}>
+                    {grade}
+                  </span>
+                </div>
+                <span className="en-bar" aria-hidden="true">
+                  {[1, 2, 3].map((s) => (
+                    <span
+                      key={s}
+                      className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'}
+                    />
+                  ))}
+                </span>
+                <p className="en-small">{a.level?.text}</p>
+              </div>
+            )
           )}
           {row && (
             <div className="en-checks">

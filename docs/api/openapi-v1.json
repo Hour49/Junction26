@@ -162,6 +162,45 @@
         "title": "Answer",
         "type": "object"
       },
+      "AnswerRequest": {
+        "additionalProperties": false,
+        "description": "A person's answer to an issue; `undo` takes it back and needs nothing else.",
+        "properties": {
+          "by": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "undo": {
+            "default": false,
+            "title": "Undo",
+            "type": "boolean"
+          }
+        },
+        "title": "AnswerRequest",
+        "type": "object"
+      },
       "AnswerView": {
         "additionalProperties": false,
         "properties": {
@@ -228,6 +267,16 @@
           "latency_s": {
             "title": "Latency S",
             "type": "number"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Level"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "line": {
             "$ref": "#/components/schemas/Answer"
@@ -318,7 +367,8 @@
           "latency_s",
           "line",
           "proof",
-          "check"
+          "check",
+          "level"
         ],
         "title": "AnswerView",
         "type": "object"
@@ -1145,6 +1195,17 @@
               }
             ]
           },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
           "value": {
             "anyOf": [
               {
@@ -1155,6 +1216,10 @@
               }
             ],
             "title": "Value"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
           }
         },
         "required": [
@@ -1166,7 +1231,10 @@
           "settled",
           "needs_person",
           "signed",
-          "value"
+          "value",
+          "title",
+          "why",
+          "suggestions"
         ],
         "title": "ConflictEntry",
         "type": "object"
@@ -1487,6 +1555,17 @@
         "additionalProperties": false,
         "description": "One drawing of a project: one per group of renderings of the same plan.",
         "properties": {
+          "credit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit"
+          },
           "drawing_id": {
             "title": "Drawing Id",
             "type": "string"
@@ -1509,6 +1588,10 @@
               }
             ],
             "title": "Kind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
           },
           "other_renderings": {
             "items": {
@@ -1566,7 +1649,9 @@
           "route",
           "source",
           "state",
-          "other_renderings"
+          "other_renderings",
+          "name",
+          "credit"
         ],
         "title": "DrawingEntry",
         "type": "object"
@@ -1717,6 +1802,19 @@
               }
             ],
             "title": "Mark"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 280,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           },
           "page": {
             "anyOf": [
@@ -2083,6 +2181,32 @@
       "Info": {
         "additionalProperties": false,
         "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "gemini": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "budget_exhausted"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gemini"
+          },
           "limits": {
             "$ref": "#/components/schemas/Limits"
           },
@@ -2116,6 +2240,16 @@
       "Issue": {
         "additionalProperties": false,
         "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IssueAnswer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "box": {
             "anyOf": [
               {
@@ -2173,6 +2307,17 @@
             ],
             "title": "Drawing Id"
           },
+          "drawing_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing Name"
+          },
           "file": {
             "title": "File",
             "type": "string"
@@ -2215,6 +2360,17 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "links": {
             "$ref": "#/components/schemas/IssueLinks"
@@ -2321,6 +2477,13 @@
             "title": "State",
             "type": "string"
           },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
           "why": {
             "title": "Why",
             "type": "string"
@@ -2347,6 +2510,34 @@
           "links"
         ],
         "title": "Issue",
+        "type": "object"
+      },
+      "IssueAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "by",
+          "at"
+        ],
+        "title": "IssueAnswer",
         "type": "object"
       },
       "IssueLinks": {
@@ -2471,6 +2662,44 @@
           "hits"
         ],
         "title": "LawSearch",
+        "type": "object"
+      },
+      "Level": {
+        "additionalProperties": false,
+        "description": "How far to trust an answer: one of three levels, what it rests on, and one plain sentence\nwith the measured counts behind it.",
+        "properties": {
+          "basis": {
+            "enum": [
+              "certified",
+              "route",
+              "score",
+              "page",
+              "held",
+              "unrated"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "basis",
+          "text"
+        ],
+        "title": "Level",
         "type": "object"
       },
       "Limit": {
@@ -3144,6 +3373,17 @@
             "title": "Question",
             "type": "string"
           },
+          "refused_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused Note"
+          },
           "total": {
             "anyOf": [
               {
@@ -3157,6 +3397,22 @@
               }
             ],
             "title": "Total"
+          },
+          "total_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Level"
           },
           "total_note": {
             "title": "Total Note",
@@ -3184,6 +3440,17 @@
               }
             ],
             "title": "Total Unit"
+          },
+          "why_no_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why No Total"
           }
         },
         "required": [
@@ -3192,7 +3459,10 @@
           "total",
           "total_unit",
           "total_sure",
-          "total_note"
+          "total_level",
+          "total_note",
+          "why_no_total",
+          "refused_note"
         ],
         "title": "ProjectAnswer",
         "type": "object"
@@ -3418,6 +3688,17 @@
             ],
             "title": "Issues Open"
           },
+          "issues_to_answer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issues To Answer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -3494,6 +3775,17 @@
         "additionalProperties": false,
         "description": "Ingest's project status, plus the project's drawings, one per plan.",
         "properties": {
+          "conflicts_open": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflicts Open"
+          },
           "cost_usd": {
             "default": 0.0,
             "minimum": 0.0,
@@ -3572,6 +3864,28 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "issues_open": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issues Open"
+          },
+          "issues_to_answer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issues To Answer"
           },
           "ms": {
             "default": 0,
@@ -3779,6 +4093,17 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "value_marks": {
+            "default": [],
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/ValueMark"
+              },
+              "type": "array"
+            },
+            "title": "Value Marks",
+            "type": "array"
           },
           "values": {
             "items": {
@@ -4848,6 +5173,17 @@
             "title": "At",
             "type": "string"
           },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
           "value": {
             "anyOf": [
               {
@@ -5389,6 +5725,56 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "ValueMark": {
+        "additionalProperties": false,
+        "description": "Where one item a conflicting value counted or measured is on the drawing, named.",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "box",
+          "label"
+        ],
+        "title": "ValueMark",
         "type": "object"
       }
     }
@@ -6832,6 +7218,83 @@
           }
         },
         "summary": "Project Issues Zip"
+      }
+    },
+    "/api/projects/{project_id}/issues/{issue_id}/answer": {
+      "post": {
+        "description": "Save a person's answer to an issue, replacing an earlier one, or take it back (`undo`).\nReturns the issue with its answer. A code check's issue needs its `pack`. 404 for an unknown\nproject, pack or issue; 409 until the project is done.",
+        "operationId": "answer_issue_api_projects__project_id__issues__issue_id__answer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "title": "Issue Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+            "in": "query",
+            "name": "pack",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+              "title": "Pack"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer Issue"
       }
     },
     "/api/projects/{project_id}/questions": {

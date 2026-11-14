@@ -1,7 +1,7 @@
 # File triage: not-a-floor-plan files, their description, relevance and a person's call (spec, decision 0010)
 
 Status: accepted by frontend-orch and built, 2026-11-14, by fe-ingest: FT-1..16 and FT-18..20 (the read-as-plan
-button, after Bogdan's PR #166 merged on main e8a89a8; FT-17 "no button" is superseded by FT-18). FT-21 is fe-golden's.
+button, after Bogdan's PR #166 merged on main e8a89a8; FT-17 "no button" is superseded by FT-18). FT-21 is fe-golden's. Demo parity FT-22, FT-23 by preqa-a, GO 2026-11-14 16:27.
 API: docs/API.md "File triage (decision 0010)" and "POST …/relevance"; record `docs/decisions/0010-file-triage.md`;
 types `frontend/src/api/schema.d.ts` (`Triage`, `Description`, `Relevance`, `Overrule`, `RelevanceRequest`).
 
@@ -258,6 +258,30 @@ End to end (fe-golden, no-keys backend with `TRIAGE_CLASSIFIER=rules`)
   shows the note "not described: no description model is set up, so it is not judged" and no call form; the issues
   list has an `unrelated_file` row "Not a floor plan" linking to that trace; cost stays "$0.00". With triage off
   (the default) the golden path is unchanged. [e2e]
+
+## Demo parity (Tudor 2026-11-14 16:25, demo PR #214; GO 16:27)
+
+The demo's file page (`demo/vellum/triage.js` `card`, after #214) keeps the class heading, the preview, "What is on
+it" with the printed text and the full description, the call and "Read it as a floor plan"; it drops the "Does it
+belong to this project?" block and the note on who described it. The real card follows:
+
+- Removed from `TriageCard`: the heading "Does it belong to this project?", the verdict pill and sentence, the
+  relevance `why`, "Matched on: …", "Judged by <judge>", and "Described by <model>". The data stays in the API and in
+  the issue (`unrelated_file`), it is just not on this card. When `description` is null the `note` still shows once
+  in its place (FT-8).
+- The call gets the demo's heading "Your call" over the name field and the two buttons, and the line under them:
+  "Your call replaces the suggestion and settles this file's issue. It does not read the file as a plan."
+- The file rows (FT-2 to FT-4, FT-20's rows) move with the Files list to Documents (ingest.md v3, fe-ingest): same
+  words there, owned by fe-ingest.
+
+Criteria:
+
+- FT-22: With `trace-triaged` `files[1]` the card shows no "Does it belong to this project?", no verdict pill or
+  sentence, no "Matched on", no "Judged by", no "Described by"; it still shows the class heading, the chance line,
+  the preview, the description, "Subject: …" and "Text printed on it (2)". Supersedes FT-6's related sentence,
+  relevance, matched-on, judged-by and described-by parts. [component]
+- FT-23: With a call offered, the card shows the heading "Your call" and the line "Your call replaces the suggestion
+  and settles this file's issue. It does not read the file as a plan."; FT-9 to FT-13 unchanged. [component]
 
 ## Out of scope
 

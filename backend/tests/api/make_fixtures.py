@@ -57,7 +57,7 @@ from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.drawing.model import Drawing  # noqa: E402
 from app.core.ingest.model import Register  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
-from app.core.review.check import CheckPolicy, Found, Place  # noqa: E402
+from app.core.review.check import CheckPolicy, Counts, Found, LevelName, Place  # noqa: E402
 from app.core.review.model import Row  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
@@ -155,6 +155,7 @@ def responses() -> dict[str, Any]:
     others.append(triaged(root / "triage", settings, found))
     others.append(code_checks(client, found))  # checks, project checks, their issues
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
+    found.update(issue_answered(client, started["id"], found["project_issues"]))  # appended
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
         found["checks"]["drawing_id"]: "5c4ed01e00000002",
@@ -204,6 +205,16 @@ def project_issues(
     body = {"drawing_id": scan, "question": "How many doors are there?", "project_id": project_id}
     assert client.post("/api/ask", json=body).status_code == 200
     return client.get(f"/api/projects/{project_id}/issues").json()
+
+
+def issue_answered(client: TestClient, project_id: str, listed: dict[str, Any]) -> dict[str, Any]:
+    """The sample's conflict answered with its first chip (board #14, Tudor's ask 1)."""
+    conflict = next(issue for issue in listed["issues"] if issue["kind"] == "conflict")
+    request = {"text": conflict["suggestions"][0], "by": "Ana"}
+    url = f"/api/projects/{project_id}/issues/{conflict['id']}/answer"
+    reply = client.post(url, json=request)
+    assert reply.status_code == 200, reply.text
+    return {"issue_answer_request": request, "issue_answered": reply.json()}
 
 
 def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
@@ -395,6 +406,14 @@ def rated(root: Path, settings: Settings) -> dict[str, Any]:
         os.chdir(here)
 
 
+# The val cross-fit counts of the levels at the time of decision 0011, as a policy file gives them
+EXAMPLE_COUNTS: dict[LevelName, Counts] = {
+    "high": Counts(units=1517, exact=1501),
+    "medium": Counts(units=1185, exact=1084),
+    "low": Counts(units=680, exact=397),
+}
+
+
 def example_disputes(drawing: Drawing, row: Row) -> Found:
     """A dispute finder's stand-in (core/pipeline/disputed_marks, room_disputes give these): on
     the arm's sheet, the second door or bedroom is disputed and one place was not counted."""
@@ -423,9 +442,10 @@ def example_disputes(drawing: Drawing, row: Row) -> Found:
 
 def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
     """CHECK_POLICY on the raster arm, with DECISIONS_CONFIDENCE's stand-in (0.87): a door count
-    certified (threshold 0.8: `check` null), the same count and a bedroom count not certified
-    (0.9), with the places `example_disputes` lists: a counted mark, a counted room, and a
-    place each answer did not count (`mark_id` null)."""
+    certified (threshold 0.8: `check` null, level high), the same count and a bedroom count not
+    certified (0.9), with the places `example_disputes` lists: a counted mark, a counted room,
+    and a place each answer did not count (`mark_id` null). The doors are Medium from 0.5 (level
+    medium); the bedrooms have no Medium (level low)."""
     raster_arm(root / "arm", "plan.png")
     settings = settings.model_copy(
         update={
@@ -448,7 +468,11 @@ def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
             ("answer_double_check", 0.9, "How many doors are there?"),
             ("answer_double_check_rooms", 0.9, "How many bedrooms are there?"),
         ):
-            policy = CheckPolicy(thresholds={"door": threshold, "room:bedroom": threshold})
+            policy = CheckPolicy(
+                thresholds={"door": threshold, "room:bedroom": threshold},
+                medium={"door": 0.5},
+                counts=EXAMPLE_COUNTS,
+            )
             app.state.answering = replace(
                 app.state.answering, confidence=ExampleConfidence, signal=DECISIONS_SIGNAL,
                 check=policy, disputes=example_disputes,

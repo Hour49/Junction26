@@ -6,6 +6,7 @@ import {
   STAGE_LABEL,
   formatCost,
   kindLabel,
+  routeLabel,
   formatMs,
   formatSize,
   isFinished,
@@ -27,8 +28,9 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
   );
   const { data: trace, error, failedAt, retry, set } = usePoll(load, live);
   const back = (
-    <a className="ingest-back" href={`#/p/${projectId}`}>
-      Back to the project
+    // the file rows are on Documents now (ingest.md v3, IN-79)
+    <a className="ingest-back" href={`#/p/${projectId}/documents`}>
+      Back to Documents
     </a>
   );
 
@@ -50,7 +52,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
   const facts: [string, string | null | undefined][] = [
     ['Kind', kindLabel(file.kind)],
     ['Size', formatSize(file.size)],
-    ['Route', file.route],
+    ['Route', file.route ? routeLabel(file.route) : null],
     ['Read from', file.source],
     ['Group', file.group],
     ['sha256', file.sha256?.slice(0, 12)],
@@ -58,7 +60,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
     ['Cost', formatCost(file.cost_usd)],
   ];
   return (
-    <div className="v-page v-page--narrow ingest">
+    <div className="v-page v-page--narrow ingest ingest-file">
       {back}
       {error !== null && <StaleNote error={error} failedAt={failedAt} onRetry={retry} />}
       <TitleRow eyebrow={<StateBadge state={file.state} />} title={file.path}>
@@ -98,34 +100,37 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
         />
       )}
       <section aria-label="Stages" className="v-card">
-        <h2 className="v-h3">Stages</h2>
         {stages.length === 0 ? (
           <p>No stages yet.</p>
         ) : (
-          <ol className="ingest-trace">
-            {stages.map((s, i) => (
-              <li key={String(i)} className={s.failure ? 'failed' : undefined}>
-                <span
-                  className="ingest-step-icon"
-                  role="img"
-                  aria-label={s.failure ? 'failed' : 'done'}
-                >
-                  {s.failure ? '✕' : '✓'}
-                </span>
-                <b>{STAGE_LABEL[s.stage]}</b>
-                <span className="ms">{formatMs(s.ms)}</span>
-                <p>{s.stage === 'cache' ? `Cached: ${s.did}` : s.did}</p>
-                {s.stage === 'cache' && (
-                  <p className="output">
-                    the stages below are from the first ingest of this content
-                  </p>
-                )}
-                {s.output && s.output !== s.did && <p className="output">{s.output}</p>}
-                {s.cost_usd > 0 && <p>Cost: {formatCost(s.cost_usd)}</p>}
-                {s.failure && <p className="ingest-error">Failed: {s.failure}</p>}
-              </li>
-            ))}
-          </ol>
+          // folded: the demo's file page shows no stages, and nothing is lost (IN-83)
+          <details className="ingest-stages">
+            <summary>How it was read: {plural(stages.length, 'stage')}</summary>
+            <ol className="ingest-trace">
+              {stages.map((s, i) => (
+                <li key={String(i)} className={s.failure ? 'failed' : undefined}>
+                  <span
+                    className="ingest-step-icon"
+                    role="img"
+                    aria-label={s.failure ? 'failed' : 'done'}
+                  >
+                    {s.failure ? '✕' : '✓'}
+                  </span>
+                  <b>{STAGE_LABEL[s.stage]}</b>
+                  <span className="ms">{formatMs(s.ms)}</span>
+                  <p>{s.stage === 'cache' ? `Cached: ${s.did}` : s.did}</p>
+                  {s.stage === 'cache' && (
+                    <p className="output">
+                      the stages below are from the first ingest of this content
+                    </p>
+                  )}
+                  {s.output && s.output !== s.did && <p className="output">{s.output}</p>}
+                  {s.cost_usd > 0 && <p>Cost: {formatCost(s.cost_usd)}</p>}
+                  {s.failure && <p className="ingest-error">Failed: {s.failure}</p>}
+                </li>
+              ))}
+            </ol>
+          </details>
         )}
       </section>
       {takeoff.length > 0 && (

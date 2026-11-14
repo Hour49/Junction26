@@ -1,6 +1,8 @@
 // Derived fixtures (engineer.md "Acceptance criteria"): the backend's fixture files with named fields
 // overridden, never a hand-written whole response.
 import type { AnswerView, DrawingView, MarkView, ProjectView, Row } from '../api';
+import answerCertifiedJson from '@fixtures/answer_certified.json';
+import answerDoubleCheckJson from '@fixtures/answer_double_check.json';
 import { answer, answerArea, answerConfidence, drawing, project, takeoff } from '../api/fixtures';
 
 function must<T>(value: T | null | undefined, what: string): T {
@@ -142,4 +144,16 @@ export const answerSure: AnswerView = { ...answer, line: { ...answer.line, sure:
 export const answerLowScore: AnswerView = {
   ...answerConfidence,
   confidence: { ...must(answerConfidence.confidence, 'confidence'), score: 0.5 },
+};
+
+/** #233 levels: the backend's own fixtures (high, certified; medium, with a double-check). */
+export const answerHigh = answerCertifiedJson as unknown as AnswerView;
+export const answerMedium = answerDoubleCheckJson as unknown as AnswerView;
+export const answerLow: AnswerView = {
+  ...answerMedium,
+  level: {
+    level: 'low',
+    basis: 'page',
+    text: 'Low confidence: a flagged page. Please double-check it.',
+  },
 };
