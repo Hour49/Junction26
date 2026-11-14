@@ -9,6 +9,42 @@
 
 <!-- entries: newest first -->
 
+## F-005 · 2026-11-14 18:51 · Partner reps, Stoa · OPEN
+- Based on core.md: template, not filled yet
+- Setting: Junction Discord, answers 18:14 to 18:51 (Bogdan pasted them; other participants' questions paraphrased,
+  no handles)
+- Quotes from Stoa, verbatim:
+  - On file formats for judging: "Mix, but the most challenging part has been scanned images (pdf or png) - the
+    hardest questions will be focusing on those"
+  - On what the answers look like: "Think of the best user experience here, its ok for the interface to be
+    interactice! Sorry for the vague answer but we aim to not give too much bias🤖 the accuracy is judged against
+    specific blueprint"
+  - On one project against many files: "Building can have 8 floor plans and a project can have multiple buildings or
+    blueprints. Accuracy evaluated against 1 blueprint but innovation and actual real world impact against the whole
+    flow you have decided to build!"
+  - On how 70 solutions are benchmarked: "We will try to adjust to the interface the teams submit! Accuracy is
+    evaluated against a few drawings we will try against your interface but that is only 1 component in the
+    evaluation! Remember to focus on other areas in the judgement criteria as well😊 happy to share more thoughts at
+    the booth! We will be here until 10-11pm ish today"
+  - On an image whose truth is 5 doors: "Note that some of those doors are closet doors"
+- Signal: useful: how accuracy is judged
+
+**Liked** — · **Concerns** — · **Similar products named** — · **Questions they asked** —
+
+**Research requests** —
+
+**Suggested idea changes**
+- The judges try a few drawings, mostly scanned images (PDF or PNG), through our interface, one blueprint at a time.
+  The demo path on scans is the accuracy test; the rest of the flow is judged on impact.
+- Closet doors count as doors in the truth: check what our door answer does with them.
+
+**Actions**
+- [ ] F-005.1 Walk the demo UI as a judge would: one scanned blueprint at a time, plain questions, scans first.
+- [ ] F-005.2 Take our open questions to the Stoa booth tonight (they stay until about 10-11 pm).
+
+**Status log**
+- 2026-11-14 18:51 OPEN
+
 ## F-004 · 2026-11-13 19:30 · Partner team, Stoa · OPEN
 - Based on core.md: template, not filled yet
 - Setting: booth chat (Madalina)

@@ -64,6 +64,8 @@ from app.adapters.page_sizes import PageSizes
 from app.adapters.paths import inside
 from app.adapters.pdf_tables import PdfTables
 from app.adapters.pdf_tables.schedule_check import ScheduleTagCounter
+from app.adapters.printed_scale import PrintedScale
+from app.adapters.printed_scale.carbon import CarbonPrinted
 from app.adapters.question_templates import TemplateParser
 from app.adapters.raster import RoomPolicy, assemble, parse_components, parse_readers
 from app.adapters.raster.photo import PHOTO, PhotoSwitch
@@ -108,7 +110,7 @@ from app.core.answering.ports import (
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
-from app.core.ingest.model import ProjectStatus
+from app.core.ingest.model import CarbonRead, ProjectStatus
 from app.core.ingest.ports import Classifier, ContentProbe, Describer, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
@@ -180,9 +182,10 @@ class Pipeline:
     confidence: AnswerConfidence | None = None
     # GATE_POLICY: family -> the confidence at or above which an answer is sure; None: ungated
     sure_at: Mapping[str, float] | None = None
-    # CARBON_READER: whether the raster route's drawing of a file (by path) is read by Carbon
-    # alone, the same yes/no its switch uses; ingest flags those drawings. None: no file is
-    carbon_read: Callable[[str], bool] | None = None
+    # What Carbon read of the raster route's drawing of a file (by path): "elements" when
+    # CARBON_READER sent it there (the same yes/no its switch uses), "part" when a composite takes
+    # a part from the `carbon` source; ingest flags those drawings. None: no file is
+    carbon_read: Callable[[str], CarbonRead | None] | None = None
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
         return ingest(
@@ -246,7 +249,9 @@ def build_pipeline(
             # whose page 1 is not a vector plan is read here, so its schedules are read (and its
             # schedule checks noted) as on the vector route.
             "raster": _tables(
-                settings.tables, _raster(settings, files, decisions, kind_of, use_carbon), files
+                settings.tables,
+                _printed(settings, _raster(settings, files, decisions, kind_of, use_carbon), files),
+                files,
             ),
         },
         second_counter=_checked(
@@ -270,28 +275,32 @@ def _carbon_counted(
     settings: Settings,
     use_carbon: Callable[[str], bool] | None,
     kind_of: Callable[[str], str | None],
-) -> Callable[[str], bool] | None:
-    """Whether Carbon read a counted part of a file's raster drawing, by path: CARBON_READER sent
-    it there, or the composite that reads it takes a part (elements, a class, rooms, plans or
-    scale) from the `carbon` source. Ingest flags those drawings, so no answer on them is
-    certified (a Carbon answer is never sure, brief r8 AS). A double-check reader counts nothing
-    and is not a part. None: no file is."""
+) -> Callable[[str], CarbonRead | None] | None:
+    """What Carbon read of a file's raster drawing, by path: its elements when CARBON_READER sent
+    it there ("elements"), a part when the composite that reads it takes one (elements, a class,
+    rooms, plans or scale) from the `carbon` source ("part"; the elements are then not known to
+    be all Carbon's), else None. Ingest flags those drawings, so no answer on them is certified
+    (a Carbon answer is never sure, brief r8 AS). A double-check reader counts nothing and is not
+    a part. None: no file is."""
     if settings.extractor_raster != "composite":
-        return use_carbon
+        return None if use_carbon is None else _elements_if(use_carbon)
     main = _carbon_part(settings.raster_components)
     photo = settings.raster_photo_components
     on_photos = _carbon_part(photo) if photo else main
     if use_carbon is None and not main and not on_photos:
         return None
 
-    def counted(path: str) -> bool:
+    def counted(path: str) -> CarbonRead | None:
         if use_carbon is not None and use_carbon(path):
-            return True
-        if main == on_photos:
-            return main
-        return on_photos if kind_of(path) == PHOTO else main
+            return "elements"
+        part = main if main == on_photos else on_photos if kind_of(path) == PHOTO else main
+        return "part" if part else None
 
     return counted
+
+
+def _elements_if(use_carbon: Callable[[str], bool]) -> Callable[[str], CarbonRead | None]:
+    return lambda path: "elements" if use_carbon(path) else None
 
 
 def _carbon_part(spec: str) -> bool:
@@ -631,6 +640,8 @@ def build_ingest(
     }
     if settings.raster_scale != "off":  # named only when on: the default keeps its cache keys
         names["raster_scale"] = settings.raster_scale
+    if settings.raster_printed_scale != "off":  # the same
+        names["raster_printed_scale"] = settings.raster_printed_scale
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -782,6 +793,20 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
                     "RASTER_COMPONENTS, or set RASTER_SCALE=off"
                 )
             return PriorScale(inner)
+
+
+def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extractor:
+    """RASTER_PRINTED_SCALE=carbon: the printed scale and counts (app/adapters/printed_scale/),
+    read by gemini-4-carbon on the process's spend guard, cached with the Carbon reader's
+    replies (its page reply is shared)."""
+    match settings.raster_printed_scale:
+        case "off":
+            return inner
+        case "carbon":
+            key = settings.gemini_api_key.get_secret_value()
+            client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
+            reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
+            return PrintedScale(inner, reader, files)
 
 
 def _raster_component(

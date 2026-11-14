@@ -54,6 +54,7 @@ from app.core.review.check import (
     no_disputes,
     schedule_check,
     score_of,
+    summed_check,
 )
 from app.core.review.check import SCHEDULE as SCHEDULE_ROUTE
 from app.core.review.model import (
@@ -254,6 +255,9 @@ def ask(
             if reason is None and agrees is False:
                 reason = disagree(shown)
             request = double_check(shown, marks, disputes(drawing, shown), reason)
+    elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
+        request, level = summed_check(check)
+        sure = False
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
         sure = request is None
@@ -302,6 +306,16 @@ def carbon_answer(
     return found.answer
 
 
+def _summed(parsed: object, answer: Answer) -> bool:
+    """A schedule answer outside the single-cell lookups the schedule route was measured on: a
+    room's area the room schedule gives for a takeoff question (answering's fallback), or a sum
+    over more than one row."""
+    if isinstance(parsed, Query):
+        return True
+    summing = isinstance(parsed, TableQuery) and parsed.op in ("sum", "count_sum")
+    return summing and len(answer.evidence) > 1
+
+
 def _flagged(
     quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
 ) -> tuple[dict[str, Quantity], set[str]]:
@@ -312,7 +326,8 @@ def _flagged(
     rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
     page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
     the classes it could not count (left out of `read`), so on a drawing whose elements are
-    Carbon's a class it read with no element is a read 0, still flagged (brief r8 BD)."""
+    Carbon's (CARBON_FLAG, which ingest sets only then) a class it read with no element is a
+    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b."""
     empty: set[str] = set()
     if flags and not drawing.elements:
         empty.update(ELEMENT_CLASSES)

@@ -176,7 +176,7 @@ def _ingest_sheet(
     the same plan have different page frames (decision 0004)."""
     sheet = normalise(file, pages.pages(file))
     found = extract(routed, sheet, extractors)
-    again = second_counter.measure(routed.source, sheet)
+    again = [*second_counter.measure(routed.source, sheet), *found.printed]
     compared = second_count(measured(found), again)
     drawing = Drawing(
         file=file.path,

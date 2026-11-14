@@ -89,7 +89,9 @@ def rooms_with_areas(rooms: Sequence[Room], scale: Scale, pages: Sequence[Page])
                 update={
                     "area_m2": round(area, 2),
                     "area_status": "estimated",
-                    "area_source": "geometry_x_estimate",
+                    "area_source": (
+                        "geometry_x_scale" if scale.status == "scaled" else "geometry_x_estimate"
+                    ),
                     "area_uncertainty": round(math.expm1(spread), 3),
                 }
             )
