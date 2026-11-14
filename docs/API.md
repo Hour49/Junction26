@@ -266,7 +266,7 @@ An edit of a signed-off quantity (409):
 `no_keys: true` when no reader needs an API key or a model server: no `gemini`, `regionrooms`, `verda` or
 `decisions` source in `RASTER_COMPONENTS`, `RASTER_PHOTO_COMPONENTS` or `DOUBLE_CHECK_READERS`,
 `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off, and no Gemini describer in file triage
-(`TRIAGE_DESCRIBER=gemini` with `TRIAGE_CLASSIFIER` on). The screen then shows "running offline". A reader
+(`TRIAGE_DESCRIBER=gemini` or `carbon` with `TRIAGE_CLASSIFIER` on). The screen then shows "running offline". A reader
 named `hello` reads nothing: drawings on that route have no counts, and their questions are refused with the
 code `no-reader`. `limits` lets the screen refuse a file before uploading it.
 
@@ -9126,6 +9126,10 @@ unofficial translation. An unknown id is 404 `not-found`.
   certified); its `cost_usd` includes the resolver's call. Also `conflicts_picked` on `GET /api/projects` and
   `GET /api/projects/{id}`, and `resolved` on issues (`Issue`). `RESOLVER=carbon` resolves an upload on its own
   once ingest is done.
+- 2026-11-14, behaviour: `TRIAGE_DESCRIBER=carbon` describes with gemini-4-carbon at thinking low (rag's
+  pilot), the same describe-6 prompt and form; `Description.model` is then `gemini-4-carbon-low, describe-6`
+  and `cost_usd` is at Carbon's 4 / 20 USD per M tokens. A PDF pdfium cannot open is described as
+  unavailable with pdfium's reason (it raised before). No shape change.
 - 2026-11-14, additive (decision 0014): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
   `GET /api/laws/clauses/{clause_id}`, the building-law knowledge base. An unknown pack is 404 `unknown-pack`.
 - 2026-11-14, additive (decision 0012): `GET /api/projects/{id}/evidence/search?q=&k=&include_unrelated=` and
