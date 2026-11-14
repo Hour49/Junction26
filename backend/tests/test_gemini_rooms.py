@@ -115,14 +115,34 @@ def test_a_reply_is_cached_by_image_and_a_failure_is_not(tmp_path: Path) -> None
     model = FakeModel(reply(room("wc", "WC", [0, 0, 100, 100])))
     reader = GeminiRoomReader(model, tmp_path)
     with Image.open(io.BytesIO(data)) as image:
-        first, again = reader.read(data, image), reader.read(data, image)
+        first, again = reader.read(image), reader.read(image)
     assert model.calls == 1
     assert first.rooms == again.rooms
     assert "cached reply" in again.note
     failing = GeminiRoomReader(FakeModel(None), tmp_path / "other")
     with Image.open(io.BytesIO(data)) as image, pytest.raises(GeminiError):
-        failing.read(data, image)
+        failing.read(image)
     assert not (tmp_path / "other").exists()
+
+
+def test_the_cache_is_keyed_by_pixels_not_file_bytes(tmp_path: Path) -> None:
+    """QA R1-1-5: the same plan uploaded again with other bytes (64 bytes appended, saved with
+    another compression) is the same page, so it gets the cached rooms, not a fresh Gemini read
+    that may count differently. Other pixels are another page."""
+    data = png()
+    buffer = io.BytesIO()
+    Image.open(io.BytesIO(data)).save(buffer, format="PNG", compress_level=1)
+    model = FakeModel(reply(room("wc", "WC", [0, 0, 100, 100])))
+    reader = GeminiRoomReader(model, tmp_path)
+    for same in (data, data + bytes(range(64)), buffer.getvalue()):
+        with Image.open(io.BytesIO(same)) as image:
+            assert len(reader.read(image).rooms) == 1
+    assert model.calls == 1
+    other = io.BytesIO()
+    Image.new("RGB", (300, 200), "black").save(other, format="PNG")
+    with Image.open(other) as image:
+        reader.read(image)
+    assert model.calls == 2
 
 
 class BytesFiles:
