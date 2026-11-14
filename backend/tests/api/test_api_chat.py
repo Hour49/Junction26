@@ -328,3 +328,17 @@ def test_robust_10_ac2_a_sideways_drag_gets_the_true_reason_on_the_rules_planner
     turn = ask(client, project, "Put a storage room here", selection=[line])
     assert turn["kind"] == "dont_know" and "line, not an area" in turn["text"], turn["text"]
     assert [step["tool"] for step in turn["steps"]] == ["propose_room"]
+
+
+@pytest.mark.skipif(not FLOOR9178.is_file(), reason="partner data absent (data/stoa/full)")
+def test_smoke_1_ac31_floor9178_bathroom_1_01_by_type_word_or_label(client: TestClient) -> None:
+    project = upload(client, FLOOR9178.read_bytes(), "floor9178.pdf")
+    for question in (
+        "How big is bathroom 1.01?",
+        "How big is Bagno 1.01?",
+        "How big is room 1.01?",
+    ):
+        turn = ask(client, project, question)
+        assert turn["kind"] == "answer", (question, turn["text"])
+        [answer] = turn["answers"]
+        assert answer["parts"][0]["answer"]["answer"] == pytest.approx(7.557, abs=0.01)

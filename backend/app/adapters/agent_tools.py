@@ -5,6 +5,7 @@ in this build is simply not offered."""
 
 import json
 import logging
+import re
 from collections.abc import Callable
 from functools import partial
 from typing import Any
@@ -12,11 +13,16 @@ from typing import Any
 from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
 from app.core.checks.model import RulePack
+from app.core.plan_edit.law_check import ROOM_WORDS
 from app.core.plan_edit.model import Proposal, Selection
 
 log = logging.getLogger(__name__)
 Json = dict[str, Any]
 Runner = Callable[[str, str], str]  # (tool name, arguments JSON) -> result JSON
+# A room by its printed number after a type word or its label ("bathroom 1.01", "Bagno 1.01"), not a
+# measurement ("7.50 m2"). The pipeline's parser reads the type word and drops the number, but
+# answers "room 1.01" (QA smoke-1; the parser is app/core/answering's, so worked around here)
+ROOM_NUMBER = re.compile(r"\b([^\W\d_]+)\s+(\d+\.\d{2})\b(?!\s*(?:m\b|m2|m²|cm|mm|%))")
 
 
 class AgentToolbox:
@@ -63,7 +69,8 @@ def project_toolbox(
     proposals so far, so the plan tools number new ones after them. `pack`: the rule pack this
     turn's plan edits are checked against (LC-6), None: not checked."""
     pipeline = PipelineStore.of_app(app, project_id)
-    sets: list[tuple[list[Json], Runner]] = [(PIPELINE_TOOLS, partial(run_pipeline_tool, pipeline))]
+    pipe: Runner = partial(run_pipeline_tool, pipeline)
+    sets: list[tuple[list[Json], Runner]] = [(PIPELINE_TOOLS, partial(_by_number, pipe))]
     describe: Callable[[Selection], str] = _plain
     made: Callable[[], list[Proposal]] = list
     laws = getattr(app.state, "laws", None)  # the law index (SqliteLawIndex), None: no law files
@@ -93,6 +100,30 @@ def project_toolbox(
                 (TOOLS, run_law if pack is None else partial(_pack_default, run_law, pack.id))
             )  # pyright: ignore
     return AgentToolbox(sets, describe, made)
+
+
+def room_by_number(question: str) -> str:
+    """`question` with each "<room word or label> <number>" read as "room <number>"."""
+
+    def swap(found: re.Match[str]) -> str:
+        word = found[1].lower()
+        if word == "room" or not any(re.search(pattern, word) for _, pattern in ROOM_WORDS):
+            return found[0]
+        return f"room {found[2]}"
+
+    return ROOM_NUMBER.sub(swap, question)
+
+
+def _by_number(run: Runner, name: str, arguments: str) -> str:
+    """ask_drawings with its question's rooms named by number (QA smoke-1)."""
+    try:
+        given: Any = json.loads(arguments)
+    except json.JSONDecodeError:
+        return run(name, arguments)
+    question: Any = given.get("question") if isinstance(given, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    if name == "ask_drawings" and isinstance(question, str):
+        arguments = json.dumps({**given, "question": room_by_number(question)})  # pyright: ignore[reportUnknownArgumentType]
+    return run(name, arguments)
 
 
 def _pack_default(run: Runner, pack: str, name: str, arguments: str) -> str:

@@ -145,3 +145,16 @@ def test_rerun_edits_n2_ac6_a_missing_argument_still_gives_plain_words() -> None
                        final(text="Done.")),
                  Tools(list_walls={"status": "ok"}, made_up_tool={"status": "ok"}))  # fmt: skip
     assert [s.label for s in other.steps] == ["Listed the walls of a drawing", "Made up tool"]
+
+
+# Smoke after #309
+def test_smoke_1_ac31_a_room_by_type_word_or_label_and_number_is_asked_as_room_number() -> None:
+    from app.adapters.agent_tools import room_by_number
+
+    assert room_by_number("How big is bathroom 1.01?") == "How big is room 1.01?"
+    assert room_by_number("How big is Bagno 1.01?") == "How big is room 1.01?"
+    assert room_by_number("bathroom 1.01 and Cucina 1.03") == "room 1.01 and room 1.03"
+    for kept in ("How big is room 1.01?", "Is room 1.01 bigger than 7.50?", "scale 1.50",
+                 "Is it 7.50 m2?", "How big is the bathroom?"):  # fmt: skip
+        assert room_by_number(kept) == kept
+    assert 'as "room 1.01"' in SYSTEM  # the Gemini path is told too
