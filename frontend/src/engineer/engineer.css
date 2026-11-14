@@ -126,8 +126,8 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--v-surface) 85%, transparent);
-  box-shadow: var(--v-shadow);
+  background: color-mix(in srgb, var(--v-surface) 92%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--v-text) 18%, transparent);
   color: var(--v-text);
   z-index: 2;
 }
@@ -496,10 +496,14 @@ button.en-ref:hover,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 6px 6px 18px;
+  padding: 6px 6px 6px 20px;
   border-radius: 980px;
-  background: var(--v-surface);
-  box-shadow: var(--v-shadow);
+  /* the demo's .askbar (EN-81); the band behind it stays solid (EN-71), so only the band shows through */
+  background: color-mix(in srgb, var(--v-surface) 86%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--v-text) 5%, transparent),
+    0 8px 24px color-mix(in srgb, var(--v-text) 10%, transparent);
 }
 /* The ring follows the pill, not a square box around the input (QA R4b-3); same ring as the shell's. */
 .en-askpill:has(input:focus-visible) {
@@ -532,8 +536,7 @@ button.en-ref:hover,
   cursor: pointer;
 }
 .en-send:disabled {
-  opacity: 0.5;
-  cursor: default;
+  cursor: default; /* filled accent even when empty, as the demo (EN-81) */
 }
 .en-limit {
   text-align: center;

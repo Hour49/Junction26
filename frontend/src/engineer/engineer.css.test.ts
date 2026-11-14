@@ -34,9 +34,8 @@ function rulesFor(selector: string): string {
 
 it('EN-71 the ask box is a solid band: nothing on the page shows through it (golden 06/07)', () => {
   expect(rulesFor('.en-ask')).toMatch(/background:\s*var\(--v-bg\)/);
-  for (const sel of ['.en-ask', '.en-askpill']) {
-    expect(rulesFor(sel)).not.toMatch(/transparent|backdrop-filter/);
-  }
+  // EN-81 amends: only the band must be solid; the pill on top of it may be translucent
+  expect(rulesFor('.en-ask')).not.toMatch(/transparent|backdrop-filter/);
 });
 
 it('EN-71 a turn scrolled into view stops below the sticky site header', () => {
@@ -72,4 +71,21 @@ it('CH-37 the chat answer card: figure and side in two columns (1.4 : 1), one co
 
 it('CH-38 the chat column is the demo 820 px (868 px with the 24 px gutters)', () => {
   expect(rulesFor('.en-chat')).toMatch(/max-width:\s*868px/);
+});
+
+it('EN-81 the ask bar takes the demo look: translucent pill on the solid band, a filled send button', () => {
+  const pill = rulesFor('.en-askpill');
+  expect(pill).toMatch(/background:\s*color-mix\(in srgb, var\(--v-surface\) 86%, transparent\)/);
+  expect(pill).toMatch(/backdrop-filter:\s*blur\(20px\) saturate\(180%\)/);
+  expect(pill).toMatch(/padding:\s*6px 6px 6px 20px/);
+  expect(rulesFor('.en-send:disabled')).not.toMatch(/opacity:\s*0/);
+  expect(rulesFor('.en-ask')).toMatch(/background:\s*var\(--v-bg\)/);
+});
+
+it('EN-81 the arrows on plans and references: 92% surface, the demo shadow', () => {
+  const nav = rulesFor('.en-nav');
+  expect(nav).toMatch(/background:\s*color-mix\(in srgb, var\(--v-surface\) 92%, transparent\)/);
+  expect(nav).toMatch(
+    /box-shadow:\s*0 2px 10px color-mix\(in srgb, var\(--v-text\) 18%, transparent\)/,
+  );
 });
