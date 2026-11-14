@@ -149,7 +149,7 @@ describe('drawing header and ask box', () => {
     expect(await screen.findByRole('heading', { name: 'plans/flat-a.pdf' })).toBeTruthy();
     expect(
       screen.getByText(
-        'vector route, read from plans/flat-a.pdf by pdf; second count: ifc; questions: templates',
+        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count: IFC model; questions: question templates',
       ),
     ).toBeTruthy();
   });
@@ -160,7 +160,7 @@ describe('drawing header and ask box', () => {
     });
     expect(
       await screen.findByText(
-        'vector route, read from plans/flat-a.pdf by pdf; no second count; questions: templates',
+        'vector route, read from plans/flat-a.pdf by PDF vector reader; no second count; questions: question templates',
       ),
     ).toBeTruthy();
   });
@@ -455,6 +455,20 @@ describe('thread', () => {
     expect(scroll.mock.contexts.at(-1)).toBe(t);
   });
 
+  it('R2 qa-3 EN-52 the folded suggestions and Details keep the disclosure marker', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer) });
+    await askSuggestion(answer.question);
+    const t = await turn(answer.question);
+    await within(t).findByTestId('answer-value');
+    const header = screen.getByRole('region', { name: 'Drawing' });
+    const fold = within(header).getByText('Suggested questions');
+    expect(fold.tagName).toBe('SUMMARY');
+    expect(fold.style.display).toBe('list-item');
+    const details = within(t).getByText('Details');
+    expect(details.tagName).toBe('SUMMARY');
+    expect(details.style.display).toBe('list-item');
+  });
+
   it('review fix 2: after the first answer the suggestions fold into a closed details', async () => {
     open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer) });
     const header = await screen.findByRole('region', { name: 'Drawing' });
@@ -534,7 +548,9 @@ describe('extended answers', () => {
     expect(answer.reader.second_counter).toBe('none');
     const t = await shownTurn(answer);
     expect(
-      within(t).getByText('pdf read plans/flat-a.pdf (vector route), no second count'),
+      within(t).getByText(
+        'PDF vector reader read plans/flat-a.pdf (vector route), no second count',
+      ),
     ).toBeTruthy();
     cleanup();
     const counted = await shownTurn({
@@ -542,7 +558,9 @@ describe('extended answers', () => {
       reader: { ...answer.reader, second_counter: 'ifc' },
     });
     expect(
-      within(counted).getByText('pdf read plans/flat-a.pdf (vector route), second count by ifc'),
+      within(counted).getByText(
+        'PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model',
+      ),
     ).toBeTruthy();
   });
 
@@ -571,6 +589,52 @@ describe('extended answers', () => {
       expect(table.style.overflowWrap).toBe('normal');
       expect(table.style.wordBreak).toBe('normal');
       expect(table.parentElement?.style.overflowX).toBe('auto');
+    }
+  });
+
+  it('R2 #80 EN-51 the read-as note leads the How line, in full', async () => {
+    const note = "read 'mnay' as 'many'";
+    const own = 'the scale is estimated from a door width';
+    const misspelt = { ...answer, question: 'How mnay doors are there?' };
+    const cases: [string, string][] = [
+      [`${note}; ${own}`, `How: ${note}; ${own}`],
+      [note, `How: ${note}`],
+    ];
+    for (const [explanation, line] of cases) {
+      const t = await shownTurn({ ...misspelt, explanation });
+      const details = within(t).getByText('Details').closest('details') as HTMLElement;
+      expect(within(details).getByText(line).tagName).toBe('P');
+      cleanup();
+    }
+  });
+
+  it('R2-2-1 EN-51 the read-as note is on the card, Details closed; answers and refusals', async () => {
+    const note = "read 'mnay' as 'many'";
+    const shownNote = "Read 'mnay' as 'many'";
+    const cases: AnswerView[] = [
+      { ...answer, explanation: `${note}; the scale is estimated from a door width` },
+      { ...answer, explanation: note },
+      { ...answerRefused, explanation: `${note}; ${answerRefused.explanation ?? ''}` },
+    ];
+    for (const a of cases) {
+      const t = await shownTurn({ ...a, question: 'How mnay doors are there?' });
+      const shown = within(t).getByText(shownNote);
+      expect(shown.closest('details')).toBeNull();
+      const details = t.querySelector('details');
+      if (details) expect(details.open).toBe(false);
+      const value = within(t).queryByTestId('answer-value');
+      if (value) {
+        expect(
+          shown.compareDocumentPosition(value) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      }
+      cleanup();
+    }
+    for (const a of [answer, answerRefused]) {
+      expect(a.explanation === null || !a.explanation.startsWith("read '")).toBe(true);
+      const t = await shownTurn(a);
+      expect(within(t).queryByText(/^Read '/)).toBeNull();
+      cleanup();
     }
   });
 

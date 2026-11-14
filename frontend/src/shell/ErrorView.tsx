@@ -4,7 +4,8 @@ import { ApiError, errorText } from '../api';
 export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const api = error instanceof ApiError ? error : null;
   const { detail, code } = errorText(error);
-  const notFound = code === 'not-found';
+  // Asking again for something that is not there finds nothing: a 404 leads back instead of retrying.
+  const notFound = api?.status === 404;
   return (
     <section className="error-view" role="alert">
       <h2>{notFound ? 'Not found' : 'Something went wrong'}</h2>
@@ -13,12 +14,15 @@ export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => 
         code: {code}
         {api && api.status !== 0 ? ` · HTTP ${String(api.status)}` : ''}
       </p>
-      {onRetry && (
-        <button type="button" onClick={onRetry}>
-          Retry
-        </button>
+      {notFound ? (
+        <a href="#/">Back to projects</a>
+      ) : (
+        onRetry && (
+          <button type="button" onClick={onRetry}>
+            Retry
+          </button>
+        )
       )}
-      {notFound && <a href="#/">Go to the start</a>}
     </section>
   );
 }

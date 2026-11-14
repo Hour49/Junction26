@@ -78,9 +78,9 @@ The shell calls two endpoints itself; the client covers every endpoint of API.md
 - `readers` (port → reader name): listed in "What runs" in the order the object gives, port labels from
   `strings.ts`: `bim` "BIM model", `cad` "CAD (DXF)", `vector` "Vector PDF", `raster` "Scans and photos",
   `tables` "Tables and schedules", `second_counter` "Second count", `rectifier` "Photo rectifier",
-  `question_parser` "Questions", `answer_prior` "Answer prior", `decisions_kind` "Answer decisions"; a port not in
-  that list shows its key as is. Value `hello` shows "not read"; any other value (`none`, `False` included) shows as
-  is, as text. The list is information only: no reader value changes what any screen offers.
+  `question_parser` "Questions", `answer_prior` "Answer prior", `decisions_kind` "photo/sheet check" (its value `True`/`False` reads "on"/"off", #14); a port not in
+  that list shows its key as is. Each value shows as `readerName(value)` (see "Formatting"): a plain label, never
+  the raw id. The list is information only: no reader value changes what any screen offers.
 - `limits`: exposed through `useInfo().info.limits`. Ingest refuses an upload over `upload_mb` with
   `uploadTooLarge`; engineer caps the question at `question_chars`. The shell itself shows no limit.
 - Fixture: `backend/tests/fixtures/api_v1/info.json` (ten ports; `cad` and `raster` are `hello`; `no_keys: true`).
@@ -137,6 +137,11 @@ surveyor.md):
   decimal point, no grouping, then the unit: `m` " m", `m2` " m²", `m3` " m³", `ft` " ft", `ft2` " ft²", any other
   unit " <unit>" as is. Examples: `2, "count"` → `2`; `52.27, "m2"` → `52.27 m²`; `22.401, "m2"` → `22.40 m²`;
   `30.0, "m2"` → `30.00 m²`. A null value or a string answer (schedule) is the caller's (shown as text, as is).
+- `readerName(id: string | null | undefined): string`: a reader id (API values in `/api/info` `readers` and
+  `DrawingView.reader`) as a plain label: `composite` "image reader", `pdf` "PDF vector reader", `ifc` "IFC model",
+  `templates` "question templates", `hello` "not read", `dev` "best estimate from dev answers", `r3` "photo
+  rectifier", `gemini` "Gemini", `off` and `False` "off", `True` "on", `none` "none", null and undefined "no reader" (a sentence like "none read …" would mislead); any other
+  id as is (as text). QA R2 qa-3.
 - `formatTime(iso: string): string`: `YYYY-MM-DD HH:MM UTC`, read in UTC whatever the browser's zone
   (`2026-11-14T08:00:00+00:00` → `2026-11-14 08:00 UTC`). Used for `created_at`, `signed.at`, `settled.at`.
 - Cost, latency, score and status words stay in the screens' own `format.ts` / `words.ts` (engineer, surveyor),
@@ -200,7 +205,7 @@ request no route matches with a thrown error naming it, so a test fails on an un
 | No project in route | Picker shows the placeholder option "Choose a project" selected; no view links. | `#/`. |
 | Not found | `NotFound`: heading "Page not found", text "Nothing at `<hash>`" (as text), link "Go to the start" (`#/`). No request is made for it. | `#/nope`, `#/p/XYZ`, `#/p/<pid>/d/<did>` (no role). |
 | Screen loading | `Loading` with the screen's label, e.g. "Loading the project…" (`role="status"`, `aria-live="polite"`). | per screen spec. |
-| Screen error | `ErrorView`: heading, `detail`, "code: `<code>`", HTTP status when not 0, Retry when the screen passes `onRetry`, link "Go to the start" when `code` is `not-found`. `role="alert"`. | per screen spec; `error.json` for a 404. |
+| Screen error | `ErrorView`: heading, `detail`, "code: `<code>`", HTTP status when not 0, Retry when the screen passes `onRetry` and the error is not a 404; for a 404 (`status` 404) no Retry (asking again finds nothing) and a link "Back to projects" to `#/`. `role="alert"`. | per screen spec; `error.json` for a 404. |
 
 Refusal and set-aside are screen states (engineer, ingest): `ErrorView` is not used for them, since they come with
 200.
@@ -276,8 +281,8 @@ Info strip
   not-found routes. [component] [e2e on the no-keys backend]
 - SH-17 With `no_keys: false` the offline text is absent and "What runs" is present. [component]
 - SH-18 "What runs" lists all ten ports of `info.json` with their labels; `CAD (DXF)` and `Scans and photos` read
-  "not read", `Vector PDF` reads "pdf", `Photo rectifier` reads "none", `Answer decisions` reads "False"; a port key
-  not in the label list shows as is. [component, `info.json`]
+  "not read", `Vector PDF` reads "PDF vector reader", `Photo rectifier` reads "none", `photo/sheet check` reads
+  "off" (and "on" for `True`), `Questions` reads "question templates"; a port key not in the label list shows as is. [component, `info.json`]
 - SH-19 While info is pending the strip shows "Checking the server…" with `role="status"`, and the route's screen is
   already rendered. [component]
 - SH-20 Info 500 with `error.json`'s body shows "The server did not answer: no drawing 0123456789abcdef
@@ -327,8 +332,8 @@ Generated types
 Common views and text rule
 
 - SH-38 `Loading` renders its label with `role="status"`. [component]
-- SH-39 `ErrorView` with an `ApiError` shows its `detail`, "code: `<code>`" and the status; with code `not-found`
-  also "Go to the start"; with `onRetry` a Retry button that calls it; with a non-`ApiError` it shows the error's
+- SH-39 `ErrorView` with an `ApiError` shows its `detail`, "code: `<code>`" and the status; with `onRetry` a Retry
+  button that calls it, except for a 404 (see SH-48); with a non-`ApiError` it shows the error's
   message and "code: client". It has `role="alert"`. [component]
 - SH-40 `Credit` shows "Credit: none recorded for this file" for `drawing.json` (`credit: null`) and
   "Credit: `<text>`" for a string, the string as literal text (a credit `<b>x</b>` shows the tags). [component,
@@ -358,6 +363,15 @@ Project scope (QA R1 batch 2: a drawing is shared by content across projects)
 - SH-46 `getTakeoff`, `postReview`, `postSignoff` and `takeoffCsvUrl` with `{project: "5e0c1a2b3d4f"}` add
   `project=5e0c1a2b3d4f` to the query (after `zeros` when both are given); without `project` there is none
   (backend PR #74, R1-4-4: the takeoff's `file` names are that project's). [unit, R1-PS-3]
+
+QA round 2 (qa-3 notes)
+
+- SH-47 `readerName` gives each label of "Formatting" (`composite`, `pdf`, `ifc`, `templates`, `hello`, `none`,
+  null and undefined "no reader", `False`) and an unknown id as is; "What runs" shows `readerName` of each value. [unit, component,
+  R2-qa-3-1]
+- SH-48 `ErrorView` for a 404 (an `ApiError` with `status` 404, whatever its `code`) shows no Retry even when the
+  screen passes `onRetry`, and a "Back to projects" link to `#/`; any other error keeps Retry and has no such link.
+  Ingest's project screen answered 404 shows it. [component, R2-qa-3-2]
 
 ## Out of scope
 

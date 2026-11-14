@@ -1,16 +1,23 @@
-import type { DrawingView, Suggestion } from '../api';
+import { readerName, type DrawingView, type Suggestion } from '../api';
 
+/** Reader ids are API values: shown by their names (`pdf` → "PDF vector reader"). */
 function howRead({ reader }: DrawingView): string {
   const by =
     reader.extractor === 'hello'
       ? ', not read (no reader for this route yet)'
-      : ` by ${reader.extractor ?? 'nothing'}`;
+      : ` by ${readerName(reader.extractor)}`;
+  const second =
+    reader.second_counter === 'none'
+      ? 'no second count'
+      : `second count: ${readerName(reader.second_counter)}`;
   return (
-    `${reader.route ?? 'no'} route, read from ${reader.source ?? 'no file'}${by}; ` +
-    `${reader.second_counter === 'none' ? 'no second count' : `second count: ${reader.second_counter}`}; ` +
-    `questions: ${reader.question_parser}`
+    `${reader.route ?? 'no'} route, read from ${reader.source ?? 'no file'}${by}; ${second}; ` +
+    `questions: ${readerName(reader.question_parser)}`
   );
 }
+
+// Inline as well as in engineer.css, so the tests can see it: list-item keeps the disclosure marker.
+export const MARKER = { display: 'list-item' } as const;
 
 /** One button per question; a click asks it. */
 export function Suggestions(props: {
@@ -61,7 +68,7 @@ export function DrawingHeader(props: {
         </>
       ) : folded ? (
         <details className="en-fold">
-          <summary>Suggested questions</summary>
+          <summary style={MARKER}>Suggested questions</summary>
           {buttons}
         </details>
       ) : (

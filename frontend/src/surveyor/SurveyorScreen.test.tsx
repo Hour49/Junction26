@@ -738,12 +738,21 @@ describe('states', () => {
     expect(screen.queryByRole('button', { name: 'Reset all edits' })).toBeNull();
   });
 
-  it('SV-45 a 404 shows the error view and Retry loads again', async () => {
+  it('SV-45 a 404 leads back to the projects; any other load error offers Retry', async () => {
+    show('', { [PATH.takeoff]: reply(404, errorBody) });
+    const notFound = await screen.findByRole('alert');
+    expect(notFound.textContent).toContain('no drawing 0123456789abcdef');
+    expect(notFound.textContent).toContain('code: not-found');
+    expect(
+      within(notFound).getByRole('link', { name: 'Back to projects' }).getAttribute('href'),
+    ).toBe('#/');
+    expect(within(notFound).queryByRole('button', { name: 'Retry' })).toBeNull();
+    cleanup();
     let fail = true;
-    const api = show('', { [PATH.takeoff]: () => (fail ? reply(404, errorBody) : takeoff) });
+    const internal = { ...errorBody, detail: 'internal error', code: 'internal' };
+    const api = show('', { [PATH.takeoff]: () => (fail ? reply(500, internal) : takeoff) });
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('no drawing 0123456789abcdef');
-    expect(alert.textContent).toContain('code: not-found');
+    expect(alert.textContent).toContain('internal error');
     fail = false;
     fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
     await ready();

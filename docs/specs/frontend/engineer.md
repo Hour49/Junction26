@@ -59,7 +59,7 @@ hold the drawing answers 404 (the Drawing error state). Fixture: `drawing.json`.
 | Field | Drives |
 | --- | --- |
 | `file` | the header title and the pending line "Reading <file>…" |
-| `reader.route`, `reader.source`, `reader.extractor`, `reader.second_counter`, `reader.question_parser` | the header's "How it was read" line: `<route> route, read from <source> by <extractor>; second count: <second_counter>; questions: <question_parser>`. An `extractor` of `hello` reads "not read (no reader for this route yet)" instead of `by hello`. A `second_counter` of `none` (no second count ran) reads "no second count" instead of `second count: none`. |
+| `reader.route`, `reader.source`, `reader.extractor`, `reader.second_counter`, `reader.question_parser` | the header's "How it was read" line: `<route> route, read from <source> by <extractor>; second count: <second_counter>; questions: <question_parser>`, each reader id shown by the shared `readerName()` (`pdf` "PDF vector reader", `composite` "image reader", `ifc` "IFC model", `templates` "question templates"): "vector route, read from plans/flat-a.pdf by PDF vector reader; second count: IFC model; questions: question templates". An `extractor` of `hello` reads "not read (no reader for this route yet)" instead of `by hello`. A `second_counter` of `none` (no second count ran) reads "no second count" instead of `second count: none`. |
 | `pages` | the viewer before the first answer (page 1, no marks). `[]`: no viewer; the header says "Building model: no sheet to draw on." |
 | `credit` | passed to the viewer, which places the shell's `<Credit>` under the page; null shows "Credit: none recorded for this file" |
 | `suggestions[].question` | one button each, text = `question`; click asks it |
@@ -97,8 +97,8 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `proof.storeys[]` | `ModelProof` table: one row per storey, one column per class in `counts` |
 | `proof.schedule` | table `title`, `columns` as header, `rows[].cells` (null cell = empty), "<rows> of <of> rows" |
 | `refusal.text`, `refusal.code`, `refusal.can_answer[]` | the refusal turn (States) |
-| `method`, `explanation` | the details (collapsed by default): "Method: <method>", "How: <explanation>" when not null |
-| `reader` | "Where this came from": `<extractor>` read `<source>` (`<route>` route), second count by `<second_counter>`; with `second_counter` `none`: `<extractor>` read `<source>` (`<route>` route), no second count |
+| `method`, `explanation` | the details (collapsed by default): "Method: <method>", "How: <explanation>" when not null. A misspelt question's `explanation` starts with how it was read (backend #80): "read 'mnay' as 'many'" (several joined by ", "), then "; " and the answer's own explanation when it has one. The How line shows it in full, as text, and wraps at 390 px (long words break: `overflow-wrap: anywhere` from the page). The note is also on the card itself (R2-2-1: the typo reader can rewrite a real word into another question): when `explanation` starts with `read '`, its text up to the first `; ` (or all of it) shows right under the question bubble, first letter capitalised, quotes kept ("Read 'mnay' as 'many'"), on answers and on refusals |
+| `reader` | "Where this came from": `<extractor>` read `<source>` (`<route>` route), second count by `<second_counter>`, the reader ids through `readerName()` ("PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model"); with `second_counter` `none`: "…(vector route), no second count" |
 | `cost_usd`, `latency_s` | the card footer: "Cost $0" / "Time 0.2 ms" (format below) |
 | `drawing_id`, `file` | footer "Drawing <file>"; links |
 
@@ -172,9 +172,11 @@ Status words (`quantity.status`): `signed` "Verified", `conflict` "Methods disag
 Desktop 1440x900 (mock: `#work/engineer/A`, "chat-mode"): one centred column, max 960 px wide.
 - Top: drawing header (file path as title, "How it was read" line, suggestion buttons in a wrapping row), and the
   page viewer at the column's width until the first answer; after it, the header keeps only the title and the
-  "How it was read" line.
-- Middle: the thread. Each turn: the question as a right-aligned bubble, then the answer: one sentence with the
-  value in bold, then the card: viewer on the left (about 60 %, with its own legend and caption), on the right
+  "How it was read" line, and the suggestions fold into a closed `<details>` "Suggested questions" whose summary
+  shows the same ▶ disclosure marker as the shell's "What runs" (the browser's own marker: `display: list-item`).
+- Middle: the thread. Each turn: the question as a right-aligned bubble, then, when the question was read with a
+  typo fixed, the read-as note ("Read 'mnay' as 'many'", answers and refusals alike), then the answer: one sentence
+  with the value in bold, then the card: viewer on the left (about 60 %, with its own legend and caption), on the right
   "The answer" (value, unit, status, model score, verified), "Counting rule", "Checks", "Where this came from";
   under the viewer the mark list and the arithmetic line; footer row, one flex row aligned on the text baseline:
   Drawing, Cost, Time, "Details" (its summary inline in the row; opened, its body takes a full line below),
@@ -198,7 +200,7 @@ Drawing header and ask box
 - EN-1 Opening the route calls `GET /api/drawings/<drawing_id>` once with the id from the route. [component, `drawing.json`]
 - EN-2 While that request is pending, the shared loading view shows and no ask box is rendered. [component, pending fetch]
 - EN-3 A 404 shows the shared `ErrorView` with "no drawing 0123456789abcdef" and "not-found", and a link to `#/p/<project_id>`. [component, `error.json` 404]
-- EN-4 The header shows "plans/flat-a.pdf" and "vector route, read from plans/flat-a.pdf by pdf; second count: ifc; questions: templates"; with `second_counter: "none"` it shows "vector route, read from plans/flat-a.pdf by pdf; no second count; questions: templates". [component, `drawing.json`, derived `drawing.json`]
+- EN-4 The header shows "plans/flat-a.pdf" and "vector route, read from plans/flat-a.pdf by PDF vector reader; second count: IFC model; questions: question templates"; with `second_counter: "none"` it shows "vector route, read from plans/flat-a.pdf by PDF vector reader; no second count; questions: question templates". No raw reader id (`pdf`, `ifc`, `templates`) shows. [component, `drawing.json`, derived `drawing.json`]
 - EN-5 With `reader.extractor: "hello"` the header says "not read (no reader for this route yet)" and does not say "by hello". [component, derived `drawing.json`]
 - EN-6 One button per suggestion, labelled with its `question`, in order: "How many doors are there?", "How many windows are there?", "How many toilets are there?". [component, `drawing.json`]
 - EN-7 With `suggestions: []` the screen shows "No ready questions for this drawing." and the ask box. [component, derived `drawing.json`]
@@ -222,7 +224,7 @@ Answers
 - EN-23 With the `confidence` object, "Second reader's score 0.87 (not a probability)" shows; the signal name ("g1main") is not on the card outside Details, and Details shows "Signal: g1main". The card has no "%" next to the score, no word "confidence", and "probability" only in "not a probability". For `answer.json` (confidence null) no score line and no "Signal:" line show. [component, `answer_confidence.json`]
 - EN-24 The footer shows "Cost $0" and "Time 2.0 ms" for `answer.json`. [component]
 - EN-25 `engineer/format.ts` gives: cost 0 → "$0", 0.0004 → "$0.0004", 0.123 → "$0.12"; latency 0.0001622 → "0.2 ms", 0.002 → "2.0 ms", 1.25 → "1.25 s"; score 0.87 → "0.87". Values and times on screen come from the shared `formatValue`/`formatTime` (their criteria are in shared.md). [unit]
-- EN-26 "Where this came from" shows "pdf read plans/flat-a.pdf (vector route), no second count" for `answer.json` (`second_counter: "none"`), and "pdf read plans/flat-a.pdf (vector route), second count by ifc" with `second_counter: "ifc"`. [component, `answer.json`, derived `answer.json`]
+- EN-26 "Where this came from" shows "PDF vector reader read plans/flat-a.pdf (vector route), no second count" for `answer.json` (`second_counter: "none"`), and "PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model" with `second_counter: "ifc"`. [component, `answer.json`, derived `answer.json`]
 - EN-27 "Details" is collapsed by default, its summary in the footer row with Drawing, Cost and Time (the row aligns items on the baseline); opened it shows "Query: door" and "Method: takeoff"; with `explanation` null no "How:" line. [component, `answer.json`]
 - EN-28 A building-model answer shows no viewer; it shows a table with "Door 1", "Ground floor", "000000000000000000000K", a storey table row "Ground floor" with door 2, window 3, and the line "2 door objects in the model on Ground floor". Each table sits in a wrapper that scrolls sideways (`overflow-x: auto`), and its cells do not break inside words (`overflow-wrap: normal`, `word-break: normal`). [component, `answer_model.json`]
 - EN-29 "Picture of this answer" links to `/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600` and opens a new tab when `confidence` is null; with the `confidence` object set there is no "Picture of this answer" link. [component, `answer.json`, `answer_confidence.json` or its derived form]
@@ -253,6 +255,8 @@ Thread and pages
 - EN-48 The big value of an answer has `data-testid="answer-value"` with the formatted value as its text ("2" for `answer.json`, "52.27 m²" for `answer_area.json`); a refusal or an error turn has no element with that test id. [component, `answer.json`, `answer_area.json`, `answer_refused.json`]
 - EN-49 The drawing is requested with the route's project: `GET /api/drawings/adeefbbcc17559fc?project=5e0c1a2b3d4f`. [component, `drawing.json`]
 - EN-50 Every ask body carries `project_id`: a suggestion click, a typed question, a `can_answer` click and "Try again" each send `{"drawing_id", "question", "project_id": "5e0c1a2b3d4f"}`. [component, `answer.json`, `answer_refused.json`]
+- EN-51 The read-as note is visible on the card without opening Details: with `explanation` "read 'mnay' as 'many'; the scale is estimated from a door width" the turn shows "Read 'mnay' as 'many'" under the question, before the value, while Details stays closed; with only the note it shows the same; a refusal whose `explanation` starts with the note shows it too. With `explanation` null, or one that does not start with `read '`, no note shows. Details keeps the full line: "How: read 'mnay' as 'many'; the scale is estimated from a door width" (or "How: read 'mnay' as 'many'"). [component, derived `answer.json`, derived `answer_refused.json`; the 390 px wrap: fe-golden's browser check]
+- EN-52 After the first answer, the "Suggested questions" summary keeps the browser's disclosure marker (its `display` is `list-item`, as the shell's "What runs"), and so does the footer's "Details" summary. [component, `drawing.json` + `answer.json`]
 
 [e2e] criteria are built by the e2e worker (golden-path.md); this spec's build worker writes no file in `frontend/e2e/`.
 

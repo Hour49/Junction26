@@ -339,4 +339,24 @@ describe('ProjectScreen', () => {
     ).toBeTruthy();
     expect(screen.queryByText(/^No drawings/)).toBeNull();
   });
+
+  it('IN-51 R2-qa-3-d a Cache count above 0 explains the reused files under the strip', async () => {
+    const CAPTION =
+      'Each file is counted at its last stage. A reused file stops at Cache: an earlier upload already wrote its drawing.';
+    mockApi({
+      [GET]: {
+        ...project,
+        files: project.files.map((f) => ({ ...f, stage: 'cache' as const, reused: true })),
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.getByText(CAPTION)).toBeTruthy();
+    cleanup();
+
+    mockApi({ [GET]: project });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.queryByText(CAPTION)).toBeNull();
+  });
 });

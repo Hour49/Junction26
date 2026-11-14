@@ -578,3 +578,51 @@ describe('PageViewer: adding a mark', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 });
+
+describe('PageViewer: label placement (R2-qa-1-3)', () => {
+  it('R2-qa-1-3 VW-46 a narrow frame shows numbers only; wide shows values; aria-labels unchanged', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1440);
+    const wide = badges(viewer(answerArea, { unit: 'm2' }).container);
+    expect(wide.map((b) => b.textContent)).toEqual(['1 · 22.40 m²', '2 · 2.49 m²']);
+    const wideLabels = wide.map((b) => b.getAttribute('aria-label'));
+    cleanup();
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(358);
+    const narrow = badges(viewer(answerArea, { unit: 'm2', selected: 'm1' }).container);
+    expect(narrow.map((b) => b.textContent)).toEqual(['1', '2']);
+    expect(narrow.map((b) => b.getAttribute('aria-label'))).toEqual(wideLabels);
+    expect(screen.getByText('1 · Küche · 22.40 m² · counted')).toBeTruthy();
+  });
+
+  it('R2-qa-1-3 VW-47 rendered badges never intersect at 358 px on 19 rooms', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(358);
+    const marks: MarkView[] = Array.from({ length: 19 }, (_, i) => {
+      const x0 = 0.2 + (i % 5) * 0.06;
+      const y0 = 0.2 + Math.floor(i / 5) * 0.06;
+      return {
+        ...kitchen,
+        id: `m${String(i + 1)}`,
+        n: i + 1,
+        box: [x0, y0, x0 + 0.06, y0 + 0.06],
+        polygon: null,
+      };
+    });
+    const { container } = viewer(answerArea, { marks, unit: 'm2' });
+    const W = 358;
+    const H = (W * 400) / 600;
+    const rects = badges(container).map((b) => ({
+      x: (parseFloat(b.style.left) * W) / 100,
+      y: (parseFloat(b.style.top) * H) / 100,
+      w: parseFloat(b.style.width),
+      h: parseFloat(b.style.height),
+    }));
+    expect(rects.length).toBeGreaterThanOrEqual(15);
+    rects.forEach((a, i) => {
+      expect(a.w).toBeGreaterThan(0);
+      for (const b of rects.slice(i + 1))
+        expect(
+          Math.abs(a.x - b.x) >= (a.w + b.w) / 2 - 0.2 ||
+            Math.abs(a.y - b.y) >= (a.h + b.h) / 2 - 0.2,
+        ).toBe(true);
+    });
+  });
+});
