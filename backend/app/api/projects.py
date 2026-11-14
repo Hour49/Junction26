@@ -13,8 +13,17 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.page_render import render_upload
-from app.api.deps import FileId, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep, now
-from app.api.drawings import IMMUTABLE, checked_width
+from app.api.deps import (
+    CreditsDep,
+    FileId,
+    Ingest,
+    IngestDep,
+    ProjectId,
+    ReviewsDep,
+    SettingsDep,
+    now,
+)
+from app.api.drawings import IMMUTABLE, checked_width, file_credit
 from app.api.issues import open_count
 from app.api.questions import ProjectQuestions, listed, log_size
 from app.api.takeoff import Takeoff, takeoff_rows
@@ -305,11 +314,12 @@ def sample(
 
 
 @router.get("/{project_id}")
-def project(project_id: ProjectId, ingest: IngestDep) -> ProjectView:
+def project(project_id: ProjectId, ingest: IngestDep, credits: CreditsDep) -> ProjectView:
     status = ingest.status(project_id)
+    files = {file.path: file for file in status.files}
     return ProjectView(
         **status.model_dump(),
-        drawings=drawings_of(status),
+        drawings=drawings_of(status, lambda path: file_credit(path, files, credits)),
         skipped=skipped_of(status),
         expected_drawings=expected_drawings_of(status),
         not_plans=not_plans_of(status),

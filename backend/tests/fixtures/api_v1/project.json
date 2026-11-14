@@ -323,7 +323,9 @@
           "drawing_id": "c9b719f715357201",
           "file": "plans/flat-a.png"
         }
-      ]
+      ],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -333,7 +335,9 @@
       "route": "vector",
       "source": "plans/flat-b.pdf",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Drawn plan 2",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -348,7 +352,9 @@
           "drawing_id": "3b3ce7db34257f63",
           "file": "scans/ground-floor-copy.png"
         }
-      ]
+      ],
+      "name": "Plan image 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "37f6819bd17d65d9",
@@ -358,7 +364,9 @@
       "route": "raster",
       "source": "photos/plan-photo.jpg",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Plan photo 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "1db9bcf1e67e27a3",
@@ -368,7 +376,9 @@
       "route": "bim",
       "source": "model/house.ifc",
       "state": "ready",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Building model 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     }
   ],
   "skipped": [
