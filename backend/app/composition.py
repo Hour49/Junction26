@@ -16,6 +16,14 @@ from functools import cache, partial
 from pathlib import Path
 from typing import cast
 
+from app.adapters.ahead import (
+    DECISIONS_AHEAD,
+    ROOMS_AHEAD,
+    Ahead,
+    AheadDecisions,
+    AheadExtractor,
+    DecisionsReading,
+)
 from app.adapters.answer_policy import load_policy
 from app.adapters.answer_prior import DEV_PRIOR, NoPrior, TablePrior
 from app.adapters.archive import (
@@ -43,7 +51,11 @@ from app.adapters.count_arbiter import ArbiterCountExtractor
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
 from app.adapters.decisions.client import DecisionsClient
 from app.adapters.decisions.g1main import G1MainReader
-from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtractor
+from app.adapters.decisions.uses import (
+    DEFAULT_ARM,
+    DecisionsConfidence,
+    DecisionsCountExtractor,
+)
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
 from app.adapters.evidence.embedder import load_embedder
@@ -891,7 +903,10 @@ def _raster(
                 raise InvalidInputError("DOUBLE_CHECK_READERS needs EXTRACTOR_RASTER=composite")
             return _scaled(settings, HelloExtractor())
         case "composite":
-            built = cache(lambda source: _raster_component(source, settings, files, decisions))
+            ahead: list[Ahead] | None = None if photo else []  # a photo's composite may not ask
+            built = cache(
+                lambda source: _raster_component(source, settings, files, decisions, ahead)
+            )
             policy = _room_policy(settings.room_policy)
             checks = _double_check(settings.double_check_readers, built)
             shipped = _composite(
@@ -903,7 +918,9 @@ def _raster(
                     _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
                     kind_of,
                 )
-            shipped = OneAtATime(shipped, settings.ingest_local_in_flight)  # held in memory at once
+            shipped = OneAtATime(  # held in memory at once; their Gemini calls asked before
+                shipped, settings.ingest_local_in_flight, ahead or ()
+            )
             shipped = _scaled(settings, shipped)  # PriorScale's door constants fit the detector
             if settings.carbon_reader == "advanced" and settings.sheet_kind == "off":
                 raise InvalidInputError(
@@ -1000,10 +1017,16 @@ def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extra
 
 
 def _raster_component(
-    source: str, settings: Settings, files: DrawingFiles, decisions: Callable[[], G1MainReader]
+    source: str,
+    settings: Settings,
+    files: DrawingFiles,
+    decisions: Callable[[], G1MainReader],
+    ahead: list[Ahead] | None = None,
 ) -> Extractor:
     """The reader of one RASTER_COMPONENTS source name. A precomputed arm finds an uploaded sheet
-    in the Stoa dataset (CREDIT_DATASET, the folder its files are relative to) by its content."""
+    in the Stoa dataset (CREDIT_DATASET, the folder its files are relative to) by its content.
+    `ahead`: given, the Gemini calls of the Decisions and Gemini rooms readers are added to it, to
+    be asked before the local reading's slot (app/adapters/ahead.py)."""
     kind, _, where = source.partition(":")
     tiles = settings.raster_tiles == "auto"
     match kind:
@@ -1029,7 +1052,7 @@ def _raster_component(
             )
             return RemoteReader(files, client)
         case "gemini" if not where:
-            return _gemini_rooms(settings, files)
+            return _rooms_ahead(_gemini_rooms(settings, files), ahead)
         case "carbon":  # carbon, or carbon:<READER_SHA[:12]> to pin the contract it reads by
             if where not in ("", READER_SHA[:12]):
                 raise InvalidInputError(
@@ -1041,7 +1064,7 @@ def _raster_component(
             if not settings.region_model_dir:
                 raise InvalidInputError("RASTER_COMPONENTS: regionrooms needs REGION_MODEL_DIR")
             region = SegmenterRegion(*load_region(Path(settings.region_model_dir)))
-            return RegionRooms(_gemini_rooms(settings, files), files, region)
+            return RegionRooms(_rooms_ahead(_gemini_rooms(settings, files), ahead), files, region)
         case "photo" if where:
             return OnnxDetector.from_folder(files, inside(PHOTO_DIR, where))
         case "region" if where:
@@ -1056,12 +1079,14 @@ def _raster_component(
             return ArbiterCountExtractor.from_folder(
                 base, second, files, Path(settings.arbiter_model_dir)
             )
-        case "decisions" if where:
-            inner = _raster_component(where, settings, files, decisions)
-            return DecisionsCountExtractor(inner, files, decisions())
-        case "decisions-s1536" if where:
-            inner = _raster_component(where, settings, files, decisions)
-            return DecisionsCountExtractor(inner, files, decisions(), arm="S1536")
+        case "decisions" | "decisions-s1536" if where:
+            inner = _raster_component(where, settings, files, decisions, ahead)
+            arm = "S1536" if kind == "decisions-s1536" else DEFAULT_ARM
+            if ahead is None:
+                return DecisionsCountExtractor(inner, files, decisions(), arm=arm)
+            early = AheadDecisions(decisions(), files, DECISIONS_AHEAD)
+            ahead.append(early)
+            return DecisionsReading(DecisionsCountExtractor(inner, files, early, arm=arm), early)
         case _:
             raise InvalidInputError(
                 f"RASTER_COMPONENTS: unknown source {source!r}; sources are "
@@ -1072,6 +1097,14 @@ def _raster_component(
                 "arbiter-t1:<arm>[:<one-view tune run>], "
                 "decisions-s1536:<source> and one-plan"
             )
+
+
+def _rooms_ahead(rooms: Extractor, ahead: list[Ahead] | None) -> Extractor:
+    if ahead is None:
+        return rooms
+    early = AheadExtractor(rooms, ROOMS_AHEAD)
+    ahead.append(early)
+    return early
 
 
 def _gemini_rooms(settings: Settings, files: DrawingFiles) -> Extractor:

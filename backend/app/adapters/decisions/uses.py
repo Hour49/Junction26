@@ -19,6 +19,7 @@ note says "confidence not available: <why>"; the confidence is None with the sam
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Protocol
 
 from app.adapters.decisions.client import DecisionsError
 from app.adapters.decisions.g1main import FAMILIES, G1MainReader, PageCounts
@@ -58,12 +59,18 @@ def _score(element: Element) -> float:
     return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else -1.0
 
 
+class CountsReader(Protocol):
+    def read(self, image: bytes) -> PageCounts:
+        """Raises `DecisionsError` when there is no usable answer."""
+        ...
+
+
 class DecisionsCountExtractor:
     def __init__(
         self,
         inner: Extractor,
         files: DrawingFiles,
-        reader: G1MainReader,
+        reader: CountsReader,  # G1MainReader, or app/adapters/ahead.py's
         *,
         arm: str = DEFAULT_ARM,
     ) -> None:

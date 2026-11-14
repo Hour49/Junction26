@@ -9,7 +9,9 @@ the local reader, this lock keeps one such reading in memory at a time while the
 reader is wrapped in (CarbonThings, CarbonChecked, PrintedScale run them beside it) go on."""
 
 import threading
+from collections.abc import Sequence
 
+from app.adapters.ahead import Ahead
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
 
@@ -21,11 +23,19 @@ class OneAtATime:
     """`slots` local readings at once (INGEST_LOCAL_IN_FLIGHT), shared by every pipeline of the
     process; 1 is one at a time."""
 
-    def __init__(self, inner: Extractor, slots: int = 1) -> None:
+    def __init__(self, inner: Extractor, slots: int = 1, ahead: Sequence[Ahead] = ()) -> None:
+        """`ahead`: the model calls of `inner` started before the slot is taken (ahead.py)."""
         self._inner = inner
+        self._ahead = tuple(ahead)
         with _slots_guard:
             self._slots = _slots.setdefault(slots, threading.BoundedSemaphore(slots))
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        with self._slots:
-            return self._inner.extract(source, sheet)
+        for call in self._ahead:  # they wait on the network while this sheet waits for a slot
+            call.start(source, sheet)
+        try:
+            with self._slots:
+                return self._inner.extract(source, sheet)
+        finally:
+            for call in self._ahead:
+                call.settle(sheet)
