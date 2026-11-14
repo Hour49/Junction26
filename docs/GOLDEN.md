@@ -416,6 +416,15 @@ families flags at least 96% of val's wrong answers. The file holds one threshold
 used: `g1main` (DECISIONS_CONFIDENCE) and local-dec's local gates (LOCAL_GATES). Routes are certified on golden v2's
 holdout (vector and BIM yes, schedules no).
 
+Levels (Bogdan, 2026-11-14: cut 0.20). `--medium 0.20` adds a second threshold per family, `medium`, read from the
+same all-val calibration at P(wrong) 0.20: a certified answer is High, an answer at or above `medium` is Medium,
+any other is Low. A calibration group whose cross-fit Medium has fewer than 30 answers or is under 80% exact gets
+no Medium (`--medium-min-units`, `--medium-min-exact`; window on C1-T1, 7 answers). The top-level `levels` block
+keeps the cross-fit counts per level. Each route gets a `level`: High when certified, else Medium when its golden
+v2 dev answers reach 30 at 80% exact (schedules: 35/37), else Low. On C1-T1 val, cross-fit: High 44.9% of the
+answers at 98.9% exact, Medium 34.6% at 91.6%, Low 20.4% at 58.6%. These counts leave out #174's plan agreement
+(3 val plans the backend asks about count as High here) and count the always-flagged bedroom answers as Low.
+
 The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json` (committed as
 `eval/results/check/check-C1-T1-recall96-rt-full-small.json`, sha256
 `a9334da1b908866d57fb4066791011bf5344a0f11471a05dba2f0815dd239def`), fit on config C1-T1's val answers: door, plan,
