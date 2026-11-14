@@ -3,6 +3,7 @@ as a file of its own, `<name>#p<n>.pdf`, through the normal route; page 1 is rea
 one-page PDF ingests exactly as it did (orchestrator brief, 2026-11-14: a notes cover hid a set)."""
 
 import io
+import zipfile
 from pathlib import Path
 
 import pypdfium2
@@ -123,3 +124,19 @@ def test_a_page_file_names_the_pdf_it_was_split_from() -> None:
     assert split_from("sets/Permit #p3.pdf", paths) == "sets/Permit .PDF"
     assert split_from("plan.pdf", paths) is None  # not a page file
     assert split_from("notes#p2.pdf", paths) is None  # named like one, but no notes.pdf
+
+
+def test_a_split_page_whose_name_is_taken_leaves_no_file_queued(make_service: MakeService) -> None:
+    """set.pdf's page 2 is named set#p2.pdf, which the zip already holds: the page is set aside at
+    a name of its own instead of taking the record of the file at that path."""
+    zipped = io.BytesIO()
+    with zipfile.ZipFile(zipped, "w") as archive:
+        archive.writestr("set#p2.pdf", swiss_sheet().pdf())
+        archive.writestr("set.pdf", drawn_set())
+    ingest = make_service()
+    status = ingest.wait(ingest.start("a.zip", zipped.getvalue()))
+    by_path = {file.path: file for file in status.files}
+    assert sorted(by_path) == ["set#p2-2.pdf", "set#p2.pdf", "set.pdf"]
+    assert all(file.state not in ("queued", "running") for file in status.files), status.files
+    assert by_path["set#p2.pdf"].route == "vector"
+    assert by_path["set#p2-2.pdf"].reason == "a second file at a path"

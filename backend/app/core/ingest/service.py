@@ -460,16 +460,16 @@ class IngestService:
                     break
                 unpacked = self._ms(started)
                 if run.has(entry.path):
-                    # A copy of the file at that path is set aside, as before. Another file of the
-                    # same name (a tiff and a png of one name, or two files in a zip) is read, at a
-                    # free name: `run` keeps its files by path, so it needs a record of its own.
+                    # A copy of the file at that path is set aside, as before; another file of the
+                    # same name (a tiff and a png of one name, or two files in a zip) is read. Both
+                    # at a free name: `run` keeps its files by path, and a second record at a taken
+                    # path would take the first one's place (it stayed queued).
                     same = entry.data is not None and digests.get(entry.path) == _digest(entry.data)
+                    free = _free_path(run, entry.path)
                     if same or entry.data is None:
-                        entry = Entry(
-                            path=entry.path, size=entry.size, refused="a second file at a path"
-                        )
+                        entry = Entry(path=free, size=entry.size, refused="a second file at a path")
                     else:
-                        entry = entry.model_copy(update={"path": _free_path(run, entry.path)})
+                        entry = entry.model_copy(update={"path": free})
                 if entry.data is not None:
                     digests.setdefault(entry.path, _digest(entry.data))
                 run.add(entry)
@@ -502,7 +502,8 @@ class IngestService:
         (`<name>#p<n>.pdf`, its own group) and identified like any file of the upload."""
         started = self._clock()
         named = page_path(path, page.number)
-        if run.has(named):
+        if run.has(named):  # set aside at a free name, not over the record of the file there
+            named = _free_path(run, named)
             run.add(Entry(path=named, size=len(page.data), refused="a second file at a path"))
             run.stage(named, "unpack", "refused", 0.0, failure="a second file at a path")
             run.finish(named, "set_aside", "a second file at a path")
