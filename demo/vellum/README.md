@@ -1,19 +1,22 @@
 # demo/vellum/: clickable demo of the Vellum redesign
 
-Static HTML, CSS and JS. No build step, no network, no dependencies. Open `index.html` in a browser.
+Static HTML, CSS and JS, no dependencies. **Every drawing, picture and number is real** (Tudor: "just take data from
+the real dataset"): a Swiss Dwellings floor with its answer key (`questions.jsonl`), plus real archive scans (floor
+plans, an elevation, a section, a site plan, a title sheet, a photo, an artwork) whose register row and description
+are what a person saw on each image. Nothing is drawn or made up. The Stoa data is partner data, so the demo is built
+on your machine and never committed:
 
-v2 adds file triage as a preview (decision 0010: four synthetic images set aside as not floor plans, with their
-register kind, description, the relevance rule, a person's call and "Read it as a floor plan"; all in `triage.js`),
-the project's Drawings and Files lists, the issues list (`issues.js`), and a multi-page PDF split into page files.
+    python3 -I demo/vellum/make_stoa_demo.py --dataset <path to junction-dataset>
+    cd demo/vellum && python3 -m http.server 8765    # then open http://localhost:8765/ (it goes to stoa/index.html)
 
-The whole product story in the Vellum look (Tudor's canvas, boards 1-5 and 9-12): drop files, watch them being read
-(simple and advanced views), settle the conflicts, start a new chat over all the drawings, ask with proof and double-check
-uncertain answers, see the workspace history. Spec and click map: `../../docs/specs/frontend/clicky-demo.md`.
+`app.html` is the page template the generator copies into the gitignored `stoa/`; `index.html` only points there.
+The archive scans come from a local picks file (`--picks`, default `data/stoa/demo-triage.json`, gitignored).
 
-Everything in it is synthetic. The plans are drawn as SVG by `plan.js` from the one data structure in `data.js`, and
-every count, area, conflict value, cross-check and mark on screen is derived from it, so they always agree. File
-names, sizes and timings are illustrative, not measured. Nothing from the Stoa dataset is committed in this folder. The
-double-check items use the backend's `answer.check` shape (`reason`, `disputed[]` with `mark_id`, `why`, `readers`).
+File triage is a preview (decision 0010): set-aside files with their kind, description, the relevance rule, a
+person's call and "Read it as a floor plan" (`triage.js`); the project's Drawings and Files lists; the issues list
+(`issues.js`); the project chat with follow-ups and an elevation answer from its description (a preview).
+
+Spec and click map: `../../docs/specs/frontend/clicky-demo.md`.
 
 It shows only what the backend has: no country picker, login or user name (a sign-off takes a typed name), no ETA,
 no answer grade.

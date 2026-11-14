@@ -87,9 +87,8 @@
     slots = {};
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, conflicts: conflictsScreen,
       chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen, issues: window.VIssues.screen }[r.name](r);
-    app.innerHTML = header(r) + screen + (V.CREDIT
-      ? `<p class="foot">Stoa mode, local only: a real drawing and its answer key from the Stoa dataset${V.TRIAGE && Object.keys(V.TRIAGE).length ? ", and a folder of real archive scans (credit on each file)" : ""}; the reading steps are illustrated. From the Stoa dataset's LICENSE.md: “${esc(V.CREDIT)}”</p>`
-      : '<p class="foot">Clickable demo · synthetic data drawn in the browser, no backend, nothing read from a real file.</p>');
+    app.innerHTML = header(r) + screen
+      + `<p class="foot">Clickable demo, built locally from the Stoa dataset: real files, the dataset's answer key${Object.keys(V.TRIAGE || {}).length ? ', and real archive scans (credit on each file)' : ''}; no backend, the reading steps are illustrated. From the dataset's LICENSE.md: “${esc(V.CREDIT)}”</p>`;
     fill();
   }
   function fill() {
@@ -115,7 +114,7 @@
             <button class="btn btn-plain press" data-act="sample" style="font-size:15px">Try a sample</button>
             <input type="file" multiple hidden data-files aria-label="Choose drawing files">
           </div>
-          <p class="small">This demo plays its synthetic sample archive, whatever you drop or choose.</p>
+          <p class="small">This demo plays its real sample from the Stoa dataset, whatever you drop or choose.</p>
         </div>
         <div class="row-wrap" style="gap:8px">${tags.map((t) => `<span class="tag">${t}</span>`).join('')}</div>
       </section>
@@ -273,9 +272,8 @@
       'Finding the scale: the scale bar or the ratio in the title block.']);
     slots.log = () => logLines(DRAWING_FILES.map((f) => `normalise ${f.path}`));
     slots.stats = () => stat('Elapsed', secs()) + stat('Files', DRAWING_FILES.length) + stat('Drawings ready', `${progress().ready} / ${V.DRAWINGS.length}`) + stat('Set aside', progress().aside);
-    const uploaded = d.image ? P.plain(d, 'scan', `${d.name}, as uploaded`)
-      : `<div style="transform:rotate(-4deg) scale(0.92)">${P.plain(d, 'scan', `${d.name}, as uploaded: a tilted scan`)}</div>`;
-    const note = d.image ? 'Already upright: the dataset renders it from the floor geometry.' : 'Upright, the plan view only.';
+    const uploaded = P.plain(d, 'scan', `${d.name}, as uploaded`);
+    const note = 'Already upright: the dataset renders it from the floor geometry.';
     return { fig: `<div class="nfigs"><figure><figcaption class="small">As uploaded</figcaption><div class="fig">${uploaded}</div></figure>
       <figure><figcaption class="small">Normalised</figcaption><div class="fig" style="background:#fafafc">${P.plain(d, 'clean', `${d.name}, normalised`)}</div><p class="small" style="margin:0">${note}</p></figure></div>` };
   }

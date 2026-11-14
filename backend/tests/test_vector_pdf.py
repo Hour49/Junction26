@@ -1,6 +1,7 @@
 """The vector route's PDF extractor (`EXTRACTOR_VECTOR=pdf`) on synthetic sheets drawn in the two
 styles it has reading rules for. Each test names the rule it holds in place."""
 
+import ast
 import json
 import math
 from collections import Counter
@@ -274,7 +275,7 @@ def test_swiss_rooms_have_number_label_type_and_net_area() -> None:
     rooms = {room.attrs["number"]: room for room in found.rooms}
     assert list(rooms) == ["2.01", "2.02", "2.03", "2.04", "2.05", "3.01"]
     assert [room.type for room in rooms.values()] == [
-        "kitchen", "storage", "bathroom", "balcony", "shaft", "other",
+        "kitchen", "storage", "bathroom", "balcony", "shaft", "bedroom",
     ]  # fmt: skip
     assert [room.label for room in rooms.values()] == [
         "Küche", "Reduit", "Bad", "Balkon", "Lift", "Zimmer",
@@ -342,7 +343,9 @@ def test_without_a_scale_swiss_rooms_are_listed_with_unknown_areas() -> None:
         ("Balcone", 228, ("balcony", True)),
         (None, 243, ("shaft", False)),
         ("Treppenhaus", 255, ("shaft", False)),
-        ("Zimmer", 243, ("other", False)),  # a named room keeps its name's type
+        ("Zimmer", 243, ("bedroom", False)),  # a named room keeps its name's type
+        ("Pièce", 255, ("bedroom", False)),  # a lone "room" is a flat's bedroom, in each language
+        ("Stanza", 255, ("bedroom", False)),
         ("Séjour/repas", 255, ("living", False)),
         (None, 255, ("other", False)),
     ],
@@ -744,4 +747,22 @@ def test_the_setting_wires_it_and_a_plan_as_pdf_and_png_gives_two_valid_extracti
     assert on_png["pages"][0]["unit"] == "px"
     assert on_png["scale"]["m_per_unit"] == pytest.approx(
         on_pdf["scale"]["m_per_unit"] / 2, rel=1e-4
+    )
+
+
+SWISS_GOLD = Path(__file__).parents[2] / "prototypes" / "extraction-gold" / "swiss_gold.py"
+
+
+@pytest.mark.parametrize("table", ["ROOM_TYPES", "OUTDOOR_NAMES", "BALCONY_NAMES", "SHAFT_NAMES"])
+def test_the_swiss_gold_types_rooms_with_the_readers_words(table: str) -> None:
+    """The Part 1 gold of the swiss plans keeps a copy of the tables (it must not import what it
+    scores). A word in one and not in the other is a room typed two ways: scored wrong."""
+    (words,) = [
+        node.value
+        for node in ast.parse(SWISS_GOLD.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.Assign)
+        and [target.id for target in node.targets if isinstance(target, ast.Name)] == [table]
+    ]
+    assert ast.literal_eval(words) == getattr(swiss, table), (
+        "add the word to both tables, then rebuild the gold (prototypes/extraction-gold/README.md)"
     )

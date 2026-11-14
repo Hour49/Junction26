@@ -1,6 +1,6 @@
 """Building-code pre-checks over HTTP (decision 0009): the packs in GET /api/info, a drawing's
 checks and a project's, with the TEST pack (tests/fixtures/rules/test.json) on the synthetic
-swiss sheet (2 doors of 0.71 m at 1:100, no bedroom, no WC; its "Zimmer" is of no kind we tell)."""
+swiss sheet (2 doors of 0.71 m at 1:100, one bedroom: the next flat's "Zimmer", no WC)."""
 
 from pathlib import Path
 from typing import Any
@@ -97,12 +97,11 @@ def test_a_drawings_checks_in_its_project(checked: TestClient, project: dict[str
     assert found["note"].startswith("A pre-check")
     by_rule = {rule["rule_id"]: rule for rule in found["rules"]}
     assert {rule_id: rule["status"] for rule_id, rule in by_rule.items()} == {
-        "test-bedroom-area": "cannot_tell",  # no bedroom, but a room of a kind we could not tell
-        "test-bedroom-window": "cannot_tell",
+        "test-bedroom-area": "pass",  # the next flat's "Zimmer 3.01", a bedroom
+        "test-bedroom-window": "pass",
         "test-door-width": "fail",
         "test-wc-count": "fail",
     }
-    assert "of a kind we could not tell" in by_rule["test-bedroom-area"]["why"]
     assert found["status"] == "fail"
     door = by_rule["test-door-width"]["results"][0]
     assert door["value"] == pytest.approx(0.706, abs=0.001)
