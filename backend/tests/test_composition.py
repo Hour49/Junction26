@@ -40,6 +40,7 @@ def test_default_settings_wire_the_real_readers_and_hello_on_the_cad_and_raster_
     assert isinstance(pipeline.finder, DatasetSheetModels)
     assert isinstance(pipeline.parser, TemplateParser)
     assert pipeline.clock() <= pipeline.clock()
+    assert pipeline.facts is None  # IFC_FACTS off by default: no fact fallback
 
 
 def test_without_the_ifc_reader_no_sheet_is_paired_with_a_model(
