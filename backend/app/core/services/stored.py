@@ -1,6 +1,6 @@
 """The stored services model: the pipes, ducts, cables and terminals of one source file, as one
 document every count, length and graph answer is computed from, so an edited copy is recounted
-the same way (docs/specs/backend/services-model.md section 1, decision 0016).
+the same way (docs/specs/backend/services-model.md section 1, decision 0017).
 
 Lengths in metres, model coordinates, z up. Ids: `E<n>` elements, `E<n>.p<k>` ports, `L<n>`
 storeys (lowest first), `SR<n>` rooms, `SW<n>` walls, `SO<n>` openings, `N<n>` elements a

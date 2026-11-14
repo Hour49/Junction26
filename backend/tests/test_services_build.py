@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import ifcopenshell
+import ifcopenshell.api.root
 import ifcopenshell.guid
 import pytest
 
@@ -13,6 +14,7 @@ from app.adapters.ifc_model.facts_mep import mep_facts
 from app.adapters.ifc_model.services_model import build_services_model
 from app.adapters.services_store import ServicesStore
 from app.core.services import derive
+from app.core.services.stored import IfcRef
 
 Schema = Literal["IFC4", "IFC2X3"]
 # IFC4 class, IFC2X3 class + its type class (an IFC2X3 file writes the generic class)
@@ -150,13 +152,25 @@ class _Ifc:
 
 
 def _services(
-    path: Path, schema: Schema = "IFC4", *, ports: bool = True, extra: bool = False
+    path: Path,
+    schema: Schema = "IFC4",
+    *,
+    ports: bool = True,
+    extra: bool = False,
+    early: bool = False,
 ) -> Path:
-    """A boiler in room 1 feeding two radiators (one per room) through a tee, one system."""
+    """A boiler in room 1 feeding two radiators (one per room) through a tee, one system.
+    `extra`: one more radiator, last in the file; `early`: one more, first in the file and with
+    the lowest GlobalId (EARLY)."""
     m = _Ifc(schema)
 
     def at(*placed: tuple[float, float, float, str]) -> list[tuple[float, float, float, str]]:
         return list(placed) if ports else []
+
+    first = []
+    if early:
+        first.append(m.service("heater", "Radiator 22-600", 4.0, 3.9, 0.2, (1.0, 0.06, 0.6), []))
+        first[0].GlobalId = EARLY
 
     boiler = m.service("boiler", "Boiler 24 kW", 0.5, 0.6, 0.0, (0.5, 0.4, 0.8),
                        at((0.5, 0.25, 0.15, "SOURCE")))  # fmt: skip
@@ -173,7 +187,7 @@ def _services(
                     at((2.0, 0.25, 0.15, "SINK"), (2.05, 0.1, 0.25, "SOURCE")))  # fmt: skip
     to2 = m.service("pipe", "Pipe DN15", 4.5, 0.25, 0.1, (5.0, 0.02, 0.02),
                     at((2.0, 0.25, 0.15, "SINK"), (7.05, 0.1, 0.25, "SOURCE")))  # fmt: skip
-    members = [boiler, tee, rad1, rad2, main, to1, to2]
+    members = [*first, boiler, tee, rad1, rad2, main, to1, to2]
     if ports:
         for a, i, b, j in [(boiler, 0, main, 0), (main, 1, tee, 0), (tee, 1, to1, 0),
                            (to1, 1, rad1, 0), (tee, 2, to2, 0), (to2, 1, rad2, 0)]:  # fmt: skip
@@ -183,6 +197,9 @@ def _services(
     m.system("Heating Supply", members)
     m.in_space(rad2, "102")
     return m.save(path)
+
+
+EARLY = "0" * 22  # sorts before every other GlobalId
 
 
 def _architecture(path: Path, shift: float = 0.0) -> Path:
@@ -303,6 +320,30 @@ def test_sv8_the_store_builds_once_and_keeps_ids_across_versions(tmp_path: Path)
     )
     assert newer is not None and newer.source.sha256 != sha
     assert store.load("0" * 64) is None
+
+
+def test_sv2_sv8_a_re_export_keeps_the_ids_the_store_saved(tmp_path: Path) -> None:
+    """The re-export has the same GlobalIds plus a radiator first in the file with the lowest
+    GlobalId: numbered afresh it would be E1 and every other element would move up one."""
+    later = _services(tmp_path / "b.ifc", early=True)
+    earlier = ifcopenshell.open(str(later))
+    ifcopenshell.api.root.remove_product(earlier, product=earlier.by_guid(EARLY))
+    earlier.write(str(tmp_path / "a.ifc"))
+    store = ServicesStore(tmp_path / "cache")
+    first = store.build("project/heating.ifc", (tmp_path / "a.ifc").read_bytes())
+    second = store.build("project/heating.ifc", later.read_bytes())
+    assert first is not None and second is not None
+    before, after = _ids(first), _ids(second)
+    heater_ids = {e.id for e in second.elements if e.kind == "space_heater"}
+    heaters = [guid for guid, eid in after.items() if eid in heater_ids]
+    assert EARLY not in before and heaters[0] == EARLY  # file order (per class) shifted
+    assert {g: after[g] for g in before} == before
+    assert after[EARLY] == f"E{len(before) + 1}"
+
+
+def _ids(model: Any) -> dict[str, str]:
+    """GlobalId -> element id, in the model's element order."""
+    return {e.ref.guid: e.id for e in model.elements if isinstance(e.ref, IfcRef)}
 
 
 def test_sv8_a_file_that_is_no_ifc_has_no_model(tmp_path: Path) -> None:

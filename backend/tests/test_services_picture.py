@@ -9,6 +9,7 @@ from PIL import Image
 
 from app.adapters.services_picture import (
     ADDED,
+    MAX_SIDE,
     MOVED,
     REMOVED,
     ROOM,
@@ -133,3 +134,27 @@ def test_sv29_the_legend_goes_in_the_emptiest_corner_not_over_the_plan() -> None
     storey = model.storeys[0].model_copy(update={"frame_m": (1.0, -0.5, 12.0, 3.5)})
     image = picture(storey_png(model.model_copy(update={"storeys": (storey,)}), "L1"))
     assert image.getpixel((12, 12)) == ROOM  # the top left is a room: the legend went elsewhere
+
+
+def test_sv29_a_stray_element_far_away_does_not_blow_up_the_picture() -> None:
+    model = two_rooms()
+    storey = model.storeys[0].model_copy(update={"frame_m": (-2.0, -2.0, 12.0, 2000.0)})
+    far = model.model_copy(update={"storeys": (storey,)})  # one element 2 km north
+    image = picture(storey_png(far, "L1"))
+    assert max(image.size) <= MAX_SIDE
+    # still the whole frame, so page fractions (SV-6) stay fractions of the picture
+    assert image.width / image.height == pytest.approx(14 / 2002, rel=0.05)
+    change = ServicesChange(op="remove_element", storey="L1", patch=Patch())
+    assert max(picture(change_png(far, change)).size) <= MAX_SIDE
+    assert picture(before_after_png(far, change)).height <= MAX_SIDE + 40
+
+
+def test_sv6_the_frame_leaves_out_an_element_far_outside_the_storeys_rooms() -> None:
+    from app.adapters.ifc_model.services_model import _frame  # pyright: ignore[reportPrivateUsage]
+
+    model = two_rooms()
+    stray = model.elements[1].model_copy(update={"id": "E99", "at": (5.0, 2000.0, 0.5)})
+    elements, rooms = [*model.elements, stray], list(model.rooms)
+    assert _frame("L1", elements, rooms) == _frame("L1", list(model.elements), rooms)
+    near = stray.model_copy(update={"at": (5.0, 30.0, 0.5)})  # a site element 26 m off: kept
+    assert _frame("L1", [*model.elements, near], rooms)[3] == pytest.approx(32.0)

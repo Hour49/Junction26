@@ -21,6 +21,9 @@ from app.core.services.stored import Element, Point, Point2, ServicesModel, Stor
 
 RGB = tuple[int, int, int]
 WIDTH = 1600  # px; the height follows the frame
+# The longer side at most, scaled down to fit: a stray element far off stretches the frame
+# (one 2 km away gave ~300 MB). The picture is still the whole frame, so fractions hold (SV-6).
+MAX_SIDE = 4000
 PAPER: RGB = (255, 255, 255)
 ROOM: RGB = (242, 242, 242)
 ROOM_LINE: RGB = (205, 205, 205)
@@ -61,9 +64,9 @@ def before_after_png(model: ServicesModel, change: ServicesChange, width: int = 
     before = _draw(model, _storey(model, change.storey or ""), width)
     after = _overlaid(model, change, width)
     gap, head = 24, 40
-    both = Image.new("RGB", (2 * width + gap, before.height + head), PAPER)
+    both = Image.new("RGB", (2 * before.width + gap, before.height + head), PAPER)
     text = ImageDraw.Draw(both)
-    for x, picture, title in ((0, before, "Before"), (width + gap, after, "After")):
+    for x, picture, title in ((0, before, "Before"), (before.width + gap, after, "After")):
         both.paste(picture, (x, head))
         text.text((x + 12, 10), title, fill=INK, font=_font(22))
     return _png(both)
@@ -104,7 +107,9 @@ class _Page:
     def __init__(self, storey: Storey, width: int) -> None:
         x0, y0, x1, y1 = storey.frame_m
         self.storey = storey
-        self.size = (width, max(1, round(width * (y1 - y0) / (x1 - x0))))
+        height = width * (y1 - y0) / (x1 - x0)
+        scale = min(1.0, MAX_SIDE / max(width, height))
+        self.size = (max(1, round(width * scale)), max(1, round(height * scale)))
 
     def px(self, point: Point) -> tuple[float, float]:
         return self.at(fraction(self.storey, point))

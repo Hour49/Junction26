@@ -66,6 +66,7 @@ OVERLAP = 0.5  # of the services plan's box that the building's must cover
 CUT_M = 1.2  # walls the cut this high above the storey meets
 ROOM_SNAP_M = 0.35  # an element this close outside a room (in its wall) is in it
 FRAME_MARGIN_M = 2.0
+FRAME_FAR_M = 50.0  # elements further outside the storey's rooms are left out of its frame
 BODIED = ("flow_terminal", *SOURCES)  # groups whose body is stored
 
 
@@ -433,7 +434,12 @@ def _frame(
     storey: str, elements: list[Element], rooms: list[Room]
 ) -> tuple[float, float, float, float]:
     points = [p[:2] for e in elements if e.storey == storey for p in (e.path or (e.at,)) if p]
-    points += [p for r in rooms if r.storey == storey for p in r.polygon]
+    walls = [p for r in rooms if r.storey == storey for p in r.polygon]
+    if walls:  # a stray element far off would stretch the picture to nothing (SV-29)
+        (ax, ay), (bx, by) = np.min(walls, axis=0), np.max(walls, axis=0)
+        f = FRAME_FAR_M
+        points = [p for p in points if ax - f <= p[0] <= bx + f and ay - f <= p[1] <= by + f]
+    points += walls
     if not points:
         return (-FRAME_MARGIN_M, -FRAME_MARGIN_M, FRAME_MARGIN_M, FRAME_MARGIN_M)
     (x0, y0), (x1, y1) = np.min(points, axis=0), np.max(points, axis=0)

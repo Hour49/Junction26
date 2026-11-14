@@ -95,3 +95,11 @@
 - Settings: `AGENT_PRICE_OUT_PER_M` can drop from the 9.00 placeholder to 7.50.
 - Revisit if models much larger than 10^5 elements arrive (then a database), if users need vertical reroutes or
   several rooms per run (then a real router), or if accepted patches must be exported (then IFC writing).
+
+## Two services models until the switch (review of #357, 2026-11-14)
+
+After #333 and #357 both merge, two services models sit side by side: #333's in-memory `ServiceElement` list read
+by `ServiceFollower._read` (used by the plan-edit follow-through) and this decision's stored model. Until a switch PR
+makes `ServiceFollower._read` load the stored model, the chat's follow-through reads #333's and this model is used by
+the services tools and the picture route only. Building the stored model at upload (a later PR) runs in the
+background, one model at a time, under a memory cap.

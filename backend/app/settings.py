@@ -212,7 +212,7 @@ class Settings(BaseSettings):
     local_gates: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
-    # Stored services models (decision 0016), <sha256>.services.v1.json.gz; `python -m app.cli
+    # Stored services models (decision 0017), <sha256>.services.v1.json.gz; `python -m app.cli
     # services build` writes them, GET .../services/{storey}.png draws them (gitignored)
     services_cache_dir: Path = Path("../data/cache/services")
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
