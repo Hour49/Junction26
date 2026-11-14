@@ -21,7 +21,7 @@ from app.core.answering.answer import (
     printed_rooms,
     rooms_of_type,
 )
-from app.core.answering.floors import FLOOR, FLOOR_AT, floor_of
+from app.core.answering.floors import FLOOR, FLOOR_AT, floor_number, floor_of
 from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
@@ -30,6 +30,7 @@ from app.core.answering.model import (
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
+    SHARED_FLOOR,
     Answer,
     Query,
     Question,
@@ -277,7 +278,7 @@ def ask(
                 else _room_counts(rooms, again.subject, quantities, parser)
             )
             can_answer = each or can_answer
-        if isinstance(parsed, Unsupported) and parsed.reason in (NO_SUCH_FLOOR, SEVERAL_FLOORS):
+        if isinstance(parsed, Unsupported) and parsed.reason in FLOOR_REASONS:
             # "How many toilets are on the second floor?" on a sheet that doesn't name it: which
             # floors it does name, or what each of its unnamed plans holds (fable-rooms r10 10)
             code = "not-in-drawing"
@@ -514,6 +515,9 @@ def suggestions(
     return tuple(found)
 
 
+FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR)
+
+
 def _floor_text(
     reason: str,
     text: str,
@@ -523,18 +527,35 @@ def _floor_text(
 ) -> str:
     """Why a floor named in words can't be answered on this drawing (RoomByType._floor), in
     words: the storeys that could be meant, the ones it has, or, on a sheet of several plans none
-    of which names its floor, how many of the counted thing each plan holds."""
+    of which names its floor or several of which carry the floor, how many of the counted thing
+    each plan holds."""
     found = FLOOR.search(text)
     asked = "floor" if found is None else found.group().casefold()
+    number = None if found is None else floor_number(found)
     named = storeys(drawing)
     if reason == SEVERAL_FLOORS:
-        same = [storey for storey in named if floor_of(storey) == floor_of(asked)]
+        same = [storey for storey in named if floor_of(storey) == number]
         return (
             f"Several storeys of this drawing could be the {asked}: {', '.join(same)}. Ask with "
             f"the storey's name in quotes, as in \"How many doors are on '{same[0]}'?\""
         )
-    if named:
+    if reason == SHARED_FLOOR:
+        storey = next(storey for storey in named if floor_of(storey) == number)
+        shared = [plan for plan in drawing.plans if str(plan.storey) == storey]
+        words = (
+            f"{len(shared)} plans on this drawing are labelled {storey}, so I can't tell which "
+            "one is meant, and I don't add them up: they may be alternatives or parts of the floor."
+        )
+        each = _per_plan(text, drawing, quantities, parser, shared, total=False)
+        return words if each is None else f"{words} {each}"
+    if named and all(floor_of(storey) is not None for storey in named):
         return f"This drawing's storeys are {', '.join(named)}; none of them is the {asked}."
+    if named:  # "Erdgeschoss", "1. Obergeschoss": names it can't read as floor numbers (S3)
+        return (
+            f"This drawing's storeys are {', '.join(named)}; I can't tell which of them is the "
+            f"{asked}. Ask with the storey's name in quotes, as in \"How many doors are on "
+            f"'{named[0]}'?\""
+        )
     if len(drawing.plans) < 2:
         return (
             f"This drawing doesn't say which floor it shows, so I can't tell if it is the {asked}."
@@ -543,19 +564,43 @@ def _floor_text(
         f"This drawing has {len(drawing.plans)} plans and none is labelled with its floor, so I "
         f"can't tell which one is the {asked}."
     )
+    each = _per_plan(text, drawing, quantities, parser, drawing.plans, total=True)
+    return words if each is None else f"{words} {each}"
+
+
+def _per_plan(
+    text: str,
+    drawing: Drawing,
+    quantities: Mapping[str, Quantity],
+    parser: QuestionParser,
+    plans: Sequence[Plan],
+    *,
+    total: bool,
+) -> str | None:
+    """How many of the thing the question counts (its floor left out) each of `plans` holds,
+    numbered as the drawing lists its plans; with `total`, the sheet's total and what lies
+    outside every plan, so the parts add up. None when the question is not a count the sheet
+    has."""
     rest = parser.parse(FLOOR_AT.sub(" ", text))
     if not isinstance(rest, Query) or rest.measure != "count" or rest.key() not in quantities:
-        return words
-    each = plan_counts(drawing, rest.key())
-    if not each:
-        return words
+        return None
+    counted = {plan.id: n for plan, n in plan_counts(drawing, rest.key())}
+    if not counted:
+        return None
     pages = len(drawing.pages) > 1
-    lines = [f"plan {at} ({_where(plan, pages)}) {n}" for at, (plan, n) in enumerate(each, 1)]
-    total = int(quantities[rest.key()].value)
-    if (outside := total - sum(n for _, n in each)) > 0:
-        lines.append(f"{outside} outside every plan")
+    lines = [
+        f"plan {at} ({_where(plan, pages)}) {counted[plan.id]}"
+        for at, plan in enumerate(drawing.plans, 1)
+        if plan in plans
+    ]
     kind = parse_key(rest.key())[1].removeprefix("room:")
-    return f"{words} {plural(kind).capitalize()} on each: {', '.join(lines)}; {total} in all."
+    said = f"{plural(kind).capitalize()} on each: {', '.join(lines)}"
+    if not total:
+        return f"{said}."
+    whole = int(quantities[rest.key()].value)
+    if (outside := whole - sum(counted.values())) > 0:
+        said += f", {outside} outside every plan"
+    return f"{said}; {whole} in all."
 
 
 def _where(plan: Plan, pages: bool) -> str:

@@ -13,12 +13,23 @@ ORDINALS = {
 _LEVEL = r"(?:floor|storey|story|level)"
 FLOOR = re.compile(
     rf"\b(?:(?P<word>{'|'.join(ORDINALS)})|(?P<nth>\d+)(?:st|nd|rd|th)\.?)[ -]+{_LEVEL}\b"
-    rf"|\b{_LEVEL}[ -]*(?P<num>\d+)\b(?![.,]\d)",
+    # the sign stays: "Level -1" is a basement, not floor 1 (review-352 B1)
+    rf"|\b{_LEVEL}\s*(?P<num>-?\d+)\b(?![.,]\d)",
     re.IGNORECASE,
 )
 # the floor with the words that put a question on it ("on the second floor")
 FLOOR_AT = re.compile(
     rf"(?:\b(?:on|in|at|of|for)\s+(?:the\s+)?)?(?:{FLOOR.pattern})", re.IGNORECASE
+)
+
+
+# Words that make a text name several floors ("2nd~5th Floor Plan", "GROUND & FIRST FLOOR PLANS",
+# "LEVEL 1 & 2", "1-2") or only part of one ("Enlarged First Floor Plan (West)", "1st Floor Plan -
+# Option 2"): such a caption or title names no storey (review-352 B2)
+SEVERAL = re.compile(r"[&~\uff5e,/+]|\b(?:and|to|through|thru)\b|\d\s*-\s*\d", re.IGNORECASE)
+PART = re.compile(
+    r"\b(?:enlarged|partial|part|option|alternative|alternate|alt|scheme|typical|detail)\b",
+    re.IGNORECASE,
 )
 
 
@@ -29,14 +40,19 @@ def floor_number(match: re.Match[str]) -> int:
 
 
 def floor_of(text: str | None) -> int | None:
-    """The floor number the text names, None when it names none or two different ones."""
+    """The floor number a storey name names, None when it names none, or several (two numbers,
+    a list or a range: SEVERAL)."""
+    if SEVERAL.search(text or ""):
+        return None
     found = {floor_number(match) for match in FLOOR.finditer(text or "")}
     return found.pop() if len(found) == 1 else None
 
 
 def floor_name(text: str | None) -> str | None:
-    """The floor as printed ("FIRST FLOOR" of "FIRST FLOOR PLAN"), when the text names one."""
-    if floor_of(text) is None:
+    """The floor as printed ("FIRST FLOOR" of "FIRST FLOOR PLAN"), when a plan's caption or a
+    sheet's title names exactly one whole floor: not several, not an enlarged, partial or option
+    plan of one (PART)."""
+    if floor_of(text) is None or PART.search(text or ""):
         return None
     match = FLOOR.search(text or "")
     return None if match is None else match.group()

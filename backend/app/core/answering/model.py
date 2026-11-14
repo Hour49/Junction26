@@ -147,6 +147,9 @@ UNQUOTED_PLACE = "a place named without quotes (ground floor, north facade)"
 # it has, or how much is on each of its unnamed plans
 NO_SUCH_FLOOR = "a floor the drawing does not name"
 SEVERAL_FLOORS = "a floor several of the drawing's storeys could be"
+# A floor several plans of the drawing are labelled ("1st Floor Plan - Option 1/2/3"): never their
+# sum (review-352 B2); review/ask.py gives each plan's count
+SHARED_FLOOR = "a floor several plans of the drawing are labelled"
 # A supported kind of question whose room or element was not recognised (review/ask.py words it)
 NO_SUBJECT = "no element, room or apartment named"
 

@@ -80,6 +80,19 @@ def test_a_plan_is_the_floor_its_caption_or_the_one_plan_sheet_s_title_prints() 
     assert [plan["storey"] for plan in c.assemble(1000, 800, page_form(), None, [])["plans"]] == [
         None  # "PLAN" names no floor
     ]
+    # a caption or title of several floors, or of part of one, names none (review-352 B2; the
+    # captions and titles of cached Carbon replies)
+    for printed in (
+        "二\uff5e五樓平面圖 2nd~5th Floor Plan", "GROUND & FIRST FLOOR PLANS",
+        "1ST & 2ND FLOOR PLAN",
+        "FIRST AND SECOND FLOOR PLANS", "BASEMENT & GROUND FLOOR", "FLOOR PLANS - LEVEL 1 & 2",
+        "1st Floor Plan - Option 1", "Enlarged First Floor Plan (West)",
+        "ENLARGED PLAN - 1ST FLOOR - B - SOUTHEAST CORNER", "PARTIAL FIRST FLOOR PLAN",
+    ):  # fmt: skip
+        captioned = page_form(plans=[{"name": printed, "box_2d": [0, 0, 1000, 1000]}])
+        titled = page_form(title_block={"title": printed})
+        for form in (captioned, titled):
+            assert c.assemble(1000, 800, form, None, [])["plans"][0]["storey"] is None, printed
 
 
 def test_assemble_without_tiles_reads_no_element_class() -> None:

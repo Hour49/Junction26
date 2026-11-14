@@ -11,6 +11,7 @@ from app.core.answering.model import (
     NO_SUCH_FLOOR,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
+    SHARED_FLOOR,
     UNQUOTED_PLACE,
     Answer,
     ConflictValue,
@@ -339,7 +340,8 @@ class RoomByType:
         as a place, read as the drawing's one storey of that floor number (FIRST FLOOR, "Level
         1"). None when the question names no floor, or names none the rest of it can be asked
         of; NO_SUCH_FLOOR when no storey of the drawing is that floor, SEVERAL_FLOORS when more
-        than one could be (ask says which floors there are, or what is on each unnamed plan).
+        than one could be, SHARED_FLOOR when several plans carry it (ask says which floors there
+        are, or what is on each plan).
         "How many doors are on the first floor?" was refused on a sheet titled FIRST FLOOR PLAN;
         "... on the 1st floor?" counted the whole sheet (fable-rooms r10 items 10, 11)."""
         if parsed.reason != UNQUOTED_PLACE:
@@ -355,6 +357,8 @@ class RoomByType:
             rest = self._parser.parse(FLOOR_AT.sub(" ", text))
             return Unsupported(reason=NO_SUCH_FLOOR) if isinstance(rest, Query) else None
         (storey,) = named
+        if sum(str(plan.storey) == storey for plan in self._drawing.plans) > 1:
+            return Unsupported(reason=SHARED_FLOOR)  # alternatives or parts: never summed
         quote = "'{}'" if "'" not in storey else "„{}“"
         again = self._parser.parse(FLOOR.sub(lambda _: quote.format(storey), text))
         if isinstance(again, Query) and again.storey == storey:
