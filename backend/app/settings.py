@@ -252,6 +252,11 @@ class Settings(BaseSettings):
     # model) are read one after another. 1 (one by one, as before) until the host's memory is
     # checked: at 4 that upload swapped 10.3 GB past a 10 GB cap, against 5.0 GB at 1
     ingest_groups_in_flight: int = Field(default=1, ge=1)
+    # Local raster readings (the composite's detectors, arbiter and rooms) at once in the process
+    # (app/adapters/one_at_a_time.py): each holds its page in memory, about 1.5-3 GB on a big sheet
+    ingest_local_in_flight: int = Field(default=1, ge=1)
+    # Carbon calls in flight at once in the process, every reader's (app/adapters/carbon/reader.py)
+    carbon_calls_in_flight: int = Field(default=8, ge=1)
     # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
     # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
     rule_packs_dir: Path = Path(__file__).parent / "rules"

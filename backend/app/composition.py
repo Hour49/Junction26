@@ -903,7 +903,7 @@ def _raster(
                     _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
                     kind_of,
                 )
-            shipped = OneAtATime(shipped)  # one local reading in memory at a time (groups.py)
+            shipped = OneAtATime(shipped, settings.ingest_local_in_flight)  # held in memory at once
             shipped = _scaled(settings, shipped)  # PriorScale's door constants fit the detector
             if settings.carbon_reader == "advanced" and settings.sheet_kind == "off":
                 raise InvalidInputError(
@@ -989,7 +989,12 @@ def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extra
             return inner
         case "carbon":
             key = settings.gemini_api_key.get_secret_value()
-            client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
+            client = CarbonClient(
+                key,
+                settings.carbon_timeout_s,
+                budget=spend_guard(settings),
+                in_flight=settings.carbon_calls_in_flight,
+            )
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
             return PrintedScale(inner, reader, files)
 
@@ -1088,7 +1093,12 @@ def _carbon(
     """The Carbon reader (app/adapters/carbon/) on the process's spend guard. `policy`: ROOM_POLICY
     when it reads a drawing on its own (as a composite's source, the composite applies it)."""
     key = settings.gemini_api_key.get_secret_value()
-    client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
+    client = CarbonClient(
+        key,
+        settings.carbon_timeout_s,
+        budget=spend_guard(settings),
+        in_flight=settings.carbon_calls_in_flight,
+    )
     return CarbonExtractor(files, CarbonReader(client, settings.carbon_cache_dir), policy)
 
 

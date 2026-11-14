@@ -48,9 +48,17 @@ from app.core.spend import SpendGuard
 WORKERS = 4  # calls in flight at once for one read (contract 1.1)
 # Carbon calls in flight at once in this process, whatever asks them (the page and tile calls of
 # every sheet read at the same time, the printed-scale reader): ingest reads several drawings at
-# once (INGEST_GROUPS_IN_FLIGHT), and their calls together stay under this
-CALLS_IN_FLIGHT = 8
-_in_flight = threading.BoundedSemaphore(CALLS_IN_FLIGHT)
+# once (INGEST_GROUPS_IN_FLIGHT), and their calls together stay under CARBON_CALLS_IN_FLIGHT
+CALLS_IN_FLIGHT = 8  # its default
+_slots: dict[int, threading.BoundedSemaphore] = {}  # by the cap: one per process, shared by clients
+_slots_guard = threading.Lock()
+
+
+def _in_flight(cap: int) -> threading.BoundedSemaphore:
+    with _slots_guard:
+        return _slots.setdefault(cap, threading.BoundedSemaphore(cap))
+
+
 SPENT_AS = "carbon reader"  # its name in the spend guard's ledger
 
 Form = dict[str, Any]
@@ -66,12 +74,19 @@ class CarbonModel(Protocol):
 
 
 class CarbonClient:
-    def __init__(self, api_key: str, timeout_s: float, budget: SpendGuard | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        timeout_s: float,
+        budget: SpendGuard | None = None,
+        in_flight: int = CALLS_IN_FLIGHT,
+    ) -> None:
         if not api_key:
             raise InvalidInputError("GEMINI_API_KEY is empty: the Carbon reader needs a key")
         self._key = api_key
         self._timeout = timeout_s
         self._budget = budget  # GEMINI_BUDGET_USD (app/core/spend.py); None: no limit
+        self._in_flight = _in_flight(in_flight)  # CARBON_CALLS_IN_FLIGHT, process-wide
 
     def __repr__(self) -> str:
         return f"CarbonClient({contract.MODEL}/{contract.THINKING})"
@@ -88,7 +103,10 @@ class CarbonClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with _in_flight, urllib.request.urlopen(request, timeout=self._timeout) as response:
+            with (
+                self._in_flight,
+                urllib.request.urlopen(request, timeout=self._timeout) as response,
+            ):
                 answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
