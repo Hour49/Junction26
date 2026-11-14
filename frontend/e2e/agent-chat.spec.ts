@@ -62,14 +62,19 @@ test('AC-39: the empty chat says what was read, and the ask box stays above the 
   expect(errors).toEqual([]);
 });
 
-test('AC-30 AC-31: a question gets an answer card with its steps line', async ({
+test('AC-30 AC-31 AC-37: a question goes over the step stream and gets an answer card with its steps line', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const id = await sampleDone(page);
   await page.goto(`/#/p/${id}/chat`);
+  // /api/info says chat.stream: the turn goes to the stream route, not the sync one (AC-37)
+  const streamed = page.waitForRequest(
+    (r) => r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/chat/stream'),
+  );
   const turn = await ask(page, 'How many doors are there?');
+  await streamed;
   const card = turn.locator('.ag-card');
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(card).toHaveClass(/ag-card--(answer|dont_know)/);
