@@ -64,13 +64,14 @@
   const CONFLICTS = !pdf || !png ? [] : [
     // Checked on the DXF (Tudor, 17:20): 13 door objects but 11 doors, because the entrance door and the door of
     // bathroom 1.09 are each in the file twice, on the same spot. The answer key counts the objects (13).
-    doors !== null && { id: 'c1', drawing: ID, quantity: 'door', match: 'How many doors', ai: 1, title: 'Doors on this floor',
-      readers: { 'door objects': `${doors} doors`, 'doors drawn': `${doors - 2} doors` }, files: pdf.path,
-      variants: [{ kind: 'door', value: doors, label: `${doors} doors`, src: 'Every door object in the file, as the dataset\'s answer key counts them' },
-        { kind: 'door', value: doors - 2, label: `${doors - 2} doors`, src: 'Each door once: two of the door objects sit exactly on top of another' }],
-      rules: ['A door drawn twice on the same spot is one door.', 'The flat\'s entrance door and the door of bathroom 1.09 are each in the file twice.'],
-      why: `Two door objects are exact copies on the same spot, so they are counted once: ${doors - 2} doors. The dataset's answer key says ${doors}.`,
-      src: floorSrc([pdf.path], [{ box: [45.3, 30.3, 3.2, 4.2], label: 'The flat\'s entrance door, in the file twice' }, { box: [35, 29.8, 3.4, 4.5], label: 'The door of bathroom 1.09, in the file twice' }]) },
+    doors !== null && { id: 'c1', drawing: ID, quantity: 'door', match: 'How many doors', ai: 1, title: `Doors on this floor: ${doors} or ${doors - 2}?`,
+      readers: { 'counted in the CAD file': `${doors} doors`, 'real doors': `${doors - 2} doors` }, files: (D.files.find((f) => f.path.endsWith('.dxf')) || pdf).path,
+      variants: [{ kind: 'door', value: doors, label: `${doors} doors`, src: 'Counted in the CAD file. Two doors are drawn twice there, so each counts twice. The dataset\'s answer key says this.' },
+        { kind: 'door', value: doors - 2, label: `${doors - 2} doors`, src: 'Each real door counted once: the 2 doors drawn twice count as one each.' }],
+      rules: ['A door drawn twice in the same place is still one door.',
+        'In the CAD file the entrance door and the door of bathroom 1.09 are each drawn twice, one copy exactly on top of the other. On paper you see one door; a program counting the drawing finds two.'],
+      why: `On paper this floor has ${doors - 2} doors. A program counting doors in the CAD file finds ${doors}, because 2 of them are drawn twice in the same place. The dataset's answer key says ${doors}.`,
+      src: floorSrc([pdf.path], [{ box: [45.3, 30.3, 3.2, 4.2], label: 'The flat\'s entrance door: drawn twice in the CAD file, one copy on top of the other' }, { box: [35, 29.8, 3.4, 4.5], label: 'The door of bathroom 1.09: drawn twice in the CAD file, one copy on top of the other' }]) },
     aptA !== null && indoor !== null && { id: 'c2', drawing: ID, quantity: 'area', match: 'apartment A', ai: 0, title: 'Net floor area of apartment A',
       readers: { 'room table': `${aptA.toFixed(2)} m²`, 'outline sum': `${indoor.toFixed(2)} m²` }, files: pdf.path,
       variants: [{ kind: 'area', value: aptA, label: `${aptA.toFixed(2)} m²`, src: 'The flat\'s own rooms, balcony left out' },
