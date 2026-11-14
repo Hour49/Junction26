@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.page_render import render_upload
 from app.api.deps import (
+    AnsweringDep,
     CreditsDep,
     FileId,
     Ingest,
@@ -49,9 +50,10 @@ from app.core.ingest.model import (
 )
 from app.core.pipeline.model import QuantityConflict
 from app.core.review import conflict_card
-from app.core.review.model import ReviewState, Settled, SignOff
+from app.core.review.model import Resolved, ReviewState, Settled, SignOff, is_none
 from app.core.review.ports import ReviewStore
-from app.core.review.review import disputes, reset
+from app.core.review.resolve import resolve_conflicts
+from app.core.review.review import NotAllowedError, disputes, reset
 from app.settings import Settings
 from scripts.make_sample_archive import build_archive
 
@@ -142,11 +144,22 @@ class ConflictEntry(View):
     title: str  # the conflict as a question, in plain words ("Door count: 13 or 11?")
     why: str  # what each method read and how it is decided (a rule, or a person has to choose)
     suggestions: list[str]  # short answers a person can tap, one per value read ("13 doors")
+    # RESOLVER: what a model said about this conflict (a pick is the value in use until a person
+    # settles or signs it); left out of the JSON when None
+    resolved: Resolved | None = Field(default=None, exclude_if=is_none)
 
 
 class ProjectReview(View):
     drawings: list[DrawingReview]
     conflicts: list[ConflictEntry]
+
+
+class Resolving(View):
+    """POST /api/projects/{id}/resolve: the review after the resolver's replies, and a note for
+    each conflict it gave no reply on (the budget used up, a timeout...)."""
+
+    review: ProjectReview
+    notes: list[str]
 
 
 class Admission:
@@ -440,6 +453,36 @@ def project_review(project_id: ProjectId, ingest: IngestDep, reviews: ReviewsDep
     return review_of(ingest.status(project_id), ingest, reviews)
 
 
+@router.post("/{project_id}/resolve")
+def resolve(
+    project_id: ProjectId, ingest: IngestDep, reviews: ReviewsDep, answering: AnsweringDep
+) -> Resolving:
+    """RESOLVER: a model looks at each conflict no rule decides and no person settled, and picks
+    a value or says it can't tell; one call per conflict, replies kept with the project's review,
+    so a second POST asks only about what changed. 409 when RESOLVER is off or before `done`."""
+    resolver = answering.resolver
+    if resolver is None:
+        raise NotAllowedError("RESOLVER is off: no model resolves conflicts on this server")
+    status = ingest.status(project_id)
+    if status.state != "done":
+        raise NotAllowedError(f"project {project_id} is {status.state}; resolve it when done")
+    notes: list[str] = []
+    for entry in drawings_of(status):
+        rows = takeoff_rows(entry.drawing_id, ingest, reviews, zeros=False, project=status.id)
+        state = reviews.get(status.id, entry.drawing_id)
+        found, said = resolve_conflicts(entry.drawing_id, rows.quantities, state, resolver)
+        notes += [f"{entry.file}: {note}" for note in said]
+        if found:
+            reviews.update(
+                status.id,
+                entry.drawing_id,
+                lambda kept, found=found: kept.model_copy(
+                    update={"resolved": {**kept.resolved, **found}}
+                ),
+            )
+    return Resolving(review=review_of(ingest.status(project_id), ingest, reviews), notes=notes)
+
+
 @router.get("/{project_id}/questions")
 def project_questions(
     project_id: ProjectId, ingest: IngestDep, settings: SettingsDep
@@ -496,6 +539,7 @@ def review_of(
                 title=conflict_card.title(row),
                 why=conflict_card.why(row),
                 suggestions=conflict_card.suggestions(row),
+                resolved=row.resolved,
             )
             for row in disputes(found.quantities)
             if row.conflict is not None  # always: narrows the type

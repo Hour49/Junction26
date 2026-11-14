@@ -329,6 +329,27 @@
               }
             ]
           },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolver_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolver Note"
+          },
           "unit": {
             "anyOf": [
               {
@@ -990,6 +1011,16 @@
           "quantity": {
             "title": "Quantity",
             "type": "string"
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "settled": {
             "anyOf": [
@@ -4140,6 +4171,102 @@
         "title": "Resolution",
         "type": "object"
       },
+      "Resolved": {
+        "additionalProperties": false,
+        "description": "What the resolver (RESOLVER, app/core/review/resolve.py) said about a conflict or an answer\nthat is not certified: a value it picked, or that it can't tell, why, and where it looked.\nChecked by a model: never a person's settle or sign-off, never certified.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "marks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ValueMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "of": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "title": "Of",
+            "type": "array"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "verdict": {
+            "enum": [
+              "picked",
+              "cannot_tell"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "value",
+          "reason",
+          "by",
+          "at"
+        ],
+        "title": "Resolved",
+        "type": "object"
+      },
+      "Resolving": {
+        "additionalProperties": false,
+        "description": "POST /api/projects/{id}/resolve: the review after the resolver's replies, and a note for\neach conflict it gave no reply on (the budget used up, a timeout...).",
+        "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "review": {
+            "$ref": "#/components/schemas/ProjectReview"
+          }
+        },
+        "required": [
+          "review",
+          "notes"
+        ],
+        "title": "Resolving",
+        "type": "object"
+      },
       "Row": {
         "additionalProperties": false,
         "description": "One quantity of the takeoff with its review state.",
@@ -4226,6 +4353,16 @@
               }
             ],
             "title": "Original Value"
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolved"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "rule": {
             "$ref": "#/components/schemas/RuleText"
@@ -6785,6 +6922,46 @@
           }
         },
         "summary": "Project Questions"
+      }
+    },
+    "/api/projects/{project_id}/resolve": {
+      "post": {
+        "description": "RESOLVER: a model looks at each conflict no rule decides and no person settled, and picks\na value or says it can't tell; one call per conflict, replies kept with the project's review,\nso a second POST asks only about what changed. 409 when RESOLVER is off or before `done`.",
+        "operationId": "resolve_api_projects__project_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resolving"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve"
       }
     },
     "/api/projects/{project_id}/review": {

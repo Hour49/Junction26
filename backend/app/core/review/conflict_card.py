@@ -59,9 +59,25 @@ def why(row: Row) -> str:
     if disputed.note:
         text += f" {disputed.note.rstrip('.')}."
     if disputed.resolution is None:
-        return text + " No rule decides between them, so a person has to choose."
+        return text + _checked(row)
     picked = number(row, disputed.resolution.value)
     return text + f" Settled by a rule ({disputed.resolution.rule}): {picked} is used."
+
+
+def _checked(row: Row) -> str:
+    """How a conflict no rule decides stands: a person has to choose, unless a person settled it,
+    or a model (RESOLVER) picked a value, which a person can still change."""
+    found = row.resolved
+    if found is None or row.settled is not None or row.signed is not None:
+        return " No rule decides between them, so a person has to choose."
+    reason = found.reason.rstrip(".")
+    if found.value is None:
+        return f" No rule decides between them, and a model ({found.by}) could not tell: {reason}."
+    picked = number(row, found.value)
+    return (
+        f" No rule decides between them. A model ({found.by}) checked the drawing and picked "
+        f"{picked}: {reason}. You can still choose another value."
+    )
 
 
 def suggestions(row: Row) -> list[str]:

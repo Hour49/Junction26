@@ -29,6 +29,7 @@ from app.core.review.model import (
     MarkState,
     MarkView,
     MethodValue,
+    Resolved,
     ReviewState,
     Row,
     RowStatus,
@@ -224,10 +225,34 @@ def unlocated(quantity: Quantity, drawing: Drawing) -> dict[str, int]:
     return found
 
 
+def picked(quantity: Quantity, state: ReviewState) -> Resolved | None:
+    """The resolver's pick for the quantity's conflict, while it applies: no rule decides it, the
+    methods still disagree between the values it was asked about, and it picked one (RESOLVER)."""
+    found = state.resolved.get(quantity.key)
+    disputed = quantity.conflict
+    if found is None or found.verdict != "picked" or disputed is None:
+        return None
+    if disputed.resolution is not None or found.of != tuple(v.value for v in disputed.values):
+        return None
+    return found
+
+
+def resolution(quantity: Quantity, state: ReviewState) -> Resolved | None:
+    """What the resolver said about the quantity's conflict (a pick or cannot_tell), while it
+    still applies to the conflict as it is; None: not asked, or the conflict changed."""
+    found = state.resolved.get(quantity.key)
+    disputed = quantity.conflict
+    if found is None or disputed is None or disputed.resolution is not None:
+        return None
+    return found if found.of == tuple(v.value for v in disputed.values) else None
+
+
 def current_value(quantity: Quantity, views: Sequence[MarkView], state: ReviewState) -> int | float:
     key = quantity.key
     if key in state.settled:
         return _typed(quantity, state.settled[key].value)
+    if (pick := picked(quantity, state)) is not None and pick.value is not None:
+        return _typed(quantity, pick.value)
     included = set(state.included.get(key, ()))
     changed = [view for view in views if view.state in ("rejected", "added") or view.id in included]
     if not changed or any(view.value is None for view in changed):
@@ -266,6 +291,7 @@ def row(quantity: Quantity, drawing: Drawing, state: ReviewState, rules: Mapping
         signed=state.signed.get(quantity.key),
         unlocated=unlocated(quantity, drawing),
         noun=noun(measure, subject, value),
+        resolved=resolution(quantity, state),
     )
 
 
@@ -310,7 +336,7 @@ def status(quantity: Quantity, state: ReviewState) -> RowStatus:
     if key in state.signed:
         return "signed"
     if quantity.conflict is not None and key not in state.settled:
-        return "conflict"
+        return "conflict"  # a resolver's pick too: the methods still disagree (`Row.resolved`)
     if quantity.estimate is not None and key not in state.settled:
         return "estimate"
     if any(
@@ -323,7 +349,10 @@ def status(quantity: Quantity, state: ReviewState) -> RowStatus:
 def needs_person(quantity: Quantity, state: ReviewState) -> bool:
     disputed = quantity.conflict
     return (
-        disputed is not None and disputed.resolution is None and quantity.key not in state.settled
+        disputed is not None
+        and disputed.resolution is None
+        and quantity.key not in state.settled
+        and picked(quantity, state) is None
     )
 
 
@@ -407,6 +436,7 @@ def with_twins(state: ReviewState, twins: Mapping[str, str]) -> ReviewState:
         settled=shared(state.settled),
         signed=shared(state.signed),
         included=shared(state.included),
+        resolved=shared(state.resolved),
     )
 
 
@@ -427,14 +457,15 @@ def quantity_of(quantities: Mapping[str, Quantity], key: str | None) -> Quantity
 
 def reset(state: ReviewState, key: str | None) -> ReviewState:
     """Every edit, settled value and sign-off of one quantity, or of all (`key` None), undone."""
-    if key is None:
-        return ReviewState()
+    if key is None:  # the resolver's replies are no edit: they stay (RESOLVER)
+        return ReviewState(resolved=state.resolved)
     return ReviewState(
         rejected={name: found for name, found in state.rejected.items() if name != key},
         added={name: found for name, found in state.added.items() if name != key},
         settled={name: found for name, found in state.settled.items() if name != key},
         signed={name: found for name, found in state.signed.items() if name != key},
         included={name: found for name, found in state.included.items() if name != key},
+        resolved=state.resolved,
     )
 
 
@@ -495,6 +526,7 @@ def apply(
         settled=settled,
         signed=state.signed,
         included={name: marks for name, marks in included.items() if marks},
+        resolved=state.resolved,
     )
 
 

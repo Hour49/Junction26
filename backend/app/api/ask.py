@@ -25,9 +25,17 @@ from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
 from app.core.review.ask import Asked, ask
 from app.core.review.check import Check, Level
-from app.core.review.model import MarkView, Refusal, Row
+from app.core.review.model import (
+    MarkView,
+    Refusal,
+    Resolved,
+    ResolverUnavailable,
+    Row,
+    is_none,
+)
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
+from app.core.review.resolve import answer_request
 from app.settings import Settings
 
 router = APIRouter(prefix="/api")
@@ -76,6 +84,11 @@ class AnswerView(View):
     # sentence with the measured counts; high exactly when `check` is null on a rated answer.
     # None: a refusal, a value a person signed off or settled, the policy off or without levels
     level: Level | None
+    # RESOLVER: what the resolver said about an answer CHECK_POLICY does not certify (`answer`,
+    # `check` and `level` stay as they are: it is a model's check, beside them), and why it said
+    # nothing when it could not; both left out of the JSON when None
+    resolved: Resolved | None = Field(default=None, exclude_if=is_none)
+    resolver_note: str | None = Field(default=None, exclude_if=is_none)
 
 
 class _SheetFiles:
@@ -210,8 +223,16 @@ def answer_view(
         question, drawing, drawing_id, reviews, answering, ingest, owner,
         no_reader_of(drawing_id, ingest, settings),
     )  # fmt: skip
-    line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
     shown = asked.row
+    resolved = note = None
+    if answering.resolver is not None and asked.check is not None and shown is not None:
+        request = answer_request(drawing_id, question, shown, asked.marks, asked.check)
+        reply = answering.resolver.resolve(request)
+        if isinstance(reply, ResolverUnavailable):
+            note = reply.note
+        else:
+            resolved = reply
+    line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
     return AnswerView(
         question=question,
         drawing_id=drawing_id,
@@ -232,4 +253,6 @@ def answer_view(
         proof=asked.proof,
         check=asked.check,
         level=asked.level,
+        resolved=resolved,
+        resolver_note=note,
     )

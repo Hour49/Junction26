@@ -3227,6 +3227,28 @@ The conflict card's words, rule-based from the conflict's values (no model, no p
 - `suggestions`: short answers to tap, one per value read, as a person would type them: "13 doors", "1 door",
   "22.40 m²". A tapped one goes back as a `settle` with its number in `value` (and the words in `note` if wanted).
 
+### `POST /api/projects/{project_id}/resolve`
+
+`RESOLVER` (off by default; `carbon` once its adapter is built): a model looks at each conflict of the project that
+no rule decides and no person settled, at the places each method's items are (`value_marks`), and picks one of the
+methods' values or says it can't tell. One call per conflict; the replies are kept with the project's review, so a
+second POST asks only about conflicts that changed, and a `GET` never calls the model. Every call is charged to the
+Gemini spend guard. No body. 200 with `{review, notes}`: `review` is `GET …/review`'s body, `notes` one line per
+conflict that got no reply (the budget used up, a timeout, a pick that is none of the methods' values). 409
+`not-allowed` while `RESOLVER` is off or the project is not `done`.
+
+A pick is checked by a model, never a person's word:
+
+- the row's `status` stays `conflict` (the methods still disagree), its `value` is the pick, `needs_person` is
+  false, and `resolved` holds
+  `{verdict, value, reason, marks, by, at, of}` (`of`: the methods' values it was asked about; a pick applies only
+  while the conflict still has exactly these values). The conflict's `why` ends "A model (<by>) checked the drawing
+  and picked <value>: <reason>. You can still choose another value."
+- A person's settle or sign-off wins over it; `unsettle` and `reset` bring the pick back (it is not an edit).
+- `cannot_tell`: nothing changes (`needs_person` stays true) and `why` says the model could not tell, and why.
+- With `RESOLVER` off, `resolved` is absent from every row, conflict and answer (not null), so every response is as
+  before.
+
 ### `GET /api/projects/{project_id}/issues?pack=<pack id>`
 
 Every finding in the project as one located issue, the list Stoa's floor view takes in: conflicts between two
@@ -8193,6 +8215,11 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (RESOLVER): `POST /api/projects/{project_id}/resolve`;
+  `resolved` on takeoff rows, conflicts (`ConflictEntry`) and answers (`AnswerView`, with `resolver_note` when the
+  model gave no reply), each absent while `RESOLVER` is off. No enum value changes. An answer's `resolved`
+  sits beside its value: `answer`, `check`, `line.sure` and `level` are unchanged (a model's check is never
+  certified).
 - 2026-11-14, behaviour (safety rule, orchestrator): on the raster route, an answer on a drawing where the
   detector found no plan and no located element is never certified (`sure` false, `check` set) and its `level`
   is low with basis `page`. No shape change.
