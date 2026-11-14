@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
 from app.core.answering.model import (
     NO_SUBJECT,
+    SEVERAL_PRINTED,
     Answer,
     ConflictValue,
     Evidence,
@@ -259,6 +260,7 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
     )
 
 
+HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates' PARENTHESES
 BARE_NUMBER = re.compile(r"U?\d+\.\d+", re.IGNORECASE)  # as question_templates' ROOM_NUMBER
 SHORT_LABEL = re.compile(r"[^\W\d_a-zäöå]{2}")  # MH, OH, KT: two capitals
 CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
@@ -290,6 +292,8 @@ class RoomByType:
             return self._printed(text) or parsed
         if isinstance(parsed, Query) and (unnamed := self._not_a_room(text, parsed)):
             return unnamed
+        if isinstance(parsed, Query) and _sheet_count(parsed) and (inside := self._printed(text)):
+            return inside  # "How many doors does Bagno have?" is not the sheet's count
         if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
             return parsed
         return self._area_of(rooms[0], parsed) or self._only_one(parsed) or parsed
@@ -326,14 +330,18 @@ class RoomByType:
                 return query
         return None
 
-    def _printed(self, text: str) -> Query | None:
+    def _printed(self, text: str) -> Query | Unsupported | None:
         """The question read with the one room name of the drawing it holds as that room's name
-        ("the Reduit" → "the room 'Reduit'"), when that asks for the room's area."""
+        ("the Reduit" → "the room 'Reduit'"): that room's area, or the count of what is in it
+        ("How many doors does the Cucina have?"); SEVERAL_PRINTED when several rooms carry the
+        name (ask lists them)."""
         named = printed_rooms(self._parser, self._drawing, text)
-        if named is None or len(named[1]) != 1:
+        if named is None:
             return None
         again, rooms = named
-        return self._area_of(rooms[0], again)
+        if len(rooms) != 1:
+            return Unsupported(reason=SEVERAL_PRINTED)
+        return self._area_of(rooms[0], again) if again.measure == "area" else again
 
 
 def printed_rooms(
@@ -341,8 +349,8 @@ def printed_rooms(
 ) -> tuple[Query, list[Room]] | None:
     """The rooms carrying the one room name of the drawing the question holds, and the question
     read with it as a room's name ("the Reduit" → "the room 'Reduit'"), when that asks for a
-    room's area; None when it holds no such name, or several. Two rooms printed "Bagno" give
-    both: the question doesn't say which (ask lists them)."""
+    room's area or for a count of things in it; None when it holds no such name, or several.
+    Two rooms printed "Bagno" give both: the question doesn't say which (ask lists them)."""
     found: dict[str, list[Room]] = {}
     at: dict[str, re.Match[str]] = {}
     for room in drawing.rooms:
@@ -363,9 +371,34 @@ def printed_rooms(
     ((name, rooms),) = found.items()
     match = at[name]
     again = parser.parse(f"{text[: match.start()]}room '{match.group()}'{text[match.end() :]}")
-    if not (isinstance(again, Query) and again.measure == "area" and again.name is not None):
+    if not (isinstance(again, Query) and again.name is not None):
+        return None
+    if again.measure == "area":
+        return again, rooms
+    if again.measure != "count" or again.subject.startswith("room"):
+        return None
+    # a name in parentheses is a gloss on what is counted, not where: golden's "Kuinka monta pesu-
+    # ja tiskiallasta (keittiö ja kylpytilat yhteensä ...)" counts the sheet's sinks
+    if any(at.start() <= match.start() < at.end() for at in HINT.finditer(text)):
+        return None
+    # "toilets (WC)" on a sheet with a room printed WC: the label is the counted thing's own word,
+    # so the question counts the sheet's toilets (fail-1, review-332 S1)
+    word = parser.parse(f"How many {match.group()} are there?")
+    if isinstance(word, Query) and word.subject == again.subject:
         return None
     return again, rooms
+
+
+def _sheet_count(parsed: Query) -> bool:
+    """A count of a kind of element over the whole sheet, no room, label or storey named."""
+    return (
+        parsed.measure == "count"
+        and not parsed.subject.startswith("room")
+        and parsed.name is None
+        and parsed.label is None
+        and parsed.storey is None
+        and not parsed.model
+    )
 
 
 def rooms_of_type(parsed: Query, drawing: Drawing) -> list[Room]:

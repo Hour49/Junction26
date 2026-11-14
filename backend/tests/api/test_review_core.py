@@ -360,6 +360,56 @@ def test_a_count_in_a_room_by_its_number_and_a_printed_name_two_rooms_share() ->
     ]
 
 
+def test_a_count_naming_a_printed_room_label_never_answers_the_sheet_silently() -> None:
+    """fail-1, review-332 S1: "How many doors does Bagno have?" answered the sheet's doors while
+    "the Cucina" refused. One room with the label: its count; several: which one; a label that is
+    the counted thing's own word ("toilets (WC)"): the sheet's count, as before."""
+    from app.core.drawing.model import Element
+
+    def at(x0: float, x1: float) -> tuple[tuple[float, float], ...]:
+        return ((x0, 0.1), (x1, 0.1), (x1, 0.3), (x0, 0.3))
+
+    def made(n: int, kind: str, label: str, x0: float, x1: float, number: str) -> Room:
+        return Room(id=f"r{n}", type=kind, label=label, page=1, box=(x0, 0.1, x1, 0.3),
+                    polygon=at(x0, x1), area_m2=5.0 + n, attrs={"number": number})  # fmt: skip
+
+    rooms = (made(1, "bathroom", "Bagno", 0.1, 0.3, "1.01"),
+             made(2, "kitchen", "Cucina", 0.3, 0.5, "1.03"),
+             made(3, "bathroom", "Bagno", 0.6, 0.8, "1.09"),
+             made(4, "wc", "WC", 0.8, 0.9, "1.11"))  # fmt: skip
+    things = tuple(
+        Element.model_validate({"id": f"e{n}", "class": cls, "page": 1, "box": box})
+        for n, (cls, box) in enumerate(
+            [
+                ("door", (0.29, 0.18, 0.31, 0.22)),  # between Bagno 1.01 and Cucina
+                ("door", (0.40, 0.08, 0.44, 0.10)),  # Cucina's top wall
+                ("toilet", (0.82, 0.12, 0.86, 0.16)),  # in the WC
+                ("toilet", (0.12, 0.12, 0.16, 0.16)),  # in Bagno 1.01
+            ]
+        )
+    )
+    drawing = scaled(*rooms).model_copy(
+        update={"elements": things, "read": ("door", "toilet", "room")}
+    )
+    cucina = asked("How many doors does the Cucina have?", drawing)
+    assert cucina.refusal is None and cucina.answer.answer == 2
+    assert "counts for both rooms" in (cucina.answer.explanation or "")  # the shared door
+    bagno = asked("How many doors does Bagno have?", drawing)
+    assert bagno.answer.answer is None and bagno.refusal is not None
+    assert bagno.refusal.text.startswith("2 rooms on this drawing are printed Bagno: Bagno 1.01")
+    assert [s.question for s in bagno.refusal.can_answer] == [
+        "How many doors are in room 1.01?",
+        "How many doors are in room 1.09?",
+    ]
+    assert asked("How many toilets (WC) are there?", drawing).answer.answer == 2  # the sheet's
+    assert asked("How many doors does the WC have?", drawing).answer.answer == 0  # the room's
+    assert asked("How many doors are there?", drawing).answer.answer == 2
+    # a name in a parenthesised hint is a gloss, not a place (golden's Finnish sinks question)
+    assert (
+        asked("How many toilets (Cucina and baths together) are drawn?", drawing).answer.answer == 2
+    )
+
+
 def test_an_area_of_a_type_several_rooms_have_names_them_instead_of_guessing() -> None:
     rooms = [
         Room(id=f"r{at}", type="bedroom", label=f"MH {at}", page=1, box=box, area_m2=area)

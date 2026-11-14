@@ -138,6 +138,8 @@ class Unsupported(Frozen):
 SEVERAL_THINGS = "a count that names more than one kind of thing"
 IN_ONE_ROOM = "a count within one room is not taken off"
 SEVERAL_ROOMS = "a question about one room that names more than one"
+# A printed room name several rooms carry ("How big is Bagno?"): review/ask.py lists them
+SEVERAL_PRINTED = "a room name several rooms carry"
 # A supported kind of question whose room or element was not recognised (review/ask.py words it)
 NO_SUBJECT = "no element, room or apartment named"
 

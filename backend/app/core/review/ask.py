@@ -24,6 +24,7 @@ from app.core.answering.answer import (
 from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
+    SEVERAL_PRINTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
     Answer,
@@ -190,6 +191,8 @@ def ask(
     notes = [NOT_LOCATED] if found is not None and _unplaced(found, drawing) else []
     if found is not None and parse_key(found.key)[1] == "door" and CLOSET.search(text):
         notes.append(CLOSET_RULE)
+    if found is not None and _in_room_opening(found.key):
+        notes.append(SHARED_OPENING)
     if notes:
         said = "; ".join(note for note in (answer.explanation, *notes) if note)
         answer = answer.model_copy(update={"explanation": said})
@@ -239,18 +242,23 @@ def ask(
                 can_answer = each
         if (
             isinstance(parsed, Unsupported)
-            and parsed.reason == NO_SUBJECT
+            and parsed.reason == SEVERAL_PRINTED
             and (named := printed_rooms(parser, drawing, text)) is not None
-            and len(named[1]) > 1
-            and (lines := _room_lines(named[1], quantities))
         ):
-            # "How big is Bagno?" with two rooms printed Bagno: which one (Tudor's chat QA)
+            # "How big is Bagno?", "How many doors does Bagno have?" with two rooms printed
+            # Bagno: which one (Tudor's chat QA; fail-1, review-332 S1)
+            again, rooms = named
             code = "not-in-drawing"
             words = (
-                f"{len(named[1])} rooms on this drawing are printed {named[1][0].label}: "
-                f"{', '.join(lines)}. Which one? Ask with its number."
+                f"{len(rooms)} rooms on this drawing are printed {rooms[0].label}: "
+                f"{', '.join(_room_lines(rooms, quantities))}. Which one? Ask with its number."
             )
-            can_answer = _room_areas(named[1], quantities, parser) or can_answer
+            each = (
+                _room_areas(rooms, quantities, parser)
+                if again.measure == "area"
+                else _room_counts(rooms, again.subject, quantities, parser)
+            )
+            can_answer = each or can_answer
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     level = None
@@ -417,6 +425,14 @@ NOT_LOCATED = "not located on the drawing"
 # counts closet doors as doors; brief r8 BM)
 CLOSET = re.compile(r"\bcloset", re.IGNORECASE)
 CLOSET_RULE = "closet doors are counted as doors"
+# fail-1, review-332 N1: rooms' door counts add up to more than the sheet's
+SHARED_OPENING = "a door or window in a wall between two rooms counts for both rooms"
+
+
+def _in_room_opening(key: str) -> bool:
+    """A count of doors or windows in one room (`door|name=1.01`)."""
+    _, subject, scope = parse_key(key)
+    return scope.name is not None and bool({"door", "window"} & set(subject.split("+")))
 
 
 def _room_count(found: Quantity) -> bool:
@@ -477,17 +493,35 @@ def suggestions(
 
 def _room_lines(rooms: Sequence[Room], quantities: Mapping[str, Quantity]) -> list[str]:
     """Each room as "Bagno 1.01 7.56 m²": its printed label, its number, and the area of its row
-    (by the first of its names the takeoff has one for); empty unless every room has an area."""
+    (by the first of its names the takeoff has one for) when it has one."""
     lines: list[str] = []
     for room in rooms:
         keys = (quantity_key("area", "room", name=name) for name in room_names(room))
         found = next((quantities[key] for key in keys if key in quantities), None)
-        if found is None:
-            return []
         number = room.attrs.get("number")
         name = " ".join(str(part) for part in (room.label, number) if part)
-        lines.append(f"{name} {found.value:.2f} m²")
+        lines.append(name if found is None else f"{name} {found.value:.2f} m²")
     return lines
+
+
+def _room_counts(
+    rooms: Sequence[Room], subject: str, quantities: Mapping[str, Quantity], parser: QuestionParser
+) -> tuple[Suggestion, ...]:
+    """The count question of `subject` in each room, by one of its names, that the parser maps
+    back to a row."""
+    found: list[Suggestion] = []
+    for room in rooms:
+        for name in sorted(room_names(room)):
+            if not ROOM_NUMBER.fullmatch(name):
+                continue
+            text = f"How many {plural(subject)} are in room {name}?"
+            parsed = parser.parse(text)
+            if isinstance(parsed, Query) and parsed.key() in quantities:
+                found.append(
+                    Suggestion(quantity=parsed.key(), label=label(parsed.key()), question=text)
+                )
+                break
+    return tuple(found)
 
 
 def _room_areas(
