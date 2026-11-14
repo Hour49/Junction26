@@ -1142,6 +1142,8 @@ export interface components {
             check: string | null;
             /** Drawing Id */
             drawing_id: string | null;
+            /** Drawing Name */
+            drawing_name?: string | null;
             /** File */
             file: string;
             /** File Id */
