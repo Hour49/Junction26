@@ -18,26 +18,16 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.adapters.eight_bit import eight_bit
 from app.core.ingest.model import Entry
+from app.core.pipeline.identify import sniff_raster
 
 MAX_PIXELS = 150_000_000  # an 8-bit greyscale page of this size is 150 MB in memory
 MAX_PAGES = 50
 PNG_LEVEL = 3  # a page of 100 Mpx at the default level 6 takes tens of seconds
 
-_TIFF = (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+")
-
-
-def raster_format(data: bytes) -> str | None:
-    """ "tiff" or "webp" by the file's first bytes, else None."""
-    if data.startswith(_TIFF):
-        return "tiff"
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "webp"
-    return None
-
 
 def converted(entry: Entry) -> Iterator[Entry]:
     """The entry itself, or the PNG entries of the TIFF or WebP it holds."""
-    if entry.data is None or raster_format(entry.data) is None:
+    if entry.data is None or sniff_raster(entry.data) is None:
         yield entry
         return
     path = PurePosixPath(entry.path)

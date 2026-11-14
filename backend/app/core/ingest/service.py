@@ -86,7 +86,7 @@ from app.core.ingest.triage import (
     to_judge,
     triaged,
 )
-from app.core.pipeline.identify import sniff
+from app.core.pipeline.identify import sniff, sniff_raster
 from app.core.pipeline.model import DrawingFile
 from app.core.review.review import NotAllowedError
 from app.core.wording import kind_words
@@ -314,11 +314,16 @@ class IngestService:
         f<n+1> at its own name (a taken name gets "-2", "-3"...), then identified, triaged and
         read in the background, alone, as at upload; the project stays done. Returns the file,
         queued; poll the project for the rest."""
-        if sniff(data) not in ("png", "jpeg"):
-            raise UnsupportedFileError(f"{name}: only a png or jpeg image can be added")
+        if sniff(data) not in ("png", "jpeg") and sniff_raster(data) is None:
+            raise UnsupportedFileError(f"{name}: only a png, jpeg, tiff or webp image can be added")
         base = PurePosixPath(name.replace("\\", "/")).name
         if base in ("", ".", "..") or ":" in base or any(ord(char) < 32 for char in base):
             raise InvalidInputError(f"{name!r} is not a file name")
+        # A tiff or webp is written again as PNG, a sheet per tiff page, as at upload.
+        sheets = list(self._unpacker.entries(base, data))
+        for sheet in sheets:
+            if sheet.data is None:
+                raise UnsupportedFileError(f"{name}: {sheet.refused}")
         with self._lock:
             if project_id in self._live:
                 raise NotAllowedError(f"project {project_id} is still being read; try again")
@@ -326,16 +331,21 @@ class IngestService:
             if status.state != "done":
                 raise NotAllowedError(f"project {project_id} is {status.state}, not done")
             run = Run.resumed(status, traces)
-            path, stem, n = base, PurePosixPath(base), 1
-            while run.has(path):
-                n += 1
-                path = f"{stem.stem}-{n}{stem.suffix}"
-            run.add(Entry(path=path, size=len(data), data=data))
-            run.set(path, reason="added to the project, queued to be read")
+            added: list[tuple[str, bytes]] = []
+            for sheet in sheets:
+                assert sheet.data is not None
+                stem = PurePosixPath(sheet.path)
+                path, n = sheet.path, 1
+                while run.has(path):
+                    n += 1
+                    path = f"{stem.stem}-{n}{stem.suffix}"
+                run.add(Entry(path=path, size=len(sheet.data), data=sheet.data))
+                run.set(path, reason="added to the project, queued to be read")
+                added.append((path, sheet.data))
             self._live[project_id] = run
-        queued = run.file(path)
+        queued = run.file(added[0][0])
         self._save(run)
-        self._runner.submit(lambda: self._add(run, path, data))
+        self._runner.submit(lambda: self._add(run, added))
         return queued
 
     def _doubt_read_as_plan(
@@ -632,7 +642,19 @@ class IngestService:
                 del self._live[run.id]
             run.done.set()
 
-    def _add(self, run: Run, path: str, data: bytes) -> None:
+    def _add(self, run: Run, added: list[tuple[str, bytes]]) -> None:
+        """Each added file (a tiff's pages are several) read in turn, then the project is free."""
+        try:
+            for path, data in added:
+                self._add_one(run, path, data)
+        finally:
+            self._save(run)
+            self._index(run.status())
+            with self._lock:
+                del self._live[run.id]
+            run.done.set()
+
+    def _add_one(self, run: Run, path: str, data: bytes) -> None:
         """Stages 1-3 for the added file, then its group, route and readers, as `_run` does for
         an upload of one file. A failure sets the file aside with why; the project stays done."""
         try:
@@ -663,10 +685,6 @@ class IngestService:
             run.finish(path, "set_aside", f"not ingested: {type(failure).__name__}")
         finally:
             self._save(run)
-            self._index(run.status())
-            with self._lock:
-                del self._live[run.id]
-            run.done.set()
 
     def _unread(self, run: Run, path: str, failure: str, line: str | None = None) -> None:
         """A re-read that failed: the file is set aside with why and back to triage's call (no

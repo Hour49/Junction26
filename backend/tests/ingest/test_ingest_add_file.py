@@ -1,9 +1,12 @@
 """A photo added to a finished project from the chat (board #203): read alone in the
 background as at upload, the project stays done; png or jpeg only."""
 
+import io
+
 import pytest
 from conftest import MakeService
 from evidence_fakes import FakeKinds
+from PIL import Image
 from test_ingest_evidence_scope import ELEVATION, KINDS, on
 from test_ingest_read_as_plan import Gate
 from test_ingest_triage import PHOTO, PLAN, SCAN, file_of, zipped
@@ -97,3 +100,31 @@ def test_an_added_picture_gets_its_evidence_and_is_indexed_alone(
     assert kinds.asked[asked:] == [SCAN]
     assert file_of(status, "elevation.pdf").evidence == before
     assert index.statuses[-1] == status
+
+
+def tiff_of(*pages: bytes) -> bytes:
+    images = [Image.open(io.BytesIO(page)).convert("L") for page in pages]
+    buffer = io.BytesIO()
+    images[0].save(buffer, "TIFF", save_all=True, append_images=images[1:], compression="tiff_lzw")
+    return buffer.getvalue()
+
+
+def test_an_added_tiff_is_a_sheet_per_page_and_a_webp_one_sheet(make_service: MakeService) -> None:
+    ingest = make_service()
+    project = ingest.wait(ingest.start("site.zip", zipped({"plan.pdf": PLAN})))
+    queued = ingest.add_file(project.id, "scan.tif", tiff_of(SCAN, SCAN))
+    assert queued.path == "scan.png"
+    status = ingest.wait(project.id)
+    assert [file.path for file in status.files] == ["plan.pdf", "scan.png", "scan#p2.png"]
+    assert all(file_of(status, path).kind == "png_plan" for path in ("scan.png", "scan#p2.png"))
+    buffer = io.BytesIO()
+    Image.open(io.BytesIO(SCAN)).save(buffer, "WEBP", lossless=True)
+    assert ingest.add_file(project.id, "p.webp", buffer.getvalue()).path == "p.png"
+    ingest.wait(project.id)
+
+
+def test_a_broken_tiff_is_refused_with_its_reason(make_service: MakeService) -> None:
+    ingest = make_service()
+    project = ingest.wait(ingest.start("site.zip", zipped({"plan.pdf": PLAN})))
+    with pytest.raises(UnsupportedFileError, match="cannot be read"):
+        ingest.add_file(project.id, "bad.tif", b"II*\x00" + b"\x00" * 16)
