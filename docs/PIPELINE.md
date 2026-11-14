@@ -104,9 +104,10 @@ schedule or a detector.
 | element count | `detector` | `parser` | 0 | no rule yet; the parser wins on vector sheets, the detector is the only source on raster |
 
 Raster printed scale and facts (2026-11-14, r8 AY, `RASTER_PRINTED_SCALE=off|carbon`, default off;
-`app/core/pipeline/printed.py`): a scale bar gives metres per pixel (its labelled length over its pixel length); a
-printed ratio gives it only when the image states a resolution that can be trusted (PNG pHYs or JPEG density, 100-1200
-dpi, not 72 or 96). The printed scale replaces the door estimate and the room areas are measured again at it. When
+`app/core/pipeline/printed.py`): the scale is metres per page unit. A scale bar gives it (its labelled length over its drawn length on
+the page); a printed ratio gives it from the paper size: on a page in points (a scanned PDF) at 72 to the inch,
+whatever resolution its render states (#340), and on a page in pixels (an image) at the resolution the image states,
+when that can be trusted (PNG pHYs or JPEG density, 100-1200 dpi, the same both ways, not 72 or 96). The printed scale replaces the door estimate and the room areas are measured again at it. When
 the two are more than 2x apart (`ESTIMATE_RANGE`), one is a misread: a measured bar still wins, and every area and
 length on the sheet becomes an estimate naming both scales (never certified, Low); a ratio does not win (the
 estimate stays, no rule decides). A printed count of an element class, a room type or all rooms is a second value
