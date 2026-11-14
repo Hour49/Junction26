@@ -226,6 +226,24 @@ def test_the_printed_bar_replaces_the_door_estimate_and_measures_the_rooms_again
     assert side.estimate is None
 
 
+def test_label_boxes_a_label_boxed_as_its_room_gets_no_area_at_the_printed_scale() -> None:
+    """pipe-label-boxes: the printed scale made "LOBBY 0.18 m²" read as exact."""
+    inner = Fixed(side_px=DOOR_M / 0.02)
+    hall = Room(id="r2", type="living", page=1, box=(0.2, 0.1, 0.3, 0.25))  # 4 x 3 m at 0.02
+    lobby = Room(id="r3", type="other", label="LOBBY", page=1, box=(0.12, 0.32, 0.135, 0.335))
+    inner.found = inner.found.model_copy(update={"rooms": (*inner.found.rooms, hall, lobby)})
+    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+    assert found.scale.status == "scaled"
+    _, hall_read, lobby_read = found.rooms
+    assert hall_read.area_m2 == pytest.approx(4 * 3 / BOX_RATIO, abs=0.01)
+    assert lobby_read.area_m2 is None and lobby_read.label == "LOBBY"
+    said = [note for note in found.notes if note.startswith("room area:")]
+    assert said == [  # once, at the printed scale (the estimate's note is replaced)
+        "room area: r3 not measured, its box is 0.60 x 0.30 m (0.18 m²), smaller than any room "
+        "(a door leaf's footprint, 0.5 m²)"
+    ]
+
+
 def test_a_printed_ratio_wins_over_the_door_estimate_too(tmp_path: Path) -> None:
     # 1:100 at 150 dpi is 0.0169 m/px; the doors say 1.5x that
     found = read(Fixed(side_px=DOOR_M / 0.0254), PrintedSheet(printed_scale="1:100"), dpi=150.0)

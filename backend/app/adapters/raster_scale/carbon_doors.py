@@ -17,7 +17,12 @@ from app.adapters.carbon.contract import SOURCE as CARBON
 from app.core.drawing.model import Element
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.raster_scale import carbon_door_scale, door_sides, rooms_with_areas
+from app.core.pipeline.raster_scale import (
+    carbon_door_scale,
+    door_sides,
+    label_area_checks,
+    rooms_with_areas,
+)
 
 NO_DOOR = "scale estimate: not made, no door was detected"  # PriorScale's note, word for word
 
@@ -40,13 +45,18 @@ class CarbonDoorScale:
         scale = carbon_door_scale(door_sides(doors, sheet.pages))
         if scale is None:
             return found
+        rooms, refused = rooms_with_areas(found.rooms, scale, sheet.pages)
+        checks, said = label_area_checks(found.rooms, scale, sheet.pages)  # as PriorScale
         return found.model_copy(
             update={
                 "scale": scale,
-                "rooms": tuple(rooms_with_areas(found.rooms, scale, sheet.pages)),
+                "rooms": tuple(rooms),
+                "printed": (*found.printed, *checks),
                 "notes": (
                     *(note for note in found.notes if note != NO_DOOR),
                     f"scale estimate: {scale.source}",
+                    *refused,
+                    *said,
                 ),
             }
         )
