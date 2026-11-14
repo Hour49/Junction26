@@ -223,6 +223,9 @@ class Groups:
                 reason = (
                     f"another rendering of {members.key}; its drawing is read from {source.path}"
                 )
+            if file.path in run.cut and state != "set_aside":
+                last, pages = run.cut[file.path]
+                reason += f"; read pages 1-{last} of {pages}; the rest were not read"
             run.add_stages(file.path, stages)
             self._store_outcome(run, file, drawing, keys[file.path], source, read_on,
                                 state=state, reason=reason, takeoff=takeoff,

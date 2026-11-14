@@ -5,6 +5,11 @@ import { Tip } from '@/components/ui/tip';
 import { useInfo } from '../shell/info';
 import { TIPS } from '../shell/tips';
 
+/** The photo kinds the server reads (#425 added TIFF and WebP), by type and by extension for pickers that
+ * only know the file name. */
+export const PHOTO_ACCEPT =
+  'image/png,image/jpeg,image/tiff,image/webp,.png,.jpg,.jpeg,.tif,.tiff,.webp';
+
 /** Why the pen is off for a scan or photo (ui-bugs 1). */
 export const CANT_DRAW =
   "You can't draw on this plan: it is a photo/scan. Drawing works on drawn PDF plans and building-model sheets.";
@@ -163,7 +168,7 @@ export function AskBox(props: {
             <input
               ref={picker}
               type="file"
-              accept="image/png,image/jpeg"
+              accept={PHOTO_ACCEPT}
               hidden
               data-testid="photo-input"
               onChange={(e) => {

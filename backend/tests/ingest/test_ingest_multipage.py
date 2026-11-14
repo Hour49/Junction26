@@ -6,11 +6,12 @@ import io
 from pathlib import Path
 
 import pypdfium2
+import pytest
 from conftest import MakeService
 from test_ingest_probe import ink_sketch_pdf
 from test_vector_pdf import swiss_sheet
 
-from app.adapters.archive import DiskProjectStore, FileProbe
+from app.adapters.archive import DiskProjectStore, FileProbe, probe
 from app.adapters.archive.probe import MAX_PAGES
 from app.core.ingest.model import Probed, page_path, split_from
 from scripts.make_sample_archive import text_pdf
@@ -123,3 +124,29 @@ def test_a_page_file_names_the_pdf_it_was_split_from() -> None:
     assert split_from("sets/Permit #p3.pdf", paths) == "sets/Permit .PDF"
     assert split_from("plan.pdf", paths) is None  # not a page file
     assert split_from("notes#p2.pdf", paths) is None  # named like one, but no notes.pdf
+
+
+def test_the_probe_gives_the_pages_it_cut() -> None:
+    plan = swiss_sheet().pdf()
+    assert FileProbe().probe(pdf_of(*[plan] * (MAX_PAGES + 3))).cut == (
+        MAX_PAGES + 1,
+        MAX_PAGES + 3,
+    )
+    assert FileProbe().probe(pdf_of(*[plan] * (MAX_PAGES + 1))).cut is None
+
+
+def test_a_set_past_the_cap_says_so_in_its_reason(
+    make_service: MakeService, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Orchestrator r12 (QA upload sweep): pages past the cap were named only in the trace, so
+    the person saw a 60-page set read as 51 files and was not told the rest were not read."""
+    monkeypatch.setattr(probe, "MAX_PAGES", 1)
+    store = DiskProjectStore(tmp_path / "shared")
+    for _ in range(2):  # the second run is served from the cache: it says it too
+        ingest = make_service(store=store)
+        project = ingest.wait(ingest.start("set.pdf", pdf_of(*[swiss_sheet().pdf()] * 3)))
+        by_path = {file.path: file for file in project.files}
+        assert list(by_path) == ["set.pdf", "set#p2.pdf"]
+        reason = by_path["set.pdf"].reason
+        assert reason.endswith("; read pages 1-2 of 3; the rest were not read"), reason
+        assert "were not read" not in by_path["set#p2.pdf"].reason
