@@ -79,7 +79,9 @@ percent ("chance of a floor plan 3 %"), `round(100 × p_plan)`.
    - heading "Not a floor plan: <class words>", then "Chance of a floor plan <p> % (<method>)"; once
      `read_as_plan` is set the heading is "Read as a floor plan on <by>'s call" and the classifier's view moves under
      it: "Triage said: <class words> (<p> % chance of a floor plan)" (frontend-orch, 2026-11-14);
-   - the upload itself: `<img src={previewUrl(pid, fid)}>`, alt "<path> as uploaded", "Preview not available" on a
+   - the upload itself: `<img src={previewUrl(pid, fid, 400)} srcset="<400> 400w, <1600> 1600w" sizes="(max-width:
+     400px) 100vw, 400px">` (the API's widths are 400, 1600 and 3200 only: a 1x screen loads the 400 rendition, a
+     2x or 3x screen the 1600; never 1600 for a 1x screen as before), alt "<path> as uploaded", "Preview not available" on a
      failed load (a non-plan has no drawing, so `BeforeAfter` is never shown; this is the only picture of it);
    - "What is on it": `description.text`, "Subject: <subject>", and when `text_seen` is not empty a collapsed
      `<details>` "Text printed on it (<n>)" listing each item (and "language: <language>" when set); "Described by
@@ -175,7 +177,7 @@ Variants (each starts from the named fixture; only the listed fields change):
 ## Layout
 
 Same tokens and cards as the trace (ingest.md "Layout"). The triage card sits between the facts card and the
-stages card. The preview is at most 480 px wide on desktop, full width on a phone, aspect from the image. The verdict
+stages card. The preview is at most 400 px wide on desktop (the API's 400 rendition at 1x), full width on a phone, aspect from the image. The verdict
 pill is a `.v-pill` (related: plain; unrelated: plain; unsure: `v-pill--warn`), always with icon and word. The name
 field and the two buttons sit in one row on desktop, stacked on a phone; tap targets at least 44 px at 390, no
 horizontal scroll, long subjects and why lines wrap.

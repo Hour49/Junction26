@@ -383,7 +383,7 @@
 }
 .ingest-triage-preview {
   display: block;
-  max-width: min(100%, 480px);
+  max-width: min(100%, 400px);
   height: auto;
   border: 1px solid var(--v-line);
   border-radius: 12px;

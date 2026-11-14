@@ -302,6 +302,17 @@ gives +0.35 pp [+0.12, +0.60]. No key, every reply from the caches, no spend. Ag
   same value.
 - `GATE_POLICY`: 286 answers marked sure, 585 not, the rest null; no policy answer is marked sure.
 
+IFC gold with the reader's room words (golden, 2026-11-14 15:30; no series point recorded). #167 rebuilt the IFC
+Part 1 gold with the room words the IFC reader uses. The old gold typed 408 of the 597 rooms in 24 dev IFC sheets
+as `other` where the reader says hall (127), living (96), wc (81), bedroom (65), bathroom (18), kitchen (16) or
+storage (5). The rebuild of golden v2 ran `select-plans --keep data/stoa/golden/v2/manifest.json`: files.jsonl,
+questions.jsonl, extras.jsonl and text_claims.jsonl are byte-identical, and only those 24 gold files changed, in room
+`type` only. One run of 872ebc3 at default settings, scored against the old and the new gold: ifc_models room type
+accuracy goes from 65.2% to 100.0% and count exact from 93.7% to 100.0% (room:bathroom and kitchen were 86.7%;
+bedroom, hall, living and other 80.0%; wc 93.3%). Nothing else moved. The series columns above (element F1, Part 2)
+don't depend on room type and are unchanged. The earlier records' room type accuracy and IFC count numbers were
+scored against the old words.
+
 ## Experiments (CubiCasa raster, 2026-11-14)
 
 Bogdan, 2026-11-14: "Each should do a/b testing". The experiment tracks (detectors, segmentation, OCR, VLMs)
@@ -383,6 +394,31 @@ When the runtime config changes (a new detector), `uv run python -m stoa_eval ga
 output>` refits gate.json in one command (eval/README.md). Then, once, the test certificate: `gate --part test
 --certify` with the same arm, swap, rooms and `--g1main` replies for the test images, and `gate-policy
 --certificate` to put it in gate.json. A refit for another config starts uncertified again.
+
+### The double-check policy (CHECK_POLICY)
+
+The gate says which answers are sure; the double-check policy says which ones ask a person to look. Bogdan's goal
+(D476, 2026-11-14): even at 92% overall accuracy, flag at least 95% of the wrong answers and ask for feedback on
+them, never refuse. `stoa_eval check-policy --recall 0.96` fits it on val: each family's signal is turned into
+P(wrong) by logistic regression, cross-fit on the val halves (on the logit when the signal is a probability;
+families with fewer than 10 wrong answers share one calibration, `--pool-below 10`), and one P(wrong) cut over all
+families flags at least 96% of val's wrong answers. The file holds one threshold per family on its signal
+(check_policy_v1); `--always-flag` adds units flagged whatever their signal. Only signals the backend computes are
+used: `g1main` (DECISIONS_CONFIDENCE) and local-dec's local gates (LOCAL_GATES). Routes are certified on golden v2's
+holdout (vector and BIM yes, schedules no).
+
+The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json`, fit on config
+C1-T1's val answers: door, plan, sauna and shower+bathtub on `lgate2-rt`, toilet on `lgate-rt-nol1`, the rest on
+`g1main`. Cross-fit on val: 55.1% of the answers flagged, 96.0% of the wrong ones among them, 98.95% of the
+unflagged answers exact. The local gates read the count arbiter's L1 probabilities and P and the double-check
+readers, so the config needs `arbiter-t1` in RASTER_COMPONENTS and DOUBLE_CHECK_READERS `l1,m1`; on a drawing
+without them those families always ask.
+
+Known limitation: the policy is fit on ROOM_POLICY=gold-labels (rooms typed by their printed label, as the
+reference answers are), and the demo runs ROOM_POLICY=furniture (a room with a bed is a bedroom). Room families
+are therefore certified outside the conditions they were fit on. The main case is covered by a rule: a bedroom
+count that includes a bedroom with no printed label always asks. The test certificate (integ's single test read)
+is still to come; until then the val numbers are estimates chosen on val.
 
 ## What the answer should show
 

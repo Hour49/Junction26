@@ -3492,7 +3492,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "storeys": null,
     "schedule": null,
     "check": null
-  }
+  },
+  "check": null
 }
 ```
 
@@ -3756,6 +3757,780 @@ from a stand-in, not Gemini; `marks` trimmed to two):
     "storeys": null,
     "schedule": null,
     "check": null
+  },
+  "check": null
+}
+```
+
+#### Double-check request: `check`
+
+With `CHECK_POLICY` set (golden's `check_policy_v1` file in `eval/results/gate/`, chosen on val: one threshold per
+family so that at least 96% of the wrong answers ask for a check, D476), a takeoff answer the policy does not
+certify **keeps its value** and carries `check`, so the screen asks a person to look before trusting it.
+`answer.check` is the request the screen shows; `proof.check` is a different, older field: one line on how a
+second method measured the value (`Checked twice, ...`), shown with the proof. Read the request from
+`answer.check`, never from `proof.check`.
+
+- `reason`: one plain sentence for the person, e.g. `Please double-check the doors: the readers disagree at 2
+  places, marked on the drawing.`
+- `disputed`: the places to look at, strongest first, at most 5 (empty when no reader points anywhere):
+  `mark_id` is the answer's review mark (`marks[].id`; a room's mark carries the room id in `ref`), which a
+  person can reject, restore or settle with the review actions; `mark_id` null is a place the answer did **not**
+  count, with `page` and `box`, which a person can `add`. `why` is one sentence; `readers` maps each reader to
+  what it says there (`nothing` when it sees nothing), the answer's own reading included.
+
+`check` is null when the answer is certified (on the raster route: its score at or above its family's threshold on
+a page ingest did not flag, the score being `g1main`'s or, for a family whose threshold was chosen on a local gate's
+signal, that gate's from `LOCAL_GATES`; on another route: the route was certified on golden v2's holdout), once
+a person settled or signed the quantity off, on a refusal, and when `CHECK_POLICY` is off. Never certified,
+whatever the score or route, and the `reason` says why: two methods disagree, also when a rule picked one value
+(`Please double-check the doors: two methods disagree: 2 vs 3; we show 3.`; areas with two decimals and m²);
+the value is an estimate (`... it is an estimate (<the estimate>).`); a person changed the marks without
+signing off (`... edited by you: sign off to confirm.`), or a bedroom count includes a room typed a bedroom
+with no printed label (`... 1 room is drawn as a bedroom with no printed label; please confirm.`, that room
+listed first). A mark the person rejected is never listed in `disputed`. A window count's `reason` gives both
+counts when they differ (`we count 3 windows if a window with several panes is one window, 4 if every pane is
+counted ...`), and panes that may be one window are one entry in `disputed`. A value read from a printed
+schedule gets a request without places unless the policy certified the `schedule` route. A family the
+policy has no threshold for (or a null one) is never certified. The examples use stand-ins for the score (0.87) and
+for the dispute finders: a door count certified at threshold 0.8, the same count at 0.9, and a bedroom count at
+0.9 (`marks` trimmed to two):
+
+With `CHECK_POLICY` on, the answer's `sure` follows it instead of `GATE_POLICY`: true exactly when the answer is
+certified, false when it is not (whether or not a person has since settled or signed it off; a value a person
+edited is never certified, signed or not), null on an answer it does not rate (a refusal, a question with no
+takeoff row).
+So the screen never shows Sure next to a double-check request. The policy is fit on CubiCasa val read with
+`ROOM_POLICY=gold-labels`; under `furniture` (the demo) room counts are certified outside those conditions, except
+that a bedroom count including a bedroom with no printed label always asks (docs/GOLDEN.md, "The double-check
+policy").
+
+<!-- fixture: answer_certified.json -->
+```json
+{
+  "question": "How many doors are there?",
+  "drawing_id": "c592bb6c7e3273ca",
+  "file": "plan.png",
+  "pages": [
+    {
+      "page": 1,
+      "width": 800.0,
+      "height": 400.0,
+      "unit": "px",
+      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "normalised": {
+        "exif": null,
+        "rotated": 0,
+        "deskew_deg": 0.0,
+        "rectified": false,
+        "quad": null,
+        "width": 800,
+        "height": 400,
+        "rectifier": null
+      },
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": null
+      },
+      "scale_text": null,
+      "storey": null
+    }
+  ],
+  "answer": 2,
+  "unit": "count",
+  "confidence": {
+    "signal": "g1main",
+    "score": 0.87,
+    "calibrated": false
+  },
+  "quantity": {
+    "key": "door",
+    "label": "door count",
+    "measure": "count",
+    "subject": "door",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "each-once",
+      "text": "every element, room and plan the drawing lists counts once"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.05,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e1",
+        "reason": null,
+        "room_type": null
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e2",
+        "reason": null,
+        "room_type": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {},
+    "noun": "doors"
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.05,
+        0.1,
+        0.1,
+        0.2
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e1",
+      "reason": null,
+      "room_type": null
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.6,
+        0.1,
+        0.65,
+        0.2
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e2",
+      "reason": null,
+      "room_type": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "raster",
+    "source": "plan.png",
+    "extractor": "composite",
+    "second_counter": "none",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.05,
+          0.1,
+          0.1,
+          0.2
+        ]
+      },
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": 0.87,
+    "sure": true,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "door",
+        "colour": "#d62728",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": null
+  },
+  "check": null
+}
+```
+
+<!-- fixture: answer_double_check.json -->
+```json
+{
+  "question": "How many doors are there?",
+  "drawing_id": "c592bb6c7e3273ca",
+  "file": "plan.png",
+  "pages": [
+    {
+      "page": 1,
+      "width": 800.0,
+      "height": 400.0,
+      "unit": "px",
+      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "normalised": {
+        "exif": null,
+        "rotated": 0,
+        "deskew_deg": 0.0,
+        "rectified": false,
+        "quad": null,
+        "width": 800,
+        "height": 400,
+        "rectifier": null
+      },
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": null
+      },
+      "scale_text": null,
+      "storey": null
+    }
+  ],
+  "answer": 2,
+  "unit": "count",
+  "confidence": {
+    "signal": "g1main",
+    "score": 0.87,
+    "calibrated": false
+  },
+  "quantity": {
+    "key": "door",
+    "label": "door count",
+    "measure": "count",
+    "subject": "door",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "each-once",
+      "text": "every element, room and plan the drawing lists counts once"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.05,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e1",
+        "reason": null,
+        "room_type": null
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e2",
+        "reason": null,
+        "room_type": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {},
+    "noun": "doors"
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.05,
+        0.1,
+        0.1,
+        0.2
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e1",
+      "reason": null,
+      "room_type": null
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.6,
+        0.1,
+        0.65,
+        0.2
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e2",
+      "reason": null,
+      "room_type": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "raster",
+    "source": "plan.png",
+    "extractor": "composite",
+    "second_counter": "none",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.05,
+          0.1,
+          0.1,
+          0.2
+        ]
+      },
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": 0.87,
+    "sure": false,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "door",
+        "colour": "#d62728",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": null
+  },
+  "check": {
+    "reason": "Please double-check the doors: the readers disagree at 2 places, marked on the drawing.",
+    "disputed": [
+      {
+        "mark_id": "m2",
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
+        "readers": {
+          "answer": "door, score 0.41",
+          "L one view": "nothing",
+          "M one view": "nothing",
+          "seg": "door, score 0.62"
+        }
+      },
+      {
+        "mark_id": null,
+        "page": 1,
+        "box": [
+          0.3,
+          0.85,
+          0.36,
+          0.9
+        ],
+        "why": "Not counted, but 2 of the 3 other readers see a door here.",
+        "readers": {
+          "answer": "nothing",
+          "L one view": "door, score 0.55",
+          "M one view": "door, score 0.48",
+          "seg": "nothing"
+        }
+      }
+    ]
+  }
+}
+```
+
+<!-- fixture: answer_double_check_rooms.json -->
+```json
+{
+  "question": "How many bedrooms are there?",
+  "drawing_id": "c592bb6c7e3273ca",
+  "file": "plan.png",
+  "pages": [
+    {
+      "page": 1,
+      "width": 800.0,
+      "height": 400.0,
+      "unit": "px",
+      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "normalised": {
+        "exif": null,
+        "rotated": 0,
+        "deskew_deg": 0.0,
+        "rectified": false,
+        "quad": null,
+        "width": 800,
+        "height": 400,
+        "rectifier": null
+      },
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": null
+      },
+      "scale_text": null,
+      "storey": null
+    }
+  ],
+  "answer": 2,
+  "unit": "count",
+  "confidence": {
+    "signal": "g1main",
+    "score": 0.87,
+    "calibrated": false
+  },
+  "quantity": {
+    "key": "room:bedroom",
+    "label": "room bedroom count",
+    "measure": "count",
+    "subject": "room:bedroom",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "each-once",
+      "text": "every element, room and plan the drawing lists counts once"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.1,
+          0.1,
+          0.45,
+          0.9
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "Makuuhuone 1",
+        "ref": "r1",
+        "reason": null,
+        "room_type": "bedroom"
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.55,
+          0.1,
+          0.9,
+          0.9
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "Makuuhuone 2",
+        "ref": "r2",
+        "reason": null,
+        "room_type": "bedroom"
+      }
+    ],
+    "signed": null,
+    "unlocated": {},
+    "noun": null
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.1,
+        0.1,
+        0.45,
+        0.9
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "Makuuhuone 1",
+      "ref": "r1",
+      "reason": null,
+      "room_type": "bedroom"
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.55,
+        0.1,
+        0.9,
+        0.9
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "Makuuhuone 2",
+      "ref": "r2",
+      "reason": null,
+      "room_type": "bedroom"
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "raster",
+    "source": "plan.png",
+    "extractor": "composite",
+    "second_counter": "none",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.1,
+          0.1,
+          0.45,
+          0.9
+        ]
+      },
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.55,
+          0.1,
+          0.9,
+          0.9
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": 0.87,
+    "sure": false,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "bedroom",
+        "colour": "#1f77b4",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": null
+  },
+  "check": {
+    "reason": "Please double-check the room bedroom count: the readers disagree at 2 places, marked on the drawing.",
+    "disputed": [
+      {
+        "mark_id": "m2",
+        "page": 1,
+        "box": [
+          0.55,
+          0.1,
+          0.9,
+          0.9
+        ],
+        "why": "Counted as a bedroom; the segmentation reader sees a living room here.",
+        "readers": {
+          "reader": "bedroom",
+          "label": "Makuuhuone 2",
+          "segmentation": "living",
+          "printed_label": "nothing"
+        }
+      },
+      {
+        "mark_id": null,
+        "page": 1,
+        "box": [
+          0.46,
+          0.1,
+          0.54,
+          0.4
+        ],
+        "why": "Not counted, but the segmentation reader and the printed label see a bedroom.",
+        "readers": {
+          "reader": "nothing",
+          "label": "nothing",
+          "segmentation": "bedroom",
+          "printed_label": "bedroom"
+        }
+      }
+    ]
   }
 }
 ```
@@ -3998,7 +4773,8 @@ is no total):
           "storeys": null,
           "schedule": null,
           "check": null
-        }
+        },
+        "check": null
       }
     },
     {
@@ -4202,7 +4978,8 @@ is no total):
           "storeys": null,
           "schedule": null,
           "check": null
-        }
+        },
+        "check": null
       }
     },
     {
@@ -4284,7 +5061,8 @@ is no total):
           "storeys": null,
           "schedule": null,
           "check": null
-        }
+        },
+        "check": null
       }
     }
   ],
@@ -4604,7 +5382,8 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "storeys": null,
     "schedule": null,
     "check": null
-  }
+  },
+  "check": null
 }
 ```
 
@@ -4716,7 +5495,8 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     ],
     "schedule": null,
     "check": null
-  }
+  },
+  "check": null
 }
 ```
 
@@ -4802,7 +5582,8 @@ A question the drawing cannot answer:
     "storeys": null,
     "schedule": null,
     "check": null
-  }
+  },
+  "check": null
 }
 ```
 
@@ -5078,7 +5859,8 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "storeys": null,
     "schedule": null,
     "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
-  }
+  },
+  "check": null
 }
 ```
 
@@ -5343,7 +6125,8 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "storeys": null,
     "schedule": null,
     "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale"
-  }
+  },
+  "check": null
 }
 ```
 
@@ -5481,7 +6264,8 @@ rests on:
       "of": 3
     },
     "check": null
-  }
+  },
+  "check": null
 }
 ```
 
@@ -6237,6 +7021,13 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (golden-21, board #14): `check` on `POST /api/ask`'s answer: `{reason, disputed: [{mark_id,
+  page, box, why, readers}]}` or null, the double-check request of an answer `CHECK_POLICY` does not certify (the
+  value stays; not a refusal). Null for every answer while `CHECK_POLICY` is off (the default). New fixtures
+  `answer_certified`, `answer_double_check`, `answer_double_check_rooms`. A disagreement between two methods,
+  an estimate or a person's unsigned edit always asks; a settle or sign-off lifts the request. Not
+  `proof.check` (unchanged: how a second method measured the value). Behaviour: with `CHECK_POLICY` on, `sure`
+  is true exactly when the answer is certified (`GATE_POLICY` no longer sets it), null on a refusal.
 - 2026-11-14, additive (decision 0010, board #152 c6876693460): `POST /api/projects/{project_id}/files/{file_id}/triage`
   reads a file triage set aside as a floor plan (202, in the background); `Triage.read_as_plan`; a new error code
   `not-triaged` (422).
@@ -6314,6 +7105,9 @@ formula in a spreadsheet.
   its family's threshold in golden's gate file (`GATE_POLICY`, chosen on val and certified once on test),
   false below it, null when there is no score (a vector or IFC page), the family is not gated or the gate is
   off. `POST /api/ask` sets it too.
+- 2026-11-14, behaviour: a plan count (`floors`) is `line.sure` true only when Gemini's own most likely plan
+  count is the answered one as well (two readers agree); otherwise false, whatever the score. On CubiCasa val
+  it keeps 363 of 376 plan answers sure (was 376), 362 of them exact (was 372 of 376).
 - 2026-11-14, text: a dataset drawing's `credit` is the attribution once, with its licence named once and no
   "<licence>. Credit:" of its own (the screen writes "Credit: "; R3-qa2-1). `proof.arithmetic` is null for a sum of
   one part (was "30 = 30 m²"; a settled one keeps "settled by a person, was …"). `explanation` names the two
