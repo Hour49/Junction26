@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.api import project_ask
 from app.api.ask import AnswerView, answer_view
+from app.core.answering.facts import FACTS
 from app.core.drawing.model import Drawing
 from app.core.review.model import Row, Scope
 
@@ -156,6 +157,29 @@ def test_a_room_s_name_has_no_total(client: TestClient) -> None:
         f"{len(names)} drawing{'' if len(names) == 1 else 's'} answered with a room's name, so "
         "there is no total"
     )
+
+
+def test_a_fact_sheets_words_have_no_total_and_are_not_called_a_room_s_name(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An IFC fact sheet's answer is a text (IFC_FACTS): no total, said as words, not as a room's
+    name (review-420-ask N1)."""
+    project = sample(client)
+    model = next(d["drawing_id"] for d in project["drawings"] if d["file"].endswith(".ifc"))
+
+    def in_words(view: AnswerView) -> AnswerView:  # the IFC model answers from its fact sheet
+        if view.drawing_id != model:
+            return view
+        line = view.line.model_copy(update={"answer": "Reinforced concrete", "method": FACTS})
+        return view.model_copy(update={"answer": "Reinforced concrete", "unit": None,
+                                       "method": FACTS, "line": line, "refusal": None})  # fmt: skip
+
+    changed(monkeypatch, in_words)
+    found = ask(client, project["id"], "How many doors are there?")
+    assert found["total"] is None
+    # flat-a and flat-b answer a count: only the model's part is words
+    assert found["total_note"].startswith("1 drawing of 3 answered in words, so there is no total")
+    assert "a room's name" not in found["total_note"]
 
 
 def test_parts_in_different_units_have_no_total(
