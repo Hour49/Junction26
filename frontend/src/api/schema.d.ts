@@ -445,6 +445,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add File
+         * @description A photo added to a finished project from the chat (board #203). The body is the image's
+         *     bytes, png or jpeg; `name` its file name. It is read in the background, alone, while the
+         *     project stays done. Returns the new file, queued; poll the project. 404 unknown project,
+         *     409 until the project is done or while a file of it is read, 413 over the upload limit, 415
+         *     not a png or jpeg.
+         */
+        post: operations["add_file_api_projects__project_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/files/{file_id}/model.glb": {
         parameters: {
             query?: never;
@@ -4055,6 +4079,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_file_api_projects__project_id__files_post: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileStatus"];
                 };
             };
             /** @description Validation Error */

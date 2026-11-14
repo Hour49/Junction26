@@ -9262,6 +9262,57 @@
         "summary": "Get Evidence"
       }
     },
+    "/api/projects/{project_id}/files": {
+      "post": {
+        "description": "A photo added to a finished project from the chat (board #203). The body is the image's\nbytes, png or jpeg; `name` its file name. It is read in the background, alone, while the\nproject stays done. Returns the new file, queued; poll the project. 404 unknown project,\n409 until the project is done or while a file of it is read, 413 over the upload limit, 415\nnot a png or jpeg.",
+        "operationId": "add_file_api_projects__project_id__files_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add File"
+      }
+    },
     "/api/projects/{project_id}/files/{file_id}/model.glb": {
       "get": {
         "description": "An IFC file's 3D view: one GLB of the whole model, each node named by its element's\nGlobalId. The first request starts its conversion (409 `converting` until it is built; poll\nit or the project's `model_3d`); gzipped when the client takes gzip.",
