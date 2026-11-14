@@ -1,5 +1,5 @@
 // The project chat's helpers (docs/specs/frontend/chat.md); the ask itself is `askProject` in src/api/client.ts.
-import type { DrawingView, ProjectAnswer, ProjectView, Suggestion } from '../api';
+import type { ProjectAnswer, ProjectView, Suggestion } from '../api';
 
 type Entry = ProjectView['drawings'][number];
 
@@ -8,10 +8,10 @@ export function askable(drawings: Entry[]): Entry[] {
   return drawings.filter((d) => d.state === 'ready' || d.state === 'flagged');
 }
 
-/** Whether the pen can draw on this drawing (ui-bugs 1): not a scan or photo, and read with pages to draw on.
- * TODO(board #404): use the backend's drawable field once DrawingEntry has it (scale, outlines, walls). */
-export function canDraw(entry: Entry, drawing: DrawingView | null | undefined): boolean {
-  return entry.route !== 'raster' && (drawing?.pages.length ?? 0) > 0;
+/** Whether the pen can draw on this drawing (ui-bugs 1): the backend's call (`drawable`: a drawn plan with
+ * geometry to pick from), not a guess from the route. */
+export function canDraw(entry: Entry): boolean {
+  return entry.drawable;
 }
 
 // A door count, a room area, a window count first (Tudor 12:45: "like the chatgpt ui"), then the rest in order.

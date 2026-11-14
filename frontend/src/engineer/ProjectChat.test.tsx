@@ -549,6 +549,11 @@ it('CH-22 on a phone the ask bar says "Ask about the drawings" so the paperclip 
     cleanup();
     render(<AskBox file="plan.pdf" busy={false} asked={0} onAsk={() => undefined} />);
     expect(screen.getByPlaceholderText('Ask about plan.pdf')).toBeTruthy(); // no `short`: unchanged
+    cleanup();
+    // the pen's placeholder is shorter on a phone, so it is not clipped beside the pen
+    const pen = { on: true, can: true, onToggle: () => undefined };
+    render(<AskBox file="plan.pdf" busy={false} asked={0} onAsk={() => undefined} pen={pen} />);
+    expect(screen.getByPlaceholderText('Click or drag on the plan')).toBeTruthy();
   } finally {
     vi.unstubAllGlobals();
   }

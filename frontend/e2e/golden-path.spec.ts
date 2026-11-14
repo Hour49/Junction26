@@ -208,8 +208,8 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(perDrawing.getByRole('listitem')).toHaveCount(1);
     await expect(perDrawing).toContainText(`${flatB.label}: 2`);
     await expect(answer.getByRole('link', { name: /^Show it on/ })).toHaveCount(0);
-    // GP-50: the reference image with its name above, the references list, follow-up chips.
-    await expect(answer.getByRole('figure', { name: /^Reference 1 of \d+$/ })).toBeVisible();
+    // GP-50: the reference image with its name above (flat-b is the second reference, just clicked), the references list, follow-up chips.
+    await expect(answer.getByRole('figure', { name: /^Reference 2 of \d+$/ })).toBeVisible();
     await expect(answer.getByRole('list', { name: 'References' })).toBeVisible();
     await expect(main.getByRole('group', { name: 'Suggested questions' })).toHaveCount(0);
     const followUps = main.getByRole('group', { name: 'Follow-up questions' }).getByRole('button');

@@ -537,6 +537,8 @@ button.en-ref:hover,
   background: transparent;
   color: var(--v-text);
   font: inherit;
+  /* a long placeholder ends in an ellipsis instead of being cut mid-word beside the pen and paperclip */
+  text-overflow: ellipsis;
 }
 .en-send {
   flex: none;
