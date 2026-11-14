@@ -121,6 +121,21 @@ def project_toolbox(
         sets.append((PLAN_TOOLS, partial(run_plan_tool, plans)))
         describe = plans.describe
         made = lambda: plans.proposals  # noqa: E731
+    try:  # the services model's tools (decision 0017); they share the plan tools' proposals
+        from app.adapters.services_agent_tools import (
+            SERVICES_TOOLS,
+            offers_services,
+            project_services,
+            run_services_tool,
+        )
+    except ImportError:
+        pass
+    else:
+        if offers_services(pipeline):  # SERVICES_FOLLOW on and an IFC file in the project
+            shared = made() if made is not list else list(proposals.values())
+            services = project_services(pipeline, selection, shared, proposals)
+            sets.append((SERVICES_TOOLS, partial(run_services_tool, services)))
+            made = lambda: services.proposals  # noqa: E731  (the same list as the plan tools')
     evidence = getattr(app.state, "evidence", None)  # EvidenceIndexes (decision 0012)
     if evidence is not None:
         index = evidence.evidence_index(project_id)

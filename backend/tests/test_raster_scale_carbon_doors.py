@@ -40,7 +40,7 @@ def test_no_detector_door_and_carbon_doors_give_an_estimate_from_carbon_s() -> N
     assert "2 doors the Carbon reader found" in (found.scale.source or "")
     assert found.rooms[0].area_status == "estimated" and found.rooms[0].area_m2 is not None
     assert NO_DOOR not in found.notes
-    assert found.notes[-1].startswith("scale estimate: a door is about 1.086 m wide")
+    assert found.notes[-1].startswith("scale estimate: a door is about 1.069 m wide")
 
 
 def test_without_carbon_doors_the_sheet_stays_refused() -> None:

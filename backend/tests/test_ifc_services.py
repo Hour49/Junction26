@@ -8,7 +8,13 @@ import ifcopenshell.guid
 import pytest
 from ifc_models import IfcFile, box
 
-from app.adapters.ifc_services import ServiceFiles, read_service_file, service_file
+import app.adapters.ifc_services as ifc_services
+from app.adapters.ifc_services import (
+    ServiceFiles,
+    read_apart,
+    read_service_file,
+    service_file,
+)
 from app.core.errors import InvalidInputError
 
 
@@ -121,3 +127,37 @@ def test_sf14_a_model_is_read_once_per_content() -> None:
     files = ServiceFiles(read)
     first = files.file("abc", lambda: b"1")
     assert files.file("abc", lambda: b"never asked for") is first and reads == [b"1"]
+
+
+def test_s2_a_model_is_read_apart_and_the_plain_data_comes_back() -> None:
+    """review-333 S2: the read runs in a child process (ifcopenshell keeps what it parsed until
+    its process ends); what comes back is what an in-process read gives."""
+    model = IfcFile()
+    ground = model.storey("Ground")
+    room = model.space(ground, "1.01", "Office", (box(2.0, 1.0, 6.0, 4.0), 0.0, 2.7))
+    data = model.ifc()
+    read = ServiceFiles().file("abc", lambda: data)
+    assert read == read_service_file(data)
+    assert type(read) is ifc_services.ServiceFile and read.spaces == {
+        room: pytest.approx((4.0, 2.5))
+    }
+    with pytest.raises(InvalidInputError, match="not an IFC file"):
+        ServiceFiles().file("bad", lambda: b"not an ifc file")  # the child's words come back
+
+
+@pytest.mark.parametrize("scope", [True, False], ids=["systemd-scope", "rlimit"])
+def test_s2_a_read_is_held_to_its_memory_and_time_budget(
+    scope: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The API's reader (ServiceFiles' default) has a budget: a model that needs more is not
+    followed, and the API process is not the one that grows. A capped scope where systemd runs
+    one, an address-space limit where it does not (CI)."""
+    if scope and not ifc_services.has_systemd_scope():
+        pytest.skip("no systemd user manager here")
+    monkeypatch.setattr(ifc_services, "has_systemd_scope", lambda: scope)
+    data = IfcFile().ifc()
+    monkeypatch.setattr(ifc_services, "READ_MEMORY_MB", 1)  # less than Python itself
+    with pytest.raises(InvalidInputError, match="needs more than 1 MB"):
+        ServiceFiles().file("big", lambda: data)
+    with pytest.raises(InvalidInputError, match=r"more than 0\.001 s"):
+        read_apart(data, memory_mb=3000, timeout_s=0.001)
