@@ -94,8 +94,9 @@ class ZipUnpacker:
             for info in archive.infolist():
                 if info.is_dir():
                     continue
-                path = safe_path(info.filename)
-                shown = f"{prefix}{path or info.filename}"
+                name = _name(info)
+                path = safe_path(name)
+                shown = f"{prefix}{path or name}"
                 refused = self._refusal(info, path, budget)
                 if refused is not None or path is None:
                     yield Entry(path=shown, size=info.file_size, refused=refused or "unsafe path")
@@ -154,6 +155,19 @@ class _Budget:
 
     def over(self) -> str:
         return f"the archive is over its total cap of {self.max_total // 2**20} MB"
+
+
+def _name(info: zipfile.ZipInfo) -> str:
+    """The entry's name. Without the UTF-8 flag (bit 11) a zip name is cp437, and zipfile decodes
+    it so; macOS's Archive Utility writes UTF-8 without the flag, so 'Kerros_ä' showed as
+    'Kerros_├ñ' (QA r12 upload sweep). Bytes that decode as UTF-8 are read as UTF-8 (cp437 text
+    with letters past ASCII is almost never valid UTF-8); others keep cp437."""
+    if info.flag_bits & 0x800:
+        return info.filename
+    try:
+        return info.filename.encode("cp437").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return info.filename
 
 
 def _read(archive: zipfile.ZipFile, info: zipfile.ZipInfo, cap: int) -> bytes | None:

@@ -449,6 +449,8 @@ class IngestService:
             if found is not None:
                 drawings[path] = found
             if probed.exception() is None:  # a failed probe was set aside by `_identify`
+                if (cut := probed.result()[0].cut) is not None:
+                    run.cut[path] = cut
                 for page in probed.result()[0].pages:
                     run.split.add(path)
                     self._page_file(run, path, page, first_of, frames, drawings)

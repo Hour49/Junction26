@@ -132,6 +132,29 @@ it('K7 the drawings that refused are named with what each lacks, under the card'
   expect(screen.queryByTestId('refused-drawings')).toBeNull();
 });
 
+it('K7 more than 3 refused drawings are grouped by reason, in the order the API sends them', () => {
+  const refusal = projectAsk.parts[2]?.answer.refusal as NonNullable<Part['answer']['refusal']>;
+  const refuse = (id: string, name: string, code: typeof refusal.code): Part => ({
+    ...flatA,
+    drawing_id: id,
+    name,
+    answer: { ...flatA.answer, refusal: { ...refusal, code } },
+  });
+  show({
+    ...projectAsk,
+    parts: [
+      flatA,
+      refuse('r1', 'a.png', 'no-scale'),
+      refuse('r2', 'b.png', 'not-in-drawing'),
+      refuse('r3', 'c.png', 'no-scale'),
+      refuse('r4', 'd.ifc', 'no-drawing'),
+    ],
+  });
+  expect(screen.getByTestId('refused-drawings').textContent).toBe(
+    "Not used. Has no scale: a.png, c.png. Doesn't show it: b.png. Has no drawing model: d.ifc.",
+  );
+});
+
 it('CH-32 reference 1 is drawn large by the viewer with its marks and legend; no credit', () => {
   show();
   expect(figure().getAttribute('aria-label')).toBe('Reference 1 of 2');

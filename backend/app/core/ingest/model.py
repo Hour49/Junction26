@@ -121,6 +121,9 @@ class Probed(Frozen):
     kind: ContentKind
     did: str
     pages: tuple[LaterPage, ...] = ()  # a multi-page PDF's later drawn pages, in page order
+    # A PDF longer than the probe looks at: (the last page looked at, its page count); the file's
+    # reason says the rest were not read. None: every page was looked at.
+    cut: tuple[int, int] | None = None
     # The sheet-kind signal's P(a plan, drawn or photographed) when the probe got a reply for this
     # file; None: not asked, or no reply. Triage's classifier reads it, so it never asks again.
     p_plan_sheet: float | None = Field(default=None, ge=0, le=1)
