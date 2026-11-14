@@ -782,16 +782,32 @@ def test_carbon_reader_large_sends_only_images_over_4000_px_to_carbon(
     assert use("big.png") and not use("cubicasa.png")
     assert uses_keys(settings)
     names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
-    assert names["carbon_reader"] == f"large:{c.READER_SHA[:12]}"
+    assert names["carbon_reader"] == f"large+few3:{c.READER_SHA[:12]}"  # 5.9's clause re-reads
+
+
+class Doors:
+    """A detector that finds three doors on every page but faint.png, where it finds none."""
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        from app.core.drawing.model import Element, Scale
+
+        found = 0 if source.path == "faint.png" else 3
+        doors = tuple(Element(id=f"d{i}", class_="door", page=1, box=(0.1 * i, 0.1, 0.1 * i + 0.05,
+                              0.15)) for i in range(1, found + 1))  # fmt: skip
+        return Extracted(method="detector", scale=Scale(status="no_scale"), elements=doors,
+                         read=("door",))  # fmt: skip
 
 
 def test_carbon_reader_large_flags_the_big_sheet_and_leaves_the_small_one_alone(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    """...unless the shipped detector found fewer than 3 things on the small one (faint.png):
+    Carbon counts those too, flagged (confidence, carbon-reader.md 5.8-5.9)."""
     import zipfile
 
     from fastapi.testclient import TestClient
 
+    from app import composition
     from app.main import create_app
 
     monkeypatch.chdir(tmp_path)
@@ -799,9 +815,10 @@ def test_carbon_reader_large_flags_the_big_sheet_and_leaves_the_small_one_alone(
     monkeypatch.setattr(
         "app.composition.CarbonClient", lambda *a, **k: FakeCarbon(page_form(), [tile, tile])
     )
+    monkeypatch.setattr(composition.OnnxDetector, "from_folder", lambda *a, **k: Doors())
     values = {"EXTRACTOR_RASTER": "composite", "GEMINI_API_KEY": KEY, "CHECK_POLICY": str(CHECK),
-              "PROJECTS_DIR": str(tmp_path / "p"), "RASTER_COMPONENTS": "plans=one-plan",
-              "CARBON_READER": "large"}  # fmt: skip
+              "PROJECTS_DIR": str(tmp_path / "p"), "CARBON_READER": "large",
+              "RASTER_COMPONENTS": "plans=one-plan,elements=detector:x"}  # fmt: skip
     for name, value in values.items():
         monkeypatch.setenv(name, value)
     settings = Settings()
@@ -812,11 +829,18 @@ def test_carbon_reader_large_flags_the_big_sheet_and_leaves_the_small_one_alone(
     with zipfile.ZipFile(archive, "w") as zipped:
         zipped.writestr("school.png", png_bytes(raster_plan().resize((4200, 2975))))
         zipped.writestr("flat.png", png_bytes(raster_plan()))
+        zipped.writestr("faint.png", png_bytes(raster_plan().resize((1500, 1062))))
     project = app.post("/api/projects", params={"name": "site.zip"}, content=archive.getvalue())
     status = app.get(f"/api/projects/{project.json()['id']}").json()
     files = {file["path"]: file for file in status["files"]}
     assert CARBON_FLAG in files["school.png"]["reason"]
     assert CARBON_FLAG not in files["flat.png"]["reason"]
+    assert files["faint.png"]["state"] == "flagged" and CARBON_FLAG in files["faint.png"]["reason"]
+    for name, reader in (("flat.png", "detector"), ("faint.png", c.SOURCE)):
+        model = app.get(f"/api/drawings/{files[name]['drawing_id']}/model").json()
+        assert model["elements"] and all(
+            e["attrs"].get("reader", "detector") == reader for e in model["elements"]
+        ), name
     drawing = files["school.png"]["drawing_id"]
     model = app.get(f"/api/drawings/{drawing}/model").json()
     assert {e["attrs"]["reader"] for e in model["elements"]} == {c.SOURCE}
@@ -878,3 +902,41 @@ def test_on_a_large_page_carbon_gives_the_things_drawn_and_the_shipped_reader_th
     assert found.read == ("room",) and found.elements == ()  # no element fallback
     assert [p.id for p in found.plans] == ["p1"] and len(found.rooms) == 1
     assert "carbon: no plan read: the plans are the shipped reader's" in found.notes
+
+
+@pytest.mark.parametrize(("found", "to_carbon"), [(0, True), (2, True), (3, False), (9, False)])
+def test_on_a_small_page_carbon_counts_only_where_the_shipped_reader_found_fewer_than_3_things(
+    tmp_path: Path, found: int, to_carbon: bool
+) -> None:
+    """confidence, carbon-reader.md 5.8-5.9: on 6 hard floor plans of at most 4,000 px with none
+    found the split beat the product (59 / 3 / 1 against 55 / 8 / 0), and no CubiCasa page of val
+    or golden dev has fewer than 3. Rooms stay the shipped reader's; the page is recorded in
+    `took`, which flags it."""
+    from app.core.drawing.model import Element, Room, Scale
+
+    class Shipped:
+        def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+            doors = tuple(Element(id=f"e{i}", class_="door", page=1, box=(0.1, 0.1, 0.2, 0.2))
+                          for i in range(found))  # fmt: skip
+            room = Room(id="r1", type="kitchen", page=1, box=(0.6, 0.6, 0.8, 0.8))
+            return Extracted(method="detector", scale=Scale(status="no_scale"), elements=doors,
+                             rooms=(room,), read=("door", "room"))  # fmt: skip
+
+    class Files:
+        def read(self, path: str) -> bytes:
+            return png_bytes(page_image(900, 700))
+
+    tile = tile_form(("toilet", [700, 700, 750, 750]))
+    carbon = CarbonExtractor(Files(), CarbonReader(FakeCarbon(page_form(), [tile]), tmp_path))
+    source = DrawingFile(path="scan.png", size=1, sha256="0" * 64, kind="png")
+    sheet = Sheet(file=source, pages=(Page(page=1, width=900, height=700, unit="px"),))
+    took: set[str] = set()
+    got = CarbonThings(Shipped(), carbon, lambda _: False, 3, took).extract(source, sheet)
+    if to_carbon:
+        assert [e.class_ for e in got.elements] == ["toilet"]  # Carbon's things, not the doors
+        assert [r.type for r in got.rooms] == ["kitchen"]  # the shipped reader's rooms
+        assert took == {"scan.png"}
+    else:
+        assert got == Shipped().extract(source, sheet) and took == set()
+    unset = CarbonThings(Shipped(), carbon, lambda _: False).extract(source, sheet)
+    assert unset == Shipped().extract(source, sheet)  # few=0 (the default): the size rule alone
