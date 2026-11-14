@@ -1,6 +1,6 @@
 """Command line: `python -m stoa_eval <command>` (from eval/): split, select, select-plans,
 baseline, baseline-extraction, score, score-extraction, history, series, validate-extraction,
-schema, exp-split, ab, gate, leaderboard, annotated-region."""
+schema, exp-split, ab, gate, leaderboard, annotated-region, hard-questions, hard."""
 
 import argparse
 import fnmatch
@@ -120,6 +120,18 @@ from .gate import (
     pooled_gates,
     signals_of,
 )
+from .hard_scoring import (
+    IMAGES,
+    aggregates,
+    format_report,
+    load_labels,
+    load_preds,
+    merge_preds,
+    preds_from_run,
+    public_gold,
+    questions_for,
+)
+from .hard_scoring import score as score_hard
 from .history import (
     Provenance,
     format_extraction_history,
@@ -181,7 +193,7 @@ from .plans import (
     strata,
 )
 from .region import REGION_PARTS, AnnotatedRegions, ImageRegion, annotate_file, style_counts
-from .run_store import Part, Record, run_stem, write_record
+from .run_store import Part, Record, run_stem, slug, write_record
 from .scale_scoring import ScaleCase, case_of
 from .scoring import format_table, score
 from .selection import CellKey, Manifest, SelectionParams, annotate, select
@@ -211,6 +223,8 @@ SPLIT_MANIFEST = "manifest.json"
 EVAL_WARNING = "warning: sealed split: score at milestones only"
 NOT_WRITTEN = "score not written (--no-record; --out <file> keeps it)"
 RESULTS = Path(__file__).resolve().parents[1] / "results/runs"  # tracked: one file per run
+# the hard slice's records (aggregates only) and its committable gold (r8 section BA)
+HARD_RESULTS = Path(__file__).resolve().parents[1] / "results/hard"
 HELSINKI = ZoneInfo("Europe/Helsinki")
 EXP_DIR = REPO / "data/stoa/exp"  # gitignored: the experiment split, A/B results, arms
 EXP_PRIOR = REPO / "data/stoa/priors/exp-train.json"  # the prior fit on the train part only
@@ -1987,6 +2001,81 @@ def run_history(args: argparse.Namespace) -> None:
             print(f"wrote {args.csv / 'extraction.csv'}")
 
 
+def run_hard_questions(args: argparse.Namespace) -> None:
+    """One question per (file, family) of the hard slice's labels, for `app.cli answer --dataset
+    <root>`: each labels file's folder, relative to the root, is where its files are."""
+    root = args.root.absolute()
+    rows: list[dict[str, object]] = []
+    for path in args.labels:
+        folder = path.absolute().parent.relative_to(root).as_posix()
+        for row in questions_for(load_labels([path]), folder):
+            rows.append({**row, "id": len(rows) + 1})
+    args.out.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    print(f"wrote {len(rows)} questions to {args.out}")
+
+
+def _hard_scales(extraction: Path) -> dict[str, float]:
+    """File name -> metres per pixel from a run's extraction_v1 files (images only: a PDF's page
+    unit is the point)."""
+    scales: dict[str, float] = {}
+    for path in sorted(extraction.rglob("*.json")):
+        body = json.loads(path.read_text(encoding="utf-8"))
+        name = Path(str(body.get("file", ""))).name
+        scale = cast(dict[str, object], body.get("scale") or {})
+        value = scale.get("m_per_unit")
+        if isinstance(value, int | float) and value > 0 and Path(name).suffix.lower() in IMAGES:
+            scales[name] = float(value)
+    return scales
+
+
+def run_hard(args: argparse.Namespace) -> None:
+    """The hard slice: a pipeline run of `hard-questions` (--run) and/or hard_pred_v1 lines (--pred,
+    laid over the run in order), scored against the labels; reported apart from the headline."""
+    files = load_labels(args.labels)
+    preds = []
+    if args.run_dir is not None:
+        if args.questions is None:
+            raise ValueError("--run needs --questions (the hard-questions file it answered)")
+        read = (args.run_dir / "answers.jsonl").read_text(encoding="utf-8").splitlines()
+        ingest_path = args.run_dir / "ingest.json"
+        preds = preds_from_run(
+            [json.loads(line) for line in args.questions.read_text(encoding="utf-8").splitlines()],
+            [json.loads(line) for line in read if line.strip()],
+            json.loads(ingest_path.read_text(encoding="utf-8")) if ingest_path.exists() else None,
+            _hard_scales(args.run_dir / "extraction")
+            if (args.run_dir / "extraction").is_dir()
+            else None,
+        )
+    for path in args.pred:
+        preds = merge_preds(preds, load_preds(path))
+    report = score_hard(files, preds)
+    print(format_report(report))
+    if args.public is not None:
+        args.public.parent.mkdir(parents=True, exist_ok=True)
+        gold = public_gold(files)
+        body = {"schema": "hard_set_v1", "files": gold}
+        args.public.write_text(json.dumps(body, indent=1, ensure_ascii=False) + "\n", "utf-8")
+        print(f"wrote {len(gold)} of {len(files)} labels (licence allows) to {args.public}")
+    if args.name:
+        commit, dirty = _git_commit()
+        now = datetime.now(HELSINKI)
+        record = {
+            "recorded_at": now.isoformat(timespec="seconds"),
+            "commit": commit,
+            "dirty": dirty,
+            "name": args.name,
+            "note": args.note,
+            "labels_sha256": sorted(
+                hashlib.sha256(p.read_bytes()).hexdigest() for p in args.labels
+            ),
+            "report": aggregates(report),
+        }
+        args.results.mkdir(parents=True, exist_ok=True)
+        out = args.results / f"{now:%Y%m%d-%H%M%S}-{slug(args.name)}.json"
+        out.write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
+        print(f"recorded {args.name!r} in {out} (commit it with your PR)")
+
+
 def run_series(args: argparse.Namespace) -> None:
     """The method's points on the golden set as a markdown table (Bogdan, 2026-11-13 22:49: "so at
     the end we will be able to show the improvement")."""
@@ -2234,6 +2323,25 @@ def parser() -> argparse.ArgumentParser:
     points.add_argument("--golden-version", default="v2")
     points.add_argument("--results", type=Path, default=RESULTS)
     points.set_defaults(run=run_series)
+
+    asks = commands.add_parser(
+        "hard-questions", help="questions for a pipeline run on the hard slice"
+    )
+    asks.add_argument("labels", type=Path, nargs="+", help="hard_set_v1 labels.json files")
+    asks.add_argument("--root", type=Path, required=True, help="the --dataset root of the run")
+    asks.add_argument("--out", type=Path, required=True)
+    asks.set_defaults(run=run_hard_questions)
+
+    hard = commands.add_parser("hard", help="score the hard slice (not in the headline)")
+    hard.add_argument("labels", type=Path, nargs="+", help="hard_set_v1 labels.json files")
+    hard.add_argument("--run", dest="run_dir", type=Path, help="an `app.cli answer` --out folder")
+    hard.add_argument("--questions", type=Path, help="the hard-questions file the run answered")
+    hard.add_argument("--pred", type=Path, action="append", default=[], help="hard_pred_v1 lines")
+    hard.add_argument("--name", help="record the aggregates under this method name")
+    hard.add_argument("--note", default="", help="a line for the record (no paths)")
+    hard.add_argument("--results", type=Path, default=HARD_RESULTS / "runs")
+    hard.add_argument("--public", type=Path, help="write the labels whose licence allows it here")
+    hard.set_defaults(run=run_hard)
 
     check = commands.add_parser("validate-extraction", help="check extraction_v1 JSON files")
     check.add_argument("paths", type=Path, nargs="+", help="files, or folders searched for *.json")

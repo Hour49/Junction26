@@ -19,6 +19,7 @@ from app.core.ingest.model import (
     ReadAsPlan,
     SheetFile,
 )
+from app.core.laws.search import LawIndex
 from app.core.review.ports import ReviewStore
 from app.settings import Settings
 
@@ -77,6 +78,10 @@ def get_credits(request: Request) -> Credits:
     return request.app.state.credits
 
 
+def get_laws(request: Request) -> LawIndex:
+    return request.app.state.laws
+
+
 def get_evidence(request: Request) -> EvidenceIndexes:
     return request.app.state.evidence
 
@@ -116,6 +121,7 @@ ReviewsDep = Annotated[ReviewStore, Depends(get_reviews)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 AnsweringDep = Annotated[Answering, Depends(get_answering)]
 CreditsDep = Annotated[Credits, Depends(get_credits)]
+LawsDep = Annotated[LawIndex, Depends(get_laws)]
 EvidenceDep = Annotated[EvidenceIndexes, Depends(get_evidence)]
 
 

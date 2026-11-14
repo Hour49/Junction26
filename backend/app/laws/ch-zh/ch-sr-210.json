@@ -1,0 +1,786 @@
+{
+  "id": "ch-sr-210",
+  "pack": "ch-zh",
+  "jurisdiction": "CH",
+  "number": "SR 210",
+  "title": "Schweizerisches Zivilgesetzbuch (ZGB)",
+  "title_en": "Swiss Civil Code",
+  "url": "https://www.fedlex.admin.ch/eli/cc/24/233_245_233/de",
+  "language": "de",
+  "in_force": "2026-07-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version of 1 July 2026. Included: neighbour law Art. 684-698 (excessive impact, excavation and building next to the boundary, cantonal distances, plantings, water, pipes, right of way, fences). Headings are not given per article in the source and are left null.",
+  "clauses": [
+    {
+      "id": "ch-sr-210-684-1",
+      "ref": "Art. 684 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Jedermann ist verpflichtet, bei der Ausübung seines Eigentums, wie namentlich bei dem Betrieb eines Gewerbes auf seinem Grundstück, sich aller übermässigen Einwirkung auf das Eigentum der Nachbarn zu enthalten.",
+      "text_en": "Everyone is obliged, when exercising their ownership, such as when operating a trade on their land, to refrain from any excessive impact on the property of neighbours.",
+      "summary_en": "Owners must avoid excessive effects on neighbours' property, for example from a business run on their land.",
+      "keywords": [
+        "neighbour law",
+        "Nachbarrecht",
+        "excessive impact",
+        "übermässige Einwirkung",
+        "neighbour",
+        "Nachbar",
+        "trade",
+        "Gewerbe",
+        "property"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-684-2",
+      "ref": "Art. 684 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Verboten sind insbesondere alle schädlichen und nach Lage und Beschaffenheit der Grundstücke oder nach Ortsgebrauch nicht gerechtfertigten Einwirkungen durch Luftverunreinigung, üblen Geruch, Lärm, Schall, Erschütterung, Strahlung oder durch den Entzug von Besonnung oder Tageslicht.",
+      "text_en": "Prohibited in particular are all harmful effects through air pollution, foul odours, noise, sound, vibration, radiation or through the removal of sunlight or daylight, which are not justified by the location and nature of the plots or by local custom.",
+      "summary_en": "Harmful air pollution, odours, noise, vibration, radiation or loss of sunlight or daylight on neighbours is prohibited unless justified by location or local custom.",
+      "keywords": [
+        "noise",
+        "Lärm",
+        "odour",
+        "Geruch",
+        "air pollution",
+        "Luftverunreinigung",
+        "vibration",
+        "Erschütterung",
+        "sunlight",
+        "Besonnung",
+        "daylight",
+        "Tageslicht"
+      ],
+      "topics": [
+        "sound",
+        "daylight",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-685-1",
+      "ref": "Art. 685 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Bei Grabungen und Bauten darf der Eigentümer die nachbarlichen Grundstücke nicht dadurch schädigen, dass er ihr Erdreich in Bewegung bringt oder gefährdet oder vorhandene Vorrichtungen beeinträchtigt.",
+      "text_en": "When excavating and building, the owner may not damage neighbouring plots by moving or endangering their soil, or by impairing existing installations.",
+      "summary_en": "Excavation or building work must not endanger neighbours' land or existing installations.",
+      "keywords": [
+        "excavation",
+        "Grabung",
+        "Baugrube",
+        "neighbour",
+        "Nachbar",
+        "soil",
+        "Erdreich",
+        "existing installations",
+        "Vorrichtungen",
+        "structural safety"
+      ],
+      "topics": [
+        "structure",
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-685-2",
+      "ref": "Art. 685 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Auf Bauten, die den Vorschriften des Nachbarrechtes zuwiderlaufen, finden die Bestimmungen betreffend überragende Bauten Anwendung.",
+      "text_en": "The provisions on projecting buildings apply to buildings that contravene the neighbour-law regulations.",
+      "summary_en": "Buildings that breach neighbour-law rules are treated under the rules on projecting buildings.",
+      "keywords": [
+        "projecting building",
+        "überragende Bauten",
+        "neighbour law",
+        "Nachbarrecht",
+        "building height",
+        "Gebäudehöhe",
+        "distance",
+        "Abstand"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-686-1",
+      "ref": "Art. 686 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Die Kantone sind befugt, die Abstände festzusetzen, die bei Grabungen und Bauten zu beobachten sind.",
+      "text_en": "The cantons are authorised to set the distances to be observed for excavations and buildings.",
+      "summary_en": "Cantons set the distances that must be kept for excavations and buildings near boundaries.",
+      "keywords": [
+        "distance",
+        "Abstand",
+        "Grenzabstand",
+        "excavation",
+        "Grabung",
+        "building distance",
+        "canton",
+        "Kanton"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-686-2",
+      "ref": "Art. 686 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Es bleibt ihnen vorbehalten, weitere Bauvorschriften aufzustellen.",
+      "text_en": "They reserve the right to make further building regulations.",
+      "summary_en": "Cantons may also set further building rules.",
+      "keywords": [
+        "building regulations",
+        "Bauvorschriften",
+        "Baurecht",
+        "canton",
+        "Kanton",
+        "reserved"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-687-1",
+      "ref": "Art. 687 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Überragende Äste und eindringende Wurzeln kann der Nachbar, wenn sie sein Eigentum schädigen und auf seine Beschwerde hin nicht binnen angemessener Frist beseitigt werden, kappen und für sich behalten.",
+      "text_en": "The neighbour may cut off overhanging branches and encroaching roots, if they damage his property and are not removed within a reasonable time after his complaint, and keep them for himself.",
+      "summary_en": "A neighbour may cut back branches and roots crossing onto his land that cause damage, if the owner does not remove them within a reasonable time after complaint.",
+      "keywords": [
+        "overhanging branches",
+        "encroaching roots",
+        "tree cutting",
+        "neighbour right",
+        "Äste",
+        "Wurzeln",
+        "Nachbarrecht",
+        "Baum",
+        "Grenzabstand"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-687-2",
+      "ref": "Art. 687 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Duldet ein Grundeigentümer das Überragen von Ästen auf bebauten oder überbauten Boden, so hat er ein Recht auf die an ihnen wachsenden Früchte (Anries).",
+      "text_en": "If a landowner tolerates branches overhanging built or built-over land, he is entitled to the fruit growing on them (Anries).",
+      "summary_en": "A landowner who tolerates branches overhanging built land is entitled to the fruit growing on those branches.",
+      "keywords": [
+        "fruit overhang",
+        "Anries",
+        "overhanging branches",
+        "tree fruit",
+        "Obst",
+        "Äste",
+        "Nachbarrecht",
+        "Baum"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-687-3",
+      "ref": "Art. 687 Abs. 3",
+      "heading": null,
+      "heading_en": null,
+      "text": "Auf Waldgrundstücke, die aneinander grenzen, finden diese Vorschriften keine Anwendung.",
+      "text_en": "These provisions do not apply to adjoining forest properties.",
+      "summary_en": "The neighbour rules on branches and roots do not apply between adjoining forest plots.",
+      "keywords": [
+        "forest plot",
+        "Waldgrundstück",
+        "adjoining",
+        "Wald",
+        "Nachbarrecht",
+        "Grenze",
+        "Baum"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-688",
+      "ref": "Art. 688",
+      "heading": null,
+      "heading_en": null,
+      "text": "Die Kantone sind befugt, für Anpflanzungen je nach der Art des Grundstückes und der Pflanzen bestimmte Abstände vom nachbarlichen Grundstück vorzuschreiben oder den Grundeigentümer zu verpflichten, das Übergreifen von Ästen oder Wurzeln fruchttragender Bäume zu gestatten und für diese Fälle das Anries zu regeln oder aufzuheben.",
+      "text_en": "The cantons may prescribe specific distances from the neighbouring plot for plantings, depending on the type of plot and of plants, or may oblige the landowner to allow branches or roots of fruit-bearing trees to cross over, and may regulate or abolish the Anries for these cases.",
+      "summary_en": "Cantons can set minimum planting distances from the boundary and decide whether fruit trees may overhang the neighbour's land.",
+      "keywords": [
+        "planting distance",
+        "boundary distance",
+        "Pflanzabstand",
+        "Grenzabstand",
+        "fruit trees",
+        "Obstbaum",
+        "Anries",
+        "Bepflanzung",
+        "Kanton"
+      ],
+      "topics": [
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-689-1",
+      "ref": "Art. 689 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Jeder Grundeigentümer ist verpflichtet, das Wasser, das von dem oberhalb liegenden Grundstück natürlicherweise abfliesst, aufzunehmen, wie namentlich Regenwasser, Schneeschmelze und Wasser von Quellen, die nicht gefasst sind.",
+      "text_en": "Every landowner must accept the water that naturally flows off the plot above, such as rainwater, snowmelt and water from springs that are not captured.",
+      "summary_en": "A lower plot must accept the natural runoff from the plot above, including rainwater, snowmelt and uncaptured spring water.",
+      "keywords": [
+        "natural runoff",
+        "rainwater",
+        "snowmelt",
+        "spring water",
+        "Regenwasser",
+        "Schneeschmelze",
+        "Quellwasser",
+        "Entwässerung",
+        "Hang"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-689-2",
+      "ref": "Art. 689 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Keiner darf den natürlichen Ablauf zum Schaden des Nachbarn verändern.",
+      "text_en": "No one may alter the natural drainage to the detriment of a neighbour.",
+      "summary_en": "Natural water flow must not be changed in a way that harms a neighbour.",
+      "keywords": [
+        "drainage",
+        "natural flow",
+        "water runoff",
+        "neighbour damage",
+        "Wasserablauf",
+        "natürlicher Ablauf",
+        "Entwässerung",
+        "Grundstück"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-689-3",
+      "ref": "Art. 689 Abs. 3",
+      "heading": null,
+      "heading_en": null,
+      "text": "Das für das untere Grundstück nötige Abwasser darf diesem nur insoweit entzogen werden, als es für das obere Grundstück unentbehrlich ist.",
+      "text_en": "Water needed by the lower plot may be taken from it only to the extent that it is indispensable to the upper plot.",
+      "summary_en": "Water flowing to a lower plot may be diverted upstream only as far as the upper plot truly needs it.",
+      "keywords": [
+        "water diversion",
+        "water withdrawal",
+        "Wasserentzug",
+        "Ableitung",
+        "unentbehrlich",
+        "Abwasser",
+        "Wasser",
+        "Grundstück"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-690-1",
+      "ref": "Art. 690 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Bei Entwässerungen hat der Eigentümer des unterhalb liegenden Grundstückes das Wasser, das ihm schon vorher auf natürliche Weise zugeflossen ist, ohne Entschädigung abzunehmen.",
+      "text_en": "When water is drained, the owner of the lower plot must accept without compensation the water that already flowed onto his land naturally before.",
+      "summary_en": "A lower-plot owner must accept, free of charge, water that already reached his land naturally before the upper drainage was made.",
+      "keywords": [
+        "drainage",
+        "compensation",
+        "lower plot",
+        "natural flow",
+        "Entwässerung",
+        "Entschädigung",
+        "Wasser",
+        "Ableitung"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-690-2",
+      "ref": "Art. 690 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Wird er durch die Zuleitung geschädigt, so kann er verlangen, dass der obere Eigentümer die Leitung auf eigene Kosten durch das untere Grundstück weiter führe.",
+      "text_en": "If he is harmed by the conduit, he may require the upper owner to carry the conduit further across the lower plot at the upper owner's own cost.",
+      "summary_en": "If a drainage pipe harms the lower owner, he can require the upper owner to route it further at the upper owner's cost.",
+      "keywords": [
+        "drainage pipe",
+        "water conduit",
+        "pipe routing",
+        "Zuleitung",
+        "Leitung",
+        "Wasser",
+        "Kosten",
+        "Entwässerung"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-691-1",
+      "ref": "Art. 691 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Jeder Grundeigentümer ist verpflichtet, die Durchleitung von Röhren und Leitungen zur Versorgung und Entsorgung gegen volle Entschädigung zu gestatten, wenn ein anderes Grundstück sonst nicht oder nur mit unverhältnismässigen Kosten erschlossen werden kann.",
+      "text_en": "Every landowner must allow pipes and lines for supply and disposal to pass through his land against full compensation, if another plot cannot otherwise be connected, or can only be connected at disproportionate cost.",
+      "summary_en": "Owners must allow supply and disposal pipes and lines to cross their land for full compensation when a plot cannot otherwise be serviced at reasonable cost.",
+      "keywords": [
+        "utility line",
+        "pipe easement",
+        "Durchleitung",
+        "Leitung",
+        "Erschliessung",
+        "Entschädigung",
+        "Versorgung",
+        "Entsorgung",
+        "Werkleitung"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-691-2",
+      "ref": "Art. 691 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Das Recht auf Durchleitung aus Nachbarrecht kann in den Fällen nicht beansprucht werden, in denen das kantonale Recht oder das Bundesrecht auf den Weg der Enteignung verweist.",
+      "text_en": "The neighbour-law right to pass pipes through another's land cannot be claimed in cases where cantonal or federal law refers the matter to expropriation.",
+      "summary_en": "The neighbour-law right to run pipes across land cannot be used where the law sends the matter to expropriation.",
+      "keywords": [
+        "expropriation",
+        "Enteignung",
+        "pipe passage",
+        "Durchleitung",
+        "cantonal law",
+        "Bundesrecht",
+        "Nachbarrecht"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-691-3",
+      "ref": "Art. 691 Abs. 3",
+      "heading": null,
+      "heading_en": null,
+      "text": "Verlangt es der Berechtigte oder der Belastete, so werden die Durchleitungen auf Kosten des Berechtigten als Dienstbarkeit in das Grundbuch eingetragen. Das Durchleitungsrecht kann einem gutgläubigen Erwerber auch ohne Eintragung entgegengehalten werden.",
+      "text_en": "If the beneficiary or the burdened owner requests it, the pipe passages are entered in the land register as easements at the beneficiary's cost. A pipe passage right can be asserted against a bona fide acquirer even without entry.",
+      "summary_en": "Pipe passage rights can be entered in the land register as easements at the beneficiary's cost, and bind a good-faith buyer even if unregistered.",
+      "keywords": [
+        "land register",
+        "easement",
+        "Grundbuch",
+        "Dienstbarkeit",
+        "bona fide acquirer",
+        "gutgläubiger Erwerber",
+        "Durchleitung",
+        "Eintragung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-692-1",
+      "ref": "Art. 692 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Der belastete Grundeigentümer hat Anspruch darauf, dass auf seine Interessen in billiger Weise Rücksicht genommen werde.",
+      "text_en": "The burdened landowner is entitled to have his interests taken into account in a fair manner.",
+      "summary_en": "An owner whose land carries a pipe or line must have his interests considered fairly.",
+      "keywords": [
+        "burdened owner",
+        "fair consideration",
+        "Rücksicht",
+        "Interessen",
+        "Belastung",
+        "Leitung",
+        "Nachbarrecht"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-692-2",
+      "ref": "Art. 692 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Wo ausserordentliche Umstände es rechtfertigen, kann er bei oberirdischen Leitungen verlangen, dass ihm das Stück Land, über das diese Leitungen geführt werden sollen, in angemessenem Umfange gegen volle Entschädigung abgenommen werde.",
+      "text_en": "Where extraordinary circumstances justify it, he may require, for overhead lines, that a reasonable area of the land over which these lines are to run be taken from him against full compensation.",
+      "summary_en": "For overhead lines, an owner can in exceptional cases require that the strip of land crossed by the lines be bought from him at full compensation.",
+      "keywords": [
+        "overhead line",
+        "land acquisition",
+        "full compensation",
+        "Freileitung",
+        "oberirdische Leitung",
+        "Landabtretung",
+        "Entschädigung",
+        "Streifen",
+        "Nachbarrecht"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-693-1",
+      "ref": "Art. 693 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Ändern sich die Verhältnisse, so kann der Belastete eine seinen Interessen entsprechende Verlegung der Leitung verlangen.",
+      "text_en": "If circumstances change, the burdened owner may require that the line be relocated in a way that suits his interests.",
+      "summary_en": "If conditions change, the burdened owner can ask for the line to be moved in a way that suits his interests.",
+      "keywords": [
+        "relocation",
+        "line relocation",
+        "Verlegung",
+        "Leitung",
+        "changed circumstances",
+        "Verhältnisse",
+        "Belastung",
+        "Nachbarrecht"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-693-2",
+      "ref": "Art. 693 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Die Kosten der Verlegung hat in der Regel der Berechtigte zu tragen.",
+      "text_en": "As a rule, the beneficiary bears the costs of the relocation.",
+      "summary_en": "Normally the party benefiting from the line pays for moving it.",
+      "keywords": [
+        "relocation cost",
+        "Verlegungskosten",
+        "Kosten",
+        "Berechtigter",
+        "Leitung",
+        "Verlegung"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-693-3",
+      "ref": "Art. 693 Abs. 3",
+      "heading": null,
+      "heading_en": null,
+      "text": "Wo besondere Umstände es rechtfertigen, kann jedoch ein angemessener Teil der Kosten dem Belasteten auferlegt werden.",
+      "text_en": "Where special circumstances justify it, however, a reasonable part of the costs may be imposed on the burdened owner.",
+      "summary_en": "In special circumstances, part of the relocation cost may be charged to the burdened owner.",
+      "keywords": [
+        "relocation cost",
+        "cost sharing",
+        "Kostenteilung",
+        "Verlegung",
+        "Belasteter",
+        "besondere Umstände",
+        "Leitung"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-694-1",
+      "ref": "Art. 694 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Hat ein Grundeigentümer keinen genügenden Weg von seinem Grundstück auf eine öffentliche Strasse, so kann er beanspruchen, dass ihm die Nachbarn gegen volle Entschädigung einen Notweg einräumen.",
+      "text_en": "If a landowner has no adequate path from his plot to a public road, he may claim that the neighbours grant him an emergency route (Notweg) against full compensation.",
+      "summary_en": "A landlocked owner may claim an emergency access route over neighbouring land against full compensation.",
+      "keywords": [
+        "emergency access",
+        "landlocked",
+        "Notweg",
+        "access route",
+        "public road",
+        "Zufahrt",
+        "Erschliessung",
+        "Nachbarrecht",
+        "Weg"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-210-694-2",
+      "ref": "Art. 694 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Der Anspruch richtet sich in erster Linie gegen den Nachbarn, dem die Gewährung des Notweges der früheren Eigentums- und Wegeverhältnisse wegen am ehesten zugemutet werden darf, und im weitern gegen denjenigen, für den der Notweg am wenigsten schädlich ist.",
+      "text_en": "The claim is directed first against the neighbour to whom granting the emergency route can most reasonably be expected, given the former property and access relationships, and secondarily against the one for whom the route is least harmful.",
+      "summary_en": "The emergency route is imposed first on the neighbour for whom it is most reasonable given past access arrangements, and then on the one it harms least.",
+      "keywords": [
+        "emergency access",
+        "priority",
+        "Notweg",
+        "Eigentumsverhältnisse",
+        "Wegrecht",
+        "Nachbar",
+        "Zufahrt"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-694-3",
+      "ref": "Art. 694 Abs. 3",
+      "heading": null,
+      "heading_en": null,
+      "text": "Bei der Festsetzung des Notweges ist auf die beidseitigen Interessen Rücksicht zu nehmen.",
+      "text_en": "When fixing the emergency route, the interests of both sides must be taken into account.",
+      "summary_en": "Setting the emergency route must weigh the interests of both the claimant and the neighbour.",
+      "keywords": [
+        "emergency access",
+        "both sides",
+        "interests",
+        "Notweg",
+        "Festsetzung",
+        "Interessenabwägung",
+        "Zufahrt"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-695",
+      "ref": "Art. 695",
+      "heading": null,
+      "heading_en": null,
+      "text": "Den Kantonen bleibt es vorbehalten, über die Befugnis des Grundeigentümers, zum Zwecke der Bewirtschaftung oder Vornahme von Ausbesserungen und Bauten das nachbarliche Grundstück zu betreten, sowie über das Streck- oder Tretrecht, den Tränkweg, Winterweg, Brachweg, Holzlass, Reistweg u. dgl. nähere Vorschriften aufzustellen.",
+      "text_en": "The cantons may lay down more detailed rules on the owner's right to enter a neighbouring plot for cultivation or for repairs and construction, and on the right of passage (Streck- or Tretrecht), the watering path (Tränkweg), winter path (Winterweg), fallow path (Brachweg), timber haulage route (Holzlass), Reistweg and the like.",
+      "summary_en": "Cantons may set detailed rules for entering a neighbour's land to farm or repair, and for traditional rural access routes.",
+      "keywords": [
+        "entry to neighbour land",
+        "access for works",
+        "Betretungsrecht",
+        "Bewirtschaftung",
+        "Tränkweg",
+        "Holzlass",
+        "Winterweg",
+        "Wegrecht",
+        "Nachbarrecht",
+        "Kanton"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-696-1",
+      "ref": "Art. 696 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Wegrechte, die das Gesetz unmittelbar begründet, bestehen ohne Eintragung zu Recht.",
+      "text_en": "Rights of way that the law creates directly are valid without entry in the land register.",
+      "summary_en": "Access rights created directly by law apply even without a land register entry.",
+      "keywords": [
+        "right of way",
+        "statutory easement",
+        "Wegrecht",
+        "Grundbuch",
+        "Eintragung",
+        "gesetzliches Recht",
+        "Dienstbarkeit"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-696-2",
+      "ref": "Art. 696 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "Sie werden jedoch, wenn sie von bleibendem Bestande sind, im Grundbuche angemerkt.",
+      "text_en": "However, if they are of lasting duration, they are noted in the land register.",
+      "summary_en": "Permanent statutory rights of way are to be noted in the land register.",
+      "keywords": [
+        "land register note",
+        "Anmerkung",
+        "Grundbuch",
+        "Wegrecht",
+        "bleibender Bestand",
+        "Dienstbarkeit"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-697-1",
+      "ref": "Art. 697 Abs. 1",
+      "heading": null,
+      "heading_en": null,
+      "text": "Die Kosten der Einfriedigung eines Grundstückes trägt dessen Eigentümer, unter Vorbehalt der Bestimmungen über das Miteigentum an Grenzvorrichtungen.",
+      "text_en": "The cost of fencing a plot is borne by its owner, subject to the provisions on co-ownership of boundary structures.",
+      "summary_en": "The owner of a plot pays for its fence, unless the boundary fence is jointly owned.",
+      "keywords": [
+        "fence cost",
+        "boundary fence",
+        "Einfriedigung",
+        "Grenzvorrichtung",
+        "Miteigentum",
+        "Kosten",
+        "Zaun",
+        "Grenze"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-697-2",
+      "ref": "Art. 697 Abs. 2",
+      "heading": null,
+      "heading_en": null,
+      "text": "In Bezug auf die Pflicht und die Art der Einfriedigung bleibt das kantonale Recht vorbehalten.",
+      "text_en": "Cantonal law remains reserved with regard to the duty to fence and the type of fencing.",
+      "summary_en": "Whether a fence must be built, and of what type, is governed by cantonal law.",
+      "keywords": [
+        "fence duty",
+        "fence type",
+        "Einfriedigungspflicht",
+        "kantonales Recht",
+        "Zaun",
+        "Grenze",
+        "Einfriedigung"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-210-698",
+      "ref": "Art. 698",
+      "heading": null,
+      "heading_en": null,
+      "text": "An die Kosten der Vorrichtungen zur Ausübung der nachbarrechtlichen Befugnisse haben die Grundeigentümer im Verhältnis ihres Interesses beizutragen.",
+      "text_en": "Landowners must contribute to the costs of the installations used to exercise neighbour-law rights, in proportion to their interest.",
+      "summary_en": "Neighbours share the cost of installations used to exercise neighbour rights, in proportion to their benefit.",
+      "keywords": [
+        "shared cost",
+        "cost sharing",
+        "Kostenbeteiligung",
+        "Vorrichtungen",
+        "Nachbarrechte",
+        "Interesse",
+        "Kosten"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

@@ -1,0 +1,1365 @@
+{
+  "id": "ch-sr-700",
+  "pack": "ch-zh",
+  "jurisdiction": "CH",
+  "number": "SR 700",
+  "title": "Bundesgesetz über die Raumplanung (Raumplanungsgesetz, RPG)",
+  "title_en": "Federal Spatial Planning Act",
+  "url": "https://www.fedlex.admin.ch/eli/cc/1979/1573_1573_1573/de",
+  "language": "de",
+  "in_force": "2026-07-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version of 1 July 2026. Included: Art. 22-25a (building permit duty, exceptions inside and outside building zones, coordination); Art. 24f (reporting) left out.",
+  "clauses": [
+    {
+      "id": "ch-sr-700-22-1",
+      "ref": "Art. 22 Abs. 1",
+      "heading": "Baubewilligung",
+      "heading_en": "Building permit",
+      "text": "Bauten und Anlagen dürfen nur mit behördlicher Bewilligung errichtet oder geändert werden.",
+      "text_en": "Buildings and installations may only be erected or altered with an official permit.",
+      "summary_en": "Any new building or alteration needs an official building permit before work starts.",
+      "keywords": [
+        "Baubewilligung",
+        "building permit required",
+        "building permit",
+        "official permit",
+        "behördliche Bewilligung",
+        "alteration",
+        "Änderung",
+        "Bauten und Anlagen"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-22-2",
+      "ref": "Art. 22 Abs. 2",
+      "heading": "Baubewilligung",
+      "heading_en": "Building permit",
+      "text": "Voraussetzung einer Bewilligung ist, dass:\na. die Bauten und Anlagen dem Zweck der Nutzungszone entsprechen; und\nb. das Land erschlossen ist.",
+      "text_en": "A permit requires that:\na. the buildings and installations correspond to the purpose of the zoning area; and\nb. the land is serviced (erschlossen).",
+      "summary_en": "A building permit is only granted if the project fits the zone's purpose and the land has infrastructure access.",
+      "keywords": [
+        "building permit",
+        "Baubewilligung",
+        "zoning area",
+        "Nutzungszone",
+        "purpose",
+        "Zweck",
+        "land servicing",
+        "Erschliessung",
+        "erschlossen"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-22-3",
+      "ref": "Art. 22 Abs. 3",
+      "heading": "Baubewilligung",
+      "heading_en": "Building permit",
+      "text": "Die übrigen Voraussetzungen des Bundesrechts und des kantonalen Rechts bleiben vorbehalten.",
+      "text_en": "The other requirements of federal law and cantonal law remain reserved.",
+      "summary_en": "Other federal and cantonal requirements still apply in addition to the building permit conditions.",
+      "keywords": [
+        "building permit",
+        "Baubewilligung",
+        "federal law",
+        "Bundesrecht",
+        "cantonal law",
+        "kantonales Recht",
+        "reserved",
+        "Vorbehalt"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-23",
+      "ref": "Art. 23",
+      "heading": "Ausnahmen innerhalb der Bauzonen",
+      "heading_en": "Exceptions within building zones",
+      "text": "Ausnahmen innerhalb der Bauzonen regelt das kantonale Recht.",
+      "text_en": "Exceptions within building zones are governed by cantonal law.",
+      "summary_en": "Cantonal law decides the exceptions that apply within building zones.",
+      "keywords": [
+        "exception",
+        "Ausnahme",
+        "building zone",
+        "Bauzone",
+        "cantonal law",
+        "kantonales Recht"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24-1",
+      "ref": "Art. 24 Abs. 1",
+      "heading": "Standortgebundene Bauten und Anlagen",
+      "heading_en": "Site-bound buildings and installations",
+      "text": "Abweichend von Artikel 22 Absatz 2 Buchstabe a können Bewilligungen erteilt werden, Bauten und Anlagen zu errichten oder ihren Zweck zu ändern, wenn:\na. der Zweck der Bauten und Anlagen einen Standort ausserhalb der Bauzonen erfordert; und\nb. keine überwiegenden Interessen entgegenstehen.",
+      "text_en": "By way of derogation from Article 22 paragraph 2 letter a, permits may be granted to erect buildings and installations outside building zones, or to change their purpose, if:\na. the purpose of the buildings and installations requires a site outside building zones; and\nb. no overriding interests oppose it.",
+      "summary_en": "Buildings outside building zones are only allowed if their purpose needs that exact site and no overriding interests conflict.",
+      "keywords": [
+        "outside building zone",
+        "Nichtbauzone",
+        "site-bound",
+        "standortgebunden",
+        "change of use",
+        "Zweckänderung",
+        "exception permit",
+        "Ausnahmebewilligung",
+        "overriding interests",
+        "überwiegende Interessen"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24-2",
+      "ref": "Art. 24 Abs. 2",
+      "heading": "Standortgebundene Bauten und Anlagen",
+      "heading_en": "Site-bound buildings and installations",
+      "text": "Der Bundesrat kann energetische Sanierungen für zulässig erklären, die keine Grundlage in einer anderen Bestimmung finden.",
+      "text_en": "The Federal Council may declare energy renovations permissible that have no basis in another provision.",
+      "summary_en": "The Federal Council can allow energy renovations that no other rule covers.",
+      "keywords": [
+        "energy renovation",
+        "energetische Sanierung",
+        "Federal Council",
+        "Bundesrat",
+        "permissible",
+        "zulässig"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24bis-1",
+      "ref": "Art. 24bis Abs. 1",
+      "heading": "Bündelung von Infrastrukturanlagen und Mobilfunkanlagen",
+      "heading_en": "Bundling of infrastructure and mobile telephony installations",
+      "text": "Infrastrukturanlagen sind soweit möglich zu bündeln. Der Bundesrat legt fest, unter welchen Voraussetzungen Mobilfunkanlagen auf bestehenden oder neuen Infrastrukturanlagen als standortgebunden gelten, unter Vorbehalt von Artikel 24 Absatz 1 Buchstabe b.",
+      "text_en": "Infrastructure installations are to be bundled where possible. The Federal Council determines under which conditions mobile telephony installations on existing or new infrastructure installations count as site-bound, subject to Article 24 paragraph 1 letter b.",
+      "summary_en": "Infrastructure and mobile antennas should share sites where possible, and mobile antennas on such sites can count as site-bound.",
+      "keywords": [
+        "mobile telephony",
+        "Mobilfunkanlage",
+        "bundling",
+        "Bündelung",
+        "infrastructure installation",
+        "Infrastrukturanlage",
+        "site-bound",
+        "standortgebunden",
+        "antenna"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24bis-2",
+      "ref": "Art. 24bis Abs. 2",
+      "heading": "Bündelung von Infrastrukturanlagen und Mobilfunkanlagen",
+      "heading_en": "Bundling of infrastructure and mobile telephony installations",
+      "text": "Mobilfunkanlagen können ausserhalb der Bauzonen bewilligt werden, sofern ein Standort ausserhalb der Bauzonen aufgrund einer umfassenden Interessenabwägung wesentlich vorteilhafter ist als ein Standort innerhalb der Bauzonen.",
+      "text_en": "Mobile telephony installations may be permitted outside building zones if, following a comprehensive weighing of interests, a location outside building zones is substantially more advantageous than a location inside building zones.",
+      "summary_en": "Mobile antennas may be approved outside building zones only if that location is clearly better after a full weighing of interests.",
+      "keywords": [
+        "mobile telephony",
+        "Mobilfunkanlage",
+        "antenna",
+        "outside building zone",
+        "Nichtbauzone",
+        "weighing of interests",
+        "Interessenabwägung",
+        "Standort"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24bis-3",
+      "ref": "Art. 24bis Abs. 3",
+      "heading": "Bündelung von Infrastrukturanlagen und Mobilfunkanlagen",
+      "heading_en": "Bundling of infrastructure and mobile telephony installations",
+      "text": "Anpassungen, Erneuerungen und Erweiterungen bestehender Mobilfunkanlagen ausserhalb der Bauzone gelten als standortgebunden.",
+      "text_en": "Adaptations, renewals and extensions of existing mobile telephony installations outside the building zone count as site-bound.",
+      "summary_en": "Changes to existing mobile antennas outside building zones are treated as site-bound.",
+      "keywords": [
+        "mobile telephony",
+        "Mobilfunkanlage",
+        "existing installation",
+        "Bestand",
+        "outside building zone",
+        "Nichtbauzone",
+        "site-bound",
+        "standortgebunden",
+        "extension",
+        "Erweiterung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24ter-1",
+      "ref": "Art. 24ter Abs. 1",
+      "heading": "Solaranlagen nicht von nationalem Interesse",
+      "heading_en": "Solar installations not of national interest",
+      "text": "Solaranlagen, die nicht von nationalem Interesse sind und die sich auf freien Flächen ausserhalb der Bauzone und ausserhalb der landwirtschaftlichen Nutzfläche befinden, gelten als standortgebunden, wenn:\na. sie in wenig empfindlichen oder in bereits mit anderen Bauten und Anlagen belasteten Gebieten gebaut werden; und\nb. der Aufwand für die Erschliessung der betroffenen Grundstücke und für den Anschluss der Anlagen ans Stromnetz im Verhältnis zur Leistung der Anlage angemessen ist.",
+      "text_en": "Solar installations that are not of national interest and are located on open land outside the building zone and outside agricultural land count as site-bound if:\na. they are built in areas of low sensitivity or in areas already burdened with other buildings and installations; and\nb. the effort for developing the affected plots and connecting the installations to the electricity grid is appropriate in relation to the output of the installation.",
+      "summary_en": "Solar farms on open land outside building zones count as site-bound only in low-sensitivity or already-built areas with proportionate grid and access costs.",
+      "keywords": [
+        "solar installation",
+        "Solaranlage",
+        "open land",
+        "Freifläche",
+        "outside building zone",
+        "Nichtbauzone",
+        "grid connection",
+        "Netzanschluss",
+        "site-bound",
+        "standortgebunden",
+        "Erschliessung"
+      ],
+      "topics": [
+        "energy",
+        "outdoor",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24ter-2",
+      "ref": "Art. 24ter Abs. 2",
+      "heading": "Solaranlagen nicht von nationalem Interesse",
+      "heading_en": "Solar installations not of national interest",
+      "text": "Solaranlagen, die sich innerhalb von landwirtschaftlichen Nutzflächen befinden, gelten als standortgebunden, wenn sie:\na. neben der Stromproduktion die landwirtschaftlichen Interessen nicht beeinträchtigen und Vorteile für die landwirtschaftliche Produktion bewirken; oder\nb. landwirtschaftlichen Versuchs- und Forschungszwecken dienen.",
+      "text_en": "Solar installations located within agricultural land count as site-bound if they:\na. do not impair agricultural interests beyond electricity production and bring benefits for agricultural production; or\nb. serve agricultural trial and research purposes.",
+      "summary_en": "Solar panels on farmland count as site-bound if they do not harm farming or serve agricultural research.",
+      "keywords": [
+        "agricultural land",
+        "Landwirtschaftsfläche",
+        "agrivoltaics",
+        "Agri-PV",
+        "solar installation",
+        "Solaranlage",
+        "farming",
+        "Landwirtschaft",
+        "research",
+        "Versuch"
+      ],
+      "topics": [
+        "energy",
+        "outdoor",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24ter-3",
+      "ref": "Art. 24ter Abs. 3",
+      "heading": "Solaranlagen nicht von nationalem Interesse",
+      "heading_en": "Solar installations not of national interest",
+      "text": "Die Anlagen müssen bei endgültiger Ausserbetriebnahme zurückgebaut werden und die Ausgangslage muss wiederhergestellt werden.",
+      "text_en": "The installations must be dismantled when they are permanently taken out of operation, and the original situation must be restored.",
+      "summary_en": "Solar installations must be removed and the site restored once they are permanently shut down.",
+      "keywords": [
+        "dismantling",
+        "Rückbau",
+        "decommissioning",
+        "Ausserbetriebnahme",
+        "restoration",
+        "Wiederherstellung",
+        "solar installation",
+        "Solaranlage",
+        "original state"
+      ],
+      "topics": [
+        "energy",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24ter-4",
+      "ref": "Art. 24ter Abs. 4",
+      "heading": "Solaranlagen nicht von nationalem Interesse",
+      "heading_en": "Solar installations not of national interest",
+      "text": "Der Bundesrat regelt unter Berücksichtigung des Zubaubedarfs nach Artikel 2 des Energiegesetzes vom 30. September 2016 die Einzelheiten, insbesondere auch zur finanziellen Sicherstellung der Massnahmen nach Absatz 3.",
+      "text_en": "The Federal Council regulates the details, taking into account the expansion needs under Article 2 of the Energy Act of 30 September 2016, including in particular the financial security for the measures under paragraph 3.",
+      "summary_en": "The Federal Council sets the details for solar sites, including the financial security needed to fund their removal.",
+      "keywords": [
+        "financial security",
+        "Sicherstellung",
+        "Energy Act",
+        "Energiegesetz",
+        "expansion need",
+        "Zubaubedarf",
+        "solar installation",
+        "Solaranlage",
+        "dismantling security"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24quater-1",
+      "ref": "Art. 24quater Abs. 1",
+      "heading": "Weitere Bauten und Anlagen zur Nutzung erneuerbarer Energien",
+      "heading_en": "Other buildings and installations for the use of renewable energy",
+      "text": "Anlagen zur Nutzung der Energie aus Biomasse sowie Anlagen zur Umwandlung von erneuerbarer Energie in Wasserstoff, Methan oder andere synthetische Kohlenwasserstoffe sind auch ausserhalb der Bauzonen zuzulassen, soweit dies für eine sichere Versorgung mit erneuerbarer Energie als zweckmässig erscheint.",
+      "text_en": "Installations for using energy from biomass, and installations for converting renewable energy into hydrogen, methane or other synthetic hydrocarbons, are also to be permitted outside building zones, insofar as this appears expedient for a secure supply of renewable energy.",
+      "summary_en": "Biomass and power-to-gas installations may be permitted outside building zones where they support a secure renewable energy supply.",
+      "keywords": [
+        "biomass",
+        "Biomasse",
+        "hydrogen",
+        "Wasserstoff",
+        "methane",
+        "Methan",
+        "synthetic hydrocarbons",
+        "outside building zone",
+        "Nichtbauzone",
+        "renewable energy",
+        "erneuerbare Energie"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24quater-2",
+      "ref": "Art. 24quater Abs. 2",
+      "heading": "Weitere Bauten und Anlagen zur Nutzung erneuerbarer Energien",
+      "heading_en": "Other buildings and installations for the use of renewable energy",
+      "text": "Der Bundesrat regelt, unter welchen Voraussetzungen solche Anlagen in wenig empfindlichen oder in vorbelasteten Gebieten standortgebunden sind. Er legt dabei besonderes Gewicht auf:\na. die bestehende Erschliessung, insbesondere auf bestehende Gasanschlüsse: bei Anlagen zur Nutzung von Energie aus Biomasse;\nb. die örtliche Nähe zu einer Anlage zur Produktion von erneuerbarer Elektrizität: bei Anlagen zur Umwandlung von erneuerbarer Energie in Wasserstoff oder Kohlenwasserstoffe.",
+      "text_en": "The Federal Council regulates under which conditions such installations are site-bound in areas of low sensitivity or areas already burdened. In doing so, it places particular weight on:\na. the existing infrastructure, in particular existing gas connections: for installations using energy from biomass;\nb. the local proximity to an installation producing renewable electricity: for installations converting renewable energy into hydrogen or hydrocarbons.",
+      "summary_en": "Biomass sites should use existing gas connections, and hydrogen or hydrocarbon plants should sit near renewable electricity production.",
+      "keywords": [
+        "biomass",
+        "Biomasse",
+        "gas connection",
+        "Gasanschluss",
+        "hydrogen",
+        "Wasserstoff",
+        "proximity",
+        "Nähe",
+        "renewable electricity",
+        "site-bound",
+        "standortgebunden"
+      ],
+      "topics": [
+        "energy",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24quater-3",
+      "ref": "Art. 24quater Abs. 3",
+      "heading": "Weitere Bauten und Anlagen zur Nutzung erneuerbarer Energien",
+      "heading_en": "Other buildings and installations for the use of renewable energy",
+      "text": "Er kann festlegen, ab welcher Grösse und Bedeutung für die Bauten und Anlagen eine Planungspflicht besteht.",
+      "text_en": "It may determine from what size and significance of the buildings and installations a planning obligation applies.",
+      "summary_en": "Large or significant renewable energy installations may be made subject to a planning obligation above a size threshold set by the Federal Council.",
+      "keywords": [
+        "planning obligation",
+        "Planungspflicht",
+        "size threshold",
+        "Grösse",
+        "renewable energy",
+        "erneuerbare Energie",
+        "installation"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24quinquies",
+      "ref": "Art. 24quinquies",
+      "heading": "Bauten und Anlagen für thermische Netze",
+      "heading_en": "Buildings and installations for thermal networks",
+      "text": "Thermische Netze, die für die Reduktion des Verbrauchs nicht erneuerbarer Energien einen Beitrag erbringen, können wenn nötig ausserhalb der Bauzonen bewilligt werden. Der Bundesrat regelt die Einzelheiten.",
+      "text_en": "Thermal networks that contribute to reducing the consumption of non-renewable energy may, if necessary, be approved outside the building zones. The Federal Council regulates the details.",
+      "summary_en": "Thermal energy networks that help cut the use of non-renewable energy can be approved outside building zones where needed.",
+      "keywords": [
+        "thermal network",
+        "district heating",
+        "Wärmenetz",
+        "thermisches Netz",
+        "Bauzone",
+        "ausserhalb Bauzone",
+        "nicht erneuerbare Energie",
+        "Energie"
+      ],
+      "topics": [
+        "energy",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24a-1",
+      "ref": "Art. 24a Abs. 1",
+      "heading": "Zweckänderungen ohne bauliche Massnahmen ausserhalb der Bauzonen",
+      "heading_en": "Changes of use without construction work outside the building zones",
+      "text": "Erfordert die Änderung des Zwecks einer Baute oder Anlage ausserhalb der Bauzonen keine baulichen Massnahmen im Sinne von Artikel 22 Absatz 1, so ist die Bewilligung zu erteilen, wenn:\na. dadurch keine neuen Auswirkungen auf Raum, Erschliessung und Umwelt entstehen; und\nb. sie nach keinem anderen Bundeserlass unzulässig ist.",
+      "text_en": "If changing the purpose of a building or installation outside the building zones requires no construction measures within the meaning of Article 22 paragraph 1, the permit must be granted if:\na. it creates no new effects on space, development and the environment; and\nb. no other federal law makes it inadmissible.",
+      "summary_en": "A change of use outside building zones without construction work must be approved if it creates no new impact on land, access or the environment and no other federal law prohibits it.",
+      "keywords": [
+        "change of use",
+        "Zweckänderung",
+        "Nutzungsänderung",
+        "outside building zone",
+        "ausserhalb Bauzone",
+        "permit",
+        "Bewilligung",
+        "Umwelt"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24a-2",
+      "ref": "Art. 24a Abs. 2",
+      "heading": "Zweckänderungen ohne bauliche Massnahmen ausserhalb der Bauzonen",
+      "heading_en": "Changes of use without construction work outside the building zones",
+      "text": "Die Ausnahmebewilligung ist unter dem Vorbehalt zu erteilen, dass bei veränderten Verhältnissen von Amtes wegen neu verfügt wird.",
+      "text_en": "The exceptional permit must be granted subject to the reservation that a new decision will be issued ex officio if circumstances change.",
+      "summary_en": "The exceptional permit is granted on condition that authorities re-decide it if circumstances change.",
+      "keywords": [
+        "exceptional permit",
+        "Ausnahmebewilligung",
+        "conditional permit",
+        "Vorbehalt",
+        "veränderte Verhältnisse",
+        "Bewilligung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24b-1",
+      "ref": "Art. 24b Abs. 1",
+      "heading": "Nichtlandwirtschaftliche Nebenbetriebe ausserhalb der Bauzonen",
+      "heading_en": "Non-agricultural secondary businesses outside the building zones",
+      "text": "Können landwirtschaftliche Gewerbe im Sinne des Bundesgesetzes vom 4. Oktober 1991 über das bäuerliche Bodenrecht ohne ein Zusatzeinkommen nicht weiter bestehen, so können bauliche Massnahmen zur Einrichtung eines betriebsnahen nichtlandwirtschaftlichen Nebenbetriebs in bestehenden Bauten und Anlagen bewilligt werden. Die Anforderung nach Artikel 24 Buchstabe a muss nicht erfüllt sein.",
+      "text_en": "If agricultural holdings within the meaning of the Federal Act of 4 October 1991 on Rural Land Law cannot continue to exist without additional income, structural measures to set up a non-agricultural secondary business close to the farm may be approved in existing buildings and installations. The requirement under Article 24 letter a need not be met.",
+      "summary_en": "Where a farm cannot survive without extra income, a non-farm side business close to the farm may be set up in existing buildings outside the building zones, without meeting the usual Article 24 letter a requirement.",
+      "keywords": [
+        "farm side business",
+        "Nebenbetrieb",
+        "landwirtschaftliches Gewerbe",
+        "outside building zone",
+        "bestehende Bauten",
+        "Umnutzung",
+        "Bauernhof",
+        "Zusatzeinkommen"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24b-1bis",
+      "ref": "Art. 24b Abs. 1bis",
+      "heading": "Nichtlandwirtschaftliche Nebenbetriebe ausserhalb der Bauzonen",
+      "heading_en": "Non-agricultural secondary businesses outside the building zones",
+      "text": "Unabhängig vom Erfordernis eines Zusatzeinkommens können Nebenbetriebe mit einem engen sachlichen Bezug zum landwirtschaftlichen Gewerbe bewilligt werden; dafür können massvolle Erweiterungen zugelassen werden, sofern in den bestehenden Bauten und Anlagen kein oder zu wenig Raum zur Verfügung steht.",
+      "text_en": "Regardless of the requirement for additional income, secondary businesses with a close factual link to the agricultural holding may be approved; modest extensions may be permitted for them where existing buildings and installations offer no or too little space.",
+      "summary_en": "Side businesses closely tied to the farm can be approved without the extra-income test, and may be modestly extended if existing buildings lack space.",
+      "keywords": [
+        "farm side business",
+        "Nebenbetrieb",
+        "massvolle Erweiterung",
+        "modest extension",
+        "landwirtschaftliches Gewerbe",
+        "outside building zone",
+        "Raumbedarf",
+        "Bauten"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24b-1ter",
+      "ref": "Art. 24b Abs. 1ter",
+      "heading": "Nichtlandwirtschaftliche Nebenbetriebe ausserhalb der Bauzonen",
+      "heading_en": "Non-agricultural secondary businesses outside the building zones",
+      "text": "Bei temporären Betriebszentren können bauliche Massnahmen nur in den bestehenden Bauten und Anlagen und nur für gastwirtschaftliche Nebenbetriebe bewilligt werden.",
+      "text_en": "For temporary operating centres, structural measures may be approved only in existing buildings and installations, and only for hospitality secondary businesses.",
+      "summary_en": "Temporary operating centres may only have structural works inside existing buildings, and only for restaurant-type side uses.",
+      "keywords": [
+        "temporary operating centre",
+        "Betriebszentrum",
+        "hospitality",
+        "Gastwirtschaft",
+        "gastwirtschaftlicher Nebenbetrieb",
+        "existing building",
+        "bestehende Bauten",
+        "outside building zone"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24b-1quater",
+      "ref": "Art. 24b Abs. 1quater",
+      "heading": "Nichtlandwirtschaftliche Nebenbetriebe ausserhalb der Bauzonen",
+      "heading_en": "Non-agricultural secondary businesses outside the building zones",
+      "text": "Um Wettbewerbsverzerrungen zu vermeiden, müssen nichtlandwirtschaftliche Nebenbetriebe den gleichen gesetzlichen Anforderungen und Rahmenbedingungen genügen wie Gewerbebetriebe in vergleichbaren Situationen in den Bauzonen.",
+      "text_en": "To avoid distortion of competition, non-agricultural secondary businesses must meet the same legal requirements and framework conditions as commercial businesses in comparable situations within the building zones.",
+      "summary_en": "Non-farm side businesses must follow the same legal rules as comparable commercial businesses inside building zones.",
+      "keywords": [
+        "competition",
+        "Wettbewerbsverzerrung",
+        "secondary business",
+        "Nebenbetrieb",
+        "Gewerbebetrieb",
+        "Gewerbe",
+        "Bauzone",
+        "legal requirements"
+      ],
+      "topics": [
+        "permits-procedure",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24b-2",
+      "ref": "Art. 24b Abs. 2",
+      "heading": "Nichtlandwirtschaftliche Nebenbetriebe ausserhalb der Bauzonen",
+      "heading_en": "Non-agricultural secondary businesses outside the building zones",
+      "text": "Der Nebenbetrieb darf nur vom Bewirtschafter oder von der Bewirtschafterin des landwirtschaftlichen Gewerbes beziehungsweise von der Lebenspartnerin oder dem Lebenspartner geführt werden. Personal, das überwiegend oder ausschliesslich für den Nebenbetrieb tätig ist, darf nur für Nebenbetriebe nach Absatz 1bis angestellt werden. In jedem Fall muss die in diesem Betriebsteil anfallende Arbeit zum überwiegenden Teil durch die Bewirtschafterfamilie geleistet werden.",
+      "text_en": "The secondary business may only be run by the operator of the agricultural holding or by their life partner. Staff who work predominantly or exclusively for the secondary business may only be employed for secondary businesses under paragraph 1bis. In every case, the work arising in this part of the business must for the most part be carried out by the farming family.",
+      "summary_en": "Only the farm operator or their life partner may run the side business, and the farming family must do most of its work.",
+      "keywords": [
+        "farm family",
+        "Bewirtschafterfamilie",
+        "side business",
+        "Nebenbetrieb",
+        "Personal",
+        "Mitarbeitende",
+        "Lebenspartner",
+        "employment"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24b-3",
+      "ref": "Art. 24b Abs. 3",
+      "heading": "Nichtlandwirtschaftliche Nebenbetriebe ausserhalb der Bauzonen",
+      "heading_en": "Non-agricultural secondary businesses outside the building zones",
+      "text": "Die Existenz des Nebenbetriebs ist im Grundbuch anzumerken.",
+      "text_en": "The existence of the secondary business must be noted in the land register.",
+      "summary_en": "The side business must be recorded as a note in the land register.",
+      "keywords": [
+        "land register",
+        "Grundbuch",
+        "Grundbuchanmerkung",
+        "Anmerkung",
+        "Nebenbetrieb",
+        "secondary business"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24b-4",
+      "ref": "Art. 24b Abs. 4",
+      "heading": "Nichtlandwirtschaftliche Nebenbetriebe ausserhalb der Bauzonen",
+      "heading_en": "Non-agricultural secondary businesses outside the building zones",
+      "text": "Nichtlandwirtschaftliche Nebenbetriebe bilden Bestandteile des landwirtschaftlichen Gewerbes und unterstehen dem Realteilungs- und Zerstückelungsverbot nach den Artikeln 58–60 des Bundesgesetzes vom 4. Oktober 1991 über das bäuerliche Bodenrecht.",
+      "text_en": "Non-agricultural secondary businesses form part of the agricultural holding and are subject to the prohibition on division and fragmentation under Articles 58-60 of the Federal Act of 4 October 1991 on Rural Land Law.",
+      "summary_en": "The side business is part of the farm holding and cannot be split off, under the rural land law ban on dividing farm holdings.",
+      "keywords": [
+        "farm land",
+        "Realteilung",
+        "Zerstückelung",
+        "Teilungsverbot",
+        "bäuerliches Bodenrecht",
+        "agricultural holding",
+        "landwirtschaftliches Gewerbe"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24b-5",
+      "ref": "Art. 24b Abs. 5",
+      "heading": "Nichtlandwirtschaftliche Nebenbetriebe ausserhalb der Bauzonen",
+      "heading_en": "Non-agricultural secondary businesses outside the building zones",
+      "text": "Die Bestimmungen des Bundesgesetzes vom 4. Oktober 1991 über das bäuerliche Bodenrecht betreffend die nichtlandwirtschaftlichen Nebengewerbe finden auf die Nebenbetriebe keine Anwendung.",
+      "text_en": "The provisions of the Federal Act of 4 October 1991 on Rural Land Law concerning non-agricultural secondary commercial activities do not apply to the secondary businesses.",
+      "summary_en": "The rural land law rules on non-agricultural side trades do not apply to these side businesses.",
+      "keywords": [
+        "rural land law",
+        "bäuerliches Bodenrecht",
+        "Nebenbetrieb",
+        "non-agricultural",
+        "Nebengewerbe",
+        "exemption",
+        "Ausnahme"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24c-1",
+      "ref": "Art. 24c Abs. 1",
+      "heading": "Altrechtliche Bauten und Anlagen",
+      "heading_en": "Grandfathered buildings and installations",
+      "text": "Bestimmungsgemäss nutzbare Bauten und Anlagen ausserhalb der Bauzonen, die nicht mehr zonenkonform sind, werden in ihrem Bestand grundsätzlich geschützt.",
+      "text_en": "Buildings and installations outside the building zones that can still be used as intended but no longer conform to the zone are, in principle, protected in their existence.",
+      "summary_en": "Lawfully built structures outside building zones that no longer conform to the zone keep their existence protection.",
+      "keywords": [
+        "grandfathered building",
+        "Altrecht",
+        "Bestandesschutz",
+        "Bestand",
+        "zonenkonform",
+        "zone conformity",
+        "existing building",
+        "outside building zone"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24c-2",
+      "ref": "Art. 24c Abs. 2",
+      "heading": "Altrechtliche Bauten und Anlagen",
+      "heading_en": "Grandfathered buildings and installations",
+      "text": "Solche Bauten und Anlagen können mit Bewilligung der zuständigen Behörde erneuert, teilweise geändert, massvoll erweitert oder wiederaufgebaut werden, sofern sie rechtmässig erstellt oder geändert worden sind.",
+      "text_en": "Such buildings and installations may be renovated, partly altered, modestly extended or rebuilt with the permit of the competent authority, provided they were lawfully built or altered.",
+      "summary_en": "Grandfathered buildings outside zones may be renovated, partly altered, modestly extended or rebuilt with a permit, if they were lawfully built.",
+      "keywords": [
+        "renovation",
+        "Erneuerung",
+        "Umbau",
+        "massvolle Erweiterung",
+        "modest extension",
+        "Wiederaufbau",
+        "rebuild",
+        "Bewilligung"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24c-3",
+      "ref": "Art. 24c Abs. 3",
+      "heading": "Altrechtliche Bauten und Anlagen",
+      "heading_en": "Grandfathered buildings and installations",
+      "text": "Dies gilt auch für landwirtschaftliche Wohnbauten sowie angebaute Ökonomiebauten, die rechtmässig erstellt oder geändert worden sind, bevor das betreffende Grundstück Bestandteil des Nichtbaugebietes im Sinne des Bundesrechts wurde. Der Bundesrat erlässt Vorschriften, um negative Auswirkungen auf die Landwirtschaft zu vermeiden.",
+      "text_en": "This also applies to agricultural residential buildings and attached farm buildings that were lawfully built or altered before the plot became part of the non-building zone within the meaning of federal law. The Federal Council issues regulations to avoid negative effects on agriculture.",
+      "summary_en": "Farm houses and attached farm buildings lawfully built before their plot became non-building land get the same grandfathered treatment, subject to federal rules protecting agriculture.",
+      "keywords": [
+        "farm house",
+        "landwirtschaftliches Wohnhaus",
+        "Ökonomiebau",
+        "Nichtbaugebiet",
+        "agricultural building",
+        "Landwirtschaft",
+        "grandfathered"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24c-4",
+      "ref": "Art. 24c Abs. 4",
+      "heading": "Altrechtliche Bauten und Anlagen",
+      "heading_en": "Grandfathered buildings and installations",
+      "text": "Veränderungen am äusseren Erscheinungsbild müssen für eine zeitgemässe Wohnnutzung oder eine energetische Sanierung nötig oder darauf ausgerichtet sein, die Einpassung in die Landschaft zu verbessern.",
+      "text_en": "Changes to the external appearance must be necessary for contemporary residential use or an energy renovation, or be aimed at improving integration into the landscape.",
+      "summary_en": "Changes to a grandfathered building's outside appearance must serve modern residential use, energy renovation or better fit into the landscape.",
+      "keywords": [
+        "external appearance",
+        "äussere Erscheinung",
+        "Fassade",
+        "energetische Sanierung",
+        "energy renovation",
+        "Landschaft",
+        "landscape integration",
+        "Einpassung"
+      ],
+      "topics": [
+        "energy",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24c-5",
+      "ref": "Art. 24c Abs. 5",
+      "heading": "Altrechtliche Bauten und Anlagen",
+      "heading_en": "Grandfathered buildings and installations",
+      "text": "In jedem Fall bleibt die Vereinbarkeit mit den wichtigen Anliegen der Raumplanung vorbehalten.",
+      "text_en": "In any case, compatibility with the important concerns of spatial planning remains reserved.",
+      "summary_en": "Grandfathered building works always remain subject to compatibility with key spatial planning interests.",
+      "keywords": [
+        "spatial planning",
+        "Raumplanung",
+        "wichtige Anliegen",
+        "important concerns",
+        "Vorbehalt",
+        "outside building zone"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24cbis-1",
+      "ref": "Art. 24cbis Abs. 1",
+      "heading": "Bauten in Streusiedlungsgebieten",
+      "heading_en": "Buildings in dispersed settlement areas",
+      "text": "In Gebieten mit traditioneller Streubauweise, die im kantonalen Richtplan räumlich festgelegt sind und in denen die Dauerbesiedlung im Hinblick auf die anzustrebende räumliche Entwicklung gestärkt werden soll, können die Kantone bewilligen:\na. die Änderung der Nutzung bestehender Bauten, die Wohnungen enthalten, zu landwirtschaftsfremden Wohnzwecken, wenn sie nach der Änderung ganzjährig bewohnt werden;\nb. die Änderung der Nutzung bestehender Bauten oder Gebäudekomplexe, die Wohnungen enthalten, zu Zwecken des örtlichen Kleingewerbes; als örtliches Kleingewerbe gelten insbesondere Käsereien, holzverarbeitende Betriebe, mechanische Werkstätten, Schlossereien, Detailhandelsläden, Wirtshäuser; der Gewerbeteil darf in der Regel nicht mehr als die Hälfte der Baute oder des Gebäudekomplexes beanspruchen.",
+      "text_en": "In areas with traditional dispersed building patterns that are spatially defined in the cantonal structure plan and where permanent settlement is to be strengthened with a view to the desired spatial development, the cantons may approve:\na. the change of use of existing buildings containing dwellings to non-farm residential purposes, if they are inhabited year-round after the change;\nb. the change of use of existing buildings or building complexes containing dwellings to purposes of local small-scale trade; local small-scale trade includes in particular cheese dairies, wood-processing businesses, mechanical workshops, locksmith's shops, retail shops and inns; as a rule the trade part may not occupy more than half of the building or building complex.",
+      "summary_en": "In designated dispersed settlement areas, cantons may allow existing homes to be converted to year-round housing or small local trades, with the trade part normally limited to half of the building.",
+      "keywords": [
+        "dispersed settlement",
+        "Streusiedlung",
+        "change of use",
+        "Nutzungsänderung",
+        "local trade",
+        "Kleingewerbe",
+        "year-round",
+        "ganzjährig",
+        "Hälfte",
+        "half of the building"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [
+        {
+          "what": "trade part of building in local small-trade conversion (as a rule)",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24cbis-2",
+      "ref": "Art. 24cbis Abs. 2",
+      "heading": "Bauten in Streusiedlungsgebieten",
+      "heading_en": "Buildings in dispersed settlement areas",
+      "text": "Bewilligungen nach diesem Artikel dürfen nur erteilt werden, wenn:\na. die Baute für den bisherigen zonenkonformen oder standortgebundenen Zweck nicht mehr benötigt wird oder sichergestellt wird, dass sie zu diesem Zweck erhalten bleibt;\nb. die neue Nutzung keine Ersatzbaute zur Folge hat, die nicht notwendig ist;\nc. die äussere Erscheinung und die bauliche Grundstruktur im Wesentlichen unverändert bleiben;\nd. höchstens eine geringfügige Erweiterung der bestehenden Erschliessung notwendig ist und sämtliche Infrastrukturkosten, die im Zusammenhang mit der bewilligten Nutzung anfallen, auf die Eigentümerin oder den Eigentümer überwälzt werden;\ne. die landwirtschaftliche Bewirtschaftung der umliegenden Grundstücke nicht gefährdet ist; und\nf. keine überwiegenden Interessen entgegenstehen.",
+      "text_en": "Permits under this article may only be granted if:\na. the building is no longer needed for its previous zone-conforming or site-bound purpose, or it is ensured that it is kept for that purpose;\nb. the new use does not result in a replacement building that is not necessary;\nc. the external appearance and the basic structure remain essentially unchanged;\nd. at most a minor extension of the existing development and access is necessary, and all infrastructure costs arising in connection with the permitted use are passed on to the owner;\ne. the agricultural cultivation of the surrounding plots is not endangered; and\nf. no overriding interests conflict with it.",
+      "summary_en": "Conversions in dispersed settlements need the old use to be dispensable, no unnecessary replacement building, essentially unchanged appearance and structure, minimal infrastructure extension at the owner's cost, no threat to farming and no overriding conflicts.",
+      "keywords": [
+        "dispersed settlement",
+        "Streusiedlung",
+        "replacement building",
+        "Ersatzbaute",
+        "external appearance",
+        "äussere Erscheinung",
+        "infrastructure costs",
+        "Infrastrukturkosten",
+        "Erschliessung",
+        "farming",
+        "Landwirtschaft"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24cbis-3",
+      "ref": "Art. 24cbis Abs. 3",
+      "heading": "Bauten in Streusiedlungsgebieten",
+      "heading_en": "Buildings in dispersed settlement areas",
+      "text": "Für Bauten, die am 1. Januar 1980 ganzjährig bewohnt waren und die nach Artikel 24c in ihrem Bestand geschützt sind, kann in Streusiedlungsgebieten nach Absatz 1 eine Zufahrt bewilligt werden, sofern sie ganzjährig bewohnt werden. Die Zufahrt ist baulich auf das Minimum zu beschränken und darf den Boden nicht versiegeln. In steilen Lagen kann aus Sicherheitsgründen auf der ganzen Strecke oder auf Teilabschnitten ein versiegelter Bodenbelag bewilligt werden.",
+      "text_en": "For buildings that were inhabited year-round on 1 January 1980 and that are protected in their existence under Article 24c, an access road may be approved in dispersed settlement areas under paragraph 1, provided they are inhabited year-round. The access road must be structurally limited to the minimum and must not seal the ground. On steep slopes, a sealed floor covering may be approved for safety reasons along the whole route or for sections of it.",
+      "summary_en": "Year-round homes that existed on 1 January 1980 may get a minimal access road in dispersed settlements that must not seal the ground, with a sealed surface allowed on steep slopes for safety.",
+      "keywords": [
+        "access road",
+        "Zufahrt",
+        "dispersed settlement",
+        "Streusiedlung",
+        "sealed surface",
+        "versiegelt",
+        "Bodenbelag",
+        "steep slope",
+        "steile Lage",
+        "ganzjährig bewohnt",
+        "unsealed"
+      ],
+      "topics": [
+        "outdoor",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24d-1",
+      "ref": "Art. 24d Abs. 1",
+      "heading": "Landwirtschaftsfremde Wohnnutzung und schützenswerte Bauten und Anlagen",
+      "heading_en": "Non-farm residential use and protected buildings and installations",
+      "text": "In landwirtschaftlichen Wohnbauten, die in ihrer Substanz erhalten sind, können landwirtschaftsfremde Wohnnutzungen zugelassen werden.",
+      "text_en": "In agricultural residential buildings whose substance is preserved, non-farm residential uses may be approved.",
+      "summary_en": "Farm houses whose substance is preserved may be used for non-farm housing.",
+      "keywords": [
+        "non-farm residential use",
+        "landwirtschaftsfremde Wohnnutzung",
+        "farm house",
+        "landwirtschaftliches Wohnhaus",
+        "substance preserved",
+        "Substanz erhalten",
+        "Wohnung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24d-2",
+      "ref": "Art. 24d Abs. 2",
+      "heading": "Landwirtschaftsfremde Wohnnutzung und schützenswerte Bauten und Anlagen",
+      "heading_en": "Non-farm residential use and protected buildings and installations",
+      "text": "Die vollständige Zweckänderung von als schützenswert anerkannten Bauten und Anlagen kann zugelassen werden, wenn:\na. diese von der zuständigen Behörde unter Schutz gestellt worden sind; und\nb. ihre dauernde Erhaltung nicht anders sichergestellt werden kann.",
+      "text_en": "The complete change of use of buildings and installations recognised as worthy of protection may be approved if:\na. they have been placed under protection by the competent authority; and\nb. their lasting preservation cannot be ensured in any other way.",
+      "summary_en": "A protected heritage building may be fully converted to another use only if it is under official protection and cannot otherwise be preserved.",
+      "keywords": [
+        "protected building",
+        "schützenswerte Baute",
+        "Denkmalschutz",
+        "heritage",
+        "change of use",
+        "Zweckänderung",
+        "Unterschutzstellung",
+        "Erhaltung",
+        "permanent preservation"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24d-3",
+      "ref": "Art. 24d Abs. 3",
+      "heading": "Landwirtschaftsfremde Wohnnutzung und schützenswerte Bauten und Anlagen",
+      "heading_en": "Non-farm residential use and protected buildings and installations",
+      "text": "Bewilligungen nach diesem Artikel dürfen nur erteilt werden, wenn:\na. die Baute oder Anlage für den bisherigen Zweck nicht mehr benötigt wird, für die vorgesehene Nutzung geeignet ist und keine Ersatzbaute zur Folge hat, die nicht notwendig ist;\nb. die äussere Erscheinung, die bauliche Grundstruktur und die Umgebung in ihren wesentlichen Merkmalen erhalten bleiben;\nc. höchstens eine geringfügige Erweiterung der bestehenden Erschliessung notwendig ist und sämtliche Infrastrukturkosten, die im Zusammenhang mit der vollständigen Zweckänderung der Bauten und Anlagen anfallen, auf deren Eigentümer überwälzt werden;\nd. die landwirtschaftliche Bewirtschaftung des umliegenden Grundstücks nicht gefährdet ist;\ne. keine überwiegenden Interessen entgegenstehen.",
+      "text_en": "Permits under this article may only be granted if:\na. the building or installation is no longer needed for its previous purpose, is suitable for the intended use and does not result in a replacement building that is not necessary;\nb. the external appearance, the basic structure and the surroundings are preserved in their essential features;\nc. at most a minor extension of the existing development and access is necessary, and all infrastructure costs arising in connection with the complete change of use are passed on to the owner;\nd. the agricultural cultivation of the surrounding plot is not endangered;\ne. no overriding interests conflict with it.",
+      "summary_en": "Full conversion of protected buildings requires the old use to be dispensable, the appearance and setting preserved, minimal infrastructure extension at the owner's cost, and no conflict with farming or overriding interests.",
+      "keywords": [
+        "protected building",
+        "Schutz",
+        "external appearance",
+        "äussere Erscheinung",
+        "basic structure",
+        "Grundstruktur",
+        "surroundings",
+        "Umgebung",
+        "infrastructure costs",
+        "Infrastrukturkosten",
+        "replacement building",
+        "Ersatzbaute"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24e-1",
+      "ref": "Art. 24e Abs. 1",
+      "heading": "Hobbymässige Tierhaltung",
+      "heading_en": "Hobby animal keeping",
+      "text": "Bauliche Massnahmen werden bewilligt in unbewohnten Gebäuden oder Gebäudeteilen, die in ihrer Substanz erhalten sind, wenn sie Bewohnern oder Bewohnerinnen einer nahe gelegenen Wohnbaute zur hobbymässigen Tierhaltung dienen und eine tierfreundliche Haltung gewährleisten.",
+      "text_en": "Structural measures are approved in uninhabited buildings or parts of buildings whose substance is preserved, if they serve residents of a nearby residential building for hobby animal keeping and ensure animal-friendly keeping.",
+      "summary_en": "Unoccupied buildings with preserved substance may be converted for hobby animal keeping by nearby residents, if the animals are kept well.",
+      "keywords": [
+        "hobby animal keeping",
+        "Hobbytierhaltung",
+        "tierfreundlich",
+        "animal-friendly",
+        "Stall",
+        "unbewohnt",
+        "uninhabited building",
+        "Kleintierhaltung"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24e-2",
+      "ref": "Art. 24e Abs. 2",
+      "heading": "Hobbymässige Tierhaltung",
+      "heading_en": "Hobby animal keeping",
+      "text": "Im Rahmen von Absatz 1 werden neue Aussenanlagen bewilligt, soweit sie für eine tiergerechte Haltung notwendig sind. Im Interesse einer tierfreundlichen Haltung können solche Anlagen grösser als die gesetzlichen Mindestmasse dimensioniert werden, soweit dies mit den wichtigen Anliegen der Raumplanung vereinbar ist und die Anlage reversibel erstellt wird.",
+      "text_en": "Within the scope of paragraph 1, new outdoor facilities are approved insofar as they are necessary for species-appropriate keeping. In the interest of animal-friendly keeping, such facilities may be dimensioned larger than the statutory minimum dimensions, insofar as this is compatible with the important concerns of spatial planning and the facility is built reversibly.",
+      "summary_en": "New paddocks and outdoor facilities for hobby animals may be approved if needed, and may exceed minimum sizes if compatible with spatial planning and built reversibly.",
+      "keywords": [
+        "outdoor facility",
+        "Aussenanlage",
+        "Gehege",
+        "tiergerecht",
+        "species-appropriate",
+        "Mindestmass",
+        "minimum dimensions",
+        "reversibel",
+        "reversible",
+        "spatial planning"
+      ],
+      "topics": [
+        "outdoor",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24e-3",
+      "ref": "Art. 24e Abs. 3",
+      "heading": "Hobbymässige Tierhaltung",
+      "heading_en": "Hobby animal keeping",
+      "text": "Die Aussenanlagen können für die hobbymässige Beschäftigung mit den Tieren genutzt werden, soweit damit keine baulichen Änderungen verbunden sind und keine neuen Auswirkungen auf Raum und Umwelt entstehen.",
+      "text_en": "The outdoor facilities may be used for hobby activities with the animals, insofar as no structural changes are connected with this and no new effects on space and the environment arise.",
+      "summary_en": "Outdoor areas may be used for hobby animal activities, as long as no construction work and no new spatial or environmental impacts follow.",
+      "keywords": [
+        "outdoor area",
+        "Aussenanlage",
+        "hobby",
+        "Hobbytierhaltung",
+        "bauliche Änderung",
+        "no structural change",
+        "Umwelt",
+        "environment"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24e-4",
+      "ref": "Art. 24e Abs. 4",
+      "heading": "Hobbymässige Tierhaltung",
+      "heading_en": "Hobby animal keeping",
+      "text": "Einzäunungen, die der Beweidung dienen und nicht mit nachteiligen Auswirkungen auf die Landschaft verbunden sind, werden auch dann bewilligt, wenn die Tiere in der Bauzone gehalten werden.",
+      "text_en": "Fences used for grazing that are not associated with adverse effects on the landscape are also approved where the animals are kept within the building zone.",
+      "summary_en": "Grazing fences with no harmful landscape effect are allowed even when the animals are kept inside a building zone.",
+      "keywords": [
+        "fence",
+        "Einzäunung",
+        "Beweidung",
+        "grazing",
+        "Weide",
+        "Bauzone",
+        "building zone",
+        "Landschaft",
+        "landscape"
+      ],
+      "topics": [
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-700-24e-5",
+      "ref": "Art. 24e Abs. 5",
+      "heading": "Hobbymässige Tierhaltung",
+      "heading_en": "Hobby animal keeping",
+      "text": "Bewilligungen nach diesem Artikel dürfen nur erteilt werden, wenn die Voraussetzungen von Artikel 24d Absatz 3 erfüllt sind.",
+      "text_en": "Permits under this article may only be granted if the requirements of Article 24d paragraph 3 are met.",
+      "summary_en": "Hobby animal permits require the same conditions as the non-farm residential rules in Article 24d paragraph 3.",
+      "keywords": [
+        "hobby animal keeping",
+        "Hobbytierhaltung",
+        "Article 24d",
+        "Voraussetzungen",
+        "Bewilligung",
+        "permit conditions"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-24e-6",
+      "ref": "Art. 24e Abs. 6",
+      "heading": "Hobbymässige Tierhaltung",
+      "heading_en": "Hobby animal keeping",
+      "text": "Der Bundesrat regelt die Einzelheiten. Er legt namentlich fest, in welchem Verhältnis die Änderungsmöglichkeiten nach diesem Artikel zu denjenigen nach Artikel 24c stehen. Er kann vorsehen, dass die hobbymässige Kleintierhaltung nicht als Erweiterung der Wohnnutzung gilt und dass kleine Nebenbauten, die durch höhere Gewalt zerstört worden sind, wiederaufgebaut werden dürfen.",
+      "text_en": "The Federal Council regulates the details. In particular, it determines how the options for change under this article relate to those under Article 24c. It may provide that hobby small-animal keeping is not regarded as an extension of residential use, and that small outbuildings destroyed by force majeure may be rebuilt.",
+      "summary_en": "The Federal Council sets the details, including how these hobby-animal options relate to Article 24c and that small animal keeping does not count as extending residential use.",
+      "keywords": [
+        "Bundesrat",
+        "Federal Council",
+        "hobby small-animal keeping",
+        "Kleintierhaltung",
+        "Wohnnutzung",
+        "residential extension",
+        "Wiederaufbau",
+        "rebuild",
+        "höhere Gewalt",
+        "force majeure"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25-1",
+      "ref": "Art. 25 Abs. 1",
+      "heading": "Kantonale Zuständigkeiten",
+      "heading_en": "Cantonal responsibilities",
+      "text": "Die Kantone ordnen Zuständigkeiten und Verfahren.",
+      "text_en": "The cantons regulate responsibilities and procedures.",
+      "summary_en": "Cantons set who is responsible and how building procedures run.",
+      "keywords": [
+        "cantonal competence",
+        "Zuständigkeit",
+        "Verfahren",
+        "procedure",
+        "Kanton",
+        "responsibility"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25-1bis",
+      "ref": "Art. 25 Abs. 1bis",
+      "heading": "Kantonale Zuständigkeiten",
+      "heading_en": "Cantonal responsibilities",
+      "text": "Sie legen für alle Verfahren zur Errichtung, Änderung oder Zweckänderung von Bauten und Anlagen Fristen und deren Wirkungen fest.",
+      "text_en": "For all procedures for the erection, alteration or change of use of buildings and installations, they set deadlines and their effects.",
+      "summary_en": "Cantons must set time limits for building procedures and state what those deadlines mean.",
+      "keywords": [
+        "deadline",
+        "Frist",
+        "time limit",
+        "Verfahren",
+        "procedure",
+        "Zweckänderung",
+        "change of use",
+        "Bewilligungsfrist"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25-2",
+      "ref": "Art. 25 Abs. 2",
+      "heading": "Kantonale Zuständigkeiten",
+      "heading_en": "Cantonal responsibilities",
+      "text": "Die zuständige kantonale Behörde entscheidet bei allen Bauvorhaben ausserhalb der Bauzonen, ob sie zonenkonform sind oder ob für sie eine Ausnahmebewilligung erteilt werden kann.",
+      "text_en": "For all construction projects outside the building zones, the competent cantonal authority decides whether they conform to the zone or whether an exceptional permit can be granted for them.",
+      "summary_en": "For any building project outside zones, the cantonal authority decides whether it conforms to the zone or needs an exceptional permit.",
+      "keywords": [
+        "zone conformity",
+        "zonenkonform",
+        "exceptional permit",
+        "Ausnahmebewilligung",
+        "outside building zone",
+        "Bauvorhaben",
+        "cantonal authority"
+      ],
+      "topics": [
+        "permits-procedure",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25-3",
+      "ref": "Art. 25 Abs. 3",
+      "heading": "Kantonale Zuständigkeiten",
+      "heading_en": "Cantonal responsibilities",
+      "text": "Sie stellt sicher, dass unbewilligte Nutzungen innert nützlicher Frist festgestellt und anschliessend sofort untersagt und unterbunden werden; Rückbauten zur Wiederherstellung des rechtmässigen Zustands sind ohne Verzug anzuordnen und zu vollziehen.",
+      "text_en": "They ensure that unauthorised uses are detected within a reasonable time and are then immediately prohibited and stopped; demolitions to restore the lawful condition must be ordered and carried out without delay.",
+      "summary_en": "Unpermitted uses must be detected promptly and stopped, with demolition ordered without delay to restore the lawful condition.",
+      "keywords": [
+        "unauthorised use",
+        "unbewilligte Nutzung",
+        "Rückbau",
+        "demolition",
+        "rechtmässiger Zustand",
+        "restore lawful condition",
+        "enforcement",
+        "Durchsetzung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25-4",
+      "ref": "Art. 25 Abs. 4",
+      "heading": "Kantonale Zuständigkeiten",
+      "heading_en": "Cantonal responsibilities",
+      "text": "Nur die zuständige kantonale Behörde kann gültig den ausnahmsweisen Verzicht auf die Wiederherstellung des rechtmässigen Zustandes beschliessen.",
+      "text_en": "Only the competent cantonal authority may validly decide on an exceptional waiver of restoring the lawful condition.",
+      "summary_en": "Only the cantonal authority can validly decide to waive restoring the lawful condition.",
+      "keywords": [
+        "waiver",
+        "Verzicht",
+        "rechtmässiger Zustand",
+        "restore lawful condition",
+        "enforcement",
+        "Kanton",
+        "cantonal authority"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25-5",
+      "ref": "Art. 25 Abs. 5",
+      "heading": "Kantonale Zuständigkeiten",
+      "heading_en": "Cantonal responsibilities",
+      "text": "Der Anspruch auf Wiederherstellung des rechtmässigen Zustands verjährt nach 30 Jahren. Die Frist ist gewahrt, wenn die zuständige Behörde vor Ablauf der Frist erstmals einschreitet. Keine Verjährung tritt ein, wenn Polizeigüter, insbesondere die öffentliche Ordnung, Ruhe, Sicherheit oder Gesundheit, gefährdet sind.",
+      "text_en": "The claim to restoration of the lawful condition becomes time-barred after 30 years. The deadline is met if the competent authority first intervenes before it expires. No limitation period applies if police interests, in particular public order, peace, safety or health, are endangered.",
+      "summary_en": "The claim to restore the lawful condition expires after 30 years unless the authority acts first, and never expires where public safety or health is at risk.",
+      "keywords": [
+        "limitation period",
+        "Verjährung",
+        "30 years",
+        "30 Jahre",
+        "rechtmässiger Zustand",
+        "restore lawful condition",
+        "public safety",
+        "öffentliche Sicherheit",
+        "health",
+        "Gesundheit"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [
+        {
+          "what": "limitation period for claim to restore the lawful condition",
+          "comparison": "=",
+          "value": 30,
+          "unit": "years"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25a-1",
+      "ref": "Art. 25a Abs. 1",
+      "heading": "Grundsätze der Koordination",
+      "heading_en": "Principles of coordination",
+      "text": "Erfordert die Errichtung oder die Änderung einer Baute oder Anlage Verfügungen mehrerer Behörden, so ist eine Behörde zu bezeichnen, die für ausreichende Koordination sorgt.",
+      "text_en": "If the erection or alteration of a building or installation requires decisions from several authorities, one authority must be designated to ensure adequate coordination.",
+      "summary_en": "When several authorities must decide on one project, one authority is named to coordinate them.",
+      "keywords": [
+        "coordination",
+        "Koordination",
+        "several authorities",
+        "mehrere Behörden",
+        "lead authority",
+        "federführende Behörde",
+        "Verfügung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25a-2",
+      "ref": "Art. 25a Abs. 2",
+      "heading": "Grundsätze der Koordination",
+      "heading_en": "Principles of coordination",
+      "text": "Die für die Koordination verantwortliche Behörde:\na. kann die erforderlichen verfahrensleitenden Anordnungen treffen;\nb. sorgt für eine gemeinsame öffentliche Auflage aller Gesuchsunterlagen;\nc. holt von allen beteiligten kantonalen und eidgenössischen Behörden umfassende Stellungnahmen zum Vorhaben ein;\nd. sorgt für eine inhaltliche Abstimmung sowie möglichst für eine gemeinsame oder gleichzeitige Eröffnung der Verfügungen.",
+      "text_en": "The authority responsible for coordination:\na. may issue the necessary procedural orders;\nb. ensures a joint public display of all application documents;\nc. obtains comprehensive opinions on the project from all involved cantonal and federal authorities;\nd. ensures substantive alignment and, as far as possible, a joint or simultaneous notification of the decisions.",
+      "summary_en": "The coordinating authority can issue procedural orders, run one joint public display of documents, collect all opinions, and align and time the decisions.",
+      "keywords": [
+        "coordination",
+        "Koordination",
+        "public display",
+        "öffentliche Auflage",
+        "application documents",
+        "Gesuchsunterlagen",
+        "opinions",
+        "Stellungnahmen",
+        "joint notification",
+        "gemeinsame Eröffnung"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25a-3",
+      "ref": "Art. 25a Abs. 3",
+      "heading": "Grundsätze der Koordination",
+      "heading_en": "Principles of coordination",
+      "text": "Die Verfügungen dürfen keine Widersprüche enthalten.",
+      "text_en": "The decisions must not contain contradictions.",
+      "summary_en": "The decisions issued for one project must be consistent with each other.",
+      "keywords": [
+        "consistency",
+        "Widersprüche",
+        "contradictions",
+        "Verfügung",
+        "decision",
+        "Koordination"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-700-25a-4",
+      "ref": "Art. 25a Abs. 4",
+      "heading": "Grundsätze der Koordination",
+      "heading_en": "Principles of coordination",
+      "text": "Diese Grundsätze sind auf das Nutzungsplanverfahren sinngemäss anwendbar.",
+      "text_en": "These principles apply mutatis mutandis to the land-use planning procedure.",
+      "summary_en": "The coordination principles also apply, with necessary adjustments, to zoning plan procedures.",
+      "keywords": [
+        "land-use planning",
+        "Nutzungsplanverfahren",
+        "zoning procedure",
+        "Nutzungsplan",
+        "coordination",
+        "Koordination"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

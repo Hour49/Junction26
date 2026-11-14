@@ -1,0 +1,630 @@
+{
+  "id": "fi-796-2017",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "796/2017",
+  "title": "Ympäristöministeriön asetus rakennuksen ääniympäristöstä",
+  "title_en": "Ministry of the Environment Decree on the sound environment of buildings",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2017/796",
+  "language": "fi",
+  "in_force": "2018-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force, as amended by 360/2019. Kept in force by the entry-into-force provision of the Building Act 752/2023 until replaced.",
+  "clauses": [
+    {
+      "id": "fi-796-2017-1-1",
+      "ref": "1 § 1 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Tässä asetuksessa säädetään rakennusten ääneneristyksestä, melun- ja tärinäntorjunnasta ja ääniolosuhteista sekä rakennusten piha- ja oleskelualueiden ja oleskeluun käytettävien parvekkeiden meluntorjunnasta ja ääniolosuhteista.",
+      "text_en": "This decree lays down rules on the sound insulation of buildings, noise and vibration control, and sound conditions in buildings, as well as noise control and sound conditions of yard and recreation areas of buildings and of balconies used for staying.",
+      "summary_en": "The decree covers sound insulation, noise and vibration control and sound conditions in buildings, and noise control and sound conditions of their yards, recreation areas and staying balconies.",
+      "keywords": [
+        "sound insulation",
+        "noise control",
+        "vibration control",
+        "sound conditions",
+        "balcony",
+        "yard",
+        "ääneneristys",
+        "meluntorjunta",
+        "tärinäntorjunta",
+        "ääniolosuhteet",
+        "oleskelualue"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-1-2",
+      "ref": "1 § 2 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Tätä asetusta sovelletaan rakennuksiin, joissa on asuntoja, majoitus- tai potilashuoneita, taikka opetus-, kokous-, ruokailu-, hoito-, harrastus-, liikunta- tai toimistotiloja.",
+      "text_en": "This decree applies to buildings with dwellings, accommodation or patient rooms, or with teaching, meeting, dining, care, hobby, sports or office premises.",
+      "summary_en": "The decree applies to buildings containing dwellings, accommodation or patient rooms, or teaching, meeting, dining, care, hobby, sports or office premises.",
+      "keywords": [
+        "dwelling",
+        "accommodation room",
+        "patient room",
+        "teaching premises",
+        "office",
+        "asunto",
+        "majoitushuone",
+        "potilashuone",
+        "toimistotila",
+        "opetustila"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-1-3",
+      "ref": "1 § 3 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Tätä asetusta sovelletaan uuden rakennuksen rakentamiseen, rakennuksen korjaus- ja muutostyöhön sekä rakennuksen käyttötarkoituksen muuttamiseen maankäyttö- ja rakennuslain (132/1999) mukaisessa rakentamisen suunnittelussa, lupamenettelyssä ja valvonnassa.",
+      "text_en": "This decree applies to the construction of a new building, to repair and alteration work on a building, and to a change of use of a building, in the planning, permit procedure and supervision of construction under the Land Use and Building Act (132/1999).",
+      "summary_en": "The decree applies to new construction, repair and alteration, and change of use of buildings under the Land Use and Building Act (132/1999), including planning, permits and supervision.",
+      "keywords": [
+        "Land Use and Building Act 132/1999",
+        "new construction",
+        "repair and alteration",
+        "change of use",
+        "maankäyttö- ja rakennuslaki",
+        "korjaus- ja muutostyö",
+        "käyttötarkoituksen muutos",
+        "rakennuslupa",
+        "valvonta"
+      ],
+      "topics": [
+        "permits-procedure",
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-2-1",
+      "ref": "2 §",
+      "heading": "Määritelmät",
+      "heading_en": "Definitions",
+      "text": "Tässä asetuksessa tarkoitetaan:\n1) äänitasoeroluvullaDnT,w mittalukua, joka kuvaa huonetilojen välistä ilmaääneneristystä;\n2) askeläänitasoluvullaL ’ nT,w + CI,50-2500 mittalukua, joka kuvaa huonetilojen välistä askelääneneristystä;\n3) keskiäänitasollaLAeq,T mittalukua, joka kuvaa muun kuin tilapäisen äänen melun voimakkuutta huone- tai ulkotilassa;\n4) enimmäisäänitasollaLAFmax,T mittalukua, joka kuvaa muun kuin tilapäisen äänen ajoittaisen lyhytaikaisen melun voimakkuutta huone- tai ulkotilassa;\n5) jälkikaiunta-ajallaT mittalukua, joka kuvaa huonetilan kaiuntaisuutta;\n6) runkoäänellä rakenteen tai muun kiinteän kappaleen melua aiheuttavaa mekaanista värähtelyä;\n7) tärinällä ihmisen havaitsemaa häiritsevää mekaanista värähtelyä.",
+      "text_en": "In this decree:\n1) airborne sound level difference rating DnT,w is a measure describing the airborne sound insulation between rooms;\n2) impact sound level rating L ’ nT,w + CI,50-2500 is a measure describing the impact sound insulation between rooms;\n3) equivalent continuous sound level LAeq,T is a measure describing the intensity of noise other than temporary sound in a room or outdoor space;\n4) maximum sound level LAFmax,T is a measure describing the intensity of intermittent, short-term noise other than temporary sound in a room or outdoor space;\n5) reverberation time T is a measure describing the reverberance of a room;\n6) structure-borne sound is noise caused by mechanical vibration of a structure or other solid body;\n7) vibration is mechanical vibration that a person perceives as disturbing.",
+      "summary_en": "The decree defines the acoustic measures it uses: airborne and impact sound level ratings, equivalent and maximum sound levels, reverberation time, structure-borne sound and vibration.",
+      "keywords": [
+        "airborne sound level difference",
+        "impact sound level",
+        "equivalent sound level",
+        "maximum sound level",
+        "reverberation time",
+        "structure-borne sound",
+        "vibration",
+        "äänitasoeroluku",
+        "askeläänitasoluku",
+        "jälkikaiunta-aika",
+        "runkoääni",
+        "tärinä"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Rakennuksen ääniympäristön suunnittelu ja toteutus",
+      "heading_en": "Acoustic design and construction of a building",
+      "text": "Rakennuksen suunnittelussa ja toteutuksessa on otettava huomioon rakennuspaikan melu- ja tärinäolosuhteet.",
+      "text_en": "When a building is designed and constructed, the noise and vibration conditions of the building site must be taken into account.",
+      "summary_en": "The design and construction of a building must take the noise and vibration conditions of the building site into account.",
+      "keywords": [
+        "building site",
+        "noise conditions",
+        "vibration conditions",
+        "acoustic environment",
+        "rakennuspaikka",
+        "melu",
+        "tärinä",
+        "ääniympäristö"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Rakennuksen ääniympäristön suunnittelu ja toteutus",
+      "heading_en": "Acoustic design and construction of a building",
+      "text": "Rakennuksen ääniympäristöä koskeva olennainen tekninen vaatimus täyttyy, jos rakennuksen ääneneristys, melun- ja tärinäntorjunta sekä ääniolosuhteet suunnitellaan ja toteutetaan tilan käyttötarkoitus huomioon ottaen tämän asetuksen mukaisesti.",
+      "text_en": "The essential technical requirement for the acoustic environment of a building is met if the building's sound insulation, noise and vibration control and sound conditions are designed and constructed in accordance with this decree, taking into account the intended use of the space.",
+      "summary_en": "The acoustic requirement is met when sound insulation, noise and vibration control and sound conditions are designed and built per this decree for the space's intended use.",
+      "keywords": [
+        "essential technical requirement",
+        "acoustic environment",
+        "sound insulation",
+        "noise control",
+        "vibration control",
+        "intended use",
+        "olennainen tekninen vaatimus",
+        "ääniympäristö"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-3-3",
+      "ref": "3 § 3 mom.",
+      "heading": "Rakennuksen ääniympäristön suunnittelu ja toteutus",
+      "heading_en": "Acoustic design and construction of a building",
+      "text": "Jos 2 momentissa tarkoitettua menettelyä ei ole tarkoituksenmukaista soveltaa rakennuksen tai sen ulkopuolisen ääniympäristön erityisten ominaisuuksien, tilan erityisen käytön tai käyttäjäryhmän taikka muun erityisen syyn vuoksi, rakennushankkeeseen ryhtyvän on osoitettava rakennuslupamenettelyn yhteydessä, että suunnittelu johtaa tilan käyttötarkoitus huomioon ottaen ääneneristyksen, melun- ja tärinäntorjunnan sekä ääniolosuhteiden kannalta olennaisen teknisen vaatimuksen täyttymiseen.",
+      "text_en": "If the procedure referred to in subsection 2 is not expedient because of special characteristics of the building or of its outdoor acoustic environment, a special use of the space, a user group or another special reason, the party undertaking the building project must show in the building permit procedure that the design, taking into account the intended use of the space, leads to meeting the essential technical requirement for sound insulation, noise and vibration control and sound conditions.",
+      "summary_en": "Where the standard procedure is unsuitable for special reasons, the builder must show in the permit process that the design still meets the acoustic essential requirement.",
+      "keywords": [
+        "building permit",
+        "special reason",
+        "essential technical requirement",
+        "alternative design",
+        "rakennuslupa",
+        "erityinen syy",
+        "olennainen tekninen vaatimus",
+        "ääniympäristö"
+      ],
+      "topics": [
+        "sound",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-4-1",
+      "ref": "4 § 1 mom.",
+      "heading": "Vaatimukset uuden rakennuksen ääneneristykselle",
+      "heading_en": "Requirements for sound insulation of a new building",
+      "text": "Asuntojen sekä majoitus- ja potilashuoneiden ilma- ja askelääneneristyksen suunnittelussa ja toteutuksessa on noudatettava seuraavia lukuarvoja:\nHuonetila | Pienin sallittu äänitasoeroluku DnT,w (dB) | Suurin sallittu askeläänitasoluku L ’ nT,w + CI, 50-2500 (dB)\nAsuntojen, majoitus- tai potilashuoneiden välillä | 55 | 53\nUloskäytävästä asuin-, majoitus- tai potilashuoneeseen | 39 | 63",
+      "text_en": "In the design and construction of air-borne and impact sound insulation of dwellings and of accommodation or patient rooms, the following values must be complied with:\nRoom | Lowest permitted airborne sound level difference rating DnT,w (dB) | Highest permitted impact sound level rating L ’ nT,w + CI, 50-2500 (dB)\nBetween dwellings, accommodation or patient rooms | 55 | 53\nFrom an exit passage to a dwelling, accommodation or patient room | 39 | 63",
+      "summary_en": "Between dwellings and accommodation or patient rooms, airborne sound insulation must be at least DnT,w 55 dB and impact sound at most 53 dB; from an exit passage to such a room, DnT,w must be at least 39 dB and impact sound at most 63 dB.",
+      "keywords": [
+        "airborne sound insulation",
+        "impact sound insulation",
+        "exit passage",
+        "dwelling",
+        "accommodation room",
+        "patient room",
+        "ääneneristys",
+        "askelääneneristys",
+        "asunto",
+        "uloskäytävä",
+        "majoitushuone",
+        "potilashuone"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [
+        {
+          "what": "airborne sound level difference between dwellings and accommodation or patient rooms",
+          "comparison": ">=",
+          "value": 55,
+          "unit": "dB"
+        },
+        {
+          "what": "impact sound level between dwellings and accommodation or patient rooms",
+          "comparison": "<=",
+          "value": 53,
+          "unit": "dB"
+        },
+        {
+          "what": "airborne sound level difference from exit passage to dwelling or accommodation or patient room",
+          "comparison": ">=",
+          "value": 39,
+          "unit": "dB"
+        },
+        {
+          "what": "impact sound level from exit passage to dwelling or accommodation or patient room",
+          "comparison": "<=",
+          "value": 63,
+          "unit": "dB"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Vaatimukset uuden rakennuksen ääneneristykselle",
+      "heading_en": "Requirements for sound insulation of a new building",
+      "text": "Jos asunto, majoitus- tai potilashuone kytkeytyy rakenteellisesti tiloihin, joissa syntyy voimakasta, erityisen häiritsevää tai pienitaajuista ääntä, riittävän ääneneristyksen toteutumiseen on kiinnitettävä suunnittelussa ja toteutuksessa erityistä huomiota. Impulssimaisen, kapeakaistaisen tai pienitaajuisen melun yhden tunnin keskiäänitaso ei saa ylittää nukkumiseen tai lepoon käytettävissä huoneissa 25 desibeliä.",
+      "text_en": "If a dwelling, accommodation or patient room is structurally connected to spaces where strong, particularly disturbing or low-frequency sound is produced, special attention must be paid in design and construction to achieving adequate sound insulation. The one-hour equivalent sound level of impulsive, narrow-band or low-frequency noise must not exceed 25 dB in rooms used for sleeping or resting.",
+      "summary_en": "Sleeping and resting rooms connected to sources of strong or low-frequency noise need special sound insulation, and impulsive or low-frequency noise there must not exceed 25 dB one-hour equivalent level.",
+      "keywords": [
+        "low-frequency noise",
+        "impulsive noise",
+        "narrow-band noise",
+        "sleeping room",
+        "25 dB",
+        "structure-borne sound",
+        "matalataajuinen melu",
+        "impulssimainen melu",
+        "makuuhuone",
+        "ääneneristys"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [
+        {
+          "what": "one-hour equivalent sound level of impulsive, narrow-band or low-frequency noise in sleeping or resting rooms",
+          "comparison": "<=",
+          "value": 25,
+          "unit": "dB"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-4-3",
+      "ref": "4 § 3 mom.",
+      "heading": "Vaatimukset uuden rakennuksen ääneneristykselle",
+      "heading_en": "Requirements for sound insulation of a new building",
+      "text": "Opetus-, kokous-, ruokailu-, hoito-, harrastus-, liikunta- ja toimistotilojen ääneneristys on suunniteltava ja toteutettava tilan käyttötarkoitus huomioon ottaen siten, että niissä saavutetaan toimintaa vastaava riittävän hyvä ääniympäristö. Sisäänvedettyjen parvekkeiden, viherhuoneiden ja kattoterassien ääneneristys on suunniteltava ja toteutettava siten, että ääniympäristöstä ei aiheudu asukkaille haittaa.",
+      "text_en": "The sound insulation of teaching, meeting, dining, care, hobby, sports and office premises must be designed and constructed, taking into account the intended use of the space, so that they achieve a sufficiently good acoustic environment suited to their activity. The sound insulation of recessed balconies, greenhouses and roof terraces must be designed and constructed so that the acoustic environment causes no harm to residents.",
+      "summary_en": "Teaching, meeting, dining, care, hobby, sports and office spaces need an acoustic environment suited to their use, and recessed balconies, greenhouses and roof terraces must not disturb residents.",
+      "keywords": [
+        "teaching premises",
+        "meeting room",
+        "office",
+        "recessed balcony",
+        "greenhouse",
+        "roof terrace",
+        "opetustila",
+        "kokoustila",
+        "toimistotila",
+        "kattoterassi",
+        "viherhuone",
+        "sisäänvedetty parveke"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-5-1",
+      "ref": "5 § 1 mom.",
+      "heading": "Vaatimukset uuden rakennuksen melun- ja tärinäntorjunnalle",
+      "heading_en": "Requirements for noise and vibration control of a new building",
+      "text": "Rakennuksen, jossa on asuntoja tai majoitus- tai potilashuoneita, ulkovaipan ääneneristys on suunniteltava ja toteutettava melualueilla siten, että ääneneristys on vähintään 30 desibeliä ja impulssimaisen, kapeakaistaisen tai pienitaajuisen melun keskiäänitaso ei ylitä nukkumiseen tai lepoon käytettävissä huoneissa 25 desibeliä, ellei asemakaavasta muuta johdu.",
+      "text_en": "In a building with dwellings or accommodation or patient rooms, the sound insulation of the external envelope must be designed and constructed in noise areas so that it is at least 30 dB, and so that the equivalent sound level of impulsive, narrow-band or low-frequency noise does not exceed 25 dB in rooms used for sleeping or resting, unless otherwise results from the local detailed plan.",
+      "summary_en": "In noise areas, the external envelope of a building with dwellings or accommodation or patient rooms must insulate at least 30 dB, and impulsive or narrow-band noise must not exceed 25 dB in sleeping rooms, unless the detailed plan says otherwise.",
+      "keywords": [
+        "noise area",
+        "external envelope",
+        "facade sound insulation",
+        "30 dB",
+        "25 dB",
+        "detailed plan",
+        "melualue",
+        "ulkovaippa",
+        "asemakaava",
+        "julkisivu"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [
+        {
+          "what": "sound insulation of the external envelope in noise areas",
+          "comparison": ">=",
+          "value": 30,
+          "unit": "dB"
+        },
+        {
+          "what": "equivalent sound level of impulsive, narrow-band or low-frequency noise in sleeping or resting rooms",
+          "comparison": "<=",
+          "value": 25,
+          "unit": "dB"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-5-2",
+      "ref": "5 § 2 mom.",
+      "heading": "Vaatimukset uuden rakennuksen melun- ja tärinäntorjunnalle",
+      "heading_en": "Requirements for noise and vibration control of a new building",
+      "text": "Rakennuksen hissien ja taloteknisten laitteiden asennukset on suunniteltava ja toteutettava siten, että niiden synnyttämä äänitaso ei ylitä asuntojen asuinhuoneissa tai oleskelutiloissa, majoitus- tai potilashuoneissa, saman tai läheisten asuinrakennusten avattavien ikkunoiden tai tuuletusluukkujen ulkopuolella, oleskeluun käytettävillä parvekkeilla eikä virkistykseen käytettävillä piha- tai oleskelualueilla seuraavia lukuarvoja:\nHuone- ja ulkotila | Jatkuva laajakaistainen ääni | Impulssimainen tai kapeakaistainen ääni\n | Keskiäänitaso LAeq,T (dB) | Enimmäisäänitaso LAFmax,T (dB) | Keskiäänitaso LAeq,T (dB) | Enimmäisäänitaso LAFmax,T (dB)\nAsuin-, majoitus- tai potilashuone | 28 | 33 | 25 | 30\nAsunnon keittiö tai rakennuksen harrastustila | 33 | 38 | 30 | 35\nPorrashuone tai uloskäytävä | 38 | 43 | 35 | 40\nUlkotila | 45 | 50 | 40 | 45",
+      "text_en": "Lifts and building services installations must be designed and constructed so that the sound level they produce does not exceed the following values outside openable windows or ventilation hatches of residential rooms or living spaces of dwellings, of accommodation or patient rooms, of the same or nearby residential buildings, on balconies used for staying, and in yard or recreation areas used for recreation:\nRoom and outdoor space | Continuous broadband sound | Impulsive or narrow-band sound\n | Equivalent sound level LAeq,T (dB) | Maximum sound level LAFmax,T (dB) | Equivalent sound level LAeq,T (dB) | Maximum sound level LAFmax,T (dB)\nResidential, accommodation or patient room | 28 | 33 | 25 | 30\nKitchen of a dwelling or hobby space of a building | 33 | 38 | 30 | 35\nStairwell or exit passage | 38 | 43 | 35 | 40\nOutdoor space | 45 | 50 | 40 | 45",
+      "summary_en": "Lift and building services noise outside openable windows, balconies and yards must stay within set levels, for example 28 dB LAeq and 33 dB LAFmax for continuous broadband sound in residential rooms.",
+      "keywords": [
+        "lift noise",
+        "building services noise",
+        "LAeq",
+        "LAFmax",
+        "openable window",
+        "balcony",
+        "yard",
+        "hissi",
+        "taloteknisen laitteen melu",
+        "avattava ikkuna",
+        "tuuletusluukku",
+        "parveke"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [
+        {
+          "what": "lift and building services sound level, continuous broadband, residential room (LAeq)",
+          "comparison": "<=",
+          "value": 28,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, continuous broadband, residential room (LAFmax)",
+          "comparison": "<=",
+          "value": 33,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, impulsive or narrow-band, residential room (LAeq)",
+          "comparison": "<=",
+          "value": 25,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, impulsive or narrow-band, residential room (LAFmax)",
+          "comparison": "<=",
+          "value": 30,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, continuous broadband, kitchen or hobby space (LAeq)",
+          "comparison": "<=",
+          "value": 33,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, continuous broadband, kitchen or hobby space (LAFmax)",
+          "comparison": "<=",
+          "value": 38,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, continuous broadband, stairwell or exit passage (LAeq)",
+          "comparison": "<=",
+          "value": 38,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, continuous broadband, stairwell or exit passage (LAFmax)",
+          "comparison": "<=",
+          "value": 43,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, continuous broadband, outdoor space (LAeq)",
+          "comparison": "<=",
+          "value": 45,
+          "unit": "dB"
+        },
+        {
+          "what": "lift and building services sound level, continuous broadband, outdoor space (LAFmax)",
+          "comparison": "<=",
+          "value": 50,
+          "unit": "dB"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-5-3",
+      "ref": "5 § 3 mom.",
+      "heading": "Vaatimukset uuden rakennuksen melun- ja tärinäntorjunnalle",
+      "heading_en": "Requirements for noise and vibration control of a new building",
+      "text": "Rakennuksen, jossa on asuntoja tai majoitus- tai potilashuoneita, runkoääni- ja tärinäeristys sekä opetus-, kokous-, ruokailu-, hoito-, harrastus-, liikunta- ja toimistotilojen melun- ja tärinäntorjunta on suunniteltava ja toteutettava tilan käyttötarkoitus huomioon ottaen.",
+      "text_en": "In a building with dwellings or accommodation or patient rooms, structure-borne sound and vibration insulation, and noise and vibration control for teaching, meeting, dining, care, hobby, sports and office premises, must be designed and constructed taking into account the intended use of the space.",
+      "summary_en": "Structure-borne sound and vibration insulation, and noise and vibration control for dwellings and for teaching, office and similar premises, must be designed for the intended use.",
+      "keywords": [
+        "structure-borne sound",
+        "vibration insulation",
+        "noise control",
+        "vibration control",
+        "intended use",
+        "runkoääni",
+        "tärinäeristys",
+        "melun torjunta",
+        "tärinäntorjunta"
+      ],
+      "topics": [
+        "sound",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-6-1",
+      "ref": "6 § 1 mom.",
+      "heading": "Vaatimukset uuden rakennuksen ääniolosuhteille",
+      "heading_en": "Requirements for sound conditions of a new building",
+      "text": "Rakennuksen, jossa on potilashuoneita tai opetus-, kokous-, ruokailu-, hoito-, harrastus-, liikunta- tai toimistotiloja, ääniolosuhteet on suunniteltava ja toteutettava siten, että tilassa saavutetaan sen käyttötarkoitus huomioon ottaen riittävä puheenerotettavuus.",
+      "text_en": "In a building with patient rooms or with teaching, meeting, dining, care, hobby, sports or office premises, the sound conditions must be designed and constructed so that sufficient speech intelligibility is achieved in the space, taking its intended use into account.",
+      "summary_en": "Patient rooms and teaching, meeting, dining, care, hobby, sports and office spaces must have sufficient speech intelligibility for their intended use.",
+      "keywords": [
+        "speech intelligibility",
+        "sound conditions",
+        "patient room",
+        "teaching room",
+        "office",
+        "puheenerotettavuus",
+        "ääniolosuhteet",
+        "potilashuone",
+        "opetustila"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-6-2",
+      "ref": "6 § 2 mom.",
+      "heading": "Vaatimukset uuden rakennuksen ääniolosuhteille",
+      "heading_en": "Requirements for sound conditions of a new building",
+      "text": "Rakennus, jossa on asuntoja tai majoitus- tai potilashuoneita, on suunniteltava ja toteuttava siten, että porrashuoneen ja uloskäytävän jälkikaiunta-aika on enintään 1,3 sekuntia. Virkistykseen käytettävät rakennuksen piha- ja oleskelualueet on suunniteltava ja toteutettava siten, että melun keskiäänitaso ei ylitä 55 desibeliä kello 7–22 ja viherhuoneet siten, että melun keskiäänitaso ei ylitä 45 desibeliä kello 7–22, ellei asemakaavasta muuta johdu.",
+      "text_en": "A building with dwellings or accommodation or patient rooms must be designed and constructed so that the reverberation time of its stairwell and exit passage is at most 1.3 seconds. The building's yard and recreation areas used for recreation must be designed and constructed so that the equivalent sound level of noise does not exceed 55 dB between 7 and 22 o'clock, and greenhouses so that it does not exceed 45 dB between 7 and 22 o'clock, unless otherwise results from the local detailed plan.",
+      "summary_en": "Stairwells and exit passages must have a reverberation time of at most 1.3 s; yards and recreation areas must stay at or below 55 dB and greenhouses at or below 45 dB equivalent noise between 07:00 and 22:00, unless the detailed plan says otherwise.",
+      "keywords": [
+        "reverberation time",
+        "1.3 s",
+        "stairwell",
+        "exit passage",
+        "yard",
+        "greenhouse",
+        "55 dB",
+        "45 dB",
+        "jälkikaiunta-aika",
+        "porrashuone",
+        "uloskäytävä",
+        "piha-alue"
+      ],
+      "topics": [
+        "sound",
+        "outdoor"
+      ],
+      "limits": [
+        {
+          "what": "reverberation time of stairwell and exit passage",
+          "comparison": "<=",
+          "value": 1.3,
+          "unit": "s"
+        },
+        {
+          "what": "equivalent sound level in yard and recreation areas used for recreation, 07-22",
+          "comparison": "<=",
+          "value": 55,
+          "unit": "dB"
+        },
+        {
+          "what": "equivalent sound level in greenhouses, 07-22",
+          "comparison": "<=",
+          "value": 45,
+          "unit": "dB"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-7-1",
+      "ref": "7 § 1 mom.",
+      "heading": "Korjausrakentaminen, muutostyö ja rakennuksen käyttötarkoituksen muutos",
+      "heading_en": "Repair work, alteration work and change of use of a building",
+      "text": "Rakennuksen ääneneristystä, melun- ja tärinäntorjuntaa, ääniolosuhteita sekä virkistykseen käytettävien rakennuksen piha- ja oleskelualueiden sekä oleskeluun käytettävien parvekkeiden meluntorjuntaa ja ääniolosuhteita ei saa rakennuksen korjaus- tai muutostyössä heikentää.",
+      "text_en": "In repair or alteration work on a building, the building's sound insulation, noise and vibration control and sound conditions, and the noise control and sound conditions of the yard and recreation areas used for recreation and of balconies used for staying, must not be weakened.",
+      "summary_en": "Repair and alteration work must not weaken the building's sound insulation, noise and vibration control, sound conditions, or the noise control of its yards and staying balconies.",
+      "keywords": [
+        "repair work",
+        "alteration work",
+        "sound insulation",
+        "noise control",
+        "sound conditions",
+        "korjausrakentaminen",
+        "muutostyö",
+        "ääneneristys",
+        "melun torjunta",
+        "ääniolosuhteet"
+      ],
+      "topics": [
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-7-2",
+      "ref": "7 § 2 mom.",
+      "heading": "Korjausrakentaminen, muutostyö ja rakennuksen käyttötarkoituksen muutos",
+      "heading_en": "Repair work, alteration work and change of use of a building",
+      "text": "Rakennuksen käyttötarkoitusta muutettaessa rakennuksen ääneneristys, melun- ja tärinäntorjunta ja ääniolosuhteet sekä virkistykseen käytettävien rakennuksen piha- ja oleskelualueiden sekä oleskeluun käytettävien parvekkeiden meluntorjunta ja ääniolosuhteet on suunniteltava ja toteutettava siten, että ääniympäristöstä ei aiheudu asukkaille haittaa.",
+      "text_en": "When the intended use of a building is changed, the building's sound insulation, noise and vibration control and sound conditions, and the noise control and sound conditions of the yard and recreation areas used for recreation and of balconies used for staying, must be designed and constructed so that the sound environment causes no harm to residents.",
+      "summary_en": "On a change of use, sound insulation, noise and vibration control and sound conditions must be designed so that the sound environment causes residents no harm.",
+      "keywords": [
+        "change of use",
+        "käyttötarkoituksen muutos",
+        "sound insulation",
+        "noise control",
+        "sound conditions",
+        "residents",
+        "ääneneristys",
+        "melun torjunta",
+        "ääniympäristö"
+      ],
+      "topics": [
+        "sound",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2018.",
+      "text_en": "This decree enters into force on 1 January 2018.",
+      "summary_en": "The decree took effect on 1 January 2018.",
+      "keywords": [
+        "entry into force",
+        "1 January 2018",
+        "voimaantulo",
+        "tammikuuta 2018"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-796-2017-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Ennen tämän asetuksen voimaantuloa vireille tulleisiin hankkeisiin sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "Projects that were initiated before this decree enters into force are governed by the provisions that were in force when this decree entered into force.",
+      "summary_en": "Projects started before the decree took effect follow the rules that were in force when it took effect.",
+      "keywords": [
+        "transitional provision",
+        "projects started before entry into force",
+        "vireille tulleet hankkeet",
+        "siirtymäsäännös",
+        "voimaantulo"
+      ],
+      "topics": [
+        "general",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}
