@@ -3,8 +3,8 @@
 On the night of 13-14 November the team ran about a dozen experiment tracks on the CubiCasa5K raster sheets (the
 part of the Stoa dataset where we read a drawing from pixels). This page lists every arm worth naming, what it
 changed, what it scored, whether it shipped, and what it cost. It is the "how we improved" record that
-[GOLDEN.md](GOLDEN.md) points at. State as of 2026-11-14 07:10; tracks still run until about 10:15, and the numbers
-below get refreshed from the final logs.
+[GOLDEN.md](GOLDEN.md) points at. Final as of 2026-11-14 09:15: every track is closed (the last arm, integ-5, closed at
+08:59) and no GPU machine is running.
 
 ## Protocol
 
@@ -20,7 +20,11 @@ below get refreshed from the final logs.
 - **References on val.** Gold answers 100.0%; the train prior (the answer prior refit on train questions only) 55.9%.
   The prior is strong on some room families (kitchen 96.2%, bathroom 86.8%) and weak on elements (door 8.6%, window
   14.1%).
-- **Test is for the one arm we ship, read once.** It has not been read yet (see "Gaps").
+- **Test is for the one arm we ship, read once.** The CubiCasa test split was read once for the shipped config C (07:47,
+  `stoa_eval ab --part test --certify`, recorded in `test-certified.json`): 85.0% exact (5708/6718), 95% CI [83.4,
+  86.5] over images, against 56.3% for the train prior (+28.7 pp [+26.7, +30.8]). Nothing was tuned after it. One
+  deviation, stated plainly: the segmentation track scored its arm Bl on the test split at 06:01 (`test_Bl.log`),
+  before that read and against the read-once rule. Bl did not ship and no decision used that run.
 - **Golden v2 is the end-to-end look, never a tuning set.** Golden v2's 79 CubiCasa files (69 dev, 10 held out) are
   scored with the whole pipeline, once per frozen config, and nothing is picked from them.
 - **Tuned on val means optimistic.** Thresholds, family choices and prompts were picked on val in most tracks. Where
@@ -74,7 +78,7 @@ Full schedule (val, family exact; differences are paired against the named paren
 | --- | --- | --- | --- | --- | --- |
 | C-yolo26s | YOLO26 S, 1024 px | 62.7 / 44.7 | n/a (every family above the prior except shower+bathtub, -4.1 pp, p 0.07) | first leader | 0.27 |
 | A-rfdetr-s | RF-DETR S, 1024 px | 60.6 / 49.7 | -2.2 [-3.5, -0.9] vs C-yolo26s | **no-ship**; windows +5.1 pp, sinks -11.1 pp | 1.03 |
-| C-yolo26s-1536 | S at 1536 px | 64.9 / 50.5 | +1.9 [+0.9, +2.9] vs C-yolo26s | **shipped** in the QA build (cut-off 05:25) | 0.60 |
+| C-yolo26s-1536 | S at 1536 px | 64.9 / 50.5 | +1.9 [+0.9, +2.9] vs C-yolo26s | shipped in the QA build (cut-off 05:25); replaced by L in config C | 0.60 |
 | C-yolo26m | M, 1024 px | 68.5 / 51.3 | +2.7 [+1.7, +3.6] vs C-yolo26s; +0.7 [-0.2, +1.8] vs 1536 | wins over S; next-checkpoint candidate | 0.9 |
 | C-yolo26m-seed1 | the M recipe, seed 1 | 64.5 / 47.9 | -1.6 [-2.5, -0.6] vs M seed 0 | the measure of seed noise | 0.9 |
 | C-yolo26l | L, 1024 px, one view | 71.3 / 52.9 | +1.0 [+0.1, +1.9] vs M; **+1.8 [+0.7, +2.8] vs shipped 1536** | best one-view checkpoint | 1.1 |
@@ -119,7 +123,7 @@ boxes whose centre falls outside it are dropped. "Per-plan windows" re-run the d
 | perplan-multi-v8 | the same with eight views | +0.8 [+0.1, +1.5] vs C-yolo26s-v8 | - | win; shower+bath +4.1 pp | 0 |
 | perplan-cap, perplan-multishrunk-v8 | cap the window scale; also window large one-plan sheets | -0.5 [-1.3, +0.2]; -0.1 [-0.4, +0.3] | - | no-ship | 0 |
 | R1-perplan-multi-v8 | region filter plus per-plan windows plus eight views | **+1.3 [+0.6, +2.1] vs C-yolo26s-v8** | 1006 vs 966 for C-yolo26s-v8 (door 68 to 74 of 104, window 64 to 74 of 154, sink 116 to 132 of 150) | ship candidate at 1024 | 0 |
-| L1536-R1 | region filter on the shipped 1536 detector | +0.5 [+0.1, +0.9] vs C-yolo26s-1536 | - | **shipped** (`region:C-yolo26s-1536`) | 0 |
+| L1536-R1 | region filter on the shipped 1536 detector | +0.5 [+0.1, +0.9] vs C-yolo26s-1536 | - | shipped in the QA build (`region:C-yolo26s-1536`); replaced by config C | 0 |
 | L1536-perplan-multi | per-plan windows at 1536 | -0.0 [-0.6, +0.5] | - | no-ship: 1536 already resolves multi-plan sheets | 0 |
 
 The region filter is off by default in the backend and switched on by `RASTER_COMPONENTS`. Its val region IoU is 0.945
@@ -146,7 +150,7 @@ the detector's count, and as a confidence signal for the gate. Leakage caveat ap
 | **F1main-v8** | the same on the eight-view detector, wc from the OCR track's Gemini reader | **83.2%** (5630/6764); +26.8 [+25.3, +28.2] vs C-yolo26s-v8 | 0 | best single val arm in the leaderboard |
 | G6-flash | Gemini points at classes, count the points | -6.3 [-7.8, -4.8] vs detector; -3.7 vs the fine-tuned VLM B1 | 1.001 | no-ship: undercounts |
 | G6-er2, G6-flash-t768 | robotics-ER model; 768 px tiles | no signal at 5 and 49 pages | 0.036, ~0.2 | killed |
-| S1536 | swap on shower+bath and sauna only, on the runtime detector (1536 plus region) | +0.6 [+0.2, +0.9] vs L1536-R1 (families picked on the same val) | 0 (cached replies) | **shipped** as `decisions-s1536` |
+| S1536 | swap on shower+bath and sauna only, on the runtime detector (1536 plus region) | +0.6 [+0.2, +0.9] vs L1536-R1 (families picked on the same val) | 0 (cached replies) | shipped as `decisions-s1536`; kept in config C on the L detector |
 
 As a gate signal G1main's P(detector's answer) is the best measured: failure AUROC 0.871 against 0.540 for the
 detector's own count probability and 0.715 for agreement with a second arm; 95% accuracy at 53% coverage against 0%. It
@@ -307,6 +311,7 @@ decides which boxes to keep. Proposal recall is 97.6% of doors and 97.7% of wind
 | W2-geo, W3-noscore | geometry blend; verifier without the detector score | -0.1 [-0.8, +0.5]; -3.4 [-4.5, -2.4] | no-ship |
 | windows: probability counting, eight-view fusion, zoomed tiles | counting rules and views for windows | tiles -0.5 [-1.1, +0.1]; window row up to -11.7 | no-ship |
 | pane splits | analysis of 182 wrong window counts | splits explain 26% of the error units | stopped: under 30% |
+| per-page window convention | predict whether a page marks windows per pane or whole, from the page and the detector's boxes | val AUROC 0.702 (kill line 0.75); 0.585 from the style subset alone | killed: the convention is mixed within pages (19% of gold windows touch a collinear neighbour, most per-pane pages are mixed), and no page-level rule predicts it |
 
 Why nothing wins: the detector's score is already the best judge of keep against drop (AUROC 0.97 for doors on 1024
 candidates); a verifier fitted on 188 val pages per fold cannot beat a detector trained on 3,007. The cascade did give a
@@ -336,7 +341,8 @@ fixes light desks (hard light-desk IoU50 0.005 to 0.279). UVDoc alone is the wor
 | PSy-photostyle | clean plus photo plus style copies | clean -1.0 [-2.0, -0.1] vs leader; hard behind R3 +4.4 [+3.2, +5.6]; within 1 pp of its own clean | fails "must not lose on clean"; fine behind a per-input switch | in 3.05 |
 
 Golden v2 is clean scans, so Cy-photo scores like the clean arm there (2649 against 2647). The value is on photos, which
-golden does not test. On 30 real phone photos of evacuation plans (no gold, judged by eye), the rectifier route was R1c on 8,
+golden does not test. A live test later (integ-5, below the table in section 13) compared the photo switch with the
+shipped config and found it no better, so it stays off. On 30 real phone photos of evacuation plans (no gold, judged by eye), the rectifier route was R1c on 8,
 UVDoc on 10 and untouched on 12; the detector works on plans drawn like CubiCasa and fails on escape-plan symbols (fire
 extinguishers read as doors) and on legend panels read as extra plans, so counts on real escape plans are not
 trustworthy. Total about 3.05 EUR of a 20 EUR cap (one machine, 4.0 h); the per-arm cost is inside that, not logged separately.
@@ -403,14 +409,16 @@ against the Gemini twin of each step.
 | counts and swap | G1main-E1 (walk), E1j (joint), E2j, E3j | logprob walk, then one joint reply | E1j -3.8 [-4.8, -2.8] vs F1main-v8; E2j +0.5 vs E1; E3j -0.2 vs E2 | the swap never helps on E1; E2 joint is the EU choice | 0.05-0.4 EUR |
 | gate | E1 / E2 / E3 | AUROC 0.772-0.808 | Gemini 0.829 | trails by 0.02-0.05 | 0 |
 | file kind | kind-E1 | Qwen3.6, letters A-F | 6-way .980 vs .946 (+3.4 [+0.7, +6.7]) | ties or beats; needs a photo threshold near 0.7 | ~0.1 EUR |
+| file kind | kind-E2 | Qwen3.8-27B, as kind-E1 | 6-way .584, -36.2 pp [-45.0, -27.5] vs Gemini; 0 of 30 photos flagged | unusable: kind needs E1 | ~0.1 EUR |
+| rooms | E3-rooms-p1-think | E3 with thinking on, 266 of 376 pages | +0.2 [-0.6, +0.9] vs E3-rooms-p1 on the same pages | not worth about 15x compute | ~1.7 EUR |
 | **all, EU-only** | EU-E2p vs GEM-mirror-reg | detector + swap on E2j + E2 rooms with region mask | **82.0% vs 83.8%, -1.9 [-2.8, -1.0]** | **behind a setting** (`ROOMS_PROVIDER`, `DECISIONS_PROVIDER`, `KIND_PROVIDER` = gemini or eu); not the default | see below |
 
 Cost per 1,000 pages on an A100 at 2.14 EUR/h: rooms 1.43 EUR (E2), counts 0.21 EUR (E1 joint), file kind 0.17 EUR,
 against about 6.7 USD for the three Gemini calls. A dedicated server costs its hourly price idle, so it makes sense
 started for a session (cold start about 8 minutes). Three spot machines were evicted before the endpoint was stable;
-the E3 machine ran out of disk once (150 GB disk for 180 GB of weights). Spend so far: about 3.3 EUR for the E1 and E2 machines and 0.6 for the first E3 box, plus
-the 4-GPU E3 retry (5.62 EUR/h spot, 90-minute box, so at most 8.4 EUR); the ledger had no end line for that machine at
-07:02. Reproducibility caveat: batched FP8 decoding is not bit-reproducible, so two calls on one page can differ;
+the E3 machine ran out of disk once (150 GB disk for 180 GB of weights). Final spend: about 10.2 EUR of a 40 EUR cap (E1 and E2 machines about 3.3, the first E3 box 0.6, the 4-GPU E3 retry 6.0
+for 1.07 h at 5.62 EUR/h, the kind-E2 box 0.36); all machines deleted. The route ships behind a setting (PR #103, off by
+default). Reproducibility caveat: batched FP8 decoding is not bit-reproducible, so two calls on one page can differ;
 the disk cache keeps a page stable once read. Verda's own DeepSeek endpoint was never tested: it needs an
 account-level enable that nobody had done.
 
@@ -436,6 +444,42 @@ pick" it was made from golden and is for reference only.
 | C-yolo26l-v8 + G4-regpred (precomputed) | 2719 | 1142 | not a val pick over M (+0.6 [-0.2, +1.4]) |
 | gold as the arm (dev gold for 69 of 79) | 2795 | 1250 | upper bound |
 
+Config C came from a val comparison through the backend runtime on the 376 val pages (`integ.md`, Task 3), with the
+rooms the same in every arm (A = `decisions-s1536:region:C-yolo26s-1536`, B = `detector:C-yolo26l`, C = the swap on
+the L detector):
+
+| pair | A | B | B - A, 95% interval | verdict |
+| --- | --- | --- | --- | --- |
+| A vs B | 85.5% | 86.1% | +0.6 [-0.4, +1.6] | no difference |
+| **A vs C** | 85.5% | **86.5%** | **+1.1 [+0.1, +2.0]** | **C better** |
+| B vs C (the swap on L) | 86.1% | 86.5% | +0.5 [+0.2, +0.8] | C better; shower+bathtub +4.7 [+1.8, +7.9] |
+
+All three arms use all-val thresholds, so these are in-sample on val for each alike. Golden v2 (a look): A 2701, B 2707,
+C 2713 with the precomputed rooms.
+
+**Config C on test, read once (07:47): 85.0% exact (5708/6718), 95% CI [83.4, 86.5]; train prior 56.3%.** Per family:
+door 73.3, plan 99.2, balcony 91.5, bathroom 89.8, bedroom 77.6, kitchen 91.5 (prior 95.0, -3.5 [-7.0, +0.0]), wc 96.7,
+sauna 98.1, shower+bathtub 82.3, sink 85.7, toilet 93.1, window 53.7. Val was 86.5%, so the test number is 1.5 pp
+lower, the size expected from all-val fits. Test needed one real Gemini pass: about 2.47 USD for 745 calls.
+
+**Series point 5fa8464 (2026-11-14 08:20): 2709/2948 (91.9%; dev 91.8%, holdout 92.5%).** It is the first point with the
+demo's rooms read at runtime (`regionrooms`, replies from the pixel-keyed cache) and the first with config C. 210 of the 239
+misses are CubiCasa raster questions (1132/1342); the other routes score 1577/1606. Against the earlier point 2e1c0b0 (2701):
+the runtime rooms instead of the precomputed reads cost -4 (balcony 46 to 50 of 50, bedroom 72 to 74, bathroom 80 to 72,
+wc 72 to 70), and config C's detector added +12 (door 78 to 80 of 104, sink 120 to 126, toilet 134 to 140, window 72 to
+70). A page read again can give other rooms, so a re-read can move this number.
+
+**Sure flag (PR #98).** The gate was refit on C's val run (plans open at 0.0144, door, sink, toilet, window and
+shower+bathtub at 0.771, rooms shut) and certified on the same single test run: of the plans marked sure (374 of 376), at
+least 96.2% have every sure answer exact (95% bound); the gate opens on 99.5% of plans (`golden.md` golden-19).
+
+**Photo switch (PR #95, default off).** Live through the API with the R3 rectifier, against config C on the R3 photo val sets
+(only `photo_plan` photos differ: 235 hard, 245 medium of 376): PSy as wired is -1.1 pp [-2.5, +0.2] on hard and -2.3
+[-3.5, -1.1] on medium; behind the swap -0.4 [-1.7, +0.9] and -1.5 [-2.6, -0.5]. The earlier +1.5 and +4.3 compared PSy with the
+old leader, not with C. On 30 real photos (no gold) it read better on 5 of 10 looked at and worse on 1, but those are
+evacuation signs. Verdict: stays off (`integ.md` Task 5). Same task found a race in the reply caches' fixed temp name
+(6 of 752 photos set aside); fixed in PR #114.
+
 The pipeline series (`python -m stoa_eval series`, each point a clean export of a merge commit) shows the same story at
 the whole-product level: 74.7% before any raster reader, 91.6% at 5331dab (2026-11-14 05:02), with CubiCasa Part 1
 element F1 85.4%. The rooms in that point were precomputed Gemini replies; at runtime they come from `regionrooms`.
@@ -446,16 +490,18 @@ element F1 85.4%. The rooms in that point were precomputed Gemini replies; at ru
 
 All of it is selected by settings, so each piece can be switched off:
 
-- **Elements and plans:** YOLO26 S at 1536 px, one view, with the U-Net region filter (`region:C-yolo26s-1536`), then
-  Gemini's count swap on shower+bathtub and sauna only (`decisions-s1536`). Thresholds are the all-val ones.
-- **Rooms:** the Gemini whole-page reader (G4) with rooms outside the predicted flat dropped (`regionrooms`). Kitchen
+- **Elements and plans (config C, PR #102):** YOLO26 L at 1024 px, one view, with Gemini's count swap on shower+bathtub
+  and sauna only (`decisions-s1536:detector:C-yolo26l`). The region filter is dropped for elements because its
+  thresholds were fit on the 1536 detector. Thresholds are the all-val ones. Single test read: 85.0% [83.4, 86.5].
+- **Sure flag (PR #98):** the gate certified on that test run, at least 96.2% of sure plans exact.
+- **Rooms:** the Gemini whole-page reader (G4) with rooms outside the region model's predicted flat dropped (`regionrooms`). Kitchen
   questions stay with the prior, which beats every reader there.
 - **Ingest signal:** Gemini's photo flag at P >= 0.9, with the probe as the fallback if the call fails.
 - **Scale:** `RASTER_SCALE=priors` (door-width prior, page-size prior), off by default; estimates are always labelled.
-- **Behind a setting, not the default:** the EU open-model route (-1.9 pp on val), the eight-view and region-window
-  detector (needs the runtime to read eight views), the larger detectors.
-- **Next checkpoint candidate:** YOLO26 L at 1024 px with eight views (+2.8 pp [+1.8, +3.8] against the shipped arm on
-  val), or M for half the compute (+2.2 pp). Region's thresholds have to be re-tuned for it.
+- **Behind a setting, default off:** the EU open-model route (PR #103, -1.9 pp [-2.8, -1.0] on val), the photo switch
+  (PR #95, no better than C on photos with gold), the eight-view and region-window detector (the runtime reads one view).
+- **Not built:** eight views of L (+2.8 pp [+1.8, +3.8] against the old shipped 1536 arm on val; precomputed on golden at
+  2719 with the precomputed rooms), which needs the runtime to read eight views.
 
 ## What didn't work and why
 
@@ -473,7 +519,8 @@ All of it is selected by settings, so each piece can be switched off:
   inside-plan and inside-room box filters on the detector did nothing; the room class added to the detector lost 0.3 pp.
 - **Window box merging and splitting.** Merging panes loses; splitting long components by length gains nothing; a
   perfect per-sheet choice of pane or whole-window granularity would be worth at most 7 pp of windows. The gold changes
-  convention from sheet to sheet, and nothing post-hoc fixes that. Windows stayed at about 45-55% in every track.
+  convention from sheet to sheet, and nothing post-hoc fixes that. Windows stayed at about 45-55% in every track. The last attempt, a page-level predictor of the labelling convention,
+  reached val AUROC 0.702 and was killed below its 0.75 line.
 - **Resolution and size.** 1536 px helped S and not M or L; 2048 px lost; X over L gained nothing; a 72-pass L was not
   run, since val mAP was still rising only slowly.
 - **Seeds and recipe noise.** A second seed of the same recipe moved the score by 1.6 pp. Several "wins" and "losses"
@@ -486,19 +533,19 @@ All of it is selected by settings, so each piece can be switched off:
   95% bound needs about 60 plans per error. Elements and rooms stay shut, because Gemini is at least 0.95 sure of a few
   wrong counts.
 
-## Gaps and caveats (state at 07:10)
+## Gaps and caveats (final)
 
-- **Test has not been read.** `stoa_eval ab --part test --certify` was not run for any arm (no `test-certified.json`).
-  seg's Bl weights were run on test (inference only, no `ab` score). Every val number above comes from the best of many
-  checkpoints, thresholds and family choices on the same 376 pages, so the val numbers are optimistic. The final
-  shipped arm gets its one test run before the freeze.
+- **Test.** Read once for config C (85.0% [83.4, 86.5]). Every other val number above comes from the best of many
+  checkpoints, thresholds and family choices on the same 376 pages and is optimistic. The segmentation track's Bl test
+  run (06:01) broke the read-once rule; it did not ship and no decision used it. Per-class intervals on test are wide for
+  rare classes (29 bathtubs, 14 saunas).
 - **Missing intervals.** Rows with no interval are marked as such or give per-family exact rates from the log: the first
-  OCR and seg rows, the cvx template-matching rows (task closed before `ab` ran), the pass-12 detector rows, and the
-  per-arm photo and EU costs. Where a number has only a question-level p (McNemar), it is marked and not used.
-- **Missing costs.** The D-FINE arm and the photo arms have no per-arm cost (photo: 3.05 EUR for the whole track); the EU 4-GPU retry has no end line in the
-  ledger; areas and integ cost nothing; the hosted-model calls in decide, decide2, ocr, agent total about 19.2 USD (1.81,
-  0.97, 3.1, 13.31). GPU rental recorded in the ledger totals about 49 EUR before the E3 retry (detector 20.2, seg 8.3,
-  vlm 7.6, photo 3.05, rl 2.2, serve 1.8, cvx 1.6, region 0.2, ocr 0.6, eu 3.9).
+  OCR and seg rows, the cvx template-matching rows (task closed before `ab` ran) and the pass-12 detector rows. Where a number has only a question-level p (McNemar), it is marked and not used.
+- **Missing costs.** The D-FINE arm and the photo arms have no per-arm cost (photo: 3.05 EUR for the whole track); areas costs nothing. GPU rental, summed from the ledger's
+  per-track lines (the ledger has no grand total), is about 55.8 EUR (detector 20.2, seg 8.3, vlm 7.6, eu 10.2, photo 3.05,
+  rl 2.2, serve 1.8, cvx 1.6, ocr 0.6, region 0.2); the Verda balance was 146.24 EUR at 08:58. Hosted-model calls: decide 1.81
+  USD, decide2 0.97, ocr about 3.1, agent 13.31, the test read of config C about 2.47, the live photo tests about 0.68 (about
+  22.4 USD in all; the integ golden runs reuse cached replies).
 - **Where logs disagree.** (1) The leaderboard and the track logs score different denominators (see "How to read the
   numbers"). (2) C-yolo26s-1536 is 57.0% in the leaderboard (torch) and 57.1% in region's re-run on the ONNX export; the
   runtime reads the ONNX file. (3) The areas log carried -20.9 [-26.5, -15.6] for C-tot against C; a re-run, and the
