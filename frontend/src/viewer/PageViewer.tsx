@@ -81,7 +81,7 @@ export interface PageViewerProps {
   onSelect?: (markId: string | null) => void;
   onHover?: (markId: string | null) => void;
   onPick?: (page: number, box: [number, number, number, number]) => void; // set while adding a mark
-  meta?: string; // appended to the page meta line, e.g. "PDF vector · vector route" (D61)
+  meta?: string; // appended to the page meta line, e.g. "PDF vector · drawn PDF route" (D61)
   disputed?: Disputed[] | null; // places to double-check (viewer.md "Double-check")
   fixMode?: boolean; // with onAddMark: a click, tap or drag on the page proposes a mark
   onAddMark?: (box: Box, page: number) => void;
