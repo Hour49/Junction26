@@ -102,3 +102,20 @@ test('a call settles the unrelated_file issue in place; read as a plan adds one;
   assert.equal(csv.trim().split('\n').length, 8);
   assert.ok(csv.includes('"Set aside at ingest: a system file, skipped."'));  // a comma inside is quoted
 });
+
+test('the chat\'s elevation question quotes the description\'s sentences holding its words, else the summary', () => {
+  const files = V.FILES;
+  const st = T.described('How many storeys does the building in the elevation have?', files);
+  assert.equal(st.path, 'elevations/south-elevation.png');
+  assert.ok(st.matched && st.quote.includes('four-storey'));
+  const f = T.described('What does the facade show?', files);
+  assert.equal(f.matched, false);
+  assert.equal(f.quote, T.of(f.path).description.text);
+  assert.equal(T.described('How many doors are there?', files), null);
+});
+
+test('the chat\'s data follow-ups all answer on the sample (chat.js FOLLOW)', () => {
+  for (const q of ['How many rooms are there?', 'What is the net floor area?', 'What is the area of the living room?']) {
+    assert.ok(V.askProject(q, {}).parts.some((p) => !p.answer.refusal), q);
+  }
+});
