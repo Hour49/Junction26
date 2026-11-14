@@ -392,3 +392,15 @@ def test_a_refusal_says_the_room_was_not_recognised_not_that_areas_are_unsupport
     assert gazebo is not None and "which room or element" in gazebo.text
     doors = asked("What is the area of the doors?", scaled(bath)).refusal
     assert doors is not None and "no area for doors" in doors.text
+
+
+def test_the_area_of_the_one_room_of_a_type_without_a_printed_name_is_answered() -> None:
+    """R3-qa-1-1 on colorful-444: the one sauna room was read from its furniture (no label, no
+    number), so no room name keyed its area, and "the area of the sauna" was not-in-drawing."""
+    sauna = Room(id="r16", type="sauna", page=1, box=BOX_A, area_m2=5.55)
+    bath = Room(id="r2", type="bathroom", label="KPH", page=1, box=BOX_B, area_m2=4.0)
+    for text in ("What is the area of the sauna?", "How big is the sauna room?"):
+        found = asked(text, scaled(sauna, bath))
+        assert found.refusal is None, (text, found.refusal)
+        assert (found.answer.answer, found.answer.unit) == (5.55, "m2")
+        assert len(found.marks) == 1

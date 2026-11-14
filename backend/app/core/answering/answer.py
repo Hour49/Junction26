@@ -201,8 +201,9 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
 class RoomByType:
     """The parser, with the area of a room asked by its type ("the area of the kitchen") turned
     into that room's own area (the key "room 2.01" answers under) when the drawing has exactly one
-    room of the type and the takeoff has its area: one row, with its conflict and review. Any
-    other question, or a type several rooms (or none) have, stays as parsed.
+    room of the type and the takeoff has its area: one row, with its conflict and review (a room
+    with no name, read from its furniture, by the largest of its type: itself). Any other
+    question, or a type several rooms (or none) have, stays as parsed.
 
     The same for a room asked by a printed label or name the parser has no word for ("the area
     of the Reduit"), when the parser refuses the question as typed: when one room on the drawing
@@ -223,7 +224,13 @@ class RoomByType:
             return self._printed(text) or parsed
         if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
             return parsed
-        return self._area_of(rooms[0], parsed) or parsed
+        return self._area_of(rooms[0], parsed) or self._only_one(parsed) or parsed
+
+    def _only_one(self, parsed: Query) -> Query | None:
+        """The one room of the type has no name to key its area by (read from its furniture):
+        the largest room of that type is that room."""
+        query = parsed.model_copy(update={"largest": True})
+        return query if query.key() in self._quantities else None
 
     def _area_of(self, room: Room, parsed: Query) -> Query | None:
         """The area query of `room` by the first of its names the takeoff has a row for."""
