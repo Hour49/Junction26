@@ -25,6 +25,7 @@ from app.core.errors import (
     InvalidInputError,
     NoDescriptionError,
     NotFoundError,
+    NotTriagedError,
     UnknownPackError,
 )
 from app.core.review.review import NotAllowedError
@@ -40,6 +41,7 @@ STATUS_BY_ERROR: dict[type[DomainError], int] = {
 CODE_BY_ERROR: dict[type[DomainError], str] = {
     UnknownPackError: "unknown-pack",
     NoDescriptionError: "no-description",
+    NotTriagedError: "not-triaged",
 }
 CODES = {
     404: "not-found",

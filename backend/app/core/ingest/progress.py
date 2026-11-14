@@ -31,6 +31,17 @@ class Run:
         self._index: dict[str, int] = {}  # by path
         self._lock = threading.Lock()
 
+    @classmethod
+    def resumed(cls, status: ProjectStatus, traces: dict[str, FileTrace]) -> "Run":
+        """A finished project's record, live again so one of its files can be read again: its
+        files, their traces and kinds as stored (POST …/triage, decision 0010)."""
+        run = cls(status.model_copy(update={"files": ()}), fresh=False)
+        run._files = list(status.files)
+        run._index = {file.path: at for at, file in enumerate(status.files)}
+        run._stages = {file.id: list(traces[file.id].stages) for file in status.files}
+        run.kinds = {file.path: file.kind for file in status.files if file.kind is not None}
+        return run
+
     @property
     def id(self) -> str:
         return self._status.id
