@@ -446,3 +446,14 @@ def test_plans_are_counted() -> None:
     """R2-2 note: "How many plans are there?" was refused though the takeoff counts plans."""
     assert PARSE("How many plans are there?") == Query(subject="plan")
     assert PARSE("How many floor plans does the sheet show?") == Query(subject="plan")
+
+
+def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
+    """review-354 re-check: "room -1.2" is the basement room -1.2 (its label keeps the sign), not
+    room 1.2; "Zimmer-1.05" is room 1.05."""
+    assert PARSE("What is the area of room -1.2?") == Query(
+        measure="area", subject="room", name="-1.2"
+    )
+    assert PARSE("What is the area of Zimmer-1.05?") == Query(
+        measure="area", subject="room", name="1.05"
+    )

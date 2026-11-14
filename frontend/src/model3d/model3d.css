@@ -1,0 +1,125 @@
+/* The 3D view (docs/specs/frontend/model-3d.md): --v-* tokens only (M3-20). */
+.m3-card h2 {
+  margin: 0 0 12px;
+}
+.m3-open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+.m3-muted {
+  color: var(--v-muted);
+}
+.m3-stage {
+  position: relative;
+  height: 560px;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius);
+  background: var(--v-fill);
+  overflow: hidden;
+}
+.m3-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none; /* one finger orbits; the page scrolls outside the view */
+}
+.m3-canvas:focus-visible {
+  outline: 2px solid var(--v-accent);
+  outline-offset: -2px;
+}
+.m3-canvas--hidden {
+  visibility: hidden;
+}
+.m3-tools {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+}
+.v-btn.m3-tool {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow);
+}
+.m3-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  color: var(--v-text-2);
+}
+.m3-status p {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .m3-stage {
+    height: min(60vh, 420px);
+  }
+}
+.m3-open3d {
+  align-self: flex-start;
+  min-height: 44px;
+}
+.m3-dialog-name {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.m3-dialog .m3-stage {
+  height: min(70vh, 640px);
+}
+.m3-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-top: 10px;
+  color: var(--v-text-2);
+}
+.m3-legend ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.m3-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.m3-legend p {
+  margin: 0;
+}
+.m3-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+.m3-swatch--moved {
+  background: var(--v-3d-moved);
+}
+.m3-swatch--removed {
+  background: var(--v-3d-removed);
+  opacity: 0.5;
+}
+.m3-swatch--added {
+  background: var(--v-3d-added);
+}
+.m3-swatch--affected {
+  background: var(--v-3d-affected);
+}

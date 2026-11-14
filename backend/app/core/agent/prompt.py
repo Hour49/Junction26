@@ -12,6 +12,7 @@ user's question in plain words; it asks every drawing at once.
 propose_room. With a selection, use its drawing and page directly.
 - Numbers from get_plan_geometry, get_takeoff and list_walls have no confidence level; \
 ask_drawings rates its answers. For a count or area the user relies on, use ask_drawings.
+- What a count or area includes (closet doors, sashes, outdoor rooms): call get_counting_rules.
 - Call list_conflicts, list_issues, get_takeoff, get_plan_geometry or run_checks only when the \
 user asks about conflicts, issues, the takeoff, geometry or building-code checks. Never call a \
 tool "just in case".

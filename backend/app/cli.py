@@ -23,17 +23,27 @@ then every question is answered from it. Same three outputs.
         --dataset ../data/stoa/full/junction-dataset --out ../data/stoa/runs/<name>
 
 The sealed eval side of the split is refused unless `--milestone` is given.
+
+`glb` builds the 3D views (MODEL_3D) ahead, for a deploy: of every IFC file of each project given
+by id, and of each IFC file given by path (cached by content, so the same file uploaded later is
+served at once). A view that was unavailable is tried again. Exit 1 when one is not ready.
+
+    uv run python -m app.cli glb <project id or file.ifc> ...
 """
 
 import argparse
+import hashlib
 import logging
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from functools import partial
 from pathlib import Path
 
 from app.adapters.answer_v1 import AnswerV1Writer
+from app.adapters.archive.store import DiskProjectStore
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer, Split
 from app.adapters.golden_dir import GoldenDir
+from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.questions_file import QuestionsFile
 from app.composition import Pipeline, build_pipeline
 from app.core.answering.model import Question
@@ -73,6 +83,39 @@ def run_answer(args: argparse.Namespace, settings: Settings) -> None:
     pipeline = build_pipeline(settings, args.dataset)
     files: dict[str, Split] = {question.file: split for question in questions}
     _answer(pipeline, questions, _ingest(pipeline, files, out), out, f"about {len(files)} files")
+
+
+def run_glb(args: argparse.Namespace, settings: Settings) -> int:
+    models = GlbModels(
+        settings.projects_dir / "models-3d",
+        settings.model_3d_memory_mb,
+        settings.model_3d_timeout_s,
+    )
+    store = DiskProjectStore(settings.projects_dir)
+    known = set(store.project_ids())
+    files: list[tuple[str, Callable[[], bytes]]] = []
+    for given in args.targets:
+        if given in known:
+            status = store.load_project(given)[0]
+            files += [
+                (f"{given}/{file.path}", partial(store.read_upload, given, file.path))
+                for file in status.files
+                if file.kind == "ifc"
+            ]
+        elif Path(given).is_file():
+            files.append((given, Path(given).read_bytes))
+        else:
+            raise InvalidInputError(f"{given} is no project id and no file")
+    ready = True
+    for name, read in files:
+        data = read()
+        found = models.convert(hashlib.sha256(data).hexdigest(), data)
+        if found.state == "ready":
+            print(f"{name}: ready, {found.elements} elements")
+        else:
+            print(f"{name}: unavailable ({found.code}): {found.reason}")
+            ready = False
+    return 0 if ready else 1
 
 
 def _new_folder(out: Path) -> Path:
@@ -139,6 +182,9 @@ def parser() -> argparse.ArgumentParser:
         "--split-dir", type=Path, default=SPLIT_DIR, help="the sealed split (its manifest.json)"
     )
     answer.set_defaults(run=run_answer)
+    glb = commands.add_parser("glb", help="build the 3D views of IFC files ahead (MODEL_3D)")
+    glb.add_argument("targets", nargs="+", help="project ids (data/projects) or IFC file paths")
+    glb.set_defaults(run=run_glb)
     return root
 
 
@@ -147,11 +193,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     settings = Settings()
     logging.basicConfig(level=settings.log_level)
     try:
-        args.run(args, settings)
+        failed = args.run(args, settings)
     except DomainError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
-    return 0
+    return failed or 0
 
 
 if __name__ == "__main__":

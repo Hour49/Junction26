@@ -319,7 +319,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Project Ask */
+        /**
+         * Project Ask
+         * @description `models_3d`: the 3D views' state to put on IFC parts at response time (MODEL_3D); the chat
+         *     tool calls this without, so a kept chat never keeps a stale state.
+         */
         post: operations["project_ask_api_projects__project_id__ask_post"];
         delete?: never;
         options?: never;
@@ -437,6 +441,52 @@ export interface paths {
          *     description, register and relevance.
          */
         get: operations["get_evidence_api_projects__project_id__evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add File
+         * @description A photo added to a finished project from the chat (board #203). The body is the image's
+         *     bytes, png or jpeg; `name` its file name. It is read in the background, alone, while the
+         *     project stays done. Returns the new file, queued; poll the project. 404 unknown project,
+         *     409 until the project is done or while a file of it is read, 413 over the upload limit, 415
+         *     not a png or jpeg.
+         */
+        post: operations["add_file_api_projects__project_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/files/{file_id}/model.glb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Model Glb
+         * @description An IFC file's 3D view: one GLB of the whole model, each node named by its element's
+         *     GlobalId. The first request starts its conversion (409 `converting` until it is built; poll
+         *     it or the project's `model_3d`); gzipped when the client takes gzip.
+         */
+        get: operations["model_glb_api_projects__project_id__files__file_id__model_glb_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1451,6 +1501,20 @@ export interface components {
             /** Value */
             value?: number | null;
         };
+        /**
+         * ErrorBody
+         * @description Every error: one sentence, a code, and FastAPI's list for a request that fails validation.
+         */
+        ErrorBody: {
+            /** Code */
+            code: string;
+            /** Detail */
+            detail: string;
+            /** Errors */
+            errors?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
         /** Evidence */
         Evidence: {
             /** Box */
@@ -1594,6 +1658,7 @@ export interface components {
             id: string;
             /** Kind */
             kind?: ("pdf_vector" | "pdf_scan" | "png_plan" | "jpeg_plan" | "photo_plan" | "ifc" | "dxf" | "svg" | "pdf_text" | "text" | "photo" | "pdf_encrypted" | "dwg" | "office" | "archive" | "unknown") | null;
+            model_3d?: components["schemas"]["Model3d"] | null;
             /**
              * Ms
              * @default 0
@@ -1696,6 +1761,20 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /**
+         * Highlight
+         * @description One element the 3D view highlights, by its IFC GlobalId, and what happens to it: an
+         *     answer's counted elements are `affected`; an edit proposal's are moved, removed or added.
+         */
+        Highlight: {
+            /** Global Id */
+            global_id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "moved" | "removed" | "added" | "affected";
         };
         /** HitWhy */
         HitWhy: {
@@ -1979,6 +2058,27 @@ export interface components {
             /** Value */
             value: number;
         };
+        /**
+         * Model3d
+         * @description FileStatus.model_3d (MODEL_3D setting): the 3D view of an IFC file, a GLB converted once
+         *     on its first request (GET .../files/{file_id}/model.glb) or ahead by `python -m app.cli glb`.
+         */
+        Model3d: {
+            /** Code */
+            code?: ("too_big" | "no_geometry" | "failed") | null;
+            /** Elements */
+            elements?: number | null;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_started" | "converting" | "ready" | "unavailable";
+        };
         /** ModelItem */
         ModelItem: {
             /** Class */
@@ -2112,6 +2212,13 @@ export interface components {
             answer: components["schemas"]["AnswerView"];
             /** Drawing Id */
             drawing_id: string;
+            /** File Id */
+            file_id?: string | null;
+            /** Highlight */
+            highlight?: components["schemas"]["Highlight"][];
+            model_3d?: components["schemas"]["Model3d"] | null;
+            /** Model File Id */
+            model_file_id?: string | null;
             /** Name */
             name: string;
         };
@@ -4011,6 +4118,89 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_file_api_projects__project_id__files_post: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    model_glb_api_projects__project_id__files__file_id__model_glb_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the model's GLB */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "model/gltf-binary": unknown;
+                };
+            };
+            /** @description no such file, no IFC file, or MODEL_3D off */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description code converting: being built, ask again */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description code too_big, no_geometry or failed: no view */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

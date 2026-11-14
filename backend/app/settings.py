@@ -52,6 +52,8 @@ TablesName = Literal["off", "pdf"]
 ProviderName = Literal["gemini", "eu"]
 # off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
 RasterScaleName = Literal["off", "priors"]
+# on: a sheet whose detector found no door takes the door estimate from Carbon's door boxes
+ScaleCarbonDoorsName = Literal["off", "on"]
 # off, or carbon: a raster sheet's printed scale and counts, read by the Carbon reader, replace
 # its estimated scale and check its counts (app/adapters/printed_scale/)
 RasterPrintedScaleName = Literal["off", "carbon"]
@@ -104,6 +106,11 @@ class Settings(BaseSettings):
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
     raster_scale: RasterScaleName = "off"
+    # on: a raster sheet RASTER_SCALE=priors left without a scale because the detector found no
+    # door takes the estimate from the Carbon reader's door boxes (CARBON_READER=large reads them),
+    # its source saying so; its door width is not fitted on Carbon's boxes yet
+    # (app/adapters/raster_scale/carbon_doors.py)
+    scale_carbon_doors: ScaleCarbonDoorsName = "off"
     # carbon: the printed scale (a bar, or a ratio at a resolution the file states) replaces the
     # estimate, kept as a conflict value, and printed counts are checked against the read ones.
     # Off by default; carbon asks gemini-4-carbon (GEMINI_API_KEY, the spend guard, cached in
@@ -212,6 +219,12 @@ class Settings(BaseSettings):
     local_gates: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
+    # The 3D view of IFC files (GET .../files/{file_id}/model.glb, FileStatus.model_3d): off, the
+    # route is 404 and no payload changes. Each conversion runs alone in a subprocess under this
+    # memory budget and time limit; over either, the model is too_big
+    model_3d: bool = False
+    model_3d_memory_mb: int = Field(default=3000, ge=1)
+    model_3d_timeout_s: float = Field(default=120, gt=0)
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
     sample_archive: Path = Path("../data/samples/sample-project.zip")
     # Where a drawing's licence credit is looked up by content (app/adapters/credits.py): the

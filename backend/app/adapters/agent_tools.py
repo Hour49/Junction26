@@ -10,6 +10,8 @@ from collections.abc import Callable
 from functools import partial
 from typing import Any
 
+from app.adapters.counting_rules import TOOLS as COUNTING_TOOLS
+from app.adapters.counting_rules import run_counting_tool
 from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
 from app.api.views import drawings_of
@@ -98,6 +100,7 @@ def project_toolbox(
         (PIPELINE_TOOLS, partial(_by_number, pipe)),
         (FIND_TOOLS, partial(_find_rooms, pipeline)),
     ]
+    sets.append((COUNTING_TOOLS, run_counting_tool))  # read-only conventions, no project state
     describe: Callable[[Selection], str] = _plain
     made: Callable[[], list[Proposal]] = list
     laws = getattr(app.state, "laws", None)  # the law index (SqliteLawIndex), None: no law files

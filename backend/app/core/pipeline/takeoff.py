@@ -20,6 +20,7 @@ the entry does not matter.
 """
 
 import math
+import re
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 
@@ -810,15 +811,44 @@ def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
     return out
 
 
+# A room number printed inside a label ("Stanza 1.07"), as the parser reads one (U1.05, 4.01),
+# with its sign ("-1.2" is a basement room, not 1.2): a minus after a letter joins ("Zimmer-1.05")
+LABEL_NUMBER = re.compile(r"(?:(?<![\w.\-])|(?<=[^\W\d_]-))(-?U?\d+\.\d+)(?![\w.])", re.IGNORECASE)
+# ... and not a measure: a times sign on either side ("x 1.5", "3.50 x 4.20") or a unit after it
+# ("PH 4.5 m²", "7.56 qm"; review-354 S1)
+TIMES_BEFORE = re.compile(r"(?:^|[\W\d_])[x\u00d7*]\s*$", re.IGNORECASE)
+MEASURE_AFTER = re.compile(
+    r"\s*(?:[x\u00d7*](?![^\W\d_])|m\b|m2|m²|qm\b|sqm\b|sq\b|cm\b|mm\b|ft\b|%|'|\")", re.IGNORECASE
+)
+
+
+def _label_numbers(label: str) -> set[str]:
+    """The room number printed in a label (LABEL_NUMBER), leaving out dimensions and measures;
+    none when it prints two ("-1.4 Room 0.5": a level and a number, or two rooms' numbers, and
+    which is the room's is not known; it took -1.4, another room's number, so the shared-name
+    rule left that room unnamed; review-354 re-check)."""
+    found = {
+        number.group(1)
+        for number in LABEL_NUMBER.finditer(label)
+        if not TIMES_BEFORE.search(label, 0, number.start())
+        and not MEASURE_AFTER.match(label, number.end())
+    }
+    return found if len(found) == 1 else set()
+
+
 def room_names(room: Room) -> tuple[str, ...]:
-    """Every name a room answers to (its numbers, names, printed label), normalised and sorted, so
-    the takeoff's keys come in the same order on every run (golden-311)."""
+    """Every name a room answers to (its numbers, names, printed label, and a room number printed
+    in the label), normalised and sorted, so the takeoff's keys come in the same order on every
+    run (golden-311). The raster room reader keeps "Stanza 1.07" as one label where the vector
+    reader stores the number apart, so "the area of Stanza 1.07" (the parser's name 1.07) was
+    refused on the PNG and answered on the PDF (fail-1, .agents/qa/r10/stanza-107.md)."""
 
     def texts(keys: Iterable[str]) -> set[str]:
         return {value for key in keys if isinstance(value := room.attrs.get(key), str) and value}
 
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
+    found |= _label_numbers(room.label or "")
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
     return tuple(sorted({normalised(value) for value in found}))
 
