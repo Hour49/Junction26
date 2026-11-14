@@ -256,3 +256,27 @@ def test_a_recorded_row_holds_numbers_not_turn_text(
     assert got["commit"] == "abc1234" and got["models"] == ["gemini"]
     assert got["score"]["right"] == [1, 1]
     assert "Bagno" not in out.read_text() and "How many" not in out.read_text()
+
+
+@pytest.mark.parametrize(
+    ("level", "reply", "kept"),
+    [
+        ("medium", "No, the door count has medium confidence; double-check [1].", True),
+        ("low", "No, I am not sure. The count is low confidence.", True),
+        ("medium", "Yes, there are 6 doors.", False),  # claims sure on a medium answer
+        ("low", "I'm confident: 24 windows.", False),
+        ("high", "The count is low confidence.", False),
+        ("medium", "It is 6 doors, see the marks.", True),  # no level said
+        ("low", "The high_quality-150.png plan shows 3.", True),  # a file name is not a level
+    ],
+)
+def test_level_kept_on_an_are_you_sure_turn(level: str, reply: str, kept: bool) -> None:
+    rows = [row("doors", 1, "6 doors", 6, level=level),
+            dict(row("doors", 2, reply), msg="are you sure?")]  # fmt: skip
+    assert score.level_kept(rows) == [kept]
+
+
+def test_level_kept_leaves_out_turns_without_a_level_or_a_sure_question() -> None:
+    rows = [row("doors", 1, "6 doors"), dict(row("doors", 2, "Yes."), msg="are you sure?"),
+            row("doors", 3, "Yes, 6.", level="low")]  # fmt: skip
+    assert score.level_kept(rows) == []

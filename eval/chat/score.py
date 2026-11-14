@@ -6,6 +6,7 @@
 
 Per turn: right (truth given: the value the judge sees equals the truth or lies in its range;
 'refuse': the turn refused), answered (not a refusal), on topic (the text names the subject),
+level kept (asked if it is sure, the reply claims no other level than the last answer card's),
 grounded (every number in the text is backed by a value of the chat's tool results, the reply or the
 user's message: a whole number exactly, a decimal at its places, ids and geometry not counting;
 ask mode is grounded by construction), refusal offers, steps shown, view (the turn puts a plan on
@@ -127,6 +128,34 @@ def grounded(r: Json, chats: list[Path]) -> bool:
     return True
 
 
+SURE_ASK = re.compile(r"\b(sure|certain|confident|confidence)\b", re.IGNORECASE)
+SAYS = {
+    "high": re.compile(
+        r"^\W*yes\b|\b(i am|i'm) (sure|certain|confident)\b|\bhigh\b", re.IGNORECASE
+    ),
+    "medium": re.compile(r"\bmedium\b", re.IGNORECASE),
+    "low": re.compile(r"\blow\b", re.IGNORECASE),
+}
+
+
+def level_kept(rows: list[Json]) -> list[bool]:
+    """On each turn that asks whether the chat is sure, whether the reply keeps the level of the
+    script's latest answer card (this turn's, else the one before): it may say that level, or
+    none, but not another one, and "yes"/"I'm sure" counts as claiming high. Turns before any
+    card has a level are left out."""
+    kept: list[bool] = []
+    level: dict[str, str] = {}
+    for r in sorted(rows, key=lambda r: (r["script"], r["turn"])):
+        if r.get("level"):
+            level[r["script"]] = str(r["level"]).lower()
+        known = level.get(r["script"])
+        if not SURE_ASK.search(r["msg"]) or known not in SAYS:
+            continue
+        said = {name for name, words in SAYS.items() if words.search(r.get("text") or "")}
+        kept.append(said <= {known})
+    return kept
+
+
 def score(rows: list[Json], chats: list[Path]) -> Score:
     truth = [r for r in rows if r["truth"] is not None]
     firsts = [r for r in rows if r["turn"] == 1]
@@ -148,6 +177,7 @@ def score(rows: list[Json], chats: list[Path]) -> Score:
         "refusal offers": [sum((r.get("options") or 0) > 0 for r in refusals), len(refusals)],
         "steps shown": [sum((r.get("steps") or 0) > 0 for r in rows), len(rows)],
         "view shown": [sum(bool(r.get("view")) for r in rows), len(rows)],
+        "level kept": [sum(kept := level_kept(rows)), len(kept)],
         "http errors": sum(r["status"] != 200 for r in rows),
         "latency p50 s": round(median(lat), 2) if lat else 0.0,
         "latency max s": round(max(lat), 2) if lat else 0.0,
