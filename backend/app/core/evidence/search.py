@@ -1,14 +1,14 @@
-"""Pure parts of an evidence search (contract v1, .agents/exp/rag-evidence.md section 1): passage
-ids, a file's rank from a ranking of passages, the query words a passage holds, and its snippet."""
+"""Pure parts of an evidence search (decision 0012, contract v1): passage ids, a ranking of
+passages as a ranking of files, a query's words, the ones a passage holds, and its snippet."""
 
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from app.core.evidence.model import PartName, Passage
 
 ID = re.compile(r"(f[0-9]{1,6})(?:-(summary)|-(detail|visible_text)-([1-9][0-9]{0,3}))?")
 SNIPPET = 300
-WORD = re.compile(r"\w+")
+WORD = re.compile(r"[^\W_]{2,}")  # a word: two letters or digits or more
 # words too common to say why a passage matched (English, the descriptions' language)
 COMMON = frozenset(
     [
@@ -68,12 +68,14 @@ def file_of(found: str) -> str:
     return found.split("-", 1)[0]
 
 
-def by_file(ranking: Sequence[str]) -> tuple[list[str], dict[str, str]]:
-    """A ranking of passage ids as a ranking of their files, and each file's best passage."""
+def first_per_file(ranking: Iterable[str], limit: int) -> list[tuple[str, str]]:
+    """A ranking of passage ids as the first `limit` files, each with its best passage."""
     best: dict[str, str] = {}
     for found in ranking:
+        if len(best) == limit:
+            break
         best.setdefault(file_of(found), found)
-    return list(best), best
+    return list(best.items())
 
 
 def words(text: str) -> list[str]:

@@ -89,7 +89,7 @@ def test_end_to_end_the_described_elevation_is_found_in_the_projects_sqlite(
     index = SqliteEvidenceIndex(root, summary, None)
     ingest = make_service(root=root, triage=triage(), evidence=index)
     status = ingest.wait(ingest.start("site.zip", zipped(FILES)))
-    (hit,) = index.bm25(status.id, "elevation", 5, frozenset({"related", "unsure", None}))
+    ((_, hit),) = index.bm25(status.id, "elevation", frozenset({"related", "unsure", None}))
     found = index.passage(status.id, hit)
     assert found is not None and found[1].path == "elevation.png"
-    assert index.bm25(status.id, "plan", 5, frozenset({"related", "unsure", None})) == []
+    assert index.bm25(status.id, "plan", frozenset({"related", "unsure", None})) == []

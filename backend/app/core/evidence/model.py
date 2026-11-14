@@ -37,15 +37,12 @@ class EvidenceSource(Frozen):
     content: str  # sha256 of what its passages are made from: changes mean re-index
 
 
-def content_of(
-    description: Description, register: Register | None, relevance: Relevance | None
-) -> str:
-    """What the passages are made of: the description, the register's kind and the judge's why
-    (the summary passage says why the file belongs); not the verdict, which is kept apart."""
+def content_of(description: Description, register: Register | None) -> str:
+    """What the passages are made of: the description and the register's kind. Not the judge's
+    verdict or why, so judging a file or overruling it never re-cuts or re-embeds it."""
     body = {
         "description": description.model_dump(mode="json"),
         "kind": None if register is None else register.kind,
-        "why": None if relevance is None else relevance.why,
     }
     return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
 
@@ -73,7 +70,7 @@ def sources(status: ProjectStatus) -> tuple[EvidenceSource, ...]:
                 description=description,
                 sheet_register=register,
                 relevance=triage.relevance,
-                content=content_of(description, register, triage.relevance),
+                content=content_of(description, register),
             )
         )
     return tuple(found)

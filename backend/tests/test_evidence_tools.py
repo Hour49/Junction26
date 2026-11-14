@@ -1,0 +1,300 @@
+"""The evidence index as the chat agent sees it (decision 0012, contract v1): `ProjectEvidence`
+(search one hit per file, get by passage or file id, the system-prompt paragraph) and the
+OpenAI-format tools with their dispatcher, which answers every call with JSON and never raises."""
+
+import json
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pytest
+from numpy.typing import NDArray
+
+from app.adapters.evidence.project import NOTHING, ProjectEvidence
+from app.adapters.evidence.store import SqliteEvidenceIndex
+from app.adapters.evidence_tools import EVIDENCE_TOOLS, evidence_prompt, run_evidence_tool
+from app.core.evidence.chunks import passages
+from app.core.ingest.model import FileStatus, ProjectStatus
+
+AT = "2026-11-14T00:00:00+00:00"
+LONG = " ".join(f"Sentence {n} about the old stone barn and its roof." for n in range(30))
+
+
+def described(subject: str, detail: str = "", verdict: str | None = None, **extra: Any) -> dict:
+    triage: dict[str, Any] = {
+        "class": "not_drawing",
+        "p_plan": 0.1,
+        "method": "test",
+        "description": {
+            "text": f"{subject}.",
+            "subject": subject,
+            "model": "test",
+            "what_it_is": extra.pop("what_it_is", "photograph"),
+            "shows_building": True,
+            "visible_text": extra.pop("visible_text", ""),
+            "detail": detail,
+            "language": extra.pop("language", None),
+        },
+        **extra,
+    }
+    if verdict is not None:
+        triage["relevance"] = {"verdict": verdict, "why": "", "judge": "test"}
+    return triage
+
+
+def project(*files: tuple[str, dict[str, Any] | None], sha: bool = False) -> ProjectStatus:
+    found = [
+        FileStatus.model_validate(
+            {
+                "id": f"f{n}",
+                "path": path,
+                "size": 10 * n,
+                "state": "set_aside",
+                **({"sha256": f"{n:064x}"} if sha else {}),
+                **({"triage": triage} if triage is not None else {}),
+            }
+        )
+        for n, (path, triage) in enumerate(files, start=1)
+    ]
+    return ProjectStatus(id="p1", name="site.zip", state="done", created_at=AT, files=tuple(found))
+
+
+FILES: tuple[tuple[str, dict[str, Any] | None], ...] = (
+    (
+        "facade.jpg",
+        described("south facade of a brick house", "Red brick. Three windows.", "related"),
+    ),
+    ("barn.jpg", described("old stone barn", LONG, "related")),
+    ("cat.jpg", described("a cat on a sofa", "A grey cat sleeping.", "unrelated")),
+    (
+        "letter.png",
+        described(
+            "letter to the building office",
+            "A typed letter.",
+            "unsure",
+            what_it_is="text_page",
+            visible_text="Rakennusvirasto\nLupahakemus 1962",
+            language="fi",
+        ),
+    ),
+    ("plan.png", {"class": "floor_plan", "p_plan": 0.9, "method": "test"}),
+)
+SITE = project(*FILES)
+
+
+def open_index(
+    tmp_path: Path, status: ProjectStatus = SITE, embedder: Any = None, credits: Any = None
+) -> ProjectEvidence:
+    store = SqliteEvidenceIndex(tmp_path / "projects", passages, embedder)
+    return ProjectEvidence(store, status, credits or (lambda size, sha: None))
+
+
+def call(index: ProjectEvidence, name: str, arguments: Any) -> dict[str, Any]:
+    text = arguments if isinstance(arguments, str) else json.dumps(arguments)
+    return json.loads(run_evidence_tool(index, name, text))
+
+
+# ---------------------------------------------------------------- search
+
+
+def test_search_returns_one_hit_per_file_and_k_counts_files(tmp_path: Path) -> None:
+    index = open_index(tmp_path)
+    found = index.search("stone barn roof", k=5)
+    assert [hit.file for hit in found.hits] == ["barn.jpg"]  # many passages match, one hit
+    assert found.indexed_files == 4  # the plan is not in the index
+    both = index.search("brick barn", k=1)
+    assert len(both.hits) == 1
+    assert len(index.search("brick barn", k=5).hits) == 2
+
+
+def test_a_hit_carries_the_contract_fields(tmp_path: Path) -> None:
+    index = open_index(tmp_path)
+    (hit,) = index.search("Rakennusvirasto").hits
+    assert hit.id == "f4-visible_text-1"
+    assert (hit.file_id, hit.file, hit.page, hit.part) == ("f4", "letter.png", 1, "visible_text")
+    assert (hit.kind, hit.subject, hit.language, hit.verdict) == (
+        "text_page",
+        "letter to the building office",
+        "fi",
+        "unsure",
+    )
+    assert hit.why.terms == ("rakennusvirasto",)
+    assert (hit.why.bm25_rank, hit.why.dense_rank) == (1, None)
+    assert hit.credit is None and hit.score > 0
+    assert index.search("Rakennusvirasto").method == "BM25 (no embedder model on this machine)"
+
+
+def test_unrelated_files_are_left_out_and_counted_unless_asked_for(tmp_path: Path) -> None:
+    index = open_index(tmp_path)
+    found = index.search("cat")
+    assert (found.hits, found.unrelated_left_out) == ((), 1)
+    asked = index.search("cat", include_unrelated=True)
+    assert [hit.file for hit in asked.hits] == ["cat.jpg"]
+    assert asked.unrelated_left_out == 0
+
+
+def test_an_empty_index_says_why_in_a_note(tmp_path: Path) -> None:
+    index = open_index(tmp_path, project(("plan.png", None)))
+    found = index.search("anything")
+    assert (found.indexed_files, found.hits, found.note) == (0, (), NOTHING)
+    assert open_index(tmp_path / "b").search("anything").note is None
+
+
+def test_the_credit_comes_from_the_files_size_and_sha256(tmp_path: Path) -> None:
+    asked: list[tuple[int, str]] = []
+
+    def credit(size: int, sha: str) -> str | None:
+        asked.append((size, sha))
+        return "Photo: A. Person, CC BY 4.0"
+
+    index = open_index(tmp_path, project(*FILES, sha=True), credits=credit)
+    (hit,) = index.search("brick").hits
+    assert hit.credit == "Photo: A. Person, CC BY 4.0"
+    assert asked == [(10, f"{1:064x}")]
+    assert open_index(tmp_path / "b", credits=credit).search("brick").hits[0].credit is None
+
+
+class Letters:
+    """Bag of letters, L2-normalised: a stand-in embedder that ranks by spelling."""
+
+    name = "letters-v1"
+
+    def embed(self, texts: Sequence[str]) -> NDArray[np.float32]:
+        rows = np.zeros((len(texts), 26), np.float32)
+        for i, text in enumerate(texts):
+            for char in text.lower():
+                if "a" <= char <= "z":
+                    rows[i, ord(char) - 97] += 1
+        norms = np.maximum(np.linalg.norm(rows, axis=1, keepdims=True), 1e-9)
+        return (rows / norms).astype(np.float32)
+
+    def embed_query(self, text: str) -> NDArray[np.float32]:
+        return self.embed([text])[0]
+
+
+def test_with_an_embedder_search_is_hybrid_and_reports_both_ranks(tmp_path: Path) -> None:
+    index = open_index(tmp_path, embedder=Letters())
+    found = index.search("brick", k=4)
+    assert found.method == "hybrid: BM25 + letters-v1, reciprocal rank fusion"
+    first = found.hits[0]
+    assert (first.file, first.why.bm25_rank) == ("facade.jpg", 1)
+    assert first.why.dense_rank is not None
+    assert len(found.hits) == 3  # dense ranks every kept file; the unrelated cat stays out
+    assert [hit.why.bm25_rank for hit in found.hits[1:]] == [None, None]
+    assert all(hit.why.terms == () for hit in found.hits[1:])  # found by meaning only
+
+
+# ---------------------------------------------------------------- get
+
+
+def test_get_by_passage_id_or_file_id(tmp_path: Path) -> None:
+    index = open_index(tmp_path)
+    by_file = index.get("f1")
+    assert by_file is not None and by_file.id == "f1-summary"
+    assert by_file.text.startswith("photograph. south facade of a brick house.")
+    assert by_file.description.detail == "Red brick. Three windows."
+    assert by_file.relevance is not None and by_file.relevance.verdict == "related"
+    detail = index.get("f2-detail-2")
+    assert detail is not None and (detail.part, detail.file) == ("detail", "barn.jpg")
+    body = detail.model_dump(mode="json")
+    assert "register" in body and "register_" not in body
+    assert "cost_usd" not in body["description"]
+
+
+def test_get_returns_unrelated_files_and_none_for_what_is_not_there(tmp_path: Path) -> None:
+    index = open_index(tmp_path)
+    cat = index.get("f3")
+    assert cat is not None and cat.verdict == "unrelated"
+    for missing in ["f5", "f99", "f2-detail-99", "f1-visible_text-1", "barn.jpg", ""]:
+        assert index.get(missing) is None, missing
+
+
+# ---------------------------------------------------------------- the tools
+
+
+def test_the_tools_are_openai_function_specs_named_as_the_contract() -> None:
+    names = [tool["function"]["name"] for tool in EVIDENCE_TOOLS]
+    assert names == ["search_evidence", "get_evidence"]
+    for tool in EVIDENCE_TOOLS:
+        assert tool["type"] == "function"
+        assert tool["function"]["parameters"]["type"] == "object"
+    assert EVIDENCE_TOOLS[0]["function"]["parameters"]["required"] == ["query"]
+    assert EVIDENCE_TOOLS[1]["function"]["parameters"]["required"] == ["id"]
+
+
+def test_run_search_and_get_answer_json(tmp_path: Path) -> None:
+    index = open_index(tmp_path)
+    found = call(index, "search_evidence", {"query": "Lupahakemus", "k": 3})
+    assert found["hits"][0]["id"] == "f4-visible_text-1"
+    assert found["query"] == "Lupahakemus"
+    text = run_evidence_tool(index, "search_evidence", '{"query": "Lupahakemus"}')
+    assert "Rakennusvirasto" in text  # Finnish letters stay readable: no \\u escapes
+    got = call(index, "get_evidence", {"id": found["hits"][0]["id"]})
+    assert got["description"]["language"] == "fi"
+
+
+@pytest.mark.parametrize(("k", "files"), [(0, 1), (-3, 1), (99, 3), ("2", 3), (True, 3), (2.5, 3)])
+def test_k_out_of_range_is_clamped_and_a_non_integer_is_the_default(
+    tmp_path: Path, k: Any, files: int
+) -> None:
+    index = open_index(tmp_path)
+    found = call(index, "search_evidence", {"query": "brick barn letter", "k": k})
+    assert len(found["hits"]) == files
+
+
+def test_include_unrelated_must_be_true_to_count(tmp_path: Path) -> None:
+    index = open_index(tmp_path)
+    assert (
+        call(index, "search_evidence", {"query": "cat", "include_unrelated": "yes"})["hits"] == []
+    )
+    asked = call(index, "search_evidence", {"query": "cat", "include_unrelated": True})
+    assert [hit["file"] for hit in asked["hits"]] == ["cat.jpg"]
+
+
+@pytest.mark.parametrize(
+    ("name", "arguments", "says"),
+    [
+        ("find_photos", "{}", "There is no tool 'find_photos'"),
+        ("search_evidence", "{not json", "not valid JSON"),
+        ("search_evidence", "[1, 2]", "must be a JSON object"),
+        ("search_evidence", "{}", "non-empty 'query'"),
+        ("search_evidence", '{"query": "   "}', "non-empty 'query'"),
+        ("search_evidence", '{"query": 5}', "non-empty 'query'"),
+        ("get_evidence", "{}", "needs an 'id'"),
+        ("get_evidence", '{"id": "f99"}', "No evidence 'f99'"),
+    ],
+)
+def test_a_bad_call_is_an_error_sentence_not_an_exception(
+    tmp_path: Path, name: str, arguments: str, says: str
+) -> None:
+    answer = call(open_index(tmp_path), name, arguments)
+    assert list(answer) == ["error"] and says in answer["error"]
+
+
+def test_an_unexpected_failure_is_an_internal_error_answer(tmp_path: Path) -> None:
+    class Broken(ProjectEvidence):
+        def search(self, query: str, k: int = 5, include_unrelated: bool = False) -> Any:
+            raise RuntimeError("disk gone")
+
+    store = SqliteEvidenceIndex(tmp_path / "projects", passages, None)
+    broken = Broken(store, SITE, lambda size, sha: None)
+    assert call(broken, "search_evidence", {"query": "brick"}) == {"error": "internal error"}
+    assert run_evidence_tool(broken, "search_evidence", None) is not None  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------- the system prompt
+
+
+def test_the_prompt_lists_kinds_languages_and_files_or_says_there_is_nothing(
+    tmp_path: Path,
+) -> None:
+    prompt = evidence_prompt(open_index(tmp_path))
+    assert prompt.startswith("Project evidence: 4 described files that are not floor plans")
+    assert "3 photograph, 1 text_page" in prompt
+    assert "printed text in fi" in prompt
+    assert "1 judged unrelated, searched only on request" in prompt
+    assert "f2 photograph: old stone barn" in prompt
+    assert "Floor plan facts" in prompt
+    empty = evidence_prompt(open_index(tmp_path / "b", project(("plan.png", None))))
+    assert empty == f"Project evidence: none. {NOTHING} Do not call search_evidence."

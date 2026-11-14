@@ -32,9 +32,9 @@ EVIDENCE_TOOLS: list[dict[str, Any]] = [
                     "query": {
                         "type": "string",
                         "description": (
-                            "What to look for, as a question or keywords, in any language (the "
-                            "files are described in English; printed text is in the file's own "
-                            "language)."
+                            "What to look for, as keywords or a short question. Write it in "
+                            "English (the files are described in English), and keep names, "
+                            "drawing numbers and dates exactly as printed, in their own language."
                         ),
                     },
                     "k": {

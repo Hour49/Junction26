@@ -1,5 +1,5 @@
 """`ProjectEvidence`: one project's evidence index, as the tools and REST routes use it
-(contract v1, .agents/exp/rag-evidence.md section 1). Opening it brings the store in line with the
+(decision 0012, contract v1). Opening it brings the store in line with the
 project's status (an incremental update), so a project ingested before the index existed is
 indexed on its first query."""
 
@@ -7,7 +7,7 @@ from collections import Counter
 from collections.abc import Callable
 
 from app.adapters.evidence.store import SqliteEvidenceIndex
-from app.core.evidence.fusion import fused
+from app.core.evidence.fusion import FileRanking, fused
 from app.core.evidence.model import (
     DescriptionView,
     EvidenceDetail,
@@ -15,12 +15,11 @@ from app.core.evidence.model import (
     EvidenceSearch,
     HitWhy,
 )
-from app.core.evidence.search import by_file, parsed, passage_id, snippet, terms
+from app.core.evidence.search import parsed, passage_id, snippet, terms
 from app.core.ingest.model import ProjectStatus
 
 KEPT: frozenset[str | None] = frozenset({"related", "unsure", None})
 EVERY: frozenset[str | None] = KEPT | {"unrelated"}
-PASSAGES = 200  # passages each retriever returns before files are ranked
 NOTHING = "No file of this project has a description: file triage was off when it was ingested."
 LISTED = 30  # evidence_prompt lists each file up to this many
 CreditOf = Callable[[int, str], str | None]  # (size, sha256) -> the licence credit
@@ -54,18 +53,15 @@ class ProjectEvidence:
         left_out = 0 if include_unrelated else sum(
             source.verdict == "unrelated" for source in self._sources.values()
         )  # fmt: skip
-        bm25_files, bm25_best = by_file(self._store.bm25(self._id, query, PASSAGES, verdicts))
-        rankings = [bm25_files]
-        dense_files: list[str] = []
-        dense_best: dict[str, str] = {}
+        bm25 = self._store.bm25(self._id, query, verdicts)
+        rankings = [bm25]
         vector = self._store.query_vector(query)
-        if vector is not None:
-            dense = self._store.dense(self._id, vector, PASSAGES, verdicts)
-            dense_files, dense_best = by_file(dense)
-            rankings.append(dense_files)
+        dense = None if vector is None else self._store.dense(self._id, vector, verdicts)
+        if dense is not None:
+            rankings.append(dense)
         hits: list[EvidenceHit] = []
-        for file_id, score in fused(rankings)[:k]:
-            found = self._store.passage(self._id, bm25_best.get(file_id) or dense_best[file_id])
+        for file_id, best, score in fused(rankings)[:k]:
+            found = self._store.passage(self._id, best)
             if found is None:
                 continue
             passage, source = found
@@ -86,8 +82,8 @@ class ProjectEvidence:
                     score=round(score, 6),
                     why=HitWhy(
                         terms=matched,
-                        bm25_rank=_rank(bm25_files, file_id),
-                        dense_rank=_rank(dense_files, file_id) if vector is not None else None,
+                        bm25_rank=_rank(bm25, file_id),
+                        dense_rank=None if dense is None else _rank(dense, file_id),
                     ),
                 )
             )
@@ -164,5 +160,6 @@ class ProjectEvidence:
         return "\n".join(lines)
 
 
-def _rank(ranking: list[str], file_id: str) -> int | None:
-    return ranking.index(file_id) + 1 if file_id in ranking else None
+def _rank(ranking: FileRanking, file_id: str) -> int | None:
+    """The file's rank in a retriever's pool; None when the pool doesn't hold it."""
+    return next((rank for rank, (found, _) in enumerate(ranking, 1) if found == file_id), None)

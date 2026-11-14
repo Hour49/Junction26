@@ -11,7 +11,7 @@ import pytest
 from numpy.typing import NDArray
 
 from app.adapters.evidence.store import FILE, SqliteEvidenceIndex, fts_query
-from app.core.evidence.fusion import RRF_K, fused
+from app.core.evidence.fusion import POOL, RRF_K, fused
 from app.core.evidence.model import EvidenceSource, Passage, sources
 from app.core.ingest.model import FileStatus, ProjectStatus
 
@@ -108,20 +108,46 @@ def test_a_persons_overrule_is_the_verdict_and_does_not_change_the_content() -> 
     assert before.content == after.content
 
 
+def test_the_judges_why_is_not_content_so_judging_again_re_embeds_nothing() -> None:
+    (first,) = sources(project(("cat.jpg", described("a cat", relevance=relevance("unrelated")))))
+    rejudged = described(
+        "a cat", relevance={"verdict": "unsure", "why": "Other words.", "judge": "t"}
+    )
+    (second,) = sources(project(("cat.jpg", rejudged)))
+    assert first.content == second.content
+
+
 # ---------------------------------------------------------------- fusion
 
 
 def test_rrf_sums_one_over_k_plus_rank_and_keeps_first_seen_order_on_ties() -> None:
-    found = fused([["a", "b", "c"], ["b", "d"]])
-    assert [name for name, _ in found] == ["b", "a", "d", "c"]
-    scores = dict(found)
+    bm25 = [("a", "a-summary"), ("b", "b-detail-3"), ("c", "c-summary")]
+    dense = [("b", "b-summary"), ("d", "d-summary")]
+    found = fused([bm25, dense])
+    assert [file_id for file_id, _, _ in found] == ["b", "a", "d", "c"]
+    scores = {file_id: score for file_id, _, score in found}
     assert scores["b"] == pytest.approx(1 / (RRF_K + 2) + 1 / (RRF_K + 1))
     assert scores["a"] == pytest.approx(1 / (RRF_K + 1))
-    assert fused([["x", "y"], ["y", "x"]]) == [
-        ("x", pytest.approx(scores["b"])),
-        ("y", pytest.approx(scores["b"])),
-    ]
+    tie = fused(
+        [[("x", "x-summary"), ("y", "y-summary")], [("y", "y-summary"), ("x", "x-summary")]]
+    )
+    assert [file_id for file_id, _, _ in tie] == ["x", "y"]
     assert fused([]) == []
+
+
+def test_a_fused_file_keeps_the_passage_of_the_ranking_that_put_it_highest() -> None:
+    bm25 = [("a", "a-summary"), ("b", "b-detail-3")]
+    dense = [("b", "b-visible_text-1"), ("a", "a-detail-1")]
+    passages = {file_id: passage for file_id, passage, _ in fused([bm25, dense])}
+    assert passages == {"a": "a-summary", "b": "b-visible_text-1"}
+    same = fused([[("c", "c-detail-1")], [("c", "c-summary")]])
+    assert same[0][1] == "c-detail-1"  # equal ranks: the earlier ranking's passage
+
+
+def test_only_the_first_pool_files_of_each_ranking_count() -> None:
+    long = [(f"f{n}", f"f{n}-summary") for n in range(1, 61)]
+    assert len(fused([long])) == POOL
+    assert [file_id for file_id, _, _ in fused([long], pool=2)] == ["f1", "f2"]
 
 
 # ---------------------------------------------------------------- the store
@@ -182,21 +208,21 @@ def test_update_writes_one_sqlite_file_per_project_and_bm25_finds_words(tmp_path
     store = index(tmp_path)
     store.update(SITE)
     assert (tmp_path / "projects" / "p1" / FILE).is_file()
-    (best, *_) = store.bm25("p1", "brick facade", 5, KEPT)
+    ((_, best), *_) = store.bm25("p1", "brick facade", KEPT)
     found = store.passage("p1", best)
     assert found is not None
     assert found[1].path == "facade.jpg"
-    assert store.bm25("p1", "rakennusvirastolle", 5, KEPT) != []  # Finnish, as printed
-    assert store.bm25("p1", "nothing-like-this", 5, KEPT) == []
-    assert store.bm25("other", "brick", 5, KEPT) == []  # no index yet: no hits, no file made
+    assert store.bm25("p1", "rakennusvirastolle", KEPT) != []  # Finnish, as printed
+    assert store.bm25("p1", "nothing-like-this", KEPT) == []
+    assert store.bm25("other", "brick", KEPT) == []  # no index yet: no hits, no file made
     assert not (tmp_path / "projects" / "other").exists()
 
 
 def test_unrelated_files_are_left_out_unless_asked_for(tmp_path: Path) -> None:
     store = index(tmp_path)
     store.update(SITE)
-    assert store.bm25("p1", "cat", 5, KEPT) == []
-    (hit, *_) = store.bm25("p1", "cat", 5, ALL)
+    assert store.bm25("p1", "cat", KEPT) == []
+    ((_, hit), *_) = store.bm25("p1", "cat", ALL)
     found = store.passage("p1", hit)
     assert found is not None and found[1].path == "cat.jpg"
 
@@ -205,9 +231,21 @@ def test_a_query_with_quotes_or_fts_operators_is_words_not_syntax(tmp_path: Path
     store = index(tmp_path)
     store.update(SITE)
     for query in ['"brick', "brick AND", "NEAR(brick", "brick*", "-brick", "brick OR"]:
-        assert store.bm25("p1", query, 5, KEPT) != [], query
+        assert store.bm25("p1", query, KEPT) != [], query
     assert fts_query("  ?! ") is None
     assert fts_query("Brick brick wall") == '"brick" OR "wall"'
+
+
+def test_bm25_folds_diacritics_both_ways(tmp_path: Path) -> None:
+    store = index(tmp_path)
+    store.update(
+        project(
+            ("a.jpg", described("house in Töölö", relevance=relevance("related"))),
+            ("b.jpg", described("street in Toolo", relevance=relevance("related"))),
+        )
+    )
+    for query in ["Töölö", "toolo", "TOOLO"]:
+        assert {file_id for file_id, _ in store.bm25("p1", query, KEPT)} == {"f1", "f2"}, query
 
 
 def test_an_unchanged_source_is_not_embedded_again_a_changed_one_is(tmp_path: Path) -> None:
@@ -230,9 +268,13 @@ def test_an_unchanged_source_is_not_embedded_again_a_changed_one_is(tmp_path: Pa
         ],
     )
     store.update(changed)
-    assert embedder.embedded[first:] == ["north facade photo", "Grey render."]
-    assert store.bm25("p1", "brick", 5, ALL) == []  # the old passages are gone from FTS too
-    assert store.bm25("p1", "render", 5, ALL) != []
+    # each passage is embedded with its file's subject in front
+    assert embedder.embedded[first:] == [
+        "north facade photo. north facade photo",
+        "north facade photo. Grey render.",
+    ]
+    assert store.bm25("p1", "brick", ALL) == []  # the old passages are gone from FTS too
+    assert store.bm25("p1", "render", ALL) != []
 
 
 def test_a_source_gone_from_the_status_is_dropped(tmp_path: Path) -> None:
@@ -247,8 +289,8 @@ def test_a_source_gone_from_the_status_is_dropped(tmp_path: Path) -> None:
             ]
         )
     )
-    assert store.bm25("p1", "rakennusvirastolle", 5, ALL) == []
-    assert store.bm25("p1", "brick", 5, ALL) != []
+    assert store.bm25("p1", "rakennusvirastolle", ALL) == []
+    assert store.bm25("p1", "brick", ALL) != []
 
 
 def test_a_verdict_change_refreshes_the_filter_without_re_embedding(tmp_path: Path) -> None:
@@ -269,7 +311,7 @@ def test_a_verdict_change_refreshes_the_filter_without_re_embedding(tmp_path: Pa
     files[1] = ("cat.jpg", overruled)
     store.update(project(*files))
     assert len(embedder.embedded) == before
-    assert store.bm25("p1", "cat", 5, KEPT) != []  # now related: found by default
+    assert store.bm25("p1", "cat", KEPT) != []  # now related: found by default
 
 
 def test_another_embedder_re_embeds_everything(tmp_path: Path) -> None:
@@ -285,13 +327,14 @@ def test_dense_ranks_by_cosine_and_filters_verdicts(tmp_path: Path) -> None:
     store = index(tmp_path, embedder)
     store.update(SITE)
     (query,) = embedder.embed(["a grey cat"])
-    assert store.dense("p1", query, 1, KEPT) != []
-    (best,) = store.dense("p1", query, 1, ALL)
+    assert "f2" not in dict(store.dense("p1", query, KEPT))  # the cat is unrelated
+    ((file_id, best), *_) = store.dense("p1", query, ALL)
     found = store.passage("p1", best)
-    assert found is not None and found[0].text == "A grey cat."
+    assert file_id == "f2" and found is not None and found[1].path == "cat.jpg"
+    assert len(store.dense("p1", query, ALL, files=2)) == 2  # files, not passages
     without = index(tmp_path / "no-vectors")
     without.update(SITE)
-    assert without.dense("p1", query, 5, ALL) == []  # BM25 only: no vectors stored
+    assert without.dense("p1", query, ALL) == []  # BM25 only: no vectors stored
 
 
 def test_ids_are_stable_across_rebuilds_and_lookup_misses_are_none(tmp_path: Path) -> None:
@@ -299,7 +342,7 @@ def test_ids_are_stable_across_rebuilds_and_lookup_misses_are_none(tmp_path: Pat
     second = index(tmp_path / "b")
     first.update(SITE)
     second.update(SITE)
-    assert first.bm25("p1", "brick", 5, KEPT) == second.bm25("p1", "brick", 5, KEPT)
+    assert first.bm25("p1", "brick", KEPT) == second.bm25("p1", "brick", KEPT)
     assert first.passage("p1", "f99-summary") is None
     assert first.passage("nope", "f99-summary") is None
 
@@ -310,5 +353,5 @@ def test_stale_words_never_match_a_new_passage_that_reuses_a_rowid(tmp_path: Pat
     store = index(tmp_path)
     store.update(project(("wall.jpg", described("brick wall"))))
     store.update(project(("wall.jpg", described("render wall"))))
-    assert store.bm25("p1", "brick", 5, ALL) == []
-    assert store.bm25("p1", "render", 5, ALL) != []
+    assert store.bm25("p1", "brick", ALL) == []
+    assert store.bm25("p1", "render", ALL) != []

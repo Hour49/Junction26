@@ -1,43 +1,71 @@
-"""How a source is cut into passages (decision 0012). A stand-in until rag specifies chunking:
-one summary passage (subject, the short text, why it belongs to the project), then the long
-description and the printed text, each in passages of about `SIZE` characters cut at paragraph
-and then sentence ends. Numbering: summary is one passage; the others count from 1."""
+"""How a source is cut into passages, as decision 0012 fixes it (rag's pre-registered settings,
+ported from prototypes/rag/retrieve.py): one summary passage (the kind in words, the subject and
+the short text; not the judge's why, which is reasoning about the file, not its content), then
+`detail` cut at sentence ends and `visible_text` cut at line ends, packed into passages of at
+most `PASSAGE_CHARS` characters; a longer piece is cut. Numbering: summary is one passage; the
+others count from 1."""
 
 import re
 
 from app.core.evidence.model import EvidenceSource, PartName, Passage
 
-SIZE = 600
-SENTENCE = re.compile(r"(?<=[.!?])\s+")
+PASSAGE_CHARS = 500
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+KIND_WORDS = {
+    "multi_view_sheet": "sheet with several views",
+    "site_plan_or_map": "site plan or map",
+    "elevation": "elevation",
+    "section": "section",
+    "detail": "detail drawing",
+    "perspective_or_axonometric": "perspective or axonometric view",
+    "engineering_non_building": "engineering drawing, not a building",
+    "cover_or_text_sheet": "cover or text sheet",
+    "photograph": "photograph",
+    "not_architecture": "not architecture",
+    "other": "other",
+    "artwork": "artwork",
+    "text_page": "text page",
+    "object": "object",
+    "music": "sheet music",
+    "map": "map",
+    "drawing": "drawing",
+}
 
 
-def pieces(text: str, size: int = SIZE) -> list[str]:
-    """`text` in pieces of at most about `size` characters, cut at blank lines, then at sentence
-    ends; a sentence longer than `size` is its own piece."""
+def pack(pieces: list[str], joiner: str, size: int = PASSAGE_CHARS) -> list[str]:
+    """Pieces joined greedily into passages of at most `size` characters; a longer piece is cut."""
     found: list[str] = []
-    for paragraph in re.split(r"\n\s*\n", text.strip()):
-        current = ""
-        for sentence in SENTENCE.split(paragraph.strip()):
-            if current and len(current) + 1 + len(sentence) > size:
+    current = ""
+    for piece in pieces:
+        piece = piece.strip()
+        while len(piece) > size:
+            if current:
                 found.append(current)
-                current = sentence
-            else:
-                current = f"{current} {sentence}".strip()
-        if current:
+                current = ""
+            found.append(piece[:size])
+            piece = piece[size:].strip()
+        if not piece:
+            continue
+        if current and len(current) + len(joiner) + len(piece) > size:
             found.append(current)
+            current = piece
+        else:
+            current = f"{current}{joiner}{piece}" if current else piece
+    if current:
+        found.append(current)
     return found
 
 
 def passages(source: EvidenceSource) -> list[Passage]:
     described = source.description
-    summary = f"{described.subject}. {described.text}"
-    if source.relevance is not None:
-        summary += f" {source.relevance.why}"
+    label = KIND_WORDS.get(source.kind, "")
+    said = (f"{label}." if label else "", f"{described.subject}.", described.text)
+    summary = " ".join(part for part in said if part)
     found = [Passage(part="summary", n=1, text=summary)]
-    parts: tuple[tuple[PartName, str], ...] = (
-        ("detail", described.detail),
-        ("visible_text", described.visible_text),
+    parts: tuple[tuple[PartName, list[str]], ...] = (
+        ("detail", pack(SENTENCE_END.split(described.detail), " ")),
+        ("visible_text", pack(described.visible_text.splitlines(), "\n")),
     )
-    for part, text in parts:
-        found += [Passage(part=part, n=n, text=piece) for n, piece in enumerate(pieces(text), 1)]
+    for part, texts in parts:
+        found += [Passage(part=part, n=n, text=text) for n, text in enumerate(texts, start=1)]
     return found
