@@ -52,7 +52,8 @@ RULES: dict[str, str] = {
     found.id: found.text for found in vars(rule_pack).values() if isinstance(found, CountingRule)
 }
 SUGGESTIONS = 6
-PLURALS = {"bathtub": "bathtubs", "stair": "stairs", "sauna_stove": "sauna stoves"}
+# Plurals plain English rules don't give (a kind's id is not always the word a person uses)
+PLURALS = {"sauna_stove": "sauna stoves", "living": "living rooms"}
 SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
 NO_SCALE = ("no_scale", "not_to_scale")
 ROOM_NUMBER = re.compile(r"U?\d+\.\d+")  # a room number the parser reads without quotes
@@ -213,18 +214,29 @@ def _room_areas(
 def _schedule_suggestions(parser: QuestionParser, tables: Sequence[Table]) -> Iterable[Suggestion]:
     """A count of each kind of schedule the sheet prints, when it resolves on one table."""
     for kind in SCHEDULE_KINDS:
-        text = f"How many {kind}s are listed in the {kind} schedule?"
+        text = f"How many {plural(kind)} are listed in the {kind} schedule?"
         parsed = parser.parse(text)
         if isinstance(parsed, TableQuery) and answer_table(parsed, tables) is not None:
-            name = f"{kind}s in the {kind} schedule"
+            name = f"{plural(kind)} in the {kind} schedule"
             yield Suggestion(quantity=parsed.family(), label=name, question=text)
+
+
+def plural(kind: str) -> str:
+    """The English plural of a kind of element or room ("balcony" → "balconies")."""
+    if kind in PLURALS:
+        return PLURALS[kind]
+    if kind.endswith("y") and kind[-2:-1] not in ("a", "e", "i", "o", "u"):
+        return f"{kind[:-1]}ies"
+    if kind.endswith(("s", "x", "z", "ch", "sh")):
+        return f"{kind}es"
+    return f"{kind}s"
 
 
 def _phrasings(key: str) -> Iterable[str]:
     measure, subject, scope = parse_key(key)
     if scope == Scope(model=True):  # the building model's own total
         if measure == "count" and subject in ELEMENT_CLASSES:
-            yield f"How many {PLURALS.get(subject, f'{subject}s')} are there in the building model?"
+            yield f"How many {plural(subject)} are there in the building model?"
         elif measure == "count" and subject == "room":
             yield "How many rooms are there in the building model?"
         elif (measure, subject) == ("volume", "slab"):
@@ -239,12 +251,10 @@ def _phrasings(key: str) -> Iterable[str]:
             yield "What is the indoor area of this floor?"
         return
     if measure == "count":
-        if subject in ELEMENT_CLASSES:
-            things = PLURALS.get(subject, f"{subject}s")
+        if subject in ELEMENT_CLASSES or subject in ("room", "apartment"):
+            things = plural(subject)
         elif subject.startswith("room:"):
-            things = f"{subject.split(':', 1)[1]}s"
-        elif subject in ("room", "apartment"):
-            things = f"{subject}s"
+            things = plural(subject.split(":", 1)[1])
         else:
             return
         yield f"How many {things} are there?"
