@@ -31,6 +31,7 @@ from app.core.evidence.step import file_evidence
 from app.core.ingest.groups import Groups
 from app.core.ingest.model import (
     DRAWING_KINDS,
+    SECOND_PATH,
     TEXT_KINDS,
     ContentKind,
     DrawingInfo,
@@ -467,7 +468,7 @@ class IngestService:
                     same = entry.data is not None and digests.get(entry.path) == _digest(entry.data)
                     free = _free_path(run, entry.path)
                     if same or entry.data is None:
-                        entry = Entry(path=free, size=entry.size, refused="a second file at a path")
+                        entry = Entry(path=free, size=entry.size, refused=SECOND_PATH)
                     else:
                         entry = entry.model_copy(update={"path": free})
                 if entry.data is not None:
@@ -504,9 +505,9 @@ class IngestService:
         named = page_path(path, page.number)
         if run.has(named):  # set aside at a free name, not over the record of the file there
             named = _free_path(run, named)
-            run.add(Entry(path=named, size=len(page.data), refused="a second file at a path"))
-            run.stage(named, "unpack", "refused", 0.0, failure="a second file at a path")
-            run.finish(named, "set_aside", "a second file at a path")
+            run.add(Entry(path=named, size=len(page.data), refused=SECOND_PATH))
+            run.stage(named, "unpack", "refused", 0.0, failure=SECOND_PATH)
+            run.finish(named, "set_aside", SECOND_PATH)
             return
         run.add(Entry(path=named, size=len(page.data), data=page.data))
         self._store.put_file(run.id, named, page.data)

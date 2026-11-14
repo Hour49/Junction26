@@ -179,13 +179,11 @@ def test_a_file_name_with_contact_data_is_in_nothing_the_index_shows(
     assert not leaks, leaks
 
 
-def test_a_path_given_twice_gives_the_text_source_once_and_lists_the_copy(
+def test_a_path_given_twice_gives_one_source_from_the_finished_record(
     make_service: MakeService, tmp_path: Path
 ) -> None:
-    """rag's review of #272, S2: ingest keeps its records by path, so the second entry must not be
-    given evidence that lands on the real one. The copy is set aside at a name of its own
-    (fix/dup-path: it used to take the first record's place, which stayed queued), so it is
-    listed like any set-aside file."""
+    """rag's review of #272, S2: ingest keeps its records by path, so the second entry's record
+    (never finished) must not be given evidence that lands on the real one."""
     buffer = BytesIO()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # zipfile warns about the duplicate name
@@ -195,11 +193,15 @@ def test_a_path_given_twice_gives_the_text_source_once_and_lists_the_copy(
     service = make_service(root=tmp_path / "projects", evidence_steps=steps())
     status = service.wait(service.start("site.zip", buffer.getvalue()))
     found = sources(status)
-    assert [(source.path, source.how) for source in found] == [
-        ("docs/spec.pdf", "text"),
-        ("docs/spec-2.pdf", "listed"),
+    assert [(source.path, source.how) for source in found] == [("docs/spec.pdf", "text")]
+    unfinished = [file for file in status.files if file.state in ("queued", "running")]
+    assert all(file.evidence is None for file in unfinished)
+    # fix/dup-path: the copy is set aside at a name of its own, and that name is not a source
+    assert [(file.path, file.state) for file in status.files] == [
+        ("docs/spec.pdf", "text_only"),
+        ("docs/spec-2.pdf", "set_aside"),
     ]
-    assert all(file.state not in ("queued", "running") for file in status.files)
+    assert status.files[1].evidence is None
 
 
 def test_a_changed_text_rule_re_cuts_an_index_already_built(
