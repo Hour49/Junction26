@@ -6,6 +6,7 @@ import {
   conflictCount,
   inUseIndex,
   ordered,
+  newSuggestions,
   parseAnswer,
   progressText,
   ruleIndex,
@@ -55,15 +56,30 @@ describe('conflicts.ts', () => {
     ]);
   });
 
-  it('CF-41 parseAnswer: numbers with a dot or comma; counts whole; else the line to show', () => {
-    expect(parseAnswer(' 25,5 ', 'm2')).toBe(25.5);
-    expect(parseAnswer('.5', 'm2')).toBe(0.5);
-    for (const bad of ['', 'abc', '0', '-3', '1e3', '12 m2'])
-      expect(parseAnswer(bad, 'm2')).toBe('Type a number, like 12.5.');
-    expect(parseAnswer('12', 'count')).toBe(12);
-    expect(parseAnswer('0', 'count')).toBe(0);
-    for (const bad of ['2.5', '-1', ''])
-      expect(parseAnswer(bad, 'count')).toBe('Type a whole number, like 12.');
+  it('CF-41 parseAnswer: a number (dot or comma, unit allowed) is a value, words are a note', () => {
+    expect(parseAnswer(' 25,5 ', 'm2')).toEqual({ value: 25.5 });
+    expect(parseAnswer('25.5 m²', 'm2')).toEqual({ value: 25.5 });
+    expect(parseAnswer('.5', 'm2')).toEqual({ value: 0.5 });
+    expect(parseAnswer('room 1.01 is the kitchen', 'm2')).toEqual({
+      note: 'room 1.01 is the kitchen',
+    });
+    expect(parseAnswer('0', 'm2')).toBe('Type a number above 0, or a few words.');
+    expect(parseAnswer('  ', 'm2')).toBe('Type a number or a few words.');
+    expect(parseAnswer('12', 'count')).toEqual({ value: 12 });
+    expect(parseAnswer('0', 'count')).toEqual({ value: 0 });
+    expect(parseAnswer('2.5', 'count')).toBe('Type a whole number, like 12.');
+    expect(parseAnswer('two are the same door', 'count')).toEqual({
+      note: 'two are the same door',
+    });
+  });
+
+  it('CF-51 newSuggestions keeps only what no variant says', () => {
+    expect(newSuggestions({ ...base, suggestions: ['22.40 m²', '30.00 m²'] })).toEqual([]);
+    expect(newSuggestions({ ...base, suggestions: ['30 m²', 'Both rooms', '25 m²'] })).toEqual([
+      'Both rooms',
+      '25 m²',
+    ]);
+    expect(newSuggestions({ ...base, suggestions: undefined as unknown as string[] })).toEqual([]);
   });
 
   it('conflictCount, subLine and progressText count the states', () => {

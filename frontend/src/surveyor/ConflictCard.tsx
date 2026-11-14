@@ -8,7 +8,14 @@ import {
   type DrawingView,
 } from '../api';
 import { SourceFigure, type Source } from '../viewer/SourceFigure';
-import { cardState, inUseIndex, parseAnswer, ruleIndex } from './conflicts';
+import {
+  cardState,
+  inUseIndex,
+  newSuggestions,
+  parseAnswer,
+  ruleIndex,
+  type Answer,
+} from './conflicts';
 
 /** A drawing for the source figure: loading (undefined), loaded, or failed. */
 export type DrawingLoad = DrawingView | { error: unknown } | undefined;
@@ -23,7 +30,7 @@ interface Props {
   /** Asks the screen for the drawing (it fetches each drawing once); `retry` asks again after an error. */
   onNeedDrawing: (retry?: boolean) => void;
   /** Sends the edit and reloads the review; rejects with the POST's error. */
-  onEdit: (edit: { action: 'settle'; value: number } | { action: 'unsettle' }) => Promise<void>;
+  onEdit: (edit: ({ action: 'settle' } & Answer) | { action: 'unsettle' }) => Promise<void>;
 }
 
 type Mode = 'idle' | 'choosing' | 'saving';
@@ -34,7 +41,9 @@ const UNIT: Record<string, string> = { m2: 'm²', m3: 'm³', m: 'm', ft: 'ft', f
 
 /** One source: the drawing's page of the marks, with each value's marks (#221 `value_marks`) as its places. */
 function sourceOf(c: ConflictEntry, d: DrawingView, name: string): Source {
-  const { values, value_marks: marks } = c.conflict;
+  const { values } = c.conflict;
+  // a backend before #221 sends no value_marks: the drawing without outlines, never a crash
+  const marks = (c.conflict.value_marks as typeof c.conflict.value_marks | undefined) ?? [];
   const at = marks.flat()[0]?.page ?? values.find((v) => v.page)?.page ?? 1;
   return {
     name,
@@ -52,7 +61,7 @@ function sourceOf(c: ConflictEntry, d: DrawingView, name: string): Source {
   };
 }
 
-// shortcut: the server's label in sentence case; a plain-words title waits for Bogdan (API ask 3)
+// the label in sentence case: the title of an entry from a backend before #226 (which has no `title`)
 const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const PILL = {
@@ -86,6 +95,8 @@ export function ConflictCard({
   const [error, setError] = useState<unknown>(null);
   const [typed, setTyped] = useState('');
   const [typedError, setTypedError] = useState<string | null>(null);
+  const ownInput = useRef<HTMLInputElement>(null);
+  const chips = newSuggestions(c);
   const article = useRef<HTMLElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -146,7 +157,7 @@ export function ConflictCard({
     }
     setTypedError(null);
     setTyped('');
-    void send({ action: 'settle', value: v }, 'choosing');
+    void send({ action: 'settle', ...v }, 'choosing');
   }
   function useRule() {
     void send({ action: 'unsettle' }, 'idle'); // drops the settled value only (no confirm: nothing else is lost)
@@ -160,9 +171,11 @@ export function ConflictCard({
         : choosing
           ? 'Tap the right value.'
           : state === 'yours'
-            ? inUse < 0
-              ? `Your answer: ${formatValue(c.settled?.value ?? 0, unit)}.` // typed here or in the workspace
-              : `You kept variant ${String(inUse + 1)}${rule >= 0 && rule !== inUse ? ", over the rule's choice" : ''}.`
+            ? c.settled?.note
+              ? `You answered: “${c.settled.note}”.`
+              : inUse < 0
+                ? `Your answer: ${formatValue(c.settled?.value ?? 0, unit)}.` // typed here or in the workspace
+                : `You kept variant ${String(inUse + 1)}${rule >= 0 && rule !== inUse ? ", over the rule's choice" : ''}.`
             : inUse < 0 && state === 'rule'
               ? `In use: ${formatValue(value, unit)}.` // a recount in the workspace: neither variant
               : '';
@@ -185,7 +198,7 @@ export function ConflictCard({
             Conflict {index + 1} of {total} · {kicker ?? 'settled by you'}
           </p>
           <h2 id={`${id}-t`} ref={title} tabIndex={focused ? -1 : undefined}>
-            {sentence(c.label)}
+            {c.title || sentence(c.label)}
           </h2>
           <p className="cf-file">{drawingName}</p>
         </div>
@@ -273,13 +286,30 @@ export function ConflictCard({
           }}
         >
           <label htmlFor={`${id}-own`}>Or type your own answer</label>
+          {chips.length > 0 && (
+            <div className="cf-chips">
+              {chips.map((x) => (
+                <button
+                  key={x}
+                  type="button"
+                  className="cf-chip"
+                  onClick={() => {
+                    setTyped(x); // fills the box; "Use my answer" sends it
+                    ownInput.current?.focus();
+                  }}
+                >
+                  {x}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="cf-own-row">
             <span className="cf-own-field">
               <input
+                ref={ownInput}
                 id={`${id}-own`}
-                inputMode="decimal"
                 autoComplete="off"
-                maxLength={20}
+                maxLength={280}
                 value={typed}
                 disabled={busy}
                 aria-describedby={typedError === null ? undefined : `${id}-own-err`}
@@ -305,7 +335,9 @@ export function ConflictCard({
         <summary>
           {rule >= 0 ? `Why the rule chose variant ${String(rule + 1)}` : 'Why no rule decides'}
         </summary>
-        {why.length > 0 ? (
+        {c.why ? (
+          <p>{c.why}</p>
+        ) : why.length > 0 ? (
           <ul>
             {why.map((w, i) => (
               <li key={i}>{w}</li>

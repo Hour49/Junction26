@@ -449,6 +449,20 @@ map to existing tokens or a token asked of fe-shared (asks below); none in confl
     monospace) and as the source preview's name. The names come from one `GET /api/projects/<pid>` the list sends
     beside the review; if it fails, each card shows its file name and nothing else changes. Not done yet (after the
     freeze): the surveyor workspace's "Takeoff: `file`" heading and its side panel (they load no project).
+- Bogdan #226 (main, merged into parity ~17:00; orch): the API asks 1-3 landed.
+  - CF-49: the h2 is `ConflictEntry.title` (a plain question, "Area of room (name Küche · 1.01): 22.40 m² or 30.00
+    m²?"); an entry without one (a backend before #226) falls back to CF-46's sentence-case label.
+  - CF-50: "Why …" shows `ConflictEntry.why` (plain words, it already says "Settled by a rule (…)" or "No rule
+    decides…") as one paragraph; without it, the rule sentences as before.
+  - CF-51: suggestion chips (demo `.chips-row`/`.qchip`, 40px, 44px at ≤600px) between "Or type your own answer" and
+    the box, only for `ConflictEntry.suggestions` whose number differs from every variant value (to 0.005; words
+    always count as different): the server suggests one per value read ("13 doors"), which repeat the tiles, so
+    usually none show (Tudor's rule). A chip fills the box and focuses it; it sends nothing.
+  - CF-41 (changed): the box takes words too (no number pad, up to 280 characters): a number (`,` or `.`, a unit
+    like "m²" after it allowed) settles as `value`; anything else goes as `{action: "settle", note}` (the value in use
+    stays and the conflict is settled); empty: "Type a number or a few words."; an area of 0: "Type a number above 0,
+    or a few words."; a count that is not whole: "Type a whole number, like 12.". A settled entry with `settled.note`
+    reads "You answered: “note”." API ask 1-3 are done; ask 4 (places per count element) is #221's `value_marks`.
   - CF-26 (changed): at ≤600px `.cf-card-top` is a `column` with the pill after the title block (demo `.c-head`),
     not above it.
 - Bogdan #221 (merged into the parity branch 17:xx): `conflict.value_marks[i]` = `[{page, box, label}]` per value

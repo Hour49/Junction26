@@ -53,10 +53,22 @@ export const ordered = (conflicts: ConflictEntry[]) => [
   ...conflicts.filter((c) => c.conflict.resolution === null),
 ];
 
-/** A typed answer as the value to settle, or the line saying what to type (CF-41). */
-export function parseAnswer(text: string, unit: string | null): number | string {
-  const t = text.trim().replace(',', '.');
-  const n = /^\d+(\.\d+)?$|^\.\d+$/.test(t) ? Number(t) : NaN;
-  if (unit === 'count') return Number.isInteger(n) ? n : 'Type a whole number, like 12.';
-  return n > 0 ? n : 'Type a number, like 12.5.';
+export type Answer = { value: number } | { note: string };
+
+/** A typed answer (CF-41, #226): a number (unit allowed) is a value to settle, words are a note; else the line to show. */
+export function parseAnswer(text: string, unit: string | null): Answer | string {
+  const t = text.trim();
+  if (!t) return 'Type a number or a few words.';
+  const bare = t.replace(/\s*(m²|m2|m³|m3|m)$/i, '').replace(',', '.');
+  if (!/^\d+(\.\d+)?$|^\.\d+$/.test(bare)) return { note: t };
+  const n = Number(bare);
+  if (unit === 'count') return Number.isInteger(n) ? { value: n } : 'Type a whole number, like 12.';
+  return n > 0 ? { value: n } : 'Type a number above 0, or a few words.';
 }
+
+/** The server's suggestions that say something no variant does (Tudor: no chips repeating a variant, CF-51). */
+export const newSuggestions = (c: ConflictEntry): string[] =>
+  ((c.suggestions as string[] | undefined) ?? []).filter((s) => {
+    const n = parseFloat(s.replace(',', '.'));
+    return !c.conflict.values.some((v) => Math.abs(v.value - n) < 0.005); // "22.40 m²" restates 22.401
+  });

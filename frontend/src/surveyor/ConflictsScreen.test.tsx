@@ -34,6 +34,7 @@ const needs: ConflictEntry = {
   ...base,
   quantity: 'door',
   label: 'door count',
+  title: '', // an older backend: the card falls back to the sentence-case label
   needs_person: true,
   conflict: { ...base.conflict, resolution: null },
 };
@@ -41,6 +42,7 @@ const yours: ConflictEntry = {
   ...base,
   quantity: 'window',
   label: 'window count',
+  title: '',
   settled: { value: 22.401, at: AT },
   value: 22.401,
 };
@@ -71,9 +73,10 @@ function show(
 }
 const ready = () => screen.findByRole('heading', { level: 2, name: /conflicts? found$/ });
 const cards = () => screen.getAllByRole('article');
-// the card's title is the label in sentence case (CF-46)
+// the card's title: the server's `title` (#226, CF-49), else the label in sentence case (CF-46)
 const title = (label: string) => label.charAt(0).toUpperCase() + label.slice(1);
-const card = (label: string) => screen.getByRole('article', { name: title(label) });
+const card = (label: string) =>
+  screen.getByRole('article', { name: label === base.label ? base.title : title(label) });
 const tile = (scope: HTMLElement, n: number) =>
   within(scope).getByRole('button', { name: new RegExp(`^Variant ${String(n)}:`) });
 const pressed = (b: HTMLElement) => b.getAttribute('aria-pressed') === 'true';
@@ -157,8 +160,8 @@ describe('ConflictsList', () => {
   });
 
   it('CF-37 rule-settled cards first, then the ones without a rule; settling keeps the order', async () => {
-    const r1 = { ...base, quantity: 'r1', label: 'r1' };
-    const r2 = { ...base, quantity: 'r2', label: 'r2' };
+    const r1 = { ...base, quantity: 'r1', label: 'r1', title: '' };
+    const r2 = { ...base, quantity: 'r2', label: 'r2', title: '' };
     const p = { ...needs, quantity: 'p', label: 'p' };
     const s = {
       ...needs,
@@ -395,7 +398,7 @@ describe('ConflictsList', () => {
 
   it('CF-12 / CF-38 each drawing is fetched once; the figure gets one place per value, minimized', async () => {
     const { api } = show({
-      [PATH.review]: withConflicts([base, { ...base, quantity: 'x', label: 'x' }]),
+      [PATH.review]: withConflicts([base, { ...base, quantity: 'x', label: 'x', title: '' }]),
     });
     await ready();
     await waitFor(() => {
@@ -456,6 +459,16 @@ describe('ConflictsList', () => {
     expect(fig.props.at(-1)?.sources[0]?.places).toEqual([]);
   });
 
+  it('CF-38 a backend without value_marks (before #221) shows the drawing without outlines, no crash', async () => {
+    const older: Partial<typeof base.conflict> = { ...base.conflict };
+    delete older.value_marks;
+    show({ [PATH.review]: withConflicts([{ ...base, conflict: older as typeof base.conflict }]) });
+    await ready();
+    await screen.findByTestId('figure');
+    expect(fig.props.at(-1)?.sources[0]?.places).toEqual([]);
+    expect(fig.props.at(-1)?.sources[0]?.page).toEqual(drawing.pages[0]);
+  });
+
   it('CF-13 a drawing error shows an error line with Retry inside that card only', async () => {
     let fail = true;
     const { api } = show({
@@ -486,38 +499,55 @@ describe('ConflictsList', () => {
     expect(disabled(tile(c, 1))).toBe(false);
   });
 
-  it('CF-41 the typed answer sends a number as settle; not a number sends nothing', async () => {
-    let settled = false;
+  it('CF-41 the typed answer: a number settles as a value, words go as a note (#226)', async () => {
+    let body: unknown = null;
     const { api } = show({
-      [PATH.edit]: () => {
-        settled = true;
+      [PATH.edit]: (req: { body: unknown }) => {
+        body = req.body;
         return {};
       },
       [PATH.review]: () =>
         withConflicts([
-          settled ? { ...base, settled: { value: 25.5, at: AT }, value: 25.5 } : base,
+          body === null
+            ? base
+            : 'note' in (body as object)
+              ? {
+                  ...base,
+                  settled: { value: 30, at: AT, note: 'room 1.01 is the kitchen' },
+                  value: 30,
+                }
+              : { ...base, settled: { value: 25.5, at: AT }, value: 25.5 },
         ]),
     });
     await ready();
     const c = card(base.label);
     click(within(c).getByRole('button', { name: 'Modify' }));
     const box = own(c) as HTMLInputElement;
-    expect(box.getAttribute('inputmode')).toBe('decimal');
-    expect(within(c).getByText('m²')).toBeTruthy();
-    fireEvent.change(box, { target: { value: 'abc' } });
+    expect(box.getAttribute('inputmode')).toBeNull(); // words too, not a number pad
+    expect(box.maxLength).toBe(280);
     click(within(c).getByRole('button', { name: 'Use my answer' }));
     const alert = within(c).getByRole('alert');
-    expect(alert.textContent).toBe('Type a number, like 12.5.');
+    expect(alert.textContent).toBe('Type a number or a few words.');
     expect(box.getAttribute('aria-describedby')).toBe(alert.id);
     expect(api.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
-    fireEvent.change(box, { target: { value: ' 25,5 ' } });
+    fireEvent.change(box, { target: { value: ' 25,5 m² ' } });
     fireEvent.submit(box.closest('form') as HTMLFormElement);
     await waitFor(() => {
       expect(within(card(base.label)).getByText('Your answer: 25.50 m².')).toBeTruthy();
     });
-    const posts = api.calls.filter((x) => x.method === 'POST');
-    expect(posts.map((x) => x.body)).toEqual([{ quantity: QTY, action: 'settle', value: 25.5 }]);
-    expect(own(card(base.label))).toBeNull(); // back to idle
+    expect(body).toEqual({ quantity: QTY, action: 'settle', value: 25.5 });
+    const c2 = card(base.label);
+    click(within(c2).getByRole('button', { name: 'Modify' }));
+    fireEvent.change(own(c2) as HTMLInputElement, {
+      target: { value: 'room 1.01 is the kitchen' },
+    });
+    click(within(c2).getByRole('button', { name: 'Use my answer' }));
+    await waitFor(() => {
+      expect(
+        within(card(base.label)).getByText('You answered: “room 1.01 is the kitchen”.'),
+      ).toBeTruthy();
+    });
+    expect(body).toEqual({ quantity: QTY, action: 'settle', note: 'room 1.01 is the kitchen' });
   });
 
   it('CF-41 a count takes whole numbers only', async () => {
@@ -536,19 +566,45 @@ describe('ConflictsList', () => {
     await ready();
     const c = card(needs.label);
     const box = own(c) as HTMLInputElement;
-    for (const bad of ['2.5', '-1', '']) {
-      fireEvent.change(box, { target: { value: bad } });
-      click(within(c).getByRole('button', { name: 'Use my answer' }));
-      expect(within(c).getByRole('alert').textContent).toBe('Type a whole number, like 12.');
-    }
+    fireEvent.change(box, { target: { value: '2.5' } });
+    click(within(c).getByRole('button', { name: 'Use my answer' }));
+    expect(within(c).getByRole('alert').textContent).toBe('Type a whole number, like 12.');
     expect(api.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
   });
 
-  it('CF-42 no suggestion chips on any card', async () => {
-    const { container } = show({ [PATH.review]: withConflicts([needs, base, yours]) });
+  it('CF-42 / CF-51 suggestions that restate a variant are not chips; one that adds something fills the box', async () => {
+    const extra: ConflictEntry = {
+      ...needs,
+      suggestions: ['22.40 m²', '30 m²', 'Both are the same room'],
+    };
+    const { api, container } = show({ [PATH.review]: withConflicts([extra, base]) });
     await ready();
+    // the fixture's suggestions are exactly its two values: no chips
     click(within(card(base.label)).getByRole('button', { name: 'Modify' }));
-    expect(container.querySelector('.cf-chips, .qchip')).toBeNull();
+    expect(card(base.label).querySelector('.cf-chips')).toBeNull();
+    const c = card(needs.label);
+    const chips = [...c.querySelectorAll<HTMLButtonElement>('.cf-chips button')];
+    expect(chips.map((b) => b.textContent)).toEqual(['Both are the same room']);
+    click(chips[0] as HTMLElement);
+    expect((own(c) as HTMLInputElement).value).toBe('Both are the same room');
+    expect(document.activeElement).toBe(own(c));
+    expect(api.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
+    expect(container.querySelectorAll('.cf-chips')).toHaveLength(1);
+  });
+
+  it("CF-49 / CF-50 the title and the why are the server's plain words; older entries fall back", async () => {
+    show({ [PATH.review]: withConflicts([base, { ...needs, why: '' }]) });
+    await ready();
+    const c = card(base.label);
+    expect(within(c).getByRole('heading', { level: 2 }).textContent).toBe(base.title);
+    const why = within(c).getByText(/^Why /).closest('details') as HTMLElement;
+    expect(why.textContent).toContain(base.why);
+    expect(why.querySelector('ul')).toBeNull();
+    const old = card(needs.label);
+    expect(within(old).getByRole('heading', { level: 2 }).textContent).toBe('Door count');
+    expect(
+      within(old).getByText(/^Why /).closest('details')?.querySelector('ul, p')?.textContent,
+    ).toBeTruthy();
   });
 
   it('CF-27 after a person picks a value on a card that needed one, the button is Modify', async () => {
@@ -595,9 +651,7 @@ describe('ConflictsList', () => {
     show();
     await ready();
     const c = card(base.label);
-    expect(within(c).getByRole('heading', { level: 2 }).textContent).toBe(
-      'Area of room (name Küche · 1.01)',
-    );
+    expect(within(c).getByRole('heading', { level: 2 }).textContent).toBe(base.title);
     expect(within(c).queryAllByRole('link')).toHaveLength(0);
     const foot = c.querySelector('.cf-buttons') as HTMLElement;
     expect(

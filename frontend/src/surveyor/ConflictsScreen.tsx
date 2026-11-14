@@ -9,7 +9,7 @@ import {
   type ProjectReview,
 } from '../api';
 import { ConflictCard, type DrawingLoad } from './ConflictCard';
-import { conflictCount, keyOf, ordered, progressText, subLine } from './conflicts';
+import { conflictCount, keyOf, ordered, progressText, subLine, type Answer } from './conflicts';
 import './conflicts.css';
 
 type Load = { review: ProjectReview } | { error: unknown } | null;
@@ -95,7 +95,7 @@ export function ConflictsList({
   async function edit(
     drawingId: string,
     quantity: string,
-    e: { action: 'settle'; value: number } | { action: 'unsettle' },
+    e: ({ action: 'settle' } & Answer) | { action: 'unsettle' },
   ) {
     await postReview(drawingId, { quantity, ...e }, { project: projectId });
     // the server's project review is the one source of the cards (it lists a storey twin once)
