@@ -419,7 +419,10 @@ def _balanced(image: Image.Image) -> Image.Image:
 
 def _other(data: bytes) -> Probed:
     if data[:3] == b"AC1" and data[3:6].isdigit():
-        return Probed(kind="dwg", did="a DWG drawing: converting it to DXF is not built yet")
+        return Probed(
+            kind="dwg",
+            did="a DWG drawing: DWG files can't be opened here; export it as a PDF and upload that",
+        )
     if data.startswith(b"PK\x03\x04"):
         try:
             with zipfile.ZipFile(io.BytesIO(data)) as archive:

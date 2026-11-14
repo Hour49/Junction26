@@ -6,6 +6,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
 from app.core.answering.model import (
+    NO_SUBJECT,
     Answer,
     ConflictValue,
     Evidence,
@@ -258,6 +259,7 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
     )
 
 
+BARE_NUMBER = re.compile(r"U?\d+\.\d+", re.IGNORECASE)  # as question_templates' ROOM_NUMBER
 SHORT_LABEL = re.compile(r"[^\W\d_a-zäöå]{2}")  # MH, OH, KT: two capitals
 CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
 
@@ -286,9 +288,26 @@ class RoomByType:
         parsed = self._parser.parse(text)
         if isinstance(parsed, Unsupported):
             return self._printed(text) or parsed
+        if isinstance(parsed, Query) and (unnamed := self._not_a_room(text, parsed)):
+            return unnamed
         if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
             return parsed
         return self._area_of(rooms[0], parsed) or self._only_one(parsed) or parsed
+
+    def _not_a_room(self, text: str, parsed: Query) -> Unsupported | None:
+        """A bare number the parser took as the room ("Area 3.14?", "level 1.5") that no room of
+        the drawing is numbered or named: the question names no room (review-313 S2). Only when
+        the number was its one subject, so "room 1.05" keeps its own answer."""
+        name = parsed.name
+        if parsed.subject != "room" or name is None or not BARE_NUMBER.fullmatch(name):
+            return None
+        if any(normalised(name) in room_names(room) for room in self._drawing.rooms):
+            return None
+        at = re.compile(rf"(?<![\w.]){re.escape(name)}(?![\w.])", re.IGNORECASE)
+        again = self._parser.parse(at.sub(" ", text, count=1))
+        if isinstance(again, Unsupported) and again.reason == NO_SUBJECT:
+            return again
+        return None
 
     def _only_one(self, parsed: Query) -> Query | None:
         """The one room of the type has no name to key its area by (read from its furniture):

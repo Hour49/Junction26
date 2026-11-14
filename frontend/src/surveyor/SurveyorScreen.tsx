@@ -227,7 +227,10 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
             </header>
             <p>Nothing was counted on this drawing.</p>
             {drawing.reader.extractor === 'hello' && (
-              <p>This drawing&apos;s route has no reader in this build, so nothing was counted.</p>
+              <p>
+                This drawing wasn&apos;t read: this setup has no reader for this kind of sheet, so
+                nothing on it was counted or measured.
+              </p>
             )}
             {!zeros && zerosToggle}
           </>
