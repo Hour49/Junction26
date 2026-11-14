@@ -344,6 +344,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/chat/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat Stream
+         * @description One turn as a step stream (.agents/chat/contract.md C). Errors known before the turn are
+         *     plain HTTP, as on POST .../chat; the turn runs to its end even when the client goes away.
+         */
+        post: operations["chat_stream_api_projects__project_id__chat_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {
         parameters: {
             query?: never;
@@ -943,6 +964,11 @@ export interface components {
             model: "gemini" | "rules" | "off";
             /** Reason */
             reason: string | null;
+            /**
+             * Stream
+             * @default true
+             */
+            stream: boolean;
         };
         /** ChatRequest */
         ChatRequest: {
@@ -3784,6 +3810,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatTurn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description CHAT_MODEL=off */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    chat_stream_api_projects__project_id__chat_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Server-Sent Events: turn, thinking, plan, tool_call, tool_result, view, checking, then answer (the ChatTurn of POST .../chat) or error */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
                 };
             };
             /** @description Validation Error */
