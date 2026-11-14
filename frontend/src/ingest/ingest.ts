@@ -179,3 +179,18 @@ export function normalisedSteps(n: Normalised): string[] {
   if (n.rectified) steps.push(`perspective corrected${n.rectifier ? ` (${n.rectifier})` : ''}`);
   return steps;
 }
+
+/** This tab's upload (name, size), kept by UploadBox for the extraction view to say what the server received. */
+export const uploadedKey = (projectId: string) => `uploaded:${projectId}`;
+
+const MB = 2 ** 20;
+/** A size as people read it (IN-89): KB under 1 MB (at least 1 KB), else MB with one decimal. */
+export function sizeText(bytes: number): string {
+  return bytes < MB
+    ? `${String(Math.max(1, Math.round(bytes / 1024)))} KB`
+    : `${(bytes / MB).toFixed(1)} MB`;
+}
+/** A part of `total` in `total`'s unit, without the unit: "0.5" of "2.0 MB", "15" of "29 KB". */
+export function amount(bytes: number, total: number): string {
+  return total < MB ? String(Math.round(bytes / 1024)) : (bytes / MB).toFixed(1);
+}
