@@ -256,7 +256,6 @@ def readers(settings: Settings) -> dict[str, str]:
         "cad": settings.extractor_cad,
         "vector": settings.extractor_vector,
         "raster": settings.extractor_raster,
-        "raster_scale": settings.raster_scale,
         "tables": settings.tables,
         "second_counter": settings.second_counter,
         "rectifier": settings.rectifier,

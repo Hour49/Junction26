@@ -131,7 +131,6 @@ An edit of a signed-off quantity (409):
     "cad": "hello",
     "vector": "pdf",
     "raster": "hello",
-    "raster_scale": "off",
     "tables": "pdf",
     "second_counter": "ifc",
     "rectifier": "none",
