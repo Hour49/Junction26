@@ -10,6 +10,7 @@ from app.core.drawing.model import (
     Mark,
     MeasuredValue,
     Page,
+    Plan,
     Room,
     RoomType,
     Scale,
@@ -789,6 +790,130 @@ def test_a_room_s_names_are_one_disagreement_only_when_the_rows_point_at_one_roo
     assert storey_twins(rooms()) == {}  # no marks: not known to be one room
     assert len(disputes([row(q, DRAWING, ReviewState(), {}) for q in rooms().values()])) == 2
     assert storey_twins(rooms(BOX_A)) == {"area:room|name=kitchen": "area:room|name=1.01"}
+
+
+def floors_drawing(*storeys: str | None) -> Drawing:
+    """A sheet of len(storeys) plans side by side (one per storey name, None: unnamed), each
+    holding plan-number + 1 doors and, on the first and last, toilets."""
+    plans = tuple(
+        Plan(id=f"p{n}", page=1, box=(n / len(storeys), 0.1, (n + 1) / len(storeys), 0.4),
+             storey=storey)
+        for n, storey in enumerate(storeys)
+    )  # fmt: skip
+    things: list[Element] = []
+    for n, plan in enumerate(plans):
+        x = (plan.box[0] + plan.box[2]) / 2
+        kinds = ["door"] * (n + 1) + (["toilet"] if n in (0, len(plans) - 1) else [])
+        for at, kind in enumerate(kinds):
+            things.append(
+                Element.model_validate(
+                    {
+                        "id": f"e{n}-{at}",
+                        "class": kind,
+                        "page": 1,
+                        "plan": plan.id,
+                        "box": (x, 0.2 + at / 100, x + 0.005, 0.205 + at / 100),
+                    }
+                )
+            )
+    return Drawing(
+        file="x.png", pages=(PAGE,), scale=Scale(status="no_scale"), plans=plans,
+        elements=tuple(things),
+    )  # fmt: skip
+
+
+def test_a_floor_named_in_words_is_the_storey_the_drawing_prints_for_it() -> None:
+    """fable-rooms r10 item 11: page 2 of a scanned set, titled FIRST FLOOR PLAN (its plan's
+    storey, from Carbon), refused "How many doors are on the first floor?" as no count at all,
+    and "on the 1st floor" answered the whole sheet's count."""
+    drawing = floors_drawing("FIRST FLOOR")
+    for text in ("How many doors are on the first floor?", "How many doors are on the 1st floor?"):
+        found = asked(text, drawing)
+        assert found.answer.answer == 1, text
+        assert found.query == "door|storey=first floor"
+    other = asked("How many doors are on the second floor?", drawing)
+    assert other.answer.answer is None and other.refusal is not None
+    assert other.refusal.text == (
+        "This drawing's storeys are FIRST FLOOR; none of them is the second floor."
+    )
+    unnamed = asked("How many doors are on the 2nd floor?", floors_drawing(None))
+    assert unnamed.answer.answer is None and unnamed.refusal is not None  # not the sheet's 1
+    assert unnamed.refusal.text == (
+        "This drawing doesn't say which floor it shows, so I can't tell if it is the 2nd floor."
+    )
+    two = asked("How many doors are on level 1?", floors_drawing("Level 1", "Intermediate level 1"))
+    assert two.refusal is not None and two.refusal.text.startswith(
+        "Several storeys of this drawing could be the level 1: Intermediate level 1, Level 1."
+    )
+
+
+def test_a_floor_on_a_sheet_of_unnamed_plans_says_what_each_plan_holds() -> None:
+    """fable-rooms r10 item 10 (chat-eval's scan2, three plans on one image): "How many toilets
+    are on the second floor?" was refused as no count; "... on floor 2" counted all three
+    plans. Which plan is the second floor is not printed, so the answer gives each plan's count
+    and asks, never the sheet's total as the floor's."""
+    drawing = floors_drawing(None, None, None)
+    found = asked("How many toilets are on the second floor?", drawing)
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.code == "not-in-drawing"
+    assert found.refusal.text == (
+        "This drawing has 3 plans and none is labelled with its floor, so I can't tell which one "
+        "is the second floor. Toilets on each: plan 1 (top left) 1, plan 2 (top) 0, "
+        "plan 3 (top right) 1; 2 in all."
+    )
+    doors = asked("How many doors are there on floor 2?", drawing)
+    assert doors.refusal is not None and doors.refusal.text.endswith(
+        "Doors on each: plan 1 (top left) 1, plan 2 (top) 2, plan 3 (top right) 3; 6 in all."
+    )
+    assert asked("How many doors are there?", drawing).answer.answer == 6  # the sheet: unchanged
+
+
+def test_a_basement_level_is_not_the_first_floor() -> None:
+    """review-352 B1: "Level -1" read as floor 1, so "doors on the first floor" answered the
+    basement's count."""
+    drawing = floors_drawing("Level -1", "Level 0")
+    first = asked("How many doors are on the first floor?", drawing)
+    assert first.answer.answer is None and first.refusal is not None
+    assert first.refusal.text == (
+        "This drawing's storeys are Level -1, Level 0; none of them is the first floor."
+    )
+    assert asked("How many doors are on level -1?", drawing).answer.answer == 1
+    assert asked("How many doors are on the ground floor?", drawing).answer.answer == 2
+
+
+def test_plans_that_share_a_floor_s_name_are_never_summed() -> None:
+    """review-352 B2: three plans captioned "1st Floor Plan - Option 1/2/3" answered the first
+    floor's doors as the sum of three alternative layouts."""
+    found = asked("How many doors are on the first floor?", floors_drawing(*["1st Floor"] * 3))
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.text == (
+        "3 plans on this drawing are labelled 1st Floor, so I can't tell which one is meant, and "
+        "I don't add them up: they may be alternatives or parts of the floor. Doors on each: "
+        "plan 1 (top left) 1, plan 2 (top) 2, plan 3 (top right) 3."
+    )
+
+
+def test_storey_names_without_a_floor_number_are_not_said_to_be_another_floor() -> None:
+    """review-352 S3: on storeys Erdgeschoss and 1. Obergeschoss the refusal said "none of them is
+    the first floor", which is false (1. OG is the first floor)."""
+    found = asked("How many doors are on the first floor?", floors_drawing("Erdgeschoss", "1. OG"))
+    assert found.refusal is not None
+    assert found.refusal.text.startswith(
+        "This drawing's storeys are 1. OG, Erdgeschoss; I can't tell which of them is the first "
+        "floor."
+    )
+
+
+def test_the_per_plan_counts_add_up_to_the_sheet_s() -> None:
+    """review-352 N1: a door outside every plan is said, so the plans' counts and the total
+    agree."""
+    drawing = floors_drawing(None, None)
+    loose = Element.model_validate({"id": "loose", "class": "door", "page": 1, "box": BOX_B})
+    drawing = drawing.model_copy(update={"elements": (*drawing.elements, loose)})
+    found = asked("How many doors are on the second floor?", drawing)
+    assert found.refusal is not None and found.refusal.text.endswith(
+        "Doors on each: plan 1 (top left) 1, plan 2 (top right) 2, 1 outside every plan; 4 in all."
+    )
 
 
 BOX_C = (0.5, 0.5, 0.6, 0.6)

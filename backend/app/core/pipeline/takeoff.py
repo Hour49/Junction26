@@ -35,6 +35,7 @@ from app.core.drawing.model import (
     Mark,
     ModelObject,
     Page,
+    Plan,
     Resolution,
     Room,
     Scale,
@@ -788,6 +789,31 @@ def _storey(attrs: Mapping[str, Attr], plan: str | None, plans: Mapping[str, obj
         return str(own)
     on_plan = plans.get(plan) if plan is not None else None
     return None if on_plan is None else str(on_plan)
+
+
+def storeys(drawing: Drawing) -> tuple[str, ...]:
+    """Every storey the drawing names: its plans', its items' and its building model's."""
+    plans = {plan.id: plan.storey for plan in drawing.plans}
+    found = {str(plan.storey) for plan in drawing.plans if plan.storey is not None}
+    for item in (*drawing.elements, *drawing.rooms):
+        if (storey := _storey(item.attrs, item.plan, plans)) is not None:
+            found.add(storey)
+    found |= {str(item.storey) for item in drawing.model_objects or () if item.storey is not None}
+    return tuple(sorted(found))
+
+
+def plan_counts(drawing: Drawing, key: str) -> list[tuple[Plan, int]]:
+    """How many of a count key's items each plan of the drawing holds (an item's `plan`), by the
+    sheet's counting rules; [] when the rules have no such key."""
+    found: list[tuple[Plan, int]] = []
+    for plan in drawing.plans:
+        elements = [e for e in drawing.elements if e.plan == plan.id]
+        rooms = [r for r in drawing.rooms if r.plan == plan.id]
+        counted = apply_rules(_listed(elements, rooms))
+        if key not in counted:
+            return []
+        found.append((plan, len(counted[key].marks)))
+    return found
 
 
 def _mark(item: Element | Room) -> Mark:
