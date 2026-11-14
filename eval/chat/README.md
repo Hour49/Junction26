@@ -25,6 +25,9 @@ value, a decimal by one that rounds to it at its places, a number inside a strin
 label only as written; ids, boxes, polygons, pages, timings and cost don't count; needs
 `--chats <env>/data/projects`; the stored file holds the whole chat, so a later turn's result can
 back an earlier turn),
+**level kept** (on a turn asking whether the chat is sure: the level the reply claims, named as
+its confidence or by "yes"/"I'm sure" (high) or "not sure" (below high), is the level of the card
+it was asked about) and **level changed** (that turn brings a card at another level),
 **refusal offers**, **steps shown**, **view shown** (the turn puts a plan on screen), **http
 errors**, **latency** p50 and max, **USD** per turn and in total.
 
@@ -65,5 +68,6 @@ baseline: 64/64; with every standalone whole number in the replies raised by 1, 
 Model answers vary run to run, so a live A/B arm that matters gets two runs. A reply that is not
 JSON (a streamed event body) is passed on but not recorded, so a streaming model call cannot be
 replayed yet. `run.py` refuses an `--out` file that already has turns (a second run in it would
-count every turn twice), and `score.py --ab` refuses two runs that do not cover the same turns:
-compare a subset with the same `--only` on both.
+count every turn twice). `score.py --ab` guards level kept too when both runs have such turns,
+and refuses two runs that do not cover the same turns: compare a subset with the same `--only`
+on both.

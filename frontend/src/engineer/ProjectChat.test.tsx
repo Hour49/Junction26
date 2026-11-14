@@ -398,7 +398,7 @@ async function pick() {
   });
 }
 const slow = { timeout: 4000 };
-const READ = `${PHOTO} is read: you can ask about it (read on the image route: 4 elements, 2 rooms, scale found).`;
+const READ = `${PHOTO} is read: you can ask about it.`; // the why (what was read) is behind "Why"
 
 it('CH-17 the chat has "Add a photo" for png and jpeg; the ask bar without onAttach has none', async () => {
   openWithPhoto(added, [withPhoto('ready')]);
@@ -431,13 +431,11 @@ it('CH-18 a picked photo is posted, read while polled, then askable', async () =
 it('CH-19 a photo that is not a plan says why', async () => {
   openWithPhoto(added, [withPhoto('set_aside')]);
   await pick();
-  expect(
-    await screen.findByText(
-      `${PHOTO} was not read as a plan: not a plan: a photo of a cat.`,
-      {},
-      slow,
-    ),
-  ).toBeTruthy();
+  expect(await screen.findByText(`${PHOTO} was not read as a plan.`, {}, slow)).toBeTruthy();
+  // the backend's reason, word for word, behind "Why" (qa-a r10 item 2)
+  expect(screen.getByText('Why').closest('details')?.textContent).toBe(
+    'Whynot a plan: a photo of a cat',
+  );
 });
 
 it('CH-20 a refused post says so, polls nothing and frees the paperclip', async () => {
@@ -458,11 +456,10 @@ it('CH-20 a refused post says so, polls nothing and frees the paperclip', async 
 it('CH-19 a flagged photo that nothing read says so in the backend words, never "you can ask"', async () => {
   openWithPhoto(added, [withPhoto('flagged')]);
   await pick();
+  expect(await screen.findByText(`${PHOTO} is flagged.`, {}, slow)).toBeTruthy();
   expect(
-    await screen.findByText(
-      `${PHOTO} is flagged: not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet).`,
-      {},
-      slow,
+    screen.getByText(
+      'not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet)',
     ),
   ).toBeTruthy();
   expect(screen.queryByText(/you can ask about it/)).toBeNull();

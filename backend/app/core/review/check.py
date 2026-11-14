@@ -36,13 +36,13 @@ answers gave it. The words under a level quote the counts it was measured on, fr
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from types import MappingProxyType
-from typing import Literal
+from typing import Literal, NamedTuple
 
 from pydantic import Field
 
 from app.core.answering.answer import AGREEING_FAMILIES
 from app.core.answering.local_gate import READER_FAMILIES, LocalGateModel, reading_of, score
-from app.core.drawing.model import Box, CarbonCheck, Drawing, Room
+from app.core.drawing.model import Box, CarbonCheck, Drawing, Room, RoomType
 from app.core.model import Frozen
 from app.core.pipeline.count_arbiter import count_arbiter_reading
 from app.core.review.model import MarkView, Row
@@ -202,6 +202,93 @@ def found_nothing(drawing: Drawing) -> bool:
     return bool(drawing.pages) and not drawing.plans and not located
 
 
+class RoomWord(NamedTuple):
+    """What a room's printed label names: a room type, and whether the word belongs to a kind of
+    sheet the policy was not measured on (`unmeasured`: a Swiss floor's room names; CubiCasa val
+    prints none)."""
+
+    kind: RoomType
+    unmeasured: bool
+
+
+# a room's printed label -> what it names; None: no room word we know (composition gives the
+# adapters' tables: app/adapters/raster/room_words.py)
+RoomWords = Callable[[str], RoomWord | None]
+
+
+def no_room_words(label: str) -> RoomWord | None:
+    """No label table: no room count is doubted by its labels."""
+    return None
+
+
+def room_word_doubt(row: Row, drawing: Drawing, words: RoomWords) -> Found | None:
+    """Why a count on an image is not certified, whatever its score, from the labels read in its
+    rooms (think-acc's certified-wrong Swiss bathroom, .agents/exp/certified-bathroom.md,
+    orchestrator 2026-11-14): for a count of a room type, a room whose label names that type is
+    typed otherwise (each such room is a place, not counted); for any count, a label is a word
+    of a sheet the policy was not measured on, where the readers and the signals carry
+    CubiCasa's conventions (orchestrator gen 29, 21:59, post hoc and conservative: think-acc's
+    paid read of 19 lone Swiss PNGs found its two High-and-wrong answers in toilet counts,
+    certified by a local gate). None: neither. It holds the certificate only: the level stays
+    what the score gives (on CubiCasa val 0 High answers and 2 Medium ones have such a room; the
+    Medium ones keep their level)."""
+    if row.measure != "count":
+        return None
+    kind = row.subject.removeprefix("room:") if row.subject.startswith("room:") else ""
+    what = row.noun or row.label
+    named = [(room, word) for room in drawing.rooms if room.label and (word := words(room.label))]
+    off = [room for room, word in named if kind and word.kind == kind and room.type != kind]
+    if off:
+        places = tuple(
+            Place(
+                item_id=None,
+                page=room.page,
+                box=room.box,
+                why=(
+                    f'Labelled "{_label_line(room)}", which names a {kind}, but read as type '
+                    f'"{room.type}", so it is not counted.'
+                ),
+                readers={"reader": room.type, "label": kind},
+            )
+            for room in off
+        )
+        some = "a room is" if len(off) == 1 else f"{len(off)} rooms are"
+        return Found(
+            places=places,
+            reason=(
+                f"Please double-check the {what}: {some} labelled as the type asked about but "
+                "read as another type."
+            ),
+        )
+    printed = unmeasured_room(drawing, words)
+    if printed is not None:
+        return Found(
+            reason=(
+                f"Please double-check the {what}: this image prints room names such as "
+                f'"{_label_line(printed)}", and counts on plans of this kind are not in our '
+                "validation, so none is certified."
+            )
+        )
+    return None
+
+
+def unmeasured_room(drawing: Drawing, words: RoomWords) -> Room | None:
+    """The first room whose label is a word of a sheet the policy was not measured on (a Swiss
+    room name); None: no such room. A count on such an image is Low (`level_of` `unmeasured`)."""
+    return next(
+        (
+            room
+            for room in drawing.rooms
+            if room.label and (w := words(room.label)) and w.unmeasured
+        ),
+        None,
+    )
+
+
+def _label_line(room: Room) -> str:
+    return (room.label or "").strip().split("\n")[0].strip()
+
+
 def certified(
     policy: CheckPolicy,
     *,
@@ -245,6 +332,10 @@ HELD_TEXT = (
     "request says why." + ASK["low"]
 )
 UNRATED_TEXT = "Low confidence: we have no measurement behind this answer." + ASK["low"]
+UNMEASURED_TEXT = (
+    "Low confidence: plans of this kind are not in our validation, so no measurement stands "
+    "behind this answer." + ASK["low"]
+)
 BLANK_TEXT = (
     "Low confidence: nothing was found on this page (no plan, no element), so the readers "
     "agreeing is not evidence." + ASK["low"]
@@ -306,12 +397,15 @@ def level_of(
     flags: Sequence[str],
     held: bool = False,
     blank: bool = False,
+    unmeasured: bool = False,
 ) -> Level | None:
     """The level of an answer `policy` rated `sure` or not (None: the policy file carries no
     levels). High exactly when sure. Else Low on a flagged page, on a raster drawing where
-    nothing was found (`blank`, `found_nothing`) and on a value `held` for a check (its score, if
-    any, did not rate what is shown); off the raster route, the route's own level;
-    on it, Medium at or above the family's `medium` score and Low below. A family with no
+    nothing was found (`blank`, `found_nothing`), on a value `held` for a check (its score, if
+    any, did not rate what is shown) and on a raster count on a plan of a kind the policy was not
+    measured on (`unmeasured`: a Swiss image, `unmeasured_room`; its Medium would quote the
+    validation's counts, orchestrator gen 29, 2026-11-14); off the raster route, the route's
+    own level; on it, Medium at or above the family's `medium` score and Low below. A family with no
     threshold, an answer with no score and a route with no level are Low: nothing was measured."""
     if policy.counts is None:
         return None
@@ -325,6 +419,8 @@ def level_of(
         return Level(level="low", basis="page", text=BLANK_TEXT)
     if held:
         return Level(level="low", basis="held", text=HELD_TEXT)
+    if unmeasured and route == "raster":
+        return Level(level="low", basis="unrated", text=UNMEASURED_TEXT)
     if route != "raster":
         made = None if route is None else policy.route_levels.get(route)
         if made is None or made == "high":  # no level, or a certified route's answer that asks
