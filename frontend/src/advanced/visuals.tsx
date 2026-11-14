@@ -81,11 +81,13 @@ export function FileStrip({
           </li>
         ))}
       </ul>
-      <p className="adv-caption">
-        {working
-          ? `${working.path} · ${formatSize(working.size)}`
-          : `${plural(files.length, 'file')}, ${formatSize(total)}`}
-      </p>
+      {files.length > 0 && ( // no "0 files, 0 B" (AV-32)
+        <p className="adv-caption">
+          {working
+            ? `${working.path} · ${formatSize(working.size)}`
+            : `${plural(files.length, 'file')}, ${formatSize(total)}`}
+        </p>
+      )}
     </div>
   );
 }
@@ -131,7 +133,7 @@ export function RouteLanes({
   const laneBox = (id: 'exact' | 'image', title: string, readerIds: string[], count: number) => (
     <div className="adv-lane" aria-current={lane === id ? 'true' : undefined}>
       <strong>{title}</strong>
-      <span>{readerIds.map((r) => `${r}: ${readerName(readers[r])}`).join(' · ')}</span>
+      <span>{readerIds.map((r) => `${routeLabel(r)}: ${readerName(readers[r])}`).join(' · ')}</span>
       <span>{plural(count, 'file')}</span>
       {lane === id && <span className="adv-here">This file goes here</span>}
     </div>
@@ -316,7 +318,7 @@ export function CheckPairs({ projectId, pairs }: { projectId: string; pairs: rea
       <p className="adv-missing">Nothing on these drawings can be measured a second way yet.</p>
     );
   // Every conflict, then the first few that agree; the rest behind a button (a long list buries the panel).
-  const conflicts = pairs.filter((p) => p.row.status === 'conflict').length;
+  const conflicts = pairs.filter((p) => p.disputed).length;
   const shown = all ? pairs : pairs.slice(0, conflicts + PAIRS_SHOWN);
   return (
     <div className="adv-visual">

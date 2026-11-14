@@ -162,6 +162,7 @@ describe('advanced.ts', () => {
       key: 'door',
       status: 'agree' as const,
       second: { method: 'ifc_model', value: 2 },
+      conflict: null, // an agreeing row has no conflict
     };
     const t: Takeoff = { ...takeoff, quantities: [agree, ...takeoff.quantities] };
     const pairs = pairsOf([t], project);
@@ -171,6 +172,17 @@ describe('advanced.ts', () => {
     ]);
     const own = must(project.files.find((f) => f.drawing_id === takeoff.drawing_id));
     expect(pairs[0]?.file).toBe(own.path);
+  });
+
+  it('AV-34 pairsOf counts Takeoff.disputes: a conflict twin not in disputes is left out', () => {
+    const real = must(takeoff.quantities.find((r) => r.status === 'conflict'));
+    const twin = { ...real, key: 'area:room|name=Küche' }; // the same room under its other name
+    const t: Takeoff = { ...takeoff, quantities: [real, twin], disputes: [real.key] };
+    const pairs = pairsOf([t], project);
+    expect(pairs.map((p) => [p.row.key, p.disputed])).toEqual([[real.key, true]]);
+    // an older backend sends no disputes: every conflict row counts, as before
+    const old = { ...t, disputes: undefined } as unknown as Takeoff;
+    expect(pairsOf([old], project).filter((p) => p.disputed)).toHaveLength(2);
   });
 
   it("pairsOf names the drawing by THIS project's file, not the shared drawing's first upload", () => {
