@@ -117,6 +117,26 @@ def test_the_area_of_the_kitchen_is_the_one_kitchen_s_area(
     assert kitchen["marks"] == by_number["marks"]
 
 
+@pytest.mark.parametrize(
+    ("question", "words"),
+    [
+        ("How many doors and windows are there?", "more than one kind of thing"),
+        ("How many doors does the kitchen have?", "inside one room"),
+    ],
+)
+def test_a_count_with_a_part_it_cannot_apply_says_which_part(
+    client: TestClient, drawing_id: str, question: str, words: str
+) -> None:
+    """R1-5-2: these were answered with the whole-drawing door count; now refused, saying why."""
+    answer = ask(client, drawing_id, question)
+    assert (answer["answer"], answer["quantity"]) == (None, None)
+    assert answer["refusal"]["code"] == "unsupported-question"
+    assert words in answer["refusal"]["text"]
+    assert {"quantity": "door", "label": "door count", "question": DOORS} in answer["refusal"][
+        "can_answer"
+    ]
+
+
 def test_a_class_the_reader_did_not_look_for_is_refused_as_not_read(
     client: TestClient, drawing_id: str
 ) -> None:

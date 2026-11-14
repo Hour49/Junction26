@@ -472,7 +472,7 @@ describe('extended answers', () => {
   it('EN-26 where this came from', async () => {
     const t = await shownTurn(answer);
     expect(
-      within(t).getByText('pdf read plans/flat-a.pdf (vector route), second count by ifc'),
+      within(t).getByText('pdf read plans/flat-a.pdf (vector route), second count by none'),
     ).toBeTruthy();
   });
 

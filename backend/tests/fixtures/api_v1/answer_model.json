@@ -46,7 +46,7 @@
     "route": "bim",
     "source": "model/house.ifc",
     "extractor": "ifc",
-    "second_counter": "ifc",
+    "second_counter": "none",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,

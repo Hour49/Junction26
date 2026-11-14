@@ -1,10 +1,13 @@
 """Projects, traces, drawings, pages, info and errors (docs/API.md)."""
 
 import io
+import threading
 import zipfile
+from contextlib import ExitStack
 
 import pytest
 from conftest import plan_png, upload
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from PIL import Image
 from test_vector_pdf import swiss_sheet
@@ -13,6 +16,7 @@ from app.api import projects
 from app.api.info import info
 from app.main import create_app
 from app.settings import Settings
+from scripts.make_sample_archive import build_archive
 
 
 def test_an_upload_starts_a_project_and_says_where_to_poll(
@@ -157,6 +161,48 @@ def test_an_upload_is_refused_while_too_many_projects_wait(
     monkeypatch.setattr(projects, "MAX_WAITING", 0)
     response = client.post("/api/projects", params={"name": "plan.pdf"}, content=plan_pdf)
     assert (response.status_code, response.json()["code"]) == (429, "busy")
+
+
+def test_uploads_still_being_received_count_toward_the_limit(client: TestClient) -> None:
+    """R1-5 429 race: the check and the count were apart, so 5 uploads got in with a limit of 3.
+    Five threads each take a slot and hold it; exactly MAX_WAITING get one, the rest a 429."""
+    admission: projects.Admission = client.app.state.admission  # type: ignore[attr-defined]
+    ingest = client.app.state.ingest  # type: ignore[attr-defined]
+    arrived, release = threading.Barrier(6), threading.Event()
+    outcomes: list[int] = []
+
+    def try_upload() -> None:
+        try:
+            with admission.slot(ingest):
+                outcomes.append(202)
+                arrived.wait()
+                release.wait()
+        except HTTPException as refused:
+            outcomes.append(refused.status_code)
+            arrived.wait()
+
+    threads = [threading.Thread(target=try_upload) for _ in range(5)]
+    for thread in threads:
+        thread.start()
+    arrived.wait()  # every thread holds a slot or was refused
+    assert sorted(outcomes) == [202] * projects.MAX_WAITING + [429] * (5 - projects.MAX_WAITING)
+    release.set()
+    for thread in threads:
+        thread.join()
+    with admission.slot(ingest):  # the slots were given back
+        pass
+
+
+def test_the_sample_is_never_refused_as_busy(client: TestClient, plan_pdf: bytes) -> None:
+    """A background ingest must not block "Try the sample project" at the demo (orchestrator)."""
+    admission: projects.Admission = client.app.state.admission  # type: ignore[attr-defined]
+    ingest = client.app.state.ingest  # type: ignore[attr-defined]
+    with ExitStack() as held:
+        for _ in range(projects.MAX_WAITING):
+            held.enter_context(admission.slot(ingest))
+        busy = client.post("/api/projects", params={"name": "plan.pdf"}, content=plan_pdf)
+        assert (busy.status_code, busy.json()["code"]) == (429, "busy")
+        assert client.post("/api/projects/sample", params={"fresh": True}).status_code == 202
 
 
 @pytest.mark.parametrize(
@@ -315,10 +361,28 @@ def test_info_names_every_reader_a_project_was_read_with(
     assert used.items() <= named.items()
 
 
-def test_the_sample_needs_its_archive(client: TestClient) -> None:
+def test_a_missing_sample_archive_is_built_on_the_first_click(
+    client: TestClient, settings: Settings
+) -> None:
+    """R1-5-1: a fresh deploy has no data/samples; "Try the sample project" still works."""
+    assert not settings.sample_archive.exists()
     response = client.post("/api/projects/sample")
-    assert (response.status_code, response.json()["code"]) == (404, "not-found")
-    assert "make_sample_archive.py" in response.json()["detail"]
+    assert response.status_code == 202
+    assert settings.sample_archive.read_bytes() == build_archive()
+    assert len(client.get(response.json()["url"]).json()["files"]) == 11
+
+
+def test_a_sample_that_cannot_be_built_is_refused_in_plain_words(
+    client: TestClient, settings: Settings, caplog: pytest.LogCaptureFixture
+) -> None:
+    settings.sample_archive.parent.joinpath("blocked").write_text("a file, not a folder")
+    settings.sample_archive = settings.sample_archive.parent / "blocked" / "sample-project.zip"
+    response = client.post("/api/projects/sample")
+    assert response.json() == {
+        "detail": "The sample project isn't available on this server",
+        "code": "not-found",
+    }
+    assert "make_sample_archive.py" in caplog.text  # the developer's hint goes to the log
 
 
 def test_a_fresh_sample_resets_the_reviews_of_the_last_one(
@@ -412,3 +476,29 @@ def test_a_fresh_sample_is_ingested_again_not_reused(
     assert [file["reused"] for file in again["files"]] == [True]
     fresh = client.post("/api/projects/sample", params={"fresh": True}).json()
     assert [file["reused"] for file in client.get(fresh["url"]).json()["files"]] == [False]
+
+
+def test_the_reader_names_a_second_counter_only_for_what_it_measured(
+    client: TestClient, plan_pdf: bytes
+) -> None:
+    """R1-5-3 / R1-2-1: a raster plan, and a door count on a lone swiss PDF, read "second count
+    by ifc" next to "no second check". The drawing names its second counter only when it measured
+    something on it; an answer only when it measured the answered quantity."""
+
+    def drawing_of(data: bytes, name: str) -> str:
+        project = client.get(f"/api/projects/{upload(client, data, name)}").json()
+        return project["drawings"][0]["drawing_id"]
+
+    def counter(drawing_id: str, question: str | None = None) -> object:
+        if question is None:
+            return client.get(f"/api/drawings/{drawing_id}").json()["reader"]["second_counter"]
+        body = {"drawing_id": drawing_id, "question": question}
+        return client.post("/api/ask", json=body).json()["reader"]["second_counter"]
+
+    png = drawing_of(plan_png(), "plan.png")
+    assert (counter(png), counter(png, "How many doors are there?")) == ("none", "none")
+    pdf = drawing_of(plan_pdf, "plan.pdf")  # its printed room areas are measured twice
+    assert counter(pdf) == "ifc"
+    assert counter(pdf, "What is the net floor area of room 2.01?") == "ifc"
+    assert counter(pdf, "How many doors are there?") == "none"  # one method
+    assert counter(pdf, "What colour is the roof?") == "none"

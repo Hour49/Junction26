@@ -19,7 +19,15 @@ from app.core.answering.answer import (
     answer_question,
     rooms_of_type,
 )
-from app.core.answering.model import Answer, Query, Question, TableQuery, Unsupported
+from app.core.answering.model import (
+    IN_ONE_ROOM,
+    SEVERAL_THINGS,
+    Answer,
+    Query,
+    Question,
+    TableQuery,
+    Unsupported,
+)
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
 from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table
@@ -58,6 +66,12 @@ TEXTS = {
     "no-drawing": "This file has no drawing model.",
     "policy": "The reader for this kind of sheet is not reliable enough for this question yet, so "
     "no number is given.",
+}
+PARTS = {  # an unsupported count that would drop part of the question: which part
+    SEVERAL_THINGS: "This question names more than one kind of thing, and I count one kind across "
+    "the whole drawing. Ask for each one on its own; try one of these.",
+    IN_ONE_ROOM: "This question counts what is inside one room, and I count across the whole "
+    "drawing. Try one of these instead.",
 }
 
 
@@ -253,6 +267,8 @@ def _refusal(
     if method == UNSUPPORTED_QUESTION or not isinstance(parsed, Query) or query is None:
         if isinstance(parsed, TableQuery):
             return "not-in-drawing", "No schedule on this sheet answers this question."
+        if isinstance(parsed, Unsupported) and parsed.reason in PARTS:
+            return "unsupported-question", PARTS[parsed.reason]
         return "unsupported-question", TEXTS["unsupported-question"]
     if drawing.read == () and not drawing.model_objects:
         return "no-reader", TEXTS["no-reader"]
