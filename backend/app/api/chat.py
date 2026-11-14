@@ -78,7 +78,7 @@ def chat(
     chats: ChatsDep,
     packs: RulePacksDep,
 ) -> ChatTurn:
-    run = _turn_runner(project_id, body, request, ingest, settings, chats, packs)
+    run, _ = _turn_runner(project_id, body, request, ingest, settings, chats, packs)
     return run(lambda kind, data: None)
 
 
@@ -105,15 +105,22 @@ def chat_stream(
 ) -> StreamingResponse:
     """One turn as a step stream (.agents/chat/contract.md C). Errors known before the turn are
     plain HTTP, as on POST .../chat; the turn runs to its end even when the client goes away."""
-    run = _turn_runner(project_id, body, request, ingest, settings, chats, packs)
+    run, first = _turn_runner(project_id, body, request, ingest, settings, chats, packs)
     events: queue.Queue[Event | None] = queue.Queue()
+    sent: list[str] = []
+
+    def emit(kind: str, data: Any) -> None:
+        sent.append(kind)
+        events.put((kind, data))
 
     def work() -> None:
         try:
-            turn = run(lambda kind, data: events.put((kind, data)))
+            turn = run(emit)
             events.put(("answer", turn.model_dump(mode="json")))
         except Exception:
             log.exception("chat stream turn failed")
+            if "turn" not in sent:  # it failed before the turn began: `turn` still comes first
+                events.put(("turn", first))
             events.put(("error", {"status": 500, "detail": "the turn failed on the server"}))
         finally:
             events.put(None)
@@ -147,9 +154,10 @@ def _turn_runner(
     settings: Any,
     chats: JsonChatStore,
     packs: tuple[RulePack, ...],
-) -> Callable[[Callable[[str, Any], None]], ChatTurn]:
+) -> tuple[Callable[[Callable[[str, Any], None]], ChatTurn], dict[str, Any]]:
     """Checks what can be refused before a turn (422, 503, 404, 409) and takes the chat's lock;
-    gives the function that runs the turn with an event sink, stores it and releases the lock."""
+    gives the function that runs the turn with an event sink, stores it and releases the lock,
+    and the turn's `turn` event data (chat id, turn number)."""
     pack = None if body.pack is None else _pack(packs, body.pack)
     model, why = chat_model(settings)
     if model is None:
@@ -180,7 +188,7 @@ def _turn_runner(
         finally:
             lock.release()
 
-    return run
+    return run, {"chat_id": found.chat_id, "turn": len(found.turns) + 1}
 
 
 def _country(app: Any, pack: RulePack | None) -> str:

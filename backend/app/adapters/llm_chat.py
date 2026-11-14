@@ -91,18 +91,19 @@ class OpenAiChatModel:
         (`prompt_tokens_details.cached_tokens`) at the cached price; the rest of `total_tokens`
         (answer and thinking, whichever way the endpoint splits them), or `completion_tokens` if
         larger, at the output price. A count that is missing, negative or not a number is priced
-        high, never as free: the prompt from the request's size, the output as UNKNOWN_OUT, a
-        cached count as none."""
+        high, never as free: the prompt from the request's size (with no cached part), the output
+        as UNKNOWN_OUT, a cached count as none."""
         given = _count(usage.get("prompt_tokens"))
         total = _count(usage.get("total_tokens"))
         done = _count(usage.get("completion_tokens"))
+        counted = given is not None  # an estimated prompt gets no cached discount
         if given is None:
             given = sent_chars // CHARS_PER_TOKEN + 1
         outs = [n for n in (None if total is None else total - given, done) if n is not None]
         out = max(outs) if outs and max(outs) >= 0 else UNKNOWN_OUT
         details: Any = usage.get("prompt_tokens_details")
         cached = _count(details.get("cached_tokens")) if isinstance(details, dict) else None  # pyright: ignore[reportUnknownMemberType]
-        cached = cached if cached is not None and cached <= given else 0
+        cached = cached if counted and cached is not None and cached <= given else 0
         paid = (given - cached) * self._price_in + cached * self.price_cached
         return (paid + out * self._price_out) / M
 
