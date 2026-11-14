@@ -315,7 +315,8 @@ def test_a_picked_conflict_stays_listed_checked_by_the_model_and_needs_no_answer
     client, project_id = resolved_flat_b(settings, monkeypatch, reply(22.4))
     issue = conflict_issue(client, project_id)
     assert (issue["state"], issue["severity"], issue["resolved"]["by"]) == ("open", "note", BY)
-    assert f"checked by a model ({BY}), which picked 22.40 m²" in issue["why"]
+    assert f"no rule decides, a model picked 22.4 m² ({BY}): you can change it" in issue["why"]
+    assert "a person must settle it" not in issue["why"]
     project = client.get(f"/api/projects/{project_id}").json()
     (summary,) = client.get("/api/projects").json()["projects"]
     for counts in (project, summary):

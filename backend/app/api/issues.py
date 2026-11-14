@@ -590,7 +590,7 @@ def _conflict_why(row: Row) -> str:
         elif row.needs_person:  # the marks were edited after the pick
             why += f"; a model ({said_by.by}) picked {picked} before the marks were edited"
         else:
-            why += f"; checked by a model ({said_by.by}), which picked {picked}: you can change it"
+            why += f" ({said_by.by}): you can change it"  # check() said what it picked
     return f"{why}."
 
 

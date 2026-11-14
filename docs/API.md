@@ -3381,8 +3381,8 @@ A pick is checked by a model, never a person's word:
   `conflicts_picked` (a pick in use: no person settled, signed or edited its marks). A `cannot_tell` stays in
   `conflicts_open`. `conflicts_picked` is absent while `RESOLVER` is off and the project holds no pick.
 - Issues: a conflict's issue stays listed (state `open`) with `resolved` set; with a pick in use its severity is
-  `note`, so `issues_to_answer` doesn't count it, and its `why` ends "checked by a model (<by>), which picked
-  <value>: you can change it". With `cannot_tell` it stays `needs_person`.
+  `note`, so `issues_to_answer` doesn't count it, and its `why` ends "no rule decides, a model picked <value>
+  (<by>): you can change it". With `cannot_tell` it stays `needs_person`.
 - Answers (`POST /api/ask`): an answer that `check` asks to double-check gets the model's reply in `resolved`,
   beside the answer (never certified). On a conflict whose reply is kept, that reply is shown and no call is made;
   on a conflict a person has to choose, the request is the conflict's (both methods' values, the same cache entry
