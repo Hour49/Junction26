@@ -349,5 +349,8 @@
     }
   ],
   "expected_drawings": 1,
-  "not_plans": 4
+  "not_plans": 4,
+  "conflicts_open": 0,
+  "issues_open": 2,
+  "issues_to_answer": 1
 }
