@@ -309,6 +309,57 @@ def test_two_rooms_or_a_number_no_room_carries_are_refused_plainly() -> None:
     assert asked("How big is Bagno 1.09?", drawing).answer.answer == 5.175
 
 
+def test_a_count_in_a_room_by_its_number_and_a_printed_name_two_rooms_share() -> None:
+    """Tudor's chat QA (floor9178): "How many doors does Bagno 1.01 have?" counted the sheet's
+    doors, and "How big is Bagno?" (two rooms printed Bagno) said only "not which room". A room
+    count needs the room's outline; a printed name two rooms share lists both."""
+    from app.core.drawing.model import Element
+
+    def outline(x0: float, x1: float) -> tuple[tuple[float, float], ...]:
+        return ((x0, 0.1), (x1, 0.1), (x1, 0.3), (x0, 0.3))
+
+    first = Room(
+        id="r1", type="bathroom", label="Bagno", page=1, box=(0.1, 0.1, 0.3, 0.3),
+        polygon=outline(0.1, 0.3), area_m2=7.557, attrs={"number": "1.01"},
+    )  # fmt: skip
+    second = Room(
+        id="r2", type="bathroom", label="Bagno", page=1, box=(0.5, 0.1, 0.7, 0.3),
+        polygon=outline(0.5, 0.7), area_m2=5.175, attrs={"number": "1.09"},
+    )  # fmt: skip
+    boxed = Room(id="r3", type="bedroom", label="Stanza", page=1, box=(0.1, 0.5, 0.3, 0.7),
+                 area_m2=12.0, attrs={"number": "1.02"})  # fmt: skip
+    doors = tuple(
+        Element.model_validate({"id": f"e{at}", "class": "door", "page": 1, "box": box})
+        for at, box in enumerate(
+            [(0.30, 0.18, 0.32, 0.22), (0.18, 0.08, 0.22, 0.10), (0.48, 0.18, 0.50, 0.22)]
+        )
+    )
+    drawing = scaled(first, second, boxed).model_copy(
+        update={"elements": doors, "read": ("door", "room")}
+    )
+    assert asked("How many doors are there?", drawing).answer.answer == 3
+    for text, value in (("How many doors does Bagno 1.01 have?", 2),
+                        ("How many doors are in room 1.09?", 1)):  # fmt: skip
+        found = asked(text, drawing)
+        assert found.refusal is None and found.answer.answer == value, (text, found.refusal)
+    no_outline = asked("How many doors does Stanza 1.02 have?", drawing)
+    assert no_outline.refusal is not None and "no outline" in no_outline.refusal.text
+    nowhere = asked("How many doors are in room 7.77?", drawing)
+    assert nowhere.refusal is not None
+    assert nowhere.refusal.text == "No room on this drawing is numbered or named 7.77."
+    which = asked("How big is Bagno?", drawing)
+    assert which.answer.answer is None and which.refusal is not None
+    assert which.refusal.text == (
+        "2 rooms on this drawing are printed Bagno: Bagno 1.01 7.56 m², Bagno 1.09 5.17 m². "
+        "Which one? Ask with its number."
+    )
+    asks = [suggestion.question for suggestion in which.refusal.can_answer]
+    assert asks == [
+        "What is the net floor area of room 1.01?",
+        "What is the net floor area of room 1.09?",
+    ]
+
+
 def test_an_area_of_a_type_several_rooms_have_names_them_instead_of_guessing() -> None:
     rooms = [
         Room(id=f"r{at}", type="bedroom", label=f"MH {at}", page=1, box=box, area_m2=area)

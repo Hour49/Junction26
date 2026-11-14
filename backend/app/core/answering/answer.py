@@ -329,35 +329,43 @@ class RoomByType:
     def _printed(self, text: str) -> Query | None:
         """The question read with the one room name of the drawing it holds as that room's name
         ("the Reduit" → "the room 'Reduit'"), when that asks for the room's area."""
-        found: dict[str, list[Room]] = {}
-        at: dict[str, re.Match[str]] = {}
-        for room in self._drawing.rooms:
-            names = [(name, name, re.IGNORECASE) for name in room_names(room) if len(name) > 2]
-            # a 2-letter label (MH, OH) or one of letters and digits (MH1) only as printed,
-            # case-sensitive: never a word ("of", "is"); a room number stays the parser's
-            if room.label and (
-                SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)
-            ):
-                names.append((normalised(room.label), room.label, re.NOFLAG))
-            for name, printed, flags in names:
-                if flags and any(char.isdigit() for char in name):
-                    continue
-                match = re.search(rf"(?<!\w){re.escape(printed)}(?!\w)", text, flags)
-                if match is not None:
-                    found.setdefault(name, []).append(room)
-                    at[name] = match
-        if len(found) != 1:
+        named = printed_rooms(self._parser, self._drawing, text)
+        if named is None or len(named[1]) != 1:
             return None
-        ((name, rooms),) = found.items()
-        if len(rooms) != 1:
-            return None
-        match = at[name]
-        again = self._parser.parse(
-            f"{text[: match.start()]}room '{match.group()}'{text[match.end() :]}"
-        )
-        if not (isinstance(again, Query) and again.measure == "area" and again.name is not None):
-            return None
+        again, rooms = named
         return self._area_of(rooms[0], again)
+
+
+def printed_rooms(
+    parser: QuestionParser, drawing: Drawing, text: str
+) -> tuple[Query, list[Room]] | None:
+    """The rooms carrying the one room name of the drawing the question holds, and the question
+    read with it as a room's name ("the Reduit" → "the room 'Reduit'"), when that asks for a
+    room's area; None when it holds no such name, or several. Two rooms printed "Bagno" give
+    both: the question doesn't say which (ask lists them)."""
+    found: dict[str, list[Room]] = {}
+    at: dict[str, re.Match[str]] = {}
+    for room in drawing.rooms:
+        names = [(name, name, re.IGNORECASE) for name in room_names(room) if len(name) > 2]
+        # a 2-letter label (MH, OH) or one of letters and digits (MH1) only as printed,
+        # case-sensitive: never a word ("of", "is"); a room number stays the parser's
+        if room.label and (SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)):
+            names.append((normalised(room.label), room.label, re.NOFLAG))
+        for name, printed, flags in names:
+            if flags and any(char.isdigit() for char in name):
+                continue
+            match = re.search(rf"(?<!\w){re.escape(printed)}(?!\w)", text, flags)
+            if match is not None:
+                found.setdefault(name, []).append(room)
+                at[name] = match
+    if len(found) != 1:
+        return None
+    ((name, rooms),) = found.items()
+    match = at[name]
+    again = parser.parse(f"{text[: match.start()]}room '{match.group()}'{text[match.end() :]}")
+    if not (isinstance(again, Query) and again.measure == "area" and again.name is not None):
+        return None
+    return again, rooms
 
 
 def rooms_of_type(parsed: Query, drawing: Drawing) -> list[Room]:
