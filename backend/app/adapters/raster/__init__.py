@@ -168,16 +168,20 @@ class CompositeRasterExtractor:
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         components = {c.name: c for c in self._components()}
-        with ThreadPoolExecutor(len(components), thread_name_prefix="raster") as pool:
-            pending = {
-                name: pool.submit(_charged, component.reader, source, sheet)
-                for name, component in components.items()
-            }
-            try:
-                return self._merge(pending)
-            finally:
-                for future in pending.values():
-                    future.cancel()
+        spent: dict[str, float] = {}  # what each source that ran paid for, failed or not
+        try:
+            with ThreadPoolExecutor(len(components), thread_name_prefix="raster") as pool:
+                pending = {
+                    name: pool.submit(_charged, component.reader, source, sheet, spent, name)
+                    for name, component in components.items()
+                }
+                try:
+                    return self._merge(pending)
+                finally:
+                    for future in pending.values():
+                        future.cancel()
+        finally:  # every started source has finished here: charge them all to the caller
+            cost.charge(sum(spent.values()))
 
     def _components(self) -> list[Component]:
         """Every source this composite reads a sheet with, the parts' first."""
@@ -185,14 +189,12 @@ class CompositeRasterExtractor:
         scale = [] if self._scale is None else [self._scale]
         return [self._plans, *self._elements.values(), *rooms, *scale, *self._double_check.values()]
 
-    def _merge(self, pending: Mapping[str, "Future[tuple[Extracted, float]]"]) -> Extracted:
+    def _merge(self, pending: Mapping[str, "Future[Extracted]"]) -> Extracted:
         found: dict[str, Extracted] = {}  # in the order the merge first asks for each source
 
         def read_by(component: Component) -> Extracted:
             if component.name not in found:
-                got, usd = pending[component.name].result()
-                cost.charge(usd)
-                found[component.name] = got
+                found[component.name] = pending[component.name].result()
             return found[component.name]
 
         plans = tuple(
@@ -283,11 +285,16 @@ class CompositeRasterExtractor:
         return parts
 
 
-def _charged(reader: Extractor, source: DrawingFile, sheet: Sheet) -> tuple[Extracted, float]:
-    """The reader's result and what its calls cost, read on this (worker) thread."""
+def _charged(
+    reader: Extractor, source: DrawingFile, sheet: Sheet, spent: dict[str, float], name: str
+) -> Extracted:
+    """The reader's result, read on this (worker) thread; what its calls cost goes in
+    `spent[name]` also when it fails."""
     before = cost.spent()
-    got = reader.extract(source, sheet)
-    return got, cost.spent() - before
+    try:
+        return reader.extract(source, sheet)
+    finally:
+        spent[name] = cost.spent() - before
 
 
 def _looked_for(read: Sequence[ReadClass] | None, kind: ReadClass) -> bool:

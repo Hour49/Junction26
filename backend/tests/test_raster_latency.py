@@ -133,3 +133,40 @@ def test_the_sources_read_a_sheet_at_the_same_time_and_their_cost_is_the_caller_
     assert cost.spent() - before == 0.875
     assert [e.class_ for e in found.elements] == ["door", "window"]
     assert [n for n in found.notes if n.endswith("fake")] == ["a: fake", "b: fake", "c: fake"]
+
+
+class Paying(Fake):
+    """A source that pays for its call, then says so on `paid`."""
+
+    def __init__(self, usd: float, **kw: Any) -> None:
+        super().__init__(**kw)
+        self.usd, self.paid = usd, threading.Event()
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        cost.charge(self.usd)
+        self.paid.set()
+        return super().extract(source, sheet)
+
+
+class Failing(Fake):
+    """A source that pays for a call, waits until `other` has paid for its own, then fails."""
+
+    def __init__(self, usd: float, other: Paying) -> None:
+        super().__init__()
+        self.usd, self.other = usd, other
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        cost.charge(self.usd)
+        assert self.other.paid.wait(10)
+        raise RuntimeError("the model API gave no answer")
+
+
+def test_every_source_s_spend_is_the_caller_s_also_when_a_source_fails() -> None:
+    """fail-1's review of #187 (minor 1): the plans' source fails, so the merge never reaches the
+    door source; both were paid for, so the file's cost_usd must carry both."""
+    door = Paying(0.5, elements=(element("door", LEFT),))
+    readers: dict[str, Extractor] = {"a": Failing(0.25, door), "b": door}
+    before = cost.spent()
+    with pytest.raises(RuntimeError, match="no answer"):
+        composite({"plans": "a", "door": "b"}, readers).extract(FILE, SHEET)
+    assert cost.spent() - before == 0.75
