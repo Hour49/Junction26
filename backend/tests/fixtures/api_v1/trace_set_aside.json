@@ -1,0 +1,32 @@
+{
+  "project_id": "5e0c1a2b3d50",
+  "file": {
+    "id": "f1",
+    "path": "../outside.pdf",
+    "size": 8,
+    "sha256": null,
+    "kind": null,
+    "state": "set_aside",
+    "reason": "unsafe path: it could be written outside the project folder",
+    "group": null,
+    "route": null,
+    "source": null,
+    "drawing_id": null,
+    "reused": false,
+    "takeoff": {},
+    "ms": 12.5,
+    "stage": "unpack",
+    "cost_usd": 0.0,
+    "normalised": null
+  },
+  "stages": [
+    {
+      "stage": "unpack",
+      "did": "refused",
+      "ms": 12.5,
+      "output": "",
+      "failure": "unsafe path: it could be written outside the project folder",
+      "cost_usd": 0.0
+    }
+  ]
+}

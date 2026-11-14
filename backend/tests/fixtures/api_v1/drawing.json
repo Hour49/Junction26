@@ -8,7 +8,7 @@
     "second_counter": "ifc",
     "question_parser": "templates"
   },
-  "credit": null,
+  "credit": "Synthetic drawing made by code (backend/scripts/make_sample_archive.py); no partner data",
   "pages": [
     {
       "page": 1,

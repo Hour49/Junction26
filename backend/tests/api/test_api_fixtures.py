@@ -38,6 +38,14 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "answer_refused": AnswerView,
     "answer_area": AnswerView,
     "answer_model": AnswerView,
+    "answer_conflict": AnswerView,
+    "answer_signed": AnswerView,
+    "answer_schedule": AnswerView,
+    "takeoff_edited": Takeoff,
+    "error_not_allowed": ErrorBody,
+    "trace_set_aside": FileTrace,
+    "project_running": ProjectView,
+    "project_failed": ProjectView,
     "takeoff": Takeoff,
     "review_requests": TypeAdapter(list[Edit]),
     "signoff_request": SignOffRequest,
@@ -76,11 +84,11 @@ RESPONSES = (
 )
 
 
-def test_make_fixtures_gives_the_same_files_on_every_run() -> None:
-    """Two runs under different hash seeds (dict and set order) and clocks give the same
-    fixtures, so a regenerated fixture's diff is a real change."""
+@pytest.fixture(scope="module")
+def runs() -> list[str]:
+    """Two runs under different hash seeds (dict and set order) and clocks."""
     backend = Path(__file__).parents[2]
-    runs = [
+    return [
         subprocess.run(
             [sys.executable, "-c", RESPONSES],
             cwd=backend,
@@ -91,5 +99,19 @@ def test_make_fixtures_gives_the_same_files_on_every_run() -> None:
         ).stdout
         for seed in ("1", "2")
     ]
+
+
+def test_make_fixtures_gives_the_same_files_on_every_run(runs: list[str]) -> None:
+    """A regenerated fixture's diff is a real change."""
     assert json.loads(runs[0]) == json.loads(runs[1])
     assert runs[0] == runs[1]
+
+
+def test_the_fixtures_are_what_make_fixtures_gives_today(runs: list[str]) -> None:
+    """A fixture left stale after the API or the pipeline changed fails here: rerun
+    tests/api/make_fixtures.py --doc."""
+    made = json.loads(runs[0])
+    assert sorted(made) == sorted(MODELS)
+    for name, value in made.items():
+        on_disk = json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
+        assert on_disk == value, f"{name}.json is stale"

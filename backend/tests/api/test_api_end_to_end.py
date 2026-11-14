@@ -12,6 +12,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from app.adapters.credits import SAMPLE
 from app.composition import build_ingest
 from app.main import create_app
 from app.settings import Settings
@@ -78,7 +79,7 @@ def test_demo_path_sample_archive_to_an_answer_with_evidence_then_review_and_res
         drawing_id = plan["drawing_id"]
 
         drawing = client.get(f"/api/drawings/{drawing_id}").json()
-        assert drawing["credit"] is None  # synthetic, not a dataset file
+        assert drawing["credit"] == SAMPLE  # drawn by code: no partner data, and it says so
         assert any("door" in item["question"].lower() for item in drawing["suggestions"])
 
         answer = client.post(

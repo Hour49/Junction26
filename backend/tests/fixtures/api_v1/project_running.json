@@ -1,0 +1,45 @@
+{
+  "id": "5e0c1a2b3d51",
+  "name": "plan.pdf",
+  "state": "running",
+  "created_at": "2026-11-14T08:00:00+00:00",
+  "files": [
+    {
+      "id": "f1",
+      "path": "plan.pdf",
+      "size": 2749,
+      "sha256": "087bbbfbcc05f949a3dd1d2c7e9af861fba668f28449e8869b60f065bd15c755",
+      "kind": "pdf_vector",
+      "state": "queued",
+      "reason": "",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null
+    }
+  ],
+  "counts": {
+    "queued": 1
+  },
+  "readers": {
+    "bim": "ifc",
+    "cad": "hello",
+    "vector": "pdf",
+    "raster": "hello",
+    "raster_components": "",
+    "tables": "pdf",
+    "second_counter": "ifc",
+    "rectifier": "none",
+    "decisions_kind": "False"
+  },
+  "error": null,
+  "ms": 12.5,
+  "cost_usd": 0.0,
+  "drawings": []
+}
