@@ -46,7 +46,8 @@
           "value": 1.0,
           "label": "door",
           "ref": "e1",
-          "reason": null
+          "reason": null,
+          "room_type": null
         },
         {
           "id": "m2",
@@ -63,7 +64,8 @@
           "value": 1.0,
           "label": "door",
           "ref": "e2",
-          "reason": null
+          "reason": null,
+          "room_type": null
         },
         {
           "id": "a1",
@@ -80,11 +82,13 @@
           "value": 1.0,
           "label": null,
           "ref": null,
-          "reason": null
+          "reason": null,
+          "room_type": null
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": "doors"
     },
     {
       "key": "window",
@@ -133,7 +137,8 @@
           "value": 1.0,
           "label": "window",
           "ref": "e3",
-          "reason": null
+          "reason": null,
+          "room_type": null
         },
         {
           "id": "m2",
@@ -150,11 +155,13 @@
           "value": 1.0,
           "label": "window",
           "ref": "e4",
-          "reason": null
+          "reason": null,
+          "room_type": null
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": "windows"
     },
     {
       "key": "area:room|name=1.01",
@@ -257,7 +264,8 @@
           "value": 30.0,
           "label": "Küche",
           "ref": "r1",
-          "reason": null
+          "reason": null,
+          "room_type": "kitchen"
         }
       ],
       "signed": {
@@ -265,7 +273,8 @@
         "at": "2026-11-14T08:05:00Z",
         "value": 30.0
       },
-      "unlocated": {}
+      "unlocated": {},
+      "noun": null
     }
   ],
   "review_queue": [

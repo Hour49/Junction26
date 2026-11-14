@@ -139,6 +139,10 @@ class ProjectStatus(Frozen):
     name: str
     state: ProjectState
     created_at: str  # ISO 8601, UTC
+    started_at: str | None = (
+        None  # ISO 8601, UTC: when the run began (after the queue); None: not yet
+    )
+    finished_at: str | None = None  # ISO 8601, UTC: when it ended, done or failed; None: not yet
     files: tuple[FileStatus, ...] = ()
     counts: dict[FileState, int] = Field(default_factory=dict[FileState, int])
     readers: dict[str, str] = Field(default_factory=dict[str, str])  # route -> adapter name
@@ -147,10 +151,19 @@ class ProjectStatus(Frozen):
     cost_usd: float = Field(default=0.0, ge=0)
 
 
+class SecondCount(Frozen):
+    """What the second method did on a drawing: quantities it measured and where it disagreed."""
+
+    measured: int = Field(ge=0)
+    conflicts: int = Field(ge=0)
+
+
 class FileTrace(Frozen):
     project_id: str
     file: FileStatus
     stages: tuple[StageTrace, ...]
+    # Set by the API from the file's drawing (None: no drawing yet, or nothing measured twice)
+    second_count: SecondCount | None = None
 
 
 SheetKind = Literal["pdf", "png", "jpeg", "ifc"]  # a file a drawing model is written for

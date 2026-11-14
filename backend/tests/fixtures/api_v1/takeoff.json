@@ -103,11 +103,13 @@
           "value": 30.0,
           "label": "Küche",
           "ref": "r1",
-          "reason": null
+          "reason": null,
+          "room_type": "kitchen"
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": null
     },
     {
       "key": "door",
@@ -153,7 +155,8 @@
           "value": 1.0,
           "label": "door",
           "ref": "e1",
-          "reason": null
+          "reason": null,
+          "room_type": null
         },
         {
           "id": "m2",
@@ -170,11 +173,13 @@
           "value": 1.0,
           "label": "door",
           "ref": "e2",
-          "reason": null
+          "reason": null,
+          "room_type": null
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": "doors"
     },
     {
       "key": "area:room|indoor",
@@ -237,7 +242,8 @@
           "value": 30.0,
           "label": "Küche",
           "ref": "r1",
-          "reason": null
+          "reason": null,
+          "room_type": "kitchen"
         },
         {
           "id": "m2",
@@ -271,11 +277,13 @@
           "value": 2.489,
           "label": "Reduit",
           "ref": "r2",
-          "reason": null
+          "reason": null,
+          "room_type": "storage"
         }
       ],
       "signed": null,
-      "unlocated": {}
+      "unlocated": {},
+      "noun": null
     }
   ],
   "review_queue": [

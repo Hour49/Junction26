@@ -78,7 +78,9 @@
         "status": "conflict"
       },
       "settled": null,
-      "needs_person": false
+      "needs_person": false,
+      "signed": null,
+      "value": 30.0
     }
   ]
 }

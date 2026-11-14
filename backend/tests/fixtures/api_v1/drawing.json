@@ -16,7 +16,15 @@
       "height": 400.0,
       "unit": "pt",
       "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "normalised": null,
+      "scale": {
+        "status": "scaled",
+        "text": "1:100",
+        "ratio": 100.0,
+        "source": "sheet text 1:100; no scale bar found"
+      },
+      "scale_text": "1:100",
+      "storey": null
     }
   ],
   "suggestions": [
