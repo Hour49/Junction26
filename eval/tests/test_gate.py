@@ -10,6 +10,7 @@ import pytest
 
 from stoa_eval import backend, cli
 from stoa_eval.gate import (
+    G1MAIN,
     SignalFile,
     UnionStep,
     Unit,
@@ -20,6 +21,7 @@ from stoa_eval.gate import (
     failure_auroc,
     family_gates,
     family_keys,
+    g1main_signal,
     halves,
     isotonic,
     learn_then_test,
@@ -32,7 +34,7 @@ from stoa_eval.gate import (
     signals_of,
 )
 from tests.test_ab import fake_backend, question, reply
-from tests.test_exp_split import DOORS, dataset, exp_split, run
+from tests.test_exp_split import DOORS, WINDOWS, dataset, exp_split, run
 from tests.test_extraction_scoring import element, extraction
 
 __all__ = ["dataset"]  # the fixture, used by name
@@ -507,3 +509,146 @@ def test_gate_policy_round_trips_and_refuses_a_missing_split_sha(
     val_path.write_text(json.dumps(val), "utf-8")
     assert run("gate-policy", "--gate", val_path, "--out", out) == 1
     assert "no split_sha256" in capsys.readouterr().err
+
+
+def test_g1main_is_gemini_s_probability_for_the_answered_count() -> None:
+    file, other = "data/cubicasa5k/p-1.png", "data/cubicasa5k/p-2.png"
+    dists = {file: {"door": {3: 0.8, 2: 0.2}}}
+
+    def value(answers: list[object], on: str = file, family: str = "door") -> float | None:
+        made = g1main_signal({(on, family): answers}, dists)
+        assert made.name == G1MAIN and made.arm is None
+        return made.values[0].value
+
+    assert value([3]) == 0.8
+    assert value([3.0]) == 0.8  # a whole number read as a float is a count
+    assert value([3, 2]) == 0.2  # two questions on the image: sure only when both are
+    assert value([5]) == 0.0  # a count Gemini gave no probability
+    assert value([2.5]) is None  # not a count: no probability (the backend gives none)
+    assert value([True]) is None
+    assert value([None]) is None  # refused
+    assert value([3], on=other) is None  # no reply for the image
+    assert value([3], family="window") is None  # no distribution for the family
+
+
+def test_built_in_signals_have_no_value_for_a_family_another_arm_answers() -> None:
+    file = "data/cubicasa5k/p-1.png"
+    scored = [element(f"e{n}", [0.1, 0.1, 0.2, 0.2], cls=cls, attrs={"score": 0.9})
+              for n, cls in enumerate(["door", "window"])]  # fmt: skip
+    found = {file: extraction(file=file, elements=scored)}
+    qs = [question(1, file, 1), question(2, file, 1, text=WINDOWS)]
+    fams, replies = {1: "door", 2: "window"}, {1: reply(1, 1), 2: reply(2, 1)}
+    plain = {u.family: u.signals["top3"] for u in cli._units(qs, fams, replies, None, found, {})}
+    assert plain == {"door": 0.9, "window": 0.9}
+    units = cli._units(qs, fams, replies, None, found, {}, own={"window"})
+    assert {u.family: u.signals["top3"] for u in units} == {"door": 0.9, "window": None}
+
+
+def g1main_replies(folder: Path, exp: Path, windows: int) -> Path:
+    """Gemini's distributions for every val and test image: 0.5 on any door count; on windows
+    0.75 for `windows`, 0.25 for 0."""
+    files = [
+        file
+        for part in ("val", "test")
+        for file in json.loads((exp / "split.json").read_text())["parts"][part]["files"]
+    ]
+    folder.mkdir(parents=True)
+    dists = {file: {"door": {str(k): 0.5 for k in range(20)},
+                    "window": {"0": 0.25, str(windows): 0.75}} for file in files}  # fmt: skip
+    (folder / "dists.json").write_text(json.dumps(dists), "utf-8")
+    return folder
+
+
+def test_gate_answers_a_family_from_another_arm_and_reads_g1main(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """core/a finds no windows (answers 0), core/b finds 7 on every image; windows are routed
+    to core/b, so the gate sees 7 windows and Gemini's 0.75 for them, and no top3 there."""
+    monkeypatch.setattr(backend, "run", fake_backend)
+    exp = dataset / "exp"
+    assert exp_split(dataset, exp) == 0
+    scored_arm(dataset, exp / "core" / "a")
+    windows = exp / "ocr" / "b"
+    windows.mkdir(parents=True)
+    for path in (dataset / "gold/cubicasa5k").iterdir():
+        body: dict[str, Any] = json.loads(path.read_text())
+        body["elements"] = [element(f"w{n}", [0.1, 0.1, 0.2, 0.2], cls="window") for n in range(7)]
+        (windows / path.name).write_text(json.dumps(body), "utf-8")
+    replies = g1main_replies(dataset / "g1", exp, 7)
+    seen: list[tuple[dict[int, Any], list[SignalFile], set[str]]] = []
+    units = cli._units
+
+    def spy(*args: Any, **kwargs: Any) -> list[Unit]:
+        given: list[Any] = list(args)
+        extra = given[6] if len(given) > 6 else kwargs.get("extra", ())
+        own = given[8] if len(given) > 8 else kwargs.get("own", frozenset())
+        seen.append(({k: v.answer for k, v in given[2].items()}, list(extra), set(own)))
+        return units(*args, **kwargs)
+
+    monkeypatch.setattr(cli, "_units", spy)
+    common = ("--exp-dir", exp, "--gold", dataset / "gold", "--arm", exp / "core/a")
+    routed = ("--family-arm", f"window={windows}", "--g1main", replies, "--signal", G1MAIN)
+    assert run("gate", *common, *routed) == 0
+    assert "Answered by another arm: window = ocr/b" in capsys.readouterr().out
+    val_qs = [json.loads(line) for line in (exp / "val_questions.jsonl").read_text().splitlines()]
+    window_ids = {q["id"] for q in val_qs if q["question"] == WINDOWS}
+    answers, extra, own = seen[-1]
+    assert {answers[i] for i in window_ids} == {7}  # core/b's windows, not core/a's 0
+    assert own == {"window"}
+    g1 = {(v.family, v.value) for v in extra[-1].values}
+    assert extra[-1].name == G1MAIN and {value for family, value in g1 if family == "window"} == {
+        0.75
+    }
+    gate_path = exp / "ab/gate-core-a+ocr-b-val.json"
+    val = json.loads(gate_path.read_text())
+    assert val["arm"] == "core-a+ocr-b" and val["family_arms"] == {"window": "ocr/b"}
+    assert val["signal"] == G1MAIN and val["signal_files"] == {G1MAIN: str(replies)}
+    assert run("gate-policy", "--gate", gate_path, "--out", dataset / "gate.json") == 0
+    assert json.loads((dataset / "gate.json").read_text())["family_arms"] == {"window": "ocr/b"}
+    certify = ("--part", "test", "--certify")
+    assert run("gate", *common, *certify, "--g1main", replies) == 1  # not routed: another gate
+    assert "gate-core-a-val.json" in capsys.readouterr().err
+    assert run("gate", *common, *certify, "--family-arm", f"window={windows}") == 1
+    assert "give its --signal-file" in capsys.readouterr().err  # g1main needed again
+    doors = ("--family-arm", f"door={windows}", "--g1main", replies)
+    assert run("gate", *common, *certify, *doors) == 1  # same arms, another family routed
+    assert "routed {'window': 'ocr/b'}, not {'door': 'ocr/b'}" in capsys.readouterr().err
+    assert run("gate", *common, *certify, *routed[:4]) == 0
+    test = json.loads((exp / "ab/gate-core-a+ocr-b-test.json").read_text())
+    assert test["family_arms"] == {"window": "ocr/b"} and test["signal"] == G1MAIN
+
+
+@pytest.mark.parametrize(
+    ("extra", "reason"),
+    [
+        (("--family-arm", "room:*=ocr/b"), "--family-arm room:*: no such family asked"),
+        (("--family-arm", "window"), "FAMILY=FOLDER"),
+        (("--family-arm", "w*=ocr/b", "--family-arm", "window=core/a"), "window is routed twice"),
+        (("--family-arm", "window=ocr/b", "--signal-file", "<arm>"), "can't judge a combination"),
+        (("--g1main", "<g1>", "--signal-file", "<g1main>"), "both named g1main"),
+    ],
+)
+def test_gate_refuses_a_bad_combination(
+    dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    extra: tuple[str, ...],
+    reason: str,
+) -> None:
+    monkeypatch.setattr(backend, "run", fake_backend)
+    exp = dataset / "exp"
+    assert exp_split(dataset, exp) == 0
+    scored_arm(dataset, exp / "core" / "a")
+    scored_arm(dataset, exp / "ocr" / "b")
+    files = {
+        "<arm>": signal_file(dataset / "s.json", "verifier", "core/a", []),
+        "<g1main>": signal_file(dataset / "g.json", G1MAIN, None, []),
+        "<g1>": g1main_replies(dataset / "g1", exp, 7),
+    }
+    args = [str(files.get(a, exp / a if "=" not in a and "/" in a else a)) for a in extra]
+    args = [a.replace("=ocr/b", f"={exp / 'ocr/b'}").replace("=core/a", f"={exp / 'core/a'}")
+            for a in args]  # fmt: skip
+    common = ("--exp-dir", exp, "--gold", dataset / "gold", "--arm", exp / "core/a")
+    assert run("gate", *common, *args) == 1
+    assert reason in capsys.readouterr().err
+    assert not list((exp / "ab").glob("gate-*.json")) if (exp / "ab").exists() else True

@@ -80,9 +80,14 @@ def test_style_of() -> None:
 
 
 def fake_backend(*args: str) -> None:
-    """The backend's three commands, for doors and windows only: answers are the derived counts
-    of the file's extraction, refused (null) without one; the prior says 1 door, 2 windows."""
+    """The backend's commands, for doors and windows only: answers are the derived counts of the
+    file's extraction, refused (null) without one; the prior says 1 door, 2 windows; g1main
+    gives the distributions in <replies>/dists.json."""
     command, opts = args[0], dict(zip(args[1::2], args[2::2], strict=True))
+    if command == "g1main":
+        dists = (Path(opts["--replies"]) / "dists.json").read_text("utf-8")
+        Path(opts["--out"]).write_text(dists, "utf-8")
+        return
     if command == "prior":
         assert Path(opts["--train"]).name == "train_questions.jsonl"
         Path(opts["--out"]).write_text(json.dumps({"door": 1, "window": 2}), "utf-8")
