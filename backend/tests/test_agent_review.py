@@ -13,7 +13,7 @@ from test_agent_view import DOORS, NAMES, again
 from app.adapters.chat_rules import RulesChatModel
 from app.core.agent.loop import run_turn
 from app.core.agent.model import Caps, Chat
-from app.core.agent.review import DOUBT, REVIEWED
+from app.core.agent.review import DOUBT, REVIEWED, review_of
 from app.core.spend import SpendGuard
 
 Json = dict[str, Any]
@@ -176,6 +176,22 @@ def test_review_339_n1_every_drawing_is_named_with_its_level() -> None:
     assert got.text.startswith('About "how many doors": Not for certain.')
     assert "plan.pdf: 3. High confidence. No other" in got.text
     assert "other.pdf: 3. Low confidence. No other" in got.text
+
+
+def test_tudor_nit_the_review_says_which_drawing_the_disagreement_is_inside() -> None:
+    """Tudor's smoke: on two flats the reply said the plans disagree; the disputed marks were
+    inside one of them."""
+    two: Json = levelled("high")
+    other = json.loads(json.dumps(levelled("high", disputed=False)["parts"][0]))
+    other["drawing_id"], other["name"] = "fedcba9876543210", "other.pdf"
+    two["parts"].append(other)
+    found = review_of(two, {})
+    disputed, calm = found["drawings"]
+    assert disputed["where"] == (
+        "inside plan.pdf: its own readers disagree on 1 of its marks; other drawings are "
+        "separate plans, not part of this disagreement"
+    )
+    assert "where" not in calm
 
 
 REFUSED: Json = {"question": "how big is the kitchen", "parts": [{

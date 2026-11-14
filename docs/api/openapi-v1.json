@@ -1039,6 +1039,15 @@
             "title": "Model",
             "type": "string"
           },
+          "next": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "maxItems": 3,
+            "title": "Next",
+            "type": "array"
+          },
           "options": {
             "anyOf": [
               {

@@ -1077,6 +1077,11 @@ export interface components {
             latency_s: number;
             /** Model */
             model: string;
+            /**
+             * Next
+             * @default []
+             */
+            next: components["schemas"]["Option"][];
             /** Options */
             options?: components["schemas"]["Option"][] | null;
             /**

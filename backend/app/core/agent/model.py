@@ -85,6 +85,9 @@ class ChatTurn(Frozen):
     # The ask_drawings results (ProjectAnswer, as POST /api/projects/{id}/ask) the answer rests on
     answers: tuple[Json, ...] = ()
     view: View | None = None
+    # Follow-up chips after a complete turn (.agents/chat/contract.md F): server-built from the
+    # turn's tool results, never from the model's text; at most 3; none when `options` is set
+    next: tuple[Option, ...] = Field(default=(), max_length=3)
 
 
 @dataclass(frozen=True)
