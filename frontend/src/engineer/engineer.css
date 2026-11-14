@@ -793,6 +793,15 @@ button.en-cref {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* RS-20..23: Carbon's pick or note, its own line (a full row in the chat's per-drawing list). */
+.en-resolved {
+  margin: 0;
+  font-size: 14px;
+}
+.en-parts .en-resolved,
+.en-parts .en-resolvernote {
+  flex-basis: 100%;
+}
 /* CH-43/CH-44: why and the estimate, each a full row under the value */
 .en-parts .en-why,
 .en-parts .en-estimate {

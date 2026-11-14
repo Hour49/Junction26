@@ -19,6 +19,8 @@ it('SH-37 types.ts exports every name of the shared spec', () => {
       T.ProjectReview,
       T.DrawingReview,
       T.ConflictEntry,
+      T.Resolved,
+      T.Resolving,
       T.DrawingView,
       T.PageView,
       T.Normalised,

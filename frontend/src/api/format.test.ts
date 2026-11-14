@@ -5,9 +5,12 @@ import {
   formatTime,
   formatValue,
   methodName,
+  pickInUse,
   readerName,
+  resolverModel,
+  resolverName,
 } from './format';
-import { projectList } from './fixtures';
+import { projectList, projectReviewResolved, resolving } from './fixtures';
 
 const zone = process.env.TZ;
 afterEach(() => {
@@ -72,4 +75,25 @@ it("SH-85 drawingLabel is the backend's plain name, else the file name", () => {
   expect(drawingLabel({ name: null, file: 'plans/flat-a.pdf' })).toBe('flat-a.pdf');
   expect(drawingLabel({ name: '', file: 'plans/flat-a.pdf' })).toBe('flat-a.pdf');
   expect(drawingLabel({ file: 'scans/ground-floor.png' })).toBe('ground-floor.png');
+});
+
+it('RS-5 resolverName is the prefix of `by`, capitalised; resolverModel the rest', () => {
+  expect(resolverName('carbon:gemini-4-carbon')).toBe('Carbon');
+  expect(resolverModel('carbon:gemini-4-carbon')).toBe('gemini-4-carbon');
+  expect(resolverName('carbon')).toBe('Carbon');
+  expect(resolverModel('carbon')).toBe('carbon');
+});
+
+it('RS-6 pickInUse: a pick nobody overrode; not when settled, needing a person, absent or cannot_tell', () => {
+  const picked = projectReviewResolved.conflicts[0];
+  if (!picked) throw new Error('fixture has no conflict');
+  expect(pickInUse(picked)).toBe(true);
+  expect(pickInUse({ ...picked, settled: { value: 30, note: null, at: '' } })).toBe(false);
+  expect(pickInUse({ ...picked, signed: { value: 22.401, by: 'Ana', at: '' } })).toBe(false);
+  expect(pickInUse({ ...picked, needs_person: true })).toBe(false);
+  expect(pickInUse({ ...picked, resolved: undefined })).toBe(false);
+  expect(pickInUse({ ...picked, resolved: null })).toBe(false);
+  const cannot = resolving.review.conflicts[0];
+  if (!cannot) throw new Error('fixture has no conflict');
+  expect(pickInUse(cannot)).toBe(false);
 });

@@ -15,6 +15,7 @@ import {
 import { routeLabel } from '../ingest/ingest';
 import { pageFlagged } from '../doublecheck/check';
 import { DoubleCheck } from '../doublecheck/DoubleCheck';
+import { ResolverLines } from './Resolver';
 import { routeHref } from '../shell/route';
 import { ChecksPanel } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
@@ -427,6 +428,7 @@ function Answer(props: {
               onChanged={onChanged}
             />
           )}
+          <ResolverLines a={a} />
         </div>
         <figure className="en-left" aria-label="Drawing">
           {a.pages.length > 0 ? (
