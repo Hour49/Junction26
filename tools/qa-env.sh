@@ -4,12 +4,14 @@
 #
 #   tools/qa-env.sh <commit> [port] [--frontend]   export <commit>, start its backend on port (8780)
 #   tools/qa-env.sh stop <commit>                  stop what this script started for <commit>
+#   tools/qa-env.sh config                         print the demo config the backend starts with
 #
 # The export goes to data/qa/env-<sha>/ (gitignored; made once, reused after). The backend runs
 # from it with the shippable config (the recorded series point 2701/2948): the region detector
 # C-yolo26s-1536 behind the Decisions S1536 swap for elements and plans, Gemini rooms through the
 # region room filter (REGION_MODEL_DIR, the settings default), the r3 photo rectifier, the dev
-# prior and the Decisions confidence. It reads
+# prior, the Decisions confidence and the Decisions sheet-kind signal (a photo of a plan without
+# camera EXIF is still rectified). It reads
 # the repo's data/models, data/stoa, data/cache, data/demo and data/external through symlinks and
 # keeps its own data/projects. GEMINI_API_KEY comes from the repo-root .env, into this process's
 # environment only: never printed, never written to a file.
@@ -25,6 +27,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QA="$ROOT/data/qa"
 RASTER='elements=decisions-s1536:region:C-yolo26s-1536,plans=decisions-s1536:region:C-yolo26s-1536,rooms=regionrooms'
+DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CONFIDENCE=true
+  DECISIONS_KIND=true)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
@@ -75,6 +79,11 @@ wait_for() {  # url, pid file, log
   die "no answer from $url after ${WAIT_S}s; log: $log"
 }
 
+if [[ "${1:-}" == "config" && $# -eq 1 ]]; then
+  printf '%s\n' "RASTER_COMPONENTS=$RASTER" "${DEMO_ENV[@]}"
+  exit 0
+fi
+
 if [[ "${1:-}" == "stop" ]]; then
   [[ $# -eq 2 ]] || die "usage: tools/qa-env.sh stop <commit>"
   ENV="$QA/env-$(sha_of "$2")"
@@ -84,7 +93,7 @@ if [[ "${1:-}" == "stop" ]]; then
   exit 0
 fi
 
-[[ $# -ge 1 && $# -le 3 ]] || die "usage: tools/qa-env.sh <commit> [port] [--frontend] | stop <commit>"
+[[ $# -ge 1 && $# -le 3 ]] || die "usage: tools/qa-env.sh <commit> [port] [--frontend] | stop <commit> | config"
 COMMIT="$1"
 PORT=8780
 FRONTEND=0
@@ -122,10 +131,9 @@ KEY="$(grep -m1 '^GEMINI_API_KEY=' "$ROOT/.env" 2>/dev/null | cut -d= -f2- | tr 
 [[ -n "$KEY" ]] || echo "qa-env: no GEMINI_API_KEY in $ROOT/.env: rooms and the confidence report no reply"
 
 cd "$ENV/backend"
-GEMINI_API_KEY="$KEY" PROJECTS_DIR="$ENV/data/projects" EXTRACTOR_RASTER=composite \
-  RASTER_COMPONENTS="$RASTER" RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CONFIDENCE=true \
+GEMINI_API_KEY="$KEY" PROJECTS_DIR="$ENV/data/projects" RASTER_COMPONENTS="$RASTER" \
   start backend "$ENV/backend.log" \
-  uv run --locked uvicorn app.main:create_app --factory --host 127.0.0.1 --port "$PORT"
+  env "${DEMO_ENV[@]}" uv run --locked uvicorn app.main:create_app --factory --host 127.0.0.1 --port "$PORT"
 unset KEY
 wait_for "http://127.0.0.1:$PORT/api/info" "$ENV/backend.pid" "$ENV/backend.log"
 echo "qa-env: backend of $SHA on http://127.0.0.1:$PORT (log $ENV/backend.log)"
