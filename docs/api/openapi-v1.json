@@ -1063,6 +1063,16 @@
           "turn": {
             "title": "Turn",
             "type": "integer"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -7564,6 +7574,159 @@
           "label"
         ],
         "title": "ValueMark",
+        "type": "object"
+      },
+      "View": {
+        "additionalProperties": false,
+        "description": "The plan the turn wants on screen: one drawing page, its marks, the box to focus.",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "marks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ViewMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "show_on_plan",
+              "evidence"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "name",
+          "page",
+          "box",
+          "source"
+        ],
+        "title": "View",
+        "type": "object"
+      },
+      "ViewMark": {
+        "additionalProperties": false,
+        "description": "One place on the plan the turn shows (.agents/chat/contract.md A).",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          }
+        },
+        "required": [
+          "n",
+          "label",
+          "box"
+        ],
+        "title": "ViewMark",
         "type": "object"
       },
       "app__core__agent__model__Level": {

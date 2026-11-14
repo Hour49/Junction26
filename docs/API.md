@@ -8498,6 +8498,15 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
 
+`view` (added 2026-11-14) is the plan the turn wants on screen, or null when it has no place: `{drawing_id, name,
+page, box, marks: [{n, label, box, polygon}], caption, source}`, all in page fractions. `source: "show_on_plan"`:
+the agent called the `show_on_plan` tool (places of this chat by evidence id, or every mark, or the disputed ones,
+of the chat's latest `ask_drawings` answer, which then comes back in `answers`); its marks are added to `evidence`
+after the cited ones. `source: "evidence"`: the page of `[1]` with every cited place on it; an `edit` turn's view is
+the proposal's page around its geometry. `box` is the marks' union with a margin, the box to focus; each mark's `n`
+is its `evidence` item. Places minted in earlier turns stay citable: a follow-up may cite them (numbers in `text`
+still come from this turn's tool results).
+
 <!-- fixture: chat_answer.json -->
 ```json
 {
@@ -9258,7 +9267,33 @@ lists every tool call with a label in plain words, `status` (`ok` or `error`) an
       "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
       "refused_note": "2 drawings give no reliable number for it."
     }
-  ]
+  ],
+  "view": {
+    "drawing_id": "adeefbbcc17559fc",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.4633,
+      0.195,
+      0.5367,
+      0.305
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "door",
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  }
 }
 ```
 
@@ -9786,7 +9821,8 @@ budget, the same call a third time) ends a turn the same way.
       "why_no_total": "No drawing answered it.",
       "refused_note": "5 drawings can't answer this question."
     }
-  ]
+  ],
+  "view": null
 }
 ```
 
@@ -9992,7 +10028,33 @@ without wall fills) gets `dont_know` saying so.
   "model": "rules",
   "cost_usd": 0.0,
   "latency_s": 0.002,
-  "answers": []
+  "answers": [],
+  "view": {
+    "drawing_id": "5c4ed01e00000003",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.1367,
+      0.22,
+      0.5278,
+      0.4926
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "W1",
+        "box": [
+          0.2999,
+          0.25,
+          0.32257,
+          0.4626
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  }
 }
 ```
 

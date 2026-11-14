@@ -995,6 +995,7 @@ export interface components {
             text: string;
             /** Turn */
             turn: number;
+            view?: components["schemas"]["View"] | null;
         };
         /**
          * Check
@@ -3048,6 +3049,59 @@ export interface components {
             label: string;
             /** Page */
             page: number;
+        };
+        /**
+         * View
+         * @description The plan the turn wants on screen: one drawing page, its marks, the box to focus.
+         */
+        View: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Caption */
+            caption?: string | null;
+            /** Drawing Id */
+            drawing_id: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ViewMark"][];
+            /** Name */
+            name: string | null;
+            /** Page */
+            page: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "show_on_plan" | "evidence";
+        };
+        /**
+         * ViewMark
+         * @description One place on the plan the turn shows (.agents/chat/contract.md A).
+         */
+        ViewMark: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label: string | null;
+            /** N */
+            n: number;
+            /** Polygon */
+            polygon?: [
+                number,
+                number
+            ][] | null;
         };
         /**
          * Level
