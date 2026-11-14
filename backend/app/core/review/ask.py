@@ -336,13 +336,13 @@ def ask(
             said = "Low confidence: " + partial_text(found.partial) + ASK["low"]
             level = Level(level="low", basis="held", text=said)
         if not sure and not (level is not None and level.level == "high"):
-            found = disputes(drawing, shown)
+            disputed = disputes(drawing, shown)  # its own name: `found` keeps the row's partial
             if reason is None and doubt is not None:
                 reason = doubt.reason
-                found = Found(places=(*doubt.places, *found.places), reason=found.reason)
+                disputed = Found(places=(*doubt.places, *disputed.places), reason=disputed.reason)
             if reason is None and agrees is False:
                 reason = disagree(shown)
-            request = double_check(shown, marks, found, reason)
+            request = double_check(shown, marks, disputed, reason)
     elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
         request, level = summed_check(check)
         sure = False

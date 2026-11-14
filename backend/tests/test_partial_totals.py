@@ -159,6 +159,7 @@ def test_a_schedule_s_rows_count_only_on_the_sheet_s_storey() -> None:
 def test_after_another_note_the_partial_sentence_is_a_sentence_of_its_own() -> None:
     printed = tuple(r.model_copy(update={"area_source": "printed"}) for r in READ)
     assert asked(drawing(printed, (SCHEDULE,))).answer.explanation == (
-        "printed in the rooms' labels. This is the sum of the 2 rooms the reader found; rooms it "
-        "missed are not in it. Not in it: 104 LOBBY, 107 STAIR, 108 STOR and 1 more."
+        "read from the rooms' labels on the image (a digit can be misread). This is the sum of "
+        "the 2 rooms the reader found; rooms it missed are not in it. Not in it: 104 LOBBY, "
+        "107 STAIR, 108 STOR and 1 more."
     )

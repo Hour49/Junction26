@@ -21,6 +21,7 @@ from app.core.ingest.judge import CARBON_FLAG, CARBON_PART_FLAG
 from app.core.pipeline.model import Quantity, QuantityConflict
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import Asked, ask, suggestions
+from app.core.review.check import CheckPolicy, Counts
 from app.core.review.model import Edit, MethodValue, ReviewState
 from app.core.review.review import (
     NotAllowedError,
@@ -946,3 +947,35 @@ def test_apartments_no_reader_read_are_not_counted_as_none() -> None:
                    rooms=(labelled(1, "Kök", 9.0, kind="kitchen"),))  # fmt: skip
     got = asked("How many apartments are on this floor?", flat)
     assert got.answer.answer is None and got.refusal is not None
+
+
+LOW_POLICY = CheckPolicy(
+    thresholds={"door": 0.8},
+    counts={"high": Counts(units=10, exact=10), "medium": Counts(units=10, exact=9),
+            "low": Counts(units=10, exact=5)},
+)  # fmt: skip
+
+
+def test_a_low_answer_with_or_without_a_partial_total_is_asked() -> None:
+    """main 8354e31: `found` (the takeoff row, which carries `partial`) was replaced by the
+    dispute finder's Found for every answer not High, so `found.partial` in the reply raised
+    AttributeError on each of them."""
+    rooms = tuple(
+        Room(id=f"r{n}", type="other", label=label, page=1, box=box, area_m2=area,
+             area_status="exact", area_source="geometry_x_scale",
+             attrs={"number": f"10{n}", "reader": "gemini"})
+        for n, label, box, area in ((1, "OFFICE", BOX_A, 10.0), (2, "HALL", BOX_B, 5.5))
+    )  # fmt: skip
+    drawing = Drawing(
+        file="scan.png", pages=(PAGE,), scale=Scale(status="estimated", m_per_unit=0.05),
+        rooms=rooms, elements=(Element(id="e1", class_="door", page=1, box=BOX_A),),
+    )  # fmt: skip
+    for text, partial in (("How many doors are there?", False),
+                          ("What is the total area of all rooms?", True)):  # fmt: skip
+        got = ask(
+            text, drawing, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
+            state=ReviewState(), check=LOW_POLICY, raster=True, route="raster",
+        )  # fmt: skip
+        assert got.answer.answer is not None and got.check is not None, text
+        assert got.level is not None and got.level.level != "high", text
+        assert (got.partial is not None) is partial, text
