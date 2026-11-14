@@ -78,14 +78,12 @@ test('ingest progress ends with every file through and every drawing ready', () 
   assert.equal(end.aside, 2);
 });
 
-test('the project chat totals one answer per drawing, or refuses with what can be asked', () => {
+test('the project chat adds nothing up across drawings, or refuses with what can be asked', () => {
   const r = V.askProject('How many doors are there?', {});
   assert.equal(r.rows.length, V.DRAWINGS.length);
-  assert.equal(r.total, r.rows.reduce((s, a) => s + a.value, 0));
   assert.equal(r.rows[0].drawing, V.DRAWINGS[0].id);
-  const area = V.askProject('What is the net floor area?', {});
-  assert.equal(area.quantity, 'area');
-  assert.equal(area.total, Math.round(area.rows.reduce((s, a) => s + a.value, 0) * 10) / 10);
+  assert.equal(r.total, null);
+  assert.match(r.total_note, /same rooms/);
   const no = V.askProject('Who designed this?', {});
   assert.equal(no.rows, undefined);
   assert.ok(no.refusal && no.canAnswer.length > 0);

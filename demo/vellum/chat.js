@@ -1,5 +1,5 @@
 // The project chat (#/chat): a whole new, empty chat over every drawing of the workspace. Nothing is drawn until
-// asked; an answer gives the total and one line per drawing, each with "Show it on <file>" (the engineer view, #/ask).
+// asked; an answer gives one line per drawing (a total only when one drawing answers), each with "Show it on <file>" (the engineer view, #/ask).
 (function () {
   'use strict';
   const V = window.VData, esc = window.VPlan.esc;
@@ -21,8 +21,10 @@
         <p style="margin:0">${esc(r.refusal)}</p><div class="chips-row">${r.canAnswer.map((x) => `<button class="qchip press" data-act="chat-ask" data-q="${esc(x)}">${esc(x)}</button>`).join('')}</div></div></article>`;
     }
     const rows = r.rows.map(rowOf);
-    const total = rows.reduce((s, x) => s + x.value, 0);
-    const shown = V.formatValue(r.quantity, r.quantity === 'area' ? Math.round(total * 10) / 10 : total);
+    // a total only when one drawing answers (r.total set); its value may have been signed off since
+    const head = r.total === null
+      ? `<p class="lead" style="margin:0">${rows.length} drawings answered. <span class="muted">${esc(r.total_note)}</span></p>`
+      : `<p class="lead" style="margin:0"><strong>${esc(V.formatValue(r.quantity, rows[0].value))}</strong> on the one drawing that answered.</p>`;
     const lines = rows.map(({ a, value, status }) => {
       const d = V.drawing(a.drawing);
       return `<li class="chat-row"><span class="chat-line"><span class="mono">${esc(d.name)}</span>: <strong>${esc(V.formatValue(a.quantity, value))}</strong></span>
@@ -30,8 +32,7 @@
         <button class="chat-show press" data-act="show-on" data-d="${d.id}" data-q="${esc(t.question)}">Show it on ${esc(d.name)}</button></li>`;
     }).join('');
     return `<article class="turn">${q}<div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
-      <p class="lead" style="margin:0">Across the ${rows.length} drawings: <strong>${shown}</strong>. <span class="muted">${esc(V.QUANTITIES[r.quantity].rule)}</span></p>
-      <div class="value"><b>${r.quantity === 'area' ? (Math.round(total * 10) / 10).toFixed(1) : total}</b><span>${r.quantity === 'area' ? 'm² net, in total' : `${V.noun(r.quantity, total)} in total`}</span></div>
+      ${head}<p class="small" style="margin:0">${esc(V.QUANTITIES[r.quantity].rule)}</p>
       <ul class="chat-rows" aria-label="Per drawing">${lines}</ul></div></article>`;
   }
 
@@ -51,7 +52,7 @@
     p.chat.push({ id: p.chat.length + 1, question });
     const r = V.askProject(question, A().picks());
     A().log(Date.now(), 'ask', question, r.refusal ? 'No answer · not in the drawing model'
-      : `${V.formatValue(r.quantity, r.total)} across ${r.rows.length} drawings · project chat`);
+      : r.total === null ? `${r.rows.length} drawings answered, not added up · project chat` : `${V.formatValue(r.quantity, r.total)} on one drawing · project chat`);
     requestAnimationFrame(() => { const all = document.querySelectorAll('.turn'); if (all.length) all[all.length - 1].scrollIntoView({ block: 'start', behavior: 'smooth' }); });
     return true;
   }
