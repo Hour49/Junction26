@@ -91,7 +91,7 @@
     if (a.key) return `From the dataset's answer key: “${esc(a.keyQuestion)}” The data has no positions, so there are no marks.`;
     const pk = A().picks();
     const c = V.CONFLICTS.find((x) => x.drawing === d.id && x.variants.some((v) => v.kind === a.quantity));
-    if (c && pk[c.id] === null) return 'A conflict on this drawing is open: <a href="#/conflicts">settle it in Conflicts</a>.';
+    if (c && pk[c.id] === null) return 'A conflict on this drawing is open: <a href="#/ingest">settle it under Ingest</a>.';
     if (c) return `${esc(c.title)}: settled in Conflicts (${A().S.p.conflicts[c.id].mode === 'own' ? 'your choice' : 'AI decision approved'}).`;
     const second = V.FILES.find((f) => f.drawing === d.id && f.role === 'second');
     if (second) return `Read from the geometry, then checked against <span class="mono">${esc(second.path)}</span>, an independent second reading: the same value.`;

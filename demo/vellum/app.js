@@ -63,11 +63,12 @@
     const name = parts[0] || 'home';
     if (name === 'ingest' && PANELS.includes(parts[1])) return { name: 'advanced', panel: parts[1] };
     if (name === 'file' && /^\d+$/.test(parts[1] || '')) return { name: 'file', n: parts[1] };
-    return { name: ['ingest', 'conflicts', 'chat', 'issues', 'ask', 'workspaces'].includes(name) ? name : 'home' };
+    if (name === 'conflicts' || name === 'issues') return { name: 'ingest' };  // both live under the finished reading now
+    return { name: ['ingest', 'chat', 'documents', 'ask', 'workspaces'].includes(name) ? name : 'home' };
   }
 
   function header(r) {
-    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['chat', 'Chat', '#/chat'], ['issues', 'Issues', '#/issues']];
+    const views = [['ingest', 'Ingest', '#/ingest'], ['chat', 'Chat', '#/chat'], ['documents', 'Documents', '#/documents']];
     const cur = r.name === 'advanced' || r.name === 'file' ? 'ingest' : r.name;
     const nav = S.p && r.name !== 'home' && r.name !== 'workspaces'
       ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => (k === cur
@@ -85,8 +86,8 @@
     const r = route();
     if (r.name !== 'home' && r.name !== 'workspaces' && !S.p) newProject(true);
     slots = {};
-    const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, conflicts: conflictsScreen,
-      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen, issues: window.VIssues.screen }[r.name](r);
+    const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, documents: documentsScreen,
+      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen}[r.name](r);
     app.innerHTML = header(r) + screen;
     fill();
   }
@@ -140,8 +141,7 @@
     if (!pr.done) return '';
     const open = V.CONFLICTS.filter((c) => S.p.conflicts[c.id].mode === 'open').length;
     const found = V.CONFLICTS.length ? `${many(V.CONFLICTS.length, 'conflict')} found${open ? `, ${open} needs you` : ''}.` : 'No conflicts found.';
-    return `<div class="done-row"><span>${many(V.DRAWINGS.length, 'drawing')} ready. ${found}</span>
-      <a class="btn btn-primary press" href="#/conflicts">${V.CONFLICTS.length ? 'Settle the conflicts' : 'Continue'}</a></div>`;
+    return `<div class="done-row"><span>${many(V.DRAWINGS.length, 'drawing')} ready.${V.CONFLICTS.length ? ' Conflicts and issues are below.' : ''}</span></div>`;
   }
 
   function ingestScreen() {
@@ -169,11 +169,10 @@
       return `<div class="bar"><div style="width:${pct}%"></div></div><span class="small" style="font-variant-numeric:tabular-nums">${pct}% of this step</span>`;
     };
     slots.done = doneRow;
-    slots.files = window.VFiles.lists;
     return `<main class="w820">${titleRow('simple')}
       <section class="card" aria-label="Progress"><div class="prog-top" data-slot="top"></div>
         <dl class="stats" data-slot="stats"></dl><ol class="steps" data-slot="steps"></ol><div data-slot="done"></div></section>
-      <div class="lists" data-slot="files"></div></main>`;
+      ${progress().done ? conflictsBlock() + issuesBlock() + chatCta() : ''}</main>`;
   }
 
   // ---------- 9-12 reading, advanced ----------
@@ -320,7 +319,7 @@
   }
 
   // ---------- 3 conflicts ----------
-  function conflictsScreen() {
+  function conflictsBlock() {
     const p = S.p, pk = picks();
     const settled = V.CONFLICTS.filter((c) => pk[c.id] !== null).length, locked = settled < V.CONFLICTS.length;
     const ai = V.CONFLICTS.filter((c) => c.ai !== null).length;
@@ -328,7 +327,8 @@
     const TIP = { ai: 'Approved: the AI settled this by the rules and it is in use. Modify it if you disagree.',
       own: 'Your choice: you picked this variant, and it overrides the AI.', modify: 'Choosing: tap the variant that is right, or cancel to keep the AI decision.',
       open: 'Needs you: the rules could not decide. Pick a variant before you open the workspace.' };
-    const cards = V.CONFLICTS.map((c, n) => {
+    const ordered = V.CONFLICTS.filter((c) => c.ai !== null).concat(V.CONFLICTS.filter((c) => c.ai === null));
+    const cards = ordered.map((c, n) => {
       const st = p.conflicts[c.id], unsolved = c.ai === null, choosing = st.mode === 'modify' || st.mode === 'open';
       const labels = V.variantLabels(c);
       let plan = '';
@@ -358,15 +358,42 @@
     const needs = V.CONFLICTS.length - count('ai') - count('own');
     const summary = [[count('ai'), 'settled by the AI'], [count('own'), 'settled by you'], [needs, needs === 1 ? 'needs you' : 'need you']]
       .filter(([n]) => n).map(([n, t]) => `${n} ${t}.`).join(' ');
-    return `<main class="w820"><div class="title-row"><div>
-        <span class="kicker ok">${esc(V.ARCHIVE)} · ${many(V.DRAWINGS.length, 'drawing')} ready</span>
-        <h1>${V.CONFLICTS.length ? `${V.CONFLICTS.length} conflicts found` : 'No conflicts found'}</h1><p class="muted" style="margin:0">${summary || 'Nothing to settle: no drawing was read twice with different values.'}</p></div></div>
+    return `<section class="flow" aria-label="Conflicts"><div><h2 class="list-h">${V.CONFLICTS.length ? `${V.CONFLICTS.length} conflicts found` : 'No conflicts found'}</h2><p class="muted" style="margin:0">${summary || 'Nothing to settle: no drawing was read twice with different values.'}</p></div>
       ${V.CONFLICTS.length ? `<div style="display:flex;align-items:center;gap:12px"><div class="segs" aria-hidden="true">${V.CONFLICTS.map((_, i) => `<span class="${i < settled ? 'on' : ''}"></span>`).join('')}</div>
         <span style="font-size:13px;font-weight:500;color:var(--v-text-2)" role="status">${settled} of ${V.CONFLICTS.length} settled</span></div>` : ''}
-      ${cards}
-      <div class="chat-cta">${locked
-        ? '<button class="btn press" disabled aria-describedby="chat-why">Start a new chat</button><span id="chat-why" class="small">Settle the conflicts that need you first.</span>'
-        : '<a class="btn btn-primary press" href="#/chat">Start a new chat</a><a class="small" href="#/ask">Open the workspace</a>'}</div></main>`;
+      ${cards}</section>`;
+  }
+
+  // under the conflicts: what might need a look (stoa.js ISSUES) plus every conflict still open
+  function issuesBlock() {
+    const pk = picks(), files = (path) => V.FILES.findIndex((f) => f.path === path);
+    const open = V.CONFLICTS.filter((c) => pk[c.id] === null).map((c) => ({ severity: 'needs_person', why: `${c.title} The rules could not decide: settle it above.`, file: c.files.split(' ↔ ')[0] }));
+    const all = open.concat(V.ISSUES || []);
+    const head = { fails_rule: 'Fails a rule', needs_person: 'Needs a person', note: 'Note' };
+    const rows = ['fails_rule', 'needs_person', 'note'].flatMap((sev) => all.filter((x) => x.severity === sev)).map((x, n) => {
+      const i = files(x.file);
+      return `<li class="card iss-row"><span class="iss-n" aria-hidden="true">${n + 1}</span><div class="iss-body">
+        <div class="iss-top"><span class="pill ${x.severity === 'note' ? 'grey' : 'warn'}">${head[x.severity]}</span></div>
+        <p class="iss-why">${esc(x.why)}</p><p class="small mono">${esc(x.file)}</p></div>
+        ${i >= 0 ? `<a class="btn btn-soft press iss-go" href="#/file/${i}">Open the file</a>` : ''}</li>`;
+    }).join('');
+    return `<section class="flow" aria-label="Issues"><h2 class="list-h">${all.length ? `${all.length} issues` : 'No issues'}</h2>
+      ${rows ? `<ol class="iss">${rows}</ol>` : '<p class="muted">Nothing needs a look.</p>'}</section>`;
+  }
+
+  function chatCta() {
+    const locked = V.CONFLICTS.some((c) => picks()[c.id] === null);
+    return `<div class="chat-cta">${locked
+      ? '<button class="btn press" disabled aria-describedby="chat-why">Start a new chat</button><span id="chat-why" class="small">Settle the conflicts that need you first.</span>'
+      : '<a class="btn btn-primary press" href="#/chat">Start a new chat</a><a class="small" href="#/ask">Open the workspace</a>'}</div>`;
+  }
+
+  // every ingested document: the drawings and every file, each opening its trace
+  function documentsScreen() {
+    slots.files = window.VFiles.lists;
+    return `<main class="w820"><div class="title-row"><div><span class="kicker ok">${esc(V.ARCHIVE)}</span><h1>Documents</h1>
+      <p class="muted" style="margin:0">${many(V.FILES.length, 'file')} ingested, ${many(V.DRAWINGS.length, 'drawing')} read from them</p></div></div>
+      <div class="lists" data-slot="files"></div></main>`;
   }
 
   // ---------- 5 workspaces ----------
@@ -437,7 +464,7 @@
     const rapNow = Object.keys(S.p.rap).map((p) => window.VTriage.rapState(p, ctx())).join();
     const rapMoved = rapNow !== S.p.rapSeen;
     S.p.rapSeen = rapNow;
-    if (window.VFiles.tick() || (was !== S.p.doneLogged && ['workspaces', 'issues', 'file'].includes(route().name)) || (rapMoved && route().name === 'file')) render(); else fill();
+    if (window.VFiles.tick() || (was !== S.p.doneLogged && ['workspaces', 'ingest', 'documents', 'file'].includes(route().name)) || (rapMoved && route().name === 'file')) render(); else fill();
   }, 250);
 
   window.VApp = { S, render, log, picks, esc, hhmm, progress, ctx };
