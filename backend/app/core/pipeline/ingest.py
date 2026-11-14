@@ -32,6 +32,7 @@ from app.core.pipeline.route import RICHEST_FIRST, route
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, resolved_rooms, second_count
 from app.core.pipeline.takeoff import take_off
+from app.core.wording import SCALE_WORDS, count, kind_words
 
 NO_SHEET = "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
 MODEL_ROUTE: Route = "bim"  # the one route whose source can be asked about without a page
@@ -145,8 +146,8 @@ def _ingest_model(
         trace=(
             *_found(file, members, routed),
             "normalise: no page, a building model",
-            f"extract: {len(found.model_objects)} model objects",
-            f"takeoff: {len(quantities)} quantities, {above_zero} above zero",
+            f"extract: {count(len(found.model_objects), 'model object')}",
+            f"takeoff: {count(len(quantities), 'quantity', 'quantities')}, {above_zero} above zero",
         ),
     )
 
@@ -155,8 +156,8 @@ def _found(file: DrawingFile, members: DrawingGroup, routed: Routed) -> tuple[st
     """The trace of stages 1-5 for one file."""
     return (
         f"inventory: {file.size} bytes, sha256 {file.sha256[:12]}",
-        f"identify: {file.kind}",
-        f"group: {members.key}, {len(members.files)} file(s)",
+        f"identify: {kind_words(file.kind)}",
+        f"group: {members.key}, {count(len(members.files), 'file')}",
         f"route: {routed.route}, read from {routed.source.path}",
     )
 
@@ -209,12 +210,14 @@ def _ingest_sheet(
         takeoff={key: quantity.value for key, quantity in quantities.items()},
         trace=(
             *_found(file, members, routed),
-            f"normalise: {len(sheet.pages)} page(s), page 1 is "
+            f"normalise: {count(len(sheet.pages), 'page')}, page 1 is "
             f"{first_page.width:g} x {first_page.height:g} {first_page.unit}",
-            f"extract: {len(drawing.elements)} elements, {len(drawing.rooms)} rooms, "
-            f"{len(drawing.plans)} plans, scale {drawing.scale.status}",
-            f"second count: {len(compared)} quantities measured twice, {conflicts} conflict(s)",
+            f"extract: {count(len(drawing.elements), 'element')}, "
+            f"{count(len(drawing.rooms), 'room')}, {count(len(drawing.plans), 'plan')}, "
+            f"{SCALE_WORDS[drawing.scale.status]}",
+            f"second count: {count(len(compared), 'quantity', 'quantities')} measured twice, "
+            f"{count(conflicts, 'conflict')}",
             f"rules: {', '.join(rules)}",
-            f"takeoff: {len(quantities)} quantities, {above_zero} above zero",
+            f"takeoff: {count(len(quantities), 'quantity', 'quantities')}, {above_zero} above zero",
         ),
     )

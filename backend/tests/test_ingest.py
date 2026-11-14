@@ -159,8 +159,8 @@ def test_ingest_writes_one_drawing_per_sheet_file_read_from_the_richest_source()
         "rules",
         "takeoff",
     ]
-    assert png_sheet.trace[4] == "normalise: 1 page(s), page 1 is 40 x 30 px"
-    assert png_sheet.trace[5] == "extract: 1 elements, 0 rooms, 0 plans, scale no_scale"
+    assert png_sheet.trace[4] == "normalise: 1 page, page 1 is 40 x 30 px"
+    assert png_sheet.trace[5] == "extract: 1 element, 0 rooms, 0 plans, no scale on the sheet"
     assert png_sheet.trace[8] == "takeoff: 31 quantities, 1 above zero"
 
 
@@ -187,7 +187,7 @@ def test_ingest_writes_what_a_second_method_measured_into_the_drawing() -> None:
         (1.0, "parser"),
         (2.0, "detector"),
     ]
-    assert report.sheets[0].trace[6] == "second count: 1 quantities measured twice, 1 conflict(s)"
+    assert report.sheets[0].trace[6] == "second count: 1 quantity measured twice, 1 conflict"
 
 
 class WithAModel:
@@ -277,7 +277,7 @@ def test_a_model_found_for_a_sheet_joins_its_group_and_is_the_source_it_is_read_
     assert report.set_aside == ()  # the model was not asked about: it is a source, nothing more
     first = report.sheets[0]
     assert (first.route, first.source, first.group) == ("bim", MODEL, "data/ifc/tower_plan-01-eg")
-    assert first.trace[2] == "group: data/ifc/tower_plan-01-eg, 2 file(s)"
+    assert first.trace[2] == "group: data/ifc/tower_plan-01-eg, 2 files"
     assert files.reads.count(MODEL) == 1  # two sheets, one inventory entry
 
 
