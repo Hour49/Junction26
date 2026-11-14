@@ -61,3 +61,23 @@ def test_sv29_route(client: TestClient) -> None:
     assert client.get(url(project="b" * 12)).status_code == 404
     missing = client.get(url(drawing=BARE))
     assert missing.status_code == 409 and "no services model" in missing.json()["detail"]
+
+
+class _SetAside:
+    """A project whose only IFC file was set aside at upload: no drawing, its sha256 known."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        if project_id != PROJECT:
+            raise NotFoundError(f"no project {project_id}")
+        heating = FileStatus(id="f1", path="m/heating.ifc", size=1, sha256="f" * 64)
+        return ProjectStatus(
+            id=PROJECT, name="p", state="done", created_at="2026-11-15T00:00:00Z", files=(heating,)
+        )
+
+
+def test_sv29_a_set_aside_ifc_is_drawn_by_its_sha256_prefix(client: TestClient) -> None:
+    """#281 c6885170828: such a file has no drawing id; its model is found by sha256[:16]."""
+    client.app.dependency_overrides[get_ingest] = _SetAside  # type: ignore[attr-defined]
+    found = client.get(url(drawing="f" * 16))
+    assert found.status_code == 200, found.text
+    assert client.get(url(drawing="e" * 16)).status_code == 404
