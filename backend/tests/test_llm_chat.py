@@ -86,7 +86,7 @@ def test_ac7_ac10_cost_from_usage_and_charged() -> None:
 
 
 def test_ac10_usage_without_total_counts_completion_tokens() -> None:
-    usd = model(Transport()).usd({"prompt_tokens": 1_000_000, "completion_tokens": 1_000_000})
+    usd = model(Transport()).usd({"prompt_tokens": 1_000_000, "completion_tokens": 1_000_000}, 0)
     assert usd == pytest.approx(10.50)
 
 
@@ -96,3 +96,64 @@ def test_ac10_an_http_error_is_a_model_error_without_the_key() -> None:
         model(transport).complete([], [])
     assert "400" in str(raised.value) and KEY not in str(raised.value)
     assert KEY not in repr(model(Transport()))
+
+
+def turn_on(*replies: tuple[int, Any], guard: SpendGuard | None = None) -> Any:
+    chat = Chat("c3f9a1b2c4d5")
+    return run_turn(
+        chat, "hi", (), model(Transport(*replies)), Tools(), Caps(), guard or SpendGuard()
+    )
+
+
+def test_r7_a_filtered_reply_is_charged_from_its_usage() -> None:
+    # review-5's probe: 5,000 prompt tokens, no message (content_filter)
+    usage = {"prompt_tokens": 5000, "completion_tokens": 0, "total_tokens": 5000}
+    filtered = {"choices": [{"finish_reason": "content_filter"}], "usage": usage}
+    guard = SpendGuard()
+    got = turn_on((200, filtered), guard=guard)
+    assert got.kind == "dont_know" and "content_filter" in got.text
+    assert got.cost_usd == pytest.approx(0.0075) and guard.spent_by()["agent chat"] == 0.0075
+
+
+def test_r7_empty_choices_are_still_charged() -> None:
+    empty = {"choices": [], "usage": {"prompt_tokens": 5000, "total_tokens": 5000}}
+    got = turn_on((200, empty))
+    assert got.kind == "dont_know" and got.cost_usd == pytest.approx(0.0075)
+
+
+@pytest.mark.parametrize(
+    "odd",
+    [
+        {"choices": ["x"], "usage": {"prompt_tokens": 10, "total_tokens": 20}},
+        {"choices": [None], "usage": "lots"},
+        {"choices": "x"},
+        {"choices": [{"message": "x"}]},
+        {"choices": [{"message": {"role": "assistant", "tool_calls": ["x"]}}]},
+        {"choices": [{"message": {"role": "assistant", "tool_calls": [{"function": 3}]}}]},
+        {"choices": [{"message": {"role": "assistant", "tool_calls": "call"}}]},
+    ],
+)
+def test_r7_an_odd_reply_ends_the_turn_as_dont_know_and_charged(odd: dict[str, Any]) -> None:
+    got = turn_on((200, odd))
+    assert got.kind == "dont_know" and got.text.startswith("The assistant model did not answer")
+    assert got.cost_usd > 0  # a reply came back: paid, never free
+
+
+def test_r7_usage_never_prices_below_zero_or_free() -> None:
+    priced = model(Transport())
+    # total below prompt: the completion count, not a negative difference
+    assert priced.usd({"prompt_tokens": 1000, "total_tokens": 10, "completion_tokens": 100}, 0) == (
+        pytest.approx((1000 * 1.50 + 100 * 9.00) / 1e6))  # fmt: skip
+    # no usable output count, or none at all: priced as the largest output, over the turn cap
+    cap = Caps().turn_usd
+    for usage in ({}, {"prompt_tokens": 1000, "total_tokens": 10},
+                  {"prompt_tokens": "1000", "completion_tokens": "x"},
+                  {"prompt_tokens": -5, "completion_tokens": -5, "total_tokens": -5}):  # fmt: skip
+        assert priced.usd(usage, 30_000) > cap, usage
+    # a missing prompt count is estimated from the request's size (3 characters a token)
+    assert priced.usd({"completion_tokens": 0}, 30_000) == pytest.approx(10_001 * 1.50 / 1e6)
+
+
+def test_r7_an_http_error_costs_nothing() -> None:
+    got = turn_on((400, {"error": {"type": "BadRequestError"}}))
+    assert got.kind == "dont_know" and got.cost_usd == 0

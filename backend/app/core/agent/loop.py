@@ -124,6 +124,8 @@ class _Run:
             try:
                 reply = self.model.complete(self._window(), self.tools)
             except ChatModelError as error:
+                self.guard.charge(error.usd, "agent chat")
+                self.cost += error.usd
                 raise _EndedError(f"The assistant model did not answer ({error}).") from None
             self.guard.charge(reply.usd, "agent chat")
             self.cost += reply.usd

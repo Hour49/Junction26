@@ -254,6 +254,13 @@ def test_model_error_is_a_dont_know() -> None:
     assert got.kind == "dont_know" and "HTTP 503" in got.text
 
 
+def test_r7_a_failed_but_paid_model_call_is_charged() -> None:
+    guard = SpendGuard()
+    got = turn(Model(ChatModelError("no message", usd=0.05)), guard=guard)  # type: ignore[arg-type]
+    assert got.kind == "dont_know" and got.cost_usd == 0.05
+    assert guard.spent_by() == {"agent chat": 0.05}
+
+
 def test_a_tool_error_goes_back_to_the_model_and_marks_the_step() -> None:
     model = Model(
         step(call("get_takeoff", drawing_id=DRAWING)),

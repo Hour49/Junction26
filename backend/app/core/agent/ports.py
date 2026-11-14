@@ -10,7 +10,12 @@ Json = dict[str, Any]
 
 
 class ChatModelError(Exception):
-    """The model gave no usable reply; the message is safe to show (no key, no body)."""
+    """The model gave no usable reply; the message is safe to show (no key, no body). `usd`: what
+    the call cost all the same (a reply that came back is paid even when it is unusable)."""
+
+    def __init__(self, message: str, usd: float = 0.0) -> None:
+        super().__init__(message)
+        self.usd = usd
 
 
 @dataclass(frozen=True)
