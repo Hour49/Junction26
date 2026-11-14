@@ -819,6 +819,13 @@ def test_which_room_is_the_largest_or_smallest_names_it_from_the_rooms_areas() -
         assert [mark.ref for mark in found.marks] == ["r2"]
     smallest = asked("Which room is the smallest?", drawing)
     assert smallest.answer.answer == "Bad", smallest.refusal
+    # other questions that start the same way are not this one (review-368 M1)
+    for text in (
+        "Which room has the largest window?",
+        "Which room has the largest number of doors?",
+        "What is the largest room's area?",
+    ):
+        assert asked(text, drawing).answer.answer not in ("Wohnen", "Küche", "Bad"), text
 
 
 def test_which_of_two_rooms_is_larger_or_smaller() -> None:
@@ -887,6 +894,11 @@ def test_two_areas_within_each_other_s_estimate_band_are_not_ranked() -> None:
     assert "within each other's estimate band, so either could be" in close.refusal.text
     apart = asked("Which room is the largest?", two(10.0, 12.5))  # 11.25 > 11
     assert apart.answer.answer == "Wohnen", apart.refusal
+    # equal measured areas (no band) are a tie: refused, not the first one listed (review-368)
+    tie = scaled(room("r1", "kitchen", "Küche", 10.0), room("r2", "living", "Wohnen", 10.0))
+    tied = asked("Which room is the largest?", tie)
+    assert tied.answer.answer is None and tied.refusal is not None
+    assert "within each other's estimate band" in tied.refusal.text
 
 
 def test_two_names_that_read_as_one_room_are_not_compared() -> None:

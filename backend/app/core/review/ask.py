@@ -444,9 +444,12 @@ def _unread_text(query: str, flags: Sequence[str]) -> str:
 NOT_LOCATED = "not located on the drawing"
 # Which room is the largest or smallest, or the larger of two rooms named: a room's name, from the
 # rooms' areas (judge-fresh §10: 5 of 23 refusals)
+# Anchored at both ends: "Which room has the largest window?" or "What is the largest room's
+# area?" are other questions (review-368 M1)
 WHICH_EXTREME = re.compile(
     r"^\s*(?:which|what)\s+(?:(?:room|space)\s+(?:is|has)\s+(?:the\s+)?(?P<a>largest|biggest|smallest)"
-    r"|is\s+the\s+(?P<b>largest|biggest|smallest)\s+(?:room|space))\b",
+    r"(?:\s+(?:one|(?:floor\s+)?area|size))?|is\s+the\s+(?P<b>largest|biggest|smallest)\s+(?:room|space))"
+    r"\s*[?.!]?\s*$",
     re.IGNORECASE,
 )
 WHICH_OF_TWO = re.compile(
