@@ -302,6 +302,17 @@ gives +0.35 pp [+0.12, +0.60]. No key, every reply from the caches, no spend. Ag
   same value.
 - `GATE_POLICY`: 286 answers marked sure, 585 not, the rest null; no policy answer is marked sure.
 
+IFC gold with the reader's room words (golden, 2026-11-14 15:30; no series point recorded). #167 rebuilt the IFC
+Part 1 gold with the room words the IFC reader uses. The old gold typed 408 of the 597 rooms in 24 dev IFC sheets
+as `other` where the reader says hall (127), living (96), wc (81), bedroom (65), bathroom (18), kitchen (16) or
+storage (5). The rebuild of golden v2 ran `select-plans --keep data/stoa/golden/v2/manifest.json`: files.jsonl,
+questions.jsonl, extras.jsonl and text_claims.jsonl are byte-identical, and only those 24 gold files changed, in room
+`type` only. One run of 872ebc3 at default settings, scored against the old and the new gold: ifc_models room type
+accuracy goes from 65.2% to 100.0% and count exact from 93.7% to 100.0% (room:bathroom and kitchen were 86.7%;
+bedroom, hall, living and other 80.0%; wc 93.3%). Nothing else moved. The series columns above (element F1, Part 2)
+don't depend on room type and are unchanged. The earlier records' room type accuracy and IFC count numbers were
+scored against the old words.
+
 ## Experiments (CubiCasa raster, 2026-11-14)
 
 Bogdan, 2026-11-14: "Each should do a/b testing". The experiment tracks (detectors, segmentation, OCR, VLMs)
