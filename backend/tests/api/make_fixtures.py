@@ -41,9 +41,11 @@ from make_sample_archive import (  # noqa: E402  # pyright: ignore[reportMissing
     jpeg_bytes,
     png_bytes,
     raster_plan,
+    sample_files,
     site_photo,
 )
 from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
+from pydantic import SecretStr  # noqa: E402
 from test_api_checks import checks_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports]
@@ -53,12 +55,15 @@ from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports
 )
 
 from app.adapters.triage.rules_judge import RulesJudge  # noqa: E402
+from app.api import takeoff as takeoff_api  # noqa: E402
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.drawing.model import Drawing  # noqa: E402
 from app.core.ingest.model import Register  # noqa: E402
+from app.core.pipeline.model import Quantity, QuantityConflict, ValueMark  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
+from app.core.review import ask as review_ask  # noqa: E402
 from app.core.review.check import CheckPolicy, Counts, Found, LevelName, Place  # noqa: E402
-from app.core.review.model import Row  # noqa: E402
+from app.core.review.model import Resolved, ResolveRequest, Row  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
 
@@ -156,6 +161,9 @@ def responses() -> dict[str, Any]:
     others.append(code_checks(client, found))  # checks, project checks, their issues
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
     found.update(issue_answered(client, started["id"], found["project_issues"]))  # appended
+    resolved_ids, resolved = carbon_checked(root / "resolver", settings)
+    others += resolved_ids
+    found.update(resolved)  # appended
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
         found["checks"]["drawing_id"]: "5c4ed01e00000002",
@@ -479,9 +487,89 @@ def double_checked(root: Path, settings: Settings) -> dict[str, Any]:
             )  # fmt: skip
             ask = {"drawing_id": drawing_id, "question": question}
             found[name] = client.post("/api/ask", json=ask).json()
-        return found
+        app.state.answering = replace(  # RESOLVER on: the model's check beside the answer
+            app.state.answering, resolver=ExampleResolver("picked")
+        )
+        ask = {"drawing_id": drawing_id, "question": "How many doors are there?"}
+        resolved = client.post("/api/ask", json=ask).json()
+        return {**found, "answer_resolved": resolved}
     finally:
         os.chdir(here)
+
+
+class ExampleResolver:
+    """A stand-in for RESOLVER=carbon (no network): every conflict gets `verdict`, picking the
+    first method's value; an answer is confirmed as it is."""
+
+    def __init__(self, verdict: str) -> None:
+        self.verdict = verdict
+
+    def resolve(self, request: ResolveRequest, page: object) -> Resolved:
+        return self._said(request).model_copy(update={"marks": tuple(
+            ValueMark(page=spot.page, box=spot.box, label=spot.why) for spot in request.spots[:2]
+        )})  # fmt: skip
+
+    def _said(self, request: ResolveRequest) -> Resolved:
+        if request.kind == "answer":
+            reason = "Two door leaves are drawn at the places counted."
+            return Resolved(verdict="picked", value=request.candidates[0].value, reason=reason,
+                            by="carbon:gemini-4-carbon", at=EDITED_AT)  # fmt: skip
+        if self.verdict == "cannot_tell":
+            reason = "The printed area is cut by the sheet edge, so the label can't be read."
+            return Resolved(verdict="cannot_tell", value=None, reason=reason,
+                            by="carbon:gemini-4-carbon", at=EDITED_AT)  # fmt: skip
+        reason = "The room's outline is closed and drawn to the sheet's scale."
+        return Resolved(verdict="picked", value=request.candidates[0].value, reason=reason,
+                        by="carbon:gemini-4-carbon", at=EDITED_AT)  # fmt: skip
+
+
+def carbon_checked(root: Path, settings: Settings) -> tuple[list[str], dict[str, Any]]:
+    """RESOLVER on, with flat-b's room 1.01 taken as no rule deciding it: one project where the
+    model picked a value (its project, review and the takeoff after a settle), one where it
+    could not tell (POST .../resolve), and the uncertain door answer with the model's check."""
+    settings = settings.model_copy(
+        update={
+            "projects_dir": root / "projects",
+            "resolver": "carbon",
+            "gemini_api_key": SecretStr("example"),
+        }
+    )
+    known = (takeoff_api.known_quantities, review_ask.known_quantities)
+
+    def without_rule(drawing: Drawing) -> dict[str, Quantity]:
+        found = dict(known[0](drawing))
+        for key, value in found.items():
+            if value.conflict is not None:
+                conflict = QuantityConflict.model_validate(
+                    value.conflict.model_dump() | {"resolution": None}
+                )
+                found[key] = value.model_copy(update={"conflict": conflict})
+        return found
+
+    takeoff_api.known_quantities = review_ask.known_quantities = without_rule
+    try:
+        app = create_app(settings, build_ingest(settings, settings.projects_dir, background=False))
+        client = TestClient(app)
+        flat_b = sample_files()["plans/flat-b.pdf"]
+        out: dict[str, Any] = {}
+        ids: list[str] = []
+        for verdict in ("picked", "cannot_tell"):
+            app.state.answering = replace(app.state.answering, resolver=ExampleResolver(verdict))
+            started = client.post("/api/projects", params={"name": "flat-b.pdf"}, content=flat_b)
+            ids.append(started.json()["id"])
+        picked, unsure = ids
+        out["project_resolved"] = client.get(f"/api/projects/{picked}").json()
+        review = client.get(f"/api/projects/{picked}/review").json()
+        review["conflicts"] = [c for c in review["conflicts"] if c["quantity"] == ROOM]
+        out["project_review_resolved"] = review
+        resolving = client.post(f"/api/projects/{unsure}/resolve").json()
+        resolving["review"]["conflicts"] = [
+            c for c in resolving["review"]["conflicts"] if c["quantity"] == ROOM
+        ]
+        out["resolving"] = resolving
+        return ids, out
+    finally:
+        takeoff_api.known_quantities, review_ask.known_quantities = known
 
 
 def stable(

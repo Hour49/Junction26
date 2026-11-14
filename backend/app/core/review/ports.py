@@ -32,6 +32,9 @@ class ReviewStore(Protocol):
 class Resolver(Protocol):
     """RESOLVER: a model that looks at the places in dispute and picks a value, or says it can't
     tell. It pays for its own calls (the spend guard) and caches each reply by the request, so
-    the same request twice costs one call."""
+    the same request twice costs one call. `page(n)`: page n (1-based) of the drawing as a PNG,
+    the image the boxes of the request are fractions of; called only on a cache miss."""
 
-    def resolve(self, request: ResolveRequest) -> Resolved | ResolverUnavailable: ...
+    def resolve(
+        self, request: ResolveRequest, page: Callable[[int], bytes]
+    ) -> Resolved | ResolverUnavailable: ...

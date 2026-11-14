@@ -145,6 +145,9 @@ class Settings(BaseSettings):
     check_policy: str = ""
     # RESOLVER (ResolverName above): off, or the model that checks conflicts and uncertain answers
     resolver: ResolverName = "off"
+    resolver_model: str = "gemini-4-carbon"  # RESOLVER=carbon's model (GEMINI_API_KEY)
+    resolver_timeout_s: float = 120.0
+    resolver_cache_dir: Path = Path("../data/cache/resolver")  # replies by request, paid once
     # local-dec's local gate models (local_gate_v1, comma separated): a check policy family whose
     # threshold is on one of their signals is scored by it (app/core/review/check.py); read only
     # with CHECK_POLICY set; "" none

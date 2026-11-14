@@ -2,9 +2,12 @@
 takeoff row it was read from, in the same shape as the takeoff gives it, and the answer_v1.1 line
 the scorer reads."""
 
+from collections.abc import Callable
+
 from fastapi import APIRouter
 from pydantic import Field
 
+from app.adapters.page_render import render_png
 from app.api.deps import (
     AnsweringDep,
     Ingest,
@@ -35,12 +38,18 @@ from app.core.review.model import (
 )
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
-from app.core.review.resolve import answer_request
+from app.core.review.resolve import answer_request, conflict_request
 from app.settings import Settings
 
 router = APIRouter(prefix="/api")
 
 QUESTION_CHARS = 2000
+RESOLVER_WIDTH = 2400  # px: the page the resolver crops its spots from
+
+
+def page_images(ingest: Ingest, drawing_id: str) -> Callable[[int], bytes]:
+    """The drawing's pages as PNGs for the resolver, rendered only when it asks for one."""
+    return lambda page: render_png(ingest.sheet(drawing_id), page, RESOLVER_WIDTH)
 
 
 class AskRequest(View):
@@ -226,12 +235,21 @@ def answer_view(
     shown = asked.row
     resolved = note = None
     if answering.resolver is not None and asked.check is not None and shown is not None:
-        request = answer_request(drawing_id, question, shown, asked.marks, asked.check)
-        reply = answering.resolver.resolve(request)
-        if isinstance(reply, ResolverUnavailable):
-            note = reply.note
+        if shown.resolved is not None:
+            resolved = shown.resolved  # its conflict was resolved: shown as stored, no call
         else:
-            resolved = reply
+            # a conflict a person has to choose is asked about as POST .../resolve asks it
+            # (both sides, the same cache entry); any other answer with its own value
+            request = (
+                conflict_request(drawing_id, shown)
+                if shown.conflict is not None and shown.needs_person
+                else answer_request(drawing_id, question, shown, asked.marks, asked.check)
+            )
+            reply = answering.resolver.resolve(request, page_images(ingest, drawing_id))
+            if isinstance(reply, ResolverUnavailable):
+                note = reply.note
+            else:
+                resolved = reply
     line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
     return AnswerView(
         question=question,

@@ -227,10 +227,13 @@ def unlocated(quantity: Quantity, drawing: Drawing) -> dict[str, int]:
 
 def picked(quantity: Quantity, state: ReviewState) -> Resolved | None:
     """The resolver's pick for the quantity's conflict, while it applies: no rule decides it, the
-    methods still disagree between the values it was asked about, and it picked one (RESOLVER)."""
+    methods still disagree between the values it was asked about, it picked one (RESOLVER), and
+    no person edited the quantity's marks (a person's count wins; a reset brings the pick back)."""
     found = state.resolved.get(quantity.key)
     disputed = quantity.conflict
     if found is None or found.verdict != "picked" or disputed is None:
+        return None
+    if any(edits.get(quantity.key) for edits in (state.rejected, state.added, state.included)):
         return None
     if disputed.resolution is not None or found.of != tuple(v.value for v in disputed.values):
         return None

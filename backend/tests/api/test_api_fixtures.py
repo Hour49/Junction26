@@ -23,6 +23,7 @@ from app.api.projects import (
     ProjectList,
     ProjectReview,
     RelevanceRequest,
+    Resolving,
     Started,
     TriageRequest,
 )
@@ -78,6 +79,10 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "project_issues_checks": ProjectIssues,
     "issue_answer_request": AnswerRequest,
     "issue_answered": Issue,
+    "project_resolved": ProjectView,
+    "project_review_resolved": ProjectReview,
+    "resolving": Resolving,
+    "answer_resolved": AnswerView,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 

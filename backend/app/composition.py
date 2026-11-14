@@ -62,6 +62,7 @@ from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
+from app.adapters.resolver.carbon import CarbonClient, CarbonResolver
 from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
@@ -360,9 +361,13 @@ def _resolver(settings: Settings) -> Resolver | None:
         case "off":
             return None
         case "carbon":
-            raise InvalidInputError(
-                "RESOLVER=carbon: the Carbon resolver adapter is not built yet; use off"
+            client = CarbonClient(
+                settings.gemini_api_key.get_secret_value(),
+                settings.resolver_timeout_s,
+                settings.resolver_model,
+                budget=spend_guard(settings),
             )
+            return CarbonResolver(client, settings.resolver_cache_dir)
 
 
 def readers(settings: Settings) -> dict[str, str]:

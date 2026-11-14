@@ -3,6 +3,7 @@ or checks an answer CHECK_POLICY does not certify. A fake resolver stands in for
 With the setting off nothing changes; a pick is the value in use until a person settles or signs
 it, never certified; one call per conflict, asked again only when the conflict changes."""
 
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -15,6 +16,7 @@ from app import composition
 from app.api import takeoff as takeoff_api
 from app.composition import build_ingest
 from app.core.pipeline.model import Quantity, QuantityConflict, ValueMark
+from app.core.review import ask as review_ask
 from app.core.review import conflict_card
 from app.core.review.model import (
     Edit,
@@ -46,12 +48,18 @@ class Fake:
         self.answer = answer
         self.asked: list[ResolveRequest] = []
 
-    def resolve(self, request: ResolveRequest) -> Resolved | ResolverUnavailable:
+    def resolve(
+        self, request: ResolveRequest, page: Callable[[int], bytes]
+    ) -> Resolved | ResolverUnavailable:
         self.asked.append(request)
         return self.answer
 
 
 NO_EDITS = ReviewState()
+
+
+def no_page(page: int) -> bytes:  # the fakes never look at a page
+    return b""
 
 
 def doors(state: ReviewState = NO_EDITS, resolved: bool = False) -> Row:
@@ -139,11 +147,13 @@ def test_the_request_holds_each_method_s_value_and_its_places() -> None:
 
 def test_each_conflict_needing_a_person_is_asked_once() -> None:
     fake = Fake(reply(3))
-    found, notes = resolve_conflicts("d1", [doors()], ReviewState(), fake)
+    found, notes = resolve_conflicts("d1", [doors()], ReviewState(), fake, no_page)
     assert (list(found), found["door"].of, notes, len(fake.asked)) == (["door"], (2, 3), [], 1)
-    again, _ = resolve_conflicts("d1", [doors(picked(3))], picked(3), fake)
+    again, _ = resolve_conflicts("d1", [doors(picked(3))], picked(3), fake, no_page)
     assert again == {} and len(fake.asked) == 1  # the pick is kept: no second call
-    resolve_conflicts("d1", [doors(resolved=True)], ReviewState(), fake)  # a rule decides it
+    resolve_conflicts(
+        "d1", [doors(resolved=True)], ReviewState(), fake, no_page
+    )  # a rule decides it
     assert len(fake.asked) == 1
 
 
@@ -152,7 +162,7 @@ def test_a_pick_no_method_read_or_no_reply_is_kept_out_with_a_note() -> None:
         (reply(7), "picked 7, which no method read"),
         (ResolverUnavailable(note="Gemini budget used up"), "Gemini budget used up"),
     ):
-        found, notes = resolve_conflicts("d1", [doors()], ReviewState(), Fake(answer))
+        found, notes = resolve_conflicts("d1", [doors()], ReviewState(), Fake(answer), no_page)
         assert found == {} and len(notes) == 1 and said in notes[0]
 
 
@@ -186,6 +196,7 @@ def undecided(monkeypatch: pytest.MonkeyPatch) -> None:
         return found
 
     monkeypatch.setattr(takeoff_api, "known_quantities", without_rule)
+    monkeypatch.setattr(review_ask, "known_quantities", without_rule)
 
 
 def flat_b(client: TestClient) -> str:
@@ -211,11 +222,12 @@ def test_off_resolve_is_409_and_no_field_appears(client: TestClient) -> None:
 def test_resolve_picks_a_conflict_once_and_a_get_never_asks(
     settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
 ) -> None:
-    fake = Fake(reply(22.4, "the outline is drawn to scale"))
+    fake = Fake(ResolverUnavailable(note="timeout"))  # the run after ingest gets no reply
     with_resolver(monkeypatch, fake)
     client = client_of(settings)
     project_id = flat_b(client)
-    assert entry(client, project_id)["needs_person"] is True and fake.asked == []
+    assert entry(client, project_id)["needs_person"] is True and len(fake.asked) == 1
+    fake.answer = reply(22.4, "the outline is drawn to scale")
     done = client.post(f"/api/projects/{project_id}/resolve")
     assert done.status_code == 200, done.text
     asked = len(fake.asked)
@@ -276,3 +288,152 @@ def test_a_certified_answer_is_not_sent_and_no_reply_gives_a_note(
     budget = Fake(ResolverUnavailable(note="Gemini budget used up"))
     answer = doors_asked(settings, monkeypatch, budget, threshold=0.9)
     assert answer["resolver_note"] == "Gemini budget used up" and "resolved" not in answer
+
+
+def resolved_flat_b(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, answer: Resolved
+) -> tuple[TestClient, str]:
+    """flat-b with RESOLVER on (the fake answering `answer`), resolved once."""
+    with_resolver(monkeypatch, Fake(answer))
+    monkeypatch.setattr(settings, "resolver", "carbon")
+    client = client_of(settings)
+    project_id = flat_b(client)
+    assert client.post(f"/api/projects/{project_id}/resolve").status_code == 200
+    return client, project_id
+
+
+def conflict_issue(client: TestClient, project_id: str) -> dict[str, Any]:
+    issues = client.get(f"/api/projects/{project_id}/issues").json()["issues"]
+    return next(
+        found for found in issues if found["kind"] == "conflict" and found["quantity"] == KEY
+    )
+
+
+def test_a_picked_conflict_stays_listed_checked_by_the_model_and_needs_no_answer(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    client, project_id = resolved_flat_b(settings, monkeypatch, reply(22.4))
+    issue = conflict_issue(client, project_id)
+    assert (issue["state"], issue["severity"], issue["resolved"]["by"]) == ("open", "note", BY)
+    assert f"checked by a model ({BY}), which picked 22.40 m²" in issue["why"]
+    project = client.get(f"/api/projects/{project_id}").json()
+    (summary,) = client.get("/api/projects").json()["projects"]
+    for counts in (project, summary):
+        assert (counts["conflicts_open"], counts["conflicts_picked"]) == (0, 1)
+        assert counts["issues_to_answer"] == sum(
+            found["severity"] != "note" and found["answer"] is None
+            for found in client.get(f"/api/projects/{project_id}/issues").json()["issues"]
+            if found["state"] == "open"
+        )
+
+
+def test_cannot_tell_keeps_the_conflict_open_and_to_answer(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    client, project_id = resolved_flat_b(settings, monkeypatch, reply(None, "the label is cut"))
+    issue = conflict_issue(client, project_id)
+    assert (issue["severity"], issue["resolved"]["verdict"]) == ("needs_person", "cannot_tell")
+    assert "which could not tell" in issue["why"]
+    project = client.get(f"/api/projects/{project_id}").json()
+    assert (project["conflicts_open"], project["conflicts_picked"]) == (1, 0)
+
+
+def test_off_no_pick_count_appears(client: TestClient) -> None:
+    project_id = flat_b(client)
+    project = client.get(f"/api/projects/{project_id}").json()
+    (summary,) = client.get("/api/projects").json()["projects"]
+    assert "conflicts_picked" not in project and "conflicts_picked" not in summary
+    assert "resolved" not in conflict_issue(client, project_id)
+
+
+def test_settle_unsettle_and_reset_answer_with_the_model_s_reply(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    client, project_id = resolved_flat_b(settings, monkeypatch, reply(22.4))
+    drawing_id = entry(client, project_id)["drawing_id"]
+    url = f"/api/drawings/{drawing_id}/review?project={project_id}"
+    edits = (
+        {"quantity": KEY, "action": "settle", "value": 30},
+        {"quantity": KEY, "action": "unsettle"},
+        {"quantity": KEY, "action": "settle", "value": 30},
+        {"quantity": KEY, "action": "reset"},
+        {"action": "reset"},
+    )
+    for edit in edits:
+        response = client.post(url, json=edit)
+        assert response.status_code == 200, response.text
+        shown = next(found for found in response.json()["quantities"] if found["key"] == KEY)
+        assert shown["resolved"]["by"] == BY, edit
+        assert shown["value"] == pytest.approx(
+            30 if edit["action"] == "settle" else 22.4, abs=0.005
+        )
+    assert entry(client, project_id)["resolved"]["value"] == pytest.approx(22.4, abs=0.005)
+
+
+# codecheck's review of #252 (.agents/qa/r9/review-252.md)
+
+
+def test_a_person_s_mark_edit_wins_over_the_pick_and_reset_brings_it_back() -> None:
+    """M1: rejecting a mark on a picked row counts as before the pick; needs a person again."""
+    found = door_quantity()
+    reject = Edit(quantity="door", action="reject", mark="m1")
+    edited = apply(picked(3), reject, found, DRAWING, AT)
+    shown = row(found, DRAWING, edited, {})
+    assert (shown.value, shown.needs_person) == (1, True)
+    assert "picked 3 before the marks were edited" in conflict_card.why(shown)
+    assert row(found, DRAWING, reset(edited, "door"), {}).value == 3
+
+
+def test_cannot_tell_is_kept_and_not_asked_again() -> None:
+    """S2: a stored cannot_tell is the reply: a second resolve asks nothing."""
+    fake = Fake(reply(None))
+    found, _ = resolve_conflicts("d1", [doors()], ReviewState(), fake, no_page)
+    state = ReviewState(resolved=found)
+    again, _ = resolve_conflicts("d1", [doors(state)], state, fake, no_page)
+    assert (len(fake.asked), again, found["door"].verdict) == (1, {}, "cannot_tell")
+
+
+def test_with_no_reply_the_stored_state_has_no_resolved_key() -> None:
+    """S2: RESOLVER off leaves every stored review as it was before the PR."""
+    assert "resolved" not in ReviewState().model_dump_json()
+    assert "resolved" in picked(3).model_dump_json()
+
+
+def test_asking_about_a_picked_conflict_shows_the_pick_and_makes_no_call(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    """S1: the answer's check is the stored pick, with its reason; the model is not asked."""
+    root = settings.projects_dir.parent
+    root.mkdir(parents=True, exist_ok=True)
+    settings = settings.model_copy(update={"check_policy": str(policy(root, 0.9, 0.8))})
+    fake = Fake(reply(22.4, "the outline is drawn to scale"))
+    with_resolver(monkeypatch, fake)
+    client = client_of(settings)
+    project_id = flat_b(client)
+    drawing_id = entry(client, project_id)["drawing_id"]
+    ask = {"drawing_id": drawing_id, "question": "What is the area of room 1.01?"}
+    before = client.post("/api/ask", json={**ask, "project_id": project_id}).json()
+    assert before["check"] is not None
+    assert [request.kind for request in fake.asked] == ["conflict"]  # both sides, as resolve
+    assert client.post(f"/api/projects/{project_id}/resolve").status_code == 200
+    asked = len(fake.asked)
+    answer = client.post("/api/ask", json={**ask, "project_id": project_id}).json()
+    assert answer["resolved"]["reason"] == "the outline is drawn to scale"
+    assert answer["answer"] == pytest.approx(22.4, abs=0.005)
+    assert len(fake.asked) == asked  # no call: the stored pick
+
+
+def test_with_resolver_on_an_upload_is_resolved_when_its_ingest_is_done(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    """D: no POST needed; the explicit POST then asks nothing new."""
+    fake = Fake(reply(22.4))
+    with_resolver(monkeypatch, fake)
+    client = client_of(settings)
+    project_id = flat_b(client)  # ingested inline here, so resolved before the 202
+    shown = entry(client, project_id)
+    assert (shown["needs_person"], shown["resolved"]["by"]) == (False, BY)
+    asked = len(fake.asked)
+    assert asked >= 1
+    assert client.post(f"/api/projects/{project_id}/resolve").json()["notes"] == []
+    assert len(fake.asked) == asked

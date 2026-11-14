@@ -4,7 +4,7 @@ CHECK_POLICY does not certify. Its reply is checked by a model, never a person's
 conflict's pick becomes the value in use until a person settles or signs it, and an answer keeps
 its value, `sure`, `check` and `level`, with the reply beside it."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from app.core.pipeline.model import ValueMark
 from app.core.review.check import Check
@@ -78,7 +78,11 @@ def answer_request(
 
 
 def resolve_conflicts(
-    drawing_id: str, rows: Sequence[Row], state: ReviewState, resolver: Resolver
+    drawing_id: str,
+    rows: Sequence[Row],
+    state: ReviewState,
+    resolver: Resolver,
+    page: Callable[[int], bytes],
 ) -> tuple[dict[str, Resolved], list[str]]:
     """The resolver's reply to each conflict of the drawing that needs a person and has no reply
     yet, by quantity key, and the notes of the ones that got none. A pick must be one of the
@@ -90,13 +94,14 @@ def resolve_conflicts(
         if disputed is None or not row.needs_person or _asked(state.resolved, row):
             continue
         values = tuple(found_value.value for found_value in disputed.values)
-        reply = resolver.resolve(conflict_request(drawing_id, row))
+        reply = resolver.resolve(conflict_request(drawing_id, row), page)
         if isinstance(reply, ResolverUnavailable):
             notes.append(f"{row.label}: {reply.note}")
             continue
         if reply.value is not None:
             # a pick is one of the methods' values as the card writes it ("22.40 m²"): kept as
-            # that method's exact value, so the row shows what the method read
+            # that method's exact value, so the row shows what the method read; two values that
+            # print the same (22.401 and 22.404 m²) take the first, which reads the same
             same = [value for value in values if number(row, value) == number(row, reply.value)]
             if not same:
                 notes.append(

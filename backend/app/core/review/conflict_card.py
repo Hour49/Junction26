@@ -74,6 +74,11 @@ def _checked(row: Row) -> str:
     if found.value is None:
         return f" No rule decides between them, and a model ({found.by}) could not tell: {reason}."
     picked = number(row, found.value)
+    if row.needs_person:  # a person edited the marks after the pick: their count is in use
+        return (
+            f" No rule decides between them, so a person has to choose. A model ({found.by}) "
+            f"picked {picked} before the marks were edited."
+        )
     return (
         f" No rule decides between them. A model ({found.by}) checked the drawing and picked "
         f"{picked}: {reason}. You can still choose another value."
