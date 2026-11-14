@@ -32,6 +32,8 @@ from app.core.agent.validate import (
     FINAL_ANSWER_TOOL,
     TEXT_CHARS,
     FinalAnswer,
+    backed,
+    claims,
     failed,
     numbers,
     problems,
@@ -61,6 +63,13 @@ TOOL_CHARS = 8000
 GEOMETRY = frozenset({"box", "polygon", "holes"})  # the model cites ev ids, never coordinates
 NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
+# Levels only where measured (item 4): these tools' numbers are read from the drawing as it is,
+# with no confidence level; an answer whose number rests only on them says so, in no digits
+UNRATED_TOOLS = frozenset({"get_plan_geometry", "get_takeoff", "list_walls"})
+UNRATED = (
+    "That number is read straight from the drawing's geometry and has no confidence level; ask "
+    "about it directly for a rated answer."
+)
 
 STOPS = {
     "steps": "I ran out of steps before I could answer.",
@@ -186,6 +195,10 @@ class _Run:
         self.known: dict[str, Json] = dict(chat.evidence)  # earlier turns' places
         self.proposals: dict[str, Proposal] = {}
         self.sources: list[str] = []
+        # what rates a number: rated tool results (ask_drawings, review_answer, an answer shown)
+        # and the user's message; numbers only an UNRATED_TOOLS result gives carry no level
+        self.rated: list[str] = []
+        self.unrated: list[str] = []
         self.failures: list[bool] = []
         self.steps: list[Step] = []
         self.seen: Counter[tuple[str, str]] = Counter()
@@ -206,6 +219,7 @@ class _Run:
         lines = [self.toolbox.describe(chosen) for chosen in selection]
         chat.messages.append({"role": "user", "content": "\n".join([message, *lines])})
         self.sources.append(message)
+        self.rated.append(message)
         try:
             answer = self._loop()
         except _EndedError as ended:
@@ -485,6 +499,10 @@ class _Run:
         self._law_results(name, out)
         text = out if isinstance(found, str) else json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
+        if name == ASK:
+            self.rated.append(text)
+        elif name in UNRATED_TOOLS:
+            self.unrated.append(text)
         self.failures.append(failed(found))
         self.chat.results.append({"tool": name, "arguments": arguments, "result": found})
         bad = self.failures[-1]  # an error, or refused / cannot_edit / unknown (QA edits-6)
@@ -553,8 +571,10 @@ class _Run:
         text = json.dumps(result, ensure_ascii=False)
         # what it showed backs the answer's numbers: a tool result, and the answer it shows
         self.sources.append(text)
+        self.rated.append(text)
         if entry is not None:
             self.sources.append(json.dumps(entry["answer"]))
+            self.rated.append(self.sources[-1])
         self._show_step(call, start, label, "ok", text)
 
     def _review(self, call: Json) -> None:
@@ -573,6 +593,7 @@ class _Run:
                                    reply, REVIEW_ANSWER)  # fmt: skip
         text = json.dumps(review_of(minted, self.names), ensure_ascii=False)
         self.sources.append(text)
+        self.rated.append(text)
         self.reattached.append([*self.chat.asked, *self.asked][-1]["answer"])
         self._show_step(call, start, "Reviewed the last answer", "ok",
                         _for_model(json.loads(text)), REVIEW_ANSWER)  # fmt: skip
@@ -662,6 +683,8 @@ class _Run:
             text = text.replace(file, self.names.get(drawing_id) or file)
         text = _plain_ids(text)
         kind: TurnKind = answer.kind
+        if kind in ("answer", "conflict") and self._unrated(answer.text):
+            text = f"{text.rstrip()} {UNRATED}"
         answers = self._answers(set(cited) | set(shown), kind)
         if kind == "answer" and any(_conflicted(given) for given in answers):
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
@@ -682,6 +705,12 @@ class _Run:
             answers=answers,
             view=self._view(kind, cited, number, answer.proposal_id),
         )
+
+    def _unrated(self, text: str) -> bool:
+        """Whether a number in `text` rests only on unrated places: an UNRATED_TOOLS result of
+        this turn gives it, and no rated result or the user's message does."""
+        rated, unrated = numbers(self.rated), numbers(self.unrated)
+        return any(backed(n, unrated) and not backed(n, rated) for n in claims(text))
 
     def _view(
         self, kind: TurnKind, cited: list[str], number: Mapping[str, int], proposal_id: str | None

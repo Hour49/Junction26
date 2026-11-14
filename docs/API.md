@@ -7867,6 +7867,10 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
 
+Levels only where measured (added 2026-11-14): when a number in an `answer` or `conflict` turn's `text` comes only from
+`get_plan_geometry`, `get_takeoff` or `list_walls` (no confidence level) and from no `ask_drawings` answer or the
+user's message, the server appends one sentence saying it is not rated.
+
 "Are you sure?" (added 2026-11-14): the agent calls `review_answer`, which gives back the chat's latest `ask_drawings`
 answer as its readers judged it (value, level and why, the check's reason, the disputed marks with their evidence
 ids), so the turn answers from the level and the disputed marks, cites them, and returns that answer in `answers`.
