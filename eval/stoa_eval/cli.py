@@ -43,6 +43,7 @@ from .ab import (
 from .check import (
     FLOOR,
     LAMBDA,
+    POOL_BELOW,
     RECALL_RULE,
     RULE,
     CheckFamily,
@@ -53,6 +54,7 @@ from .check import (
     crossfit,
     fit,
     flag_always,
+    groups_below,
     point,
     pooled,
     probabilities,
@@ -1154,13 +1156,15 @@ def run_check_policy(args: argparse.Namespace) -> None:
     if missing := sorted({name for name, _ in signals.values()} - known):
         raise ValueError(f"no values for the signals {missing}: give their --signal-file")
     first = set(halves(files, args.seed)[0])
-    cut, calibrated = None, {}
+    cut, calibrated, groups = None, {}, {}
     if args.recall is None:
         chosen = fit(by_family, signals, args.lam, args.floor)
         held = crossfit(by_family, signals, args.lam, args.floor, lambda file: file in first)
     else:
-        cut, held = recall_fit(by_family, signals, args.recall, lambda file: file in first)
-        calibrated = calibrations(by_family, signals, probabilities(by_family, signals))
+        groups = groups_below(by_family, signals, args.pool_below)
+        cut, held = recall_fit(by_family, signals, args.recall, lambda file: file in first, groups)
+        logit = probabilities(by_family, signals)
+        calibrated = calibrations(by_family, signals, logit, groups)
         chosen = thresholds_at(calibrated, signals, cut)
     made_families = {
         family: CheckFamily(
@@ -1170,6 +1174,7 @@ def run_check_policy(args: argparse.Namespace) -> None:
             val=point(units_of, signals[family][0], chosen[family]),
             crossfit=held[family],
             calibration=calibrated.get(family),
+            group=groups[family] if groups.get(family, family) != family else None,
         )
         for family, units_of in sorted(by_family.items())
     }
@@ -1187,6 +1192,7 @@ def run_check_policy(args: argparse.Namespace) -> None:
         lambda_=args.lam,
         floor=args.floor,
         recall=args.recall,
+        pool_below=None if args.recall is None else args.pool_below,
         always_flag=[rule.name for rule in rules],
         cut=cut,
         families=made_families,
@@ -1219,6 +1225,8 @@ def _print_flagged(made: CheckPolicyFile) -> None:
         val = made.pooled_val if entry is None else entry.val
         held = made.pooled_crossfit if entry is None else entry.crossfit
         what = " | " if entry is None else f"{entry.signal} | {_cut(entry)}"
+        if entry is not None and entry.group:
+            what += f" ({entry.group})"
         print(f"| {family} | {what} | {held.units} | {held.wrong} | {held.no_value} | "
               f"{_flagging(held)} | {_flagging(val)} |")  # fmt: skip
 
@@ -2312,6 +2320,10 @@ def parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--always-flag", type=Path, action="append", default=[],
         help="a flag_units_v1 file: its units are flagged whatever their signal (repeat)",
+    )  # fmt: skip
+    check.add_argument(
+        "--pool-below", type=int, default=POOL_BELOW,
+        help="with --recall: families with fewer wrong answers on val share one calibration (D23)",
     )  # fmt: skip
     check.add_argument("--lambda", dest="lam", type=float, default=LAMBDA)
     check.add_argument("--floor", type=float, default=FLOOR)

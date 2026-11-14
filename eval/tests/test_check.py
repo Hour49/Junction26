@@ -15,6 +15,7 @@ from stoa_eval.check import (
     crossfit,
     fit,
     flag_always,
+    groups_below,
     point,
     probabilities,
     recall_cut,
@@ -174,3 +175,20 @@ def test_an_always_flagged_unit_loses_its_signals_and_is_never_certified() -> No
     assert point([kept, flagged], "s", 0.5) == Point(
         units=2, certified=1, exact=1, wrong=1, no_value=1
     )
+
+
+def test_families_with_few_errors_share_one_calibration() -> None:
+    few_a = units("sauna", *[(0.9, True)] * 8, (0.2, False), prefix="a")
+    few_b = units("plan", *[(0.95, True)] * 8, (0.3, False), (0.1, False), prefix="b")
+    many = units("door", *[(0.9, True)] * 5, *[(0.1, False)] * 10, prefix="c")
+    fixed = units("window", (0.5, False), prefix="w")
+    by_family = {"sauna": few_a, "plan": few_b, "door": many, "window": fixed}
+    signals = {"sauna": ("s", None), "plan": ("s", None), "door": ("s", None),
+               "window": ("s", 0.75)}  # fmt: skip
+    groups = groups_below(by_family, signals, 10)
+    assert groups == {"sauna": "pooled", "plan": "pooled", "door": "door", "window": "window"}
+    made = calibrations(by_family, signals, frozenset(), groups)
+    assert made["sauna"] is made["plan"] and made["sauna"] is not None
+    assert made["door"] is not made["sauna"] and made["window"] is None
+    # one small family alone keeps its own calibration
+    assert groups_below({"sauna": few_a, "door": many}, signals, 10)["sauna"] == "sauna"
