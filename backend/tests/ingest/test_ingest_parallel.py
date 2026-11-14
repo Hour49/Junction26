@@ -354,7 +354,7 @@ def test_the_composite_s_gemini_calls_are_asked_before_its_slot(
     composite = local._inner  # pyright: ignore[reportPrivateUsage]
     counted = composite._plans.reader  # pyright: ignore[reportAttributeAccessIssue]
     assert isinstance(counted, DecisionsReading)
-    assert counted._inner._reader is early  # pyright: ignore[reportPrivateUsage]
+    assert counted._inner._reader is early  # pyright: ignore[reportPrivateUsage, reportAttributeAccessIssue]
     assert composite._rooms.reader is rooms  # pyright: ignore[reportAttributeAccessIssue]
 
 
