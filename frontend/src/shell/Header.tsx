@@ -1,4 +1,5 @@
 import { rulePacksOf } from '../api';
+import { ExportButton } from '../export/ExportButton';
 import { CountryPicker } from './CountryPicker';
 import { useInfo } from './info';
 import { ProjectPicker } from './ProjectPicker';
@@ -81,6 +82,9 @@ export function Header({ route }: { route: Route }) {
         >
           Workspaces
         </a>
+        {'projectId' in route && (
+          <ExportButton key={route.projectId} projectId={route.projectId} pack={packOf(route)} />
+        )}
       </div>
     </header>
   );
