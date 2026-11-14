@@ -397,7 +397,7 @@ def test_label_source_says_the_area_was_read_off_the_image() -> None:
         "read from the rooms' labels on the image (a digit can be misread)"
     )
     assert label_source([one, two, plain]) == (
-        "2 of 3 room areas read from the rooms' labels on the image"
+        "2 of 3 room areas read from the rooms' labels on the image (a digit can be misread)"
     )
     assert label_source([plain]) is None
 

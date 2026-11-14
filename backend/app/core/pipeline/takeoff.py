@@ -638,7 +638,10 @@ def label_source(rooms: Sequence[Room]) -> str | None:
         if n == 1:
             return "read from the room's label on the image (a digit can be misread)"
         return "read from the rooms' labels on the image (a digit can be misread)"
-    return f"{n} of {len(rooms)} room areas read from the rooms' labels on the image"
+    return (
+        f"{n} of {len(rooms)} room areas read from the rooms' labels on the image "
+        "(a digit can be misread)"
+    )
 
 
 # How an estimated room area was measured, in words (extraction_v1 `area_source`)
