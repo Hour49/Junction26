@@ -465,7 +465,9 @@ export interface paths {
          * @description A person has a file triage set aside read as a floor plan: it is read in the background,
          *     alone, while the project stays done. Returns the file, queued; poll the project. 409 until
          *     the project is done or while a file of it is read again; 422 `not-triaged` for a file triage
-         *     did not set aside as not a floor plan. No undo: a reading is not unread.
+         *     did not set aside as not a floor plan. A sheet the sheet-kind step doubted (flagged) was read
+         *     already: its flag is dropped at once, nothing is read again. No undo: a reading is not
+         *     unread.
          */
         post: operations["triage_api_projects__project_id__files__file_id__triage_post"];
         delete?: never;
@@ -1566,7 +1568,7 @@ export interface components {
              * Basis
              * @enum {string}
              */
-            basis: "certified" | "route" | "score" | "page" | "held" | "unrated";
+            basis: "certified" | "route" | "score" | "page" | "held" | "unrated" | "carbon";
             /**
              * Level
              * @enum {string}

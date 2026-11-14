@@ -44,6 +44,7 @@ from app.core.ingest.model import (
     ReadAsPlan,
     SheetFile,
     StageTrace,
+    Triage,
     Unavailable,
     page_path,
 )
@@ -69,6 +70,7 @@ from app.core.ingest.triage import (
     TriageSteps,
     called_not_plan,
     context_of,
+    doubted_not_plan,
     judged,
     judged_note,
     kind_after,
@@ -266,7 +268,9 @@ class IngestService:
     def read_as_plan(self, project_id: str, file_id: str, call: ReadAsPlan) -> FileStatus:
         """A person says a file triage set aside is a floor plan (decision 0010): it is read as
         one in the background, alone, through the usual group, route and readers, while the
-        project stays done. Returns the file as queued; poll the project for the rest."""
+        project stays done. Returns the file as queued; poll the project for the rest. A sheet
+        the sheet-kind step doubted was read already: the person's call drops its flag
+        (triage.sheet_flag) at once, nothing is read again, and the file is returned as it ends."""
         with self._lock:
             if project_id in self._live:
                 raise NotAllowedError(f"project {project_id} is still being read; try again")
@@ -276,7 +280,8 @@ class IngestService:
             if file_id not in traces:
                 raise NotFoundError(f"project {project_id} has no file {file_id}")
             file = traces[file_id].file
-            if file.triage is None or not called_not_plan(file):
+            doubted = file.triage is not None and doubted_not_plan(file.triage)
+            if file.triage is None or not (called_not_plan(file) or doubted):
                 raise NotTriagedError(
                     f"file {file_id} was not set aside by triage as not a floor plan"
                 )
@@ -287,6 +292,8 @@ class IngestService:
                 )
             run = Run.resumed(status, traces)
             triage = read_as_plan(file.triage, call)
+            if doubted:
+                return self._doubt_read_as_plan(run, file, triage, call)
             reason = "queued to be read as a floor plan"
             run.set(file.path, triage=triage, state="queued", reason=reason)
             self._live[project_id] = run
@@ -294,6 +301,22 @@ class IngestService:
         self._save(run)
         self._runner.submit(lambda: self._reread(run, file.path, call))
         return queued
+
+    def _doubt_read_as_plan(
+        self, run: Run, file: FileStatus, triage: Triage, call: ReadAsPlan
+    ) -> FileStatus:
+        """A doubted sheet a person says is a floor plan: it ends as its reading did, without
+        the sheet-kind flag (groups._finish), and the project is saved. Called under the lock."""
+        outcome = None if file.drawing_id is None else self._store.outcome(file.drawing_id)
+        if outcome is None:
+            raise NotFoundError(f"file {file.id} has no reading to keep")
+        said = f"{_asked(call.by)}: the reading is kept, the sheet-kind flag is dropped"
+        run.stage(file.path, "identify", said, 0.0, output=kind_words(file.kind or "unknown"))
+        run.set(file.path, triage=triage)
+        run.finish(file.path, outcome.state, outcome.reason)
+        self._save(run)
+        self._index(run.status())
+        return run.file(file.path)
 
     def overrule(self, project_id: str, file_id: str, overrule: Overrule | None) -> FileStatus:
         """A person's call on a triaged file's relevance (decision 0010), kept in the project's

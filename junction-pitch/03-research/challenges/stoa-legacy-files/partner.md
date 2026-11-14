@@ -88,6 +88,8 @@ From Madalina's chat, full notes in [F-004](../../feedback/log.md):
 - Their current app: a floor-by-floor building view, written issues on the right that open the floor plan at the
   issue's location, and a timeline of issues with schedule bars that double as progress bars.
 - So our findings should carry floor, sheet and plan region (and a date when one applies), so they fit that view.
+- Discord answers, 2026-11-14 18:12 to 18:51 ([F-005](../../feedback/log.md)): judges try a few drawings, mostly scanned
+  images (PDF or PNG), through each team's own interface, one blueprint at a time; accuracy is one component, impact is judged on the whole flow.
 
 ## Follow-up questions (round 2, 2026-11-13 18:40)
 
