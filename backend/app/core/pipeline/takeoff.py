@@ -248,7 +248,7 @@ def _space_area(space: ModelObject, rooms: Mapping[str, Room]) -> tuple[float | 
 
 
 def _space_names(space: ModelObject) -> set[str]:
-    """What a model's space is known by, as `_room_names` knows a drawn IFC space: its Name (the
+    """What a model's space is known by, as `room_names` knows a drawn IFC space: its Name (the
     number), its LongName, and "<LongName> (<Name>)"."""
     number, long_name = space.name or None, space.long_name or None
     found = {value for value in (number, long_name) if value is not None}
@@ -318,7 +318,7 @@ def _conflict_keys(
             keys: list[str] = []
             for room in (room for room in drawing.rooms if room.id == ref):
                 own = _storey(room.attrs, room.plan, plans)
-                for name in _room_names(room):
+                for name in room_names(room):
                     keys += [quantity_key("area", "room", name=name, storey=s) for s in {None, own}]
             return keys
         case "apartment_area", "apartment":
@@ -590,7 +590,9 @@ def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
     return out
 
 
-def _room_names(room: Room) -> set[str]:
+def room_names(room: Room) -> set[str]:
+    """Every name a room answers to (its numbers, names, printed label), normalised."""
+
     def texts(keys: Iterable[str]) -> set[str]:
         return {value for key in keys if isinstance(value := room.attrs.get(key), str) and value}
 
@@ -641,7 +643,7 @@ def _add_scope(
     for room in rooms:
         if room.label:
             labelled[normalised(room.label)].append(room)
-        for name in _room_names(room):
+        for name in room_names(room):
             named[name].append(room)
     for label, same in labelled.items():
         key = quantity_key("count", "room", label=label, storey=storey)
@@ -742,7 +744,7 @@ def _add_room_sides(found: dict[str, Quantity], drawing: Drawing, scale: str | N
     by_type: dict[str, list[Room]] = defaultdict(list)
     for room in drawing.rooms:
         by_type[room.type].append(room)
-        for name in _room_names(room):
+        for name in room_names(room):
             named[name].append(room)
     keys = [(quantity_key("length", "room", name=name), same) for name, same in named.items()]
     keys += [(quantity_key("length", f"room:{kind}"), same) for kind, same in by_type.items()]

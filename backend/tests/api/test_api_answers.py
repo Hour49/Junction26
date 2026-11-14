@@ -105,6 +105,18 @@ def test_a_question_it_cannot_parse_is_refused_with_questions_it_can_answer(
     assert answer["line"]["abstain"] is True
 
 
+def test_the_area_of_the_kitchen_is_the_one_kitchen_s_area(
+    client: TestClient, drawing_id: str
+) -> None:
+    """R1-3-4: refused as "isn't one I can turn into a count, area, length or volume"."""
+    by_number = ask(client, drawing_id, "What is the net floor area of room 2.01?")
+    kitchen = ask(client, drawing_id, "What is the area of the kitchen?")
+    assert kitchen["refusal"] is None
+    assert (kitchen["answer"], kitchen["unit"]) == (by_number["answer"], "m2")
+    assert kitchen["quantity"]["key"] == by_number["quantity"]["key"]
+    assert kitchen["marks"] == by_number["marks"]
+
+
 def test_a_class_the_reader_did_not_look_for_is_refused_as_not_read(
     client: TestClient, drawing_id: str
 ) -> None:

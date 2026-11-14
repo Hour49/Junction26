@@ -2,6 +2,7 @@
 
 import pytest
 
+from app.adapters.answer_prior import NoPrior
 from app.adapters.question_templates import TemplateParser
 from app.core.drawing.model import (
     Drawing,
@@ -16,7 +17,7 @@ from app.core.drawing.model import (
 )
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import Quantity, QuantityConflict
-from app.core.review.ask import suggestions
+from app.core.review.ask import Asked, ask, suggestions
 from app.core.review.model import Edit, MethodValue, ReviewState
 from app.core.review.review import NotAllowedError, apply, label, mark_views, row, sign
 
@@ -188,3 +189,63 @@ def test_suggestions_offer_a_schedule_an_area_and_the_building_model_s_totals_fi
         "How many doors are there?",
         "How many windows are there in the building model?",
     ]
+
+
+def asked(text: str, drawing: Drawing) -> Asked:
+    return ask(
+        text,
+        drawing,
+        parser=TemplateParser(),
+        clock=lambda: 0.0,
+        prior=NoPrior(),
+        state=ReviewState(),
+    )
+
+
+def scaled(*rooms: Room) -> Drawing:
+    return Drawing(file="x.pdf", pages=(PAGE,), scale=Scale(status="scaled"), rooms=rooms)
+
+
+def test_the_area_of_the_one_room_of_a_type_is_that_room_s_area() -> None:
+    """R1-3-4: "the area of the kitchen" was refused as "isn't a count, area, length or volume"
+    on a sheet with one kitchen whose area "room 2.01" answers."""
+    kitchen = Room(
+        id="r1", type="kitchen", label="Küche", page=1, box=BOX_A, area_m2=22.4,
+        attrs={"number": "2.01"},
+    )  # fmt: skip
+    bath = Room(id="r2", type="bathroom", label="Bad", page=1, box=BOX_B, area_m2=5.0)
+    drawing = scaled(kitchen, bath)
+    by_number = asked("What is the net floor area of room 2.01?", drawing)
+    for text in ("What is the area of the kitchen?", "What is the net floor area of the Küche?"):
+        found = asked(text, drawing)
+        assert found.refusal is None, found.refusal
+        assert (found.answer.answer, found.answer.unit) == (22.4, "m2")
+        assert found.query == by_number.query  # the same row: its conflict and review go along
+
+
+def test_an_area_of_a_type_several_rooms_have_names_them_instead_of_guessing() -> None:
+    rooms = [
+        Room(id=f"r{at}", type="bedroom", label=f"MH {at}", page=1, box=box, area_m2=area)
+        for at, box, area in ((1, BOX_A, 11.5), (2, BOX_B, 9.0))
+    ]
+    found = asked("What is the area of the bedroom?", scaled(*rooms))
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.code == "not-in-drawing"
+    assert "2 rooms" in found.refusal.text and "isn't one I can turn" not in found.refusal.text
+    questions = [suggestion.question for suggestion in found.refusal.can_answer]
+    assert questions == [
+        "What is the net floor area of room 'mh 1'?",
+        "What is the net floor area of room 'mh 2'?",
+    ]
+    for question in questions:  # each one answers
+        assert asked(question, scaled(*rooms)).answer.answer in (11.5, 9.0)
+
+
+def test_an_area_of_a_room_type_on_a_sheet_without_scale_says_so() -> None:
+    kitchen = Room(id="r1", type="kitchen", label="K", page=1, box=BOX_A, area_m2=None)
+    refusal = asked("What is the area of the kitchen?", replace_scale(kitchen)).refusal
+    assert refusal is not None and refusal.code == "no-scale"
+
+
+def replace_scale(*rooms: Room) -> Drawing:
+    return Drawing(file="x.png", pages=(PAGE,), scale=Scale(status="no_scale"), rooms=rooms)
