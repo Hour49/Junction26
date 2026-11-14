@@ -68,6 +68,8 @@ from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
+from app.adapters.resolver.carbon import CarbonClient as ResolverClient
+from app.adapters.resolver.carbon import CarbonResolver
 from app.adapters.triage.gemini_describer import (
     CARBON_MIN_TIMEOUT_S,
     DESCRIBERS,
@@ -120,6 +122,7 @@ from app.core.review.check import (
     no_disputes,
 )
 from app.core.review.disputes import find_disputes
+from app.core.review.ports import Resolver
 from app.core.spend import SpendGuard
 from app.settings import (
     AnswerPriorName,
@@ -436,6 +439,7 @@ class Answering:
     check: CheckPolicy | None = None  # CHECK_POLICY; None: off, no answer asks for a check
     disputes: Disputes = no_disputes  # where a double-check request points
     scorers: Mapping[str, Scorer] = NO_SCORERS  # LOCAL_GATES, by signal name (lower case)
+    resolver: Resolver | None = None  # RESOLVER; None: off
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -462,7 +466,22 @@ def build_answering(settings: Settings) -> Answering:
         ),
         disputes=find_disputes,
         scorers=scorers,
+        resolver=_resolver(settings),
     )
+
+
+def _resolver(settings: Settings) -> Resolver | None:
+    match settings.resolver:
+        case "off":
+            return None
+        case "carbon":
+            client = ResolverClient(
+                settings.gemini_api_key.get_secret_value(),
+                settings.resolver_timeout_s,
+                settings.resolver_model,
+                budget=spend_guard(settings),
+            )
+            return CarbonResolver(client, settings.resolver_cache_dir)
 
 
 def readers(settings: Settings) -> dict[str, str]:

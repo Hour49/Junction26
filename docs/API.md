@@ -3349,6 +3349,737 @@ The conflict card's words, rule-based from the conflict's values (no model, no p
 - `suggestions`: short answers to tap, one per value read, as a person would type them: "13 doors", "1 door",
   "22.40 m²". A tapped one goes back as a `settle` with its number in `value` (and the words in `note` if wanted).
 
+### `POST /api/projects/{project_id}/resolve`
+
+`RESOLVER` (off by default; `carbon`: Google's gemini-4-carbon): a model looks at each conflict of the project that
+no rule decides and no person settled, at the places each method's items are (`value_marks`), and picks one of the
+methods' values or says it can't tell. One call per conflict; the replies are kept with the project's review, so a
+second POST asks only about conflicts that changed, and a `GET` never calls the model. With `RESOLVER` on, the same
+runs on its own once an upload's ingest is done (`POST /api/projects` and `/sample`), so this POST is for a retry
+(after a budget stop or a timeout). Every call is charged to the Gemini spend guard (`GEMINI_BUDGET_USD`), and the
+adapter caches each reply by its request, model and prompt version. No body. 200 with `{review, notes}`: `review` is `GET …/review`'s body, `notes` one line per
+conflict that got no reply (the budget used up, a timeout, a pick that is none of the methods' values). 409
+`not-allowed` while `RESOLVER` is off or the project is not `done`.
+
+A pick is checked by a model, never a person's word:
+
+- the row's `status` stays `conflict` (the methods still disagree), its `value` is the pick, `needs_person` is
+  false, and `resolved` holds
+  `{verdict, value, reason, marks, by, at, of}` (`of`: the methods' values it was asked about; a pick applies only
+  while the conflict still has exactly these values). The conflict's `why` ends "A model (<by>) checked the drawing
+  and picked <value>: <reason>. You can still choose another value."
+- `resolved.marks` are where the model looked: 1-based `page` and a page-fraction `box` `[x0, y0, x1, y1]`, the same
+  frame as the conflict's `value_marks`, with a `label` saying whose item it is.
+- A person's settle or sign-off wins over it; `unsettle` and `reset` bring the pick back (it is not an edit). Every
+  review and sign-off response (`settle`, `unsettle`, `reset`, ...) carries the row's `resolved` as the takeoff does.
+- A person's mark edit (`reject`, `add`, counting in an excluded mark) also wins: the value is counted from the
+  marks as before, `needs_person` is true again, and `why` says the model picked <value> before the marks were
+  edited. A `reset` brings the pick back.
+- `cannot_tell`: nothing changes (`needs_person` stays true) and `why` says the model could not tell, and why. The
+  reply is kept: it is not asked again until the conflict's values change.
+- Counts: a picked conflict is not in `conflicts_open`; `GET /api/projects` and `GET /api/projects/{id}` count it in
+  `conflicts_picked` (a pick in use: no person settled, signed or edited its marks). A `cannot_tell` stays in
+  `conflicts_open`. `conflicts_picked` is absent while `RESOLVER` is off and the project holds no pick.
+- Issues: a conflict's issue stays listed (state `open`) with `resolved` set; with a pick in use its severity is
+  `note`, so `issues_to_answer` doesn't count it, and its `why` ends "no rule decides, a model picked <value>
+  (<by>): you can change it". With `cannot_tell` it stays `needs_person`.
+- Answers (`POST /api/ask`): an answer that `check` asks to double-check gets the model's reply in `resolved`,
+  beside the answer (never certified). On a conflict whose reply is kept, that reply is shown and no call is made;
+  on a conflict a person has to choose, the request is the conflict's (both methods' values, the same cache entry
+  as this POST), and as here a pick must be one of the methods' values: anything else gives no `resolved`, only a
+  `resolver_note`. `cost_usd` and `line.cost_usd` include the resolver's call, which waits at most
+  `RESOLVER_TIMEOUT_S` (30 s by default). Two callers asking the same thing at once (the upload's resolve and a
+  person's POST) share one call.
+- With `RESOLVER` off, `resolved` is absent from every row, conflict, issue and answer (not null), so every response
+  is as before.
+
+A project with a pick (`GET /api/projects/{id}`; `GET …/review` below), a `POST …/resolve` whose model could not
+tell, and an uncertain answer with the model's check:
+
+<!-- fixture: project_resolved.json -->
+```json
+{
+  "id": "5e0c1a2b3d54",
+  "name": "flat-b.pdf",
+  "state": "done",
+  "created_at": "2026-11-14T08:00:00+00:00",
+  "started_at": "2026-11-14T08:00:00+00:00",
+  "finished_at": "2026-11-14T08:00:00+00:00",
+  "files": [
+    {
+      "id": "f1",
+      "path": "flat-b.pdf",
+      "size": 2260,
+      "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
+      "kind": "pdf_vector",
+      "state": "flagged",
+      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+      "group": "flat-b",
+      "route": "vector",
+      "source": "flat-b.pdf",
+      "drawing_id": "44cc9f0d991eafe3",
+      "reused": false,
+      "takeoff": {
+        "apartment": 1,
+        "area:apartment": 45.4,
+        "area:apartment|apartment=a": 45.4,
+        "area:room": 65.443,
+        "area:room:balcony|largest": 12.445,
+        "area:room:bathroom|largest": 12.445,
+        "area:room:bedroom|largest": 8.064,
+        "area:room:kitchen|largest": 30.0,
+        "area:room:storage|largest": 2.489,
+        "area:room|indoor": 52.998,
+        "area:room|label=bad": 12.445,
+        "area:room|label=bad|largest": 12.445,
+        "area:room|label=balkon": 12.445,
+        "area:room|label=balkon|largest": 12.445,
+        "area:room|label=küche": 30.0,
+        "area:room|label=küche|largest": 30.0,
+        "area:room|label=reduit": 2.489,
+        "area:room|label=reduit|largest": 2.489,
+        "area:room|label=zimmer": 8.064,
+        "area:room|label=zimmer|largest": 8.064,
+        "area:room|name=1.01": 30.0,
+        "area:room|name=1.02": 2.489,
+        "area:room|name=1.03": 12.445,
+        "area:room|name=1.04": 12.445,
+        "area:room|name=1.05": 8.064,
+        "area:room|name=bad": 12.445,
+        "area:room|name=balkon": 12.445,
+        "area:room|name=küche": 30.0,
+        "area:room|name=reduit": 2.489,
+        "area:room|name=zimmer": 8.064,
+        "bathtub": 1,
+        "door": 2,
+        "length:room:balcony": 7.056,
+        "length:room:bathroom": 3.528,
+        "length:room:bedroom": 4.233,
+        "length:room:kitchen": 7.056,
+        "length:room:storage": 1.764,
+        "length:room|name=1.01": 7.056,
+        "length:room|name=1.02": 1.764,
+        "length:room|name=1.03": 3.528,
+        "length:room|name=1.04": 7.056,
+        "length:room|name=1.05": 4.233,
+        "length:room|name=bad": 3.528,
+        "length:room|name=balkon": 7.056,
+        "length:room|name=küche": 7.056,
+        "length:room|name=reduit": 1.764,
+        "length:room|name=zimmer": 4.233,
+        "plan": 1,
+        "room": 5,
+        "room:balcony": 1,
+        "room:bathroom": 1,
+        "room:bedroom": 1,
+        "room:hall": 0,
+        "room:kitchen": 1,
+        "room:living": 0,
+        "room:other": 0,
+        "room:outdoor": 0,
+        "room:sauna": 0,
+        "room:shaft": 0,
+        "room:storage": 1,
+        "room:wc": 0,
+        "room|label=bad": 1,
+        "room|label=balkon": 1,
+        "room|label=küche": 1,
+        "room|label=reduit": 1,
+        "room|label=zimmer": 1,
+        "shower": 0,
+        "shower+bathtub": 1,
+        "sink": 1,
+        "toilet": 1,
+        "window": 2
+      },
+      "ms": 12.5,
+      "stage": "write",
+      "cost_usd": 0.0,
+      "normalised": null
+    }
+  ],
+  "counts": {
+    "flagged": 1
+  },
+  "readers": {
+    "bim": "ifc",
+    "cad": "hello",
+    "vector": "pdf",
+    "raster": "hello",
+    "raster_components": "",
+    "tables": "pdf",
+    "second_counter": "ifc",
+    "rectifier": "none",
+    "decisions_kind": "False"
+  },
+  "error": null,
+  "ms": 12.5,
+  "cost_usd": 0.0,
+  "drawings": [
+    {
+      "drawing_id": "44cc9f0d991eafe3",
+      "group": "flat-b",
+      "file": "flat-b.pdf",
+      "kind": "pdf_vector",
+      "route": "vector",
+      "source": "flat-b.pdf",
+      "state": "flagged",
+      "other_renderings": [],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
+    }
+  ],
+  "skipped": [],
+  "expected_drawings": 1,
+  "conflicts_open": 0,
+  "conflicts_picked": 1,
+  "issues_open": 1,
+  "issues_to_answer": 0
+}
+```
+
+<!-- fixture: project_review_resolved.json -->
+```json
+{
+  "drawings": [
+    {
+      "drawing_id": "44cc9f0d991eafe3",
+      "file": "flat-b.pdf",
+      "to_review": 1,
+      "signed": 0,
+      "quantities": 63
+    }
+  ],
+  "conflicts": [
+    {
+      "drawing_id": "44cc9f0d991eafe3",
+      "file": "flat-b.pdf",
+      "quantity": "area:room|name=1.01",
+      "label": "area of room (name Küche · 1.01)",
+      "conflict": {
+        "values": [
+          {
+            "value": 22.401,
+            "unit": "m2",
+            "method": "polygon_x_scale",
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ]
+          },
+          {
+            "value": 30.0,
+            "unit": "m2",
+            "method": "printed_label",
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ]
+          }
+        ],
+        "resolution": null,
+        "note": null,
+        "derived": null,
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
+      },
+      "settled": null,
+      "needs_person": false,
+      "signed": null,
+      "value": 22.401,
+      "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+      "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. No rule decides between them. A model (carbon:gemini-4-carbon) checked the drawing and picked 22.40 m²: The room's outline is closed and drawn to the sheet's scale. You can still choose another value.",
+      "suggestions": [
+        "22.40 m²",
+        "30.00 m²"
+      ],
+      "resolved": {
+        "verdict": "picked",
+        "value": 22.401,
+        "reason": "The room's outline is closed and drawn to the sheet's scale.",
+        "marks": [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "the room outlines at the sheet's scale counts polygon_x_scale here"
+          },
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "the printed room areas counts printed_label here"
+          }
+        ],
+        "by": "carbon:gemini-4-carbon",
+        "at": "2026-11-14T08:05:00Z",
+        "of": [
+          22.401,
+          30.0
+        ]
+      }
+    }
+  ]
+}
+```
+
+<!-- fixture: resolving.json -->
+```json
+{
+  "review": {
+    "drawings": [
+      {
+        "drawing_id": "44cc9f0d991eafe3",
+        "file": "flat-b.pdf",
+        "to_review": 1,
+        "signed": 0,
+        "quantities": 63
+      }
+    ],
+    "conflicts": [
+      {
+        "drawing_id": "44cc9f0d991eafe3",
+        "file": "flat-b.pdf",
+        "quantity": "area:room|name=1.01",
+        "label": "area of room (name Küche · 1.01)",
+        "conflict": {
+          "values": [
+            {
+              "value": 22.401,
+              "unit": "m2",
+              "method": "polygon_x_scale",
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ]
+            },
+            {
+              "value": 30.0,
+              "unit": "m2",
+              "method": "printed_label",
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ]
+            }
+          ],
+          "resolution": null,
+          "note": null,
+          "derived": null,
+          "status": "conflict",
+          "value_marks": [
+            [
+              {
+                "page": 1,
+                "box": [
+                  0.16667,
+                  0.125,
+                  0.5,
+                  0.375
+                ],
+                "label": "polygon_x_scale"
+              }
+            ],
+            [
+              {
+                "page": 1,
+                "box": [
+                  0.17367,
+                  0.17946,
+                  0.21269,
+                  0.19027
+                ],
+                "label": "printed_label"
+              }
+            ]
+          ]
+        },
+        "settled": null,
+        "needs_person": true,
+        "signed": null,
+        "value": 30.0,
+        "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+        "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. No rule decides between them, and a model (carbon:gemini-4-carbon) could not tell: The printed area is cut by the sheet edge, so the label can't be read.",
+        "suggestions": [
+          "22.40 m²",
+          "30.00 m²"
+        ],
+        "resolved": {
+          "verdict": "cannot_tell",
+          "value": null,
+          "reason": "The printed area is cut by the sheet edge, so the label can't be read.",
+          "marks": [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "the room outlines at the sheet's scale counts polygon_x_scale here"
+            },
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "the printed room areas counts printed_label here"
+            }
+          ],
+          "by": "carbon:gemini-4-carbon",
+          "at": "2026-11-14T08:05:00Z",
+          "of": [
+            22.401,
+            30.0
+          ]
+        }
+      }
+    ]
+  },
+  "notes": []
+}
+```
+
+<!-- fixture: answer_resolved.json -->
+```json
+{
+  "question": "How many doors are there?",
+  "drawing_id": "c592bb6c7e3273ca",
+  "file": "plan.png",
+  "pages": [
+    {
+      "page": 1,
+      "width": 800.0,
+      "height": 400.0,
+      "unit": "px",
+      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "normalised": {
+        "exif": null,
+        "rotated": 0,
+        "deskew_deg": 0.0,
+        "rectified": false,
+        "quad": null,
+        "width": 800,
+        "height": 400,
+        "rectifier": null
+      },
+      "scale": {
+        "status": "no_scale",
+        "text": null,
+        "ratio": null,
+        "source": null
+      },
+      "scale_text": null,
+      "storey": null
+    }
+  ],
+  "answer": 2,
+  "unit": "count",
+  "confidence": {
+    "signal": "g1main",
+    "score": 0.87,
+    "calibrated": false
+  },
+  "quantity": {
+    "key": "door",
+    "label": "door count",
+    "measure": "count",
+    "subject": "door",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "each-once",
+      "text": "every element, room and plan the drawing lists counts once"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.05,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e1",
+        "reason": null,
+        "room_type": null
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e2",
+        "reason": null,
+        "room_type": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {},
+    "noun": "doors"
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.05,
+        0.1,
+        0.1,
+        0.2
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e1",
+      "reason": null,
+      "room_type": null
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.6,
+        0.1,
+        0.65,
+        0.2
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e2",
+      "reason": null,
+      "room_type": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "raster",
+    "source": "plan.png",
+    "extractor": "composite",
+    "second_counter": "none",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.05,
+          0.1,
+          0.1,
+          0.2
+        ]
+      },
+      {
+        "file": "plan.png",
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": 0.87,
+    "sure": false,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "door",
+        "colour": "#d62728",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": null
+  },
+  "check": {
+    "reason": "Please double-check the doors: the readers disagree at 2 places, marked on the drawing.",
+    "disputed": [
+      {
+        "mark_id": "m2",
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
+        "readers": {
+          "answer": "door, score 0.41",
+          "L one view": "nothing",
+          "M one view": "nothing",
+          "seg": "door, score 0.62"
+        }
+      },
+      {
+        "mark_id": null,
+        "page": 1,
+        "box": [
+          0.3,
+          0.85,
+          0.36,
+          0.9
+        ],
+        "why": "Not counted, but 2 of the 3 other readers see a door here.",
+        "readers": {
+          "answer": "nothing",
+          "L one view": "door, score 0.55",
+          "M one view": "door, score 0.48",
+          "seg": "nothing"
+        }
+      }
+    ]
+  },
+  "level": {
+    "level": "medium",
+    "basis": "score",
+    "text": "Medium confidence: on our validation plans, 91% of the answers rated this way were exact (1084 of 1185). Please double-check it."
+  },
+  "resolved": {
+    "verdict": "picked",
+    "value": 2,
+    "reason": "Two door leaves are drawn at the places counted.",
+    "marks": [
+      {
+        "page": 1,
+        "box": [
+          0.6,
+          0.1,
+          0.65,
+          0.2
+        ],
+        "label": "Counted as a door, but 2 of the 3 other readers see nothing here."
+      },
+      {
+        "page": 1,
+        "box": [
+          0.3,
+          0.85,
+          0.36,
+          0.9
+        ],
+        "label": "Not counted, but 2 of the 3 other readers see a door here."
+      }
+    ],
+    "by": "carbon:gemini-4-carbon",
+    "at": "2026-11-14T08:05:00Z",
+    "of": []
+  }
+}
+```
+
 ### `GET /api/projects/{project_id}/issues?pack=<pack id>`
 
 Every finding in the project as one located issue, the list Stoa's floor view takes in: conflicts between two
@@ -8388,6 +9119,13 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-14, additive (RESOLVER): `POST /api/projects/{project_id}/resolve`;
+  `resolved` on takeoff rows, conflicts (`ConflictEntry`) and answers (`AnswerView`, with `resolver_note` when the
+  model gave no reply), each absent while `RESOLVER` is off. No enum value changes. An answer's `resolved`
+  sits beside its value: `answer`, `check`, `line.sure` and `level` are unchanged (a model's check is never
+  certified); its `cost_usd` includes the resolver's call. Also `conflicts_picked` on `GET /api/projects` and
+  `GET /api/projects/{id}`, and `resolved` on issues (`Issue`). `RESOLVER=carbon` resolves an upload on its own
+  once ingest is done.
 - 2026-11-14, behaviour: `TRIAGE_DESCRIBER=carbon` describes with gemini-4-carbon at thinking low (rag's
   pilot), the same describe-6 prompt and form; `Description.model` is then `gemini-4-carbon-low, describe-6`
   and `cost_usd` is at Carbon's 4 / 20 USD per M tokens. A PDF pdfium cannot open is described as

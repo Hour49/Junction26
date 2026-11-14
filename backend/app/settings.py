@@ -36,6 +36,10 @@ SheetKindName = Literal["off", "carbon"]
 TriageDescriberName = Literal["off", "gemini", "carbon"]
 # rules: the class alone, no model (not a drawing -> unrelated, another drawing -> related)
 TriageJudgeName = Literal["off", "rules"]
+# RESOLVER: a model picks a value for a conflict no rule decides,
+# or checks an answer CHECK_POLICY does not certify; never a person's word. off: as before.
+# carbon: Google Carbon (the adapter is not built yet: startup refuses it until it is).
+ResolverName = Literal["off", "carbon"]
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
@@ -162,6 +166,11 @@ class Settings(BaseSettings):
     # golden's check policy (check_policy_v1): the answers certified as they are; every other
     # takeoff answer asks for a double-check (app/core/review/check.py); "" off
     check_policy: str = ""
+    # RESOLVER (ResolverName above): off, or the model that checks conflicts and uncertain answers
+    resolver: ResolverName = "off"
+    resolver_model: str = "gemini-4-carbon"  # RESOLVER=carbon's model (GEMINI_API_KEY)
+    resolver_timeout_s: float = 30.0  # POST /api/ask waits for it inline
+    resolver_cache_dir: Path = Path("../data/cache/resolver")  # replies by request, paid once
     # local-dec's local gate models (local_gate_v1, comma separated): a check policy family whose
     # threshold is on one of their signals is scored by it (app/core/review/check.py); read only
     # with CHECK_POLICY set; "" none
