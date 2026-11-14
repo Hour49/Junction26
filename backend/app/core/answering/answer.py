@@ -2,7 +2,7 @@
 
 import logging
 from collections import Counter
-from collections.abc import Iterable, Mapping, Sequence, Set
+from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
 from app.core.answering.model import (
     Answer,
@@ -61,6 +61,7 @@ def answer_question(
     logged, never added to the answer."""
     start = clock()
     parsed = parser.parse(question.text)
+    read = _read(parsed)
     found: Quantity | None = None
     if quantities is None:
         method, why = NO_DRAWING, "the file has no drawing model"
@@ -68,18 +69,20 @@ def answer_question(
         method, why = UNSUPPORTED_QUESTION, parsed.reason
     elif isinstance(parsed, TableQuery):
         if (row := answer_table(parsed, tables)) is not None:
-            return Answer(
-                id=question.id,
-                answer=row.value,
-                unit=row.unit,
-                evidence=tuple(
-                    Evidence(file=question.file, page=row.page, box=box) for box in row.boxes
-                ),
-                method=SCHEDULE,
-                cost_usd=0.0,
-                latency_s=clock() - start,
-                abstain=True if row.abstain_why else None,
-                explanation=row.abstain_why,
+            return read(
+                Answer(
+                    id=question.id,
+                    answer=row.value,
+                    unit=row.unit,
+                    evidence=tuple(
+                        Evidence(file=question.file, page=row.page, box=box) for box in row.boxes
+                    ),
+                    method=SCHEDULE,
+                    cost_usd=0.0,
+                    latency_s=clock() - start,
+                    abstain=True if row.abstain_why else None,
+                    explanation=row.abstain_why,
+                )
             )
         method = NOT_IN_DRAWING
         why = f"no schedule on the sheet resolves {parsed.family()}"
@@ -91,44 +94,62 @@ def answer_question(
         if (source, family) in prior_families and (
             estimate := prior.prior(source, family)
         ) is not None:
-            return Answer(
-                id=question.id,
-                answer=estimate.value,
-                unit=estimate.unit,
-                evidence=(),
-                method=PRIOR_BY_POLICY,
-                cost_usd=0.0,
-                latency_s=clock() - start,
-                confidence=estimate.confidence,
-                abstain=True,
-                explanation=POLICY_WHY,
+            return read(
+                Answer(
+                    id=question.id,
+                    answer=estimate.value,
+                    unit=estimate.unit,
+                    evidence=(),
+                    method=PRIOR_BY_POLICY,
+                    cost_usd=0.0,
+                    latency_s=clock() - start,
+                    confidence=estimate.confidence,
+                    abstain=True,
+                    explanation=POLICY_WHY,
+                )
             )
     if found is not None:
         answer = _from_takeoff(question, found, method, clock() - start)
         if confidence is None or isinstance(parsed, Unsupported | TableQuery):
-            return answer
+            return read(answer)
         rated = confidence.probability(question.file, parsed.family(), answer.answer)
         if rated.value is None:  # why goes to the log: nothing a reader of the answer can act on
             logger.info("question %d: no confidence: %s", question.id, rated.note)
-            return answer
-        return answer.model_copy(update={"confidence": rated.value})
+            return read(answer)
+        return read(answer.model_copy(update={"confidence": rated.value}))
     estimate = None
     if not isinstance(parsed, Unsupported):
         source, family = source_of(question.file), parsed.family()
         if (estimate := prior.prior(source, family)) is not None:
             why = f"not read from the drawing; dev prior for {source} {family} ({why})"
-    return Answer(
-        id=question.id,
-        answer=None if estimate is None else estimate.value,
-        unit=None if estimate is None else estimate.unit,
-        evidence=(),
-        method=method,
-        cost_usd=0.0,
-        latency_s=clock() - start,
-        confidence=None if estimate is None else estimate.confidence,
-        abstain=True,  # answer_v1.1: a refusal abstains, says why, keeps a best estimate
-        explanation=why,
+    return read(
+        Answer(
+            id=question.id,
+            answer=None if estimate is None else estimate.value,
+            unit=None if estimate is None else estimate.unit,
+            evidence=(),
+            method=method,
+            cost_usd=0.0,
+            latency_s=clock() - start,
+            confidence=None if estimate is None else estimate.confidence,
+            abstain=True,  # answer_v1.1: a refusal abstains, says why, keeps a best estimate
+            explanation=why,
+        )
     )
+
+
+def _read(parsed: Query | TableQuery | Unsupported) -> Callable[[Answer], Answer]:
+    """How a misspelt question was read ("read 'mnay' as 'many'"), put before the answer's own
+    explanation, so the user sees what was answered."""
+    if not isinstance(parsed, Query) or not parsed.read_as:
+        return lambda answer: answer
+    note = "read " + ", ".join(parsed.read_as)
+
+    def said(answer: Answer) -> Answer:
+        words = "; ".join(text for text in (note, answer.explanation) if text)
+        return answer.model_copy(update={"explanation": words})
+
+    return said
 
 
 def _from_takeoff(question: Question, found: Quantity, method: str, latency: float) -> Answer:
@@ -194,7 +215,10 @@ class RoomByType:
         if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
             return parsed
         for name in sorted(room_names(rooms[0])):
-            query = Query(measure="area", subject="room", name=name, storey=parsed.storey)
+            query = Query(
+                measure="area", subject="room", name=name, storey=parsed.storey,
+                read_as=parsed.read_as,
+            )  # fmt: skip
             if query.key() in self._quantities:
                 return query
         return parsed

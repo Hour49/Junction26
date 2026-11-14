@@ -34,6 +34,7 @@ class Query(Frozen):
     indoor: bool = False  # only rooms that are not outdoor
     model: bool = False  # the whole building model, not this sheet
     largest: bool = False  # the largest of the rooms picked, not their sum
+    read_as: tuple[str, ...] = ()  # misspelt words read as others: "'mnay' as 'many'"
 
     def key(self) -> str:
         return quantity_key(

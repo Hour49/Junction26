@@ -74,6 +74,10 @@ class DoorParser:
             return Query(subject="door")
         if text == "How many saunas?":
             return Query(subject="room:sauna")
+        if text == "How mnay doros?":
+            return Query(subject="door", read_as=("'mnay' as 'many'", "'doros' as 'doors'"))
+        if text == "How mnay saunas?":
+            return Query(subject="room:sauna", read_as=("'mnay' as 'many'",))
         return Unsupported(reason="not a question this parser knows")
 
 
@@ -153,6 +157,18 @@ def test_every_refusal_abstains_and_an_answer_does_not() -> None:
     )
     answered = ask("How many doors?", drawing())
     assert (answered.abstain, answered.explanation) == (None, None)
+
+
+def test_an_answer_to_a_misspelt_question_says_how_it_was_read() -> None:
+    answered = ask("How mnay doros?", drawing())
+    assert (answered.answer, answered.explanation) == (
+        2,
+        "read 'mnay' as 'many', 'doros' as 'doors'",
+    )
+    missing = ask("How mnay saunas?", drawing(counts={"door": 9}))
+    assert missing.explanation == (
+        "read 'mnay' as 'many'; the drawing model does not give room:sauna"
+    )
 
 
 def test_a_file_without_a_drawing_model_is_refused() -> None:
