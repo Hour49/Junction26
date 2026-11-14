@@ -399,3 +399,8 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .ref-view { position: relative; }
 .ref-arrow { position: absolute; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 10px rgba(0,0,0,.18); background: rgba(255,255,255,.92); }
 .ref-arrow.l { left: 8px; } .ref-arrow.r { right: 8px; }
+/* a person's own answer under a conflict's variants */
+.c-own { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.c-own-row { display: flex; gap: 8px; }
+.c-own-row input { flex: 1; min-width: 0; font: inherit; font-size: 15px; padding: 10px 14px; border: 1px solid var(--v-line, #d2d2d7); border-radius: 12px; background: #fff; }
+@media (max-width: 520px) { .c-own-row { flex-direction: column; } }

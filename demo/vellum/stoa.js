@@ -50,7 +50,9 @@
       variants: [{ kind: 'bedroom', value: stanze, label: `${stanze} bedrooms`, src: `Every room labelled 'Stanza' is a bedroom` },
         { kind: 'bedroom', value: stanze - 1, label: `${stanze - 1} bedrooms + a living room`, src: 'No room is labelled living room (soggiorno), so one Stanza is it, the way Swiss listings count rooms' }],
       rules: ['A bedroom is a habitable room that is not the living room.', `The plan labels all ${stanze} rooms 'Stanza' and none as the living room, so it does not say which one it is.`],
-      why: 'Only someone who knows the flat can say whether one of the rooms is the living room. It decides the bedroom count and which building-code room rules apply.' },
+      why: 'Only someone who knows the flat can say whether one of the rooms is the living room. It decides the bedroom count and which building-code room rules apply.',
+      placeholder: 'e.g. 3 bedrooms, room 1.02 is the living room',
+      suggest: ['3 bedrooms, room 1.02 is the living room', '3 bedrooms and a study', '2 bedrooms, a living room and a study'] },
   ].filter(Boolean);
   // Hard-coded issues on the real files (Tudor, 15:35: things that might actually need a look, not the vision model's)
   const plans = ARCH.filter((f) => f.plan).map((f) => f.path), dxf = D.files.find((f) => f.path.endsWith('.dxf'));
@@ -96,7 +98,7 @@
         refusal: m.near.length ? `The answer key has ${m.near.length} questions like this${m.near.length > 4 ? '; here are 4 of them' : ''}. Pick one.` : 'The answer key for this floor has no question like this, so there is no number to give.' };
     }
     const c = conflictFor(m.q), pick = c && picks ? picks[c.id] : undefined;
-    const value = c && pick !== null && pick !== undefined ? c.variants[pick].value : m.q.answer;
+    const value = typeof pick === 'number' ? c.variants[pick].value : pick && pick.custom && !Number.isNaN(parseFloat(pick.custom)) ? parseFloat(pick.custom) : m.q.answer;
     return { drawing: d.id, question, quantity: m.q.quantity, refusal: null, marks: [], rooms: [], value, check: null,
       key: !c, keyQuestion: m.q.question, conflict: c ? c.id : null };
   }

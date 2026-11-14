@@ -51,7 +51,7 @@
     const out = {};
     for (const c of V.CONFLICTS) {
       const st = S.p.conflicts[c.id];
-      out[c.id] = st.mode === 'ai' ? c.ai : st.mode === 'own' ? st.pick : null;
+      out[c.id] = st.mode === 'ai' ? c.ai : st.mode === 'own' ? (st.custom ? { custom: st.custom } : st.pick) : null;
     }
     return out;
   }
@@ -342,12 +342,15 @@
           <span class="tile-top"><span>Variant ${i + 1}${c.ai === i ? ' · AI decision' : ''}</span>${chosen ? `<span class="check-dot" role="img" aria-label="in use">${ICON_CHECK}</span>` : ''}</span>
           <span class="tile-val">${esc(labels[i])}</span><span class="tile-src">${esc(v.src)}</span></button>`;
       }).join('');
-      const action = { ai: '', own: `You chose variant ${(st.pick ?? 0) + 1}${!unsolved && st.pick !== c.ai ? ', over the AI decision' : ''}.`, modify: 'Tap the right variant.', open: 'Tap the right variant.' }[st.mode];
+      const action = { ai: '', own: st.custom ? `You answered: “${esc(st.custom)}”.` : `You chose variant ${(st.pick ?? 0) + 1}${!unsolved && st.pick !== c.ai ? ', over the AI decision' : ''}.`, modify: 'Tap the right variant.', open: 'Tap the right variant.' }[st.mode];
       return `<article class="conflict" aria-label="Conflict ${n + 1}"><div class="c-head"><div>
           <span style="font-size:12px;font-weight:500;color:var(--v-muted)">Conflict ${n + 1} of ${V.CONFLICTS.length} · ${unsolved ? 'unsolved' : 'solved by the AI'}</span>
           <h2>${esc(c.title)}</h2><span class="mono" style="font-size:12px;color:var(--v-muted)">${esc(c.files)}</span></div>
           <span class="tip" tabindex="0"><span class="pill ${PILL[st.mode][1]}">${PILL[st.mode][0]}</span><span role="tooltip" class="tip-body">${TIP[st.mode]}</span></span></div>
         ${plan}<div class="vars" role="group" aria-label="Variants">${tiles}</div>
+        ${choosing ? `<form class="c-own" data-own="${c.id}"><label class="small" for="own-${c.id}">Or type your own answer</label>
+          ${(c.suggest || []).length ? `<div class="chips-row">${c.suggest.map((x) => `<button type="button" class="qchip press" data-act="own-fill" data-c="${c.id}" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>` : ''}
+          <div class="c-own-row"><input id="own-${c.id}" name="v" maxlength="140" autocomplete="off" placeholder="${esc(c.placeholder || 'Your answer')}"><button class="btn btn-primary press" type="submit">Use my answer</button></div></form>` : ''}
         <details class="why"><summary><svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6e6e73" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>${unsolved ? 'Why the AI could not decide' : `Why the AI chose variant ${c.ai + 1}`}</summary>
           <ol>${c.rules.map((x) => `<li>${esc(x)}</li>`).join('')}</ol><p>${esc(c.why)}</p></details>
         <div class="c-foot"><span>${action}</span>${st.mode === 'ai' || st.mode === 'own' ? `<button class="btn btn-soft press" data-act="modify" data-c="${c.id}">Modify</button>` : ''}
@@ -431,6 +434,7 @@
     pick: (el) => { const c = V.CONFLICTS.find((x) => x.id === el.dataset.c), i = Number(el.dataset.i);
       S.p.conflicts[c.id] = { mode: 'own', pick: i };
       log(Date.now(), 'cf', `Conflict settled: ${c.title}`, `Your choice · ${V.variantLabels(c)[i]}${c.ai !== null && c.ai !== i ? ', over the AI decision' : ''}`); },
+    'own-fill': (el) => { const inp = document.getElementById(`own-${el.dataset.c}`); inp.value = el.dataset.v; inp.focus(); return false; },
     // Modify keeps what was in use, so Cancel can put it back (a person's choice keeps Modify, never "Change")
     modify: (el) => { const id = el.dataset.c; S.p.conflicts[id] = { mode: 'modify', pick: null, back: S.p.conflicts[id] }; },
     cancel: (el) => { const id = el.dataset.c; S.p.conflicts[id] = S.p.conflicts[id].back; },
@@ -438,6 +442,16 @@
       S.p.conflicts[c.id] = { mode: 'ai', pick: null };
       log(Date.now(), 'cf', `AI decision restored: ${c.title}`, `AI decision approved · ${V.variantLabels(c)[c.ai]}`); },
   };
+  document.addEventListener('submit', (ev) => {
+    const id = ev.target.dataset && ev.target.dataset.own;
+    if (!id) return;
+    ev.preventDefault();
+    const text = ev.target.v.value.trim().slice(0, 140), c = V.CONFLICTS.find((x) => x.id === id);
+    if (!text) return;
+    S.p.conflicts[id] = { mode: 'own', pick: null, custom: text };
+    log(Date.now(), 'cf', `Conflict settled: ${c.title}`, `Your answer · ${text}`);
+    render();
+  });
   function start() { newProject(false); location.hash = '#/ingest'; return false; }
 
   app.addEventListener('click', (ev) => {
