@@ -22,7 +22,6 @@ from shapely.geometry import LineString, Polygon
 from shapely.geometry import Point as Spot
 
 from app.core.model import Frozen
-from app.core.plan_edit.model import Flag
 from app.core.services.ops import ServicesGraph, unconnected
 from app.core.services.route import (
     CLEAR_M,
@@ -70,6 +69,16 @@ DEFAULT_OFFSET_M, DEFAULT_PAIR_M = 0.05, 0.06
 WALL_COVER_M = 0.3  # a wall is on a room edge when it covers this much of it
 RUN_GROUPS = ("flow_segment", "flow_fitting")
 WET_WORDS = ("bath", "wc", "toilet", "shower", "sauna", "kylpy", "pesu", "bad", "dusch", "wasch")
+
+
+class Flag(Frozen):
+    """A flag on a change; the same fields as plan_edit's `Flag` (that module imports this one,
+    so this one cannot import it)."""
+
+    code: str
+    text: str
+
+
 _WET = Flag(code="wet_room", text="A wet room changes: its waterproofing is redone and inspected.")
 
 Position = Literal["centre", "start", "end", "under_window"] | Point2

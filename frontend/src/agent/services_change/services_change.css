@@ -1,0 +1,67 @@
+/* A services proposal on its storey picture (docs/specs/backend/services-model.md SV-30), on the shell's Vellum
+   tokens. Removed dashed grey, new thick, the moved terminal hollow with an arrow: dash and weight, not colour
+   alone; the legend and the lists say it in words. */
+.sc-frame {
+  position: relative;
+  display: block;
+}
+.sc-frame > img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.sc-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.sc-removed line,
+line.sc-removed {
+  stroke: var(--v-muted);
+  stroke-width: 3px;
+  stroke-dasharray: 6 4;
+}
+.sc-added line,
+line.sc-added {
+  stroke: var(--v-danger);
+  stroke-width: 5px;
+  stroke-linecap: round;
+}
+.sc-from {
+  fill: none;
+  stroke: var(--v-text);
+  stroke-width: 2.5px;
+}
+.sc-to {
+  fill: var(--v-text);
+}
+.sc-arrow {
+  stroke: var(--v-text);
+  stroke-width: 2px;
+}
+.sc-head {
+  fill: var(--v-text);
+}
+.sc-checks {
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sc-checks li {
+  display: flex;
+  gap: 6px;
+}
+.sc-checks span {
+  font-weight: 700;
+  min-width: 1em;
+}
+.sc-ok span {
+  color: var(--v-ok);
+}
+.sc-failed span {
+  color: var(--v-danger);
+}

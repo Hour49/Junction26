@@ -7,6 +7,7 @@ from pydantic import Field
 from app.core.drawing.model import Box
 from app.core.model import Frozen
 from app.core.plan_edit.law_check import LawCheck
+from app.core.services.edit import ServicesChange
 from app.core.services.model import ServicesFollow
 
 # A polygon in page fractions (0..1, top left), as get_plan_geometry returns rooms.
@@ -61,3 +62,6 @@ class Proposal(Frozen):
     # The edit followed through the project's service models (decision 0016); None: not asked
     # for (SERVICES_FOLLOW=off)
     services: ServicesFollow | None = None
+    # A change of a services model itself (decision 0017, SV-28): set on a services proposal only,
+    # whose removed, added and rooms are then empty; None on a plan edit. law_check does not read it
+    services_change: ServicesChange | None = None
