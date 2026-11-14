@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
+import { drawingLabel } from '../api';
 import { project, projectAsk } from '../api/fixtures';
 import { routeLabel } from '../ingest/ingest';
 import type { PageViewer } from '../viewer/PageViewer';
@@ -20,6 +21,9 @@ vi.mock('../viewer/PageViewer', () => ({
 
 type Part = ProjectAnswer['parts'][number];
 const [flatA, flatB] = projectAsk.parts as [Part, Part, Part];
+// projectWith() gives the parts project.json's first two drawings, so their #224 names (CH-40)
+const LA = drawingLabel(project.drawings[0] ?? { file: '' });
+const LB = drawingLabel(project.drawings[1] ?? { file: '' });
 
 /** project.json whose first two drawings are the answering parts' (the fixtures use different ids). */
 function projectWith(triagedB: 'other_drawing' | null): ProjectView {
@@ -61,12 +65,12 @@ afterEach(() => {
 
 it('CH-30 a sheet that is not a floor plan comes first, in the rows and the references alike', () => {
   show(projectAsk, projectWith('other_drawing'));
-  expect(rows()[0]?.textContent).toContain(flatB.name);
+  expect(rows()[0]?.textContent).toContain(LB);
   expect(refs()[0]?.textContent).toContain(flatB.name);
-  expect(rows()[1]?.textContent).toContain(flatA.name);
+  expect(rows()[1]?.textContent).toContain(LA);
   cleanup();
   show(projectAsk, projectWith(null));
-  expect(rows()[0]?.textContent).toContain(flatA.name);
+  expect(rows()[0]?.textContent).toContain(LA);
   expect(refs()[0]?.textContent).toContain(flatA.name);
 });
 
@@ -83,16 +87,16 @@ it('CH-31 the lead: why_no_total without a total, never the refused drawings; a 
   const total = { ...projectAsk, total: 4, total_unit: 'count' as const, why_no_total: null };
   show({ ...total, total_note: 'Two floors.', refused_note: null });
   const value = screen.getByTestId('answer-value');
-  expect(value.textContent).toBe('4');
+  expect(value.textContent).toBe('4 doors');
   expect(value.closest('strong, .en-lead')).toBeTruthy();
-  expect(screen.getByText('Two floors.')).toBeTruthy();
+  expect(screen.queryByText('Two floors.')).toBeNull(); // CH-39: the lead is the value only
   cleanup();
   show({
     ...total,
     total_note: 'Two floors; 1 drawing has no reader for it.',
     refused_note: '1 drawing has no reader for it.',
   });
-  expect(screen.getByTestId('answer-value').textContent).toBe('4');
+  expect(screen.getByTestId('answer-value').textContent).toBe('4 doors');
   expect(document.body.textContent).not.toContain('no reader');
 });
 
@@ -148,9 +152,61 @@ it('CH-35 one row per answering drawing with its value, status and Show it on; n
   show();
   expect(rows()).toHaveLength(2);
   const [a] = rows() as [HTMLElement];
-  expect(a.textContent).toContain(`${flatA.name}: 2`);
+  expect(a.textContent).toContain(`${LA}: 2`);
   expect(a.textContent).toContain('One method');
-  expect(within(a).getByRole('link', { name: `Show it on ${flatA.name}` })).toBeTruthy();
+  expect(within(a).getByRole('link', { name: `Show it on ${LA}` })).toBeTruthy();
   const refused = projectAsk.parts[2]?.name ?? '';
   expect(document.body.textContent).not.toContain(refused);
+});
+
+it('CH-39 the lead is the bold value only; without a total the why sentence, smaller; no label line', () => {
+  const total = { ...projectAsk, total: 2, total_unit: 'count' as const, why_no_total: null };
+  show({ ...total, total_note: 'Over one drawing.', refused_note: null });
+  const lead = document.querySelector('.en-lead') as HTMLElement;
+  expect(within(lead).getByTestId('answer-value').closest('strong')).toBeTruthy();
+  expect(lead.textContent).toMatch(/^2 doors/);
+  expect(screen.queryByText('Over one drawing.')).toBeNull();
+  expect(screen.queryByText(/^Door count$/)).toBeNull();
+  cleanup();
+  show();
+  const why = screen.getByText(projectAsk.why_no_total ?? 'x');
+  expect(why.classList.contains('en-lead--why')).toBe(true);
+});
+
+it('CH-39 the viewer is bare; each row is one sentence with the value in bold, one pill and the link', () => {
+  show();
+  expect(viewers.at(-1)?.bare).toBe(true);
+  // bare drops the viewer's own name: the card prints it, mono, above the image
+  const name = figure().querySelector('.en-chatname');
+  expect(name?.textContent).toBe(flatA.name);
+  expect(name?.compareDocumentPosition(screen.getByTestId('viewer'))).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  const [a] = rows() as [HTMLElement];
+  expect(a.querySelector('strong')?.textContent).toMatch(/^2/);
+  expect(a.querySelectorAll('.v-pill')).toHaveLength(1);
+  const link = within(a).getByRole('link', { name: `Show it on ${LA}` });
+  expect(link.classList.contains('en-show')).toBe(true);
+  cleanup();
+  show({
+    ...projectAsk,
+    parts: [{ ...flatA, answer: { ...flatA.answer, line: { ...flatA.answer.line, sure: true } } }],
+  });
+  const [sure] = rows() as [HTMLElement];
+  expect(
+    [...sure.querySelectorAll('.v-pill')].map((x) => x.textContent.replace(/\..*/, '')),
+  ).toEqual(['Sure']);
+});
+
+it('CH-40 drawings by their plain name (#224), files by their path; a part not in the project by its file name', () => {
+  expect(LA).toBe('Drawn plan 1');
+  show();
+  const [a] = rows() as [HTMLElement];
+  expect(a.textContent).toContain('Drawn plan 1: 2 doors');
+  expect(within(a).getByRole('link', { name: 'Show it on Drawn plan 1' })).toBeTruthy();
+  expect(refs()[0]?.textContent).toContain(flatA.name);
+  expect(figure().querySelector('.en-chatname')?.textContent).toBe(flatA.name);
+  cleanup();
+  show(projectAsk, { ...project, drawings: [], files: [] });
+  expect(rows()[0]?.textContent).toContain('flat-a.pdf: 2 doors');
 });

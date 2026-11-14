@@ -186,6 +186,21 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
 - CH-38 (preqa parity sweep) The chat column is the demo's 820 px (`.en-chat` `max-width: 868px` with the page's
   24 px gutters); once the thread starts the project-name `h1` stays for screen readers only (`.en-sr`, the demo shows
   no title then). [unit on the CSS text + component]
+- CH-39 (re-sweep item 2, orch 18:00; replaces CH-31's lead and CH-35's row look) Closer to the demo:
+  - Lead above the card: with a `total`, only the value in bold ("2 doors": `formatValue` + the first answering
+    part's `quantity.noun` when it has one) and the Sure badge; no `total_note`. Without one, `why_no_total`
+    (`total_note` when null) as a smaller muted sentence (`.en-lead--why`, 14 px). No quantity label line.
+  - Left: the viewer gets `bare` (fe-viewer: no class line, zoom toolbar, page meta or legend; the mono file name
+    above the image stays), the side arrows stay.
+  - Right, per answering drawing, ONE row: a sentence "<name>: <b>value[ noun]</b>", ONE pill ("Sure" when
+    `line.sure`, else the status word), and "Show it on <name>" as an accent 600-weight link without underline
+    (`.en-show`; underline on hover/focus only), min 44 px tall. Href unchanged (CH-16).
+  [component with a `PageViewer` spy; unit on the CSS text; browser 1440 and 390]
+- CH-40 (#224, orch 18:05) Where the card names a DRAWING it shows `drawingLabel(d)` (shared.md: the
+  backend's plain `name`, "Drawn plan 1", else the file name) for the part's `project.drawings[]` entry (a part
+  not in the list: `drawingLabel({file: part.name})`): the row's "<label>: <b>value</b>" and "Show it on <label>".
+  FILES keep their path: the figure's name above the image and the References list. [component, `project.json`
+  (#224 names), `project_ask.json`]
 - CH-4/CH-5 amended: their "one line per drawing" is CH-35's row; the "no figure or img" part is replaced by CH-32.
   CH-11 amended: after the first ask the "Suggested questions" group is gone and "Follow-up questions" (CH-36) takes
   its place after the thread.

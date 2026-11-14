@@ -89,3 +89,12 @@ it('EN-81 the arrows on plans and references: 92% surface, the demo shadow', () 
     /box-shadow:\s*0 2px 10px color-mix\(in srgb, var\(--v-text\) 18%, transparent\)/,
   );
 });
+
+it('CH-39 the Show it on link: accent, 600, no underline until hover or focus; the why line smaller', () => {
+  const show = rulesFor('.en-show');
+  expect(show).toMatch(/color:\s*var\(--v-accent\)/);
+  expect(show).toMatch(/font-weight:\s*600/);
+  expect(show).toMatch(/text-decoration:\s*none/);
+  expect(rulesFor('.en-show:hover')).toMatch(/text-decoration:\s*underline/);
+  expect(rulesFor('.en-lead--why')).toMatch(/font-size:\s*14px/);
+});

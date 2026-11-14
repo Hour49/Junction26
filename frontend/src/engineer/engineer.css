@@ -640,18 +640,39 @@ button.en-ref:hover,
 }
 .en-chatfig {
   margin: 0;
+  padding: 20px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   background: var(--v-bg);
+}
+.en-chatname {
+  font-size: 14px;
+  font-weight: 600;
 }
 button.en-nav {
   border: 0;
   padding: 0;
   cursor: pointer;
 }
-.en-pills {
+.en-lead--why {
+  font-size: 14px;
+  color: var(--v-muted);
+}
+/* "Show it on <file>": the demo's accent link, no underline until hover or focus (CH-39) */
+.en-show {
   display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  min-height: 44px;
+  color: var(--v-accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.en-show:hover,
+.en-show:focus-visible {
+  text-decoration: underline;
 }
 .en-crefsbox {
   display: flex;

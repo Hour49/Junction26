@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatValue, type ProjectAnswer, type ProjectView } from '../api';
+import { drawingLabel, formatValue, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
 import { StatusPill, SURE_TIP } from './AnswerCard';
@@ -38,11 +38,15 @@ export function ChatAnswer(props: {
   };
   // That drawing opens answering this question (EN-72), in the chat's rule pack (QA R4b-1).
   const query = new URLSearchParams(pack ? { ask: ask.question, pack } : { ask: ask.question });
-  const label = parts[0]?.answer.quantity?.label;
+  // "2 doors" (EN-68's noun), as the demo's "11 doors"
+  const noun = (n: string | null | undefined) => (n ? ` ${n}` : '');
   const value = (p: (typeof parts)[number]) =>
     typeof p.answer.answer === 'number'
-      ? formatValue(p.answer.answer, p.answer.unit)
+      ? formatValue(p.answer.answer, p.answer.unit) + noun(p.answer.quantity?.noun)
       : (p.answer.answer ?? '');
+  // CH-40: a drawing by its plain name (#224), else its file name; files keep their path
+  const labelOf = (p: (typeof parts)[number]) =>
+    drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
   const about = (drawingId: string) => {
     const d = project.drawings.find((x) => x.drawing_id === drawingId);
     return d ? `${kindName(d.kind)} · ${routeLabel(d.route)}` : null;
@@ -50,19 +54,22 @@ export function ChatAnswer(props: {
 
   return (
     <>
-      {label && <p className="en-small">{label.charAt(0).toUpperCase() + label.slice(1)}</p>}
       {ask.total !== null ? (
+        // The demo's lead: the value only (CH-39); total_note is never shown, it can name refused drawings.
         <p className="en-lead">
           <strong className="en-value" data-testid="answer-value">
-            {formatValue(ask.total, ask.total_unit)}
+            {formatValue(ask.total, ask.total_unit) + noun(parts[0]?.answer.quantity?.noun)}
           </strong>
-          {ask.total_sure && <Sure />}{' '}
-          {/* total_note ends with the refused drawings when there are any: never shown (#204, API ask 4) */}
-          {ask.refused_note === null && <span className="en-muted">{ask.total_note}</span>}
+          {ask.total_sure && (
+            <>
+              {' '}
+              <Sure />
+            </>
+          )}
         </p>
       ) : (
         // The backend's sentence already says how many drawings answered; the refused ones are left out (#221).
-        <p className="en-lead">{ask.why_no_total ?? ask.total_note}</p>
+        <p className="en-lead en-lead--why">{ask.why_no_total ?? ask.total_note}</p>
       )}
       <div className="v-card en-chatcard">
         {current && (
@@ -70,9 +77,12 @@ export function ChatAnswer(props: {
             className="en-chatfig"
             aria-label={`Reference ${String(at + 1)} of ${String(drawn.length)}`}
           >
+            {/* the viewer is bare (no name of its own): the demo's mono file name above the image */}
+            <span className="en-mono en-chatname">{current.name}</span>
             <Plan
               place={null}
               viewer={{
+                bare: true,
                 file: current.name,
                 pages: current.answer.pages,
                 marks: current.answer.marks,
@@ -114,13 +124,16 @@ export function ChatAnswer(props: {
             {parts.map((p) => (
               <li key={p.drawing_id}>
                 <span>
-                  <span className="en-part-name en-mono">{p.name}</span>: {value(p)}
+                  <span className="en-part-name">{labelOf(p)}</span>: <strong>{value(p)}</strong>
                 </span>
-                <span className="en-pills">
-                  {p.answer.quantity && <StatusPill status={p.answer.quantity.status} />}
-                  {p.answer.line.sure === true && <Sure />}
-                </span>
+                {/* one pill, as the demo: Sure wins over the status word */}
+                {p.answer.line.sure === true ? (
+                  <Sure />
+                ) : (
+                  p.answer.quantity && <StatusPill status={p.answer.quantity.status} />
+                )}
                 <a
+                  className="en-show"
                   href={routeHref({
                     name: 'workspace',
                     projectId,
@@ -129,7 +142,7 @@ export function ChatAnswer(props: {
                     query,
                   })}
                 >
-                  Show it on {p.name}
+                  Show it on {labelOf(p)}
                 </a>
               </li>
             ))}

@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
-import type { ProjectAnswer, ProjectView } from '../api';
+import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { answerArea, answerRefused, drawing, error, project, projectAsk } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
 import { ProjectChat } from './ProjectChat';
@@ -16,6 +16,9 @@ const [flatA, flatB, refusedPart] = projectAsk.parts as [
   ProjectAnswer['parts'][number],
   ProjectAnswer['parts'][number],
 ];
+/** The drawing's on-screen name in the card (CH-40): its #224 name in project.json, else the file name. */
+const label = (p: { drawing_id: string; name: string }) =>
+  drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
 /** project_ask.json with only flat-a answering: a total of 2 doors (CH-4). */
 const oneAnswers: ProjectAnswer = {
   ...projectAsk,
@@ -188,11 +191,12 @@ const line = (turn: HTMLElement, name: string) =>
 it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row with Show it on <name>, its reference', async () => {
   open(oneAnswers);
   const turn = await answered('How many doors are there?');
-  expect((await within(turn).findByTestId('answer-value')).textContent).toBe('2');
-  expect(within(turn).getByText(oneAnswers.total_note)).toBeTruthy();
-  const li = line(turn, flatA.name);
-  expect(li.textContent).toContain(`${flatA.name}: 2`);
-  const show = within(li).getByRole('link', { name: `Show it on ${flatA.name}` });
+  // CH-39: the lead is the value with its noun only, no total_note
+  expect((await within(turn).findByTestId('answer-value')).textContent).toBe('2 doors');
+  expect(within(turn).queryByText(oneAnswers.total_note)).toBeNull();
+  const li = line(turn, label(flatA));
+  expect(li.textContent).toContain(`${label(flatA)}: 2`);
+  const show = within(li).getByRole('link', { name: `Show it on ${label(flatA)}` });
   expect(show.getAttribute('href')).toMatch(`#/p/${PID}/d/${flatA.drawing_id}/engineer?ask=`);
   expect(
     within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
@@ -208,9 +212,9 @@ it('CH-5 project_ask.json: two drawings answer, no total, its note, then a line 
   expect(within(turn).getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();
   expect(within(turn).queryByTestId('answer-value')).toBeNull();
   for (const p of [flatA, flatB]) {
-    expect(line(turn, p.name).textContent).toContain(`${p.name}: 2`);
+    expect(line(turn, label(p)).textContent).toContain(`${label(p)}: 2`);
     expect(
-      within(line(turn, p.name)).getByRole('link', { name: `Show it on ${p.name}` }),
+      within(line(turn, label(p))).getByRole('link', { name: `Show it on ${label(p)}` }),
     ).toBeTruthy();
   }
   expect(
@@ -311,13 +315,13 @@ it('CH-16 Show it on <name> opens that drawing asking this question; ?pack= is k
       .getAttribute('href') ?? '';
   open(projectAsk);
   await answered(q);
-  expect(href(flatA.name)).toBe(
+  expect(href(label(flatA))).toBe(
     `#/p/${PID}/d/${flatA.drawing_id}/engineer?${new URLSearchParams({ ask: q }).toString()}`,
   );
   cleanup();
   open(projectAsk, project, drawingRoutes(), 'pack=fi');
   await answered(q);
-  const query = new URLSearchParams(href(flatB.name).split('?')[1]);
+  const query = new URLSearchParams(href(label(flatB)).split('?')[1]);
   expect([query.get('ask'), query.get('pack')]).toEqual([q, 'fi']);
 });
 
