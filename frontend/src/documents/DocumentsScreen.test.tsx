@@ -240,7 +240,9 @@ describe('DocumentsScreen (documents.md)', () => {
     expect(drawings.getAllByRole('link', { name: 'Open' })[0]?.getAttribute('href')).toBe(
       `#/p/${PID}/d/${d.drawing_id}/engineer`,
     );
-    expect(drawings.getByText(d.file)).toBeTruthy();
+    const card = must(drawings.getByText('Drawn plan 1').closest('li'));
+    expect(card.querySelector('b')?.textContent).toBe('Drawn plan 1'); // the plain name is the title (#224)
+    expect(within(card).getByText(d.file)).toBeTruthy(); // the path stays as the small line
     const files = within(screen.getByRole('region', { name: 'Files' }));
     // DOC-17: no technical line on read files
     for (const f of project.files) expect(files.queryByText(f.reason)).toBeNull();

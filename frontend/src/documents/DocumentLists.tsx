@@ -1,4 +1,4 @@
-import type { ProjectView, Triage } from '../api';
+import { drawingLabel, type ProjectView, type Triage } from '../api';
 import { formatSize, isFinished, kindLabel, plural, routeLabel } from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
 import { isNotPlan, rowLine, verdictOf } from '../ingest/triage';
@@ -35,7 +35,8 @@ export function DocumentLists({ project }: { project: ProjectView }) {
           <ul className="doc-dwgs">
             {project.drawings.map((d) => (
               <li key={d.drawing_id} className="v-card doc-dwg">
-                <b className="doc-mono">{d.file}</b>
+                <b>{drawingLabel(d)}</b>
+                <span className="doc-small doc-mono">{d.file}</span>
                 <span className="doc-small">
                   {kindLabel(d.kind)}
                   {d.route && ` · ${routeLabel(d.route)}`}

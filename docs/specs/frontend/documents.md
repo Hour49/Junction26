@@ -63,7 +63,9 @@ not edited).
      the answer (frontend-orch, GO 17:00). **Typed answers are lost on reload** (and in another tab or browser):
      the badge and the "need your answer" line then count those issues again (fe-shared's note, shared.md
      "Answers store"). Only the `unrelated_file` call survives a reload: the API saves it.
-5. **Drawings**: one card each (`drawings[]`): the drawing's plain name (fe-shared's helper, else `file`), kind,
+5. **Drawings**: one card each (`drawings[]`): the drawing's plain name `drawingLabel(d)` (fe-shared,
+   `src/api/format.ts`; the API's `name` since #224, "Drawn plan 1") as the card's title, the file path as a small
+   line under it, kind,
    `routeLabel`, "Open" → the workspace (`#/p/<pid>/d/<drawing_id>/engineer`). While running, only the drawings
    listed so far; "No drawing ready yet." with none.
 6. **Files**: every `files[]` row (path; on the right the state badge over "kind · size"), each a link to
@@ -146,7 +148,8 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
   reopens the box prefilled, "Cancel" closes it unchanged; an empty or spaces-only answer cannot be sent.
   [component]
 - DOC-9: No chips are shown on a typed-answer card without `suggestions` (no invented chips). [component]
-- DOC-10: The drawings section lists every drawing with its name, kind, route words and "Open" →
+- DOC-10: The drawings section lists every drawing with its plain name (`drawingLabel`: "Drawn plan 1") as the
+  card's title and its file path as a small line, kind, route words and "Open" →
   `#/p/<pid>/d/<id>/engineer`; the files section lists every file linking to its file page. [component]
 - DOC-11: "Export" links with `download` to `/api/projects/<pid>/issues.zip` (`?pack=` kept). [component]
 - DOC-12: `needsYou(issues, answers: ReadonlyMap<id, text>)` (fe-shared's `useIssueAnswers`) = the issues Documents
