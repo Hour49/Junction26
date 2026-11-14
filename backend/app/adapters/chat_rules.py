@@ -10,6 +10,7 @@ from typing import Any
 
 from app.core.agent.loop import NUDGE, UNBACKED
 from app.core.agent.ports import Reply
+from app.core.agent.review import DOUBT, REVIEWED
 from app.core.agent.rooms import name_words
 
 Json = dict[str, Any]
@@ -27,10 +28,6 @@ PACK = re.compile(r"\(pack ([a-z]{2}(?:-[a-z]{2})?)\)")  # the chosen country, a
 NO_PACK = (
     "No country is chosen, so I can't look up its building rules. Pick a country above the chat "
     "and ask again."
-)
-# A doubt about the last answer (item 3): answered from its review, not by asking again
-SURE = re.compile(
-    r"\b(are you sure|you sure|double[- ]?check|how (sure|certain|confident))\b|really\?"
 )
 ROOM = re.compile(r"\broom\b")
 # A word for a room, as Room.type names it
@@ -83,6 +80,9 @@ def _turn_of(messages: list[Json]) -> _Turn:
     )
     first, *rest = str(messages[start]["content"]).split("\n")
     turn = _Turn(first, [line for line in rest if line.startswith("sel_")])
+    for line in rest:  # the review the loop ran for a doubt (DOUBT), as a tool result
+        if line.startswith(REVIEWED):
+            turn.done.append(("review_answer", {}, json.loads(line.removeprefix(REVIEWED))))
     for message in messages[: start + 1]:  # the system prompt or the turn's context line
         if message.get("role") in ("system", "user") and (
             found_pack := PACK.search(str(message.get("content") or ""))
@@ -131,7 +131,7 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         return _remove_wall(turn, words)
     if LAW.search(words):
         return _law(turn, offered)
-    if SURE.search(words) and "review_answer" in offered:
+    if DOUBT.search(words) and ("review_answer" in offered or turn.result("review_answer")):
         return _sure(turn)
     found = turn.result("ask_drawings")
     if found is None:

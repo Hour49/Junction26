@@ -8,11 +8,12 @@ from typing import Any
 
 import pytest
 from test_agent_loop import DRAWING, Model, Tools, call, final, step
-from test_agent_view import DOORS, again
+from test_agent_view import DOORS, NAMES, again
 
 from app.adapters.chat_rules import RulesChatModel
 from app.core.agent.loop import run_turn
 from app.core.agent.model import Caps, Chat
+from app.core.agent.review import DOUBT, REVIEWED
 from app.core.spend import SpendGuard
 
 Json = dict[str, Any]
@@ -29,6 +30,7 @@ def counted(chat: Chat, tools: Tools) -> None:
 
 
 def test_review_answer_gives_the_latest_answer_back_whole_with_its_disputed_marks() -> None:
+    """The model calls it ("why ..." is no doubt the server reviews first)."""
     chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
     counted(chat, tools)
     model = Model(
@@ -38,7 +40,7 @@ def test_review_answer_gives_the_latest_answer_back_whole_with_its_disputed_mark
             evidence_ids=["ev_4"],
         ),
     )
-    got = again(chat, model, tools, "Are you sure?")
+    got = again(chat, model, tools, "Why is that low?")
     assert [name for name, _ in tools.ran] == ["ask_drawings"]  # no new pipeline call
     review = json.loads(model.sent[1][-1]["content"])
     [drawing] = review["drawings"]
@@ -47,11 +49,47 @@ def test_review_answer_gives_the_latest_answer_back_whole_with_its_disputed_mark
     assert drawing["check"] == "the readers disagree on one door"
     assert drawing["disputed"] == [{"ev": "ev_4", "why": "one reader saw no door"}]
     assert drawing["disputed_count"] == 1
+    assert (drawing["marks"], drawing["marks_count"]) == (["ev_1", "ev_2", "ev_3"], 3)
     assert got.kind == "answer" and got.text.endswith("disputed [1].")  # passed the first time
     assert [e.id for e in got.evidence] == ["ev_4"] and len(got.answers) == 1
     [reviewed] = got.steps
     assert (reviewed.tool, reviewed.label, reviewed.status) == (
         "review_answer", "Reviewed the last answer", "ok")  # fmt: skip
+
+
+def test_a_doubt_is_reviewed_before_the_model_so_one_model_call_answers_it() -> None:
+    """chat-eval #339: the review turn took two model steps (call review_answer, then answer);
+    the server reviews a doubt first and the model answers in one."""
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
+    counted(chat, tools)
+    model = Model(final(text="Not for certain: it is Low [ev_4].", evidence_ids=["ev_4"]))
+    got = again(chat, model, tools, "Are you sure?")
+    assert len(model.sent) == 1  # one model call
+    asked = model.sent[0][-1]["content"]
+    assert asked.startswith("Are you sure?\n" + REVIEWED)
+    assert json.loads(asked.split(REVIEWED, 1)[1])["drawings"][0]["level"] == "low"
+    assert [(s.tool, s.label) for s in got.steps] == [("review_answer", "Reviewed the last answer")]
+    assert len(got.answers) == 1 and got.view is not None
+
+
+@pytest.mark.parametrize("doubt", ["Are you sure?", "I count 30. Could it be 30?"])
+def test_a_reply_to_a_doubt_that_cites_nothing_keeps_the_answer_card_and_its_places(
+    doubt: str,
+) -> None:
+    """chat-eval #339 (sure-pdf-doors t3, s1-windows t2-t3): a reply about the reviewed answer
+    that cites no place lost the answer card, its number and the plan."""
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
+    counted(chat, tools)
+    model = Model(final(text="It could be: the count is a low-confidence estimate."))
+    got = again(chat, model, tools, doubt)
+    assert [e.id for e in got.evidence] == ["ev_1", "ev_2", "ev_3"]
+    assert len(got.answers) == 1 and got.answers[0]["question"] == "how many doors"
+    assert got.view is not None and len(got.view.marks) == 3
+
+
+def test_a_question_that_only_contains_could_it_be_is_no_doubt() -> None:
+    assert DOUBT.search("i count 30. could it be 30?")
+    assert not DOUBT.search("could it be that the kitchen is the largest room?")
 
 
 def test_review_answer_without_an_earlier_answer_says_so() -> None:
@@ -148,3 +186,26 @@ def test_review_339_n2_a_refused_last_answer_is_called_a_refusal() -> None:
         "dont_know",
         "I can't check that: the last answer was a refusal.",
     )
+
+
+def test_the_rules_planner_answers_a_pushed_number_from_the_review_and_keeps_the_card() -> None:
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
+    rules = RulesChatModel()
+    run_turn(chat, "How many doors are there?", (), rules, tools, Caps(), SpendGuard())
+    got = run_turn(chat, "I count 30. Could it be 30?", (), rules, tools, Caps(), SpendGuard())
+    assert [s.tool for s in got.steps] == ["review_answer"]
+    assert [name for name, _ in tools.ran] == ["ask_drawings"]  # not asked again
+    assert got.kind == "answer" and "Not for certain." in got.text
+    assert len(got.answers) == 1 and got.answers[0]["question"] == "how many doors"
+
+
+def test_a_doubts_review_streams_as_its_first_step() -> None:
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
+    counted(chat, tools)
+    got: list[tuple[str, Any]] = []
+    model = Model(final(text="Not for certain [ev_4].", evidence_ids=["ev_4"]))
+    run_turn(chat, "Are you sure?", (), model, tools, Caps(), SpendGuard(), names=NAMES,
+             emit=lambda kind, data: got.append((kind, data)))  # fmt: skip
+    kinds = [(kind, data.get("tool")) for kind, data in got if kind != "thinking"]
+    assert kinds[:3] == [("turn", None), ("tool_call", "review_answer"),
+                         ("tool_result", "review_answer")]  # fmt: skip
