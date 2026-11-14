@@ -1029,6 +1029,52 @@ describe('Vellum (screen 4)', () => {
     expect(block.querySelector('.en-bar')).toBeNull();
   });
 
+  it('EN-84 flagged drawing: flag reason and level at the top, above the plan and marks', async () => {
+    // DoubleCheck reads this drawing's marks: the fixture's own drawing id has no route here
+    const low: AnswerView = { ...answerLow, drawing_id: DRAWING };
+    const flaggedProject = {
+      ...project,
+      drawings: project.drawings.map((d) =>
+        d.drawing_id === DRAWING ? { ...d, state: 'flagged' as const } : d,
+      ),
+    };
+    open({
+      [PROJECT_ROUTE]: flaggedProject,
+      [DRAWING_ROUTE]: drawing,
+      'POST /api/ask': answers(low),
+    });
+    await typeAndAsk(low.question);
+    const t = await turn(low.question);
+    await within(t).findByText('This drawing was flagged');
+    const flag = t.querySelector('.en-flag') as HTMLElement;
+    expect(within(flag).getByText('This drawing was flagged')).toBeTruthy();
+    expect(flag.textContent).toContain(answerLow.check?.reason ?? 'x');
+    expect(within(flag).getByText('Low')).toBeTruthy();
+    expect(flag.textContent).toContain(answerLow.level?.text ?? 'x');
+    const card = t.querySelector('.en-card') as HTMLElement;
+    const sentence = t.querySelector('.en-sentence') as HTMLElement;
+    for (const later of [card, sentence]) {
+      expect(flag.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(t.querySelectorAll('.en-grade')).toHaveLength(1);
+    expect(card.querySelector('.en-grade')).toBeNull();
+    cleanup();
+    const u = await shownTurn(low);
+    expect(u.querySelector('.en-flag')).toBeNull();
+    expect(u.querySelector('.en-card .en-grade')).toBeTruthy();
+  });
+
+  it('EN-85 a page-flagged answer (level.basis page) drops the counting rule from the sentence', async () => {
+    const low: AnswerView = { ...answerLow, drawing_id: DRAWING, check: null };
+    const t = await shownTurn(low);
+    const rule = (low.quantity as Row).rule.text;
+    expect(t.querySelector('.en-sentence')?.textContent).not.toContain(rule.slice(1));
+    cleanup();
+    const other: AnswerView = { ...low, level: { level: 'low', basis: 'score', text: 'Low.' } };
+    const u = await shownTurn(other);
+    expect(u.querySelector('.en-sentence')?.textContent).toContain(rule.slice(1));
+  });
+
   it('EN-68 Row.noun: "There are 2 doors." with the noun after the value; null keeps the label sentence', async () => {
     const t = await shownTurn(answer);
     expect(t.querySelector('.en-noun')?.textContent).toBe('doors');

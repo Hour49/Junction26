@@ -453,6 +453,20 @@ button.en-ref:hover,
 .en-warn {
   color: var(--v-warn);
 }
+/* EN-84: a flagged drawing's reason and level, before the sentence and the plan. */
+.en-flag {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--v-warn);
+  border-radius: 12px;
+  background: var(--v-warn-soft);
+  font-size: 14px;
+}
+.en-flag > p {
+  margin: 0;
+}
 
 /* Chips: suggestions, can_answer, Try again. */
 .en-suggest {
