@@ -23,9 +23,8 @@
 </p>
 
 <p align="center">
-  <sub>The real app on a local production build (main at e57d23f): upload a scan, ask in the chat, see the marks on
-  the plan beside it, open a place the readers disagree on. The wait for the reading is shortened in the GIF
-  (3.9 s here, about 29 s the first time this scan was read).<br>
+  <sub>The real app on a local production build of main: upload a scan, ask in the chat, see the marks on the plan
+  beside it, open a place the readers disagree on. The wait for the reading is shortened in the GIF.<br>
   Plan: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain
   (<a href="#credits-and-licences">full credit</a>).</sub>
 </p>
@@ -123,7 +122,7 @@ The same screens at phone width:
   <img src="docs/media/phone-answer.png" width="31%" alt="A chat answer on a phone: 1 toilet, High confidence, with the marked plan.">&nbsp;
   <img src="docs/media/phone-rules.png" width="31%" alt="An edit card on a phone: the building rules of the Canton of Zürich, two rules met, each with its clause.">
 </p>
-<p align="center"><sub>Plans: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain; our own sample flat.</sub></p>
+<p align="center"><sub>Plans in the two phone pictures: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain (middle); our own sample flat, drawn by code (right).</sub></p>
 
 ## How it works
 
@@ -270,11 +269,15 @@ How it works: [docs/TEAM-AGENTS.md](docs/TEAM-AGENTS.md).
 The code is MIT licensed, see [LICENSE](LICENSE).
 
 The scan in the pictures is sheet 2 of 6 of the Historic American Buildings Survey record of the Isaac Franklin
-House, U.S. Route 25 East, White Pine, Jefferson County, Tennessee (HABS TENN,45-WHIP,1-), drawn by Stephen Fildes
-in 1973. Credit: Historic American Buildings Survey, National Park Service; Library of Congress, Prints and
-Photographs Division, [the sheet's page](https://www.loc.gov/pictures/item/tn0085.sheet.00002a/). HABS drawings are
-in the public domain, and the credit is a courtesy. We took the Library's scan and scaled it down to 3000 pixels
-wide. Our screenshots add the app's marks and overlays.
+House, U.S. Route 25 East, White Pine, Jefferson County, Tennessee: survey HABS TN-197, Library of Congress call
+number HABS TENN,45-WHIP,1- (sheet 2 of 6). The sheet's title block names its draftsman, Stephen Fildes, and the
+Survey's East Tennessee Project of 1973. Credit: Historic American Buildings Survey, National Park Service; Library
+of Congress, Prints and Photographs Division,
+[record of the sheet](https://www.loc.gov/pictures/item/tn0085.sheet.00002a/). The sheet was drawn under the direction
+of the National Park Service, as its title block states. As a work of the U.S. federal government it is in the
+public domain, and the credit is a courtesy. We took the Library's
+[master scan](https://tile.loc.gov/storage-services/master/pnp/habshaer/tn/tn0000/tn0085/sheet/00002a.tif) and
+scaled it down to 3000 pixels wide. Our screenshots add the app's marks and overlays.
 
 The drawn plan in the pictures is our own: a three-room flat that
 [tools/readme-media/make_plan.py](tools/readme-media/make_plan.py) draws as a vector PDF, in the drawing conventions
