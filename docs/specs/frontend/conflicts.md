@@ -1,5 +1,5 @@
 # Settle the conflicts (spec, Vellum screen 3)
-Status: draft, 2026-11-14, by fe-surveyor.  Design: Vellum canvas screen 3, `Conflicts.dc.html` (look only; its
+Status: built, 2026-11-14, by fe-surveyor (orch D61; Tudor CHANGE 11:05; Bogdan's triage CHANGE 11:07).  Design: Vellum canvas screen 3, `Conflicts.dc.html` (look only; its
 data is mock).  API: docs/API.md `GET /api/projects/{project_id}/review`, `POST /api/drawings/{drawing_id}/review`.
 
 ## Purpose
@@ -114,7 +114,7 @@ the conflicts that need you first." (`aria-describedby`); otherwise an `<a>`.
 
 ## Layout
 
-The design's: header (shell's), then a centred column, max-width 820px, padding 48px 24px 72px, 20px between parts.
+The design's: header (shell's), then the shell's `.v-page.v-page--narrow` frame (820px, its padding), 20px between parts.
 
 - Heading row: kicker (13px, 600, `--v-ok`), h1 44px/1.1 700, sub line 16px `--v-muted`; the workspace link on the
   right (pill, 980px radius, `--v-accent` fill, white, 44px tall; locked: `--v-fill` fill, `--v-muted` text).
@@ -169,6 +169,10 @@ the same props-recording double as SurveyorScreen.test.tsx):
 - CF-20: no mock value of the design appears (no "harbour", "Beatrice", "IfcDoor", country names): a test renders
   the screen and asserts none of these strings are in the document.
 - CF-21: the pill is focusable and its tooltip text is its accessible description.
+- CF-23: a `ConflictEntry` with a real `signed` shows the pill "Signed off by `by`", disabled tiles and no Modify.
+- CF-24: a rule card with `value: 27.5` (no tile has it) presses no tile and reads "In use: 27.50 m²."; nothing on
+  the screen carries `data-pending`.
+- Tile accessible names: "`X`: `value`, `method`, page `n`[, the rule's choice][, in use]" (e2e: `/^A\b/`).
 
 [e2e] (fe-golden, `frontend/e2e/`, at 1440 and 390, sample project):
 
@@ -189,6 +193,15 @@ the same props-recording double as SurveyorScreen.test.tsx):
    `note`. The card shows `label` and those.
 5. **Who settled and when in words**: `settled.at` exists, `settled` has no `by`; the card says "you", as the
    surveyor's own browser does not know other people. Fine for v1 (no login).
+
+## Pending fields (mocked)
+
+None left. `ConflictEntry.signed` and `ConflictEntry.value` landed with backend PR #120 (vellum 859eed6) and are read
+directly: `signed` drives the pill "Signed off by `by`" and locks the card; `value` picks the pressed tile, and a
+value no tile has (a recount in the workspace) reads "In use: `value`." on a rule card. A card that needs a person
+presses no tile whatever `value` says. The `unsettle` edit action is part 2: until it lands, "Use the rule's
+value" sends `reset` behind the confirm. Not coming, so not mocked: a plain-words title (`h2` = `label`), a rule
+list (rule, note, derived), `Settled.by` ("you").
 
 ## Out of scope
 

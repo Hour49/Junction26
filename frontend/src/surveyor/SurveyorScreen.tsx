@@ -105,7 +105,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
   const side = <ProjectReviewSide projectId={projectId} drawingId={drawingId} reload={reload} />;
   if (loadError !== null)
     return (
-      <div className="sv-screen">
+      <div className="v-page v-page--wide sv-screen">
         {side}
         <ErrorView
           error={loadError}
@@ -118,7 +118,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     );
   if (!drawing || !takeoff)
     return (
-      <div className="sv-screen">
+      <div className="v-page v-page--wide sv-screen">
         {side}
         <Loading label="Loading the takeoff…" />
       </div>
@@ -179,7 +179,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
   );
 
   return (
-    <div className="sv-screen sv-work">
+    <div className="v-page v-page--wide sv-screen sv-work">
       {side}
       <PageViewer
         file={drawing.file}
@@ -224,6 +224,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
                 {zerosToggle}
                 <button
                   type="button"
+                  className="sv-danger"
                   disabled={saving}
                   onClick={() => {
                     if (window.confirm('Reset every edit and sign-off of this drawing?'))

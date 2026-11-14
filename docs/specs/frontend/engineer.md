@@ -1,6 +1,6 @@
 # Engineer workspace (spec, frontend v1)
 Status: draft, 2026-11-14, by fe-spec-engineer; Vellum redesign (round 2, design screen 4 "Ask, with proof",
-`Workspace.dc.html`) added 2026-11-14 by fe-vellum-engineer: Layout, the "Vellum" API rows, EN-54..EN-66, "Not in the API".  Story: #33.  API: docs/API.md (v1, main 5092dc3), plus the
+`Workspace.dc.html`) added 2026-11-14 by fe-vellum-engineer: Layout, the "Vellum" API rows, EN-54..EN-69, "Not in the API"; built 2026-11-14 with orch D61 (viewer `meta` prop, arrows outside the viewer) and Bogdan's triage of the missing fields (#14 c6874945888, "Pending fields (mocked)").  Story: #33.  API: docs/API.md (v1, main 5092dc3), plus the
 pending `confidence` object (Open point 1).
 
 ## Purpose
@@ -75,8 +75,8 @@ Called once when the route opens, with the shared client's `getProject(projectId
 | Field | Drives |
 | --- | --- |
 | `drawings[]` (order as sent) | the position "<i> / <n>" (i = 1-based index of the entry whose `drawing_id` is the route's) and the "Previous drawing" / "Next drawing" arrows: links to the neighbour entry's engineer route (`routeHref`, wrapping round). One drawing: no arrows, no position. Route drawing not in the list: no position, no arrows |
-| `drawings[i].kind`, `drawings[i].route` | the page meta line under the file name: "<kind words> · <route> route" (`pdf_vector` "PDF vector", `pdf_scan` "PDF scan", `png_plan` "PNG plan", `jpeg_plan` "JPEG plan", `photo_plan` "photo of a plan", `ifc` "IFC model", `dxf` "DXF", `svg` "SVG", other ids as sent; `route` null: "not routed") |
-| `drawings[i].other_renderings[].file`, `.drawing_id` | a "Same plan" line in the page meta: "Also as <file>" links to that drawing's engineer route, comma separated |
+| `drawings[i].kind`, `drawings[i].route` | the viewer's `meta` prop (D61: appended to its page meta line): "<kind words> · <route> route" (`pdf_vector` "PDF vector", `pdf_scan` "PDF scan", `png_plan` "PNG plan", `jpeg_plan` "JPEG plan", `photo_plan` "photo of a plan", `ifc` "IFC model", `dxf` "DXF", `svg` "SVG", other ids as sent; `route` null: "not routed") |
+| `drawings[i].other_renderings[].file`, `.drawing_id` | "Also as <file>" above the plan (left of the position): links to that drawing's engineer route, comma separated; an entry with the route's own drawing id is skipped |
 | `files[]` with `drawing_id` = route drawing id and `path` = `reader.source` | its `id` gives the "Original file" reference's picture: `previewUrl(projectId, file.id)` (the upload as the user sent it). No such file: that reference shows without a button (text only) |
 
 ### `POST /api/ask` (API.md "Answering")
@@ -93,8 +93,11 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `question` | the user's bubble (the server's echo, so a trimmed question shows as sent) |
 | `answer`, `unit` | the big value and unit (format below). Null: no number anywhere in the card. A string `answer` (schedule) shows as text, `unit` null shows no unit. |
 | `confidence.score`, `confidence.calibrated` | the score line: "Second reader's score 0.87 (not a probability)". `calibrated: false` is the only value in the contract; the score is never shown as a percent, claimed as a probability, or called a confidence. `confidence` null: the line is absent (no made-up figure). |
+| `line.sure`, `confidence.score` | the "Grade" block (Bogdan's rule, #14 c6874945888): `line.sure === true` "High"; else with `confidence` "Medium" when the score is 0.8 or more, "Low" below; no `confidence` and not sure: no block. Pill (`.v-pill--ok/--warn/--danger`), a 3-step bar (`aria-hidden`), and the line "From the Sure check and the second reader's score (0.8 or more: Medium)." Labelled "Grade", never "Confidence" (D3: the score is not a confidence) |
 | `confidence.signal` | only in Details: "Signal: <signal>" (an internal name, never on the card itself) |
-| `quantity.label` | the answer sentence "<Label>: <value>." (Vellum: no separate card title) |
+| `quantity.label`, `quantity.noun` | the answer sentence (Vellum: no separate card title), composed, not mocked (#14 c6874945888): with a noun "There are **<value>** <noun>." ("There is 1 door." for 1), else "<Label>: **<value>**."; the noun also right after the big value (outside `answer-value`). `noun` is in the API since PR #120 (`answer.json` "doors"; null for areas) |
+| `check.reason` (coming, #14 c6875035654; shape not final, not in the types yet) | when present: a warning line right under the value row (`role="status"`, `--v-warn` on `--v-warn-soft`, `data-pending="AnswerView.check"`); absent or null: nothing. No mock; the disputed marks wait for the final shape |
+| `pages[].storey`, `pages[].scale_text` (PR #120) | not read here: the viewer prints them in its own page line (orch decision 11:30, no double "1:100"); this screen's `meta` stays "<kind> · <route> route" |
 | `quantity.key` | "Query: <label>" in the details shows `quantity.label`; the key only when the label is empty (EN-27) |
 | `line.sure` (backend #98: the answer_v1.1 line's `sure`; optional, `true`/`false`/null; not a top-level field) | `true`: a small "Sure" badge right after the value; its tooltip (`title`) and its screen-reader text say "Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact". `false`, null or absent: nothing. `true` only where the golden certified gate covers the question family; null for IFC, vector and rooms answers |
 | `quantity.status` | the status in words (table in States); never colour alone |
@@ -207,11 +210,12 @@ Desktop 1440x900: one centred column, max 1040 px, padding 32 px 24 px, sections
      `overflow: hidden`; a two-column
      grid `minmax(0,1.4fr) minmax(0,1fr)`, one column below 900 px.
      - **Left, the plan** (`<figure aria-label="Drawing">`, padding 20 px, background `--v-bg`, gap 12 px):
-       - Page meta row: the file name (`file`, monospace stack `ui-monospace, Menlo, monospace`, 14 px, 600,
-         `overflow-wrap: anywhere`) over the meta line (12 px, `--v-muted`: kind · route, then "Also as …"); on the
-         right the position "<i> / <n>" (13 px, tabular numbers, `aria-live="polite"`).
+       - Place row (only when the project gives it): "Also as …" links (12 px, `--v-muted`) on the left, the
+         position "<i> / <n>" (13 px, tabular numbers, `aria-live="polite"`) on the right. The file name and the
+         page meta line (with "<kind> · <route> route" from the `meta` prop) are the viewer's own (D61, viewer.md);
+         this screen draws no file-name line of its own.
        - The plan: `PageViewer` (viewer.md) with the answer's pages and marks, inside a `position: relative` box.
-         "Previous drawing" and "Next drawing" are round 44 px link buttons (shared `.v-btn--round` look) (`<a>` with that `aria-label`, chevron
+         "Previous drawing" and "Next drawing" (D61: outside `PageViewer`, in this screen's wrapper) are round 44 px link buttons (`<a>` with that `aria-label`, chevron
          icon `aria-hidden`) over the left and right edge of the plan, vertically centred, `color-mix(in srgb, var(--v-surface) 85%, transparent)`
          with `--v-shadow`.
        - The overlay (when a reference is opened): a `role="dialog"` sheet covering the plan box (inset −8 px,
@@ -226,13 +230,15 @@ Desktop 1440x900: one centred column, max 1040 px, padding 32 px 24 px, sections
      - **Right, the answer** (padding 20 px 22 px, gap 16 px):
        - The value row: the value (44 px, 700, tabular numbers, `data-testid="answer-value"`, text exactly the
          formatted value) and the "Sure" badge when `line.sure` is true (EN-53), baseline aligned, wrapping.
+       - "Grade" block (only when there is a grade, see the `line.sure`, `confidence.score` row): "Grade"
+         (13 px, 600) with the grade pill on the right, the 3-step bar, the source line (13 px, `--v-muted`).
        - "Checks" block: the label "Checks" (13 px, 600) with the status pill on the right (shared `.v-pill`
          with the status words: `.v-pill--ok` for `agree`/`signed`, `.v-pill--warn` for `conflict`/`estimate`/
          `edited`, plain `.v-pill` for `single`; text always, never colour alone); the pill is focusable (`tabindex="0"`) and has a tooltip
          (`role="tooltip"`, shown on hover and focus, `aria-describedby` from the pill) with the status
          explanation (table "Status tooltips"; 12.5 px, `--v-surface` text on `--v-text`, radius 10 px, max 240 px); under it the checks panel lines (ChecksPanel as today), the
          score line "Second reader's score 0.87 (not a probability)" when there is a score, "Verified by …" when
-         signed. No bars, no "High/Medium/Low", no "Confidence".
+         signed. The word "Confidence" is never shown.
        - "Counting rule: <text>" (14 px) with the rule id in small text.
        - "References" (13 px, 600) and an ordered list of reference chips (button, full width, radius 12 px,
          min 44 px tall, `--v-fill` background, `--v-accent-soft` when pressed): each has a number tag (1, 2, 3 …, accent), the file in monospace
@@ -244,8 +250,10 @@ Desktop 1440x900: one centred column, max 1040 px, padding 32 px 24 px, sections
             marks; "no marks" when there are none). Opens the overlay with `evidence.png` (`evidenceUrl(...,
             {project})`); only when `confidence` is null (same rule as the picture link: the image still prints
             the old probability line); otherwise a plain row.
-         3. "Second count": the second method's name (`methodName(second.method)`) and value, or for a conflict
-            both values; with no `second` and no `conflict`: "no second count". Plain row (no picture in the API).
+         3. "Second count": the second method's name and value ("<methodName(second.method)>: <value>"), or for
+            a conflict both values ("<value> by <method>; …"); with no `second` and no `conflict`: "no second
+            count". Plain row: the second method has values, not positions (#14 c6874945888). No per-reference
+            grade on any chip (not in the API, not triaged).
      - **Footer row** (as today, under the grid, `--v-line` top border, 12 px muted): Drawing, Cost, Time,
        "Details" (Query, Method, Signal, How), "Picture of this answer", "Send to surveyor".
   5. A refusal turn: the bubble, the read-as note, then a card (`--v-surface`, radius, padding 20 px) with bold
@@ -303,7 +311,7 @@ Drawing header and ask box
 - EN-12 While an ask is pending the turn shows the question and "Reading plans/flat-a.pdf…", Ask is disabled, and a second Enter sends nothing. [component, pending fetch]
 
 Answers
-- EN-13 A count answer shows the value "2" in the card, the sentence "Door count: 2." (Vellum; was the title "door count"), and no unit text. [component, `answer.json`]
+- EN-13 A count answer shows the value "2" in the card, the sentence "There are 2 doors. Every element, room and plan the drawing lists counts once." (Vellum; was the title "door count"; the noun is the `Row.noun` mock until the backend sends it), and no unit text. [component, `answer.json`]
 - EN-14 A sum answer shows "52.27 m²". [component, `answer_area.json`]
 - EN-15 The viewer gets `answer.marks`, `answer.pages`, `quantity.measure` and the drawing's `credit`: two numbered marks "1" and "2" are on page 1. [component, `drawing.json` + `answer.json`]
 - EN-16 The mark list has one row per mark: "1 door", "2 door"; for a sum the row carries the value: "1 Küche 22.40 m²". [component, `answer.json`, `answer_area.json`]
@@ -353,8 +361,8 @@ Thread and pages
 
 [e2e] criteria are built by the e2e worker (golden-path.md); this spec's build worker writes no file in `frontend/e2e/`.
 
-- EN-54 Vellum layout: with `answer.json` the turn shows, in order, the bubble, the answer sentence "Door count: **2**." with the counting rule's text after it, then the card whose left column is `<figure aria-label="Drawing">` (page meta, viewer, mark list) and whose right column has the value `2`, "Checks" with the pill "One method", "Counting rule: …", "References". No element shows "Confidence", "High", "Medium", "Low", "Finland", "Switzerland" or a person's name. [component, `answer.json`]
-- EN-55 Page meta: with `project.json` (route drawing `adeefbbcc17559fc`) the figure shows `plans/flat-a.pdf` in monospace, the meta line "PDF vector · vector route · Also as plans/flat-a.png" ("plans/flat-a.png" a link to drawing `c9b719f715357201`'s engineer route) and the position "1 / 5". [component, `project.json` + `drawing.json` + `answer.json`]
+- EN-54 Vellum layout: with `answer.json` the turn shows, in order, the bubble, the answer sentence "Door count: **2**." with the counting rule's text after it, then the card whose left column is `<figure aria-label="Drawing">` (page meta, viewer, mark list) and whose right column has the value `2`, "Checks" with the pill "One method", "Counting rule: …", "References". No element shows "Confidence", "Finland", "Switzerland" or a person's name, and with `answer.json` (not sure, no score) no grade ("High", "Medium", "Low"). [component, `answer.json`]
+- EN-55 Page meta: with `project.json` (route drawing `adeefbbcc17559fc`) the figure shows "PDF vector · vector route" (the viewer's `meta`), "Also as plans/flat-a.png" ("plans/flat-a.png" a link to drawing `c9b719f715357201`'s engineer route) and the position "1 / 5" (`aria-live="polite"`). [component, `project.json` + `drawing.json` + `answer.json`]
 - EN-56 Previous/next drawing: "Next drawing" links to the engineer route of `drawings[1]`, "Previous drawing" to the last entry's (`1db9bcf1e67e27a3`, wrap round); with one drawing in the project, or before `GET /api/projects/{id}` answers, or when it fails, neither link nor position shows and the rest of the screen works. Both are at least 44x44 px. [component, `project.json` and derived one-drawing `project.json`; size: e2e]
 - EN-57 Status pill: each status (table "Status tooltips") shows its pill words and, on focus of the pill, a `role="tooltip"` with its tooltip text, linked by `aria-describedby`. [component, `answer.json` and the derived fixtures of States]
 - EN-58 References with `answer.json` and `project.json`: three chips in order, "1 … plans/flat-a.pdf" whose where-line is the EN-26 sentence, "2 … plans/flat-a.pdf … Page 1 · marks 1–2", "3 … no second count". Chips 1 and 2 are buttons; chip 3 is not. With `answer_confidence.json` chip 2 is not a button. Without a matching file in `project.files`, chip 1 is not a button. [component]
@@ -365,19 +373,29 @@ Thread and pages
 - EN-63 Only tokens: `engineer.css` has no colour literal (`#…`, `rgb(`, `hsl(`) except inside `var()` fallbacks; every colour is a `--v-*` token. [unit test reading the CSS file as text]
 - EN-64 Reduced motion: under `prefers-reduced-motion: reduce` the press scale and the overlay animation are off (CSS rules present in `engineer.css` inside that media query). [unit test on the CSS text; visual: fe-golden]
 - EN-65 Phone 390x844 with `answer_area.json`: the card is one column (figure above the answer), no horizontal scroll, the arrows and the ask button at least 44 px, the overlay inside the plan box. [e2e]
+- EN-67 Grade (#14 c6874945888): `line.sure: true` (derived `answer.json`) shows "High"; `answer_confidence.json` (score 0.87, sure null) "Medium"; a derived score 0.5 "Low"; each with "From the Sure check and the second reader's score"; `answer.json` (no score, not sure) has no grade block. [component]
+- EN-68 `Row.noun` (PR #120): `answer.json` shows "doors" after the value and in the sentence, with no `data-pending`; a derived `noun: null` shows no noun and "Door count: 2. …"; a sum (`answer_area.json`, noun null) keeps "Area of room (indoor): 52.27 m². …". [component]
+- EN-69 A derived `answer.json` with `check: {reason: "Please double-check: …", disputed: []}` shows the reason in a `role="status"` line right after the value row, `data-pending="AnswerView.check"`; `answer.json` has no such line. [component]
+- EN-55 (PR #120) With a derived page 1 `storey: "Ground floor"` the figure shows "PDF vector · vector route", and "Ground floor" and "1:100" each once (the viewer's page line). [component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
-## Not in the API (Vellum design elements shown as nothing until the backend has them)
+## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)
 
-| Design element | Field that would be needed | Shown now |
+| Design element | Field | Shown now |
 | --- | --- | --- |
-| Confidence "High/Medium/Low" pill and 3-step bar, "Exact CAD geometry, and the second count agrees." | a calibrated grade per answer, e.g. `answer.grade: "high"\|"medium"\|"low"` with `grade_reason: str` (the score is uncalibrated, D3: never shown as a confidence) | the status pill and its tooltip (status words, from `quantity.status`) |
-| Per-reference grade ("High", "Medium") with its tip | a grade per source, e.g. `answer.sources[]: {file, role: "read"\|"shown"\|"checked", where, grade}` | no grade on the chips |
-| A natural answer sentence ("There are 14 doors on this floor. Open doorways without a leaf are left out.") | `answer.text: str` (one or two sentences) | "<Label>: **<value>**." plus the rule text |
-| A CAD layer view of the original (DXF "LAYER DOOR · 14 blocks" highlighted) | an original-file render with the read entities highlighted, e.g. `GET /api/drawings/{id}/original.png?question=` | the upload's preview (`preview.png`) with no highlight |
-| The second counter's own picture (vision model detections boxed) | `GET /api/drawings/{id}/second.png?question=` or the second count's boxes in `quantity.second.marks[]` | chip 3 as text, no overlay |
-| The unit noun after the value ("doors") | `quantity.noun` (plural noun of the counted thing) | the value only (the label is in the sentence) |
-| Country picker, "Answers follow Finland building rules · Building Act 751/2023" | country rules (deferred, #14 c6867715746) | left out (common brief) |
+| Confidence "High/Medium/Low" pill and 3-step bar | `answer.grade`: NO (Bogdan): derive it | the "Grade" block from `line.sure` and `confidence.score` (EN-67), never called "Confidence" |
+| Per-reference grade ("High", "Medium") with its tip | `answer.sources[].grade` (not triaged) | no grade on the chips |
+| A natural answer sentence | `answer.text`: NO: compose it | "There are **2** doors." from `answer`, `noun`, `quantity.label` (EN-13) |
+| A CAD layer view of the original with the read entities highlighted | `GET /api/drawings/{id}/original.png` (not triaged) | the upload's `preview.png`, no highlight |
+| The second counter's own picture | `Row.second.boxes`: NO (values, not positions) | chip 3 as text, no overlay |
+| The unit noun after the value ("doors") | `Row.noun: string\|null`: in the API (PR #120) | the real field; null: no noun |
+| "Please double-check" note and disputed marks | `AnswerView.check: {reason, disputed[]}\|null` (coming, #14 c6875035654) | the reason when present (EN-69), no mock; no disputed-mark highlight yet |
+| Country picker, rules line | country rules (fe-shared's picker, `data-pending="country-rules"`) | not on this screen |
+
+## Pending fields (mocked)
+
+None on this screen since PR #120 (`Row.noun` is real; `src/engineer/pending.ts` is deleted). `AnswerView.check`
+is read when present but never mocked (its shape is not final); its line carries `data-pending="AnswerView.check"`.
 
 ## Out of scope
 
@@ -414,7 +432,9 @@ Thread and pages
 5. **`?q=` on the surveyor route** is surveyor.md's proposal (its Open point 4) and shared.md parses it (SH-3,
    `routeHref`); this spec links to it (EN-30). The engineer route ignores a `?q=` it is given (the shell keeps one
    on the role links, SH); recommend leaving it so for v1.
-7. **Viewer props for Vellum (to agree with fe-viewer through frontend-orch).** This screen needs:
+7. **Viewer props for Vellum.** Decided (D61): `PageViewer` keeps `unit` and gains `meta?: string`; the arrows
+   and the position are this screen's; the viewer shows the file name and no longer names itself "Drawing" (the
+   left column's `<figure aria-label="Drawing">` does). The original proposal, kept for the record: This screen needs:
    (a) `caption?: boolean` (default `true`): `false` hides the viewer's file caption, since the page meta above the
    plan already names the file (the credit line stays); (b) numbered badges drawn as accent circles with white
    numbers (`--v-accent`), as the design, keeping the "Mark <n>: <label>, <words>" names; (c) the legend rendered as

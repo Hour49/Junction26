@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { askQuestion, getDrawing, type DrawingView } from '../api';
+import { askQuestion, getDrawing, getProject, type DrawingView, type ProjectView } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
-import { PageViewer } from '../viewer/PageViewer';
 import { AnswerCard, type Turn } from './AnswerCard';
 import { AskBox } from './AskBox';
-import { DrawingHeader } from './DrawingHeader';
+import { howRead, SuggestionRow } from './DrawingHeader';
+import { Plan, placeOf } from './Plan';
 import './engineer.css';
 
 type Load =
@@ -25,7 +25,9 @@ export function EngineerPage(props: {
   const [turns, setTurns] = useState<Turn[]>([]);
   const nextId = useRef(1);
   const pending = useRef(false);
-  const thread = useRef<HTMLDivElement>(null);
+  const thread = useRef<HTMLElement>(null);
+  // Not blocking: until it arrives, or if it fails, no position, arrows or original picture.
+  const [project, setProject] = useState<ProjectView | null>(null);
 
   useEffect(() => {
     const abort = new AbortController();
@@ -37,6 +39,7 @@ export function EngineerPage(props: {
         if (!abort.signal.aborted) setLoad({ state: 'error', error });
       },
     );
+    getProject(projectId, { signal: abort.signal }).then(setProject, () => undefined);
     return () => {
       abort.abort();
     };
@@ -95,28 +98,33 @@ export function EngineerPage(props: {
   }
 
   const busy = turns.some((t) => t.status === 'pending');
+  const place = project && placeOf(project, drawing, projectId);
   return (
     <div className="en-page">
-      <DrawingHeader
-        drawing={drawing}
-        busy={busy}
-        folded={turns.some((t) => t.status === 'done')}
-        onAsk={ask}
-      />
+      <h1 className="en-sr">{drawing.file}</h1>
       {turns.length === 0 && (
         <>
-          {drawing.pages.length > 0 && (
-            <PageViewer
-              file={drawing.file}
-              pages={drawing.pages}
-              marks={[]}
-              credit={drawing.credit}
-            />
+          {drawing.pages.length > 0 ? (
+            <div className="v-card en-card en-card--empty">
+              <figure className="en-left" aria-label="Drawing">
+                <Plan
+                  place={place}
+                  viewer={{
+                    file: drawing.file,
+                    pages: drawing.pages,
+                    marks: [],
+                    credit: drawing.credit,
+                  }}
+                />
+              </figure>
+            </div>
+          ) : (
+            <p className="en-small">Building model: no sheet to draw on.</p>
           )}
-          <p className="en-empty">Ask a question about this drawing.</p>
+          <p className="en-read">{howRead(drawing)}</p>
         </>
       )}
-      <div className="en-thread" ref={thread}>
+      <section className="en-thread" aria-label="Chat" ref={thread}>
         {turns.map((turn) => (
           <AnswerCard
             key={turn.id}
@@ -124,13 +132,16 @@ export function EngineerPage(props: {
             projectId={projectId}
             file={drawing.file}
             credit={drawing.credit}
+            place={place}
             busy={busy}
             onAsk={ask}
             onRetry={retry}
           />
         ))}
-      </div>
-      <AskBox busy={busy} asked={turns.length} onAsk={ask} />
+      </section>
+      <SuggestionRow drawing={drawing} busy={busy} onAsk={ask} />
+      {turns.length === 0 && <p className="en-empty">Ask a question about this drawing.</p>}
+      <AskBox file={drawing.file} busy={busy} asked={turns.length} onAsk={ask} />
     </div>
   );
 }

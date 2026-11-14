@@ -195,6 +195,22 @@ Layout
 | "AI decision approved" vs "Your choice" on a settled conflict | already backed: `settled` set = a person's choice, else the rule; no new field |
 | User name, avatar, team ("Beatrice · Hour49") | none: no login (decision 0001). Left out. |
 
+## Pending fields (mocked)
+
+Tudor 11:05 and Bogdan's triage 11:07 (#14 c6874945888): the three fields above are YES. `ProjectView.finished_at` came with #120 and is read directly (the "Analysis done"
+time, shared by the rule and needs-you events; `created_at` while it is null). The other two are mocked
+in `src/account/pending.ts` (`grep -rn "PENDING(" frontend/src`), reads the real field first, and marks each mocked
+element with `data-pending="<field>"` (no visible label). One test per mock in `pending.test.ts`.
+
+| Field (Bogdan's shape) | Real first | Mock, from real data | Where it shows |
+| --- | --- | --- | --- |
+| `ProjectSummary.to_review: number \| null` | `to_review` | sum of the review's `to_review`, only for workspaces opened on this page | a warn pill "<n> to review" on the list item (none when 0 or unknown) |
+| `GET /api/projects/{id}/questions` → `{questions: [...]}` | the log's length | one per settled conflict plus one per sign-off | a fifth stat "Questions" after Drawings ("–" without the review) |
+
+The ask log is not requested yet: `src/api/` has no `getQuestions`, and calling a missing endpoint would log a 404
+in the console on every visit. When fe-shared adds it, the screen loads it and passes it to `questionsOf`. The
+"asked …" history events wait for the real log (there is no question text to derive them from).
+
 ## Out of scope
 
 - Polling a workspace that is still being read (open it with "Open workspace" to watch it).

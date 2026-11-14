@@ -1,6 +1,6 @@
 # Ingest: home, project status, file trace (spec, frontend v2: Vellum)
 
-Status: v2 draft (Vellum redesign), 2026-11-14, by fe-ingest.  Story: #33.  API: docs/API.md (v1, main eb3552c).
+Status: v2 (Vellum redesign, built), 2026-11-14, by fe-ingest; API fields of PR #120 read directly.  Story: #33.  API: docs/API.md (v1, main eb3552c).
 Design: Tudor's "Vellum redesign" canvas, screen 1 "Drop files or a zip" (`Main.dc.html`) and screen 2 "Reading the
 drawings" (`Ingest.dc.html`), local copies in `.agents/design/vellum/project/` (look only; their mock data is never
 used). v1 behaviour that QA verified stays unless a criterion below says it changed.
@@ -30,7 +30,7 @@ All under `frontend/src/ingest/`; each `*.tsx`/`*.ts` with logic has a `*.test.t
 | `ProgressCard.tsx` | screen 2's card: step label, ring, stats row, the 8-step list |
 | `FileTraceScreen.tsx` | route `#/p/<project_id>/f/<file_id>`, `FileTraceScreen({projectId, fileId})`: restyled, same content |
 | `BeforeAfter.tsx` | the upload (`preview.png`) next to the normalised page, with what normalisation did |
-| `ingest.ts` | pure functions: `progressOf`, `isFinished`, `STEPS`, `stepOf`, `activeStep`, `stepFiles`, `percentDone`, `elapsedMs`, `normalisedSteps`, `formatMs`, `formatCost`, `formatSize`, `plural`, `STATE_LABEL`, `STAGE_LABEL` |
+| `ingest.ts` | pure functions: `progressOf`, `isFinished`, `isLive`, `STEPS`, `stepOf`, `activeStep`, `stepFiles`, `percentDone`, `elapsedMs`, `normalisedSteps`, `formatMs`, `formatCost`, `formatSize`, `plural`, `STATE_LABEL`, `STAGE_LABEL` |
 | `usePoll.ts` | poll a request 500 ms after each answer while a predicate holds; aborts (`signal`) on unmount |
 | `ingest.css` | the screens' styles, colours only through the `--v-*` tokens of `src/shell/shell.css` |
 
@@ -114,11 +114,11 @@ project screen mounts, then 500 ms after each response while `state` is `queued`
 | "Step 3 of 8" | "Step <activeStep> of 8"; "All 8 steps done" when `done`; nothing when `failed` | `activeStep(files)`: the lowest `stepOf(file.stage)` among files not finished (`queued`/`running`); 1 when there are no files yet |
 | "Route" (the `h2`) | `STEPS[activeStep].name`; "Ready" when `done`; "Stopped" when `failed` | as above |
 | 35 % (ring) | `percentDone` = round(100 × finished / files); 0 with no files | `files[].state` (`progressOf`); ring `role="img"`, `aria-label` "<n> percent done" |
-| Elapsed "5 s" | `formatMs(elapsedMs)` | `done`/`failed`: `ms` (set by the backend when ingest ends). `queued`/`running`: now − `created_at` from the browser clock, at least 0, re-read on each poll (see Not in the API) |
-| Remaining "~9 s" | not shown: the cell is replaced by Cost | Not in the API |
+| Elapsed "5 s" | `formatMs(elapsedMs)` | `done`/`failed`: `ms` (set by the backend when ingest ends). `queued`/`running`: browser time of the last poll − `started_at`, at least 0; "—" while `started_at` is null (queued) |
+| Remaining "~9 s" | not shown | Bogdan: no `eta_ms` (#14 triage); Elapsed only |
 | (none) | Cost "$0.00" | `cost_usd` (`formatCost`); API.md: "0.0 with no paid reader, which is the point to show" |
 | Files through "4 / 14" | "<finished> / <files>"; "—" while `queued`/`running` with no files (R1-1-4) | `progressOf(files)` |
-| Drawings ready "1 / 9" | "<drawings.length>", no denominator | `drawings[]` (each entry is a written drawing); the expected total is Not in the API |
+| Drawings ready "1 / 9" | "<drawings.length> / <expected>"; the count alone while `expected` is null | `drawings[]` (each entry is a written drawing); `expected` = `expected_drawings` (null while queued; final once done) |
 | The 8-step list | `STEPS`, each row done / working / waiting (icon + word) | `activeStep`: rows before it done, it working, after it waiting; all done when `done`; the list is left out when `failed` |
 | The working row's hint | the step's hint (`STEPS`) | fixed text |
 | The working row's bar "6 / 12 files" | "<passed> / <through> files" and a bar of that ratio | `stepFiles(files, step)`: `through` = files minus those finished at an earlier step; `passed` = files at a later step, plus files finished at this step |
@@ -191,8 +191,8 @@ Variants (each starts from the named fixture; only the listed fields change):
 | Variant | From | Changes |
 | --- | --- | --- |
 | `list-empty` | `project_list.json` | `projects: []` |
-| `running` | `project.json` | `state: "running"`; `files[2]`: `state: "running"`, `stage: "extract"`, `reason: ""`, `drawing_id: null`; `drawings`: without the entry whose `drawing_id` is the original `files[2].drawing_id` |
-| `queued` | `project.json` | `state: "queued"`; every file `state: "queued"`, `stage: null`, `kind: null`, `drawing_id: null`, `reason: ""`; `drawings: []` |
+| `running` | `project.json` | `state: "running"`, `ms: 0`, `finished_at: null`; `files[2]`: `state: "running"`, `stage: "extract"`, `reason: ""`, `drawing_id: null`; `drawings`: without the entry whose `drawing_id` is the original `files[2].drawing_id` |
+| `queued` | `project.json` | `state: "queued"`, `ms: 0`, `started_at`, `finished_at` and `expected_drawings` null; every file `state: "queued"`, `stage: null`, `kind: null`, `drawing_id: null`, `reason: ""`; `drawings: []` |
 | `failed` | `project.json` | `state: "failed"`, `error: "the server restarted during ingest"` |
 | `set-aside` | `project.json` | `files[0]`: `state: "set_aside"`, `reason: "not a drawing"`, `stage: "identify"`, `drawing_id: null` |
 | `text-only` | `project.json` | `files[0]`: `state: "text_only"`, `kind: "text"`, `reason: "text and no drawing"`, `drawing_id: null` |
@@ -286,7 +286,8 @@ Project screen
 - IN-15: `#/p/<id>` requests `GET /api/projects/<id>` and shows "Loading project…" until the first answer.
   [component]
 - IN-16: With `project.json` the screen shows the `name`, "Done", "All 8 steps done", "Ready", the ring "100 percent
-  done", and the stats Files through "3 / 3", Drawings ready "<drawings.length>", Cost "$0.00". [component]
+  done", and the stats Files through "3 / 3", Drawings ready "<drawings.length>" (with " / <expected>" when known,
+  IN-68), Cost "$0.00". [component]
 - IN-17: `progressOf` counts `ready`, `flagged`, `text_only` and `set_aside` as finished and `queued`, `running`
   as not. [unit]
 - IN-18: Each file of `project.json` is a row, in the order given, with its `path`, `kind`, state word, `reason`,
@@ -333,9 +334,13 @@ Project screen
   file (finished at step 2) is not in `through`. [unit]
 - IN-60: The ring's `aria-label` is "<n> percent done" with n = round(100 × finished / files): 67 for `running`,
   100 for `project.json`, 0 for `queued`. [unit `percentDone` + component]
-- IN-61: Elapsed is `formatMs(ms)` when `done`; when `running` it is `formatMs(now − created_at)` with the clock set
-  by `vi.setSystemTime(created_at + 5 s)` ("5.0 s"), and never below 0. There is no "Remaining" cell. [component,
-  fake timers]
+- IN-61: Elapsed is `formatMs(ms)` when `done` or `failed`; when live it is `formatMs(now − started_at)` with the
+  clock set by `vi.setSystemTime(started_at + 5 s)` on `project_running.json` ("5.0 s"), never below 0; "—" while
+  `started_at` is null (`queued`). There is no "Remaining" cell (no `eta_ms`, API.md changelog). [unit `elapsedMs`
+  + component, fake timers]
+- IN-68: Drawings ready reads "<drawings.length> / <expected_drawings>" ("5 / 5" for `project.json`, "0 / 1" for
+  `project_running.json`) and the count alone while `expected_drawings` is null (`queued`); no element carries
+  `data-pending`. [component]
 - IN-62: `failed` shows "Ingest failed", "Stopped" and the `error`, and no step list. [component]
 - IN-63: "Settle the conflicts" links to `#/p/<id>/conflicts` when `done` and is absent when `running` or `queued`.
   [component]
@@ -427,15 +432,18 @@ Across the screens
 
 ## Not in the API
 
-What the designs show that API v1 cannot back; the screens show nothing for it until it lands.
+What the designs show that the API cannot back; the screen shows nothing for it.
 
-| On the design | Field needed | Until then |
+| On the design | Field needed | Here |
 | --- | --- | --- |
-| Screen 2 "Remaining ~9 s" | `ProjectView.eta_ms: number \| null` (the backend's estimate of the time left) | no Remaining cell (Cost takes its place) |
-| Screen 2 "Drawings ready 1 / 9" (the 9) | `ProjectView.expected_drawings: number \| null` (plan groups found once `group` ran) | only the count, no denominator |
-| Screen 2 "Elapsed" while running | `ProjectView.ms` updated live (today set only when ingest ends), or a server `now` in the response | browser clock − `created_at`; wrong if the phone's clock is off |
+| Screen 2 "Remaining ~9 s" | `ProjectView.eta_ms` | Bogdan: no (file times differ too much to estimate); Elapsed only |
 | Screen 1 chip "DXF · DWG" | a DWG reader (`dwg` is a `kind`, but no route reads it) | chip "DXF" only |
 | Screen 1 "Choose files" (several files) | an upload endpoint that takes several files | one file per upload |
+
+`started_at`, `finished_at`, `skipped` and `expected_drawings` landed in PR #120 (API.md changelog 2026-11-14); the
+mocks of the interim (Tudor 11:05) are gone, `src/ingest/pending.ts` with them. `started_at` and
+`expected_drawings` are read as above. `finished_at` and `skipped` are not shown: `ms` already gives the duration
+once ingest ends, and every skipped file is already a "set aside" file row with its `reason`.
 
 ## Open points
 

@@ -13,9 +13,9 @@ The viewer does not fetch JSON and owns no app state. The screen hands it the pa
 (from `POST /api/ask`, `GET /api/drawings/{id}` or `GET /api/drawings/{id}/takeoff`). The viewer reports clicks
 back to the screen. Its only requests are the page images.
 
-**Vellum (round 2).** The viewer takes the look of screen 4's plan card. It gets a header row (the file name, a
-meta line, and the drawing position with previous/next drawing buttons), a class line, accent-filled number
-badges with a hover ring and press feedback, a page meta line, and a caption legend with a swatch per state. All
+**Vellum (round 2).** The viewer takes the look of screen 4's plan card. It gets a header row (the file name), a class line, accent-filled number
+badges with a hover ring and press feedback, a page meta line (the page, the normalised note and the screen's `meta`), and a caption legend with a swatch per
+state. Drawing navigation (the design's previous/next arrows and "1 / 5") is the engineer screen's (D61). All
 colours come from the shell's `--v-*` tokens (shared.md). Every behaviour and criterion above VW-48 stays, except
 where a criterion is marked "replaced". What the design shows and the API lacks is under "Not in the API".
 
@@ -56,18 +56,16 @@ interface PageViewerProps {
   onHover?: (markId: string | null) => void;
   onPick?: (page: number, box: Box) => void; // set only while the surveyor is adding a mark
   // Vellum (all optional, so today's callers compile unchanged):
-  meta?: string | null;               // the header's second line, composed by the screen (e.g. "PDF · vector route")
-  drawingNav?: {                      // the header's "1 / 5" and the previous/next drawing buttons
-    index: number;                    // 0-based position of this drawing in the screen's list
-    total: number;
-    onPrev: () => void;
-    onNext: () => void;
-  } | null;
+  meta?: string;                      // appended to the page meta line, composed by the screen (e.g. "PDF vector · vector route")
+  // Double-check (section "Double-check"; all optional):
+  disputed?: { markId?: string; box?: number[]; page?: number; why: string }[]; // places the readers disagree on
+  fixMode?: boolean;                  // "Fix it": a click, tap or drag on the page proposes a new mark
+  onAddMark?: (box: Box, page: number) => void; // the proposed box, page fractions, on the shown page
 }
 ```
 
-The screen owns the drawing list and what previous and next do (wrap around or not). The viewer only shows the
-position and calls back.
+The viewer has no drawing navigation (frontend-orch D61): the engineer's figure puts its previous/next drawing
+links and the position over the viewer from outside.
 
 `PageFrame` takes `{ url: string; width: number; height: number; alt: string; children?: ReactNode }`. `url`
 has no `?width=`: the frame adds it.
@@ -215,31 +213,31 @@ whose `label` equals `mark.label`, else the accent colour. An excluded mark is a
 
 ## Layout
 
-Vellum screen 4 (`Workspace.dc.html`, the `<figure aria-label="Drawing">` block) is the model. The viewer is the
-whole figure; the engineer screen places it in the answer card's left column (about 1.4 : 1 against the facts
+Vellum screen 4 (`Workspace.dc.html`, the `<figure aria-label="Drawing">` block) is the model. The engineer's
+`<figure aria-label="Drawing">` (engineer.md) wraps the viewer and owns that name and the drawing arrows; the viewer
+is its own `<figure class="vw">` with no `aria-label`. The engineer screen places it in the answer card's left column (about 1.4 : 1 against the facts
 column, one column under 900 px; engineer.md).
 
 - **Figure:** `<figure aria-label="Drawing">`, `--v-bg` background, 20 px padding (16 px under 900 px), a 12 px
   column gap. In order:
-  1. **Header row** (flex, space-between, 8 px gap, wraps):
-     - Left: the file name (`.vw-name`, monospace stack, 14 px, 600, `overflow-wrap: anywhere`) and under it
-       `meta` (`.vw-meta`, 12 px `--v-muted`; absent when `meta` is null or empty).
-     - Right: the position `<index+1> / <total>` (`.vw-pos`, 13 px, 600, tabular numbers, `aria-live="polite"`)
-       when `drawingNav` is set and `total > 1`.
+  1. **Header row:** the file name (`.vw-name`, monospace stack, 14 px, 600, `overflow-wrap: anywhere`). The
+     viewer is the one place the file name shows on the plan; the engineer screen drops its own copy above the
+     plan (frontend-orch, 2026-11-14).
   2. **Class line** (`.vw-classes`, monospace, 11 px, 600, uppercase, `--v-text`, wraps): one item per `legend`
      entry with `count > 0`, as `<LABEL> · <count>` (the design's "LAYER DOOR · 14 BLOCKS" without the CAD
-     words; see Not in the API). There is no class line without a legend, or with no mark on the page.
+     words; see Not in the API; no mock, frontend-orch: with no CAD reader it would be false for every drawing).
+     There is no class line without a legend, or with no mark on the page.
   3. **Toolbar** (`.vw-bar`): the page switcher (several pages) on the left, and zoom `−` / percent / `+` / "Fit" on
      the right. Each control is a 44 × 44 px round button, `--v-surface` with `--v-shadow`, the design's nav-button
      style.
   4. **Plan** (`.vw-scroll` with the frame): at most 70 vh (60 vh under 900 px), page fitted to the width at zoom
-     1. With `drawingNav` and `total > 1`, two 44 px round buttons, "Previous drawing" and "Next drawing", sit
-     over the plan's left and right edges at half height (6 px outside the plan, `--v-surface`, `--v-shadow`,
-     `:hover` keeps them `--v-surface`, press feedback as badges).
+     1.
   5. **Credit:** directly under the plan (shell `<Credit>`, unchanged, VW-29).
   6. **Page meta line** (`.vw-pagemeta`, 10 px `--v-muted`, right-aligned): `Page <n>`, then ` · <normalised
-     note>` when there is one. The design's `A-102 · Floor 2 · 1:100 · Page 1` keeps only what the API has (Not in
-     the API).
+     note>` when there is one, then ` · <meta>` when `meta` is non-empty. Before `Page <n>`: `page.storey` and
+     `page.scale_text` (PR #120), each left out when null (VW-57). When `page.scale.status` is not `scaled`, the
+     scale says so: "1:100 (estimated)", or the status alone with no text ("not to scale", "no scale") (VW-59). The design's `A-102 · Floor 2 · 1:100 · Page 1`
+     keeps only what the API has: no sheet number (Not in the API).
   7. **Mark line** (`.vw-selection`): the selected mark, else the highlighted one, as "1 · Küche · 22.40 m² ·
      counted". Absent when neither is set.
   8. **Caption legend** (`<figcaption class="vw-legend">`, flex wrap, gap 6 px × 16 px, 12 px `--v-muted`): per
@@ -247,12 +245,67 @@ column, one column under 900 px; engineer.md).
      the page has the same `reason`, that item reads "<reason>, left out by the rule" (the design's "open
      doorway, left out by the rule"). Then the `note` lines, unlocated lines, conflict lines A/B, and the "could
      not be placed" and "had no room" lines, as now.
-- **Phone 390x844:** full width inside the 16 px gutters. The header row wraps (the position goes under the
-  name), the toolbar wraps, and the drawing buttons stay inside the viewport (no horizontal scroll). R2's narrow
+- **Phone 390x844:** full width inside the 16 px gutters. The toolbar wraps and everything stays inside the viewport (no horizontal scroll). R2's narrow
   frame shows numbers only. Panning at zoom > 100 % is native touch scrolling; badges stay 24 px at every zoom.
 - No horizontal page scroll at either size, at any zoom: only the scroll box scrolls.
 - Fonts: the shell's `--v-font` (system stack). Monospace: `ui-monospace, "SF Mono", Menlo, monospace`. No
   external font.
+
+## Double-check
+
+Bogdan's double-check state (board #14 c6875044070): an answer below the backend's certificate carries
+`answer.check = {reason, disputed: [{mark_id | room_id, why, readers}]} | null` (PR ~13:30). The engineer screen
+says "Please double-check: we're not sure about 2 of these doors", owns "Looks right" / "Fix it" and the confirm,
+and maps `check.disputed` to the viewer's `disputed` (`mark_id`, or the room's mark for `room_id`, as `markId`;
+`why` as is). The viewer only shows where the doubt is and lets the user propose a missing mark. A certified answer
+(`check` null) passes no `disputed`, and the viewer draws nothing of this section.
+
+**Disputed places.** Each item names a mark (`markId`) or, for a place no mark covers, a `box` (page fractions,
+`[x0, y0, x1, y1]`). They look different from a conflict reading (dashed `--v-warn`, letter tags A/B) and from a
+mark's own state:
+- **Outline:** a `rect.vw-dispute` around the mark's box (or the item's `box`), 4 px outside it, 2 px dotted
+  `--v-warn`, filled `--v-warn-soft` at 40 %, `pointer-events: none`, non-scaling stroke. Drawn above the mark
+  shapes, below the badges.
+- **Mark item:** the mark's badge gets the class `vw-badge--disputed` and a small `?` tag (`.vw-q-tag`, 14 px circle,
+  `--v-warn` text on `--v-warn-soft`, 1 px `--v-warn` border, at the badge's top-right corner, `aria-hidden`). Its
+  accessible name stays "Mark <n>: <label>, <words>" (the e2e names it); the badge gets `aria-describedby` to a
+  visually hidden span "Please double-check: <why>".
+- **Box item:** a 24 px round `<button class="vw-q">?</button>` named "Please double-check: <why>", placed by
+  `placeLabels` with the badges (so it never covers one; a leader line when it moves off the box).
+- **The why:** on hover or keyboard focus of the badge or `?` button, a tooltip (`.vw-why`, `role="tooltip"`,
+  12 px `--v-text` on `--v-surface`, `--v-shadow`, radius 10 px, max width 240 px, wraps) shows "Please
+  double-check: <why>" next to it, kept inside the frame (flips left/up near an edge). It hides on pointer leave,
+  blur or Escape. A click on a `?` button toggles it (touch has no hover).
+- **Mark line:** a selected (or highlighted) disputed mark's `.vw-selection` ends with " · Please double-check:
+  <why>". On a phone this is where the why shows after a tap, since a tap selects the badge.
+- **Legend:** with any disputed item on the page, an item with a `?` swatch: "<k> to double-check". Items on another
+  page: "<k> to double-check on page <p>" (and the page switcher label gains " · <k> to double-check").
+  An item whose `markId` is not in `marks`, or whose `box` is outside 0..1: "<k> place(s) to double-check could not
+  be shown". Nothing disappears silently.
+- A `box` item is drawn on its `page` (Bogdan's shape has it); only when `page` is absent, on the page being shown.
+  A `markId` item is on its mark's page.
+- `disputed` (this array) is the one prop for doubt, on every screen; the surveyor screen passes it too, not a
+  `flagged` map (frontend-orch).
+- `why` is file-derived text: shown as text, never HTML.
+
+**Fix mode.** With `fixMode` and `onAddMark` set, the page proposes a new mark (the "Fix it" flow; reject and
+restore stay the screen's existing review actions on the badges and the mark list):
+- **Mouse and pen:** pointer down on the page (not on a badge or `?` button) starts a draft; a dashed 2 px
+  `--v-accent` `rect.vw-draft` follows the pointer (pointer capture); pointer up calls `onAddMark(box, page)` once,
+  with the box normalised (x0 < x1, y0 < y1), clamped to 0..1 and rounded to 5 decimals. A drag under 8 px in both
+  directions is a click: the box is `pickBox` around the point (the surveyor's 3 % square). Escape during a drag
+  cancels it with no call.
+- **Touch (390 px):** a tap proposes `pickBox` around the tap point; there is no touch drag, so one-finger panning
+  of a zoomed page still scrolls (`touch-action` is not changed). A tap that moved more than 8 px is a pan and
+  proposes nothing.
+- Keyboard: the viewer adds nothing; the double-check panel has an "Add one" button (fe-surveyor, frontend-orch).
+- While in fix mode: the cursor is a crosshair, badges still select and report hover (reject/restore stays
+  possible), shapes do not select on click, and a 12 px `--v-muted` hint above the plan reads "Click or drag on the
+  drawing where a mark is missing" ("Tap the drawing where a mark is missing" under 900 px).
+- The viewer does not draw the new mark itself: the screen adds it to `marks` (state `added`, sign `+n`) and the
+  value updates from the screen's state; the draft rectangle goes away on pointer up.
+- With `fixMode` but no `onAddMark`, or `onAddMark` without `fixMode`, nothing changes. When `onPick` is also set,
+  fix mode wins (Open point 13).
 
 ## Acceptance criteria
 
@@ -399,21 +452,17 @@ Zoom, adding, layout
 
 Vellum (screen 4)
 
-- **VW-48** The figure has `aria-label="Drawing"`. Its header shows `file` in `.vw-name`. With
-  `meta="PDF · vector route"`, `.vw-meta` reads that text. With no `meta` there is no `.vw-meta` element.
-  [component, `drawing.json`]
-- **VW-49** With `drawingNav={index: 1, total: 5, onPrev, onNext}`:
-  - `.vw-pos` reads "2 / 5" and has `aria-live="polite"`.
-  - Buttons "Previous drawing" and "Next drawing" call `onPrev` and `onNext` once each per click.
-  - With `total: 1`, or without `drawingNav`, neither the position nor the buttons render.
-
-  [component]
-- **VW-50** With `legend` from `answer.json`, `.vw-classes` reads "DOOR · 2". With `answer_area.json` it lists
-  "KÜCHE · 1" … and no "BALKON" (count 0). Without `legend`, or with `marks: []`, there is no `.vw-classes`. A
+- **VW-48** (changed by D61) The viewer's figure `.vw` has no `aria-label` (the engineer's figure is "Drawing").
+  Its header shows `file` in `.vw-name`. With `meta="PDF vector · vector route"`, `.vw-pagemeta` reads "Page 1 ·
+  PDF vector · vector route" at its end; with no `meta` or `meta=""` it ends with "Page 1". [component,
+  `drawing.json`]
+- **VW-49** (withdrawn by D61: drawing navigation is the engineer's, EN-55/EN-56.)
+- **VW-50** With `legend` from `answer.json`, `.vw-classes` reads "DOOR · 2" (no "LAYER", no "BLOCKS", no
+  `data-pending`). With `answer_area.json` it lists "KÜCHE · 1" … and no "BALKON" (count 0). Without `legend`, or with `marks: []`, there is no `.vw-classes`. A
   label `<b>x</b>` shows as text. [component]
-- **VW-51** `.vw-pagemeta` reads "Page 1" for `drawing.json`, and "Page 2" after "Next page" on the two-page
-  derived fixture. With the VW-30 `normalised`, it reads "Page 1 · shown upright: EXIF turn applied, turned 90°,
-  deskewed 1.5°, perspective corrected". [component]
+- **VW-51** `.vw-pagemeta` reads "1:100 · Page 1" for `drawing.json` (storey null, VW-57; no sheet),
+  and ends with "Page 2" after "Next page" on the two-page derived fixture. With the VW-30 `normalised`, it ends
+  with "Page 1 · shown upright: EXIF turn applied, turned 90°, deskewed 1.5°, perspective corrected". [component]
 - **VW-52** (replaces VW-23) For `answer_area.json` with its legend:
   - Counted badges have `--vw-c` `#d62728` (Küche) and `#1f77b4` (Reduit) and the class `vw-badge--filled`.
   - Without `legend`, `--vw-c` is `var(--v-accent)`.
@@ -421,7 +470,7 @@ Vellum (screen 4)
   - Shapes carry the same `--vw-c` as their badge.
 
   [component]
-- **VW-53** `viewer.css` (imported `?raw`) contains no colour literal: no match for
+- **VW-53** `viewer.css` (read from disk) contains no colour literal: no match for
   `/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i`. It uses `var(--v-` and `var(--vw-c)`. It has `.vw-badge:active` with
   `scale(0.97)` and a `prefers-reduced-motion: reduce` block that removes it. [unit]
 - **VW-54** With `highlighted="m2"` and nothing selected, `.vw-selection` reads "2 · door · counted". With
@@ -432,22 +481,75 @@ Vellum (screen 4)
   rule". Each legend item has a `.vw-swatch` with the state's class (`vw-swatch--counted`, `--excluded`…).
   [component]
 - **VW-56** At 390x844 and 1440x900, on the golden-path area answer:
-  - The figure's header, class line, toolbar and drawing buttons are inside the viewport.
+  - The viewer's header, class line and toolbar are inside the viewport.
   - `scrollWidth <= innerWidth`.
   - "Mark 1: Küche, counted", the image name "Page 1 of …" and the credit text are unchanged.
   - A screenshot of each is taken and looked at.
 
   [e2e, built by the e2e worker, golden-path.md]
 
+- **VW-57** (PR #120) With `storey: "Floor 3"` and `scale_text: "1:50"` on the page, `.vw-pagemeta` reads "Floor 3
+  · 1:50 · Page 1"; with both null it reads "Page 1". No element has `data-pending`. [component]
+- **VW-58** (withdrawn by frontend-orch: no `ClassKey.layer` mock; the class line is VW-50's "DOOR · 2".)
+- **VW-59** `.vw-pagemeta` with `scale: {status: "estimated", text: "1:100"}` and `scale_text: "1:100"` reads "1:100
+  (estimated) · Page 1"; `not_to_scale` with no text "not to scale · Page 1"; `no_scale` with no text "no scale ·
+  Page 1"; `scaled` "1:50 · Page 1". [component]
+
+Double-check (Bogdan's state, board #14 c6875044070). Fixtures: `answer.json`, `answer_area.json` with a derived
+`disputed`; `why` = "only 1 of 2 readers saw this door" unless stated.
+
+- **VW-60** With `disputed=[{markId: "m2", why}]` on `answer.json`: badge 2 has the class `vw-badge--disputed` and
+  one `.vw-q-tag` "?"; its accessible name is still "Mark 2: door, counted" and its accessible description is
+  "Please double-check: only 1 of 2 readers saw this door"; one `rect.vw-dispute` exists, wider than m2's box.
+  Badge 1 has none of these. [component]
+- **VW-61** Hovering, then focusing badge 2 shows a `role="tooltip"` with "Please double-check: only 1 of 2 readers
+  saw this door"; pointer leave, blur and Escape each hide it. [component]
+- **VW-62** With `disputed=[{box: [0.70, 0.60, 0.80, 0.70], page: 1, why: "reader A saw a door here, reader B did not"}]`: a
+  button named "Please double-check: reader A saw a door here, reader B did not" and a `rect.vw-dispute` render;
+  clicking the button shows the tooltip, clicking again hides it. At 358 px with the 19-room fixture plus 3 box
+  items, no `?` button intersects a badge (VW-47's check). [component]
+- **VW-63** Legend: one disputed mark on the page gives "1 to double-check"; a `markId` on page 2 of the two-page
+  fixture, or a `box` item with `page: 2`, gives "1 to double-check on page 2" and the switcher label ends with " · 1 to double-check";
+  an unknown `markId` and a box `[0.9, 0.2, 1.2, 0.3]` give "2 place(s) to double-check could not be shown".
+  A `box` item without `page` is drawn on the page being shown (page 2 after "Next page"). [component]
+- **VW-64** With `disputed` undefined or `[]` (a certified answer) there is no `.vw-dispute`, `.vw-q`, `.vw-q-tag`,
+  tooltip or "double-check" text, and every VW-1…VW-59 test passes unchanged. [component]
+- **VW-65** With `selected="m2"` and `disputed=[{markId: "m2", why}]`, `.vw-selection` reads "2 · door · counted ·
+  Please double-check: only 1 of 2 readers saw this door". A `why` of `<b>x</b>` shows as text. [component]
+- **VW-66** Fix mode, mouse: with `fixMode`, `onAddMark` and the frame mocked at 600 × 400, pointer down at (100,
+  100), move to (200, 150) shows one `rect.vw-draft`; pointer up calls `onAddMark([0.16667, 0.25, 0.33333, 0.375],
+  1)` once and the draft is gone. Dragging from (200, 150) to (100, 100) gives the same box. A drag of 5 px calls
+  it with `pickBox(page, x, y)`. Escape mid-drag: no call, no draft. [component]
+- **VW-67** Fix mode, touch: `pointerType: "touch"` down and up at (300, 200) calls `onAddMark` with `[0.485,
+  0.4775, 0.515, 0.5225]` and page 1, and no draft renders; a touch that moves 20 px calls nothing. `viewer.css`
+  sets no `touch-action`. [component, unit]
+- **VW-68** Fix mode, other input: a badge click selects (`onSelect("m1")`) and does not call `onAddMark`; a shape
+  click calls neither; the hint "Click or drag on the drawing where a mark is missing" shows. Without `onAddMark`,
+  `fixMode` shows no hint and a page click calls nothing. [component]
+- **VW-69** `viewer.css` dispute and draft rules use only `var(--v-warn)`, `var(--v-warn-soft)` and
+  `var(--v-accent)` (VW-53's regex still finds no literal); `.vw-dispute` is dotted, `.vw-reading` dashed.
+  [unit]
+- **VW-70** At 390x844 on an answer with a disputed mark: tapping its badge shows the why in the mark line inside
+  the viewport; in fix mode a tap on the page adds a `+n` mark (the screen's part) and the page does not scroll
+  sideways. A screenshot is taken and looked at. [e2e, built by the e2e worker, golden-path.md]
+
 Criteria kept as they are under Vellum: VW-1 to VW-22 and VW-24 to VW-47. Where they check a colour (VW-21), the
 build reads `--vw-c` instead of the `stroke` attribute, with the same values.
 
 ## Not in the API
 
-What screen 4's plan card shows that API v1 cannot back. Until Bogdan answers on board #14, the viewer shows
-nothing for it.
+What screen 4's plan card shows that API v1 cannot back, asked of Bogdan on board #14.
 
-1. **Page meta "A-102 · Floor 2 · 1:100".** The sheet number, the storey and the printed scale per page.
+### Pending fields
+
+None in the viewer. `PageView.storey` and `PageView.scale_text` came with Bogdan's PR #120 (859eed6) and are read
+directly; their mocks and `src/viewer/pending.ts` are gone. Bogdan's triage (#14 c6874945888): `PageView.sheet` NO,
+the file name (`.vw-name`) is the label; `Row.second.boxes` NO, nothing drawn. `ClassKey.layer` is not mocked
+(frontend-orch): there is no CAD reader, so the class line reads "DOOR · 2". Item 3 is the engineer screen's
+(References).
+
+1. **Page meta "A-102 · Floor 2 · 1:100".** Storey and scale: done (PR #120, `PageView.storey`, `scale_text`,
+   `scale`). The sheet number: not coming (triage NO). Original ask:
    - Need on `PageView`: `sheet: str | null` (title-block sheet number), `storey: str | null` (`plans[].storey`
      of the drawing model) and `scale_text: str | null` (the model's `scale.text`, e.g. "1:100").
    - The model has the last two, but only through `GET /api/drawings/{id}/model`. API.md says not to fetch that
@@ -504,10 +606,17 @@ nothing for it.
    B), and its OP 7 by the props above. The highlight prop is `highlighted`, the callbacks are `onSelect` and
    `onHover`, and value formatting is the shared `formatValue`. Its EN-23 "Probability right: 87%" conflicts with the
    board #14 change (OP 1). That is for the engineer spec to fix, not the viewer.
-9. **Vellum: `measure` vs `unit`.** engineer.md's field table says it passes the viewer's `measure` prop; the
-   viewer has `unit` (VW-14). Recommendation: engineer passes `unit={answer.unit}`. The viewer adds no `measure`.
-10. **Vellum: drawing navigation.** The design's previous/next arrows switch drawings, not pages. The viewer only
-    renders them and the "i / n" position from `drawingNav`. engineer.md owns the list (`project.drawings`) and
-    the route change. Pages keep the toolbar switcher (VW-32), which the design does not show.
+9. **Vellum: `measure` vs `unit`. Decided (D61):** the viewer keeps `unit` (VW-14); no `measure` prop.
+10. **Vellum: drawing navigation. Decided (D61):** the engineer's figure owns the arrows and the position; the
+    viewer keeps only its page switcher (VW-32).
 11. **Vellum: badge size.** The design's circles are 22 px. The viewer keeps 24 px (target size, R2 placement). A
     2 px difference at the same position; no change requested.
+12. **Double-check: page of a `box` item. Decided:** items carry an optional `page` (Bogdan's shape); absent, the
+    page being shown.
+13. **Double-check: `onPick` vs `onAddMark`.** `onAddMark(box, page)` decided (frontend-orch). Kept apart from the
+    surveyor's `onPick(page, box)` for now; recommend merging after the demo.
+14. **Double-check: adding a mark by keyboard. Decided:** the double-check panel's "Add one" button (fe-surveyor);
+    nothing more in the viewer.
+15. **Double-check: `room_id`.** The viewer takes `markId` only. The engineer maps `room_id` to the room's mark id
+    (in today's fixtures a room's mark id is its own id; to confirm with Bogdan's PR). `readers` is not shown by the
+    viewer (the engineer may list it).

@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { type CSSProperties, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { AnswerView, MarkView, PageView, QuantityConflict } from '../api/types';
 import { formatValue, methodName } from '../api/format';
 import { Credit } from '../shell/Credit';
@@ -6,9 +6,8 @@ import { PageFrame } from './PageFrame';
 import {
   badgeText,
   DASH,
-  GREY,
-  INK,
   markLook,
+  MUTED,
   normalisedNote,
   pickBox,
   placeLabels,
@@ -34,16 +33,19 @@ export interface PageViewerProps {
   onSelect?: (markId: string | null) => void;
   onHover?: (markId: string | null) => void;
   onPick?: (page: number, box: [number, number, number, number]) => void; // set while adding a mark
+  meta?: string; // appended to the page meta line, e.g. "PDF vector · vector route" (D61)
 }
 
 type Zoom = 1 | 2 | 4;
 
-const WARN = '#9a5b00';
 const NARROW = 600; // px of frame width under which badges show their number only
 const STATE_ORDER: MarkView['state'][] = ['counted', 'added', 'rejected', 'excluded'];
 const inPage = (v: number) => v >= 0 && v <= 1;
 
 const countText = (k: number) => `${String(k)} mark${k === 1 ? '' : 's'}`;
+/** The inline custom property viewer.css reads every mark colour from. */
+const tint = (c: string) => ({ '--vw-c': c }) as CSSProperties;
+const open = (m: MarkView) => m.state === 'rejected' || m.state === 'excluded';
 
 function words(mark: MarkView): string {
   const w = STATE_WORDS[mark.state];
@@ -68,6 +70,7 @@ export function PageViewer({
   onSelect,
   onHover,
   onPick,
+  meta,
 }: PageViewerProps) {
   const hatch = `vw-hatch-${useId().replace(/[^\w-]/g, '')}`;
   const pageOf = (id: string | null) => marks.find((m) => m.id === id)?.page;
@@ -115,8 +118,8 @@ export function PageViewer({
   }));
   const tags = readings.filter((r) => r.page === page.page && r.box && r.box.every(inPage));
   const colourOf = (m: MarkView) =>
-    m.state === 'excluded'
-      ? GREY
+    open(m)
+      ? MUTED
       : // one entry (a room count's "room"): every mark takes it, as evidence_render.py does
         safeColour(
           (legend?.length === 1 ? legend[0] : legend?.find((e) => e.label === m.label))?.colour,
@@ -148,8 +151,16 @@ export function PageViewer({
   const noRoom = spots?.filter((p) => p === null).length ?? 0;
   const states = STATE_ORDER.filter((s) => onPage.some((m) => m.state === s));
   const unlocatedLines = Object.entries(unlocated ?? {}).filter(([, k]) => k > 0);
-  const chosen = onPage.find((m) => m.id === selected);
+  const chosen = onPage.find((m) => m.id === selected) ?? onPage.find((m) => m.id === highlighted);
   const note = normalisedNote(page.normalised);
+  // A scale that was not read off the sheet says so: "1:100 (estimated)", "not to scale" (VW-59).
+  const scaleWords = page.scale.status === 'scaled' ? '' : page.scale.status.replace(/_/g, ' ');
+  const scale =
+    page.scale_text && scaleWords ? `${page.scale_text} (${scaleWords})` : page.scale_text;
+  const pageMeta = [page.storey, scale ?? scaleWords].filter((t): t is string => !!t);
+  const classes = onPage.length > 0 ? (legend ?? []).filter((e) => e.count > 0) : [];
+  const reasons = new Set(onPage.filter((m) => m.state === 'excluded').map((m) => m.reason));
+  const [oneReason] = reasons.size === 1 ? [...reasons] : [];
   const hasLegend =
     onPage.length > 0 || readings.length > 0 || unplaced > 0 || unlocatedLines.length > 0;
   const chosenValue = chosen ? valueOf(chosen) : null;
@@ -161,6 +172,16 @@ export function PageViewer({
         if (e.key === 'Escape') onSelect?.(null);
       }}
     >
+      <p className="vw-name">{file}</p>
+      {classes.length > 0 && (
+        <ul className="vw-classes">
+          {classes.map((e) => (
+            <li key={e.label}>
+              {e.label.toUpperCase()} · {e.count}
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="vw-bar">
         {pages.length > 1 && (
           <div className="vw-switcher">
@@ -248,11 +269,11 @@ export function PageViewer({
               <defs>
                 <pattern id={hatch} width="0.02" height="0.02" patternUnits="userSpaceOnUse">
                   <line
+                    className="vw-hatch"
                     x1="0"
                     y1="0.02"
                     x2="0.02"
                     y2="0"
-                    stroke={GREY}
                     strokeWidth={1}
                     vectorEffect="non-scaling-stroke"
                   />
@@ -263,13 +284,14 @@ export function PageViewer({
                 const { line } = markLook(m.state);
                 const hot = m.id === highlighted || m.id === selected;
                 const common = {
-                  stroke: colour,
+                  className: 'vw-shape',
+                  style: tint(colour),
                   strokeWidth: hot ? 4 : 2,
                   strokeDasharray: DASH[line],
                   vectorEffect: 'non-scaling-stroke',
                   onClick: onPick ? undefined : () => onSelect?.(m.id),
                 } as const;
-                const fill = line === 'hatched' ? `url(#${hatch})` : colour;
+                const hatched = line === 'hatched' ? `url(#${hatch})` : undefined;
                 const [x0, y0, x1, y1] = m.box;
                 const cross =
                   m.state === 'rejected' &&
@@ -280,11 +302,11 @@ export function PageViewer({
                     <line
                       key={`${m.id}-x${String(i)}`}
                       className="vw-cross"
+                      style={tint(colour)}
                       x1={ax}
                       y1={ay}
                       x2={bx}
                       y2={by}
-                      stroke={colour}
                       strokeWidth={2}
                       vectorEffect="non-scaling-stroke"
                     />
@@ -294,7 +316,7 @@ export function PageViewer({
                     <polygon
                       key={m.id}
                       points={m.polygon.map(([x, y]) => `${String(x)},${String(y)}`).join(' ')}
-                      fill={fill}
+                      fill={hatched}
                       fillOpacity={m.state === 'rejected' ? 0 : line === 'hatched' ? 1 : 0.25}
                       {...common}
                     />
@@ -305,7 +327,7 @@ export function PageViewer({
                       y={y0}
                       width={x1 - x0}
                       height={y1 - y0}
-                      fill={line === 'hatched' ? fill : 'none'}
+                      fill={hatched ?? 'none'}
                       {...common}
                     />
                   ),
@@ -320,11 +342,11 @@ export function PageViewer({
                   <line
                     key={`${m.id}-leader`}
                     className="vw-leader"
+                    style={tint(colourOf(m))}
                     x1={(x0 + x1) / 2}
                     y1={(y0 + y1) / 2}
                     x2={spot.x / W}
                     y2={spot.y / H}
-                    stroke={colourOf(m)}
                     strokeWidth={1}
                     vectorEffect="non-scaling-stroke"
                   />
@@ -341,7 +363,6 @@ export function PageViewer({
                     width={x1 - x0}
                     height={y1 - y0}
                     fill="none"
-                    stroke={WARN}
                     strokeWidth={2}
                     strokeDasharray="6 3"
                     vectorEffect="non-scaling-stroke"
@@ -376,7 +397,7 @@ export function PageViewer({
               <button
                 key={m.id}
                 type="button"
-                className={m.id === highlighted ? 'vw-badge vw-hot' : 'vw-badge'}
+                className={`vw-badge vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}${m.id === highlighted ? ' vw-hot' : ''}`}
                 aria-label={m.n === null ? name : `Mark ${String(m.n)}: ${name}`}
                 aria-pressed={isSelected}
                 style={{
@@ -391,9 +412,7 @@ export function PageViewer({
                         left: `${(((x0 + x1) / 2) * 100).toFixed(1)}%`,
                         top: `${(((y0 + y1) / 2) * 100).toFixed(1)}%`,
                       }),
-                  background: isSelected ? INK : '#fff',
-                  color: isSelected ? '#fff' : INK,
-                  borderColor: colourOf(m),
+                  ...tint(colourOf(m)),
                 }}
                 onClick={() => onSelect?.(m.id)}
                 onPointerEnter={() => onHover?.(m.id)}
@@ -408,37 +427,13 @@ export function PageViewer({
         </PageFrame>
       </div>
       <Credit credit={credit} />
-      {hasLegend && (
-        <ul className="vw-legend">
-          {states.map((s) => (
-            <li key={s}>{STATE_WORDS[s]}</li>
-          ))}
-          {onPage.length > 0 &&
-            legend?.map((e) => (
-              <li key={e.label}>
-                <i
-                  className="vw-swatch"
-                  style={{ background: safeColour(e.colour) }}
-                  aria-hidden="true"
-                />
-                {e.label}
-                {e.note && <span className="vw-note"> · {e.note}</span>}
-              </li>
-            ))}
-          {unlocatedLines.map(([cls, k]) => (
-            <li key={`u-${cls}`}>
-              {k} {cls} counted without a mark
-            </li>
-          ))}
-          {readings.map((r) => (
-            <li key={`r-${r.tag}`}>
-              {r.tag}: {methodName(r.method)} read {formatValue(r.value, r.unit ?? unit)}
-            </li>
-          ))}
-          {unplaced > 0 && <li>{unplaced} mark(s) could not be placed</li>}
-          {noRoom > 0 && <li>{noRoom} label(s) had no room on the page</li>}
-        </ul>
-      )}
+      <p className="vw-pagemeta">
+        {pageMeta.map((text) => `${text} · `)}
+        Page {page.page}
+        {note && ' · '}
+        {note && <span className="vw-note">{note}</span>}
+        {meta && ` · ${meta}`}
+      </p>
       {chosen && (
         <p className="vw-selection">
           {badgeText(chosen)} · {chosen.label ?? 'item'} ·{' '}
@@ -446,11 +441,38 @@ export function PageViewer({
           {words(chosen)}
         </p>
       )}
-      <figcaption className="vw-caption">
-        {file}
-        {note && ' · '}
-        {note && <span className="vw-note">{note}</span>}
-      </figcaption>
+      {hasLegend && (
+        <figcaption className="vw-legend">
+          <ul>
+            {states.map((s) => (
+              <li key={s}>
+                <i className={`vw-swatch vw-swatch--${s}`} aria-hidden="true" />
+                {s === 'excluded' && oneReason ? `${oneReason}, ${STATE_WORDS[s]}` : STATE_WORDS[s]}
+              </li>
+            ))}
+            {onPage.length > 0 &&
+              legend?.map((e) => (
+                <li key={e.label}>
+                  <i className="vw-swatch" style={tint(safeColour(e.colour))} aria-hidden="true" />
+                  {e.label}
+                  {e.note && <span className="vw-note"> · {e.note}</span>}
+                </li>
+              ))}
+            {unlocatedLines.map(([cls, k]) => (
+              <li key={`u-${cls}`}>
+                {k} {cls} counted without a mark
+              </li>
+            ))}
+            {readings.map((r) => (
+              <li key={`r-${r.tag}`}>
+                {r.tag}: {methodName(r.method)} read {formatValue(r.value, r.unit ?? unit)}
+              </li>
+            ))}
+            {unplaced > 0 && <li>{unplaced} mark(s) could not be placed</li>}
+            {noRoom > 0 && <li>{noRoom} label(s) had no room on the page</li>}
+          </ul>
+        </figcaption>
+      )}
     </figure>
   );
 }

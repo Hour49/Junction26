@@ -6,6 +6,7 @@ import type {
   DrawingView,
   Edit,
   FileTrace,
+  ProjectTrace,
   Info,
   ProjectList,
   ProjectReview,
@@ -85,6 +86,10 @@ export const getProject = (projectId: string, opts?: Opts) =>
 
 export const getTrace = (projectId: string, fileId: string, opts?: Opts) =>
   call<FileTrace>('GET', `/api/projects/${seg(projectId)}/files/${seg(fileId)}/trace`, opts);
+
+/** Every file's trace in one request, files in upload order (#120). */
+export const getProjectTrace = (projectId: string, opts?: Opts) =>
+  call<ProjectTrace>('GET', `/api/projects/${seg(projectId)}/trace`, opts);
 
 export const getProjectReview = (projectId: string, opts?: Opts) =>
   call<ProjectReview>('GET', `/api/projects/${seg(projectId)}/review`, opts);

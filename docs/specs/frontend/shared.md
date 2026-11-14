@@ -48,7 +48,8 @@ and a hairline `box-shadow: 0 1px 0 rgba(0,0,0,0.06)`; under `prefers-reduced-tr
 
 ### Header (`src/shell/Header.tsx`, one for every screen; screens draw none)
 
-As in every design's `<header>`, without the country picker and the avatar (common brief: not built).
+As in every design's `<header>`, without the avatar (common brief: not built). The country picker is built (CHANGE
+11:05, Tudor) and changes nothing but its own shown name (see "Pending fields (mocked)").
 
 - Sticky at the top (`z-index: 2`), header glass (above), inner row `max-width: 1120px` (`1280px` on the account
   and workspace routes, as Account and Workspace have it), `margin: 0 auto`, `padding: 14px 24px`, flex, `gap: 12px`,
@@ -68,16 +69,37 @@ As in every design's `<header>`, without the country picker and the avatar (comm
   | workspace | Ingest, Conflicts, Engineer, Surveyor (the route's role current) |
 
   Hrefs: Ingest `#/p/<pid>`, Conflicts `#/p/<pid>/conflicts`, Engineer and Surveyor as SH-13 (keep `?q=`).
-- Right (`margin-left: auto`): the project picker, then a "Workspaces" link to `#/workspaces`. Both are pills as
+- Right (`margin-left: auto`): the project picker, the country picker, then a "Workspaces" link to `#/workspaces`.
+  All three are pills as
   the design's header controls: `background: var(--v-fill)`, `border-radius: 980px`, `min-height: 48px`,
   `padding: 4px 16px`, `16px`, weight 600, colour `--v-text`. The picker keeps its R1-5-4 sizing (`flex: 0 1 320px;
   min-width: 0; max-width: 100%`). "Workspaces" has `aria-current="page"` on `#/workspaces`.
+- Country picker (`src/shell/CountryPicker.tsx`, as the designs' `cty` popover): a button named
+  "Country rules: <name>" with `aria-expanded`, showing the flag (inline SVG, `aria-hidden`), the name and a chevron;
+  it carries `data-pending="country-rules"`. Open, a popover below it (right-aligned, `width: 300px`, max
+  `calc(100vw - 32px)`, `--v-surface`, radius 18px, padding 8px, a shadow) is a `role="group"` named "Building rules
+  the agent follows" with that heading line, one button per country (flag, name, the law name under it in
+  `--v-muted`, a check on the chosen one, `aria-pressed`) and the closing line "Rules are not applied yet." (the
+  designs' "Answers and plan edits are checked against these rules" would be a false claim). Choosing a country
+  sets the shown name and closes the popover; nothing else happens: no request, no rule, no storage (a reload shows
+  the first country again). Escape or a click outside closes it; Escape returns focus to the button. The countries
+  come from `src/shell/pending.ts` (below), Finland first.
 - Under the header row, the info strip as today (offline text, "What runs"; SH-15 to SH-20 unchanged), restyled:
   `13px`, `--v-warn` on `--v-warn-soft` for the offline sentence, the strip itself transparent, same max-width as
   the header row.
-- Phone (≤720 px): the row wraps: logo + name + "Workspaces" on the first line, the picker full width on the
-  second, the view links full width (equal segments, each ≥44 px high) on the third. No horizontal scroll at
+- Phone (≤720 px): the row wraps: logo + name + "Workspaces" on the first line, the project picker (growing) and
+  the country picker on the second, the view links full width (equal segments, each ≥44 px high) on the third. No horizontal scroll at
   390 px (R1-5-4 still holds).
+
+### Pending fields (mocked)
+
+CHANGE 11:05 (Tudor): fields the API lacks get a mock, not nothing. The shell has one: the building rules of the
+country picker. `src/shell/pending.ts` exports `PENDING_COUNTRY_RULES` tagged
+`// PENDING(Info.country_rules): mock until the backend adds it (#14)`: Finland ("Building Act 751/2023") and
+Switzerland ("Cantonal building law, SIA norms"), each `{id, name, law}`. The picker reads the real field first:
+`(info as {country_rules?: CountryRule[]}).country_rules ?? PENDING_COUNTRY_RULES` (with `info` from `useInfo`,
+the mock also while info is loading or failed). The element carries `data-pending="country-rules"`, no visible
+"mock" label.
 
 ### Page frame (`<main id="main">`, `src/App.tsx`)
 
@@ -180,7 +202,8 @@ API client, `frontend/src/api/`:
 Shell, `frontend/src/shell/`:
 
 - `frontend/src/App.tsx` (replaced: providers, header, info bar, the route's screen),
-  `route.ts` (`parseRoute`, `routeHref`, `useRoute`), `Header.tsx`, `ProjectPicker.tsx`, `InfoBar.tsx`,
+  `route.ts` (`parseRoute`, `routeHref`, `useRoute`), `Header.tsx`, `ProjectPicker.tsx`, `CountryPicker.tsx`,
+  `pending.ts` (the mocked country rules), `InfoBar.tsx`,
   `info.tsx` (`InfoProvider`, `useInfo`), `limits.ts` (`uploadTooLarge`), `Loading.tsx`, `ErrorView.tsx`,
   `NotFound.tsx`, `Credit.tsx`, `strings.ts` (`PRODUCT_NAME = "Vellum"`, the reader names), `shell.css`
   (tokens, base styles), `vellum-logo.png` (the canvas logo asset).
@@ -243,6 +266,7 @@ as below or rejects with `ApiError`. Path ids go through `encodeURIComponent`; q
 | `listProjects(opts?)` | `GET /api/projects` | `ProjectList` |
 | `getProject(projectId, opts?)` | `GET /api/projects/{project_id}` | `ProjectView` |
 | `getTrace(projectId, fileId, opts?)` | `GET /api/projects/{project_id}/files/{file_id}/trace` | `FileTrace` |
+| `getProjectTrace(projectId, opts?)` | `GET /api/projects/{project_id}/trace` (#120) | `ProjectTrace` (`{project_id, files: FileTrace[]}`, files in upload order) |
 | `getProjectReview(projectId, opts?)` | `GET /api/projects/{project_id}/review` | `ProjectReview` |
 | `getDrawing(drawingId, opts?: {project?: string, signal?})` | `GET /api/drawings/{drawing_id}[?project=<project_id>]` (a screen inside a project passes it, so `file` and `reader.source` are that project's names; API.md "GET /api/drawings/{drawing_id}?project=") | `DrawingView` |
 | `getModel(drawingId, opts?)` | `GET /api/drawings/{drawing_id}/model` | `Record<string, unknown>` (extraction_v1; not typed in OpenAPI) |
@@ -309,7 +333,7 @@ does not declare it in `/openapi.json` (Open points).
 
 **Types.** `types.ts` re-exports `components["schemas"][...]` from `schema.d.ts` under the same names: `Info`,
 `Limits`, `Started`, `ProjectList`, `ProjectSummary`, `ProjectView`, `FileStatus`, `DrawingEntry`, `Rendering`,
-`FileTrace`, `StageTrace`, `ProjectReview`, `DrawingReview`, `ConflictEntry`, `DrawingView`, `PageView`,
+`FileTrace`, `ProjectTrace`, `StageTrace`, `ProjectReview`, `DrawingReview`, `ConflictEntry`, `DrawingView`, `PageView`,
 `Normalised`, `Reader`, `Suggestion`, `AskRequest`, `AnswerView`, `Refusal`, `MarkView`, `Row`, `Scope`,
 `RuleText`, `QuantityConflict`, `Settled`, `SignOff`, `Proof`, `Takeoff`, `Edit`, `SignOffRequest`. These are the
 schema names `/openapi.json` has on main 5092dc3 (checked 2026-11-14 by dumping it); screens import from `src/api`,
@@ -322,7 +346,7 @@ temp file and fails, naming `src/api/schema.d.ts`, when it differs from the comm
 
 **Fixtures.** `src/api/fixtures.ts` imports each `@fixtures/<file>.json` and exports it typed, one camelCase name per
 file: `info: Info`, `projectStarted: Started`, `projectList: ProjectList`, `project: ProjectView`, `trace:
-FileTrace`, `projectReview: ProjectReview`, `drawing: DrawingView`, `askRequest: AskRequest`, `answer`,
+FileTrace`, `projectTrace: ProjectTrace`, `projectReview: ProjectReview`, `drawing: DrawingView`, `askRequest: AskRequest`, `answer`,
 `answerArea`, `answerConfidence`, `answerModel`, `answerRefused: AnswerView`, `takeoff: Takeoff`, `reviewRequests:
 Edit[]`, `signoffRequest: SignOffRequest`, `error: ErrorBody`. (A JSON import widens string unions, so each is cast
 `as unknown as <Type>`; the backend's fixture test is what keeps the files true to the models.) Tests never write a
@@ -441,7 +465,8 @@ Info strip
 API client
 
 - SH-23 Each read function sends the method and path of its table row and resolves with the fixture body:
-  `getInfo` (`info.json`), `listProjects`, `getProject`, `getTrace`, `getProjectReview`, `getDrawing`, `getTakeoff`.
+  `getInfo` (`info.json`), `listProjects`, `getProject`, `getTrace`, `getProjectTrace` (`project_trace.json`),
+  `getProjectReview`, `getDrawing`, `getTakeoff`.
   [unit, `mockApi`, each named fixture]
 - SH-24 `uploadProject(new File([bytes], "my plan #1.zip"))` sends `POST /api/projects?name=my%20plan%20%231.zip`
   with the file as body and `Content-Type: application/octet-stream`, and resolves with `project_started.json`.
@@ -545,7 +570,7 @@ Vellum round (round 2)
   [component, stub screens]
 - SH-55 The header has one link named "Vellum" to `#/` holding the logo image (`alt=""`, `src` the bundled
   `vellum-logo.png`) and the text "Vellum"; a "Workspaces" link to `#/workspaces` with `aria-current="page"` only
-  on that route; the project picker; no element named "Country rules…" and no user name or avatar. [component]
+  on that route; the project picker; the country picker; no user name or avatar. [component]
 - SH-56 The view links per route are those of the Header table (none on home, account and not-found; Ingest and
   Conflicts on project, file and conflicts; all four on workspace), with the hrefs given, and exactly the current
   one has `aria-current="page"`. Supersedes SH-14. [component]
@@ -559,6 +584,11 @@ Vellum round (round 2)
   `prefers-reduced-transparency: reduce` block removes the header blur. [unit: parse the CSS]
 - SH-59 `body` uses `--v-bg`, `--v-text` and `font: 16px/1.5 var(--v-font)`; no stylesheet or font is loaded from
   another origin (`index.html` and `src/**/*.css` hold no `http` URL). [unit]
+- SH-61 The country picker: a button "Country rules: Finland" with `data-pending="country-rules"` and
+  `aria-expanded="false"`; clicking opens the group "Building rules the agent follows" with Finland
+  (`aria-pressed="true"`) and Switzerland and the line "Rules are not applied yet."; choosing Switzerland renames the
+  button "Country rules: Switzerland", closes the group and sends no request; Escape closes it and focuses the
+  button. With `country_rules` in `/api/info` those are listed instead of the mock. [component]
 - SH-60 At 390x844 and 1440x900 on home, a project, the conflicts route, a workspace and `#/workspaces`: no
   horizontal scroll, the logo and "Vellum" visible, view links ≥44 px high on the phone; screenshots looked at.
   Supersedes SH-42. [e2e, fe-golden]
@@ -618,5 +648,5 @@ Vellum round (round 2)
 15. **The view links stay** in the header (as a segmented control) although the designs' header has none: the
     golden-path e2e clicks "Engineer" and "Surveyor", and they are the only way between the ingest, conflicts and
     workspace screens of one project. Conflicts is added to them.
-16. **Not in the API** (header): nothing. The designs' country picker and avatar are left out by decision, not for
-    a missing field.
+16. **Not in the API** (header): the country picker's building rules (`Info.country_rules`), mocked in
+    `src/shell/pending.ts` (CHANGE 11:05), for Bogdan's backend to add. The avatar stays out by decision.

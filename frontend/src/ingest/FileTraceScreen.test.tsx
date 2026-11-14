@@ -112,7 +112,7 @@ describe('FileTraceScreen', () => {
     const failed = must(document.querySelector('.ingest-trace li.failed'));
     expect(must(failed.querySelector('b')).textContent).toBe('Extract');
     expect(failed.textContent).toContain('Failed: no page could be read');
-    expect(failed.querySelector('[aria-hidden="true"]')).toBeTruthy();
+    expect(failed.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('failed');
     expect(screen.getByText('set aside')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Open the drawing' })).toBeNull();
   });
@@ -250,5 +250,31 @@ describe('FileTraceScreen', () => {
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     expect(must(document.querySelector('summary')).textContent).toBe('What it ends as: 1 quantity');
+  });
+
+  it('IN-65 the restyled trace keeps its names; done stages carry "done", a failed one "failed"', async () => {
+    mockApi({ [GET]: trace });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(screen.getByRole('link', { name: 'Back to the project' }).getAttribute('href')).toBe(
+      `#/p/${PID}`,
+    );
+    expect(screen.getByRole('heading', { level: 1, name: trace.file.path })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open the drawing' })).toBeTruthy();
+    const items = [...document.querySelectorAll('.ingest-trace > li')];
+    expect(items).toHaveLength(trace.stages.length);
+    items.forEach((li, i) => {
+      const s = must(trace.stages[i]);
+      expect(li.textContent).toContain(s.did);
+      expect(li.textContent).toContain(formatMs(s.ms));
+      expect(li.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('done');
+    });
+    cleanup();
+    mockApi({ [GET]: traceVariants.failed });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const failed = must(document.querySelectorAll('.ingest-trace > li')[6]);
+    expect(failed.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('failed');
+    expect(failed.textContent).toContain('Failed: no page could be read');
   });
 });

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -18,6 +19,8 @@ import { PageViewer } from './PageViewer';
 
 const badges = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('.vw-badge')];
 const frameOf = (c: HTMLElement) => c.querySelector<HTMLElement>('.vw-frame');
+const colour = (el: Element | undefined) =>
+  (el as HTMLElement | undefined)?.style.getPropertyValue('--vw-c');
 
 function viewer(a: AnswerView, extra: Partial<Parameters<typeof PageViewer>[0]> = {}) {
   return render(
@@ -149,15 +152,14 @@ describe('PageViewer: marks', () => {
   });
 
   it('VW-21 legend colours per label; accent without a legend', () => {
-    const stroke = (c: HTMLElement, i: number) =>
-      c.querySelectorAll('svg polygon')[i]?.getAttribute('stroke');
+    const stroke = (c: HTMLElement, i: number) => colour(c.querySelectorAll('svg polygon')[i]);
     const withLegend = viewer(answerArea).container;
     expect(stroke(withLegend, 0)).toBe('#d62728');
     expect(stroke(withLegend, 1)).toBe('#1f77b4');
     cleanup();
     const plain = viewer(answerArea, { legend: null }).container;
     const accent = stroke(plain, 0);
-    expect(accent).toBeTruthy();
+    expect(accent).toBe('var(--v-accent)');
     expect(stroke(plain, 1)).toBe(accent);
     expect(accent).not.toBe('#d62728');
     cleanup();
@@ -173,22 +175,8 @@ describe('PageViewer: marks', () => {
       legend: [{ ...entry, label: 'room', colour: '#1f77b4', count: 2 }],
     });
     const polys = [...container.querySelectorAll('svg polygon')];
-    expect(polys.map((p) => p.getAttribute('stroke'))).toEqual(['#1f77b4', '#1f77b4']);
-    expect(badges(container).map((b) => b.style.borderColor)).toEqual([
-      'rgb(31, 119, 180)',
-      'rgb(31, 119, 180)',
-    ]);
-  });
-
-  it('VW-23 badges: white background, ink text, border in the mark colour', () => {
-    const { container } = viewer(answerArea);
-    const [b1, b2] = badges(container);
-    for (const b of [b1, b2]) {
-      expect(b?.style.background).toBe('rgb(255, 255, 255)');
-      expect(b?.style.color).toBe('rgb(27, 31, 39)');
-    }
-    expect(b1?.style.borderColor).toBe('rgb(214, 39, 40)');
-    expect(b2?.style.borderColor).toBe('rgb(31, 119, 180)');
+    expect(polys.map(colour)).toEqual(['#1f77b4', '#1f77b4']);
+    expect(badges(container).map(colour)).toEqual(['#1f77b4', '#1f77b4']);
   });
 
   it('VW-26 strings from files render as text', () => {
@@ -632,5 +620,167 @@ describe('PageViewer: label placement (R2-qa-1-3)', () => {
             Math.abs(a.y - b.y) >= (a.h + b.h) / 2 - 0.2,
         ).toBe(true);
     });
+  });
+});
+
+// vitest runs in frontend/; under jsdom import.meta.url is not a file URL
+const css = readFileSync('src/viewer/viewer.css', 'utf8');
+const meta = (c: HTMLElement) => c.querySelector('.vw-pagemeta')?.textContent ?? '';
+const page1 = drawing.pages[0] as AnswerView['pages'][number];
+const onDrawing = (page: object = {}, extra: Partial<Parameters<typeof PageViewer>[0]> = {}) =>
+  render(
+    <PageViewer
+      file={drawing.file}
+      pages={[{ ...page1, ...page }]}
+      marks={[]}
+      credit={null}
+      {...extra}
+    />,
+  ).container;
+
+describe('PageViewer: Vellum (screen 4)', () => {
+  it('VW-48 file in .vw-name, meta at the end of the page meta line, no "Drawing" label', () => {
+    const c = onDrawing({}, { meta: 'PDF vector · vector route' });
+    expect(c.querySelector('.vw')?.hasAttribute('aria-label')).toBe(false);
+    expect(c.querySelector('.vw-name')?.textContent).toBe('plans/flat-a.pdf');
+    expect(meta(c).endsWith('Page 1 · PDF vector · vector route')).toBe(true);
+    cleanup();
+    expect(meta(onDrawing({}, { meta: '' })).endsWith('Page 1')).toBe(true);
+    cleanup();
+    expect(meta(onDrawing()).endsWith('Page 1')).toBe(true);
+  });
+
+  it('VW-50 the class line lists legend entries with a count, as text', () => {
+    const items = (c: HTMLElement) =>
+      [...c.querySelectorAll('.vw-classes li')].map((li) => li.textContent);
+    const door = viewer(answer).container;
+    expect(items(door)).toEqual(['DOOR · 2']);
+    expect(door.querySelector('[data-pending="ClassKey.layer"]')).toBeNull();
+    cleanup();
+    const area = items(viewer(answerArea).container);
+    expect(area).toContain('KÜCHE · 1');
+    expect(area.join()).not.toMatch(/LAYER|BLOCK/);
+    expect(area.join()).not.toContain('BALKON');
+    cleanup();
+    expect(viewer(answer, { legend: null }).container.querySelector('.vw-classes')).toBeNull();
+    cleanup();
+    expect(viewer(answer, { marks: [] }).container.querySelector('.vw-classes')).toBeNull();
+    cleanup();
+    const evil = '<b>x</b>';
+    const c = viewer(answer, {
+      legend: [{ label: evil, colour: '#d62728', count: 2, unlocated: 0, note: null }],
+    }).container;
+    expect(c.querySelector('.vw-classes b')).toBeNull();
+    expect(c.querySelector('.vw-classes')?.textContent).toContain('<B>X</B>');
+  });
+
+  it('VW-51 the page meta line names the page and how it was made upright', () => {
+    const c = onDrawing();
+    expect(meta(c)).toBe('1:100 · Page 1'); // drawing.json: storey null, scale_text "1:100"
+    expect(c.querySelector('[data-pending]')).toBeNull();
+    cleanup();
+    const two = viewer(answer, { pages: twoPages() }).container;
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(meta(two).endsWith('Page 2')).toBe(true);
+    cleanup();
+    const normalised = {
+      exif: 6,
+      rotated: 90,
+      deskew_deg: 1.5,
+      rectified: true,
+      quad: null,
+      width: 3024,
+      height: 4032,
+    };
+    expect(
+      meta(onDrawing({ normalised })).endsWith(
+        'Page 1 · shown upright: EXIF turn applied, turned 90°, deskewed 1.5°, perspective corrected',
+      ),
+    ).toBe(true);
+  });
+
+  it('VW-52 counted badges are filled in their class colour; rejected and excluded are open', () => {
+    const { container } = viewer(answerArea);
+    const [b1, b2] = badges(container);
+    expect([colour(b1), colour(b2)]).toEqual(['#d62728', '#1f77b4']);
+    for (const b of [b1, b2]) expect(b?.classList.contains('vw-badge--filled')).toBe(true);
+    const polys = [...container.querySelectorAll('svg polygon')];
+    expect(polys.map(colour)).toEqual(['#d62728', '#1f77b4']);
+    cleanup();
+    expect(badges(viewer(answerArea, { legend: null }).container).map(colour)).toEqual([
+      'var(--v-accent)',
+      'var(--v-accent)',
+    ]);
+    cleanup();
+    const rej = viewer(answer, { marks: [door1, rejected] }).container;
+    const x = badgeOf(rej, '×');
+    expect(x?.classList.contains('vw-badge--open')).toBe(true);
+    expect(colour(x)).toBe('var(--v-muted)');
+    expect(colour(rej.querySelectorAll('svg rect')[1])).toBe('var(--v-muted)');
+    cleanup();
+    const exc = viewer(answerArea, { marks: [kitchen, excluded] }).container;
+    const dash = badgeOf(exc, '–');
+    expect(dash?.classList.contains('vw-badge--open')).toBe(true);
+    expect(colour(dash)).toBe('var(--v-muted)');
+    expect(colour(exc.querySelectorAll('svg polygon')[1])).toBe('var(--v-muted)');
+  });
+
+  it('VW-53 viewer.css uses only tokens, has press feedback and turns it off for reduced motion', () => {
+    const plain = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(plain).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+    expect(plain).toContain('var(--v-');
+    expect(plain).toContain('var(--vw-c)');
+    expect(plain).toMatch(/\.vw-badge:active\s*\{[^}]*scale\(0\.97\)/);
+    expect(plain).toMatch(/prefers-reduced-motion:\s*reduce\)\s*\{[^@]*\.vw-badge:active/);
+  });
+
+  it('VW-54 the mark line shows the selected mark, else the highlighted one', () => {
+    const line = (c: HTMLElement) => c.querySelector('.vw-selection')?.textContent;
+    expect(line(viewer(answer, { highlighted: 'm2' }).container)).toBe('2 · door · counted');
+    cleanup();
+    expect(line(viewer(answer, { highlighted: 'm2', selected: 'm1' }).container)).toBe(
+      '1 · door · counted',
+    );
+    cleanup();
+    expect(viewer(answer).container.querySelector('.vw-selection')).toBeNull();
+  });
+
+  it('VW-55 one shared exclusion reason names the excluded item; swatches per state', () => {
+    const out = (id: string, reason: string): MarkView => ({ ...excluded, id, reason });
+    const legendText = (marks: MarkView[]) => {
+      const c = viewer(answerArea, { marks }).container;
+      const items = [...c.querySelectorAll('figcaption.vw-legend li')];
+      return { c, texts: items.map((li) => li.textContent) };
+    };
+    const same = legendText([kitchen, out('x1', 'open doorway'), out('x2', 'open doorway')]);
+    expect(same.texts).toContain('counted');
+    expect(same.texts).toContain('open doorway, left out by the rule');
+    expect(same.c.querySelector('li .vw-swatch.vw-swatch--counted')).not.toBeNull();
+    expect(same.c.querySelector('li .vw-swatch.vw-swatch--excluded')).not.toBeNull();
+    cleanup();
+    const mixed = legendText([kitchen, out('x1', 'open doorway'), out('x2', 'outdoor room')]);
+    expect(mixed.texts).toContain('left out by the rule');
+  });
+
+  it('VW-57 storey and scale_text come from the page; a null one is left out', () => {
+    expect(meta(onDrawing({ storey: 'Floor 3', scale_text: '1:50' }))).toBe(
+      'Floor 3 · 1:50 · Page 1',
+    );
+    cleanup();
+    expect(meta(onDrawing({ storey: null, scale_text: null }))).toBe('Page 1');
+  });
+
+  it('VW-59 a scale not read off the sheet says how it was got', () => {
+    const scale = (status: string, text: string | null) => ({
+      scale_text: text,
+      scale: { status, text, ratio: null, source: null },
+    });
+    expect(meta(onDrawing(scale('estimated', '1:100')))).toBe('1:100 (estimated) · Page 1');
+    cleanup();
+    expect(meta(onDrawing(scale('not_to_scale', null)))).toBe('not to scale · Page 1');
+    cleanup();
+    expect(meta(onDrawing(scale('no_scale', null)))).toBe('no scale · Page 1');
+    cleanup();
+    expect(meta(onDrawing(scale('scaled', '1:50')))).toBe('1:50 · Page 1');
   });
 });

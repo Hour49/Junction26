@@ -27,12 +27,18 @@ export const variants = {
   running: {
     ...project,
     state: 'running',
+    ms: 0,
+    finished_at: null,
     files: withFile(2, { state: 'running', stage: 'extract', reason: '', drawing_id: null }),
     drawings: project.drawings.filter((d) => d.drawing_id !== f2?.drawing_id),
   } as ProjectView,
   queued: {
     ...project,
     state: 'queued',
+    ms: 0,
+    started_at: null,
+    finished_at: null,
+    expected_drawings: null,
     files: project.files.map((f) => ({
       ...f,
       state: 'queued' as const,
@@ -42,7 +48,7 @@ export const variants = {
       reason: '',
     })),
     drawings: [],
-  },
+  } as ProjectView,
   setAside: {
     ...project,
     files: withFile(0, {

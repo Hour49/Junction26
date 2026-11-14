@@ -34,7 +34,11 @@ function Rows({ rows, selected, onSelect }: { rows: Row[] } & Omit<Props, 'takeo
         )}
         {formatValue(row.value, row.unit)}
       </td>
-      <td>{statusText(row)}</td>
+      <td>
+        <span className="sv-status" data-status={row.needs_person ? 'needs' : row.status}>
+          {statusText(row)}
+        </span>
+      </td>
     </tr>
   ));
 }

@@ -4,7 +4,7 @@ Status: draft, 2026-11-14, by fe-scaffold for frontend-orch. Screens 9-12 of Tud
 (`IngestUnpack`, `IngestIdentify`, `IngestExtract`, `IngestCheck`). API: docs/API.md (v1, main eb3552c).
 
 Names from the shared spec (`docs/specs/frontend/shared.md`) and the ingest spec used here: client functions
-`getTrace`, `getTakeoff`, `getDrawing`; URL builders `pageUrl`, `previewUrl`; `Loading`, `ErrorView`; formatters
+`getProjectTrace`, `getTakeoff`, `getDrawing`; URL builders `pageUrl`, `previewUrl`; `Loading`, `ErrorView`; formatters
 `formatValue`, `readerName`, `methodName` (`src/api/format.ts`) and `STAGES`, `STAGE_LABEL`, `STATE_LABEL`,
 `isFinished`, `plural`, `formatMs`, `formatCost`, `formatSize`, `normalisedSteps` (`src/ingest/ingest.ts`, imported,
 not edited); `StateBadge` (`src/ingest/ProjectScreen.tsx`); test helpers `mockApi` and the fixtures of
@@ -25,12 +25,10 @@ All under `frontend/src/advanced/` (new folder); each file with logic has a `*.t
 
 | File | What |
 | --- | --- |
-| `AdvancedIngest.tsx` | `export function AdvancedIngest(props: { projectId: string; project: ProjectView }): JSX.Element` (signature fixed by the common brief). Rail + panel + stats; owns the selected step. |
-| `StageRail.tsx` | the eight steps as a `<nav aria-label="Steps">` of buttons with their status |
-| `NowPanel.tsx` | heading, status, explanation, live line, log; renders the step's visual |
+| `AdvancedIngest.tsx` | `export function AdvancedIngest(props: { projectId: string; project: ProjectView }): JSX.Element` (signature fixed by the common brief). The rail (`<nav aria-label="Steps">`), the panel (heading, status, explanation, live line, log, visual) and the stats; owns the selected step. |
 | `visuals.tsx` | the four visuals: `FileStrip` (Unpack), `RouteLanes` (Identify, Route), `PlanMarks` (Normalise, Extract, Drawing model), `CheckPairs` (Cross-check), `ReadyList` (Index) |
-| `advanced.ts` | pure: `STEP_VIEW` (heading, visual, explanation per step), `stepStatus`, `currentStep`, `defaultStep`, `stepLines`, `stepStats`, `planCounts`, `pairsOf`; `STEPS`, `stepOf`, `activeStep` come from `src/ingest/ingest.ts` |
-| `useTraces.ts` | fetch each file's trace when it changes, at most 4 in flight, aborted on unmount |
+| `advanced.ts` | pure: `STEP_VIEW` (heading, visual, explanation per step), `stepStatus`, `currentStep`, `defaultStep`, `stepLines`, `stepStats`, `planCounts`, `pairsOf`, `elapsedMs`, `scaleChip`; `STEPS`, `stepOf`, `activeStep` come from `src/ingest/ingest.ts` |
+| `useProjectTrace.ts` | fetch the project's one trace when any file changes, aborted on unmount |
 | `useDrawingData.ts` | fetch each drawing's takeoff and `DrawingView` once, when a step that needs them is shown |
 | `advanced.css` | layout from the designs, `--v-*` tokens only |
 
@@ -64,9 +62,10 @@ Following the backend (ingest.md open point 12) keeps a step from reading "waiti
 `k`:
 
 - `working`: some unfinished file has `n(f) = k`.
-- `waiting`: not working, and some unfinished file has `n(f) < k`.
+- `waiting`: not working, and some unfinished file has `n(f) < k`, or the project is `queued`/`running` and no
+  file got to step `k` yet.
 - `done`: neither, and at least one file has `n(f) >= k` with a non-null `stage`.
-- `none`: neither, and no file got to step `k`: "No file got here" (e.g. Normalise when every file was set aside at
+- `none`: neither, the project is `done` or `failed`, and no file got to step `k`: "No file got here" (e.g. Normalise when every file was set aside at
   Route). This is the one status screen 2 does not have; its list shows such a step as done once the project is.
 - A step also carries `setAside`: the number of `set_aside` files whose `stage` is one of its stages ("2 set aside
   here"); text, not only colour.
@@ -80,24 +79,25 @@ while the project updates; the panel does not follow the pipeline after a click 
 ## API calls
 
 **`project: ProjectView`** (prop, polled by `ProjectScreen`; API.md "GET /api/projects/{project_id}", fixtures
-`project.json`, `project_running.json`, `project_failed.json`). Read: `state`, `error`, `ms`, `cost_usd`, `files[]`
+`project.json`, `project_running.json`, `project_failed.json`). Read: `state`, `error`, `ms`, `started_at`, `expected_drawings`, `skipped[]`, `cost_usd`, `files[]`
 (`id`, `path`, `size`, `kind`, `state`, `reason`, `stage`, `route`, `source`, `drawing_id`, `normalised`, `takeoff`,
 `reused`), `drawings[]` (`drawing_id`, `file`, `kind`, `route`, `state`), `readers`.
 
-**`GET /api/projects/{project_id}/files/{file_id}/trace`** (`getTrace`; fixture `trace.json`, `trace_set_aside.json`).
-`useTraces` requests a file's trace when the key `id|state|stage` of that file is new and `stage` is not null, so a
-finished file is fetched once and a running one at most once per stage it enters (≤ 11 per file). At most 4
-requests in flight; the rest wait in file order. An unmount aborts them. A failed request keeps the last trace of
-that file, marks it failed, and offers "Retry" on its log line; it never blocks the other files. Read: `stages[]`
-(`stage`, `did`, `output`, `ms`, `failure`, `cost_usd`).
+**`GET /api/projects/{project_id}/trace`** (`getProjectTrace`, #120; fixture `project_trace.json`).
+`useProjectTrace` requests it when the key `id|state|stage` over all files changes, never while no file has a stage,
+so a finished project is fetched once and a running one once per stage change. A newer request aborts the older one;
+unmount aborts it. A failure keeps the last traces and shows one log line "The trace did not load." with "Retry".
+Read per `files[]` entry: `file.id`, `stages[]` (`stage`, `did`, `output`, `ms`, `failure`, `cost_usd`),
+`second_count` (`measured`, `conflicts`, null when that file had no second count).
 
 **`GET /api/drawings/{drawing_id}/takeoff`** (`getTakeoff`; fixture `takeoff.json`). Once per entry of
 `project.drawings` whose file is finished, the first time Normalise, Extract, Cross-check or Drawing model is
 shown (Index needs no takeoff: its counts come from `files[].takeoff`). Read: `quantities[]` `key`, `label`, `unit`, `status`, `first`, `second` (`method`, `value`), `marks[]`
-(`box`, `page`, `label`, `state`).
+(`box`, `page`, `label`, `state`, `room_type`).
 
 **`GET /api/drawings/{drawing_id}`** (`getDrawing`; fixture `drawing.json`). Once per drawing, the first time
-Index is shown. Read: `suggestions[].label`, `pages.length`.
+Index is shown. Read: `suggestions[].label`, `pages.length`, `pages[0].scale`
+(Identify chip; requested when Identify or Route is shown).
 
 **`pageUrl(drawingId, 1)`**, **`previewUrl(projectId, fileId)`**: plain `<img src>`; a failed load shows "Page not
 available" / "Preview not available" in its place, as the ingest screens do.
@@ -117,7 +117,8 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
    - `<h2>` the heading from the step table.
    - The explanation sentence (fixed text above).
    - The live line (`aria-live="polite"` only while the step is current): `"<path>: <did>"` of the last trace line of
-     this step in file order; "Nothing yet." when the step has no line.
+     this step in file order (the last one: stages are in time order within a file; Bogdan: no `StageTrace.at`);
+     "Nothing yet." when the step has no line.
    - **Log** (`<ol aria-label="Log">`, mono, `--v-bg` box, scrolls past 8 lines, `tabindex="0"`): `stepLines`, one
      `<li>` per trace entry of this step's stages over all files, in file order then stage order: `<STAGE_LABEL>
      <path> <output, or did when output is empty>`; `cache` lines read "Cached: <did>"; `cost_usd > 0` adds
@@ -128,22 +129,24 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
 
 ### Screen 9, Unpack (`IngestUnpack`)
 
-- Visual `FileStrip`: a dark `--v-text` band with a horizontal, scrollable (`tabindex="0"`, `aria-label="Files in
+- Visual `FileStrip`: a `--v-fill` band with a horizontal, scrollable (`tabindex="0"`, `aria-label="Files in
   this upload"`) row of file cards in `project.files` order: path, `formatSize(size)`, kind word (or "not
   identified"), `StateBadge`. A drawing file's card shows `pageUrl(drawing_id, 1, 400)` as its thumbnail; other
   cards show none. The card of the file the step is working on (unfinished, its stage in the step) is framed, as
   the design frames the centre. No auto-scrolling film: the band scrolls by hand.
 - Caption (mono, under the band): while working, `"<path> · <formatSize(size)>"` of that file; else
   `plural(files.length, 'file')`, total `formatSize` of all files.
-- Stats: **Time** (`formatMs(project.ms)` when `done`/`failed`, "running" otherwise), **Files opened**
-  (`files with stage != null` / `files.length`), **Set aside** (files `state === 'set_aside'`), **Cost**
-  (`formatCost(project.cost_usd)`).
+- Stats: **Elapsed** (`formatMs(project.ms)` when `done`/`failed`; while running now − `started_at` on a 1 s clock;
+  "–" while `started_at` is null),
+  **Files opened** (`files with stage != null` / `files.length`), **Set aside** (files `state === 'set_aside'`),
+  **Cost** (`formatCost(project.cost_usd)`). No "Remaining" (Bogdan: no `eta_ms`).
 
 ### Screen 10, Identify and Route (`IngestIdentify`)
 
 - Visual `RouteLanes`: on top a file view: a `<select aria-label="File">` over `project.files` (default: the file the
   step works on, else the first file with a `route`), its `previewUrl` image, and chips over the image's bottom
-  edge from real fields only: kind word, `"<normalised.width> × <normalised.height> px"` when `normalised`,
+  edge from real fields only: kind word (no medium, year or language: Bogdan, no `identified`),
+  `"<normalised.width> × <normalised.height> px"` when `normalised`, `scaleChip(pages[0].scale)` of the file's drawing ("Scale 1:100 found", "… estimated", "No scale found", "Not to scale"),
   `"route <route>"`, `"read from <source>"` when `source` differs from `path`, `reused` → "read before". Below, two
   lanes, as the design's "CAD geometry" and "Vision model" boxes, named for what runs:
   - **"Exact geometry"**: routes `bim`, `cad`, `vector`; under it the readers `readerName(readers.bim)`,
@@ -153,21 +156,22 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
     the reader is one.
   - The selected file's lane is marked (`aria-current="true"`, border `--v-accent`) and says "This file goes here";
     a file with no route says "Not routed: <reason>".
-- Stats: **Time**, **Exact geometry** (count), **From the image** (count), **Set aside** (set_aside files whose
-  stage is in Identify or Route).
+- Stats: **Elapsed**, **Exact geometry** (count), **From the image** (count), **Set aside** (all set-aside files).
+  Each lane lists its readers as `<route>: <readerName>`. A file not finished and not routed reads "Not routed yet."
 
 ### Screen 11, Normalise, Extract, Drawing model (`IngestExtract`)
 
 - Visual `PlanMarks`: a `<select aria-label="Drawing">` over `project.drawings` (default the first; label `file`).
   For a drawing with pages: `pageUrl(drawing_id, 1)` in a `position: relative` box, an SVG overlay `viewBox="0 0 1
   1"` `preserveAspectRatio="none"` with one rect per mark of the takeoff rows keyed `room`, `door`, `window` (page 1,
-  `state` not `rejected`), and a label pill with `mark.label` for room marks (text node, never HTML). The sweep line
+  `state` not `rejected`), and a label pill with `mark.label` for room marks (text node, never HTML), `title` = `mark.room_type` when set. The sweep line
   animates only while Extract is `working`; off under reduced motion. An IFC drawing without pages: "A model, no
   sheet to show" and its counts. Normalise selected: under the image, `normalisedSteps(file.normalised)` of the
   drawing's file, or "Pages as the file gives them" for a PDF.
 - Stats (`planCounts`, summed over `project.drawings`, each drawing's file's `takeoff`, so a PNG beside its PDF is
   not counted twice): **Rooms** (`takeoff.room`), **Doors** (`takeoff.door`), **Windows** (`takeoff.window`), and
-  **Drawings** (`drawings.length`). A key no drawing has shows "–" with the visually hidden "not read", never 0.
+  **Drawings ready** (`"<finished drawings> / <expected_drawings>"`, finished drawings alone while `expected_drawings` is null). A key no drawing has shows "–",
+  never 0.
 
 ### Screen 12, Cross-check and Index (`IngestCheck`)
 
@@ -178,13 +182,15 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   Kept as the answer."; `conflict` → "They disagree. Sent to Settle the conflicts." with a link to
   `#/p/<projectId>/conflicts`; any other `status` → its word (`signed`, `edited`, `estimate`, `single`). Verdicts
   carry an icon and words, colour (`--v-ok`, `--v-warn-soft`) only adds. No pairs: "Nothing on these drawings can be
-  measured a second way yet."
-- Visual `ReadyList` (Index): "Answers ready before you ask", per drawing: its `file`, `plural(n, 'quantity',
-  'quantities')` with `n` = keys of its file's `takeoff`, then the `suggestions[].label` of its `DrawingView` as a
+  measured a second way yet." Shown: every conflict and the first 4 other pairs, then a "Show all N pairs" button.
+- Visual `ReadyList` (Index): "Questions ready to ask" (never "answers ready", Bogdan), per drawing: its `file`,
+  "<n> questions ready to ask" with `n` = keys of its file's `takeoff` (one question per quantity), then the `suggestions[].label` of its `DrawingView` as a
   list, each with a filled dot when the drawing's file is `ready` or `flagged`, and a link "Ask this drawing" to
   `#/p/<projectId>/d/<drawing_id>/engineer`. No drawings: "No drawing to ask yet."
-- Stats: **Time**, **Measured twice** (pairs), **Agree** (`status === 'agree'`), **Conflicts** (`status ===
-  'conflict'`). While takeoffs load: "…" in the three; a takeoff that failed: "–" and the panel's error line.
+- Stats, Cross-check: **Elapsed**, **Measured twice** (pairs), **Agree** (`status === 'agree'`), **Conflicts**
+  (`status === 'conflict'`), from the takeoffs; before any takeoff has loaded, summed over the traces' `second_count`
+  ("…" while the trace loads, "–" when no file has one). Index: **Elapsed**, **Drawings** (`drawings.length`), **Questions ready** (keys of the drawings' files'
+  `takeoff`, summed over `project.drawings`), **Cost** (`formatCost(project.cost_usd)`).
 
 ## States
 
@@ -194,8 +200,8 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
 | Done | every reached step ✓; Index selected; Time = `project.ms` | `project.json` + `trace.json` |
 | Failed project | rail statuses as computed; panel as for done; `project.error` is shown by `ProjectScreen`, not here | `project_failed.json` |
 | No files | `files: []`: rail all "waiting" while queued/running, all "no file got here" when done; panel log "Nothing yet." | `queued` with `files: []` |
-| Trace loading | log "Loading the trace…" | pending `getTrace` |
-| Trace error | that file's line "Trace of <path> not loaded." + Retry; other files' lines show | `getTrace` rejects for one file |
+| Trace loading | log "Loading the trace…" | pending `getProjectTrace` |
+| Trace error | log line "The trace did not load." + Retry; the last traces stay | `getProjectTrace` rejects |
 | Takeoff/drawing error | panel line "Could not load the takeoff of <file>." + Retry (`ErrorView` compact); stats "–" | `getTakeoff` rejects |
 | Set aside | rail "· N set aside" on the step; log "✕ Failed: …" when the stage failed | `trace_set_aside.json` |
 | 390 px | rail 4 × 2, panel stacked (visual above text), stats 2 × 2, file strip scrolls, no horizontal page scroll | e2e at 390×844 |
@@ -228,16 +234,17 @@ Panel and log
   `trace.json`, `trace_set_aside.json`]
 - AV-9: Trace strings (`path`, `did`, `output`, `failure`, `mark.label`, `suggestions[].label`) render as text: a
   value `<img src=x onerror=alert(1)>` appears literally and adds no element. [component]
-- AV-10: `useTraces` requests each file's trace once per new `id|state|stage`, never for a file with `stage: null`,
-  never more than 4 at once, and aborts in-flight requests on unmount. [component, `mockApi` call log]
-- AV-11: A trace request that fails shows "Trace of <path> not loaded." with a Retry button that requests it again;
-  the other files' lines still show. [component]
+- AV-10: `useProjectTrace` makes one `GET /api/projects/{id}/trace` per new `id|state|stage` over the files, none
+  while no file has a stage, none on a rerender with the same files. [component, `mockApi` call log]
+- AV-11: A trace request that fails shows "The trace did not load." with a Retry button that requests it again.
+  [component]
 - AV-12: The live line has `aria-live="polite"` only while the selected step is the current step. [component]
 
 Visuals and stats
 
 - AV-13: Unpack stats: Files opened `"<with stage> / <all>"`, Set aside = set_aside files, Cost =
-  `formatCost(project.cost_usd)`, Time = `formatMs(project.ms)` when done and "running" while running. [component]
+  `formatCost(project.cost_usd)`, Elapsed = `formatMs(project.ms)` when done, now − `started_at` while running, "–"
+  before it starts; `project.skipped` as "Skip <path> <reason>" log lines. [component]
 - AV-14: The file strip lists every file with path, size and state word, and is keyboard scrollable. [component]
 - AV-15: Identify/Route lanes count files by route (bim+cad+vector vs raster) and show the reader names from
   `project.readers` via `readerName`; reader `hello` reads "not read"; the words "vision model" appear nowhere unless a reader
@@ -269,27 +276,21 @@ Layout and access
 
 ## Not in the API
 
-Shown as nothing until Bogdan answers on #14 (frontend-orch collects these). Each with the field that would fill it:
+Not added, per Bogdan's triage (11:07, #14 c6874945888); shown as nothing:
 
-1. **Remaining time** (design: "Remaining ~12 s"): `ProjectView.eta_ms: number | null`.
-2. **Elapsed while running** (design: "Elapsed 2 s"): `project.ms` is set only when the run ends
-   (`service.py` `set_project`), so the cell reads "running". Needs `ProjectView.started_at` (ISO) or a live `ms`.
-3. **Order of events in time** (design: the log is "newest first"): traces have no time. Needs `StageTrace.at` (ISO
-   UTC). Until then the log is in file order.
-4. **One request for the whole log**: today one trace request per file (≤ 11 per file while running). A project
-   trace (`GET /api/projects/{id}/trace` → `FileTrace[]`, or `stages` on `FileStatus`) would replace them.
-5. **Identify chips** (design: "Pencil on paper · 1948", "Labels in Swedish", "Scale 1:100 found"): no medium, year
-   or label language on a file, and the scale is read in Extract, not exposed on `ProjectView`/`DrawingView`. Needs
-   `FileStatus.identified: {medium, year, language}` and `PageView.scale: {ratio, source}`.
-6. **Skipped system files** (design: "Skipping system files like __MACOSX"): whether and how many entries unpack
-   skipped is not reported. Needs `ProjectView.skipped: [{path, reason}]` (or those files as `set_aside`, if they are).
-7. **Structured second count per file** (design: Agree 31 / Conflicts 3 during the run): the `second_count` trace
-   line is free text ("5 quantities measured twice, 0 conflict(s)"); the numbers come only from each drawing's
-   takeoff once written. Needs `FileStatus.second_count: {measured, conflicts}`.
-8. **Room label meaning** (design: "“Kök” is the kitchen"): a mark has `label` but not the room type it was read
-   as. Needs `MarkView.room_type` (the `room:<type>` class).
-9. **An "Index" stage**: the backend has none; screen 2 and this spec show `takeoff` as Index and the drawing's
-   `suggestions` as "answers ready". Confirm that reading with Bogdan, or a stage name.
+1. **Remaining time** (design: "Remaining ~12 s"): no `ProjectView.eta_ms`.
+2. **Order of events in time** (design: the log is "newest first"): no `StageTrace.at`; the log is in file order.
+3. **Identify medium, year, language** (design: "Pencil on paper · 1948", "Labels in Swedish"): no
+   `FileStatus.identified`; the chip shows the kind only.
+4. **An "Index" stage**: the backend has none; screen 2 and this spec show `takeoff` as Index and the drawing's
+   `suggestions` as "questions ready to ask". Bogdan (11:07): "Index" is fine.
+
+## Fields added by #120 (were mocked, now real)
+
+`ProjectView.started_at` (Elapsed), `expected_drawings` (Drawings ready), `skipped` (Unpack log), the project trace
+`GET /api/projects/{id}/trace` (one request for the log), `FileTrace.second_count` (Cross-check stats before the
+takeoffs), `PageView.scale` (Identify chip), `MarkView.room_type` (room pill title). Read as typed fields; null shows
+the empty state above. No mock and no `data-pending` is left in `src/advanced/`.
 
 ## Out of scope
 

@@ -27,7 +27,7 @@ checks on every screenshot (offline strip, no horizontal scroll, no console erro
 | V3 | Advanced, `#/p/<id>?view=advanced` (9-12) | choose Advanced | the per-file view; `plans/flat-b.pdf` reads "flagged" in words |
 | V4 | File trace, `#/p/<id>/f/<fid>` | open `plans/flat-b.pdf` | as GP-4: "flagged", "1 conflict(s) between the two methods", the second-count line, the write stage |
 | V5 | Settle the conflicts, `#/p/<id>/conflicts` (3) | open the project's conflicts | "2 conflicts found"; "area of room (name 1.01)" and "(name Küche)", each "22.40 m² vs 30.00 m²", decided by rule |
-| V6 | Ask, with proof, `…/d/<did>/engineer` (4) | open flat-b's workspace | as GP-5: the page, its credit, the suggested questions |
+| V6 | Ask, with proof, `…/d/<did>/engineer` (4) | the 1.01 card's "Open in the surveyor workspace", then the Engineer view link | as GP-5: the page, its credit, the suggested questions |
 | V7-V9 | (4) | the door count, the room 1.01 area, the roof refusal | as GP-6, GP-7, GP-8 |
 | V10-V12 | Surveyor, `…/surveyor` (restyle) | settle 1.01 on 22.40 m², sign off as "Ana" | as GP-9, GP-10, GP-11 |
 | V13 | (4) | ask the 1.01 area again | as GP-12: "22.40 m²", "Verified by Ana, …" |
@@ -46,8 +46,9 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
   trace is reached (V4, GP-4). [e2e]
 - GP-31 V5: `#/p/<id>/conflicts` shows "2 conflicts found" and both conflicts with "22.40 m² vs 30.00 m²"; no
   conflict "needs you" on the sample. [e2e]
-- GP-32 V6: the conflicts screen's way into the workspace ("Open the workspace" or the conflict's drawing) reaches
-  flat-b's engineer route `#/p/<id>/d/<16 hex>/engineer`. [e2e]
+- GP-32 V6: the 1.01 card's "Open in the surveyor workspace" (CF-18) reaches flat-b's
+  `#/p/<id>/d/<16 hex>/surveyor?q=…`, and the Engineer view link there reaches `…/engineer`. "Open the workspace"
+  (CF-17) goes to the first drawing with quantities, which need not be flat-b, so the path does not use it. [e2e]
 - GP-33 V15: "Workspaces" in the header reaches `#/workspaces`; the first workspace is "sample-project.zip" with
   `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 1 and Signed off matching `/^1 of \d+$/`.
   [e2e]

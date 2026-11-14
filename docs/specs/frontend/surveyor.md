@@ -194,6 +194,7 @@ or the test ids changes (the e2e uses "Surveyor", "Engineer", the "To review" ta
 - The progress bar takes the conflicts screen's look: 6px, 3px radius, `--v-accent` on `--v-line`.
 - Type: the detail's value 32px 700 tabular numbers; section headings 13px 600 muted; table 14px; row selected
   = `--v-accent` 2px left edge on a `--v-accent-soft` row (today's highlight, restyled).
+- The screen's grid is also the shell's `.v-page.v-page--wide` frame (shared.md "Page frame"), still a grid.
 - The side panel's "Conflicts (n)" heading gets a link "Settle the conflicts" to `#/p/<pid>/conflicts` (conflicts.md
   CF-19).
 
@@ -346,8 +347,8 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
   start and the end keeps the run repeatable. [e2e]
 - SV-49: After signing off `door` on the surveyor route, the engineer route of the same drawing answering "How many
   doors are there?" shows "Verified by Ana" (EN-32). [e2e]
-- SV-50 (Vellum): `surveyor.css` holds no colour literal (`#hex`, `rgb(`, `rgba(`, `hsl(`) and no `font-family`
-  other than `var(--v-font)` or the monospace stack: a unit test reads the file (`?raw`) and checks.
+- SV-50 (Vellum): `surveyor.css` (and `conflicts.css`) holds no colour literal (`#hex`, `rgb(`, `rgba(`, `hsl(`) and no `font-family`
+  other than `var(--v-font)` or the monospace stack: a unit test reads the file from disk (vitest hands `?raw` CSS over empty) and checks.
 - SV-51 (Vellum): the restyle changes no accessible name or test id: SV-1 to SV-46 pass unchanged, and the e2e
   golden path, surveyor and qa specs pass at 1440 and 390. [e2e]
 

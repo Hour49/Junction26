@@ -45,7 +45,10 @@ export function QuantityDetail(props: Props) {
   return (
     <section className="sv-detail" aria-label="Selected quantity">
       <h3>
-        {row.label} <span className="sv-status">{statusText(row)}</span>
+        {row.label}{' '}
+        <span className="sv-status" data-status={row.needs_person ? 'needs' : row.status}>
+          {statusText(row)}
+        </span>
       </h3>
       <p className="sv-value">
         {fmt(row.value)}
@@ -80,6 +83,7 @@ export function QuantityDetail(props: Props) {
               <button
                 key={`${v.method} ${String(i)}`}
                 type="button"
+                className="sv-primary"
                 disabled={locked}
                 onClick={() => {
                   onEdit({ quantity, action: 'settle', value: v.value });
@@ -107,6 +111,7 @@ export function QuantityDetail(props: Props) {
         </label>
         <button
           type="button"
+          className="sv-primary"
           disabled={locked || !canSettle}
           onClick={() => {
             onEdit({ quantity, action: 'settle', value: settleValue });
@@ -178,6 +183,7 @@ export function QuantityDetail(props: Props) {
         ) : (
           <button
             type="button"
+            className="sv-primary"
             disabled={saving || row.needs_person || name.trim() === ''}
             onClick={() => {
               props.onSign(false);

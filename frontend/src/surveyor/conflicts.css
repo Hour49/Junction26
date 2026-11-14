@@ -1,0 +1,292 @@
+/* Screen 3, "Settle the conflicts" (docs/specs/frontend/conflicts.md "Layout"); tokens only (shared.md). */
+/* frame and padding: the shell's .v-page.v-page--narrow (shared.md "Page frame") */
+.cf {
+  gap: 20px;
+  font-family: var(--v-font);
+  color: var(--v-text);
+}
+.cf-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+}
+.cf-head h1 {
+  font-size: 44px;
+  line-height: 1.1;
+  font-weight: 700;
+  margin: 4px 0 8px;
+}
+.cf-head-kicker {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v-ok);
+  margin: 0;
+}
+.cf-sub,
+.cf-state,
+.cf-locked {
+  font-size: 16px;
+  color: var(--v-muted);
+  margin: 0;
+}
+.cf-locked {
+  font-size: 13px;
+  margin-top: 6px;
+}
+.cf-open {
+  text-align: right;
+}
+.cf-open-btn,
+.cf-btn,
+.cf-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 980px;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.cf-open-btn {
+  background: var(--v-accent);
+  color: var(--v-surface);
+  white-space: nowrap;
+}
+.cf-open-btn:hover {
+  background: var(--v-accent-strong);
+}
+.cf-open-btn:disabled {
+  background: var(--v-fill);
+  color: var(--v-muted);
+  cursor: not-allowed;
+}
+.cf-btn {
+  background: var(--v-fill);
+  color: var(--v-text);
+}
+.cf-link {
+  color: var(--v-accent);
+  padding: 0 8px;
+}
+.cf-btn:active:not(:disabled),
+.cf-open-btn:active:not(:disabled),
+.cf-tile:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.cf-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--v-muted);
+}
+.cf-segs {
+  display: flex;
+  gap: 4px;
+  width: 180px;
+}
+.cf-segs.cf-joined {
+  gap: 0;
+}
+.cf-seg {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--v-line);
+}
+.cf-seg.cf-on {
+  background: var(--v-accent);
+}
+
+.cf-card {
+  background: var(--v-surface);
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  padding: 24px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cf-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.cf-card-head {
+  min-width: 0;
+}
+.cf-kicker {
+  font-size: 12px;
+  color: var(--v-muted);
+  margin: 0;
+}
+.cf-card h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 4px 0;
+}
+.cf-file {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: var(--v-muted);
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.cf-pill-wrap {
+  position: relative;
+  flex: none;
+}
+.cf-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 980px;
+}
+.cf-ok {
+  color: var(--v-ok);
+  background: var(--v-ok-soft);
+}
+.cf-warn {
+  color: var(--v-warn);
+  background: var(--v-warn-soft);
+}
+.cf-accent {
+  color: var(--v-accent);
+  background: var(--v-accent-soft);
+}
+.cf-muted {
+  color: var(--v-text-2);
+  background: var(--v-fill);
+}
+.cf-tip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 240px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--v-text);
+  color: var(--v-surface);
+  font-size: 12px;
+  z-index: 1;
+  visibility: hidden;
+}
+.cf-pill:hover + .cf-tip,
+.cf-pill:focus + .cf-tip {
+  visibility: visible;
+}
+
+.cf-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.cf-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--v-line);
+  background: var(--v-surface);
+  color: var(--v-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.cf-tile:disabled {
+  cursor: default;
+}
+.cf-tile[aria-pressed='true'] {
+  border: 2px solid var(--v-accent);
+  background: var(--v-accent-soft);
+  padding: 15px;
+}
+.cf-tile-kicker,
+.cf-tile-source {
+  font-size: 12px;
+  color: var(--v-muted);
+}
+.cf-tile-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cf-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--v-accent);
+}
+
+.cf-why,
+.cf-evidence {
+  background: var(--v-fill);
+  border-radius: 14px;
+  padding: 12px 16px;
+  color: var(--v-text-2);
+}
+.cf-why summary,
+.cf-evidence summary {
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 24px;
+}
+.cf-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cf-action-text {
+  margin: 0;
+  color: var(--v-muted);
+}
+.cf-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cf-error {
+  color: var(--v-danger);
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .cf-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .cf-open {
+    text-align: left;
+  }
+  .cf-head h1 {
+    font-size: 32px;
+  }
+  .cf-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cf-btn,
+  .cf-open-btn,
+  .cf-tile {
+    transition: none;
+  }
+  .cf-btn:active:not(:disabled),
+  .cf-open-btn:active:not(:disabled),
+  .cf-tile:active:not(:disabled) {
+    transform: none;
+  }
+}
