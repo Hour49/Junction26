@@ -1,6 +1,151 @@
 {
   "components": {
     "schemas": {
+      "After": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "cannot_tell",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "required": [
+          "status",
+          "value",
+          "why"
+        ],
+        "title": "After",
+        "type": "object"
+      },
+      "AiFinding": {
+        "additionalProperties": false,
+        "description": "A law note the server kept (LC-9b): its verdict recomputed, its clause filled in.",
+        "properties": {
+          "basis": {
+            "const": "ai_reading",
+            "default": "ai_reading",
+            "title": "Basis",
+            "type": "string"
+          },
+          "clause_id": {
+            "title": "Clause Id",
+            "type": "string"
+          },
+          "comparison": {
+            "enum": [
+              ">=",
+              ">",
+              "<=",
+              "<",
+              "="
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "law": {
+            "title": "Law",
+            "type": "string"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "number"
+          },
+          "quote": {
+            "title": "Quote",
+            "type": "string"
+          },
+          "quote_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote En"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "verdict": {
+            "enum": [
+              "would_not_meet",
+              "meets",
+              "check"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clause_id",
+          "subject",
+          "comparison",
+          "limit",
+          "unit",
+          "verdict",
+          "ref",
+          "law",
+          "url",
+          "quote",
+          "quote_en"
+        ],
+        "title": "AiFinding",
+        "type": "object"
+      },
       "Answer": {
         "additionalProperties": false,
         "properties": {
@@ -595,6 +740,38 @@
           "refused"
         ],
         "title": "AskedQuestion",
+        "type": "object"
+      },
+      "Before": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "cannot_tell",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "status",
+          "value"
+        ],
+        "title": "Before",
         "type": "object"
       },
       "ChatEvidence": {
@@ -2784,6 +2961,98 @@
         "title": "FileTrace",
         "type": "object"
       },
+      "Finding": {
+        "additionalProperties": false,
+        "description": "One rule on one room or door whose result the proposal changes, or that still fails on a\nroom or door it touches (LC-3). `ev`: the chat's evidence id, set by the agent loop.",
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/After"
+          },
+          "before": {
+            "$ref": "#/components/schemas/Before"
+          },
+          "change": {
+            "enum": [
+              "newly_fails",
+              "now_passes",
+              "newly_cannot_tell",
+              "still_fails",
+              "still_passes"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "clause": {
+            "$ref": "#/components/schemas/Clause"
+          },
+          "comparison_text": {
+            "title": "Comparison Text",
+            "type": "string"
+          },
+          "ev": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ev"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "number"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "subject_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Ref"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "m2",
+              "m",
+              "count"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "title",
+          "change",
+          "subject",
+          "subject_ref",
+          "before",
+          "after",
+          "comparison_text",
+          "limit",
+          "unit",
+          "clause"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
       "Flag": {
         "additionalProperties": false,
         "properties": {
@@ -3337,6 +3606,89 @@
           "label"
         ],
         "title": "Item",
+        "type": "object"
+      },
+      "LawCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "ai_findings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AiFinding"
+            },
+            "title": "Ai Findings",
+            "type": "array"
+          },
+          "fail_means": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Means"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "pack": {
+            "title": "Pack",
+            "type": "string"
+          },
+          "pack_name": {
+            "title": "Pack Name",
+            "type": "string"
+          },
+          "related": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ClauseView"
+            },
+            "title": "Related",
+            "type": "array"
+          },
+          "subject_values": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Subject Values",
+            "type": "object"
+          },
+          "subjects": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Subjects",
+            "type": "array"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pack",
+          "pack_name",
+          "fail_means",
+          "findings",
+          "unchanged",
+          "note"
+        ],
+        "title": "LawCheck",
         "type": "object"
       },
       "LawPack": {
@@ -4797,6 +5149,16 @@
             },
             "title": "Flags",
             "type": "array"
+          },
+          "law": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LawCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "page": {
             "minimum": 1.0,

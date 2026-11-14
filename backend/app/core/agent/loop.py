@@ -2,7 +2,6 @@
 a valid `final_answer`, or a cap ends it as `dont_know` with the reason in plain words."""
 
 import contextlib
-import importlib
 import json
 import re
 import time
@@ -19,6 +18,7 @@ from app.core.agent.ports import ChatModel, ChatModelError, Toolbox
 from app.core.agent.prompt import SYSTEM
 from app.core.agent.validate import FINAL_ANSWER_TOOL, FinalAnswer, failed, numbers, problems
 from app.core.laws.model import ClauseView
+from app.core.plan_edit.law_check import AiFinding, LawCheck, LawNote, validate_law_note
 from app.core.plan_edit.model import Proposal, Selection
 from app.core.spend import SpendGuard
 
@@ -107,7 +107,7 @@ class _Run:
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
         self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
         self.searched: set[str] = set()  # clause ids search_law returned this turn
-        self.kept: dict[str, tuple[Any, ...]] = {}  # proposal id -> AiFindings the server kept
+        self.kept: dict[str, tuple[AiFinding, ...]] = {}  # proposal id -> notes the server kept
 
     def turn(self, message: str, selection: Sequence[Selection]) -> ChatTurn:
         chat = self.chat
@@ -122,6 +122,8 @@ class _Run:
         chat.minted += len(self.ledger)
         chat.proposals.update(self.proposals)
         turn = self._turn_of(answer)
+        if turn.edit is not None:  # as shown, ev ids and kept law notes included (LC-10)
+            chat.proposals[turn.edit.proposal_id] = turn.edit
         chat.turns.append(turn)
         return turn
 
@@ -243,23 +245,22 @@ class _Run:
             text = law.appended(text, len(failing) + len(breaking), name)
         return soft, answer.model_copy(update={"text": text})
 
-    def _notes(self, answer: FinalAnswer) -> tuple[list[Any], list[str]]:
+    def _notes(self, answer: FinalAnswer) -> tuple[list[AiFinding], list[str]]:
         """The answer's law_notes the server keeps (as AiFindings) and why each other was dropped
         (LC-9b, law-kb's validate_law_note)."""
         if not answer.law_notes:
             return [], []
-        law_check = getattr(self.proposals.get(answer.proposal_id or ""), "law", None)
+        made = self.proposals.get(answer.proposal_id or "")
+        law_check = made.law if made else None
         if answer.kind != "edit" or law_check is None:
             return [], ["law_notes go only with an edit whose proposal has a law check"]
-        # shortcut: imported by name until law-kb's law_check.py is merged (then a plain import)
-        checking: Any = importlib.import_module("app.core.plan_edit.law_check")
         clauses = self._clause_views(law_check, {note.clause_id for note in answer.law_notes})
         values = [float(number) for number in numbers(self.sources)]
-        kept: list[Any] = []
+        kept: list[AiFinding] = []
         dropped: list[str] = []
         for note in answer.law_notes:
-            given = checking.LawNote.model_validate(note.model_dump())
-            found = checking.validate_law_note(given, law_check, clauses, values)
+            given = LawNote.model_validate(note.model_dump())
+            found = validate_law_note(given, law_check, clauses, values)
             if found is None:
                 dropped.append(
                     f"law_note {note.clause_id} on {note.subject} dropped: its clause, limit, "
@@ -269,7 +270,7 @@ class _Run:
                 kept.append(found)
         return kept, dropped
 
-    def _clause_views(self, law_check: Any, cited: set[str]) -> dict[str, ClauseView]:
+    def _clause_views(self, law_check: LawCheck, cited: set[str]) -> dict[str, ClauseView]:
         """Every clause of this turn by id: the law check's related ones, get_clause results,
         and a search_law hit a note cites, fetched with get_clause (not a step)."""
         found: dict[str, ClauseView] = {c.id: c for c in law_check.related}
@@ -383,16 +384,20 @@ class _Run:
         )
 
     def _edit(self, proposal_id: str | None) -> Proposal | None:
-        """The proposal the answer names, its law check with the AI findings the server kept."""
+        """The proposal the answer names, its law check with each finding's ev id (as minted on
+        the tool result, same order) and the AI findings the server kept."""
         made = self.proposals.get(proposal_id or "")
-        kept = self.kept.get(proposal_id or "")
-        law_check = getattr(made, "law", None)
-        if made is None or not kept or law_check is None:
+        if made is None or made.law is None:
             return made
-        findings = (*law_check.ai_findings, *kept)
-        return made.model_copy(
-            update={"law": law_check.model_copy(update={"ai_findings": findings})}
+        shown: list[Json] = self.laws.get(made.proposal_id, {}).get("findings") or []
+        evs = [given.get("ev") for given in shown] + [None] * len(made.law.findings)
+        findings = tuple(
+            finding.model_copy(update={"ev": ev})
+            for finding, ev in zip(made.law.findings, evs, strict=False)
         )
+        kept = (*made.law.ai_findings, *self.kept.get(made.proposal_id, ()))
+        law_check = made.law.model_copy(update={"findings": findings, "ai_findings": kept})
+        return made.model_copy(update={"law": law_check})
 
     def _files(self) -> set[tuple[str, str]]:
         """(drawing id, file name) of every drawing this turn's results named."""

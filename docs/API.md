@@ -8544,7 +8544,8 @@ without wall fills) gets `dont_know` saying so.
         "code": "wet_room",
         "text": "A wet room changes: its waterproofing is redone and inspected."
       }
-    ]
+    ],
+    "law": null
   },
   "options": null,
   "steps": [
@@ -8730,7 +8731,8 @@ unchanged.
       "code": "wet_room",
       "text": "A wet room changes: its waterproofing is redone and inspected."
     }
-  ]
+  ],
+  "law": null
 }
 ```
 

@@ -28,7 +28,8 @@ def _walk(found: Any, ledger: dict[str, Json], first: int, context: Json) -> Non
         ev = f"ev_{first + len(ledger)}"
         here["ev"] = ev
         label = next(
-            (here[k] for k in ("label", "name", "type", "class", "id") if here.get(k)), None
+            (here[k] for k in ("label", "subject", "name", "type", "class", "id") if here.get(k)),
+            None,
         )
         ledger[ev] = {
             "drawing_id": context["drawing_id"],

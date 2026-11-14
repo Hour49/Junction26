@@ -213,6 +213,10 @@ def _edit(found: Json, evidence: list[str]) -> tuple[str, Json]:
     if removed:
         text += " Removed: " + "; ".join(removed) + "."
     text += "".join(f" {unknown}" for unknown in proposal.get("unknowns", []))
+    law: Json = found.get("law") or {}
+    for finding in law.get("findings") or []:  # LC-8: name each rule the change newly breaks
+        if finding.get("change") == "newly_fails" and finding.get("ev"):
+            text += f" {finding['subject']} would not meet: {finding['title']} [{finding['ev']}]."
     return _final("edit", text, evidence, proposal_id=proposal["proposal_id"])
 
 

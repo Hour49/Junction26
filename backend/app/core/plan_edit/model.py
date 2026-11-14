@@ -6,6 +6,7 @@ from pydantic import Field
 
 from app.core.drawing.model import Box
 from app.core.model import Frozen
+from app.core.plan_edit.law_check import LawCheck
 
 # A polygon in page fractions (0..1, top left), as get_plan_geometry returns rooms.
 Ring = tuple[tuple[float, float], ...]
@@ -55,3 +56,4 @@ class Proposal(Frozen):
     rooms: tuple[RoomChange, ...] = ()
     unknowns: tuple[str, ...] = ()
     flags: tuple[Flag, ...] = ()
+    law: LawCheck | None = None  # the rule pack before vs after (LC-7); None: no pack chosen

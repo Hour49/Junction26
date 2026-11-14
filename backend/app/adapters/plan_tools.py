@@ -37,7 +37,9 @@ from app.adapters.pipeline_tools import (
 from app.core.checks.model import RulePack
 from app.core.drawing.model import Room
 from app.core.errors import DomainError
+from app.core.laws.search import LawIndex
 from app.core.plan_edit.edit import EditRefusedError, place_room, remove_wall
+from app.core.plan_edit.law_check import check_proposal, related_query
 from app.core.plan_edit.model import Proposal, Selection
 from app.core.plan_edit.walls import Opening, PlanPage, PlanRoom, walls_of
 
@@ -53,6 +55,7 @@ class PlanStore:
     selections: dict[str, Selection] = field(default_factory=dict[str, Selection])
     proposals: list[Proposal] = field(default_factory=list[Proposal])
     pack: RulePack | None = None  # the rule pack proposals are checked against (LC-6); None: none
+    laws: LawIndex | None = None  # where the law clauses related to a change are found (LC-9)
 
     @classmethod
     def of_app(
@@ -309,8 +312,37 @@ def _next_id(store: PlanStore) -> str:
 
 
 def _proposed(store: PlanStore, proposal: Proposal) -> dict[str, Any]:
+    """The proposal kept in the store, with its law check when a pack is chosen (LC-7): the
+    model reads `law` without the clauses' quotes, each finding with its subject's box so the
+    loop gives it an ev id."""
+    shown = {"status": "ok", "proposal": proposal.model_dump(mode="json")}
+    if store.pack is not None:
+        entry = _entry(_done(store.pipeline, store.pipeline.project_id), proposal.drawing_id)
+        drawing = store.pipeline.ingest.drawing(entry.drawing_id)
+        laws, query = store.laws, related_query(drawing, proposal)
+        hits = laws.search(store.pack.id, query, limit=8) if laws is not None and query else []
+        related = [laws.clause(hit.id) for hit in hits] if laws is not None else []
+        law = check_proposal(drawing, proposal, store.pack, entry.route, related)
+        proposal = proposal.model_copy(update={"law": law})
+        boxes = _boxes(drawing.rooms, proposal)
+        view = law.for_model()
+        for finding, given in zip(law.findings, view["findings"], strict=True):
+            if (at := boxes.get(finding.subject_ref or "")) is not None:
+                given["box"] = list(at)
+        shown["law"] = {"drawing_id": proposal.drawing_id, "page": proposal.page, **view}
     store.proposals.append(proposal)
-    return {"status": "ok", "proposal": proposal.model_dump(mode="json")}
+    return shown
+
+
+def _boxes(rooms: tuple[Room, ...], proposal: Proposal) -> dict[str, tuple[float, ...]]:
+    """Page-fraction boxes of what a law finding can be on: the drawing's rooms, the proposal's
+    changed rooms and its removed and added pieces (doors)."""
+    boxes: dict[str, tuple[float, ...]] = {room.id: tuple(room.box) for room in rooms}
+    for item in (*proposal.rooms, *proposal.removed, *proposal.added):
+        if item.polygon:
+            xs, ys = [x for x, _ in item.polygon], [y for _, y in item.polygon]
+            boxes[item.id] = (min(xs), min(ys), max(xs), max(ys))
+    return boxes
 
 
 _RUNNERS: dict[str, Callable[[PlanStore, Any], dict[str, Any]]] = {

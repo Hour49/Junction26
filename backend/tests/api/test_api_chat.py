@@ -1,5 +1,6 @@
 """POST /api/projects/{id}/chat with CHAT_MODEL=rules (decision 0013, spec AC-11, AC-22..AC-25)."""
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 from swiss_walls import walled_flat
 
 from app.adapters.agent_tools import project_toolbox
+from app.adapters.plan_tools import PlanStore, run_plan_tool
 from app.composition import build_ingest
 from app.main import create_app
 from app.settings import Settings
@@ -203,3 +205,62 @@ def test_lc6_a_known_pack_reaches_the_plan_tools_and_none_works_as_before(
     runner: Any = toolbox._runners["propose_room"]  # pyright: ignore[reportPrivateUsage]
     store = runner.args[0]  # the PlanStore the plan tools run on
     assert store.pack == fi
+
+
+STORAGE = [0.40, 0.27, 0.47, 0.40]  # a region in Stanza 1.02 (11.66 m2 printed) of walled_flat
+
+
+def storage(client: TestClient, walled: tuple[str, str], **more: Any) -> dict[str, Any]:
+    project, drawing = walled
+    region = {"id": "sel_1", "kind": "region", "drawing_id": drawing, "page": 1, "box": STORAGE}
+    return ask(client, project, "Put a storage room here", selection=[region], **more)
+
+
+def test_lc7_lc8_lc10_ch_zh_names_the_rule_a_storage_room_breaks_and_accept_keeps_it(
+    client: TestClient, walled: tuple[str, str]
+) -> None:
+    turn = storage(client, walled, pack="ch-zh")
+    assert turn["kind"] == "edit", turn
+    law = turn["edit"]["law"]
+    assert (law["pack"], law["note"].startswith("A pre-check of")) == ("ch-zh", True)
+    area = law["findings"][0]
+    assert (area["rule_id"], area["change"], area["subject"]) == (
+        "ch-zh-room-area", "newly_fails", "Stanza 1.02")  # fmt: skip
+    assert area["before"]["value"] == pytest.approx(11.66, abs=0.01) and area["after"]["value"] < 10
+    assert area["ev"] == "ev_1" and area["clause"]["quote"]  # the full clause, quote included
+    assert "Stanza 1.02 would not meet" in turn["text"] and "[1]" in turn["text"]
+    assert turn["evidence"][0]["label"] == "Stanza 1.02" and len(turn["evidence"][0]["box"]) == 4
+    assert "ch-zh-ls-700-1-303" in [c["id"] for c in law["related"]]  # PBG § 303, room areas
+    url = f"/api/projects/{walled[0]}/chat/{turn['chat_id']}/proposals/p1"
+    accepted = client.post(url, json={"action": "accept"}).json()
+    assert accepted["state"] == "accepted" and accepted["law"] == law
+
+
+def test_lc7_fi_meets_and_no_pack_has_no_law(client: TestClient, walled: tuple[str, str]) -> None:
+    fi = storage(client, walled, pack="fi")
+    changes = {(f["rule_id"], f["change"]) for f in fi["edit"]["law"]["findings"]}
+    assert ("fi-habitable-room-area", "still_passes") in changes
+    assert all(change != "newly_fails" for _, change in changes)
+    assert "would not meet" not in fi["text"]
+    assert storage(client, walled)["edit"]["law"] is None
+
+
+@pytest.mark.skipif(not FLOOR9178.is_file(), reason="partner data absent (data/stoa/full)")
+@pytest.mark.parametrize(("pack", "change"), [("ch-zh", "newly_fails"), ("fi", "still_passes")])
+def test_lc7_floor9178_a_storage_room_over_most_of_stanza_1_02(
+    client: TestClient, pack: str, change: str
+) -> None:
+    """Spec §1 step 2: the same box breaks Zürich's 10 m2 and meets Finland's 7 m2."""
+    project = upload(client, FLOOR9178.read_bytes(), "floor9178.pdf")
+    drawing = client.get(f"/api/projects/{project}").json()["drawings"][0]["drawing_id"]
+    walls = json.loads(run_plan_tool(PlanStore.of_app(client.app, project), "list_walls",
+                                     {"drawing_id": drawing, "page": 1}))  # fmt: skip
+    (stanza,) = [r for r in walls["rooms"] if r["label"] == "Stanza 1.02"]
+    x0, y0, x1, y1 = stanza["box"]
+    region = {"id": "sel_1", "kind": "region", "drawing_id": drawing, "page": 1,
+              "box": [x0 + (x1 - x0) * 0.7, y0 + 0.002, x1 - 0.002, y1 - 0.002]}  # fmt: skip
+    turn = ask(client, project, "Put a storage room here", selection=[region], pack=pack)
+    assert turn["kind"] == "edit", turn
+    area = [f for f in turn["edit"]["law"]["findings"] if f["subject"] == "Stanza 1.02"
+            and f["rule_id"].endswith("room-area")]  # fmt: skip
+    assert [f["change"] for f in area] == [change]

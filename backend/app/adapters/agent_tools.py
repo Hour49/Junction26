@@ -66,12 +66,15 @@ def project_toolbox(
     sets: list[tuple[list[Json], Runner]] = [(PIPELINE_TOOLS, partial(run_pipeline_tool, pipeline))]
     describe: Callable[[Selection], str] = _plain
     made: Callable[[], list[Proposal]] = list
+    laws = getattr(app.state, "laws", None)  # the law index (SqliteLawIndex), None: no law files
     try:
         from app.adapters.plan_tools import PLAN_TOOLS, PlanStore, run_plan_tool
     except ImportError:
         pass
     else:
-        plans = PlanStore(pipeline, {s.id: s for s in selection}, list(proposals.values()), pack)
+        plans = PlanStore(
+            pipeline, {s.id: s for s in selection}, list(proposals.values()), pack, laws
+        )
         sets.append((PLAN_TOOLS, partial(run_plan_tool, plans)))
         describe = plans.describe
         made = lambda: plans.proposals  # noqa: E731
@@ -79,7 +82,6 @@ def project_toolbox(
     if evidence is not None:
         index = evidence.evidence_index(project_id)
         sets.append((EVIDENCE_TOOLS, partial(run_evidence_tool, index)))
-    laws = getattr(app.state, "laws", None)
     if laws is not None:
         try:
             from app.adapters.law_tools import TOOLS, run_tool  # pyright: ignore
