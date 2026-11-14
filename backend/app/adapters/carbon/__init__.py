@@ -58,9 +58,10 @@ class CarbonThings:
     than `few` elements on it (a scan or photo the detector cannot read; on 6 hard floor plans of
     at most 4,000 px with none found, the split was 59 right / 3 wrong / 1 refused against the
     product's 55 / 8 / 0, and no CubiCasa page of val or golden dev has fewer than 3; confidence,
-    carbon-reader.md 5.8-5.9); its path is added to `took`. Every other drawing is the shipped
-    reader's. Ingest flags both kinds (composition `Pipeline.carbon_read`), so no answer on them
-    is certified."""
+    carbon-reader.md 5.8-5.9); its path is added to `took`. When Carbon read nothing there (no
+    plan, no class: a failed call, a spent budget) the shipped reading is kept and the path is
+    not added (fail-1, review-293 S1). Every other drawing is the shipped reader's. Ingest flags
+    both kinds (composition `Pipeline.carbon_read`), so no answer on them is certified."""
 
     def __init__(
         self,
@@ -78,12 +79,15 @@ class CarbonThings:
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         shipped = self._other.extract(source, sheet)
-        if not self._use_carbon(source.path):
-            if len(shipped.elements) >= self._few:
-                return shipped
+        large = self._use_carbon(source.path)
+        if not large and len(shipped.elements) >= self._few:
+            return shipped
+        carbon = self._carbon.extract(source, sheet)
+        if not large:
+            if not carbon.plans and not carbon.read:  # Carbon read nothing (a failed call, a
+                return shipped  # spent budget): the shipped reading stays, as before the clause
             if self._took is not None:
                 self._took.add(source.path)
-        carbon = self._carbon.extract(source, sheet)
         notes = list(carbon.notes)
         plans = carbon.plans
         if not plans:

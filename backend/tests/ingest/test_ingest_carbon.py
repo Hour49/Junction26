@@ -940,3 +940,33 @@ def test_on_a_small_page_carbon_counts_only_where_the_shipped_reader_found_fewer
         assert got == Shipped().extract(source, sheet) and took == set()
     unset = CarbonThings(Shipped(), carbon, lambda _: False).extract(source, sheet)
     assert unset == Shipped().extract(source, sheet)  # few=0 (the default): the size rule alone
+
+
+def test_carbon_failure_on_a_two_door_page(tmp_path: Path) -> None:
+    """fail-1, review-293 S1: when Carbon reads nothing on a few-things page (its page call
+    failed, or the budget is spent), the shipped reader's two doors stay and the page is not
+    recorded as counted by Carbon, so it is not flagged for it."""
+    from app.core.drawing.model import Element, Scale
+
+    class Shipped:
+        def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+            doors = tuple(Element(id=f"e{i}", class_="door", page=1, box=(0.1, 0.1, 0.2, 0.2))
+                          for i in range(2))  # fmt: skip
+            return Extracted(method="detector", scale=Scale(status="no_scale"), elements=doors,
+                             read=("door", "window", "room"))  # fmt: skip
+
+    class Files:
+        def read(self, path: str) -> bytes:
+            return png_bytes(page_image(900, 700))
+
+    tile = tile_form(("toilet", [700, 700, 750, 750]))
+    failed = CarbonExtractor(Files(), CarbonReader(FakeCarbon(RuntimeError("HTTP 503"), [tile]),
+                                                   tmp_path))  # fmt: skip
+    source = DrawingFile(path="a.png", size=1, sha256="0" * 64, kind="png")
+    sheet = Sheet(file=source, pages=(Page(page=1, width=900, height=700, unit="px"),))
+    took: set[str] = set()
+    got = CarbonThings(Shipped(), failed, lambda _: False, 3, took).extract(source, sheet)
+    assert got == Shipped().extract(source, sheet) and took == set()
+    # over 4,000 px a failed call still drops the shipped elements (no fallback, as built in #269)
+    large = CarbonThings(Shipped(), failed, lambda _: True, 3, took).extract(source, sheet)
+    assert large.elements == () and took == set()
