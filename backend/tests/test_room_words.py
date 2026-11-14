@@ -117,6 +117,9 @@ def test_what_a_label_names_for_the_check() -> None:
     assert room_word("KPH") == RoomWord(kind="bathroom", unmeasured=False)
     assert room_word("K") == RoomWord(kind="kitchen", unmeasured=False)
     assert room_word("Makuuhuone 1") is None  # a word the gold table does not hold
+    assert room_word("Bain 4.03") == RoomWord(kind="bathroom", unmeasured=True)
+    # a Swiss word without a Swiss room number is any plan's (review-358: a UK school's "Lift")
+    assert room_word("Lift") == RoomWord(kind="shaft", unmeasured=False)
     assert build_answering(Settings(_env_file=None)).room_words is room_word  # pyright: ignore[reportCallIssue]
 
 
@@ -152,6 +155,7 @@ def asked(
     route: str = "raster",
     flags: tuple[str, ...] = (),
     carbon: CarbonCheck | None = None,
+    policy: CheckPolicy | None = None,
 ) -> Asked:
     drawing = Drawing(
         file="plan.png", pages=(PAGE,), scale=Scale(status="no_scale"), plans=PLANS,
@@ -160,7 +164,7 @@ def asked(
     return ask(
         text, drawing, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
         state=ReviewState(), confidence=Agreeing(score, None), flags=flags,
-        raster=route == "raster", check=POLICY, route=route, room_words=room_words,
+        raster=route == "raster", check=policy or POLICY, route=route, room_words=room_words,
         carbon_ladder=carbon is not None,
     )  # fmt: skip
 
@@ -235,6 +239,19 @@ def test_a_count_on_an_image_with_swiss_room_names_is_low_whatever_its_score(
     found = asked(rooms, SWISS, text=text, score=score)
     assert found.level is not None and (found.level.level, found.level.basis) == ("low", "unrated")
     assert found.level.text == UNMEASURED_TEXT
+
+
+def test_the_low_rule_is_for_raster_counts_only() -> None:
+    """review-358 M11, M17/M18: a drawn route keeps its own level on a sheet with Swiss words, and
+    an area answer on a Swiss image gets neither the Low text nor the validation reason."""
+    rooms = (room(1, "bathroom", "Bagno\n1.01"),)
+    medium = POLICY.model_copy(update={"routes": frozenset(), "route_levels": {"vector": "medium"}})
+    assert made(asked(rooms, SWISS, route="vector", policy=medium)) == ("medium", "route")
+    sized = (rooms[0].model_copy(update={"area_m2": 5.0}),)
+    area = asked(sized, SWISS, text="What is the area of the bathroom?")
+    assert area.answer.answer == 5.0 and area.level is not None
+    assert area.level.text != UNMEASURED_TEXT
+    assert area.check is not None and "not in our validation" not in area.check.reason
 
 
 def test_the_doubt_is_for_the_raster_route_only() -> None:

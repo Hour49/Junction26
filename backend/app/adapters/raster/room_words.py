@@ -56,10 +56,13 @@ def swiss_label_rooms(rooms: Sequence[Room]) -> tuple[Room, ...]:
 
 
 def room_word(label: str) -> RoomWord | None:
-    """What `label` names: a Swiss room (`unmeasured`: the check policy saw no such sheet) or a
-    room of the Finnish gold table; None when it names neither."""
+    """What `label` names: a Swiss room (`unmeasured` when it also carries a Swiss room number:
+    the check policy saw no such sheet) or a room of the Finnish gold table; None when it names
+    neither."""
     if (kind := swiss_type(label)) is not None:
-        return RoomWord(kind=kind, unmeasured=True)
+        # a Swiss sheet numbers its rooms ("Bagno 1.09"); a bare "Lift" or "Hall" is any plan's
+        # (keycheck, review-358: a UK school plan's "Lift" made every count Low)
+        return RoomWord(kind=kind, unmeasured=NUMBER.search(label) is not None)
     if (kind := labels.room_type(label, labels.annotated())) is not None:
         return RoomWord(kind=kind, unmeasured=False)
     return None
