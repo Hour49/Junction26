@@ -426,3 +426,18 @@ def test_mask_tells_a_dashed_run_from_a_solid_one_of_the_same_colour() -> None:
     back = [r.length_m for r in reading.runs if r.label == "Heating return"]
     assert len(flow) == 1 and abs(flow[0] - 4.0) <= 0.03 * 4.0, flow
     assert len(back) == 1 and abs(back[0] - 3.54) <= 0.03 * 3.54, back
+
+
+def test_template_reads_a_legend_symbol_of_256_px_or_more() -> None:
+    from app.adapters.discipline_pictures.template import read_symbols
+
+    page = Image.new("L", (1200, 900), 255)
+    draw = ImageDraw.Draw(page)
+    draw.ellipse((800, 50, 1100, 350), outline=0, width=6)  # the legend's 300 px symbol
+    draw.ellipse((100, 400, 400, 700), outline=0, width=6)  # one on the plan
+    legend = (LegendEntry(label="Tank", group=None, line=False,
+                          box=fractions(795, 45, 1105, 355, 1200, 900)),)  # fmt: skip
+    import numpy as np
+
+    reading = read_symbols(np.asarray(page), legend)
+    assert reading.read == ("Tank",) and len(reading.sightings) == 1

@@ -118,7 +118,7 @@ def _peaks(
     seen: set[bytes] = set()
     for quarter in range(4):
         turned = np.ascontiguousarray(np.rot90(symbol, quarter))
-        key = turned.tobytes() + bytes(turned.shape)
+        key = turned.tobytes() + str(turned.shape).encode()  # a side may be 256 px or more
         if key in seen:  # a symmetric symbol turned onto itself
             continue
         seen.add(key)

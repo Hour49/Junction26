@@ -27,7 +27,8 @@ UNAVAILABLE = "This information is not available in the file"
 # A picture's sheet holds facts only of what its legend lists (discipline-pictures.md Outputs)
 NOT_READ = "not read on this picture"
 PICTURE_ROUTES = ("picture", "vector")  # a Fact.source's route, before its colon
-SAME_KIND = {"heat_exchanger": "space_heater"}  # a radiator is an IfcSpaceHeater in a model too
+# a radiator is an IfcSpaceHeater in a model too; a picture names a switch's kind as IFC does
+SAME_KIND = {"heat_exchanger": "space_heater", "switch": "switching_device"}
 # What a question asks about that is not a drawn thing: never refused as not read
 NOT_DRAWN = frozenset({"project", "storey", "space", "system", "discipline", "port"})
 
