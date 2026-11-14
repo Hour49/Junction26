@@ -97,7 +97,10 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await page.getByRole('button', { name: 'Ask' }).click();
     const roof = turn('What colour is the roof?');
     await expect(roof).toContainText("I can't answer that from this drawing.");
-    await expect(roof).toContainText('unsupported-question');
+    await expect(roof).toContainText("This question isn't one I can turn into a count");
+    // The refusal code is not shown on the card (QA sign-off, #14).
+    await expect(roof).not.toContainText('code:');
+    await expect(roof).not.toContainText('unsupported-question');
     await expect(roof.getByRole('button', { name: 'How many doors are there?' })).toBeVisible();
     await expect(roof.getByTestId('answer-value')).toHaveCount(0);
     // EN-43: the newest turn is scrolled into view

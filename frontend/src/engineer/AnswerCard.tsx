@@ -108,7 +108,6 @@ function Answer(props: {
         <p>
           <b>I can't answer that from this drawing.</b> {a.refusal.text}
         </p>
-        <p className="en-small">code: {a.refusal.code}</p>
         <Suggestions items={a.refusal.can_answer} busy={busy} onAsk={onAsk} />
       </div>
     );

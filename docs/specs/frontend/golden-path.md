@@ -72,7 +72,7 @@ reads the scans); the e2e always runs on no keys (`start-backend.sh` forces ever
 | 4 | Click "Open the drawing" | `#/p/<id>/d/<drawing_id>/engineer`: "plans/flat-b.pdf", "vector route, read from plans/flat-b.pdf by pdf …", page 1 of the plan, six suggested questions | yes |
 | 5 | Click "How many doors are there?" | Answer `2`, "door count", two numbered marks 1 and 2 on the doors, "Counting rule: every element, room and plan the drawing lists counts once", "One method", Cost $0 | yes |
 | 6 | Type "What is the net floor area of room 1.01?", Ask | Answer `30.00 m²`, the kitchen shaded, status "Methods disagree": "22.40 m² by polygon_x_scale", "30.00 m² by printed_label", "Kept 30.00 m²: the printed label over the outline at the sheet's scale" | yes |
-| 7 | Type "What colour is the roof?", Ask | "I can't answer that from this drawing.", the reason, code `unsupported-question`, question buttons it can answer; no number | yes |
+| 7 | Type "What colour is the roof?", Ask | "I can't answer that from this drawing.", the reason in words (no code shown), question buttons it can answer; no number | yes |
 | 8 | Switch to Surveyor | `#/…/surveyor`: "Takeoff: plans/flat-b.pdf", the "To review" group first: "area of room (name 1.01)" and "area of room (name küche)", each "Methods disagree"; the first is selected, its detail shows both values | yes |
 | 9 | Press "Keep A: 22.40 m² (polygon_x_scale)" (the drawn outline) | The row reads 22.40 m², "Changed in review", "Settled at 22.40 m² …" | yes |
 | 10 | Type "Ana" in "Signing as", press "Sign off 22.40 m²" | The row reads "Verified"; "Signed off by Ana, <date time> UTC: 22.40 m². Engineers see this value as verified." | yes |
@@ -258,7 +258,8 @@ The path
 - GP-7 Step 6: the turn for "What is the net floor area of room 1.01?" shows "30.00 m²", "Methods disagree",
   "22.40 m² by polygon_x_scale", "30.00 m² by printed_label" and one mark named `Mark 1: Küche, counted`. [e2e]
 - GP-8 Step 7: the turn for "What colour is the roof?" shows "I can't answer that from this drawing." and
-  "unsupported-question", at least one question button, and no answer value. [e2e]
+  the reason "This question isn't one I can turn into a count…", no "code:" line, at least one question button,
+  and no answer value. [e2e]
 - GP-9 Step 8: the "Surveyor" link reaches `#/p/<id>/d/<same drawing id>/surveyor`, whose "To review" group lists
   "area of room (name 1.01)" and "area of room (name küche)", each with "Methods disagree". [e2e]
 - GP-10 Step 9: with "area of room (name 1.01)" selected, "Keep A: 22.40 m² (polygon_x_scale)" makes its row read

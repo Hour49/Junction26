@@ -36,7 +36,7 @@ export function readerName(id: string | null | undefined): string {
   return READERS[id] ?? id;
 }
 
-// Measuring methods (backend MeasureMethod), in the backend's own words (app/core/review/proof.py METHODS).
+// Measuring methods (backend MeasureMethod), in the backend's own words (app/core/pipeline/second_count.py METHODS).
 const METHODS: Record<string, string> = {
   printed_label: 'printed room areas',
   polygon_x_scale: 'room outlines × sheet scale',
