@@ -6,6 +6,7 @@ from typing import Protocol
 
 from app.core.drawing.model import Drawing, Page
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
+from app.core.pipeline.printed import PrintedSheet
 
 
 class DrawingFiles(Protocol):
@@ -50,6 +51,13 @@ class SecondCounter(Protocol):
     room is named by the id the extractor gave it."""
 
     def measure(self, source: DrawingFile, sheet: Sheet) -> Sequence[Measurement]: ...
+
+
+class PrintedReader(Protocol):
+    """What a sheet prints about its own scale and quantities: the printed scale text, its scale
+    bars' labelled ends, the printed facts (app/core/pipeline/printed.py)."""
+
+    def read(self, source: DrawingFile, sheet: Sheet) -> PrintedSheet: ...
 
 
 class DrawingSink(Protocol):

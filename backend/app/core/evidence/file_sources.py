@@ -4,15 +4,20 @@
 - `text`: a text document (`pdf_text`, `text`) is searched by its own text, every page that has
   some; a drawn or scanned PDF by its own text pages too, those the probe does not count as drawn
   and that hold `TEXT_PAGE_CHARS` characters or more. Phone numbers and e-mail addresses are taken
-  out first (`without_contacts`, as descriptions are), then the file is cut at `TEXT_CHARS`, at a
-  page or line end. One summary passage, then `text-1..n`, each page packed at line ends into
-  passages of at most `PASSAGE_CHARS`, never across a page.
+  out first (`without_contacts`, as descriptions are), and a street address loses its house
+  number and postal code (`without_addresses`: decision 0010, as the describer writes a home
+  address), then the file is cut at `TEXT_CHARS`, at a page or line end (a line longer than what
+  is left is cut at a word end). One summary passage, then `text-1..n`, each page packed at line
+  ends into passages of at most `PASSAGE_CHARS`, never across a page.
 - `listed`: a file nothing reads (DWG, office, archive, encrypted PDF, unknown, refused, IFC) is
   one summary passage that names it and says why its content is not read.
+
+The file name in a passage goes through the same contact and address rules as the text.
 
 Pure: the caller reads the bytes (app/adapters/evidence/file_text.py) and decides which files and
 pages to give, and the kind words."""
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -24,6 +29,25 @@ from app.core.evidence.chunks import PASSAGE_CHARS, pack
 TEXT_CHARS = 200_000  # per file, cut at a page or line end
 TEXT_PAGE_CHARS = 200  # a text page inside a drawn PDF counts from this many characters
 SUMMARY_CHARS = 300  # of the text, in the summary passage
+
+# A street address in fi, sv, de or en (decision 0010: a home address keeps its street and town,
+# not its house number or postal code). A regex can't tell a home from a firm, so every street
+# address found is cut the same way; a number that does not follow a street word stays.
+_STREET = (
+    r"[A-ZÅÄÖÜ][\w-]*(?:tie|katu|kuja|polku|kaari|väylä|raitti|rinne|ranta|tori|aukio|vägen|"
+    r"gatan|gränd|stigen|straße|strasse|weg|gasse|platz|allee)"
+)
+_HOUSE = (  # 12, 12a, 12 B 4, 12-14, 12 as 4
+    r"\d{1,4}(?:[ \t]?[a-zA-Z]\b)?(?:[ \t]*[-\u2013][ \t]*\d{1,4})?"
+    r"(?:[ \t]+(?:as[ \t]+)?\d{1,3})?\b"
+)
+_STREET_NUMBER = re.compile(rf"\b({_STREET})[ \t]+{_HOUSE}")
+_ENGLISH_STREET = re.compile(
+    r"\b\d{1,5}[a-zA-Z]?[ \t]+((?:[A-Z][a-z]+[ \t]+){1,3}"
+    r"(?:Street|Road|Avenue|Lane|Drive|Way|Close|Court|Place|Square|Crescent)\b)"
+)
+_ZIP = re.compile(r"\b([A-Z]{2})[ \t]+\d{5}(?:-\d{4})?\b")  # "WI 54751": a US state and ZIP
+_POSTAL_CODE = re.compile(r"(,?[ \t]*)(?:[A-Z]{1,2}-)?\d{5}(?=[ \t]+[A-ZÅÄÖÜ])")
 
 
 @dataclass(frozen=True)
@@ -54,9 +78,27 @@ class TextSource:
 
 
 def name_words(path: str) -> str:
-    """The file name without folders and extension, `_` and `-` as spaces: the source's subject."""
+    """The file name without folders and extension, `_` and `-` as spaces: the source's subject,
+    with its contacts and house numbers taken out as the text's are."""
     stem = PurePosixPath(path.replace("\\", "/")).stem
-    return " ".join(stem.replace("_", " ").replace("-", " ").split())
+    scrubbed = without_addresses(without_contacts(" ".join(stem.replace("_", " ").split())))
+    return " ".join(scrubbed.replace("-", " ").split())
+
+
+def without_addresses(text: str) -> str:
+    """`text` with each street address's house number taken out, and on a line that has one, a
+    postal code before a town name ("Esimerkkitie 12 B 4, 00100 Helsinki" -> "Esimerkkitie,
+    Helsinki"). Line by line, as `without_contacts`."""
+    out: list[str] = []
+    for line in text.split("\n"):
+        found = _STREET_NUMBER.sub(r"\1", line)
+        found = _ENGLISH_STREET.sub(r"\1", found)
+        if found != line:
+            found = _POSTAL_CODE.sub(lambda match: ", " if "," in match.group(1) else " ", found)
+            found = _ZIP.sub(r"\1", found)
+            found = re.sub(r"[ \t]*,[ \t]*,", ",", re.sub(r"[ \t]{2,}", " ", found)).strip()
+        out.append(found)
+    return "\n".join(out)
 
 
 def text_source(
@@ -69,12 +111,12 @@ def text_source(
     for page in pages:
         if not whole and (page.drawn or len(page.text.strip()) < TEXT_PAGE_CHARS):
             continue
-        text = without_contacts(_lines(page.text)).strip()
+        text = without_addresses(without_contacts(_lines(page.text))).strip()
         if text:
             kept.append((page.number, text))
+    kept, cut = _capped(kept)
     if not kept:
         return None
-    kept, cut = _capped(kept)
     whole_text = "\n".join(text for _, text in kept)
     summary = f"{kind_words}. {name_words(path)}. {_first(whole_text)}"
     pieces = [Piece(part="summary", n=1, page=1, text=summary)]
@@ -99,7 +141,8 @@ def _lines(text: str) -> str:
 
 
 def _capped(pages: list[tuple[int, str]]) -> tuple[list[tuple[int, str]], bool]:
-    """The pages cut to TEXT_CHARS characters in all, at a page end or else a line end."""
+    """The pages cut to TEXT_CHARS characters in all, at a page end or else a line end; a line
+    longer than what is left, with nothing before it on its page, is cut at a word end."""
     kept: list[tuple[int, str]] = []
     left = TEXT_CHARS
     for number, text in pages:
@@ -110,6 +153,8 @@ def _capped(pages: list[tuple[int, str]]) -> tuple[list[tuple[int, str]], bool]:
         lines: list[str] = []
         for line in text.split("\n"):
             if len(line) > left - (1 if lines else 0):
+                if not lines and (part := _word_cut(line, left)):
+                    lines.append(part)
                 break
             left -= len(line) + (1 if lines else 0)
             lines.append(line)
@@ -121,9 +166,13 @@ def _capped(pages: list[tuple[int, str]]) -> tuple[list[tuple[int, str]], bool]:
 
 def _first(text: str) -> str:
     """The first SUMMARY_CHARS characters on one line, cut at a word end when there is one."""
-    flat = " ".join(text.split())
-    if len(flat) <= SUMMARY_CHARS:
-        return flat
-    cut = flat[:SUMMARY_CHARS]
+    return _word_cut(" ".join(text.split()), SUMMARY_CHARS)
+
+
+def _word_cut(text: str, chars: int) -> str:
+    """`text` cut to `chars` characters, at a word end when there is one."""
+    if len(text) <= chars:
+        return text
+    cut = text[:chars]
     space = cut.rfind(" ")
-    return cut[:space] if space > 0 else cut
+    return (cut[:space] if space > 0 else cut).rstrip()

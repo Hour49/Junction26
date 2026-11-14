@@ -3,6 +3,8 @@ a PDF's text layer page by page, with whether the probe counts the page as drawn
 `archive/probe.py` `_page_kind`), up to the probe's page cap; a text file as one page. Nothing is
 OCR'd. A PDF that does not open gives no pages; a page that does not load is left out."""
 
+import codecs
+
 import pypdfium2
 
 from app.adapters.archive.probe import (
@@ -39,9 +41,13 @@ def pdf_pages(data: bytes) -> list[PageText]:
 
 
 def text_file(data: bytes) -> list[PageText]:
-    """A text file as one page: UTF-8 (a BOM dropped), else Latin-1, which decodes any bytes."""
+    """A text file as one page: UTF-16 when it starts with its BOM (a Windows "Unicode" .txt),
+    else UTF-8 (a BOM dropped), else Latin-1, which decodes any bytes."""
     try:
-        text = data.decode("utf-8-sig")
+        if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+            text = data.decode("utf-16")
+        else:
+            text = data.decode("utf-8-sig")
     except UnicodeDecodeError:
         text = data.decode("latin-1")
     return [PageText(number=1, text=text, drawn=False)]
