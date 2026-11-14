@@ -40,8 +40,11 @@ export function ChatAnswer(props: {
   const opener = useRef<HTMLButtonElement | null>(null);
   const current = parts[Math.min(at, parts.length - 1)];
   const has3d = (p: (typeof parts)[number]) => canShow3d(p.model_3d) && Boolean(p.model_file_id);
-  // ui-bugs 5: the shown drawing's own model, else the answer's building model; none: no button
-  const model3d = current && has3d(current) ? current : parts.find(has3d);
+  // W3 (look-check #404): the button only when the SHOWN drawing has a model; an IFC file is its own model,
+  // a 2D drawing's model is the building's (another file), so it says so
+  const model3d = current && has3d(current) ? current : undefined;
+  const ownModel =
+    model3d && project.drawings.find((d) => d.drawing_id === model3d.drawing_id)?.kind === 'ifc';
   // "2 doors" (EN-68's noun), as the demo's "11 doors"
   const noun = (n: string | null | undefined) => (n ? ` ${n}` : '');
   // The value the server shows (`answer`: an estimated area in whole m², #294), as the answer card says it (CH-48).
@@ -105,7 +108,11 @@ export function ChatAnswer(props: {
                           type="button"
                           variant="outline"
                           className="size-11 rounded-full text-xs font-bold"
-                          aria-label={`View in 3D: ${labelOf(model3d)}`}
+                          aria-label={
+                            ownModel
+                              ? `View in 3D: ${labelOf(model3d)}`
+                              : 'View the building model in 3D'
+                          }
                           onClick={(e) => {
                             opener.current = e.currentTarget;
                             setModel(model3d);
@@ -114,7 +121,9 @@ export function ChatAnswer(props: {
                           3D
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Open the 3D model</TooltipContent>
+                      <TooltipContent>
+                        {ownModel ? 'Open the 3D model' : 'Open the building model in 3D'}
+                      </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
@@ -137,6 +146,39 @@ export function ChatAnswer(props: {
               )}
             </>
           )}
+          <div className="en-side">
+            {/* ui-bugs 6: only the card of the drawing shown; W2: right under its image, no half-empty column */}
+            <ul className="en-parts" aria-label="Per drawing">
+              {current && (
+                <li key={current.drawing_id}>
+                  <span>
+                    <span className="en-part-name">{labelOf(current)}</span>:{' '}
+                    <strong>{value(current)}</strong>
+                  </span>
+                  {/* CH-49: a room total that may leave rooms out; the explanation names them */}
+                  <PartialTag a={current.answer} />
+                  {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
+                  {current.answer.quantity?.status === 'signed' ? (
+                    <span className="v-pill v-pill--ok">Signed off</span>
+                  ) : gradeOf(current.answer) ? (
+                    <LevelPill
+                      grade={gradeOf(current.answer) as Grade}
+                      text={current.answer.level?.text}
+                    />
+                  ) : (
+                    current.answer.quantity && (
+                      <StatusPill status={current.answer.quantity.status} />
+                    )
+                  )}
+                  {estimate(current) && <p className="en-estimate">{estimate(current)}</p>}
+                  {/* CH-43: why a value was refused or flagged, under the value */}
+                  {reason(current) && <p className="en-why">{reason(current)}</p>}
+                  <WhyToggle text={current.answer.level?.text} />
+                  <ResolverLines a={current.answer} />
+                </li>
+              )}
+            </ul>
+          </div>
           <div className="en-crefsbox">
             <span className="en-label">References</span>
             <ol className="en-crefs" aria-label="References">
@@ -167,37 +209,6 @@ export function ChatAnswer(props: {
             </ol>
           </div>
         </figure>
-        <div className="en-side">
-          {/* ui-bugs 6: only the card of the drawing shown on the left */}
-          <ul className="en-parts" aria-label="Per drawing">
-            {current && (
-              <li key={current.drawing_id}>
-                <span>
-                  <span className="en-part-name">{labelOf(current)}</span>:{' '}
-                  <strong>{value(current)}</strong>
-                </span>
-                {/* CH-49: a room total that may leave rooms out; the explanation names them */}
-                <PartialTag a={current.answer} />
-                {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
-                {current.answer.quantity?.status === 'signed' ? (
-                  <span className="v-pill v-pill--ok">Signed off</span>
-                ) : gradeOf(current.answer) ? (
-                  <LevelPill
-                    grade={gradeOf(current.answer) as Grade}
-                    text={current.answer.level?.text}
-                  />
-                ) : (
-                  current.answer.quantity && <StatusPill status={current.answer.quantity.status} />
-                )}
-                {estimate(current) && <p className="en-estimate">{estimate(current)}</p>}
-                {/* CH-43: why a value was refused or flagged, under the value */}
-                {reason(current) && <p className="en-why">{reason(current)}</p>}
-                <WhyToggle text={current.answer.level?.text} />
-                <ResolverLines a={current.answer} />
-              </li>
-            )}
-          </ul>
-        </div>
       </div>
       {model?.model_file_id && (
         <ModelDialog
