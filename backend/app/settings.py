@@ -243,9 +243,11 @@ class Settings(BaseSettings):
     # perspective first (app/core/ingest/ports.py Rectifier)
     rectifier: RectifierName = "none"
     # Drawing groups read at once at ingest (app/core/ingest/groups.py): a cold upload mostly
-    # waits on Carbon and Gemini, so reading groups side by side is what makes it fast. Groups
-    # that share a source (a building's sheets and its model) are read one after another.
-    ingest_groups_in_flight: int = Field(default=4, ge=1)
+    # waits on Carbon and Gemini, so reading groups side by side is what makes it fast (fail-5's
+    # 6 cold images: 253 s -> 79 s at 4). Groups that share a source (a building's sheets and its
+    # model) are read one after another. 1 (one by one, as before) until the host's memory is
+    # checked: at 4 that upload swapped 10.3 GB past a 10 GB cap, against 5.0 GB at 1
+    ingest_groups_in_flight: int = Field(default=1, ge=1)
     # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
     # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
     rule_packs_dir: Path = Path(__file__).parent / "rules"
