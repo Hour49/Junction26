@@ -6,7 +6,7 @@ dataset, so a pass means the parser reads meaning rather than one fixed template
 import pytest
 
 from app.adapters.question_templates import TemplateParser
-from app.core.answering.model import Query, Unsupported
+from app.core.answering.model import IN_ONE_ROOM, Query, Unsupported
 
 PARSE = TemplateParser().parse
 
@@ -299,3 +299,35 @@ def test_the_sheet_s_floor_area_asked_plainly_is_its_indoor_total(text: str) -> 
 )
 def test_a_gross_footprint_building_or_named_rooms_area_is_not_the_sheet_total(text: str) -> None:
     assert isinstance(PARSE(text), Unsupported)
+
+
+# QA R2-2-2: a count of elements "in the <room>" counts inside one room, which the takeoff does
+# not; a room it can't place ("kitchn") must not drop the scope and count the whole sheet.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many windows are in the kitchn?",
+        "How many windows are in the kitchen?",
+        "How many windows are in the bedrom?",
+        "How many doors are in the garage?",
+        "How many sinks are in the utility room?",
+    ],
+)
+def test_elements_counted_in_one_room_are_refused_whether_or_not_the_room_is_known(
+    text: str,
+) -> None:
+    assert PARSE(text) == Unsupported(reason=IN_ONE_ROOM)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many windows are in the plan?",
+        "How many windows are shown on this floor plan?",
+        "how many windows can you see on this floorplan",
+        "How many windows are in the drawing?",
+        "How many windows are on the sheet?",
+    ],
+)
+def test_elements_counted_on_the_sheet_are_answered(text: str) -> None:
+    assert PARSE(text) == Query(subject="window")
