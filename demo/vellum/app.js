@@ -52,7 +52,7 @@
   }
 
   // ---------- routing ----------
-  const PANELS = ['unpack', 'identify', 'extract', 'check'];
+  const PANELS = ['unpack', 'identify', 'normalise', 'extract', 'check'];
   function route() {
     const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
     const name = parts[0] || 'home';
@@ -135,8 +135,9 @@
     const pr = progress();
     if (!pr.done) return '';
     const open = V.CONFLICTS.filter((c) => S.p.conflicts[c.id].mode === 'open').length;
-    return `<div class="done-row"><span>${many(V.DRAWINGS.length, 'drawing')} ready. ${many(V.CONFLICTS.length, 'conflict')} found${open ? `, ${open} needs you` : ''}.</span>
-      <a class="btn btn-primary press" href="#/conflicts">Settle the conflicts</a></div>`;
+    const found = V.CONFLICTS.length ? `${many(V.CONFLICTS.length, 'conflict')} found${open ? `, ${open} needs you` : ''}.` : 'No conflicts found.';
+    return `<div class="done-row"><span>${many(V.DRAWINGS.length, 'drawing')} ready. ${found}</span>
+      <a class="btn btn-primary press" href="#/conflicts">${V.CONFLICTS.length ? 'Settle the conflicts' : 'Continue'}</a></div>`;
   }
 
   function ingestScreen() {
@@ -197,14 +198,14 @@
         return `<a class="press ${st}" href="#/ingest/${s.panel}"${s.panel === r.panel ? ' aria-current="step"' : ''}><span class="r-ico ${st}${st === 'now' ? ' pulse' : ''}" role="img" aria-label="${st === 'wait' ? 'waiting' : st === 'now' ? 'working' : 'done'}">${st === 'done' ? ICON_CHECK : ''}</span>${s.name}</a>`;
       }).join('');
     };
-    const HEAD = { unpack: 'Unpacking', identify: 'Identifying and routing', extract: 'Extracting', check: 'Cross-checking' };
+    const HEAD = { unpack: 'Unpacking', identify: 'Identifying and routing', normalise: 'Normalising', extract: 'Extracting', check: 'Cross-checking' };
     slots.now = () => {
       const st = panelState(r.panel);
       return st === 'now' ? '<span class="kicker"><span class="spin-ico spin" aria-hidden="true"></span>Now</span>'
         : st === 'done' ? '<span class="kicker ok">Done · replaying what this step did</span>' : '<span class="kicker" style="color:var(--v-muted)">Next</span>';
     };
     slots.done = doneRow;
-    const body = { unpack: unpackPanel, identify: identifyPanel, extract: extractPanel, check: checkPanel }[r.panel]();
+    const body = { unpack: unpackPanel, identify: identifyPanel, normalise: normalisePanel, extract: extractPanel, check: checkPanel }[r.panel]();
     return `<main class="w1040">${titleRow('advanced')}
       <nav class="rail" aria-label="Steps" data-slot="rail"></nav>
       <section class="card" aria-label="${HEAD[r.panel]}"><div class="panel">
@@ -248,6 +249,20 @@
       return stat('Elapsed', secs()) + stat('To CAD', n('CAD')) + stat('To vision', n('Vision')) + stat('Set aside', pr.aside);
     };
     return { fig: '<div data-slot="fig"></div>' };
+  }
+
+  // The drawing as uploaded next to it normalised: upright, one view, scale known. A Stoa image is shown as it is.
+  function normalisePanel() {
+    const d = V.extractFacts().drawing;
+    slots.say = () => sayLine(['Turning each sheet upright.', 'Splitting each sheet into its views: the plan, the legend, the title block.',
+      'Finding the scale: the scale bar or the ratio in the title block.']);
+    slots.log = () => logLines(DRAWING_FILES.map((f) => `normalise ${f.path}`));
+    slots.stats = () => stat('Elapsed', secs()) + stat('Files', DRAWING_FILES.length) + stat('Drawings ready', `${progress().ready} / ${V.DRAWINGS.length}`) + stat('Set aside', progress().aside);
+    const uploaded = d.image ? P.plain(d, 'scan', `${d.name}, as uploaded`)
+      : `<div style="transform:rotate(-4deg) scale(0.92)">${P.plain(d, 'scan', `${d.name}, as uploaded: a tilted scan`)}</div>`;
+    const note = d.image ? 'Already upright: the dataset renders it from the floor geometry.' : 'Upright, the plan view only.';
+    return { fig: `<div class="nfigs"><figure><figcaption class="small">As uploaded</figcaption><div class="fig">${uploaded}</div></figure>
+      <figure><figcaption class="small">Normalised</figcaption><div class="fig" style="background:#fafafc">${P.plain(d, 'clean', `${d.name}, normalised`)}</div><p class="small" style="margin:0">${note}</p></figure></div>` };
   }
 
   function extractPanel() {
