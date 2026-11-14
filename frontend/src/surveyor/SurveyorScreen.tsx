@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getDrawing,
   getTakeoff,
@@ -61,6 +61,8 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
   const [editError, setEditError] = useState<unknown>(null);
   const [name, setName] = useState(savedName);
   const [reload, setReload] = useState(0);
+  const [scrollTick, setScrollTick] = useState(0);
+  const panel = useRef<HTMLElement>(null);
   // every takeoff request names this project, so its file names are this project's (R1-4-4)
   const zq = zeros ? { project: projectId, zeros: true } : { project: projectId };
 
@@ -91,6 +93,12 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     };
   }, [drawingId, projectId, zeros, attempt]);
 
+  // phone: the detail sits under every row, so a selection brings it into view (surveyor.md "Phone")
+  useEffect(() => {
+    if (scrollTick > 0)
+      panel.current?.querySelector('.sv-detail')?.scrollIntoView({ block: 'start' });
+  }, [scrollTick]);
+
   useEffect(() => {
     if (!addMode) return;
     const onKey = (e: KeyboardEvent) => {
@@ -105,7 +113,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
   const side = <ProjectReviewSide projectId={projectId} drawingId={drawingId} reload={reload} />;
   if (loadError !== null)
     return (
-      <div className="sv-screen">
+      <div className="v-page v-page--wide sv-screen">
         {side}
         <ErrorView
           error={loadError}
@@ -118,7 +126,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     );
   if (!drawing || !takeoff)
     return (
-      <div className="sv-screen">
+      <div className="v-page v-page--wide sv-screen">
         {side}
         <Loading label="Loading the takeoff…" />
       </div>
@@ -146,9 +154,13 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       query: new URLSearchParams({ q: key }),
     });
     history.replaceState(history.state, '', href);
+    if (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 760px)').matches)
+      setScrollTick((n) => n + 1);
   }
 
   async function send(request: () => Promise<Takeoff>) {
+    // keep the row acted on selected, so its "Settled at…" / "Signed off by…" shows (pre-QA, frontend-orch)
+    if (selectedKey !== null) setPick({ from: q, key: selectedKey });
     setSaving(true);
     setEditError(null);
     try {
@@ -179,7 +191,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
   );
 
   return (
-    <div className="sv-screen sv-work">
+    <div className="v-page v-page--wide sv-screen sv-work">
       {side}
       <PageViewer
         file={drawing.file}
@@ -201,7 +213,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
             : undefined
         }
       />
-      <section className="sv-panel" aria-label="Takeoff">
+      <section className="sv-panel" aria-label="Takeoff" ref={panel}>
         {rows.length === 0 ? (
           <>
             <header className="sv-panel-head">
@@ -224,6 +236,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
                 {zerosToggle}
                 <button
                   type="button"
+                  className="sv-danger"
                   disabled={saving}
                   onClick={() => {
                     if (window.confirm('Reset every edit and sign-off of this drawing?'))

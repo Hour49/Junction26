@@ -36,12 +36,17 @@ export async function shot(page: Page, testInfo: TestInfo, name: string, offline
   await page.screenshot({ path: path.join(dir, `${name}.png`) });
 }
 
-/** Home → "Try the sample project" (fresh=true) → all 11 files finished; returns the project id. */
+/** The project screen's stats cell "Files through" (ingest.md IN-46: "N / M"). */
+export function filesThrough(page: Page) {
+  return page.locator('dt', { hasText: 'Files through' }).locator('+ dd');
+}
+
+/** Home → "Try the sample project" (fresh=true) → all 11 files through; returns the project id. */
 export async function startSample(page: Page): Promise<string> {
   await page.goto('/#/');
   await page.getByRole('button', { name: 'Try the sample project' }).click();
   await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
-  await expect(page.getByText('11 of 11 files finished').first()).toBeVisible({ timeout: 30_000 });
+  await expect(filesThrough(page)).toHaveText('11 / 11', { timeout: 30_000 });
   return /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
 }
 

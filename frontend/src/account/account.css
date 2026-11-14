@@ -1,0 +1,211 @@
+/* Screen 5, workspaces (account.md "Layout"); design tokens only. */
+.account {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  box-sizing: border-box;
+}
+.account-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.account-top h1 {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.account-top p {
+  margin: 6px 0 0;
+}
+.account-new {
+  text-decoration: none;
+}
+.account-body {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+.account-list {
+  flex: 1 1 320px;
+  max-width: 400px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.account-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 16px;
+  text-align: left;
+  font: inherit;
+  color: var(--v-text);
+  background: var(--v-surface);
+  border: 1px solid var(--v-line);
+  border-radius: 18px;
+  cursor: pointer;
+}
+.account-item[aria-pressed='true'] {
+  border: 2px solid var(--v-accent);
+  padding: 15px;
+}
+.account-item:focus-visible {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 2px;
+}
+.account-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.account-name {
+  font-family: var(--mono);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.account-panel {
+  flex: 2 1 0;
+  min-width: 0;
+  border-radius: 22px;
+}
+.account-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.account-panel-head p {
+  margin: 0;
+}
+.account-panel-head h2 {
+  margin: 4px 0 0;
+  font-size: 24px;
+}
+.account-panel-head a {
+  text-decoration: none;
+}
+/* `a.` outranks the shared .v-btn whatever order the two stylesheets load in. */
+a.account-open,
+a.account-open:hover {
+  color: var(--v-accent-strong);
+  background: var(--v-accent-soft);
+  border-radius: 980px;
+}
+.account-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 24px 0;
+  border-top: 1px solid var(--v-line);
+  border-bottom: 1px solid var(--v-line);
+}
+.account-stats > div {
+  padding: 12px 16px;
+  border-left: 1px solid var(--v-line);
+}
+.account-stats > div:first-child {
+  border-left: 0;
+}
+.account-stats dt {
+  font-size: 13px;
+  color: var(--v-muted);
+}
+.account-stats dd {
+  margin: 2px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+.account-panel h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+.account-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+.account-event {
+  display: grid;
+  grid-template-columns: 52px 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.account-event time {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--v-muted);
+  padding-top: 4px;
+}
+.account-glyph {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--v-accent-strong);
+  background: var(--v-accent-soft);
+}
+.account-event--failed .account-glyph,
+.account-event--needs .account-glyph {
+  color: var(--v-warn);
+  background: var(--v-warn-soft);
+}
+.account-event--signed .account-glyph,
+.account-event--done .account-glyph {
+  color: var(--v-ok);
+  background: var(--v-ok-soft);
+}
+.account-event-text {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.account-note {
+  color: var(--v-danger);
+}
+.account-empty a {
+  margin-left: 4px;
+}
+
+@media (max-width: 720px) {
+  .account {
+    padding: 24px 16px;
+  }
+  .account-top h1 {
+    font-size: 32px;
+  }
+  .account-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .account-list {
+    max-width: none;
+    flex: none;
+  }
+  .account-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .account-stats > div {
+    border-left: 0;
+    border-bottom: 1px solid var(--v-line);
+  }
+  /* Five stats in two columns: the odd last one ("Signed off") takes the whole row. */
+  .account-stats > div:nth-child(5) {
+    grid-column: 1 / -1;
+  }
+}

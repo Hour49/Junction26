@@ -15,7 +15,7 @@ export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => 
         {api && api.status !== 0 ? ` · HTTP ${String(api.status)}` : ''}
       </p>
       {notFound ? (
-        <a href="#/">Back to projects</a>
+        <a href="#/workspaces">Back to workspaces</a>
       ) : (
         onRetry && (
           <button type="button" onClick={onRetry}>
