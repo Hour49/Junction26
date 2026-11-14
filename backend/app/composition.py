@@ -81,7 +81,7 @@ from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
 from app.adapters.resolver.carbon import CarbonResolver
-from app.adapters.scan_images import ScanImages
+from app.adapters.scan_images import ScanImages, ScanRenders
 from app.adapters.triage.gemini_describer import (
     CARBON_MIN_TIMEOUT_S,
     DESCRIBERS,
@@ -496,7 +496,8 @@ def build_answering(settings: Settings) -> Answering:
     signal: str | None = None
     if settings.decisions_confidence:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
-        confidence = partial(_scan_confidence, reader=reader)
+        # one cache for every answer: each answer on a scan re-rendered its page (review-280 S2)
+        confidence = partial(_scan_confidence, reader=reader, renders=ScanRenders())
         signal = DECISIONS_SIGNAL
     # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
     scorers = _scorers(settings.local_gates) if settings.check_policy else {}
@@ -519,10 +520,13 @@ def build_answering(settings: Settings) -> Answering:
     )
 
 
-def _scan_confidence(files: DrawingFiles, reader: G1MainReader) -> AnswerConfidence:
+def _scan_confidence(
+    files: DrawingFiles, reader: G1MainReader, renders: ScanRenders
+) -> AnswerConfidence:
     """The answer confidence over a raster drawing's file as ingest's readers read it: a scanned
-    PDF as the image of its page (scan_images.py), so Gemini is asked about the same image."""
-    return DecisionsConfidence(ScanImages(files), reader)
+    PDF as the image of its page (scan_images.py), so Gemini is asked about the same image. The
+    page is rendered once in `renders`, shared by every answer."""
+    return DecisionsConfidence(ScanImages(files, renders), reader)
 
 
 def _resolver(settings: Settings) -> Resolver | None:

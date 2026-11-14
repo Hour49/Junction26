@@ -4,6 +4,7 @@ image of its page, rendered once, instead of the PDF bytes it could not open (lo
 
 import io
 import json
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,7 @@ from app.adapters import raster_detector, scan_images
 from app.adapters.archive.probe import is_scanned_pdf
 from app.adapters.decisions.g1main import FAMILIES, CountDist, PageCounts
 from app.adapters.extraction_v1 import ExtractionV1Writer
-from app.adapters.scan_images import ScanImages
+from app.adapters.scan_images import ScanImages, ScanRenders
 from app.composition import build_answering, build_pipeline
 from app.settings import Settings
 
@@ -138,3 +139,50 @@ def test_the_answer_confidence_asks_about_the_same_image_as_ingest(
     found = answering.confidence(Files({PDF: data})).probability(PDF, "door", 1)
     assert found.value == 1.0
     assert reader.asked == [ScanImages(Files({PDF: data})).read(PDF)]
+
+
+def test_every_answer_on_a_scan_shares_its_one_render(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each answer gets its own files view (api/ask.py `_SheetFiles`); they share one cache, so
+    the page is not rendered again per answer (review-280 S2)."""
+    renders: list[bytes] = []
+    real = scan_images.scan_png
+    monkeypatch.setattr(scan_images, "scan_png", lambda pdf: renders.append(pdf) or real(pdf))
+    monkeypatch.setattr(composition, "decisions_reader", lambda settings: Reader())
+    answering = build_answering(Settings(decisions_confidence=True))
+    assert answering.confidence is not None
+    data = scan()
+    for _ in range(3):
+        assert answering.confidence(Files({PDF: data})).probability(PDF, "door", 1).value == 1.0
+    assert len(renders) == 1
+
+
+def test_a_render_holds_up_only_the_readers_of_its_own_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An A0 scan renders for seconds; a reader of another page must not queue behind it
+    (review-280 S1: one lock for every file did)."""
+    slow, other = b"%PDF slow page", b"%PDF other page"
+    started, release = threading.Event(), threading.Event()
+
+    def render(pdf: bytes) -> bytes:
+        if pdf == slow:
+            started.set()
+            release.wait()
+        return b"png of " + pdf
+
+    monkeypatch.setattr(scan_images, "is_scanned_pdf", lambda data: True)
+    monkeypatch.setattr(scan_images, "scan_png", render)
+    renders = ScanRenders()
+    read: dict[bytes, bytes] = {}
+    first = threading.Thread(target=lambda: read.update({slow: renders.image(slow)}))
+    first.start()
+    try:
+        assert started.wait(10)
+        second = threading.Thread(target=lambda: read.update({other: renders.image(other)}))
+        second.start()
+        second.join(10)  # returns at once unless it waits for the slow render
+        assert read.get(other) == b"png of " + other
+    finally:
+        release.set()
+        first.join(10)
+    assert read[slow] == b"png of " + slow
