@@ -160,11 +160,12 @@ class QuantityConflict(Frozen):
 
 class Partial(Frozen):
     """A room total that may leave rooms out: the sum of the `counted` rooms a reader found on a
-    picture, or of rooms another source on the drawing says are not all of them. `missing`: the
-    rooms that source names and the sum does not have, as it prints them."""
+    picture (`read`), or of rooms a room schedule on the drawing says are not all of them.
+    `missing`: the rooms the schedule names and the sum does not have, as it prints them."""
 
     counted: int = Field(ge=0)
     missing: tuple[str, ...] = ()
+    read: bool = True  # the rooms were read off a picture; False: drawn on the sheet (vector, IFC)
 
 
 class Quantity(Frozen):

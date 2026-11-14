@@ -102,7 +102,7 @@ class AnswerView(View):
     resolved: Resolved | None = Field(default=None, exclude_if=is_none)
     resolver_note: str | None = Field(default=None, exclude_if=is_none)
     # A room total that may leave rooms out: the sum of the `rooms_counted` rooms the reader
-    # found; `rooms_missing` are the rooms another source on the drawing names that it lacks.
+    # found (or drawn); `rooms_missing` are the rooms a room schedule names that it lacks.
     # Left out of the JSON when it is not one
     partial: bool | None = Field(default=None, exclude_if=is_none)
     rooms_counted: int | None = Field(default=None, exclude_if=is_none)

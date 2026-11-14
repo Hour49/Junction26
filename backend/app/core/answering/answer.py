@@ -267,16 +267,15 @@ NAMED_MISSING = 3  # rooms named in a partial total's sentence; the rest are cou
 
 def partial_text(partial: Partial) -> str:
     """One plain sentence: a room total is the sum of the rooms found, and which it misses."""
-    n = partial.counted
-    said = (
-        f"This is the sum of the {n} room{'' if n == 1 else 's'} the reader found; rooms it "
-        "missed are not in it"
-    )
-    if partial.missing:
-        named = ", ".join(partial.missing[:NAMED_MISSING])
-        more = len(partial.missing) - NAMED_MISSING
-        said += f". Not in it: {named}" + (f" and {more} more" if more > 0 else "")
-    return said + "."
+    rooms = f"{partial.counted} room{'' if partial.counted == 1 else 's'}"
+    named = ", ".join(partial.missing[:NAMED_MISSING])
+    if (more := len(partial.missing) - NAMED_MISSING) > 0:
+        named += f" and {more} more"
+    if not partial.read:  # a vector or IFC sheet has no reader: only a schedule makes it partial
+        said = f"This is the sum of the {rooms} drawn on the sheet"
+        return f"{said}; the room schedule lists more: {named}."
+    said = f"This is the sum of the {rooms} the reader found; rooms it missed are not in it"
+    return said + (f". Not in it: {named}." if partial.missing else ".")
 
 
 HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates' PARENTHESES

@@ -20,6 +20,7 @@ the entry does not matter.
 """
 
 import math
+import re
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 
@@ -37,6 +38,7 @@ from app.core.drawing.model import (
     Resolution,
     Room,
     Scale,
+    Table,
 )
 from app.core.pipeline.model import (
     Counted,
@@ -148,38 +150,62 @@ def take_off(drawing: Drawing, counted: Mapping[str, Counted]) -> dict[str, Quan
 
 # The whole-sheet room totals ("what is the total area?"); a sum of rooms by label or name is not
 PARTIAL_RULES = frozenset({ROOMS_TOTAL.id, INDOOR_TOTAL.id, SHEET_DWELLING.id})
-SCHEDULE_WORDS = ("room", "finish")  # a schedule whose title says so lists the sheet's rooms
+# A room schedule is told by its columns, not its title (a FINISH KEY's title says "finish" and
+# its rows are finish codes): a room-number column, and a room named in it or in a name column.
+# shortcut: English headers only; add other languages' headers when a sheet needs them
+NUMBER_HEADER = re.compile(r"(room|rm)?\s*(no|nr|number|#)?", re.IGNORECASE)
+STOREY_DIGITS = re.compile(r"\d{1,2}$")  # a room number less its last two digits: its storey
 
 
 def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
     """Marks each whole-sheet room total that may leave rooms out (label-area task 2, partial
     totals): its rooms were picked off a picture by a room reader (`attrs["reader"]`: Gemini,
-    the EU model, Carbon), which can miss rooms, or a room schedule on the sheet names rooms the
-    drawing does not have. A vector or IFC room list, complete by construction, never is."""
+    the EU model, Carbon), which can miss rooms, or a room schedule on the sheet names rooms of
+    this storey the drawing does not have. A vector or IFC room list, complete by construction,
+    is partial only when a schedule says so."""
     missing = _unlisted(drawing)
     read = any("reader" in room.attrs for room in drawing.rooms)
     if not (read or missing):
         return
     for key, quantity in found.items():
         if quantity.rule in PARTIAL_RULES and "label=" not in key and "name=" not in key:
-            partial = Partial(counted=len(quantity.marks), missing=missing)
+            partial = Partial(counted=len(quantity.marks), missing=missing, read=read)
             found[key] = quantity.model_copy(update={"partial": partial})
+
+
+def _room_columns(table: Table) -> tuple[int, int | None] | None:
+    """A room schedule's room-number column and its name column (None: it has none); None when
+    the table is not a room schedule."""
+    headers = [" ".join(h.replace(".", " ").split()) for h in table.columns]
+    number = next((at for at, h in enumerate(headers) if h and NUMBER_HEADER.fullmatch(h)), None)
+    named = next((at for at, h in enumerate(headers) if "name" in h.lower()), None)
+    said = [headers[at].lower() for at in (number, named) if at is not None]
+    if number is None or not any("room" in h or h.startswith("rm") for h in said):
+        return None
+    return number, named
 
 
 def _unlisted(drawing: Drawing) -> tuple[str, ...]:
     """The rooms a room schedule prints (number and name, as printed) that no room of the drawing
-    answers to by number, name or label."""
+    answers to by number, name or label, kept to this sheet's storey: the row's number less its
+    last two digits is one the drawing's own room numbers have (a building-wide schedule names
+    other floors' rooms). A drawing without room numbers has no storey to keep, so none."""
+    printed = {room.attrs.get(key) for room in drawing.rooms for key in ROOM_NUMBERS}
+    numbers = {n.strip() for n in printed if isinstance(n, str) and n.strip()}
+    storeys = {STOREY_DIGITS.sub("", n) for n in numbers}
     have = {name for room in drawing.rooms for name in room_names(room)}
     out: list[str] = []
     for table in drawing.tables or ():
-        if not any(word in (table.title or "").lower() for word in SCHEDULE_WORDS):
+        if (columns := _room_columns(table)) is None:
             continue
-        named = next((at for at, h in enumerate(table.columns) if "name" in h.lower()), None)
+        number, named = columns
         for row in table.rows:
-            cells = [row.cells[at] if at < len(row.cells) else None
-                     for at in (table.key_column, named) if at is not None]  # fmt: skip
-            texts = [cell.strip() for cell in cells if cell and cell.strip()]
-            if texts and not any(normalised(text) in have for text in texts):
+            at_number = row.cells[number] if number < len(row.cells) else None
+            if not at_number or STOREY_DIGITS.sub("", at_number.strip()) not in storeys:
+                continue
+            at_name = row.cells[named] if named is not None and named < len(row.cells) else None
+            texts = [cell.strip() for cell in (at_number, at_name) if cell and cell.strip()]
+            if not any(normalised(text) in have for text in texts):
                 shown = " ".join(dict.fromkeys(texts))
                 if shown not in out:
                     out.append(shown)

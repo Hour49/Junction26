@@ -33,7 +33,7 @@ def room(at: int, label: str, area: float, reader: bool = True) -> Room:
         area_m2=area,
         area_status="exact",
         area_source="printed",
-        attrs={"reader": "gemini"} if reader else {},
+        attrs={"number": f"10{at}", **({"reader": "gemini"} if reader else {})},
     )
 
 
@@ -50,17 +50,31 @@ SCHEDULE = Table(
     rows=tuple(
         TableRow(cells=cells)
         for cells in (("101", "OFFICE", "10"), ("102", "HALL", "5"), ("104", "LOBBY", "20"),
-                      ("107", "STAIR", "8"), ("108", "STOR", "3"), ("109", "WC", "2"))
+                      ("107", "STAIR", "8"), ("108", "STOR", "3"), ("109", "WC", "2"),
+                      ("201", "GYM", "40"))  # another storey's room: never missing
     ),
 )  # fmt: skip
 READ = (room(1, "OFFICE", 10.0), room(2, "HALL", 5.5))
 
 
-def asked(shown: Drawing, check: CheckPolicy | None = POLICY) -> Asked:
+FINISH_KEY = Table(
+    id="t2",
+    page=1,
+    box=(0.0, 0.6, 1.0, 0.8),
+    title="FINISH KEY",
+    columns=("KEY", "MATERIAL", "MANUFACTURER"),
+    rows=tuple(TableRow(cells=(key, "PAINT", "ACME")) for key in ("B1", "B2", "C1")),
+)  # A-801's finish key: finish codes, not rooms
+
+
+def asked(shown: Drawing, check: CheckPolicy | None = POLICY, route: str = "raster") -> Asked:
     return ask(
         TOTAL, shown, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
-        state=ReviewState(), check=check, raster=True, route="raster",
+        state=ReviewState(), check=check, raster=route == "raster", route=route,
     )  # fmt: skip
+
+
+VECTOR = tuple(r.model_copy(update={"attrs": {"number": r.attrs["number"]}}) for r in READ)
 
 
 def test_a_total_of_rooms_a_reader_found_is_partial_and_keeps_its_value() -> None:
@@ -72,7 +86,7 @@ def test_a_total_of_rooms_a_reader_found_is_partial_and_keeps_its_value() -> Non
 
 
 def test_a_complete_room_list_is_not_partial_unless_a_schedule_names_rooms_it_lacks() -> None:
-    vector = tuple(r.model_copy(update={"attrs": {}}) for r in READ)
+    vector = VECTOR
     assert known_quantities(drawing(vector))["area:room"].partial is None
     found = known_quantities(drawing(vector, (SCHEDULE,)))["area:room"]
     assert found.partial is not None
@@ -97,7 +111,27 @@ def test_the_answer_says_it_is_the_sum_of_the_rooms_found_and_names_a_few_missin
 
 
 def test_a_total_that_is_not_partial_has_no_partial_fields() -> None:
-    vector = tuple(r.model_copy(update={"attrs": {}}) for r in READ)
+    vector = VECTOR
     got = asked(drawing(vector))
     assert got.answer.answer == 15.5 and got.answer.explanation is None
     assert got.partial is None and partial_fields(got) == {}
+
+
+def test_a_finish_key_is_not_a_room_schedule() -> None:
+    assert known_quantities(drawing(VECTOR, (FINISH_KEY,)))["area:room"].partial is None
+
+
+def test_a_vector_total_a_schedule_shows_partial_is_never_certified() -> None:
+    vector_sure = POLICY.model_copy(update={"routes": frozenset({"vector"})})
+    got = asked(drawing(VECTOR, (SCHEDULE, FINISH_KEY)), vector_sure, route="vector")
+    assert got.answer.explanation == (
+        "This is the sum of the 2 rooms drawn on the sheet; the room schedule lists more: "
+        "104 LOBBY, 107 STAIR, 108 STOR and 1 more."
+    )
+    assert got.answer.sure is False and got.check is not None
+    assert got.level is None or got.level.level == "low"
+
+
+def test_a_schedule_s_rows_count_only_on_the_sheet_s_storey() -> None:
+    no_numbers = tuple(r.model_copy(update={"attrs": {}}) for r in READ)
+    assert known_quantities(drawing(no_numbers, (SCHEDULE,)))["area:room"].partial is None
