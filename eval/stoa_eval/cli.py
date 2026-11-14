@@ -122,6 +122,7 @@ from .gate import (
 )
 from .hard_scoring import (
     IMAGES,
+    HardPred,
     aggregates,
     format_report,
     load_labels,
@@ -2029,23 +2030,23 @@ def _hard_scales(extraction: Path) -> dict[str, float]:
 
 
 def run_hard(args: argparse.Namespace) -> None:
-    """The hard slice: a pipeline run of `hard-questions` (--run) and/or hard_pred_v1 lines (--pred,
-    laid over the run in order), scored against the labels; reported apart from the headline."""
+    """The hard slice: pipeline runs of `hard-questions` (each --run with its --questions, laid
+    over each other in order) and/or hard_pred_v1 lines (--pred, laid over the runs in order),
+    scored against the labels; reported apart from the headline."""
     files = load_labels(args.labels)
-    preds = []
-    if args.run_dir is not None:
-        if args.questions is None:
-            raise ValueError("--run needs --questions (the hard-questions file it answered)")
-        read = (args.run_dir / "answers.jsonl").read_text(encoding="utf-8").splitlines()
-        ingest_path = args.run_dir / "ingest.json"
-        preds = preds_from_run(
-            [json.loads(line) for line in args.questions.read_text(encoding="utf-8").splitlines()],
+    if len(args.run_dir) != len(args.questions):
+        raise ValueError("each --run needs its --questions (the hard-questions file it answered)")
+    preds: list[HardPred] = []
+    for run_dir, questions in zip(args.run_dir, args.questions, strict=True):
+        read = (run_dir / "answers.jsonl").read_text(encoding="utf-8").splitlines()
+        ingest_path = run_dir / "ingest.json"
+        run = preds_from_run(
+            [json.loads(line) for line in questions.read_text(encoding="utf-8").splitlines()],
             [json.loads(line) for line in read if line.strip()],
             json.loads(ingest_path.read_text(encoding="utf-8")) if ingest_path.exists() else None,
-            _hard_scales(args.run_dir / "extraction")
-            if (args.run_dir / "extraction").is_dir()
-            else None,
+            _hard_scales(run_dir / "extraction") if (run_dir / "extraction").is_dir() else None,
         )
+        preds = merge_preds(preds, run)
     for path in args.pred:
         preds = merge_preds(preds, load_preds(path))
     report = score_hard(files, preds)
@@ -2334,8 +2335,14 @@ def parser() -> argparse.ArgumentParser:
 
     hard = commands.add_parser("hard", help="score the hard slice (not in the headline)")
     hard.add_argument("labels", type=Path, nargs="+", help="hard_set_v1 labels.json files")
-    hard.add_argument("--run", dest="run_dir", type=Path, help="an `app.cli answer` --out folder")
-    hard.add_argument("--questions", type=Path, help="the hard-questions file the run answered")
+    hard.add_argument(
+        "--run", dest="run_dir", type=Path, action="append", default=[],
+        help="an `app.cli answer` --out folder (repeat with --questions for several runs)",
+    )  # fmt: skip
+    hard.add_argument(
+        "--questions", type=Path, action="append", default=[],
+        help="the hard-questions file the run answered (one per --run, in the same order)",
+    )  # fmt: skip
     hard.add_argument("--pred", type=Path, action="append", default=[], help="hard_pred_v1 lines")
     hard.add_argument("--name", help="record the aggregates under this method name")
     hard.add_argument("--note", default="", help="a line for the record (no paths)")

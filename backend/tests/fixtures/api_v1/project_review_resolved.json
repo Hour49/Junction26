@@ -1,0 +1,120 @@
+{
+  "drawings": [
+    {
+      "drawing_id": "44cc9f0d991eafe3",
+      "file": "flat-b.pdf",
+      "to_review": 1,
+      "signed": 0,
+      "quantities": 63
+    }
+  ],
+  "conflicts": [
+    {
+      "drawing_id": "44cc9f0d991eafe3",
+      "file": "flat-b.pdf",
+      "quantity": "area:room|name=1.01",
+      "label": "area of room (name Küche · 1.01)",
+      "conflict": {
+        "values": [
+          {
+            "value": 22.401,
+            "unit": "m2",
+            "method": "polygon_x_scale",
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ]
+          },
+          {
+            "value": 30.0,
+            "unit": "m2",
+            "method": "printed_label",
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ]
+          }
+        ],
+        "resolution": null,
+        "note": null,
+        "derived": null,
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
+      },
+      "settled": null,
+      "needs_person": false,
+      "signed": null,
+      "value": 22.401,
+      "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+      "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. No rule decides between them. A model (carbon:gemini-4-carbon) checked the drawing and picked 22.40 m²: The room's outline is closed and drawn to the sheet's scale. You can still choose another value.",
+      "suggestions": [
+        "22.40 m²",
+        "30.00 m²"
+      ],
+      "resolved": {
+        "verdict": "picked",
+        "value": 22.401,
+        "reason": "The room's outline is closed and drawn to the sheet's scale.",
+        "marks": [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "the room outlines at the sheet's scale counts polygon_x_scale here"
+          },
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "the printed room areas counts printed_label here"
+          }
+        ],
+        "by": "carbon:gemini-4-carbon",
+        "at": "2026-11-14T08:05:00Z",
+        "of": [
+          22.401,
+          30.0
+        ]
+      }
+    }
+  ]
+}

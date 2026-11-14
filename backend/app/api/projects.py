@@ -6,14 +6,16 @@ import threading
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated, Literal, NamedTuple
+from typing import Annotated, Any, Literal, NamedTuple
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.page_render import render_upload
+from app.api.ask import page_images
 from app.api.deps import (
+    AnsweringDep,
     CreditsDep,
     FileId,
     Ingest,
@@ -49,9 +51,10 @@ from app.core.ingest.model import (
 )
 from app.core.pipeline.model import QuantityConflict
 from app.core.review import conflict_card
-from app.core.review.model import ReviewState, Settled, SignOff
-from app.core.review.ports import ReviewStore
-from app.core.review.review import disputes, reset
+from app.core.review.model import Resolved, ReviewState, Settled, SignOff, is_none
+from app.core.review.ports import Resolver, ReviewStore
+from app.core.review.resolve import resolve_conflicts
+from app.core.review.review import NotAllowedError, disputes, reset
 from app.settings import Settings
 from scripts.make_sample_archive import build_archive
 
@@ -81,6 +84,10 @@ class ProjectSummary(View):
     drawings: int
     to_review: int | None  # quantities left to review over all drawings; None until `done`
     conflicts_open: int | None  # conflicts a person still has to settle; None until `done`
+    # RESOLVER: conflicts a model picked a value for that no person settled or signed (not in
+    # conflicts_open; a cannot_tell stays open); None until `done`; left out of the JSON while
+    # RESOLVER is off and no pick is kept
+    conflicts_picked: int | None = Field(default=None, exclude_if=is_none)
     # Issues in state open (GET …/issues without a pack, decision 0008); None until `done`
     issues_open: int | None = None
     # Of those, the ones that wait for a person's answer: not a note, not answered
@@ -142,11 +149,22 @@ class ConflictEntry(View):
     title: str  # the conflict as a question, in plain words ("Door count: 13 or 11?")
     why: str  # what each method read and how it is decided (a rule, or a person has to choose)
     suggestions: list[str]  # short answers a person can tap, one per value read ("13 doors")
+    # RESOLVER: what a model said about this conflict (a pick is the value in use until a person
+    # settles or signs it); left out of the JSON when None
+    resolved: Resolved | None = Field(default=None, exclude_if=is_none)
 
 
 class ProjectReview(View):
     drawings: list[DrawingReview]
     conflicts: list[ConflictEntry]
+
+
+class Resolving(View):
+    """POST /api/projects/{id}/resolve: the review after the resolver's replies, and a note for
+    each conflict it gave no reply on (the budget used up, a timeout...)."""
+
+    review: ProjectReview
+    notes: list[str]
 
 
 class Admission:
@@ -188,6 +206,7 @@ class Counts(NamedTuple):
 
 class OpenCounts(NamedTuple):
     conflicts_open: int | None
+    conflicts_picked: int | None
     issues_open: int | None
     issues_to_answer: int | None
 
@@ -247,21 +266,38 @@ def project_list(
     statuses = ingest.projects()
     return ProjectList(
         projects=[
-            summary_of(status, kept.counts(status, ingest, reviews, settings))
+            summary_of(
+                status,
+                kept.counts(status, ingest, reviews, settings),
+                settings.resolver != "off",
+            )
             for status in statuses
         ]
     )
 
 
-def open_counts(found: Counts | None) -> OpenCounts:
-    """`found`: the project's counts, for a `done` project; else every count is None."""
+def open_counts(found: Counts | None, resolver_on: bool = False) -> OpenCounts:
+    """`found`: the project's counts, for a `done` project; else every count is None.
+    `resolver_on`: RESOLVER is not off, so `conflicts_picked` is given even when 0."""
     if found is None:
-        return OpenCounts(None, None, None)
-    conflicts_open = sum(entry.needs_person for entry in found.review.conflicts)
-    return OpenCounts(conflicts_open, found.issues_open, found.issues_to_answer)
+        return OpenCounts(None, None, None, None)
+    conflicts = found.review.conflicts
+    conflicts_open = sum(entry.needs_person for entry in conflicts)
+    picked = sum(
+        entry.resolved is not None
+        and entry.resolved.verdict == "picked"
+        and not entry.needs_person  # the pick is in use: no mark edit, no rule
+        and entry.settled is None
+        and entry.signed is None
+        for entry in conflicts
+    )
+    shown = picked if picked or resolver_on else None
+    return OpenCounts(conflicts_open, shown, found.issues_open, found.issues_to_answer)
 
 
-def summary_of(status: ProjectStatus, found: Counts | None) -> ProjectSummary:
+def summary_of(
+    status: ProjectStatus, found: Counts | None, resolver_on: bool = False
+) -> ProjectSummary:
     """`found`: the project's counts, for a `done` project."""
     to_review = None
     if found is not None:
@@ -274,7 +310,7 @@ def summary_of(status: ProjectStatus, found: Counts | None) -> ProjectSummary:
         files=len(status.files),
         drawings=len(drawings_of(status)),
         to_review=to_review,
-        **open_counts(found)._asdict(),
+        **open_counts(found, resolver_on)._asdict(),
         not_plans=not_plans_of(status),
     )
 
@@ -296,6 +332,7 @@ async def upload(
                     raise HTTPException(413, f"the upload is over {MAX_UPLOAD // 2**20} MB")
             started = _start(ingest, name, bytes(data))
             record(started.id)
+        _resolve_when_done(request.app.state, started.id)
     except HTTPException as refused:
         if refused.status_code == 429:  # refused before the body was read
             await _discard(request)
@@ -331,6 +368,7 @@ def sample(
         _reset_project(ingest, reviews, _Sample.model_validate_json(record.read_text()).project_id)
     started = _start(ingest, SAMPLE_NAME, settings.sample_archive.read_bytes(), fresh)
     _write(record, _Sample(project_id=started.id).model_dump_json())
+    _resolve_when_done(request.app.state, started.id)
     return started
 
 
@@ -352,7 +390,9 @@ def project(
         skipped=skipped_of(status),
         expected_drawings=expected_drawings_of(status),
         not_plans=not_plans_of(status),
-        **open_counts(kept.counts(status, ingest, reviews, settings))._asdict(),
+        **open_counts(
+            kept.counts(status, ingest, reviews, settings), settings.resolver != "off"
+        )._asdict(),
     )
 
 
@@ -440,6 +480,76 @@ def project_review(project_id: ProjectId, ingest: IngestDep, reviews: ReviewsDep
     return review_of(ingest.status(project_id), ingest, reviews)
 
 
+@router.post("/{project_id}/resolve")
+def resolve(
+    project_id: ProjectId, ingest: IngestDep, reviews: ReviewsDep, answering: AnsweringDep
+) -> Resolving:
+    """RESOLVER: a model looks at each conflict no rule decides and no person settled, and picks
+    a value or says it can't tell; one call per conflict, replies kept with the project's review,
+    so a second POST asks only about what changed. 409 when RESOLVER is off or before `done`.
+    It also runs on its own when an upload's ingest is done (`_resolve_when_done`)."""
+    resolver = answering.resolver
+    if resolver is None:
+        raise NotAllowedError("RESOLVER is off: no model resolves conflicts on this server")
+    status = ingest.status(project_id)
+    if status.state != "done":
+        raise NotAllowedError(f"project {project_id} is {status.state}; resolve it when done")
+    notes = resolve_project(status, ingest, reviews, resolver)
+    return Resolving(review=review_of(ingest.status(project_id), ingest, reviews), notes=notes)
+
+
+def resolve_project(
+    status: ProjectStatus, ingest: Ingest, reviews: ReviewStore, resolver: Resolver
+) -> list[str]:
+    """Asks the resolver about every conflict of the done project that needs a person and has
+    no reply yet, and keeps the replies; the notes of the ones that got none."""
+    notes: list[str] = []
+    for entry in drawings_of(status):
+        rows = takeoff_rows(entry.drawing_id, ingest, reviews, zeros=False, project=status.id)
+        state = reviews.get(status.id, entry.drawing_id)
+        found, said = resolve_conflicts(
+            entry.drawing_id,
+            rows.quantities,
+            state,
+            resolver,
+            page_images(ingest, entry.drawing_id),
+        )
+        notes += [f"{entry.file}: {note}" for note in said]
+        if found:
+            reviews.update(
+                status.id,
+                entry.drawing_id,
+                lambda kept, found=found: kept.model_copy(
+                    update={"resolved": {**kept.resolved, **found}}
+                ),
+            )
+    return notes
+
+
+def _resolve_when_done(state: Any, project_id: str) -> None:
+    """With RESOLVER on, the project's conflicts are resolved once its ingest is done: at once
+    when it already is (an ingest run inline), else on a thread that waits for it."""
+    resolver: Resolver | None = state.answering.resolver
+    if resolver is None:
+        return
+    ingest: Ingest = state.ingest
+    reviews: ReviewStore = state.reviews
+
+    def run() -> None:
+        try:
+            status = ingest.wait(project_id)
+            if status.state == "done":
+                for note in resolve_project(status, ingest, reviews, resolver):
+                    log.info("resolver, project %s: %s", project_id, note)
+        except Exception:  # a thread's bug is logged; the POST stays to try again
+            log.exception("resolving project %s after its ingest failed", project_id)
+
+    if ingest.status(project_id).state in ("done", "failed"):
+        run()
+    else:
+        threading.Thread(target=run, name=f"resolve-{project_id}", daemon=True).start()
+
+
 @router.get("/{project_id}/questions")
 def project_questions(
     project_id: ProjectId, ingest: IngestDep, settings: SettingsDep
@@ -496,6 +606,7 @@ def review_of(
                 title=conflict_card.title(row),
                 why=conflict_card.why(row),
                 suggestions=conflict_card.suggestions(row),
+                resolved=row.resolved,
             )
             for row in disputes(found.quantities)
             if row.conflict is not None  # always: narrows the type
