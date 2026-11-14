@@ -574,6 +574,22 @@ describe('extended answers', () => {
     }
   });
 
+  it('R2 #80 EN-51 the read-as note leads the How line, in full', async () => {
+    const note = "read 'mnay' as 'many'";
+    const own = 'the scale is estimated from a door width';
+    const misspelt = { ...answer, question: 'How mnay doors are there?' };
+    const cases: [string, string][] = [
+      [`${note}; ${own}`, `How: ${note}; ${own}`],
+      [note, `How: ${note}`],
+    ];
+    for (const [explanation, line] of cases) {
+      const t = await shownTurn({ ...misspelt, explanation });
+      const details = within(t).getByText('Details').closest('details') as HTMLElement;
+      expect(within(details).getByText(line).tagName).toBe('P');
+      cleanup();
+    }
+  });
+
   it('EN-19 the arithmetic line for a sum; none when null', async () => {
     const t = await shownTurn(answerArea);
     expect(

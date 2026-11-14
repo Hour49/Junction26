@@ -97,7 +97,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `proof.storeys[]` | `ModelProof` table: one row per storey, one column per class in `counts` |
 | `proof.schedule` | table `title`, `columns` as header, `rows[].cells` (null cell = empty), "<rows> of <of> rows" |
 | `refusal.text`, `refusal.code`, `refusal.can_answer[]` | the refusal turn (States) |
-| `method`, `explanation` | the details (collapsed by default): "Method: <method>", "How: <explanation>" when not null |
+| `method`, `explanation` | the details (collapsed by default): "Method: <method>", "How: <explanation>" when not null. A misspelt question's `explanation` starts with how it was read (backend #80): "read 'mnay' as 'many'" (several joined by ", "), then "; " and the answer's own explanation when it has one. The How line shows it in full, as text, and wraps at 390 px (long words break: `overflow-wrap: anywhere` from the page) |
 | `reader` | "Where this came from": `<extractor>` read `<source>` (`<route>` route), second count by `<second_counter>`; with `second_counter` `none`: `<extractor>` read `<source>` (`<route>` route), no second count |
 | `cost_usd`, `latency_s` | the card footer: "Cost $0" / "Time 0.2 ms" (format below) |
 | `drawing_id`, `file` | footer "Drawing <file>"; links |
@@ -253,6 +253,7 @@ Thread and pages
 - EN-48 The big value of an answer has `data-testid="answer-value"` with the formatted value as its text ("2" for `answer.json`, "52.27 m²" for `answer_area.json`); a refusal or an error turn has no element with that test id. [component, `answer.json`, `answer_area.json`, `answer_refused.json`]
 - EN-49 The drawing is requested with the route's project: `GET /api/drawings/adeefbbcc17559fc?project=5e0c1a2b3d4f`. [component, `drawing.json`]
 - EN-50 Every ask body carries `project_id`: a suggestion click, a typed question, a `can_answer` click and "Try again" each send `{"drawing_id", "question", "project_id": "5e0c1a2b3d4f"}`. [component, `answer.json`, `answer_refused.json`]
+- EN-51 The read-as note leads the How line in Details, in full and as text: with `explanation` "read 'mnay' as 'many'; the scale is estimated from a door width" the line reads "How: read 'mnay' as 'many'; the scale is estimated from a door width"; with only the note it reads "How: read 'mnay' as 'many'". [component, derived `answer.json`; the 390 px wrap: fe-golden's browser check]
 
 [e2e] criteria are built by the e2e worker (golden-path.md); this spec's build worker writes no file in `frontend/e2e/`.
 
