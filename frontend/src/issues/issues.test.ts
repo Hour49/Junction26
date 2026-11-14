@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Issue } from '../api';
 import { projectIssues } from '../api/fixtures';
@@ -33,6 +32,12 @@ describe('issues.ts', () => {
 
   it('IS-3 placeOf: file, floor, page or the whole drawing or not on a drawing', () => {
     expect(placeOf(byId('i-conflict'))).toBe('plans/flat-b.pdf · floor 1 · page 1');
+    expect(placeOf({ ...byId('i-conflict'), drawing_name: 'Drawn plan 2' })).toBe(
+      'Drawn plan 2 · floor 1 · page 1',
+    );
+    expect(placeOf({ ...byId('i-conflict'), drawing_name: null })).toBe(
+      'plans/flat-b.pdf · floor 1 · page 1',
+    );
     expect(placeOf({ ...byId('i-conflict'), floor: null, page: 2 })).toBe(
       'plans/flat-b.pdf · floor not stated · page 2',
     );
@@ -158,12 +163,6 @@ describe('issues.ts', () => {
     expect(kindOf('conflict')).toEqual({ word: 'Conflict', icon: '⇄' });
     expect(kindOf('double_check').word).toBe('Double-check');
     expect(kindOf('new_kind')).toEqual({ word: 'new_kind', icon: '' });
-  });
-
-  it('IS-18 issues.css: no colour literal; the sticky plan sits under the header', () => {
-    const css = readFileSync('src/issues/issues.css', 'utf8');
-    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
-    expect(css).toContain('top: var(--v-header-h');
   });
 });
 

@@ -120,7 +120,7 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0 }: Props) {
       {conflicts.length > 0 && (
         <a
           className="sv-settle"
-          href={routeHref({ name: 'conflicts', projectId, query: new URLSearchParams() })}
+          href={routeHref({ name: 'project', projectId, query: new URLSearchParams() })}
         >
           Settle the conflicts
         </a>

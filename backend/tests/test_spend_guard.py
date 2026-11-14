@@ -247,7 +247,7 @@ class Files:
         return b""
 
 
-def test_an_empty_limit_is_unset_and_a_non_positive_one_fails_at_startup(
+def test_an_empty_limit_is_unset_and_a_negative_one_fails_at_startup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -255,9 +255,25 @@ def test_an_empty_limit_is_unset_and_a_non_positive_one_fails_at_startup(
     monkeypatch.setenv("GEMINI_BUDGET_USD_PER_HOUR", "2.5")
     settings = Settings()
     assert (settings.gemini_budget_usd, settings.gemini_budget_usd_per_hour) == (None, 2.5)
-    monkeypatch.setenv("GEMINI_BUDGET_USD", "0")
+    monkeypatch.setenv("GEMINI_BUDGET_USD", "-1")
     with pytest.raises(ValidationError, match="gemini_budget_usd"):
         Settings()
+
+
+@pytest.mark.parametrize("name", ["GEMINI_BUDGET_USD", "GEMINI_BUDGET_USD_PER_HOUR"])
+def test_a_zero_limit_is_the_kill_switch_no_gemini_call_from_the_first(
+    name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The deploy runbook's kill switch: restart with the limit at 0 and nothing is sent."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv(name, "0")
+    settings = Settings(projects_dir=tmp_path / "projects")
+    app = create_app(settings, build_ingest(settings, settings.projects_dir, background=False))
+    assert TestClient(app).get("/api/info").json()["gemini"] == "budget_exhausted"
+    transport = CentTransport()
+    with pytest.raises(DecisionsError, match="budget used up"):
+        decisions(spend_guard(settings), transport).decide({})
+    assert transport.calls == 0
 
 
 def test_a_plain_caller_shares_the_ledger_through_its_public_api(

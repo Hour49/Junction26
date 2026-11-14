@@ -1,6 +1,9 @@
 # Issues: every place that needs a look, located (spec, #140)
 
-Status: draft for review, 2026-11-14, by fe-ingest. Brief: `.agents/briefs/fe-checks-issues.md` (incl. CHANGE 13:22).
+Status: the screen is superseded by the Documents tab (`documents.md`, demo parity, 2026-11-14 16:40): the filters, the
+plan panel, the Issues tab and IS-1, 5, 7, 9, 10, 13, 19, 20 go with it. The pure helpers of `src/issues/issues.ts`
+and IS-2 (numbering), 3, 4, 8, 11, 15-17 stay true for what Documents reuses. Was: draft for review, 2026-11-14, by
+fe-ingest. Brief: `.agents/briefs/fe-checks-issues.md` (incl. CHANGE 13:22).
 Contract: board decision #142 (Bogdan, 12:30) and its export answer (c6875986462, 12:34); record
 `docs/decisions/0008-located-issues.md` on Bogdan's branch (not pushed when this was written). Bogdan accepted all
 our #142 asks (c6876010899, via frontend-orch 13:44): `Issue.polygon` (optional), `mark_id` and `quantity`, full sort
@@ -172,7 +175,8 @@ Status is never colour alone: kind, severity and state each carry a word (and an
 - IS-2: Each issue is a row in the API's order with `n` = its 1-based position in the response, its kind word, `why`,
   place line and state word; rows sit under the severity heading of their `severity`; the screen does not re-sort (a
   fixture whose order differs from any local sort keeps the API order). [component]
-- IS-3: `placeOf` gives "plans/flat-b.pdf · floor 1 · page 1"; "… · floor not stated · page 2" with `floor` null;
+- IS-3: `placeOf` starts with `drawing_name` (#229, "Drawn plan 2 · floor 1 · page 1"), else `file` when it is null
+  or missing: "plans/flat-b.pdf · floor 1 · page 1"; "… · floor not stated · page 2" with `floor` null;
   "… · the whole drawing" with `page` null and a drawing; "… · not on a drawing" with `drawing_id` null. [unit]
 - IS-4: The summary counts by state ("3 open · 1 settled · 1 signed off", `plural` rules, zero states left out).
   [unit `counts` + component]

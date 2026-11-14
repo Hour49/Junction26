@@ -44,9 +44,9 @@ RasterScaleName = Literal["off", "priors"]
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
-# Dollars above zero; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
+# Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
-    Annotated[float, Field(gt=0)] | None,
+    Annotated[float, Field(ge=0)] | None,
     BeforeValidator(lambda value: None if value == "" else value),
 ]
 
@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    # The git commit this backend was started from, as GET /api/info `commit` shows it, so a
+    # smoke test can tell which build it talks to (tools/qa-env.sh sets the exported commit).
+    # Unset: null. Never read from git at request time
+    app_commit: str | None = None
     extractor_bim: ExtractorName = "ifc"
     extractor_cad: ExtractorName = "hello"
     extractor_vector: ExtractorName = "pdf"
@@ -90,7 +94,7 @@ class Settings(BaseSettings):
     # (room reader, Decisions, sheet-kind signal, describer, answer confidence) may spend in total,
     # and in any hour. Past either, the Gemini steps answer as when Gemini fails (the answer stays
     # unknown, the note says why; cached replies still serve) and GET /api/info says
-    # `gemini: budget_exhausted`. Unset: no limit
+    # `gemini: budget_exhausted`. Unset: no limit. 0: no Gemini call at all (the kill switch)
     gemini_budget_usd: Usd = None
     gemini_budget_usd_per_hour: Usd = None
     # Gemini Decisions count distributions (app/adapters/decisions/, same GEMINI_API_KEY). The

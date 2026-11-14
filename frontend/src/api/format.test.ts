@@ -1,5 +1,12 @@
 import { afterEach, expect, it } from 'vitest';
-import { formatTime, formatValue, methodName, readerName } from './format';
+import {
+  drawingLabel,
+  drawingName,
+  formatTime,
+  formatValue,
+  methodName,
+  readerName,
+} from './format';
 import { projectList } from './fixtures';
 
 const zone = process.env.TZ;
@@ -52,4 +59,17 @@ it('R3-method (SH-49) methodName turns measuring-method ids into plain labels', 
   for (const [id, label] of Object.entries(labels)) expect(methodName(id)).toBe(label);
   for (const missing of [null, undefined]) expect(methodName(missing)).toBe('no method');
   expect(methodName('lidar')).toBe('lidar');
+});
+
+it('SH-82 drawingName drops the folders and keeps the file name as given', () => {
+  expect(drawingName('plans/flat-a.pdf')).toBe('flat-a.pdf');
+  expect(drawingName('flat-a.pdf')).toBe('flat-a.pdf');
+  expect(drawingName('a/b/site980_bldg2055_floor9178.png')).toBe('site980_bldg2055_floor9178.png');
+});
+
+it("SH-85 drawingLabel is the backend's plain name, else the file name", () => {
+  expect(drawingLabel({ name: 'Drawn plan 1', file: 'plans/flat-a.pdf' })).toBe('Drawn plan 1');
+  expect(drawingLabel({ name: null, file: 'plans/flat-a.pdf' })).toBe('flat-a.pdf');
+  expect(drawingLabel({ name: '', file: 'plans/flat-a.pdf' })).toBe('flat-a.pdf');
+  expect(drawingLabel({ file: 'scans/ground-floor.png' })).toBe('ground-floor.png');
 });
