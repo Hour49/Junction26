@@ -121,6 +121,9 @@ class Issue(View):
     severity: Severity
     state: IssueState
     drawing_id: str | None  # None: a file with no drawing (most set-aside files)
+    # The drawing's plain name, as GET /api/projects/{id} names it ("Drawn plan 2"): what a
+    # screen shows, never the file name; None with no drawing (added 2026-11-14)
+    drawing_name: str | None = None
     file: str  # as the project uploaded it
     file_id: str | None
     floor: str | None  # only where a source states it (an IFC storey); never guessed
@@ -300,8 +303,8 @@ def _marked_page(
     )
     said = "\n".join(f"{n}. {issue.why}" for n, issue in placed)  # one line per issue
     proof = NO_PROOF.model_copy(update={"kind": "count", "legend": keys, "arithmetic": said})
-    file = placed[0][1].file
-    shown = f"{file}, page {page}: {count_of(len(placed), 'issue')}"
+    first = placed[0][1]
+    shown = f"{first.drawing_name or first.file}, page {page}: {count_of(len(placed), 'issue')}"
     sheet = render_png(ingest.sheet(drawing_id), page, PAGE_WIDTH)
     credit = credit_of(ingest.drawing_info(drawing_id), ingest, credits)
     return render_evidence(sheet, page, marks, proof, shown, credit, PAGE_WIDTH)
@@ -364,6 +367,7 @@ def listed_issues(
     its failed checks join the list."""
     where = _Files(status)
     said = answers(settings.projects_dir, status.id)
+    names = drawing_names(status)
     found = [
         *([] if pack is None else _code_checks(status, where, ingest, pack)),
         *_conflicts(status, where, ingest, reviews, takeoffs or {}),
@@ -386,7 +390,23 @@ def listed_issues(
         return (SEVERITIES.index(issue.severity), at, issue.page or 1_000_000, top, ref, issue.id)
 
     found.sort(key=order)
-    return [issue.model_copy(update={"answer": said.get(issue.id)}) for issue in found]
+    return [
+        issue.model_copy(
+            update={"answer": said.get(issue.id), "drawing_name": names.get(issue.drawing_id or "")}
+        )
+        for issue in found
+    ]
+
+
+def drawing_names(status: ProjectStatus) -> dict[str, str]:
+    """Each drawing id's plain name from the project's drawings (`drawings_of`, so the numbers
+    are the project GET's); another rendering of a drawing has that drawing's name."""
+    names: dict[str, str] = {}
+    for entry in drawings_of(status):
+        names[entry.drawing_id] = entry.name
+        for rendering in entry.other_renderings:
+            names.setdefault(rendering.drawing_id, entry.name)
+    return names
 
 
 def open_count(

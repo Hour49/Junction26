@@ -3270,6 +3270,9 @@ Each issue:
   `unrelated_file` can be other than `open`.
 - `file` is the file as **this project** uploaded it. `file_id` is its `FileStatus.id` (`f3`). `drawing_id` is null
   for a file with no drawing.
+- `drawing_name`: the drawing's plain name as `GET /api/projects/{id}` `drawings[].name` gives it ("Drawn plan 2",
+  the same numbering; another rendering of a drawing has that drawing's name), null for a file with no drawing.
+  Show it to a person instead of `file`, which can be a dataset's file name.
 - `floor`: the storey, only where the source states it (an IFC storey: the plan's on the page, or the quantity
   key's); null otherwise, never guessed.
 - `page`, `box`, `polygon`, `mark_id`: where to open the drawing, in page fractions as on `MarkView`.
@@ -3312,6 +3315,7 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
       "severity": "fails_rule",
       "state": "open",
       "drawing_id": "5c4ed01e00000002",
+      "drawing_name": "Drawn plan 1",
       "file": "flat-fi.pdf",
       "file_id": "f1",
       "floor": null,
@@ -3377,6 +3381,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "settled",
       "drawing_id": "44cc9f0d991eafe3",
+      "drawing_name": "Drawn plan 2",
       "file": "plans/flat-b.pdf",
       "file_id": "f3",
       "floor": null,
@@ -3429,6 +3434,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "3b3ce7db34257f63",
+      "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
       "file_id": "f4",
       "floor": null,
@@ -3460,6 +3466,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "3b3ce7db34257f63",
+      "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
       "file_id": "f4",
       "floor": null,
@@ -3491,6 +3498,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "37f6819bd17d65d9",
+      "drawing_name": "Plan photo 1",
       "file": "photos/plan-photo.jpg",
       "file_id": "f6",
       "floor": null,
@@ -3522,6 +3530,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": null,
+      "drawing_name": null,
       "file": "photos/site.jpg",
       "file_id": "f7",
       "floor": null,
@@ -3553,6 +3562,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": null,
+      "drawing_name": null,
       "file": "cad/detail.dxf",
       "file_id": "f9",
       "floor": null,
@@ -3596,7 +3606,8 @@ The issues with the floor plans, saved as `<project name>-issues[-<pack>].zip`:
 - `issues.csv`: the CSV above with a first column `n`, the issue's number in the list.
 - One PNG per drawing page that has issues with a box, named `<file stem>-p<page>.png` (`-2`, `-3`… when two files
   share a stem). It is the page at 1600 px with each such issue drawn (its polygon, else its box), coloured by
-  severity and labelled with its `n`. Under the page are the issues' sentences, a colour key and the drawing's
+  severity and labelled with its `n`, under the line "`<drawing_name>`, page `<n>`: `<k>` issues". Under the page
+  are the issues' sentences, a colour key and the drawing's
   licence credit.
 - An issue with no page or no box is only in the CSV, and a page with no such issue has no PNG.
 
@@ -3629,6 +3640,7 @@ that leaves the list (a refused question answered later) takes its answer with i
   "severity": "note",
   "state": "settled",
   "drawing_id": "44cc9f0d991eafe3",
+  "drawing_name": "Drawn plan 2",
   "file": "plans/flat-b.pdf",
   "file_id": "f3",
   "floor": null,
@@ -8110,6 +8122,9 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (board #14, plain drawing names): `Issue.drawing_name`, the drawing's `name` from
+  `GET /api/projects/{id}` (null with no drawing). The pages of `issues.zip` name the drawing by it instead of its
+  file. `file` is unchanged.
 - 2026-11-14, additive (board #14, Tudor's conflict card asks 8-10): `Edit.note` on `settle` (1-280 characters, a
   typed answer in words; without `value` the value in use is kept) and `Settled.note` (null when none); a `note`
   on another action, empty or too long is 422 `validation`. `settle` with neither `value` nor `note` stays 422
