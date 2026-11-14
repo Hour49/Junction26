@@ -4893,11 +4893,11 @@ Each issue:
 - `answer`: a person's answer, `{text, by, at}` (`POST …/issues/{id}/answer` below), or null. It is a note on the
   issue: it settles nothing and does not change `state` (settle a conflict with `POST …/review`, make a call on a
   file with `POST …/relevance`).
-- `model_file_id` and `highlight` (added 2026-11-14, board #14 c6883948897; each left out when there is none): for
-  a failed code check on a drawing with an IFC model, the IFC file whose 3D view shows it (its own file, or the model
+- `model_file_id` and `highlight` (added 2026-11-14, board #14 c6883948897; only while `MODEL_3D` is on, each left
+  out when there is none): for a failed code check on a drawing with an IFC model, the IFC file whose 3D view shows it (its own file, or the model
   a sheet was read from: `…/files/{model_file_id}/model.glb`) and the checked room or door by GlobalId,
   `[{global_id, role: "affected"}]`, when the model lists it as drawn on the sheet. The check's `subject` carries
-  the same `global_id` (left out when none) in `GET /api/drawings/{id}/checks`.
+  the same `global_id` (left out when none, and always while `MODEL_3D` is off) in `GET /api/drawings/{id}/checks`.
 
 A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
 
@@ -6736,7 +6736,8 @@ that call gives, the project's review edits applied. An unknown project is 404; 
 - `parts`: one per drawing, `{drawing_id, name, answer}`: `name` is the drawing's file as the project uploaded it
   and `answer` is the full `POST /api/ask` response. The drawings that answered come first, then those that
   refused (with their `answer.refusal`), each group in the project's order. Also `file_id` (the drawing's file,
-  its `FileStatus.id`); `model_file_id` (left out when none): the IFC file whose 3D view shows the drawing
+  its `FileStatus.id`); only while `MODEL_3D` is on (off: left out, the payload as before), `model_file_id` (left
+  out when none): the IFC file whose 3D view shows the drawing
   (`…/files/{model_file_id}/model.glb`), its own file when that is IFC, else the model a sheet was read from;
   `highlight` (left out when empty): the elements the answer counted, by IFC GlobalId, `[{global_id, role}]`, role
   `affected` here (`moved`, `removed`, `added` are for edit proposals); and while `MODEL_3D` is on, `model_3d`: that
@@ -9167,18 +9168,7 @@ still come from this turn's tool results).
             "check": null,
             "level": null
           },
-          "file_id": "f8",
-          "model_file_id": "f8",
-          "highlight": [
-            {
-              "global_id": "000000000000000000000K",
-              "role": "affected"
-            },
-            {
-              "global_id": "000000000000000000000M",
-              "role": "affected"
-            }
-          ]
+          "file_id": "f8"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -9907,8 +9897,7 @@ budget, the same call a third time) ends a turn the same way.
             "check": null,
             "level": null
           },
-          "file_id": "f8",
-          "model_file_id": "f8"
+          "file_id": "f8"
         }
       ],
       "total": null,

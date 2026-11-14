@@ -197,14 +197,14 @@ def test_a_subject_the_model_lists_as_drawn_carries_its_global_id() -> None:
         {"id": "m1", "class": "space", "global_id": "2O2Fr$t4X7Zf8NOew3FLOH", "element": "r2"},
         {"id": "m2", "class": "space", "global_id": "3cUkl32yn9qRSPvBJVyWYp"},  # not drawn
     ]
-    found = check_rule(
-        drawing(rooms=[room(1, area_m2=9.5), room(2, area_m2=6.1)], model_objects=objects),
-        rule("bedroom-area"),
-    )
+    modelled = drawing(rooms=[room(1, area_m2=9.5), room(2, area_m2=6.1)], model_objects=objects)
+    found = check_rule(modelled, rule("bedroom-area"), model_ids=True)
     assert [r.subject.global_id for r in found.results] == [None, "2O2Fr$t4X7Zf8NOew3FLOH"]
+    off = check_rule(modelled, rule("bedroom-area"))  # MODEL_3D off: no GlobalIds, as before
+    assert [r.subject.global_id for r in off.results] == [None, None]
     assert "global_id" not in found.results[0].subject.model_dump()
     assert found.results[1].subject.model_dump()["global_id"] == "2O2Fr$t4X7Zf8NOew3FLOH"
-    plain = check_rule(drawing(rooms=[room(2, area_m2=6.1)]), rule("bedroom-area"))
+    plain = check_rule(drawing(rooms=[room(2, area_m2=6.1)]), rule("bedroom-area"), model_ids=True)
     assert plain.results[0].subject.global_id is None  # no model: as before
 
 

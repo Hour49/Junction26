@@ -160,13 +160,14 @@ def test_an_ifc_answer_part_has_its_file_view_and_counted_elements(on: TestClien
     assert part["highlight"] == [{"global_id": guid, "role": "affected"} for guid in walls[:2]]
 
 
-def test_off_a_part_has_file_id_and_highlight_but_no_model_3d(client: TestClient) -> None:
-    data, walls = house()
+def test_off_a_part_has_file_id_but_no_3d_field(client: TestClient) -> None:
+    """MODEL_3D off (codecheck #14 c6884150822): file_id stays (not 3D-specific); model_file_id,
+    highlight and model_3d are left out."""
+    data, _ = house()
     project_id = upload(client, data, "house.ifc")
     part = parts_of(client.post(f"/api/projects/{project_id}/ask", json=WALLS).json())
-    assert part["file_id"] == part["model_file_id"] == "f1"
-    assert "model_3d" not in part
-    assert {item["global_id"] for item in part["highlight"]} == set(walls[:2])
+    assert part["file_id"] == "f1"
+    assert "model_file_id" not in part and "highlight" not in part and "model_3d" not in part
 
 
 def test_a_chat_answer_part_has_the_view_state_now_and_keeps_none(
@@ -217,21 +218,31 @@ def test_the_chat_stream_answer_has_the_view_state_and_keeps_none(
     assert kept == []
 
 
-def test_a_failed_check_on_a_sheet_with_its_model_highlights_the_element(
-    settings: Settings, tmp_path: Path
-) -> None:
-    """Issue.model_file_id and Issue.highlight (board #14 c6883948897): a failed check of a door
-    the sheet's model lists gets the model file and the door's GlobalId; additive only."""
+def strict_door(settings: Settings, folder: Path, model_3d: bool) -> TestClient:
+    """The app with one pack, `test`, whose door rule asks 3 m: the demo's door fails it."""
     body = json.loads((RULES / "test.json").read_text())
     door = next(rule for rule in body["rules"] if rule["op"] == "door_width")
-    (tmp_path / "test.json").write_text(json.dumps({**body, "rules": [{**door, "limit": 3.0}]}))
-    on = serving(settings.model_copy(update={"model_3d": True}), tmp_path)
+    (folder / "test.json").write_text(json.dumps({**body, "rules": [{**door, "limit": 3.0}]}))
+    return serving(settings.model_copy(update={"model_3d": model_3d}), folder)
+
+
+def demo_zip() -> bytes:
+    """The demo sheet, its SVG twin and its IFC model, as one upload."""
     built = demo()
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w") as packed:
         for path, data in ((SHEET, built.pdf), (TWIN, built.svg), (MODEL, built.ifc)):
             packed.writestr(path, data)
-    project_id = upload(on, archive.getvalue(), "demo.zip")
+    return archive.getvalue()
+
+
+def test_a_failed_check_on_a_sheet_with_its_model_highlights_the_element(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """Issue.model_file_id and Issue.highlight (board #14 c6883948897): a failed check of a door
+    the sheet's model lists gets the model file and the door's GlobalId; additive only."""
+    on = strict_door(settings, tmp_path, model_3d=True)
+    project_id = upload(on, demo_zip(), "demo.zip")
     found = on.get(f"/api/projects/{project_id}/issues", params={"pack": "test"}).json()
     fails = [issue for issue in found["issues"] if issue["kind"] == "code_check_failed"]
     assert fails, "the 3 m door rule fails the demo's door"
@@ -265,3 +276,33 @@ def test_a_failed_check_on_a_plain_sheet_has_no_3d_fields(client: TestClient) ->
     assert fails
     for issue in fails:
         assert "highlight" not in issue and "model_file_id" not in issue
+
+
+def test_off_no_3d_field_in_issues_checks_or_ask_parts(settings: Settings, tmp_path: Path) -> None:
+    """MODEL_3D off (Bogdan's codecheck #14 c6884150822): the same failing door gives an issue
+    without model_file_id or highlight, a checks subject without global_id, and project ask parts
+    without model_file_id or highlight (file_id stays: it is not 3D-specific)."""
+    off = strict_door(settings, tmp_path, model_3d=False)
+    project_id = upload(off, demo_zip(), "demo.zip")
+    found = off.get(f"/api/projects/{project_id}/issues", params={"pack": "test"}).json()
+    fails = [issue for issue in found["issues"] if issue["kind"] == "code_check_failed"]
+    assert fails
+    for issue in found["issues"]:
+        assert "model_file_id" not in issue and "highlight" not in issue
+    for drawing in off.get(f"/api/projects/{project_id}").json()["drawings"]:
+        checks = off.get(
+            f"/api/drawings/{drawing['drawing_id']}/checks",
+            params={"pack": "test", "project": project_id},
+        ).json()
+        subjects = [r["subject"] for rule in checks["rules"] for r in rule["results"]]
+        assert all("global_id" not in subject for subject in subjects)
+        bare = off.get(f"/api/drawings/{drawing['drawing_id']}/checks", params={"pack": "test"})
+        assert all(
+            "global_id" not in r["subject"]
+            for rule in bare.json()["rules"]
+            for r in rule["results"]
+        )
+    asked = off.post(f"/api/projects/{project_id}/ask", json={"question": "How many doors?"})
+    for part in asked.json()["parts"]:
+        assert "file_id" in part
+        assert "model_file_id" not in part and "highlight" not in part and "model_3d" not in part

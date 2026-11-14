@@ -221,7 +221,8 @@ Same `ModelDialog`, `canShow3d` and highlight as parts 2-3; no new dependency; m
    `CheckSubject` gets `global_id` when the drawing's model lists the room or door as drawn here
    (`ModelObject.element`), and a `code_check_failed` issue gets `model_file_id` (the IFC file whose GLB shows its
    drawing: its own, or the model a sheet was read from) and `highlight: [{global_id, role: "affected"}]`; each left
-   out when none. Frontend: an issue card with a `model_file_id` whose file in `project.files` can show 3D
+   out when none. All three, and `ProjectAnswerPart.model_file_id`/`highlight`, only while `MODEL_3D` is on
+   (Bogdan's codecheck #14 c6884150822: off, no payload change); `file_id` stays either way. Frontend: an issue card with a `model_file_id` whose file in `project.files` can show 3D
    (`canShow3d`) gets "View in 3D" (44 px, after "Open the file"), else, for any issue kind, its own `file_id` when
    that file can show 3D (an IFC file's issue, no highlight); the dialog is titled "3D view: <drawing name>" and
    highlights `issue.highlight`. No button without a 3D-capable file or with `MODEL_3D` off.

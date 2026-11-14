@@ -147,7 +147,8 @@ class Issue(View):
     resolved: Resolved | None = Field(default=None, exclude_if=is_none)
     # The 3D view (added 2026-11-14, board #14 c6883948897): the IFC file whose GLB shows this
     # issue's drawing (its own file, or the model a sheet was read from) and, for a failed code
-    # check, the checked room or door by GlobalId (`affected`); left out when there is none
+    # check, the checked room or door by GlobalId (`affected`); only while MODEL_3D is on (off: the
+    # payload as before), each left out when there is none
     model_file_id: str | None = Field(default=None, exclude_if=is_none)
     highlight: list[Highlight] = Field(default_factory=list[Highlight], exclude_if=lambda v: not v)
 
@@ -378,7 +379,7 @@ def listed_issues(
     said = answers(settings.projects_dir, status.id)
     names = drawing_names(status)
     found = [
-        *([] if pack is None else _code_checks(status, where, ingest, pack)),
+        *([] if pack is None else _code_checks(status, where, ingest, pack, settings.model_3d)),
         *_conflicts(status, where, ingest, reviews, takeoffs or {}),
         *_reading_flags(status, where, ingest, settings),
         *_set_aside(status, where),
@@ -495,12 +496,13 @@ def _issue(
 
 
 def _code_checks(
-    status: ProjectStatus, where: _Files, ingest: Ingest, pack: RulePack
+    status: ProjectStatus, where: _Files, ingest: Ingest, pack: RulePack, model_3d: bool = False
 ) -> Iterator[Issue]:
     """One issue per failed check of the pack (decision 0009), placed on its room or door: the
     result's first subject mark, on a page the drawing has. Cannot tell is not an issue. With the
-    drawing's IFC model, its file (`model_file_id`) and the checked element (`highlight`)."""
-    models = {file.path: file.id for file in status.files if file.kind == "ifc"}
+    drawing's IFC model and MODEL_3D on, its file (`model_file_id`) and the checked element
+    (`highlight`); off, neither."""
+    models = {file.path: file.id for file in status.files if file.kind == "ifc"} if model_3d else {}
     for entry in drawings_of(status):
         file = where.of(entry.drawing_id)
         assert file is not None  # a listed drawing has its file
@@ -508,7 +510,7 @@ def _code_checks(
         sheets = {page.page for page in drawing.pages}
         route = ingest.drawing_info(entry.drawing_id).route  # raster: read off a picture
         checks = f"/api/drawings/{entry.drawing_id}/checks?pack={pack.id}&project={status.id}"
-        for rule in check_drawing(drawing, pack, route):
+        for rule in check_drawing(drawing, pack, route, model_ids=model_3d):
             for result in rule.results:
                 if result.status != "fail":
                     continue
