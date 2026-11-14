@@ -3,6 +3,7 @@
 
 import io
 import math
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -159,14 +160,14 @@ def test_the_takeoff_says_the_area_uses_the_scale_you_gave() -> None:
 
 
 class FakeIngest:
-    def __init__(self, drawings: dict[str, Drawing], data: bytes = b"") -> None:
-        self.drawings, self.data = drawings, data
+    def __init__(self, drawings: dict[str, Drawing], data: bytes = b"", kind: str = "png") -> None:
+        self.drawings, self.data, self.kind = drawings, data, kind
 
     def drawing(self, drawing_id: str) -> Drawing:
         return self.drawings[drawing_id]
 
     def sheet(self, drawing_id: str) -> SheetFile:
-        return SheetFile(drawing_id=drawing_id, path="plan.png", kind="png", data=self.data)
+        return SheetFile(drawing_id=drawing_id, path="plan", kind=self.kind, data=self.data)  # type: ignore[arg-type]
 
 
 def png(dpi: float | None) -> bytes:
@@ -241,3 +242,11 @@ def test_l4_an_area_at_the_users_scale_is_never_sure_nor_high() -> None:
     count = asked.model_copy(update={"answer": line.model_copy(update={"unit": "count"})})
     assert user_scaled(count, plan) is count  # a count does not rest on the scale
     assert user_scaled(asked, drawing(PT, "scaled")) is asked  # the sheet's own scale
+
+
+def test_a_scanned_pdf_takes_a_ratio_at_its_render_resolution(
+    entries: None, make_pdf: Callable[..., bytes]
+) -> None:
+    scan = FakeIngest({"d1": drawing()}, make_pdf((720, 360)), kind="pdf")  # 10 in wide, 1000 px
+    _, kept = take(scan, "the scale is 1:100")
+    assert kept["d1"].m_per_unit == pytest.approx(100 * 0.0254 / 100)  # 100 px to the inch
