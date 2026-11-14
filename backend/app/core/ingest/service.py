@@ -22,6 +22,7 @@ from app.core.errors import (
     NotFoundError,
     NotTriagedError,
 )
+from app.core.evidence.ports import EvidenceIndex
 from app.core.ingest.groups import Groups
 from app.core.ingest.model import (
     DRAWING_KINDS,
@@ -110,17 +111,21 @@ class IngestService:
         now: Now,
         new_id: NewId,
         triage: TriageSteps | None = None,
+        evidence: EvidenceIndex | None = None,
     ) -> None:
         """`readers(project_id)`: the pipeline's ports over that project's files.
         `reader_names`: which adapter reads each route, shown in the status and part of the
         cache key, so changing a reader re-ingests. `triage`: file triage (decision 0010); None
         is off, ingest as before it existed. It is shown in the status but is not part of the
-        cache key: it decides which files are read, not how a plan is read."""
+        cache key: it decides which files are read, not how a plan is read. `evidence`: the
+        project's evidence index (decision 0012), kept in step after judging and after an
+        overrule or a re-read; None: no index."""
         self._unpacker, self._probe, self._frame, self._store = unpacker, probe, frame, store
         self._rectifier = rectifier
         self._readers, self._names = readers, dict(reader_names)
         self._runner, self._clock, self._now, self._new_id = runner, clock, now, new_id
         self._triage = triage
+        self._evidence = evidence
         self._lock = threading.Lock()
         self._live: dict[str, Run] = {}
 
@@ -308,7 +313,9 @@ class IngestService:
             changed = file.model_copy(update={"triage": overruled(file.triage, overrule)})
             files = tuple(changed if found.id == file_id else found for found in status.files)
             traces[file_id] = traces[file_id].model_copy(update={"file": changed})
-            self._store.save_project(status.model_copy(update={"files": files}), traces)
+            changed_status = status.model_copy(update={"files": files})
+            self._store.save_project(changed_status, traces)
+        self._index(changed_status)
         return changed
 
     def close(self) -> None:
@@ -340,6 +347,7 @@ class IngestService:
         ms = (self._clock() - started) * 1000
         run.set_project(state=state, error=error, ms=ms, finished_at=self._now())
         self._save(run)
+        self._index(run.status())
         with self._lock:
             del self._live[run.id]
         run.done.set()
@@ -551,6 +559,7 @@ class IngestService:
             self._unread(run, path, type(failure).__name__)
         finally:
             self._save(run)
+            self._index(run.status())
             with self._lock:
                 del self._live[run.id]
             run.done.set()
@@ -624,6 +633,16 @@ class IngestService:
 
     def _save(self, run: Run) -> None:
         self._store.save_project(run.status(), run.traces())
+
+    def _index(self, status: ProjectStatus) -> None:
+        """The project's evidence index in step with its saved status (decision 0012). Its
+        failure is logged and never fails ingest: the index can be rebuilt from the status."""
+        if self._evidence is None:
+            return
+        try:
+            self._evidence.update(status)
+        except Exception:
+            logger.warning("indexing the evidence of project %s failed", status.id, exc_info=True)
 
 
 def _asked(by: str) -> str:
