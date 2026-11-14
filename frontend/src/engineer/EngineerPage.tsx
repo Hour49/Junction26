@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { askQuestion, getDrawing, getProject, type DrawingView, type ProjectView } from '../api';
+import {
+  askQuestion,
+  getDrawing,
+  getProject,
+  type AnswerView,
+  type DrawingView,
+  type ProjectView,
+} from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { AnswerCard, type Turn } from './AnswerCard';
@@ -97,6 +104,14 @@ export function EngineerPage(props: {
     send(turn.id, turn.question);
   }
 
+  function change(turn: Turn, answer: AnswerView) {
+    setTurns((ts) =>
+      ts.map((t) =>
+        t.id === turn.id ? { id: t.id, question: t.question, status: 'done', answer } : t,
+      ),
+    );
+  }
+
   const busy = turns.some((t) => t.status === 'pending');
   const place = project && placeOf(project, drawing, projectId);
   return (
@@ -139,6 +154,7 @@ export function EngineerPage(props: {
             busy={busy}
             onAsk={ask}
             onRetry={retry}
+            onChanged={change}
           />
         ))}
       </section>

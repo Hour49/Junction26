@@ -11,6 +11,7 @@ import {
   normalisedNote,
   pickBox,
   placeLabels,
+  type PlacedLabel,
   safeColour,
   startPage,
   STATE_WORDS,
@@ -18,6 +19,15 @@ import {
 import './viewer.css';
 
 type LegendEntry = NonNullable<AnswerView['proof']>['legend'][number];
+type Box = [number, number, number, number];
+
+/** A place the readers disagree on: Bogdan's `answer.check.disputed` item with `mark_id` as `markId` (viewer.md). */
+export interface Disputed {
+  markId?: string | null; // Bogdan's mark_id; absent or null: a place the answer did not count
+  page?: number; // absent: the page being shown
+  box?: number[];
+  why: string;
+}
 
 export interface PageViewerProps {
   file: string;
@@ -34,7 +44,24 @@ export interface PageViewerProps {
   onHover?: (markId: string | null) => void;
   onPick?: (page: number, box: [number, number, number, number]) => void; // set while adding a mark
   meta?: string; // appended to the page meta line, e.g. "PDF vector · vector route" (D61)
+  disputed?: Disputed[] | null; // places to double-check (viewer.md "Double-check")
+  fixMode?: boolean; // with onAddMark: a click, tap or drag on the page proposes a mark
+  onAddMark?: (box: Box, page: number) => void;
 }
+
+interface Drag {
+  x: number; // page fractions where it started
+  y: number;
+  cx: number; // client px where it started
+  cy: number;
+  touch: boolean;
+  to: [number, number] | null; // page fractions of the pointer now (mouse and pen only)
+}
+
+const SLOP = 8; // px a pointer may move and still be a click or tap
+const round5 = (v: number) => Number(v.toFixed(5));
+const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
+const ask = (why: string) => `Please double-check: ${why}`;
 
 type Zoom = 1 | 2 | 4;
 
@@ -46,6 +73,41 @@ const countText = (k: number) => `${String(k)} mark${k === 1 ? '' : 's'}`;
 /** The inline custom property viewer.css reads every mark colour from. */
 const tint = (c: string) => ({ '--vw-c': c }) as CSSProperties;
 const open = (m: MarkView) => m.state === 'rejected' || m.state === 'excluded';
+
+/** Where a badge or ? button sits: its placed spot, else its box centre (first render, jsdom). */
+function spotStyle(
+  spot: PlacedLabel | null | undefined,
+  [x0, y0, x1, y1]: Box,
+  W: number,
+  H: number,
+): CSSProperties {
+  return spot
+    ? {
+        left: `${((spot.x / W) * 100).toFixed(3)}%`,
+        top: `${((spot.y / H) * 100).toFixed(3)}%`,
+        width: `${String(spot.w)}px`,
+        height: `${String(spot.h)}px`,
+      }
+    : {
+        left: `${(((x0 + x1) / 2) * 100).toFixed(1)}%`,
+        top: `${(((y0 + y1) / 2) * 100).toFixed(1)}%`,
+      };
+}
+
+/** The why of a disputed place, next to its badge; below it when the badge is near the top. */
+function whyTip(why: string, where: CSSProperties) {
+  const below = parseFloat(String(where.top)) < 20;
+  return (
+    <span
+      key="why-tip"
+      role="tooltip"
+      className={below ? 'vw-why vw-why--below' : 'vw-why'}
+      style={{ left: where.left, top: where.top }}
+    >
+      {ask(why)}
+    </span>
+  );
+}
 
 function words(mark: MarkView): string {
   const w = STATE_WORDS[mark.state];
@@ -71,8 +133,14 @@ export function PageViewer({
   onHover,
   onPick,
   meta,
+  disputed,
+  fixMode = false,
+  onAddMark,
 }: PageViewerProps) {
-  const hatch = `vw-hatch-${useId().replace(/[^\w-]/g, '')}`;
+  const uid = useId().replace(/[^\w-]/g, '');
+  const hatch = `vw-hatch-${uid}`;
+  const [tip, setTip] = useState<string | null>(null); // key of the badge or ? button whose why shows
+  const [drag, setDrag] = useState<Drag | null>(null);
   const pageOf = (id: string | null) => marks.find((m) => m.id === id)?.page;
   const [current, setCurrent] = useState<number | undefined>(() => pageOf(selected));
   const [lastSelected, setLastSelected] = useState(selected);
@@ -129,6 +197,38 @@ export function PageViewer({
     showValue && m.value !== null && (m.state === 'counted' || m.state === 'added')
       ? formatValue(m.value, unit)
       : null;
+  // Double-check: where each disputed place is, and what cannot be shown.
+  const validBox = (b: number[] | undefined): b is Box =>
+    b?.length === 4 &&
+    b.every(inPage) &&
+    Number(b[0]) <= Number(b[2]) &&
+    Number(b[1]) <= Number(b[3]);
+  const doubtOf = new Map<string, string>(); // mark id → why
+  const boxItems: { box: Box; page: number; why: string }[] = [];
+  let lost = 0;
+  for (const d of disputed ?? []) {
+    if (d.markId) {
+      const m = marks.find((k) => k.id === d.markId);
+      if (m && placed(m)) doubtOf.set(m.id, d.why);
+      else lost++;
+    } else {
+      const p = d.page ?? page.page;
+      if (validBox(d.box) && pages.some((q) => q.page === p))
+        boxItems.push({ box: d.box, page: p, why: d.why });
+      else lost++;
+    }
+  }
+  const doubtPages = [
+    ...marks.filter((m) => doubtOf.has(m.id)).map((m) => m.page),
+    ...boxItems.map((b) => b.page),
+  ];
+  const boxesHere = boxItems.filter((b) => b.page === page.page);
+  const doubtsHere = doubtPages.filter((p) => p === page.page).length;
+  const elsewhere = [...new Set(doubtPages.filter((p) => p !== page.page))].sort((a, b) => a - b);
+  const outlines = [
+    ...onPage.filter((m) => doubtOf.has(m.id)).map((m) => m.box),
+    ...boxesHere.map((b) => b.box),
+  ];
   // Badges are placed so no two overlap once the frame's width is known (R2-qa-1-3).
   const W = frameWidth * zoom;
   const H = (W * page.height) / page.width;
@@ -136,14 +236,17 @@ export function PageViewer({
   const spots =
     W > 0
       ? placeLabels(
-          onPage.map((m) => {
-            const value = valueOf(m);
-            return {
-              box: m.box,
-              full: value !== null && !narrow ? `${badgeText(m)} · ${value}` : badgeText(m),
-              short: badgeText(m),
-            };
-          }),
+          [
+            ...onPage.map((m) => {
+              const value = valueOf(m);
+              return {
+                box: m.box,
+                full: value !== null && !narrow ? `${badgeText(m)} · ${value}` : badgeText(m),
+                short: badgeText(m),
+              };
+            }),
+            ...boxesHere.map((b) => ({ box: b.box, full: '?', short: '?' })),
+          ],
           W,
           H,
         )
@@ -169,14 +272,40 @@ export function PageViewer({
   const reasons = new Set(onPage.filter((m) => m.state === 'excluded').map((m) => m.reason));
   const [oneReason] = reasons.size === 1 ? [...reasons] : [];
   const hasLegend =
-    onPage.length > 0 || readings.length > 0 || unplaced > 0 || unlocatedLines.length > 0;
+    onPage.length > 0 ||
+    readings.length > 0 ||
+    unplaced > 0 ||
+    unlocatedLines.length > 0 ||
+    doubtPages.length > 0 ||
+    lost > 0;
   const chosenValue = chosen ? valueOf(chosen) : null;
+
+  const chosenDoubt = chosen ? doubtOf.get(chosen.id) : undefined;
+
+  // Fix mode: a click, tap or drag on the page proposes a mark (viewer.md "Fix mode").
+  const fixing = fixMode && onAddMark !== undefined;
+  const at = (clientX: number, clientY: number): [number, number] | null => {
+    const r = scroll.current?.querySelector('.vw-frame')?.getBoundingClientRect();
+    return r && r.width > 0 && r.height > 0
+      ? [clamp01((clientX - r.left) / r.width), clamp01((clientY - r.top) / r.height)]
+      : null;
+  };
+  const draftBox = (d: Drag, to: [number, number]): Box => [
+    round5(Math.min(d.x, to[0])),
+    round5(Math.min(d.y, to[1])),
+    round5(Math.max(d.x, to[0])),
+    round5(Math.max(d.y, to[1])),
+  ];
+  const draft = drag?.to ? draftBox(drag, drag.to) : null;
 
   return (
     <figure
       className="vw"
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onSelect?.(null);
+        if (e.key !== 'Escape') return;
+        setTip(null);
+        if (drag) setDrag(null);
+        else onSelect?.(null);
       }}
     >
       <p className="vw-name">{file}</p>
@@ -204,6 +333,7 @@ export function PageViewer({
             </button>
             <span>
               Page {index + 1} of {pages.length} · {countText(onPage.length)}
+              {doubtPages.length > 0 && ` · ${String(doubtPages.length)} to double-check`}
             </span>
             <button
               type="button"
@@ -249,15 +379,63 @@ export function PageViewer({
           </button>
         </div>
       </div>
-      <div className="vw-scroll" ref={scroll}>
+      {fixing && (
+        <p className="vw-hint">
+          <span className="vw-hint-wide">Click or drag on the drawing where a mark is missing</span>
+          <span className="vw-hint-narrow">Tap the drawing where a mark is missing</span>
+        </p>
+      )}
+      <div
+        className="vw-scroll"
+        ref={scroll}
+        onPointerDown={
+          fixing
+            ? (e) => {
+                if (e.button !== 0 || (e.target as Element).closest('.vw-badge, .vw-q')) return;
+                const p0 = at(e.clientX, e.clientY);
+                if (!p0) return;
+                const touch = e.pointerType === 'touch';
+                // shortcut: no capture in jsdom; a mouse released outside the box ends the drag on return
+                if (!touch && 'setPointerCapture' in e.currentTarget)
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                setDrag({ x: p0[0], y: p0[1], cx: e.clientX, cy: e.clientY, touch, to: null });
+              }
+            : undefined
+        }
+        onPointerMove={
+          drag && !drag.touch
+            ? (e) => {
+                const to = at(e.clientX, e.clientY);
+                if (to) setDrag({ ...drag, to });
+              }
+            : undefined
+        }
+        onPointerUp={
+          drag && onAddMark
+            ? (e) => {
+                setDrag(null);
+                const moved = Math.max(
+                  Math.abs(e.clientX - drag.cx),
+                  Math.abs(e.clientY - drag.cy),
+                );
+                if (moved < SLOP) onAddMark(pickBox(page, drag.x, drag.y), page.page);
+                else if (!drag.touch) {
+                  const to = at(e.clientX, e.clientY);
+                  if (to) onAddMark(draftBox(drag, to), page.page);
+                } // a moving touch is a pan
+              }
+            : undefined
+        }
+      >
         <PageFrame
           zoom={zoom}
-          className={onPick ? 'vw-picking' : undefined}
+          className={onPick || fixing ? 'vw-picking' : undefined}
           onClick={
-            onPick &&
-            ((x, y, target) => {
-              if (!target.closest('.vw-badge')) onPick(page.page, pickBox(page, x, y));
-            })
+            onPick && !fixing
+              ? (x, y, target) => {
+                  if (!target.closest('.vw-badge')) onPick(page.page, pickBox(page, x, y));
+                }
+              : undefined
           }
           key={page.url}
           url={page.url}
@@ -266,7 +444,7 @@ export function PageViewer({
           alt={`Page ${String(page.page)} of ${file}`}
           page={page.page}
         >
-          {(onPage.length > 0 || tags.length > 0) && (
+          {(onPage.length > 0 || tags.length > 0 || outlines.length > 0 || draft) && (
             <svg
               className="vw-overlay"
               viewBox="0 0 1 1"
@@ -296,7 +474,7 @@ export function PageViewer({
                   strokeWidth: hot ? 4 : 2,
                   strokeDasharray: DASH[line],
                   vectorEffect: 'non-scaling-stroke',
-                  onClick: onPick ? undefined : () => onSelect?.(m.id),
+                  onClick: onPick || fixing ? undefined : () => onSelect?.(m.id),
                 } as const;
                 const hatched = line === 'hatched' ? `url(#${hatch})` : undefined;
                 const [x0, y0, x1, y1] = m.box;
@@ -376,6 +554,36 @@ export function PageViewer({
                   />
                 );
               })}
+              {outlines.map(([x0, y0, x1, y1], i) => {
+                // 4 px outside the box once the frame is measured
+                const dx = W > 0 ? 4 / W : 0.006;
+                const dy = H > 0 ? 4 / H : 0.006;
+                return (
+                  <rect
+                    key={`d${String(i)}`}
+                    className="vw-dispute"
+                    x={x0 - dx}
+                    y={y0 - dy}
+                    width={x1 - x0 + 2 * dx}
+                    height={y1 - y0 + 2 * dy}
+                    strokeWidth={2}
+                    strokeDasharray="2 3"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                );
+              })}
+              {draft && (
+                <rect
+                  className="vw-draft"
+                  x={draft[0]}
+                  y={draft[1]}
+                  width={draft[2] - draft[0]}
+                  height={draft[3] - draft[1]}
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
             </svg>
           )}
           {tags.map((r) => (
@@ -400,36 +608,83 @@ export function PageViewer({
             const value = valueOf(m);
             const name = `${m.label ?? 'item'}, ${words(m)}`;
             const isSelected = m.id === selected;
-            return (
+            const doubt = doubtOf.get(m.id);
+            const whyId = `${uid}-why-${m.id}`;
+            const where = spotStyle(spot, [x0, y0, x1, y1], W, H);
+            const show = (on: boolean) => {
+              onHover?.(on ? m.id : null);
+              if (doubt !== undefined) setTip(on ? m.id : null);
+            };
+            return [
               <button
                 key={m.id}
                 type="button"
-                className={`vw-badge vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}${m.id === highlighted ? ' vw-hot' : ''}`}
+                className={`vw-badge vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}${m.id === highlighted ? ' vw-hot' : ''}${doubt === undefined ? '' : ' vw-badge--disputed'}`}
                 aria-label={m.n === null ? name : `Mark ${String(m.n)}: ${name}`}
+                aria-describedby={doubt === undefined ? undefined : whyId}
                 aria-pressed={isSelected}
-                style={{
-                  ...(spot
-                    ? {
-                        left: `${((spot.x / W) * 100).toFixed(3)}%`,
-                        top: `${((spot.y / H) * 100).toFixed(3)}%`,
-                        width: `${String(spot.w)}px`,
-                        height: `${String(spot.h)}px`,
-                      }
-                    : {
-                        left: `${(((x0 + x1) / 2) * 100).toFixed(1)}%`,
-                        top: `${(((y0 + y1) / 2) * 100).toFixed(1)}%`,
-                      }),
-                  ...tint(colourOf(m)),
-                }}
+                style={{ ...where, ...tint(colourOf(m)) }}
                 onClick={() => onSelect?.(m.id)}
-                onPointerEnter={() => onHover?.(m.id)}
-                onPointerLeave={() => onHover?.(null)}
-                onFocus={() => onHover?.(m.id)}
-                onBlur={() => onHover?.(null)}
+                onPointerEnter={() => {
+                  show(true);
+                }}
+                onPointerLeave={() => {
+                  show(false);
+                }}
+                onFocus={() => {
+                  show(true);
+                }}
+                onBlur={() => {
+                  show(false);
+                }}
               >
                 {spot ? spot.text : value === null ? badgeText(m) : `${badgeText(m)} · ${value}`}
-              </button>
-            );
+                {doubt !== undefined && (
+                  <span className="vw-q-tag" aria-hidden="true">
+                    ?
+                  </span>
+                )}
+              </button>,
+              doubt !== undefined && (
+                <span key={`${m.id}-why`} id={whyId} className="vw-sr">
+                  {ask(doubt)}
+                </span>
+              ),
+              tip === m.id && doubt !== undefined && whyTip(doubt, where),
+            ];
+          })}
+          {boxesHere.map((b, i) => {
+            const spot = spots?.[onPage.length + i];
+            if (spot === null) return null;
+            const key = `box-${String(i)}`;
+            const where = spotStyle(spot, b.box, W, H);
+            return [
+              <button
+                key={key}
+                type="button"
+                className="vw-q"
+                aria-label={ask(b.why)}
+                style={where}
+                onClick={() => {
+                  setTip(tip === key ? null : key);
+                }}
+                onPointerEnter={() => {
+                  setTip(key);
+                }}
+                onPointerLeave={() => {
+                  setTip(null);
+                }}
+                onFocus={() => {
+                  setTip(key);
+                }}
+                onBlur={() => {
+                  setTip(null);
+                }}
+              >
+                ?
+              </button>,
+              tip === key && whyTip(b.why, where),
+            ];
           })}
         </PageFrame>
       </div>
@@ -446,6 +701,7 @@ export function PageViewer({
           {badgeText(chosen)} · {chosen.label ?? 'item'} ·{' '}
           {chosenValue === null ? '' : `${chosenValue} · `}
           {words(chosen)}
+          {chosenDoubt !== undefined && ` · ${ask(chosenDoubt)}`}
         </p>
       )}
       {hasLegend && (
@@ -475,6 +731,18 @@ export function PageViewer({
                 {r.tag}: {methodName(r.method)} read {formatValue(r.value, r.unit ?? unit)}
               </li>
             ))}
+            {doubtsHere > 0 && (
+              <li>
+                <i className="vw-swatch vw-swatch--doubt" aria-hidden="true" />
+                {doubtsHere} to double-check
+              </li>
+            )}
+            {elsewhere.map((p) => (
+              <li key={`d-${String(p)}`}>
+                {doubtPages.filter((q) => q === p).length} to double-check on page {p}
+              </li>
+            ))}
+            {lost > 0 && <li>{lost} place(s) to double-check could not be shown</li>}
             {unplaced > 0 && <li>{unplaced} mark(s) could not be placed</li>}
             {noRoom > 0 && <li>{noRoom} label(s) had no room on the page</li>}
           </ul>

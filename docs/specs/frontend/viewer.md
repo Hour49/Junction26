@@ -267,6 +267,11 @@ and maps `check.disputed` to the viewer's `disputed` (`mark_id`, or the room's m
 `why` as is). The viewer only shows where the doubt is and lets the user propose a missing mark. A certified answer
 (`check` null) passes no `disputed`, and the viewer draws nothing of this section.
 
+**Built** (2026-11-14, worktree double-check): VW-60…VW-69 have tests in `PageViewer.test.tsx`. The item shape
+is `{markId?, page?, box?, why}` (exported as `Disputed`): Bogdan's `mark_id` is passed as `markId`, `readers` is
+not read. Two shortcuts: the tooltip flips below near the top edge only (not left/right), and a `?` button moved
+off its box gets no leader line.
+
 **Disputed places.** Each item names a mark (`markId`) or, for a place no mark covers, a `box` (page fractions,
 `[x0, y0, x1, y1]`). They look different from a conflict reading (dashed `--v-warn`, letter tags A/B) and from a
 mark's own state:
