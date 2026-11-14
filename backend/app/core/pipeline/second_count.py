@@ -209,14 +209,14 @@ def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) ->
                 status="conflict" if apart else "agree",
                 tolerance=tolerance,
                 values=tuple(values),
-                resolution=_resolution(quantity, values, apart),
+                resolution=_resolution(quantity, subject, values, apart),
             )
         )
     return entries
 
 
 def _resolution(
-    quantity: ConflictQuantity, values: Sequence[MeasuredValue], apart: bool
+    quantity: ConflictQuantity, subject: Subject, values: Sequence[MeasuredValue], apart: bool
 ) -> Resolution | None:
     """The value to report: the preferred method's when a rule names one, else the first value
     when they agree, else nothing."""
@@ -229,6 +229,7 @@ def _resolution(
         read, others = values[0].value, [value.value for value in values[1:]]
         if (
             quantity == "room_count"
+            and subject.kind == "sheet"  # all rooms: a type's count (48 DORMS) still asks a person
             and others
             and min(others) > 0
             and read > ESTIMATE_RANGE * max(others)
