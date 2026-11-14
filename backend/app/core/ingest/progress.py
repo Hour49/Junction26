@@ -27,6 +27,7 @@ class Run:
         self.kinds: dict[str, ContentKind] = {}  # by path; written and read by the run only
         self.frame_ms: dict[str, float] = {}  # by path: the EXIF turn and the rectifier
         self.split: set[str] = set()  # PDFs whose later drawn pages are files of their own
+        self.cut: dict[str, tuple[int, int]] = {}  # PDFs past the probe's page cap: Probed.cut
         self._status = status
         self._files: list[FileStatus] = []
         self._stages: dict[str, list[StageTrace]] = {}

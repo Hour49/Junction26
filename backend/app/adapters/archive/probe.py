@@ -179,9 +179,11 @@ def _pdf_pages(document: pypdfium2.PdfDocument) -> Probed:
             notes.append(str(error))
     if drawn:
         notes.insert(0, _later(drawn))
+    cut = None
     if count > MAX_PAGES + 1:
         notes.append(f"pages after {MAX_PAGES + 1} of {count} were not looked at")
-    return Probed(kind=kind, did="; ".join((did, *notes)), pages=tuple(pages))
+        cut = (MAX_PAGES + 1, count)
+    return Probed(kind=kind, did="; ".join((did, *notes)), pages=tuple(pages), cut=cut)
 
 
 def _page_kind(page: pypdfium2.PdfPage, at: str) -> tuple[ContentKind, str, bool]:
