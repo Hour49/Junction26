@@ -1,78 +1,217 @@
-# Junction26
+<p align="center">
+  <img src="frontend/src/shell/vellum-logo.png" width="76" alt="Vellum logo">
+</p>
 
-Team Hour49's project repo for Junction 2026. Project not picked yet. MIT licensed, see [LICENSE](LICENSE).
+<h1 align="center">Vellum</h1>
 
-- Agents: read [CLAUDE.md](CLAUDE.md) first (setup check, board, git rules).
-- Project code: engineering standard [docs/ENGINEERING.md](docs/ENGINEERING.md), QA plan [docs/QA.md](docs/QA.md).
-- Experiments: what we tried on the CubiCasa raster track and what it gave, [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
-- Orchestrator board: issues labelled `board` in this repo, used through `tools/board`.
+<p align="center">
+  Upload old building drawings, scans and photos. Get counts, areas and answers you can check on the plan, each
+  with how sure it is.
+</p>
 
-## Key values
+<h3 align="center">
+  <a href="https://junction.hour49.com">Try the live demo: junction.hour49.com</a>
+</h3>
 
-The product has to respect these six values, in this order (team notes, 2026-11-13). Every feature, answer and
-demo screen gets checked against them.
+<p align="center">
+  <sub>You don't need an account. Without an access code you get a click-through demo on real drawings. With a
+  code you get the full app and can upload your own files.</sub>
+</p>
 
-1. Transparency. Each answer highlights the file it came from and the place in that file where it was found
-   (page and box), so a person can check it.
-2. Confidence. Each answer says how sure the system is.
-3. Conflicts. When sources disagree, the system shows the conflict and does not quietly pick one side.
-4. Rules. Answers are checked against the building code of the country the project is in.
-5. Abstention. When the evidence is too weak, the system says it does not know instead of guessing.
-6. UX. The screens make all of the above easy to see and act on.
+<p align="center">
+  <img src="docs/media/hero.gif" width="100%" alt="A scan of a house's first floor plan is uploaded and read. In the chat, the question How many toilets are there gets 1 toilet with High confidence, marked on the plan beside the chat. The follow-up And how many doors gets 19 doors with Low confidence and three disputed places. The plan view then zooms in on the marks and opens the first place the readers disagree on.">
+</p>
 
-The flow these values imply: ingest → AI decision (a decision model) → the conflicts it found (for example
-"5 conflicts") → how each one was resolved.
+<p align="center">
+  <sub>The real app on a local production build of main: upload a scan, ask in the chat, see the marks on the plan
+  beside it, open a place the readers disagree on. The wait for the reading is shortened in the GIF.<br>
+  Plan: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain
+  (<a href="#credits-and-licences">full credit</a>).</sub>
+</p>
 
-## The product
+Vellum is team Hour49's entry for the Stoa challenge at Junction 2026 (Espoo, 13 to 15 November 2026). Stoa asks
+for answers to questions about construction drawings and building models, with proof of where each answer came
+from.
 
-Drawing Q&A for construction projects. A surveyor drops a project, asks questions about it, and gets answers
-that show where on the drawing they came from. In the order a user meets it:
+## What it does
 
-1. Upload. A zip, or single PDFs, images, IFC models and DXF files ([docs/API.md](docs/API.md), upload limits
-   under "Conventions").
-2. File triage. Each image is first sorted as a floor plan or not. A file that is not a plan is set aside, kept,
-   and described in words. A person can still ask for it to be read as a plan
-   ([decision 0010](docs/decisions/0010-file-triage.md)).
-3. Reading, one route per kind of file: a drawn PDF is read from its vectors, an image (scan, photo, sketch) by
-   detectors and a room reader, an IFC model through its own objects. Every drawing lists what was looked
-   for, so a class that was not read says so instead of showing a zero ([docs/PIPELINE.md](docs/PIPELINE.md)).
-4. Ask with proof. A question in plain words (11 languages) gets a value with its unit, marks on the plan page,
-   the method that produced it, and the credit for any licensed data. Its confidence is a level, High, Medium or
-   Low (#233), never a model score as a percentage. Where the evidence is too weak the answer says it does not know.
-5. Double-check requests. An answer the system cannot certify asks a person to look: it shows the disputed
-   marks, and the person signs it off or fixes it, instead of a silent guess
-   ([spec](docs/specs/frontend/double-check.md)).
-6. Conflicts and located issues. Where two readings of one quantity disagree, both values are shown. Conflicts,
-   refused answers, reading flags and set-aside files make one list of located issues (file, page, box, one
-   sentence of why), exported as JSON, CSV or a zip with the pages marked
-   ([decision 0008](docs/decisions/0008-located-issues.md)).
-7. Building-code pre-check, for Finland and the canton of Zürich. "A pre-check of a few rules, not a compliance
-   certificate." The failed checks join the issues list.
+- It reads drawn PDFs, IFC building models and images: scans, photos of paper plans, PNG or JPEG exports. A zip of
+  a whole project works too. A file that is not a drawing is set aside with a reason and kept.
+- A question in plain words (11 languages) gets a value with its unit, numbered marks on the plan for everything
+  that was counted, the method that produced it, and the cost and time of the answer.
+- Every answer is rated High, Medium or Low, and each level states how often answers rated that way were exact on
+  our validation plans. A model's score is never shown as a percentage.
+- When the readers disagree about a mark, the answer says which mark and why, and a person confirms it or fixes
+  it.
+- If a sheet could not be read, or the question is not something it can measure, it says "I don't know" and gives
+  the reason instead of guessing.
+- The chat can edit a plan: "remove the wall between the bathroom and the bedroom", or drag a box and say "put a
+  storage room here". Geometry code computes the new rooms and areas, and the change is checked against a few
+  building rules for Finland or the Canton of Zürich before anyone accepts it.
 
-Status on main, 2026-11-14: steps 1 to 7 are merged: the double-check request (#129), plan counts that are sure
-only when two readers agree (#174), the building-code pre-check with its rule packs for Finland and Zürich (#139,
-decision 0009), the located issues list (#140), and file triage with its register, description form, relevance
-verdict and overrule (#183). The Gemini describer (#193, `TRIAGE_DESCRIBER=gemini`) and the local SigLIP2 classifier (#202) are off by
-default, so triage stays off in the demo configuration unless its settings are switched on.
+## A look at the app
 
-Merged since:
-- Each drawing in the project response has a plain name and its licence credit (#224).
-- Issues have answers, answer chips and open counts on the project (#223).
-- A spend guard caps Gemini cost with `GEMINI_BUDGET_USD` and an hourly limit, and a public ledger API shows the
-  spend (#225).
-- Each conflict card has a plain title, a reason and suggested answers, and a settle keeps a typed answer as its
-  note (#226).
-- The demo archive holds no CubiCasa scan any more: their licence (CC BY-NC-SA) does not allow a public demo. It
-  has five plans we may serve with credit instead (#231).
+Every picture below is the real app, run from a production build of main with the demo settings. They use two
+drawings: a scanned sheet from the Historic American Buildings Survey, and a three-room flat we drew ourselves as a
+vector PDF.
 
-What we tried on the raster track, and what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
-Golden-set method and results: [docs/GOLDEN.md](docs/GOLDEN.md). Known issues: [docs/KNOWN.md](docs/KNOWN.md).
-All decision records: [docs/decisions/](docs/decisions/README.md).
+### An answer you can check
 
-### Run it
+A drawn PDF and a scan are read in different ways. From the drawn PDF the answer is High: the reader works from
+the vectors, and on our reference drawings of that kind 794 of 794 answers were exact.
 
-No keys needed. Without them the vector PDF and IFC readers run, and the rest use do-nothing stand-ins, so
-`GET /api/info` says `no_keys: true`. Needs Python 3.13 with uv, and Node 24 for the frontend.
+<p align="center">
+  <img src="docs/media/answer-high.png" width="100%" alt="The question How many doors are there on the drawn PDF: 8 doors, High confidence, with 8 numbered marks on the plan and the references the answer came from.">
+</p>
+<p align="center"><sub>Plan: our own sample flat, drawn by code.</sub></p>
+
+A scan is harder. On this sheet from 1973 the image reader counts 19 doors and rates the answer Low. At three
+places one of the two second readers does not agree with it, so the card names each place and asks a person to
+look. The toilet count on the same sheet is High: a second reader, a Gemini model that reads the sheet on its own,
+counted the same.
+
+<p align="center">
+  <img src="docs/media/answer-check.png" width="100%" alt="The question How many doors are there on the scan: 19 doors with a double-check request for 3 of them. The plan is zoomed in with numbered marks on the doors. Mark 19 was counted as a door, but one of the two other readers sees nothing there.">
+</p>
+<p align="center"><sub>Plan: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain.</sub></p>
+
+### A refusal that says why
+
+Sheet A101 of a real house project (OpeningDesign, CC BY-SA 4.0; the sheet itself is not shown) is drawn in a style
+the PDF reader has no rules for, so nothing was read from it. Asked about it, Vellum says so.
+
+<p align="center">
+  <img src="docs/media/refusal.png" width="88%" alt="Two questions about a sheet that could not be read. How many doors are there: I don't know, none of the drawings could provide a door count because their reader found no elements or rooms on the sheets. Remove the wall between the kitchen and the hall: I don't know, I cannot propose removing that wall because the rooms on the sheet have no outlines.">
+</p>
+
+### The agent chat: edit the plan, check the rules
+
+The chat is an agent that calls the same tools the app uses. It picks walls and rooms by id and never writes a
+coordinate or a number itself: geometry code works out the new outline and the areas. With a key the tools are
+driven by a Gemini model, as in these pictures; without one, keyword rules choose the tools. On a wide screen the
+plan sits beside the chat and follows each answer. Here a box is dragged over part of a bedroom and the agent is
+asked for a storage room. The bedroom drops from 12.00 to 8.76 m², which would not meet the Canton of Zürich's
+10 m² minimum, and the card says so and quotes the clause.
+
+<p align="center">
+  <img src="docs/media/agent-edit.gif" width="100%" alt="In the chat, a box is dragged on the plan inside the room Zimmer 1.02 and the agent is asked to put a storage room there. The edit card shows the plan before and after, the changed areas, and the row Would not meet for the Canton of Zürich's minimum room area, with the clause in German and English.">
+</p>
+<p align="center"><sub>Plan: our own sample flat, drawn by code.</sub></p>
+
+An edit is a proposal: the drawing file is not changed, and a person accepts or rejects it. What the drawing does
+not say stays unknown, such as whether a wall carries load. Each turn lists the steps the agent took. The rule
+check covers a few rules and is not a permit check.
+
+<p align="center">
+  <img src="docs/media/agent-steps.png" width="88%" alt="The end of an edit card for a removed wall. Not known: whether wall W1 is load-bearing, this drawing does not say. Before building: a structural engineer has to confirm it. Accept and Reject buttons, then the agent's three steps.">
+</p>
+
+### Sign-off, and on a phone
+
+A surveyor gets every quantity of a drawing as a table to review, sign off and export as CSV.
+
+<p align="center">
+  <img src="docs/media/takeoff.png" width="100%" alt="The surveyor's view: the plan with numbered door marks beside the takeoff table of door, window, toilet, sink and room counts, with a sign-off count and Export CSV.">
+</p>
+<p align="center"><sub>Plan: our own sample flat, drawn by code.</sub></p>
+
+The same screens at phone width:
+
+<p align="center">
+  <img src="docs/media/phone-home.png" width="31%" alt="The start page on a phone: drop a drawing or a zip, or try the sample project.">&nbsp;
+  <img src="docs/media/phone-answer.png" width="31%" alt="A chat answer on a phone: 1 toilet, High confidence, with the marked plan.">&nbsp;
+  <img src="docs/media/phone-rules.png" width="31%" alt="An edit card on a phone: the building rules of the Canton of Zürich, two rules met, each with its clause.">
+</p>
+<p align="center"><sub>Plans in the two phone pictures: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain (middle); our own sample flat, drawn by code (right).</sub></p>
+
+## How it works
+
+All the drawing work happens once, when a file is uploaded. The result is a drawing model: one JSON file per plan
+holding every element and room with its place on the page, and every quantity already counted. A question asked
+later is a lookup in that model, with no model call, so it costs almost nothing and gives the same answer every
+time.
+
+```mermaid
+flowchart TD
+    IN["Upload: zip, PDF, PNG, JPEG, IFC"] --> ID["Unpack, hash, identify each file by its content"]
+    ID --> PLAN{"A drawing?"}
+    PLAN -- no --> ASIDE["Set aside with a reason, kept"]
+    PLAN -- yes --> ROUTE["Pick the richest source of each drawing"]
+    ROUTE -- "building model" --> BIM["IFC reader: spaces, doors, windows, quantities"]
+    ROUTE -- "drawn PDF" --> VEC["Vector reader: text, paths and fills"]
+    ROUTE -- "scan, photo, image" --> RAS["Image readers: symbol detector, count arbiter, room reader"]
+    BIM --> EL["Elements and rooms, each with its place on the page and the method that found it"]
+    VEC --> EL
+    RAS --> EL
+    EL --> SECOND["Second count by an independent method"]
+    SECOND --> AGREE{"Do they agree?"}
+    AGREE -- no --> CONFLICT["Conflict: both values kept and shown"]
+    AGREE -- yes --> TAKEOFF["Takeoff: every quantity with its marks, rule and confidence level"]
+    CONFLICT --> TAKEOFF
+    TAKEOFF --> MODEL[("Drawing model, one JSON per plan")]
+    MODEL --> ASK["Ask: the question becomes a lookup"]
+    MODEL --> CHAT["Agent chat: tools over the same model, plan edits by geometry code"]
+    MODEL --> RULES["Building-rule pre-check: Finland, Canton of Zürich"]
+    ASK --> ANSWER["Value, marks on the plan, High / Medium / Low, or a refusal with its reason"]
+```
+
+An IFC model is read through its own objects, a drawn PDF from its vectors, and an image by detectors and a room
+reader. Images are the hard case, so most of the Medium and Low answers and most of the double-check requests
+come from that route.
+
+Where it can, Vellum counts twice: a sheet against its IFC model, a printed scale against the scale bar, a printed
+room area against the measured outline. When the two differ, it shows both.
+
+The thresholds behind High, Medium and Low were fixed on validation plans and written down before the test
+numbers were computed.
+
+The backend is ports and adapters. Every reader is one adapter chosen by a setting, so a reader can be swapped or
+switched off without touching the rest.
+
+The full pipeline with every stage and what it writes: [docs/PIPELINE.md](docs/PIPELINE.md). The API:
+[docs/API.md](docs/API.md). Why each decision was made: [docs/decisions/](docs/decisions/README.md).
+
+## What we measured
+
+Stoa's own scoring: a count must be exact, and an area, length or volume must be within 2%. A missing answer counts
+as wrong.
+
+| What | Result | What it means |
+| --- | --- | --- |
+| The whole pipeline on our golden set, 2,948 Stoa questions on a fixed set of drawings | 2,749 right (93.2%); 95.0% on the holdout questions; 3.8% abstained | Files in, answers out, every reader on, run from a clean export of commit 240e620. The holdout questions come from the 20% of the dataset we sealed and never tuned on. |
+| Plan images, 376 CubiCasa test pages read once | 87.0% exact (5,846 of 6,718) | The image route alone. Always answering with the most common answer gets 56.3%. |
+| Confidence levels on those test pages (3,359 answers) | High: 37.9% of answers, 99.0% exact. Medium: 41.1%, 92.8% exact. Low: 21.0%, 54.2% exact | The level tells you how far to trust the answer. Windows are always Low, and 55.9% of those answers are exact. |
+| Double-check requests on those test pages | 97.0% of the wrong answers flagged (846 of 872); 98.98% of the unflagged answers exact | The price is that it asks about 62.1% of all answers, so a person also reviews many right ones. |
+| Sheet against IFC model | All 14 conflicts in the golden set found, no false alarm on 102 agreeing entries | For example a window above the 1.20 m cut that the model has and the sheet does not draw. |
+| Drawn Swiss plans, all dataset questions | Counts 25,562 of 25,568; areas 12,012 of 12,016 | The reading rules were fitted on the same questions, so this is not a held-out result. |
+
+The golden score over the event, each point a clean run of a merge commit: 0% (Friday 23:24, nothing read yet),
+42.8% (23:55, drawn PDFs), 74.7% (Saturday 01:43, IFC models added), 91.6% (04:56, the image route added), 93.2%
+(19:34).
+
+Method, per-family tables and every run: [docs/GOLDEN.md](docs/GOLDEN.md). What we tried on the image route and
+what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md). All numbers with their caveats:
+[docs/PRODUCT.md](docs/PRODUCT.md#numbers).
+
+## Limits
+
+- Sketches: we claim no door counting on hand-drawn plans. On 14 hand-drawn sheets the door count was in range on
+  0 of the 10 that have doors.
+- On an image, areas come from an estimated scale unless a printed scale can be measured. They are labelled as
+  estimates and can be far off.
+- Windows on images stayed at about 45 to 55% in every approach we tried.
+- A drawn PDF in a style the vector reader has no rules for is flagged and its questions are refused, as in the
+  refusal above.
+- Plan edits need a drawn plan. A scan's walls are pixels, and the agent says so.
+- The building-rule pre-check covers a few rules, in Finland and the Canton of Zürich only.
+- There is no login. The live demo sits behind a shared access code.
+
+The full list: [docs/PRODUCT.md](docs/PRODUCT.md#limits) and [docs/KNOWN.md](docs/KNOWN.md).
+
+## Run it
+
+You don't need any keys to run it. Without them the vector PDF and IFC readers run and the rest use do-nothing
+stand-ins, so `GET /api/info` says `no_keys: true`. You need Python 3.13 with uv, and Node 24 for the frontend.
 
 ```bash
 # backend (http://127.0.0.1:8000)
@@ -85,146 +224,77 @@ cd frontend && npm ci && npm run build && npm run preview     # http://127.0.0.1
 ```
 
 On the home page, "Try the sample project" ingests the synthetic archive: 11 files, five drawings, no partner
-data. With no keys, 3 files are ready, 4 flagged, 2 set aside and 2 text only
-([docs/QA.md](docs/QA.md) has the golden path). `tools/qa-env.sh <commit> [port] --frontend` exports a commit
-and runs it with the demo config. Guides: [backend/README.md](backend/README.md),
-[frontend/README.md](frontend/README.md).
+data. With no keys, 3 files are ready, 4 flagged, 2 set aside and 2 text only. Last verified on 2026-11-14, main
+7b5d697.
 
-What needs a key: the Gemini readers (`GEMINI_API_KEY`: rooms on images and photos, the count distributions behind
-the confidence, the sheet-kind signal) and the EU open-model alternative (`EU_VLM_*`). Put keys only in the
-gitignored `backend/.env` (template: `backend/.env.example`). `GEMINI_BUDGET_USD=0` refuses every Gemini call
-and the pipeline answers without them (`/api/info` then says `"gemini":"budget_exhausted"`). What runs fully local: the vector PDF reader, the IFC
-reader, the second count, the question parser, the dev answer prior, and the detectors when their weights are in
-`data/models`.
+A Gemini key (`GEMINI_API_KEY`) turns on the readers that need a model: rooms on images and photos, the count
+distributions behind the confidence, large or hard sheets, and the printed scale. `EU_VLM_*` sets an EU open
+model as the alternative. Keys go only in the gitignored `backend/.env` (template: `backend/.env.example`).
+`GEMINI_BUDGET_USD` caps the spend, and `0` refuses every Gemini call.
 
-Verified 2026-11-14, and the sample project again on main 7b5d697 with no key (3 ready, 4 flagged, 2 set aside, 2
-text only, 5 drawings): `uv sync --locked`, `make_sample_archive.py`, the backend start, `GET /health`, `GET /api/info`
-and `POST /api/projects/sample?fresh=true` (project `done` in 440 ms, no keys); then `npm ci`, `npm run build` and
-`npm run preview` against that backend (the page answers 200 on 4173, `/health` and `/api/info` pass through the
-proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a browser.
+The vector PDF reader, the IFC reader, the second count and the question parser run locally with no key. So do
+the detectors when their weights are in `data/models`; the weights are not in this repo (see the credits).
 
-### Numbers
+`tools/qa-env.sh <commit> [port] --frontend` exports a commit and runs it with the settings the live demo uses;
+`tools/qa-env.sh config` prints them.
 
-- Golden v2, whole pipeline, run from a clean export of commit bd2471f: 2717 of 2948 answers right (92.2%), 92.9%
-  on the holdout questions, 4.5% abstained. The dev column is in-sample because of the dev prior, so the holdout
-  is the honest one. The series is in [docs/GOLDEN.md](docs/GOLDEN.md).
-- Shipping raster config C1-T1, CubiCasa test split, read once through the API: 87.0% exact (5,846 of 6,718
-  questions, 376 test pages; kitchen counts 92.2%, read from the drawing). The same read scored through the CLI
-  gave 87.2% (5,860), because the CLI answers kitchen from the prior and the API never does for an uploaded file.
-  The validation split gave 88.5%. Config C's earlier test read was 85.0% (5708 of 6718, 95% CI [83.4, 86.5],
-  against 56.3% for the train prior, [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)).
-- Double-check policy, test certificate (the policy fit on validation, then run once on the test pages): it flags
-  97.0% of the wrong answers (846 of 872 questions; one-sided 95% bound 95.3%), asks on 62.1% of all answers, and
-  98.98% of the answers it leaves alone are exact (2518 of 2544). On validation it asked on 55.1% and flagged
-  96.0%. The certificate covers the raster route; vector and BIM are certified on golden v2's holdout
-  ([docs/GOLDEN.md](docs/GOLDEN.md)).
-- Confidence levels on the same test read (3,359 answers, one per page and family): High is 37.9% of answers and
-  99.0% exact (95% interval [98.3, 99.4]), Medium 41.1% and 92.8% [91.3, 94.0], Low 21.0% and 54.2% [50.6, 57.9].
-  The rule and its thresholds were written down before the test numbers were computed.
-- With `CARBON_LEVELS=ladder`, a Medium answer that Gemini Carbon, read as a second reader, counts the same becomes
-  High, and one it counts differently becomes Low. On 256 validation pages kept out of every earlier Carbon test
-  (2,271 answers, one per page and family), High goes from 44.9% of answers at 99.0% exact [98.2, 99.5] to 69.7%
-  at 97.7% [96.8, 98.3]; the promoted answers alone are 95.2% exact [93.1, 96.7]. Medium keeps 5.9% at 96.3%,
-  Low 24.4% at 61.4%. Not measured on the test pages.
+Guides: [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md),
+[eval/README.md](eval/README.md). The golden path a release is checked against: [docs/QA.md](docs/QA.md).
 
-### Limits
+## Where things are
 
-- Sketches: we claim no door counting. On 14 hand-drawn sheets the door count was in range on 0 of 10, and every
-  door, window and room count asked for a check (K8 in [docs/KNOWN.md](docs/KNOWN.md)).
-- The double-check policy asks about 62% of answers on the test pages to catch 97% of the wrong ones, so a
-  person reviews many right answers too (K9).
-- On an image, areas come from an estimated scale (`RASTER_SCALE=priors`) and are labelled estimates. One can be
-  far off while printing a narrow band (K5: +74%, +100% and -37% on three golden rooms).
-- On plans without printed room labels the reader types rooms by furniture, while the gold labels only count
-  what is printed, so "bedrooms" can be 0 on a plan that shows beds (EXPERIMENTS.md).
-- Windows stayed at about 45-55% in every track we tried (EXPERIMENTS.md).
-- Schedules are read on gold drawings only; the vector extractor reads no tables yet (backend/README.md).
-- No login: the sign-off name is typed by the surveyor (decision 0001), and the API is for localhost or a private
-  network only.
-- The building-code pre-check covers a few rules, in Finland and the canton of Zürich only. It is not a compliance check.
+| Path | What |
+| --- | --- |
+| `backend/` | Python 3.13, FastAPI. `app/core` is the pure pipeline, `app/adapters` the readers and outside services. |
+| `frontend/` | React, Vite, TypeScript. The app in the pictures above. |
+| `eval/` | The scorer, the sealed split, the golden set and every recorded run. |
+| `site/`, `demo/` | The access gate in front of the live demo, and the click-through demo it serves without a code. |
+| `docs/` | [Product](docs/PRODUCT.md), [pipeline](docs/PIPELINE.md), [golden set](docs/GOLDEN.md), [eval in short](docs/EVAL.md), [experiments](docs/EXPERIMENTS.md), [API](docs/API.md), [decisions](docs/decisions/README.md), [engineering standard](docs/ENGINEERING.md), [QA](docs/QA.md). |
+| `tools/`, `templates/` | The agent setup the team works with: [docs/AGENT-SETUP.md](docs/AGENT-SETUP.md). |
+| `junction-pitch/` | Pitch kit and research: [junction-pitch/README.md](junction-pitch/README.md). |
 
-## Stoa: golden set and eval
+## Team
 
-Stoa's challenge is to answer questions about construction drawings and BIM models, and to show where each answer
-came from. The judges weigh four things equally: accuracy, how well the reasoning is shown, creativity and low
-inference cost. Our golden set is the fixed exam we grade every version of our system against, using Stoa's own
-answers and scoring rules.
+Hour49, at Junction 2026, on the Stoa challenge: [Bogzx](https://github.com/Bogzx),
+[Cucuteanu-Tudor-912](https://github.com/Cucuteanu-Tudor-912), [bbeatricecretu](https://github.com/bbeatricecretu)
+and [madabotos](https://github.com/madabotos).
 
-```text
-questions.jsonl (Stoa: 127,044 questions with answers)
-   ├── split by drawing/building ──► dev 80%  (build and tune on this)
-   │                                 eval 20% (sealed: scored only at milestones)
-   └── golden set (small stratified sample: dev items from the 80%, holdout items from the 20%)
+Each of us ran a Claude Code orchestrator with a few worker agents, and the orchestrators talked to each other
+through GitHub issues in this repo. That tooling was written before the event, and we declare it in the
+submission form.
+How it works: [docs/TEAM-AGENTS.md](docs/TEAM-AGENTS.md).
 
-our system ──► answers.jsonl (one line per question) ──► stoa_eval score ──► report + results history
-```
+## Credits and licences
 
-1. Data. `tools/fetch_stoa_data.py` downloads the dataset into the gitignored `data/` folder (see
-   [data/README.md](data/README.md)). Partner data never enters the repo.
-2. The answers we grade against. Each line of `questions.jsonl` has a file, a question, the expected answer, a
-   unit and a type (count, area, length, volume, text). We take Stoa's answer as correct. Our review of the dataset
-   found it reliable. Ambiguous or likely-wrong items get tagged and are kept out of the headline score.
-3. Splits. 20% of all questions form a sealed eval split, chosen by drawing, building or model, so translations
-   of a question and the floors of one building stay on one side. Build and tune only on the 80% dev split. Score
-   eval at milestones, to catch overfitting. Today: 101,651 dev and 25,393 eval questions (decided 2026-11-13).
-4. The golden set. A small fixed sample that covers every source, question type and language, plus the known
-   traps (rotated plans, sheets with several plans, 1:200 scale, rooms with cut-outs, ...). It is small because
-   vision and LLM answers cost money per question. Free parsers are scored on all questions. v1 has 152 questions
-   (107 dev, 45 holdout from the eval split).
-5. What our system writes. One answer_v1 line per question ([decision 0002](docs/decisions/0002-answer-format.md)):
-   ```json
-   {"id": 89501, "answer": 212.41, "unit": "m2",
-    "evidence": [{"file": "data/swiss_dwellings/....pdf", "page": 1, "box": [0.31, 0.22, 0.38, 0.29]}],
-    "method": "pdf-vector", "cost_usd": 0.0, "latency_s": 0.04}
-   ```
-   `answer` is graded for accuracy. `evidence` boxes (page fractions) show where on the drawing the answer came from.
-   `cost_usd` and `latency_s` cover the cost criterion.
-6. Scoring (Stoa's rules). Counts must be exact. Areas, lengths and volumes pass within 2%, and only m↔ft and
-   m²↔ft² are converted. On the golden set a missing answer is wrong; against all, dev or eval questions the report
-   gives coverage and accuracy on the answered ones. Free text needs an exact match for now. The report breaks
-   accuracy down by source, type and template, and adds evidence coverage, cost and latency.
-7. Baselines. `oracle` (Stoa's own answers) must score 100%, which proves the plumbing. `constant` (the most
-   common answer per question template, learnt from dev) scores 15.8% on golden v1, and any real method has to beat
-   it.
-8. Results history. Every scored run is recorded by default as one summary file (time, commit, method, split,
-   accuracy per source and type, coverage, cost, latency; no questions or answers) in [eval/results/runs/](eval/results/runs/),
-   so we can show how we improved; `--no-record` is for scratch checks. `stoa_eval history` prints the runs,
-   `--progress` shows first vs latest vs best per method, `--csv` exports them for a chart.
+The code is MIT licensed, see [LICENSE](LICENSE).
 
-```bash
-cd eval
-uv run python -m stoa_eval split                  # sealed 80/20 split into data/stoa/split/ (same hashes everywhere)
-uv run python -m stoa_eval select                 # build the golden set into data/stoa/golden/
-uv run python -m stoa_eval baseline oracle        # or: constant
-uv run python -m stoa_eval score <answers.jsonl> --against dev --name <method>   # grade it; the run is kept
-uv run python -m stoa_eval history                # every recorded run, oldest first
-```
+The scan in the pictures is sheet 2 of 6 of the Historic American Buildings Survey record of the Isaac Franklin
+House, U.S. Route 25 East, White Pine, Jefferson County, Tennessee: survey HABS TN-197, Library of Congress call
+number HABS TENN,45-WHIP,1- (sheet 2 of 6). The sheet's title block names its draftsman, Stephen Fildes, and the
+Survey's East Tennessee Project of 1973. Credit: Historic American Buildings Survey, National Park Service; Library
+of Congress, Prints and Photographs Division,
+[record of the sheet](https://www.loc.gov/pictures/item/tn0085.sheet.00002a/). The sheet was drawn under the direction
+of the National Park Service, as its title block states. As a work of the U.S. federal government it is in the
+public domain, and the credit is a courtesy. We took the Library's
+[master scan](https://tile.loc.gov/storage-services/master/pnp/habshaer/tn/tn0000/tn0085/sheet/00002a.tif) and
+scaled it down to 3000 pixels wide. Our screenshots add the app's marks and overlays.
 
-More in [eval/README.md](eval/README.md). First real methods: [prototypes/pdf-extract/](prototypes/pdf-extract/README.md)
-answers swiss and ifc_models questions from the PDF alone, with no model call (99.91% on swiss counts, 99.97% on swiss
-areas, 96.99% on ifc_models room areas; tuned on all questions, so not a held-out result).
+The drawn plan in the pictures is our own: a three-room flat that
+[tools/readme-media/make_plan.py](tools/readme-media/make_plan.py) draws as a vector PDF, in the drawing conventions
+the vector reader has rules for. It is under this repo's MIT licence.
 
-## Agent setup
+The house sheet in the refusal example comes from the public repositories of
+[OpeningDesign](https://github.com/OpeningDesign/New_2nd_Story), Madison, Wisconsin, and the project team named in
+each title block, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). No picture here shows it.
 
-New machine: install Claude Code, gh, herdr, python3, git, jq and uv, clone this repo (we use `~/Repo/Junction26`,
-any path works), then run `tools/setup.sh`. It writes the team rules into your global `~/.claude/CLAUDE.md` (in a
-marked block; your own text stays) and installs the rest, including the context-handoff hook and `orch`. Safe to
-rerun after every pull.
+Stoa's dataset is partner data for the challenge. None of it is in this repo or in a picture here, and the scripts
+that fetch it keep it in a gitignored folder. Its drawn Swiss plans, which the vector reader's rules were fitted on,
+come from Swiss Dwellings v3.0.0 (Archilyse AG, [doi:10.5281/zenodo.7788422](https://doi.org/10.5281/zenodo.7788422),
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
 
-- [docs/TEAM-AGENTS.md](docs/TEAM-AGENTS.md): how each of us runs Claude Code agents (herdr orchestrator and workers,
-  the context-handoff hook) and how our orchestrators talk to each other on the GitHub board.
-- `tools/board`: the board CLI (`board read`, `board post`, `board wait`, ...). Tests: `uv run --no-project --with pytest pytest -q tools`.
-- `tools/waitw.sh`: wait for one herdr worker pane to finish a turn (arm it before prompting). Only needed where
-  `orch` is missing; `orch wait` watches all workers at once.
-- `tools/claude-acc`: run Claude Code as account N (`claude-acc 2 ...`), sharing settings and hooks.
-- `tools/secretary.md`: role card for the team secretary agent (keeps the `team status` issue current, flags stale
-  requests and conflicts; no authority). How to run it: docs/TEAM-AGENTS.md section 6.8.
-- `tools/setup.sh`: one-command install (global CLAUDE.md block, settings, hook, herdr skill, tool links).
-- `templates/`: `team-claude.md` (the team rules setup installs) and `personal-claude.md` (the per-person stub).
-- `.agents/` is gitignored: each person's agent briefs, reports and orchestrator handoff stay on their machine.
+The detectors were trained on CubiCasa5K (CC BY-NC-SA 4.0), on development-split images only. The trained weights
+stay on our machines and are not published ([decision 0003](docs/decisions/0003-training-data.md)). ifcopenshell
+(LGPL) is used as an unmodified dependency ([decision 0006](docs/decisions/0006-lgpl-dependencies.md)).
 
-## Pitch kit and research
-
-[junction-pitch/](junction-pitch/README.md): event facts and rules, playbooks, reference pitches, research folders,
-pitch drafts, and the pitch skills (`.claude/`; open Claude Code in that folder to use them). The team folder
-`junction-pitch/05-team/` is private and gitignored here: copy it from Hour49/junction-26-prep for the team skills.
+In the app, each drawing's credit is on the "About and credits" page, and the live demo has its own
+[credits page](https://junction.hour49.com/credits).
