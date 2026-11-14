@@ -20,7 +20,7 @@
     for (const c of V.CONFLICTS) conflicts[c.id] = { mode: c.ai === null ? 'open' : 'ai', pick: null };
     if (V.resetReadAsPlan) V.resetReadAsPlan();
     // calls / rap: a person's relevance calls and "read it as a floor plan" per triaged file (triage.js)
-    S.p = { started: analysed ? now - TOTAL * 1000 : now, doneLogged: false, conflicts, history: [], turns: [], chat: [], di: 0, checks: {},
+    S.p = { started: analysed ? now - TOTAL * 1000 : now, doneLogged: false, conflicts, history: [], turns: [], chat: [], chatRef: {}, di: 0, checks: {},
       calls: {}, rap: {}, rapDone: {}, issueFilter: { kind: null, state: null } };
     log(S.p.started, 'up', 'Uploaded the archive', `${V.ARCHIVE} · ${V.FILES.length} files`);
     logDone();
@@ -335,7 +335,7 @@
       let plan = '';
       if (unsolved) {
         const d = V.drawing(c.drawing), a = V.answer(d.id, `How many ${c.quantity}s?`, pk);
-        plan = `<figure class="c-plan"><div>${P.answerPlan(d, a, { flagged: new Map([[c.element, 'in question']]) })}</div><figcaption>Amber: the balcony glazing in question, on <span class="mono">${esc(d.name)}</span>.</figcaption></figure>`;
+        plan = `<figure class="c-plan"><div>${P.answerPlan(d, a, { flagged: new Map([[c.element, 'in question']]) })}</div><figcaption>${esc(c.where || "Amber: the balcony glazing in question")}, on <span class="mono">${esc(d.name)}</span>.</figcaption></figure>`;
       }
       const tiles = c.variants.map((v, i) => {
         const chosen = pk[c.id] === i;

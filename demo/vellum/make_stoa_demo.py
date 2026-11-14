@@ -84,7 +84,19 @@ def archive(dataset, out, picks_path):
     return files
 
 
-KINDS = {".pdf": ("Vector PDF", "CAD"), ".dxf": ("DXF", "CAD"), ".png": ("PNG rendering", "Vision")}
+def render_pdf(pdf, out):
+    """Page 1 of the PDF as a PNG, so the chat's references can show it; {} without pypdfium2 (the backend venv has it)."""
+    try:
+        import pypdfium2
+    except ImportError:
+        return {}
+    name = pdf.name + ".png"
+    page = pypdfium2.PdfDocument(str(pdf))[0]
+    page.render(scale=2).to_pil().save(out / name)
+    return {"image": name}
+
+
+KINDS = {".pdf":("Vector PDF", "CAD"), ".dxf": ("DXF", "CAD"), ".png": ("PNG rendering", "Vision")}
 
 
 def build(dataset, out, stem, picks):
@@ -103,6 +115,8 @@ def build(dataset, out, stem, picks):
         if f.suffix == ".png":  # only the image is copied; the PDF and DXF are listed, not shipped
             shutil.copyfile(f, out / f.name)
             entry["image"] = f.name  # relative to stoa/index.html
+        elif f.suffix == ".pdf":
+            entry.update(render_pdf(f, out))
         files.append(entry)
     if not any("image" in f for f in files):
         sys.exit(f"{stem} has no PNG to show")

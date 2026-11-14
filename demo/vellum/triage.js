@@ -43,7 +43,7 @@
   const wordsOf = (t) => (t.toLowerCase().match(/\p{L}{4,}/gu) || []).filter((w) => !STOP.has(w));
   function projectOf(V) {
     const labels = V.DRAWINGS.flatMap((d) => (V.layoutOf(d) ? V.rooms(d).map((r) => r.label) : []));
-    return { name: V.ARCHIVE, paths: V.FILES.map((f) => f.path), plan: labels.join(' ') };
+    return { name: [V.ARCHIVE, V.FLOOR_ID].filter(Boolean).join(' '), paths: V.FILES.map((f) => f.path), plan: labels.join(' ') };
   }
   // The relevance rule (0010 §8): related when it shows a building or a printed word matches; why names the match.
   function relevanceOf(path, project) {

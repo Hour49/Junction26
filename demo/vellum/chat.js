@@ -16,6 +16,7 @@
     const ck = A().S.p.checks[`${a.drawing}:${a.quantity}`];
     if (ck && ck.state === 'checked') return { a, value: ck.value, status: ['ok', `Checked by ${ck.by}`] };
     if (a.key) return { a, value: a.value, status: ['grey', 'Answer key'] };
+    if (a.conflict) return { a, value: a.value, status: A().picks()[a.conflict] === null ? ['warn', 'Conflict open'] : ['acc', 'Settled in Conflicts'] };
     return { a, value: a.value, status: a.check ? ['warn', 'Please double-check'] : ['ok', 'Sure'] };
   }
 
@@ -62,9 +63,32 @@
         <span class="pill ${status[0]}">${esc(status[1])}</span>
         <button class="chat-show press" data-act="show-on" data-d="${d.id}" data-q="${esc(t.question)}">Show it on ${esc(d.name)}</button></li>`;
     }).join('') + refused.map((p) => `<li class="chat-row"><span class="chat-line muted"><span class="mono">${esc(p.name)}</span>: ${esc(p.answer.refusal)}</span></li>`).join('');
-    return `<article class="turn">${q}<div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
-      ${head}<p class="small" style="margin:0">${esc(V.ruleOf(ok[0].answer))}</p>
-      <ul class="chat-rows" aria-label="Per drawing">${lines}</ul></div></article>`;
+    const refs = ok.flatMap((p) => V.FILES.filter((f) => f.drawing === p.answer.drawing).map((f) => ({ f, d: V.drawing(p.answer.drawing), a: p.answer })));
+    const pics = refs.filter((x) => x.f.image);
+    if (!pics.length) {
+      return `<article class="turn">${q}<div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+        ${head}<p class="small" style="margin:0">${esc(V.ruleOf(ok[0].answer))}</p>
+        <ul class="chat-rows" aria-label="Per drawing">${lines}</ul></div></article>`;
+    }
+    // the references with their pictures: the current one large on the left, left/right through them (Tudor, 15:10)
+    const i = ((A().S.p.chatRef[t.id] || 0) % pics.length + pics.length) % pics.length, cur = pics[i];
+    const arrow = (dir, path, label) => `<button class="round press" data-act="chat-ref" data-t="${t.id}" data-i="${i + dir}" aria-label="${label}"${pics.length < 2 ? ' disabled' : ''}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg></button>`;
+    const credit = cur.f.credit || cur.d.credit || V.CREDIT;
+    const list = refs.map((x, n) => {
+      const k = pics.indexOf(x), body = `<span class="num">${n + 1}</span><span><span class="mono" style="font-weight:600">${esc(x.f.path)}</span><span class="muted">${esc(x.f.kind)} · ${esc(x.d.name)}${k < 0 ? ' · no preview' : ''}</span></span>`;
+      return k < 0 ? `<li><span class="ref">${body}</span></li>`
+        : `<li><button class="ref press" data-act="chat-ref" data-t="${t.id}" data-i="${k}" aria-pressed="${k === i}">${body}</button></li>`;
+    }).join('');
+    return `<article class="turn">${q}<p class="lead" style="margin:0">${head.replace(/^<p class="lead" style="margin:0">|<\/p>$/g, '')}</p>
+      <div class="card"><div class="answer">
+        <figure aria-label="Reference ${i + 1} of ${pics.length}"><div class="dwg-bar" style="padding:0"><div><span class="mono" style="font-size:14px;font-weight:600">${esc(cur.f.path)}</span>
+            <span class="small">${esc(cur.f.kind)} · ${esc(cur.d.name)} · <span aria-live="polite">${i + 1} / ${pics.length}</span></span></div>
+          ${arrow(-1, 'M15 6l-6 6 6 6', 'Previous reference')}${arrow(1, 'M9 6l6 6-6 6', 'Next reference')}</div>
+          <div class="plan-box">${window.VPlan.original(cur.d, cur.f, cur.a)}</div>
+          ${credit ? `<p class="small credit">Credit: ${esc(((m) => (m ? `${m[2]} (${m[1]})` : String(credit).replace(/^All files:\s*/, '')))(String(credit).match(/^All files:\s*(.+?)\.\s*Credit:\s*(.+)$/)))}</p>` : ''}</figure>
+        <div class="side"><p class="small" style="margin:0">${esc(V.ruleOf(ok[0].answer))}</p>
+          <ul class="chat-rows" aria-label="Per drawing">${lines}</ul>
+          <div style="display:flex;flex-direction:column;gap:8px"><span class="label">References</span><ol class="refs">${list}</ol></div></div></div></div></article>`;
   }
 
   function screen() {
@@ -98,6 +122,7 @@
 
   const actions = {
     'chat-ask': (el) => { ask(el.dataset.q); },
+    'chat-ref': (el) => { const p = A().S.p; p.chatRef[Number(el.dataset.t)] = Number(el.dataset.i); },
     'chat-pic': (el) => { const p = A().S.p, id = Number(el.dataset.t); p.chatPic = p.chatPic === id ? null : id; },
     // opens the engineer view on that drawing with the same question asked there, so its marks show
     'show-on': (el) => {
