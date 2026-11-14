@@ -112,3 +112,26 @@ def test_an_unclear_word_is_not_guessed() -> None:
 )
 def test_a_correction_never_hides_a_second_thing_counted(text: str) -> None:
     assert PARSE(text) == Unsupported(reason=SEVERAL_THINGS)
+
+
+# QA R2-2-1: real words read as a stem with any ending ("autotallia" as "asuntotallia", a garage
+# counted as apartments) or as a nearby word (ports, floods, stars, widows) were answered.
+REAL_WORDS = [
+    "Kuinka monta autotallia on?",
+    "How many sanitary fixtures are there?",
+    "How many sandwiches are there?",
+    "How many automobiles are there?",
+    "How many antonyms are there?",
+    "How many pavements are there?",
+    "How many ports are there?",
+    "How many porters are there?",
+    "How many floods are there?",
+    "How many stars are there?",
+    "How many widows are there?",
+    "How many barrooms are there?",
+]
+
+
+@pytest.mark.parametrize("text", REAL_WORDS)
+def test_a_real_word_is_never_read_as_another(text: str) -> None:
+    assert isinstance(PARSE(text), Unsupported)

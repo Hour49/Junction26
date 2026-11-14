@@ -229,6 +229,15 @@ PLACE = re.compile(
 CONDITION = re.compile(  # "rooms that have...": a subset we can't pick
     r"\b(?:rooms?|spaces?|doors?|windows?|walls?)\s+(?:have|has|with|that|containing)\b"
 )
+# Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
+# sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
+IN_PLACE = re.compile(r"\b(?:in|inside|within|on) (?:the|this|that|a|an|one) ([^\W\d_]+)")
+SHEET = frozenset(
+    """
+    floor plan floorplan drawing sheet page model storey story level layout image picture map
+    diagram building project flat apartment house dwelling unit whole entire
+    """.split()  # noqa: SIM905 (a word list reads better as text)
+)
 INCLUDING = re.compile(  # rooms named to say they count too ("sinks, kitchen included")
     r"\bincluding\b|\bincluded\b|\bmukaan lukien\b|\bmukaan\b|\beinschlie\w*|\binklusive\b"
     r"|\by compris\b|\bincluid\w*|\bcompres[aoie]\b|\binclus\w*|\btogether\b|\bzusammen\b"
@@ -325,7 +334,11 @@ class TemplateParser:
             things = [s for s in subjects if not s.startswith("room")]
             if len(things) > 1:
                 return Unsupported(reason=SEVERAL_THINGS)
-            if things and len(subjects) > 1 and INCLUDING.search(lower) is None:
+            if (
+                things
+                and INCLUDING.search(lower) is None
+                and (len(subjects) > 1 or any(m[1] not in SHEET for m in IN_PLACE.finditer(body)))
+            ):
                 return Unsupported(reason=IN_ONE_ROOM)
             subject = subjects[0]
             if label is not None and subject.startswith("room"):
