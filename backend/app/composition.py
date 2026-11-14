@@ -48,7 +48,8 @@ from app.adapters.raster import assemble, parse_components
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
 from app.adapters.raster_detector import OnnxDetector
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, GeminiRoomReader
-from app.adapters.raster_region import RegionDetector
+from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
+from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
@@ -163,8 +164,10 @@ def build_pipeline(settings: Settings, dataset: Path) -> Pipeline:
             "vector": _tables(
                 settings.tables, _extractor(settings.extractor_vector, files, models), files
             ),
-            # A precomputed arm finds an uploaded sheet in the Stoa dataset by its content.
-            "raster": _raster(settings, files, decisions),
+            # A precomputed arm finds an uploaded sheet in the Stoa dataset by its content. A PDF
+            # whose page 1 is not a vector plan is read here, so its schedules are read (and its
+            # schedule checks noted) as on the vector route.
+            "raster": _tables(settings.tables, _raster(settings, files, decisions), files),
         },
         second_counter=_checked(
             settings.tables, _second_counter(settings.second_counter, files, models), files
@@ -223,19 +226,23 @@ class Answering:
     prior_families: frozenset[tuple[str, str]]  # ANSWER_POLICY, as the pipeline has it
     # DECISIONS_CONFIDENCE: the answer confidence over the files a drawing was read from; None: off
     confidence: Callable[[DrawingFiles], AnswerConfidence] | None = None
+    signal: str | None = None  # what that confidence's score is, by name (`g1main`)
 
 
 def build_answering(settings: Settings) -> Answering:
     confidence: Callable[[DrawingFiles], AnswerConfidence] | None = None
+    signal: str | None = None
     if settings.decisions_confidence:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
         confidence = partial(DecisionsConfidence, reader=reader)
+        signal = DECISIONS_SIGNAL
     return Answering(
         parser=_parser(settings.question_parser),
         prior=_prior(settings.answer_prior),
         clock=time.perf_counter,
         prior_families=_policy(settings.answer_policy),
         confidence=confidence,
+        signal=signal,
     )
 
 
@@ -253,6 +260,21 @@ def readers(settings: Settings) -> dict[str, str]:
         "answer_prior": settings.answer_prior,
         "decisions_kind": str(settings.decisions_kind),  # as ingest records it
     }
+
+
+# The answer confidence's score: Gemini Decisions' probability for the answered count (G1main's
+# choice distribution), raw: not calibrated against right answers
+DECISIONS_SIGNAL = "g1main"
+# RASTER_COMPONENTS sources that call a service with a key (Gemini, the Verda model server)
+KEYED_SOURCES = frozenset({"gemini", "regionrooms", "verda", "decisions", "decisions-s1536"})
+
+
+def uses_keys(settings: Settings) -> bool:
+    """Whether a reader or the answer confidence calls a service that needs an API key."""
+    sources = [part.partition("=")[2] for part in settings.raster_components.split(",") if part]
+    keyed = any(source.split(":", 1)[0] in KEYED_SOURCES for source in sources)
+    raster = settings.extractor_raster == "composite" and keyed
+    return raster or settings.decisions_confidence or settings.decisions_kind
 
 
 def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> IngestService:
@@ -350,24 +372,34 @@ def _raster_component(
             )
             return RemoteReader(files, client)
         case "gemini" if not where:
-            client = GeminiClient(
-                settings.gemini_api_key.get_secret_value(),
-                settings.gemini_model,
-                settings.gemini_timeout_s,
-            )
-            return GeminiRoomExtractor(files, GeminiRoomReader(client, settings.gemini_cache_dir))
+            return _gemini_rooms(settings, files)
+        case "regionrooms" if not where:
+            if not settings.region_model_dir:
+                raise InvalidInputError("RASTER_COMPONENTS: regionrooms needs REGION_MODEL_DIR")
+            region = SegmenterRegion(*load_region(Path(settings.region_model_dir)))
+            return RegionRooms(_gemini_rooms(settings, files), files, region)
         case "region" if where:
             region = Path(settings.region_model_dir) if settings.region_model_dir else None
             return RegionDetector.from_folders(files, inside(DETECTOR_DIR, where), region)
         case "decisions" if where:
             inner = _raster_component(where, settings, files, decisions)
             return DecisionsCountExtractor(inner, files, decisions())
+        case "decisions-s1536" if where:
+            inner = _raster_component(where, settings, files, decisions)
+            return DecisionsCountExtractor(inner, files, decisions(), arm="S1536")
         case _:
             raise InvalidInputError(
                 f"RASTER_COMPONENTS: unknown source {source!r}; sources are "
                 "exp:<track>/<arm>, dir:<path>, detector:<arm>[:<tune run>], region:<arm>, verda, "
-                "gemini, decisions:<source> and one-plan"
+                "gemini, regionrooms, decisions:<source>, decisions-s1536:<source> and one-plan"
             )
+
+
+def _gemini_rooms(settings: Settings, files: DrawingFiles) -> Extractor:
+    client = GeminiClient(
+        settings.gemini_api_key.get_secret_value(), settings.gemini_model, settings.gemini_timeout_s
+    )
+    return GeminiRoomExtractor(files, GeminiRoomReader(client, settings.gemini_cache_dir))
 
 
 def decisions_reader(settings: Settings) -> G1MainReader:

@@ -34,6 +34,7 @@ def test_a_good_answer_parses() -> None:
     answer = Answer.model_validate(GOOD)
     assert answer.evidence[0].box == (0.1, 0.2, 0.3, 0.4)
     assert Answer.model_validate({**GOOD, "answer": None, "unit": None, "evidence": []})
+    assert Answer.model_validate({**GOOD, "sure": True}).sure  # v1.1: passed the gate
 
 
 @pytest.mark.parametrize(
@@ -48,6 +49,7 @@ def test_a_good_answer_parses() -> None:
         {"evidence": [{"file": "f", "page": 1, "box": [0.1, 0.2, 1.3, 0.4]}]},
         {"evidence": [{"file": "f", "page": 1, "box": [0.5, 0.2, 0.3, 0.4]}]},
         {"evidence": [{"file": "f", "page": 0, "box": [0.1, 0.2, 0.3, 0.4]}]},
+        {"sure": "yes"},
     ],
 )
 def test_a_bad_answer_is_refused(change: dict[str, Any]) -> None:

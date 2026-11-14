@@ -79,6 +79,8 @@ def _draw_marks(picture: Image.Image, marks: Sequence[MarkView], proof: Proof) -
     tints = {key.label: key.colour for key in proof.legend}
 
     def tint_of(mark: MarkView) -> str:
+        if proof.kind == "count" and len(proof.legend) == 1:  # one class: one colour
+            return proof.legend[0].colour
         return tints.get(mark.label or "added") or colour(mark.label or "added")
 
     layer = Image.new("RGBA", picture.size, (0, 0, 0, 0))
@@ -206,7 +208,9 @@ def _inside(
     spots = [centre, *sorted(grid, key=lambda p: (p[0] - centre[0]) ** 2 + (p[1] - centre[1]) ** 2)]
     for size in range(start, smallest - 1, -1):
         w, h = measure(label.text, size)
-        for cx, cy in spots:
+        # top-left corner first: a room's printed name is usually in its middle
+        corner = (x0 + w / 2 + 4, y0 + h / 2 + 4)
+        for cx, cy in [corner, *spots]:
             rect = (cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
             corners = [
                 (rect[0], rect[1]),
@@ -338,8 +342,8 @@ def _with_footer(
     rows += [(text, big, INK) for text in _wrap(headline, big, room)]
     if proof.arithmetic:
         rows += [(text, _font(size), INK) for text in _wrap(proof.arithmetic, _font(size), room)]
-    if proof.confidence is not None:  # the number until golden sets the cutoff for "sure"
-        rows.append((f"Probability this answer is right: {proof.confidence:.2f}", _font(size), INK))
+    if proof.check:
+        rows += [(text, _font(size), INK) for text in _wrap(proof.check, _font(size), room)]
     if unplaced:  # labels with no room on the page, so nothing is silently dropped
         listed = "Not labelled on the page (no room): " + ", ".join(unplaced)
         rows += [(text, _font(size), INK) for text in _wrap(listed, _font(size), room)]
@@ -379,7 +383,8 @@ def _legend_lines(
     for key in proof.legend:
         if not key.count:
             continue
-        text = f"{key.label} {key.count}" + (f" ({key.note})" if key.note else "")
+        text = key.label if proof.kind == "sum" else f"{key.label} {key.count}"  # sum: values
+        text += f" ({key.note})" if key.note else ""  # are on the page
         wide = size + 6 + int(font.getlength(text))
         if not lines or (x > MARGIN and x + wide > MARGIN + room):
             lines.append([])

@@ -1,20 +1,33 @@
 {
   "question": "How many doors are there?",
-  "drawing_id": "adeefbbcc17559fc",
-  "file": "plans/flat-a.pdf",
+  "drawing_id": "2b4e04cde84fbbef",
+  "file": "plan.png",
   "pages": [
     {
       "page": 1,
-      "width": 600.0,
+      "width": 800.0,
       "height": 400.0,
-      "unit": "pt",
-      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
-      "normalised": null
+      "unit": "px",
+      "url": "/api/drawings/2b4e04cde84fbbef/pages/1.png",
+      "normalised": {
+        "exif": null,
+        "rotated": 0,
+        "deskew_deg": 0.0,
+        "rectified": false,
+        "quad": null,
+        "width": 800,
+        "height": 400,
+        "rectifier": null
+      }
     }
   ],
   "answer": 2,
   "unit": "count",
-  "confidence": 0.87,
+  "confidence": {
+    "signal": "g1main",
+    "score": 0.87,
+    "calibrated": false
+  },
   "quantity": {
     "key": "door",
     "label": "door count",
@@ -49,10 +62,10 @@
         "n": 1,
         "page": 1,
         "box": [
-          0.49333,
-          0.225,
-          0.50667,
-          0.275
+          0.05,
+          0.1,
+          0.1,
+          0.2
         ],
         "polygon": null,
         "state": "counted",
@@ -66,10 +79,10 @@
         "n": 2,
         "page": 1,
         "box": [
-          0.66,
-          0.225,
-          0.67333,
-          0.275
+          0.6,
+          0.1,
+          0.65,
+          0.2
         ],
         "polygon": null,
         "state": "counted",
@@ -88,10 +101,10 @@
       "n": 1,
       "page": 1,
       "box": [
-        0.49333,
-        0.225,
-        0.50667,
-        0.275
+        0.05,
+        0.1,
+        0.1,
+        0.2
       ],
       "polygon": null,
       "state": "counted",
@@ -105,10 +118,10 @@
       "n": 2,
       "page": 1,
       "box": [
-        0.66,
-        0.225,
-        0.67333,
-        0.275
+        0.6,
+        0.1,
+        0.65,
+        0.2
       ],
       "polygon": null,
       "state": "counted",
@@ -122,9 +135,9 @@
   "method": "takeoff",
   "explanation": null,
   "reader": {
-    "route": "vector",
-    "source": "plans/flat-a.pdf",
-    "extractor": "pdf",
+    "route": "raster",
+    "source": "plan.png",
+    "extractor": "composite",
     "second_counter": "ifc",
     "question_parser": "templates"
   },
@@ -136,23 +149,23 @@
     "unit": "count",
     "evidence": [
       {
-        "file": "plans/flat-a.pdf",
+        "file": "plan.png",
         "page": 1,
         "box": [
-          0.49333,
-          0.225,
-          0.50667,
-          0.275
+          0.05,
+          0.1,
+          0.1,
+          0.2
         ]
       },
       {
-        "file": "plans/flat-a.pdf",
+        "file": "plan.png",
         "page": 1,
         "box": [
-          0.66,
-          0.225,
-          0.67333,
-          0.275
+          0.6,
+          0.1,
+          0.65,
+          0.2
         ]
       }
     ],
@@ -181,6 +194,6 @@
     "objects": null,
     "storeys": null,
     "schedule": null,
-    "confidence": 0.87
+    "check": null
   }
 }

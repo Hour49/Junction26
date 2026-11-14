@@ -1,7 +1,8 @@
 """The proof an answer carries (app/core/review/proof.py), on synthetic drawings."""
 
 from app.core.drawing.model import Drawing, ModelObject, Page, Scale, Table, TableRow
-from app.core.review.model import MarkView, Row, RuleText, Scope
+from app.core.pipeline.model import QuantityConflict
+from app.core.review.model import MarkView, MethodValue, Row, RuleText, Scope
 from app.core.review.proof import colour, schedule_proof, storey_table, takeoff_proof
 
 PAGE = Page(page=1, width=100, height=100, unit="pt")
@@ -162,3 +163,30 @@ def test_a_count_names_what_a_second_reader_counted_without_a_mark_in_its_legend
     assert [(key.label, key.count, key.note) for key in takeoff_proof(only, SHEET).legend] == [
         ("toilet", 2, "2 counted without a mark (second reader)")
     ]
+
+
+def test_a_value_two_methods_measured_says_how_it_was_checked() -> None:
+    walls = a_row("wall", "count", "wall", 72, "count", mark(1, "wall", 1))
+    disputed = QuantityConflict.model_validate(
+        {"values": [{"value": 72, "method": "plan_drawing"}, {"value": 86, "method": "ifc_model"}],
+         "resolution": {"rule": "count what the sheet draws", "value": 72}}
+    )  # fmt: skip
+    measured = {
+        "first": MethodValue(method="plan_drawing", value=72),
+        "second": MethodValue(method="ifc_model", value=86),
+    }
+    found = walls.model_copy(update={**measured, "conflict": disputed})
+    assert takeoff_proof(found, SHEET).check == (
+        "Checked twice, they disagree: the sheet 72, the IFC model 86; kept 72: count what the "
+        "sheet draws"
+    )
+    open_ = found.model_copy(update={"conflict": disputed.model_copy(update={"resolution": None})})
+    assert takeoff_proof(open_, SHEET).check == (
+        "Checked twice, they disagree: the sheet 72, the IFC model 86; no rule decides, a person "
+        "must settle it"
+    )
+    agree = {"first": measured["first"], "second": MethodValue(method="ifc_model", value=72)}
+    assert takeoff_proof(walls.model_copy(update=agree), SHEET).check == (
+        "Checked twice, both agree: the sheet 72, the IFC model 72"
+    )
+    assert takeoff_proof(walls, SHEET).check is None  # measured once

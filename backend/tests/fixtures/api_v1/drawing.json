@@ -21,6 +21,11 @@
   ],
   "suggestions": [
     {
+      "quantity": "area:room|indoor",
+      "label": "area of room (indoor)",
+      "question": "What is the net floor area of all indoor rooms in m²?"
+    },
+    {
       "quantity": "door",
       "label": "door count",
       "question": "How many doors are there?"
@@ -29,11 +34,6 @@
       "quantity": "window",
       "label": "window count",
       "question": "How many windows are there?"
-    },
-    {
-      "quantity": "toilet",
-      "label": "toilet count",
-      "question": "How many toilets are there?"
     }
   ]
 }

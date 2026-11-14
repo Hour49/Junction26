@@ -231,3 +231,19 @@ def test_parity_with_the_prototype(page: dict[str, Any]) -> None:
     for family, top in page["expected_top"].items():
         got = confidence.probability(FILE.path, family, top)
         assert got.value == pytest.approx(page["expected_p_top"][family], abs=1e-6)
+
+
+def test_the_s1536_arm_loads_and_swaps_only_its_families() -> None:
+    page = reply({"toilet": {1: 0.97, 3: 0.03}, "shower+bathtub": {1: 0.8, 2: 0.2}})
+    inner = Inner({"toilet": 3, "shower": 2}, read=("toilet", "shower", "bathtub"))
+    old = DecisionsCountExtractor(inner, Files(), G1MainReader(fake(page), None))
+    new = DecisionsCountExtractor(inner, Files(), G1MainReader(fake(page), None), arm="S1536")
+    assert new.arm == "S1536" and old.arm == "F1main-v8"
+    by_old, by_new = old.extract(FILE, SHEET), new.extract(FILE, SHEET)
+    # P(3 toilets) = 0.03: F1main-v8 swaps toilets (< 0.05), S1536 never does;
+    # P(2 showers) = 0.2: F1main-v8 swaps (< 0.25), S1536 keeps (>= 0.15)
+    assert (counts(by_old)["toilet"], family_count(by_old, "shower+bathtub")) == (1, 1)
+    assert (counts(by_new)["toilet"], family_count(by_new, "shower+bathtub")) == (3, 2)
+    assert by_new.notes[-1].startswith("decisions S1536: counts kept")
+    with pytest.raises(InvalidInputError, match="unknown swap arm"):
+        DecisionsCountExtractor(inner, Files(), G1MainReader(fake(page), None), arm="S9")

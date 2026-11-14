@@ -525,8 +525,10 @@ def test_a_model_file_without_a_page_answers_from_its_objects_alone() -> None:
     assert value(found, Query(subject="wall", model=True)) == 3
     assert value(found, Query(measure="length", subject="wall", storey="EG")) == 7.0
     assert value(found, Query(measure="area", subject="room", name="Office", storey="EG")) == 20.0
-    for sheet_only in (Query(subject="wall"), Query(subject="plan"), Query(subject="room")):
-        assert sheet_only.key() not in found
+    # asked plainly on the model file, a count is the model's ("How many walls are there?")
+    assert value(found, Query(subject="wall")) == 3
+    assert value(found, Query(subject="room")) == value(found, Query(subject="room", model=True))
+    assert Query(subject="plan").key() not in found  # a model draws no plans
 
 
 def test_a_name_two_of_a_storey_s_spaces_share_names_neither() -> None:

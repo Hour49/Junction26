@@ -64,6 +64,7 @@ from .gate import (
     GateResult,
     SignalFile,
     SignalReport,
+    UnionStep,
     Unit,
     apply_gate,
     apply_group,
@@ -74,6 +75,7 @@ from .gate import (
     family_keys,
     family_result,
     format_gate,
+    gate_policy,
     group_result,
     halves,
     load_signal_file,
@@ -844,12 +846,15 @@ def run_gate(args: argparse.Namespace) -> None:
     by_family: dict[str, list[Unit]] = {}
     for u in units:
         by_family.setdefault(u.family, []).append(u)
+    union_steps: list[UnionStep] = []
     grouped = {
         group: apply_group([u for f in of for u in by_family.get(f, [])], signal, of, threshold)
         for group, (of, threshold) in groups_in.items()
     }
     if thresholds_in is None and args.pool:
-        grouped, picked = pooled_gates(by_family, GROUPS, signal, args.target, args.delta)
+        grouped, picked, union_steps = pooled_gates(
+            by_family, GROUPS, signal, args.target, args.delta
+        )
     elif thresholds_in is None:
         picked = family_gates(by_family, signal, args.target, args.delta)
     else:
@@ -862,6 +867,7 @@ def run_gate(args: argparse.Namespace) -> None:
         part=args.part,
         images=len({u.file for u in units}),
         seed=args.seed,
+        split_sha256=_sha256(args.exp_dir / "split.json"),
         target=args.target,
         delta=args.delta,
         family_delta=None if grouped else args.delta / max(1, len(by_family)),
@@ -874,6 +880,7 @@ def run_gate(args: argparse.Namespace) -> None:
         empty_rates=empty,
         families=gates,
         groups={group: group_result(gate, group, label) for group, gate in grouped.items()},
+        union_steps=union_steps,
         certificate=certificate(units, signal, thresholds, label),
     )
     print(format_gate(result))
@@ -882,6 +889,15 @@ def run_gate(args: argparse.Namespace) -> None:
     out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     print(f"\nwrote {out}")
     _certify_record(args, "gate", [name], result.certificate.sentence, out)
+
+
+def run_gate_policy(args: argparse.Namespace) -> None:
+    result = GateResult.model_validate_json(args.gate.read_text("utf-8"))
+    generated = datetime.now(HELSINKI).isoformat(timespec="seconds")
+    made = gate_policy(result, _repo_path(args.gate), generated)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(made.model_dump_json(by_alias=True, indent=2) + "\n", "utf-8")
+    print(f"wrote {args.out}: {len(made.families)} families ({', '.join(made.families) or 'none'})")
 
 
 def _code_digest() -> str:
@@ -1847,6 +1863,13 @@ def parser() -> argparse.ArgumentParser:
     gate.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
     gate.add_argument("--seed", type=int, default=GATE_SEED)
     gate.set_defaults(run=run_gate)
+
+    policy = commands.add_parser(
+        "gate-policy", help="the product's gate file (gate_policy_v1) from a val gate JSON"
+    )
+    policy.add_argument("--gate", type=Path, required=True, help="data/stoa/exp/ab/gate-*-val.json")
+    policy.add_argument("--out", type=Path, default=EXP_DIR / "gate.json")
+    policy.set_defaults(run=run_gate_policy)
 
     board = commands.add_parser("leaderboard", help="every experiment arm on val against prior")
     board.add_argument("--exp-dir", type=Path, default=EXP_DIR)

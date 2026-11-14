@@ -225,3 +225,34 @@ def test_the_apartment_without_a_letter_and_a_living_room_by_its_code() -> None:
     assert PARSE("Kuinka suuri on olohuoneen (OH) pinta-ala neliömetreinä?") == Query(
         measure="area", subject="room", name="OH"
     )
+
+
+SHEET_TOTAL = Query(measure="area", subject="room", indoor=True)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total floor area?",
+        "What is the total indoor floor area?",
+        "What is the total area of all rooms?",
+        "What is the total floor area in m²?",
+        "What is the floor area of this plan?",
+    ],
+)
+def test_the_sheet_s_floor_area_asked_plainly_is_its_indoor_total(text: str) -> None:
+    # Stoa's one sheet total: "the total net floor area ... of all numbered indoor rooms"
+    assert PARSE(text) == SHEET_TOTAL
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total gross floor area of the building?",
+        "What is the building's footprint area?",
+        "What is the total net floor area of the building?",
+        "What is the total area of the sterilization rooms?",
+    ],
+)
+def test_a_gross_footprint_building_or_named_rooms_area_is_not_the_sheet_total(text: str) -> None:
+    assert isinstance(PARSE(text), Unsupported)

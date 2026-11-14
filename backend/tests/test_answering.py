@@ -1,8 +1,11 @@
 """Answering: a query is looked up in the drawing's takeoff; everything else is a refusal with
 its reason in `method`, which keeps the prior's best estimate when there is one."""
 
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
+
+import pytest
 
 from app.core.answering.answer import (
     NO_DRAWING,
@@ -517,9 +520,14 @@ def test_a_takeoff_answer_gets_the_probability_of_its_value() -> None:
     assert sure.asked == [(FILE, "door", 2)]
 
 
-def test_without_a_probability_the_reason_joins_the_explanation() -> None:
+def test_without_a_probability_the_answer_is_unchanged_and_the_reason_is_logged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     down = FakeConfidence(None)
-    assert rated("How many doors?", drawing(), down).explanation == "decisions: down"
+    with caplog.at_level(logging.INFO, logger="app.core.answering.answer"):
+        answer = rated("How many doors?", drawing(), down)
+    assert (answer.confidence, answer.explanation) == (None, None)
+    assert "question 7: no confidence: decisions: down" in caplog.text
     estimated = Drawing(
         file=FILE,
         pages=(Page(page=1, width=100, height=50, unit="px"),),
@@ -527,10 +535,7 @@ def test_without_a_probability_the_reason_joins_the_explanation() -> None:
         rooms=(Room(id="r1", type="sauna", page=1, box=BOX_1, area_m2=4.0),),
     )
     area = rated("How big?", estimated, down, AreaParser())
-    assert (area.confidence, area.explanation) == (
-        None,
-        "rests on an estimated scale (door widths); decisions: down",
-    )
+    assert area.explanation == "rests on an estimated scale (door widths)"  # the takeoff's own
 
 
 def test_refusals_and_prior_answers_are_not_rated() -> None:

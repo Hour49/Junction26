@@ -8,7 +8,7 @@ from app.api.ask import QUESTION_CHARS
 from app.api.deps import SettingsDep
 from app.api.projects import MAX_UPLOAD
 from app.api.views import View
-from app.composition import readers
+from app.composition import readers, uses_keys
 
 router = APIRouter(prefix="/api")
 
@@ -32,7 +32,7 @@ class Info(View):
 @router.get("/info")
 def info(settings: SettingsDep) -> Info:
     return Info(
-        no_keys=True,  # no reader takes a key yet
+        no_keys=not uses_keys(settings),
         readers=readers(settings),
         limits=Limits(
             upload_mb=MAX_UPLOAD // MB,

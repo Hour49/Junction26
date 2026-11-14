@@ -14,20 +14,26 @@ test_api_fixtures.py runs it twice under different hash seeds and compares.
 """
 
 import json
+import os
 import sys
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 BACKEND = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(BACKEND), str(BACKEND / "tests"), str(BACKEND / "scripts")]
+sys.path[:0] = [
+    str(BACKEND / "tests" / "api"),  # its conftest (the raster arm), before tests/conftest.py
+    str(BACKEND),
+    str(BACKEND / "tests"),
+    str(BACKEND / "scripts"),
+]
 
-from fastapi import FastAPI  # noqa: E402
+from conftest import plan_png, raster_arm  # noqa: E402  # pyright: ignore[reportMissingImports]
 from fastapi.testclient import TestClient  # noqa: E402
 from make_sample_archive import build_archive  # noqa: E402  # pyright: ignore[reportMissingImports]
 
-from app.composition import build_ingest  # noqa: E402
+from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.settings import Settings  # noqa: E402
@@ -88,10 +94,7 @@ def responses() -> dict[str, Any]:
     found["answer_area"] = client.post(
         "/api/ask", json={"drawing_id": flat_a["drawing_id"], "question": area}
     ).json()
-    answering = cast(FastAPI, client.app).state.answering
-    cast(FastAPI, client.app).state.answering = replace(answering, confidence=ExampleConfidence)
-    found["answer_confidence"] = client.post("/api/ask", json=ask).json()
-    cast(FastAPI, client.app).state.answering = answering
+    found["answer_confidence"] = rated(root / "raster", settings)
     storey = "How many doors are shown on the floor plan of 'Ground Floor'?"
     house = files["model/house.ifc"]
     found["answer_model"] = client.post(
@@ -110,6 +113,35 @@ def responses() -> dict[str, Any]:
     found["signoff_request"] = {"quantity": "door", "by": "Ana"}
     found["error"] = client.get("/api/drawings/0123456789abcdef").json()
     return stable(trimmed(found), started["id"])
+
+
+def rated(root: Path, settings: Settings) -> dict[str, Any]:
+    """A door count on an image read on the raster route (a precomputed arm: the only route the
+    confidence rates), with DECISIONS_CONFIDENCE's stand-in."""
+    raster_arm(root / "arm", "plan.png")
+    settings = settings.model_copy(
+        update={
+            "projects_dir": root / "projects",
+            "extractor_raster": "composite",
+            # relative, so the reader names (part of the drawing id) are the same on every run
+            "raster_components": "elements=dir:arm,plans=dir:arm",
+        }
+    )
+    here = Path.cwd()
+    os.chdir(root)
+    try:
+        ingest = build_ingest(settings, settings.projects_dir, background=False)
+        app = create_app(settings, ingest)
+        app.state.answering = replace(
+            app.state.answering, confidence=ExampleConfidence, signal=DECISIONS_SIGNAL
+        )
+        client = TestClient(app)
+        upload = client.post("/api/projects", params={"name": "plan.png"}, content=plan_png())
+        drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
+        ask = {"drawing_id": drawing_id, "question": "How many doors are there?"}
+        return client.post("/api/ask", json=ask).json()
+    finally:
+        os.chdir(here)
 
 
 def stable(found: dict[str, Any], project_id: str) -> dict[str, Any]:
