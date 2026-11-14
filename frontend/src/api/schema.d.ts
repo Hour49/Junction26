@@ -381,6 +381,8 @@ export interface components {
         AskRequest: {
             /** Drawing Id */
             drawing_id: string;
+            /** Project Id */
+            project_id?: string | null;
             /** Question */
             question: string;
         };
@@ -1226,7 +1228,10 @@ export interface operations {
     };
     drawing_api_drawings__drawing_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description the project it is shown in */
+                project?: string | null;
+            };
             header?: never;
             path: {
                 drawing_id: string;

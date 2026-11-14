@@ -5,7 +5,15 @@ the scorer reads."""
 from fastapi import APIRouter
 from pydantic import Field
 
-from app.api.deps import AnsweringDep, Ingest, IngestDep, ReviewsDep, SettingsDep, drawing_id_of
+from app.api.deps import (
+    AnsweringDep,
+    Ingest,
+    IngestDep,
+    ReviewsDep,
+    SettingsDep,
+    as_uploaded,
+    drawing_id_of,
+)
 from app.api.views import PageView, Reader, View, page_views, reader_of
 from app.composition import Answering, readers
 from app.core.answering.model import Answer, Unit
@@ -25,6 +33,7 @@ QUESTION_CHARS = 2000
 class AskRequest(View):
     drawing_id: str
     question: str = Field(min_length=1, max_length=QUESTION_CHARS)
+    project_id: str | None = None  # the project asked in: names the file as it uploaded it
 
 
 class Signal(View):
@@ -133,13 +142,14 @@ def ask_route(
     drawing_id = drawing_id_of(body.drawing_id)
     drawing = ingest.drawing(drawing_id)
     info = ingest.drawing_info(drawing_id)
+    named = as_uploaded(ingest, info, body.project_id)
     asked = asked_on(body.question, drawing, drawing_id, reviews, answering, ingest)
     line, shown = asked.answer, asked.row
     value = shown_value(asked)
     return AnswerView(
         question=body.question,
         drawing_id=drawing_id,
-        file=drawing.file,
+        file=drawing.file if body.project_id is None else named.path,
         pages=page_views(drawing_id, drawing.pages, info.normalised),
         answer=value,
         unit=None if asked.refusal is not None else line.unit,
@@ -149,7 +159,7 @@ def ask_route(
         refusal=asked.refusal,
         method=line.method,
         explanation=line.explanation,
-        reader=reader_of(info, readers(settings)),
+        reader=reader_of(named, readers(settings)),
         cost_usd=line.cost_usd,
         latency_s=line.latency_s,
         line=line,

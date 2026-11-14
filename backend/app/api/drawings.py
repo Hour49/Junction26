@@ -18,6 +18,7 @@ from app.api.deps import (
     IngestDep,
     ReviewsDep,
     SettingsDep,
+    as_uploaded,
 )
 from app.api.views import PageView, Reader, View, page_views, reader_of
 from app.composition import readers
@@ -76,14 +77,16 @@ def drawing(
     settings: SettingsDep,
     answering: AnsweringDep,
     credits: CreditsDep,
+    project: Annotated[str | None, Query(description="the project it is shown in")] = None,
 ) -> DrawingView:
     found = ingest.drawing(drawing_id)
     info = ingest.drawing_info(drawing_id)
+    named = as_uploaded(ingest, info, project)  # that project's names, not the cache's
     return DrawingView(
         id=drawing_id,
-        file=found.file,
-        reader=reader_of(info, readers(settings)),
-        credit=credit_of(info, ingest, credits),
+        file=found.file if project is None else named.path,
+        reader=reader_of(named, readers(settings)),
+        credit=credit_of(named, ingest, credits),
         pages=page_views(drawing_id, found.pages, info.normalised),
         suggestions=list(
             suggestions(known_quantities(found), answering.parser, SUGGESTIONS, found.tables or ())

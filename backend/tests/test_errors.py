@@ -33,3 +33,39 @@ def test_unexpected_exception_is_a_500(app: FastAPI) -> None:
 def test_unmapped_domain_error_is_a_500(app: FastAPI) -> None:
     status, _ = get_raising(app, UnmappedError("no status chosen"))
     assert status == 500
+
+
+DOCUMENTED_CODES = {
+    "not-found",
+    "invalid",
+    "validation",
+    "not-allowed",
+    "too-large",
+    "busy",
+    "method-not-allowed",
+    "internal",
+}  # docs/API.md "Errors"
+
+
+def test_wrong_method_has_a_documented_code(app: FastAPI) -> None:
+    response = TestClient(app).get("/api/ask")  # POST only
+    assert response.status_code == 405
+    assert response.json() == {"detail": "Method Not Allowed", "code": "method-not-allowed"}
+
+
+def test_unknown_route_has_a_documented_code(app: FastAPI) -> None:
+    response = TestClient(app).get("/api/nope")
+    assert response.status_code == 404
+    assert response.json()["code"] == "not-found"
+
+
+def test_every_mapped_code_is_documented() -> None:
+    from pathlib import Path
+
+    from app.main import CODES
+
+    api_md = (Path(__file__).parents[2] / "docs" / "API.md").read_text(encoding="utf-8")
+    errors = api_md.split("### Errors", 1)[1].split("\n## ", 1)[0]
+    assert set(CODES.values()) <= DOCUMENTED_CODES
+    for code in DOCUMENTED_CODES:
+        assert f"`{code}`" in errors or f'"code": "{code}"' in errors, code

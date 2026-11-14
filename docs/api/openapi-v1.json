@@ -308,6 +308,17 @@
             "title": "Drawing Id",
             "type": "string"
           },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
           "question": {
             "maxLength": 2000,
             "minLength": 1,
@@ -2916,6 +2927,24 @@
             "schema": {
               "title": "Drawing Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "the project it is shown in",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the project it is shown in",
+              "title": "Project"
             }
           }
         ],
