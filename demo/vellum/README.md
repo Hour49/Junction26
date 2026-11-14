@@ -15,7 +15,7 @@ It shows only what the backend has: no country picker, login or user name (a sig
 no answer grade.
 
 Routes: `#/` drop, `#/ingest` reading (`/unpack`, `/identify`, `/extract`, `/check` for the advanced panels),
-`#/conflicts` (its "Start a new chat" unlocks once every conflict is settled), `#/chat` (the empty project chat;
-each answer's "Show it on <file>" opens `#/ask` on that drawing), `#/ask`, `#/workspaces`. Opening a later route directly starts the sample already read.
+`#/conflicts` (its "Start a new chat" unlocks once every conflict is settled), `#/chat` (the empty project chat with 3 suggested questions;
+each answer's "Show it on <file>" opens `#/ask` on that drawing), `#/ask` (no header tab), `#/workspaces`. Opening a later route directly starts the sample already read.
 
 Check: `node --test demo/vellum/*.test.cjs` (the counts derived from the data).

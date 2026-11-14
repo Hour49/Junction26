@@ -88,3 +88,15 @@ test('the project chat adds nothing up across drawings, or refuses with what can
   assert.equal(no.rows, undefined);
   assert.ok(no.refusal && no.canAnswer.length > 0);
 });
+
+test('an area question that names a room sums that room only, and drawings without it do not answer', () => {
+  const d = V.drawing('floor-02');
+  const kitchens = V.rooms(d).filter((r) => !r.common && r.label === 'Kitchen');
+  const a = V.answer('floor-02', 'What is the area of the kitchen?', {});
+  assert.equal(a.marks.length, kitchens.length);
+  assert.equal(a.value, Math.round(kitchens.reduce((s, r) => s + r.area, 0) * 10) / 10);
+  const sauna = V.askProject('What is the area of the sauna?', {});
+  assert.ok(sauna.rows.length > 0 && sauna.rows.length < V.DRAWINGS.length);
+  assert.ok(sauna.rows.every((r) => r.marks.every((m) => m.room.label === 'Sauna')));
+  assert.equal(V.ruleOf(sauna.rows[0]), 'Net floor area of the sauna, inside the walls.');
+});

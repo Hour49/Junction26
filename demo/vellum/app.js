@@ -60,7 +60,7 @@
   }
 
   function header(r) {
-    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['chat', 'Chat', '#/chat'], ['ask', 'Engineer', '#/ask']];
+    const views = [['ingest', 'Ingest', '#/ingest'], ['conflicts', 'Conflicts', '#/conflicts'], ['chat', 'Chat', '#/chat']];
     const cur = r.name === 'advanced' ? 'ingest' : r.name;
     const nav = S.p && r.name !== 'home' && r.name !== 'workspaces'
       ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => (k === cur
@@ -320,13 +320,13 @@
       .filter(([n]) => n).map(([n, t]) => `${n} ${t}.`).join(' ');
     return `<main class="w820"><div class="title-row"><div>
         <span class="kicker ok">${esc(V.ARCHIVE)} · ${V.DRAWINGS.length} drawings ready</span>
-        <h1>${V.CONFLICTS.length} conflicts found</h1><p class="muted" style="margin:0">${summary}</p></div>
-        <div class="chat-cta">${locked
-          ? '<button class="btn press" disabled aria-describedby="chat-why">Start a new chat</button><span id="chat-why" class="small">Settle the conflicts that need you first.</span>'
-          : `<a class="btn btn-primary press" href="#/chat" aria-describedby="chat-why">Start a new chat</a><span id="chat-why" class="small">Ask anything about the ${V.DRAWINGS.length} drawings in this project</span><a class="small" href="#/ask">Open the workspace</a>`}</div></div>
+        <h1>${V.CONFLICTS.length} conflicts found</h1><p class="muted" style="margin:0">${summary}</p></div></div>
       <div style="display:flex;align-items:center;gap:12px"><div class="segs" aria-hidden="true">${V.CONFLICTS.map((_, i) => `<span class="${i < settled ? 'on' : ''}"></span>`).join('')}</div>
         <span style="font-size:13px;font-weight:500;color:var(--v-text-2)" role="status">${settled} of ${V.CONFLICTS.length} settled</span></div>
-      ${cards}</main>`;
+      ${cards}
+      <div class="chat-cta">${locked
+          ? '<button class="btn press" disabled aria-describedby="chat-why">Start a new chat</button><span id="chat-why" class="small">Settle the conflicts that need you first.</span>'
+          : '<a class="btn btn-primary press" href="#/chat">Start a new chat</a><a class="small" href="#/ask">Open the workspace</a>'}</div></main>`;
   }
 
   // ---------- 5 workspaces ----------
