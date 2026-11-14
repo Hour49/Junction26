@@ -484,6 +484,15 @@ Thread and pages
 - EN-83 A signed-off value (`quantity.status: "signed"`) shows "Signed off" in the Confidence block, with no level,
   bar or level text, even when `level` is set. The double-check panel follows `check` (Medium and Low come with one
   from the backend) and is never mounted for a High answer. [component, `answer_signed.json` + a derived level]
+- EN-84 (Bogdan #14 c6880945211, carbon-reader fail-5) On a flagged drawing (`drawings[].state: "flagged"` in
+  GET /api/projects/{id}; the drawing view has no state) the answer opens with a "This drawing was flagged" block
+  (`.en-flag`, `--v-warn` tones), above the sentence, the plan and the mark cards at every width: the flag reason
+  (`check.reason`, when there is a check) and the Confidence block (level pill, bar, `level.text`, or "Signed
+  off"). That Confidence block moves there, so the side column shows none. Not flagged: no `.en-flag`, the block
+  stays in the side column. [component, derived low + check; browser 1440 and 390 with a flagged fixture]
+- EN-85 (orch 18:55) A page-flagged answer (`level.basis: "page"`, double-check's `pageFlagged`) drops the
+  counting rule from the answer sentence ("There are 2 doors." only): the whole page is in doubt, so the generic
+  "Every element, room and plan the drawing lists counts once." says nothing. Other answers keep it. [component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { answer, answerArea, answerRefused } from '../api/fixtures';
-import { patch, requestLine, stateOf, toViewer } from './check';
+import { pageFlagged, patch, requestLine, stateOf, toViewer } from './check';
 import {
   asking,
   check,
@@ -37,6 +37,18 @@ describe('check.ts', () => {
       "Please double-check: we're not sure about 1 of these rooms.",
     );
     expect(requestLine(asking, { ...check, disputed: [] })).toBe('Please double-check this value.');
+  });
+
+  it('DC-20 a page flagged as a whole (level basis page) asks about the whole page in one sentence', () => {
+    const flagged = {
+      ...asking,
+      level: { level: 'low' as const, basis: 'page' as const, text: 'Read from a photo.' },
+    };
+    expect(pageFlagged(flagged)).toBe(true);
+    expect(pageFlagged(asking)).toBe(false);
+    expect(requestLine(flagged, check)).toBe(
+      'Please double-check the whole page: it was flagged when it was read, so every one of these doors is in doubt.',
+    );
   });
 
   it('toViewer: a mark item names its mark, an unmarked one its page and box', () => {

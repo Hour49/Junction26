@@ -136,6 +136,8 @@ export function EngineerPage(props: {
 
   const busy = turns.some((t) => t.status === 'pending');
   const place = project && placeOf(project, drawing, projectId);
+  // GET /api/drawings/{id} has no state; the project's list does (EN-84).
+  const flagged = project?.drawings.find((d) => d.drawing_id === drawing.id)?.state === 'flagged';
   return (
     <div className="en-page">
       <h1 className="en-sr">{drawing.file}</h1>
@@ -175,6 +177,7 @@ export function EngineerPage(props: {
             file={drawing.file}
             credit={drawing.credit}
             place={place}
+            flagged={flagged}
             busy={busy}
             onAsk={ask}
             onRetry={retry}

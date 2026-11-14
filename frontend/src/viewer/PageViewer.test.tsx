@@ -1343,3 +1343,47 @@ describe('PageViewer: bare (chat reference image)', () => {
     expect(viewer(answer).container.querySelector('.vw-legend')).toBeTruthy();
   });
 });
+
+describe('PageViewer: crowded pages (carbon flag, item 4)', () => {
+  const many = (n: number): MarkView[] =>
+    Array.from({ length: n }, (_, i) => ({
+      ...door1,
+      id: `d${String(i)}`,
+      n: i + 1,
+      box: [
+        (i % 10) / 10 + 0.01,
+        Math.floor(i / 10) / 25 + 0.01,
+        (i % 10) / 10 + 0.05,
+        Math.floor(i / 10) / 25 + 0.03,
+      ],
+    }));
+
+  it('VW-96 over 50 marks in a frame under 600 px: outlines only, a count, numbers back when zoomed', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+    const { container } = viewer(answer, { marks: many(60), selected: 'd3' });
+    // only the selected mark keeps its badge
+    expect(badges(container).map((b) => b.textContent)).toEqual(['4']);
+    expect(container.querySelectorAll('svg rect.vw-shape')).toHaveLength(60);
+    expect(container.querySelector('.vw-many')?.textContent).toBe(
+      '60 marks, too many to number at this size: zoom in to see their numbers',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(badges(container)).toHaveLength(60);
+    expect(container.querySelector('.vw-many')).toBeNull();
+    cleanup();
+    const bare = viewer(answer, { marks: many(60), bare: true }).container;
+    expect(badges(bare)).toHaveLength(0);
+    expect(bare.querySelector('.vw-many')?.textContent).toBe(
+      '60 marks, too many to number at this size',
+    );
+    cleanup();
+    expect(badges(viewer(answer, { marks: many(50) }).container)).toHaveLength(50);
+  });
+
+  it('VW-97 over 50 marks in a wide frame keep their badges', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    const { container } = viewer(answer, { marks: many(60) });
+    expect(badges(container)).toHaveLength(60);
+    expect(container.querySelector('.vw-many')).toBeNull();
+  });
+});
