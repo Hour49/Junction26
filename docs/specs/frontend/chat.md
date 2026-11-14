@@ -50,7 +50,7 @@ project's drawings").
 | No askable drawing | the line "No drawing in this project can be asked yet." under the bar instead of chips; Ask disabled |
 | After the first question | the heading, the thread, the ask bar sticky at the bottom (as the engineer page); no chips |
 | Asking | the question bubble and "Reading N drawings…"; Ask disabled |
-| Answered (one or more parts) | one card: the quantity label (small), the total (`answer-value`, 44 px) in `total_unit` when `total` is not null, a "Sure" badge after it when `total_sure` (as EN-53), `total_note`, then one line per answering part "<name>: <value>" with "Show it on <name>" linking to `#/p/<pid>/d/<drawing_id>/engineer`; no plan, no image |
+| Answered (one or more parts) | one card: the quantity label (small), the total (`answer-value`, 44 px) in `total_unit` when `total` is not null, a "Sure" badge after it when `total_sure` (as EN-53), `total_note`, then one line per answering part "<name>: <value>" with "Show it on <name>" linking to `#/p/<pid>/d/<drawing_id>/engineer?ask=<question>` (plus `&pack=<id>` when the chat has one), so that drawing opens already answering this question with its marks (engineer.md EN-72; QA R4b-1); no plan, no image |
 | Refused by all | one refusal card: "I can't answer that from these drawings.", the first refusal's text and its `can_answer` chips (a click asks the project again) |
 | The ask failed (404, 409, 500, network) | the engineer's error turn ("The question could not be answered: <detail>", code, Try again asks again) |
 
@@ -105,6 +105,9 @@ routes (`App.tsx` today passes only `projectId`).
 - CH-14 `?ask=How many doors are there?`: after the project loads, one ask with that question (also in
   `<StrictMode>`); the article named by the question shows its card; no "Suggested questions" group and no
   `.en-chat--empty`. [component]
+- CH-16 (QA R4b-1, Bogdan #14 c6876295838) Each "Show it on <name>" href is
+  `routeHref({name: 'workspace', projectId, drawingId, role: 'engineer', query: {ask: <the turn's question>}})`; with the
+  chat opened at `?pack=fi` the query also carries `pack=fi`; never an empty query. [component]
 - CH-15 `?ask=` empty or spaces: nothing asked, the empty start page; a project 404 or a project with no askable
   drawing: nothing asked. [component]
 

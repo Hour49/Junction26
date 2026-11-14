@@ -124,6 +124,18 @@ test('IS-19 IS-20 EN-76: the issues list, the first issue outlined, Open the dra
   );
   await expect(page.getByText(/^(200|400)%$/).first()).toBeVisible();
   await noSideScroll(page, 'engineer focus');
+  // Viewport shot with the plan in view (fe-viewer): scroll the page by the toolbar, which is outside the plan's
+  // own scroll box, so the focus scroll stays.
+  await page.getByRole('button', { name: 'Zoom in' }).first().scrollIntoViewIfNeeded();
+  // The zoomed page is a larger image: wait until it has loaded, or the shot shows only the outline.
+  const plan = page.getByRole('img', { name: /^Page 1 of / }).first();
+  await expect
+    .poll(() =>
+      plan.evaluate(
+        (el) => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth,
+      ),
+    )
+    .toBeGreaterThan(0);
   await shot(page, testInfo, 'is-open-drawing', offline);
   expect(errors, 'no console or page errors').toEqual([]);
 });

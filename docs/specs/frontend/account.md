@@ -96,7 +96,7 @@ nothing relies on the colour.
 | needs you | a conflict with `needs_person` true | `created_at` | "Conflict waiting for you: <label>" | "<file> · <values joined ' vs '>" |
 | settled | a conflict with `settled` set | `settled.at` | "Conflict settled: <label>" | "<file> · kept <settled.value, formatValue>" |
 | signed | a disagreement (rows grouped as for the stat) whose rows are signed: one event, not one per row | `signed.at` | "Signed off: <label>", the group's longest label (the printed-name one, e.g. "area of room (name Küche · 1.01)") | "<file> · <signed.value, formatValue> · by <signed.by>" |
-| asked | each question: a line without `project_ask`, or one group of lines sharing a `project_ask` | `at` (a group: its earliest) | "Asked: <question>" | "<file> · <answer, formatValue with unit>" (a text `answer` as is); refused: "<file> · not answered"; `answer` null and not refused: "<file> · no answer". `<file>`: the project drawing with that `drawing_id`, else the id. A `project_ask` group: "answered on <n> of <m> drawings" (`n` = lines not refused with an `answer`, `m` = lines; "1 drawing" singular), or "not answered" when `n` is 0. The log is newest first; asks with the same `at` show in the order they were asked (the log is walked oldest first before the stable sort) |
+| asked | each question: a line without `project_ask`, or one group of lines sharing a `project_ask` | `at` (a group: its earliest) | "Asked: <question>" | "<file> · <answer, formatValue with unit>" (a text `answer` as is); refused: "<file> · not answered"; `answer` null and not refused: "<file> · no answer". `<file>`: the project drawing with that `drawing_id`, else the id. A `project_ask` group: "answered on <n> of <m> drawings" (`n` = lines not refused with an `answer`, `m` = the drawings the question went to: all the project's drawings, so a drawing the backend logged no line for, e.g. an unscaled IFC, still counts; "1 drawing" singular), or "not answered" when `n` is 0. The log is newest first; asks with the same `at` show in the order they were asked (the log is walked oldest first before the stable sort) |
 
 ## States
 
@@ -192,6 +192,8 @@ History
 - AC-34 (#135) Five lines sharing `project_ask` "pa1" (two answered, three refused) plus one line without it: Questions
   "2"; one event "Asked: How many doors are there?" with "answered on 2 of 5 drawings", and the single line's event
   as before; a group with no answer reads "not answered". [unit]
+- AC-35 (QA R4b-2) Four lines sharing `project_ask`, all answered, in a project of five drawings (the fifth, an
+  unscaled IFC, has no line): "answered on 4 of 5 drawings", not "4 of 4". [unit]
 - AC-23 A 500 for a takeoff shows "Sign-offs not loaded: internal error (internal)" and every other event.
   [component]
 - AC-24 Each event's glyph is `aria-hidden`; its title says the kind in words ("Uploaded", "Analysis done",

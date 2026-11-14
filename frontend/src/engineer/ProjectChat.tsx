@@ -28,7 +28,10 @@ type Load =
   | { state: 'ready'; project: ProjectView };
 
 /** The total, then one line per answering drawing with a link to show it (chat.md). */
-function PartsCard({ ask, projectId }: { ask: ProjectAnswer; projectId: string }) {
+function PartsCard(props: { ask: ProjectAnswer; projectId: string; pack: string | null }) {
+  const { ask, projectId, pack } = props;
+  // That drawing opens answering this question (EN-72), in the chat's rule pack (QA R4b-1).
+  const query = new URLSearchParams(pack ? { ask: ask.question, pack } : { ask: ask.question });
   const answering = ask.parts.filter((p) => p.answer.refusal === null);
   const label = answering[0]?.answer.quantity?.label;
   return (
@@ -62,7 +65,7 @@ function PartsCard({ ask, projectId }: { ask: ProjectAnswer; projectId: string }
                 projectId,
                 drawingId: p.drawing_id,
                 role: 'engineer',
-                query: new URLSearchParams(),
+                query,
               })}
             >
               Show it on {p.name}
@@ -171,7 +174,7 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
       return (
         <article key={turn.id} className="en-turn" aria-label={turn.ask.question}>
           <p className="en-bubble">{turn.ask.question}</p>
-          <PartsCard ask={turn.ask} projectId={projectId} />
+          <PartsCard ask={turn.ask} projectId={projectId} pack={query?.get('pack') ?? null} />
         </article>
       );
     }

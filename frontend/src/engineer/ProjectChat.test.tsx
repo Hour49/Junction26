@@ -188,7 +188,7 @@ it('CH-4 one drawing answers: the total, the note, one line <name>: <value> with
   const li = line(turn, flatA.name);
   expect(li.textContent).toContain(`${flatA.name}: 2`);
   const show = within(li).getByRole('link', { name: `Show it on ${flatA.name}` });
-  expect(show.getAttribute('href')).toBe(`#/p/${PID}/d/${flatA.drawing_id}/engineer`);
+  expect(show.getAttribute('href')).toMatch(`#/p/${PID}/d/${flatA.drawing_id}/engineer?ask=`);
   expect(within(turn).getAllByRole('listitem')).toHaveLength(1);
   expect(turn.querySelector('figure, img')).toBeNull();
   expect(turn.textContent).not.toContain("I can't answer");
@@ -292,4 +292,22 @@ it('CH-15 nothing asked for an empty ?ask=, a project 404, or no askable drawing
   const empty = open(noneAnswers, none, drawingRoutes(), 'ask=doors');
   await screen.findByText('No drawing in this project can be asked yet.');
   expect([...posts(api), ...posts(failed), ...posts(empty)]).toEqual([]);
+});
+
+it('CH-16 Show it on <name> opens that drawing asking this question; ?pack= is kept (QA R4b-1)', async () => {
+  const q = 'How many doors are there?';
+  const href = (name: string) =>
+    within(line(screen.getByRole('article', { name: q }), name))
+      .getByRole('link', { name: `Show it on ${name}` })
+      .getAttribute('href') ?? '';
+  open(projectAsk);
+  await answered(q);
+  expect(href(flatA.name)).toBe(
+    `#/p/${PID}/d/${flatA.drawing_id}/engineer?${new URLSearchParams({ ask: q }).toString()}`,
+  );
+  cleanup();
+  open(projectAsk, project, drawingRoutes(), 'pack=fi');
+  await answered(q);
+  const query = new URLSearchParams(href(flatB.name).split('?')[1]);
+  expect([query.get('ask'), query.get('pack')]).toEqual([q, 'fi']);
 });

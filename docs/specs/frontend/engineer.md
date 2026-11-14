@@ -456,6 +456,11 @@ Thread and pages
   `box: null`. A building model (`answer_model`-like drawing with no pages) ignores both. [component]
 - EN-78 `?ask=` together with `?page=&box=`: the question is asked; no opening card (no `focus` rendered).
   [component]
+- EN-79 (QA R4b-3) The ask bar's keyboard focus ring follows the pill: the input draws no outline of its own
+  (`.en-askpill input:focus-visible { outline: none }`) and the pill draws the shell's ring while its input has
+  focus-visible (`.en-askpill:has(input:focus-visible)`: `outline: 2px solid var(--v-accent)`, `outline-offset: 2px`;
+  the outline follows the pill's 980 px radius). Chat and engineer share it (`AskBox`). [unit on the CSS text;
+  browser: Tab into the bar at 1440 and 390]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)

@@ -496,6 +496,14 @@ button.en-ref:hover,
   background: var(--v-surface);
   box-shadow: var(--v-shadow);
 }
+/* The ring follows the pill, not a square box around the input (QA R4b-3); same ring as the shell's. */
+.en-askpill:has(input:focus-visible) {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 2px;
+}
+.en-askpill input:focus-visible {
+  outline: none;
+}
 .en-askpill input {
   flex: 1;
   min-width: 0;
