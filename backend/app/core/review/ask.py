@@ -125,7 +125,7 @@ def ask(
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
     answer = answer_question(
-        question, quantities, once, clock, prior, tables, prior_families, confidence, sure_at
+        question, quantities, once, clock, prior, tables, prior_families, confidence, sure_at, flags
     )
     parsed = once.parse(text)
     query: str | None = None

@@ -557,9 +557,12 @@ def _answer_arm(
     gold_dir: Path,
     prior: Path | None,
     work: Path,
+    policy: Path | None = None,
 ) -> tuple[str, dict[int, Answer], dict[str, Extraction] | None]:
     """(what the arm is, its answers by question id, its extractions of the part's images; None
-    for the prior). `work` is a fresh folder for this arm."""
+    for the prior). `work` is a fresh folder for this arm. `policy`: an answer_policy_v1 file;
+    the families it sends to the prior are answered from `prior` (the backend's ANSWER_POLICY),
+    nothing else is."""
     work.mkdir(parents=True)
     drawings, use_prior, preds = work / "drawings", None, None
     if arm == "gold":
@@ -585,6 +588,11 @@ def _answer_arm(
         what = str(drawings)
     out = work / "answers.jsonl"
     extra = ["--prior", str(use_prior)] if use_prior is not None else []
+    if policy is not None:
+        if prior is None or arm == "prior":
+            raise ValueError("an answer policy needs the train prior and an arm that reads")
+        extra = ["--prior", str(prior), "--policy", str(policy.resolve())]  # run from backend/
+        what = f"{what} + answer policy {policy} (its families from the train prior)"
     backend.run(
         "answer", "--questions", str(questions), "--drawings", str(drawings), "--out", str(out),
         *extra,
@@ -640,10 +648,11 @@ def _score_arm(
     prior: Path | None,
     orientation: Mapping[str, str] | None,
     work: Path,
+    policy: Path | None = None,
 ) -> tuple[ArmResult, dict[int, bool], list[int]]:
     """One arm on a part: its result, its hits by question id and the ids it refused."""
     questions_path, questions, files, golds = part
-    what, answers, preds = _answer_arm(arm, questions_path, golds, gold_dir, prior, work)
+    what, answers, preds = _answer_arm(arm, questions_path, golds, gold_dir, prior, work, policy)
     hits = hits_of(questions, answers)
     refused = sorted(q.id for q in questions if q.id not in answers or answers[q.id].answer is None)
     keys = count_keys(golds.values())
@@ -658,6 +667,8 @@ def _score_arm(
 
 def run_ab(args: argparse.Namespace) -> None:
     names = [_arm_name(arm, args.exp_dir) for arm in (args.a, args.b)]
+    if args.policy is not None:
+        names[1] = f"{names[1]}+{args.policy.stem}"
     if names[0] == names[1]:
         raise ValueError(f"both arms are named {names[0]}")
     certified = [name for name in names if name not in REFERENCE_ARMS]
@@ -667,13 +678,16 @@ def run_ab(args: argparse.Namespace) -> None:
     orientation, note = _orientation(args.orientation or args.exp_dir / ORIENTATION)
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
-        prior = _exp_prior(args.exp_dir, args.prior) if "prior" in (args.a, args.b) else None
+        wanted = "prior" in (args.a, args.b) or args.policy is not None
+        prior = _exp_prior(args.exp_dir, args.prior) if wanted else None
         families = _families(part[0], work)
         arms: list[tuple[ArmResult, dict[int, bool]]] = []
         for label, arm, name in zip(("a", "b"), (args.a, args.b), names, strict=True):
+            policy = args.policy if label == "b" else None
             result, hits, _ = _score_arm(
-                arm, name, part, args.gold / EXP_SOURCE, families, prior, orientation, work / label
-            )
+                arm, name, part, args.gold / EXP_SOURCE, families, prior, orientation, work / label,
+                policy,
+            )  # fmt: skip
             arms.append((result, hits))
     overall, by_family, per_image = compare(
         questions, arms[0], arms[1], families, args.seed, args.reps
@@ -1971,6 +1985,12 @@ def parser() -> argparse.ArgumentParser:
     ab.add_argument("--exp-dir", type=Path, default=EXP_DIR)
     ab.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
     ab.add_argument("--prior", type=Path, default=EXP_PRIOR, help="where the train prior goes")
+    ab.add_argument(
+        "--policy",
+        type=Path,
+        help="answer B with this answer_policy_v1 file (ANSWER_POLICY): the families it sends to "
+        "the prior come from the train prior; B is named <arm>+<file stem>",
+    )
     ab.add_argument(
         "--orientation",
         type=Path,
