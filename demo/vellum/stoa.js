@@ -51,6 +51,14 @@
       rules: ['Washbasins are counted wherever they are drawn.', 'A kitchen sink is not a washbasin.'],
       why: 'The symbol outside the bathrooms could be a washbasin or a sink. The drawing does not say which.' },
   ].filter(Boolean);
+  // Hard-coded issues on the real files (Tudor, 15:35: things that might actually need a look, not the vision model's)
+  const plans = ARCH.filter((f) => f.plan).map((f) => f.path), dxf = D.files.find((f) => f.path.endsWith('.dxf'));
+  const ISSUES = [
+    plans[1] && { severity: 'needs_person', file: plans[1], why: 'No scale bar or dimension was read on this scan, so areas on it are not measured. Add the scale to measure them.' },
+    plans[0] && { severity: 'needs_person', file: plans[0], why: 'Some hand-written room names on this archive plan could not be read, so those rooms have no type.' },
+    dxf && { severity: 'note', file: dxf.path, why: 'The same floor as the vector PDF: read once, from the PDF.' },
+    png && { severity: 'note', file: png.path, why: 'A rendering of the same floor: used for pictures, not counted again.' },
+  ].filter(Boolean);
   const conflictFor = (q) => CONFLICTS.find((c) => q.question.includes(c.match)) || null;
 
   const drawing = (id) => {
@@ -119,7 +127,7 @@
     return { drawing: DRAWINGS[0], rooms, doors: keyCount('door'), windows: keyCount('window') };
   }
 
-  root.VData = { ...S, ARCHIVE: NAME, FLOOR_ID: D.archive, CREDIT: D.credit, FILES, DRAWINGS, TRIAGE, CONFLICTS, variantLabels: (c) => c.variants.map((v) => v.label), QUANTITIES, SUGGEST, drawing,
+  root.VData = { ...S, ARCHIVE: NAME, FLOOR_ID: D.archive, CREDIT: D.credit, FILES, DRAWINGS, TRIAGE, CONFLICTS, ISSUES, variantLabels: (c) => c.variants.map((v) => v.label), QUANTITIES, SUGGEST, drawing,
     answer, parseQuestion, noun, formatValue, ruleOf, askProject, extractFacts, crossChecks: () => [],
     valueOf: (marks, quantity) => { throw new Error(`no marks in Stoa mode (${quantity})`); } };
 })(window);
