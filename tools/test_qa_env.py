@@ -131,3 +131,13 @@ def test_the_demo_config_reads_big_sheets_and_printed_scales_with_carbon() -> No
     assert found.returncode == 0, found.stderr
     config = found.stdout.split()
     assert "CARBON_READER=large" in config and "RASTER_PRINTED_SCALE=carbon" in config
+
+
+def test_the_demo_config_warns_about_sheet_kinds_without_setting_sheets_aside() -> None:
+    """demo/sheet-kind (2026-11-14, Bogdan D732): SHEET_KIND=carbon names what a sheet looks like
+    and SHEET_KIND_SET_ASIDE=false reads and flags a doubtful sheet instead of setting it aside
+    (#265). The backend defaults are off and true, so the demo config has to name both."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    config = found.stdout.split()
+    assert "SHEET_KIND=carbon" in config and "SHEET_KIND_SET_ASIDE=false" in config

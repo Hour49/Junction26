@@ -47,7 +47,9 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   CHECK_POLICY=../eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json
   LOCAL_GATES=../data/models/arbiter/T1/lgate2-rt-C1T1.json,../data/models/arbiter/T1/lgate-rt-noL1-C1T1.json
   CARBON_READER=large  # demo/carbon: images over 4,000 px counted by Carbon, flagged, never certified (#269)
-  RASTER_PRINTED_SCALE=carbon)  # a measured printed scale replaces the estimate; > 2x from the door estimate holds areas Low (#256)
+  RASTER_PRINTED_SCALE=carbon  # a measured printed scale replaces the estimate; > 2x from the door estimate holds areas Low (#256)
+  SHEET_KIND=carbon  # demo/sheet-kind: Carbon names what each sheet looks like (warn only, #265)
+  SHEET_KIND_SET_ASIDE=false)  # a sheet that may not be a floor plan is read and flagged, never set aside
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
