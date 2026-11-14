@@ -30,6 +30,10 @@ into the bundle. Ports are fixed (dev 5173, preview 4173, `strictPort`): a busy 
 npm run e2e        # Playwright, chromium at 390x844 and 1440x900, against `npm run preview`
 ```
 
+Another e2e run or preview already on the ports (several agents on one machine): pick free ones with
+`E2E_WEB_PORT=4193 E2E_API_PORT=8033 npm run e2e` (defaults 4173 and 8010; the run starts its own preview and
+no-keys backend there).
+
 First e2e run on a machine: `npx playwright install chromium` (CI: `--with-deps`). CI's generic node job runs
 `npm ci`, `tsc --noEmit`, `npm run lint`, `npm test`, `npm run build` and `npm audit`.
 

@@ -148,7 +148,10 @@ def test_a_class_the_reader_did_not_look_for_is_refused_as_not_read(
 
 
 NOTHING_READ = "Nothing was read from this sheet: its reader found no elements or rooms on it."
-NO_READER = "Nothing was read from this sheet: there is no reader for this kind of sheet yet."
+NO_READER = (
+    "This sheet wasn't read, so nothing on it was counted or measured: this setup has no reader "
+    "for this kind of sheet. You can still ask about the project's other drawings."
+)
 
 
 @pytest.mark.parametrize(

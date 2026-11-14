@@ -620,7 +620,7 @@
             "marks": [],
             "refusal": {
               "code": "no-reader",
-              "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+              "text": "This sheet wasn't read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask about the project's other drawings.",
               "can_answer": []
             },
             "method": "refused:not-in-drawing",
@@ -704,7 +704,7 @@
             "marks": [],
             "refusal": {
               "code": "no-reader",
-              "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+              "text": "This sheet wasn't read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask about the project's other drawings.",
               "can_answer": []
             },
             "method": "refused:not-in-drawing",
@@ -752,9 +752,9 @@
       "total_unit": null,
       "total_sure": false,
       "total_level": null,
-      "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+      "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
       "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
-      "refused_note": "2 drawings have no reader for it."
+      "refused_note": "2 drawings give no reliable number for it."
     }
   ],
   "view": {
