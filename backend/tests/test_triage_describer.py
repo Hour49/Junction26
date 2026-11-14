@@ -14,6 +14,7 @@ from typing import Any
 import pypdfium2
 import pytest
 from PIL import Image
+from test_vector_pdf import swiss_sheet
 from triage_fakes import FakeClassifier, steps
 
 from app.adapters.raster_ocr.gemini import GeminiError
@@ -43,6 +44,12 @@ from app.settings import Settings
 KEY = "test-key-0123456789"
 USAGE = {"promptTokenCount": 1092, "candidatesTokenCount": 600, "thoughtsTokenCount": 0}
 USD = (1092 * 1.50 + 600 * 9.00) / 1e6
+# A well-formed PDF whose page tree is empty: pdfium refuses to load it
+ZERO_PAGES = (
+    b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+    b"2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n"
+    b"trailer\n<< /Size 3 /Root 1 0 R >>\n%%EOF\n"
+)
 NOT_DRAWING = Classified.model_validate(
     {"class": "not_drawing", "p_plan": 0.03, "method": "fake classifier"}
 )
@@ -378,6 +385,40 @@ def test_a_pdf_scan_sends_its_first_page() -> None:
     pdf.close()
     with Image.open(io.BytesIO(encode(out.getvalue()))) as page:
         assert (page.format, page.size) == ("JPEG", (MAX_SIDE, 1366))
+
+
+def test_a_drawn_pdf_page_is_described_as_a_scan_is(tmp_path: Path) -> None:
+    """rag's evidence sources (.agents/exp/rag-evidence.md 7.7 item 1): a vector PDF page, such as
+    a `<name>#p3.pdf` file, goes through describe as a scan does: page 1 rendered, sent as JPEG."""
+    model = FakeModel(answer(form()))
+    assert isinstance(describe(model, tmp_path, image=swiss_sheet().pdf()), Description)
+    [sent] = model.asked
+    with Image.open(io.BytesIO(sent)) as page:
+        assert page.format == "JPEG" and max(page.size) == MAX_SIDE
+
+
+@pytest.mark.parametrize(
+    "data", [b"%PDF-1.4\nnot a pdf at all", b"%PDF-1.7\n1 0 obj << /Type /Catalog", ZERO_PAGES]
+)
+def test_a_pdf_pdfium_cannot_open_is_unavailable_without_a_call(
+    tmp_path: Path, data: bytes
+) -> None:
+    """pdfium's own error (a RuntimeError) escaped describe(); it is the reason now."""
+    model = FakeModel()
+    found = describe(model, tmp_path, image=data)
+    assert isinstance(found, Unavailable)
+    assert "could not be opened" in found.note and "PDFium" in found.note
+    assert model.asked == []
+
+
+def test_the_contact_rule_is_core_code_for_every_text_source() -> None:
+    """The evidence index (app/core/evidence) takes contact data out of text files too, and core
+    imports no adapter: the rule lives in app.core.contacts, the describer uses that one."""
+    from app.core.contacts import without_contacts as core_rule
+
+    assert core_rule is without_contacts
+    found = core_rule("Puh. 040 123 4567\ninfo@example.fi\nSOUTH ELEVATION")
+    assert found == "SOUTH ELEVATION"
 
 
 def test_a_museum_object_drawing_is_not_a_drawing_and_unrelated(tmp_path: Path) -> None:
