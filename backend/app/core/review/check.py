@@ -36,13 +36,13 @@ answers gave it. The words under a level quote the counts it was measured on, fr
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from types import MappingProxyType
-from typing import Literal
+from typing import Literal, NamedTuple
 
 from pydantic import Field
 
 from app.core.answering.answer import AGREEING_FAMILIES
 from app.core.answering.local_gate import READER_FAMILIES, LocalGateModel, reading_of, score
-from app.core.drawing.model import Box, CarbonCheck, Drawing, Room
+from app.core.drawing.model import Box, CarbonCheck, Drawing, Room, RoomType
 from app.core.model import Frozen
 from app.core.pipeline.count_arbiter import count_arbiter_reading
 from app.core.review.model import MarkView, Row
@@ -200,6 +200,77 @@ def found_nothing(drawing: Drawing) -> bool:
     of them read, so none is certified (on the raster route)."""
     located = any(element.attrs.get("located") is not False for element in drawing.elements)
     return bool(drawing.pages) and not drawing.plans and not located
+
+
+class RoomWord(NamedTuple):
+    """What a room's printed label names: a room type, and whether the word belongs to a kind of
+    sheet the policy was not measured on (`unmeasured`: a Swiss floor's room names; CubiCasa val
+    prints none)."""
+
+    kind: RoomType
+    unmeasured: bool
+
+
+# a room's printed label -> what it names; None: no room word we know (composition gives the
+# adapters' tables: app/adapters/raster/room_words.py)
+RoomWords = Callable[[str], RoomWord | None]
+
+
+def no_room_words(label: str) -> RoomWord | None:
+    """No label table: no room count is doubted by its labels."""
+    return None
+
+
+def room_word_doubt(row: Row, drawing: Drawing, words: RoomWords) -> Found | None:
+    """Why a room count on an image is not certified, whatever its score, from the labels read
+    in its rooms (think-acc's certified-wrong Swiss bathroom, .agents/exp/certified-bathroom.md,
+    orchestrator 2026-11-14): a room whose label names the asked type is typed otherwise (each
+    such room is a place, not counted), or a label is a word of a sheet the policy was not
+    measured on, where the readers and the signal both carry CubiCasa's conventions. None:
+    neither. It holds the certificate only: the level stays what the score gives (on CubiCasa
+    val 0 High answers and 2 Medium ones have such a room; the Medium ones keep their level)."""
+    if row.measure != "count" or not (row.subject == "room" or row.subject.startswith("room:")):
+        return None
+    kind = row.subject.partition(":")[2]
+    what = row.noun or row.label
+    named = [(room, word) for room in drawing.rooms if room.label and (word := words(room.label))]
+    off = [room for room, word in named if kind and word.kind == kind and room.type != kind]
+    if off:
+        places = tuple(
+            Place(
+                item_id=None,
+                page=room.page,
+                box=room.box,
+                why=(
+                    f'Labelled "{_label_line(room)}", which names a {kind}, but read as type '
+                    f'"{room.type}", so it is not counted.'
+                ),
+                readers={"reader": room.type, "label": kind},
+            )
+            for room in off
+        )
+        some = "a room is" if len(off) == 1 else f"{len(off)} rooms are"
+        return Found(
+            places=places,
+            reason=(
+                f"Please double-check the {what}: {some} labelled as the type asked about but "
+                "read as another type."
+            ),
+        )
+    printed = next((room for room, word in named if word.unmeasured), None)
+    if printed is not None:
+        return Found(
+            reason=(
+                f"Please double-check the {what}: this image prints room names such as "
+                f'"{_label_line(printed)}", and room counts on plans of this kind are not in our '
+                "validation, so none is certified."
+            )
+        )
+    return None
+
+
+def _label_line(room: Room) -> str:
+    return (room.label or "").strip().split("\n")[0].strip()
 
 
 def certified(

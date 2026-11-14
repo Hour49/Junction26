@@ -1,6 +1,6 @@
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "ca2d833018a525e4",
   "file": "plan.png",
   "pages": [
     {
@@ -8,7 +8,7 @@
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/ca2d833018a525e4/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,

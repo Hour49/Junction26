@@ -3849,7 +3849,7 @@ tell, and an uncertain answer with the model's check:
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "ca2d833018a525e4",
   "file": "plan.png",
   "pages": [
     {
@@ -3857,7 +3857,7 @@ tell, and an uncertain answer with the model's check:
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/ca2d833018a525e4/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -4981,7 +4981,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "2b4e04cde84fbbef",
+  "drawing_id": "72b496de3a55af1d",
   "file": "plan.png",
   "pages": [
     {
@@ -4989,7 +4989,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/2b4e04cde84fbbef/pages/1.png",
+      "url": "/api/drawings/72b496de3a55af1d/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -5285,7 +5285,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "ca2d833018a525e4",
   "file": "plan.png",
   "pages": [
     {
@@ -5293,7 +5293,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/ca2d833018a525e4/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -5508,7 +5508,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "ca2d833018a525e4",
   "file": "plan.png",
   "pages": [
     {
@@ -5516,7 +5516,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/ca2d833018a525e4/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -5769,7 +5769,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many bedrooms are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "ca2d833018a525e4",
   "file": "plan.png",
   "pages": [
     {
@@ -5777,7 +5777,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/ca2d833018a525e4/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
