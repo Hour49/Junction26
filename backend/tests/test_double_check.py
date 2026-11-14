@@ -15,11 +15,13 @@ from app.adapters.question_templates import TemplateParser
 from app.composition import build_answering
 from app.core.answering.local_gate import reading_of, score
 from app.core.drawing.model import (
+    ArbiterReading,
     Conflict,
     Drawing,
     Element,
     MeasuredValue,
     Page,
+    ReaderView,
     Resolution,
     Room,
     Scale,
@@ -231,15 +233,23 @@ def test_a_family_on_a_local_gate_is_certified_on_the_gate_s_score() -> None:
     assert asked(score=0.9, check=policy).check is not None  # the gate is not configured
 
 
-def gate_file(tmp_path: Path, *blocks: str, name: str = "lgate-rt-noL1") -> Path:
-    """A local gate on doors (local_gate_v1) whose score is sigmoid(the answered count - 1):
-    every other feature has a 0 coefficient."""
-    width = {"l1": 3, "extras": 4, "rooms": 4, "arbiter_p": 1}
+def gate_file(
+    tmp_path: Path,
+    *blocks: str,
+    name: str = "lgate-rt-noL1",
+    readers: tuple[str, ...] = (),
+    last: float = 0.0,
+) -> Path:
+    """A local gate on doors (local_gate_v1) whose score is sigmoid(the answered count - 1 +
+    `last` x its last feature before the family's one-hot): every other feature has a 0
+    coefficient."""
+    width = {"l1": 3, "readers": 2 * len(readers) + 1, "extras": 4, "rooms": 4, "arbiter_p": 1}
     n = 2 + sum(width[b] for b in blocks) + 1
+    coef = [1.0] + [0.0] * (n - 3) + [last, 0.0]
     doc = {
-        "schema": "local_gate_v1", "name": name, "families": ["door"], "readers": [],
+        "schema": "local_gate_v1", "name": name, "families": ["door"], "readers": list(readers),
         "blocks": list(blocks), "prior": {"door": {"2": 0.5}},
-        "mu": [0.0] * n, "sd": [1.0] * n, "coef": [1.0] + [0.0] * (n - 1), "intercept": -1.0,
+        "mu": [0.0] * n, "sd": [1.0] * n, "coef": coef, "intercept": -1.0,
     }  # fmt: skip
     path = tmp_path / f"{name}.json"
     path.write_text(json.dumps(doc), encoding="utf-8")
@@ -260,13 +270,35 @@ def test_a_local_gate_scores_the_answered_count_on_the_stored_drawing(tmp_path: 
 
 
 @pytest.mark.parametrize("blocks", [("l1",), ("extras", "arbiter_p")])
-def test_a_local_gate_reading_what_the_drawing_does_not_keep_scores_nothing(
+def test_a_local_gate_reading_the_count_arbiter_scores_only_where_it_ran(
     tmp_path: Path, blocks: tuple[str, ...]
 ) -> None:
-    """L1's probabilities and the arbiter's P are not stored with the drawing yet: a model
-    reading them would fail (l1) or read 0 for the arbiter's P, so it scores nothing and the
-    family asks."""
-    assert gate_scorer(load_local_gate(gate_file(tmp_path, *blocks)))(SCAN, "door", 2) is None
+    """Without arbiter-t1 at ingest the drawing keeps no count_arbiter: a model reading L1 would
+    fail and one reading the arbiter's P would read 0 for it, so it scores nothing and the family
+    asks. Where it ran, the model reads what it stored (the arbiter's P here: 0.9)."""
+    model = load_local_gate(gate_file(tmp_path, *blocks, last=2.0))
+    assert gate_scorer(model)(SCAN, "door", 2) is None
+    stored = SCAN.model_copy(
+        update={"count_arbiter": {"door": ArbiterReading(probs=(0.1, 0.2, 0.7), p=0.9)}}
+    )
+    found = gate_scorer(model)(stored, "door", 2)
+    assert found == score(model, "door", reading_of(stored, "door", 2))
+    last = 1.0 if blocks == ("l1",) else 0.9  # L1's top is the answer / the arbiter's P
+    assert found == pytest.approx(sigmoid(1.0 + 2.0 * last))
+
+
+def test_a_local_gate_reading_double_check_readers_scores_only_where_they_all_ran(
+    tmp_path: Path,
+) -> None:
+    """Without DOUBLE_CHECK_READERS every reader would read as "did not look", which is not what
+    the model was fit on."""
+    model = load_local_gate(gate_file(tmp_path, "readers", readers=("l1", "m1")))
+    views = {"l1": ReaderView(read=("door",), elements=DOORS), "m1": ReaderView(read=("door",))}
+    one = SCAN.model_copy(update={"double_check": {"l1": views["l1"]}})
+    both = SCAN.model_copy(update={"double_check": views})
+    assert gate_scorer(model)(SCAN, "door", 2) is None
+    assert gate_scorer(model)(one, "door", 2) is None
+    assert gate_scorer(model)(both, "door", 2) == score(model, "door", reading_of(both, "door", 2))
 
 
 def test_local_gates_are_built_by_signal_name_and_a_name_twice_is_refused(

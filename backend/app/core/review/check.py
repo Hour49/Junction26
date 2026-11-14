@@ -27,9 +27,10 @@ from types import MappingProxyType
 
 from pydantic import Field
 
-from app.core.answering.local_gate import LocalGateModel, reading_of, score
+from app.core.answering.local_gate import READER_FAMILIES, LocalGateModel, reading_of, score
 from app.core.drawing.model import Box, Drawing, Room
 from app.core.model import Frozen
+from app.core.pipeline.count_arbiter import count_arbiter_reading
 from app.core.review.model import MarkView, Row
 from app.core.review.proof import SHOWN_UNITS
 
@@ -56,18 +57,24 @@ class CheckPolicy(Frozen):
 # can't score this answer
 Scorer = Callable[[Drawing, str, int], float | None]
 NO_SCORERS: Mapping[str, Scorer] = MappingProxyType({})
-# What a local gate model may read that the stored drawing does not keep yet (L1's
-# probabilities, the count arbiter's P): a model reading one scores nothing, so its families ask
-NOT_KEPT = frozenset({"l1", "arbiter_p"})
+# What a local gate model may read from the count arbiter's reading kept with the drawing (L1's
+# probabilities, the arbiter's P): only an arbiter-t1 ingest stores it
+ARBITER_BLOCKS = frozenset({"l1", "arbiter_p"})
 
 
 def gate_scorer(model: LocalGateModel) -> Scorer:
-    """The local gate `model` as a scorer: None for a family it was not fit on, and for every
-    answer while it reads an input the drawing does not keep (`NOT_KEPT`)."""
+    """The local gate `model` as a scorer: None for a family it was not fit on, and on a
+    drawing that lacks what it reads, where its features would not be the ones it was fit on: the
+    count arbiter's reading of the family (`ARBITER_BLOCKS`; a missing arbiter P would read as 0)
+    or a double-check reader it reads (every one would read as "did not look"). Its families
+    then ask."""
 
     def scored(drawing: Drawing, family: str, answer: int) -> float | None:
-        if model.blocks & NOT_KEPT:
-            return None
+        if model.blocks & ARBITER_BLOCKS and count_arbiter_reading(drawing, family) is None:
+            return None  # the count arbiter did not run on this drawing
+        reads = model.readers if "readers" in model.blocks and family in READER_FAMILIES else ()
+        if any(name not in (drawing.double_check or {}) for name in reads):
+            return None  # a reader the model reads did not run (DOUBLE_CHECK_READERS)
         return score(model, family, reading_of(drawing, family, answer))
 
     return scored
