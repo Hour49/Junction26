@@ -160,8 +160,14 @@ describe('documents.ts', () => {
     expect(shortReason({ state: 'set_aside', reason: '' })).toBeNull();
   });
 
-  it('DOC-15 documents.css has no colour literal', () => {
-    const css = readFileSync('src/documents/documents.css', 'utf8');
-    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+  it('DOC-15 the Documents tab names no colour literal (Tailwind classes use the theme tokens)', () => {
+    for (const file of ['DocumentsScreen.tsx', 'DocumentLists.tsx', 'IssueCard.tsx', 'ui.ts']) {
+      // only class strings: comments cite issues as #223
+      const source = readFileSync(`src/documents/${file}`, 'utf8').replace(
+        /\/\/.*|\/\*[\s\S]*?\*\//g,
+        '',
+      );
+      expect(source, file).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+    }
   });
 });

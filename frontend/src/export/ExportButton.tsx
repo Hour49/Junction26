@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { errorText } from '../api';
 import { fileName, scanRows, toCsv } from './csv';
 import { loadScan } from './scan';
-import './export.css';
+import { CheckIcon, DownloadIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 /** How long "Exported" stays on the button (export.md EX-12). */
 export const DONE_MS = 1500;
@@ -19,15 +21,15 @@ function download(text: string, name: string) {
   URL.revokeObjectURL(url);
 }
 
-const Glyph = ({ done }: { done: boolean }) => (
-  <svg className="export-glyph" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
-    {done ? (
-      <path d="M4.5 10.5l3.5 3.5 7.5-8" />
-    ) : (
-      <path d="M10 3v9m-3.5-3.5L10 12l3.5-3.5M4 14.5V16h12v-1.5" />
-    )}
-  </svg>
-);
+/** The look of the header's pills (shell.css .header-pill), plus the state colours (export.md "Look"). */
+const PILL =
+  'v-press min-h-12 rounded-full bg-secondary px-4 py-1 text-base font-semibold text-foreground hover:bg-secondary max-[720px]:min-w-12 max-[720px]:px-3';
+const TONE: Record<State['at'], string> = {
+  idle: '',
+  busy: 'cursor-progress text-muted-foreground active:scale-100',
+  done: 'bg-ok-soft text-ok hover:bg-ok-soft',
+  failed: 'bg-danger-soft text-danger hover:bg-danger-soft',
+};
 
 /** The header's "Export": the whole scan of `projectId` as one CSV (docs/specs/frontend/export.md). */
 export function ExportButton({ projectId, pack }: { projectId: string; pack: string | null }) {
@@ -68,10 +70,10 @@ export function ExportButton({ projectId, pack }: { projectId: string; pack: str
     state.at
   ];
   return (
-    <span className="export">
-      <button
-        type="button"
-        className="header-pill export-button v-press"
+    // order 4 in the compact header (shell.css, max-width 1100px), next to the country pill.
+    <span className="relative flex-none max-[1100px]:order-4">
+      <Button
+        className={cn(PILL, TONE[state.at])}
         data-state={state.at}
         aria-label="Export scan as CSV"
         aria-disabled={busy || undefined}
@@ -85,14 +87,22 @@ export function ExportButton({ projectId, pack }: { projectId: string; pack: str
         }
         onClick={run}
       >
-        <Glyph done={state.at === 'done'} />
-        <span className="export-label">{label}</span>
-      </button>
-      <span className="export-sr" role="status">
+        {state.at === 'done' ? (
+          <CheckIcon className="size-[18px]" aria-hidden="true" />
+        ) : (
+          <DownloadIcon className="size-[18px]" aria-hidden="true" />
+        )}
+        <span className="max-[720px]:hidden">{label}</span>
+      </Button>
+      <span className="sr-only" role="status">
         {state.at === 'done' ? `Exported ${state.name}` : ''}
       </span>
       {state.at === 'failed' && (
-        <span className="export-error" role="alert">
+        // Anchored under its button, right-aligned like the country popover; feedback in place, no toast.
+        <span
+          className="absolute top-[calc(100%+8px)] right-0 z-[11] w-max max-w-[min(320px,calc(100vw-32px))] rounded-[14px] bg-card px-3.5 py-2.5 text-[13px] leading-[1.4] text-danger shadow-[var(--v-shadow)]"
+          role="alert"
+        >
           Export failed: {state.detail}. Press Export to try again.
         </span>
       )}
