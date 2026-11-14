@@ -28,11 +28,48 @@ uv run python -m stoa_eval history --csv ../data/stoa/charts   # answering.csv, 
 uv run python -m stoa_eval series               # the `pipeline` series as a markdown table
 ./pipeline-run.sh <commit> [NAME=VALUE ...]     # record one point of the series (below)
 uv run python -m stoa_eval schema               # rewrite schemas/ after changing a model
+uv run python -m stoa_eval exp-split            # data/stoa/exp/split.json: CubiCasa train/val/test
+uv run python -m stoa_eval ab --a <arm> --b <arm>   # A/B two arms on val (Experiments, below)
+uv run python -m stoa_eval gate --arm <arm>        # E5 confidence gate on val (--second <arm>)
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
 ```
 
 `split` and `select` need the full dataset (`python3 tools/fetch_stoa_data.py full` from the repo
 root). Run `split` before `select`.
+
+## Experiments (CubiCasa raster, 2026-11-14)
+
+`exp-split` cuts the CubiCasa images with questions in `split/dev.jsonl`, minus every golden v2 file, into
+train / val / test (80/10/10 of drawing groups, seeded by `split.rank`, so a rerun writes the same bytes) and
+writes `data/stoa/exp/split.json` (files and gold class totals per part) and `<part>_questions.jsonl` (the dev
+lines, ids kept). It stops on an image in an eval group, a golden v2 image, or gold not marked dev.
+
+`ab` compares two arms on val (or test, once, for the shipped arm). An arm is a folder of extraction_v1 files
+(one per image, matched by `file`), or `gold`, `prior` (answer's prior refit on `train_questions.jsonl`, written
+to `data/stoa/priors/exp-train.json`) or `none` (every image read, nothing found). `ab_backend.py` answers the
+questions in backend/'s own environment with `build_pipeline(...).answer_questions` over the arm's folder, the
+templates parser and no prior, so the takeoff is the pipeline's. Stoa's rule judges each answer, and an image
+without a file is refused and wrong. The report gives the exact rate overall, per family and per style; B - A
+with a 95% bootstrap interval over images (10,000 resamples, seed 20261114), which alone gives the verdict, and
+an exact McNemar p (over questions: EN/FI pairs on one image are not independent, so it is overconfident); the
+count
+per key against the dev gold (exact share, MAE); and each arm's 10 images with the most wrong answers. JSON
+goes to `data/stoa/exp/ab/<a>-vs-<b>-<part>.json`. `--orientation <json>` (file -> label) splits by
+orientation; the gold has none.
+
+`gate` (E5) scores each answer (a family on an image) with three signals: `top3` (mean of the 3 highest
+`attrs.score` of the family's detections), `pb_mode` (probability of the modal Poisson-binomial count, scores
+calibrated by isotonic regression against IoU >= 0.5 matches with the gold, on a seeded half of val) and `agree`
+(a second arm gives the same answer). A refused answer gets no signal. On the other half of val it reports
+failure AUROC and risk-coverage per signal, and per family the loosest threshold Learn-then-Test certifies
+(fixed sequence strict to loose, exact binomial p of error >= 5%, delta 0.05 divided by the number of families).
+Val only picks thresholds. `--part test --certify` applies the val calibration and thresholds and prints "of
+the plans marked sure, at least X% have every sure answer exact (N plans, 95% bound); the gate opens on Y% of
+plans" (one-sided Clopper-Pearson, the plan as the unit). JSON goes to `data/stoa/exp/ab/gate-<arm>-<part>.json`.
+
+Test is used once per arm: `ab --part test` and `gate --part test` need `--certify`, append the run (arm,
+time, result, result file sha256) to `data/stoa/exp/test-certified.json`, and refuse an arm already run on
+test by the same command unless `--recertify-reason "<why>"` is given.
 
 ## Answer format (answer_v1)
 

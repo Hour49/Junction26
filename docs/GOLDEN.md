@@ -243,6 +243,35 @@ At 6e9a2df the answers the pipeline read itself are 1436 of 1450 right (99.0%); 
 dev prior, 673 of them right (44.9%). Part 1 is the same at 85d3470 and 6e9a2df (same extractor). At bdfae08 (IFC reader) every answer that does not abstain is right (1542 of
 1542); ifc_models Part 1 is 1630 of 1630 and Part 2 466 of 466. CubiCasa raster is still unread at every point.
 
+## Experiments (CubiCasa raster, 2026-11-14)
+
+Bogdan, 2026-11-14: "Each should do a/b testing". The experiment tracks (detectors, segmentation, OCR, VLMs)
+compare arms on their own split of CubiCasa, never on golden v2 or the sealed eval split. The commands are in
+[eval/README.md](../eval/README.md).
+
+`stoa_eval exp-split` writes the split to `data/stoa/exp/split.json`. It takes the 3,828 CubiCasa images with dev
+questions, leaves out the 69 golden v2 dev files, and cuts the rest by drawing group into train (3,007 images), val
+(376) and test (376). The cut is seeded, so a rerun writes the same file. Each part's questions are in
+`data/stoa/exp/<part>_questions.jsonl`. Models train on train and are tuned on val; test is run once, for the arm
+we ship.
+
+`stoa_eval ab --a <arm> --b <arm>` answers the part's questions from each arm's extraction_v1 files with the
+backend's own parser and takeoff, and judges them by Stoa's rule. An image the arm has no file for counts as
+wrong. The image is the unit: B wins only when the 95% bootstrap interval of B minus A excludes 0. The report
+also gives an exact McNemar p, but it counts questions, and the English and Finnish questions on one image are
+not independent, so that p is overconfident and is not evidence on its own. There are three reference arms: `gold` (the dev gold extraction), `prior`
+(the answer prior refit on train questions only) and `none` (nothing found). On val, gold answers 100.0% of the
+questions and the prior 55.9%.
+
+`stoa_eval gate --arm <arm>` is the confidence gate (E5). It compares three confidence signals: the mean of the
+top 3 detection scores, the probability of the modal count from calibrated scores, and agreement with a second
+arm. On val it picks a threshold per question family by Learn-then-Test, aiming at 95% exact among the answers
+marked sure, with delta 0.05 split over the families (Bonferroni). The val numbers only pick thresholds; the
+certificate comes from test. Test is run once for the arm we ship (`--certify`, recorded in
+`data/stoa/exp/test-certified.json`; a second run of the same arm needs a written reason). The plan is the unit:
+a plan marked sure counts as exact when every sure answer on it is. The result is always one sentence: "of the
+plans marked sure, at least X% have every sure answer exact (N plans, 95% bound); the gate opens on Y% of plans".
+
 ## What the answer should show
 
 An answer line (answer_v1.1) carries the value and unit, evidence boxes on the drawing, the method, cost and
