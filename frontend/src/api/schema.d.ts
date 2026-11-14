@@ -293,6 +293,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Issues
+         * @description Every finding of the project as a located issue (decision 0008).
+         */
+        get: operations["project_issues_api_projects__project_id__issues_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/issues.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Issues Csv
+         * @description The same issues as GET …/issues, one CSV row each.
+         */
+        get: operations["project_issues_csv_api_projects__project_id__issues_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/issues.zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Issues Zip
+         * @description issues.csv with each issue's number `n` first, and one PNG per drawing page that has
+         *     issues with a box: the page with each box drawn and labelled with its `n`.
+         */
+        get: operations["project_issues_zip_api_projects__project_id__issues_zip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/questions": {
         parameters: {
             query?: never;
@@ -458,6 +519,8 @@ export interface components {
             project_ask?: string | null;
             /** Question */
             question: string;
+            /** Refusal */
+            refusal?: ("unsupported-question" | "not-in-drawing" | "not-read" | "no-reader" | "no-scale" | "no-drawing") | null;
             /** Refused */
             refused: boolean;
             /** Unit */
@@ -731,6 +794,75 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** Issue */
+        Issue: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
+            /** Check */
+            check: string | null;
+            /** Drawing Id */
+            drawing_id: string | null;
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string | null;
+            /** Floor */
+            floor: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "conflict" | "refused_answer" | "set_aside" | "reading_flag" | "code_check_failed" | "double_check" | "unrelated_file";
+            links: components["schemas"]["IssueLinks"];
+            /** Mark Id */
+            mark_id: string | null;
+            /** Page */
+            page: number | null;
+            /** Polygon */
+            polygon: [
+                number,
+                number
+            ][] | null;
+            /** Quantity */
+            quantity: string | null;
+            /** Question */
+            question: string | null;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "fails_rule" | "needs_person" | "note";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "settled" | "signed_off";
+            /** Why */
+            why: string;
+        };
+        /**
+         * IssueLinks
+         * @description API paths to open the issue; None where there is nothing to open.
+         */
+        IssueLinks: {
+            /** Checks */
+            checks: string | null;
+            /** Drawing */
+            drawing: string | null;
+            /** Takeoff */
+            takeoff: string | null;
+            /** Trace */
+            trace: string | null;
+        };
         /** Limits */
         Limits: {
             /** File Mb */
@@ -927,6 +1059,15 @@ export interface components {
             /** Question */
             question: string;
         };
+        /** ProjectIssues */
+        ProjectIssues: {
+            /** Issues */
+            issues: components["schemas"]["Issue"][];
+            /** Pack */
+            pack: string | null;
+            /** Project Id */
+            project_id: string;
+        };
         /** ProjectList */
         ProjectList: {
             /** Projects */
@@ -958,6 +1099,8 @@ export interface components {
             files: number;
             /** Id */
             id: string;
+            /** Issues Open */
+            issues_open?: number | null;
             /** Name */
             name: string;
             /**
@@ -1957,6 +2100,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FileTrace"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_issues_api_projects__project_id__issues_get: {
+        parameters: {
+            query?: {
+                /** @description a building-code rule pack (decision 0009): its failed checks join the list */
+                pack?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectIssues"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_issues_csv_api_projects__project_id__issues_csv_get: {
+        parameters: {
+            query?: {
+                /** @description a building-code rule pack (decision 0009): its failed checks join the list */
+                pack?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the issues as CSV */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_issues_zip_api_projects__project_id__issues_zip_get: {
+        parameters: {
+            query?: {
+                /** @description a building-code rule pack (decision 0009): its failed checks join the list */
+                pack?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description issues.csv and marked pages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": unknown;
                 };
             };
             /** @description Validation Error */

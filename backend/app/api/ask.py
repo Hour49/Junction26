@@ -179,6 +179,7 @@ def ask_route(
                 drawing_id=view.drawing_id,
                 at=now(),
                 refused=view.refusal is not None,
+                refusal=None if view.refusal is None else view.refusal.code,
             ),
         )
     return view

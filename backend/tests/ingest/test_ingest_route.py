@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
+from test_ingest_probe import ink_sketch_pdf, stamped_plan_pdf
 from test_vector_pdf import swiss_sheet
 
 from app.adapters.archive.probe import is_scanned_pdf
@@ -143,6 +144,23 @@ def test_ingest_sends_a_scanned_pdf_to_the_raster_reader_and_a_drawn_one_to_vect
         ("plan.pdf", "vector"),
     ]
     assert (raster.sources, vector.sources) == (["scan.pdf"], ["plan.pdf"])
+
+
+def test_a_drawing_held_in_annotations_goes_to_the_raster_reader() -> None:
+    files = Files({"sketch.pdf": ink_sketch_pdf(), "stamp.pdf": stamped_plan_pdf()})
+    raster, vector = Seen(), Seen()
+    ingest(
+        ["sketch.pdf", "stamp.pdf"],
+        files=files,
+        finder=HelloSourceFinder(),
+        pages=PageSizes(files),
+        extractors={"bim": HelloExtractor(), "cad": HelloExtractor(),
+                    "vector": vector, "raster": raster},  # type: ignore[dict-item]
+        second_counter=HelloSecondCounter(),
+        sink=Kept(),
+        scanned=is_scanned_pdf,
+    )  # fmt: skip
+    assert (raster.sources, vector.sources) == (["sketch.pdf", "stamp.pdf"], [])
 
 
 def test_the_pipeline_tells_scans_apart(tmp_path: Path) -> None:

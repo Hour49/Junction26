@@ -216,10 +216,10 @@ def test_a_project_still_running_has_no_counts() -> None:
     status = ProjectStatus.model_validate(
         {"id": "p", "name": "p", "state": "running", "created_at": "t"}
     )
-    review = KeptReviews().review(status, None, None)  # type: ignore[arg-type]  # never read
-    assert review is None
-    found = summary_of(status, review)
-    assert (found.to_review, found.conflicts_open) == (None, None)
+    found = KeptReviews().counts(status, None, None, None)  # type: ignore[arg-type]  # never read
+    assert found is None
+    summary = summary_of(status, found)
+    assert (summary.to_review, summary.conflicts_open, summary.issues_open) == (None, None, None)
 
 
 def test_the_questions_asked_in_a_project_are_listed_newest_first(client: TestClient) -> None:

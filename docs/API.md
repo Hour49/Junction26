@@ -79,6 +79,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Case | Status, `code` |
 | --- | --- |
 | Unknown or malformed project, file or drawing id, unknown page, quantity key or mark id | 404 `not-found` |
+| Unknown rule pack (`?pack=`) | 404 `unknown-pack` |
 | `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity | 409 `not-allowed` |
@@ -112,6 +113,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
+| `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
 | `GET /api/drawings/{drawing_id}` | How the drawing was read, its pages, questions it can answer | #31 |
 | `GET /api/drawings/{drawing_id}/model` | The drawing model (extraction_v1) | #27 |
 | `GET /api/drawings/{drawing_id}/pages/{n}.png?width=` | Page `n` as PNG | #31 |
@@ -209,6 +211,7 @@ Every project, newest first: open one ingested earlier when a live ingest is slo
 over its drawings (the review queue). `conflicts_open`: the conflicts a person still has to settle, that is rows
 with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
 decided ("settled by a rule") or a person settled is not open. A room's several names count once.
+`issues_open`: the issues in state `open` in `GET /api/projects/{id}/issues` without a pack; null until `done`.
 
 <!-- fixture: project_list.json -->
 ```json
@@ -222,7 +225,8 @@ decided ("settled by a rule") or a person settled is not open. A room's several 
       "files": 11,
       "drawings": 5,
       "to_review": 1,
-      "conflicts_open": 0
+      "conflicts_open": 0,
+      "issues_open": 4
     }
   ]
 }
@@ -2272,7 +2276,8 @@ The questions asked in the project, newest first (the last 200): every `POST /ap
 `project_id` is kept. A `POST /api/projects/{id}/ask` is kept as one line per drawing that answered (or, when none
 did, one refused line per drawing), each with that drawing's `drawing_id`, `answer` and `unit`, and with
 `project_ask`: an id the same on every line of that question, so the lines group into one question. `project_ask`
-is absent on a line from `POST /api/ask`. An ask without a `project_id` is not kept.
+is absent on a line from `POST /api/ask`. A refused line carries `refusal`, the refusal's `code` (absent when the
+question was answered, and on lines kept before 2026-11-14). An ask without a `project_id` is not kept.
 
 <!-- fixture: project_questions.json -->
 ```json
@@ -2285,7 +2290,8 @@ is absent on a line from `POST /api/ask`. An ask without a `project_id` is not k
       "unit": null,
       "drawing_id": "adeefbbcc17559fc",
       "at": "2026-11-14T08:05:00Z",
-      "refused": true
+      "refused": true,
+      "refusal": "unsupported-question"
     },
     {
       "question": "How many doors are there?",
@@ -2396,6 +2402,259 @@ many quantities are left to review and how many are signed off, and every confli
 
 `needs_person: true` marks a conflict no rule decides and nobody settled ("needs you"); the others were decided by
 a rule ("AI decision") or settled by a surveyor.
+
+### `GET /api/projects/{project_id}/issues?pack=<pack id>`
+
+Every finding in the project as one located issue, the list Stoa's floor view takes in: conflicts between two
+methods, refused answers, pages read with a caveat, files set aside, and with a `pack` the failed building-code
+checks. The decision record, with the reasons for each choice, is
+[0008](decisions/0008-located-issues.md). The list makes no model call.
+
+- `pack` is optional: a rule pack's id (decision 0009). Its failed checks (`code_check_failed`) are listed only
+  when a pack is given, since the country is chosen on the screen. Until the code checks land there is no pack.
+- Errors: an unknown project is 404 `not-found`. An unknown pack is 404 `unknown-pack`. A project that is not
+  `done` is 409 `not-allowed`. The CSV and zip routes answer errors the same way (JSON), so offer the downloads
+  once the project is `done`.
+- Order, the same in all three forms and stable between calls: severity (`fails_rule`, `needs_person`, `note`),
+  then the drawing in the project's `drawings` order (files with no drawing after, in upload order), then page,
+  then the box's top edge (no page or box last), then the source ref.
+
+Each issue:
+
+- `id`: stable across calls and restarts, and kept when the issue is settled or signed off.
+- `kind`:
+  - `conflict`: two methods disagree on a quantity. `quantity` + `drawing_id` is its `ConflictEntry` in
+    `GET …/review`.
+  - `refused_answer`: a question kept in the project's question list got no number on that drawing. Questions the
+    parser can't read are left out.
+  - `reading_flag`: the page was read with a caveat (a phone photo, a scan), or its reader read nothing.
+  - `set_aside`: ingest set the file aside, with `reason`.
+  - `code_check_failed`: a failed rule of the pack (decision 0009). Not produced yet (#139).
+  - `double_check`: an answer we can't vouch for, one issue per disputed place. Not produced yet (#129).
+  - `unrelated_file`: an upload that is not a floor plan (decision 0010, file triage). Not produced yet.
+  - All seven values are in the type now, so a screen can switch over them; the last three appear once their
+    work lands.
+- `severity`: `fails_rule` (a failed code check), `needs_person` (a conflict no rule decides and nobody settled),
+  or `note` (everything else: decided conflicts, refusals, reading flags, set-aside files).
+- `state`: `open`, `settled` (a person settled it, or a rule decides it) or `signed_off`. Only a conflict can be
+  other than `open`.
+- `file` is the file as **this project** uploaded it. `file_id` is its `FileStatus.id` (`f3`). `drawing_id` is null
+  for a file with no drawing.
+- `floor`: the storey, only where the source states it (an IFC storey: the plan's on the page, or the quantity
+  key's); null otherwise, never guessed.
+- `page`, `box`, `polygon`, `mark_id`: where to open the drawing, in page fractions as on `MarkView`.
+  - A quantity with one takeoff mark (a room) gives that mark: its page, box, `polygon` and `mark_id` (its
+    `MarkView.id` in the takeoff, so the viewer can select it).
+  - Otherwise the box a method read, or the sheet's only plan, with `polygon` and `mark_id` null.
+  - A reading flag gives the page of a one-page drawing and no box. A refused answer and a set-aside file have
+    no page.
+- `why`: one plain sentence.
+- `quantity` (the takeoff key), `question` (as asked), `reason` (ingest's) and `check` (`<pack>:<result id>`) are
+  the source refs, null where they don't apply.
+- `links`: API paths (not screen routes) to the drawing and its takeoff in this project, the file's trace, and for a
+  code check the drawing's checks.
+
+The sample after a door question on its scan (no reader in no-keys mode):
+
+<!-- fixture: project_issues.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d4f",
+  "pack": null,
+  "issues": [
+    {
+      "id": "conflict-734b9f17d4fd",
+      "kind": "conflict",
+      "severity": "note",
+      "state": "settled",
+      "drawing_id": "6d153ea15dca9ab4",
+      "file": "plans/flat-b.pdf",
+      "file_id": "f3",
+      "floor": null,
+      "page": 1,
+      "box": [
+        0.16667,
+        0.125,
+        0.5,
+        0.375
+      ],
+      "polygon": [
+        [
+          0.16667,
+          0.125
+        ],
+        [
+          0.16667,
+          0.375
+        ],
+        [
+          0.5,
+          0.375
+        ],
+        [
+          0.5,
+          0.125
+        ]
+      ],
+      "mark_id": "m1",
+      "why": "Area of room (name Küche · 1.01): checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale.",
+      "quantity": "area:room|name=1.01",
+      "question": null,
+      "reason": null,
+      "check": null,
+      "links": {
+        "drawing": "/api/drawings/6d153ea15dca9ab4?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/6d153ea15dca9ab4/takeoff?project=5e0c1a2b3d4f",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "reading_flag-b8584dc30c73",
+      "kind": "reading_flag",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": "3b3ce7db34257f63",
+      "file": "scans/ground-floor.png",
+      "file_id": "f4",
+      "floor": null,
+      "page": 1,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "No reader for the raster route yet: nothing was read.",
+      "quantity": null,
+      "question": null,
+      "reason": "no reader for the raster route yet: nothing was read",
+      "check": null,
+      "links": {
+        "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "refused_answer-3b5adbf71a63",
+      "kind": "refused_answer",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": "3b3ce7db34257f63",
+      "file": "scans/ground-floor.png",
+      "file_id": "f4",
+      "floor": null,
+      "page": null,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "No answer to \"How many doors are there?\": the drawing has no reader for it.",
+      "quantity": null,
+      "question": "How many doors are there?",
+      "reason": null,
+      "check": null,
+      "links": {
+        "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "reading_flag-2b11c57c0ff6",
+      "kind": "reading_flag",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": "37f6819bd17d65d9",
+      "file": "photos/plan-photo.jpg",
+      "file_id": "f6",
+      "floor": null,
+      "page": 1,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "A phone photo, read without perspective correction; no reader for the raster route yet: nothing was read.",
+      "quantity": null,
+      "question": null,
+      "reason": "a phone photo, read without perspective correction; no reader for the raster route yet: nothing was read",
+      "check": null,
+      "links": {
+        "drawing": "/api/drawings/37f6819bd17d65d9?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/37f6819bd17d65d9/takeoff?project=5e0c1a2b3d4f",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f6/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "set_aside-02a5f0314890",
+      "kind": "set_aside",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": null,
+      "file": "photos/site.jpg",
+      "file_id": "f7",
+      "floor": null,
+      "page": null,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1)).",
+      "quantity": null,
+      "question": null,
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+      "check": null,
+      "links": {
+        "drawing": null,
+        "takeoff": null,
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "set_aside-ac138023ff60",
+      "kind": "set_aside",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": null,
+      "file": "cad/detail.dxf",
+      "file_id": "f9",
+      "floor": null,
+      "page": null,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "Set aside at ingest: no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on.",
+      "quantity": null,
+      "question": null,
+      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+      "check": null,
+      "links": {
+        "drawing": null,
+        "takeoff": null,
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f9/trace",
+        "checks": null
+      }
+    }
+  ]
+}
+```
+
+#### `GET /api/projects/{project_id}/issues.csv?pack=`
+
+The same issues as CSV (`text/csv; charset=utf-8`), saved as `<project name>-issues[-<pack>].csv`. Columns:
+`id,kind,severity,state,file,file_id,drawing_id,floor,page,x0,y0,x1,y1,mark_id,why,quantity,question,reason,check`.
+A missing value is an empty cell, and the polygon is left out. A text cell starting with `=`, `+`, `-` or `@` is
+written with a leading `'`, as in the takeoff CSV.
+
+#### `GET /api/projects/{project_id}/issues.zip?pack=`
+
+The issues with the floor plans, saved as `<project name>-issues[-<pack>].zip`:
+
+- `issues.csv`: the CSV above with a first column `n`, the issue's number in the list.
+- One PNG per drawing page that has issues with a box, named `<file stem>-p<page>.png` (`-2`, `-3`… when two files
+  share a stem). It is the page at 1600 px with each such issue drawn (its polygon, else its box), coloured by
+  severity and labelled with its `n`. Under the page are the issues' sentences, a colour key and the drawing's
+  licence credit.
+- An issue with no page or no box is only in the CSV, and a page with no such issue has no PNG.
 
 ## Drawings
 
@@ -6244,6 +6503,10 @@ formula in a spreadsheet.
   null while a running project's files are not grouped yet, then final (it overshot, 0/19 then 13/13 on the demo
   zip, because each rendering counted until its group was read); groups of only DXF or SVG files no longer count,
   and a file set aside after grouping still does. Ingest records every file's group before reading the first group.
+- 2026-11-14, additive (story #140, decision 0008, Tudor's review #142): `GET /api/projects/{id}/issues?pack=`,
+  `issues.csv` and `issues.zip` (every finding as a located issue; the zip adds the pages with the issues marked);
+  `ProjectSummary.issues_open`; the question list's lines carry `refusal` (the refusal code) when refused; a new
+  error code `unknown-pack` (404). `Issue.kind` lists every planned kind, three of them not produced yet.
 - 2026-11-14, additive (board #14, the project chat): `POST /api/projects/{project_id}/ask` with `{question}`
   returns `{question, parts: [{drawing_id, name, answer}], total, total_unit, total_sure, total_note}`, each part
   the `POST /api/ask` answer on one drawing of the project; a total only for one answering drawing or for drawings

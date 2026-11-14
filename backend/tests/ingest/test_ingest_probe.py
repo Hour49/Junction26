@@ -2,13 +2,18 @@
 
 import io
 import random
+import re
 import zipfile
 
+import pypdfium2
 import pytest
 from PIL import Image, ImageFilter
+from pypdfium2 import raw
 from test_vector_pdf import swiss_sheet
 
 from app.adapters.archive import FileProbe
+from app.adapters.page_render import render_png
+from app.core.ingest.model import SheetFile
 from scripts.make_sample_archive import (
     ifc_model,
     jpeg_bytes,
@@ -106,3 +111,95 @@ def test_a_zip_that_reaches_the_probe_is_named() -> None:
 
     assert kind(zipped("[Content_Types].xml")) == "office"
     assert kind(zipped("plan.pdf")) == "archive"
+
+
+# Real PDFs ingest set aside or half-read (2026-11-14, .agents/briefs/ingest-setaside-bugs.md). The
+# fixtures are built here: no dataset file is in the repo.
+
+
+def _saved(document: pypdfium2.PdfDocument) -> bytes:
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def ink_sketch_pdf(markup_on: bytes | None = None) -> bytes:
+    """A plan sketched by hand as one Ink annotation (a pen on a tablet), on an empty page or
+    as a markup on `markup_on`'s page 1."""
+    document = pypdfium2.PdfDocument(markup_on) if markup_on else pypdfium2.PdfDocument.new()
+    page = document[0] if markup_on else document.new_page(612, 792)
+    annot = raw.FPDFPage_CreateAnnot(page.raw, raw.FPDF_ANNOT_INK)
+    raw.FPDFAnnot_SetColor(annot, raw.FPDFANNOT_COLORTYPE_Color, 200, 0, 0, 255)
+    raw.FPDFAnnot_SetRect(annot, raw.FS_RECTF(100, 700, 500, 100))
+    walls = [(100, 100, 500, 100), (500, 100, 500, 700), (500, 700, 100, 700), (100, 700, 100, 100)]
+    for x0, y0, x1, y1 in [*walls, (300, 100, 300, 700)]:
+        points = (raw.FS_POINTF * 2)(raw.FS_POINTF(x0, y0), raw.FS_POINTF(x1, y1))
+        raw.FPDFAnnot_AddInkStroke(annot, points, 2)
+    raw.FPDFPage_CloseAnnot(annot)
+    return _saved(document)
+
+
+def stamped_plan_pdf() -> bytes:
+    """A drawing pasted as a Stamp annotation: its paths live in the stamp's appearance, the
+    page itself holds nothing."""
+    document = pypdfium2.PdfDocument.new()
+    page = document.new_page(800, 400)
+    annot = raw.FPDFPage_CreateAnnot(page.raw, raw.FPDF_ANNOT_STAMP)
+    raw.FPDFAnnot_SetRect(annot, raw.FS_RECTF(50, 350, 750, 50))
+    for index in range(12):
+        wall = raw.FPDFPageObj_CreateNewRect(60 + 55 * index, 60, 50, 280)
+        raw.FPDFPageObj_SetStrokeColor(wall, 0, 0, 0, 255)
+        raw.FPDFPath_SetDrawMode(wall, raw.FPDF_FILLMODE_NONE, True)
+        raw.FPDFAnnot_AppendObject(annot, wall)
+    raw.FPDFPage_CloseAnnot(annot)
+    return _saved(document)
+
+
+def drawing_set_pdf() -> bytes:
+    """A permit set: page 1 is the notes sheet (text), page 2 a drawn plan."""
+    document = pypdfium2.PdfDocument(text_pdf())
+    document.import_pages(pypdfium2.PdfDocument(swiss_sheet().pdf()))
+    return _saved(document)
+
+
+def misplaced_page_pdf() -> bytes:
+    """A PDF whose cross-reference table points page 1's object at the wrong bytes (an editor
+    shifted the objects and kept the old offsets): the file opens, its page does not load."""
+    data = swiss_sheet().pdf()
+    page = re.search(rb"(\d+) 0 obj\s*<<(?:(?!endobj).)*?/Type\s*/Page(?!s)", data, re.DOTALL)
+    table = re.search(rb"xref\s+(\d+) \d+\s+", data)
+    assert page is not None and table is not None, "the fixture expects one classic xref table"
+    number, at = int(page.group(1)), page.start()
+    entry = table.end() + 20 * (number - int(table.group(1)))  # entries are 20 bytes each
+    assert int(data[entry : entry + 10]) == at
+    return data[:entry] + b"%010d" % (at + 7) + data[entry + 10 :]
+
+
+def test_a_drawing_held_only_in_annotations_is_read_as_an_image() -> None:
+    for data, held in ((ink_sketch_pdf(), "1 ink drawing"), (stamped_plan_pdf(), "1 stamp")):
+        found = FileProbe().probe(data)
+        assert found.kind == "pdf_scan", found.did
+        assert found.did.startswith(f"a drawing held in the PDF's annotations ({held}"), found.did
+
+
+def test_markups_on_a_drawn_page_leave_it_a_drawn_pdf() -> None:
+    assert kind(ink_sketch_pdf(markup_on=swiss_sheet().pdf())) == "pdf_vector"
+
+
+def test_annotations_are_drawn_when_a_page_is_rendered() -> None:
+    sheet = SheetFile(drawing_id="d", path="sketch.pdf", kind="pdf", data=ink_sketch_pdf())
+    with Image.open(io.BytesIO(render_png(sheet, 1, 400))) as image:
+        darkest, _ = image.convert("L").getextrema()
+    assert isinstance(darkest, int) and darkest < 128  # the red strokes, on white paper
+
+
+def test_a_set_whose_first_page_is_text_names_its_drawn_pages() -> None:
+    found = FileProbe().probe(drawing_set_pdf())
+    assert found.kind == "pdf_text"  # the vector reader reads page 1 only (vector_pdf)
+    assert found.did.endswith("; page 2 holds a drawing, which is not read (only page 1 is)")
+
+
+def test_a_pdf_whose_page_does_not_load_is_named_damaged() -> None:
+    found = FileProbe().probe(misplaced_page_pdf())
+    assert found.kind == "unknown"
+    assert found.did.startswith("a damaged PDF: page 1 does not load"), found.did

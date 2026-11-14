@@ -8,6 +8,8 @@ count model. app/core/pipeline/count_arbiter.py picks each element family's coun
 where the pick differs from the base's count, elements are dropped (the lowest `attrs.score`
 first) or added without a location (the first plan's box, `attrs.located` false), as the
 Decisions swap does. `plan` is never changed (T1's scored arm left it as the detector read it).
+What it read is kept with the drawing (`count_arbiter`, per L1 head: L1's P(count) and the
+arbiter's P of the count it kept or set), for the answer's local gate; it is never counted.
 
 ARBITER_MODEL_DIR (default data/models/arbiter/T1/, gitignored, from
 data/stoa/exp/local-dec/) holds:
@@ -30,7 +32,7 @@ import numpy as np
 from PIL import Image
 
 from app.adapters.raster_detector import Session, onnx_session
-from app.core.drawing.model import Element, ElementClass
+from app.core.drawing.model import ArbiterReading, Element, ElementClass
 from app.core.errors import InvalidInputError, NotFoundError
 from app.core.pipeline.count_arbiter import (
     FAMILY_CLASSES,
@@ -180,6 +182,7 @@ class ArbiterCountExtractor:
         probs = self._l1.probs(self._files.read(source.path))
         elements = list(found.elements)
         changes: list[str] = []
+        picked: dict[str, float] = {}
         for family, classes in FAMILY_CLASSES.items():
             if family not in self._model.families:
                 continue
@@ -187,6 +190,7 @@ class ArbiterCountExtractor:
                 continue  # a reader did not look for it: no count to check
             reading = reading_of(family, found, second, probs)
             chosen = pick(self._model, family, reading)
+            picked[family] = chosen.p
             count = reading.base
             if chosen.count == count:
                 continue
@@ -211,7 +215,12 @@ class ArbiterCountExtractor:
                         )
                     )  # fmt: skip
         note = "arbiter t1: " + ("; ".join(changes) if changes else "counts kept")
-        return found.model_copy(update={"elements": tuple(elements), "notes": (*found.notes, note)})
+        kept = {
+            head: ArbiterReading(probs=tuple(values), p=picked.get(head))
+            for head, values in probs.items()
+        }
+        update = {"elements": tuple(elements), "notes": (*found.notes, note), "count_arbiter": kept}
+        return found.model_copy(update=update)
 
     @classmethod
     def from_folder(

@@ -136,6 +136,7 @@ def responses() -> dict[str, Any]:
     others.append(set_aside(client, found))
     others += in_flight(root / "flight", settings, found)
     found["project_ask"] = project_ask(client, started["id"])  # the frontend reads it by name
+    found["project_issues"] = project_issues(client, started["id"], files)
     found.update(double_checked(root / "check", settings))  # last: the frontend indexes the others
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
@@ -171,6 +172,18 @@ def reviewed(client: TestClient, drawing_id: str, found: dict[str, Any]) -> list
     assert refused.status_code == 409, refused.text
     found["error_not_allowed"] = refused.json()
     return []
+
+
+def project_issues(
+    client: TestClient, project_id: str, files: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """The sample's located issues (no pack), after a door question on the scan, which has no
+    reader in no-keys mode: a refused answer joins the conflict, reading flags and set-aside
+    files."""
+    scan = files["scans/ground-floor.png"]["drawing_id"]
+    body = {"drawing_id": scan, "question": "How many doors are there?", "project_id": project_id}
+    assert client.post("/api/ask", json=body).status_code == 200
+    return client.get(f"/api/projects/{project_id}/issues").json()
 
 
 def project_ask(client: TestClient, project_id: str) -> dict[str, Any]:

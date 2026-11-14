@@ -1,0 +1,178 @@
+{
+  "project_id": "5e0c1a2b3d4f",
+  "pack": null,
+  "issues": [
+    {
+      "id": "conflict-734b9f17d4fd",
+      "kind": "conflict",
+      "severity": "note",
+      "state": "settled",
+      "drawing_id": "6d153ea15dca9ab4",
+      "file": "plans/flat-b.pdf",
+      "file_id": "f3",
+      "floor": null,
+      "page": 1,
+      "box": [
+        0.16667,
+        0.125,
+        0.5,
+        0.375
+      ],
+      "polygon": [
+        [
+          0.16667,
+          0.125
+        ],
+        [
+          0.16667,
+          0.375
+        ],
+        [
+          0.5,
+          0.375
+        ],
+        [
+          0.5,
+          0.125
+        ]
+      ],
+      "mark_id": "m1",
+      "why": "Area of room (name Küche · 1.01): checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale.",
+      "quantity": "area:room|name=1.01",
+      "question": null,
+      "reason": null,
+      "check": null,
+      "links": {
+        "drawing": "/api/drawings/6d153ea15dca9ab4?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/6d153ea15dca9ab4/takeoff?project=5e0c1a2b3d4f",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "reading_flag-b8584dc30c73",
+      "kind": "reading_flag",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": "3b3ce7db34257f63",
+      "file": "scans/ground-floor.png",
+      "file_id": "f4",
+      "floor": null,
+      "page": 1,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "No reader for the raster route yet: nothing was read.",
+      "quantity": null,
+      "question": null,
+      "reason": "no reader for the raster route yet: nothing was read",
+      "check": null,
+      "links": {
+        "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "refused_answer-3b5adbf71a63",
+      "kind": "refused_answer",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": "3b3ce7db34257f63",
+      "file": "scans/ground-floor.png",
+      "file_id": "f4",
+      "floor": null,
+      "page": null,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "No answer to \"How many doors are there?\": the drawing has no reader for it.",
+      "quantity": null,
+      "question": "How many doors are there?",
+      "reason": null,
+      "check": null,
+      "links": {
+        "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "reading_flag-2b11c57c0ff6",
+      "kind": "reading_flag",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": "37f6819bd17d65d9",
+      "file": "photos/plan-photo.jpg",
+      "file_id": "f6",
+      "floor": null,
+      "page": 1,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "A phone photo, read without perspective correction; no reader for the raster route yet: nothing was read.",
+      "quantity": null,
+      "question": null,
+      "reason": "a phone photo, read without perspective correction; no reader for the raster route yet: nothing was read",
+      "check": null,
+      "links": {
+        "drawing": "/api/drawings/37f6819bd17d65d9?project=5e0c1a2b3d4f",
+        "takeoff": "/api/drawings/37f6819bd17d65d9/takeoff?project=5e0c1a2b3d4f",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f6/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "set_aside-02a5f0314890",
+      "kind": "set_aside",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": null,
+      "file": "photos/site.jpg",
+      "file_id": "f7",
+      "floor": null,
+      "page": null,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1)).",
+      "quantity": null,
+      "question": null,
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+      "check": null,
+      "links": {
+        "drawing": null,
+        "takeoff": null,
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
+        "checks": null
+      }
+    },
+    {
+      "id": "set_aside-ac138023ff60",
+      "kind": "set_aside",
+      "severity": "note",
+      "state": "open",
+      "drawing_id": null,
+      "file": "cad/detail.dxf",
+      "file_id": "f9",
+      "floor": null,
+      "page": null,
+      "box": null,
+      "polygon": null,
+      "mark_id": null,
+      "why": "Set aside at ingest: no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on.",
+      "quantity": null,
+      "question": null,
+      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+      "check": null,
+      "links": {
+        "drawing": null,
+        "takeoff": null,
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f9/trace",
+        "checks": null
+      }
+    }
+  ]
+}

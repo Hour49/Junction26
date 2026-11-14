@@ -340,8 +340,8 @@ def _with_footer(
     room = width - 2 * MARGIN
     rows: list[tuple[str, ImageFont.FreeTypeFont | ImageFont.ImageFont, tuple[int, int, int]]] = []
     rows += [(text, big, INK) for text in _wrap(headline, big, room)]
-    if proof.arithmetic:
-        rows += [(text, _font(size), INK) for text in _wrap(proof.arithmetic, _font(size), room)]
+    for said in (proof.arithmetic or "").splitlines():  # "\n" starts a line (issues.zip)
+        rows += [(text, _font(size), INK) for text in _wrap(said, _font(size), room)]
     if proof.check:
         rows += [(text, _font(size), INK) for text in _wrap(proof.check, _font(size), room)]
     if unplaced:  # labels with no room on the page, so nothing is silently dropped
