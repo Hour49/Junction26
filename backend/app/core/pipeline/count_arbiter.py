@@ -10,7 +10,9 @@ What it reads, all local and all at runtime (local-dec's T1, prototypes/localdec
 - L1: a page-level count model's P(count = i) per family.
 - the prior: the train answers' share of each count per family.
 
-Candidates are the base, the second count, L1's top, base - 1 (not below 0) and base + 1. Each
+Candidates are the base, the second count, L1's top, base - 1 (not below 0) and base + 1; a base
+above L1's last class is the only candidate (L1 has no class for it, so it would give the base and
+its neighbours the same floored P and pull the count down to its own top). Each
 candidate k gets the features below; P(k is right) = sigmoid(coef . (x - mu) / sd + intercept),
 and the pick is the candidate with the highest P (the first of equal ones). The model was fit
 on out-of-fold train pages only; on val it scores +0.9 pp [-0.1, +1.8] against C-L-swap.
@@ -72,6 +74,8 @@ def _top(probs: Sequence[float]) -> int:
 
 def candidates(reading: Reading) -> list[int]:
     base = reading.base
+    if base >= len(reading.probs):
+        return [base]  # L1 has no class this high: it can't speak against the base
     return sorted({base, reading.second, _top(reading.probs), max(base - 1, 0), base + 1})
 
 

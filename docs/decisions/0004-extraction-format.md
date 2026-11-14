@@ -168,3 +168,30 @@ are byte for byte what they were. A precomputed source (`dir:`, `exp:`) does not
 
 Alternative rejected: the answer step recomputing L1 from the image. It would need the model and the page at
 answer time, and the arbiter's P needs the readers' counts, which only ingest has.
+
+## Amendment, 2026-11-14 13:24: a space's windows in `model_objects`
+
+- Decided by: the orchestrator (ifc-adapter-139 brief, 12:51: "each space's ModelObject.attrs gains windows (int)
+  and window_ids"); written by agent fable-rooms (worker).
+
+A plan sheet does not draw every window of the model: on one dev model the geometry kernel cannot build 54 of 110,
+and a window above or below the cut has no shape on the page. A check that asks whether a room has a window (#139)
+therefore reads it from the model. A `space` in `model_objects` may now carry two `attrs` keys:
+
+- `windows` (int >= 0): how many of the model's windows belong to the space. A window belongs to a space when the
+  model says so (IfcRelSpaceBoundary), or its shape seen from above is within 0.3 m of the space's footprint with
+  heights that overlap by more than 0.3 m, or, when it has no shape, its placement point is
+  (`backend/app/adapters/ifc_model/windows.py`).
+- `window_ids` (string): the `id`s of those windows' own `model_objects` entries, separated by one space, in the
+  model's order. Left out when `windows` is 0. A window's `element` then says whether this sheet draws it.
+
+No `windows` key means not known, which is not the same as 0: a reader must not take it for "no window". 0 is
+written only when the space has a solid, the model has windows and every one of them has a shape, because a window
+placed by a point, or not placed at all, may be the one that was missed.
+
+Only IfcWindow objects are counted. A room lit through a glazed door or a curtain wall has `windows` 0, so a check
+looks at the room's doors to the outside before it says the room has no daylight: on the dev models the four
+bedrooms with 0 (one model) each have a 2.36 m high door to the outside.
+
+`attrs` already takes any JSON scalar, so the schema and the Part 1 scorer don't change. Files without the keys read
+as before: all gold, every non-BIM file, and every extraction written before this.

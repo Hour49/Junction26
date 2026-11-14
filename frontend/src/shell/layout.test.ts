@@ -185,3 +185,13 @@ it('SH-70 the compact header applies up to 1100 px: not sticky, tabs wrap and st
   expect(rulesFor('.view-links', compact)).toMatch(/flex-wrap:\s*wrap/);
   expect(rulesFor('.view-links a', compact)).toMatch(/min-height:\s*44px/);
 });
+
+it('SH-71 the country button stays on one line and ellipsises a long name', () => {
+  expect(rulesFor('.country-button', css)).toMatch(/white-space:\s*nowrap/);
+  const country = rulesFor('.country', css);
+  expect(country).toMatch(/flex:\s*0 0 auto/);
+  expect(country).toMatch(/max-width:\s*240px/);
+  const name = rulesFor('.country-name', css);
+  expect(name).toMatch(/overflow:\s*hidden/);
+  expect(name).toMatch(/text-overflow:\s*ellipsis/);
+});

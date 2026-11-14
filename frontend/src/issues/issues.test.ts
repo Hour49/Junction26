@@ -87,6 +87,12 @@ describe('issues.ts', () => {
     // one source for the two kinds that land on fe-surveyor's / the ask screens
     expect(conflict.Settle).toBe(issueRoute(byId('i-conflict'), PID, null));
     expect(query(must(conflict.Settle)).get('q')).toBe('area:room|name=1.01');
+    // a conflict already settled or signed off: same route, a neutral word, nothing left to settle
+    for (const state of ['settled', 'signed_off'] as const) {
+      const done = linksOf({ ...byId('i-conflict'), state });
+      expect(done.Settle).toBeUndefined();
+      expect(done['See the conflict']).toBe(conflict.Settle);
+    }
     const open = must(conflict['Open the drawing']);
     expect(open.startsWith(`#/p/${PID}/d/${DRAWING_B}/engineer?`)).toBe(true);
     expect(query(open).get('page')).toBe('1');
@@ -97,6 +103,8 @@ describe('issues.ts', () => {
       'How many saunas are there?',
     );
     expect(Object.keys(linksOf(byId('i-refused')))).toEqual(['Ask again']);
+    // the ask route asks on open (EN-72, CH-14), so the word says so in every state
+    expect(Object.keys(linksOf({ ...byId('i-refused'), state: 'settled' }))).toEqual(['Ask again']);
 
     expect(linksOf(byId('i-aside'))).toEqual({ 'Why it was set aside': `#/p/${PID}/f/f7` });
 
