@@ -8,9 +8,12 @@ import io
 import json
 from pathlib import Path
 
+import numpy as np
+import pypdfium2
 import pytest
 from pdf_sheets import SheetPdf, rect
 from PIL import Image
+from test_pdf_tables import door_schedule
 from test_scan_images import DETECTOR, Files, Reader, Session
 from test_vector_pdf import ifc_sheet, swiss_sheet
 
@@ -105,7 +108,7 @@ def test_an_uploaded_plot_read_by_the_fallback_is_flagged(
     monkeypatch.setenv("VECTOR_FALLBACK", fallback)
     ingest = build_ingest(Settings(), tmp_path / "projects", background=False)
     names = ingest._names  # pyright: ignore[reportPrivateUsage]
-    assert names.get("vector_fallback") == (None if fallback == "off" else "raster")
+    assert names.get("vector_fallback") == (None if fallback == "off" else "raster:v2")
     project = ingest.start("plan.pdf", plot())
     (file,) = ingest.status(project).files
     assert file.kind == "pdf_vector" and file.state == "flagged"
@@ -116,7 +119,9 @@ def test_an_uploaded_plot_read_by_the_fallback_is_flagged(
         assert file.route == "raster" and file.reason.startswith(UNRULED_FLAG)
         assert file.takeoff["door"] == 1
         stages = ingest.trace(project, file.id).stages
-        assert "VECTOR_FALLBACK" in next(stage.did for stage in stages if stage.stage == "route")
+        routes = [stage for stage in stages if stage.stage == "route"]
+        assert [stage.output for stage in routes] == ["vector", "raster"]  # read, then fell back
+        assert "VECTOR_FALLBACK" in routes[-1].did
 
 
 def test_the_flag_is_a_reading_flag_so_no_answer_is_certified() -> None:
@@ -196,3 +201,112 @@ def test_every_style_is_drawn_with_filled_paths() -> None:
         for path in styled:
             unfilled = dataclasses.replace(path, fill_mode=FILL_NONE)
             assert not any(style.matches_path(unfilled) for style in STYLES)
+
+
+class PlanOnly(Session):
+    """A detector that finds a plan and nothing on it: what Carbon and the detector give on a
+    wall-detail or cabinet sheet (think-local r10 line 3: "1 floor plan" on 3 such sheets)."""
+
+    def run(self, names: list[str], feed: dict) -> list[np.ndarray]:
+        found = {
+            "labels": np.array([[2]]),
+            "boxes": np.array([[[0, 0, 100, 100]]], dtype=np.float32),
+            "scores": np.array([[0.9]], dtype=np.float32),
+        }
+        return [found[name] for name in names]
+
+
+def upload(tmp_path: Path, name: str, data: bytes) -> list:
+    """The project's files after a real upload with VECTOR_FALLBACK=raster."""
+    ingest = build_ingest(
+        Settings(vector_fallback="raster"), tmp_path / "projects", background=False
+    )
+    return list(ingest.status(ingest.start(name, data)).files)
+
+
+def test_a_page_with_no_element_and_no_room_still_reads_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """r10 fix 1: the image reading found a plan and nothing on it, so the file keeps the vector
+    route's reading (nothing), not "1 floor plan" on a flagged page."""
+    detector(tmp_path, monkeypatch)
+    monkeypatch.setattr(raster_detector, "onnx_session", lambda path: PlanOnly())
+    (file,) = upload(tmp_path, "plan.pdf", plot())
+    assert file.route == "vector" and "read nothing" in file.reason
+    assert UNRULED_FLAG not in file.reason and "plan" not in file.takeoff
+
+
+def two_pages() -> bytes:
+    """A set of two plot pages, both drawn: ingest reads page 2 as `plan#p2.pdf`."""
+    document = pypdfium2.PdfDocument.new()
+    for _ in range(2):
+        document.import_pages(pypdfium2.PdfDocument(plot()))
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def test_only_page_1_of_an_upload_falls_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """r10 fix 2: a set's later pages keep the vector route, so an upload pays one image read."""
+    detector(tmp_path, monkeypatch)
+    files = {file.path: file for file in upload(tmp_path, "plan.pdf", two_pages())}
+    assert set(files) == {"plan.pdf", "plan#p2.pdf"}
+    assert files["plan.pdf"].route == "raster" and files["plan.pdf"].takeoff["door"] == 1
+    assert files["plan#p2.pdf"].route == "vector" and "read nothing" in files["plan#p2.pdf"].reason
+
+
+def schedule_plot() -> bytes:
+    """A drawn PDF in no style the vector reader knows, with a door schedule it reads."""
+    sheet = SheetPdf(600, 400)
+    door_schedule(sheet)
+    for n in range(12):
+        x, y = 40 + 45 * n, 260 + 10 * (n % 3)
+        sheet.path(rect(x, y, x + 30, y + 30), width=1.0)
+    return sheet.pdf()
+
+
+def test_a_drawn_pdf_whose_schedule_is_read_keeps_the_vector_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """r10 fix 3: the vector route read its schedule, so it is not read again as an image nor
+    flagged (golden's A-801 kept its answers but lost their level)."""
+    detector(tmp_path, monkeypatch)
+    data = schedule_plot()
+    assert Unruled()(data)  # no reading rules: the fallback would read it before
+    (file,) = upload(tmp_path, "schedule.pdf", data)
+    assert file.route == "vector" and file.state == "ready" and UNRULED_FLAG not in file.reason
+
+
+@pytest.mark.parametrize(("data", "route", "flags"), [
+    (schedule_plot(), "vector", ()),  # the vector route read its schedule: not read as an image
+    (plot(), "raster", (UNRULED_FLAG,)),  # read as an image: flagged
+])  # fmt: skip
+def test_the_cli_flags_only_a_pdf_it_read_as_an_image(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    data: bytes,
+    route: str,
+    flags: tuple[str, ...],
+) -> None:
+    """review-348 S1: the golden/answer path flagged every drawn PDF without reading rules, so
+    with a GATE_POLICY a schedule sheet the vector route read could never be sure there, while
+    the product keeps its level."""
+    detector(tmp_path, monkeypatch)
+    dataset = tmp_path / "dataset"
+    (dataset / PDF).parent.mkdir(parents=True)
+    (dataset / PDF).write_bytes(data)
+    pipeline = build_pipeline(Settings(vector_fallback="raster"), dataset, lambda _: "pdf_vector")
+    (sheet,) = pipeline.ingest([PDF], ExtractionV1Writer(tmp_path / "out", {PDF: "dev"})).sheets
+    assert sheet.route == route
+    assert pipeline.flags is not None and pipeline.flags(PDF) == flags
+
+
+def test_an_upload_named_like_a_later_page_is_page_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """review-348 N3: a later page is a file ingest split off a set, not any name ending #p2."""
+    detector(tmp_path, monkeypatch)
+    (file,) = upload(tmp_path, "plan#p2.pdf", plot())
+    assert file.route == "raster" and file.takeoff["door"] == 1

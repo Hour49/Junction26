@@ -302,7 +302,7 @@ def test_ac13_long_results_are_cut_for_the_model_and_kept_whole() -> None:
     )
     turn(model, Tools(get_takeoff=big), chat)
     seen = json.loads(model.sent[1][-1]["content"])  # still JSON, geometry and nulls left out
-    assert seen["rows"][0] == {"x": "x" * 100} and seen["rows"][-1] == "... 92 more"
+    assert seen["rows"] == [{"x": "x" * 100}] * 50 and seen["rows_more"] == 50  # typed items
     assert chat.results[0]["result"] == big
 
 

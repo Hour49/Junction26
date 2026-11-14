@@ -51,21 +51,23 @@ async function askChatStays(api: ReturnType<typeof mockApi>) {
 }
 
 it('CH-43 chat.available true: the agent chat', async () => {
-  open({ model: 'rules', available: true, reason: null });
+  open({ model: 'rules', available: true, reason: null, stream: false });
   expect(await screen.findByRole('button', { name: 'Point at the plan' })).toBeTruthy();
 });
 
 it('CH-43 chat.available false or model off: the ask chat as before', async () => {
-  await askChatStays(open({ model: 'gemini', available: false, reason: 'no GEMINI_API_KEY' }));
+  await askChatStays(
+    open({ model: 'gemini', available: false, reason: 'no GEMINI_API_KEY', stream: false }),
+  );
   cleanup();
-  await askChatStays(open({ model: 'off', available: false, reason: null }));
+  await askChatStays(open({ model: 'off', available: false, reason: null, stream: false }));
   cleanup();
   await askChatStays(open(null));
 });
 
 it('CH-44 the agent chat sends ?ask= on open, once', async () => {
   const api = open(
-    { model: 'rules', available: true, reason: null },
+    { model: 'rules', available: true, reason: null, stream: false },
     'ask=How+big+is+Bagno+1.01%3F',
   );
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
