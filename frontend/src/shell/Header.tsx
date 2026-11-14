@@ -79,7 +79,9 @@ export function Header({ route }: { route: Route }) {
             })}
           </nav>
         )}
-        {'projectId' in route && <CountryPicker pack={packOf(route)} />}
+        {'projectId' in route && (
+          <CountryPicker projectId={route.projectId} pack={packOf(route)} />
+        )}
         {'projectId' in route && (
           <ExportButton key={route.projectId} projectId={route.projectId} pack={packOf(route)} />
         )}

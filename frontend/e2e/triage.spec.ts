@@ -40,7 +40,7 @@ test('FT-21: the site photo is set aside as not a floor plan, its trace and issu
 
   // Documents' issues: one for it, "Not a floor plan" in its words, linking to its file page.
   const issue = page
-    .getByRole('region', { name: 'Issues' })
+    .getByRole('region', { name: 'Issues on demand' })
     .locator('ul > li, ol > li')
     .filter({ has: page.getByRole('link', { name: 'Open the file' }), hasText: 'photos/site.jpg' });
   await expect(issue).toHaveCount(1);
