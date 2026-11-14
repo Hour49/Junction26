@@ -165,6 +165,19 @@ def run_services_build(args: argparse.Namespace, settings: Settings) -> None:
     )
 
 
+def run_disc_render(args: argparse.Namespace, settings: Settings) -> None:
+    from app.adapters.ifc_model import plan_picture  # ifcopenshell only when asked
+
+    sheets = plan_picture.read_plans(args.model, args.background)
+    for dpi in args.dpi:
+        for variant in args.variant:
+            out = args.out / f"{variant}-{dpi}"
+            pictures = plan_picture.draw_plans(
+                sheets, out, dpi=dpi, variant=variant, seed=args.seed
+            )
+            print(f"{len(pictures)} pictures in {out}")
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="python -m app.cli")
     commands = root.add_subparsers(dest="command", required=True)
@@ -207,6 +220,24 @@ def parser() -> argparse.ArgumentParser:
     build.add_argument("--architecture", type=Path, help="the same building's architecture (.ifc)")
     build.add_argument("--cache", type=Path, required=True, help="where models are kept")
     build.set_defaults(run=run_services_build)
+    bench = commands.add_parser("disc-bench", help="discipline picture bench").add_subparsers(
+        dest="step", required=True
+    )
+    render = bench.add_parser("render", help="plan pictures and their truth from an IFC model")
+    render.add_argument("--model", type=Path, required=True, help="a services model (.ifc)")
+    render.add_argument("--background", type=Path, help="the same building's architecture")
+    render.add_argument(
+        "--out", type=Path, required=True, help="pictures and truth go to <out>/<variant>-<dpi>/"
+    )
+    render.add_argument("--dpi", type=int, nargs="+", default=[150])
+    render.add_argument(
+        "--variant",
+        nargs="+",
+        default=["clean"],
+        choices=["clean", "scan", "photo", "no-legend", "no-scale"],
+    )
+    render.add_argument("--seed", type=int, default=0)
+    render.set_defaults(run=run_disc_render)
     glb = commands.add_parser("glb", help="build the 3D views of IFC files ahead (MODEL_3D)")
     glb.add_argument("targets", nargs="+", help="project ids (data/projects) or IFC file paths")
     glb.set_defaults(run=run_glb)

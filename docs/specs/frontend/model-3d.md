@@ -16,27 +16,27 @@ dimmed, and the camera frames them. 2D sheets keep today's image viewer; nothing
 Built in three parts, each merged on its own (no half-built screens):
 
 1. The file page (`#/p/<pid>/f/<file_id>`, reached from Documents) of an IFC file.
-2. The chat's References: an IFC part, today listed as "no preview", opens the same view.
-3. Element highlight by a list of `{global_id, role}` (role `moved | removed | added | affected`, one colour each):
-   an answer's `proof.objects[].global_id` (all `affected`); later a cross-discipline edit proposal
-   (`Proposal.services`, open point 3).
+2. The chat's References (ask chat and agent chat, both render `ChatAnswer`): a part whose drawing has a 3D model
+   opens the same view in a dialog (PR #356 shipped part 1; parts 2-3 by w3:p1 21:50).
+3. Element highlight by the part's `highlight: {global_id, role}[]` (role `moved | removed | added | affected`, one
+   colour each, a legend in words): the listed elements coloured, the camera frames them, the rest dimmed.
 
 ## Files owned
 
 | File | What |
 | --- | --- |
 | `src/model3d/ModelView.tsx` (new) | `ModelView({projectId, file, highlight?})`: the states, the controls, the legend / highlight line. Imports no `three` |
-| `src/model3d/ModelDialog.tsx` (new) | the view in a modal (chat References, the engineer's model proof): `SourcePreview`'s modal pattern (Esc, focus trap, focus back) |
+| `src/model3d/ModelDialog.tsx` (new) | the view in a modal (chat References, the agent chat's plan pane): `SourcePreview`'s modal pattern (Esc, focus trap, focus back) |
 | `src/model3d/scene.ts` (new) | the only module that imports `three`: renderer, `GLTFLoader.parse`, `OrbitControls`, `highlight(root, marks)`, `frame(camera, controls, box)`, `dispose()`. Loaded with `import('./scene')` |
-| `src/model3d/model3d.ts` (new) | pure: `modelFileOf(project, drawingId)`, `answerMarks(answer)`, `ROLE_LABEL`, `highlightLine(result)` |
+| `src/model3d/model3d.ts` (new) | pure: `model3dOf`, `canShow3d`, `failure`, `ROLE_LABEL`, `legendLines(result)` |
 | `src/model3d/model3d.css` (new) | `--v-*` tokens only; one token per role |
 | `src/api/client.ts` | only `getModelGlb(projectId, fileId, opts) -> ArrayBuffer` (+ test): `call`'s error handling, the body read as a buffer |
 | `src/ingest/FileTraceScreen.tsx` | part 1: the "3D view" card (one block) |
 | `src/engineer/ChatAnswer.tsx` | part 2: the References row of an IFC part |
-| `src/engineer/ModelProof.tsx` | part 3: "Show in 3D" above the objects table |
+| `src/shell/shell.css` | part 3: the four role tokens `--v-3d-moved`, `-removed`, `-added`, `-affected` in `:root` |
 
-The last four are other workers' files (preqa-a / fe-engineer / fe-shared); the change in each is one small block.
-frontend-orch to confirm I may edit them (open point 5).
+The last four are other workers' files (preqa-a / fe-engineer / fe-shared); one small block each, mine since
+frontend-orch's 21:50 GO.
 
 ## API (agreed with Bogdan, #14 c6882768584; m3d-back writes it)
 
@@ -52,7 +52,12 @@ frontend-orch to confirm I may edit them (open point 5).
   - 409 `{code: "converting"}`: conversion running. The first GET of a `not_started` file starts it.
   - 422 `{code: "too_big" | "no_geometry" | "failed", detail}`: the file is `unavailable` from then on; `detail` shown as sent.
   - 404: not an IFC file / unknown file / `MODEL_3D` off.
-- The highlight for answers needs no new field: `AnswerView.proof.objects[]` (`kind: "model"`) already carries
+- `ProjectAnswerPart` (m3d-back, 22:00; in the ask answer and in the agent chat's `ChatTurn.answers`): `file_id` (the
+  drawing's file), `model_file_id` (the IFC file whose GLB shows this drawing: its own file, or the model a sheet was
+  read from; absent when none), `model_3d` (that file's `Model3d`, absent when none or `MODEL_3D` off), `highlight:
+  Highlight[]` (`{global_id, role}`; the answer's counted elements as `affected`; absent when empty). The frontend
+  needs no `files[]` lookup.
+- Before #356's fields: the highlight for answers needed no new field: `AnswerView.proof.objects[]` (`kind: "model"`) already carries
   `global_id`. The agent chat's `ChatEvidence` has none (open point 3).
 - After `npm run api:gen` the frontend uses the generated `model_3d` type (no hand-written copy).
 
@@ -67,23 +72,26 @@ frontend-orch to confirm I may edit them (open point 5).
    - `unavailable`: no button, the line "3D view unavailable: <reason>" (`reason`, else "the model cannot be shown
      in 3D" when it is empty).
    - `model_3d` null (every 2D file, an IFC set aside, `MODEL_3D` off): no card.
-2. **Chat References** (part 2). In `ChatAnswer`'s References, a part with no page whose file's `model_3d.state` is
-   not `unavailable` is a button "View in 3D" instead of the plain "· no preview" text; it opens `ModelDialog`
-   with the file's path as its title, highlighting that part's elements (part 3; until part 3 lands, no highlight).
-   Other states keep "· no preview". The left figure and the arrows are unchanged (they still skip parts with no
-   page). Applies in the ask chat and the agent chat (both render `ChatAnswer`).
-3. **Engineer page** (part 3). `ModelProof` ("Building model: no sheet to draw on.") gets a button "Show in 3D"
-   when the drawing's file's `model_3d` is set and not `unavailable`; it opens `ModelDialog` with `answerMarks(answer)`.
-4. **Highlight** (part 3). The view takes `highlight: {global_id, role}[]`, role `moved | removed | added |
-   affected`. An answer's marks: every distinct non-null `proof.objects[].global_id` as `affected`. Drawn:
-   - each matched node gets its role's colour (`--v-3d-moved`, `-removed`, `-added`, `-affected`; `removed` also at
-     50% opacity so it reads as going away); an id listed twice keeps its first role;
-   - every other node is drawn at 12% opacity (transparent, no depth write);
-   - the camera frames the matched nodes' bounding box (10% margin);
-   - under the view: a legend of the roles present (a swatch and "Moved 2", "Affected 11"…, `ROLE_LABEL`), and when
-     some ids are not in the model "<k> of <m> elements are not in the 3D view." None matched: the whole model, not
-     dimmed, and "None of these elements are in the 3D view." Empty list: the whole model, framed, no legend.
-   - "Reset view" goes back to this first framing (the highlight stays).
+2. **Chat References** (part 2). In `ChatAnswer`'s References list, each part with `model_3d` set and not
+   `unavailable` gets a second button after its row, "View in 3D" (`aria-label` "View in 3D: <label>", visible text first, 44 px tall);
+   the row itself is unchanged (a button when the part has pages, plain text with "· no preview" when not). It opens
+   `ModelDialog` titled "3D view: <label>" with `ModelView` on `model_file_id`, highlighting the part's `highlight`
+   (part 3; `[]` before it). `unavailable` or no `model_3d`: no button. The left figure and the arrows are
+   unchanged. Esc and "Close" close the dialog and focus returns to the "View in 3D" button.
+3. **Highlight** (part 3). `ModelView` takes `highlight: Highlight[]`. Drawn:
+   - each matched node in its role's colour (`--v-3d-moved` blue, `-removed` red, `-added` green, `-affected`
+     orange, read from the computed style at mount); `removed` also at 50% opacity so it differs by more than hue;
+     an id listed twice keeps its first role;
+   - every other node at 12% opacity (transparent, no depth write);
+   - the camera frames the matched nodes' bounding box (10% margin), centred on it but each side at least half the
+     whole model's (w3:p1 22:20: the building stays visible around one door); "Reset view" returns to this framing;
+   - under the view a legend (`<ul aria-label="Highlighted elements">`): one item per role present, a swatch (aria-
+     hidden) and the words "Moved: 2", "Affected: 1" (`ROLE_LABEL`), so colour is never the only cue; then "<k> of <m>
+     elements are not in the 3D view." when some ids are not in the model; "None of these elements are in the 3D
+     view." (and nothing dimmed, whole model framed) when none match; no legend for `[]`.
+   - The GLB's materials are cloned before colouring (another open view of the same file is unaffected).
+4. **Later places**: the agent chat's plan pane is in "More places" below; Documents issue cards wait for
+   `Issue.highlight`; edit proposals (`Proposal.services`) are still out.
 
 ## Controls
 
@@ -158,29 +166,33 @@ Part 1, file page:
 - M3-9: `getModelGlb` (client unit): GET to the URL with the ids encoded, resolves an `ArrayBuffer`; a 409 rejects
   with its `ApiError` (`status`, `code` `converting`). [unit]
 
-Part 2, chat References:
-- M3-10: `modelFileOf(project, drawingId)` returns the `files[]` entry with that `drawing_id` when its `model_3d` is
-  set and not `unavailable`, else null. [unit]
-- M3-11: A `ChatAnswer` part with empty `pages` whose file is `ready` shows "View in 3D" in its References row (no
-  "no preview" text); `model_3d` null or `unavailable` keeps "no preview"; parts with pages unchanged (CH-30..CH-35 tests
-  pass untouched). [component]
-- M3-12: "View in 3D" opens a dialog named "3D view: <file path>" with the view (M3-3's request); "Close" and Esc
-  close it, focus returns to the button, Tab stays inside the dialog. [component]
+Part 2, chat References (fixture: `project_ask.json` with one part derived as an IFC part: `model_file_id` "f8",
+`model_3d` ready, `highlight` [door affected], `pages: []`):
+- M3-10: A part with `model_3d` ready / converting / not_started shows "View in 3D: <label>" after its References
+  row; `unavailable` or no `model_3d` shows none; the rows, the figure and the arrows are as before (CH-30..CH-35
+  tests pass untouched). [component]
+- M3-11: The button opens a dialog named "3D view: <label>" whose view requests
+  `/api/projects/<pid>/files/<model_file_id>/model.glb`; Esc and "Close" close it (the scene disposed), focus
+  returns to the button, Tab stays inside the dialog. [component]
+- M3-12: The dialog passes the part's `highlight` to the scene (`[]` when absent). [component]
 
 Part 3, highlight:
-- M3-13: `answerMarks(answer)` = the distinct non-null `proof.objects[].global_id` as `{global_id, role:
-  "affected"}` when `proof.kind` is `model`, else `[]`. [unit]
-- M3-14: `highlight(root, marks)` on a group of 5 named meshes with marks [A moved, B removed, C affected, A added,
-  X affected]: A gets the moved colour (first role wins), B the removed colour at 50% opacity, C the affected colour,
-  the other two 12% opacity (transparent, no depth write); returns `{matched: {moved: 1, removed: 1, affected: 1},
-  missing: 1}`; the loaded materials are cloned, not mutated; `[]` changes nothing. [unit]
-- M3-15: `frame` puts the matched box fully inside the camera frustum with a 10% margin and the controls' target at
-  its centre; with nothing matched it frames the whole model. [unit]
-- M3-16: The legend lists only the roles present with their counts ("Moved 1", "Removed 1", "Affected 1"); "1 of 4
-  elements are not in the 3D view." when some are missing; "None of these elements are in the 3D view." when none
-  match; nothing for `[]`. [component]
-- M3-17: A References "View in 3D" and the engineer page's model proof "Show in 3D" pass that answer's
-  `answerMarks` to the view. [component]
+- M3-13: `highlight(root, marks, colours)` on a group of 5 named meshes with marks [A moved, B removed, C affected,
+  A added, X affected]: A gets the moved colour (first role wins), B the removed colour at opacity 0.5, C the affected
+  colour, the other two opacity 0.12 (transparent, no depth write); returns `{counts: {moved: 1, removed: 1,
+  affected: 1}, missing: 1, box}` with `box` around A, B and C; the original materials are not mutated; `[]` changes
+  nothing and returns `box: null`. [unit]
+- M3-14: `frame` puts a given box fully inside the frustum (scene.test.ts); `mount` frames `focusBox(matched,
+  whole)` when something matched (centred on it, each side at least half the whole model's: one small door is framed
+  no closer than half the building), else the whole model. [unit (frame); component (mount gets the marks)]
+- M3-15: The legend: "Moved: 1", "Removed: 1", "Affected: 1" with a swatch each, in role order; "1 of 4 elements are
+  not in the 3D view."; "None of these elements are in the 3D view." when none match; nothing for `[]`. [component,
+  the mocked scene returning the counts]
+- M3-16: `shell.css` defines the four `--v-3d-*` tokens, all different; `model3d.css` still has no colour literal.
+  [unit]
+- M3-17: [e2e, 1440 and 390] the fixture IFC project, the chat asks "How many doors are there?", the answer's
+  References show "View … in 3D"; the dialog draws the model with the legend "Affected: 1"; Esc closes it; no
+  sideways scroll; screenshots `model3d-chat`. [e2e]
 
 Everywhere:
 - M3-18: Bundle: no module outside `src/model3d/scene.ts` imports `three` (unit test scanning `src/`), and `scene`
@@ -193,19 +205,46 @@ Everywhere:
 - M3-20: `model3d.css` uses only `--v-*` tokens (no colour literals); the role colours are read from the computed
   style at mount. [unit]
 
+## More places (feature/model-3d-more, w3:p1 22:55, Tudor: "give the 3D workers what's left")
+
+Same `ModelDialog`, `canShow3d` and highlight as parts 2-3; no new dependency; main bundle within +5 kB of main
+2c70d8d.
+
+1. **Agent chat.** Answers: `ChatAnswer`'s References already have "View in 3D" (M3-10..M3-12). Sources: a
+   `ChatEvidence` is a place on a page (`page`, `box`); IFC drawings have no pages, so the agent never cites one (probe
+   on the e2e fixture, 22:58: "How many doors / walls are there?", "Where is the door?", "Show me the slab", "What is
+   the floor area?" each gave `evidence: []`). The other agent place that names a drawing is the **plan pane** (beside
+   the chat at >= 1200 px, a sheet below): when the shown drawing's file can show 3D, the pane head gets "View in 3D"
+   after "Open in workspace", opening `ModelDialog` with the newest answered turn's `highlight` for that drawing (its
+   part in `turn.answers`), else `[]`.
+2. **Documents issue cards: not built, data missing.** `Issue` has `drawing_id`, `file_id`, `page`, `box`,
+   `polygon`, `mark_id`, no GlobalId; a code check on an IFC model (`code_check_failed`) knows the space or door it
+   checked but drops its GlobalId. Needed from the backend: `Issue.highlight: Highlight[]` (as `ProjectAnswerPart`),
+   e.g. the checked element as `affected`, plus `model_file_id`/`model_3d` or the file lookup by `file_id`. Then the
+   card gets the same button (one block in `IssueCard.tsx`).
+
+`ModelDialog` stops Esc and Tab from bubbling: through the React tree a portal's key events reach the plan sheet's
+own Esc/Tab handlers, which would close the sheet behind the dialog.
+
+Criteria:
+- M3-21: `PlanPane` with a `model` shows "View in 3D" in its head, none without; it opens the dialog with the given
+  highlight; Esc inside the dialog closes the dialog only (a `PlanSheet` around it stays open). `AgentChat` passes the
+  file and the newest answered part's `highlight` for the shown drawing. [component]
+- M3-22: [e2e 1440 and 390] the fixture's agent chat after "How many walls are there?": the plan pane (390: "Show the
+  plan") -> "View in 3D" -> "Affected: 4"; Esc closes the dialog, the pane stays; screenshots `model3d-pane`. [e2e]
+
 ## Out of scope
 
 - web-ifc or any IFC parsing in the browser (licence and speed: the brief).
 - Per-storey views, sectioning, measuring, picking an element to see its properties.
-- A 3D view on Documents' issue cards (frontend-orch 21:50).
-- Highlight from the agent chat's Sources (`ChatEvidence` has no GlobalIds) and from edit proposals
-  (`Proposal.services`, Bogdan's cross-discipline GlobalIds): later; the view already takes `{global_id, role}`
-  marks, so they only need a caller. Part 3 now = the answers' model objects (`ModelProof`, `ChatAnswer`).
+- A 3D view on Documents' issue cards: needs `Issue.highlight` (More places, 2).
+- Highlight from edit proposals (`Proposal.services`, Bogdan's cross-discipline GlobalIds): later; the view already
+  takes `{global_id, role}` marks, so they only need a caller.
 
 ## Open points
 
 Settled by frontend-orch (21:50): states and 409/422 above; no issue cards; part 3 = answers' model objects; load
-on press; the blocks in `FileTraceScreen.tsx`, `ChatAnswer.tsx`, `ModelProof.tsx`, `client.ts` are mine; the e2e
+on press; the blocks in `FileTraceScreen.tsx`, `ChatAnswer.tsx`, `client.ts` are mine; the e2e
 backend converts the sample `house.ifc` on the first GET and the e2e waits through "Preparing" (bounded), env name
 agreed with m3d-back via frontend-orch; a capped `proof.objects` is fine.
 

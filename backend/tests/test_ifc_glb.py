@@ -1,10 +1,12 @@
 """IFC -> GLB for the 3D view (app/adapters/ifc_model/glb.py): a synthetic model, converted in a
 capped subprocess; failures become `unavailable` with a reason and leave no half-written file."""
 
+import fcntl
 import gzip
 import hashlib
 import json
 import struct
+import sys
 import threading
 import time
 from pathlib import Path
@@ -53,6 +55,7 @@ def leftovers(root: Path) -> list[str]:
         path.name
         for path in root.iterdir()
         if not (path.name.endswith(".json") or path.name.endswith(".glb.gz"))
+        and path.name != glb.LOCK
     )
 
 
@@ -96,12 +99,53 @@ def test_over_the_memory_budget_is_too_big_and_leaves_nothing(tmp_path: Path, ca
     assert leftovers(tmp_path) == []
 
 
-def test_over_the_time_limit_is_killed_and_too_big(tmp_path: Path) -> None:
+SPIN = [sys.executable, "-c", "while True: pass"]  # a child that only computes
+HANG = [sys.executable, "-c", "import time; time.sleep(60)"]  # one that never gets to compute
+
+
+def test_over_the_computing_time_limit_is_too_big(
+    tmp_path: Path, cap: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The limit is CPU time (RLIMIT_CPU): what the model costs, whatever else the machine runs."""
+    monkeypatch.setattr(glb, "CHILD", SPIN)
     data, _ = house()
-    found = GlbModels(tmp_path, memory_mb=1500, timeout_s=0.01).convert(sha(data), data)
+    found = GlbModels(tmp_path, memory_mb=1500, timeout_s=1).convert(sha(data), data)
     assert (found.state, found.code) == ("unavailable", "too_big")
-    assert "0.01 s" in found.reason
+    assert "1 s of computing time" in found.reason
+    assert GlbModels(tmp_path, 1500, 1).status(sha(data)) == found  # recorded: it is the model
     assert leftovers(tmp_path) == []
+
+
+def test_a_busy_or_stuck_conversion_is_not_too_big_and_is_tried_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Past the wall-clock guard without using its CPU time: the machine, not the model. Said,
+    not recorded, so the next request starts it again."""
+    monkeypatch.setattr(glb, "CHILD", HANG)
+    data, _ = house()
+    models = GlbModels(tmp_path, memory_mb=1500, timeout_s=0.5)
+    found = models.convert(sha(data), data)
+    assert (found.state, found.code) == ("unavailable", "failed")
+    assert found.reason == glb.BUSY
+    assert models.status(sha(data)).state == "not_started"
+    assert leftovers(tmp_path) == []
+
+
+def test_the_cli_waits_while_the_app_converts(tmp_path: Path) -> None:
+    """Two processes on one cache (the app, `python -m app.cli glb`) take turns on its lock file."""
+    data, _ = house()
+    tmp_path.mkdir(exist_ok=True)
+    with (tmp_path / glb.LOCK).open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)  # another process's conversion, as flock sees it
+        waiting = threading.Thread(
+            target=GlbModels(tmp_path, 1500, 60).convert, args=(sha(data), data)
+        )
+        waiting.start()
+        time.sleep(1.0)
+        assert waiting.is_alive()
+        assert not GlbModels(tmp_path, 1500, 60).glb_gz(sha(data)).exists()
+    waiting.join(timeout=60)
+    assert GlbModels(tmp_path, 1500, 60).status(sha(data)).state == "ready"
 
 
 def test_a_glb_over_the_size_limit_is_too_big(tmp_path: Path) -> None:
