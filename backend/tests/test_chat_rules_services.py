@@ -5,6 +5,8 @@ feeds", "what does ... serve", "what is cut off" go to ask_services."""
 import json
 from typing import Any
 
+import pytest
+
 from app.adapters.chat_rules import RulesChatModel
 
 IFC, PDF = "0123456789abcdef", "fedcba9876543210"
@@ -166,3 +168,38 @@ def test_sv26_without_the_services_tools_the_old_rules_hold() -> None:
     assert plan("move the radiator", tools=plain)[0] == "ask_drawings"
     message = "Put a room here\nsel_1: region on plan.pdf page 1, about 2.0 m by 3.0 m"
     assert plan(message)[0] == "propose_room"  # no services word: the plan rule
+
+
+PLAIN = [t for t in TOOLS if t["function"]["name"] not in
+         ("list_services", "ask_services", "propose_move_terminal")]  # fmt: skip
+PROBES = [  # review S2 (#397): services words in plan, law and other questions
+    "What is cut off if we remove the wall between the kitchen and the living room?",
+    "Is it legal to move the radiator under the window?",
+    "What supplies are needed to repaint the kitchen?",
+    "Can I move the door next to the socket?",
+]
+
+
+@pytest.mark.parametrize("message", PROBES)
+def test_sv26_plan_law_and_other_questions_route_as_without_the_services_tools(
+    message: str,
+) -> None:
+    """With the services tools offered, each probe takes the same first two steps as without."""
+    for done in ((), (LISTING,)):
+        assert plan(message, *done) == plan(message, *done, tools=PLAIN)
+    assert plan(message, LISTING)[0] != "list_services"
+
+
+def test_sv26_the_probes_route_where_main_does() -> None:
+    remove, law = PROBES[0], PROBES[1]
+    assert plan(remove, LISTING)[0] == "list_walls"  # the remove-wall edit
+    name, args = plan(law)
+    assert name == "final_answer" and "country" in args["text"]  # the law rule: no pack chosen
+
+
+def test_sv26_a_named_element_the_list_does_not_have_is_said_so() -> None:
+    """Review S1 (#397): E7 is not in the list of radiators; it is not "in no room"."""
+    name, args = plan("move radiator E7", LISTING, FOUND)
+    assert (name, args["kind"]) == ("final_answer", "dont_know")
+    assert "E7 is not in the services list" in args["text"]
+    assert "no room" not in args["text"]

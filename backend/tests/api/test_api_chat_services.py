@@ -5,7 +5,7 @@ model is the two-room fixture (radiators E2 in SR1 and E3 in SR2 on the south wa
 import gzip
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,11 +26,13 @@ PROJECT, MODELLED = "a" * 12, "0123456789abcdef"
 class _Ingest:
     """A done project of one IFC file (its stored services model may be in the cache)."""
 
+    kind: Literal["ifc", "pdf_vector"] = "ifc"
+
     def status(self, project_id: str) -> ProjectStatus:
         if project_id != PROJECT:
             raise NotFoundError(f"no project {project_id}")
         heating = FileStatus(
-            id="f1", path="m/heating.ifc", size=1, sha256="f" * 64, kind="ifc", state="ready",
+            id="f1", path="m/heating.ifc", size=1, sha256="f" * 64, kind=self.kind, state="ready",
             route="bim", drawing_id=MODELLED,
         )  # fmt: skip
         return ProjectStatus(
@@ -39,6 +41,12 @@ class _Ingest:
 
     def drawing(self, drawing_id: str) -> Any:
         raise NotFoundError(f"drawing {drawing_id} not read")  # list_drawings: pages unknown
+
+
+class _PdfOnly(_Ingest):
+    """The same project with no IFC file: a PDF plan only."""
+
+    kind: Literal["ifc", "pdf_vector"] = "pdf_vector"
 
 
 def _call(name: str, n: int, **arguments: Any) -> dict[str, Any]:
@@ -75,15 +83,24 @@ def _dont_know(*calls: dict[str, Any]) -> _Scripted:
 
 @pytest.fixture
 def client(settings: Settings, tmp_path: Path) -> TestClient:
+    return _client(settings, tmp_path)
+
+
+def _client(
+    settings: Settings, tmp_path: Path, follow: str = "on", ingest: _Ingest | None = None
+) -> TestClient:
+    """The services tools are offered behind SERVICES_FOLLOW (on here unless `follow`)."""
     cache = tmp_path / "services"
-    cache.mkdir()
+    cache.mkdir(exist_ok=True)
     model = two_rooms()
     ServicesStore(cache).path(model.source.sha256).write_bytes(
         gzip.compress(model.model_dump_json().encode())
     )
-    settings = settings.model_copy(update={"services_cache_dir": cache, "chat_model": "rules"})
+    settings = settings.model_copy(
+        update={"services_cache_dir": cache, "chat_model": "rules", "services_follow": follow}
+    )
     app = create_app(settings, build_ingest(settings, settings.projects_dir, background=False))
-    app.state.ingest = _Ingest()
+    app.state.ingest = ingest or _Ingest()
     app.state.evidence = None  # the evidence index reads the real ingest; not this test's subject
     return TestClient(app)
 
@@ -157,9 +174,11 @@ def test_sv25_a_project_without_a_services_model_says_so(
     assert "no services model" in model.results[0]
 
 
-def test_sv25_the_six_tools_are_offered(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+SIX = {"list_services", "ask_services", "propose_move_terminal", "propose_add_terminal",
+       "propose_remove_element", "propose_resize"}  # fmt: skip
+
+
+def _offered(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> set[str]:
     seen: list[str] = []
 
     class Looking(_Scripted):
@@ -168,8 +187,27 @@ def test_sv25_the_six_tools_are_offered(
             return super().complete(messages, tools)
 
     _turn(client, monkeypatch, Looking(_step(_call("final_answer", 1, kind="dont_know", text="?"))))
-    assert {"list_services", "ask_services", "propose_move_terminal", "propose_add_terminal",
-            "propose_remove_element", "propose_resize"} <= set(seen)  # fmt: skip
+    return set(seen)
+
+
+def test_sv25_the_six_tools_are_offered(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert _offered(client, monkeypatch) >= SIX
+
+
+def test_sv25_with_services_follow_off_no_services_tool_is_offered(
+    settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    offered = _offered(_client(settings, tmp_path, follow="off"), monkeypatch)
+    assert offered and not SIX & offered  # other tools still are
+
+
+def test_sv25_a_project_without_an_ifc_file_is_offered_no_services_tool(
+    settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    offered = _offered(_client(settings, tmp_path, ingest=_PdfOnly()), monkeypatch)
+    assert offered and not SIX & offered
 
 
 def _rules(client: TestClient, message: str, chat_id: str | None = None) -> dict[str, Any]:
@@ -204,3 +242,19 @@ def test_sv26_the_rules_model_answers_what_feeds_from_ask_services(client: TestC
     turn = _rules(client, "What feeds radiator E2?")
     assert turn["kind"] == "answer", turn
     assert turn["text"].startswith("E2 is fed by E1")
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "What is cut off if we remove the wall between the kitchen and the living room?",
+        "Is it legal to move the radiator under the window?",
+        "What supplies are needed to repaint the kitchen?",
+        "Can I move the door next to the socket?",
+    ],
+)
+def test_sv26_on_a_pdf_only_project_no_turn_calls_a_services_tool(
+    settings: Settings, tmp_path: Path, message: str
+) -> None:
+    turn = _rules(_client(settings, tmp_path, ingest=_PdfOnly()), message)
+    assert not {step["tool"] for step in turn["steps"]} & SIX, turn["steps"]

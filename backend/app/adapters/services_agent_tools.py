@@ -134,9 +134,7 @@ class _ProjectModels(Mapping[str, ServicesModel]):
 
     def _files(self) -> dict[str, str]:
         if self._sha is None:
-            status = self._pipeline.ingest.status(self._pipeline.project_id)
-            files, _ = _models(status, None)
-            self._sha = {f.drawing_id: f.sha256 for f in files if f.drawing_id and f.sha256}
+            self._sha = _project_files(self._pipeline)
         return self._sha
 
     def __getitem__(self, drawing_id: str) -> ServicesModel:
@@ -154,10 +152,23 @@ class _ProjectModels(Mapping[str, ServicesModel]):
         return found
 
     def __iter__(self) -> Iterator[str]:
-        return iter(d for d in self._files() if self._cache.load(self._files()[d]) is not None)
+        """The drawings with a stored model, from the files that exist: none is read."""
+        return iter(d for d, sha256 in self._files().items() if self._cache.path(sha256).is_file())
 
     def __len__(self) -> int:
         return sum(1 for _ in self)
+
+
+def _project_files(pipeline: PipelineStore) -> dict[str, str]:
+    """Drawing id -> sha256 of the project's IFC files (`service_tools._models`)."""
+    files, _ = _models(pipeline.ingest.status(pipeline.project_id), None)
+    return {f.drawing_id: f.sha256 for f in files if f.drawing_id and f.sha256}
+
+
+def offers_services(pipeline: PipelineStore) -> bool:
+    """Whether a chat turn offers the services tools: SERVICES_FOLLOW is on (the services flag,
+    decision 0016) and the project has an IFC file a services model can be stored for."""
+    return pipeline.settings.services_follow == "on" and bool(_project_files(pipeline))
 
 
 def project_services(

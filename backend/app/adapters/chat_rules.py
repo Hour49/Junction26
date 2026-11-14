@@ -56,13 +56,16 @@ TRY_THESE = re.compile(r"\s*Try one of these instead\.?")  # the card labels its
 ONE_ROOM = "area:room|name="  # a suggestion about one room, by its printed name
 TRIED = 3  # drawings tried for an editable plan before giving up
 # SV-26: services rules (decision 0017), used only when the services tools are offered
-MOVE = re.compile(r"\b(move|relocate|shift)\b")
 TERMINALS = {"radiator": "space_heater", "heater": "space_heater", "socket": "outlet",
              "outlet": "outlet", "air terminal": "air_terminal", "diffuser": "air_terminal",
              "boiler": "boiler"}  # fmt: skip
 TERMINAL = re.compile(r"\b(" + "|".join(TERMINALS) + r")s?\b")
+# a terminal is what is moved: at most two words after the verb ("move this diffuser", not
+# "move the door next to the socket")
+MOVE = re.compile(r"\b(move|relocate|shift)(\s+\w+){0,2}?\s+(" + "|".join(TERMINALS) + r")s?\b")
 ASKS = (  # the network question a message asks, in ask_services' words
-    (re.compile(r"\bwhat (feeds|supplies)\b"), "feeds"),
+    # "what supplies are needed" asks for materials, not for the network
+    (re.compile(r"\bwhat (feeds|supplies)\b(?!\s+(are|is|were|do|does|did|we|i|you)\b)"), "feeds"),
     (re.compile(r"\bwhat\b.*\bcuts? off\b"), "cut_off"),
     (re.compile(r"\bwhat (does|do)\b.*\bserve\b"), "terminals_served"),
 )
@@ -140,8 +143,13 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     words = turn.message.lower()
     if STRUCTURE.search(words):
         return _final("dont_know", LOAD)
-    if "list_services" in offered:  # before the plan rules: "move the radiator in this room"
-        if MOVE.search(words) and TERMINAL.search(words) and "propose_move_terminal" in offered:
+    # before the plan rules ("move the radiator in this room"), but a wall edit, a law question
+    # or a doubt keeps its own rule ("what is cut off if we remove the wall", review S2)
+    other = (
+        (EDIT.search(words) and "list_walls" in offered) or LAW.search(words) or DOUBT.search(words)
+    )
+    if "list_services" in offered and not other:
+        if MOVE.search(words) and "propose_move_terminal" in offered:
             return _move_terminal(turn, words)
         op = next((op for pattern, op in ASKS if pattern.search(words)), None)
         if op is not None and "ask_services" in offered:
@@ -231,9 +239,13 @@ def _move_terminal(turn: _Turn, words: str) -> tuple[str, Json]:
                     "message": f"Move {word} {i['id']}"} for i in items[:4]]  # fmt: skip
         evs = [str(i["ev"]) for i in items[:4] if i.get("ev")]
         return _final("needs_input", f"Several {word}s match. Which one?", evs, options=options)
+    wall = WALL.search(words)
+    if named is not None and not items and wall is None:  # never "in no room": it is not listed
+        cut = " (the list was cut: name its wall too)" if found.get("more") else ""
+        return _final("dont_know", f"{named} is not in the services list of {word}s{cut}.")
     element = items[0] if items else {"id": named}
     move: Json = {"drawing_id": drawing, "element_id": element["id"]}
-    if wall := WALL.search(words):
+    if wall:
         walls = [wall[0].upper()]
     else:
         room = element.get("room")

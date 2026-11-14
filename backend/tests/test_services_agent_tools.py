@@ -2,6 +2,7 @@
 the two-room fixture as drawing "d1": radiators E2 (SR1) and E3 (SR2) on the south wall SW1."""
 
 import json
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -9,9 +10,12 @@ import pytest
 from app.adapters.services_agent_tools import (
     SERVICES_TOOLS,
     ServicesToolStore,
+    _ProjectModels,  # pyright: ignore[reportPrivateUsage]
     resolve_selection,
     run_services_tool,
 )
+from app.adapters.services_store import ServicesStore
+from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.plan_edit.model import Selection
 from app.core.services.stored import Connectivity, ServicesModel, fraction
 from tests.services_fixtures import SUPPLY, two_rooms
@@ -238,3 +242,22 @@ def test_sv27_the_six_schemas_stay_under_1500_tokens() -> None:
 def test_sv25_never_raises_on_garbage(name: str, arguments: str) -> None:
     text = run_services_tool(_store(), name, arguments)
     assert "error" in json.loads(text) and len(text) < LIMIT
+
+
+def test_sv25_listing_the_project_s_models_loads_none_of_them(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review nit (#397): the names come from which stored files exist, not from reading them."""
+    files = tuple(
+        FileStatus(id=f"f{n}", path=f"m/{n}.ifc", size=1, sha256=c * 64, kind="ifc",
+                   state="ready", route="bim", drawing_id=f"d{n}")
+        for n, c in ((1, "a"), (2, "b"))
+    )  # fmt: skip
+    status = ProjectStatus(id="p", name="p", state="done", created_at="2026-11-15T00:00:00Z",
+                           files=files)  # fmt: skip
+    pipeline = SimpleNamespace(project_id="p", ingest=SimpleNamespace(status=lambda _: status))
+    store = ServicesStore(tmp_path)
+    store.path("a" * 64).write_bytes(b"stored")  # only d1 has a stored model
+    monkeypatch.setattr(ServicesStore, "load", lambda *_: _never())
+    models = _ProjectModels(pipeline, store, [])  # pyright: ignore[reportArgumentType]
+    assert list(models) == ["d1"] and len(models) == 1
