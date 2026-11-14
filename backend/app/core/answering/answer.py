@@ -300,6 +300,16 @@ CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
 WHOLE_NUMBER = re.compile(r"\d{2,4}")  # a room number of whole digits ("104"; takeoff's)
 LETTERS = re.compile(r"[^\W\d_]{3}")
 DOTTED = re.compile(r"\d[.,]\d")
+# A count asked as "how many <noun>" / "the number of <noun>", English (vocab-nouns P2)
+COUNT_NOUN = re.compile(
+    r"^\s*(?:how\s+many|(?:what\s+is\s+)?the\s+number\s+of|number\s+of)\s+"
+    r"(?P<noun>[^\W\d_][\w'\u2019 .-]*?)\s*"
+    r"(?:\b(?:are|is|do|does|can|there|on|in|at|shown|printed|have|has)\b|[?.!]|$)",
+    re.IGNORECASE,
+)
+# What may stand before a room number in a question: "No 2", "no. 2", "Nr 2", "#2", "№ 2"
+NUMBER_SIGN = r"(?:(?:№|no\.?|nr\.?|#)\s*)?"
+NUMBER_SIGNS = frozenset({"№", "no", "no.", "nr", "nr.", "#"})
 
 
 class RoomByType:
@@ -377,7 +387,13 @@ class RoomByType:
         again, rooms = named
         if len(rooms) != 1:
             return Unsupported(reason=SEVERAL_PRINTED)
-        return self._area_of(rooms[0], again) if again.measure == "area" else again
+        if again.measure != "area":
+            return again
+        # a room with no area keeps the question about it: the drawing doesn't give its area
+        # (review-349 S3), never "not which room"
+        return self._area_of(rooms[0], again) or again.model_copy(
+            update={"name": normalised(rooms[0].label or again.name or "")}
+        )
 
 
 def _printed_names(room: Room) -> list[tuple[str, re.Pattern[str]]]:
@@ -393,12 +409,54 @@ def _printed_names(room: Room) -> list[tuple[str, re.Pattern[str]]]:
             words = rf"(?<!\w)(?:room|rm\.?)\s+(?P<name>{re.escape(name)})(?![\w.])"
             found.append((name, re.compile(words, re.IGNORECASE)))
         elif len(name) > 2 and LETTERS.search(name) and not DOTTED.search(name):
-            words = rf"(?<!\w)(?P<name>{re.escape(name)})(?!\w)"
+            words = rf"(?<!\w)(?P<name>{_name_pattern(name)})(?!\w)"
             found.append((name, re.compile(words, re.IGNORECASE)))
     if room.label and (SHORT_LABEL.fullmatch(room.label) or CODED_LABEL.fullmatch(room.label)):
         words = rf"(?<!\w)(?P<name>{re.escape(room.label)})(?!\w)"
         found.append((normalised(room.label), re.compile(words)))
     return found
+
+
+def _name_pattern(name: str) -> str:
+    """How a printed name is found in a question: its words as printed, and a room number in it
+    with "№", "No", "No.", "Nr" or "#" before it or nothing ("BED ROOM № 2" is "Bed Room No 2",
+    "Bed Room #2" and "Bed Room 2"; vocab-nouns P3)."""
+    tokens = name.split()
+    parts: list[str] = []
+    for at, token in enumerate(tokens):
+        if token in NUMBER_SIGNS and at + 1 < len(tokens) and tokens[at + 1].isdigit():
+            continue  # the number after it says it
+        parts.append(NUMBER_SIGN + token if token.isdigit() else re.escape(token))
+    return r"\s+".join(parts)
+
+
+def counted_noun(text: str) -> str | None:
+    """The noun of an English count question ("How many porches are there?" → "porches"), as
+    written; None when the question is not one."""
+    found = COUNT_NOUN.match(text)
+    return None if found is None else " ".join(found.group("noun").split()) or None
+
+
+def noun_forms(noun: str) -> set[str]:
+    """The printed labels a counted noun can mean: as written and in the singular, with or
+    without a trailing "room" ("guard rooms" → "guard room"; "music rooms" → "music")."""
+    words = normalised(noun).split()
+    forms = {" ".join(words), " ".join([*words[:-1], _singular(words[-1])])}
+    for form in list(forms):
+        for tail in (" rooms", " room"):
+            if form.endswith(tail) and len(form) > len(tail):
+                forms.add(form[: -len(tail)])
+    return forms
+
+
+def _singular(word: str) -> str:
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith(("ches", "shes", "sses", "xes", "zes")):
+        return word[:-2]
+    if word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
 
 
 def printed_rooms(
@@ -432,6 +490,8 @@ def printed_rooms(
     ((name, rooms),) = found.items()
     match = at[name]
     named = match.group("name")
+    if normalised(named) != name:  # asked as "Bed Room No 2": the room's own name keys it
+        named = name
     again = parser.parse(f"{text[: match.start()]}room '{named}'{text[match.end() :]}")
     if not (isinstance(again, Query) and again.name is not None):
         return None

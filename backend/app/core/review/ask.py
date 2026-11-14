@@ -18,6 +18,8 @@ from app.core.answering.answer import (
     UNSUPPORTED_QUESTION,
     RoomByType,
     answer_question,
+    counted_noun,
+    noun_forms,
     partial_text,
     printed_rooms,
     rooms_of_type,
@@ -25,6 +27,7 @@ from app.core.answering.answer import (
 from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
+    NOT_COUNTED,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
@@ -281,6 +284,14 @@ def ask(
                 else _room_counts(rooms, again.subject, quantities, parser)
             )
             can_answer = each or can_answer
+        if (
+            isinstance(parsed, Unsupported)
+            and parsed.reason in (NO_SUBJECT, NOT_COUNTED)
+            and (noun := counted_noun(text)) is not None
+        ):
+            words = _noun_refusal(noun, drawing)  # vocab-nouns P2
+        if code == "not-in-drawing" and isinstance(parsed, Query) and parsed.measure == "area":
+            words += _not_measured(parsed, drawing)  # review-349 S3
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     level = None
@@ -640,6 +651,52 @@ def _phrasings(key: str) -> Iterable[str]:
     elif measure == "area" and subject == "room":
         yield "What is the total floor area?"
         yield "What is the total area of all rooms?"
+
+
+LABELS_LISTED = 12  # printed labels a refusal names, the rest counted
+
+
+def _noun_refusal(noun: str, drawing: Drawing) -> str:
+    """A count of a thing no reader counts (vocab-nouns P2): says the noun, and the labels the
+    drawing does print, so the person can ask by one of them. A noun that is one room's whole
+    printed label points at the count of that label instead: a plain noun is not taken as a
+    label (vocab-nouns line 3 failed: 5 of 16 right on the held-out sheets)."""
+    forms = noun_forms(noun)
+    printed = dict.fromkeys(
+        " ".join(r.label.split()) for r in drawing.rooms if r.label and normalised(r.label) in forms
+    )
+    if printed:
+        label = next(iter(printed))
+        return (
+            f"I don't count {noun} by that word: they are not one of the things the readers count "
+            "(doors, windows, toilets, sinks, showers, bathtubs, sauna stoves and rooms). Rooms "
+            f"on this drawing are printed {label}: ask \"How many rooms labelled '{label}' are "
+            'there?"'
+        )
+    words = (
+        f"I don't count {noun}: they are not one of the things the readers count (doors, "
+        "windows, toilets, sinks, showers, bathtubs, sauna stoves and rooms), and no room on this "
+        f"drawing is printed {noun}."
+    )
+    labels = list(dict.fromkeys(" ".join(r.label.split()) for r in drawing.rooms if r.label))
+    if not labels:
+        return f"{words} No room on this drawing has a printed name."
+    shown = ", ".join(labels[:LABELS_LISTED])
+    more = f" and {len(labels) - LABELS_LISTED} more" if len(labels) > LABELS_LISTED else ""
+    return f"{words} Rooms printed here: {shown}{more}."
+
+
+def _not_measured(parsed: Query, drawing: Drawing) -> str:
+    """Why the one room a question names has no area, from the drawing's note on it ("room
+    area: r3 not measured, <why>"; raster_scale's REFUSED_NOTE), or nothing."""
+    if parsed.name is None:
+        return ""
+    rooms = [room for room in drawing.rooms if normalised(parsed.name) in room_names(room)]
+    if len(rooms) != 1:
+        return ""
+    start = f"room area: {rooms[0].id} not measured, "
+    why = next((note[len(start) :] for note in drawing.notes if note.startswith(start)), None)
+    return "" if why is None else f" Not measured: {why}."
 
 
 def _unknown_subject(reason: str) -> str | None:
