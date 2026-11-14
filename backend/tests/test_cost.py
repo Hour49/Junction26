@@ -23,9 +23,9 @@ from app.settings import Settings
 def test_the_decisions_client_charges_what_it_logs() -> None:
     reply = {"answers": {}, "usage": {"total_input_tokens": 3151}}
     client = DecisionsClient("k", 5.0, lambda body, key, timeout: (200, json.dumps(reply).encode()))
-    before = cost.spent()
+    before = cost.mark()
     client.decide({"q": 1})
-    assert cost.spent() - before == pytest.approx(3151 * 0.10 / 1e6)
+    assert cost.since(before) == pytest.approx(3151 * 0.10 / 1e6)
 
 
 class Paid:
@@ -45,6 +45,27 @@ def test_a_stage_records_what_its_calls_charged() -> None:
     assert timer.usd == {"a.png": {"extract": 0.25}}
     (stage,) = pipeline_stages(["extract: read 3 doors"], {"extract": 1.0}, timer.usd["a.png"])
     assert stage.cost_usd == 0.25
+
+
+class PaidTwice:
+    """An extractor making two calls, $0.002 and $0.001."""
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        cost.charge(0.002)
+        cost.charge(0.001)
+        return Extracted.model_construct()
+
+
+def test_a_stage_cost_is_exact_whatever_the_thread_paid_before() -> None:
+    """review-311: one long-lived thread (an ingest worker, or pytest's) carries what it was
+    charged before; the stage's cost must not pick up float noise from it (it read
+    0.0030000000000000027 after a charge of 0.0123, the order test_sheet_kind.py then
+    test_ingest_triage.py ran in)."""
+    cost.charge(0.0123)  # an earlier call on this thread
+    timer = StageClock(clock=lambda: 0.0)
+    source = DrawingFile(path="a.png", size=1, sha256="0" * 64, kind="png")
+    TimedExtractor(PaidTwice(), timer).extract(source, Sheet(file=source, pages=()))
+    assert timer.usd == {"a.png": {"extract": 0.003}}
 
 
 class PaidKind:
