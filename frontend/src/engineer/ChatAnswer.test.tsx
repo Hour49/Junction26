@@ -307,3 +307,22 @@ it('CH-44 an estimated value adds "about <n> <unit>, <estimate>" under the row',
   );
   expect(b.querySelector('.en-estimate')).toBeNull();
 });
+
+it('CH-46 a check reason that already gives the estimate is the one line: no estimate line under it', () => {
+  const why = 'read from the plan by Carbon';
+  const q = answerMedium.quantity as NonNullable<typeof answerMedium.quantity>;
+  const check = answerMedium.check as NonNullable<typeof answerMedium.check>;
+  const est = {
+    ...answerMedium,
+    answer: 19,
+    quantity: { ...q, estimate: why },
+    check: { ...check, reason: `Please double-check the doors: it is an estimate (${why}).` },
+  };
+  show({ ...projectAsk, parts: [{ ...flatA, answer: est }] });
+  const row = rows()[0] as HTMLElement;
+  expect(row.querySelector('.en-why')?.textContent).toBe(
+    `Please double-check the doors: it is an estimate (${why}).`,
+  );
+  expect(row.querySelector('.en-estimate')).toBeNull();
+  expect(row.textContent).not.toContain('about 19');
+});
