@@ -18,6 +18,7 @@ from app.adapters.archive import (
 )
 from app.composition import Pipeline, build_pipeline
 from app.composition import readers as readers_of
+from app.core.evidence.pictures import EvidenceSteps
 from app.core.evidence.ports import EvidenceIndex
 from app.core.ingest.ports import ContentProbe, Rectifier, Runner
 from app.core.ingest.service import IngestService
@@ -46,6 +47,7 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
         store: DiskProjectStore | None = None,
         triage: TriageSteps | None = None,
         evidence: EvidenceIndex | None = None,
+        evidence_steps: EvidenceSteps | None = None,
     ) -> IngestService:
         store = store or DiskProjectStore(root)
 
@@ -70,6 +72,7 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
             new_id=lambda: next(ids),
             triage=triage,
             evidence=evidence,
+            evidence_steps=evidence_steps,
         )
 
     return make

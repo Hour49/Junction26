@@ -22,6 +22,7 @@ from app.core.errors import (
     NotFoundError,
     NotTriagedError,
 )
+from app.core.evidence.pictures import EvidenceSteps, is_picture, picture_evidence
 from app.core.evidence.ports import EvidenceIndex
 from app.core.ingest.groups import Groups
 from app.core.ingest.model import (
@@ -30,6 +31,7 @@ from app.core.ingest.model import (
     ContentKind,
     DrawingInfo,
     Entry,
+    FileEvidence,
     FileState,
     FileStatus,
     FileTrace,
@@ -112,6 +114,7 @@ class IngestService:
         new_id: NewId,
         triage: TriageSteps | None = None,
         evidence: EvidenceIndex | None = None,
+        evidence_steps: EvidenceSteps | None = None,
     ) -> None:
         """`readers(project_id)`: the pipeline's ports over that project's files.
         `reader_names`: which adapter reads each route, shown in the status and part of the
@@ -119,13 +122,15 @@ class IngestService:
         is off, ingest as before it existed. It is shown in the status but is not part of the
         cache key: it decides which files are read, not how a plan is read. `evidence`: the
         project's evidence index (decision 0012), kept in step after judging and after an
-        overrule or a re-read; None: no index."""
+        overrule or a re-read; None: no index. `evidence_steps`: EVIDENCE_SCOPE=all_non_plan,
+        every picture triage did not set aside is asked its kind and described for the index
+        after the plans are read; it never changes how a file is routed. None: set_aside."""
         self._unpacker, self._probe, self._frame, self._store = unpacker, probe, frame, store
         self._rectifier = rectifier
         self._readers, self._names = readers, dict(reader_names)
         self._runner, self._clock, self._now, self._new_id = runner, clock, now, new_id
         self._triage = triage
-        self._evidence = evidence
+        self._evidence, self._evidence_steps = evidence, evidence_steps
         self._lock = threading.Lock()
         self._live: dict[str, Run] = {}
 
@@ -344,6 +349,8 @@ class IngestService:
             for path in run.unfinished():
                 run.finish(path, "set_aside", f"not ingested: {error}")
         self._judge(run, failed=error is not None)
+        if error is None:
+            self._describe_for_index(run)
         ms = (self._clock() - started) * 1000
         run.set_project(state=state, error=error, ms=ms, finished_at=self._now())
         self._save(run)
@@ -618,6 +625,33 @@ class IngestService:
             else:
                 triage = judged(file.triage, found, judged_note(file.triage, None))
             run.set(file.path, triage=triage, cost_usd=file.cost_usd + paid)
+
+    def _describe_for_index(self, run: Run) -> None:
+        """EVIDENCE_SCOPE=all_non_plan (decision 0012 sources v2): every picture triage did not
+        set aside is asked its kind and, when it is not a floor plan sheet, described, a few side
+        by side. It runs after the readers, so plans are never held back, and writes only
+        `evidence` and the cost: a file's state, route and takeoff stay as they are. One file's
+        failure is its `why`, never the project's."""
+        steps = self._evidence_steps
+        if steps is None:
+            return
+
+        def one(file: FileStatus) -> None:
+            try:
+                if not is_picture(file, lambda: self._store.read_upload(run.id, file.path)):
+                    return
+                data = self._store.read_upload(run.id, file.path)
+                found = picture_evidence(data, steps.kinds, steps.describer)
+            except Exception as error:
+                logger.warning("the evidence step on %s failed", file.path, exc_info=True)
+                why = f"the evidence step failed: {type(error).__name__}: {error}"
+                found = FileEvidence(indexed=False, why=why)
+            run.set(file.path, evidence=found, cost_usd=file.cost_usd + found.cost_usd)
+
+        files = [file for file in run.status().files if file.sha256 is not None]
+        with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="evidence") as pool:
+            for done in [pool.submit(one, file) for file in files]:
+                done.result()
 
     def _shown(self) -> dict[str, str]:
         return {} if self._triage is None else {"triage": self._triage.name}

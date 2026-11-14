@@ -1,27 +1,53 @@
 """The evidence step for a picture (decision 0012 sources v2): one image the models can look at
 (a PNG or JPEG, a scanned or drawn PDF page) that today's triage did not set aside. The sheet-kind
-model is asked what it is; a picture that is not a floor plan sheet is described and becomes a source.
-A floor plan, a failed call or no describer leaves it out, with the reason in `why`.
+model is asked what it is; a picture that is not a floor plan sheet is described and becomes a
+source. A floor plan, a failed call or no describer leaves it out, with the reason in `why`.
 
 This only adds descriptions: the file is read as a plan or set aside exactly as it would be with
 the step off (describing for the index is decoupled from setting aside, so no plan is lost)."""
+
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from app.core.evidence.ports import PictureKinds
 from app.core.ingest.model import (
     Classified,
     ContentKind,
     FileEvidence,
+    FileStatus,
     Unavailable,
 )
 from app.core.ingest.ports import Describer
+from app.core.pipeline.identify import sniff
 
 # The probe kinds that are pictures; a PNG or JPEG the probe calls `unknown` is one too
 PICTURE_KINDS: frozenset[ContentKind] = frozenset(
     {"png_plan", "jpeg_plan", "photo_plan", "photo", "pdf_scan", "pdf_vector"}
 )
+IMAGE_FORMATS = frozenset({"png", "jpeg"})
 NOT_DRAWING = frozenset({"not_a_drawing", "schedule_or_text"})  # described as not_drawing
 FLOOR_PLAN = "a floor plan: it is read, so it is not in the evidence index"
 NO_DESCRIBER = "not described: no description model is set up"
+
+
+@dataclass(frozen=True)
+class EvidenceSteps:
+    """EVIDENCE_SCOPE=all_non_plan as composition built it: the kind call, and the describer
+    (None: pictures are not described and say so)."""
+
+    kinds: PictureKinds
+    describer: Describer | None
+
+
+def is_picture(file: FileStatus, read: Callable[[], bytes]) -> bool:
+    """Whether the evidence step asks about the file: a picture that triage did not set aside
+    (a set-aside file keeps today's path: its triage description is the source). `read` gives
+    the upload's bytes, read only for a file the probe could not name."""
+    if file.triage is not None and file.triage.class_ != "floor_plan":
+        return False
+    if file.kind in PICTURE_KINDS:
+        return True
+    return file.kind == "unknown" and sniff(read()) in IMAGE_FORMATS
 
 
 def picture_evidence(

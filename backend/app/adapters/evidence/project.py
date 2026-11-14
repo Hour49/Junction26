@@ -23,7 +23,11 @@ from app.core.ingest.model import ProjectStatus
 
 KEPT: frozenset[str | None] = frozenset({"related", "unsure", None})
 EVERY: frozenset[str | None] = KEPT | {"unrelated"}
-NOTHING = "No file of this project has a description: file triage was off when it was ingested."
+NOTHING = (
+    "No file of this project is in the evidence index (EVIDENCE_SCOPE and file triage decide"
+    " what is)."
+)
+HOW_WORDS = {"described": "described", "text": "text documents", "listed": "listed by name"}
 LISTED = 30  # evidence_prompt lists each file up to this many
 PROMPT_CHARS = 6000  # the longest evidence_prompt, as the law tools' prompt
 CreditOf = Callable[[int, str], str | None]  # (size, sha256) -> the licence credit
@@ -104,6 +108,7 @@ class ProjectEvidence:
                     file=source.path,
                     page=source.page,
                     part=passage.part,
+                    how=source.how,
                     kind=source.kind,
                     subject=source.description.subject,
                     snippet=snippet(passage.text, matched),
@@ -140,6 +145,7 @@ class ProjectEvidence:
             file=source.path,
             page=source.page,
             part=passage.part,
+            how=source.how,
             text=passage.text,
             kind=source.kind,
             verdict=source.verdict,
@@ -165,19 +171,31 @@ class ProjectEvidence:
             sources = list(self._opened(reader).values())
         if not sources:
             return f"Project evidence: none. {NOTHING} Do not call search_evidence."
+        hows = Counter(source.how for source in sources)
         kinds = Counter(source.kind for source in sources)
         languages = sorted({s.description.language for s in sources if s.description.language})
         unrelated = sum(source.verdict == "unrelated" for source in sources)
+        how = ", ".join(f"{hows[name]} {words}" for name, words in HOW_WORDS.items() if hows[name])
         said = ", ".join(f"{count} {kind}" for kind, count in kinds.most_common())
         lines = [
-            f"Project evidence: {len(sources)} described files that are not floor plans ({said})"
+            f"Project evidence: {len(sources)} files that are not floor plans ({how}; {said})"
             + (f"; printed text in {', '.join(languages)}" if languages else "")
             + (f"; {unrelated} judged unrelated, searched only on request" if unrelated else "")
             + ".",
             "Call search_evidence for what a photo, elevation, section, site plan, map or text page"
             " shows or says, and get_evidence before stating a fact from one; cite the file."
             " The descriptions were written by a model and not checked by a person: say"
-            ' "the description says". Floor plan facts (counts, areas, rooms) are not in it.',
+            ' "the description says". Floor plan facts (counts, areas, rooms) are not in it.'
+            + (
+                " A text document is quoted from its own text (say the file and page)."
+                if hows["text"]
+                else ""
+            )
+            + (
+                " A file listed by name was not read: say only that it exists."
+                if hows["listed"]
+                else ""
+            ),
         ]
         if len(sources) <= LISTED:
             lines += [f"{s.file_id} {s.kind}: {s.description.subject}" for s in sources]

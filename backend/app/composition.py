@@ -36,6 +36,7 @@ from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtra
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
 from app.adapters.evidence.embedder import load_embedder
+from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
 from app.adapters.evidence.store import SqliteEvidenceIndex
 from app.adapters.gate_policy import load_gate
@@ -88,8 +89,9 @@ from app.core.answering.ports import (
 )
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
+from app.core.evidence.pictures import EvidenceSteps
 from app.core.ingest.model import ProjectStatus
-from app.core.ingest.ports import Classifier, ContentProbe, Rectifier
+from app.core.ingest.ports import Classifier, ContentProbe, Describer, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
 from app.core.pipeline.ingest import ingest
@@ -286,12 +288,7 @@ def _triage(settings: Settings) -> TriageSteps | None:
                 raise InvalidInputError(f"TRIAGE_CLASSIFIER=siglip: {error}") from error
     name = f"classifier={settings.triage_classifier}, "
     if settings.sheet_kind == "carbon":
-        client = GeminiSheetKindClient(
-            settings.gemini_api_key.get_secret_value(),
-            settings.gemini_timeout_s,
-            budget=spend_guard(settings),
-        )
-        reader = SheetKindReader(client, settings.sheet_kind_cache_dir)
+        reader = _sheet_kind_reader(settings)
         classifier: Classifier = SheetKindClassifier(inner, reader, settings.sheet_kind_cut)
         name += f"sheet_kind={settings.sheet_kind}, "  # named only when on: the same keys as before
     elif inner is None:
@@ -300,15 +297,39 @@ def _triage(settings: Settings) -> TriageSteps | None:
         classifier = inner
     name += f"describer={settings.triage_describer}, judge={settings.triage_judge}"
     judge = RulesJudge() if settings.triage_judge == "rules" else None
-    describer = None
-    if settings.triage_describer == "gemini":
-        client = GeminiDescribeClient(
-            settings.gemini_api_key.get_secret_value(),
-            settings.gemini_timeout_s,
-            budget=spend_guard(settings),
-        )
-        describer = GeminiDescriber(client, settings.triage_describer_cache_dir)
+    describer = _describer(settings)
     return TriageSteps(classifier=classifier, describer=describer, judge=judge, name=name)
+
+
+def _sheet_kind_reader(settings: Settings) -> SheetKindReader:
+    """The sheet-kind model of SHEET_KIND and of the evidence step: one cache, one guard."""
+    client = GeminiSheetKindClient(
+        settings.gemini_api_key.get_secret_value(),
+        settings.gemini_timeout_s,
+        budget=spend_guard(settings),
+    )
+    return SheetKindReader(client, settings.sheet_kind_cache_dir)
+
+
+def _describer(settings: Settings) -> Describer | None:
+    """TRIAGE_DESCRIBER, for triage and for the evidence step; None: off."""
+    if settings.triage_describer != "gemini":
+        return None
+    client = GeminiDescribeClient(
+        settings.gemini_api_key.get_secret_value(),
+        settings.gemini_timeout_s,
+        budget=spend_guard(settings),
+    )
+    return GeminiDescriber(client, settings.triage_describer_cache_dir)
+
+
+def _evidence_steps(settings: Settings) -> EvidenceSteps | None:
+    """EVIDENCE_SCOPE (decision 0012 sources v2): all_non_plan asks every picture triage did not
+    set aside its kind and describes the ones that are not floor plan sheets; set_aside: None."""
+    if settings.evidence_scope == "set_aside":
+        return None
+    kinds = SheetKindPictures(_sheet_kind_reader(settings), settings.sheet_kind_cut)
+    return EvidenceSteps(kinds=kinds, describer=_describer(settings))
 
 
 def _rectifier(name: RectifierName) -> Rectifier:
@@ -416,12 +437,14 @@ def uses_keys(settings: Settings) -> bool:
     triage = settings.triage_classifier != "off" or settings.sheet_kind != "off"
     describer = triage and settings.triage_describer == "gemini"
     sheet_kind = settings.sheet_kind != "off"
+    evidence = settings.evidence_scope == "all_non_plan"  # it always makes the kind call
     return (
         raster
         or settings.decisions_confidence
         or settings.decisions_kind
         or describer
         or sheet_kind
+        or evidence
     )
 
 
@@ -492,6 +515,8 @@ def build_ingest(
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
         names["raster_tiles"] = settings.raster_tiles
+    if settings.evidence_scope != "set_aside":  # the same
+        names["evidence_scope"] = settings.evidence_scope
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -508,6 +533,7 @@ def build_ingest(
         new_id=lambda: secrets.token_hex(6),
         triage=triage or _triage(settings),
         evidence=evidence or build_evidence(settings, root),
+        evidence_steps=_evidence_steps(settings),
     )
     service.recover()  # a project a restart cut off is marked failed, not left running
     return service

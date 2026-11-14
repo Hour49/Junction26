@@ -11,6 +11,8 @@ from pydantic import ConfigDict, Field
 from app.core.ingest.model import (
     PAGE_NUMBER,
     Description,
+    EvidenceHow,
+    FileStatus,
     ProjectStatus,
     Register,
     Relevance,
@@ -25,10 +27,13 @@ PartName = Literal["summary", "detail", "visible_text"]
 class EvidenceSource(Frozen):
     """One described non-plan file, with what the index shows and filters on."""
 
+    how: EvidenceHow = "described"  # sources v2: also `text` and `listed`
     file_id: str
     path: str
     page: int  # the PDF page a page entry is (`<name>#p<n>.pdf`), else 1
-    kind: str  # the sheet register's kind when the classifier read one, else `what_it_is`
+    # the sheet register's kind when the classifier read one, else the evidence step's sheet kind,
+    # else `what_it_is`
+    kind: str
     what_it_is: WhatItIs
     verdict: Verdict | None  # the person's call, else the judge's; None while not judged
     description: Description
@@ -37,43 +42,75 @@ class EvidenceSource(Frozen):
     content: str  # sha256 of what its passages are made from: changes mean re-index
 
 
-def content_of(description: Description, register: Register | None) -> str:
-    """What the passages are made of: the description and the register's kind. Not the judge's
-    verdict or why, so judging a file or overruling it never re-cuts or re-embeds it."""
-    body = {
-        "description": description.model_dump(mode="json"),
-        "kind": None if register is None else register.kind,
-    }
+def content_of(description: Description, kind: str | None) -> str:
+    """What the passages are made of: the description and the register's (or the sheet's) kind.
+    Not the judge's verdict or why, so judging a file or overruling it never re-cuts or re-embeds
+    it."""
+    body = {"description": description.model_dump(mode="json"), "kind": kind}
     return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
 
 
 def sources(status: ProjectStatus) -> tuple[EvidenceSource, ...]:
-    """The project's described files that are not floor plans, in file order. A file a person had
-    read as a floor plan is one now, so it is left out."""
+    """The project's files that are not floor plans, in file order: each one triage set aside and
+    described (a file a person had read as a floor plan is one now, so it is left out), and each
+    one the evidence step indexed (EVIDENCE_SCOPE=all_non_plan, decision 0012 sources v2)."""
     found: list[EvidenceSource] = []
     for file in status.files:
-        triage = file.triage
-        if triage is None or triage.description is None or triage.class_ == "floor_plan":
-            continue
-        if triage.read_as_plan is not None:
-            continue
-        page = PAGE_NUMBER.search(file.path)
-        description, register = triage.description, triage.register_
-        found.append(
-            EvidenceSource(
-                file_id=file.id,
-                path=file.path,
-                page=int(page[1]) if page else 1,
-                kind=register.kind if register is not None else description.what_it_is,
-                what_it_is=description.what_it_is,
-                verdict=triage.verdict,
-                description=description,
-                sheet_register=register,
-                relevance=triage.relevance,
-                content=content_of(description, register),
-            )
-        )
+        source = _set_aside(file) or _described(file)
+        if source is not None:
+            found.append(source)
     return tuple(found)
+
+
+def _page(file: FileStatus) -> int:
+    page = PAGE_NUMBER.search(file.path)
+    return int(page[1]) if page else 1
+
+
+def _set_aside(file: FileStatus) -> EvidenceSource | None:
+    triage = file.triage
+    if triage is None or triage.description is None or triage.class_ == "floor_plan":
+        return None
+    if triage.read_as_plan is not None:
+        return None
+    description, register = triage.description, triage.register_
+    kind = register.kind if register is not None else None
+    return EvidenceSource(
+        file_id=file.id,
+        path=file.path,
+        page=_page(file),
+        kind=kind or description.what_it_is,
+        what_it_is=description.what_it_is,
+        verdict=triage.verdict,
+        description=description,
+        sheet_register=register,
+        relevance=triage.relevance,
+        content=content_of(description, kind),
+    )
+
+
+def _described(file: FileStatus) -> EvidenceSource | None:
+    """A picture the evidence step described. Its kind is the sheet kind that made it a source
+    (a register beside it may come from a triage that called the file a plan). No verdict: the
+    judge works on triage records."""
+    evidence = file.evidence
+    if evidence is None or not evidence.indexed or evidence.how != "described":
+        return None
+    description = evidence.description
+    assert description is not None  # FileEvidence: how described has its description
+    kind = evidence.kind
+    return EvidenceSource(
+        file_id=file.id,
+        path=file.path,
+        page=_page(file),
+        kind=kind or description.what_it_is,
+        what_it_is=description.what_it_is,
+        verdict=None,
+        description=description,
+        sheet_register=None,
+        relevance=None,
+        content=content_of(description, kind),
+    )
 
 
 class Passage(Frozen):
@@ -100,7 +137,8 @@ class EvidenceHit(Frozen):
     file: str  # the path as uploaded
     page: int
     part: PartName
-    kind: str  # the register's kind, else what_it_is; never floor_plan
+    how: EvidenceHow  # described, text (the file's own text), listed (by name only; not read)
+    kind: str  # the register's kind, else the sheet kind, else what_it_is; never floor_plan
     subject: str
     snippet: str  # <= 300 characters of the passage, around the matched words
     language: str | None
@@ -149,6 +187,7 @@ class EvidenceDetail(Frozen):
     file: str
     page: int
     part: PartName
+    how: EvidenceHow
     text: str  # the whole passage
     kind: str
     verdict: Verdict | None
