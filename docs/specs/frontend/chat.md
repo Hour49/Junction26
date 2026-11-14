@@ -226,6 +226,13 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   that its first row (value, estimate and reason, CH-43/44) is fully above the sticky ask bar (`scrollIntoView`
   `block: 'nearest'`, scroll margin `--en-ask-h`): no line of it under the bar. (The engineer page already has
   its value block first on phones, EN-86.) [component (the calls); browser 390x844: row bottom <= `.en-ask` top]
+- CH-48 (chat-ux; keycheck review-315, orch 21:50: keep #294) One number per answer everywhere. A row shows the
+  server's `answer` (an area on an estimated scale is in whole m², #294 / `ask.shown_value`; the scorer's line
+  keeps the measured value); the lead shows `total`, which the backend says in whole m² when a summed part is an
+  estimated area (`project_ask._total`). Both, and the engineer's answer card, print through `shownValue`: a whole
+  number that is an estimate without ".00" ("5 m²", as `estimateLine` says "about 5 m²"), anything else as
+  `formatValue`. Before: the row printed a rounded 5 as "5.00 m²" beside a "4.88 m²" lead. [component, the API's
+  shape with `quantity.estimate` set; `test_api_project_ask.py` for the total]
 
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 
