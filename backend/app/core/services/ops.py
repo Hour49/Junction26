@@ -11,7 +11,9 @@ Definitions (SV-11):
 - "What feeds X" is the set of equipment X's walk reaches, not the nearest by hops; a unit with
   a heat or air source is preferred over pumps alone, the others are listed under "also".
 - "What closing a valve cuts off" follows the stated flow direction, so it needs a direction on
-  at least 90% of the ports of the valve's systems; else it is unknown.
+  at least 90% of the ports of the valve's systems; else it is unknown. It is unknown too when
+  an outlet of the valve or of anything it passes downstream is open (or not a stated
+  source-to-sink connection), and when nothing lies downstream: it never says "0" from a gap.
 - A junction is any element with three or more ports.
 
 Connectivity (SV-4): with `none`, every question that walks the network is unknown with the
@@ -71,6 +73,7 @@ class ServicesGraph:
         self.el: dict[str, Mapping[str, Any]] = {e["id"]: e for e in doc.get("elements", ())}
         self.adj: dict[str, set[str]] = defaultdict(set)
         self.linked: set[str] = set()
+        self.peer: dict[str, str] = {}  # port -> the port it connects to
         self.flow = {p["id"]: p.get("flow") for e in self.el.values() for p in e.get("ports") or ()}
         self.down: dict[str, set[str]] = defaultdict(set)  # along a stated flow direction
         for c in doc.get("connections", ()):
@@ -78,6 +81,7 @@ class ServicesGraph:
             if a == b or a not in self.el or b not in self.el:
                 continue
             self.linked |= {c["a"], c["b"]}
+            self.peer |= {c["a"]: c["b"], c["b"]: c["a"]}
             self.adj[a].add(b)
             self.adj[b].add(a)
             if self.flow.get(c["a"]) == "source" and self.flow.get(c["b"]) == "sink":
@@ -310,6 +314,18 @@ def cut_off(g: ServicesGraph, element_id: str) -> Answer:
     if not ports or stated < 0.9 * len(ports):
         raise UnknownAnswerError(NO_FLOW)
     down = g._walk({element_id}, stop=g.stops, edges=g.down) - {element_id}  # pyright: ignore[reportPrivateUsage]
+    # Every outlet of the valve and of what it passes must lead on along a stated flow: an
+    # open end or an undirected outlet hides what lies beyond, so the count would be short.
+    for v in _order({element_id} | {d for d in down if not g.stops(d)}):
+        for p in g.el[v].get("ports") or ():
+            flow, beyond = g.flow.get(p["id"]), g.flow.get(g.peer.get(p["id"], ""))
+            if flow != "sink" and not (flow == "source" and beyond == "sink"):
+                raise UnknownAnswerError(
+                    f"the model does not show what lies downstream of {element_id}: "
+                    f"at {v} a connection is missing"
+                )
+    if not down:  # a connected valve always has something downstream: its flow is mis-stated
+        raise UnknownAnswerError(NO_FLOW)
     return {
         "value": len(down),
         "elements": _order(down),

@@ -98,7 +98,7 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   own answer depends on the loose part (orchestrator, 2026-11-14, following Tudor's "refuse with the reason"): one
   that needs equipment (feeds, terminals served, trace, run length from an element, farthest terminal) refuses for
   an element with no connected port or on a piece that reaches no equipment; cut-off needs only the stated flow
-  (SV-11); controllers-between answers when a path joins its two elements and else refuses: "no connection between
+  and no open end downstream of the valve (SV-11); controllers-between answers when a path joins its two elements and else refuses: "no connection between
   them in the model"; the other operations answer as on a connected model.
 - SV-5 **Rooms, walls, openings** come from the architectural model of the same group when both models share
   coordinates: equal storey elevations within 0.05 m and plan boxes overlapping by half (the bench renderer's
@@ -140,6 +140,10 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   reached it refuses: "its network reaches no equipment"; adjacent equipment pieces count as one unit; cut-off needs a stated flow direction on at least 90% of
   the ports of the valve's systems (of its connected piece when it has no system), not connected equipment, so it
   answers on a loose part of a `partial` model too; else it refuses: "this model does not say which way the water flows here".
+  On any model it also refuses when an outlet of the valve, or of anything it passes downstream (equipment it stops at
+  excepted), is open or not a stated source-to-sink connection: "the model does not show what lies downstream of
+  <valve>: at <element> a connection is missing"; and it never answers "cuts off 0" (a valve with nothing
+  downstream along stated flow refuses with the flow reason).
 - SV-12 A full re-derive (facts, graph, checks) runs after every edit. *Measured*: 6 ms for 1,795 elements.
 
 ## 3. Edit operations (`core/services/edit.py`, pure)

@@ -291,10 +291,11 @@ def loose() -> Doc:
         el("E21", "pipe_segment", "flow_segment", systems=["Heating 2"], length_m=1.0),
         el("E20", "valve", "flow_controller", systems=["Heating 2"]),
         el("E23", "pipe_segment", "flow_segment", systems=["Heating 2"], length_m=1.0),
-        el("E22", "space_heater", "flow_terminal", systems=["Heating 2"]),
+        el("E22", "space_heater", "flow_terminal", systems=["Heating 2"], ports=1),
     ]
     for e in part:
-        e["ports"][0]["flow"], e["ports"][1]["flow"] = "sink", "source"
+        for p, flow in zip(e["ports"], ("sink", "source"), strict=False):
+            p["flow"] = flow
     doc["elements"] += part
     doc["connections"] += [
         {"a": a, "b": b, "state": "stated"}
@@ -316,3 +317,36 @@ def test_sv4_controllers_between_answers_when_a_path_exists_in_a_loose_part() ->
 def test_sv4_controllers_between_refuses_when_no_path_joins_them() -> None:
     said = ask(derive.graph(loose()), "controllers_between", element_id="E6", to_element_id="E22")
     assert said == {"status": "unknown", "reason": "no connection between them in the model"}
+
+
+BEYOND = "the model does not show what lies downstream of E7: at {} a connection is missing"
+
+
+def test_sv11_cut_off_refuses_when_the_valve_outlet_is_not_connected() -> None:
+    doc = model(state="partial", reason="1 heating network reaches no equipment")
+    doc["connections"] = [c for c in doc["connections"] if c["a"] != "E7.p2"]  # E7 -> E8 missing
+    said = ask(derive.graph(doc), "cut_off", element_id="E7")
+    assert said == {"status": "unknown", "reason": BEYOND.format("E7")}
+
+
+def test_sv11_cut_off_refuses_for_a_valve_with_no_connection() -> None:
+    doc = model(state="partial", reason="1 valve has no connected port")
+    doc["elements"].append(el("E30", "valve", "flow_controller"))
+    doc["elements"][-1]["ports"][1]["flow"] = "source"
+    said = ask(derive.graph(doc), "cut_off", element_id="E30")
+    assert said == {"status": "unknown", "reason": BEYOND.replace("E7", "E30").format("E30")}
+
+
+def test_sv11_cut_off_refuses_when_an_outlet_downstream_is_open() -> None:
+    doc = model()
+    doc["connections"] = [c for c in doc["connections"] if c["a"] != "E8.p2"]  # E8 -> E9 missing
+    said = ask(derive.graph(doc), "cut_off", element_id="E7")
+    assert said == {"status": "unknown", "reason": BEYOND.format("E8")}
+
+
+def test_sv11_cut_off_never_says_zero_when_nothing_flows_out_of_the_valve() -> None:
+    doc = model()
+    doc["elements"].append(el("E30", "valve", "flow_controller"))  # both ports state "sink"
+    doc["connections"].append({"a": "E30.p1", "b": "E5.p2", "state": "stated"})
+    said = ask(derive.graph(doc), "cut_off", element_id="E30")
+    assert said["status"] == "unknown"
