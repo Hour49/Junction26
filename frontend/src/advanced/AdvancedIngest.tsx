@@ -28,7 +28,7 @@ const STEP_VIEW_FIRST = { heading: '', visual: 'files', explain: '' } as const;
 const NOW_WORD = {
   working: 'Now',
   waiting: 'Waiting',
-  done: 'Done',
+  done: 'Done · replaying what this step did',
   none: 'No file got here',
 } as const;
 
@@ -169,9 +169,9 @@ export function AdvancedIngest({
           />
         );
       case 'pairs':
-        return <CheckPairs projectId={projectId} pairs={pairs} />;
+        return <CheckPairs pairs={pairs} done={project.state === 'done'} />;
       case 'ready':
-        return <ReadyList projectId={projectId} project={project} views={data.views} />;
+        return <ReadyList project={project} views={data.views} />;
     }
   };
   const live = lines.at(-1);
@@ -217,7 +217,7 @@ export function AdvancedIngest({
         <div className="adv-body">
           {visual()}
           <div className="adv-text">
-            <span className="adv-now">
+            <span className={isCurrent ? 'adv-now' : `adv-now ${status}`}>
               {isCurrent && <span className="adv-spin" aria-hidden="true" />}
               {isCurrent ? 'Now' : NOW_WORD[status]}
             </span>

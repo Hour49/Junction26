@@ -305,13 +305,25 @@ export function PlanMarks({
 
 const VERDICT: Record<string, string> = {
   agree: 'They agree. Kept as the answer.',
-  conflict: 'They disagree. Sent to Settle the conflicts.',
 };
+const CONFLICT_DONE = 'They disagree. It goes to the conflicts below.';
+const CONFLICT_LATER = 'They disagree. It goes to the conflicts when reading ends.';
+
+/** The finished block's conflicts list (src/ingest IngestFinished, preqa-a): into view and focus (AV-38). */
+function showConflicts() {
+  const list = document.getElementById('conflicts');
+  if (!list) return;
+  const reduce =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  list.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  list.focus({ preventScroll: true });
+}
 
 /** Cross-check: every quantity measured twice, with both values and the verdict. */
 export const PAIRS_SHOWN = 4;
 
-export function CheckPairs({ projectId, pairs }: { projectId: string; pairs: readonly Pair[] }) {
+export function CheckPairs({ pairs, done }: { pairs: readonly Pair[]; done: boolean }) {
   const [all, setAll] = useState(false);
   if (!pairs.length)
     return (
@@ -343,11 +355,17 @@ export function CheckPairs({ projectId, pairs }: { projectId: string; pairs: rea
             </div>
             <p className="adv-verdict">
               <span aria-hidden="true">{row.status === 'conflict' ? '!' : '✓'}</span>{' '}
-              {VERDICT[row.status] ?? row.status}
-              {row.status === 'conflict' && (
+              {row.status === 'conflict'
+                ? done
+                  ? CONFLICT_DONE
+                  : CONFLICT_LATER
+                : (VERDICT[row.status] ?? row.status)}
+              {row.status === 'conflict' && done && (
                 <>
                   {' '}
-                  <a href={`#/p/${projectId}/conflicts`}>Settle the conflicts</a>
+                  <button type="button" className="v-press" onClick={showConflicts}>
+                    Show the conflict
+                  </button>
                 </>
               )}
             </p>
@@ -371,11 +389,9 @@ export function CheckPairs({ projectId, pairs }: { projectId: string; pairs: rea
 
 /** Index: per drawing, how many questions are ready to ask (one per quantity) and the ones it suggests. */
 export function ReadyList({
-  projectId,
   project,
   views,
 }: {
-  projectId: string;
   project: ProjectView;
   views: ReadonlyMap<string, DrawingView>;
 }) {
@@ -398,7 +414,6 @@ export function ReadyList({
                   <li key={s.quantity}>{s.label}</li>
                 ))}
               </ul>
-              <a href={`#/p/${projectId}/d/${d.drawing_id}/engineer`}>Ask this drawing</a>
             </li>
           );
         })}

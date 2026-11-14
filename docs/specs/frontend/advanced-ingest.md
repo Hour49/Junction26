@@ -113,7 +113,7 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
    `aria-pressed="true"`; the pipeline's current step has `aria-current="step"`. Min height 44 px.
 2. **Panel** (`<section aria-label="<Heading>">`, white card, `--v-radius`, `--v-shadow`): left the visual (flex
    999 1 520px), right the text column (flex 1 1 300px); they stack under ~860 px.
-   - Status line: when the step is `currentStep`, a spinner and "Now"; else "Done", "Waiting", or "No file got here".
+   - Status line: when the step is `currentStep`, a spinner and "Now"; else "Done · replaying what this step did" (AV-41), "Waiting", or "No file got here".
    - `<h2>` the heading from the step table.
    - The explanation sentence (fixed text above).
    - The live line (`aria-live="polite"` only while the step is current): `"<path>: <did>"` of the last trace line of
@@ -181,14 +181,12 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   in takeoff order. Each pair as the design's card: left "From the drawing" `formatValue(first.value, unit)` and
   `methodName(first.method)`; right "Second count" `formatValue(second.value, unit)` and
   `methodName(second.method)`; above, `label` and the drawing's `file`; below, the verdict: `agree` → "They agree.
-  Kept as the answer."; `conflict` → "They disagree. Sent to Settle the conflicts." with a link to
-  `#/p/<projectId>/conflicts`; any other `status` → its word (`signed`, `edited`, `estimate`, `single`). Verdicts
+  Kept as the answer."; `conflict` → AV-38's words and "Show the conflict" button; any other `status` → its word (`signed`, `edited`, `estimate`, `single`). Verdicts
   carry an icon and words, colour (`--v-ok`, `--v-warn-soft`) only adds. No pairs: "Nothing on these drawings can be
   measured a second way yet." Shown: every conflict and the first 4 other pairs, then a "Show all N pairs" button.
 - Visual `ReadyList` (Index): "Questions ready to ask" (never "answers ready", Bogdan), per drawing: its `file`,
   "<n> questions ready to ask" with `n` = keys of its file's `takeoff` (one question per quantity), then the `suggestions[].label` of its `DrawingView` as a
-  list, each with a filled dot when the drawing's file is `ready` or `flagged`, and a link "Ask this drawing" to
-  `#/p/<projectId>/d/<drawing_id>/engineer`. No drawings: "No drawing to ask yet."
+  list, each with a filled dot when the drawing's file is `ready` or `flagged` (no link: AV-39). No drawings: "No drawing to ask yet."
 - Stats, Cross-check: **Elapsed**, **Measured twice** (pairs), **Agree** (`status === 'agree'`), **Conflicts**
   (`status === 'conflict'`), from the takeoffs, once every finished drawing's takeoff has loaded or failed; "–" until then (AV-31); Conflicts
   counts `Takeoff.disputes` (AV-34). Index: **Elapsed**, **Drawings** (`drawings.length`), **Questions ready** (keys of the drawings' files'
@@ -258,11 +256,11 @@ Visuals and stats
 - AV-18: The plan view draws one rect per non-rejected page-1 mark of the `room`, `door` and `window` rows of the
   selected drawing's takeoff, at `box` fractions in a `0 0 1 1` viewBox. [component, `takeoff.json`: the `door` row's
   2 marks]
-- AV-19: Cross-check lists every takeoff row with `second` set, conflicts first; a conflict links to
-  `#/p/<projectId>/conflicts`; Agree and Conflicts stats count `status` `agree` and `conflict`. [unit + component,
+- AV-19: Cross-check lists every takeoff row with `second` set, conflicts first; a conflict's way to its card is
+  AV-38 (the `#/p/<projectId>/conflicts` link is gone: that route now lands on Ingest); Agree and Conflicts stats count `status` `agree` and `conflict`. [unit + component,
   `takeoff.json`: one pair, `area:room|name=1.01`, 22.4 vs 30.0, conflict]
-- AV-20: Index lists each drawing with its quantity count and its `suggestions[].label`, and links "Ask this
-  drawing" to `#/p/<projectId>/d/<drawing_id>/engineer`. [component, `drawing.json`]
+- AV-20: Index lists each drawing with its quantity count and its `suggestions[].label`; no "Ask this drawing"
+  link (AV-39). [component, `drawing.json`]
 - AV-21: Takeoffs and drawings are requested once per drawing, only after a step that needs them is first shown;
   a failure shows its error line with Retry and "–" in the dependent stats. [component]
 - AV-22: No value from the design mock appears (no "harbour-block", "1948", "Swedish", "Beatrice", no country
@@ -282,7 +280,7 @@ Layout and access
   [unit `previewNote`; component: mixed kinds; browser: a real upload (zip of photo, PDF, PNG scan, IFC; and one
   photo alone) at 1440 and 390, 0 console errors]
 - AV-27: Trace lines show a sha256 as its first 12 characters and "…" (`shortHashes`); mark keys are
-  `<row key>-<mark id>` (ids repeat across rows); "Ask this drawing" links and the Drawing select are 44 px tall.
+  `<row key>-<mark id>` (ids repeat across rows); the Drawing select is 44 px tall.
   [unit, component, CSS text]
 - AV-28: Every file name in src/advanced comes from THIS project (`fileName(project, drawingId)`: `project.files` by
   `drawing_id`, else `project.drawings[].file`), never `Takeoff.file` or `DrawingView.file`: drawings are
@@ -309,6 +307,69 @@ Layout and access
   keys the project review lists): a `conflict` row whose key is not in `disputes` (a storey or room-name twin of
   another row's disagreement) is not listed or counted; Conflicts = disputed pairs. A takeoff without `disputes`
   (older backend) keeps the old rule (`status === 'conflict'`). [unit `pairsOf`; component]
+
+## Demo parity (Tudor 2026-11-14 16:25, demo PRs #206, #211, #212, #217)
+
+"make the full frontend look more like our demo": in the demo the finished Advanced view ends the same way as the
+finished Simple view (#211): under the panel card, the conflicts (AI-settled first, then the ones that need a
+person), then "Start a new chat" (disabled until every conflict is settled) and "Open the workspace"; no issues
+there; the done line "N issues in Documents need you" links to Documents. The Advanced view keeps its rail, panel
+and stats; only the end of the page and a few links change.
+
+**One finished block, two views.** Simple and Advanced must not disagree, so `src/advanced/` writes none of it: it
+imports preqa-a's done line and finished block from `src/ingest/` (which embeds fe-surveyor's conflicts list).
+Working names below: `DoneLine({projectId, project})` and `IngestFinished({projectId, project})`; if preqa-a's
+spec names them otherwise, the code follows theirs and this spec is updated, nothing else changes. Ruled out:
+ProjectScreen rendering the block under both views (ingest.md says `AdvancedIngest` replaces everything under the
+title row; keeping that keeps the toggle a one-line switch).
+
+Layout when `project.state === 'done'` (as the demo's `advancedScreen`): rail, then the panel card with its stats
+and, last inside the card, `DoneLine` (demo `.done-row`: padding 0 32px 28px, 0 20px 22px under 760 px); then,
+under the card, `IngestFinished`. Running, queued or failed: neither (failed shows `project.error` from
+ProjectScreen, as now). A done project with no drawings: whatever `IngestFinished`/`DoneLine` show for Simple (IN-72
+"nothing read"), the same in both views.
+
+- AV-35: With `project.json` (done), AdvancedIngest renders `DoneLine` inside the panel card after the stats and
+  `IngestFinished` after the card, each once, with `projectId` and the same `project`; the rail and panel stay
+  above them. [component, both mocked with `vi.mock` so this test does not depend on their contents]
+- AV-36: With `project_running.json`, `queued` and `project_failed.json`, neither `DoneLine` nor `IngestFinished`
+  renders. [component]
+- AV-37: AdvancedIngest makes no review or issues request of its own (the finished block makes them): the
+  `mockApi` call log for a done project with the block mocked has no `/review` and no `/issues` call. [component]
+- AV-38: Cross-check verdicts: `conflict` reads "They disagree. It goes to the conflicts below." while the project
+  is done, and "They disagree. It goes to the conflicts when reading ends." while it is not; a done project's
+  conflict pair has a button "Show the conflict" that scrolls the finished block's conflicts list into view
+  (`scrollIntoView`, `behavior: 'auto'` under reduced motion) and moves focus to it (`tabIndex=-1` target). No link
+  to `#/p/<pid>/conflicts`. [component: text per state, button present only when done, `scrollIntoView` called]
+- AV-39: Index has no "Ask this drawing" link and no `/engineer` link anywhere in `src/advanced/` (chat is project
+  wide; "Start a new chat" in the finished block is the way in, as in the demo). [component + grep of the folder]
+- AV-40: Plain words: no text in `src/advanced/` names a screen that no longer exists ("Settle the conflicts",
+  "Engineer", "Issues" tab) and no credit, licence, source note or "refused" line. [component: done project, assert
+  absent; grep]
+- AV-41: Look as the demo's Advanced screen (`demo/vellum/style.css` `.rail`, `.r-ico`, `.panel`, `.panel-txt`,
+  `.say`, `.log`, `.stats`, `.kicker`, `.done-row`), with `--v-*` tokens only (AV-25 still holds): rail track
+  radius 18 px / padding 4 px, step radius 14 px; panel padding 28 px (20 px under 760), gap 28 px; stats cells
+  padding 14px 20px, `dt` 12 px muted, `dd` 20 px 600 tabular; log padding 12px 14px, radius 14 px; finished
+  step's kicker "Done · replaying what this step did" in `--v-ok` (replaces "Done"). Differences preqa-b lists in
+  `.agents/preqa-parity.md` for Advanced are folded in here before phase 2. [unit: CSS text; browser 1440/390]
+- AV-42: At 390 px with a done project: no horizontal scroll, the finished block's buttons full width (demo
+  `.chat-cta .btn { width: 100% }`, from the block), 44 px taps; at 1440 px the block sits in the same column as
+  the panel card. [browser on a no-keys backend, sample project, both widths]
+
+### Dependencies (phase 2 order)
+
+1. preqa-a: `DoneLine`, `IngestFinished` exported from `src/ingest/` (names per their spec), and the conflicts
+   list's element carries an `id` (or a ref prop) AV-38 can scroll to; until then AV-35/AV-36 run red against the
+   mocked import path.
+2. fe-surveyor: the embeddable conflicts list (inside `IngestFinished`, not imported here directly).
+3. fe-shared: no new token needed; `--v-ok` exists.
+
+### API asks
+
+None for this area: the Advanced view reads what it read before, and the finished block's data (review, issues)
+is the Simple view's. The issue count of the done line ("issues still to answer": `severity: needs_person`,
+`state: open`, notes not counted) is computable from `GET /api/projects/{id}/issues`; one count function should
+serve the done line and the Documents badge (fe-shared / preqa-a), not two.
 
 ## Not in the API
 

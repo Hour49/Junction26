@@ -443,6 +443,19 @@
   background: var(--v-ok-soft);
   color: var(--v-ok);
 }
+.adv-now.done {
+  color: var(--v-ok);
+}
+.adv-verdict button {
+  font: inherit;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: var(--v-surface);
+  color: inherit;
+  cursor: pointer;
+}
 .adv-pair.conflict .adv-verdict {
   background: var(--v-warn-soft);
   color: var(--v-warn);
@@ -470,11 +483,6 @@
   width: 100%;
   border-radius: 12px;
   background: var(--v-bg);
-}
-.adv-ready a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
 }
 .adv-ready ul ul {
   margin: 4px 0 4px 18px;
