@@ -20,9 +20,9 @@ per entry; an entry goes when its fix is merged.
   fail test, `prototypes/handdrawn/`) the door count was in range on 0 of 10 sheets with doors; windows 4 of 10, only on
   clean line drawings. Every door, window, room and WC count asked for a check; the exception is plans on a page, sure
   and wrong 3 of 14 times. The gold is one person's ranges, so there is no hand-drawn accuracy number.
-- K9 · cost · backend · The double-check policy asks about many answers: 55.1% of val answers flagged to catch
-  96.0% of the wrong ones, with 98.95% of the unflagged ones exact (docs/GOLDEN.md, double-check policy; val
-  estimates, test certificate still to come).
+- K9 · cost · backend · The double-check policy asks about many answers: on the CubiCasa test pages 62.1% of
+  answers are flagged to catch 97.0% of the wrong ones, with 98.98% of the unflagged ones exact (docs/GOLDEN.md,
+  the test certificate; on val 55.1% flagged, 96.0% caught).
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).

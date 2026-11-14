@@ -106,20 +106,22 @@ proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a 
 - Golden v2, whole pipeline, run from a clean export of commit bd2471f: 2717 of 2948 answers right (92.2%), 92.9%
   on the holdout questions, 4.5% abstained. The dev column is in-sample because of the dev prior, so the holdout
   is the honest one. The series is in [docs/GOLDEN.md](docs/GOLDEN.md).
-- Shipping raster config C1-T1, CubiCasa test split, read once: 87.2% exact (5,860 of 6,718 questions, 376 test
-  pages). On the validation split it scored 88.5%, so the validation figure was optimistic by 1.3 points.
-  Config C's earlier test read was 85.0% (5708 of 6718, 95% CI [83.4, 86.5], against 56.3% for the train prior,
-  [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)).
-- Double-check policy, fit on validation for C1-T1: 55.1% of answers ask for a check, which covers 96.0% of the
-  wrong answers, and 98.95% of the answers it leaves alone are exact. These are validation estimates; the test
-  certificate is still to come ([docs/GOLDEN.md](docs/GOLDEN.md)).
-- Double-check certificate on the test read: TODO(certificate).
+- Shipping raster config C1-T1, CubiCasa test split, read once through the API: 87.0% exact (5,846 of 6,718
+  questions, 376 test pages; kitchen counts 92.2%, read from the drawing). The same read scored through the CLI
+  gave 87.2% (5,860), because the CLI answers kitchen from the prior and the API never does for an uploaded file.
+  The validation split gave 88.5%. Config C's earlier test read was 85.0% (5708 of 6718, 95% CI [83.4, 86.5],
+  against 56.3% for the train prior, [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)).
+- Double-check policy, test certificate (the policy fit on validation, then run once on the test pages): it flags
+  97.0% of the wrong answers (846 of 872 questions; one-sided 95% bound 95.3%), asks on 62.1% of all answers, and
+  98.98% of the answers it leaves alone are exact (2518 of 2544). On validation it asked on 55.1% and flagged
+  96.0%. The certificate covers the raster route; vector and BIM are certified on golden v2's holdout
+  ([docs/GOLDEN.md](docs/GOLDEN.md)).
 
 ### Limits
 
 - Sketches: we claim no door counting. On 14 hand-drawn sheets the door count was in range on 0 of 10, and every
   door, window and room count asked for a check (K8 in [docs/KNOWN.md](docs/KNOWN.md)).
-- The double-check policy flags 55% of answers to catch 96% of the wrong ones, so a person reviews many right answers too (K9).
+- The double-check policy asks about 62% of answers on the test pages to catch 97% of the wrong ones, so a person reviews many right answers too (K9).
 - On an image, areas come from an estimated scale (`RASTER_SCALE=priors`) and are labelled estimates. One can be
   far off while printing a narrow band (K5: +74%, +100% and -37% on three golden rooms).
 - On plans without printed room labels the reader types rooms by furniture, while the gold labels only count
