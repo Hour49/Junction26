@@ -223,7 +223,10 @@ class Settings(BaseSettings):
     # route is 404 and no payload changes. Each conversion runs alone in a subprocess under this
     # memory budget and time limit; over either, the model is too_big
     model_3d: bool = False
-    model_3d_memory_mb: int = Field(default=3000, ge=1)
+    # 1500 MB: the largest publishable model (DigitalHub plumbing) peaks at 1.27 GB, inside the
+    # live app's 4 GB; the time limit is CPU seconds (56 s for that one), so a busy machine does
+    # not make a model too_big
+    model_3d_memory_mb: int = Field(default=1500, ge=1)
     model_3d_timeout_s: float = Field(default=120, gt=0)
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
     sample_archive: Path = Path("../data/samples/sample-project.zip")
