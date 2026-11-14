@@ -84,11 +84,12 @@ def test_drawings_that_may_show_the_same_flat_are_not_added_up(client: TestClien
     assert {part["name"] for part in answered} >= {"plans/flat-a.pdf", "model/house.ifc"}
     assert (found["total"], found["total_unit"], found["total_sure"]) == (None, None, False)
     assert found["total_note"] == (
-        f"{len(answered)} drawings answered; {SAME_FLAT}; 2 drawings have no reader for it."
+        f"{len(answered)} drawings answered; {SAME_FLAT}; "
+        "2 drawings give no reliable number for it."
     )
     # the same note in its two parts: why there is no total, and what was left out
     assert found["why_no_total"] == f"{len(answered)} drawings answered; {SAME_FLAT}."
-    assert found["refused_note"] == "2 drawings have no reader for it."
+    assert found["refused_note"] == "2 drawings give no reliable number for it."
 
 
 def test_an_ifc_model_answers_an_area_and_is_not_added_to_the_sheets_of_its_flat(
@@ -125,7 +126,8 @@ def test_drawings_known_to_be_disjoint_are_summed(
     assert (found["total"], found["total_unit"]) == (sum(values), "count")
     assert found["total_sure"] is False  # the sample's answers have no sure verdict
     assert found["total_note"] == (
-        f"{sum(values)} doors over {len(values)} drawings; 2 drawings have no reader for it."
+        f"{sum(values)} doors over {len(values)} drawings; "
+        "2 drawings give no reliable number for it."
     )
 
 

@@ -67,7 +67,7 @@ def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | No
     if drawing.read != () or drawing.tables:
         return None
     if reader == "hello":
-        return f"no reader for the {route_words(route)} yet: nothing was read"
+        return f"not read: this setup has no reader for the {route_words(route)}"
     why = drawing.notes[0] if drawing.notes else "nothing it knows was found"
     return f"the {ROUTE_WORDS[route]} reader read nothing: {why}"
 
