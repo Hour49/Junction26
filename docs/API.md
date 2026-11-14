@@ -1219,8 +1219,8 @@ the `identify` stage's line.
   issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
   drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
   plan."; `read`: also a camera photo (`photo_plan`) it calls no floor plan while `takeoff_possible` is true, under
-  the cut: a posted fire exit plan keeps the kind it was given and gets no flag), `takeoff_possible`, `confidence`
-  (of a floor plan on the
+  the cut: a posted fire exit plan keeps the kind it was given and gets no sheet-kind doubt (the photo's own reading
+  flag stays)), `takeoff_possible`, `confidence` (of a floor plan on the
   sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`,
   `electrical`, `fire`, `site` or `other`, from the kind, title and number; null when unsure; a display hint, no
   client shows or reads it yet), `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
