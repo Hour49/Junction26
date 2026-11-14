@@ -115,6 +115,8 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
 | `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
+| `GET /api/projects/{project_id}/evidence/search?q=&k=&include_unrelated=` | Search the project's non-plan files by what they show and say (one hit per file) | 0012 |
+| `GET /api/projects/{project_id}/evidence/{evidence_id}` | One hit's passage with its file's description | 0012 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
@@ -1540,6 +1542,111 @@ The same file once read:
     },
     "verdict": "related",
     "note": null
+  }
+}
+```
+
+### `GET /api/projects/{project_id}/evidence/search?q=<text>&k=5&include_unrelated=false` (decision 0012)
+
+A search over what the project's files that are not floor plans show and say: every file triage described and
+nobody read as a plan (photos, elevations, sections, site plans, maps, text pages). Floor-plan facts are not in it.
+The same JSON as the chat agent's `search_evidence` tool (`backend/app/adapters/evidence_tools.py`). Local only:
+SQLite FTS5 BM25 and a multilingual embedder on CPU, fused by reciprocal rank fusion; with no embedder model on the
+machine it searches with BM25 alone and `method` says so. Works in any project state: it answers from what is
+described so far; a project with triage off has `indexed_files: 0` and a `note`.
+
+- `q` 1-500 characters, not blank; `k` 1-20 (default 5) counts files: a file appears once, with its best-matching
+  passage. 422 `validation` otherwise; 404 `not-found` for an unknown project.
+- Files whose verdict (a person's call over the judge's) is `unrelated` are searched only with
+  `include_unrelated=true`; `unrelated_left_out` counts the ones skipped.
+- A hit: `id` (`f7-summary`, `f7-detail-2`, `f7-visible_text-1`), `file_id`, `file` (as uploaded; the picture is
+  `…/files/{file_id}/preview.png`), `page` (the PDF page of a page entry `<name>#p<n>.pdf`, else 1), `part`, `kind` (the register's kind, else the description's
+  `what_it_is`), `subject`, `snippet` (at most 300 characters around the matched words), `language`, `verdict`,
+  `credit`, `score` (orders one result's hits only) and `why` (`terms`: query words in the passage; `bm25_rank`,
+  `dense_rank`: the file's rank by each retriever, null when it did not rank it or did not run).
+- A hit is the closest file, not proof: read the snippet, then get the passage.
+
+<!-- fixture: evidence_search.json -->
+```json
+{
+  "query": "St. Anna",
+  "method": "BM25 (no embedder model on this machine)",
+  "indexed_files": 3,
+  "unrelated_left_out": 0,
+  "note": null,
+  "hits": [
+    {
+      "id": "f5-visible_text-1",
+      "file_id": "f5",
+      "file": "photos/sheet.jpg",
+      "page": 1,
+      "part": "visible_text",
+      "kind": "elevation",
+      "subject": "a photographed elevation of a church",
+      "snippet": "Kirche St. Anna",
+      "language": "en",
+      "verdict": "unsure",
+      "credit": null,
+      "score": 0.166667,
+      "why": {
+        "terms": [
+          "st",
+          "anna"
+        ],
+        "bm25_rank": 1,
+        "dense_rank": null
+      }
+    }
+  ]
+}
+```
+
+### `GET /api/projects/{project_id}/evidence/{evidence_id}`
+
+One hit's whole passage and its file's description, register and relevance as `GET /api/projects/{project_id}`
+gives them (without the description's `cost_usd`). A file id alone (`f7`) answers as its summary (`f7-summary`).
+A file judged unrelated is returned too. 404 `not-found` for an unknown project, an id not in the index or one
+that is not an evidence id. `description.detail` is a model's description no person checked.
+
+<!-- fixture: evidence_detail.json -->
+```json
+{
+  "id": "f5-visible_text-1",
+  "file_id": "f5",
+  "file": "photos/sheet.jpg",
+  "page": 1,
+  "part": "visible_text",
+  "text": "Kirche St. Anna",
+  "kind": "elevation",
+  "verdict": "unsure",
+  "credit": null,
+  "description": {
+    "subject": "a photographed elevation of a church",
+    "text": "A picture of a photographed elevation of a church.",
+    "detail": "A longer account of a photographed elevation of a church, for later use.",
+    "visible_text": "Kirche St. Anna",
+    "text_seen": [
+      "Kirche St. Anna"
+    ],
+    "language": "en",
+    "what_it_is": "drawing",
+    "shows_building": true,
+    "model": "fake describer"
+  },
+  "register": {
+    "kind": "elevation",
+    "has_floor_plan": false,
+    "photo_of_sheet": true,
+    "scale_shown": "bar",
+    "quality": "fair",
+    "method": "fake classifier"
+  },
+  "relevance": {
+    "verdict": "unsure",
+    "why": "Unsure: it shows a building, but none of its printed words is in the project's name, file and folder names or plan text.",
+    "matched_on": [],
+    "plans": [],
+    "judge": "rule on the words printed on it and whether it shows a building, no model"
   }
 }
 ```
@@ -8193,6 +8300,9 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0012): `GET /api/projects/{id}/evidence/search?q=&k=&include_unrelated=` and
+  `GET /api/projects/{id}/evidence/{evidence_id}`, the project's evidence index (described non-plan files; BM25 +
+  a local multilingual embedder). New fixtures `evidence_search`, `evidence_detail`.
 - 2026-11-14, content (board #220): the `fi` pack cites YMa 631/2024 (in force 2025-01-01, under the Building
   Act 751/2023), which replaced 1008/2017: the 7 m2 rule is 4 § 2 mom. and the window rule 5 § 1 mom., each with
   the decree's own sentence and its Finlex link; the limits are unchanged. Fixtures `info`, `checks`,

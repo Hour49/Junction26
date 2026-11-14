@@ -7,7 +7,7 @@ from typing import Annotated, Protocol
 
 from fastapi import Depends, Request
 
-from app.composition import Answering
+from app.composition import Answering, EvidenceIndexes
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
 from app.core.ingest.model import (
@@ -77,6 +77,10 @@ def get_credits(request: Request) -> Credits:
     return request.app.state.credits
 
 
+def get_evidence(request: Request) -> EvidenceIndexes:
+    return request.app.state.evidence
+
+
 def get_answering(request: Request) -> Answering:
     return request.app.state.answering
 
@@ -112,6 +116,7 @@ ReviewsDep = Annotated[ReviewStore, Depends(get_reviews)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 AnsweringDep = Annotated[Answering, Depends(get_answering)]
 CreditsDep = Annotated[Credits, Depends(get_credits)]
+EvidenceDep = Annotated[EvidenceIndexes, Depends(get_evidence)]
 
 
 def project_of(ingest: Ingest, drawing_id: str, project_id: str | None) -> str | None:

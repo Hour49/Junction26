@@ -29,6 +29,7 @@ from app.api.projects import (
 from app.api.questions import ProjectQuestions
 from app.api.takeoff import SignOffRequest, Takeoff
 from app.api.views import ErrorBody, ProjectTrace, ProjectView
+from app.core.evidence.model import EvidenceDetail, EvidenceSearch
 from app.core.ingest.model import FileStatus, FileTrace
 from app.core.review.model import Edit
 
@@ -78,6 +79,8 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "project_issues_checks": ProjectIssues,
     "issue_answer_request": AnswerRequest,
     "issue_answered": Issue,
+    "evidence_search": EvidenceSearch,
+    "evidence_detail": EvidenceDetail,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 
