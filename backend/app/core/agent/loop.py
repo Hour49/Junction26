@@ -549,7 +549,7 @@ class _Run:
         except json.JSONDecodeError:
             found = out
         if name in (ASK, "get_takeoff"):
-            found = _whole_estimates(found)  # what the model reads and what backs its numbers
+            found = _as_shown(found)  # what the model reads and what backs its numbers
         if name == "list_drawings" and isinstance(found, list):
             found = self._titled(found)  # pyright: ignore[reportUnknownArgumentType]
         before = set(self.ledger)
@@ -1020,18 +1020,22 @@ def _evs(items: Any) -> list[str]:
     return out
 
 
-def _whole_estimates(found: Any) -> Any:
-    """`found` with every area measured on an estimated scale in whole m², as the screen shows
-    it (ask.shown_value, #294): the raw 4.88 beside the shown 5 made the model say 4.88."""
+def _as_shown(found: Any) -> Any:
+    """`found` with every measured value as the screen shows it: an area on an estimated scale
+    in whole m² (ask.shown_value, #294), any other measure with 2 decimals (formatValue). The raw
+    4.88 beside the shown 5, or 7.557 beside the card's 7.56, made the model say the raw one."""
     if isinstance(found, list):
-        return [_whole_estimates(item) for item in found]  # pyright: ignore[reportUnknownVariableType]
+        return [_as_shown(item) for item in found]  # pyright: ignore[reportUnknownVariableType]
     if not isinstance(found, dict):
         return found
-    given: Json = {key: _whole_estimates(value) for key, value in found.items()}  # pyright: ignore[reportUnknownVariableType]
-    if given.get("unit") == "m2" and given.get("estimate"):
-        for key in ("value", "answer"):
-            if isinstance(given.get(key), float):
-                given[key] = round(given[key])
+    given: Json = {key: _as_shown(value) for key, value in found.items()}  # pyright: ignore[reportUnknownVariableType]
+    unit = given.get("unit")
+    if unit in (None, "count"):
+        return given
+    whole = unit == "m2" and given.get("estimate")
+    for key in ("value", "answer"):
+        if isinstance(given.get(key), float):
+            given[key] = round(given[key]) if whole else round(given[key], 2)
     return given
 
 

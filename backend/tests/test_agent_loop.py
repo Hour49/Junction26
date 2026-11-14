@@ -431,3 +431,18 @@ def test_queue_1_an_estimated_area_reaches_the_model_in_whole_m2() -> None:
     got = turn(model, Tools(ask_drawings=shown))
     assert "4.88" not in model.sent[1][-1]["content"]
     assert got.text == "The kitchen is about 5 m²."  # 4.88 is no longer backed
+
+
+def test_tudor_nit_a_measured_area_reaches_the_model_as_the_card_shows_it() -> None:
+    """Tudor's smoke: the reply said 7.557 m2 while the card said 7.56 m²."""
+    shown = {"question": "kitchen area", "parts": [{"drawing_id": DRAWING, "name": "plan.pdf",
+             "answer": {"answer": 7.557, "unit": "m2",
+                        "quantity": {"value": 7.557, "unit": "m2"},
+                        "line": {"answer": 7.557, "unit": "m2"},
+                        "marks": []}}]}  # fmt: skip
+    model = Model(step(call("ask_drawings", question="kitchen area")),
+                  final(text="The kitchen is 7.557 m²."),
+                  final(text="The kitchen is 7.56 m²."))  # fmt: skip
+    got = turn(model, Tools(ask_drawings=shown))
+    assert "7.557" not in model.sent[1][-1]["content"]
+    assert got.text == "The kitchen is 7.56 m²."  # 7.557 is no longer backed
