@@ -39,6 +39,8 @@ from app.adapters.question_tables import is_table_question, parse_table
 from app.adapters.question_typos import corrected
 from app.core.answering.model import (
     IN_ONE_ROOM,
+    NO_SUBJECT,
+    SEVERAL_ROOMS,
     SEVERAL_THINGS,
     Query,
     TableQuery,
@@ -208,6 +210,10 @@ MODEL = re.compile(
     r"|\bmodellen\b"
 )
 ROOM_NUMBER = re.compile(r"(?<![\w.])(U?\d+\.\d+)(?![\w.])")
+# A number with a unit or in a product is a measure, not a room number: "2.5 m high", "3.5 m2",
+# "1.5 x 2.0" (review-313 S2)
+MEASURE_AFTER = re.compile(r"\s*(?:[x\u00d7*]|m|cm|mm|ft|sq|acres?|ha|m2|m²|%)(?![^\W\d_])")
+MEASURE_BEFORE = re.compile(r"[x\u00d7*]\s*$")
 # A room's printed code in parentheses after its noun, "the living room (OH)": its name.
 ROOM_CODE = re.compile(r"\(([A-ZÄÖÜÅ]{1,8})\)")
 APARTMENT = re.compile(
@@ -325,10 +331,13 @@ class TemplateParser:
             and NOT_NET.search(lower) is None
             and (FLOOR_TOTAL.search(lower) is not None or ALL_ROOMS.search(lower) is not None)
         )
-        number = ROOM_NUMBER.search(bare)
+        numbers = _room_numbers(bare)
+        number = numbers[0] if numbers else None
+        if len({n.group(1) for n in numbers}) > 1 and measure in ("area", "length"):
+            return Unsupported(reason=SEVERAL_ROOMS)  # "Bagno 1.01 and Bagno 1.09": one at a time
         if not hits and not floor_total:
             if number is None or measure not in ("area", "length"):
-                return Unsupported(reason="no element, room or apartment named")
+                return Unsupported(reason=NO_SUBJECT)
             # a room number names a room whatever word goes with it ("Bagno 1.01")
             hits = [(number.start(), "room")]
         if hits and not _counted_thing_named(body, hits):
@@ -428,6 +437,16 @@ def _room_side(
     if subject != "room":
         return Query(measure="length", subject=subject, **common)
     return Unsupported(reason="the length of rooms without saying which room")
+
+
+def _room_numbers(bare: str) -> list[re.Match[str]]:
+    """The room numbers in the question: decimal numbers that are not a measure (MEASURE_AFTER)."""
+    return [
+        found
+        for found in ROOM_NUMBER.finditer(bare)
+        if not MEASURE_AFTER.match(bare, found.end())
+        and not MEASURE_BEFORE.search(bare, 0, found.start())
+    ]
 
 
 def _quoted(raw: str) -> list[_Quoted]:

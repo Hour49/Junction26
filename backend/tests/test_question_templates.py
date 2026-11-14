@@ -6,7 +6,7 @@ dataset, so a pass means the parser reads meaning rather than one fixed template
 import pytest
 
 from app.adapters.question_templates import TemplateParser
-from app.core.answering.model import IN_ONE_ROOM, Query, Unsupported
+from app.core.answering.model import IN_ONE_ROOM, NO_SUBJECT, SEVERAL_ROOMS, Query, Unsupported
 
 PARSE = TemplateParser().parse
 
@@ -353,6 +353,48 @@ def test_a_room_number_with_any_word_names_that_room(text: str) -> None:
     """Tudor's chat QA (#14, floor9178): the type word dropped the number, and a label the parser
     has no word for left no room named."""
     assert PARSE(text) == Query(measure="area", subject="room", name="1.01")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How big is Bagno 1.01 and Bagno 1.09?",
+        "How big is bathroom 1.01 and 1.09?",
+        "What is the total area of room 1.01 and room 1.09?",
+        "How long are rooms 1.01 and 1.09?",
+    ],
+)
+def test_an_area_or_length_naming_two_rooms_asks_for_one_at_a_time(text: str) -> None:
+    """review-313 S1: "Bagno 1.01 and Bagno 1.09" answered 1.01's area alone, with no note."""
+    assert PARSE(text) == Unsupported(reason=SEVERAL_ROOMS)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the area of 1.5 x 2.0?",
+        "What is the area of 1.5x2.0?",
+        "How big is it, 2.5 m high?",
+        "How big is 1.20 m?",
+        "Area of 1.2 acres?",
+        "How big is 3.5m2?",
+    ],
+)
+def test_a_number_with_a_unit_or_in_a_product_is_not_a_room_number(text: str) -> None:
+    """review-313 S2: these read as "the area of room 1.5" and refused as a missing room."""
+    assert PARSE(text) == Unsupported(reason=NO_SUBJECT)
+
+
+def test_a_room_number_keeps_its_unit_of_answer_and_a_measure_beside_a_room_type_is_dropped() -> (
+    None
+):
+    area = Query(measure="area", subject="room", name="1.01")
+    assert PARSE("How big is Bagno 1.01 in m²?") == area
+    assert PARSE("What is the area of room 1.01 in m2?") == area
+    assert PARSE("How long is room 1.01 in m?") == Query(
+        measure="length", subject="room", name="1.01"
+    )
+    assert PARSE("How big is the 3.5 m2 balcony?") == Query(measure="area", subject="room:balcony")
 
 
 def test_a_room_number_alone_does_not_make_a_count_or_a_sheet_total() -> None:
