@@ -177,8 +177,16 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   it was. A server without `view`: the turn's view is the page of `[1]` with every source on that page (contract
   A's "evidence" rule). `[n]` and a source's "Show it" focus that place on the plan and stay in the chat (a
   modified click still opens the workspace); a source on another page opens that page with its own mark. Under
-  1200 px nothing changes (links open the workspace). A restored thread opens its newest view. [component
+  1200 px: AC-38. A restored thread opens its newest view. [component
   `plan.test.tsx`, `PageViewer` spy; browser 1440 and 390]
+- AC-38 (chat-ux #9, phone pass) Under 1200 px the same plan opens as a full-screen sheet (`dialog` "The plan",
+  above the site header) instead of beside the chat: from a "Show the plan" chip next to "Point at the plan", and
+  from `[n]` / "Show it" (which then focus that place and stay in the chat, as AC-36). The sheet's head has Close;
+  Escape closes it too, except inside the viewer (there it clears a tip or a drag); focus moves into the sheet,
+  Tab and Shift+Tab wrap inside it, and focus goes back to where it was on close. Scrolling the plan never scrolls
+  the chat behind. Widening past 1200 px closes the sheet (the pane shows); narrowing again does not reopen it.
+  1200 px and wider: no chip, no Close.
+  [component `plan.test.tsx`; browser 390 and 1024]
 
 ## 4. Tests
 

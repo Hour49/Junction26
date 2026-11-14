@@ -461,3 +461,34 @@
   min-height: 0;
   overflow: auto;
 }
+
+/* Under 1200 px the plan opens as a sheet over the whole window (chat-ux #9), above the site header. */
+.ag-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  padding: 8px;
+  box-sizing: border-box;
+  background: var(--v-bg);
+}
+.ag-sheet:focus {
+  outline: none;
+}
+.ag-sheet .ag-pane-view {
+  overscroll-behavior: contain; /* scrolling the plan never scrolls the chat behind the sheet */
+}
+.ag-sheet .ag-pane {
+  position: static;
+  flex: 1;
+  height: auto;
+  margin: 0;
+  padding: 12px;
+}
+.ag-pane-close {
+  flex: none;
+}
+.ag-pane-head .ag-pane-name {
+  flex: 1;
+  min-width: 0;
+}

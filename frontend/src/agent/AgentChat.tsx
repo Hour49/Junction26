@@ -24,7 +24,7 @@ import {
   type Selection,
   type View,
 } from './agent';
-import { PlanPane } from './PlanPane';
+import { PlanPane, PlanSheet } from './PlanPane';
 import { PlanPointer } from './PlanPointer';
 import { TurnCard } from './TurnCard';
 import '../engineer/engineer.css';
@@ -101,6 +101,14 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const [drawn, setDrawn] = useState<Record<string, DrawingView> | null>(null);
   const wide = useWide();
   const [shown, setShown] = useState<Shown | null>(() => lastShown(start.rows));
+  // Under 1200 px the plan opens as a full-screen sheet over the chat (chat-ux #9).
+  const [sheet, setSheet] = useState(false);
+  // Widening closes the sheet (the pane shows instead), so narrowing again does not bring it back unasked.
+  const [wasWide, setWasWide] = useState(wide);
+  if (wide !== wasWide) {
+    setWasWide(wide);
+    if (wide) setSheet(false);
+  }
   const openAsk = query?.get('ask')?.trim() ?? '';
   const pack = query?.get('pack') ?? null;
   // Read at send time: a new country must not re-run the open effect (it would ask ?ask= again).
@@ -249,9 +257,10 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         ? { drawingId: v.drawing_id, view: v, focus: unionBox([e.box]) }
         : { drawingId: e.drawing_id, view: evidenceView(e), focus: null },
     );
+    if (!wide) setSheet(true);
   };
   const paneId = shown?.drawingId ?? plans[0]?.drawing_id;
-  const pane = wide && paneId && (
+  const plan = paneId && (
     <PlanPane
       projectId={projectId}
       pack={pack}
@@ -266,9 +275,18 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       onDrawing={(id) => {
         setShown((s) => ({ drawingId: id, view: s?.view ?? null, focus: null }));
       }}
+      onClose={
+        wide
+          ? undefined
+          : () => {
+              setSheet(false);
+            }
+      }
     />
   );
+  const pane = wide && plan;
   // The plan beside the chat (chat-ux #1) where the window has room for it.
+  // Narrower: the same plan as a sheet over the chat, while it is open.
   const split = (chat: ReactNode) =>
     pane ? (
       <div className="ag-split">
@@ -276,7 +294,18 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         {pane}
       </div>
     ) : (
-      chat
+      <>
+        {chat}
+        {sheet && plan && (
+          <PlanSheet
+            onClose={() => {
+              setSheet(false);
+            }}
+          >
+            {plan}
+          </PlanSheet>
+        )}
+      </>
     );
 
   const row = (r: Row) => (
@@ -316,7 +345,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           pack={pack}
           busy={busy}
           onAsk={ask}
-          onShow={pane ? showSource(r.turn) : undefined}
+          onShow={plan ? showSource(r.turn) : undefined}
           onDecided={(edit) => {
             // Kept with the thread, so a restored card shows the decision, not Accept again.
             setRows((rs) =>
@@ -360,6 +389,18 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         >
           Point at the plan
         </button>
+        {!wide && plan && (
+          <button
+            type="button"
+            className="en-chip v-press"
+            aria-expanded={sheet}
+            onClick={() => {
+              setSheet(true);
+            }}
+          >
+            Show the plan
+          </button>
+        )}
         {pointed.map((p) => (
           <span key={p.sel.id} className="ag-selchip">
             {p.chip}
