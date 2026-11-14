@@ -5,37 +5,10 @@
 @import 'tailwindcss/utilities.css' layer(utilities);
 @import 'tw-animate-css';
 
-/* Dark follows the OS (the app has no theme switch); `.dark` on an ancestor also works for a forced dark block. */
-@custom-variant dark (&:where(.dark, .dark *), @media (prefers-color-scheme: dark));
+/* Light only (Tudor: no dark mode). `dark:` utilities that shadcn components carry match nothing: no `.dark` is set. */
+@custom-variant dark (&:where(.dark, .dark *));
 
-/* The Vellum tokens (src/shell/shell.css :root) re-valued for dark. --v-plan stays paper: drawings are not chrome. */
-/* html:root outranks shell.css's :root whatever the bundle order. */
-@media (prefers-color-scheme: dark) {
-  html:root {
-    color-scheme: dark;
-    --v-bg: #0f1110;
-    --v-surface: #1a1c1b;
-    --v-text: #f2f2f2;
-    --v-text-2: #c7c7cc;
-    --v-muted: #a1a1a6;
-    --v-line: #3a3a3c;
-    --v-accent: #5b8775;
-    --v-accent-strong: #8fb5a5;
-    --v-accent-soft: #23302b;
-    --v-warn: #f0a646;
-    --v-warn-soft: #3a2a10;
-    --v-ok: #6cc28a;
-    --v-ok-soft: #15301f;
-    --v-danger: #f07a72;
-    --v-danger-soft: #3a1714;
-    --v-fill: #232524;
-    --v-seg: #2c2c2e;
-    --v-grey: #2a2a2c;
-    --v-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.35);
-  }
-}
-
-/* shadcn's variables, mapped onto the Vellum tokens so both themes come from one place. */
+/* shadcn's variables, mapped onto the Vellum tokens. */
 :root {
   --radius: 0.75rem;
   --background: var(--v-bg);

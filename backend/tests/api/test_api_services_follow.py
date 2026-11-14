@@ -71,7 +71,7 @@ def test_sf15_the_model_is_told_of_services_only_while_the_setting_is_on(
     )
     ingest = build_ingest(chosen, chosen.projects_dir, background=False)
     edit_turn(TestClient(create_app(chosen, ingest)))
-    assert "services" not in SYSTEM  # off: the system prompt is main's
+    assert SERVICES not in SYSTEM  # off: the system prompt has no follow-up line (0016)
     assert [SERVICES in context for context in contexts] == [value == "on"]
 
 

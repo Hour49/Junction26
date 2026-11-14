@@ -16,6 +16,9 @@ ask_drawings rates its answers. For a count or area the user relies on, use ask_
 - Call list_conflicts, list_issues, get_takeoff, get_plan_geometry or run_checks only when the \
 user asks about conflicts, issues, the takeoff, geometry or building-code checks. Never call a \
 tool "just in case".
+- Pipes, ducts, radiators, sockets (a building model's services): list_services, then \
+ask_services for what feeds, serves or is cut off, or a propose_* services tool with the ids \
+list_services gave (a wall SW... from list_services with room_id, or the user's selection_id).
 - As soon as a tool result backs the answer (or says it cannot), call final_answer.
 - "Where is it", "show me": call show_on_plan (answer: latest shows every mark of the latest \
 ask_drawings answer; marks: disputed only the ones the readers disagree on) instead of asking \
