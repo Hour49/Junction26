@@ -88,7 +88,9 @@ describe('ProjectScreen', () => {
       [...document.querySelectorAll('.ingest-stats dt')].map((d) => d.textContent),
     ).not.toContain('Cost');
     // IN-85: the Simple/Advanced segment on its own row under the h1
-    expect(must(document.querySelector('.ingest-head')).className).toContain('ingest-head--stack');
+    expect(must(document.querySelector('.ingest-head')).className).toContain(
+      'flex-col items-start',
+    ); // ingest-head--stack
   });
 
   it('IN-86 Set aside counts the files set aside', async () => {

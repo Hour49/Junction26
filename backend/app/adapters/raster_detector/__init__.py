@@ -159,7 +159,7 @@ class OnnxDetector:
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         config = self._config
         with Image.open(BytesIO(self._files.read(source.path))) as image:
-            page = post.open_rgb(image)
+            page = post.open_page(image)
         found, seen, frame = self._read(page)
         width, height = page.size
         cut = self._tiles and tiles.tiled(width, height)

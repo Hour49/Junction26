@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import { pickWidth, type PageWidth } from './marks';
 
 interface PageFrameProps {
@@ -110,15 +111,16 @@ export function PageFrame({
               Page {page} could not be loaded: {load.why}
             </p>
           )}
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
               setLoad({ kind: 'loading' });
               setAttempt((a) => a + 1);
             }}
           >
             Try again
-          </button>
+          </Button>
         </div>
       )}
       {children}

@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { Row } from '../api';
 import { markWords } from './words';
+import { Button } from '@/components/ui/button';
+import { TOOL } from './ui';
 
 interface Props {
   row: Row;
@@ -49,15 +51,16 @@ export function MarkList({ row, locked, selected, highlighted, onHover, onEdit }
             >
               <span className="sv-sign">{words.sign}</span>
               <span>{words.text}</span>
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                className={TOOL}
                 disabled={locked}
                 onClick={() => {
                   onEdit(words.edit, mark.id);
                 }}
               >
                 {words.action}
-              </button>
+              </Button>
             </li>
           );
         })}

@@ -259,20 +259,19 @@ describe('SourceFigure: demo look (re-sweep 6)', () => {
     render(<SourceFigure sources={[twoPlaces]} label="S" />);
     const expand = screen.getByRole('button', { name: 'Expand' });
     const show = screen.getByRole('button', { name: 'Show source' });
-    expect(expand.classList.contains('vw-btn-plain')).toBe(true);
-    expect(show.classList.contains('vw-btn-soft')).toBe(true);
+    // shadcn Buttons: plain grey 14 px medium, soft = the accent on its soft tint (shadcn PR)
+    expect([...expand.classList]).toEqual(
+      expect.arrayContaining(['bg-[var(--v-grey)]', 'text-sm', 'font-medium']),
+    );
+    expect([...show.classList]).toEqual(
+      expect.arrayContaining(['bg-accent', 'text-primary', 'text-sm']),
+    );
     // the buttons are the figure's own row, not inside the caption, so they can wrap under it at 390
     expect(expand.closest('figcaption')).toBeNull();
     expect(expand.parentElement?.parentElement?.tagName).toBe('FIGURE');
     const css = readFileSync('src/viewer/viewer.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const rule = (sel: string) =>
       new RegExp(`${sel.replace(/[.[\]]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
-    expect(rule('.v-btn.vw-btn-plain')).toMatch(
-      /background:\s*var\(--v-grey\)[\s\S]*font-size:\s*14px[\s\S]*font-weight:\s*500/,
-    );
-    expect(rule('.v-btn.vw-btn-soft')).toMatch(
-      /color:\s*var\(--v-accent\)[\s\S]*font-size:\s*14px[\s\S]*font-weight:\s*600/,
-    );
     expect(rule('.vw-src-thumb')).toMatch(
       /background:\s*var\(--v-plan, #fbf8ef\)[\s\S]*padding:\s*16px|padding:\s*16px[\s\S]*background:\s*var\(--v-plan, #fbf8ef\)/,
     );

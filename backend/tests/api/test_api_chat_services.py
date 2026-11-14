@@ -27,13 +27,14 @@ class _Ingest:
     """A done project of one IFC file (its stored services model may be in the cache)."""
 
     kind: Literal["ifc", "pdf_vector"] = "ifc"
+    drawing_key: str | None = MODELLED
 
     def status(self, project_id: str) -> ProjectStatus:
         if project_id != PROJECT:
             raise NotFoundError(f"no project {project_id}")
         heating = FileStatus(
             id="f1", path="m/heating.ifc", size=1, sha256="f" * 64, kind=self.kind, state="ready",
-            route="bim", drawing_id=MODELLED,
+            route="bim", drawing_id=self.drawing_key,
         )  # fmt: skip
         return ProjectStatus(
             id=PROJECT, name="p", state="done", created_at="2026-11-14T00:00:00Z", files=(heating,)
@@ -41,6 +42,12 @@ class _Ingest:
 
     def drawing(self, drawing_id: str) -> Any:
         raise NotFoundError(f"drawing {drawing_id} not read")  # list_drawings: pages unknown
+
+
+class _SetAside(_Ingest):
+    """The IFC file was set aside at upload ("no PDF, PNG or JPEG in its group"): no drawing."""
+
+    drawing_key: str | None = None
 
 
 class _PdfOnly(_Ingest):
@@ -258,3 +265,29 @@ def test_sv26_on_a_pdf_only_project_no_turn_calls_a_services_tool(
 ) -> None:
     turn = _rules(_client(settings, tmp_path, ingest=_PdfOnly()), message)
     assert not {step["tool"] for step in turn["steps"]} & SIX, turn["steps"]
+
+
+SET_ASIDE = "f" * 16  # the model id of a file with no drawing: its sha256's first 16 characters
+
+
+def test_sv25_a_set_aside_ifc_is_offered_and_listed_by_its_sha256_prefix(
+    settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#281 c6885170828: the services IFC of a project was set aside at upload, so it has no
+    drawing id; its stored model is still offered, listed and edited."""
+    client = _client(settings, tmp_path, ingest=_SetAside())
+    assert _offered(client, monkeypatch) >= SIX
+    listed = _dont_know(_call("list_services", 1, drawing_id=SET_ASIDE))
+    _turn(client, monkeypatch, listed)
+    assert '"E2"' in listed.results[0] and "error" not in json.loads(listed.results[0])
+    move = _call("propose_move_terminal", 1, drawing_id=SET_ASIDE, element_id="E2", wall_id="SW2")
+    moved = _turn(client, monkeypatch, _edit_turn(move))
+    assert moved["kind"] == "edit" and moved["edit"]["drawing_id"] == SET_ASIDE
+    assert moved["edit"]["services_change"]["picture"].startswith(
+        f"/api/projects/{PROJECT}/drawings/{SET_ASIDE}/services/"
+    )
+
+
+def test_sv26_the_rules_model_finds_a_set_aside_ifc(settings: Settings, tmp_path: Path) -> None:
+    turn = _rules(_client(settings, tmp_path, ingest=_SetAside()), "move the radiator")
+    assert turn["kind"] in ("edit", "needs_input"), turn["text"]
