@@ -49,8 +49,8 @@ def project(checked: TestClient) -> dict[str, Any]:
 
 
 @pytest.fixture
-def store(checked: TestClient) -> PipelineStore:
-    return PipelineStore.of_app(checked.app)
+def store(checked: TestClient, project: dict[str, Any]) -> PipelineStore:
+    return PipelineStore.of_app(checked.app, project["id"])
 
 
 def call(store: PipelineStore, name: str, **arguments: object) -> Any:
@@ -84,7 +84,7 @@ def test_every_tool_is_an_openai_function_with_all_its_arguments_required() -> N
 def test_list_drawings_names_each_drawing_of_the_project(
     store: PipelineStore, project: dict[str, Any]
 ) -> None:
-    found = call(store, "list_drawings", project_id=project["id"])
+    found = call(store, "list_drawings")
     assert [d["drawing_id"] for d in found] == [d["drawing_id"] for d in project["drawings"]]
     assert [d["name"] for d in found] == [d["file"] for d in project["drawings"]]
     assert all(isinstance(d["pages"], int) for d in found)  # a model file has 0 pages
@@ -94,7 +94,7 @@ def test_list_drawings_names_each_drawing_of_the_project(
 def test_ask_drawings_is_the_project_ask_route(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
-    found = call(store, "ask_drawings", project_id=project["id"], question=DOORS)
+    found = call(store, "ask_drawings", question=DOORS)
     route = checked.post(f"/api/projects/{project['id']}/ask", json={"question": DOORS}).json()
     assert [timeless(part["answer"]) for part in found["parts"]] == [
         timeless(part["answer"]) for part in route["parts"]
@@ -109,7 +109,7 @@ def test_get_takeoff_is_the_drawings_takeoff_in_the_project(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
     drawing_id = project["drawings"][0]["drawing_id"]
-    found = call(store, "get_takeoff", project_id=project["id"], drawing_id=drawing_id)
+    found = call(store, "get_takeoff", drawing_id=drawing_id)
     route = checked.get(f"/api/drawings/{drawing_id}/takeoff?project={project['id']}").json()
     assert found == route and found["quantities"]
 
@@ -117,10 +117,10 @@ def test_get_takeoff_is_the_drawings_takeoff_in_the_project(
 def test_conflicts_and_issues_are_the_routes_lists(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
-    conflicts = call(store, "list_conflicts", project_id=project["id"])
+    conflicts = call(store, "list_conflicts")
     review = checked.get(f"/api/projects/{project['id']}/review").json()
     assert conflicts == review["conflicts"]
-    issues = call(store, "list_issues", project_id=project["id"])
+    issues = call(store, "list_issues")
     route = checked.get(f"/api/projects/{project['id']}/issues").json()
     assert issues == route["issues"] and issues
 
@@ -128,7 +128,7 @@ def test_conflicts_and_issues_are_the_routes_lists(
 def test_run_checks_is_the_project_checks_route(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
-    found = call(store, "run_checks", project_id=project["id"], pack="test")
+    found = call(store, "run_checks", pack="test")
     route = checked.get(f"/api/projects/{project['id']}/checks", params={"pack": "test"}).json()
     assert found == route and found["drawings"]
 
@@ -174,9 +174,7 @@ def test_a_reader_that_does_not_look_for_walls_gives_null_and_why() -> None:
 
 def test_get_plan_geometry_on_a_real_drawing(store: PipelineStore, project: dict[str, Any]) -> None:
     drawing_id = project["drawings"][0]["drawing_id"]
-    found = call(
-        store, "get_plan_geometry", project_id=project["id"], drawing_id=drawing_id, page=1
-    )
+    found = call(store, "get_plan_geometry", drawing_id=drawing_id, page=1)
     assert found["drawing_id"] == drawing_id and found["page"] == 1
     assert found["source"]["route"] == project["drawings"][0]["route"]
 
@@ -187,39 +185,47 @@ def test_get_plan_geometry_on_a_real_drawing(store: PipelineStore, project: dict
         ("nope", "{}", "unknown tool"),
         ("list_drawings", "{not json", "not valid JSON"),
         ("list_drawings", "[1]", "must be a JSON object"),
-        ("list_drawings", "{}", "missing argument project_id"),
-        ("list_drawings", '{"project_id": "0123456789ab", "extra": "x"}', "unknown argument"),
-        ("list_drawings", '{"project_id": ""}', "non-empty string"),
-        ("list_drawings", '{"project_id": ["x"]}', "non-empty string"),
-        ("list_drawings", '{"project_id": "0123456789ab"}', "0123456789ab"),  # no such project
-        ("run_checks", '{"project_id": "0123456789ab", "pack": "x"}', ""),
+        ("list_drawings", '{"project_id": "0123456789ab"}', "project_id: Extra inputs"),
+        ("get_takeoff", "{}", "drawing_id: Field required"),
+        ("get_takeoff", '{"drawing_id": "short"}', "drawing_id: String should match"),
+        ("get_takeoff", '{"drawing_id": "' + "f" * 16 + '", "x": 1}', "x: Extra inputs"),
+        ("ask_drawings", '{"question": ""}', "question: String should have at least 1"),
+        ("ask_drawings", '{"question": "' + "x" * 501 + '"}', "at most 500"),
+        ("ask_drawings", '{"question": ["x"]}', "question: Input should be a valid string"),
+        ("get_plan_geometry", '{"drawing_id": "' + "f" * 16 + '", "page": "two"}', "page:"),
+        ("get_plan_geometry", '{"drawing_id": "' + "f" * 16 + '", "page": 0}', "page:"),
+        ("run_checks", '{"pack": "x"}', "x"),  # no such pack
+        ("run_checks", {"pack": ""}, "pack:"),  # an already decoded object
+        ("run_checks", [1], "must be a JSON object"),
     ],
 )
 def test_a_bad_call_is_an_error_not_an_exception(
-    store: PipelineStore, name: str, arguments: str, says: str
+    store: PipelineStore, name: str, arguments: Any, says: str
 ) -> None:
     found = json.loads(run_pipeline_tool(store, name, arguments))
     assert set(found) == {"error"} and says in found["error"]
 
 
+def test_arguments_may_be_json_text_or_a_decoded_object(store: PipelineStore) -> None:
+    text = run_pipeline_tool(store, "ask_drawings", json.dumps({"question": DOORS}))
+    decoded = run_pipeline_tool(store, "ask_drawings", {"question": DOORS})
+    assert json.loads(text).keys() == json.loads(decoded).keys() and "error" not in json.loads(text)
+    assert json.loads(run_pipeline_tool(store, "list_drawings", ""))  # no arguments at all
+
+
+def test_the_model_is_never_asked_for_a_project(store: PipelineStore) -> None:
+    for tool in PIPELINE_TOOLS:
+        assert "project_id" not in tool["function"]["parameters"]["properties"]
+        assert tool["function"]["parameters"]["additionalProperties"] is False
+    other = PipelineStore(**{**store.__dict__, "project_id": "0123456789ab"})
+    assert "0123456789ab" in call(other, "list_drawings")["error"]  # no such project
+
+
 def test_bad_calls_on_a_real_project(store: PipelineStore, project: dict[str, Any]) -> None:
-    pid = project["id"]
     drawing_id = project["drawings"][0]["drawing_id"]
-    assert "no drawing" in call(store, "get_takeoff", project_id=pid, drawing_id="f" * 16)["error"]
-    assert (
-        "no page 9"
-        in call(store, "get_plan_geometry", project_id=pid, drawing_id=drawing_id, page="9")[
-            "error"
-        ]
-    )
-    assert (
-        "whole number"
-        in call(store, "get_plan_geometry", project_id=pid, drawing_id=drawing_id, page="two")[
-            "error"
-        ]
-    )
-    assert "error" in call(store, "run_checks", project_id=pid, pack="nope")
-    assert "error" in call(store, "ask_drawings", project_id=pid, question="x" * 5000)
+    assert "no drawing" in call(store, "get_takeoff", drawing_id="f" * 16)["error"]
+    assert "no page 9" in call(store, "get_plan_geometry", drawing_id=drawing_id, page=9)["error"]
+    assert "error" in call(store, "run_checks", pack="nope")
 
 
 def test_a_project_that_is_not_done_is_an_error(
@@ -232,7 +238,7 @@ def test_a_project_that_is_not_done_is_an_error(
         ("list_issues", {}),
         ("ask_drawings", {"question": DOORS}),
     ):
-        found = call(store, name, project_id=project["id"], **extra)
+        found = call(store, name, **extra)
         assert "running" in found["error"]
 
 
@@ -244,7 +250,7 @@ def test_a_bug_in_a_tool_is_logged_with_its_traceback_and_the_reply_stays_plain(
 
     monkeypatch.setitem(_RUNNERS, "list_drawings", broken)
     with caplog.at_level(logging.ERROR, logger="app.adapters.pipeline_tools"):
-        reply = run_pipeline_tool(store, "list_drawings", '{"project_id": "0123456789ab"}')
+        reply = run_pipeline_tool(store, "list_drawings", "{}")
     assert json.loads(reply) == {"error": "list_drawings failed (RuntimeError)"}
     (record,) = caplog.records
     assert "pipeline tool list_drawings failed" in record.getMessage()
@@ -255,7 +261,7 @@ def test_a_refused_call_is_not_logged_as_a_bug(
     store: PipelineStore, caplog: pytest.LogCaptureFixture
 ) -> None:
     with caplog.at_level(logging.ERROR, logger="app.adapters.pipeline_tools"):
-        call(store, "list_drawings", project_id="0123456789ab")  # no such project
+        call(store, "get_takeoff", drawing_id="f" * 16)  # no such drawing
         call(store, "nope")
     assert caplog.records == []
 
@@ -291,9 +297,8 @@ def test_get_plan_geometry_gives_walls_drawn_of_a_swiss_pdf(checked: TestClient)
     status = checked.get(f"/api/projects/{pid['id']}").json()
     drawing_id = status["drawings"][0]["drawing_id"]
     found = call(
-        PipelineStore.of_app(checked.app),
+        PipelineStore.of_app(checked.app, pid["id"]),
         "get_plan_geometry",
-        project_id=pid["id"],
         drawing_id=drawing_id,
         page=1,
     )
