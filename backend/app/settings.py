@@ -245,6 +245,11 @@ class Settings(BaseSettings):
     agent_price_out_per_m: float = Field(default=9.00, ge=0)
     agent_turn_usd: float = Field(default=0.10, gt=0)
     agent_max_steps: int = Field(default=8, ge=1, le=20)
+    # How much the model thinks per step, sent as reasoning_effort; "default" sends none (the
+    # model's own). The pi spike got the same 10 answers at about 1/4 of the cost with thinking
+    # off; chat-eval confirms on its set before the demo changes it (.agents/exp/pi-spike.md).
+    # No "minimal": the chat model answers it with a 400
+    agent_thinking: Literal["default", "none", "low", "medium", "high"] = "low"
     # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
     # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
     # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set

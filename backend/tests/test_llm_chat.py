@@ -161,3 +161,43 @@ def test_r7_usage_never_prices_below_zero_or_free() -> None:
 def test_r7_an_http_error_costs_nothing() -> None:
     got = turn_on((400, {"error": {"type": "BadRequestError"}}))
     assert got.kind == "dont_know" and got.cost_usd == 0
+
+
+@pytest.mark.parametrize(
+    ("thinking", "sent"),
+    [("low", "low"), ("none", "none"), ("high", "high"), ("default", None)],
+)
+def test_the_thinking_level_is_sent_as_reasoning_effort(thinking: str, sent: str | None) -> None:
+    """AGENT_THINKING (pi-spike borrow 4): "default" leaves the model's own level."""
+    transport = Transport((200, reply(FINAL)))
+    OpenAiChatModel(BASE, KEY, "gemini-4-hydrogen", 1.50, 9.00, 5.0, transport,
+                    sleep=lambda _: None, thinking=thinking).complete([], [])  # fmt: skip
+    assert transport.sent[0][1].get("reasoning_effort") == sent
+
+
+def test_the_thinking_setting_reaches_the_model() -> None:
+    from pydantic import SecretStr
+
+    from app.composition import chat_model
+    from app.settings import Settings
+
+    settings = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]
+        chat_model="gemini",
+        gemini_api_key=SecretStr(KEY),
+        agent_thinking="none",
+    )
+    made, why = chat_model(settings)
+    assert why is None and isinstance(made, OpenAiChatModel) and made.thinking == "none"
+    # unchanged until chat-eval says otherwise
+    assert Settings(_env_file=None).agent_thinking == "low"  # pyright: ignore[reportCallIssue]
+
+
+def test_minimal_thinking_is_refused_at_startup() -> None:
+    """The chat model answers reasoning_effort "minimal" with a 400 (review 335 c)."""
+    from pydantic import ValidationError
+
+    from app.settings import Settings
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, agent_thinking="minimal")  # pyright: ignore[reportCallIssue, reportArgumentType]

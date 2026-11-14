@@ -13,8 +13,7 @@ from app.core.agent.ports import ChatModelError, Reply
 
 Json = dict[str, Any]
 M = 1_000_000
-# reasoning_effort low: fewer thinking tokens, a faster turn (Gemini's compat endpoint takes it)
-BODY = {"tool_choice": "auto", "reasoning_effort": "low"}
+BODY = {"tool_choice": "auto"}
 CHARS_PER_TOKEN = 3  # fewer than the usual ~4: an estimated prompt errs high
 # A reply whose output count can't be read is priced as Gemini's largest output (65,536 tokens):
 # never free, and over the turn's cap, so a garbled usage ends the turn instead of slipping past
@@ -32,8 +31,12 @@ class OpenAiChatModel:
         timeout_s: float = 60.0,
         transport: Transport = urllib_transport,
         sleep: Callable[[float], None] = time.sleep,
+        thinking: str = "low",
     ) -> None:
         self.name = model
+        # sent as reasoning_effort (Gemini's compat endpoint takes it); "default": not sent, the
+        # model's own level. low: fewer thinking tokens, a faster turn
+        self.thinking = thinking
         self._paid: bytes | None = None  # the last 200 reply's body, for what it cost
 
         def watched(url: str, body: bytes, key: str, timeout: float) -> tuple[int, bytes]:
@@ -49,7 +52,8 @@ class OpenAiChatModel:
         return f"OpenAiChatModel({self.name})"
 
     def complete(self, messages: list[Json], tools: list[Json]) -> Reply:
-        body = {**BODY, "messages": messages, "tools": tools}
+        effort = {} if self.thinking == "default" else {"reasoning_effort": self.thinking}
+        body = {**BODY, **effort, "messages": messages, "tools": tools}
         sent = len(json.dumps(body))
         self._paid = None
         try:
