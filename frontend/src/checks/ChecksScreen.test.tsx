@@ -245,8 +245,8 @@ describe('ChecksScreen', () => {
     expect(screen.getByText('The pre-check runs once the drawings are read.')).toBeTruthy();
   });
 
-  it('CK-14 404 unknown_pack: rules not available; another 404 code: the error view', async () => {
-    await show('xx', { [CHECKS]: reply(404, { detail: 'no pack xx', code: 'unknown_pack' }) });
+  it('CK-14 404 unknown-pack: rules not available; another 404 code: the error view', async () => {
+    await show('xx', { [CHECKS]: reply(404, { detail: 'no pack xx', code: 'unknown-pack' }) });
     expect(
       screen.getByText('These rules are not available. Pick another country in the header.'),
     ).toBeTruthy();

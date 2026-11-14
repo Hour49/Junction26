@@ -41,11 +41,7 @@ export const issues: Issue[] = [
       [0.55, 0.15],
     ],
     quantity: 'door',
-    check: {
-      ref: '§ 2.1',
-      quote: 'The free width of a door is at least 800 mm.',
-      url: 'https://example.org/law',
-    },
+    check: 'fi:door-width:d2',
   },
   { ...base, id: 'i-conflict' },
   {

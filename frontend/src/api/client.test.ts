@@ -327,14 +327,14 @@ describe('API client', () => {
     const api = mockApi({
       [`GET /api/drawings/${did}/checks`]: hx.drawingChecks,
       [`GET /api/projects/${pid}/checks`]: hx.projectChecks,
-      [`GET /api/projects/${pid}/issues`]: hx.issueList,
+      [`GET /api/projects/${pid}/issues`]: fx.projectIssues,
     });
     expect(await getDrawingChecks(did, { pack: 'fi', project: pid, signal })).toEqual(
       hx.drawingChecks,
     );
     expect(await getProjectChecks(pid, { pack: 'fi', signal })).toEqual(hx.projectChecks);
-    expect(await getIssues(pid, { signal })).toEqual(hx.issueList);
-    expect(await getIssues(pid, { pack: 'fi' })).toEqual(hx.issueList);
+    expect(await getIssues(pid, { signal })).toEqual(fx.projectIssues);
+    expect(await getIssues(pid, { pack: 'fi' })).toEqual(fx.projectIssues);
     expect(await getDrawingChecks(did, { pack: 'a b' })).toEqual(hx.drawingChecks);
     expect(api.calls.map((c) => c.url)).toEqual([
       `/api/drawings/${did}/checks?pack=fi&project=${pid}`,

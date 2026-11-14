@@ -37,7 +37,7 @@ export function ChecksRow({ projectId, pack }: { projectId: string; pack: string
     const e = load.error;
     if (e instanceof ApiError && e.status === 409)
       body = <p>The checks run when reading is done.</p>;
-    else if (e instanceof ApiError && e.code === 'unknown_pack')
+    else if (e instanceof ApiError && e.code === 'unknown-pack')
       body = <p>These rules are not available. Pick another country.</p>;
     else
       body = (

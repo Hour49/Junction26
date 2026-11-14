@@ -35,7 +35,7 @@ type Keyed<T> = { key: string; load: Load<T> };
 const isFinished = (p: ProjectView) => p.state === 'done' || p.state === 'failed';
 const notYet = (e: unknown) => e instanceof ApiError && e.status === 409;
 const unknownPack = (e: unknown) =>
-  e instanceof ApiError && e.status === 404 && e.code === 'unknown_pack';
+  e instanceof ApiError && e.status === 404 && e.code === 'unknown-pack';
 
 /** The building-code pre-check of a project for one rule pack (docs/specs/frontend/checks.md). */
 export function ChecksScreen({

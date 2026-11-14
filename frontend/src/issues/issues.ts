@@ -118,7 +118,7 @@ export function routeOf(
   const settle = issueRoute(issue, projectId, pack);
   if (settle)
     links.push({ label: issue.kind === 'conflict' ? 'Settle' : 'Ask again', href: settle });
-  if (issue.kind === 'set_aside')
+  if (issue.kind === 'set_aside' && issue.file_id)
     links.push({ label: 'Why it was set aside', href: href(`${p}/f/${issue.file_id}`, {}, pack) });
   if (did && (issue.kind === 'reading_flag' || issue.kind === 'code_check_failed')) {
     const q: Record<string, string> = issue.quantity ? { q: issue.quantity } : {};

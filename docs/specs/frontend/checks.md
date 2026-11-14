@@ -92,7 +92,7 @@ the old request. No polling: the screen asks once the project is finished (see S
 | Project not finished (`queued`/`running`) | "The pre-check runs once the drawings are read." + project state word; no checks request | `project_running.json` |
 | Checks loading | `Loading` | pending `getProjectChecks` |
 | 409 from checks | same text as "not finished" (the backend says not yet) | `reply(409, …)` |
-| Unknown pack (404 `unknown_pack`) | "These rules are not available. Pick another country in the header." | `reply(404, …)` on checks |
+| Unknown pack (404 `unknown-pack`) | "These rules are not available. Pick another country in the header." | `reply(404, …)` on checks |
 | Unknown project (404 on `getProject`) | `ErrorView` (not found) | `reply(404, …)` on project |
 | Other error | `ErrorView` with Retry (re-requests checks only) | `reply(500, …)` |
 | No drawings | note verbatim + "No drawing in this project to check." | `project` with `drawings: []` |
@@ -147,7 +147,7 @@ States
 
 - CK-13: A queued/running project shows the "runs once the drawings are read" line and makes no checks request; a
   409 shows the same line. [component]
-- CK-14: A 404 with code `unknown_pack` shows the "rules are not available" line, not "not found"; a 404 with
+- CK-14: A 404 with code `unknown-pack` shows the "rules are not available" line, not "not found"; a 404 with
   another code shows `ErrorView`. [component]
 - CK-15: A new `pack` prop aborts the old request and shows the new pack's results only. [component, rerender]
 
@@ -170,7 +170,7 @@ Bogdan accepted every ask (#142 c6876010899). Accepted fields are read directly 
 | `file` = this project's path (review 8) | accepted | still names drawings by `fileName(project, drawing_id)` (CK-9): one source for every screen, agrees with the payload |
 | `mark_id` = takeoff `MarkView.id`, null when check-only (review 10) | accepted | the viewer mark id; check-only marks `<result.id>:<index>` |
 | `CheckResult.quantity` = takeoff `Row.key` (review 11) | accepted | "Open in the surveyor" on that row (`?q=`) |
-| distinct 404 `unknown_pack` (review 15) | accepted | CK-14 by `code` |
+| distinct 404 `unknown-pack` (review 15) | accepted | CK-14 by `code` |
 | `comparison_text` (plain words), `op` never shown (review 4) | accepted | the limit phrase |
 | `country` ISO + `country_name`; `name` = pack display name (review 1) | accepted | heading |
 | no pack preselected; "no pack" valid; single `?pack=` (reviews 2, 3) | accepted | the "Choose a country" state (CK-1) |

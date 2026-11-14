@@ -252,7 +252,7 @@ Between the progress row and the first card, one row on `--v-surface` (radius `-
   certificate."
 - A link "See the checks" → `#/p/<pid>/checks?pack=<id>` (fe-scaffold's ChecksScreen).
 - States: loading "Checking against `name`…" (`role="status"`); 409 (reading not done): "The checks run when reading
-  is done."; 404 with `code: "unknown_pack"` (distinct from the project's 404): "These rules are not available. Pick another
+  is done."; 404 with `code: "unknown-pack"` (distinct from the project's 404): "These rules are not available. Pick another
   country."; any other error:
   `errorText(err).detail` with Retry (re-fetches only the checks). All inside the row: the conflicts, the cards and the
   chat button never wait for or depend on the checks.
@@ -272,7 +272,7 @@ Between the progress row and the first card, one row on `--v-surface` (radius `-
 - CF-31: two rules whose results are all `cannot_tell` show "2 rules cannot tell" and no passed or failed pill; a
   rule with a `fail` and a `cannot_tell` result counts as failed only; rules with no results at all show "Nothing on
   these drawings that these rules check."
-- CF-32: a 409 shows "The checks run when reading is done."; a 404 with `code: "unknown_pack"` shows "These rules are not available.
+- CF-32: a 409 shows "The checks run when reading is done."; a 404 with `code: "unknown-pack"` shows "These rules are not available.
   Pick another country."; a 500 shows its detail and Retry (which re-sends only the checks GET); in each case the cards
   and "Start a new chat" still render.
 - CF-33: with `pack=fi`, the chat button, the quiet workspace link and a card's surveyor link all carry `pack=fi`.
@@ -288,7 +288,7 @@ Between the progress row and the first card, one row on `--v-surface` (radius `-
 - fe-ingest: use `issueRoute` for `conflict` / `refused_answer` rows (issues.md).
 - fe-engineer: ProjectChat and the engineer read `?ask=` once on mount and ask it (chat.md CH-14, engineer.md
   EN-72; frontend-orch gen 4: asked on open, not left unsent in the box).
-- Bogdan: all accepted (#142 c6876010899): per-drawing envelope with this project's `file`, `unknown_pack` 404 code,
+- Bogdan: all accepted (#142 c6876010899): per-drawing envelope with this project's `file`, `unknown-pack` 404 code,
   the 409 code named in the decision record (the row matches on status 409, so its exact name does not matter here),
   `quantity` = `Row.key` and `mark_id` on `Issue`, links = API paths.
 

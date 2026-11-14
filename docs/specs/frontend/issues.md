@@ -4,7 +4,7 @@ Status: draft for review, 2026-11-14, by fe-ingest. Brief: `.agents/briefs/fe-ch
 Contract: board decision #142 (Bogdan, 12:30) and its export answer (c6875986462, 12:34); record
 `docs/decisions/0008-located-issues.md` on Bogdan's branch (not pushed when this was written). Bogdan accepted all
 our #142 asks (c6876010899, via frontend-orch 13:44): `Issue.polygon` (optional), `mark_id` and `quantity`, full sort
-order (severity, drawing in project order, page, box top), 404 code `unknown_pack`, the 409 code named in 0008,
+order (severity, drawing in project order, page, box top), 404 code `unknown-pack`, the 409 code named in 0008,
 `file` = this project's path, `links` = API paths. Field names below follow that; check them against 0008 when it
 lands.
 
@@ -91,12 +91,12 @@ Response `{project_id, pack, issues: Issue[]}`; fields used:
   itself); kept for a later "select the takeoff mark" in the surveyor link.
 - `quantity` (the takeoff `Row.key`), `question`, `reason`: `quantity` for the surveyor `?q=`; `question` shown under the why for
   refused_answer ("Asked: <question>"); `reason` shown under the why when it differs from `why`.
-- `file`: this project's path (c6876010899). `file_id`: the trace link (`#/p/<pid>/f/<file_id>`, `f\d+`).
-- `check`: for code_check_failed, when it carries a clause (`{ref, quote, url}`, shape pending 0008), the row shows
-  "<ref>: “<quote>”" with the ref linked to `url`; without it, "See the check" is the way to the clause.
+- `file`: this project's path (c6876010899). `file_id`: the trace link (`#/p/<pid>/f/<file_id>`, `f\d+`; nullable since #147, then no trace link).
+- `check`: `<pack>:<CheckResult.id>` (0008), not shown: `why` already carries the clause ref, and "See the check" is
+  the way to the clause.
 - `links`: not used (API paths, confirmed); the screen builds its routes from `drawing_id`, `file_id`, `quantity`.
 
-Errors: 404 with code `unknown_pack` → "These country rules are not available." with a link to
+Errors: 404 with code `unknown-pack` → "These country rules are not available." with a link to
 the same screen without `?pack=`; 404 project → `ErrorView` ("Back to workspaces"); 409 (not done; the code named in 0008) → "The issues
 are listed once the ingest is done." with a link to `#/p/<pid>` and Retry; any other → `ErrorView` with Retry.
 
@@ -136,7 +136,7 @@ finding). Clicking a mark selects its row (`onSelect`) and scrolls the row into 
 | Filtered empty | "No issue matches these filters." + "Show all" | filters that match nothing |
 | No pack | the line "Choose a country in the header to add building-code checks."; no code_check_failed rows (the API sends none) | `pack` null |
 | Pack | the pack `note` verbatim under the title | `pack: "fi"` |
-| Unknown pack | "These country rules are not available." + link without `?pack=` | 404 with `code: "unknown_pack"` |
+| Unknown pack | "These country rules are not available." + link without `?pack=` | 404 with `code: "unknown-pack"` |
 | Error | `ErrorView` with Retry | 500, network |
 | Not located | the row's place reads "not on a drawing" / "the whole drawing"; the plan panel says so | issue with `drawing_id` null / `page` null |
 | Drawing fails | plan panel "Drawing not available"; list unchanged | `getDrawing` 500 |
@@ -198,13 +198,13 @@ Status is never colour alone: kind, severity and state each carry a word (and an
   `data-pending="issues.zip"` until Bogdan's PR lands; "CSV only" links to `/api/projects/<pid>/issues.csv` (same
   query). Neither shows before the list loaded. [component]
 - IS-13: A 409 shows "The issues are listed once the ingest is done.", a link to `#/p/<pid>` and Retry, which
-  requests again; a 404 `unknown_pack` shows "These country rules are not available." with a link to
+  requests again; a 404 `unknown-pack` shows "These country rules are not available." with a link to
   `#/p/<pid>/issues` (no pack); a 404 project shows `ErrorView`. [component, `error.json` variants]
 - IS-14: `issues: []` shows "No issues: nothing needs a look." (the pack variant with a pack). [component]
 - IS-15: An unknown `kind` shows its raw id as the kind word, no icon, and the row works. A refused_answer row shows
-  "Asked: <question>"; a code_check_failed row with a clause in `check` shows its ref linked to the url and the quote.
+  "Asked: <question>".
   [component]
-- IS-16: Strings from the API (`why`, `file`, `floor`, `question`, `reason`, clause quote) render as text: `<img
+- IS-16: Strings from the API (`why`, `file`, `floor`, `question`, `reason`) render as text: `<img
   src=x onerror=alert(1)>` adds no element. [component]
 - IS-17: No status by colour alone: every row's kind, severity heading and state contain their word. [component]
 - IS-18: `issues.css` has no colour literal; the plan panel's sticky `top` is `var(--v-header-h)`. [unit: read the
@@ -223,12 +223,11 @@ Status is never colour alone: kind, severity and state each carry a word (and an
 
 ## Not in the API
 
-All #142 asks were accepted (c6876010899); until Bogdan's PR lands the shapes are typed locally (`types.ts`) and
-the fixtures are hand-made (`testing.ts`), then both switch to `schema.d.ts` and his fixtures.
+All #142 asks were accepted (c6876010899); `Issue` and `IssueList` are `schema.d.ts` types since #147 (the screen's
+test fixtures in `src/issues/testing.ts` are typed by them).
 
 | Need | Field | Until it lands |
 | --- | --- | --- |
-| The clause on a failed check issue | `Issue.check` shape (0008) | "See the check" link only |
 | The export bundle | `issues.zip` (c6875986462, same PR) | button with `data-pending="issues.zip"` |
 
 ## Open points

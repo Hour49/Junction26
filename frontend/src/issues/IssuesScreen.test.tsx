@@ -202,7 +202,7 @@ describe('IssuesScreen', () => {
     );
   });
 
-  it('IS-13 409 waits for the ingest with Retry; 404 unknown_pack offers the list without; 404 project is ErrorView', async () => {
+  it('IS-13 409 waits for the ingest with Retry; 404 unknown-pack offers the list without; 404 project is ErrorView', async () => {
     let n = 0;
     const api = mockApi({
       [GET]: () => (n++ === 0 ? reply(409, { ...error, code: 'not-allowed' }) : issueList),
@@ -218,7 +218,7 @@ describe('IssuesScreen', () => {
     expect(document.querySelectorAll('.is-n')).toHaveLength(issues.length);
     cleanup();
 
-    mockApi({ [GET]: reply(404, { ...error, code: 'unknown_pack' }) });
+    mockApi({ [GET]: reply(404, { ...error, code: 'unknown-pack' }) });
     render(<IssuesScreen projectId={PID} pack="xx" />);
     await flush();
     expect(screen.getByText('These country rules are not available.')).toBeTruthy();
@@ -245,7 +245,7 @@ describe('IssuesScreen', () => {
     expect(screen.getByText('No issues: nothing needs a look, and no rule failed.')).toBeTruthy();
   });
 
-  it('IS-15 unknown kind, the refused question, the failed rule clause', async () => {
+  it('IS-15 unknown kind, the refused question', async () => {
     const odd = {
       ...must(issues[1]),
       id: 'i-odd',
@@ -256,9 +256,6 @@ describe('IssuesScreen', () => {
     await flush();
     expect(rowOf(6).textContent).toContain('brand_new');
     expect(rowOf(3).textContent).toContain('Asked: How many saunas are there?');
-    const clause = within(rowOf(1)).getByRole('link', { name: '§ 2.1' });
-    expect(clause.getAttribute('href')).toBe('https://example.org/law');
-    expect(rowOf(1).textContent).toContain('The free width of a door is at least 800 mm.');
     expect(rowOf(5).textContent).toContain('a photo, not of a drawing (1600x1200 px)');
   });
 

@@ -648,7 +648,7 @@ describe('ConflictsScreen', () => {
       const cases: [unknown, string][] = [
         [reply(409, { ...errorBody, code: 'not_done' }), 'The checks run when reading is done.'],
         [
-          reply(404, { ...errorBody, code: 'unknown_pack' }),
+          reply(404, { ...errorBody, code: 'unknown-pack' }),
           'These rules are not available. Pick another country.',
         ],
       ];

@@ -1,4 +1,3 @@
-import type { Issue } from '../api';
 import {
   SEVERITIES,
   SEVERITY_LABEL,
@@ -8,16 +7,6 @@ import {
   routeOf,
   type Row,
 } from './issues';
-
-/** A failed rule's clause, when the issue's `check` carries one (shape pending record 0008). */
-function clauseOf(
-  check: Issue['check'],
-): { ref: string; quote: string; url: string | null } | null {
-  const ref = check?.ref;
-  const quote = check?.quote;
-  if (typeof ref !== 'string' || typeof quote !== 'string') return null;
-  return { ref, quote, url: typeof check?.url === 'string' ? check.url : null };
-}
 
 const TONE = { fails_rule: 'v-pill--danger', needs_person: 'v-pill--warn', note: '' } as const;
 
@@ -48,7 +37,6 @@ export function IssueList({
               {here.map(({ issue, n }) => {
                 const kind = kindOf(issue.kind);
                 const state = STATE_LABEL[issue.state];
-                const clause = clauseOf(issue.check);
                 return (
                   <li
                     key={issue.id}
@@ -80,12 +68,6 @@ export function IssueList({
                     {issue.question && <p className="is-more">Asked: {issue.question}</p>}
                     {issue.reason && issue.reason !== issue.why && (
                       <p className="is-more">{issue.reason}</p>
-                    )}
-                    {clause && (
-                      <p className="is-more">
-                        {clause.url ? <a href={clause.url}>{clause.ref}</a> : clause.ref}: “
-                        {clause.quote}”
-                      </p>
                     )}
                     <p className="is-links">
                       {routeOf(issue, projectId, pack).map((l) => (

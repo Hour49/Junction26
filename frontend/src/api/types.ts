@@ -43,8 +43,8 @@ export type SignOffRequest = Schemas['SignOffRequest'];
 /** The answer confidence (board #14): `score` is a raw model choice score, never a probability. */
 export type Signal = Schemas['Signal'];
 
-// #142 shapes, hand-typed until the backend PRs land (records 0009-building-code-checks, 0008-located-issues);
-// then each becomes a Schemas[...] re-export and src/api/testing.ts gives way to the backend fixtures.
+// #142 check shapes, hand-typed until #139 lands (record 0009-building-code-checks); then each becomes a
+// Schemas[...] re-export and src/api/testing.ts gives way to the backend fixtures. Issues are real (#147).
 
 /** Page fractions, `x0 <= x1`, `y0 <= y1`, as `MarkView.box`. */
 export type Box = [number, number, number, number];
@@ -145,50 +145,8 @@ export interface ProjectChecks {
   drawings: DrawingChecks[];
 }
 
-export type IssueKind =
-  | 'conflict'
-  | 'refused_answer'
-  | 'set_aside'
-  | 'reading_flag'
-  | 'code_check_failed'
-  | 'double_check';
-export type IssueSeverity = 'fails_rule' | 'needs_person' | 'note';
-export type IssueState = 'open' | 'settled' | 'signed_off';
-
-export interface Issue {
-  /** Stable across calls. */
-  id: string;
-  kind: IssueKind;
-  severity: IssueSeverity;
-  state: IssueState;
-  drawing_id: string | null;
-  /** This project's path. */
-  file: string;
-  file_id: string;
-  /** Only where a source states it (IFC storey, sheet title). */
-  floor: string | null;
-  page: number | null;
-  /** `box != null` implies `page != null`. */
-  box: Box | null;
-  polygon?: Polygon | null;
-  why: string;
-  mark_id: string | null;
-  quantity: string | null;
-  question: string | null;
-  reason: string | null;
-  check: Record<string, unknown> | null;
-  /** API paths; screens build their own `#/p/…` routes from the ids. */
-  links: {
-    drawing: string | null;
-    takeoff: string | null;
-    trace: string | null;
-    checks: string | null;
-  };
-}
-
-/** Ordered by severity, drawing (project order), page, box top: screens keep the order. */
-export interface IssueList {
-  project_id: string;
-  pack: string | null;
-  issues: Issue[];
-}
+export type Issue = Schemas['Issue'];
+export type IssueList = Schemas['ProjectIssues'];
+export type IssueKind = Issue['kind'];
+export type IssueSeverity = Issue['severity'];
+export type IssueState = Issue['state'];

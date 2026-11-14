@@ -97,7 +97,7 @@ export function IssuesScreen({
           </p>
         </div>
       );
-    else if (api?.status === 404 && api.code === 'unknown_pack')
+    else if (api?.status === 404 && api.code === 'unknown-pack')
       body = (
         <div className="v-card">
           <p>These country rules are not available.</p>

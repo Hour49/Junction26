@@ -1,10 +1,10 @@
 // Building-code pre-check (#139) and located issues (#140) on the live sample project, at the project's viewport:
 // checks.md CK-16, issues.md IS-19/IS-20, shared.md SH-70, viewer.md VW-79, engineer.md EN-76.
-// shortcut: Bogdan's checks/issues endpoints do not exist yet, so /api/info's rule_packs and the checks and issues
-// answers come from the hand-made #142 fixtures (src/api/testing.ts) via page.route; switch to the live API when
-// his PRs land (delete serveChecks).
+// The issues are the live API (#147). shortcut: the checks endpoints (#139) are not merged, so /api/info's
+// rule_packs and the checks answers come from the hand-made #142 fixtures (src/api/testing.ts) via page.route;
+// delete serveChecks when #139 lands. Until then ?pack=fi on the issues answers 404 unknown-pack.
 import { expect, test, type Page } from '@playwright/test';
-import { drawingChecks, issueList, projectChecks, rulePackFi } from '../src/api/testing';
+import { drawingChecks, projectChecks, rulePackFi } from '../src/api/testing';
 import { noKeys, sampleDone, shot, watchErrors } from './support';
 
 const NOTE = 'A pre-check of a few rules, not a compliance certificate.';
@@ -27,9 +27,18 @@ async function serveChecks(page: Page, pid: string) {
     const found = projectChecks.drawings.find((d) => d.drawing_id === did);
     return route.fulfill({ json: found ?? { ...drawingChecks, drawing_id: did, rules: [] } });
   });
-  await page.route(/\/api\/projects\/[0-9a-f]+\/issues(\?.*)?$/, (route) =>
-    route.fulfill({ json: swap(issueList) }),
-  );
+}
+
+interface Issue {
+  drawing_id: string | null;
+  page: number | null;
+}
+
+/** The sample's real issues, in the API's order. */
+async function liveIssues(page: Page, pid: string): Promise<Issue[]> {
+  const response = await page.request.get(`/api/projects/${pid}/issues`);
+  expect(response.status()).toBe(200);
+  return ((await response.json()) as { issues: Issue[] }).issues;
 }
 
 async function noSideScroll(page: Page, where: string) {
@@ -86,7 +95,7 @@ test('CK-16 VW-79: the picker sets ?pack=, the Checks tab, the note verbatim, a 
   expect(errors, 'no console or page errors').toEqual([]);
 });
 
-test('IS-19 IS-20 EN-76: the issues list, the first issue outlined, Open the drawing zooms', async ({
+test('IS-19 IS-20 EN-76: the issues list, the first issue outlined, Open the drawing at its place', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
@@ -94,35 +103,57 @@ test('IS-19 IS-20 EN-76: the issues list, the first issue outlined, Open the dra
   const pid = await sampleDone(page);
   await serveChecks(page, pid);
 
-  for (const query of ['', '?pack=fi']) {
-    await page.goto(`/#/p/${pid}/issues${query}`);
-    await expect(page.getByRole('heading', { level: 1, name: 'Issues' })).toBeVisible();
-    const rows = page.locator('.is-row');
-    await expect(rows).toHaveCount(issueList.issues.length);
-    // IS-7/IS-19: the first located issue is selected and outlined on its page.
-    await expect(rows.first()).toHaveAttribute('aria-current', 'true');
-    const where = page.getByRole('region', { name: 'Where' });
-    const outlined = where.getByRole('button', { name: /^Mark 1: /, pressed: true });
-    await expect(outlined).toBeVisible();
-    await expect(outlined).toBeInViewport();
-    await noSideScroll(page, `issues${query}`);
-    if (testInfo.project.name === 'phone') {
-      // IS-20: every row's tap target is at least 44 px tall.
-      const heights = await page
-        .locator('.is-pick')
-        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
-      expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
-    }
-    await shot(page, testInfo, query ? 'is-issues-fi' : 'is-issues', offline);
-  }
+  const issues = await liveIssues(page, pid);
+  expect(issues.length).toBeGreaterThan(0);
 
-  // EN-76: "Open the drawing" opens the engineer at the issue's page and box, zoomed in.
-  const first = issueList.issues[0];
-  await page.locator('.is-row').first().getByRole('link', { name: 'Open the drawing' }).click();
+  // Until #139 lands the pack is unknown to the backend: the screen says so instead of a list.
+  await page.goto(`/#/p/${pid}/issues?pack=fi`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Issues' })).toBeVisible();
+  await expect(page.getByText('These country rules are not available.')).toBeVisible();
+  await expect(page.locator('.is-row')).toHaveCount(0);
+  await noSideScroll(page, 'issues?pack=fi');
+  // The header's project list loads on its own: wait, or the shot shows "Loading projects…".
+  await expect(banner(page).getByRole('combobox', { name: 'Project' })).not.toContainText('Loading');
+  await shot(page, testInfo, 'is-issues-fi', offline);
+
+  await page.getByRole('link', { name: 'Show the issues without country rules' }).click();
+  await expect(page).toHaveURL(new RegExp(`#/p/${pid}/issues$`));
+  const rows = page.locator('.is-row');
+  await expect(rows).toHaveCount(issues.length);
+  // IS-7/IS-19: the first located issue is selected and outlined on its page.
+  await expect(rows.first()).toHaveAttribute('aria-current', 'true');
+  const where = page.getByRole('region', { name: 'Where' });
+  const outlined = where.getByRole('button', { name: /^Mark 1: /, pressed: true });
+  await expect(outlined).toBeVisible();
+  await expect(outlined).toBeInViewport();
+  // The exports are plain links to the API; the zip downloads once the project is done.
+  const main = page.getByRole('main');
+  const zip = await main.getByRole('link', { name: 'Export' }).getAttribute('href');
+  const csv = await main.getByRole('link', { name: 'CSV only' }).getAttribute('href');
+  expect(zip).toMatch(new RegExp(`/api/projects/${pid}/issues\\.zip$`));
+  expect(csv).toMatch(new RegExp(`/api/projects/${pid}/issues\\.csv$`));
+  const download = await page.request.get(zip ?? '');
+  expect(download.status()).toBe(200);
+  expect(download.headers()['content-type']).toMatch(/^application\/zip/);
+  await noSideScroll(page, 'issues');
+  if (testInfo.project.name === 'phone') {
+    // IS-20: every row's tap target is at least 44 px tall.
+    const heights = await page
+      .locator('.is-pick')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
+  }
+  await shot(page, testInfo, 'is-issues', offline);
+
+  // EN-76: "Open the drawing" opens the engineer at the issue's page with the place outlined. The sample's first
+  // issue (Küche, a third of the page wide) needs no zoom: the viewer zooms only boxes under 48 px (viewer.md).
+  const first = issues[0];
+  await rows.first().getByRole('link', { name: 'Open the drawing' }).click();
   await expect(page).toHaveURL(
-    new RegExp(`/d/${first?.drawing_id ?? ''}/engineer\\?(.*&)?page=1&box=`),
+    new RegExp(`/d/${first?.drawing_id ?? ''}/engineer\\?(.*&)?page=${String(first?.page)}&box=`),
   );
-  await expect(page.getByText(/^(200|400)%$/).first()).toBeVisible();
+  const focus = page.locator('.vw-focus').first();
+  await expect(focus).toBeVisible();
   await noSideScroll(page, 'engineer focus');
   // Viewport shot with the plan in view (fe-viewer): scroll the page by the toolbar, which is outside the plan's
   // own scroll box, so the focus scroll stays.
@@ -136,8 +167,12 @@ test('IS-19 IS-20 EN-76: the issues list, the first issue outlined, Open the dra
       ),
     )
     .toBeGreaterThan(0);
+  await expect(focus).toBeInViewport();
   await shot(page, testInfo, 'is-open-drawing', offline);
-  expect(errors, 'no console or page errors').toEqual([]);
+  // The one expected error: the browser logs the ?pack=fi 404 (unknown-pack until #139).
+  const unexpected = errors.filter((e) => !/status of 404/.test(e));
+  expect(errors.length - unexpected.length).toBeLessThanOrEqual(1);
+  expect(unexpected, 'no other console or page errors').toEqual([]);
 });
 
 test('SH-70: no sideways scroll at 390, 768, 1024 and 1440; tabs at least 44 px below 1100', async ({
@@ -146,7 +181,7 @@ test('SH-70: no sideways scroll at 390, 768, 1024 and 1440; tabs at least 44 px 
   test.skip(testInfo.project.name !== 'desktop', 'one sweep over the widths is enough');
   const pid = await sampleDone(page);
   await serveChecks(page, pid);
-  const did = issueList.issues[0]?.drawing_id ?? '';
+  const did = (await liveIssues(page, pid)).find((i) => i.drawing_id)?.drawing_id ?? '';
   const routes = [
     `/#/p/${pid}/checks?pack=fi`,
     `/#/p/${pid}/issues?pack=fi`,

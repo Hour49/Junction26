@@ -218,19 +218,17 @@ verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
   'room' | 'element' | 'sheet', ref, label}, value, limit, unit, comparison, comparison_text, why, mark_id,
   quantity, marks: CheckMark[]}` (`mark_id` = the takeoff `MarkView.id`, null for a check-only result; `quantity` =
   the takeoff `Row.key`),
-  `CheckMark {page, box, polygon, ref, label, role: 'subject' | 'counted'}`, `ProjectChecks`, `Issue {id, kind:
-  'conflict' | 'refused_answer' | 'set_aside' | 'reading_flag' | 'code_check_failed' | 'double_check', severity:
-  'fails_rule' | 'needs_person' | 'note', state: 'open' | 'settled' | 'signed_off', drawing_id, file, file_id, floor,
-  page, box, polygon?, why, mark_id, quantity, question, reason, check, links: {drawing, takeoff, trace, checks}}`
-  (nullable as #142 says; `file` is this project's path; `links` are API paths, screens build `#/p/…` routes from
-  the ids), `IssueList` (issues ordered by severity, drawing in project order, page, box top: the screen keeps that
-  order). Bogdan accepted all our #142 asks (c6876010899); the per-mark fields (mark id, status, value) are typed as
-  the records 0009/0008 name them. Errors: an unknown pack is a 404 with code `unknown_pack` (distinct from an unknown
+  `CheckMark {page, box, polygon, ref, label, role: 'subject' | 'counted'}`, `ProjectChecks`. `Issue` and `IssueList`
+  (= `Schemas['ProjectIssues']`) are `schema.d.ts` re-exports since #147: `IssueKind` adds `unrelated_file`; `check`
+  is a string `<pack>:<CheckResult.id>`; `file_id` is nullable; `file` is this project's path; `links` are API paths,
+  screens build `#/p/…` routes from the ids; issues come ordered by severity, drawing in project order, page, box top
+  (the screen keeps that order). Bogdan accepted all our #142 asks (c6876010899); the per-mark fields (mark id, status, value) are typed as
+  the records 0009/0008 name them. Errors: an unknown pack is a 404 with code `unknown-pack` (distinct from an unknown
   project); the 409 code is the one the record names.
 - Fixtures (`src/api/testing.ts`, hand-made, no partner data): `rulePackFi` (two rules, the note verbatim),
   `drawingChecks` (one rule with a pass, a fail and a cannot-tell result, marks on page 1), `projectChecks` (that
-  drawing plus one with no results), `issueList` (one issue per kind except `double_check`, every severity and state,
-  one with `page`/`box` null).
+  drawing plus one with no results). Issues use the backend's `project_issues.json` (`fx.projectIssues` in
+  `src/api/fixtures.ts`).
 
 ### Country picker (real; replaces the mock)
 
