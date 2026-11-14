@@ -40,9 +40,10 @@ Research reports: `.agents/research/ac-{code,prior,agent}.md` on Tudor's machine
 5. **Conversation state is kept on the server** (`<projects_dir>/<pid>/chats/<chat_id>.json`), assistant messages
    stored verbatim: Gemini 3+ needs each tool call's `extra_content` thought signature sent back unchanged.
 6. **Model by setting.** `CHAT_MODEL=gemini|rules|off` (default `rules` in tests and no-keys mode, `gemini` on the
-   deploy). `gemini` speaks Gemini's OpenAI-compatible endpoint with `AGENT_MODEL` (Tudor chose Gemini 4 Hydrogen;
-   its id comes from Bogdan's side, #222) and charges the spend guard after every call with
-   `AGENT_PRICE_IN_PER_M` / `AGENT_PRICE_OUT_PER_M`. `rules` is a deterministic planner without a model (keyword
+   deploy). `gemini` speaks Gemini's OpenAI-compatible endpoint with `AGENT_MODEL=gemini-4-hydrogen` (Tudor's choice; id and tool
+   calls on the compat endpoint checked by Bogdan's side on their key, #222 c6879563170) and charges the spend guard after every call with
+   `AGENT_PRICE_IN_PER_M` / `AGENT_PRICE_OUT_PER_M` (no published price yet: placeholder 1.50 / 9.00 USD per M,
+   deliberately high so the guard stops early; one place to fix). `rules` is a deterministic planner without a model (keyword
    rules → tool calls), so the chat, its e2e and the demo work with no key. `off`: the frontend keeps today's
    `/ask` chat.
 

@@ -68,7 +68,7 @@ Project: the real swiss sheet `site980_bldg2055_floor9178.pdf` uploaded as a pro
   `{model, messages, tools, tool_choice: "auto"}` to `<base_url>/chat/completions` (reuse `openvlm/client.py`'s
   urllib transport and retries); `usd` from `usage` × prices; the assistant message returned unchanged (including
   `extra_content`). Gemini: `AGENT_BASE_URL` default `https://generativelanguage.googleapis.com/v1beta/openai`,
-  key `GEMINI_API_KEY`, model `AGENT_MODEL` (Gemini 4 Hydrogen: id from Bogdan's side). Never logs the key.
+  key `GEMINI_API_KEY`, model `AGENT_MODEL` (default `gemini-4-hydrogen`; prices default to the 1.50 / 9.00 placeholder). Never logs the key.
 - AC-11 `chat_rules.py`: `RulesChatModel`, a deterministic planner with the same port (usd 0). From the turn's user
   message, selection and the tool results so far it emits the next tool call:
   - edit words (remove, break, knock down, demolish, take out, merge, enlarge, larger, bigger, extend) and a wall or
