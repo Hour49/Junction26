@@ -20,7 +20,7 @@ For every file in the list (dataset paths of PDFs) whose pipeline extraction und
   reading of a detector that found no door (RASTER_COMPONENTS=elements=dir:<out>/arm), so the
   sheet takes the path SCALE_CARBON_DOORS covers on a machine without detector models.
 
-Rerunning the CARBON_DOOR_M fit (app/core/pipeline/raster_scale.py; 1.086 came from 34 dev scans):
+Rerunning the CARBON_DOOR_M fit (app/core/pipeline/raster_scale.py; 1.069 came from 26 dev scans):
 pick dev-split floor plans (never eval or golden v2 files), run `app.cli answer` on the PDFs for
 the truth runs, split the files into two halves BEFORE any Carbon run (fixed seed, by path), run
 this script, then `app.cli answer` on --out's questions.jsonl and dataset/ twice, with
