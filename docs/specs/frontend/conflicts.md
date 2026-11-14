@@ -359,12 +359,13 @@ this order.
 2. **Source figure**: fe-viewer's `<SourceFigure sources label defaultOpen />` (viewer.md "Source figure and
    preview", props published 16:40), `label` "Source of conflict `i`". The drawing comes from `getDrawing(drawing_id,
    {project})`, once per drawing, fetched when the card mounts (CF-12). One `Source`: `name` = `file` (fe-shared's
-   plain-name helper if it lands), `page` = the drawing's page of the first value with a `page` (else page 1), and
-   **one `Place` per value, in `conflict.values` order**, so the figure's numbers 1, 2, … are the variant numbers:
-   `label` "`methodName(method)`: `formatValue(value, unit)`", `box` = the value's `box` when it is on that page,
-   else null (a value on another page or without a box is listed in the legend, not outlined; its label adds ", not
-   located on this page"). No value with a box: no outlines, the whole page (fe-viewer VW-86; brief rule 2: never
-   invent a place). It starts minimized (`defaultOpen` false; true only for the card an issue link focuses, CF-29);
+   plain-name helper if it lands), `page` = the drawing's page of the first mark (else of the first value with a
+   `page`, else page 1), and **the places from `conflict.value_marks`** (Bogdan #221, merged into the parity branch):
+   for each value `i` in order, one `Place` per mark, `label` "Variant `i+1`: `methodName(mark.label)`" (a label that
+   is a method id reads in words; any other label, e.g. an element name, as is), `box` = the mark's box when it is on
+   that page, else null and the label adds ", on page `p`". A value with `[]` has no place; all `[]`: no outlines,
+   the whole page (fe-viewer VW-86; brief rule 2: never invent a place). The legend's "Variant n" ties each outline
+   to its tile (a count lists every element, so the figure's numbers are not the variant numbers). It starts minimized (`defaultOpen` false; true only for the card an issue link focuses, CF-29);
    the open state lives in SourceFigure and survives a reload after an edit because the card is keyed by its quantity
    (CF-25). While the drawing loads: the figure is not rendered yet, a "Loading the drawing…" line; an error: an
    error line with Retry in its place (CF-13), the card still works.
@@ -420,10 +421,10 @@ map to existing tokens or a token asked of fe-shared (asks below); none in confl
 - CF-37: order: a review with [needs-person P, rule R1, settled-after-needing S (no resolution), rule R2] shows R1,
   R2, P, S, kickers "Conflict 1 of 4" … in that order; settling P and reloading keeps the order.
 - CF-38: the card mounts `SourceFigure` once (props-recording double) with `label` "Source of conflict 1", no
-  `defaultOpen`, and one source: `name` "plans/flat-b.pdf", the drawing's page 1, places `[{label:
-  "<methodName(polygon_x_scale)>: 22.40 m²", box: values[0].box}, {label: "<methodName(printed_label)>: 30.00 m²",
-  box: values[1].box}]`; a value without a box gives `box: null` and ", not located on this page"; no `PageViewer`
-  and no "Where each value was read" in the card.
+  `defaultOpen`, and one source: `name` "plans/flat-b.pdf", the drawing's page 1, places from the fixture's
+  `value_marks`: "Variant 1: <methodName(polygon_x_scale)>" and "Variant 2: <methodName(printed_label)>" with their
+  boxes; a value listing two elements gives two places, one on another page has `box: null` and ", on page 2"; all
+  `[]` gives no places; no `PageViewer` and no "Where each value was read" in the card.
 - CF-39: a card focused by `d`/`q` (CF-29) passes `defaultOpen: true`; a reload after a settle does not remount the
   card's SourceFigure (same instance: its expanded state stays).
 - CF-40: tiles read "Variant 1" / "Variant 2 · the rule's choice"; accessible names start "Variant 1:".
@@ -436,9 +437,22 @@ map to existing tokens or a token asked of fe-shared (asks below); none in confl
   `--v-surface` (`color-mix`, the demo's paler fill); tile value 22px, source 13px; "Why …" has the demo's chevron,
   14px, and a 44px summary (tap target at 390). Left as is: "Open in the surveyor workspace" in the foot (the demo
   has only Modify; the link is the way to mark edits).
-- Coming (Bogdan #221, not merged at build time): `ConflictEntry.value_marks[i]` = `[{page, box, label}]` per value
-  (a count lists its elements). Once it is on main, each value's places come from it (label = `mark.label`) instead
-  of the value's single `box`; until then the single box (or none).
+- Re-sweep (preqa-parity.md "Re-sweep" item 5, orch 17:xx):
+  - CF-46: the h2 is `label` in sentence case (first letter upper: "Area of room (name Küche · 1.01)"); a plain
+    question title still waits for Bogdan (API ask 3).
+  - CF-47: the foot has only the card's own buttons: Modify (the demo's `.btn-soft`: `--v-accent` on
+    `--v-accent-soft`), "Use the rule's value" when a person's choice overrides a rule, Cancel while choosing. "Open
+    in the surveyor workspace" is gone (the ingest page has "Open the workspace"); CF-18 and CF-33 retire, and the
+    card no longer takes `projectId` or `pack`.
+  - CF-48 (#224, orch): the card names its drawing by `drawingLabel` (shared.md "Plain drawing names": the backend's
+    plain `name`, e.g. "Drawn plan 2", else the file name) on the line under the title (13px muted, no longer
+    monospace) and as the source preview's name. The names come from one `GET /api/projects/<pid>` the list sends
+    beside the review; if it fails, each card shows its file name and nothing else changes. Not done yet (after the
+    freeze): the surveyor workspace's "Takeoff: `file`" heading and its side panel (they load no project).
+  - CF-26 (changed): at ≤600px `.cf-card-top` is a `column` with the pill after the title block (demo `.c-head`),
+    not above it.
+- Bogdan #221 (merged into the parity branch 17:xx): `conflict.value_marks[i]` = `[{page, box, label}]` per value
+  replaces the single `box` per value as the source of the places (card point 2, CF-38).
 - CF-43: a settled value no tile has reads "Your answer: 25.50 m²."
 - CF-44: `issueRoute` for a `conflict` issue → `#/p/<pid>?d=<did>&q=<quantity>[&pack=]` (the finished ingest page
   that embeds the list); with no `drawing_id` or `quantity` → `#/p/<pid>` (replaces CF-34's conflicts route).

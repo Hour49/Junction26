@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { errorText, getDrawing, getProjectReview, postReview, type ProjectReview } from '../api';
+import {
+  drawingLabel,
+  errorText,
+  getDrawing,
+  getProject,
+  getProjectReview,
+  postReview,
+  type ProjectReview,
+} from '../api';
 import { ConflictCard, type DrawingLoad } from './ConflictCard';
 import { conflictCount, keyOf, ordered, progressText, subLine } from './conflicts';
 import './conflicts.css';
@@ -17,10 +25,9 @@ export function ConflictsList({
   onCounts,
 }: {
   projectId: string;
-  query?: URLSearchParams; // the host route's query: `pack`, and `d` + `q` from an issue link
+  query?: URLSearchParams; // the host route's query: `d` + `q` from an issue link focus a card
   onCounts?: (counts: ConflictCounts) => void; // after every load; the host locks its chat button on it
 }) {
-  const pack = query?.get('pack') || null;
   const focusKey =
     query?.get('d') && query.get('q')
       ? `${String(query.get('d'))} ${String(query.get('q'))}`
@@ -28,6 +35,7 @@ export function ConflictsList({
   const [load, setLoad] = useState<Load>(null);
   const [attempt, setAttempt] = useState(0);
   const [drawings, setDrawings] = useState<Record<string, DrawingLoad>>({});
+  const [names, setNames] = useState<Record<string, string>>({});
   const asked = useRef(new Set<string>());
   const report = useRef(onCounts);
   useEffect(() => {
@@ -52,6 +60,20 @@ export function ConflictsList({
       abort.abort();
     };
   }, [projectId, attempt, show]);
+
+  // the drawings' plain names (#224) live on the project; without them a card shows the file name
+  useEffect(() => {
+    const abort = new AbortController();
+    getProject(projectId, { signal: abort.signal }).then(
+      (p) => {
+        setNames(Object.fromEntries(p.drawings.map((d) => [d.drawing_id, drawingLabel(d)])));
+      },
+      () => undefined, // names are a nicety: the list works without them
+    );
+    return () => {
+      abort.abort();
+    };
+  }, [projectId]);
 
   const needDrawing = useCallback(
     (drawingId: string, retry = false) => {
@@ -136,8 +158,7 @@ export function ConflictsList({
             entry={c}
             index={i}
             total={k}
-            projectId={projectId}
-            pack={pack}
+            drawingName={names[c.drawing_id] ?? drawingLabel(c)}
             focused={keyOf(c) === focusKey}
             drawing={drawings[c.drawing_id]}
             onNeedDrawing={(retry) => {

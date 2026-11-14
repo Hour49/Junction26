@@ -7,7 +7,6 @@ import {
   type ConflictEntry,
   type DrawingView,
 } from '../api';
-import { routeHref } from '../shell/route';
 import { SourceFigure, type Source } from '../viewer/SourceFigure';
 import { cardState, inUseIndex, parseAnswer, ruleIndex } from './conflicts';
 
@@ -18,8 +17,7 @@ interface Props {
   entry: ConflictEntry;
   index: number;
   total: number;
-  projectId: string;
-  pack?: string | null; // carried on the card's link (conflicts.md CF-33)
+  drawingName: string; // the drawing's plain name (drawingLabel, #224)
   focused?: boolean; // the card an issue link named (`?d=&q=`, CF-29)
   drawing: DrawingLoad;
   /** Asks the screen for the drawing (it fetches each drawing once); `retry` asks again after an error. */
@@ -34,22 +32,28 @@ const SIGNED = 'This value is signed off. Undo the sign-off in the surveyor work
 
 const UNIT: Record<string, string> = { m2: 'm²', m3: 'm³', m: 'm', ft: 'ft', ft2: 'ft²' };
 
-/** One source: the drawing's page of the values, one place per value so the figure's numbers are the variants. */
-function sourceOf(c: ConflictEntry, d: DrawingView): Source {
-  const values = c.conflict.values;
-  const at = values.find((v) => v.page)?.page ?? 1;
+/** One source: the drawing's page of the marks, with each value's marks (#221 `value_marks`) as its places. */
+function sourceOf(c: ConflictEntry, d: DrawingView, name: string): Source {
+  const { values, value_marks: marks } = c.conflict;
+  const at = marks.flat()[0]?.page ?? values.find((v) => v.page)?.page ?? 1;
   return {
-    name: c.file,
+    name,
     page: d.pages.find((p) => p.page === at) ?? d.pages[0] ?? null,
-    places: values.map((v) => {
-      const here = !!v.box && (v.page ?? 1) === at;
-      return {
-        label: `${methodName(v.method)}: ${formatValue(v.value, v.unit ?? null)}${here ? '' : ', not located on this page'}`,
-        box: here ? v.box : null,
-      };
-    }),
+    // a mark label may be a method id: methodName gives its words and leaves any other label as is
+    places: marks.flatMap((list, i) =>
+      list.map((m) => {
+        const here = m.page === at;
+        return {
+          label: `Variant ${String(i + 1)}: ${methodName(m.label)}${here ? '' : `, on page ${String(m.page)}`}`,
+          box: here ? m.box : null,
+        };
+      }),
+    ),
   };
 }
+
+// shortcut: the server's label in sentence case; a plain-words title waits for Bogdan (API ask 3)
+const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const PILL = {
   open: ['Needs you', 'cf-warn'],
@@ -62,8 +66,7 @@ export function ConflictCard({
   entry: c,
   index,
   total,
-  projectId,
-  pack = null,
+  drawingName,
   focused = false,
   drawing,
   onNeedDrawing,
@@ -163,13 +166,7 @@ export function ConflictCard({
             : inUse < 0 && state === 'rule'
               ? `In use: ${formatValue(value, unit)}.` // a recount in the workspace: neither variant
               : '';
-  const surveyorHref = routeHref({
-    name: 'workspace',
-    projectId,
-    drawingId: c.drawing_id,
-    role: 'surveyor',
-    query: new URLSearchParams(pack ? { q: c.quantity, pack } : { q: c.quantity }),
-  });
+
   const why = [c.conflict.resolution?.rule, c.conflict.note, c.conflict.derived].filter(
     (x): x is string => !!x,
   );
@@ -188,9 +185,9 @@ export function ConflictCard({
             Conflict {index + 1} of {total} · {kicker ?? 'settled by you'}
           </p>
           <h2 id={`${id}-t`} ref={title} tabIndex={focused ? -1 : undefined}>
-            {c.label}
+            {sentence(c.label)}
           </h2>
-          <p className="cf-file">{c.file}</p>
+          <p className="cf-file">{drawingName}</p>
         </div>
         <span className="cf-pill-wrap">
           <span className={`cf-pill ${pillClass}`} tabIndex={0} aria-describedby={`${id}-tip`}>
@@ -221,7 +218,7 @@ export function ConflictCard({
         </div>
       ) : (
         <SourceFigure
-          sources={[sourceOf(c, drawing)]}
+          sources={[sourceOf(c, drawing, drawingName)]}
           label={`Source of conflict ${String(index + 1)}`}
           defaultOpen={focused || undefined}
         />
@@ -325,7 +322,7 @@ export function ConflictCard({
           {!signed && state !== 'open' && mode === 'idle' && (
             <button
               type="button"
-              className="cf-btn"
+              className="cf-btn cf-soft"
               onClick={() => {
                 setMode('choosing');
               }}
@@ -349,9 +346,6 @@ export function ConflictCard({
               Cancel
             </button>
           )}
-          <a className="cf-link" href={surveyorHref}>
-            Open in the surveyor workspace
-          </a>
         </div>
       </div>
       {error !== null && (

@@ -55,6 +55,7 @@ function show(
   onCounts?: (c: { total: number; needsPerson: number }) => void,
 ) {
   const api = mockApi({
+    [PATH.project]: project,
     [PATH.review]: projectReview,
     [PATH.drawing]: drawing,
     ...routes,
@@ -70,7 +71,9 @@ function show(
 }
 const ready = () => screen.findByRole('heading', { level: 2, name: /conflicts? found$/ });
 const cards = () => screen.getAllByRole('article');
-const card = (label: string) => screen.getByRole('article', { name: label });
+// the card's title is the label in sentence case (CF-46)
+const title = (label: string) => label.charAt(0).toUpperCase() + label.slice(1);
+const card = (label: string) => screen.getByRole('article', { name: title(label) });
 const tile = (scope: HTMLElement, n: number) =>
   within(scope).getByRole('button', { name: new RegExp(`^Variant ${String(n)}:`) });
 const pressed = (b: HTMLElement) => b.getAttribute('aria-pressed') === 'true';
@@ -92,7 +95,7 @@ afterEach(() => {
 });
 
 describe('ConflictsList', () => {
-  it('CF-35 loads only the review, renders the list heading, progress and card, reports counts', async () => {
+  it('CF-35 loads the review (and the project for names), renders the list heading, progress and card, reports counts', async () => {
     const counts = vi.fn();
     const { api, container } = show({}, undefined, counts);
     expect(screen.getByRole('status').textContent).toBe('Loading the conflicts…');
@@ -102,7 +105,8 @@ describe('ConflictsList', () => {
     expect(screen.getByText('1 settled by a rule.')).toBeTruthy();
     expect(screen.getByText('1 of 1 settled')).toBeTruthy();
     expect(cards()).toHaveLength(1);
-    expect(api.calls.map((c) => c.url)).not.toContain(`/api/projects/${pid}`);
+    // the project only for the drawings' plain names (#224), once
+    expect(gets(api, `/api/projects/${pid}`)).toBe(1);
     const list = screen.getByRole('region', { name: 'Conflicts' });
     expect(list.id).toBe('conflicts');
     expect(list.tabIndex).toBe(-1); // fe-scaffold's "Show the conflict" moves focus here
@@ -181,13 +185,13 @@ describe('ConflictsList', () => {
     await ready();
     const order = () =>
       cards().map((c) => c.getAttribute('aria-label') ?? c.querySelector('h2')?.textContent);
-    expect(order()).toEqual(['r1', 'r2', 'p', 's']);
+    expect(order()).toEqual(['R1', 'R2', 'P', 'S']);
     expect(card('p').textContent).toContain('Conflict 3 of 4 · needs you');
     click(tile(card('p'), 2));
     await waitFor(() => {
       expect(within(card('p')).getByText('Your choice')).toBeTruthy();
     });
-    expect(order()).toEqual(['r1', 'r2', 'p', 's']);
+    expect(order()).toEqual(['R1', 'R2', 'P', 'S']);
   });
 
   it('CF-3 three conflicts: counts, sub line, progress', async () => {
@@ -215,7 +219,6 @@ describe('ConflictsList', () => {
     await ready();
     const c = card(base.label);
     expect(c.textContent).toContain('Conflict 1 of 1 · settled by a rule');
-    expect(c.textContent).toContain(base.file);
     const a = tile(c, 1);
     expect(a.textContent).toContain('Variant 1');
     expect(a.textContent).toContain('22.40 m²');
@@ -404,16 +407,17 @@ describe('ConflictsList', () => {
     expect(p?.defaultOpen).toBeFalsy();
     expect(p?.sources).toEqual([
       {
-        name: base.file,
+        name: 'Drawn plan 2',
         page: drawing.pages[0],
+        // value_marks (#221), each mark labelled in plain words and tied to its variant
         places: [
           {
-            label: `${methodName('polygon_x_scale')}: 22.40 m²`,
-            box: base.conflict.values[0]?.box,
+            label: `Variant 1: ${methodName('polygon_x_scale')}`,
+            box: base.conflict.value_marks[0]?.[0]?.box,
           },
           {
-            label: `${methodName('printed_label')}: 30.00 m²`,
-            box: base.conflict.values[1]?.box,
+            label: `Variant 2: ${methodName('printed_label')}`,
+            box: base.conflict.value_marks[1]?.[0]?.box,
           },
         ],
       },
@@ -421,20 +425,35 @@ describe('ConflictsList', () => {
     expect(screen.queryByText('Where each value was read')).toBeNull();
   });
 
-  it('CF-38 a value without a box is in the legend only, never outlined', async () => {
-    const [v0, v1] = base.conflict.values;
-    if (!v0 || !v1) throw new Error('fixture has two values');
+  it('CF-38 a count lists each element; a value with no marks has no place; another page is legend-only', async () => {
+    const mark = (label: string, page = 1) => ({
+      page,
+      box: [0.1, 0.1, 0.2, 0.2] as [number, number, number, number],
+      label,
+    });
     show({
       [PATH.review]: withConflicts([
-        { ...base, conflict: { ...base.conflict, values: [v0, { ...v1, box: null }] } },
+        {
+          ...base,
+          conflict: { ...base.conflict, value_marks: [[mark('door'), mark('door', 2)], []] },
+        },
       ]),
     });
     await ready();
     await screen.findByTestId('figure');
-    expect(fig.props.at(-1)?.sources[0]?.places[1]).toEqual({
-      label: `${methodName('printed_label')}: 30.00 m², not located on this page`,
-      box: null,
+    expect(fig.props.at(-1)?.sources[0]?.places).toEqual([
+      { label: 'Variant 1: door', box: [0.1, 0.1, 0.2, 0.2] },
+      { label: 'Variant 1: door, on page 2', box: null },
+    ]);
+    cleanup();
+    show({
+      [PATH.review]: withConflicts([
+        { ...base, conflict: { ...base.conflict, value_marks: [[], []] } },
+      ]),
     });
+    await ready();
+    await screen.findByTestId('figure');
+    expect(fig.props.at(-1)?.sources[0]?.places).toEqual([]);
   });
 
   it('CF-13 a drawing error shows an error line with Retry inside that card only', async () => {
@@ -555,15 +574,38 @@ describe('ConflictsList', () => {
     expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
   });
 
-  it('CF-18 each card links to its quantity in the surveyor workspace', async () => {
+  it('CF-48 the card names its drawing by the plain name (#224); a failed project GET falls back to the file name', async () => {
     show();
     await ready();
-    const href =
-      within(card(base.label))
-        .getByRole('link', { name: 'Open in the surveyor workspace' })
-        .getAttribute('href') ?? '';
-    expect(href.startsWith(`#/p/${pid}/d/${did}/surveyor?`)).toBe(true);
-    expect(new URLSearchParams(href.split('?')[1]).get('q')).toBe(QTY);
+    const c = card(base.label);
+    expect(c.querySelector('.cf-file')?.textContent).toBe('Drawn plan 2');
+    expect(c.textContent).not.toContain(base.file);
+    await within(c).findByTestId('figure');
+    expect(fig.props.at(-1)?.sources[0]?.name).toBe('Drawn plan 2');
+    cleanup();
+    show({ [PATH.project]: reply(500, errorBody) });
+    await ready();
+    await waitFor(() => {
+      expect(card(base.label).querySelector('.cf-file')?.textContent).toBe('flat-b.pdf');
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('CF-46 / CF-47 the title is in sentence case; the foot has Modify only, no workspace link', async () => {
+    show();
+    await ready();
+    const c = card(base.label);
+    expect(within(c).getByRole('heading', { level: 2 }).textContent).toBe(
+      'Area of room (name Küche · 1.01)',
+    );
+    expect(within(c).queryAllByRole('link')).toHaveLength(0);
+    const foot = c.querySelector('.cf-buttons') as HTMLElement;
+    expect(
+      within(foot)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Modify']);
+    expect(within(foot).getByRole('button', { name: 'Modify' }).className).toContain('cf-soft');
   });
 
   it('CF-19 the side panel links to the project (the conflicts are on Ingest) when there are conflicts', async () => {
@@ -642,14 +684,5 @@ describe('ConflictsList', () => {
     await ready();
     expect(card(base.label).getAttribute('aria-current')).toBeNull();
     expect(scroll).not.toHaveBeenCalled();
-  });
-
-  it('CF-33 a pack in the query rides on the card link', async () => {
-    show({}, 'pack=fi');
-    await ready();
-    const href = within(card(base.label))
-      .getByRole('link', { name: 'Open in the surveyor workspace' })
-      .getAttribute('href');
-    expect(new URLSearchParams(href?.split('?')[1]).get('pack')).toBe('fi');
   });
 });
