@@ -23,6 +23,11 @@
   --v-warn-mark: #d9860b;
   --v-warn-mark-fill: rgba(217, 134, 11, 0.12);
   --v-badge: #e8740c;
+  /* the 3D view's highlight roles (model-3d.md part 3): four hues, plus words in the legend */
+  --v-3d-moved: #2563eb;
+  --v-3d-removed: #a1302a;
+  --v-3d-added: #1f6b3b;
+  --v-3d-affected: #e8740c;
   --v-seg: #e8e8ed;
   --v-grey: #ececf0;
   --v-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
