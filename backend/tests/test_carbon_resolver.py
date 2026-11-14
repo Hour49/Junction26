@@ -80,12 +80,6 @@ class Transport:
         return reply  # type: ignore[return-value]  # odd envelopes too
 
 
-@pytest.fixture(autouse=True)
-def own_cost(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The calls here charge the thread's cost (app/core/cost.py) from 0, put back after."""
-    monkeypatch.setattr(cost._local, "usd", 0.0, raising=False)  # pyright: ignore[reportPrivateUsage]
-
-
 def resolver(
     tmp_path: Path, transport: Transport, budget: SpendGuard | None = None
 ) -> CarbonResolver:
@@ -107,7 +101,7 @@ def test_a_pick_is_asked_with_the_question_values_and_images_and_is_paid_once(
         pages.append(number)
         return page_png(number)
 
-    before = cost.spent()
+    before = cost.mark()
     found = resolver(tmp_path, transport, budget).resolve(door_request(), page)
     assert found == Resolved(
         verdict="picked",
@@ -133,7 +127,7 @@ def test_a_pick_is_asked_with_the_question_values_and_images_and_is_paid_once(
     assert len(images) == 2 and {image["mimeType"] for image in images} == {"image/jpeg"}
     assert sent["generationConfig"]["responseMimeType"] == "application/json"
     assert pages == [1]  # rendered once for the page and its crop
-    assert cost.spent() - before == pytest.approx(USD) and budget.spent_usd == pytest.approx(USD)
+    assert cost.since(before) == pytest.approx(USD) and budget.spent_usd == pytest.approx(USD)
     again = resolver(tmp_path, Transport(), budget).resolve(door_request(), page)
     assert again == found and pages == [1] and budget.spent_usd == pytest.approx(USD)
 
