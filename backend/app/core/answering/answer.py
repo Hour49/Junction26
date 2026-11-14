@@ -224,7 +224,7 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
     """The takeoff's value with its marks. An estimated reading says what it rests on. A value
     two methods measured differently shows both, with the rule that kept one; when no rule
     decides, it keeps the takeoff's own reading and abstains."""
-    notes = [] if found.estimate is None else [found.estimate]  # the card's Estimate line too
+    notes = [text for text in (found.source, found.estimate) if text]  # estimate: the card's too
     conflicts, resolution, abstain = None, None, None
     if (disputed := found.conflict) is not None:
         count = found.unit == "count"
