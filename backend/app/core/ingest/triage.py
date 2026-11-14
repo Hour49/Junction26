@@ -47,21 +47,83 @@ MAX_PLAN_TEXT = 200  # labels kept for the judge, so a huge model can't make a h
 
 # Relevance by rule (decision 0010 section 8): the words of a description matched against the
 # project's facts. Words of 4 letters or more; these never count, since every sheet has them.
-RULE = "rule: shows a building or shares printed words with the project, no model"
+RULE = "rule on the words printed on it and whether it shows a building, no model"
 MIN_LETTERS = 4
 MAX_MATCHED = 5
 STOP_WORDS = frozenset(
-    # drawing words, en / fi / sv / de / fr, casefolded with accents folded
-    "plan plans floor floors scale section sections elevation elevations drawing drawings sheet "
-    "detail details site view views level storey ground first second third north south east west "
-    "pohja pohjapiirros leikkaus julkisivu mittakaava kerros asemapiirros piirustus "
-    "ritning planritning sektion fasad skala vaning "
-    "grundriss schnitt ansicht massstab geschoss zeichnung blatt "
-    "coupe facade echelle etage dessin niveau "
-    # file and picture words
-    "jpeg tiff heic webp image photo scan page copy file "
-    # small words
-    "with from that this ".split()
+    {
+        # drawing words, en / fi / sv / de / fr, casefolded with accents folded
+        "plan",
+        "plans",
+        "floor",
+        "floors",
+        "scale",
+        "section",
+        "sections",
+        "elevation",
+        "elevations",
+        "drawing",
+        "drawings",
+        "sheet",
+        "detail",
+        "details",
+        "site",
+        "view",
+        "views",
+        "level",
+        "storey",
+        "ground",
+        "first",
+        "second",
+        "third",
+        "north",
+        "south",
+        "east",
+        "west",
+        "pohja",
+        "pohjapiirros",
+        "leikkaus",
+        "julkisivu",
+        "mittakaava",
+        "kerros",
+        "asemapiirros",
+        "piirustus",
+        "ritning",
+        "planritning",
+        "sektion",
+        "fasad",
+        "skala",
+        "vaning",
+        "grundriss",
+        "schnitt",
+        "ansicht",
+        "massstab",
+        "geschoss",
+        "zeichnung",
+        "blatt",
+        "coupe",
+        "facade",
+        "echelle",
+        "etage",
+        "dessin",
+        "niveau",
+        # file and picture words
+        "jpeg",
+        "tiff",
+        "heic",
+        "webp",
+        "image",
+        "photo",
+        "scan",
+        "page",
+        "copy",
+        "file",
+        # small words
+        "with",
+        "from",
+        "that",
+        "this",
+    }
 )
 LETTERS = re.compile(r"[^\W\d_]+")
 

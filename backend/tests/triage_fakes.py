@@ -15,6 +15,7 @@ from app.core.ingest.model import (
     TriageClass,
     Unavailable,
 )
+from app.core.ingest.ports import RelevanceJudge
 from app.core.ingest.triage import TriageSteps
 
 METHOD = "fake classifier"
@@ -67,7 +68,7 @@ class FakeDescriber:
             language="en" if seen else None,
             model="fake describer",
             cost_usd=self.usd,
-            what_it_is="drawing",
+            what_it_is="photograph" if classified.class_ == "not_drawing" else "drawing",
             shows_building=image in self.buildings,
             visible_text="\n".join(seen),
             detail=f"A longer account of {subject}, for later use.",
@@ -109,6 +110,6 @@ class WordJudge:
 def steps(
     classifier: FakeClassifier,
     describer: FakeDescriber | None = None,
-    judge: WordJudge | None = None,
+    judge: RelevanceJudge | None = None,
 ) -> TriageSteps:
     return TriageSteps(classifier=classifier, describer=describer, judge=judge, name="fakes")

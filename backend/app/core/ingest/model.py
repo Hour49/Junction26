@@ -127,7 +127,7 @@ class _Classed(Frozen):
 
 
 # The sheet register (decision 0010 section 8): the answer key's fields for one image.
-SheetKind = Literal[
+RegisterKind = Literal[
     "floor_plan",
     "multi_view_sheet",
     "site_plan_or_map",
@@ -141,7 +141,7 @@ SheetKind = Literal[
     "not_architecture",
     "other",
 ]
-NOT_DRAWING_KINDS: frozenset[SheetKind] = frozenset(
+NOT_DRAWING_KINDS: frozenset[RegisterKind] = frozenset(
     {"photograph", "not_architecture", "cover_or_text_sheet", "other"}
 )
 ScaleShown = Literal["bar", "ratio_text", "dimensions", "none", "unreadable"]
@@ -153,7 +153,7 @@ class Register(Frozen):
     triage class is derived from it (`class_of`); the rest is shown, never acted on in this
     version (a plan's scale_shown is not compared with what its reader found)."""
 
-    kind: SheetKind
+    kind: RegisterKind
     has_floor_plan: bool  # the gate: a floor plan anywhere on the page
     photo_of_sheet: bool  # a camera photo of a sheet
     scale_shown: ScaleShown

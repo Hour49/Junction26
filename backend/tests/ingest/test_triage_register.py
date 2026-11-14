@@ -15,7 +15,7 @@ from app.core.ingest.model import (
     Description,
     ProjectContext,
     Register,
-    SheetKind,
+    RegisterKind,
     TriageClass,
     Unavailable,
     class_of,
@@ -23,7 +23,7 @@ from app.core.ingest.model import (
 from app.core.ingest.triage import RULE, relevance_by_rule, relevance_of, words_of
 
 
-def register(kind: SheetKind, has_floor_plan: bool = False) -> Register:
+def register(kind: RegisterKind, has_floor_plan: bool = False) -> Register:
     return Register(
         kind=kind,
         has_floor_plan=has_floor_plan,
@@ -76,7 +76,7 @@ def context(**fields: Any) -> ProjectContext:
     ],
 )
 def test_the_class_is_derived_from_the_register(
-    kind: SheetKind, has_floor_plan: bool, expected: TriageClass
+    kind: RegisterKind, has_floor_plan: bool, expected: TriageClass
 ) -> None:
     assert class_of(register(kind, has_floor_plan)) == expected
     given = Classified.model_validate(
