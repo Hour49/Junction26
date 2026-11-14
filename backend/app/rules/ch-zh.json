@@ -1,0 +1,75 @@
+{
+  "id": "ch-zh",
+  "country": "CH",
+  "country_name": "Canton of Zürich",
+  "name": "Canton of Zürich building act",
+  "law": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), as in force on 1 January 2026",
+  "version": "2026-11-14",
+  "fail_means": "It would not meet the Canton of Zürich's rule; other cantons set their own.",
+  "rules": [
+    {
+      "id": "ch-zh-room-area",
+      "title": "A bedroom or living room is at least 10 m2 (canton of Zürich)",
+      "op": "room_area",
+      "applies_to": {
+        "room_types": [
+          "bedroom",
+          "living"
+        ],
+        "note": "Canton of Zürich only: Swiss building law is cantonal and there is no national limit. Rooms for living and sleeping (PBG s. 299). Not in single-family houses and comparable dwellings (s. 303). A dining area that is part of an open room (Essen, Repas, Pranzo) is not a room of its own and is not checked; kitchens are left out (the government may set other rules for them).",
+        "skip_labels": [
+          "R",
+          "RT",
+          "RH",
+          "RUOK",
+          "RUOKAILU",
+          "Essen",
+          "Repas",
+          "Pranzo",
+          "ALKOVI"
+        ]
+      },
+      "comparison": ">=",
+      "limit": 10,
+      "unit": "m2",
+      "clause": {
+        "ref": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), § 303 Abs. 1",
+        "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/3B9E9F2232301FF3C1258D2A00290112/$File/700.1_7.9.75_131.pdf",
+        "quote": "Die Mindestfläche von Räumen, ausser solchen in Einfamilienhäusern und bei vergleichbaren Wohnungsarten, beträgt 10 m².",
+        "quote_en": "The minimum area of rooms, except those in single-family houses and comparable kinds of dwelling, is 10 m2."
+      }
+    },
+    {
+      "id": "ch-zh-room-window",
+      "title": "A bedroom or living room has a window (canton of Zürich)",
+      "op": "room_windows",
+      "applies_to": {
+        "room_types": [
+          "bedroom",
+          "living"
+        ],
+        "note": "Canton of Zürich only: Swiss building law is cantonal and there is no national limit. Rooms for living and sleeping (PBG s. 299). The act also asks for a window area of at least a tenth of the floor area; a plan shows no window heights, so only the presence of a window is checked. A room whose only opening is a door to a balcony or terrace is cannot tell (Swiss plans draw glazed balcony doors as doors). Exceptions for special conditions are allowed (s. 302 para. 3).",
+        "skip_labels": [
+          "R",
+          "RT",
+          "RH",
+          "RUOK",
+          "RUOKAILU",
+          "Essen",
+          "Repas",
+          "Pranzo",
+          "ALKOVI"
+        ]
+      },
+      "comparison": ">=",
+      "limit": 1,
+      "unit": "count",
+      "clause": {
+        "ref": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), § 302 Abs. 2",
+        "url": "https://www.notes.zh.ch/appl/zhlex_r.nsf/WebView/3B9E9F2232301FF3C1258D2A00290112/$File/700.1_7.9.75_131.pdf",
+        "quote": "Wohn- und Schlafräume sind mit Fenstern zu versehen, die über dem Erdreich liegen, ins Freie führen und in ausreichendem Masse geöffnet werden können; die Fensterfläche hat wenigstens einen Zehntel der Bodenfläche zu betragen.",
+        "quote_en": "Living rooms and bedrooms must have windows that are above ground, open to the outside and can be opened sufficiently; the window area must be at least one tenth of the floor area."
+      }
+    }
+  ]
+}

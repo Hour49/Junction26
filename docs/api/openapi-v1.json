@@ -312,6 +312,101 @@
         "title": "AnswerView",
         "type": "object"
       },
+      "AppliesTo": {
+        "additionalProperties": false,
+        "description": "What a rule checks, in the drawing model's words (room types as MarkView.room_type,\nelement classes as the drawing model's). Room ops: the rooms of `room_types`, but not one\nwhose printed label is one of `skip_labels` (a dining nook typed living). door_width:\n`element_classes` [\"door\"], only the doors that meet a room of `room_types` (every door when\nempty) and none of `not_room_types`. A takeoff rule may name types or classes (for the\nscreen).",
+        "properties": {
+          "element_classes": {
+            "default": [],
+            "items": {
+              "enum": [
+                "door",
+                "window",
+                "toilet",
+                "sink",
+                "shower",
+                "bathtub",
+                "sauna_stove",
+                "stair",
+                "wall",
+                "column",
+                "beam",
+                "slab",
+                "railing",
+                "furniture"
+              ],
+              "type": "string"
+            },
+            "title": "Element Classes",
+            "type": "array"
+          },
+          "not_room_types": {
+            "default": [],
+            "items": {
+              "enum": [
+                "bedroom",
+                "kitchen",
+                "bathroom",
+                "wc",
+                "sauna",
+                "balcony",
+                "living",
+                "hall",
+                "storage",
+                "outdoor",
+                "shaft",
+                "other"
+              ],
+              "type": "string"
+            },
+            "title": "Not Room Types",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "room_types": {
+            "default": [],
+            "items": {
+              "enum": [
+                "bedroom",
+                "kitchen",
+                "bathroom",
+                "wc",
+                "sauna",
+                "balcony",
+                "living",
+                "hall",
+                "storage",
+                "outdoor",
+                "shaft",
+                "other"
+              ],
+              "type": "string"
+            },
+            "title": "Room Types",
+            "type": "array"
+          },
+          "skip_labels": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Skip Labels",
+            "type": "array"
+          }
+        },
+        "title": "AppliesTo",
+        "type": "object"
+      },
       "AskRequest": {
         "additionalProperties": false,
         "properties": {
@@ -422,6 +517,271 @@
         "title": "AskedQuestion",
         "type": "object"
       },
+      "CheckMark": {
+        "additionalProperties": false,
+        "description": "An item a result is about, drawn on its page. subject: the room or door checked; counted:\nwhat was counted for it (a room's windows).",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "mark_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark Id"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "maximum": 1.0,
+                      "minimum": 0.0,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 1.0,
+                      "minimum": 0.0,
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "minItems": 3,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "role": {
+            "enum": [
+              "subject",
+              "counted"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "page",
+          "box",
+          "role"
+        ],
+        "title": "CheckMark",
+        "type": "object"
+      },
+      "CheckResult": {
+        "additionalProperties": false,
+        "description": "One rule on one room, door or sheet. `value`: what was measured, in the takeoff's units;\nNone when nothing was (cannot tell); a value too uncertain to judge is kept, with cannot tell.\n`quantity`: the takeoff row of the subject (Row.key), for the surveyor's view; None: none.",
+        "properties": {
+          "comparison": {
+            "enum": [
+              ">=",
+              ">",
+              "<=",
+              "<"
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "comparison_text": {
+            "title": "Comparison Text",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "number"
+          },
+          "marks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "cannot_tell"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/CheckSubject"
+          },
+          "unit": {
+            "enum": [
+              "m2",
+              "m",
+              "count"
+            ],
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "rule_id",
+          "status",
+          "subject",
+          "value",
+          "limit",
+          "unit",
+          "comparison",
+          "comparison_text",
+          "why",
+          "quantity",
+          "marks"
+        ],
+        "title": "CheckResult",
+        "type": "object"
+      },
+      "CheckSubject": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "room",
+              "element",
+              "sheet"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          }
+        },
+        "required": [
+          "kind",
+          "ref",
+          "label"
+        ],
+        "title": "CheckSubject",
+        "type": "object"
+      },
       "ClassKey": {
         "additionalProperties": false,
         "properties": {
@@ -460,6 +820,46 @@
           "count"
         ],
         "title": "ClassKey",
+        "type": "object"
+      },
+      "Clause": {
+        "additionalProperties": false,
+        "description": "Where a limit comes from: the clause someone read, the page it is on, and its sentence.",
+        "properties": {
+          "quote": {
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          },
+          "quote_en": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote En"
+          },
+          "ref": {
+            "minLength": 1,
+            "title": "Ref",
+            "type": "string"
+          },
+          "url": {
+            "pattern": "^https://\\S+$",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "url",
+          "quote"
+        ],
+        "title": "Clause",
         "type": "object"
       },
       "ConflictEntry": {
@@ -632,6 +1032,66 @@
           "file"
         ],
         "title": "ConflictValue",
+        "type": "object"
+      },
+      "DrawingChecks": {
+        "additionalProperties": false,
+        "properties": {
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "pack": {
+            "title": "Pack",
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleCheck"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "cannot_tell",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "file",
+          "file_id",
+          "pack",
+          "note",
+          "status",
+          "rules"
+        ],
+        "title": "DrawingChecks",
         "type": "object"
       },
       "DrawingEntry": {
@@ -1237,6 +1697,13 @@
             },
             "title": "Readers",
             "type": "object"
+          },
+          "rule_packs": {
+            "items": {
+              "$ref": "#/components/schemas/RulePackView"
+            },
+            "title": "Rule Packs",
+            "type": "array"
           }
         },
         "required": [
@@ -1938,6 +2405,49 @@
           "question"
         ],
         "title": "ProjectAskRequest",
+        "type": "object"
+      },
+      "ProjectChecks": {
+        "additionalProperties": false,
+        "properties": {
+          "drawings": {
+            "items": {
+              "$ref": "#/components/schemas/DrawingChecks"
+            },
+            "title": "Drawings",
+            "type": "array"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "pack": {
+            "title": "Pack",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "cannot_tell",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "pack",
+          "note",
+          "status",
+          "drawings"
+        ],
+        "title": "ProjectChecks",
         "type": "object"
       },
       "ProjectList": {
@@ -2718,6 +3228,119 @@
         "title": "Row",
         "type": "object"
       },
+      "RuleCheck": {
+        "additionalProperties": false,
+        "description": "One rule on one drawing: fail when a result fails, else cannot tell when one is, else\npass. With no results: cannot tell when the drawing could not be checked (what the rule needs\nwas not read), not_applicable when it has nothing the rule applies to.",
+        "properties": {
+          "clause": {
+            "$ref": "#/components/schemas/Clause"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "cannot_tell",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "title",
+          "status",
+          "why",
+          "clause",
+          "results"
+        ],
+        "title": "RuleCheck",
+        "type": "object"
+      },
+      "RulePackView": {
+        "additionalProperties": false,
+        "description": "A pack as GET /api/info lists it, for the country picker: the flag from `country`, the\ncountry's name, the pack's name and law line, and every rule with the clause it quotes.",
+        "properties": {
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "country_name": {
+            "title": "Country Name",
+            "type": "string"
+          },
+          "fail_means": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Means"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "law": {
+            "title": "Law",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleView"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "country",
+          "country_name",
+          "name",
+          "law",
+          "version",
+          "note",
+          "fail_means",
+          "rules"
+        ],
+        "title": "RulePackView",
+        "type": "object"
+      },
       "RuleText": {
         "additionalProperties": false,
         "properties": {
@@ -2735,6 +3358,88 @@
           "text"
         ],
         "title": "RuleText",
+        "type": "object"
+      },
+      "RuleView": {
+        "additionalProperties": false,
+        "description": "A rule as the pack states it. `op` is the machine check type, never shown; `comparison`\nis machine (\">=\"), `comparison_text` the words the screen shows (\"at least\").",
+        "properties": {
+          "applies_to": {
+            "$ref": "#/components/schemas/AppliesTo"
+          },
+          "clause": {
+            "$ref": "#/components/schemas/Clause"
+          },
+          "comparison": {
+            "enum": [
+              ">=",
+              ">",
+              "<=",
+              "<"
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "comparison_text": {
+            "title": "Comparison Text",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "number"
+          },
+          "op": {
+            "enum": [
+              "room_area",
+              "room_windows",
+              "door_width",
+              "takeoff"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "m2",
+              "m",
+              "count"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "op",
+          "applies_to",
+          "comparison",
+          "comparison_text",
+          "limit",
+          "unit",
+          "key",
+          "clause"
+        ],
+        "title": "RuleView",
         "type": "object"
       },
       "ScaleView": {
@@ -3479,6 +4184,75 @@
         "summary": "Drawing"
       }
     },
+    "/api/drawings/{drawing_id}/checks": {
+      "get": {
+        "description": "Every rule of the pack on one drawing: pass, fail or cannot tell per room, door or sheet.",
+        "operationId": "checks_api_drawings__drawing_id__checks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawing_id",
+            "required": true,
+            "schema": {
+              "title": "Drawing Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "the rule pack to check against: an id from GET /api/info rule_packs",
+            "in": "query",
+            "name": "pack",
+            "required": true,
+            "schema": {
+              "description": "the rule pack to check against: an id from GET /api/info rule_packs",
+              "title": "Pack",
+              "type": "string"
+            }
+          },
+          {
+            "description": "the project it is shown in",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the project it is shown in",
+              "title": "Project"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawingChecks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Checks"
+      }
+    },
     "/api/drawings/{drawing_id}/evidence.png": {
       "get": {
         "description": "The answer to `question` with its proof drawn on its page (docs/GOLDEN.md), as POST /api/ask\ngives it, that project's edits applied. Not cached: a review edit changes it.",
@@ -4150,6 +4924,57 @@
           }
         },
         "summary": "Project Ask"
+      }
+    },
+    "/api/projects/{project_id}/checks": {
+      "get": {
+        "description": "Every drawing of the project checked against the pack, in the project's drawing order.\n409 `not-allowed` until the project's ingest is done, as for the project's questions.",
+        "operationId": "project_checks_api_projects__project_id__checks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "the rule pack to check against: an id from GET /api/info rule_packs",
+            "in": "query",
+            "name": "pack",
+            "required": true,
+            "schema": {
+              "description": "the rule pack to check against: an id from GET /api/info rule_packs",
+              "title": "Pack",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectChecks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Checks"
       }
     },
     "/api/projects/{project_id}/files/{file_id}/preview.png": {

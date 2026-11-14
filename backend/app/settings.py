@@ -121,3 +121,6 @@ class Settings(BaseSettings):
     # none: images are read as uploaded (EXIF turned upright); a rectifier undoes a photo's
     # perspective first (app/core/ingest/ports.py Rectifier)
     rectifier: RectifierName = "none"
+    # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
+    # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
+    rule_packs_dir: Path = Path(__file__).parent / "rules"

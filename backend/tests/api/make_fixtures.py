@@ -38,6 +38,7 @@ from conftest import plan_png, raster_arm  # noqa: E402  # pyright: ignore[repor
 from fastapi.testclient import TestClient  # noqa: E402
 from make_sample_archive import build_archive  # noqa: E402  # pyright: ignore[reportMissingImports]
 from pdf_sheets import SheetPdf  # noqa: E402  # pyright: ignore[reportMissingImports]
+from test_api_checks import checks_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
@@ -133,8 +134,10 @@ def responses() -> dict[str, Any]:
     others.append(set_aside(client, found))
     others += in_flight(root / "flight", settings, found)
     found["project_ask"] = project_ask(client, started["id"])  # last: the frontend reads by name
+    others.append(code_checks(client, found))
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
+        found["checks"]["drawing_id"]: "5c4ed01e00000002",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
     }
     return stable(trimmed(found), [started["id"], *others], variable)
@@ -207,6 +210,20 @@ def schedule_answer(client: TestClient) -> dict[str, Any]:
     upload = client.post("/api/projects", params={"name": "doors.pdf"}, content=door_schedule_pdf())
     drawing_id = client.get(upload.json()["url"]).json()["drawings"][0]["drawing_id"]
     return ask_on(client, drawing_id, "What are the width and height of door 111.B?")
+
+
+def code_checks(client: TestClient, found: dict[str, Any]) -> str:
+    """A flat checked against the Finnish pack (tests/api/test_api_checks.py checks_sheet): a
+    pass, a fail and a cannot tell, each with its marks; and the same as its project's checks."""
+    upload = client.post("/api/projects", params={"name": "flat-fi.pdf"}, content=checks_sheet())
+    project = client.get(upload.json()["url"]).json()
+    drawing_id = project["drawings"][0]["drawing_id"]
+    params = {"pack": "fi", "project": project["id"]}
+    found["checks"] = client.get(f"/api/drawings/{drawing_id}/checks", params=params).json()
+    found["project_checks"] = client.get(
+        f"/api/projects/{project['id']}/checks", params={"pack": "fi"}
+    ).json()
+    return project["id"]
 
 
 def set_aside(client: TestClient, found: dict[str, Any]) -> str:
@@ -337,6 +354,14 @@ def trimmed(found: dict[str, Any]) -> dict[str, Any]:
     edited["review_queue"] = sorted(edited["review_queue"])
     for answer in (found["answer_conflict"], found["answer_signed"], found["answer_schedule"]):
         _marks(answer)
+    for pack in found["info"]["rule_packs"]:
+        pack["rules"] = pack["rules"][:1]
+    for rule in found["checks"]["rules"]:  # a pass and a fail, or a fail and a cannot tell
+        rule["results"] = rule["results"][-2:]
+    for drawing in found["project_checks"]["drawings"]:
+        drawing["rules"] = drawing["rules"][:1]
+        for rule in drawing["rules"]:
+            rule["results"] = rule["results"][1:2]  # the fail
     return found
 
 

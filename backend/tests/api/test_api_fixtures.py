@@ -14,6 +14,7 @@ import pytest
 from pydantic import BaseModel, TypeAdapter
 
 from app.api.ask import AnswerView, AskRequest
+from app.api.checks import DrawingChecks, ProjectChecks
 from app.api.drawings import DrawingView
 from app.api.info import Info
 from app.api.project_ask import ProjectAnswer
@@ -56,6 +57,8 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "signoff_settle_request": SignOffRequest,
     "error": ErrorBody,
     "project_ask": ProjectAnswer,
+    "checks": DrawingChecks,
+    "project_checks": ProjectChecks,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 
