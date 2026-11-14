@@ -369,7 +369,7 @@ def test_a_count_naming_a_printed_room_label_never_answers_the_sheet_silently() 
     def at(x0: float, x1: float) -> tuple[tuple[float, float], ...]:
         return ((x0, 0.1), (x1, 0.1), (x1, 0.3), (x0, 0.3))
 
-    def made(n: int, kind: str, label: str, x0: float, x1: float, number: str) -> Room:
+    def made(n: int, kind: RoomType, label: str, x0: float, x1: float, number: str) -> Room:
         return Room(id=f"r{n}", type=kind, label=label, page=1, box=(x0, 0.1, x1, 0.3),
                     polygon=at(x0, x1), area_m2=5.0 + n, attrs={"number": number})  # fmt: skip
 
