@@ -4,7 +4,8 @@ how the replies become a drawing; reader.py makes the calls. `CarbonSwitch` (CAR
 advanced) sends a raster drawing to it or to the shipped reader; `CarbonThings` (CARBON_READER=
 large) takes the things drawn from it and the rooms from the shipped reader; `CarbonChecked`
 (CARBON_LEVELS=demote) keeps what it read beside the shipped reading, never counted. The last two
-read a sheet with Carbon and the shipped reader at the same time (app/adapters/beside.py).
+read a sheet with Carbon and the shipped reader at the same time (app/adapters/beside.py), except
+`CarbonThings`' few clause, which needs the shipped reader's count first.
 """
 
 import logging
@@ -56,22 +57,44 @@ class CarbonThings:
     that holds its centre. When Carbon found no plan (its page call failed), the shipped reader's
     plans are kept and a note says so; an element class Carbon did not read stays unread (no
     fallback). The count arbiter's reading is dropped: it read the shipped elements, not these.
-    Every other drawing is the shipped reader's. Ingest flags the first kind (composition
-    `Pipeline.carbon_read`), so no answer on them is certified."""
+    A drawing `use_carbon` says no to is read the same way when the shipped reader found fewer
+    than `few` elements on it (a scan or photo the detector cannot read; on 6 hard floor plans of
+    at most 4,000 px with none found, the split was 59 right / 3 wrong / 1 refused against the
+    product's 55 / 8 / 0, and no CubiCasa page of val or golden dev has fewer than 3; confidence,
+    carbon-reader.md 5.8-5.9); its path is added to `took`. When Carbon read nothing there (no
+    plan, no class: a failed call, a spent budget) the shipped reading is kept and the path is
+    not added (fail-1, review-293 S1). Every other drawing is the shipped reader's. Ingest flags
+    both kinds (composition `Pipeline.carbon_read`), so no answer on them is certified."""
 
     def __init__(
-        self, other: Extractor, carbon: Extractor, use_carbon: Callable[[str], bool]
+        self,
+        other: Extractor,
+        carbon: Extractor,
+        use_carbon: Callable[[str], bool],
+        few: int = 0,
+        took: set[str] | None = None,
     ) -> None:
         self._other = other
         self._carbon = carbon
         self._use_carbon = use_carbon
+        self._few = few
+        self._took = took
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        if not self._use_carbon(source.path):
-            return self._other.extract(source, sheet)
-        shipped, carbon = beside(  # independent reads of the same sheet: at the same time
-            lambda: self._other.extract(source, sheet), lambda: self._carbon.extract(source, sheet)
-        )
+        if self._use_carbon(source.path):  # known before reading: both at the same time
+            shipped, carbon = beside(
+                lambda: self._other.extract(source, sheet),
+                lambda: self._carbon.extract(source, sheet),
+            )
+        else:  # the few clause needs the shipped reader's count first: one after the other
+            shipped = self._other.extract(source, sheet)
+            if len(shipped.elements) >= self._few:
+                return shipped
+            carbon = self._carbon.extract(source, sheet)
+            if not carbon.plans and not carbon.read:  # Carbon read nothing (a failed call, a
+                return shipped  # spent budget): the shipped reading stays, as before the clause
+            if self._took is not None:
+                self._took.add(source.path)
         notes = list(carbon.notes)
         plans = carbon.plans
         if not plans:
