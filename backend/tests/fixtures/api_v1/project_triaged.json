@@ -119,6 +119,7 @@
         "class": "other_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": {
           "text": "A picture of the south elevation of a two-storey house.",
           "subject": "the south elevation of a two-storey house",
@@ -128,18 +129,20 @@
           ],
           "language": "en",
           "model": "fake describer",
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "what_it_is": "drawing",
+          "shows_building": false,
+          "visible_text": "Küche\nSüd",
+          "detail": "A longer account of the south elevation of a two-storey house, for later use."
         },
         "relevance": {
           "verdict": "related",
-          "why": "Related: Küche is on the project's plans.",
+          "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
           "matched_on": [
-            "Küche"
+            "'kuche' (plan text)"
           ],
-          "plans": [
-            "6a47e9a1c33db404"
-          ],
-          "judge": "word judge"
+          "plans": [],
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
         },
         "overruled": null,
         "read_as_plan": null,
@@ -169,20 +172,25 @@
         "class": "not_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": {
           "text": "A picture of a building site with a crane.",
           "subject": "a building site with a crane",
           "text_seen": [],
           "language": null,
           "model": "fake describer",
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "what_it_is": "photograph",
+          "shows_building": false,
+          "visible_text": "",
+          "detail": "A longer account of a building site with a crane, for later use."
         },
         "relevance": {
           "verdict": "unrelated",
-          "why": "Unrelated: no word on it is on the project's plans or in its file names.",
+          "why": "Unrelated: it shows no building, and it has no printed text.",
           "matched_on": [],
           "plans": [],
-          "judge": "word judge"
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
         },
         "overruled": {
           "verdict": "related",
@@ -216,18 +224,82 @@
         "class": "not_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": null,
-        "relevance": null,
+        "relevance": {
+          "verdict": "unrelated",
+          "why": "A picture that is not a drawing; such files are judged unrelated by a rule on what kind of picture they are, without reading what they show.",
+          "matched_on": [],
+          "plans": [],
+          "judge": "rule on the kind of picture, no model (no description to read)"
+        },
         "overruled": null,
         "read_as_plan": null,
-        "verdict": null,
+        "verdict": "unrelated",
         "note": "not described: the model refused"
+      }
+    },
+    {
+      "id": "f5",
+      "path": "photos/sheet.jpg",
+      "size": 37659,
+      "sha256": "7753c4e8cfd8925200108dfc29ff16ab6d5e6acdaaea87e6ac763280d78a3e26",
+      "kind": "photo_plan",
+      "state": "set_aside",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null,
+      "triage": {
+        "class": "other_drawing",
+        "p_plan": 0.03,
+        "method": "fake classifier",
+        "register": {
+          "kind": "elevation",
+          "has_floor_plan": false,
+          "photo_of_sheet": true,
+          "scale_shown": "bar",
+          "quality": "fair",
+          "method": "fake classifier"
+        },
+        "description": {
+          "text": "A picture of a photographed elevation of a church.",
+          "subject": "a photographed elevation of a church",
+          "text_seen": [
+            "Kirche St. Anna"
+          ],
+          "language": "en",
+          "model": "fake describer",
+          "cost_usd": 0.0,
+          "what_it_is": "drawing",
+          "shows_building": true,
+          "visible_text": "Kirche St. Anna",
+          "detail": "A longer account of a photographed elevation of a church, for later use."
+        },
+        "relevance": {
+          "verdict": "unsure",
+          "why": "Unsure: it shows a building, but none of its printed words is in the project's name, file and folder names or plan text.",
+          "matched_on": [],
+          "plans": [],
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
+        },
+        "overruled": null,
+        "read_as_plan": null,
+        "verdict": "unsure",
+        "note": null
       }
     }
   ],
   "counts": {
     "ready": 1,
-    "set_aside": 3
+    "set_aside": 4
   },
   "readers": {
     "bim": "ifc",
@@ -268,8 +340,12 @@
     {
       "path": "photos/street.jpg",
       "reason": "not a floor plan: not a drawing"
+    },
+    {
+      "path": "photos/sheet.jpg",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)"
     }
   ],
   "expected_drawings": 1,
-  "not_plans": 3
+  "not_plans": 4
 }

@@ -1,7 +1,9 @@
 # 0010: Every uploaded image is triaged before any reader: floor plan, other drawing or not a drawing; a non-plan is kept, described and judged against the project
 
 - Status: accepted, with the orchestrator's 4 amendments (2026-11-14 13:11) and the 12 answers to Tudor's fleet's
-  review (board #152, c6876449112); both are written into the sections below and listed at the end
+  review (board #152, c6876449112); both are written into the sections below and listed at the end. Section 8
+  (register, description form, relevance by rule; COMMON decisions 8-11) proposed 2026-11-14 14:20, accepted by
+  the orchestrator with two additions and by Tudor's fleet's review (#152 c6877112058), built in PR #183
 - Date: written 2026-11-14 13:09, accepted 13:11 (Europe/Helsinki)
 - Decided by: agent tables-fix (worker), for Bogdan's new feature of 2026-11-14 ("FIRST AFTER UPLOAD, EACH OF THE
   PHOTOS GOES THROUGH A CLASSIFIER, is this a floor plan or not ? Then if it is not, we need to make it go through a
@@ -128,11 +130,12 @@ Description = {
   not block a plan's reading.
 - Cost: only non-plans are described. Description and judge costs count in `FileStatus.cost_usd` and
   `ProjectView.cost_usd` (#152 item 11); the offline demo stays at 0.00 USD (no model set up).
-  - Assumed price: about 2.2 USD per 1,000 described files at the average Gemini call price we measured (6.7 USD
-    per 1,000 pages for three calls, `docs/EXPERIMENTS.md`). eu-big measures the real per-call price of Gemini and
-    of the EU options before anything is chosen.
-  - For the archive (214 of the 374 preview files, 57%, are non-plans) that is about 1.3 USD per 1,000 uploaded
-    archive images, or roughly 8.4 USD for all 6,701.
+  - Measured price: 8.0 USD per 1,000 described files (gemini-3.5-flash, the shipped describe-4 prompt: 86 calls,
+    0.0080 USD per image, about 1,930 input and 570 output tokens; worker describe, 2026-11-14). It replaces the
+    2.2 USD first assumed: the long `visible_text` and `detail` are output tokens. eu-big measures the EU options
+    before anything is chosen.
+  - For the archive (214 of the 374 preview files, 57%, are non-plans) that is about 4.6 USD per 1,000 uploaded
+    archive images, or roughly 31 USD for all 6,701.
   - Cap and pilot rules as in COMMON.
 
 ### 4. Relevance (step 3): once the project's plans are read
@@ -199,10 +202,10 @@ Overrule = { verdict: "related" | "unrelated", by: str, at: str }   # a person's
   - Such a file has no `set_aside` issue as well.
   - A non-plan judged `related` that nobody called is no issue.
 - New route `POST /api/projects/{project_id}/files/{file_id}/relevance`. It is 404 `not-found` for an unknown
-  project or file, 409 `not-allowed` until `done`, 422 `no-description` for a file triage did not describe, and
-  422 `validation` for a body outside the shape (a `verdict` of `unsure`, no `by`). It returns the file's
-  `FileStatus`. `no-description` is a new code because the frontend's `ErrorBody.code` is a plain `string`, not
-  a closed union (`frontend/src/api/errors.ts`; #152 item 3).
+  project or file, 409 `not-allowed` until `done`, and 422 `validation` for a body outside the shape (a `verdict`
+  of `unsure`, no `by`). It returns the file's `FileStatus`. Relaxed by section 8: any file triage set aside takes
+  a call, described or not; a file it did not set aside is 422 `not-triaged`. The draft's 422 `no-description`
+  for an undescribed file is gone (#152 item 3 as first built).
 - No new trace stage: triage is in the `identify` stage's line, and `Stage` is unchanged (#152 item 5).
 - Read it as a floor plan (#152 item 12, shape posted on #152 c6876693460, built 2026-11-14):
   `POST /api/projects/{project_id}/files/{file_id}/triage` `{class: "floor_plan", by}` -> 202 with the file's
@@ -250,8 +253,9 @@ class RelevanceJudge(Protocol):
     a drawing) and calls everything else unsure, so a floor plan. It lets the offline demo show triage on those
     files at no cost. The describer has only `off` until eu-big's adapters land.
   - `TRIAGE_JUDGE=rules` (`app/adapters/triage/rules_judge.py`, 2026-11-14): the baseline fixed before any model,
-    `not_drawing` -> unrelated, `other_drawing` -> related, a `why` that says it was not read; a model judge
-    replaces it only by the kill rule and keeps it as its named fallback. The judge port gets the class as `kind`.
+    `not_drawing` -> unrelated, `other_drawing` -> related (unsure since section 8), a `why` that says it was not
+    read. Section 8 replaces it for described files with the rule over the description's form and drops the model
+    judge; it stays the named fallback for undescribed ones. The judge port gets the class as `kind`.
     It reads no description (`reads_description` False on the port), so it also judges non-plans nothing described
     (no describer set up, or the describer refused); a judge that reads descriptions still skips them.
   - The default `off` keeps today's behaviour exactly, in no-keys mode too.
@@ -277,6 +281,105 @@ class RelevanceJudge(Protocol):
   - In the demo upload (`data/demo/demo-project.zip`), its scans and photos are triaged. What they become is
     measured when the classifier lands, not assumed here.
 - QA checks the golden demo path both with triage off and with it on.
+
+### 8. Sheet register, description form and relevance by rule (COMMON decisions 8-11, 2026-11-14)
+
+Bogdan made triage a priority (2026-11-14 ~14:40: "MAKE THIS A BIG priority ... Maybe not 1 sentence summary but
+longer so that we can use that later, the ai will be able to"). This section adds to sections 2-6 and wins where
+they differ. Proposed by tables-fix 2026-11-14 14:20. Accepted by the orchestrator with two additions (the
+personal-data rule for `visible_text`; any verdict can be overruled) and by Tudor's fleet's review (#152
+c6877112058), whose 8 points are written in below.
+
+**The register (decision 8).** `Triage.register: Register | null`, inside the triage (Tudor's review item 2):
+
+```text
+Register = {
+  kind: "floor_plan" | "multi_view_sheet" | "site_plan_or_map" | "elevation" | "section" | "detail"
+      | "perspective_or_axonometric" | "engineering_non_building" | "cover_or_text_sheet"
+      | "photograph" | "not_architecture" | "other",            # the answer key's 12 kinds
+  has_floor_plan: bool,                                        # the gate (plan recall >= 99%, decision 2)
+  photo_of_sheet: bool,                                        # a camera photo of a sheet
+  scale_shown: "bar" | "ratio_text" | "dimensions" | "none" | "unreadable",
+  quality: "good" | "fair" | "poor",
+  method: str,                                                 # which classifier; equals triage.method
+}
+```
+
+- It is set by the classifier on the image-like files of section 1, floor plans included (display only: a plan's
+  `scale_shown` is never compared with what its reader found; the ingest screens show it on non-plans). It is
+  null with a classifier that gives no register (`TRIAGE_CLASSIFIER=rules` has no model). Triage itself is null
+  when triage is off, while the file is queued, on vector PDFs, IFC, DXF and SVG, and when the classifier can't
+  say (`Unavailable`: read as a plan, with the trace note), so there is no register either.
+  - Why null and not filled from what ingest knows: no classifier looks at those files, and before reading ingest
+    knows only their format. A register made from the reading (rooms read, so a floor plan) would be a guess shown
+    as a fact, and the reading is already on the file (`drawing_id`, `takeoff`). An IFC model is not a sheet, and
+    none of the 12 kinds fits it.
+- `Triage.class` is derived in core from the register (`class_of` in `app/core/ingest/model.py`; a classifier
+  that gives both a register and a class that disagrees with it is refused):
+  - `floor_plan` when `has_floor_plan` or `kind` is `floor_plan`. If either says plan, it is read (unsure means
+    plan: the key has 14 `floor_plan` rows with no plan flag, and 8 photographs of a plan);
+  - else `not_drawing` for `photograph`, `not_architecture`, `cover_or_text_sheet` and `other`;
+  - else `other_drawing`.
+  - `p_plan` stays the gate's probability.
+- `photo_of_sheet`, `scale_shown` and `quality` are shown, not acted on in this version. The rectifier still
+  follows the probe's photo flag (measured: 26/30 phone photos). Screens show `register.kind` (Tudor's review
+  item 3).
+
+**The description form (decision 10).** `Description` gains four fields. The six it had stay as they are:
+
+```text
+Description = {
+  text, subject, text_seen, language, model, cost_usd,         # unchanged
+  what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other",
+  shows_building: bool,
+  visible_text: str,       # every legible word, as printed, line breaks kept; "" when none; max 2,000 characters
+  detail: str,             # a paragraph or more: what it shows, kept for later AI use; max 4,000 characters
+}
+```
+
+- `drawing` means an architectural or technical drawing that is not a floor plan. The register's `kind` says which.
+- `text` is the short form (1-3 sentences) the file row and the issue's `why` show. `detail` is the long form for
+  search, answering, relevance and Stoa. The describer writes both in the same call, and `text` sums up `detail`.
+  The screen shows `detail` collapsed.
+- `text_seen` stays the title-block and caption items (at most 20), taken from `visible_text`. Screens show
+  `visible_text`; `detail` may be shown collapsed, labelled as a model's description no person checked.
+  `what_it_is` and `shows_building` feed the rule and later AI use; the rule's `why` says in words whether it
+  shows a building.
+- Personal data (orchestrator, 2026-11-14, verbatim: "printed text kept (project, company, place, room names,
+  title block), but personal contact data of private persons (phone numbers, e-mails, home addresses) and names
+  of people seen in photos are left out"). This is section 3's rule for `text_seen` (number plates, home
+  addresses) widened, and it covers `visible_text` and `detail` alike. Nothing that isn't visible is guessed.
+- The four fields are required. No stored description exists to break, since the describer was only `off` before
+  this. Cached by the file's sha256, describer name and prompt version, as section 3 says. Tests check the form
+  fields, never `detail`.
+
+**Relevance by rule (decision 11, with Tudor's review item 1).** The model relevance judge is dropped. The rule is
+a pure core function, `triage.relevance_by_rule(description, context) -> Relevance`, over the form:
+
+- The facts (`ProjectContext`, gaining `project_name`) are the project's name, its file and folder names, and the plan
+  text of section 4 (room and flat labels, storeys, table titles, model object names). Title-block text and the
+  address join when the drawing model keeps them; it keeps neither yet. `relevance_of` drops the judged file's own
+  name from the context, as it already drops its own subject.
+- The words matched are those in `visible_text` and `text_seen`: casefolded, accents folded, split on anything
+  that isn't a letter. Kept: 4 or more letters, not on a fixed stop list of drawing words (plan, floor, scale,
+  section, elevation, drawing, sheet and their fi/sv/de/fr forms). A number alone is never a match.
+- `related` only when at least one word is shared: "Related: 'rosa', 'villa', printed on it, are in the project's
+  name; it shows no building." `matched_on` lists each shared word and where it matched, at most 5.
+- `unsure` when it shows a building but nothing is shared: "Unsure: it shows a building, but none of its printed
+  words is in the project's name, file and folder names or plan text." A person decides (`needs_person` issue).
+- `unrelated` when it shows no building and nothing is shared: "Unrelated: it shows no building, and none of its
+  printed words is …". When nothing is printed, the why says "it has no printed text". This is Bogdan's rule ("not
+  relevant when no building and no shared text"); everything in between asks a person.
+- With no floor plan in the project the verdict is `unsure`, as section 4 says (checked before any rule).
+- `judge` names the rule: "rule on the words printed on it and whether it shows a building, no model".
+- `TRIAGE_JUDGE` stays `off | rules`. With `rules`, a described file gets this rule, and an undescribed one gets
+  the class rule of section 6 as the named fallback ("rule on the kind of picture, no model (no description to
+  read)"): `not_drawing` is `unrelated`, and `other_drawing` is now `unsure` (was `related`; Tudor's review item 1).
+- A person can overrule any verdict, rule-made or model-made, described or not (orchestrator, 2026-11-14), so every
+  `unrelated_file` issue can be settled: `POST …/relevance` takes any file triage set aside (section 5).
+- Still a suggestion a person overrules (section 4). The API shape of `Relevance` is unchanged.
+- How many of the full set's 152 random pictures come out not relevant is reported when the describer lands. It is
+  not assumed here.
 
 ## Alternatives considered
 

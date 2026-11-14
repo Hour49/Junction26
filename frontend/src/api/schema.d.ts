@@ -330,8 +330,9 @@ export interface paths {
          * Relevance
          * @description A person says whether a file triage set aside belongs to the project, or takes that back
          *     (`undo`; with no call made, nothing changes). The file stays set aside either way: a call
-         *     is no reading. 409 until the project is done; 422 `no-description` for a file triage did
-         *     not describe.
+         *     is no reading. Any file triage called not a floor plan takes a call, described and judged
+         *     or not. 409 until the project is done; 422 `not-triaged` for a file triage did not set
+         *     aside as not a floor plan.
          */
         post: operations["relevance_api_projects__project_id__files__file_id__relevance_post"];
         delete?: never;
@@ -815,7 +816,9 @@ export interface components {
         };
         /**
          * Description
-         * @description Step 2, for a file that is not a floor plan: what the picture shows, in words.
+         * @description Step 2, for a file that is not a floor plan: what the picture shows, as a fixed form and
+         *     a long text (decision 0010 section 8). `text` is the short form a file row shows; `detail`
+         *     the long one kept for later AI use. Nothing tested depends on `detail`.
          */
         Description: {
             /**
@@ -823,10 +826,14 @@ export interface components {
              * @default 0
              */
             cost_usd: number;
+            /** Detail */
+            detail: string;
             /** Language */
             language?: string | null;
             /** Model */
             model: string;
+            /** Shows Building */
+            shows_building: boolean;
             /** Subject */
             subject: string;
             /** Text */
@@ -836,6 +843,13 @@ export interface components {
              * @default []
              */
             text_seen: string[];
+            /** Visible Text */
+            visible_text: string;
+            /**
+             * What It Is
+             * @enum {string}
+             */
+            what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
         };
         /**
          * Disputed
@@ -1554,6 +1568,35 @@ export interface components {
             text: string;
         };
         /**
+         * Register
+         * @description Triage.register: what the classifier read off an image sheet, floor plans included. The
+         *     triage class is derived from it (`class_of`); the rest is shown, never acted on in this
+         *     version (a plan's scale_shown is not compared with what its reader found).
+         */
+        Register: {
+            /** Has Floor Plan */
+            has_floor_plan: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "floor_plan" | "multi_view_sheet" | "site_plan_or_map" | "elevation" | "section" | "detail" | "perspective_or_axonometric" | "engineering_non_building" | "cover_or_text_sheet" | "photograph" | "not_architecture" | "other";
+            /** Method */
+            method: string;
+            /** Photo Of Sheet */
+            photo_of_sheet: boolean;
+            /**
+             * Quality
+             * @enum {string}
+             */
+            quality: "good" | "fair" | "poor";
+            /**
+             * Scale Shown
+             * @enum {string}
+             */
+            scale_shown: "bar" | "ratio_text" | "dimensions" | "none" | "unreadable";
+        };
+        /**
          * Relevance
          * @description Step 3, once the project's plans are read: does the described file belong to it.
          */
@@ -1986,6 +2029,7 @@ export interface components {
             /** P Plan */
             p_plan: number;
             read_as_plan?: components["schemas"]["ReadAsPlan"] | null;
+            register?: components["schemas"]["Register"] | null;
             relevance?: components["schemas"]["Relevance"] | null;
             /** Verdict */
             verdict?: ("related" | "unrelated" | "unsure") | null;

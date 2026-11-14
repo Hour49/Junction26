@@ -80,8 +80,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | --- | --- |
 | Unknown or malformed project, file or drawing id, unknown page, quantity key or mark id | 404 `not-found` |
 | Unknown rule pack (`?pack=`) | 404 `unknown-pack` |
-| A relevance call on a file triage did not describe (decision 0010) | 422 `no-description` |
-| Reading as a floor plan a file triage did not set aside as not a floor plan | 422 `not-triaged` |
+| A relevance call on, or reading as a floor plan, a file triage did not set aside as not a floor plan | 422 `not-triaged` |
 | `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
@@ -904,16 +903,38 @@ the `identify` stage's line.
   `not_drawing` (a photo, a music score, a text page, an icon). A closed list: map it to words. Unsure is
   `floor_plan`, because a plan set aside would never be read.
 - `p_plan`: P(a floor plan anywhere on the page), 0 to 1. `method`: how, in plain words.
-- `description` (only for a file that is not a floor plan): `text` (1-3 sentences), `subject` (a short label),
-  `text_seen` (words printed on it: title-block and caption text only; the describer is told not to transcribe
-  personal data such as private people's names, phone numbers, number plates or home addresses), `language`
-  (ISO 639-1 of `text_seen`, null when none), `model`, `cost_usd`.
+- `register` (decision 0010 section 8): what the classifier read off the sheet, floor plans included: `kind` (the
+  answer key's 12: `floor_plan`, `multi_view_sheet`, `site_plan_or_map`, `elevation`, `section`, `detail`,
+  `perspective_or_axonometric`, `engineering_non_building`, `cover_or_text_sheet`, `photograph`,
+  `not_architecture`, `other`), `has_floor_plan`, `photo_of_sheet`, `scale_shown` (`bar`, `ratio_text`,
+  `dimensions`, `none`, `unreadable`), `quality` (`good`, `fair`, `poor`), `method`. `class` is derived from it: a
+  floor plan when `has_floor_plan` or `kind` is `floor_plan`, else `not_drawing` for `photograph`,
+  `not_architecture`, `cover_or_text_sheet` and `other`, else `other_drawing`. Display only: nothing else acts on
+  it, and a plan's `scale_shown` is never compared with what its reader found. Null with a classifier that reads
+  no register (`TRIAGE_CLASSIFIER=rules`).
+- `description` (only for a file that is not a floor plan): `text` (1-3 sentences summing up `detail`), `subject`
+  (a short label), `text_seen` (the title-block and caption items of `visible_text`), `language` (ISO 639-1 of the
+  printed text, null when none), `model`, `cost_usd`, and the form of section 8: `what_it_is` (`photograph`,
+  `artwork`, `text_page`, `object`, `music`, `map`, `drawing`, `other`; `drawing` is a drawing that is not a floor
+  plan), `shows_building`, `visible_text` (every legible word as printed, `""` when none, at most 2,000
+  characters) and `detail` (a paragraph or more, at most 4,000 characters: a model's description no person
+  checked). Printed text is kept (project, company, place and room names, the title block); the describer leaves
+  out number plates, home addresses, personal contact data of private persons (phone numbers, e-mails) and the
+  names of people seen in photos.
 - `relevance` (set once the project's ingest is done): `verdict` `related`, `unrelated` or `unsure`, `why` (one
   sentence naming what matched or what is missing), `matched_on`, `plans` (drawing ids, always among this
   project's `drawings`), `judge`. With no plan read in the project the verdict is `unsure`, "no floor plan in the
-  project to compare with". With `TRIAGE_JUDGE=rules` (no model) `judge` is "rule on the kind of picture, no model":
-  `not_drawing` is `unrelated`, `other_drawing` `related`, and `why` says it was not read. It judges files nothing
-  described too; their `note` is then "not described: no description model is set up" (or the describer's why).
+  project to compare with". With `TRIAGE_JUDGE=rules` (no model):
+  - a described file is judged by the rule over its form: `related` when a word printed on it (`visible_text`,
+    `text_seen`; 4 letters or more, not a drawing word, never a number alone) is in the project's name, its other
+    files' and folders' names or its plans' text; `unsure` when it shows a building but nothing matches;
+    `unrelated` when it shows no building and nothing matches. `matched_on` lists each word with where it
+    matched, and `why` says whether it shows a building. `judge` is "rule on the words printed on it and whether it
+    shows a building, no model".
+  - a file nothing described (no describer, or the describer refused it) is judged by its class: `not_drawing`
+    is `unrelated`, `other_drawing` `unsure`, and `why` says it was not read; `judge` is "rule on the kind of
+    picture, no model (no description to read)". Its `note` is then "not described: no description model is set
+    up" (or the describer's why).
 - `overruled`: a person's call, `{verdict: related|unrelated, by, at}`; the judge's `relevance` stays as it was.
 - `read_as_plan`: `{by, at}` once a person had the file read as a floor plan (`POST …/triage`); `class` stays the
   classifier's.
@@ -932,8 +953,9 @@ call or not (it changes the verdict, not the class), less those a person had rea
 Never a file set aside for its format (`triage` null). Null until `done`, then final except when a person has a
 file read as a floor plan; left out when the project was ingested with triage off.
 
-A project with triage on (the test fakes: an elevation judged related, the site photo judged unrelated and then
-called related by a person, a photo the describer refused):
+A project with triage on (the test fakes and the rules judge: an elevation judged related, the site photo judged
+unrelated and then called related by a person, a photo the describer refused judged by its class, and a camera
+photo of an elevation sheet with its register, showing a building that matches nothing, so unsure):
 
 <!-- fixture: project_triaged.json -->
 ```json
@@ -1058,6 +1080,7 @@ called related by a person, a photo the describer refused):
         "class": "other_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": {
           "text": "A picture of the south elevation of a two-storey house.",
           "subject": "the south elevation of a two-storey house",
@@ -1067,18 +1090,20 @@ called related by a person, a photo the describer refused):
           ],
           "language": "en",
           "model": "fake describer",
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "what_it_is": "drawing",
+          "shows_building": false,
+          "visible_text": "Küche\nSüd",
+          "detail": "A longer account of the south elevation of a two-storey house, for later use."
         },
         "relevance": {
           "verdict": "related",
-          "why": "Related: Küche is on the project's plans.",
+          "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
           "matched_on": [
-            "Küche"
+            "'kuche' (plan text)"
           ],
-          "plans": [
-            "6a47e9a1c33db404"
-          ],
-          "judge": "word judge"
+          "plans": [],
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
         },
         "overruled": null,
         "read_as_plan": null,
@@ -1108,20 +1133,25 @@ called related by a person, a photo the describer refused):
         "class": "not_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": {
           "text": "A picture of a building site with a crane.",
           "subject": "a building site with a crane",
           "text_seen": [],
           "language": null,
           "model": "fake describer",
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "what_it_is": "photograph",
+          "shows_building": false,
+          "visible_text": "",
+          "detail": "A longer account of a building site with a crane, for later use."
         },
         "relevance": {
           "verdict": "unrelated",
-          "why": "Unrelated: no word on it is on the project's plans or in its file names.",
+          "why": "Unrelated: it shows no building, and it has no printed text.",
           "matched_on": [],
           "plans": [],
-          "judge": "word judge"
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
         },
         "overruled": {
           "verdict": "related",
@@ -1155,18 +1185,82 @@ called related by a person, a photo the describer refused):
         "class": "not_drawing",
         "p_plan": 0.03,
         "method": "fake classifier",
+        "register": null,
         "description": null,
-        "relevance": null,
+        "relevance": {
+          "verdict": "unrelated",
+          "why": "A picture that is not a drawing; such files are judged unrelated by a rule on what kind of picture they are, without reading what they show.",
+          "matched_on": [],
+          "plans": [],
+          "judge": "rule on the kind of picture, no model (no description to read)"
+        },
         "overruled": null,
         "read_as_plan": null,
-        "verdict": null,
+        "verdict": "unrelated",
         "note": "not described: the model refused"
+      }
+    },
+    {
+      "id": "f5",
+      "path": "photos/sheet.jpg",
+      "size": 37659,
+      "sha256": "7753c4e8cfd8925200108dfc29ff16ab6d5e6acdaaea87e6ac763280d78a3e26",
+      "kind": "photo_plan",
+      "state": "set_aside",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null,
+      "triage": {
+        "class": "other_drawing",
+        "p_plan": 0.03,
+        "method": "fake classifier",
+        "register": {
+          "kind": "elevation",
+          "has_floor_plan": false,
+          "photo_of_sheet": true,
+          "scale_shown": "bar",
+          "quality": "fair",
+          "method": "fake classifier"
+        },
+        "description": {
+          "text": "A picture of a photographed elevation of a church.",
+          "subject": "a photographed elevation of a church",
+          "text_seen": [
+            "Kirche St. Anna"
+          ],
+          "language": "en",
+          "model": "fake describer",
+          "cost_usd": 0.0,
+          "what_it_is": "drawing",
+          "shows_building": true,
+          "visible_text": "Kirche St. Anna",
+          "detail": "A longer account of a photographed elevation of a church, for later use."
+        },
+        "relevance": {
+          "verdict": "unsure",
+          "why": "Unsure: it shows a building, but none of its printed words is in the project's name, file and folder names or plan text.",
+          "matched_on": [],
+          "plans": [],
+          "judge": "rule on the words printed on it and whether it shows a building, no model"
+        },
+        "overruled": null,
+        "read_as_plan": null,
+        "verdict": "unsure",
+        "note": null
       }
     }
   ],
   "counts": {
     "ready": 1,
-    "set_aside": 3
+    "set_aside": 4
   },
   "readers": {
     "bim": "ifc",
@@ -1207,10 +1301,14 @@ called related by a person, a photo the describer refused):
     {
       "path": "photos/street.jpg",
       "reason": "not a floor plan: not a drawing"
+    },
+    {
+      "path": "photos/sheet.jpg",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)"
     }
   ],
   "expected_drawings": 1,
-  "not_plans": 3
+  "not_plans": 4
 }
 ```
 
@@ -1229,7 +1327,8 @@ verdict is a call too: it settles the file's issue. Returns the file's `FileStat
 ```
 
 - 409 `not-allowed` until the project is `done`; 404 `not-found` for an unknown project or file.
-- 422 `no-description` for a file triage did not describe (there is nothing to judge, so nothing to overrule).
+- 422 `not-triaged` for a file triage did not set aside as not a floor plan. Any file it did takes a call,
+  described and judged or not, so every `unrelated_file` issue can be settled.
 - 422 `validation` for a body outside the shape: a `verdict` other than `related` or `unrelated`, no `by`, an empty
   or too long `by`, `undo` with a `verdict`.
 - `undo` with no call made: 200, the file unchanged.
@@ -1290,6 +1389,7 @@ project stays `done` throughout.
     "class": "other_drawing",
     "p_plan": 0.03,
     "method": "fake classifier",
+    "register": null,
     "description": {
       "text": "A picture of the south elevation of a two-storey house.",
       "subject": "the south elevation of a two-storey house",
@@ -1299,18 +1399,20 @@ project stays `done` throughout.
       ],
       "language": "en",
       "model": "fake describer",
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "what_it_is": "drawing",
+      "shows_building": false,
+      "visible_text": "Küche\nSüd",
+      "detail": "A longer account of the south elevation of a two-storey house, for later use."
     },
     "relevance": {
       "verdict": "related",
-      "why": "Related: Küche is on the project's plans.",
+      "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
       "matched_on": [
-        "Küche"
+        "'kuche' (plan text)"
       ],
-      "plans": [
-        "6a47e9a1c33db404"
-      ],
-      "judge": "word judge"
+      "plans": [],
+      "judge": "rule on the words printed on it and whether it shows a building, no model"
     },
     "overruled": null,
     "read_as_plan": {
@@ -1358,6 +1460,7 @@ The same file once read:
     "class": "other_drawing",
     "p_plan": 0.03,
     "method": "fake classifier",
+    "register": null,
     "description": {
       "text": "A picture of the south elevation of a two-storey house.",
       "subject": "the south elevation of a two-storey house",
@@ -1367,18 +1470,20 @@ The same file once read:
       ],
       "language": "en",
       "model": "fake describer",
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "what_it_is": "drawing",
+      "shows_building": false,
+      "visible_text": "Küche\nSüd",
+      "detail": "A longer account of the south elevation of a two-storey house, for later use."
     },
     "relevance": {
       "verdict": "related",
-      "why": "Related: Küche is on the project's plans.",
+      "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
       "matched_on": [
-        "Küche"
+        "'kuche' (plan text)"
       ],
-      "plans": [
-        "6a47e9a1c33db404"
-      ],
-      "judge": "word judge"
+      "plans": [],
+      "judge": "rule on the words printed on it and whether it shows a building, no model"
     },
     "overruled": null,
     "read_as_plan": {
@@ -3051,7 +3156,9 @@ checks. The decision record, with the reasons for each choice, is
 
 Each issue:
 
-- `id`: stable across calls and restarts, and kept when the issue is settled or signed off.
+- `id`: stable across calls and restarts, and kept when the issue is settled or signed off. It is the reference
+  to keep across re-reads and exports; the `n` of the CSV and zip is the issue's position in the current list,
+  not an identifier (qa-c R6-c-4).
 - `kind`:
   - `conflict`: two methods disagree on a quantity. `quantity` + `drawing_id` is its `ConflictEntry` in
     `GET …/review`.
@@ -7669,6 +7776,14 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0010 section 8, board #152, PR #183): `Triage.register` (the sheet register:
+  kind, has_floor_plan, photo_of_sheet, scale_shown, quality, method; null with no register-reading classifier);
+  `Description.what_it_is`, `shows_building`, `visible_text` and `detail`. `TRIAGE_JUDGE=rules` judges a
+  described file by the words printed on it (`related` only on a match; `unsure` for a building with no match)
+  and an undescribed `other_drawing` as `unsure` (was `related`). Relaxed: `POST …/files/{file_id}/relevance`
+  takes a call on any file triage set aside, described or not (was 422 `no-description` for an undescribed one),
+  so every `unrelated_file` issue can be settled; a file triage did not set aside is 422 `not-triaged`, and the
+  code `no-description` is no longer returned. Fixture `project_triaged.json` gains `photos/sheet.jpg` (f5).
 - 2026-11-14, behaviour (golden-25): with `CHECK_POLICY` on, a plan count is certified (`sure` true, `check` null)
   only when the answer confidence's own most likely plan count is the answered one, the rule `GATE_POLICY` applies
   since #174; otherwise it asks, with `check.reason` "Please double-check the plan count: two readers count the

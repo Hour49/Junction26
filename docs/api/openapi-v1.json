@@ -1089,13 +1089,18 @@
       },
       "Description": {
         "additionalProperties": false,
-        "description": "Step 2, for a file that is not a floor plan: what the picture shows, in words.",
+        "description": "Step 2, for a file that is not a floor plan: what the picture shows, as a fixed form and\na long text (decision 0010 section 8). `text` is the short form a file row shows; `detail`\nthe long one kept for later AI use. Nothing tested depends on `detail`.",
         "properties": {
           "cost_usd": {
             "default": 0.0,
             "minimum": 0.0,
             "title": "Cost Usd",
             "type": "number"
+          },
+          "detail": {
+            "maxLength": 4000,
+            "title": "Detail",
+            "type": "string"
           },
           "language": {
             "anyOf": [
@@ -1111,6 +1116,10 @@
           "model": {
             "title": "Model",
             "type": "string"
+          },
+          "shows_building": {
+            "title": "Shows Building",
+            "type": "boolean"
           },
           "subject": {
             "title": "Subject",
@@ -1128,12 +1137,35 @@
             "maxItems": 20,
             "title": "Text Seen",
             "type": "array"
+          },
+          "visible_text": {
+            "maxLength": 2000,
+            "title": "Visible Text",
+            "type": "string"
+          },
+          "what_it_is": {
+            "enum": [
+              "photograph",
+              "artwork",
+              "text_page",
+              "object",
+              "music",
+              "map",
+              "drawing",
+              "other"
+            ],
+            "title": "What It Is",
+            "type": "string"
           }
         },
         "required": [
           "text",
           "subject",
-          "model"
+          "model",
+          "what_it_is",
+          "shows_building",
+          "visible_text",
+          "detail"
         ],
         "title": "Description",
         "type": "object"
@@ -3591,6 +3623,72 @@
         "title": "Refusal",
         "type": "object"
       },
+      "Register": {
+        "additionalProperties": false,
+        "description": "Triage.register: what the classifier read off an image sheet, floor plans included. The\ntriage class is derived from it (`class_of`); the rest is shown, never acted on in this\nversion (a plan's scale_shown is not compared with what its reader found).",
+        "properties": {
+          "has_floor_plan": {
+            "title": "Has Floor Plan",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "floor_plan",
+              "multi_view_sheet",
+              "site_plan_or_map",
+              "elevation",
+              "section",
+              "detail",
+              "perspective_or_axonometric",
+              "engineering_non_building",
+              "cover_or_text_sheet",
+              "photograph",
+              "not_architecture",
+              "other"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "photo_of_sheet": {
+            "title": "Photo Of Sheet",
+            "type": "boolean"
+          },
+          "quality": {
+            "enum": [
+              "good",
+              "fair",
+              "poor"
+            ],
+            "title": "Quality",
+            "type": "string"
+          },
+          "scale_shown": {
+            "enum": [
+              "bar",
+              "ratio_text",
+              "dimensions",
+              "none",
+              "unreadable"
+            ],
+            "title": "Scale Shown",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "has_floor_plan",
+          "photo_of_sheet",
+          "scale_shown",
+          "quality",
+          "method"
+        ],
+        "title": "Register",
+        "type": "object"
+      },
       "Relevance": {
         "additionalProperties": false,
         "description": "Step 3, once the project's plans are read: does the described file belong to it.",
@@ -4793,6 +4891,16 @@
               }
             ]
           },
+          "register": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Register"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "relevance": {
             "anyOf": [
               {
@@ -5846,7 +5954,7 @@
     },
     "/api/projects/{project_id}/files/{file_id}/relevance": {
       "post": {
-        "description": "A person says whether a file triage set aside belongs to the project, or takes that back\n(`undo`; with no call made, nothing changes). The file stays set aside either way: a call\nis no reading. 409 until the project is done; 422 `no-description` for a file triage did\nnot describe.",
+        "description": "A person says whether a file triage set aside belongs to the project, or takes that back\n(`undo`; with no call made, nothing changes). The file stays set aside either way: a call\nis no reading. Any file triage called not a floor plan takes a call, described and judged\nor not. 409 until the project is done; 422 `not-triaged` for a file triage did not set\naside as not a floor plan.",
         "operationId": "relevance_api_projects__project_id__files__file_id__relevance_post",
         "parameters": [
           {

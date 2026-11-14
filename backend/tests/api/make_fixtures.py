@@ -49,12 +49,13 @@ from test_vector_pdf import swiss_sheet  # noqa: E402  # pyright: ignore[reportM
 from triage_fakes import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     FakeClassifier,
     FakeDescriber,
-    WordJudge,
     steps,
 )
 
+from app.adapters.triage.rules_judge import RulesJudge  # noqa: E402
 from app.composition import DECISIONS_SIGNAL, build_ingest  # noqa: E402
 from app.core.drawing.model import Drawing  # noqa: E402
+from app.core.ingest.model import Register  # noqa: E402
 from app.core.pipeline.ports import DrawingFiles  # noqa: E402
 from app.core.review.check import CheckPolicy, Found, Place  # noqa: E402
 from app.core.review.model import Row  # noqa: E402
@@ -206,19 +207,37 @@ def project_issues(
 
 
 def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
-    """File triage on (decision 0010), with the test fakes: the sample's flat-a plan, an image
-    described and judged related (it prints "Küche", a room of flat-a), the site photo judged
-    unrelated and then called related by a person, and a photo the describer refused."""
+    """File triage on (decision 0010), with the test fakes and the rules judge: the sample's
+    flat-a plan, an image described and judged related (it prints "Küche", a room of flat-a),
+    the site photo judged unrelated and then called related by a person, a photo the describer
+    refused (judged by its class alone), and a camera photo of a sheet with its register,
+    showing a building that matches nothing (unsure)."""
     with zipfile.ZipFile(io.BytesIO(build_archive())) as sample:
         plan, photo = sample.read("plans/flat-a.pdf"), sample.read("photos/site.jpg")
     elevation = png_bytes(raster_plan().rotate(90, expand=True))
     refused = jpeg_bytes(site_photo().rotate(180))
+    sheet = jpeg_bytes(raster_plan().rotate(270, expand=True))
     classes = {elevation: "other_drawing", photo: "not_drawing", refused: "not_drawing"}
+    registers = {
+        sheet: Register(
+            kind="elevation",
+            has_floor_plan=False,
+            photo_of_sheet=True,
+            scale_shown="bar",
+            quality="fair",
+            method="fake classifier",
+        )
+    }
     subjects = {
         elevation: ("the south elevation of a two-storey house", ("Küche", "Süd")),
         photo: ("a building site with a crane", ()),
+        sheet: ("a photographed elevation of a church", ("Kirche St. Anna",)),
     }
-    triage = steps(FakeClassifier(classes), FakeDescriber(subjects), WordJudge())  # type: ignore[arg-type]
+    triage = steps(
+        FakeClassifier(classes, registers=registers),  # type: ignore[arg-type]
+        FakeDescriber(subjects, buildings=frozenset({sheet})),
+        RulesJudge(),
+    )
     settings = settings.model_copy(update={"projects_dir": root / "projects"})
     ingest = build_ingest(settings, settings.projects_dir, background=False, triage=triage)
     client = TestClient(create_app(settings, ingest))
@@ -227,6 +246,7 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
         "elevations/south.png": elevation,
         "photos/site.jpg": photo,
         "photos/street.jpg": refused,
+        "photos/sheet.jpg": sheet,
     }
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:

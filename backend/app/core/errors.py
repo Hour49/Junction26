@@ -19,10 +19,5 @@ class InvalidInputError(DomainError):
 
 
 class NotTriagedError(InvalidInputError):
-    """Reading as a floor plan a file triage did not call a non-plan (decision 0010): its own
-    code, so a screen says why the button does nothing."""
-
-
-class NoDescriptionError(InvalidInputError):
-    """A relevance overrule on a file triage did not describe (decision 0010): its own code, so a
-    screen says there is nothing to overrule instead of a generic error."""
+    """Reading as a floor plan, or a relevance call on, a file triage did not call a non-plan
+    (decision 0010): its own code, so a screen says why the button does nothing."""
