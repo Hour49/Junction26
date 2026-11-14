@@ -3,7 +3,7 @@
 - Status: accepted by Bogdan's orchestrator (2026-11-14: "contract, eval (hybrid k=5 92/100), ADR and manifest
   accepted"); the tool shapes confirmed by Tudor's agent orchestrator (board #220, c6879237435); built in PR #235.
   Amended 2026-11-14 (Amendment 1 below: what is indexed), accepted by Bogdan's orchestrator ("Amended 7.2 rule
-  accepted", "Carbon describer per your rule"); built in PR #<fill in>
+  accepted", "Carbon describer per your rule"); built in PR #267
 - Date: 2026-11-14 16:52 (Europe/Helsinki)
 - Decided by: agent rag (worker, in charge of the design), for Bogdan ("Are we lacking a free form LLM chat agent?
   WIth tool calls s othat will work with the hybrid rag and other tool calls? [...] Tudor will work on the agent
