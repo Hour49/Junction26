@@ -506,7 +506,12 @@ class _Run:
         result: Json = {"status": "ok", "shown": len(ids), "drawing": name, "page": page}
         if others:
             result["other_pages"] = others
-        self._show_step(call, start, label, "ok", json.dumps(result, ensure_ascii=False))
+        text = json.dumps(result, ensure_ascii=False)
+        # what it showed backs the answer's numbers: a tool result, and the answer it shows
+        self.sources.append(text)
+        if entry is not None:
+            self.sources.append(json.dumps(entry["answer"]))
+        self._show_step(call, start, label, "ok", text)
 
     def _show_failed(self, call: Json, start: float, why: str) -> None:
         self._show_step(call, start, "Could not show that on the plan", "error",
