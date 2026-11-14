@@ -41,8 +41,9 @@ from app.core.ingest.model import (
 )
 from app.core.ingest.triage import set_aside_reason, sheet_doubt
 from app.core.spend import SpendGuard
+from app.settings import Settings
 
-CUT = 0.8
+CUT = 0.9  # the default (settings.sheet_kind_cut)
 PNG_PROBED = Probed(kind="png_plan", did="a drawing image")
 
 
@@ -349,3 +350,12 @@ def test_a_huge_sheet_keeps_the_size_rule(tmp_path: Path) -> None:
         "large sheet (20000 px on its long side)",
         0,
     )
+
+
+def test_the_default_cut_is_the_one_the_gate_run_picked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)  # so a developer's backend/.env can't change it
+    assert Settings().sheet_kind_cut == CUT == 0.9
+    # 0.85: set aside at the old 0.8, a doubt (read) at 0.9
+    assert decide(form("mep_plan", False, True, 0.85), CUT) == "doubt"
