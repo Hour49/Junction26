@@ -61,11 +61,12 @@ export function kindName(kind: string | null | undefined): string {
 
 export type Grade = 'High' | 'Medium' | 'Low';
 
-/** Bogdan's rule (#14 c6874945888): the Sure check, else the second reader's score; none without a score. */
-export function gradeOf(a: AnswerView): Grade | null {
-  if (a.line.sure === true) return 'High';
-  if (!a.confidence) return null;
-  return a.confidence.score >= 0.8 ? 'Medium' : 'Low';
+const LEVEL_WORD = { high: 'High', medium: 'Medium', low: 'Low' } as const;
+
+/** The backend's confidence level (#233, Bogdan #14 c6879176847); null without one, no score rule (EN-82). */
+export function gradeOf(a: { level?: AnswerView['level'] }): Grade | null {
+  return a.level ? LEVEL_WORD[a.level.level] : null;
 }
 
-export const GRADE_TIP = "From the Sure check and the second reader's score (0.8 or more: Medium).";
+/** `ProjectAnswer.total_level` in words (CH-42). */
+export const levelWord = (level: keyof typeof LEVEL_WORD): Grade => LEVEL_WORD[level];

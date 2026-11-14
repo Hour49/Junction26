@@ -142,8 +142,8 @@ test('DOC IS-19 IS-20: the issues on Documents with and without a pack, the fail
   await expect(issueList).toHaveCount(await shown('?pack=ch-zh'));
   const fail = issueList.filter({ hasText: 'Fails a rule' });
   await expect(fail).toHaveCount(1);
-  // The row names the file as uploaded; the source preview names the drawing (`drawingLabel`).
-  await expect(fail).toContainText('plans/flat-b.pdf');
+  // The row and the source preview name the drawing by its plain name (follow-ups: `drawing_name`).
+  await expect(fail).toContainText(label);
   await expect(fail).toContainText('Zimmer 1.05');
   await expect(banner(page).getByRole('link', { name: /^Documents/ })).toHaveAccessibleName(
     'Documents, 1 issue to answer',

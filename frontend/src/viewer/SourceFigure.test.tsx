@@ -281,3 +281,42 @@ describe('SourceFigure: demo look (re-sweep 6)', () => {
     );
   });
 });
+
+describe('SourceFigure: coincident badges (follow-up)', () => {
+  const k = (el: Element | undefined) =>
+    (el as HTMLElement | undefined)?.style.getPropertyValue('--vw-k');
+  it('VW-95 two places with the same box: the second number moves aside, readable at any width', () => {
+    const same: Source = {
+      name: 'x',
+      page,
+      places: [
+        { label: 'A', box: [0.4, 0.4, 0.5, 0.5] },
+        { label: 'B', box: [0.4, 0.4, 0.5, 0.5] },
+        { label: 'C', box: [0.4, 0.4, 0.5, 0.5] },
+      ],
+    };
+    const { container } = render(<SourceFigure sources={[same]} label="S" />);
+    const hl = [...container.querySelectorAll('.vw-src-frame .vw-hl')];
+    expect(hl.map(k)).toEqual(['0', '1', '2']);
+    cleanup();
+    // near corners (the sample's kitchen conflict) collide on a 150 px thumbnail, not when far apart
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(150);
+    const near = render(<SourceFigure sources={[twoPlaces]} label="S" />).container;
+    expect([...near.querySelectorAll('.vw-src-frame .vw-hl')].map(k)).toEqual(['0', '1']);
+    cleanup();
+    const far = render(
+      <SourceFigure
+        sources={[
+          {
+            ...twoPlaces,
+            places: [...twoPlaces.places.slice(0, 1), { label: 'far', box: [0.8, 0.8, 0.9, 0.9] }],
+          },
+        ]}
+        label="S"
+      />,
+    ).container;
+    expect([...far.querySelectorAll('.vw-src-frame .vw-hl')].map(k)).toEqual(['0', '0']);
+    const css = readFileSync('src/viewer/viewer.css', 'utf8');
+    expect(css).toMatch(/\.vw-hl b \{[^}]*left: calc\(-11px \+ var\(--vw-k, 0\) \* 24px\)/);
+  });
+});

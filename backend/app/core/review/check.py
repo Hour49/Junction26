@@ -20,8 +20,12 @@ value, not theirs), or a bedroom count includes a room typed a bedroom from what
 with no printed label (orchestrator, golden-22: the demo's ROOM_POLICY=furniture counts those; the
 reference answers type a room by its label alone). A plan count is certified only when the answer
 confidence's own most likely count is the answered one (`AGREEING_FAMILIES`, #174: hand-drawn
-sketches got wrong plan counts with a high score where Gemini counted otherwise). A refusal has no
-value to check; a quantity a person settled or signed off is theirs, not ours, so neither gets one.
+sketches got wrong plan counts with a high score where Gemini counted otherwise). Nothing is
+certified on a raster drawing on which the detector found no plan and no located element
+(`found_nothing`; a disclosed safety rule, chosen after seeing it fail on 50 archive sheets, AR,
+orchestrator 2026-11-14 17:24): every reader then agrees on 0 because none of them saw the
+drawing, and that agreement is no evidence; its answers are Low. A refusal has no value to
+check; a quantity a person settled or signed off is theirs, not ours, so neither gets one.
 
 The same verdict gives each rated answer a confidence level (`level_of`, decision 0011): High
 exactly when it is certified, so a level never contradicts the request; an answer that asks is
@@ -188,6 +192,15 @@ def no_disputes(drawing: Drawing, row: Row) -> Found:
     return Found()
 
 
+def found_nothing(drawing: Drawing) -> bool:
+    """True when the detector found no plan and no located element on the drawing (an element a
+    second reader counted with no position of its own does not count: its box is its plan's,
+    app/core/review/review.py unlocated_boxes). Its counts are every reader's 0 on a sheet none
+    of them read, so none is certified (on the raster route)."""
+    located = any(element.attrs.get("located") is not False for element in drawing.elements)
+    return bool(drawing.pages) and not drawing.plans and not located
+
+
 def certified(
     policy: CheckPolicy,
     *,
@@ -196,13 +209,17 @@ def certified(
     score: float | None,
     flags: Sequence[str],
     agrees: bool | None = None,
+    blank: bool = False,
 ) -> bool:
     """`agrees`: whether the answer confidence's own most likely count is the answered one (None:
-    it gives none); a family in `AGREEING_FAMILIES` needs True on the raster route."""
+    it gives none); a family in `AGREEING_FAMILIES` needs True on the raster route. `blank`:
+    `found_nothing` of the drawing; nothing on it is certified on the raster route."""
     if flags:
         return False  # the policy was chosen on scans of plans, not on photos
     if route != "raster":
         return route in policy.routes
+    if blank:
+        return False  # the readers agree because none of them saw anything
     if family in AGREEING_FAMILIES and agrees is not True:
         return False  # a second reader counts otherwise, or there is none to agree
     threshold = None if family is None else policy.thresholds.get(family)
@@ -219,6 +236,10 @@ HELD_TEXT = (
     "request says why." + ASK["low"]
 )
 UNRATED_TEXT = "Low confidence: we have no measurement behind this answer." + ASK["low"]
+BLANK_TEXT = (
+    "Low confidence: nothing was found on this page (no plan, no element), so the readers "
+    "agreeing is not evidence." + ASK["low"]
+)
 
 
 def level_of(
@@ -230,10 +251,12 @@ def level_of(
     score: float | None,
     flags: Sequence[str],
     held: bool = False,
+    blank: bool = False,
 ) -> Level | None:
     """The level of an answer `policy` rated `sure` or not (None: the policy file carries no
-    levels). High exactly when sure. Else Low on a flagged page and on a value `held` for a check
-    (its score, if any, did not rate what is shown); off the raster route, the route's own level;
+    levels). High exactly when sure. Else Low on a flagged page, on a raster drawing where
+    nothing was found (`blank`, `found_nothing`) and on a value `held` for a check (its score, if
+    any, did not rate what is shown); off the raster route, the route's own level;
     on it, Medium at or above the family's `medium` score and Low below. A family with no
     threshold, an answer with no score and a route with no level are Low: nothing was measured."""
     if policy.counts is None:
@@ -244,6 +267,8 @@ def level_of(
         return _on_route(policy, "high", route)
     if flags:
         return Level(level="low", basis="page", text=PAGE_TEXT)
+    if blank and route == "raster":
+        return Level(level="low", basis="page", text=BLANK_TEXT)
     if held:
         return Level(level="low", basis="held", text=HELD_TEXT)
     if route != "raster":

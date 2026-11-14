@@ -793,6 +793,11 @@ Fixtures: `project_review.json`'s conflict (two values with page 1 boxes) and `d
   figure's own row (`.vw-src-btns`, not in the caption): beside the legend at desktop; under 520 px the minimized
   figure wraps and the two buttons sit in one row under the thumbnail and legend (`flex: 1 0 100%`, gap 8).
   [component + css]
+- **VW-95** (follow-up, 390 overlap) Number discs never cover each other: `stackOf` moves a disc right in 24 px
+  steps (`--vw-k`, CSS `left: calc(-11px + var(--vw-k) * 24px)`) while it would overlap an earlier disc (20 px
+  discs, anchors in px from the measured frame; before measuring only identical anchors count). Three identical
+  boxes → `--vw-k` 0, 1, 2; the sample kitchen conflict on a 150 px thumbnail → 0, 1; far-apart boxes → 0, 0.
+  Applies to the figure and the preview (each measures its own frame). [component]
 - **VW-90** `viewer.css` `.vw-src*`, `.vw-hl*`, `.vw-modal*` rules use only `--v-*` tokens (VW-53 still passes).
   [unit]
 - **VW-91** At 390x844 and 1440x900, on a conflict card and an issue with a box: minimized thumbnail beside the
