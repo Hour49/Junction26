@@ -1017,7 +1017,7 @@ def test_a_carbon_door_takes_the_box_of_the_shipped_door_inside_it_and_counts_st
     )
     carbon = (
         el("c1", "door", (0.10, 0.10, 0.20, 0.20), reader=c.SOURCE),  # opening + swing arc
-        el("c2", "door", (0.105, 0.10, 0.205, 0.20), reader=c.SOURCE),  # the same spot: d2 left
+        el("c2", "door", (0.14, 0.10, 0.24, 0.20), reader=c.SOURCE),  # beside it: d2 left
         el("c3", "door", (0.50, 0.50, 0.60, 0.60), reader=c.SOURCE),  # no shipped door inside
         el("c4", "window", (0.40, 0.40, 0.50, 0.45), reader=c.SOURCE),  # windows are not snapped
     )

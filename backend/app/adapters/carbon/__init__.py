@@ -15,6 +15,7 @@ from PIL import Image
 
 from app.adapters.beside import beside
 from app.adapters.carbon.reader import CarbonClient, CarbonExtractor, CarbonReader
+from app.adapters.raster import dedupe
 from app.core.drawing.model import Box, CarbonCheck, Element, Plan, ReadClass
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
@@ -56,7 +57,9 @@ class CarbonThings:
     / 24; product 22 / 5 / 0; confidence, 2026-11-14). Every room and element is put on the plan
     that holds its centre. When Carbon found no plan (its page call failed), the shipped reader's
     plans are kept and a note says so; an element class Carbon did not read stays unread (no
-    fallback). The count arbiter's reading is dropped: it read the shipped elements, not these.
+    fallback). An element Carbon listed twice counts once (the composite's `dedupe`, #332),
+    before the doors are snapped. The count arbiter's reading is dropped: it read the shipped
+    elements, not these.
     A drawing `use_carbon` says no to is read the same way when the shipped reader found fewer
     than `few` elements on it (a scan or photo the detector cannot read; on 6 hard floor plans of
     at most 4,000 px with none found, the split was 59 right / 3 wrong / 1 refused against the
@@ -122,7 +125,7 @@ class CarbonThings:
             plans=plans,
             elements=tuple(
                 e.model_copy(update={"plan": _plan_of(plans, e.page, e.box)})
-                for e in _snapped_doors(carbon.elements, shipped.elements)
+                for e in _snapped_doors(dedupe(carbon.elements), shipped.elements)
             ),
             rooms=tuple(
                 r.model_copy(update={"plan": _plan_of(plans, r.page, r.box)})

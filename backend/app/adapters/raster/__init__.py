@@ -20,6 +20,10 @@ plan does), so plan ids stay consistent whichever source an item came from. Ids 
 (`p1`, `e1`, `r1`...) and each item keeps its source's attrs (`attrs.score`) plus
 `attrs.component`, the source name.
 
+A source can still list one element twice (#332): `dedupe` keeps one element of a class per spot
+(boxes on one page with an IoU of `SAME_IOU` or more), the better evidenced one, before ids are
+given; the notes say how many were dropped. CarbonThings applies the same rule to Carbon's.
+
 `room_policy` (ROOM_POLICY, app/core/pipeline/room_policy.py) retypes the rooms' source's rooms
 before they are placed, whichever source that is; None keeps the reader's types.
 
@@ -60,6 +64,7 @@ from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
 
 RoomPolicy = Callable[[Sequence[Room]], Sequence[Room]]
+SAME_IOU = 0.5  # from here two boxes of one class on one page are one element (#332)
 GROUPS = ("elements", "rooms", "plans", "scale")
 PARTS: tuple[str, ...] = (*GROUPS, *ELEMENT_CLASSES)
 
@@ -203,22 +208,25 @@ class CompositeRasterExtractor:
         )
         read: list[ReadClass] = []
         elements: list[Element] = []
+        dropped = 0
         for kind, component in self._elements.items():
             got = read_by(component)
             if not _looked_for(got.read, kind):
                 continue
             read.append(kind)
-            for element in got.elements:
-                if element.class_ == kind:
-                    elements.append(
-                        element.model_copy(
-                            update={
-                                "id": f"e{len(elements) + 1}",
-                                "plan": _plan_of(plans, element.page, element.box),
-                                "attrs": {**element.attrs, "component": component.name},
-                            }
-                        )
+            listed = [element for element in got.elements if element.class_ == kind]
+            once = dedupe(listed)
+            dropped += len(listed) - len(once)
+            for element in once:
+                elements.append(
+                    element.model_copy(
+                        update={
+                            "id": f"e{len(elements) + 1}",
+                            "plan": _plan_of(plans, element.page, element.box),
+                            "attrs": {**element.attrs, "component": component.name},
+                        }
                     )
+                )
         rooms: list[Room] = []
         retyped: str | None = None
         if self._rooms is not None and _looked_for((got := read_by(self._rooms)).read, "room"):
@@ -260,6 +268,8 @@ class CompositeRasterExtractor:
             notes.append(f"double-check readers: {'; '.join(named)}")
         for name, got in found.items():
             notes.extend(f"{name}: {note}" for note in got.notes)
+        if dropped:
+            notes.append(f"raster composite: {dropped} element(s) listed twice dropped")
         if retyped is not None:
             notes.append(retyped)
         return Extracted(
@@ -283,6 +293,47 @@ class CompositeRasterExtractor:
         if self._scale is not None:
             parts["scale"] = self._scale.name
         return parts
+
+
+def dedupe(elements: Sequence[Element]) -> list[Element]:
+    """`elements` with each one listed twice kept once (#332): two elements of one class on one
+    page whose boxes have an IoU of `SAME_IOU` or more are one, and the better evidenced is kept
+    (the higher `attrs.score`, then the more Carbon tiles that saw it, then the first listed). An
+    element without a location of its own (`attrs.located` false: the count arbiter's added ones
+    sit on the plan's box) is never merged. The order is kept."""
+    ranked = sorted(range(len(elements)), key=lambda i: (*_evidence(elements[i]), -i), reverse=True)
+    kept: list[int] = []
+    for i in ranked:
+        e = elements[i]
+        if _located(e) and any(
+            k.class_ == e.class_ and k.page == e.page and _iou(k.box, e.box) >= SAME_IOU
+            for k in (elements[j] for j in kept)
+            if _located(k)
+        ):
+            continue
+        kept.append(i)
+    return [elements[i] for i in sorted(kept)]
+
+
+def _located(element: Element) -> bool:
+    return element.attrs.get("located") is not False
+
+
+def _evidence(element: Element) -> tuple[float, int]:
+    score = element.attrs.get("score")
+    tiles = element.attrs.get("tiles")
+    return (
+        float(score) if isinstance(score, int | float) else 0.0,
+        len(tiles.split(",")) if isinstance(tiles, str) else 0,
+    )
+
+
+def _iou(a: Box, b: Box) -> float:
+    width = min(a[2], b[2]) - max(a[0], b[0])
+    height = min(a[3], b[3]) - max(a[1], b[1])
+    inter = max(0.0, width) * max(0.0, height)
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union > 0 else 0.0
 
 
 def _charged(

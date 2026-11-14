@@ -168,6 +168,54 @@ def test_a_class_the_source_did_not_look_for_is_left_out_and_its_items_dropped()
     assert "sink" not in quantities and "window" not in quantities
 
 
+def test_332_an_element_a_source_lists_twice_counts_once_and_the_better_scored_is_kept() -> None:
+    """pipe-dedupe (#332): one door listed twice was counted twice in the sheet total."""
+    door = (0.10, 0.10, 0.20, 0.12)
+    beside = (0.10, 0.10, 0.17, 0.12)  # IoU 0.7 with `door`: the same door
+    detector = Fake(
+        elements=[
+            element("door", door, score=0.6),
+            element("door", beside, score=0.8),
+            element("door", (0.16, 0.10, 0.26, 0.12)),  # IoU 0.25: the next door, kept
+            element("window", door),  # another class on the same spot, kept
+            element("door", door).model_copy(update={"page": 2}),  # another page, kept
+        ],
+        read=["door", "window"],
+    )
+    found = composite(
+        {"elements": "det", "plans": "one"}, {"det": detector, "one": WholePagePlan()}
+    ).extract(FILE, SHEET)
+    doors = [e for e in found.elements if e.class_ == "door"]
+    assert [(e.box, e.page) for e in doors] == [
+        (beside, 1),
+        ((0.16, 0.10, 0.26, 0.12), 1),
+        (door, 2),
+    ]
+    assert [e.id for e in found.elements] == ["e1", "e2", "e3", "e4"]  # numbered after
+    assert "raster composite: 1 element(s) listed twice dropped" in found.notes
+
+
+def test_332_elements_the_count_arbiter_added_without_a_place_are_never_merged() -> None:
+    """The arbiter puts every door it adds on the plan's box, so their boxes are the same."""
+    added = element("door", LEFT).model_copy(update={"attrs": {"located": False}})
+    detector = Fake(elements=[element("door", LEFT), added, added], read=["door"])
+    found = composite(
+        {"elements": "det", "plans": "one"}, {"det": detector, "one": WholePagePlan()}
+    ).extract(FILE, SHEET)
+    assert len(found.elements) == 3
+
+
+def test_332_carbon_things_counts_a_door_carbon_listed_twice_once_keeping_the_more_seen() -> None:
+    from app.adapters.carbon import CarbonThings
+
+    once = element("door", (0.5, 0.5, 0.6, 0.6)).model_copy(update={"attrs": {"tiles": "1"}})
+    twice = once.model_copy(update={"box": (0.5, 0.5, 0.6, 0.62), "attrs": {"tiles": "1,2"}})
+    carbon = Fake(elements=[once, twice], plans=[Plan(id="p1", page=1, box=(0, 0, 1, 1))],
+                  read=["door"])  # fmt: skip
+    found = CarbonThings(Fake(read=["door"]), carbon, lambda _: True).extract(FILE, SHEET)
+    assert [e.attrs["tiles"] for e in found.elements] == ["1,2"]
+
+
 def gold(file: str, **lists: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "schema": "extraction_v1",
