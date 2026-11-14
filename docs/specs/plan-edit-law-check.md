@@ -68,13 +68,21 @@ Zürich** (`?pack=ch-zh`).
   from** (a bedroom merged into a bathroom still meets or fails the bedroom rules); a new room's type comes from its
   name with the same room-word table the reader uses (`storage` for "storage", "Abstellraum", "varasto"), else
   `other` (then 0009's "rooms of a kind we could not tell" makes room rules cannot tell, with that reason).
-- LC-3 `LawCheck = {pack, pack_name, fail_means, findings: [Finding], unchanged: int, note}`. A `Finding` is one
-  (rule, room/door) result whose status differs before → after, or that fails after and touches the proposal
-  (a room in `rooms` or `was`, a door in `removed`/`added`, a room the new room overlaps):
-  `{rule_id, title, change: "newly_fails" | "now_passes" | "newly_cannot_tell" | "still_fails", subject (room or door
-  label), before: {status, value}, after: {status, value, why}, comparison_text, limit, unit, clause: {ref, url,
-  quote, quote_en}}`. Ordered: newly_fails, still_fails, newly_cannot_tell, now_passes. `unchanged` = how many
-  checked results did not change (shown as "N other checks unchanged").
+- LC-3 `LawCheck = {pack, pack_name, fail_means, findings: [Finding], unchanged: int, related, ai_findings,
+  subjects, subject_values, note}`. A `Finding` is one (rule, room/door) result whose status differs before →
+  after, or that fails or passes after and touches the proposal (a room in `rooms` or `was`, a door in
+  `removed`/`added`, a room the new room overlaps):
+  `{ev, rule_id, title, change: "newly_fails" | "now_passes" | "newly_cannot_tell" | "still_fails" |
+  "still_passes", subject (room or door label), subject_ref (its room, RoomChange or door id), before: {status,
+  value}, after: {status, value, why}, comparison_text, limit, unit, clause: {ref, url, quote, quote_en}}`.
+  `still_passes`: pass → pass on a touched subject (§1 step 4, Finland "✓ Meets"). A new room has no before:
+  `before = {status: "not_applicable", value: null}`. `ev` is null from `check_proposal`; the agent loop sets it.
+  Ordered: newly_fails, still_fails, newly_cannot_tell, now_passes, still_passes. `unchanged` = how many checked
+  results did not change on what the proposal does not touch (shown as "N other checks unchanged").
+  `subjects`: the labels and ids of the rooms and doors the proposal changes. `subject_values`: per changed room
+  and new door, by id and by label, its numbers: a room's after area on the drawing's basis (LC-4) and as the
+  geometry measures it, a new door's width from its outline at the drawing's scale (LC-9b ties a note's value to
+  them).
 - LC-4 After areas (one rule, so printed-before and geometry-after never make a false change): RoomChange areas
   are geometry on both sides, the drawing's `Room.area_m2` is often printed (Stanza 1.02: 16.48). So:
   - shrunk room: `area_m2 = before.area_m2 × area_after_m2 / area_before_m2`;
@@ -118,8 +126,10 @@ Zürich** (`?pack=ch-zh`).
   (`check`: applies, but the drawing lacks the value, e.g. a window's light area).
 - LC-9b The server validates every `law_note` before it is kept (rules of 0013 §3 plus): `clause_id` came from this
   turn's `law.related`, `search_law` or `get_clause`; `limit`, `comparison` and `unit` equal one entry of that clause's
-  `limits`; `value` equals a value of the proposal or of a tool result of this turn (a room's after area, a door's
-  width); `subject` is a room or door the proposal changes; `verdict` agrees with `value comparison limit` (computed
+  `limits`; `subject` is a room or door the proposal changes (`law.subjects`); `value` equals one of **that
+  subject's own** numbers (`law.subject_values` of the most specific id or label the subject names, after a
+  mm/cm limit is put back in metres), so another room's area, though a tool gave it this turn, never stands for
+  it; no value only with verdict `check`; `verdict` agrees with `value comparison limit` (computed
   again in code, never taken from the model). A failing note is dropped and the turn gets one retry; a note that
   repeats a rule-pack finding (same clause ref) is dropped as duplicate. Kept notes → `law.ai_findings`, each with
   the full clause (`ref`, `url`, `quote`, `quote_en`, law title) filled in by the server.
@@ -138,17 +148,20 @@ Zürich** (`?pack=ch-zh`).
   "findings": [{
     "ev": "ev_2", "rule_id": "ch-zh-room-area",
     "title": "A bedroom or living room is at least 10 m2 (canton of Zürich)",
-    "change": "newly_fails", "subject": "Stanza 1.02",
+    "change": "newly_fails", "subject": "Stanza 1.02", "subject_ref": "r2",
     "before": {"status": "pass", "value": 16.48}, "after": {"status": "fail", "value": 8.9, "why": null},
     "comparison_text": "at least", "limit": 10, "unit": "m2",
     "clause": {"ref": "Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), § 303 Abs. 1",
                "url": "https://…", "quote": "…", "quote_en": "…"}
   }],
   "unchanged": 6,
-  "ai_findings": [{"clause_id": "fi-1007-2017-9-1", "subject": "new door D1", "value": 0.7, "comparison": ">=", "limit": 0.8,
-                   "unit": "m", "verdict": "would_not_meet", "ref": "9 § 1 mom.", "law": "YMa 1007/2017",
+  "ai_findings": [{"clause_id": "fi-241-2017-4-2", "subject": "new door D1", "value": 700, "comparison": ">=", "limit": 800,
+                   "unit": "mm", "verdict": "would_not_meet", "ref": "4 § 2 mom.",
+                   "law": "Government Decree on the accessibility of buildings",
                    "url": "https://…", "quote": "…", "quote_en": "…", "basis": "ai_reading"}],
-  "related": [{"id": "ch-zh-ls-700-1-302-1", "law_id": "ch-zh-ls-700-1", "ref": "§ 302 Abs. 1", "title_en": "Planning and Building Act", "summary_en": "…", "url": "https://…", "score": 7.1}],
+  "related": [{"id": "ch-zh-ls-700-1-302-2", "law_id": "ch-zh-ls-700-1", "ref": "§ 302 Abs. 2", "law_title_en": "Planning and Building Act of the Canton of Zürich", "summary_en": "…", "url": "https://…", "limits": [{"what": "window area …", "comparison": ">=", "value": 10, "unit": "%"}], "drawing_checkable": true, "…": "the rest of the ClauseView (§2.4)"}],
+  "subjects": ["Ripostiglio", "N1", "Stanza 1.02", "r2"],
+  "subject_values": {"N1": [6.56], "Ripostiglio": [6.56], "r2": [9.5], "Stanza 1.02": [9.5]},
   "note": "A pre-check of 2 rules from Canton of Zürich building act, not a permit check. Structure, fire safety, escape routes and services are not checked."
 }
 ```
@@ -157,7 +170,8 @@ Zürich** (`?pack=ch-zh`).
 
 - LC-11 The chat sends the route's pack with every turn (`chatTurn(projectId, {…, pack})`).
 - LC-12 Edit card section **Building rules · {country_name}** under the change list: one row per finding: a status
-  word with an icon (✕ Would not meet · ! Can't tell · ✓ Meets now · ✕ Still doesn't meet; colour never alone), the
+  word with an icon (✕ Would not meet · ! Can't tell · ✓ Meets now · ✕ Still doesn't meet · ✓ Meets for
+  `still_passes`; colour never alone), the
   rule title, `subject: before → after` against "{comparison_text} {limit} {unit}", the clause ref as a link
   (new tab), the quote behind a disclosure with "Translation ours, unofficial" under `quote_en`. "N other checks
   unchanged" as a quiet line. The `note` last. Rows with `newly_fails` first and open by default.
@@ -214,7 +228,8 @@ def validate_law_note(  # LC-9b, pure: the kept finding with the server-filled c
     note: LawNote, law_check: LawCheck, clauses: Mapping[str, ClauseView], tool_values: Collection[float]
 ) -> AiFinding | None: ...
 
-class LawCheck(Frozen):  # pack, pack_name, fail_means, findings, unchanged, related, note (LC-3, LC-5)
+class LawCheck(Frozen):  # pack, pack_name, fail_means, findings, unchanged, related, ai_findings, subjects,
+                         # subject_values, note (LC-3, LC-5)
     def for_model(self) -> dict[str, Any]: ...  # LC-7: findings without clause quotes
 ```
 
