@@ -40,18 +40,18 @@ from app.core.review.model import (
 )
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
-from app.core.review.resolve import answer_request, conflict_request
+from app.core.review.resolve import among_values, answer_request, conflict_request
 from app.settings import Settings
 
 router = APIRouter(prefix="/api")
 
 QUESTION_CHARS = 2000
-RESOLVER_WIDTH = 2400  # px: the page the resolver crops its spots from
 
 
-def page_images(ingest: Ingest, drawing_id: str) -> Callable[[int], bytes]:
-    """The drawing's pages as PNGs for the resolver, rendered only when it asks for one."""
-    return lambda page: render_png(ingest.sheet(drawing_id), page, RESOLVER_WIDTH)
+def page_images(ingest: Ingest, drawing_id: str) -> Callable[[int, int], bytes]:
+    """The drawing's pages as PNGs for the resolver, at the width it asks for, rendered only
+    when it asks for one."""
+    return lambda page, width: render_png(ingest.sheet(drawing_id), page, width)
 
 
 class AskRequest(View):
@@ -253,12 +253,13 @@ def answer_view(
         else:
             # a conflict a person has to choose is asked about as POST .../resolve asks it
             # (both sides, the same cache entry); any other answer with its own value
-            request = (
-                conflict_request(drawing_id, shown)
-                if shown.conflict is not None and shown.needs_person
-                else answer_request(drawing_id, question, shown, asked.marks, asked.check)
-            )
-            reply = answering.resolver.resolve(request, page_images(ingest, drawing_id))
+            pages = page_images(ingest, drawing_id)
+            if shown.conflict is not None and shown.needs_person:
+                request = conflict_request(drawing_id, shown)
+                reply = among_values(shown, answering.resolver.resolve(request, pages))
+            else:
+                request = answer_request(drawing_id, question, shown, asked.marks, asked.check)
+                reply = answering.resolver.resolve(request, pages)
             if isinstance(reply, ResolverUnavailable):
                 note = reply.note
             else:

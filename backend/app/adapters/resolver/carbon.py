@@ -8,8 +8,10 @@ The model answers in JSON: it picks a value, or says it can't tell, with one sen
   (orchestrator, 2026-11-14; not checked against Google's billing). Every paid call is charged to
   the process's Gemini ledger (GEMINI_BUDGET_USD, app/core/spend.py) and the thread's trace
   (app/core/cost.py), also when its reply is unusable.
-- Replies are cached on disk by the request's JSON, the model and the prompt version, so a
-  request is paid for once; a cached reply costs nothing and renders no page.
+- Replies are cached on disk by the request's JSON and everything else that shapes the call
+  (`call_settings`), so a request is paid for once; a cached reply costs nothing and renders no
+  page. Callers asking the same request at once share one call (the upload's resolve thread and
+  a person's POST).
 - A failed call (budget used up, HTTP error, timeout, a reply that is not the form, a page that
   can't be rendered) is `ResolverUnavailable` with the reason; nothing is cached and nothing is
   guessed.
@@ -21,6 +23,7 @@ import http.client
 import io
 import json
 import logging
+import threading
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -44,7 +47,6 @@ log = logging.getLogger(__name__)
 MODEL = "gemini-4-carbon"
 USD_PER_M_INPUT = 4.00
 USD_PER_M_OUTPUT = 20.00
-PROMPT_VERSION = "carbon-2"  # change it with PROMPT, SCHEMA or the images: the cache key holds it
 TEMPERATURE = 0.0
 # carbon-first (.agents/exp/carbon-first.md): thinking high cost 22x, took minutes and mostly
 # ran out of output; low read 36 of 40 counts at under a cent a page
@@ -54,6 +56,7 @@ PAGE_SIDE = 1536  # px: a whole page, long side
 CROP_SIDE = 1024  # px: a crop, long side at most (never enlarged past the rendered page)
 CONTEXT = 0.06  # page fraction kept around a spot's box on each side, at least
 JPEG_QUALITY = 90
+RENDER_WIDTH = 2400  # px: the page the spots are cropped from
 UNAVAILABLE = "Carbon could not answer"
 
 PROMPT = {
@@ -87,16 +90,36 @@ SCHEMA: dict[str, Any] = {
     "propertyOrdering": ["reason", "verdict", "value"],  # it says why before it decides
 }
 
-Page = Callable[[int], bytes]
+Page = Callable[[int, int], bytes]  # (page, width) -> PNG
 Transport = Callable[[urllib.request.Request, float], dict[str, Any]]
 
 
 def price(answer: dict[str, Any]) -> float:
-    """Dollars of one reply from its `usageMetadata` at Carbon's price; 0 when it has none."""
-    usage = answer.get("usageMetadata") or {}
-    tokens_in = int(usage.get("promptTokenCount", 0))
-    tokens_out = int(usage.get("candidatesTokenCount", 0)) + int(usage.get("thoughtsTokenCount", 0))
+    """Dollars of one reply from its `usageMetadata` at Carbon's price; 0 when it has none, or
+    none that reads as token counts (logged: such a call is not counted)."""
+    try:
+        usage = answer.get("usageMetadata") or {}
+        tokens_in = int(usage.get("promptTokenCount", 0))
+        tokens_out = int(usage.get("candidatesTokenCount", 0)) + int(
+            usage.get("thoughtsTokenCount", 0)
+        )
+    except (AttributeError, TypeError, ValueError):
+        log.warning("a Carbon reply's usageMetadata is not token counts: charged 0")
+        return 0.0
     return (tokens_in * USD_PER_M_INPUT + tokens_out * USD_PER_M_OUTPUT) / 1e6
+
+
+def call_settings(model: str) -> str:
+    """A hash of everything that shapes a call besides the request: the model, the prompt, the
+    form, the generation settings and the images' sizes. The cache key holds it, so changing
+    any of them asks again (no version to bump by hand)."""
+    shaping = {
+        "model": model, "prompt": PROMPT, "rules": RULES, "schema": SCHEMA,
+        "temperature": TEMPERATURE, "thinking": THINKING, "max_tokens": MAX_TOKENS,
+        "page_side": PAGE_SIDE, "crop_side": CROP_SIDE, "context": CONTEXT,
+        "jpeg_quality": JPEG_QUALITY, "render_width": RENDER_WIDTH,
+    }  # fmt: skip
+    return hashlib.sha256(json.dumps(shaping, sort_keys=True).encode()).hexdigest()
 
 
 def _urlopen(request: urllib.request.Request, timeout: float) -> dict[str, Any]:
@@ -170,10 +193,37 @@ class CarbonResolver:
         self._client = client
         self._cache = cache_dir
         self._clock = clock
+        self._lock = threading.Lock()
+        self._flights: dict[str, _Flight] = {}  # calls under way, by cache key
 
     def resolve(self, request: ResolveRequest, page: Page) -> Resolved | ResolverUnavailable:
-        key = f"{request.model_dump_json()}\0{self._client.model}\0{PROMPT_VERSION}"
-        path = self._cache / f"{hashlib.sha256(key.encode()).hexdigest()}.json"
+        """The reply to `request`: from the cache, from a call another caller has under way for
+        the same request (one call, one charge), or from a new call."""
+        shaped = call_settings(self._client.model)
+        key = hashlib.sha256(f"{request.model_dump_json()}\0{shaped}".encode()).hexdigest()
+        with self._lock:
+            flight = self._flights.get(key)
+            mine = flight is None
+            if flight is None:
+                flight = self._flights[key] = _Flight()
+            else:
+                flight.joined += 1
+        if not mine:
+            flight.done.wait()
+            return flight.reply or ResolverUnavailable(
+                note=f"{UNAVAILABLE}: the shared call failed"
+            )
+        try:
+            flight.reply = self._resolved(request, page, self._cache / f"{key}.json", shaped)
+        finally:
+            with self._lock:
+                del self._flights[key]
+            flight.done.set()
+        return flight.reply
+
+    def _resolved(
+        self, request: ResolveRequest, page: Page, path: Path, shaped: str
+    ) -> Resolved | ResolverUnavailable:
         if path.is_file():
             try:
                 return Resolved.model_validate_json(json.loads(path.read_text())["resolved"])
@@ -201,12 +251,21 @@ class CarbonResolver:
             )
         except GeminiError as error:
             return ResolverUnavailable(note=f"{UNAVAILABLE}: {error}")
-        except (json.JSONDecodeError, KeyError, TypeError, ValidationError):
+        except (json.JSONDecodeError, KeyError, TypeError, AttributeError, ValidationError):
             return ResolverUnavailable(note=f"{UNAVAILABLE}: the reply is not the form")
         stored = {"resolved": found.model_dump_json(), "usage": answer.get("usageMetadata", {}),
-                  "usd": usd, "model": self._client.model, "prompt": PROMPT_VERSION}  # fmt: skip
+                  "usd": usd, "model": self._client.model, "settings": shaped}  # fmt: skip
         write_whole(path, json.dumps(stored, ensure_ascii=False))
         return found
+
+
+class _Flight:
+    """One call under way: the callers that joined it wait for `done`, then read `reply`."""
+
+    def __init__(self) -> None:
+        self.done = threading.Event()
+        self.reply: Resolved | ResolverUnavailable | None = None
+        self.joined = 0  # callers waiting on it besides the one calling
 
 
 def _looked(spot: Spot) -> ValueMark:
@@ -234,7 +293,7 @@ def request_parts(request: ResolveRequest, page: Page) -> list[dict[str, Any]]:
     rendered: dict[int, Image.Image] = {}
     marked = {mark.page for candidate in request.candidates for mark in candidate.marks}
     for number in sorted({spot.page for spot in request.spots} | marked or {1}):
-        rendered[number] = Image.open(io.BytesIO(page(number))).convert("RGB")
+        rendered[number] = Image.open(io.BytesIO(page(number, RENDER_WIDTH))).convert("RGB")
         parts += [{"text": f"The whole page {number}:"}, _jpeg(_fit(rendered[number], PAGE_SIDE))]
     for at, spot in enumerate(request.spots, 1):
         parts += [

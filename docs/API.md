@@ -3386,7 +3386,10 @@ A pick is checked by a model, never a person's word:
 - Answers (`POST /api/ask`): an answer that `check` asks to double-check gets the model's reply in `resolved`,
   beside the answer (never certified). On a conflict whose reply is kept, that reply is shown and no call is made;
   on a conflict a person has to choose, the request is the conflict's (both methods' values, the same cache entry
-  as this POST). `cost_usd` and `line.cost_usd` include the resolver's call.
+  as this POST), and as here a pick must be one of the methods' values: anything else gives no `resolved`, only a
+  `resolver_note`. `cost_usd` and `line.cost_usd` include the resolver's call, which waits at most
+  `RESOLVER_TIMEOUT_S` (30 s by default). Two callers asking the same thing at once (the upload's resolve and a
+  person's POST) share one call.
 - With `RESOLVER` off, `resolved` is absent from every row, conflict, issue and answer (not null), so every response
   is as before.
 

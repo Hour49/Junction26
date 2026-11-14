@@ -49,7 +49,7 @@ class Fake:
         self.asked: list[ResolveRequest] = []
 
     def resolve(
-        self, request: ResolveRequest, page: Callable[[int], bytes]
+        self, request: ResolveRequest, page: Callable[[int, int], bytes]
     ) -> Resolved | ResolverUnavailable:
         self.asked.append(request)
         return self.answer
@@ -58,7 +58,7 @@ class Fake:
 NO_EDITS = ReviewState()
 
 
-def no_page(page: int) -> bytes:  # the fakes never look at a page
+def no_page(page: int, width: int) -> bytes:  # the fakes never look at a page
     return b""
 
 
@@ -438,3 +438,75 @@ def test_with_resolver_on_an_upload_is_resolved_when_its_ingest_is_done(
     assert asked >= 1
     assert client.post(f"/api/projects/{project_id}/resolve").json()["notes"] == []
     assert len(fake.asked) == asked
+
+
+# codecheck's re-check at dccae51
+
+
+def ask_open_conflict(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, answer: Resolved
+) -> tuple[Fake, dict[str, Any]]:
+    """flat-b's room 1.01 needing a person (the upload's resolve got no reply), then asked about
+    under a check policy with the model answering `answer`."""
+    root = settings.projects_dir.parent
+    root.mkdir(parents=True, exist_ok=True)
+    settings = settings.model_copy(update={"check_policy": str(policy(root, 0.9, 0.8))})
+    fake = Fake(ResolverUnavailable(note="timeout"))
+    with_resolver(monkeypatch, fake)
+    client = client_of(settings)
+    project_id = flat_b(client)
+    shown = entry(client, project_id)
+    assert shown["needs_person"] is True and "resolved" not in shown
+    fake.answer = answer
+    ask = {"drawing_id": shown["drawing_id"], "question": "What is the area of room 1.01?"}
+    return fake, client.post("/api/ask", json={**ask, "project_id": project_id}).json()
+
+
+def test_asking_about_an_open_conflict_sends_both_sides_and_keeps_only_a_method_s_value(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    """M3 (codecheck's p3) and B3: 25 is no method's value, so it is no reply, with a note."""
+    fake, answer = ask_open_conflict(settings, monkeypatch, reply(25.0, "made up"))
+    assert [request.kind for request in fake.asked] == ["conflict", "conflict"]
+    assert [found.value for found in fake.asked[-1].candidates] == pytest.approx([22.401, 30.0])
+    assert "resolved" not in answer
+    assert answer["resolver_note"] == "the resolver picked 25.0, which no method read"
+
+
+def test_asking_about_an_open_conflict_shows_a_method_s_value_as_it_was_read(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    _, answer = ask_open_conflict(settings, monkeypatch, reply(22.4))
+    assert answer["resolved"]["value"] == 22.401 and "resolver_note" not in answer
+
+
+def test_a_pick_a_mark_edit_overrules_is_not_counted_as_picked(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    """B5: once a person edits the marks, the conflict is open again, not picked."""
+    client, project_id = resolved_flat_b(settings, monkeypatch, reply(22.4))
+    shown = entry(client, project_id)
+    marks = client.get(f"/api/drawings/{shown['drawing_id']}/takeoff?project={project_id}").json()
+    room = next(found for found in marks["quantities"] if found["key"] == KEY)
+    edit = {"quantity": KEY, "action": "reject", "mark": room["marks"][0]["id"]}
+    url = f"/api/drawings/{shown['drawing_id']}/review?project={project_id}"
+    assert client.post(url, json=edit).status_code == 200
+    project = client.get(f"/api/projects/{project_id}").json()
+    assert (project["conflicts_open"], project["conflicts_picked"]) == (1, 0)
+
+
+def test_after_a_person_settles_the_issue_no_longer_gives_the_model_s_word(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, undecided: None
+) -> None:
+    """B7: a person's settle or sign-off is the word; the model's reply leaves the issue."""
+    client, project_id = resolved_flat_b(settings, monkeypatch, reply(22.4))
+    drawing_id = entry(client, project_id)["drawing_id"]
+    url = f"/api/drawings/{drawing_id}"
+    settle = {"quantity": KEY, "action": "settle", "value": 30}
+    assert client.post(f"{url}/review?project={project_id}", json=settle).status_code == 200
+    issue = conflict_issue(client, project_id)
+    assert "resolved" not in issue and "model" not in issue["why"]
+    sign = {"quantity": KEY, "by": "QA Cee"}
+    assert client.post(f"{url}/signoff?project={project_id}", json=sign).status_code == 200
+    issue = conflict_issue(client, project_id)
+    assert "resolved" not in issue and "model" not in issue["why"]

@@ -4,6 +4,8 @@ price charged, the cache, and every way a call gives no reply."""
 import base64
 import io
 import json
+import threading
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -14,7 +16,8 @@ from PIL import Image
 from pydantic import SecretStr
 
 from app import composition
-from app.adapters.resolver.carbon import CarbonClient, CarbonResolver, crop, price
+from app.adapters.resolver import carbon
+from app.adapters.resolver.carbon import RENDER_WIDTH, CarbonClient, CarbonResolver, crop, price
 from app.core import cost
 from app.core.pipeline.model import ValueMark
 from app.core.review.model import Candidate, Resolved, ResolveRequest, ResolverUnavailable, Spot
@@ -46,7 +49,7 @@ def door_request(kind: str = "conflict") -> ResolveRequest:
     )
 
 
-def page_png(number: int) -> bytes:
+def page_png(number: int, width: int = 800) -> bytes:
     out = io.BytesIO()
     Image.new("RGB", (800, 600), "white").save(out, format="PNG")
     return out.getvalue()
@@ -64,16 +67,17 @@ class Transport:
         self.replies = list(replies)
         self.sent: list[dict[str, Any]] = []
         self.urls: list[str] = []
+        self.timeouts: list[float] = []
 
     def __call__(self, request: urllib.request.Request, timeout: float) -> dict[str, Any]:
         assert isinstance(request.data, bytes)
         self.sent.append(json.loads(request.data))
         self.urls.append(request.full_url)
+        self.timeouts.append(timeout)
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
-        assert isinstance(reply, dict)
-        return reply  # type: ignore[return-value]
+        return reply  # type: ignore[return-value]  # odd envelopes too
 
 
 @pytest.fixture(autouse=True)
@@ -99,7 +103,7 @@ def test_a_pick_is_asked_with_the_question_values_and_images_and_is_paid_once(
     budget = SpendGuard()
     pages: list[int] = []
 
-    def page(number: int) -> bytes:
+    def page(number: int, width: int) -> bytes:
         pages.append(number)
         return page_png(number)
 
@@ -176,7 +180,7 @@ def test_a_used_up_budget_sends_nothing(tmp_path: Path) -> None:
 
 
 def test_a_page_that_cannot_be_rendered_is_no_reply(tmp_path: Path) -> None:
-    def broken(number: int) -> bytes:
+    def broken(number: int, width: int) -> bytes:
         return b"not a png"
 
     transport = Transport()
@@ -193,7 +197,7 @@ def test_with_no_spot_or_mark_the_first_page_is_shown(tmp_path: Path) -> None:
     )
     pages: list[int] = []
 
-    def page(number: int) -> bytes:
+    def page(number: int, width: int) -> bytes:
         pages.append(number)
         return page_png(number)
 
@@ -241,3 +245,94 @@ def test_images_are_jpegs_that_open() -> None:
     for part in parts:
         if "inlineData" in part:
             Image.open(io.BytesIO(base64.b64decode(part["inlineData"]["data"]))).verify()
+
+
+def test_the_timeout_reaches_the_transport_and_is_30_s_by_default(tmp_path: Path) -> None:
+    transport = Transport(answer(PICK))
+    resolver(tmp_path, transport).resolve(door_request(), page_png)
+    assert transport.timeouts == [5.0]
+    assert Settings(projects_dir=tmp_path).resolver_timeout_s == 30
+
+
+def test_the_page_is_rendered_at_the_adapter_s_width(tmp_path: Path) -> None:
+    widths: list[int] = []
+
+    def page(number: int, width: int) -> bytes:
+        widths.append(width)
+        return page_png(number)
+
+    resolver(tmp_path, Transport(answer(PICK))).resolve(door_request(), page)
+    assert widths == [RENDER_WIDTH]
+
+
+def test_another_model_or_call_setting_is_another_cache_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The cache key holds the model and everything that shapes the call (no version by hand)."""
+    transport = Transport(answer(PICK), answer(PICK), answer(PICK), answer(PICK))
+    resolver(tmp_path, transport).resolve(door_request(), page_png)
+    other = CarbonClient("key", 5.0, model="gemini-4-argon", transport=transport)
+    CarbonResolver(other, tmp_path / "cache", clock=lambda: AT).resolve(door_request(), page_png)
+    assert len(transport.sent) == 2
+    for name, value in (("TEMPERATURE", 1.0), ("CROP_SIDE", 512)):
+        with monkeypatch.context() as patched:
+            patched.setattr(carbon, name, value)
+            resolver(tmp_path, transport).resolve(door_request(), page_png)
+    assert len(transport.sent) == 4
+    resolver(tmp_path, transport).resolve(door_request(), page_png)  # all as before: cached
+    assert len(transport.sent) == 4
+
+
+class Blocking(Transport):
+    """Holds the call until the test lets it go."""
+
+    def __init__(self, *replies: object) -> None:
+        super().__init__(*replies)
+        self.entered = threading.Event()
+        self.go = threading.Event()
+
+    def __call__(self, request: urllib.request.Request, timeout: float) -> dict[str, Any]:
+        self.entered.set()
+        assert self.go.wait(10)
+        return super().__call__(request, timeout)
+
+
+def test_two_callers_of_one_request_share_one_call(tmp_path: Path) -> None:
+    """The upload's resolve thread and a person's POST at once: one call, one charge."""
+    transport = Blocking(answer(PICK))
+    budget = SpendGuard()
+    carbon_resolver = resolver(tmp_path, transport, budget)
+    replies: list[object] = []
+
+    def call() -> None:
+        replies.append(carbon_resolver.resolve(door_request(), page_png))
+
+    first = threading.Thread(target=call)
+    first.start()
+    assert transport.entered.wait(10)
+    second = threading.Thread(target=call)
+    second.start()
+    flights = carbon_resolver._flights  # pyright: ignore[reportPrivateUsage]
+    deadline = time.monotonic() + 10
+    while not any(flight.joined for flight in list(flights.values())):
+        assert time.monotonic() < deadline, "the second caller never joined the call"
+        time.sleep(0.001)
+    transport.go.set()
+    first.join(10)
+    second.join(10)
+    assert len(transport.sent) == 1 and budget.spent_usd == pytest.approx(USD)
+    assert len(replies) == 2 and replies[0] == replies[1] and isinstance(replies[0], Resolved)
+    assert flights == {}
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    [
+        {"candidates": [{"content": {"parts": ["x"]}}]},
+        ["x"],
+        {"usageMetadata": {"promptTokenCount": "lots"}},
+    ],
+)
+def test_an_odd_reply_envelope_is_no_reply_not_an_error(tmp_path: Path, envelope: object) -> None:
+    found = resolver(tmp_path, Transport(envelope)).resolve(door_request(), page_png)
+    assert isinstance(found, ResolverUnavailable)
