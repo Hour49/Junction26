@@ -4,7 +4,7 @@ import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { parseRoute, useHash } from '../shell/route';
-import { PROJECT_STATE_LABEL, STATE_LABEL, keepPolling } from './ingest';
+import { PROJECT_STATE_LABEL, STATE_LABEL, keepPolling, sizeText, uploadedKey } from './ingest';
 import { ChatRow, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
@@ -104,6 +104,17 @@ function NothingRead({ projectId, project }: { projectId: string; project: Proje
   );
 }
 
+/** What UploadBox kept of this tab's upload (Bogdan 2026-11-15): its name and size; null for the sample or another
+ * tab. */
+function uploaded(projectId: string): { name: string; bytes: number } | null {
+  try {
+    const raw = sessionStorage.getItem(uploadedKey(projectId));
+    return raw ? (JSON.parse(raw) as { name: string; bytes: number }) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Route `#/p/<project_id>`: the ingest followed live (Simple), or step by step (`?view=advanced`). */
 export function ProjectScreen({ projectId }: { projectId: string }) {
   const load = useCallback((signal: AbortSignal) => getProject(projectId, { signal }), [projectId]);
@@ -112,6 +123,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   const advanced = query.get('view') === 'advanced';
   // the conflicts list's last counts, for the done line inside the card (IN-76)
   const [counts, setCounts] = useState<ConflictCounts | null>(null);
+  const [sent] = useState(() => uploaded(projectId));
 
   if (project === null) {
     return (
@@ -145,6 +157,14 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
           </a>
         </div>
       </TitleRow>
+      {sent && (
+        <p role="status" aria-label="Upload received" className="ingest-received">
+          {`Uploaded: ${sent.name}, ${sizeText(sent.bytes)}, received by the server. `}
+          {project.files.length > 0
+            ? `${String(project.files.length)} ${project.files.length === 1 ? 'file' : 'files'} found.`
+            : 'Unpacking…'}
+        </p>
+      )}
       {project.state === 'failed' && project.error && (
         <p className="ingest-error">{project.error}</p>
       )}

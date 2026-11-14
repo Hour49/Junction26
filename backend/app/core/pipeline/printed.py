@@ -42,7 +42,12 @@ from app.core.drawing.model import (
 )
 from app.core.model import Frozen
 from app.core.pipeline.model import Extracted, Measurement
-from app.core.pipeline.raster_scale import LABEL_NOTE, label_area_checks, rooms_with_areas
+from app.core.pipeline.raster_scale import (
+    LABEL_NOTE,
+    REFUSED_NOTE,
+    label_area_checks,
+    rooms_with_areas,
+)
 from app.core.pipeline.second_count import ESTIMATE_RANGE, far_apart, mm_per_px
 
 INCH_M = 0.0254
@@ -315,11 +320,16 @@ def with_printed(
             if room.area_source == "geometry_x_estimate" else room
             for room in found.rooms
         ]  # fmt: skip
+        measured, refused = rooms_with_areas(rooms, scale, pages)
         update |= {
             "scale": scale,
-            "rooms": tuple(rooms_with_areas(rooms, scale, pages)),
+            "rooms": tuple(measured),
             "printed": (*found.printed, *measurements),
-            "notes": (*notes, f"scale: {scale.source}"),
+            "notes": (  # the rooms are measured again: the estimate's refusals go
+                *(note for note in notes if not note.startswith(REFUSED_NOTE)),
+                f"scale: {scale.source}",
+                *refused,
+            ),
         }
     return _label_checked(found.model_copy(update=update), pages)
 

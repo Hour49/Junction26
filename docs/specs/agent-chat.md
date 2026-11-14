@@ -151,7 +151,8 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   `/ask` chat stays (ProjectChat unchanged). Keeps `chat_id` from the first turn; one turn pending at a time;
   reuses `AskBox`. Empty start as today (title, ask bar, starter chips).
 - AC-31 Turn card: the text with `[n]` as links to its source; sources list `n · label · drawing name, page p ·
-  Show it` (opens the drawing at that place with the existing viewer focus); a disclosure "N steps · 1.2 s · $0.01"
+  Show it` (opens the drawing at that place with the existing viewer focus), also under an ask chat card, whose
+  References number drawings, not the text's `[n]` (Tudor's smoke 3, 2026-11-14); a disclosure "N steps · 1.2 s · $0.01"
   listing each step's label and an error mark for failed ones; kind look: `dont_know` uses the refusal look ("I
   don't know" headline + the reason), `conflict` shows both values with their sources, `needs_input` shows its
   options as chips that send `option.message`.
