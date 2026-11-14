@@ -401,3 +401,18 @@ def test_answers_without_citations() -> None:
     model = Model(step(call("ask_drawings", question="q"), call("list_walls", 2)),
                   final(text="Wall W1 [ev_4].", evidence_ids=["ev_4"]))  # fmt: skip
     assert turn(model, Tools(ask_drawings=THREE, list_walls=walls)).answers == ()
+
+
+def test_get_counting_rules_has_a_plain_step_label() -> None:
+    """Queue 3 (#353): the steps line said 'Get counting rules'."""
+    rules = {"quantity": "doors", "rule": "each door opening counts once."}
+    model = Model(
+        step(call("get_counting_rules", quantity="closet doors")),
+        step(call("get_counting_rules", 2)),
+        final(kind="dont_know", text="No."),
+    )
+    got = turn(model, Tools(get_counting_rules=rules))
+    assert [s.label for s in got.steps] == [
+        "Read what counts as closet doors",
+        "Read the counting rules",
+    ]

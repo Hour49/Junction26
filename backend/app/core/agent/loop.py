@@ -129,6 +129,7 @@ LABELS = {
     "search_evidence": "Searched the evidence for: {query}",
     "get_evidence": "Read evidence {evidence_id}",
     "find_rooms": "Looked for rooms labelled {query}",
+    "get_counting_rules": "Read what counts as {quantity}",
 }
 # A proposal the plan tool refused is no proposal (QA edits-6)
 FAILED_LABELS = {
@@ -154,6 +155,7 @@ PLAIN = {
     "show_on_plan": "Showed places on the plan",
     "review_answer": "Reviewed the last answer",
     "find_rooms": "Looked for rooms by their printed labels",
+    "get_counting_rules": "Read the counting rules",
 }
 FAILED_PLAIN = {
     "propose_remove_wall": "Could not remove a wall",
