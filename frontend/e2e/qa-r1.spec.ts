@@ -20,7 +20,7 @@ test('R1-5-4 / R1-4-1: a long project name does not widen the page at 390x844', 
 
   for (const project of [id, sample]) {
     await page.goto(`/#/p/${project}`);
-    await expect(page.getByText(/files finished/).first()).toBeVisible();
+    await expect(page.getByText(/of \d+ files? finished/).first()).toBeVisible();
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width, `#/p/${project}: page width at a 390 px viewport`).toBeLessThanOrEqual(390);
   }
