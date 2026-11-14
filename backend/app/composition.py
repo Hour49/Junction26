@@ -62,6 +62,7 @@ from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
+from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
@@ -265,7 +266,13 @@ def _triage(settings: Settings) -> TriageSteps | None:
         f"judge={settings.triage_judge}"
     )
     judge = RulesJudge() if settings.triage_judge == "rules" else None
-    return TriageSteps(classifier=classifier, describer=None, judge=judge, name=name)
+    describer = None
+    if settings.triage_describer == "gemini":
+        client = GeminiDescribeClient(
+            settings.gemini_api_key.get_secret_value(), settings.gemini_timeout_s
+        )
+        describer = GeminiDescriber(client, settings.triage_describer_cache_dir)
+    return TriageSteps(classifier=classifier, describer=describer, judge=judge, name=name)
 
 
 def _rectifier(name: RectifierName) -> Rectifier:
