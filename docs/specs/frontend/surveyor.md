@@ -1,5 +1,5 @@
 # Surveyor workspace (spec, frontend v1)
-Status: draft, 2026-11-14, by fe-spec-surveyor.  Story: #33.  API: docs/API.md (v1).
+Status: draft, 2026-11-14, by fe-spec-surveyor; Vellum restyle added 2026-11-14 10:57 by fe-surveyor.  Story: #33.  API: docs/API.md (v1).  Conflicts page: conflicts.md.
 
 ## Purpose
 
@@ -170,6 +170,33 @@ needs-a-person text, `note`, `derived`), Keep buttons and the Settle field; "Set
 the mark list; the tools: Add a missed one (counts only), Reset this quantity, Signing as,
 Sign off / Undo sign-off.
 
+### Vellum look (round 2, 2026-11-14: restyle only)
+
+The canvas has no surveyor screen; this one takes the look of screens 3 and 4 (`Conflicts.dc.html`,
+`Workspace.dc.html`). Nothing in the flow, the layout grid above, the API calls, the words, the accessible names
+or the test ids changes (the e2e uses "Surveyor", "Engineer", the "To review" table, "Keep A: …", "Settled at …",
+"Signing as", "Sign off …", "Signed off by …", "Export CSV", "Verified", "Changed in review", "Methods disagree").
+
+- Colours, radius, shadow and font only from the tokens on `:root` (shared.md): `--v-bg` page, `--v-surface`
+  panels, `--v-text`, `--v-muted`, `--v-line`, `--v-accent`/`--v-accent-strong`, `--v-ok`, `--v-warn`/`--v-warn-soft`,
+  `--v-danger`, the `-soft` tints, `--v-fill`, `--v-text-2`, `--v-radius`, `--v-shadow`, `--v-font`. `surveyor.css` keeps no colour literal of its own (today 6).
+  File names use `ui-monospace, Menlo, monospace` (no web font).
+- The side panel and the takeoff panel become cards: `--v-surface`, `--v-radius`, `--v-shadow`, 16-20px padding,
+  no borders between them; the viewer sits on `--v-bg` with no frame. The column widths (240px / rest / 420px),
+  the takeoff column's sticky scroll (R1-4-2) and the phone order stay.
+- Status words become pills (12px, 600, 980px radius, 5px 10px): Verified `--v-ok` on `--v-ok-soft`; Methods disagree
+  and "needs you" `--v-warn` on `--v-warn-soft`; Estimate and Changed in review `--v-text-2` on `--v-fill`; Two methods
+  agree / One method plain muted text. Same words, same element as now (the e2e reads row text).
+- Buttons become pills (980px radius, 600): primary (Sign off, Keep A/B, Settle) `--v-accent` fill, white text;
+  secondary (Reset, Add a missed one, Undo sign-off, Export CSV, row tools) `--v-fill` fill, `--v-text`; destructive
+  (Reset all edits) `--v-danger` text. Heights stay: 32px desktop table tools, 40px phone, 44px detail actions.
+  Press scale 0.97 with no motion under `prefers-reduced-motion`.
+- The progress bar takes the conflicts screen's look: 6px, 3px radius, `--v-accent` on `--v-line`.
+- Type: the detail's value 32px 700 tabular numbers; section headings 13px 600 muted; table 14px; row selected
+  = `--v-accent` 2px left edge on a `--v-accent-soft` row (today's highlight, restyled).
+- The side panel's "Conflicts (n)" heading gets a link "Settle the conflicts" to `#/p/<pid>/conflicts` (conflicts.md
+  CF-19).
+
 ## Acceptance criteria
 
 Fixture names are `backend/tests/fixtures/api_v1/<name>`, imported through `src/api/fixtures.ts`; requests are
@@ -319,6 +346,10 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
   start and the end keeps the run repeatable. [e2e]
 - SV-49: After signing off `door` on the surveyor route, the engineer route of the same drawing answering "How many
   doors are there?" shows "Verified by Ana" (EN-32). [e2e]
+- SV-50 (Vellum): `surveyor.css` holds no colour literal (`#hex`, `rgb(`, `rgba(`, `hsl(`) and no `font-family`
+  other than `var(--v-font)` or the monospace stack: a unit test reads the file (`?raw`) and checks.
+- SV-51 (Vellum): the restyle changes no accessible name or test id: SV-1 to SV-46 pass unchanged, and the e2e
+  golden path, surveyor and qa specs pass at 1440 and 390. [e2e]
 
 ## Out of scope
 
@@ -329,8 +360,7 @@ End to end (the backend on fakes, the sample project from `POST /api/projects/sa
 - Toggling a mark by clicking it in the viewer: a viewer click selects the mark's row; the action is in the list
   (fewer accidental edits on a phone).
 - Grouping rows by `measure`/`subject`/`scope`, sorting or filtering the table.
-- The mock's ingest-end conflict gate ("the workspace opens when every conflict is settled"): the side panel's
-  conflict list replaces it; nothing is blocked.
+- The project's conflict page (Vellum screen 3, "Settle the conflicts"): conflicts.md. This screen only links to it.
 - A login or a verified identity behind `by`: the name is what the surveyor types (no auth, decision 0001).
 - Fetching the CSV by script, or showing an error for a failed download (the drawing was just loaded, so a 404 is
   unlikely; the browser shows the failure).

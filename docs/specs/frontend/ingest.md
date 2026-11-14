@@ -1,6 +1,9 @@
-# Ingest: home, project status, file trace (spec, frontend v1)
+# Ingest: home, project status, file trace (spec, frontend v2: Vellum)
 
-Status: draft, 2026-11-14, by fe-spec-ingest.  Story: #33.  API: docs/API.md (v1, main 5092dc3).
+Status: v2 draft (Vellum redesign), 2026-11-14, by fe-ingest.  Story: #33.  API: docs/API.md (v1, main eb3552c).
+Design: Tudor's "Vellum redesign" canvas, screen 1 "Drop files or a zip" (`Main.dc.html`) and screen 2 "Reading the
+drawings" (`Ingest.dc.html`), local copies in `.agents/design/vellum/project/` (look only; their mock data is never
+used). v1 behaviour that QA verified stays unless a criterion below says it changed.
 
 Names from the shared spec (`docs/specs/frontend/shared.md`) used here: client functions `uploadProject`,
 `startSample`, `listProjects`, `getProject`, `getTrace`; URL builders `pageUrl`, `previewUrl`; `useInfo`,
@@ -8,9 +11,11 @@ Names from the shared spec (`docs/specs/frontend/shared.md`) used here: client f
 
 ## Purpose
 
-The first three screens a judge sees. Home starts a project (upload one zip or one file, or the sample button) and
-lists earlier projects. The project screen follows the ingest live: every file with its state and reason, where the
-files are in the pipeline, and one link per drawing into its workspace. The file trace follows one file through every
+The first screens a judge sees. Home (screen 1) starts a project: drop or pick one zip or one file, or the sample
+button; earlier projects are on screen 5 (`#/workspaces`, account.md), linked from home and the header. The project
+screen (screen 2, Simple view) follows the ingest live: the step the pipeline is at, the share of files finished,
+then every drawing with a link into its workspace and every file with its state and reason; its Advanced view is
+screens 9-12 (`AdvancedIngest`, fe-scaffold). The file trace follows one file through every
 stage, with what each stage found and how long it took, and shows a normalised image before and after.
 
 ## Files owned
@@ -19,16 +24,18 @@ All under `frontend/src/ingest/`; each `*.tsx`/`*.ts` with logic has a `*.test.t
 
 | File | What |
 | --- | --- |
-| `HomeScreen.tsx` | route `#/`, `HomeScreen()`: `UploadBox` + `ProjectList` |
-| `UploadBox.tsx` | drop zone, file picker, sample button, client-side size check, upload errors |
-| `ProjectList.tsx` | `GET /api/projects` list with its loading, empty and error states |
-| `ProjectScreen.tsx` | route `#/p/<project_id>`, `ProjectScreen({projectId})`: header, progress, `StageStrip`, file list, drawing list, polling |
-| `StageStrip.tsx` | the pipeline stages with how many files are at each |
-| `FileTraceScreen.tsx` | route `#/p/<project_id>/f/<file_id>`, `FileTraceScreen({projectId, fileId})`: file facts, `BeforeAfter`, stage list, takeoff, polling |
+| `HomeScreen.tsx` | route `#/`, `HomeScreen()`: the hero, `UploadBox`, the format chips, the "Workspaces" link |
+| `UploadBox.tsx` | the drop card: drop zone, file picker, sample button, client-side size check, upload errors |
+| `ProjectScreen.tsx` | route `#/p/<project_id>`, `ProjectScreen({projectId})`: title row with the Simple/Advanced toggle (`?view=advanced`), polling; Simple renders `ProgressCard` + drawing list + file list; Advanced renders `AdvancedIngest` |
+| `ProgressCard.tsx` | screen 2's card: step label, ring, stats row, the 8-step list |
+| `FileTraceScreen.tsx` | route `#/p/<project_id>/f/<file_id>`, `FileTraceScreen({projectId, fileId})`: restyled, same content |
 | `BeforeAfter.tsx` | the upload (`preview.png`) next to the normalised page, with what normalisation did |
-| `ingest.ts` | pure functions: `progressOf`, `stageCounts`, `isFinished`, `normalisedSteps`, `formatMs`, `formatCost`, `formatSize`, `STATE_LABEL`, `STAGE_LABEL` |
+| `ingest.ts` | pure functions: `progressOf`, `isFinished`, `STEPS`, `stepOf`, `activeStep`, `stepFiles`, `percentDone`, `elapsedMs`, `normalisedSteps`, `formatMs`, `formatCost`, `formatSize`, `plural`, `STATE_LABEL`, `STAGE_LABEL` |
 | `usePoll.ts` | poll a request 500 ms after each answer while a predicate holds; aborts (`signal`) on unmount |
-| `ingest.css` | the screens' styles |
+| `ingest.css` | the screens' styles, colours only through the `--v-*` tokens of `src/shell/shell.css` |
+
+Removed in v2: `ProjectList.tsx` (the list moves to screen 5, `src/account/`, fe-golden) and `StageStrip.tsx` (the
+11-chip strip is replaced by the 8-step list; per-stage detail is the Advanced view's).
 
 [e2e] criteria are built by the e2e worker (golden-path.md), who owns `frontend/e2e/`. The shell (shared spec)
 owns the router, the info banner and the API client; this spec calls the client's functions for the endpoints named
@@ -36,22 +43,28 @@ below.
 
 ## User flow
 
-1. The user opens `#/`. Home shows a drop zone ("Drop a project here: one .zip, or one plan as PDF, image, IFC, DXF
-   or SVG"), a "Choose a file" button, a "Try the sample project" button, and below them the list of earlier projects.
-2. The user drops or picks one file. If it is over `limits.upload_mb` the screen says so and sends nothing.
-   Otherwise the buttons are disabled, the box shows "Uploading <name>…", and on `202` the app goes to
+1. The user opens `#/`. Home shows the hero "Every answer, pointed at the drawing.", then the drop card: "Drop a
+   drawing or a .zip here", a "Choose a file" button, a "Try the sample project" button, the line "The sample starts
+   from scratch each time.", and the format chips. Under the card: "Earlier uploads are in Workspaces", linking to
+   `#/workspaces`. No project list on home.
+2. The user drops or picks one file. If it is over `limits.upload_mb` the card says so and sends nothing.
+   Otherwise the buttons are disabled, the card shows "Uploading <name>…", and on `202` the app goes to
    `#/p/<id>`. On a phone the picker offers the camera too (`accept` includes `image/*`).
-3. Or the user presses "Try the sample project": the box shows "Starting the sample…", and on `202` the app goes to
+3. Or the user presses "Try the sample project": the card shows "Starting the sample…", and on `202` the app goes to
    `#/p/<id>`.
-4. Or the user clicks a project in the list and goes to `#/p/<id>`.
-5. The project screen shows the project name, its state, "N of M files finished" with a progress bar, the cost so
-   far, the stage strip, the file list and the drawing list. While the project is `queued` or `running` it refreshes
-   every 500 ms; rows change state in place, and drawings appear in the drawing list as their files finish.
-6. A drawing's "Open" link goes to `#/p/<project_id>/d/<drawing_id>/engineer`. It works as soon as the drawing is
-   listed, before the project is `done`.
-7. The user clicks a file row and goes to `#/p/<project_id>/f/<file_id>`. The trace shows the file's facts, its
-   stages in order with what each did, its output and its time, any failure, and for a normalised image the upload
-   next to the normalised page. While the file is `queued` or `running` it refreshes every 500 ms.
+4. The project screen (Simple) shows the state ("Analysing now"), the project name, the Simple/Advanced toggle, and
+   the progress card: "Step n of 8" with the step's name, a ring with the percent of files finished, the stats
+   (Elapsed, Files through, Drawings ready, Cost) and the 8 steps (done, working with its hint and file bar,
+   waiting). Under the card: the drawings (each with "Open") and the files (each a link to its trace). While the
+   project is `queued` or `running` it refreshes every 500 ms.
+5. "Advanced" sets `?view=advanced`: the same title row, then `AdvancedIngest` with the polled project. "Simple"
+   removes the query. Polling goes on across the toggle (the screen is not remounted: the shell keys screens by the
+   path without the query).
+6. A drawing's "Open" link goes to `#/p/<project_id>/d/<drawing_id>/engineer`, as soon as the drawing is listed.
+   When the project is `done`, a "Settle the conflicts" link goes to `#/p/<project_id>/conflicts` (screen 3).
+7. The user clicks a file row and goes to `#/p/<project_id>/f/<file_id>`: the trace, restyled (facts, stages with
+   what each did and its time, any failure, the before/after for a normalised image). While the file is `queued`
+   or `running` it refreshes every 500 ms.
 8. "Back to the project" on the trace returns to `#/p/<project_id>`; "Open the drawing" (when the file has a
    `drawing_id`) goes to its engineer workspace.
 
@@ -74,27 +87,54 @@ status itself). Errors: 413 `too-large`, 429 `busy`, 422 `validation`/`invalid`,
 the sample button. Always `fresh=true`: each demo run starts clean and has an ingest to watch. Reads `id`. Errors as
 for an upload, plus 404 `not-found` when the archive is not built (its `detail` says how to build it).
 
-**`GET /api/projects`** (`listProjects()`; API.md "GET /api/projects"; fixture `project_list.json`). Once when home mounts, and on
-Retry. Per project: `name` (row title), `state` (badge), `created_at` (shown with `formatTime`, `YYYY-MM-DD HH:MM UTC`,
-inside `<time datetime="<created_at>">`), `files` and `drawings` ("11 files · 5 drawings"), `id` (row link `#/p/<id>`).
-Order as given (newest first).
+**`GET /api/projects`**: not called by these screens in v2 (the list is screen 5's, account.md).
 
 **`GET /api/projects/{project_id}`** (`getProject(projectId)`; API.md "GET /api/projects/{project_id}"; fixture `project.json`). When the
 project screen mounts, then 500 ms after each response while `state` is `queued` or `running`. Fields:
 
-- `name`: page title. `state`: the header's state line (`queued` "Waiting to start", `running` "Reading files",
-  `done` "Done", `failed` "Ingest failed"). `error`: shown under the state line when `state` is `failed`.
-- `cost_usd`: "Cost: $0.00" (`formatCost`). `created_at`: "Started <formatTime(created_at)>".
-- `files[]`: progress `progressOf(files)` = files whose `state` is `ready`, `flagged`, `text_only` or `set_aside`,
-  over `files.length` ("3 of 3 files finished" and a `<progress>` with that value). Each file is one row, in the
-  order given: `path`, `kind` (raw value, or "not identified" when null), `state` (badge, `STATE_LABEL`), `reason`
-  (when not empty), `size` (`formatSize`), `ms` (`formatMs`, finished files only), `reused` ("reused" tag when
-  true). The row links to `#/p/<project_id>/f/<id>`. The stage strip reads every file's `stage` and `state`.
-- `drawings[]`: one row each: `file` (title), `kind`, `route` ("vector route"), `state` (badge),
-  `other_renderings[].file` ("also: plans/flat-a.png"), and an "Open" link to
+- `name`: the `h1`. `state`: the eyebrow above it, a dot and a word (`queued` "Waiting to start", `running`
+  "Analysing now", `done` "Done", `failed` "Ingest failed"). `error`: shown under the title when `failed`.
+- `files[]`: every number of the progress card (table below), and one row each under the card, in the order
+  given: `path`, `kind` (raw value, or "not identified" when null), `state` (badge, `STATE_LABEL`), `reason` (when not
+  empty), `size` (`formatSize`), `ms` (`formatMs`, finished files only), `reused` ("reused" tag when true). The row
+  links to `#/p/<project_id>/f/<id>`.
+- `drawings[]`: one card each under the progress card: `file` (title), `kind`, `route` ("vector route"), `state`
+  (badge), `other_renderings[].file` ("also: plans/flat-a.png"), and an "Open" link to
   `#/p/<project_id>/d/<drawing_id>/engineer`.
-- `counts`, `readers`, `ms`, and each file's `sha256`, `group`, `source`, `takeoff`, `normalised` are not shown here
-  (the trace shows the file ones). The progress comes from `files`, not `counts`, as API.md defines it.
+- `ms`, `cost_usd`, `created_at`: the stats row (below). The whole object goes to `AdvancedIngest` as `project`.
+- `counts`, `readers`, and each file's `sha256`, `group`, `source`, `takeoff`, `normalised` are not shown here (the
+  trace shows the file ones). The progress comes from `files`, not `counts`, as API.md defines it.
+
+**Screen 2's numbers, mapped** (every value on `Ingest.dc.html`; the mock's are never shown):
+
+| On the design | Here | From |
+| --- | --- | --- |
+| "Analysing now" | the state word | `state` (words above) |
+| "harbour-block-archive.zip" | the `h1` | `name` |
+| "Step 3 of 8" | "Step <activeStep> of 8"; "All 8 steps done" when `done`; nothing when `failed` | `activeStep(files)`: the lowest `stepOf(file.stage)` among files not finished (`queued`/`running`); 1 when there are no files yet |
+| "Route" (the `h2`) | `STEPS[activeStep].name`; "Ready" when `done`; "Stopped" when `failed` | as above |
+| 35 % (ring) | `percentDone` = round(100 × finished / files); 0 with no files | `files[].state` (`progressOf`); ring `role="img"`, `aria-label` "<n> percent done" |
+| Elapsed "5 s" | `formatMs(elapsedMs)` | `done`/`failed`: `ms` (set by the backend when ingest ends). `queued`/`running`: now − `created_at` from the browser clock, at least 0, re-read on each poll (see Not in the API) |
+| Remaining "~9 s" | not shown: the cell is replaced by Cost | Not in the API |
+| (none) | Cost "$0.00" | `cost_usd` (`formatCost`); API.md: "0.0 with no paid reader, which is the point to show" |
+| Files through "4 / 14" | "<finished> / <files>"; "—" while `queued`/`running` with no files (R1-1-4) | `progressOf(files)` |
+| Drawings ready "1 / 9" | "<drawings.length>", no denominator | `drawings[]` (each entry is a written drawing); the expected total is Not in the API |
+| The 8-step list | `STEPS`, each row done / working / waiting (icon + word) | `activeStep`: rows before it done, it working, after it waiting; all done when `done`; the list is left out when `failed` |
+| The working row's hint | the step's hint (`STEPS`) | fixed text |
+| The working row's bar "6 / 12 files" | "<passed> / <through> files" and a bar of that ratio | `stepFiles(files, step)`: `through` = files minus those finished at an earlier step; `passed` = files at a later step, plus files finished at this step |
+
+`STEPS` (the design's 8 rows, in the API's stage order; the hints say only what the stages do):
+
+| # | Name | Stages (`stepOf`) | Hint |
+| --- | --- | --- | --- |
+| 1 | Unpack | `unpack`, `hash`, and `null` | opening the archive safely |
+| 2 | Identify | `identify`, `group` | what each file really is |
+| 3 | Route | `route`, `cache` | picking the best source per drawing |
+| 4 | Normalise | `normalise` | one page frame per sheet |
+| 5 | Extract | `extract` | rooms, doors, windows, fixtures |
+| 6 | Cross-check | `second_count` | a second, independent count |
+| 7 | Index | `takeoff` | precomputing the answers |
+| 8 | Drawing model | `write` | one stored model per drawing |
 
 **`GET /api/projects/{project_id}/files/{file_id}/trace`** (`getTrace(projectId, fileId)`; API.md "…/trace"; fixture `trace.json`). When the trace
 screen mounts, then 500 ms after each response while `file.state` is `queued` or `running`. Fields:
@@ -134,15 +174,16 @@ when `rotated` is not 0, "deskewed <deskew_deg>°" when `deskew_deg` is not 0, "
 | State | Home | Project screen | File trace | Reach it on purpose |
 | --- | --- | --- | --- | --- |
 | Loading | list shows "Loading projects…" | "Loading project…" in place of the content | "Loading trace…" | delay the response (component test: a pending promise; e2e: `page.route` with a delay) |
-| Empty | "No projects yet. Upload a file or try the sample." | only once the project is `done` or `failed`: no files: "This upload has no files." No drawings: "No drawings: nothing in this upload could be read as a plan." While `queued` or `running` an empty list gives no verdict: it reads "Waiting for the files…", and with no files yet the progress line is left out (no "0 of 0") | stages `[]`: "No stages yet." | variants `list-empty`, `no-drawings`, `no-files`, `trace-queued`; `queued` with `files: []` |
-| Error | box: `detail` and `code` of the upload error; list: `ErrorView` with Retry | first load fails: `ErrorView` (its `not-found` link home) with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
+| Empty | (no list on home in v2) | only once the project is `done` or `failed`: no files: "This upload has no files." No drawings: "No drawings: nothing in this upload could be read as a plan." While `queued` or `running` an empty list gives no verdict: it reads "Waiting for the files…", and with no files yet the progress line is left out (no "0 of 0") | stages `[]`: "No stages yet." | variants `list-empty`, `no-drawings`, `no-files`, `trace-queued`; `queued` with `files: []` |
+| Error | drop card: `detail` and `code` of the upload error | first load fails: `ErrorView` (its `not-found` link home) with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
 | Upload refused | `uploadTooLarge`'s sentence. No request sent | | | a `File` over the limit (component test: `new File` with a stubbed `size`) |
 | Busy / too large | box shows `detail` and `code` (`busy`, `too-large`) | | | `mockApi` 429 / 413 with `error.json` spread with that `code` |
-| Running | | polling; running files show "running" and their `stage`; the strip marks stages with a working file | polling; stages grow | variant `running` / `trace-running` |
-| Failed project | | "Ingest failed" and `error`; polling stopped; files listed as returned | | variant `failed` |
+| Running | | polling; "Analysing now"; the working step row shows its hint and file bar; running files show "running" | polling; stages grow | variant `running` / `trace-running` |
+| Failed project | | "Ingest failed", "Stopped" and `error`; no step list; polling stopped; files listed as returned | | variant `failed` |
 | Set aside | | the row reads "set aside" with its `reason` | the failing stage reads "Failed: <failure>" | variant `set-aside` / `trace-failed` |
 | Text only | | the row reads "text only" with its `reason`; no drawing | | variant `text-only` |
 | Normalised image | | | `BeforeAfter` | `project.json` file `f2` as the trace's `file` (variant `trace-image`), `trace-rotated` |
+| Advanced view | | `?view=advanced`: title row and toggle, then `AdvancedIngest` (its own states); "Loading project…" until the first answer | | `#/p/<id>?view=advanced` with `project.json` |
 | No keys | the shell's "running offline" banner (shared spec); nothing else changes, the sample button works | same | same | `info.json` (`no_keys: true`); the e2e runs on the no-keys backend |
 
 Variants (each starts from the named fixture; only the listed fields change):
@@ -166,38 +207,50 @@ Variants (each starts from the named fixture; only the listed fields change):
 
 ## Layout
 
-Reference: the mock's ingest screen (`demo/`, landing drop box, then the run view with its header, progress ring,
-stats row and pipeline timeline).
+Colours, radius, shadow and font only through the `--v-*` tokens (shared.md); system font stack, no web fonts.
+The header is the shell's (logo, "Vellum", "Workspaces"); these screens draw none.
 
-**Desktop 1440x900.** Content column max 1120 px, centred.
-- Home: the drop zone across the column (about 220 px tall) with the two buttons inside it, as the mock's landing;
-  the project list below it as a table (name, state, started, files · drawings).
-- Project: a header block (name as `h1`, state line, `error` when failed, "Started …", "Cost: …") with the progress
-  bar and "N of M files finished" on its right, as the mock's run header and ring. Under it the stage strip as one
-  row of stage chips (it wraps). Under that two columns: the file list (left, about two thirds; a table: path,
-  kind, state, reason, size, time) and the drawing list (right, one third; cards with "Open").
-- Trace: a "Back to the project" link, then the header (path as `h1`, state badge, reason, "Open the drawing"), a
-  facts list (kind, size, route, read from, group, sha256, time, cost) in two columns, `BeforeAfter` with the two
-  images side by side at equal width, the stage list as a vertical timeline (label, did, output, time on the right),
-  then the takeoff `<details>`.
+**Screen 1, home (`Main.dc.html`).** Column max 1120 px, centred, top padding 72 px.
+- Hero `h1` "Every answer, pointed at the drawing." centred, 64 px bold, max 16ch.
+- The drop card (`section`, `aria-label` "Drop drawings or an archive"): white, radius 28 px, max 760 px; inside it a
+  dashed inner zone (radius 20 px) with the upload icon, "Drop a drawing or a .zip here" (24 px semibold), the
+  buttons "Choose a file" (accent, pill) and "Try the sample project" (grey pill), the sample note, and the busy,
+  refusal and error lines. Under the inner zone the format chips: "IFC models", "DXF", "Vector PDF · SVG",
+  "PNG · JPG scans and photos", "ZIP archives".
+- Under the card, centred: "Earlier uploads are in Workspaces" (a link to `#/workspaces`).
+- Not built: the edit-plan link, the country picker, the avatar (common brief).
 
-**Phone 390x844.** One column, 16 px gutters, no horizontal page scroll.
-- Home: the drop zone shrinks to the buttons ("Choose a file" first, it opens the camera or the files), the list
-  as stacked rows.
-- Project: header; progress bar full width; the stage strip as a vertical list (one line per stage: label, count,
-  "working"); drawings before files (the next action is opening a drawing); each file a card: path (wraps, breaks
-  long names), then badge and kind, then reason.
-- Trace: facts as label/value pairs, images stacked, stage items full width.
-- Tap targets at least 44 px tall; long paths and reasons wrap (`overflow-wrap: anywhere`), never overflow.
+**Screen 2, Simple (`Ingest.dc.html`).** Column max 820 px.
+- Title row: left the state eyebrow (dot + word, accent) over the name `h1` (44 px); right the toggle
+  (`role="group"`, `aria-label` "View"): "Simple" and "Advanced" links, the current one white with
+  `aria-current="page"`. Wraps under the title on a phone.
+- The progress card (`section`, `aria-label` "Progress", radius 24 px): top row "Step n of 8" (13 px muted) over the
+  step name `h2` (34 px), the 96 px ring on the right with the percent in its middle; the stats row as a `dl` of
+  four cells (Elapsed, Files through, Drawings ready, Cost); the 8-step list (`ol`): each row an icon (done: filled
+  check, `role="img"` "done"; working: spinner, "working"; waiting: empty circle, "waiting"), the name, and on the
+  working row its hint and the file bar.
+- When `done`: under the card a row with "Settle the conflicts" (accent pill) to `#/p/<id>/conflicts`.
+- Then "Drawings" (cards with "Open") and "Files" (rows linking to the trace), restyled as white cards with the
+  token radius and shadow; with no files or drawings the empty lines of States.
+- Advanced: the title row stays; `AdvancedIngest` replaces everything under it.
 
-Status badges always carry the word and an icon (ready ✓, flagged !, set aside –, text only ¶, queued …, running ◌);
-colour is extra. Stage strip: a working stage shows a spinner and the word "working".
+**File trace (restyle, no design screen).** Column max 820 px. "Back to the project", then the title row as screen
+2 (state eyebrow over the path `h1`, "Open the drawing" as an accent pill on the right); the facts as a stats-style
+`dl` card (two columns, one on a phone); `BeforeAfter` as a card; the stages as a card with the step-list look
+(done check or failed icon + word, label, `did`, `output`, time on the right); the takeoff `<details>` as a card.
+
+**Phone 390x844.** One column, 16 px gutters, no horizontal page scroll; hero 40 px; the stats row two by two;
+the toggle under the title; tap targets at least 44 px; long paths and reasons wrap (`overflow-wrap: anywhere`).
+
+Status is never colour alone: badges carry their word and icon (ready ✓, flagged !, set aside –, text only ¶,
+queued …, running ◌); step rows carry "done", "working", "waiting".
 
 ## Acceptance criteria
 
 Home and upload
 
-- IN-1: `#/` renders the drop zone, a "Choose a file" control and a "Try the sample project" button. [component]
+- IN-1: `#/` renders the drop card (region "Drop drawings or an archive"), a "Choose a file" button and a "Try the
+  sample project" button. [component]
 - IN-2: The file input has `accept` containing `.zip`, `.pdf`, `.ifc`, `.dxf`, `.svg` and `image/*`, and no
   `multiple`. [component]
 - IN-3: Picking a file of `upload_mb` × 1048576 bytes or fewer sends exactly one `POST
@@ -219,20 +272,21 @@ Home and upload
 
 Project list
 
-- IN-11: Home requests `GET /api/projects` once on mount and shows "Loading projects…" until it answers.
-  [component]
-- IN-12: Each project of `project_list.json` is a row with its `name`, state word, a `<time>` whose `datetime` is
-  `created_at`, and "11 files · 5 drawings"; the row links to `#/p/<id>`. [component]
-- IN-13: `list-empty` shows "No projects yet. Upload a file or try the sample." [component]
-- IN-14: A failed list request shows `detail` and `code`; Retry requests the list again. [component, 500 +
-  `error.json`]
+- IN-11: removed in v2 (the project list is screen 5's, account.md).
+- IN-12: removed in v2 (as IN-11).
+- IN-13: removed in v2 (as IN-11).
+- IN-14: removed in v2 (as IN-11).
+- IN-52: Home shows the `h1` "Every answer, pointed at the drawing.", the five format chips of Layout and no other,
+  and no link or text about editing a house plan. [component]
+- IN-53: Home has a link "Earlier uploads are in Workspaces" to `#/workspaces` and sends no `GET /api/projects`.
+  [component, `mockApi` with no list route]
 
 Project screen
 
 - IN-15: `#/p/<id>` requests `GET /api/projects/<id>` and shows "Loading project…" until the first answer.
   [component]
-- IN-16: With `project.json` the header shows the `name`, "Done", "Cost: $0.00" and "3 of 3 files finished", and
-  the `<progress>` has value 3 and max 3. [component]
+- IN-16: With `project.json` the screen shows the `name`, "Done", "All 8 steps done", "Ready", the ring "100 percent
+  done", and the stats Files through "3 / 3", Drawings ready "<drawings.length>", Cost "$0.00". [component]
 - IN-17: `progressOf` counts `ready`, `flagged`, `text_only` and `set_aside` as finished and `queued`, `running`
   as not. [unit]
 - IN-18: Each file of `project.json` is a row, in the order given, with its `path`, `kind`, state word, `reason`,
@@ -261,18 +315,40 @@ Project screen
 - IN-29: A first load answered 404 `not-found` shows `ErrorView` with `detail`, `code` and its link to `#/`; a
   first load that fails with `code` `network` shows Retry, which requests the project again. [component,
   `error.json`, rejected fetch]
+- IN-54: The toggle is a group "View" with links "Simple" (`#/p/<id>`) and "Advanced" (`#/p/<id>?view=advanced`);
+  the current one has `aria-current="page"`. [component]
+- IN-55: With `?view=advanced` the screen renders `AdvancedIngest` with `projectId` and the polled `project` (the
+  same object the last poll returned), and no progress card, drawing or file list; going to Simple and back sends no
+  extra `GET /api/projects/<id>` beyond the 500 ms polls. [component, `AdvancedIngest` mocked with `vi.mock`,
+  `running` then `project.json`]
+- IN-56: `stepOf` maps `unpack`, `hash`, null → 1; `identify`, `group` → 2; `route`, `cache` → 3; `normalise` → 4;
+  `extract` → 5; `second_count` → 6; `takeoff` → 7; `write` → 8. `activeStep` of `running` is 5, of `queued` 1, of
+  `files: []` 1. [unit]
+- IN-57: With `running` the card shows "Analysing now", "Step 5 of 8" and the `h2` "Extract"; with `queued`
+  "Waiting to start", "Step 1 of 8", "Unpack". [component]
+- IN-58: The step list has 8 rows in `STEPS` order; with `running` rows 1-4 read "done", row 5 "working" with the hint
+  "rooms, doors, windows, fixtures" and "2 / 3 files", rows 6-8 "waiting"; with `project.json` all 8 read "done" and
+  no row has a hint or bar. Each state is an icon with `role="img"` and its word as name. [component]
+- IN-59: `stepFiles(files, 5)` of `running` is `{passed: 2, through: 3}`; of `set-aside` with step 3 the set-aside
+  file (finished at step 2) is not in `through`. [unit]
+- IN-60: The ring's `aria-label` is "<n> percent done" with n = round(100 × finished / files): 67 for `running`,
+  100 for `project.json`, 0 for `queued`. [unit `percentDone` + component]
+- IN-61: Elapsed is `formatMs(ms)` when `done`; when `running` it is `formatMs(now − created_at)` with the clock set
+  by `vi.setSystemTime(created_at + 5 s)` ("5.0 s"), and never below 0. There is no "Remaining" cell. [component,
+  fake timers]
+- IN-62: `failed` shows "Ingest failed", "Stopped" and the `error`, and no step list. [component]
+- IN-63: "Settle the conflicts" links to `#/p/<id>/conflicts` when `done` and is absent when `running` or `queued`.
+  [component]
+- IN-64: Drawing cards and file rows stay under the card in the Simple view with IN-18 to IN-22 and IN-26 unchanged;
+  file rows are links whose `href` contains `/f/f` and whose text has the path and the state word (the e2e's
+  locators). [component]
 
 Stage strip
 
-- IN-30: The strip lists, in this order, unpack, hash, identify, group, route, cache, normalise, extract, second
-  count, takeoff, write, each with the number of files whose `stage` is that stage; files with `stage: null` are
-  counted as "waiting" before the first stage. [unit `stageCounts` + component, `project.json`, `queued`]
-- IN-31: With `running`, the `extract` chip shows the word "working" (and its icon); with `project.json` no chip
-  does. [component]
-- IN-51 (R2 qa-3 d): When the Cache chip's count is above 0, one line under the strip reads "Each file is counted at
-  its last stage. A reused file stops at Cache: an earlier upload already wrote its drawing."; with a Cache count of
-  0 (`project.json`) the line is absent. [component, `project.json` with every file `stage: "cache"`,
-  `reused: true`]
+- IN-30: removed in v2 (the 11-chip strip is replaced by the step list, IN-56 to IN-60).
+- IN-31: removed in v2 (as IN-30; the working step is IN-58).
+- IN-51: removed in v2 (no per-stage counts in the Simple view, so the Cache caption has nothing to explain; the
+  Advanced view shows the cache stage).
 
 File trace
 
@@ -307,6 +383,9 @@ File trace
   for this file" (`drawing.json`, `credit: null`) shows under the "after" image and not under "As uploaded"; with
   that request answered 500 the same line shows; with `trace.json` (no before/after) the request is not sent.
   [component, `drawing.json`, `error.json`]
+- IN-65: The restyled trace keeps its names: "Back to the project", the path as `h1`, "Open the drawing", the stage
+  items with label, `did` and time; a failed stage reads "Failed: …" with an icon and a done stage carries "done".
+  IN-32 to IN-43 and IN-48 hold unchanged. [component]
 
 Across the screens
 
@@ -315,28 +394,48 @@ Across the screens
   variant with that `reason`]
 - IN-45: No state is shown by colour alone: every badge and the working/failed markers contain their word.
   [component: text query on each state variant]
-- IN-46: On the no-keys backend: "Try the sample project" reaches `#/p/<id>`, the project reaches "Done", every
+- IN-46: On the no-keys backend: "Try the sample project" reaches `#/p/<id>`, the project reaches "Done" (Files
+  through "11 / 11", see Open point 10), every
   row has a state word, clicking `plans/flat-a.pdf` shows its trace with the `write` stage, and its "Open the
   drawing" reaches the engineer route. [e2e]
 - IN-47: At 390x844 and 1440x900 the three screens (home, sample project done, the `plans/flat-a.png` trace) have
   no horizontal page scroll, and a screenshot of each is saved. [e2e]
+- IN-66: `ingest.css` has no colour literal (`#hex`, `rgb(`, `hsl(`): every colour is a `var(--v-…)`. [unit:
+  read the file]
+- IN-67: At 390x844 home, the Simple project screen and the trace have no horizontal scroll, the hero is 40 px, the
+  stats row is two by two and the toggle sits under the title. [e2e, screenshots]
 - IN-49 (R1-1-4): While the project is `queued` or `running`, an empty file or drawing list reads "Waiting for the
-  files…", never "This upload has no files." or "No drawings: …", and with no files the progress line ("0 of 0")
-  is not shown. [component, `queued` with `files: []`, `running` with `drawings: []`]
+  files…", never "This upload has no files." or "No drawings: …", and with no files Files through reads "—" (no
+  "0 / 0"). [component, `queued` with `files: []`, `running` with `drawings: []`]
 - IN-50 (R1-1-1): Counts are singular for 1 and plural otherwise: "1 file · 1 drawing", "0 files · 2 drawings",
-  "1 of 1 file finished", "What it ends as: 1 quantity". [unit `plural` + component]
+  "What it ends as: 1 quantity". [unit `plural` + component] (v2: the list strings moved to account.md; the
+  progress line is now the stats row.)
 
 ## Out of scope
 
 - Upload progress in bytes (fetch gives none; would need XMLHttpRequest).
 - More than one file per upload (zip them), folder drops, resuming an upload.
-- The mock's per-stage explanations (click a stage for what/how/output/failure) and its live stats row (elapsed,
-  remaining).
+- Screens 6-8 (Edit my plan) and home's "Or edit a house plan from a photo →" link; the country picker; the avatar
+  and user name (common brief).
+- The "Remaining" time and the expected number of drawings while running (Not in the API).
+- The design's "Choose files" (plural): one file per upload, zip several.
 - The mock's end-of-ingest conflict list with approve / modify / pick a variant: conflicts live in the surveyor
   workspace (`GET /api/projects/{id}/review` is the surveyor spec's).
-- Showing `readers`, `counts`, project `ms` and the drawing model on these screens.
+- Showing `readers`, `counts` and the drawing model on these screens.
 - A preview of files with no drawing (a set-aside photo); `preview.png` exists for them but nothing links it here.
 - Deleting or renaming projects (no endpoint), refreshing the project list on a timer.
+
+## Not in the API
+
+What the designs show that API v1 cannot back; the screens show nothing for it until it lands.
+
+| On the design | Field needed | Until then |
+| --- | --- | --- |
+| Screen 2 "Remaining ~9 s" | `ProjectView.eta_ms: number \| null` (the backend's estimate of the time left) | no Remaining cell (Cost takes its place) |
+| Screen 2 "Drawings ready 1 / 9" (the 9) | `ProjectView.expected_drawings: number \| null` (plan groups found once `group` ran) | only the count, no denominator |
+| Screen 2 "Elapsed" while running | `ProjectView.ms` updated live (today set only when ingest ends), or a server `now` in the response | browser clock − `created_at`; wrong if the phone's clock is off |
+| Screen 1 chip "DXF · DWG" | a DWG reader (`dwg` is a `kind`, but no route reads it) | chip "DXF" only |
+| Screen 1 "Choose files" (several files) | an upload endpoint that takes several files | one file per upload |
 
 ## Open points
 
@@ -364,3 +463,21 @@ Across the screens
    `FileTraceScreen({projectId, fileId})`, mounted with `key` = route path without query.
 9. **Answer confidence change (board #14).** Pending the next backend PR; it touches only answers. No ingest screen
    shows confidence, so nothing here changes.
+10. **e2e text (fe-golden).** The v1 line "N of M files finished" becomes the stats cell Files through "N / M":
+    `e2e/golden-path.spec.ts:24` (`'11 of 11 files finished'`) and `e2e/qa-r1.spec.ts:23` (`/of \d+ files?
+    finished/`) need the new text, e.g. the `dd` after the `dt` "Files through". Every other name the e2e uses stays
+    ("Try the sample project", "Done", file row links with `/f/f`, "Open the drawing", the trace text).
+11. **"Try a sample" vs "Try the sample project".** The design says "Try a sample"; the button keeps "Try the sample
+    project" (the e2e and IN-1 use it, and an `aria-label` that differs from the visible text breaks WCAG 2.5.3).
+    Recommend keeping it; renaming means the e2e changes with it.
+12. **Step order.** The design lists Drawing model, Cross-check, Index as steps 6-8; the backend runs
+    `second_count`, `takeoff`, `write`. `STEPS` follows the backend (Cross-check, Index, Drawing model) so the working
+    step never moves backwards. Hints changed where the design claims what no stage does: Normalise "upright sheets,
+    views and scale" → "one page frame per sheet" (no stage checks rotation, R1-3-5; scale is read in extract).
+13. **Way out of screen 2.** The design has no link from screen 2 to anything but Advanced. The Simple view keeps the
+    drawing "Open" links and the file rows (the golden path and QA use them) and adds "Settle the conflicts" to
+    screen 3 when done. Recommend fe-surveyor's ConflictsScreen says when there is nothing to settle.
+14. **ProjectList.tsx.** Deleted from `src/ingest/` in v2. If fe-golden wants its row (name, state, `<time>`,
+    "N files · N drawings", `plural`) for screen 5, it imports `plural`/`STATE_LABEL` from `src/ingest/ingest.ts` or
+    copies the 30 lines; IN-11 to IN-14 move to account.md.
+

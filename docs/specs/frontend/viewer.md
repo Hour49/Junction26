@@ -1,5 +1,6 @@
 # Page viewer (spec, frontend v1)
-Status: draft, 2026-11-14, by fe-spec-viewer.  Story: #33.  API: docs/API.md (v1).
+Status: draft, 2026-11-14, by fe-spec-viewer; Vellum redesign (screen 4 "Ask, with proof") added 2026-11-14.
+Story: #33.  API: docs/API.md (v1).  Design: `Workspace.dc.html`, the `<figure aria-label="Drawing">` block.
 
 ## Purpose
 
@@ -12,6 +13,12 @@ The viewer does not fetch JSON and owns no app state. The screen hands it the pa
 (from `POST /api/ask`, `GET /api/drawings/{id}` or `GET /api/drawings/{id}/takeoff`). The viewer reports clicks
 back to the screen. Its only requests are the page images.
 
+**Vellum (round 2).** The viewer takes the look of screen 4's plan card. It gets a header row (the file name, a
+meta line, and the drawing position with previous/next drawing buttons), a class line, accent-filled number
+badges with a hover ring and press feedback, a page meta line, and a caption legend with a swatch per state. All
+colours come from the shell's `--v-*` tokens (shared.md). Every behaviour and criterion above VW-48 stays, except
+where a criterion is marked "replaced". What the design shows and the API lacks is under "Not in the API".
+
 Field names and fixtures are those of `docs/API.md` and `backend/tests/fixtures/api_v1/` on main after PR #63
 (5092dc3). The viewer never shows the answer's confidence (Open point 1).
 
@@ -20,9 +27,9 @@ Field names and fixtures are those of `docs/API.md` and `backend/tests/fixtures/
 - `frontend/src/viewer/PageViewer.tsx`: the component the screens use (page switcher, zoom, legend, caption).
 - `frontend/src/viewer/PageFrame.tsx`: one page image in the page frame with its mark layer, loading and error
   state. Exported so the ingest trace can show `preview.png` without marks (Open point 5).
-- `frontend/src/viewer/MarkLayer.tsx`: the SVG shapes and the HTML number badges.
+- The SVG shapes and the HTML number badges are drawn in `PageViewer.tsx` (no separate `MarkLayer.tsx`).
 - `frontend/src/viewer/marks.ts`: pure functions: `pickWidth`, `startPage`, `markLook`, `pickBox`, `drawOrder`,
-  `safeColour`, `normalisedNote`.
+  `safeColour`, `normalisedNote`, `badgeSize`, `placeLabels`.
 - `frontend/src/viewer/viewer.css`
 - Tests: `frontend/src/viewer/marks.test.ts` [unit], `frontend/src/viewer/PageViewer.test.tsx` [component].
   [e2e] criteria are built by the e2e worker (golden-path.md). The viewer build worker writes no e2e file.
@@ -48,8 +55,19 @@ interface PageViewerProps {
   onSelect?: (markId: string | null) => void;
   onHover?: (markId: string | null) => void;
   onPick?: (page: number, box: Box) => void; // set only while the surveyor is adding a mark
+  // Vellum (all optional, so today's callers compile unchanged):
+  meta?: string | null;               // the header's second line, composed by the screen (e.g. "PDF · vector route")
+  drawingNav?: {                      // the header's "1 / 5" and the previous/next drawing buttons
+    index: number;                    // 0-based position of this drawing in the screen's list
+    total: number;
+    onPrev: () => void;
+    onNext: () => void;
+  } | null;
 }
 ```
+
+The screen owns the drawing list and what previous and next do (wrap around or not). The viewer only shows the
+position and calls back.
 
 `PageFrame` takes `{ url: string; width: number; height: number; alt: string; children?: ReactNode }`. `url`
 has no `?width=`: the frame adds it.
@@ -119,8 +137,19 @@ Fields read (fixtures in `backend/tests/fixtures/api_v1/`):
 Shapes are drawn in an SVG laid over the image with `viewBox="0 0 1 1"` and `preserveAspectRatio="none"`. Every
 stroke has `vector-effect="non-scaling-stroke"`, so it keeps its pixel width. A stretched SVG would distort text
 and circles, so badges are HTML elements placed in percent, as in API.md's recipe. Each badge sits at its mark's
-box centre and is a 24 × 24 CSS px `<button>` with a white background, ink text and a 2 px border in the mark's
-colour, so its contrast does not depend on the class colour. The colour of a mark follows the backend's
+box centre and is a 24 × 24 CSS px `<button>`, round when it holds a number only and a pill when it holds a value.
+(Vellum draws a 22 px circle; 24 px is kept as the minimum target size, WCAG 2.5.8, and for the R2 placement.)
+Badge colours, Vellum (replaces the white badge of VW-23):
+- **Counted and added:** fill `--v-accent`, text `--v-surface` (white, bold 11 px), and a 2 px border in the
+  mark's colour. White on the accent passes 4.5:1 whatever the class colour, and the border still ties the badge
+  to its class in the legend.
+- **Rejected and excluded:** fill `--v-surface`, text `--v-muted`, and a 2 px dotted (rejected) or dashed
+  (excluded) border in `--v-muted`. This is the design's dashed "open doorway" circle, keeping its sign `×` or `–`.
+- **Colour delivery:** every colour goes through one CSS custom property per element, `--vw-c` (an API `#rrggbb`
+  or `var(--v-accent)`), set inline. `viewer.css` reads it (`stroke: var(--vw-c)`, `border-color:
+  var(--vw-c)`). SVG presentation attributes cannot resolve `var()`, and `viewer.css` holds no colour literal.
+
+The colour of a mark follows the backend's
 `evidence.png` (`evidence_render.py`): when `legend` has exactly one entry, every mark takes that entry's colour
 (a room count's legend is one `room` entry while its marks carry the room labels); otherwise it is the entry
 whose `label` equals `mark.label`, else the accent colour. An excluded mark is always grey. A colour that is not
@@ -155,8 +184,15 @@ whose `label` equals `mark.label`, else the accent colour. An excluded mark is a
 - Before the width is known (the first render; jsdom), badges sit at their box centres with their full text.
 - Polygons are drawn largest box area first, so a room inside another room stays on top and can be clicked
   (`drawOrder`).
-- Highlighted (`highlighted` or hover): the outline is 4 px and the badge has a 3 px ink ring. Selected
-  (`selected`): the badge is ink with white text, `aria-pressed="true"`, and the outline is 4 px.
+- Highlighted (`highlighted` or hover): the outline is 4 px and the badge has a 5 px ring of `--v-accent` at
+  35 % (`color-mix(in srgb, var(--v-accent) 35%, transparent)`), the design's outer circle. Selected
+  (`selected`): the badge fill is `--v-text` with `--v-surface` text and the same ring, `aria-pressed="true"`,
+  and the outline is 4 px. Keyboard focus (`:focus-visible`): a 2 px `--v-accent` outline, 2 px offset.
+- Press feedback (the design's `.press`): on `:active` a badge scales to 0.97 over 100 ms ease-out, keeping its
+  centring transform. `prefers-reduced-motion: reduce` turns it off.
+- Room names are not drawn over the plan: the page image already prints them (the design's "Living",
+  "Kitchen"), and an overlay would cover them. A room's label is in its badge's `aria-label`, in the hover line
+  and in the selected-mark line (below).
 - The badge `aria-label` is "Mark <n>: <label>, <words>". A mark with no number is "<label>, <words>". A null
   label reads "item".
 - A mark whose `page` is not in `pages`, or whose box is outside 0..1, is not drawn. The legend says
@@ -179,18 +215,44 @@ whose `label` equals `mark.label`, else the accent colour. An excluded mark is a
 
 ## Layout
 
-The mock's viewer card (`demo/`, `viewerHTML`: caption, stage, legend) is the model.
+Vellum screen 4 (`Workspace.dc.html`, the `<figure aria-label="Drawing">` block) is the model. The viewer is the
+whole figure; the engineer screen places it in the answer card's left column (about 1.4 : 1 against the facts
+column, one column under 900 px; engineer.md).
 
-- **Desktop 1440x900**: the viewer fills the workspace's middle column (the engineer and surveyor specs set its
-  width). Top row: the page switcher (when there are several pages) on the left, zoom `−` / percent / `+` /
-  "Fit" on the right. Then the scroll box with the frame, at most 70 vh high, page fitted to the width at
-  zoom 1. Directly under it the credit line (shell `<Credit>`), then the legend (one item per state present,
-  then each `legend` entry's colour swatch and label, then `note` lines), the selection line, then the caption:
-  file name in mono and the `normalised` note.
-- **Phone 390x844**: the viewer is full width inside the 16 px gutters (358 px) and the scroll box is at most
-  60 vh. Switcher and zoom buttons are at least 44 × 44 px. The legend and caption wrap and never scroll
-  sideways. Panning at zoom > 100 % is native touch scrolling in the scroll box. Badges stay 24 px at every zoom.
+- **Figure:** `<figure aria-label="Drawing">`, `--v-bg` background, 20 px padding (16 px under 900 px), a 12 px
+  column gap. In order:
+  1. **Header row** (flex, space-between, 8 px gap, wraps):
+     - Left: the file name (`.vw-name`, monospace stack, 14 px, 600, `overflow-wrap: anywhere`) and under it
+       `meta` (`.vw-meta`, 12 px `--v-muted`; absent when `meta` is null or empty).
+     - Right: the position `<index+1> / <total>` (`.vw-pos`, 13 px, 600, tabular numbers, `aria-live="polite"`)
+       when `drawingNav` is set and `total > 1`.
+  2. **Class line** (`.vw-classes`, monospace, 11 px, 600, uppercase, `--v-text`, wraps): one item per `legend`
+     entry with `count > 0`, as `<LABEL> · <count>` (the design's "LAYER DOOR · 14 BLOCKS" without the CAD
+     words; see Not in the API). There is no class line without a legend, or with no mark on the page.
+  3. **Toolbar** (`.vw-bar`): the page switcher (several pages) on the left, and zoom `−` / percent / `+` / "Fit" on
+     the right. Each control is a 44 × 44 px round button, `--v-surface` with `--v-shadow`, the design's nav-button
+     style.
+  4. **Plan** (`.vw-scroll` with the frame): at most 70 vh (60 vh under 900 px), page fitted to the width at zoom
+     1. With `drawingNav` and `total > 1`, two 44 px round buttons, "Previous drawing" and "Next drawing", sit
+     over the plan's left and right edges at half height (6 px outside the plan, `--v-surface`, `--v-shadow`,
+     `:hover` keeps them `--v-surface`, press feedback as badges).
+  5. **Credit:** directly under the plan (shell `<Credit>`, unchanged, VW-29).
+  6. **Page meta line** (`.vw-pagemeta`, 10 px `--v-muted`, right-aligned): `Page <n>`, then ` · <normalised
+     note>` when there is one. The design's `A-102 · Floor 2 · 1:100 · Page 1` keeps only what the API has (Not in
+     the API).
+  7. **Mark line** (`.vw-selection`): the selected mark, else the highlighted one, as "1 · Küche · 22.40 m² ·
+     counted". Absent when neither is set.
+  8. **Caption legend** (`<figcaption class="vw-legend">`, flex wrap, gap 6 px × 16 px, 12 px `--v-muted`): per
+     state present a 10 px round swatch drawn like its badge, then its words (VW-27). When every excluded mark on
+     the page has the same `reason`, that item reads "<reason>, left out by the rule" (the design's "open
+     doorway, left out by the rule"). Then the `note` lines, unlocated lines, conflict lines A/B, and the "could
+     not be placed" and "had no room" lines, as now.
+- **Phone 390x844:** full width inside the 16 px gutters. The header row wraps (the position goes under the
+  name), the toolbar wraps, and the drawing buttons stay inside the viewport (no horizontal scroll). R2's narrow
+  frame shows numbers only. Panning at zoom > 100 % is native touch scrolling; badges stay 24 px at every zoom.
 - No horizontal page scroll at either size, at any zoom: only the scroll box scrolls.
+- Fonts: the shell's `--v-font` (system stack). Monospace: `ui-monospace, "SF Mono", Menlo, monospace`. No
+  external font.
 
 ## Acceptance criteria
 
@@ -252,7 +314,7 @@ Marks
   although no mark is labelled `room` (R1-3-2). [component, `answer_area.json`]
 - **VW-22** `safeColour` returns the input for `#d62728` and the accent for `red`, `#d6272`,
   `url(x)` and `#d62728;x`. [unit]
-- **VW-23** Badges have a white background, ink text and a border in the mark's colour, whatever the colour.
+- **VW-23** (replaced by VW-52, Vellum) Badges have a white background, ink text and a border in the mark's colour, whatever the colour.
   [component, `answer_area.json` legend]
 - **VW-24** For takeoff row `area:room|indoor` (m1 Küche contains m2 Reduit), Reduit's polygon comes after
   Küche's in the DOM, and a click at Reduit's box centre selects `m2`. [component, `takeoff.json`; unit
@@ -277,7 +339,8 @@ Legend and caption
 - **VW-30** `normalisedNote` gives "" for null and for
   `{exif: null, rotated: 0, deskew_deg: 0, rectified: false}`. For `{exif: 6, rotated: 90, deskew_deg: 1.5,
   rectified: true}` it gives "shown upright: EXIF turn applied, turned 90°, deskewed 1.5°, perspective
-  corrected". The caption shows a non-empty note. [unit; component]
+  corrected". The page meta line (`.vw-pagemeta`, Vellum; before it the caption) shows a non-empty note. [unit;
+  component]
 
 Pages
 
@@ -334,6 +397,71 @@ Zoom, adding, layout
   rectangles never intersect. Each rectangle is centred at `left`/`top` (inline percentages times the frame size)
   with the inline `width` and `height` in px. [component]
 
+Vellum (screen 4)
+
+- **VW-48** The figure has `aria-label="Drawing"`. Its header shows `file` in `.vw-name`. With
+  `meta="PDF · vector route"`, `.vw-meta` reads that text. With no `meta` there is no `.vw-meta` element.
+  [component, `drawing.json`]
+- **VW-49** With `drawingNav={index: 1, total: 5, onPrev, onNext}`:
+  - `.vw-pos` reads "2 / 5" and has `aria-live="polite"`.
+  - Buttons "Previous drawing" and "Next drawing" call `onPrev` and `onNext` once each per click.
+  - With `total: 1`, or without `drawingNav`, neither the position nor the buttons render.
+
+  [component]
+- **VW-50** With `legend` from `answer.json`, `.vw-classes` reads "DOOR · 2". With `answer_area.json` it lists
+  "KÜCHE · 1" … and no "BALKON" (count 0). Without `legend`, or with `marks: []`, there is no `.vw-classes`. A
+  label `<b>x</b>` shows as text. [component]
+- **VW-51** `.vw-pagemeta` reads "Page 1" for `drawing.json`, and "Page 2" after "Next page" on the two-page
+  derived fixture. With the VW-30 `normalised`, it reads "Page 1 · shown upright: EXIF turn applied, turned 90°,
+  deskewed 1.5°, perspective corrected". [component]
+- **VW-52** (replaces VW-23) For `answer_area.json` with its legend:
+  - Counted badges have `--vw-c` `#d62728` (Küche) and `#1f77b4` (Reduit) and the class `vw-badge--filled`.
+  - Without `legend`, `--vw-c` is `var(--v-accent)`.
+  - The VW-15 rejected and VW-17 excluded marks have the class `vw-badge--open` and `--vw-c` `var(--v-muted)`.
+  - Shapes carry the same `--vw-c` as their badge.
+
+  [component]
+- **VW-53** `viewer.css` (imported `?raw`) contains no colour literal: no match for
+  `/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i`. It uses `var(--v-` and `var(--vw-c)`. It has `.vw-badge:active` with
+  `scale(0.97)` and a `prefers-reduced-motion: reduce` block that removes it. [unit]
+- **VW-54** With `highlighted="m2"` and nothing selected, `.vw-selection` reads "2 · door · counted". With
+  `selected="m1"` too, it reads "1 · door · counted": selected wins. With neither, there is no `.vw-selection`.
+  [component, `answer.json`]
+- **VW-55** With two derived excluded marks with `reason: "open doorway"` and one counted mark, the legend has
+  "counted" and "open doorway, left out by the rule". With two different reasons it reads "left out by the
+  rule". Each legend item has a `.vw-swatch` with the state's class (`vw-swatch--counted`, `--excluded`…).
+  [component]
+- **VW-56** At 390x844 and 1440x900, on the golden-path area answer:
+  - The figure's header, class line, toolbar and drawing buttons are inside the viewport.
+  - `scrollWidth <= innerWidth`.
+  - "Mark 1: Küche, counted", the image name "Page 1 of …" and the credit text are unchanged.
+  - A screenshot of each is taken and looked at.
+
+  [e2e, built by the e2e worker, golden-path.md]
+
+Criteria kept as they are under Vellum: VW-1 to VW-22 and VW-24 to VW-47. Where they check a colour (VW-21), the
+build reads `--vw-c` instead of the `stroke` attribute, with the same values.
+
+## Not in the API
+
+What screen 4's plan card shows that API v1 cannot back. Until Bogdan answers on board #14, the viewer shows
+nothing for it.
+
+1. **Page meta "A-102 · Floor 2 · 1:100".** The sheet number, the storey and the printed scale per page.
+   - Need on `PageView`: `sheet: str | null` (title-block sheet number), `storey: str | null` (`plans[].storey`
+     of the drawing model) and `scale_text: str | null` (the model's `scale.text`, e.g. "1:100").
+   - The model has the last two, but only through `GET /api/drawings/{id}/model`. API.md says not to fetch that
+     for page facts, since for a sheet with an IFC model behind it that is the whole building.
+2. **"LAYER DOOR · 14 BLOCKS".** The CAD layer the counted elements came from, and the word for the item kind.
+   Need `ClassKey.layer: str | null` (the DXF/DWG layer of the class's elements) in `proof.legend`. A CAD reader is
+   also needed: the `cad` route reads with `hello` today. Until then the class line reads "DOOR · 14".
+3. **The References "open the original" sheet** (DXF in a CAD view, the PNG with the vision model's boxes).
+   - No endpoint renders a DXF/DWG.
+   - The second method's per-item boxes are not sent: `Row.second` is `{method, value}`. Need
+     `Row.second.boxes: [{page, box}]` (or second-reader marks) to draw "the vision model's 14 door detections".
+   - The engineer spec owns the References list. For a PDF or PNG source it can show `PageFrame` on `preview.png`
+     with no marks.
+
 ## Out of scope
 
 - Pinch zoom, wheel zoom and drag-to-pan with the mouse. Zoom is three button steps and panning is native
@@ -376,3 +504,10 @@ Zoom, adding, layout
    B), and its OP 7 by the props above. The highlight prop is `highlighted`, the callbacks are `onSelect` and
    `onHover`, and value formatting is the shared `formatValue`. Its EN-23 "Probability right: 87%" conflicts with the
    board #14 change (OP 1). That is for the engineer spec to fix, not the viewer.
+9. **Vellum: `measure` vs `unit`.** engineer.md's field table says it passes the viewer's `measure` prop; the
+   viewer has `unit` (VW-14). Recommendation: engineer passes `unit={answer.unit}`. The viewer adds no `measure`.
+10. **Vellum: drawing navigation.** The design's previous/next arrows switch drawings, not pages. The viewer only
+    renders them and the "i / n" position from `drawingNav`. engineer.md owns the list (`project.drawings`) and
+    the route change. Pages keep the toolbar switcher (VW-32), which the design does not show.
+11. **Vellum: badge size.** The design's circles are 22 px. The viewer keeps 24 px (target size, R2 placement). A
+    2 px difference at the same position; no change requested.
