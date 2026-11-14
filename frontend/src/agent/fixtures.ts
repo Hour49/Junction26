@@ -1,5 +1,5 @@
 // One ChatTurn of each kind (decision 0013's example shape), for the unit tests and the screenshot page.
-import type { ChatTurn, Proposal } from './agent';
+import type { ChatTurn, LawCheck, Proposal } from './agent';
 
 export const DID = 'adeefbbcc17559fc';
 
@@ -264,4 +264,148 @@ export const model = {
     },
     { id: 'R4', type: 'bedroom', label: null, page: 1, polygon: null, box: [0.3, 0.1, 0.6, 0.3] },
   ],
+};
+
+const clause = (ref: string, quote: string | null = null, quote_en: string | null = null) => ({
+  ref,
+  url: `https://example.org/${encodeURIComponent(ref)}`,
+  quote,
+  quote_en,
+});
+
+const related = (id: string, ref: string, summary: string): LawCheck['related'][number] => ({
+  id,
+  law_id: 'ch-zh-ls-700-1',
+  law_number: 'LS 700.1',
+  law_title: 'Planungs- und Baugesetz',
+  law_title_en: 'Planning and Building Act',
+  ref,
+  url: `https://example.org/${id}`,
+  summary_en: summary,
+  text: '…',
+  keywords: [],
+  language: 'de',
+  limits: [],
+  topics: ['rooms'],
+  drawing_checkable: false,
+  checked: '2026-11-14',
+  status_note: null,
+});
+
+/** One finding of each change kind, an AI finding and five related clauses (one already a finding's clause). */
+export const lawZh: LawCheck = {
+  pack: 'ch-zh',
+  pack_name: 'Canton of Zürich building act',
+  fail_means: "It would not meet the Canton of Zürich's rule; other cantons set their own.",
+  findings: [
+    {
+      ev: 'ev_9',
+      rule_id: 'ch-zh-room-window',
+      title: 'A habitable room has a window (canton of Zürich)',
+      change: 'now_passes',
+      subject: 'Bagno 1.01',
+      before: { status: 'fail', value: 0 },
+      after: { status: 'pass', value: 1, why: null },
+      comparison_text: 'at least',
+      limit: 1,
+      unit: 'window',
+      clause: clause('PBG § 302 Abs. 1'),
+    },
+    {
+      ev: 'ev_2',
+      rule_id: 'ch-zh-room-area',
+      title: 'A bedroom or living room is at least 10 m2 (canton of Zürich)',
+      change: 'newly_fails',
+      subject: 'Stanza 1.02',
+      before: { status: 'pass', value: 16.48 },
+      after: { status: 'fail', value: 8.9, why: null },
+      comparison_text: 'at least',
+      limit: 10,
+      unit: 'm2',
+      clause: clause(
+        'Planungs- und Baugesetz des Kantons Zürich (PBG, LS 700.1), § 303 Abs. 1',
+        'Wohn- und Schlafräume müssen eine Bodenfläche von mindestens 10 m² aufweisen.',
+        'Living rooms and bedrooms must have a floor area of at least 10 m².',
+      ),
+    },
+    {
+      ev: null,
+      rule_id: 'ch-zh-room-height',
+      title: 'A habitable room is at least 2.4 m high',
+      change: 'newly_cannot_tell',
+      subject: 'Storage',
+      before: { status: 'pass', value: null },
+      after: { status: 'cannot_tell', value: null, why: 'rooms of a kind we could not tell' },
+      comparison_text: 'at least',
+      limit: 2.4,
+      unit: 'm',
+      clause: clause('PBG § 304'),
+    },
+    {
+      ev: null,
+      rule_id: 'ch-zh-door-width',
+      title: 'An entrance door is at least 0.8 m wide',
+      change: 'still_fails',
+      subject: 'door D1',
+      before: { status: 'fail', value: 0.7 },
+      after: { status: 'fail', value: 0.7, why: null },
+      comparison_text: 'at least',
+      limit: 0.8,
+      unit: 'm',
+      clause: clause('BBV I § 34'),
+    },
+  ],
+  unchanged: 6,
+  ai_findings: [
+    {
+      clause_id: 'ch-zh-ls-700-1-305-1',
+      subject: 'Storage',
+      value: 3.4,
+      comparison: '>=',
+      limit: 4,
+      unit: 'm2',
+      verdict: 'would_not_meet',
+      ref: '§ 305 Abs. 1',
+      law: 'PBG',
+      url: 'https://example.org/305',
+      quote: 'Abstellräume …',
+      quote_en: 'Storage rooms …',
+      basis: 'ai_reading',
+    },
+  ],
+  related: [
+    related('ch-zh-ls-700-1-303-1', '§ 303 Abs. 1', 'Room areas (already a finding)'),
+    related('ch-zh-ls-700-1-305-1', '§ 305 Abs. 1', 'Storage (already an AI finding)'),
+    related('ch-zh-ls-700-1-302-2', '§ 302 Abs. 2', 'Daylight of habitable rooms'),
+    related('ch-zh-ls-700-1-306-1', '§ 306 Abs. 1', 'Kitchens'),
+    related('ch-zh-ls-700-1-307-1', '§ 307 Abs. 1', 'Ventilation of wet rooms'),
+    related('ch-zh-ls-700-1-308-1', '§ 308 Abs. 1', 'Stairs'),
+  ],
+  note: 'A pre-check of 2 rules from Canton of Zürich building act, not a permit check. Structure, fire safety, escape routes and services are not checked.',
+};
+
+/** The storage room of AC-18 on a ch-zh project: the law section with every kind, its ev mark among the sources. */
+export const lawRoomTurn: ChatTurn = {
+  ...roomTurn,
+  text: "Stanza 1.02 would be 8.9 m²; Zürich's rule asks at least 10 m² for a bedroom or living room [1].",
+  evidence: [
+    {
+      n: 1,
+      id: 'ev_2',
+      drawing_id: DID,
+      name: 'Drawn plan 1',
+      page: 1,
+      box: [0.55, 0.3, 0.7, 0.4],
+      label: 'Stanza 1.02',
+      sure: true,
+      level: null,
+    },
+  ],
+  edit: { ...(roomTurn.edit as Proposal), law: lawZh },
+};
+
+/** The same with no country picked: `law` null (LC-14). */
+export const noPackRoomTurn: ChatTurn = {
+  ...roomTurn,
+  edit: { ...(roomTurn.edit as Proposal), law: null },
 };

@@ -39,6 +39,12 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   // The drawings' own suggestions, for the starter and follow-up chips; failures leave fewer (or none).
   const [lists, setLists] = useState<Suggestion[][]>([]);
   const openAsk = query?.get('ask')?.trim() ?? '';
+  const pack = query?.get('pack') ?? null;
+  // Read at send time: a new country must not re-run the open effect (it would ask ?ask= again).
+  const packNow = useRef(pack);
+  useEffect(() => {
+    packNow.current = pack;
+  }, [pack]);
   const [pointed, setPointed] = useState<Pointed[]>([]);
   const [pointing, setPointing] = useState(false);
   const chatId = useRef<string | undefined>(undefined);
@@ -58,6 +64,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         ...(chatId.current ? { chat_id: chatId.current } : {}),
         message: row.message,
         ...(selection.length ? { selection } : {}),
+        ...(packNow.current ? { pack: packNow.current } : {}), // LC-11: the country picker's rule pack, as the checks screen sends it
       }).then(
         (turn) => {
           chatId.current = turn.chat_id;
@@ -177,7 +184,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           turn={r.turn}
           projectId={projectId}
           project={project}
-          pack={query?.get('pack') ?? null}
+          pack={pack}
           busy={busy}
           onAsk={ask}
         />

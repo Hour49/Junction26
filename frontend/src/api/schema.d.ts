@@ -858,6 +858,8 @@ export interface components {
             chat_id?: string | null;
             /** Message */
             message: string;
+            /** Pack */
+            pack?: string | null;
             /** Selection */
             selection?: components["schemas"]["Selection"][];
         };

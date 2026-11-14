@@ -34,6 +34,7 @@ from app.adapters.pipeline_tools import (
     _tool,  # pyright: ignore[reportPrivateUsage]
     _why,  # pyright: ignore[reportPrivateUsage]
 )
+from app.core.checks.model import RulePack
 from app.core.drawing.model import Room
 from app.core.errors import DomainError
 from app.core.plan_edit.edit import EditRefusedError, place_room, remove_wall
@@ -51,6 +52,7 @@ class PlanStore:
     pipeline: PipelineStore
     selections: dict[str, Selection] = field(default_factory=dict[str, Selection])
     proposals: list[Proposal] = field(default_factory=list[Proposal])
+    pack: RulePack | None = None  # the rule pack proposals are checked against (LC-6); None: none
 
     @classmethod
     def of_app(

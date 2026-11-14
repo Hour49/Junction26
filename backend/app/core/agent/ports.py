@@ -4,7 +4,7 @@ app/core/spend.py's `SpendGuard`."""
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from app.core.plan_edit.model import Selection
+from app.core.plan_edit.model import Proposal, Selection
 
 Json = dict[str, Any]
 
@@ -39,6 +39,10 @@ class Toolbox(Protocol):
     def tools(self) -> list[Json]: ...
 
     def run(self, name: str, arguments: str) -> str: ...
+
+    def proposal(self, proposal_id: str) -> Proposal | None:
+        """The full proposal a plan tool made this turn (its law check included), or None."""
+        ...
 
     def describe(self, selection: Selection) -> str:
         """The one line the model reads for a selection (AC-12), from geometry."""

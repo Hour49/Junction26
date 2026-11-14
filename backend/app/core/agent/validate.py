@@ -3,7 +3,7 @@ when every evidence id, number and proposal in it came from this turn's tool res
 
 import re
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -16,12 +16,25 @@ _IDS = re.compile(r"\[\d+\]|\b[A-Za-z]+_?\d+\b")
 FAILED = frozenset({"error", "refused", "cannot_edit", "unknown"})
 
 
+class LawNoteArgs(Frozen):
+    """The model's reading of one clause against the proposal (LC-9a); the server checks it."""
+
+    clause_id: str = Field(min_length=1, max_length=80)
+    subject: str = Field(min_length=1, max_length=120, description="the changed room or door")
+    value: float = Field(description="the room's or door's number after the change, from a tool")
+    comparison: Literal[">=", ">", "<=", "<", "="]
+    limit: float = Field(description="the clause's limit, as its `limits` give it")
+    unit: str = Field(min_length=1, max_length=16)
+    verdict: Literal["would_not_meet", "meets", "check"]
+
+
 class FinalAnswer(Frozen):
     kind: TurnKind
     text: str = Field(min_length=1, max_length=1200)
     evidence_ids: tuple[str, ...] = Field(default=(), max_length=12)
     options: tuple[Option, ...] | None = Field(default=None, max_length=4)
     proposal_id: str | None = Field(default=None, max_length=16)
+    law_notes: tuple[LawNoteArgs, ...] = Field(default=(), max_length=8)
 
 
 def _final_answer_tool() -> dict[str, Any]:
@@ -39,7 +52,9 @@ def _final_answer_tool() -> dict[str, Any]:
                 "send next, on any kind, only as follow-ups to this question (the rooms to choose "
                 "from, or a rephrased question a tool said it can answer); none when there is no "
                 "such follow-up. "
-                "Cite places as [ev_<k>] in text and list them in evidence_ids."
+                "Cite places as [ev_<k>] in text and list them in evidence_ids. law_notes (edit "
+                "with a law check only): related clauses whose limits apply to a changed room or "
+                "door, with the clause's own limit and a value a tool returned."
             ),
             "parameters": schema,
         },

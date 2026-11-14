@@ -22,9 +22,9 @@ afterEach(() => {
   cleanup();
 });
 
-function open(chat: unknown) {
+function open(chat: unknown, query?: string) {
   const api = mockApi({ [`GET /api/projects/${PID}`]: project, ...drawings, [CHAT]: chat });
-  render(<AgentChat projectId={PID} />);
+  render(<AgentChat projectId={PID} query={new URLSearchParams(query)} />);
   return api;
 }
 
@@ -130,4 +130,20 @@ it('CH-45 follow-up chips after an answer (questions not asked yet); none after 
   await send('Is that wall load-bearing?');
   await screen.findByText("I don't know.");
   expect(screen.queryByRole('group', { name: 'Follow-up questions' })).toBeNull();
+});
+
+it("LC-11 every turn sends the route's ?pack=; none without one", async () => {
+  const api = open(answerTurn, 'pack=ch-zh');
+  await send('Put a storage room here');
+  await screen.findByText(/is 7.56 m²/);
+  await send('And now?');
+  await waitFor(() => {
+    expect(posts(api)).toHaveLength(2);
+  });
+  expect(posts(api).map((b) => b.pack)).toEqual(['ch-zh', 'ch-zh']);
+  cleanup();
+  const bare = open(answerTurn);
+  await send('Put a storage room here');
+  await screen.findByText(/is 7.56 m²/);
+  expect(posts(bare)[0]).not.toHaveProperty('pack');
 });

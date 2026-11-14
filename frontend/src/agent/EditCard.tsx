@@ -9,8 +9,11 @@ import {
   extentOf,
   pointsOf,
   zoomFor,
+  type Evidence,
+  type Point,
   type Proposal,
 } from './agent';
+import { LawSection } from './LawSection';
 
 type PageLoad =
   { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
@@ -96,7 +99,34 @@ function Overlay({ p, hatch }: { p: Proposal; hatch: string }) {
 }
 
 /** The plan with the proposal drawn on it (AC-32): Before hides the overlay. */
-function EditPlan({ p, projectId }: { p: Proposal; projectId: string }) {
+/** Where a law finding's subject is (LC-15): its ev mark, else the proposal's room that names it. */
+export function placeOf(
+  p: Proposal,
+  evidence: Evidence[],
+  subject: string,
+  ev?: string | null,
+): Point[] | null {
+  const mark = ev ? evidence.find((e) => e.id === ev) : undefined;
+  if (mark) {
+    const [x0, y0, x1, y1] = mark.box;
+    return [
+      [x0, y0],
+      [x1, y0],
+      [x1, y1],
+      [x0, y1],
+    ];
+  }
+  const room =
+    p.rooms.find((r) => r.label === subject) ?? p.rooms.find((r) => r.label.includes(subject));
+  return room ? room.polygon : null;
+}
+
+function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: Point[] | null }) {
+  const fig = useRef<HTMLElement>(null);
+  // LC-15: a picked subject may be far below the plan (phone): bring the plan into view.
+  useEffect(() => {
+    if (hot) fig.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [hot]);
   const [load, setLoad] = useState<PageLoad>({ state: 'loading' });
   const [after, setAfter] = useState(true);
   const hatch = `ag-hatch-${useId().replace(/[^\w-]/g, '')}`;
@@ -132,7 +162,7 @@ function EditPlan({ p, projectId }: { p: Proposal; projectId: string }) {
   }, [p.drawing_id, p.page, projectId]);
 
   return (
-    <figure className="ag-plan" aria-label="Proposed plan">
+    <figure className="ag-plan" aria-label="Proposed plan" ref={fig}>
       {/* The legend's hatch, in px. */}
       <svg width="0" height="0" className="ag-defs" aria-hidden="true">
         <defs>
@@ -184,6 +214,20 @@ function EditPlan({ p, projectId }: { p: Proposal; projectId: string }) {
             page={p.page}
           >
             {after && <Overlay p={p} hatch={hatch} />}
+            {hot && (
+              <svg
+                className="vw-overlay ag-overlay"
+                viewBox="0 0 1 1"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <polygon
+                  className="ag-hot"
+                  points={pointsOf(hot)}
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            )}
           </PageFrame>
         </div>
       )}
@@ -210,10 +254,13 @@ export function EditCard(props: {
   proposal: Proposal;
   projectId: string;
   chatId: string;
+  /** The turn's sources: a law finding's `ev` mark is one of them (LC-15). */
+  evidence?: Evidence[];
   onDecided?: (p: Proposal) => void;
 }) {
   const { projectId, chatId, onDecided } = props;
   const [p, setP] = useState(props.proposal);
+  const [hot, setHot] = useState<Point[] | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const decide = (action: 'accept' | 'reject') => {
@@ -233,7 +280,7 @@ export function EditCard(props: {
   };
   return (
     <div className="ag-edit">
-      <EditPlan p={p} projectId={projectId} />
+      <EditPlan p={p} projectId={projectId} hot={hot} />
       <div className="ag-side">
         <h4 className="en-label">Changes</h4>
         <ul className="ag-changes">
@@ -241,6 +288,12 @@ export function EditCard(props: {
             <li key={l}>{l}</li>
           ))}
         </ul>
+        <LawSection
+          law={p.law}
+          onPick={(subject, ev) => {
+            setHot(placeOf(p, props.evidence ?? [], subject, ev));
+          }}
+        />
         {p.unknowns.length > 0 && (
           <>
             <h4 className="en-label">Not known</h4>

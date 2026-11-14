@@ -1,6 +1,8 @@
 """One chat turn (spec AC-1..AC-7): model step → its tool calls → their results → next step, until
 a valid `final_answer`, or a cap ends it as `dont_know` with the reason in plain words."""
 
+import contextlib
+import importlib
 import json
 import re
 import time
@@ -10,11 +12,13 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from app.core.agent import law
 from app.core.agent.evidence import mint
 from app.core.agent.model import Caps, Chat, ChatEvidence, ChatTurn, Json, Level, Step, TurnKind
 from app.core.agent.ports import ChatModel, ChatModelError, Toolbox
 from app.core.agent.prompt import SYSTEM
-from app.core.agent.validate import FINAL_ANSWER_TOOL, FinalAnswer, failed, problems
+from app.core.agent.validate import FINAL_ANSWER_TOOL, FinalAnswer, failed, numbers, problems
+from app.core.laws.model import ClauseView
 from app.core.plan_edit.model import Proposal, Selection
 from app.core.spend import SpendGuard
 
@@ -100,6 +104,10 @@ class _Run:
         self.cost = 0.0
         self.refused = 0
         self.asked: list[tuple[set[str], Json]] = []  # ask_drawings results: their ev ids, as given
+        self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
+        self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
+        self.searched: set[str] = set()  # clause ids search_law returned this turn
+        self.kept: dict[str, tuple[Any, ...]] = {}  # proposal id -> AiFindings the server kept
 
     def turn(self, message: str, selection: Sequence[Selection]) -> ChatTurn:
         chat = self.chat
@@ -192,15 +200,86 @@ class _Run:
             )
         except ValidationError as error:
             answer, wrong = None, [f"bad final_answer arguments: {error.errors()[0]['msg']}"]
-        if not wrong:
+        soft, fixed = self._law(answer) if answer is not None else ([], None)
+        if not wrong and not soft:
             self._reply(call, json.dumps({"ok": True}))
             return answer
         self.refused += 1
         if self.refused >= 2:
-            self._reply(call, _error("; ".join(wrong)))
-            raise _EndedError(UNBACKED)
-        self._reply(call, _error("final_answer refused: " + "; ".join(wrong) + ". Fix it."))
+            if wrong or fixed is None:
+                self._reply(call, _error("; ".join(wrong)))
+                raise _EndedError(UNBACKED)
+            self._reply(call, json.dumps({"ok": True, "fixed_by_server": soft}))
+            return fixed  # wording and law naming never end an edit as dont_know (LC-8)
+        self._reply(call, _error("final_answer refused: " + "; ".join(wrong + soft) + ". Fix it."))
         return None
+
+    def _law(self, answer: FinalAnswer) -> tuple[list[str], FinalAnswer]:
+        """What the answer gets wrong about building rules (LC-8, LC-9b/c), each a sentence for
+        the retry, and the answer as the server fixes it after the retry: banned sentences
+        removed, failing rules the text does not name summed up in one appended sentence."""
+        soft: list[str] = []
+        text = answer.text
+        if words := law.banned(text):
+            soft.append(f"never write {', '.join(words)}: say 'would not meet' or 'meets'")
+            text = law.without_banned(text)
+        checked = self.laws.get(answer.proposal_id or "") if answer.kind == "edit" else None
+        failing = law.newly_failing(checked)
+        uncited = law.uncited(checked, answer.text)
+        if uncited:
+            evs = ", ".join(str(f.get("ev")) for f in uncited if f.get("ev"))
+            soft.append(f"cite the rule(s) this change would newly not meet ({evs})")
+        kept, dropped = self._notes(answer)
+        soft += dropped
+        breaking = [k for k in kept if k.verdict == "would_not_meet"]
+        unnamed = [k.ref for k in breaking if k.ref not in answer.text]
+        if unnamed:
+            soft.append(
+                f"name the clause(s) the change would not meet by ref: {'; '.join(unnamed)}"
+            )
+        self.kept[answer.proposal_id or ""] = tuple(kept)
+        if uncited or unnamed:
+            name = str((checked or {}).get("pack_name") or "the chosen country's rules")
+            text = law.appended(text, len(failing) + len(breaking), name)
+        return soft, answer.model_copy(update={"text": text})
+
+    def _notes(self, answer: FinalAnswer) -> tuple[list[Any], list[str]]:
+        """The answer's law_notes the server keeps (as AiFindings) and why each other was dropped
+        (LC-9b, law-kb's validate_law_note)."""
+        if not answer.law_notes:
+            return [], []
+        law_check = getattr(self.proposals.get(answer.proposal_id or ""), "law", None)
+        if answer.kind != "edit" or law_check is None:
+            return [], ["law_notes go only with an edit whose proposal has a law check"]
+        # shortcut: imported by name until law-kb's law_check.py is merged (then a plain import)
+        checking: Any = importlib.import_module("app.core.plan_edit.law_check")
+        clauses = self._clause_views(law_check, {note.clause_id for note in answer.law_notes})
+        values = [float(number) for number in numbers(self.sources)]
+        kept: list[Any] = []
+        dropped: list[str] = []
+        for note in answer.law_notes:
+            given = checking.LawNote.model_validate(note.model_dump())
+            found = checking.validate_law_note(given, law_check, clauses, values)
+            if found is None:
+                dropped.append(
+                    f"law_note {note.clause_id} on {note.subject} dropped: its clause, limit, "
+                    "value or verdict does not match this turn's tool results"
+                )
+            else:
+                kept.append(found)
+        return kept, dropped
+
+    def _clause_views(self, law_check: Any, cited: set[str]) -> dict[str, ClauseView]:
+        """Every clause of this turn by id: the law check's related ones, get_clause results,
+        and a search_law hit a note cites, fetched with get_clause (not a step)."""
+        found: dict[str, ClauseView] = {c.id: c for c in law_check.related}
+        for clause_id in cited & self.searched - set(self.clauses) - set(found):
+            self._law_results("get_clause", self.toolbox.run("get_clause", json.dumps(
+                {"clause_id": clause_id})))  # fmt: skip
+        for clause_id, given in self.clauses.items():
+            with contextlib.suppress(ValidationError):  # not a clause: no note stands on it
+                found.setdefault(clause_id, ClauseView.model_validate(given))
+        return found
 
     def _tool(self, call: Json, name: str, arguments: str) -> None:
         start = self.clock()
@@ -216,11 +295,16 @@ class _Run:
             self.asked.append((set(self.ledger) - before, json.loads(out)))
         proposal: Any = found.get("proposal") if isinstance(found, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         if isinstance(proposal, dict) and "proposal_id" in proposal:
-            try:
-                made = Proposal.model_validate(proposal)
+            made = self.toolbox.proposal(str(proposal["proposal_id"]))  # pyright: ignore[reportUnknownArgumentType]
+            try:  # the plan tools' own, law included; else as the result gives it
+                made = made or Proposal.model_validate(proposal)
                 self.proposals[made.proposal_id] = made
             except ValidationError:
                 pass  # not a proposal the server can show: final_answer cannot name it
+            checked: Any = found.get("law")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            if isinstance(checked, dict):
+                self.laws[str(proposal["proposal_id"])] = checked  # pyright: ignore[reportUnknownArgumentType]
+        self._law_results(name, out)
         text = out if isinstance(found, str) else json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
         self.failures.append(failed(found))
@@ -230,6 +314,19 @@ class _Run:
         self.steps.append(Step(n=len(self.steps) + 1, tool=name, label=self._label(name, arguments),
                                status=status, ms=ms))  # fmt: skip
         self._reply(call, text if isinstance(found, str) else _for_model(found))
+
+    def _law_results(self, name: str, out: str) -> None:
+        """The clauses this turn's law tools returned, as they returned them (LC-9b)."""
+        try:
+            found: Any = json.loads(out)
+        except json.JSONDecodeError:
+            return
+        if name == "get_clause" and isinstance(found, dict) and "id" in found:
+            self.clauses[str(found["id"])] = found  # pyright: ignore[reportUnknownArgumentType]
+        if name == "search_law" and isinstance(found, dict):
+            hits: list[Any] = found.get("hits") or []  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            found_ids: list[Any] = [hit.get("id") for hit in hits if isinstance(hit, dict)]  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            self.searched |= {str(found_id) for found_id in found_ids if found_id}
 
     def _reply(self, call: Json, content: str) -> None:
         self.chat.messages.append({"role": "tool", "tool_call_id": call.get("id", ""),
@@ -276,13 +373,25 @@ class _Run:
             kind=kind,
             text=text,
             evidence=tuple(self._evidence(n, ev) for ev, n in number.items()),
-            edit=self.proposals.get(answer.proposal_id or "") if kind == "edit" else None,
+            edit=self._edit(answer.proposal_id) if kind == "edit" else None,
             options=answer.options,
             steps=tuple(self.steps),
             model=self.model.name,
             cost_usd=round(self.cost, 6),
             latency_s=round(self.clock() - self.started, 3),
             answers=self._answers(set(cited), kind),
+        )
+
+    def _edit(self, proposal_id: str | None) -> Proposal | None:
+        """The proposal the answer names, its law check with the AI findings the server kept."""
+        made = self.proposals.get(proposal_id or "")
+        kept = self.kept.get(proposal_id or "")
+        law_check = getattr(made, "law", None)
+        if made is None or not kept or law_check is None:
+            return made
+        findings = (*law_check.ai_findings, *kept)
+        return made.model_copy(
+            update={"law": law_check.model_copy(update={"ai_findings": findings})}
         )
 
     def _files(self) -> set[tuple[str, str]]:

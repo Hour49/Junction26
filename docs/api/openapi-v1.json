@@ -751,6 +751,19 @@
             "title": "Message",
             "type": "string"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack"
+          },
           "selection": {
             "items": {
               "$ref": "#/components/schemas/Selection"

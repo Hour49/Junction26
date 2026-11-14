@@ -164,6 +164,7 @@ export function TurnCard(props: {
           proposal={turn.edit}
           projectId={projectId}
           chatId={turn.chat_id}
+          evidence={turn.evidence}
           onDecided={props.onDecided}
         />
       )}

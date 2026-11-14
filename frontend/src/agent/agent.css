@@ -261,3 +261,102 @@
   box-shadow: none;
   border: 1px solid var(--v-line);
 }
+
+/* Building rules on the edit card (plan-edit-law-check.md LC-12 to LC-16): status by icon and word, never colour
+   alone; rows stack (status + title, values, clause) and wrap at any width. */
+.ag-law {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--v-line);
+}
+.ag-law-h {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ag-law-rows,
+.ag-law-related {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ag-law-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--v-fill);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.ag-law-row p,
+.ag-law-related li {
+  margin: 0;
+}
+.ag-law-head {
+  font-weight: 600;
+}
+.ag-law-status {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.ag-law-status--fail {
+  color: var(--v-danger);
+}
+.ag-law-status--unclear {
+  color: var(--v-warn);
+}
+.ag-law-status--pass {
+  color: var(--v-ok);
+}
+.ag-law-values {
+  font-variant-numeric: tabular-nums;
+}
+.ag-law-limit {
+  color: var(--v-text-2);
+}
+.ag-law-subject {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--v-accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.ag-law-clause a,
+.ag-law-related a,
+.ag-law-title a {
+  color: var(--v-accent);
+}
+.ag-law-quote summary {
+  cursor: pointer;
+  color: var(--v-text-2);
+  font-size: 13px;
+}
+.ag-law-quote blockquote {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--v-line);
+}
+.ag-law-quote p {
+  margin: 4px 0 0;
+}
+.ag-law-pick {
+  align-self: flex-start;
+}
+/* The subject a law row points at: a thick accent outline over the plan. */
+.ag-hot {
+  fill: var(--v-accent);
+  fill-opacity: 0.12;
+  stroke: var(--v-accent);
+  stroke-width: 4px;
+}

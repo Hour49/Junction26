@@ -183,3 +183,23 @@ def test_ac13_the_law_tools_are_offered_when_the_app_has_laws(client: TestClient
         tool["function"]["name"] for tool in project_toolbox(app, sample(client), [], {}).tools
     }
     assert {"search_law", "get_clause"} <= tools
+
+
+def test_lc6_an_unknown_pack_is_422(client: TestClient) -> None:
+    project = sample(client)
+    response = client.post(f"/api/projects/{project}/chat", json={"message": "hi", "pack": "xx"})
+    assert response.status_code == 422 and "xx" in response.json()["detail"]
+
+
+def test_lc6_a_known_pack_reaches_the_plan_tools_and_none_works_as_before(
+    client: TestClient,
+) -> None:
+    project = sample(client)
+    assert ask(client, project, "How many doors are there?", pack="fi")["kind"] == "answer"
+    assert ask(client, project, "How many doors are there?")["kind"] == "answer"
+    app: Any = client.app
+    fi = next(pack for pack in app.state.rule_packs if pack.id == "fi")
+    toolbox = project_toolbox(app, project, [], {}, fi)
+    runner: Any = toolbox._runners["propose_room"]  # pyright: ignore[reportPrivateUsage]
+    store = runner.args[0]  # the PlanStore the plan tools run on
+    assert store.pack == fi

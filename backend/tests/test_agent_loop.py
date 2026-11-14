@@ -9,7 +9,7 @@ from app.core.agent.loop import NUDGE, STOPS, UNBACKED, run_turn
 from app.core.agent.model import Caps, Chat, ChatTurn
 from app.core.agent.ports import ChatModelError, Reply
 from app.core.agent.prompt import SYSTEM
-from app.core.plan_edit.model import Selection
+from app.core.plan_edit.model import Proposal, Selection
 from app.core.spend import SpendGuard
 
 Json = dict[str, Any]
@@ -83,6 +83,9 @@ class Tools:
         self.ran.append((name, arguments))
         found = self.results.get(name, {"error": f"unknown tool {name}"})
         return found if isinstance(found, str) else json.dumps(found)
+
+    def proposal(self, proposal_id: str) -> Proposal | None:
+        return None
 
     def describe(self, selection: Selection) -> str:
         return f"{selection.id}: room {selection.ref}"

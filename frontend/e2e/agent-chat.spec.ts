@@ -93,3 +93,40 @@ test('AC-32 AC-35: removing the wall between two rooms gives an edit card that c
   await shot(page, testInfo, 'agent-accepted', offline);
   expect(errors).toEqual([]);
 });
+
+// The walled sheet (backend/tests/swiss_walls.py) in page fractions of its 600 × 400 pt page: Stanza 1.02 spans
+// x 0.314..0.498, y 0.25..0.463 (3.89 × 3 m, 11.66 m²). This box takes about 4.7 m² of it, leaving ~7 m² < 10 m².
+const STORAGE_BOX = { x0: 0.41, y0: 0.27, x1: 0.49, y1: 0.45 };
+
+test('LC-11 LC-12: a storage room boxed into Stanza 1.02 under Zürich rules shows "Would not meet"', async ({
+  page,
+}, testInfo) => {
+  const errors = watchErrors(page);
+  const offline = await noKeys(page);
+  const id = await uploaded(page, 'walled-flat.pdf', walledFlat(testInfo.config.rootDir));
+  await page.goto(`/#/p/${id}/chat?pack=ch-zh`);
+  await page.getByRole('button', { name: 'Point at the plan' }).click();
+  const frame = page.getByRole('region', { name: 'Point at the plan' }).locator('.vw-frame');
+  await expect(frame.locator('img')).toBeVisible();
+  const r = await frame.boundingBox();
+  if (!r) throw new Error('no page frame');
+  // A mouse drag on every project (a moving touch pans the viewer).
+  await page.mouse.move(r.x + STORAGE_BOX.x0 * r.width, r.y + STORAGE_BOX.y0 * r.height);
+  await page.mouse.down();
+  await page.mouse.move(r.x + STORAGE_BOX.x1 * r.width, r.y + STORAGE_BOX.y1 * r.height, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  await expect(page.getByText(/^Area on .+, page 1$/)).toBeVisible();
+  const turn = await ask(page, 'Put a storage room here');
+  const card = turn.locator('.ag-card--edit');
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  const law = card.getByRole('region', { name: /^Building rules · / });
+  await expect(law).toContainText('Canton of Zürich');
+  const fail = law.getByRole('listitem').filter({ hasText: 'Would not meet' }).first();
+  await expect(fail).toContainText('Stanza 1.02');
+  await expect(fail.getByRole('link').first()).toHaveAttribute('target', '_blank');
+  await expect(law).toContainText('not a permit check');
+  await shot(page, testInfo, 'agent-law', offline);
+  expect(errors).toEqual([]);
+});

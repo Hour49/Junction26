@@ -11,6 +11,7 @@ from typing import Any
 
 from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
+from app.core.checks.model import RulePack
 from app.core.plan_edit.model import Proposal, Selection
 
 log = logging.getLogger(__name__)
@@ -19,10 +20,19 @@ Runner = Callable[[str, str], str]  # (tool name, arguments JSON) -> result JSON
 
 
 class AgentToolbox:
-    def __init__(self, sets: list[tuple[list[Json], Runner]], describe: Callable[[Selection], str]):
+    def __init__(
+        self,
+        sets: list[tuple[list[Json], Runner]],
+        describe: Callable[[Selection], str],
+        made: Callable[[], list[Proposal]] = list,
+    ):
         self._runners = {tool["function"]["name"]: run for tools, run in sets for tool in tools}
         self._tools = [tool for tools, _ in sets for tool in tools]
         self._describe = describe
+        self._made = made  # the proposals the plan tools hold, law checks included
+
+    def proposal(self, proposal_id: str) -> Proposal | None:
+        return next((p for p in self._made() if p.proposal_id == proposal_id), None)
 
     @property
     def tools(self) -> list[Json]:
@@ -43,21 +53,28 @@ class AgentToolbox:
 
 
 def project_toolbox(
-    app: Any, project_id: str, selection: list[Selection], proposals: dict[str, Proposal]
+    app: Any,
+    project_id: str,
+    selection: list[Selection],
+    proposals: dict[str, Proposal],
+    pack: RulePack | None = None,
 ) -> AgentToolbox:
     """The tools of `project_id` in `app` (create_app()'s state). `proposals`: the chat's
-    proposals so far, so the plan tools number new ones after them."""
+    proposals so far, so the plan tools number new ones after them. `pack`: the rule pack this
+    turn's plan edits are checked against (LC-6), None: not checked."""
     pipeline = PipelineStore.of_app(app, project_id)
     sets: list[tuple[list[Json], Runner]] = [(PIPELINE_TOOLS, partial(run_pipeline_tool, pipeline))]
     describe: Callable[[Selection], str] = _plain
+    made: Callable[[], list[Proposal]] = list
     try:
         from app.adapters.plan_tools import PLAN_TOOLS, PlanStore, run_plan_tool
     except ImportError:
         pass
     else:
-        plans = PlanStore(pipeline, {s.id: s for s in selection}, list(proposals.values()))
+        plans = PlanStore(pipeline, {s.id: s for s in selection}, list(proposals.values()), pack)
         sets.append((PLAN_TOOLS, partial(run_plan_tool, plans)))
         describe = plans.describe
+        made = lambda: plans.proposals  # noqa: E731
     evidence = getattr(app.state, "evidence", None)  # EvidenceIndexes (decision 0012)
     if evidence is not None:
         index = evidence.evidence_index(project_id)
@@ -70,7 +87,7 @@ def project_toolbox(
             pass
         else:
             sets.append((TOOLS, partial(run_tool, laws)))  # pyright: ignore
-    return AgentToolbox(sets, describe)
+    return AgentToolbox(sets, describe, made)
 
 
 def _plain(selection: Selection) -> str:
