@@ -3,8 +3,8 @@
 A Cloudflare Worker (`src/index.js`, `src/gate.js`) in front of the real app. Bogdan's design (2026-11-14): anyone
 with the shared access code gets the app, everyone else gets the HTML demo.
 
-- No valid cookie: the HTML demo from `assets/` (built by `build-assets.sh`: `demo/vellum` at `/`, the older mock at
-  `/mock`) and a small "Have an access code?" form. `/api/*` answers 401.
+- No valid cookie: the HTML mock from `assets/` (built by `build-assets.sh` from the synthetic `demo/` page) and a
+  small "Have an access code?" form. `/api/*` answers 401.
 - `POST /__unlock` with the right code (secret `ACCESS_CODE`, compared as SHA-256 digests in constant time) sets
   `h49_gate`: an HMAC-signed value with a 24 h expiry (key: secret `COOKIE_KEY`), HttpOnly, Secure, SameSite=Lax, and
   redirects to `/`. `/__lock` clears it.
@@ -35,8 +35,8 @@ Tests: `cd site && npm test` (Node's test runner, no dependencies). To run it lo
 
 Build and deploy: `./build-assets.sh`, then `npx wrangler@4.161.0 deploy --secrets-file <file>` (the five secrets as
 JSON in a file outside the repo, readable only by you, deleted after; never in this folder); the steps are in
-`.agents/deploy/RUNBOOK.md` (local, gitignored). `build-assets.sh` refuses
-partner data: the Stoa scans (`demo/vellum/stoa/archive`) stop it, and the one Swiss Dwellings floor in
-`demo/vellum/stoa` goes in only with `INCLUDE_STOA_FLOOR=1`, because its answer key comes from Stoa's questions file.
+`.agents/deploy/RUNBOOK.md` (local, gitignored). `build-assets.sh` copies only the
+three tracked files of `demo/` and the favicon; nothing from `demo/vellum`, whose start page is built from the Stoa
+dataset (partner data).
 
 `public/` is the earlier static placeholder page, kept for reference; the Worker does not serve it.
