@@ -8,10 +8,13 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
+from test_answering import NoPrior
 
 from app.adapters.printed_scale import PrintedScale, stated_dpi
 from app.adapters.raster_scale import PriorScale
 from app.composition import build_ingest
+from app.core.answering.answer import answer_question
+from app.core.answering.model import Answer, Query, Question, Unsupported
 from app.core.drawing.model import Drawing, Element, Page, Room, Scale
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
@@ -25,10 +28,16 @@ from app.core.pipeline.printed import (
     ratio_of,
     trusted_dpi,
 )
-from app.core.pipeline.raster_scale import DOOR_M
+from app.core.pipeline.raster_scale import (
+    BOX_RATIO,
+    DOOR_M,
+    LABEL_NOTE,
+    LABEL_RANGE,
+    label_area_checks,
+)
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, second_count
-from app.core.pipeline.takeoff import take_off
+from app.core.pipeline.takeoff import known_quantities, take_off
 from app.settings import Settings
 
 PAGE = Page(page=1, width=2000, height=1000, unit="px")
@@ -321,6 +330,64 @@ def drawing_of(found: Extracted) -> Drawing:
         conflicts=tuple(second_count(measured(found), found.printed)),
         read=found.read,
     )
+
+
+def label_room(id_: str, box: tuple[float, float, float, float], printed: float) -> Room:
+    """A room as the Gemini room reader gives it with an area printed in its label."""
+    return Room(id=id_, type="other", label=f"{id_.upper()} {printed:g} m²", page=1, box=box,
+                area_m2=printed, area_status="exact", area_source="printed")  # fmt: skip
+
+
+class AreaOf:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def parse(self, text: str) -> Query | Unsupported:
+        return Query(measure="area", subject="room", name=self.name)
+
+
+def test_label_area_fixes_s1_a_label_area_far_from_its_outline_is_left_to_a_person() -> None:
+    """qa-c S1: "KH 97 m²" (its decimal comma lost) on a 3 x 3 m box at a printed scale came
+    out 97.0 exact. More than LABEL_RANGE from the outline, both values stand and no rule
+    decides; within it the label stands, and so does a label-sized box's."""
+    inner = Fixed(side_px=DOOR_M / 0.02)  # the doors agree with the bar: 0.02 m/px
+    kh = label_room("kh", (0.30, 0.10, 0.375, 0.25), 97.0)  # 150 x 150 px: 3 x 3 m
+    mh = label_room("mh", (0.40, 0.10, 0.475, 0.25), 8.0)  # the same box, a plausible label
+    lobby = label_room("lobby", (0.50, 0.10, 0.54, 0.115), 7.4)  # 0.3 m tall: boxes its label
+    inner.found = inner.found.model_copy(update={"rooms": (*inner.found.rooms, kh, mh, lobby)})
+    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+
+    outline = round(150 * 150 * 0.02**2 / BOX_RATIO, 2)
+    assert [(m.subject.ref, m.value.value, m.value.method) for m in found.printed
+            if m.quantity == "room_area"] == [("kh", 97.0, "printed_label"),
+                                              ("kh", outline, "detector")]  # fmt: skip
+    said = [note for note in found.notes if note.startswith(LABEL_NOTE)]
+    assert said == [  # once: the door estimate's check is replaced by the printed scale's
+        f"{LABEL_NOTE}kh prints 97 m², its outline at the sheet's scale is about 8.15 m² (more "
+        f"than {LABEL_RANGE:g}x apart): left for a person"
+    ]
+    drawing = drawing_of(found)
+    (entry,) = [c for c in drawing.conflicts or () if c.quantity == "room_area"]
+    assert (entry.status, entry.resolution) == ("conflict", None)
+
+    def ask(name: str) -> Answer:
+        question = Question(id=1, file=FILE.path, text="How big is it?")
+        quantities = known_quantities(drawing)
+        return answer_question(question, quantities, AreaOf(name), iter(range(9)).__next__,
+                               NoPrior())  # fmt: skip
+
+    disputed = ask("kh 97 m²")
+    assert disputed.abstain is True and "no rule decides" in (disputed.explanation or "")
+    kept = ask("mh 8 m²")
+    assert (kept.answer, kept.abstain, kept.estimate) == (8.0, None, None)
+    # the level note: where the value was printed reaches the answer's explanation
+    assert kept.explanation == "printed in the room's label"
+    assert ask("lobby 7.4 m²").answer == 7.4
+
+
+def test_label_area_fixes_no_scale_no_check() -> None:
+    room = label_room("kh", (0.3, 0.1, 0.375, 0.25), 97.0)
+    assert label_area_checks([room], Scale(status="no_scale"), [PAGE]) == ([], [])
 
 
 def test_a_printed_count_stands_against_the_counted_one_and_never_replaces_it() -> None:
