@@ -90,7 +90,8 @@ Triage = {
   >= 99% (COMMON decision 2). A plan called "not a plan" would never be read, so that is the costly error.
 - A `floor_plan` goes on exactly as today: same kinds, routes and readers.
 - **A non-plan gets the existing state `set_aside`, with the reason**
-  `not a floor plan: <class words> (P(plan) 0.03, <method>)`. It is not given a new state.
+  `not a floor plan: <class words>` (P(plan) and the method are in `triage` and the identify line; plain words
+  on the file since R6, orchestrator 2026-11-14). It is not given a new state.
   - `set_aside` already means "kept in the project, shown with its reason and its preview, not read". The frontend
     switches on `FileState` with exhaustive maps (`STATE_LABEL: Record<FileState, …>` in
     `frontend/src/ingest/ingest.ts:69`, and `ProjectScreen.tsx`, `history.ts`, `advanced.ts`). A new state would
@@ -209,8 +210,11 @@ Overrule = { verdict: "related" | "unrelated", by: str, at: str }   # a person's
   reads that one file in the background through the usual group, route and readers; the project stays `done`.
   - `Triage.read_as_plan: {by, at} | null` records the call; `class` stays the classifier's. The file leaves
     `not_plans` (a class call; orchestrator, 2026-11-14), gets a `drawing_id` and is in `drawings`.
-  - Its `unrelated_file` issue stays, `settled`, same id, with "<by> had it read as a floor plan" in `why`; the
-    new drawing's own issues join the list and the others keep their order.
+  - Its `unrelated_file` issue stays, `settled`, same id and place, with "<by> had it read as a floor plan" in
+    `why` and, once read, the file's `drawing_id` (R6-a-4); the new drawing's own issues join the list and the
+    others keep their order.
+  - A reading that fails or a restart cuts off sets the file aside with why and clears `read_as_plan`: the file
+    is back to triage's call and can be asked again (R6-a-1, orchestrator 2026-11-14).
   - 404 unknown file; 409 `not-allowed` until done, while a re-read runs, or for a file already read this way; 422
     `not-triaged` for a file triage did not set aside (a new code); 422 `validation` for another `class`.
   - No undo: a reading is not unread. A relevance call still works.

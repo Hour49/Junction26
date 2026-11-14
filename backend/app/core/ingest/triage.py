@@ -106,7 +106,7 @@ def overruled(triage: Triage, overrule: Overrule | None) -> Triage:
     return Triage.model_validate({**triage.model_dump(), "overruled": overrule})
 
 
-def read_as_plan(triage: Triage, call: ReadAsPlan) -> Triage:
+def read_as_plan(triage: Triage, call: ReadAsPlan | None) -> Triage:
     return Triage.model_validate({**triage.model_dump(), "read_as_plan": call})
 
 
@@ -139,8 +139,9 @@ def kind_after(probed: Probed, triage: Triage | None, file_format: FileKind | No
 
 
 def set_aside_reason(triage: Triage) -> str:
-    """The file's reason; after "not a floor plan: " plain words, shown as they are."""
-    return f"not a floor plan: {_how(triage.class_, triage.p_plan, triage.method)}"
+    """The file's reason, in plain words shown as they are; P(plan) and the method are in the
+    triage itself and in the identify stage's line."""
+    return f"not a floor plan: {CLASS_WORDS[triage.class_]}"
 
 
 def _how(found: TriageClass, p_plan: float, method: str) -> str:

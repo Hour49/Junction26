@@ -928,7 +928,7 @@ called related by a person, a photo the describer refused):
       "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
       "kind": "png_plan",
       "state": "set_aside",
-      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover) (P(plan) 0.03, fake classifier)",
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)",
       "group": null,
       "route": null,
       "source": null,
@@ -978,7 +978,7 @@ called related by a person, a photo the describer refused):
       "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
       "kind": "photo",
       "state": "set_aside",
-      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)",
+      "reason": "not a floor plan: not a drawing",
       "group": null,
       "route": null,
       "source": null,
@@ -1025,7 +1025,7 @@ called related by a person, a photo the describer refused):
       "sha256": "735c66abcf63f04a3756987b74897e4c83b1e87d76245eeb806623045c2c55fd",
       "kind": "photo",
       "state": "set_aside",
-      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)",
+      "reason": "not a floor plan: not a drawing",
       "group": null,
       "route": null,
       "source": null,
@@ -1083,15 +1083,15 @@ called related by a person, a photo the describer refused):
   "skipped": [
     {
       "path": "elevations/south.png",
-      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover) (P(plan) 0.03, fake classifier)"
+      "reason": "not a floor plan: another kind of drawing (an elevation, section, site plan, detail or cover)"
     },
     {
       "path": "photos/site.jpg",
-      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)"
+      "reason": "not a floor plan: not a drawing"
     },
     {
       "path": "photos/street.jpg",
-      "reason": "not a floor plan: not a drawing (P(plan) 0.03, fake classifier)"
+      "reason": "not a floor plan: not a drawing"
     }
   ],
   "expected_drawings": 1,
@@ -1128,8 +1128,8 @@ with the file's `FileStatus`, `queued`; poll `GET /api/projects/{project_id}`: t
 project stays `done` throughout.
 
 - `triage.read_as_plan` = `{by, at}`; `class` stays the classifier's. The file leaves `not_plans`.
-- Its `unrelated_file` issue stays, `settled`, with the same id, and "<by> had it read as a floor plan" in `why`.
-  The new drawing's own issues (a reading flag, a conflict) join the list; the issues already there keep their
+- Its `unrelated_file` issue stays, `settled`, with the same id and place in the list, "<by> had it read as a
+  floor plan" in `why`, and once read the file's `drawing_id` and drawing links. The new drawing's own issues (a reading flag, a conflict) join the list; the issues already there keep their
   order.
 - The trace adds a second `identify` line, "read as a floor plan, as <by> asked", then the usual stages.
 - A photo is read as a photo of a plan (framed and rectified like one).
@@ -1137,8 +1137,11 @@ project stays `done` throughout.
 - 404 `not-found` for an unknown file; 409 `not-allowed` until the project is `done`, while a file of it is read
   again, or for a file already read this way; 422 `not-triaged` for a file triage did not set aside as not a floor
   plan; 422 `validation` for a `class` other than `floor_plan` or no `by`.
-- A file whose reading a restart cut off is set aside, "not read as a floor plan: the server restarted during
-  ingest"; the project stays `done`.
+- A reading that fails, or that a restart cut off, sets the file aside with why ("not read as a floor plan: the
+  server restarted while it was read as a floor plan", or the reader's error); the project stays `done`. The file
+  is back to triage's call: `read_as_plan` is null again, it is in `not_plans`, its `unrelated_file` issue is
+  `open` again, and it can be asked again (R6-a-1).
+- While it is read, the file's `reason` is "being read as a floor plan".
 
 <!-- fixture: triage_request.json -->
 ```json
@@ -6242,6 +6245,9 @@ formula in a spreadsheet.
   `ProjectView.not_plans` and `ProjectSummary.not_plans`, all left out of the JSON when triage is off (the
   default); `POST /api/projects/{project_id}/files/{file_id}/relevance`; the `unrelated_file` issues; a new error
   code `no-description` (422). No new `FileState` or `Stage`.
+- 2026-11-14, text and values (R6 qa-a): a triage set-aside `reason` is "not a floor plan: <class words>"
+  (P(plan) and the method are in `triage`); a settled `unrelated_file` issue of a file read as a floor plan has the
+  file's `drawing_id` and links (same id); a failed or cut re-read clears `read_as_plan`, so it can be asked again.
 - 2026-11-14, text only (QA R4-a-10): a file's `reason` and the route stage's `did` name the route in the words the
   screens use ("read on the drawn PDF route: …", "no reader for the image route yet", "BIM model route, read from
   …"; was "vector", "raster", "bim"), from `ROUTE_WORDS` in `app/core/wording.py`. The fields `route` and the route
