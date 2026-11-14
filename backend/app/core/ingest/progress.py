@@ -68,8 +68,11 @@ class Run:
         *,
         output: str = "",
         failure: str | None = None,
+        cost_usd: float = 0.0,
     ) -> None:
-        trace = StageTrace(stage=stage, did=did, ms=ms, output=output, failure=failure)
+        trace = StageTrace(
+            stage=stage, did=did, ms=ms, output=output, failure=failure, cost_usd=cost_usd
+        )
         self.add_stages(path, [trace])
 
     def add_stages(self, path: str, traces: list[StageTrace]) -> None:

@@ -14,6 +14,7 @@ import urllib.request
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol
 
+from app.core import cost
 from app.core.errors import InvalidInputError
 
 URL = "https://generativelanguage.googleapis.com/v1beta/decisions"
@@ -94,10 +95,11 @@ class DecisionsClient:
                 except json.JSONDecodeError:
                     raise DecisionsError("the answer is not JSON") from None
                 tokens = int(reply.get("usage", {}).get("total_input_tokens", 0))
+                usd = tokens * USD_PER_M_INPUT / 1e6
+                cost.charge(usd)  # recorded in the trace of the stage that called (R1b-4-2)
                 log.info(
                     "decisions: %s, %.2f s, %d input tokens, $%.6f, try %d",
-                    MODEL, time.monotonic() - start, tokens,
-                    tokens * USD_PER_M_INPUT / 1e6, attempt,
+                    MODEL, time.monotonic() - start, tokens, usd, attempt,
                 )  # fmt: skip
                 return reply
             if status in RETRY and attempt < TRIES:

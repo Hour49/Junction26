@@ -10,9 +10,10 @@ from conftest import plan_png, upload
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from PIL import Image
+from test_review_core import BOX_A, disputed, quantity
 from test_vector_pdf import swiss_sheet
 
-from app.api import projects
+from app.api import projects, takeoff
 from app.api.info import info
 from app.main import create_app
 from app.settings import Settings
@@ -392,20 +393,23 @@ def test_a_fresh_sample_resets_the_reviews_of_the_last_one(
     with zipfile.ZipFile(archive, "w") as files:
         files.writestr("plans/flat.pdf", plan_pdf)
     settings.sample_archive.write_bytes(archive.getvalue())
-    first = client.post("/api/projects/sample").json()
-    drawing_id = client.get(first["url"]).json()["drawings"][0]["drawing_id"]
-    client.post(f"/api/drawings/{drawing_id}/signoff", json={"quantity": "door", "by": "Ana"})
+    first = client.post("/api/projects/sample").json()["id"]
+    drawing_id = client.get(f"/api/projects/{first}").json()["drawings"][0]["drawing_id"]
+    sign = {"quantity": "door", "by": "Ana"}
+    client.post(f"/api/drawings/{drawing_id}/signoff", params={"project": first}, json=sign)
 
-    client.post("/api/projects/sample")  # not fresh: the sign-off stays
-    door = rows(client, drawing_id)["door"]
-    assert door["status"] == "signed"
-    again = client.post("/api/projects/sample", params={"fresh": True})
-    assert again.status_code == 202
-    assert rows(client, drawing_id)["door"]["status"] == "single"
+    again = client.post("/api/projects/sample").json()["id"]  # not fresh, a new project
+    assert rows(client, drawing_id, again)["door"]["status"] == "single"  # its own review
+    assert rows(client, drawing_id, first)["door"]["status"] == "signed"
+    client.post(f"/api/drawings/{drawing_id}/signoff", params={"project": again}, json=sign)
+    fresh = client.post("/api/projects/sample", params={"fresh": True})
+    assert fresh.status_code == 202
+    assert rows(client, drawing_id, again)["door"]["status"] == "single"  # the last one reset
+    assert rows(client, drawing_id, fresh.json()["id"])["door"]["status"] == "single"
 
 
-def rows(client: TestClient, drawing_id: str) -> dict[str, dict[str, object]]:
-    body = client.get(f"/api/drawings/{drawing_id}/takeoff").json()
+def rows(client: TestClient, drawing_id: str, project: str) -> dict[str, dict[str, object]]:
+    body = client.get(f"/api/drawings/{drawing_id}/takeoff", params={"project": project}).json()
     return {row["key"]: row for row in body["quantities"]}
 
 
@@ -426,7 +430,7 @@ def test_a_drawing_names_the_route_and_reader_it_was_read_with(
         "route": "vector",
         "source": "plan.pdf",
         "extractor": "pdf",
-        "second_counter": "ifc",
+        "second_counter": "pdf",
         "question_parser": "templates",
     }
 
@@ -498,7 +502,78 @@ def test_the_reader_names_a_second_counter_only_for_what_it_measured(
     png = drawing_of(plan_png(), "plan.png")
     assert (counter(png), counter(png, "How many doors are there?")) == ("none", "none")
     pdf = drawing_of(plan_pdf, "plan.pdf")  # its printed room areas are measured twice
-    assert counter(pdf) == "ifc"
-    assert counter(pdf, "What is the net floor area of room 2.01?") == "ifc"
+    # R2-qa4-1, R2-qa-1-2: the IFC counter passes a file that is no model on to the PDF
+    # counter, which measured it: the reader names that one
+    assert counter(pdf) == "pdf"
+    assert counter(pdf, "What is the net floor area of room 2.01?") == "pdf"
     assert counter(pdf, "How many doors are there?") == "none"  # one method
     assert counter(pdf, "What colour is the roof?") == "none"
+
+
+def test_review_edits_and_sign_offs_belong_to_the_project(client: TestClient) -> None:
+    """R1b-4-1 (decided 2026-11-14 06:14): the same bytes in two projects are one drawing, but a
+    sign-off in one project never shows in the other, nor without a project."""
+    plan = swiss_sheet().pdf()
+    first, later = upload(client, plan, "A.pdf"), upload(client, plan, "B.pdf")
+    (entry,) = client.get(f"/api/projects/{later}").json()["drawings"]
+    drawing_id = entry["drawing_id"]
+    url = f"/api/drawings/{drawing_id}"
+    in_a = {"project": first}
+    client.post(f"{url}/signoff", params=in_a, json={"quantity": "door", "by": "Ana"})
+
+    def doors(project: str | None) -> str:
+        params = {} if project is None else {"project": project}
+        quantities = client.get(f"{url}/takeoff", params=params).json()["quantities"]
+        return next(row["status"] for row in quantities if row["key"] == "door")
+
+    assert (doors(first), doors(later), doors(None)) == ("signed", "single", "single")
+    signed = {
+        p: client.get(f"/api/projects/{p}/review").json()["drawings"][0]["signed"]
+        for p in (first, later)
+    }
+    assert signed == {first: 1, later: 0}
+    csv_b = client.get(f"{url}/takeoff.csv", params={"project": later}).text
+    assert "Ana" not in csv_b
+
+    def verified(project: str | None) -> bool:
+        body = {"drawing_id": drawing_id, "question": "How many doors are there?"}
+        if project is not None:
+            body["project_id"] = project
+        answer = client.post("/api/ask", json=body).json()
+        return answer["quantity"]["signed"] is not None
+
+    assert (verified(first), verified(later), verified(None)) == (True, False, False)
+    # resetting B's edits leaves A's
+    client.post(f"{url}/review", params={"project": later}, json={"action": "reset"})
+    assert doors(first) == "signed"
+    # a project that doesn't hold the drawing can't write its review
+    other = upload(client, b"site notes", "notes.txt")
+    door = {"quantity": "door", "by": "Eve"}
+    assert client.post(f"{url}/signoff", params={"project": other}, json=door).status_code == 404
+
+
+def test_settling_a_one_storey_sheet_s_row_decides_its_storey_twin_in_that_project_only(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K4 per project (R1b-4-1): settling "window count" in project A also decides its storey
+    twin "window count (storey p1)" in A, and neither row changes in project B."""
+    windows = disputed(False)
+    found = {
+        key: quantity(key, 2, "count", BOX_A, conflict=windows)
+        for key in ("window", "window|storey=p1")
+    }
+    monkeypatch.setattr(takeoff, "known_quantities", lambda drawing: found)
+    plan = swiss_sheet().pdf()
+    first, later = upload(client, plan, "A.pdf"), upload(client, plan, "B.pdf")
+    (entry,) = client.get(f"/api/projects/{later}").json()["drawings"]
+    url = f"/api/drawings/{entry['drawing_id']}"
+    settle = {"quantity": "window", "action": "settle", "value": 3}
+    assert client.post(f"{url}/review", params={"project": first}, json=settle).status_code == 200
+
+    def twin(project: str) -> tuple[object, object]:
+        quantities = client.get(f"{url}/takeoff", params={"project": project}).json()
+        shown = next(row for row in quantities["quantities"] if row["key"] == "window|storey=p1")
+        return shown["value"], shown["status"]
+
+    assert twin(first) == (3, "edited")
+    assert twin(later) == (2, "conflict")
