@@ -6,11 +6,14 @@
 
 Per turn: right (truth given: the value the judge sees equals the truth or lies in its range;
 'refuse': the turn refused), answered (not a refusal), on topic (the text names the subject),
+level kept (asked if it is sure, the reply claims no other level than the card it was asked
+about), level changed (that turn brings a card at another level),
 grounded (every number in the text is backed by a value of the chat's tool results, the reply or the
 user's message: a whole number exactly, a decimal at its places, ids and geometry not counting;
 ask mode is grounded by construction), refusal offers, steps shown, view (the turn puts a plan on
-screen), latency, USD. --ab passes when right and grounded do not drop and the named metric goes
-up (latency and USD: down); it refuses (exit 2) two runs that do not cover the same turns.
+screen), latency, USD. --ab passes when right, grounded and (when both runs have such turns)
+level kept do not drop and the named metric goes up (latency and USD: down); it refuses (exit 2)
+two runs that do not cover the same turns.
 """
 
 import argparse
@@ -98,6 +101,23 @@ def _known(found: Any, key: str | None, values: set[Decimal], tokens: set[str]) 
         values.add(Decimal(str(found)))
 
 
+def embedded(text: str) -> list[Any]:
+    """The JSON objects inside a message's text: a tool message is one; the server may also add a
+    tool's result to the user's message ("review_answer result (...): {...}")."""
+    found: list[Any] = []
+    decoder = json.JSONDecoder()
+    at = text.find("{")
+    while at != -1:
+        try:
+            obj, end = decoder.raw_decode(text, at)
+        except ValueError:
+            at = text.find("{", at + 1)
+            continue
+        found.append(obj)
+        at = text.find("{", end)
+    return found
+
+
 def grounded(r: Json, chats: list[Path]) -> bool:
     """Every number in the text is backed: a whole number by an equal value (5.8 does not back
     "6"), a decimal by a value that rounds to it at the text's places, either by the same token
@@ -109,10 +129,20 @@ def grounded(r: Json, chats: list[Path]) -> bool:
     raw = dict(r.get("raw") or {})
     text = raw.pop("text", "") or r.get("text", "")
     stored = [f for d in chats for f in d.glob(f"*/chats/{raw.get('chat_id')}.json")]
-    results = json.loads(stored[0].read_text()).get("results", []) if stored else []
+    chat: Json = json.loads(stored[0].read_text()) if stored else {}
+    added = [
+        obj
+        for m in chat.get("messages", [])
+        if m.get("role") in ("user", "tool") and isinstance(m.get("content"), str)
+        for obj in embedded(m["content"])
+    ]
     values: set[Decimal] = set()
     tokens: set[str] = set(NUMBER.findall(r["msg"]))
-    for found in [raw, *results]:  # not the lengths of these wrappers: no reply counts them
+    for found in [
+        raw,
+        *chat.get("results", []),
+        *added,
+    ]:  # not the lengths of these wrappers: no reply counts them
         _known(found, None, values, tokens)
     for n in STANDALONE.findall(PAGE.sub(" ", CITE.sub(" ", text))):
         d = num(n)
@@ -127,6 +157,58 @@ def grounded(r: Json, chats: list[Path]) -> bool:
     return True
 
 
+# the user asks whether the chat is sure of its answer, not any message with "sure" in it
+SURE_ASK = re.compile(
+    r"\b(are|r)\s+(you|u)\s+(really\s+|quite\s+)?(sure|certain|confident)\b"
+    r"|\bhow\s+(sure|certain|confident)\b|\b(sure|certain)\s+about\b",
+    re.IGNORECASE,
+)
+LEVELS = ("low", "medium", "high")
+BELOW_HIGH = frozenset({"low", "medium"})
+# a level named as the answer's confidence ("medium confidence", "confidence is low"), unless denied
+NAMED = re.compile(
+    r"(?<!not )(?<!no )\b(high|medium|low)[- ](?:confidence|certainty)\b"
+    r"|\b(?:confidence|certainty)\s+(?:is|was|stays|remains|of|:)?\s*(high|medium|low)\b",
+    re.IGNORECASE,
+)
+CERTAIN = re.compile(r"^\W*yes\b|(?<!not )\b(i am|i'm) (sure|certain|confident)\b", re.IGNORECASE)
+UNSURE = re.compile(
+    r"\b(not (sure|certain|confident)|can't say|cannot say|can't be sure|cannot be sure)\b",
+    re.IGNORECASE,
+)
+
+
+def claimed(text: str) -> set[str]:
+    """The levels a reply claims for the answer: those it names as its confidence; else "yes" or
+    "I'm sure" claims high and "not sure" claims below high; else none."""
+    named = {(m[1] or m[2]).lower() for m in NAMED.finditer(text)}
+    if named:
+        return named
+    if UNSURE.search(text):
+        return set(BELOW_HIGH)
+    return {"high"} if CERTAIN.search(text) else set()
+
+
+def level_kept(rows: list[Json]) -> list[tuple[bool, bool]]:
+    """Per turn that asks whether the chat is sure, after an answer card with a level: (kept,
+    changed). kept: every level the reply claims (`claimed`) is the level of the card before this
+    turn, the answer the user asks about (claiming none keeps it; "not sure" keeps low or medium
+    and drops high). changed: the turn brings a new card at another level."""
+    out: list[tuple[bool, bool]] = []
+    level: dict[str, str] = {}
+    for r in sorted(rows, key=lambda r: (r["script"], r["turn"])):
+        before = level.get(r["script"])
+        now = str(r["level"]).lower() if r.get("level") else None
+        if now:
+            level[r["script"]] = now
+        if not SURE_ASK.search(r["msg"]) or before not in LEVELS:
+            continue
+        said = claimed(r.get("text") or "")
+        kept = before in said if said == BELOW_HIGH else said <= {before}
+        out.append((kept, now is not None and now != before))
+    return out
+
+
 def score(rows: list[Json], chats: list[Path]) -> Score:
     truth = [r for r in rows if r["truth"] is not None]
     firsts = [r for r in rows if r["turn"] == 1]
@@ -134,6 +216,7 @@ def score(rows: list[Json], chats: list[Path]) -> Score:
     refusals = [r for r in rows if r["kind"] in REFUSED]
     lat = [r["latency_s"] for r in rows]
     usd = [r.get("cost_usd") or 0.0 for r in rows]
+    sure = level_kept(rows)
 
     def on(r: Json) -> bool:
         return any(m.lower() in (r.get("text") or "").lower() for m in r["mentions"])
@@ -148,6 +231,8 @@ def score(rows: list[Json], chats: list[Path]) -> Score:
         "refusal offers": [sum((r.get("options") or 0) > 0 for r in refusals), len(refusals)],
         "steps shown": [sum((r.get("steps") or 0) > 0 for r in rows), len(rows)],
         "view shown": [sum(bool(r.get("view")) for r in rows), len(rows)],
+        "level kept": [sum(k for k, _ in sure), len(sure)],
+        "level changed": [sum(c for _, c in sure), len(sure)],
         "http errors": sum(r["status"] != 200 for r in rows),
         "latency p50 s": round(median(lat), 2) if lat else 0.0,
         "latency max s": round(max(lat), 2) if lat else 0.0,
@@ -168,7 +253,9 @@ def ab(base: Score, new: Score, metric: str) -> tuple[bool, list[str]]:
     """The pre-registered line: right and grounded do not drop, `metric` improves."""
     lines: list[str] = []
     ok = True
-    for guard in ("right", "grounded"):
+    # level kept guards too when both runs asked whether the chat is sure
+    measured = base.get("level kept", [0, 0])[1] and new.get("level kept", [0, 0])[1]
+    for guard in ("right", "grounded", *(["level kept"] if measured else [])):
         held = new[guard][0] >= base[guard][0] and _value(new[guard]) >= _value(base[guard])
         lines.append(
             f"{guard}: {_show(base[guard])} -> {_show(new[guard])} {'ok' if held else 'DROP'}"

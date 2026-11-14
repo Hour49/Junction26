@@ -369,13 +369,24 @@ def discipline_from_sheet(
     """A 2D sheet's discipline from the sheet-kind reply's fields, with no new model call. A title
     or number that names a discipline other than architecture by a strong word or code wins (a
     heating plan the model called a floor plan); weak words ("POST OFFICE", "PUMP HOUSE") never
-    override the kind. A mep_plan only by a service its title or number names (strong words and
-    codes; "PIPING PLAN" or "HVAC" names none), else None."""
+    pick a discipline, whatever the kind, nor does a service room ("ELECTRICAL ROOM"). A mep_plan
+    only by a service its title or number names (strong words and codes; "PIPING PLAN" or "HVAC"
+    names none), else None."""
     text = " ".join(part for part in (title, sheet_number) if part)
-    strong = _strong_in(text, codes=True)
     if kind == "mep_plan":
+        strong = _strong_in(text, codes=True)
         return strong.pop() if len(strong) == 1 else None
-    named = discipline_from_title(text)
-    if strong and named not in (None, "architecture"):
+    strong = _strong_in(_SERVICE_ROOM.sub(" ", text), codes=True)
+    named = strong.pop() if len(strong) == 1 else None
+    if named not in (None, "architecture"):
         return named
     return _KIND_DISCIPLINE.get(kind) or named
+
+
+# A service named only as a room ("ELECTRICAL ROOM", "Sähköhuone", "Heizraum") is a room on the
+# plan, not a service drawing. Not "riser" or "shaft": a riser diagram is a service drawing.
+# shortcut: EN room nouns and FI/DE/SV compounds only; add other languages' if titles need them.
+_SERVICE_ROOM = re.compile(
+    r"\b(?:[^\W\d_]+[ -]){1,2}(?:room|closet|cupboard)s?\b|\b[^\W\d_]+(?:huone\w*|raum|rum)\b",
+    re.I,
+)

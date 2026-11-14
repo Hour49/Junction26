@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   answerIssue,
   errorText,
@@ -8,6 +8,7 @@ import {
   resolverName,
   type DrawingView,
   type FileStatus,
+  type Highlight,
   type Issue,
   type IssueAnswerRequest,
   type RelevanceRequest,
@@ -15,6 +16,7 @@ import {
 import { callError, callLine } from '../ingest/triage';
 import { issueRoute } from '../surveyor/issueLinks';
 import { SourceFigure } from '../viewer/SourceFigure';
+import { ModelDialog } from '../model3d/ModelDialog';
 import { isAnswerable, issueSource, pillOf } from './documents';
 
 const NAME_KEY = 'countersign.surveyorName'; // the surveyor's key: one typed name for every call
@@ -299,8 +301,13 @@ export function IssueCard(props: {
   onFile: (file: FileStatus) => void;
   pack: string | null;
   onIssue: (issue: Issue) => void;
+  /** The issue's 3D model (model-3d.md "More places" 2): its file and the checked element. */
+  model?: { fileId: string; highlight: readonly Highlight[] } | null;
 }) {
-  const { projectId, issue, n, drawing, file, onFile, pack, onIssue } = props;
+  const { projectId, issue, n, drawing, file, onFile, pack, onIssue, model } = props;
+  const [open3d, setOpen3d] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
+  const name = issue.drawing_name ?? issue.file;
   const pill = pillOf(issue);
   const source = issueSource(issue, projectId, drawing, file);
   return (
@@ -320,6 +327,19 @@ export function IssueCard(props: {
             Open the file
           </a>
         )}
+        {model && (
+          <button
+            ref={opener}
+            type="button"
+            className="v-btn v-btn--secondary v-press m3-open3d"
+            aria-label={`View in 3D: ${name}`}
+            onClick={() => {
+              setOpen3d(true);
+            }}
+          >
+            View in 3D
+          </button>
+        )}
       </div>
       <p className="doc-why">{issue.why}</p>
       {source && <SourceFigure sources={[source]} label={`Source of issue ${String(n)}`} />}
@@ -330,6 +350,18 @@ export function IssueCard(props: {
         ) : (
           <IssueAnswerForm projectId={projectId} issue={issue} pack={pack} onIssue={onIssue} />
         ))}
+      {model && open3d && (
+        <ModelDialog
+          projectId={projectId}
+          fileId={model.fileId}
+          label={name}
+          highlight={model.highlight}
+          onClose={() => {
+            setOpen3d(false);
+            opener.current?.focus();
+          }}
+        />
+      )}
     </li>
   );
 }
