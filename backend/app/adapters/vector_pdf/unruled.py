@@ -16,7 +16,7 @@ from collections import OrderedDict
 import pypdfium2
 
 from app.adapters.vector_pdf import STYLES
-from app.adapters.vector_pdf.objects import read_page
+from app.adapters.vector_pdf.objects import PdfPath, any_filled_path
 
 KEEP = 64  # answers kept by file content: one read of a page's objects per file
 
@@ -42,8 +42,13 @@ class Unruled:
 
 
 def _unruled(data: bytes) -> bool:
+    """No path of page 1 is drawn in a style; every style's paths are filled, so the check reads
+    only filled paths (objects.any_filled_path)."""
     try:
-        page = read_page(data)
+        return not any_filled_path(data, _styled)
     except pypdfium2.PdfiumError:
         return False
-    return not any(style.matches(page) for style in STYLES)
+
+
+def _styled(path: PdfPath) -> bool:
+    return any(style.matches_path(path) for style in STYLES)

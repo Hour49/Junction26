@@ -114,7 +114,12 @@ def is_room_outline(path: PdfPath) -> bool:
 
 
 def matches(page: PdfPage) -> bool:
-    return any(is_room_outline(path) for path in page.paths)
+    return any(matches_path(path) for path in page.paths)
+
+
+def matches_path(path: PdfPath) -> bool:
+    """Whether a path is drawn in this style: a room outline (its style alone)."""
+    return is_room_outline(path)
 
 
 def read(page: PdfPage, m_per_pt: float | None) -> Reading:

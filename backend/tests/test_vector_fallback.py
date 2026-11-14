@@ -3,6 +3,7 @@ sheet style for (a Revit or AutoCAD plot: 584 of opening_design's 587 drawn PDFs
 raster route as the image of its page, flagged, so none of its answers is certified. Off (the
 default), it stays on the vector route and reads nothing, as before."""
 
+import dataclasses
 import io
 import json
 from pathlib import Path
@@ -11,13 +12,15 @@ import pytest
 from pdf_sheets import SheetPdf, rect
 from PIL import Image
 from test_scan_images import DETECTOR, Files, Reader, Session
-from test_vector_pdf import swiss_sheet
+from test_vector_pdf import ifc_sheet, swiss_sheet
 
 from app import composition
 from app.adapters import raster_detector
 from app.adapters.answer_v1 import AnswerV1Writer
 from app.adapters.archive.probe import is_scanned_pdf
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer
+from app.adapters.vector_pdf import STYLES, objects
+from app.adapters.vector_pdf.objects import FILL_NONE, read_page
 from app.adapters.vector_pdf.unruled import Unruled
 from app.composition import build_answering, build_ingest, build_pipeline
 from app.core.answering.model import Question
@@ -40,6 +43,7 @@ def test_unruled_is_a_drawn_pdf_that_matches_no_style() -> None:
     unruled = Unruled()
     assert not is_scanned_pdf(plot()) and unruled(plot())
     assert not unruled(swiss_sheet().pdf())  # the vector reader has rules for it
+    assert not unruled(ifc_sheet().pdf())
     assert not unruled(b"\x89PNG...")  # not a PDF
     assert not unruled(b"%PDF-1.7 broken")  # pdfium can't open it: left where it was routed
 
@@ -163,3 +167,32 @@ def test_the_cli_never_certifies_an_answer_on_a_plot_the_fallback_read(
     (answer,) = [json.loads(line) for line in answers.read_text().splitlines()]
     assert answer["answer"] == 1 and answer["confidence"] == 1.0
     assert answer.get("sure") is None  # read as an image without reading rules: no verdict
+
+
+def test_the_unruled_check_reads_only_filled_paths_not_the_whole_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """review-283 S2: reading the whole page held the PDFium lock up to 5 s on a Revit plot. The
+    check gives the vector reader's own answer without it."""
+    sheets = {"plot": plot(), "swiss": swiss_sheet().pdf(), "ifc": ifc_sheet().pdf()}
+    read = {
+        name: not any(style.matches(read_page(data)) for style in STYLES)
+        for name, data in sheets.items()
+    }
+    assert read == {"plot": True, "swiss": False, "ifc": False}
+
+    def whole(data: bytes, index: int) -> None:
+        raise AssertionError("read the whole page")
+
+    monkeypatch.setattr(objects, "_read_page", whole)
+    assert {name: Unruled()(data) for name, data in sheets.items()} == read
+
+
+def test_every_style_is_drawn_with_filled_paths() -> None:
+    """What lets the check pass a path drawn without a fill after one call."""
+    for data in (swiss_sheet().pdf(), ifc_sheet().pdf()):
+        styled = [p for p in read_page(data).paths if any(s.matches_path(p) for s in STYLES)]
+        assert styled
+        for path in styled:
+            unfilled = dataclasses.replace(path, fill_mode=FILL_NONE)
+            assert not any(style.matches_path(unfilled) for style in STYLES)
