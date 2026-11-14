@@ -1,0 +1,136 @@
+.sv-screen {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.sv-side ul {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+.sv-side li {
+  display: grid;
+  gap: 2px;
+  padding: 8px 0;
+  min-height: 40px;
+  overflow-wrap: anywhere; /* long file names must not scroll the page sideways at 390px */
+}
+.sv-side li.sv-current {
+  font-weight: 600;
+}
+.sv-side h2 {
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .sv-screen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.sv-screen.sv-work {
+  grid-template-columns: 240px minmax(0, 1fr) 420px;
+}
+.sv-panel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.sv-panel h2 {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.sv-tables {
+  max-height: 40vh;
+  overflow: auto;
+}
+.sv-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sv-table caption {
+  text-align: left;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.sv-table th,
+.sv-table td {
+  text-align: left;
+  padding: 4px 6px;
+  border-top: 1px solid #e5e7eb;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.sv-table th button {
+  min-height: 40px;
+  text-align: left;
+}
+.sv-table th small {
+  display: block;
+}
+.sv-table tr[aria-current='true'] {
+  background: #e8f0fb;
+}
+.sv-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sv-num s,
+.sv-value s {
+  color: #6b7280;
+  margin-right: 4px;
+}
+.sv-detail {
+  border-top: 1px solid #d1d5db;
+  padding-top: 8px;
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.sv-value {
+  font-size: 22px;
+  font-weight: 600;
+}
+.sv-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.sv-tools button,
+.sv-marks button {
+  min-height: 40px;
+}
+.sv-marks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.sv-marks li {
+  display: grid;
+  grid-template-columns: 2.5em minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 4px;
+}
+.sv-marks li.sv-hot,
+.sv-marks li.sv-sel {
+  outline: 2px solid #24588f;
+}
+.sv-sign {
+  font-weight: 700;
+  text-align: center;
+}
+@media (max-width: 1100px) {
+  .sv-screen.sv-work {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+  .sv-work .sv-side {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .sv-screen.sv-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
