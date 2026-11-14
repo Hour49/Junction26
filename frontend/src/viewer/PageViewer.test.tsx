@@ -210,13 +210,13 @@ describe('PageViewer: legend, caption, pages', () => {
     expect(text).toContain('rejected by a surveyor');
   });
 
-  it('VW-29 credit under the page, or "none recorded"; file name either way', () => {
+  it('VW-29 (demo parity) no credit line, with or without a credit; file name shown', () => {
     viewer(answer, { credit: 'Plan © Example, CC BY 4.0' });
-    expect(screen.getByText('Credit: Plan © Example, CC BY 4.0')).toBeTruthy();
+    expect(screen.queryByText(/Credit:/)).toBeNull();
     expect(screen.getByText('plans/flat-a.pdf')).toBeTruthy();
     cleanup();
     render(<PageViewer file={drawing.file} pages={drawing.pages} marks={[]} credit={null} />);
-    expect(screen.getByText('Credit: none recorded for this file')).toBeTruthy();
+    expect(screen.queryByText(/Credit:|none recorded/)).toBeNull();
     expect(screen.getByText('plans/flat-a.pdf')).toBeTruthy();
   });
 

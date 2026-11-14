@@ -395,3 +395,222 @@
   background: var(--v-surface);
   border: 2px solid var(--v-muted);
 }
+
+/* Source figure and preview (viewer.md "Source figure and preview"; demo style.css .c-plan, .src, .hl, .modal). */
+.vw-src {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+.vw-src-thumb {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--v-plan, var(--v-fill));
+  cursor: zoom-out;
+  font: inherit;
+}
+.vw-src--min {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+.vw-src--min .vw-src-thumb {
+  flex: none;
+  width: 150px;
+  padding: 8px;
+  border-radius: 12px;
+  cursor: zoom-in;
+}
+.vw-src-thumb:focus-visible {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 2px;
+}
+.vw-src-thumb--none {
+  cursor: default;
+}
+.vw-src figcaption {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--v-muted);
+}
+.vw-src-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.vw-btn-plain,
+.vw-btn-plain:hover {
+  background: var(--v-grey);
+}
+.vw-btn-soft,
+.vw-btn-soft:hover {
+  color: var(--v-accent);
+  background: var(--v-accent-soft);
+}
+.vw-src-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--v-surface);
+}
+.vw-src-frame img {
+  position: absolute;
+  max-width: none;
+  height: auto;
+}
+.vw-src-frame--img img {
+  position: static;
+  display: block;
+  width: 100%;
+}
+.vw-src-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.vw-hl-poly {
+  fill: var(--v-warn-mark-fill, var(--v-warn-soft));
+  stroke: var(--v-warn-mark, var(--v-warn));
+  stroke-width: 2.5;
+}
+.vw-hl {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2.5px solid var(--v-warn-mark, var(--v-warn));
+  border-radius: 6px;
+  background: var(--v-warn-mark-fill, var(--v-warn-soft));
+}
+.vw-hl--poly {
+  border: 0;
+  background: none;
+}
+.vw-hl b,
+.vw-hl-legend b {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--v-warn-mark, var(--v-warn));
+  color: var(--v-surface);
+  font-size: 11px;
+  font-weight: 700;
+}
+.vw-hl b {
+  position: absolute;
+  top: -11px;
+  left: -11px;
+  box-shadow: 0 0 0 2px var(--v-surface);
+}
+.vw-hl-legend {
+  display: flex;
+  flex: 1 1 240px;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vw-hl-legend li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--v-text-2);
+}
+.vw-src-none {
+  display: block;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--v-muted);
+}
+.vw-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--v-text) 45%, transparent);
+}
+.vw-modal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(1100px, 100%);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--v-surface);
+  color: var(--v-text);
+}
+.vw-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.vw-modal-name {
+  min-width: 0;
+  font: 600 14px var(--v-mono, ui-monospace, monospace);
+  overflow-wrap: anywhere;
+}
+.vw-modal-pos {
+  font-family: var(--v-font);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--v-muted);
+}
+.vw-modal-view {
+  position: relative;
+}
+.vw-modal-view .vw-src-frame {
+  max-width: none;
+}
+.vw-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  box-shadow: var(--v-shadow);
+}
+.vw-arrow svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.vw-arrow--l {
+  left: 8px;
+}
+.vw-arrow--r {
+  right: 8px;
+}
+@media (max-width: 520px) {
+  .vw-src--min {
+    align-items: flex-start;
+  }
+  .vw-src--min .vw-src-thumb {
+    width: 104px;
+  }
+}

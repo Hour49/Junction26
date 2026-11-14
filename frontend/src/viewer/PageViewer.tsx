@@ -1,7 +1,6 @@
 import { type CSSProperties, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { AnswerView, MarkView, PageView, QuantityConflict } from '../api/types';
 import { formatValue, methodName } from '../api/format';
-import { Credit } from '../shell/Credit';
 import { PageFrame } from './PageFrame';
 import {
   badgeText,
@@ -71,7 +70,7 @@ export interface PageViewerProps {
   file: string;
   pages: PageView[];
   marks: MarkView[];
-  credit: string | null;
+  credit?: string | null; // ignored: screens show no credits (About page, demo parity); callers may drop it
   unit?: string | null; // the row's or answer's unit: badges show mark values unless "count" or null
   unlocated?: Record<string, number>; // a takeoff row's items counted without a position
   legend?: LegendEntry[] | null; // answer.proof.legend: a colour per label, `note` lines
@@ -180,7 +179,6 @@ export function PageViewer({
   file,
   pages,
   marks,
-  credit,
   unit = null,
   unlocated,
   legend,
@@ -860,7 +858,6 @@ export function PageViewer({
           })}
         </PageFrame>
       </div>
-      <Credit credit={credit} />
       <p className="vw-pagemeta">
         {pageMeta.map((text) => `${text} · `)}
         Page {page.page}
