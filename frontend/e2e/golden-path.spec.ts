@@ -113,7 +113,7 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await expect(page).toHaveURL(new RegExp(`^${escape(drawingUrl)}/surveyor(\\?.*)?$`));
     for (const text of [
       'area of room (name 1.01)',
-      'area of room (name küche)',
+      /area of room \(name küche\)/i,
       '22.40 m² vs 30.00 m²',
       'decided by rule',
     ]) {
@@ -121,7 +121,10 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     }
     const queue = page.getByRole('table', { name: 'To review' });
     await expect(row(page, 'area of room (name 1.01)', queue)).toContainText('Methods disagree');
-    await expect(row(page, 'area of room (name küche)', queue)).toContainText('Methods disagree');
+    // The room name as printed ('Küche') since #108, lower case before it.
+    await expect(row(page, /^area of room \(name küche\)$/i, queue)).toContainText(
+      'Methods disagree',
+    );
     await shot(page, testInfo, '08-surveyor-queue', offline);
   });
 
@@ -192,7 +195,7 @@ test('GP-20: the service is down, then back', async ({ page }) => {
 });
 
 /** The table row whose label button is `label` (rows move between the two tables as their state changes). */
-function row(page: Page, label: string, scope: Page | Locator = page): Locator {
+function row(page: Page, label: string | RegExp, scope: Page | Locator = page): Locator {
   // `has` is matched inside each row, so it starts from the page.
   return scope
     .getByRole('row')

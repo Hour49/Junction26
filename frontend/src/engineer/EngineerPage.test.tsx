@@ -573,9 +573,25 @@ describe('extended answers', () => {
     const details = within(t).getByText('Details').closest('details');
     expect(details?.open).toBe(false);
     const inside = within(details as HTMLElement);
-    expect(inside.getByText('Query: door')).toBeTruthy();
+    expect(inside.getByText('Query: door count')).toBeTruthy();
     expect(inside.getByText('Method: takeoff')).toBeTruthy();
     expect(inside.queryByText(/^How:/)).toBeNull();
+  });
+
+  it('EN-27 printed-names: Query shows the printed label, not the internal key', async () => {
+    const area = within(await shownTurn(answerArea))
+      .getByText('Details')
+      .closest('details');
+    const label = answerArea.quantity?.label ?? '';
+    expect(within(area as HTMLElement).getByText(`Query: ${label}`)).toBeTruthy();
+    expect(within(area as HTMLElement).queryByText(/^Query: area:room/)).toBeNull();
+  });
+
+  it('EN-27 printed-names: Query falls back to the key when the label is empty', async () => {
+    if (!answer.quantity) throw new Error('answer.json has a quantity');
+    const bare = await shownTurn({ ...answer, quantity: { ...answer.quantity, label: '' } });
+    const details = within(bare).getByText('Details').closest('details');
+    expect(within(details as HTMLElement).getByText('Query: door')).toBeTruthy();
   });
 
   it('QA R1 EN-27 the Details summary sits in the footer row, aligned on the baseline', async () => {
