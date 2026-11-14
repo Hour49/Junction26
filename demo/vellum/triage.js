@@ -124,10 +124,6 @@
     const d = t.description;
     const seen = d.visible_text
       ? `<details class="tri-more"><summary>Text printed on it</summary><p class="small tri-text">${esc(d.visible_text)}</p></details>` : '<p class="small">No text printed on it.</p>';
-    const vp = v ? VERDICT[v] : VERDICT.none, rel = ctx.done ? relevanceOf(path, ctx.project) : null;
-    const belong = `<div class="tri-part"><h3>Does it belong to this project?</h3><p><span class="pill ${pillClass(v)}">${vp.pill}</span>
-      ${v ? `<span>${vp.sentence}</span>` : `<span class="muted">${NOT_JUDGED}</span>`}</p>
-      ${rel ? `<p class="small">The rule says ${esc(rel.why)}.</p>${rel.matched_on.length ? `<p class="small">Matched on: ${esc(rel.matched_on.join(', '))}</p>` : ''}<p class="small muted">Decided by the ${esc(rel.judge)}.</p>` : ''}</div>`;
     const off = signer.trim() ? '' : ' disabled';
     let callHtml = '';
     if (ctx.done && call) {
@@ -146,8 +142,8 @@
       <p class="small">What triage saw: ${esc(kindWords(t.register.kind))}</p>
       <figure class="tri-fig">${picture(path, `${path} as uploaded`)}</figure>
       <div class="tri-part"><h3>What is on it</h3><p>${esc(d.text)}</p>${seen}
-        <details class="tri-more"><summary>Full description (${t.example ? EXAMPLE : 'a model\'s description, not checked by a person'})</summary><p class="small">${esc(d.detail)}</p></details></div>
-      ${belong}${callHtml}${read}</section>`;
+        <details class="tri-more"><summary>Full description</summary><p class="small">${esc(d.detail)}</p></details></div>
+      ${callHtml}${read}</section>`;
   }
 
   // ---------- the project chat's question about a set-aside elevation (a preview) ----------

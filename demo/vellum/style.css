@@ -422,3 +422,10 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .iss-card { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
 .iss-card .iss-why { margin: 0; }
+/* a conflict's or issue's drawing starts minimized: a thumbnail beside its legend */
+.c-plan.min { flex-direction: row; align-items: center; gap: 14px; }
+.c-plan.min > div { flex: none; width: 150px; padding: 8px; border-radius: 12px; cursor: zoom-in; }
+.c-plan > div[role="button"] { cursor: zoom-out; } .c-plan.min > div[role="button"] { cursor: zoom-in; }
+.c-plan.min figcaption { flex: 1; min-width: 0; }
+.src-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 520px) { .c-plan.min > div { width: 104px; } }

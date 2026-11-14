@@ -283,7 +283,7 @@ class FakeGemini:
     built: ClassVar[list[str]] = []
     REPLY = '[{"type": "bedroom", "label": "MH", "box_2d": [100, 200, 300, 400]}]'
 
-    def __init__(self, api_key: str, model: str, timeout_s: float) -> None:
+    def __init__(self, api_key: str, model: str, timeout_s: float, budget: object = None) -> None:
         FakeGemini.built.append(api_key)
         self.name = model
 
@@ -373,7 +373,7 @@ class FakeDecisions:
     built: ClassVar[list[str]] = []
     calls = 0
 
-    def __init__(self, key: str, timeout_s: float) -> None:
+    def __init__(self, key: str, timeout_s: float, budget: object = None) -> None:
         FakeDecisions.built.append(key)
 
     @property

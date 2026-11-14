@@ -65,6 +65,7 @@ import pypdfium2
 from PIL import Image, ImageChops, ImageStat, UnidentifiedImageError
 from pypdfium2 import raw
 
+from app.adapters.eight_bit import eight_bit
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.ingest.model import ContentKind, LaterPage, Probed
 from app.core.pipeline.identify import sniff
@@ -275,7 +276,7 @@ def _image(data: bytes, image_format: str) -> Probed:
             exif = image.getexif()
             camera = " ".join(str(exif[tag]).strip() for tag in CAMERA_TAGS if exif.get(tag))
             image.draft("RGB", (THUMB, THUMB))  # JPEG: decode at a fraction of the size
-            thumb = image.convert("RGB")
+            thumb = eight_bit(image).convert("RGB")
     except (UnidentifiedImageError, OSError) as error:
         return Probed(kind="unknown", did=f"an image that cannot be decoded: {error}")
     name = image_format.upper()
@@ -311,7 +312,7 @@ def _no_drawing(data: bytes, thumb: Image.Image) -> str | None:
     probe's white-balanced grey thumbnail."""
     with Image.open(io.BytesIO(data)) as image:
         image.draft("L", (SHARP_SIDE, SHARP_SIDE))
-        grey = image.convert("L")
+        grey = eight_bit(image).convert("L")
     grey.thumbnail((SHARP_SIDE, SHARP_SIDE))
     across, down = _steps(grey)
     levels = ImageChops.lighter(across, down).histogram()

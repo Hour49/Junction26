@@ -1,6 +1,7 @@
 """Drawings: what a drawing is and how it was read, its model document, and its pages as PNG
 (docs/API.md "Drawings")."""
 
+from collections.abc import Mapping
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
@@ -25,7 +26,7 @@ from app.api.views import PageView, Reader, View, page_views, reader_of
 from app.composition import readers
 from app.core.drawing.model import Drawing
 from app.core.errors import InvalidInputError
-from app.core.ingest.model import DrawingInfo, split_from
+from app.core.ingest.model import DrawingInfo, FileStatus, split_from
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import SUGGESTIONS, Asked, suggestions
 from app.core.review.model import Suggestion
@@ -56,11 +57,17 @@ class DrawingView(View):
 
 
 def credit_of(info: DrawingInfo, ingest: Ingest, credits: Credits) -> str | None:
-    """The licence credit of the file the drawing is shown on, found by its content; a page read
-    as a file of its own (`<name>#p<n>.pdf`) has the credit of the PDF it was split from."""
+    """The licence credit of the file the drawing is shown on (`file_credit`)."""
     files = {file.path: file for file in ingest.status(info.project_id).files}
-    for path in (info.path, split_from(info.path, files)):
-        file = files.get(path) if path is not None else None
+    return file_credit(info.path, files, credits)
+
+
+def file_credit(path: str, files: Mapping[str, FileStatus], credits: Credits) -> str | None:
+    """The licence credit of the file at `path` among a project's `files`, found by its content; a
+    page read as a file of its own (`<name>#p<n>.pdf`) has the credit of the PDF it was split
+    from."""
+    for at in (path, split_from(path, files)):
+        file = files.get(at) if at is not None else None
         if file is not None and file.sha256 is not None:
             credit = credits.of(file.size, file.sha256)
             if credit is not None:
