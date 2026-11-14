@@ -13,7 +13,6 @@ import threading
 from collections import deque
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
-from pathlib import PurePosixPath
 
 from app.core import cost
 from app.core.drawing.model import Drawing
@@ -36,6 +35,7 @@ from app.core.ingest.model import (
     ProjectStatus,
     SheetFile,
     Unavailable,
+    page_path,
 )
 from app.core.ingest.ports import (
     Clock,
@@ -350,8 +350,7 @@ class IngestService:
         """A later drawn page of the PDF at `path`, unpacked as a file of its own
         (`<name>#p<n>.pdf`, its own group) and identified like any file of the upload."""
         started = self._clock()
-        at = PurePosixPath(path)
-        named = str(at.with_name(f"{at.stem}#p{page.number}.pdf"))
+        named = page_path(path, page.number)
         if run.has(named):
             run.add(Entry(path=named, size=len(page.data), refused="a second file at a path"))
             run.stage(named, "unpack", "refused", 0.0, failure="a second file at a path")

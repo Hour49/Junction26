@@ -5,6 +5,9 @@ files with their state and reason, `FileTrace` adds one `StageTrace` per stage t
 through.
 """
 
+import re
+from collections.abc import Iterable
+from pathlib import PurePosixPath
 from typing import Literal, cast
 
 from pydantic import ConfigDict, Field, model_validator
@@ -71,6 +74,25 @@ class LaterPage(Frozen):
 
     number: int = Field(ge=2)
     data: bytes = Field(repr=False)
+
+
+PAGE_NUMBER = re.compile(r"#p([1-9][0-9]*)\.pdf$")
+
+
+def page_path(path: str, number: int) -> str:
+    """The file page `number` of the PDF at `path` is read as: `<name>#p<number>.pdf`."""
+    at = PurePosixPath(path)
+    return str(at.with_name(f"{at.stem}#p{number}.pdf"))
+
+
+def split_from(path: str, paths: Iterable[str]) -> str | None:
+    """The PDF among `paths` whose page the file at `path` is, by `page_path`; None for any other
+    file."""
+    found = PAGE_NUMBER.search(path)
+    if found is None:
+        return None
+    number = int(found[1])
+    return next((p for p in paths if p != path and page_path(p, number) == path), None)
 
 
 class Probed(Frozen):
