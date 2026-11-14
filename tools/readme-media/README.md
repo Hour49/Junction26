@@ -19,4 +19,5 @@ tools/readme-media/env.sh stop
 `env.sh` gives every start an empty project store, so the hero shows a real read; run it again before a second
 hero take. The questions, the dragged box and the plan's place on its sheet are settings at the top of each
 script, and they fit the Swiss Dwellings floor the README shows. `sheet.sh <gif> <out.png>` makes a contact sheet
-for checking a GIF frame by frame. Test: `uv run --no-project --with pytest pytest -q tools/readme-media`.
+for checking a GIF frame by frame. Record on a quiet machine: frames are taken in real time, so a busy one shows
+as stalls in the GIF (`uptime` first). Test: `uv run --no-project --with pytest pytest -q tools/readme-media`.
