@@ -169,6 +169,16 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 - AC-34 API client: `chatTurn(projectId, {chat_id?, message, selection?})` and `decideProposal(projectId, chatId,
   proposalId, action)` in `src/api/client.ts`; types from `npm run api:gen`.
 - AC-35 Phone width (390): the edit card's plan is full width, the change list below; no horizontal scroll.
+- AC-36 (chat-ux #1, orch 20:30; shapes in `.agents/chat/contract.md` A) The plan beside the chat, at 1200 px and
+  wider: the chat column left, a sticky pane right (`aside` "Plan") with the drawing's name, "Open in workspace"
+  (at the view's page and box) and, with several askable drawings, a switcher. Before any place it shows the first
+  askable drawing. Each turn with a `view` opens its drawing and page, draws its marks numbered as the sources
+  (polygon when sent, else box), focuses `view.box` and shows `view.caption`; a turn without one leaves the plan as
+  it was. A server without `view`: the turn's view is the page of `[1]` with every source on that page (contract
+  A's "evidence" rule). `[n]` and a source's "Show it" focus that place on the plan and stay in the chat (a
+  modified click still opens the workspace); a source on another page opens that page with its own mark. Under
+  1200 px nothing changes (links open the workspace). A restored thread opens its newest view. [component
+  `plan.test.tsx`, `PageViewer` spy; browser 1440 and 390]
 
 ## 4. Tests
 
