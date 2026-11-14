@@ -1,6 +1,7 @@
 """TIFF and WebP uploads are unpacked as 8-bit PNG sheets, one per TIFF page."""
 
 import io
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -107,3 +108,28 @@ def test_an_image_over_the_pixel_cap_is_set_aside(monkeypatch: pytest.MonkeyPatc
 def test_png_and_pdf_pass_through() -> None:
     png = encode(plan(), "PNG")
     assert unpack("a.png", png)["a.png"].data == png
+
+
+def test_a_palette_tiff_of_a_grey_scan_stays_grey() -> None:
+    palette = plan("L").convert("P", palette=Image.Palette.ADAPTIVE, colors=2)
+    palette.putpalette([v for grey in (0, 255) for v in (grey, grey, grey)])
+    entries = unpack("p.tif", encode(palette, "TIFF"))
+    assert decoded(entries["p.png"]).mode == "L"
+
+
+@pytest.mark.parametrize("mode", ["F", "I"])
+def test_a_float_or_32bit_tiff_is_scaled_not_black_or_clipped(mode: str) -> None:
+    values = np.linspace(0, 1, 60 * 40, dtype=np.float32).reshape(40, 60)
+    if mode == "I":
+        values = (values * 70000).astype(np.int32)
+    image = Image.fromarray(values, mode)
+    pixels = np.asarray(decoded(unpack("f.tif", encode(image, "TIFF"))["f.png"]))
+    assert pixels.min() == 0 and pixels.max() == 255 and len(np.unique(pixels)) > 100
+
+
+def test_a_page_with_no_orientation_tag_is_not_copied(monkeypatch: pytest.MonkeyPatch) -> None:
+    def never(image: Image.Image) -> Image.Image:
+        raise AssertionError("exif_transpose copies the page even when nothing is turned")
+
+    monkeypatch.setattr(raster, "ImageOps", SimpleNamespace(exif_transpose=never))
+    assert unpack("a.tif", encode(plan("1"), "TIFF", compression="group4"))["a.png"].data

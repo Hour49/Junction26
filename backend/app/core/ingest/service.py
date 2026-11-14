@@ -321,9 +321,8 @@ class IngestService:
             raise InvalidInputError(f"{name!r} is not a file name")
         # A tiff or webp is written again as PNG, a sheet per tiff page, as at upload.
         sheets = list(self._unpacker.entries(base, data))
-        for sheet in sheets:
-            if sheet.data is None:
-                raise UnsupportedFileError(f"{name}: {sheet.refused}")
+        if sheets[0].data is None:  # the first page cannot be read: nothing is added
+            raise UnsupportedFileError(f"{name}: {sheets[0].refused}")
         with self._lock:
             if project_id in self._live:
                 raise NotAllowedError(f"project {project_id} is still being read; try again")
@@ -333,12 +332,13 @@ class IngestService:
             run = Run.resumed(status, traces)
             added: list[tuple[str, bytes]] = []
             for sheet in sheets:
-                assert sheet.data is not None
-                stem = PurePosixPath(sheet.path)
-                path, n = sheet.path, 1
-                while run.has(path):
-                    n += 1
-                    path = f"{stem.stem}-{n}{stem.suffix}"
+                path = _free_path(run, sheet.path)
+                if sheet.data is None:  # past the cap or unreadable, as at upload
+                    reason = sheet.refused or "not read"
+                    run.add(sheet.model_copy(update={"path": path}))
+                    run.stage(path, "unpack", "refused", 0.0, failure=reason)
+                    run.finish(path, "set_aside", reason)
+                    continue
                 run.add(Entry(path=path, size=len(sheet.data), data=sheet.data))
                 run.set(path, reason="added to the project, queued to be read")
                 added.append((path, sheet.data))
@@ -437,6 +437,7 @@ class IngestService:
         """Stages 1-3 for every file. Returns the drawing files by path, for the pipeline."""
         drawings: dict[str, DrawingFile] = {}
         first_of: dict[str, str] = {}  # sha256 -> the first path with that content
+        digests: dict[str, str] = {}  # path -> sha256 of the file read there
         entries = self._unpacker.entries(name, data)
         # Probed ahead in a bounded window, identified in upload order.
         probing: deque[tuple[str, bytes, Future[tuple[Probed, float, float, Triaged]]]] = deque()
@@ -459,9 +460,18 @@ class IngestService:
                     break
                 unpacked = self._ms(started)
                 if run.has(entry.path):
-                    entry = Entry(
-                        path=entry.path, size=entry.size, refused="a second file at a path"
-                    )
+                    # A copy of the file at that path is set aside, as before. Another file of the
+                    # same name (a tiff and a png of one name, or two files in a zip) is read, at a
+                    # free name: `run` keeps its files by path, so it needs a record of its own.
+                    same = entry.data is not None and digests.get(entry.path) == _digest(entry.data)
+                    if same or entry.data is None:
+                        entry = Entry(
+                            path=entry.path, size=entry.size, refused="a second file at a path"
+                        )
+                    else:
+                        entry = entry.model_copy(update={"path": _free_path(run, entry.path)})
+                if entry.data is not None:
+                    digests.setdefault(entry.path, _digest(entry.data))
                 run.add(entry)
                 if entry.data is None:
                     reason = entry.refused or "not read"
@@ -822,3 +832,17 @@ def _cut(file: FileStatus, ingesting: bool) -> dict[str, object]:
         return {"state": "set_aside", "reason": f"not ingested: {RESTARTED}"}
     triage = None if file.triage is None else read_as_plan(file.triage, None)
     return {"state": "set_aside", "reason": REREAD_CUT, "triage": triage}
+
+
+def _free_path(run: Run, path: str) -> str:
+    """`path`, or with "-2", "-3"... before its extension when the run already has a file there."""
+    taken = PurePosixPath(path)
+    free, number = path, 1
+    while run.has(free):
+        number += 1
+        free = str(taken.with_name(f"{taken.stem}-{number}{taken.suffix}"))
+    return free
+
+
+def _digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()

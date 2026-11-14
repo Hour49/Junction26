@@ -128,3 +128,17 @@ def test_a_broken_tiff_is_refused_with_its_reason(make_service: MakeService) -> 
     project = ingest.wait(ingest.start("site.zip", zipped({"plan.pdf": PLAN})))
     with pytest.raises(UnsupportedFileError, match="cannot be read"):
         ingest.add_file(project.id, "bad.tif", b"II*\x00" + b"\x00" * 16)
+
+
+def test_a_tiff_past_the_page_cap_adds_its_first_pages_and_sets_the_rest_aside(
+    make_service: MakeService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.adapters.archive import raster
+
+    monkeypatch.setattr(raster, "MAX_PAGES", 2)
+    ingest = make_service()
+    project = ingest.wait(ingest.start("site.zip", zipped({"plan.pdf": PLAN})))
+    assert ingest.add_file(project.id, "set.tif", tiff_of(SCAN, SCAN, SCAN)).path == "set.png"
+    status = ingest.wait(project.id)
+    assert file_of(status, "set#p2.png").drawing_id is not None
+    assert file_of(status, "set#p3.png").state == "set_aside"
