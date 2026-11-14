@@ -1568,7 +1568,7 @@ export interface components {
              * Basis
              * @enum {string}
              */
-            basis: "certified" | "route" | "score" | "page" | "held" | "unrated";
+            basis: "certified" | "route" | "score" | "page" | "held" | "unrated" | "carbon";
             /**
              * Level
              * @enum {string}

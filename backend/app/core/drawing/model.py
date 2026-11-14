@@ -233,6 +233,19 @@ class ArbiterReading(Frozen):
     p: Annotated[float, Field(ge=0, le=1)] | None = None
 
 
+class CarbonCheck(Frozen):
+    """What Gemini Carbon read of the sheet beside the drawing's reader (CARBON_LEVELS=demote).
+    None of it is counted: a Medium answer whose question Carbon answers with another value
+    becomes Low (app/core/review/check.py `carbon_checked`). `failed`: why it checked nothing
+    (its page call failed, or it could count nothing), said on the answer's level."""
+
+    read: tuple[ReadClass, ...] = ()  # what it counted; of another class it says nothing
+    plans: tuple[Plan, ...] = ()
+    elements: tuple[Element, ...] = ()
+    rooms: tuple[Room, ...] = ()
+    failed: str | None = None
+
+
 def _absent(value: object) -> bool:
     return value is None
 
@@ -263,6 +276,9 @@ class Drawing(Frozen):
     # What the local count arbiter read, by count family (`door`, `room:wc`, `sauna_stove`...).
     # None: it did not run, and then no dump has the field, as with `double_check`.
     count_arbiter: dict[str, ArbiterReading] | None = Field(default=None, exclude_if=_absent)
+    # What Gemini Carbon read beside the reader (CARBON_LEVELS=demote), never counted. None: it
+    # did not run, and then no dump has the field, as with `double_check`.
+    carbon_check: CarbonCheck | None = Field(default=None, exclude_if=_absent)
     notes: tuple[str, ...] = ()
 
     @model_validator(mode="after")

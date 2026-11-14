@@ -31,7 +31,7 @@ from app.core.answering.model import (
 )
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table, words
+from app.core.drawing.model import ELEMENT_CLASSES, CarbonCheck, Drawing, Room, Table, words
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
@@ -44,6 +44,7 @@ from app.core.review.check import (
     Disputes,
     Level,
     Scorer,
+    carbon_checked,
     certified,
     disagree,
     double_check,
@@ -245,6 +246,11 @@ def ask(
                 check, sure=sure, route=route, family=family, score=score, flags=flags,
                 held=reason is not None, blank=blank,
             )  # fmt: skip
+            if level is not None and drawing.carbon_check is not None:
+                carbon = carbon_answer(
+                    question, drawing, drawing.carbon_check, parser, clock, prior, prior_families
+                )
+                level = carbon_checked(level, drawing.carbon_check, carbon, answer.answer)
         if not sure:
             if reason is None and agrees is False:
                 reason = disagree(shown)
@@ -270,6 +276,34 @@ def ask(
         check=request,
         level=level,
     )
+
+
+def carbon_answer(
+    question: Question,
+    drawing: Drawing,
+    check: CarbonCheck,
+    parser: QuestionParser,
+    clock: Clock,
+    prior: AnswerPrior,
+    prior_families: Set[tuple[str, str]],
+) -> int | float | str | None:
+    """Carbon's answer to the question (CARBON_LEVELS): its reading on the drawing's pages and
+    scale, answered as the drawing's own reading is (the same parser, prior and answer policy,
+    as integ's test answered both). None: it refuses (a class it did not count, a scope it has
+    no plan for), which changes nothing."""
+    seen = Drawing(
+        file=drawing.file,
+        pages=drawing.pages,
+        scale=drawing.scale,
+        plans=check.plans,
+        elements=check.elements,
+        rooms=check.rooms,
+        read=check.read,
+    )
+    quantities = known_quantities(seen)
+    once = _Once(RoomByType(parser, seen, quantities))
+    found = answer_question(question, quantities, once, clock, prior, (), prior_families)
+    return found.answer
 
 
 def _summed(parsed: object, answer: Answer) -> bool:

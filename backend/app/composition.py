@@ -28,6 +28,7 @@ from app.adapters.archive import (
 )
 from app.adapters.archive.probe import is_scanned_pdf
 from app.adapters.carbon import (
+    CarbonChecked,
     CarbonClient,
     CarbonExtractor,
     CarbonReader,
@@ -565,7 +566,7 @@ def uses_keys(settings: Settings) -> bool:
     )
     sources = [part.partition("=")[2] for spec in specs for part in spec.split(",") if part]
     keyed = any(source.split(":", 1)[0] in KEYED_SOURCES for source in sources)
-    carbon = settings.carbon_reader != "off"
+    carbon = settings.carbon_reader != "off" or settings.carbon_levels != "off"
     raster = settings.extractor_raster == "composite" and (keyed or carbon)
     # the describer is built only when triage is on (`_triage`)
     triage = settings.triage_classifier != "off" or settings.sheet_kind != "off"
@@ -654,6 +655,8 @@ def build_ingest(
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         names["carbon_reader"] = f"{settings.carbon_reader}:{READER_SHA[:12]}"
+    if settings.carbon_levels != "off":  # the same
+        names["carbon_levels"] = f"{settings.carbon_levels}:{READER_SHA[:12]}"
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -711,6 +714,8 @@ def _raster(
                 raise InvalidInputError("RASTER_PHOTO_COMPONENTS needs EXTRACTOR_RASTER=composite")
             if settings.carbon_reader != "off":
                 raise InvalidInputError("CARBON_READER needs EXTRACTOR_RASTER=composite")
+            if settings.carbon_levels != "off":
+                raise InvalidInputError("CARBON_LEVELS needs EXTRACTOR_RASTER=composite")
             if settings.double_check_readers:
                 raise InvalidInputError("DOUBLE_CHECK_READERS needs EXTRACTOR_RASTER=composite")
             return _scaled(settings, HelloExtractor())
@@ -733,11 +738,14 @@ def _raster(
                     "CARBON_READER=advanced reads the sheet-kind step's `advanced` flag: set "
                     "SHEET_KIND=carbon, or use CARBON_READER=off or all"
                 )
-            if use_carbon is None:
-                return shipped
-            if settings.carbon_reader == "large":  # the things drawn from Carbon, rooms not
-                return CarbonThings(shipped, _carbon(settings, files), use_carbon)
-            return CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
+            read = shipped
+            if use_carbon is not None and settings.carbon_reader == "large":  # things drawn
+                read = CarbonThings(shipped, _carbon(settings, files), use_carbon)
+            elif use_carbon is not None:
+                read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
+            if settings.carbon_levels == "demote":  # Carbon reading on its own, as integ's test
+                return CarbonChecked(read, _carbon(settings, files, policy))
+            return read
 
 
 def _room_policy(name: RoomPolicyName) -> RoomPolicy | None:
