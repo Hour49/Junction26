@@ -3,15 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   methodName,
   type CheckResult,
-  type CheckStatus,
   type ConflictEntry,
   type ProjectChecks,
+  type RuleCheck,
   type ProjectReview,
 } from '../api';
 import {
   drawing,
   error as errorBody,
   project,
+  projectChecks,
   projectFailed,
   projectReview,
   projectRunning,
@@ -523,7 +524,7 @@ describe('ConflictsScreen', () => {
   describe('checks and issues (#139 / #140)', () => {
     const CHECKS = `GET /api/projects/${pid}/checks`;
     const NOTE = 'A pre-check of a few rules, not a compliance certificate.';
-    const result = (rule: string, status: CheckStatus): CheckResult => ({
+    const result = (rule: string, status: CheckResult['status']): CheckResult => ({
       id: `${rule}-${status}`,
       rule_id: rule,
       status,
@@ -531,27 +532,30 @@ describe('ConflictsScreen', () => {
       value: status === 'cannot_tell' ? null : 1,
       limit: 1,
       unit: 'm',
-      comparison: 'ge',
+      comparison: '>=',
       comparison_text: 'at least',
       why: 'a plain sentence',
-      mark_id: null,
       quantity: null,
       marks: [],
     });
-    /** Hand-made (Bogdan's fixtures come with his PR): rules per drawing, as [rule id, statuses]. */
-    const checks = (...drawings: [string, CheckStatus[]][][]): ProjectChecks => ({
+    /** Hand-made counting cases: rules per drawing, as [rule id, statuses]. */
+    const checks = (...drawings: [string, CheckResult['status'][]][][]): ProjectChecks => ({
       project_id: pid,
       pack: 'fi',
       note: NOTE,
+      status: 'pass',
       drawings: drawings.map((rules, i) => ({
         drawing_id: `d${String(i)}`,
+        file: `plans/d${String(i)}.pdf`,
+        file_id: null,
         pack: 'fi',
         note: NOTE,
         status: 'pass',
         rules: rules.map(([rule, statuses]) => ({
           rule_id: rule,
           title: rule,
-          status: 'pass',
+          // as the backend: a rule with no result here does not apply (its status comes from its results otherwise)
+          status: statuses.length ? 'pass' : 'not_applicable',
           why: '',
           clause: { ref: '§1', url: 'https://example.org', quote: 'q', quote_en: null },
           results: statuses.map((st) => result(rule, st)),
@@ -642,6 +646,57 @@ describe('ConflictsScreen', () => {
       expect(
         await within(row()).findByText('Nothing on these drawings that these rules check.'),
       ).toBeTruthy();
+    });
+
+    it('CF-30b counts like the checks screen: a rule that cannot tell with no results is cannot tell, not_applicable is not counted', async () => {
+      const d0 = projectChecks.drawings[0];
+      const rule0 = d0?.rules[0];
+      if (!d0 || !rule0) throw new Error('project_checks.json has no rule');
+      const blind = (rule_id: string, status: RuleCheck['status']): RuleCheck => ({
+        ...rule0,
+        rule_id,
+        title: rule_id,
+        status,
+        results: [],
+      });
+      // Bogdan's fixture as is: one rule, failed
+      show({ [CHECKS]: projectChecks }, 'pack=fi');
+      await ready();
+      await waitFor(() => {
+        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe('1 rule failed');
+      });
+      cleanup();
+      const passed = {
+        ...rule0,
+        rule_id: 'Z',
+        status: 'pass' as const,
+        results: rule0.results[0]
+          ? [{ ...rule0.results[0], rule_id: 'Z', status: 'pass' as const }]
+          : [],
+      };
+      const derived: ProjectChecks = {
+        ...projectChecks,
+        drawings: [
+          { ...d0, rules: [rule0, passed] },
+          {
+            ...d0,
+            drawing_id: 'second',
+            rules: [
+              blind(rule0.rule_id, 'cannot_tell'), // its fail elsewhere still wins
+              blind('X', 'cannot_tell'), // nothing read: cannot tell, not left out
+              blind('Y', 'not_applicable'), // never pass or fail: not counted
+              blind('Z', 'cannot_tell'), // passed on the first drawing, blind here: cannot tell
+            ],
+          },
+        ],
+      };
+      show({ [CHECKS]: derived }, 'pack=fi');
+      await ready();
+      await waitFor(() => {
+        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe(
+          '1 rule failed · 2 cannot tell',
+        );
+      });
     });
 
     it('CF-32 checks errors stay inside the row; Retry re-sends only the checks', async () => {

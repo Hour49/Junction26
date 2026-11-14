@@ -207,11 +207,11 @@
       }
     },
     {
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "name": "plans/flat-b.pdf",
       "answer": {
         "question": "How many doors are there?",
-        "drawing_id": "6d153ea15dca9ab4",
+        "drawing_id": "44cc9f0d991eafe3",
         "file": "plans/flat-b.pdf",
         "pages": [
           {
@@ -219,7 +219,7 @@
             "width": 600.0,
             "height": 400.0,
             "unit": "pt",
-            "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+            "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
             "normalised": null,
             "scale": {
               "status": "scaled",

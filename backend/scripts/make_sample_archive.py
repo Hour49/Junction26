@@ -12,6 +12,9 @@ What is in it, and what ingest should make of each file (tests/ingest checks it)
                                                                                 -> ready
     plans/flat-b.pdf          a drawn plan whose printed room area disagrees with the drawn
                               outline: the second count finds it              -> flagged
+                              Its bedroom ("Zimmer 1.05") is 8.06 m2, drawn and printed alike:
+                              it passes the Finnish pack (at least 7 m2) and fails the Zürich
+                              one (at least 10 m2), the demo's one failed rule
     scans/ground-floor.png    a plan as an image only: the raster route        -> flagged until
                               a raster reader is plugged in (EXTRACTOR_RASTER)
     scans/ground-floor-copy.png  the same bytes again: not ingested twice     -> reused
@@ -140,15 +143,18 @@ def swiss_window(sheet: SheetPdf, x0: float, y0: float, x1: float, y1: float) ->
         sheet.path([(x0, y), (x1, y)], width=0.37)
 
 
-def flat_sheet(kitchen_area: str) -> SheetPdf:
+def flat_sheet(
+    kitchen_area: str, room_bottom: float = 150, room_area: str = "14.94 m²"
+) -> SheetPdf:
     """A two-room flat with a bathroom and balcony at 1:100. A kitchen of 200 x 100 pt less the
-    50 x 40 pt store inside it is 22.40 m2; another printed value is a conflict."""
+    50 x 40 pt store inside it is 22.40 m2; another printed value is a conflict. The room (a
+    bedroom) is 120 pt wide from y 50 to `room_bottom`, printed `room_area`."""
     sheet = SheetPdf(600, 400)
     swiss_room(sheet, (100, 50, 300, 150), "Küche", "1.01", kitchen_area)
     swiss_room(sheet, (150, 80, 200, 120), "Reduit", "1.02", "2.49 m²")
     swiss_room(sheet, (300, 50, 400, 150), "Bad", "1.03", "12.45 m²")
     swiss_room(sheet, (100, 150, 300, 200), "Balkon", "1.04", "12.45 m²", fill=228)
-    swiss_room(sheet, (400, 50, 520, 150), "Zimmer", "1.05", "14.94 m²")
+    swiss_room(sheet, (400, 50, 520, room_bottom), "Zimmer", "1.05", room_area)
     sheet.text("Whg. A", 104, 142)
     sheet.path(rect(98, 48, 522, 202), stroke=RED, width=1.28)
     for x in (296, 396):  # doors
@@ -397,7 +403,8 @@ def sample_files() -> dict[str, bytes]:
     return {
         "plans/flat-a.pdf": flat_a.pdf(),
         "plans/flat-a.png": flat_a.png(),
-        "plans/flat-b.pdf": flat_sheet("30.00 m²").pdf(),  # the outline gives 22.40 m2
+        # the kitchen's outline gives 22.40 m2; the bedroom is 4.23 x 1.91 m, printed as drawn
+        "plans/flat-b.pdf": flat_sheet("30.00 m²", room_bottom=104, room_area="8.06 m²").pdf(),
         "scans/ground-floor.png": plan_png,
         "scans/ground-floor-copy.png": plan_png,
         "photos/plan-photo.jpg": jpeg_bytes(phone_photo(plan)),

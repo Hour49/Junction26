@@ -136,6 +136,9 @@ class Settings(BaseSettings):
     # none: images are read as uploaded (EXIF turned upright); a rectifier undoes a photo's
     # perspective first (app/core/ingest/ports.py Rectifier)
     rectifier: RectifierName = "none"
+    # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
+    # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
+    rule_packs_dir: Path = Path(__file__).parent / "rules"
     # File triage (decision 0010): is each uploaded image a floor plan; a non-plan is kept, set
     # aside, described and judged against the project. The describer and judge run only with a
     # classifier on.

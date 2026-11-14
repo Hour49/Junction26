@@ -186,6 +186,24 @@ def test_a_count_of_one_room_type_names_it() -> None:
     assert noun("area", "room:kitchen", 12.5) is None  # counts only
 
 
+def test_every_countable_noun_has_a_correct_plural() -> None:
+    """A live request read "Please double-check the balconys": the plural was `name + "s"`."""
+    from typing import get_args
+
+    from app.core.drawing.model import ElementClass, RoomType
+
+    subjects = [*get_args(ElementClass), *(f"room:{kind}" for kind in get_args(RoomType))]
+    plurals = {subject: noun("count", subject, 2) for subject in subjects}
+    assert plurals["room:balcony"] == "balconies"
+    assert plurals["room:other"] == "other rooms"
+    for subject, text in plurals.items():
+        if subject == "furniture":  # uncounted: no plural
+            continue
+        assert text is not None
+        assert not text.endswith(("ys", "ss")), (subject, text)  # balconys, hallss
+        assert text.endswith("s"), (subject, text)
+
+
 def test_unsettle_drops_the_settled_value_and_keeps_the_mark_edits(client: TestClient) -> None:
     _, project = sample(client)
     flat_b = next(file for file in project["files"] if file["path"] == "plans/flat-b.pdf")

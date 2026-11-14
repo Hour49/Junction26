@@ -58,7 +58,9 @@ BALCONY_NAMES = {"Balkon", "Balcon", "Balcone"}
 ROOM_TYPES = {
     "kitchen": {"Küche", "Cuisine", "Cucina", "Küche/Essen"},
     "bathroom": {"Bad", "Bain", "Bagno"},
-    "bedroom": {"Schlafzimmer", "Chambre à coucher", "Camera da letto"},
+    "bedroom": {
+        "Schlafzimmer", "Chambre à coucher", "Camera da letto", "Zimmer", "Pièce", "Stanza",
+    },
     "living": {
         "Wohnen", "Wohnen/Essen", "Séjour", "Séjour/repas", "Soggiorno", "Soggiorno/pranzo",
         "Essen", "Repas", "Pranzo",

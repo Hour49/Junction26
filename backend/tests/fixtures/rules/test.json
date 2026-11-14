@@ -1,0 +1,82 @@
+{
+  "id": "test",
+  "country": "ZZ",
+  "country_name": "Testland",
+  "name": "Test pack",
+  "law": "Not a law: the rules the tests check the engine with",
+  "version": "2026-11-14",
+  "rules": [
+    {
+      "id": "test-bedroom-area",
+      "title": "A bedroom or living room is at least 7 m2",
+      "op": "room_area",
+      "applies_to": {
+        "room_types": [
+          "bedroom",
+          "living"
+        ],
+        "note": "test rooms"
+      },
+      "comparison": ">=",
+      "limit": 7,
+      "unit": "m2",
+      "clause": {
+        "ref": "Test 1 §1",
+        "url": "https://example.org/test#1",
+        "quote": "Testihuone on vähintään 7 m2.",
+        "quote_en": "A test room is at least 7 m2."
+      }
+    },
+    {
+      "id": "test-bedroom-window",
+      "title": "A bedroom has a window",
+      "op": "room_windows",
+      "applies_to": {
+        "room_types": [
+          "bedroom"
+        ]
+      },
+      "comparison": ">=",
+      "limit": 1,
+      "unit": "count",
+      "clause": {
+        "ref": "Test 1 §2",
+        "url": "https://example.org/test#2",
+        "quote": "A test bedroom has a window."
+      }
+    },
+    {
+      "id": "test-door-width",
+      "title": "A door opens at least 0.85 m clear",
+      "op": "door_width",
+      "comparison": ">=",
+      "limit": 0.85,
+      "unit": "m",
+      "clause": {
+        "ref": "Test 1 §3",
+        "url": "https://example.org/test#3",
+        "quote": "A test door is 850 mm wide clear."
+      },
+      "applies_to": {
+        "element_classes": [
+          "door"
+        ],
+        "note": "every door of the test dwelling"
+      }
+    },
+    {
+      "id": "test-wc-count",
+      "title": "The sheet has a WC",
+      "op": "takeoff",
+      "key": "room:wc",
+      "comparison": ">=",
+      "limit": 1,
+      "unit": "count",
+      "clause": {
+        "ref": "Test 1 §4",
+        "url": "https://example.org/test#4",
+        "quote": "A test dwelling has a WC."
+      }
+    }
+  ]
+}
