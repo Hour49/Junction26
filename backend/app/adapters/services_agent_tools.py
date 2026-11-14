@@ -18,7 +18,7 @@ caller with the model each drawing's chat edits (its source plus the accepted pa
 
 import json
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, get_args
 
@@ -26,6 +26,7 @@ from pydantic import Field, ValidationError
 from shapely.geometry import LineString, Point, Polygon
 
 from app.adapters.pipeline_tools import (
+    PipelineStore,
     ToolError,
     _Args,  # pyright: ignore[reportPrivateUsage]
     _decoded,  # pyright: ignore[reportPrivateUsage]
@@ -34,13 +35,18 @@ from app.adapters.pipeline_tools import (
     _why,  # pyright: ignore[reportPrivateUsage]
 )
 from app.adapters.plan_tools import ONE_AT_A_TIME
-from app.core.plan_edit.model import Selection
+from app.adapters.service_tools import _models  # pyright: ignore[reportPrivateUsage]
+from app.adapters.services_store import ServicesStore
+from app.core.errors import DomainError
+from app.core.plan_edit.model import Flag as PlanFlag
+from app.core.plan_edit.model import Proposal, Selection
 from app.core.services.derive import graph
 from app.core.services.edit import (
     EditRefusedError,
     Position,
     ServicesChange,
     add_terminal,
+    apply,
     move_terminal,
     remove_element,
     resize,
@@ -82,32 +88,101 @@ class CannotEditError(Exception):
     """This model is not one an edit can run on (a picture, no rooms, no connections)."""
 
 
-@dataclass(frozen=True)
-class ServicesProposal:
-    proposal_id: str
-    drawing_id: str
-    page: int
-    change: ServicesChange
-
-
 @dataclass
 class ServicesToolStore:
-    """The services model of each drawing (what this chat edits), this turn's selections by id,
-    and the proposals the tools made (ids p1, p2... go on from the ones already there)."""
+    """The services model of each drawing (what this chat edits: its source plus the chat's
+    accepted services patches), this turn's selections by id, and the chat's proposals: the plan
+    tools' own list when the chat has them, so ids (p1, p2...) and one-per-turn hold for both.
+    `accepted`: per drawing, the accepted services proposals its model is built on (SV-13)."""
 
     models: Mapping[str, ServicesModel]
     selections: dict[str, Selection] = field(default_factory=dict[str, Selection])
-    proposals: list[ServicesProposal] = field(default_factory=list[ServicesProposal])
+    proposals: list[Proposal] = field(default_factory=list[Proposal])
+    project_id: str | None = None  # for the picture's path (SV-28)
+    accepted: Mapping[str, tuple[str, ...]] = field(default_factory=dict[str, tuple[str, ...]])
     made_before: int = field(init=False, default=0)
 
     def __post_init__(self) -> None:
         self.made_before = len(self.proposals)
 
     def model(self, drawing_id: str) -> ServicesModel:
-        found = self.models.get(drawing_id)
+        try:
+            found = self.models.get(drawing_id)
+        except DomainError as error:  # the project could not be read
+            raise ToolError(f"no services model: {error}") from error
         if found is None:
-            raise ToolError(f"drawing {drawing_id!r} has no services model")
+            have = ", ".join(self.models) or "none"
+            raise ToolError(
+                f"drawing {drawing_id!r} has no services model; the project's services models: "
+                f"{have}"
+            )
         return found
+
+
+class _ProjectModels(Mapping[str, ServicesModel]):
+    """The stored services models of a project's IFC files by drawing id (the files #333's
+    follow-up reads, `service_tools._models`), each with the chat's accepted services patches
+    applied in proposal order. Read when first asked for, never built here (SV-8: models are built
+    at ingest or by `python -m app.cli services build`)."""
+
+    def __init__(
+        self, pipeline: PipelineStore, cache: ServicesStore, accepted: list[Proposal]
+    ) -> None:
+        self._pipeline, self._cache, self._accepted = pipeline, cache, accepted
+        self._sha: dict[str, str] | None = None
+        self._read: dict[str, ServicesModel | None] = {}
+
+    def _files(self) -> dict[str, str]:
+        if self._sha is None:
+            status = self._pipeline.ingest.status(self._pipeline.project_id)
+            files, _ = _models(status, None)
+            self._sha = {f.drawing_id: f.sha256 for f in files if f.drawing_id and f.sha256}
+        return self._sha
+
+    def __getitem__(self, drawing_id: str) -> ServicesModel:
+        if drawing_id not in self._read:
+            sha256 = self._files().get(drawing_id)
+            model = None if sha256 is None else self._cache.load(sha256)
+            for proposal in self._accepted:
+                if model is not None and proposal.drawing_id == drawing_id:
+                    assert proposal.services_change is not None
+                    model = apply(model, proposal.services_change.patch)
+            self._read[drawing_id] = model
+        found = self._read[drawing_id]
+        if found is None:
+            raise KeyError(drawing_id)
+        return found
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(d for d in self._files() if self._cache.load(self._files()[d]) is not None)
+
+    def __len__(self) -> int:
+        return sum(1 for _ in self)
+
+
+def project_services(
+    pipeline: PipelineStore,
+    selections: Sequence[Selection],
+    proposals: list[Proposal],
+    chat: Mapping[str, Proposal],
+) -> ServicesToolStore:
+    """The services tools' store for one chat turn: the project's stored models plus the chat's
+    accepted services proposals (`chat`), sharing `proposals` with the plan tools."""
+    accepted = sorted(
+        (p for p in chat.values() if p.state == "accepted" and p.services_change is not None),
+        key=lambda p: int(p.proposal_id[1:]) if p.proposal_id[1:].isdigit() else 0,
+    )
+    by_drawing: dict[str, tuple[str, ...]] = {}
+    for p in accepted:
+        by_drawing[p.drawing_id] = (*by_drawing.get(p.drawing_id, ()), p.proposal_id)
+    models = _ProjectModels(pipeline, ServicesStore(pipeline.settings.services_cache_dir), accepted)
+    return ServicesToolStore(
+        models,
+        {s.id: s for s in selections},
+        proposals,
+        project_id=pipeline.project_id,
+        accepted=by_drawing,
+    )
 
 
 @dataclass(frozen=True)
@@ -402,7 +477,23 @@ def _proposed(store: ServicesToolStore, drawing_id: str, change: ServicesChange)
     page = next(
         (i for i, s in enumerate(_storeys(store.model(drawing_id)), 1) if s.id == change.storey), 1
     )
-    proposal = ServicesProposal(f"p{len(store.proposals) + 1}", drawing_id, page, change)
+    storey = change.storey or ""
+    picture = (
+        f"/api/projects/{store.project_id}/drawings/{drawing_id}/services/{storey}.png"
+        if store.project_id
+        else None
+    )
+    change = change.model_copy(
+        update={"based_on": store.accepted.get(drawing_id, ()), "picture": picture}
+    )
+    proposal = Proposal(
+        proposal_id=f"p{len(store.proposals) + 1}",
+        drawing_id=drawing_id,
+        page=page,
+        unknowns=change.unknowns,
+        flags=tuple(PlanFlag(code=f.code, text=f.text) for f in change.flags),
+        services_change=change,
+    )
     store.proposals.append(proposal)
     shown = change.model_dump(mode="json", by_alias=True, exclude={"patch", "removed", "added"})
     shown["facts"] = shown["facts"][:12]
@@ -553,8 +644,8 @@ def _box(model: ServicesModel, e: Element) -> tuple[float, float, float, float] 
 __all__ = [
     "SERVICES_TOOLS",
     "Resolved",
-    "ServicesProposal",
     "ServicesToolStore",
+    "project_services",
     "resolve_selection",
     "run_services_tool",
 ]

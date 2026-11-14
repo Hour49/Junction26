@@ -369,7 +369,7 @@
           "check": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Check"
+                "$ref": "#/components/schemas/app__core__review__check__Check"
               },
               {
                 "type": "null"
@@ -1090,29 +1090,6 @@
           "latency_s"
         ],
         "title": "ChatTurn",
-        "type": "object"
-      },
-      "Check": {
-        "additionalProperties": false,
-        "description": "The double-check request on an answer that is not certified.",
-        "properties": {
-          "disputed": {
-            "items": {
-              "$ref": "#/components/schemas/Disputed"
-            },
-            "title": "Disputed",
-            "type": "array"
-          },
-          "reason": {
-            "title": "Reason",
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "disputed"
-        ],
-        "title": "Check",
         "type": "object"
       },
       "CheckMark": {
@@ -1844,6 +1821,35 @@
         "title": "ConflictValue",
         "type": "object"
       },
+      "Connection": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "state": {
+            "default": "stated",
+            "enum": [
+              "stated",
+              "proposed",
+              "unknown"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "Connection",
+        "type": "object"
+      },
       "Decision": {
         "additionalProperties": false,
         "properties": {
@@ -2549,6 +2555,322 @@
         "title": "Edit",
         "type": "object"
       },
+      "Element": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "body_m": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body M"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "circuit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Circuit"
+          },
+          "classes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
+          "discipline": {
+            "enum": [
+              "architecture",
+              "structural",
+              "plumbing",
+              "heating",
+              "ventilation",
+              "electrical",
+              "fire",
+              "site",
+              "other"
+            ],
+            "title": "Discipline",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "length_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length M"
+          },
+          "length_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Source"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    {
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "ports": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Port"
+            },
+            "title": "Ports",
+            "type": "array"
+          },
+          "predefined": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predefined"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IfcRef"
+              },
+              {
+                "$ref": "#/components/schemas/PictureRef"
+              }
+            ],
+            "title": "Ref"
+          },
+          "room": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "storey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storey"
+          },
+          "system_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Type"
+          },
+          "systems": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Systems",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "typed": {
+            "default": false,
+            "title": "Typed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "ref",
+          "kind",
+          "group",
+          "type",
+          "label",
+          "discipline"
+        ],
+        "title": "Element",
+        "type": "object"
+      },
       "ErrorBody": {
         "additionalProperties": false,
         "description": "Every error: one sentence, a code, and FastAPI's list for a request that fails validation.",
@@ -2911,6 +3233,57 @@
           "hits"
         ],
         "title": "EvidenceSearch",
+        "type": "object"
+      },
+      "FactChange": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "title": "After",
+            "type": "number"
+          },
+          "before": {
+            "title": "Before",
+            "type": "number"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "what": {
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "what",
+          "unit",
+          "before",
+          "after"
+        ],
+        "title": "FactChange",
         "type": "object"
       },
       "FileEvidence": {
@@ -3364,25 +3737,6 @@
         "title": "Finding",
         "type": "object"
       },
-      "Flag": {
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "text"
-        ],
-        "title": "Flag",
-        "type": "object"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3475,6 +3829,20 @@
           "dense_rank"
         ],
         "title": "HitWhy",
+        "type": "object"
+      },
+      "IfcRef": {
+        "additionalProperties": false,
+        "properties": {
+          "guid": {
+            "title": "Guid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "guid"
+        ],
+        "title": "IfcRef",
         "type": "object"
       },
       "Info": {
@@ -4582,6 +4950,91 @@
         "title": "ModelItem",
         "type": "object"
       },
+      "Moved": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "to_m": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To M"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "Moved",
+        "type": "object"
+      },
       "Normalised": {
         "additionalProperties": false,
         "description": "How an image was brought into the frame every page size, box and served page is in:\nEXIF orientation applied, then any turn, deskew or perspective correction. The pipeline\nreads the normalised image, never the upload's bytes.",
@@ -4835,6 +5288,164 @@
           "storey"
         ],
         "title": "PageView",
+        "type": "object"
+      },
+      "Patch": {
+        "additionalProperties": false,
+        "description": "An edit as data (SV-13): elements as they are after (`moved`, `changed`) or new (`added`),\nids that go (`removed`), and the connections that go or come.",
+        "properties": {
+          "added": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Element"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "changed": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Element"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "connections_added": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Connection"
+            },
+            "title": "Connections Added",
+            "type": "array"
+          },
+          "connections_removed": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Connection"
+            },
+            "title": "Connections Removed",
+            "type": "array"
+          },
+          "moved": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Element"
+            },
+            "title": "Moved",
+            "type": "array"
+          },
+          "removed": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Removed",
+            "type": "array"
+          }
+        },
+        "title": "Patch",
+        "type": "object"
+      },
+      "PictureRef": {
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "reader": {
+            "title": "Reader",
+            "type": "string"
+          }
+        },
+        "required": [
+          "page",
+          "box",
+          "reader"
+        ],
+        "title": "PictureRef",
+        "type": "object"
+      },
+      "Port": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "flow": {
+            "anyOf": [
+              {
+                "enum": [
+                  "source",
+                  "sink",
+                  "both"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "Port",
         "type": "object"
       },
       "ProjectAnswer": {
@@ -5606,7 +6217,7 @@
           "flags": {
             "default": [],
             "items": {
-              "$ref": "#/components/schemas/Flag"
+              "$ref": "#/components/schemas/app__core__plan_edit__model__Flag"
             },
             "title": "Flags",
             "type": "array"
@@ -5650,6 +6261,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ServicesFollow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "services_change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServicesChange"
               },
               {
                 "type": "null"
@@ -6631,6 +7252,54 @@
         "title": "RuleView",
         "type": "object"
       },
+      "RunChange": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "polyline": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Polyline",
+            "type": "array"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System"
+          }
+        },
+        "required": [
+          "id",
+          "polyline",
+          "label"
+        ],
+        "title": "RunChange",
+        "type": "object"
+      },
       "ScaleView": {
         "additionalProperties": false,
         "description": "The sheet's scale as read. `ratio`: N of a printed \"1:N\", None when the text is no ratio.",
@@ -7221,6 +7890,118 @@
           "label"
         ],
         "title": "ServiceMark",
+        "type": "object"
+      },
+      "ServicesChange": {
+        "additionalProperties": false,
+        "description": "What one edit proposes (SV-28's `services`); the adapter adds `picture` and `based_on`.",
+        "properties": {
+          "added": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RunChange"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "based_on": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Based On",
+            "type": "array"
+          },
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/app__core__services__edit__Check"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "facts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FactChange"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "flags": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/app__core__services__edit__Flag"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "moved": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Moved"
+            },
+            "title": "Moved",
+            "type": "array"
+          },
+          "op": {
+            "enum": [
+              "move_terminal",
+              "remove_element",
+              "add_terminal",
+              "resize"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/Patch"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Picture"
+          },
+          "removed": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RunChange"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "storey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storey"
+          },
+          "unknowns": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "op",
+          "storey",
+          "patch"
+        ],
+        "title": "ServicesChange",
         "type": "object"
       },
       "ServicesFollow": {
@@ -8297,6 +9078,48 @@
         "title": "Level",
         "type": "object"
       },
+      "app__core__plan_edit__model__Flag": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "Flag",
+        "type": "object"
+      },
+      "app__core__review__check__Check": {
+        "additionalProperties": false,
+        "description": "The double-check request on an answer that is not certified.",
+        "properties": {
+          "disputed": {
+            "items": {
+              "$ref": "#/components/schemas/Disputed"
+            },
+            "title": "Disputed",
+            "type": "array"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "disputed"
+        ],
+        "title": "Check",
+        "type": "object"
+      },
       "app__core__review__check__Level": {
         "additionalProperties": false,
         "description": "How far to trust an answer: one of three levels, what it rests on, and one plain sentence\nwith the measured counts behind it.",
@@ -8334,6 +9157,50 @@
           "text"
         ],
         "title": "Level",
+        "type": "object"
+      },
+      "app__core__services__edit__Check": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "ok",
+          "text"
+        ],
+        "title": "Check",
+        "type": "object"
+      },
+      "app__core__services__edit__Flag": {
+        "additionalProperties": false,
+        "description": "A flag on a change; the same fields as plan_edit's `Flag` (that module imports this one,\nso this one cannot import it).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "Flag",
         "type": "object"
       }
     }

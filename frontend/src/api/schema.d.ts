@@ -889,7 +889,7 @@ export interface components {
         AnswerView: {
             /** Answer */
             answer: number | string | null;
-            check: components["schemas"]["Check"] | null;
+            check: components["schemas"]["app__core__review__check__Check"] | null;
             confidence: components["schemas"]["Signal"] | null;
             /** Cost Usd */
             cost_usd: number;
@@ -1089,16 +1089,6 @@ export interface components {
             /** Turn */
             turn: number;
             view?: components["schemas"]["View"] | null;
-        };
-        /**
-         * Check
-         * @description The double-check request on an answer that is not certified.
-         */
-        Check: {
-            /** Disputed */
-            disputed: components["schemas"]["Disputed"][];
-            /** Reason */
-            reason: string;
         };
         /**
          * CheckMark
@@ -1313,6 +1303,19 @@ export interface components {
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
             /** Value */
             value: number;
+        };
+        /** Connection */
+        Connection: {
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /**
+             * State
+             * @default stated
+             * @enum {string}
+             */
+            state: "stated" | "proposed" | "unknown";
         };
         /** Decision */
         Decision: {
@@ -1557,6 +1560,91 @@ export interface components {
             /** Value */
             value?: number | null;
         };
+        /** Element */
+        Element: {
+            /** At */
+            at?: [
+                number,
+                number,
+                number
+            ] | [
+                number,
+                number
+            ] | null;
+            /** Body M */
+            body_m?: [
+                number,
+                number,
+                number
+            ] | null;
+            /** Category */
+            category?: string | null;
+            /** Circuit */
+            circuit?: string | null;
+            /** Classes */
+            classes?: {
+                [key: string]: string;
+            };
+            /**
+             * Discipline
+             * @enum {string}
+             */
+            discipline: "architecture" | "structural" | "plumbing" | "heating" | "ventilation" | "electrical" | "fire" | "site" | "other";
+            /** Group */
+            group: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Length M */
+            length_m?: number | null;
+            /** Length Source */
+            length_source?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Path */
+            path?: ([
+                number,
+                number,
+                number
+            ] | [
+                number,
+                number
+            ])[] | null;
+            /**
+             * Ports
+             * @default []
+             */
+            ports: components["schemas"]["Port"][];
+            /** Predefined */
+            predefined?: string | null;
+            /** Ref */
+            ref: components["schemas"]["IfcRef"] | components["schemas"]["PictureRef"];
+            /** Room */
+            room?: string | null;
+            /** Size */
+            size?: string | null;
+            /** Space */
+            space?: string | null;
+            /** Storey */
+            storey?: string | null;
+            /** System Type */
+            system_type?: string | null;
+            /**
+             * Systems
+             * @default []
+             */
+            systems: string[];
+            /** Type */
+            type: string;
+            /**
+             * Typed
+             * @default false
+             */
+            typed: boolean;
+        };
         /**
          * ErrorBody
          * @description Every error: one sentence, a code, and FastAPI's list for a request that fails validation.
@@ -1670,6 +1758,21 @@ export interface components {
             query: string;
             /** Unrelated Left Out */
             unrelated_left_out: number;
+        };
+        /** FactChange */
+        FactChange: {
+            /** After */
+            after: number;
+            /** Before */
+            before: number;
+            /** Size */
+            size?: string | null;
+            /** System */
+            system?: string | null;
+            /** Unit */
+            unit: string;
+            /** What */
+            what: string;
         };
         /**
          * FileEvidence
@@ -1798,13 +1901,6 @@ export interface components {
              */
             unit: "m2" | "m" | "count";
         };
-        /** Flag */
-        Flag: {
-            /** Code */
-            code: string;
-            /** Text */
-            text: string;
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1840,6 +1936,11 @@ export interface components {
             dense_rank: number | null;
             /** Terms */
             terms: string[];
+        };
+        /** IfcRef */
+        IfcRef: {
+            /** Guid */
+            guid: string;
         };
         /** Info */
         Info: {
@@ -2148,6 +2249,29 @@ export interface components {
             /** Storey */
             storey: string | null;
         };
+        /** Moved */
+        Moved: {
+            /** From */
+            from?: [
+                number,
+                number
+            ] | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** To */
+            to?: [
+                number,
+                number
+            ] | null;
+            /** To M */
+            to_m?: [
+                number,
+                number,
+                number
+            ] | null;
+        };
         /**
          * Normalised
          * @description How an image was brought into the frame every page size, box and served page is in:
@@ -2241,6 +2365,70 @@ export interface components {
             url: string;
             /** Width */
             width: number;
+        };
+        /**
+         * Patch
+         * @description An edit as data (SV-13): elements as they are after (`moved`, `changed`) or new (`added`),
+         *     ids that go (`removed`), and the connections that go or come.
+         */
+        Patch: {
+            /**
+             * Added
+             * @default []
+             */
+            added: components["schemas"]["Element"][];
+            /**
+             * Changed
+             * @default []
+             */
+            changed: components["schemas"]["Element"][];
+            /**
+             * Connections Added
+             * @default []
+             */
+            connections_added: components["schemas"]["Connection"][];
+            /**
+             * Connections Removed
+             * @default []
+             */
+            connections_removed: components["schemas"]["Connection"][];
+            /**
+             * Moved
+             * @default []
+             */
+            moved: components["schemas"]["Element"][];
+            /**
+             * Removed
+             * @default []
+             */
+            removed: string[];
+        };
+        /** PictureRef */
+        PictureRef: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Page */
+            page: number;
+            /** Reader */
+            reader: string;
+        };
+        /** Port */
+        Port: {
+            /** At */
+            at?: [
+                number,
+                number,
+                number
+            ] | null;
+            /** Flow */
+            flow?: ("source" | "sink" | "both") | null;
+            /** Id */
+            id: string;
         };
         /** ProjectAnswer */
         ProjectAnswer: {
@@ -2458,7 +2646,7 @@ export interface components {
              * Flags
              * @default []
              */
-            flags: components["schemas"]["Flag"][];
+            flags: components["schemas"]["app__core__plan_edit__model__Flag"][];
             law?: components["schemas"]["LawCheck"] | null;
             /** Page */
             page: number;
@@ -2475,6 +2663,7 @@ export interface components {
              */
             rooms: components["schemas"]["RoomChange"][];
             services?: components["schemas"]["ServicesFollow"] | null;
+            services_change?: components["schemas"]["ServicesChange"] | null;
             /**
              * State
              * @default proposed
@@ -2839,6 +3028,20 @@ export interface components {
              */
             unit: "m2" | "m" | "count";
         };
+        /** RunChange */
+        RunChange: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Polyline */
+            polyline: [
+                number,
+                number
+            ][];
+            /** System */
+            system?: string | null;
+        };
         /**
          * ScaleView
          * @description The sheet's scale as read. `ratio`: N of a printed "1:N", None when the text is no ratio.
@@ -3042,6 +3245,62 @@ export interface components {
             ][];
             /** Ref */
             ref: string;
+        };
+        /**
+         * ServicesChange
+         * @description What one edit proposes (SV-28's `services`); the adapter adds `picture` and `based_on`.
+         */
+        ServicesChange: {
+            /**
+             * Added
+             * @default []
+             */
+            added: components["schemas"]["RunChange"][];
+            /**
+             * Based On
+             * @default []
+             */
+            based_on: string[];
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["app__core__services__edit__Check"][];
+            /**
+             * Facts
+             * @default []
+             */
+            facts: components["schemas"]["FactChange"][];
+            /**
+             * Flags
+             * @default []
+             */
+            flags: components["schemas"]["app__core__services__edit__Flag"][];
+            /**
+             * Moved
+             * @default []
+             */
+            moved: components["schemas"]["Moved"][];
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "move_terminal" | "remove_element" | "add_terminal" | "resize";
+            patch: components["schemas"]["Patch"];
+            /** Picture */
+            picture?: string | null;
+            /**
+             * Removed
+             * @default []
+             */
+            removed: components["schemas"]["RunChange"][];
+            /** Storey */
+            storey: string | null;
+            /**
+             * Unknowns
+             * @default []
+             */
+            unknowns: string[];
         };
         /** ServicesFollow */
         ServicesFollow: {
@@ -3427,6 +3686,23 @@ export interface components {
             /** Text */
             text?: string | null;
         };
+        /** Flag */
+        app__core__plan_edit__model__Flag: {
+            /** Code */
+            code: string;
+            /** Text */
+            text: string;
+        };
+        /**
+         * Check
+         * @description The double-check request on an answer that is not certified.
+         */
+        app__core__review__check__Check: {
+            /** Disputed */
+            disputed: components["schemas"]["Disputed"][];
+            /** Reason */
+            reason: string;
+        };
         /**
          * Level
          * @description How far to trust an answer: one of three levels, what it rests on, and one plain sentence
@@ -3443,6 +3719,26 @@ export interface components {
              * @enum {string}
              */
             level: "high" | "medium" | "low";
+            /** Text */
+            text: string;
+        };
+        /** Check */
+        app__core__services__edit__Check: {
+            /** Code */
+            code: string;
+            /** Ok */
+            ok: boolean;
+            /** Text */
+            text: string;
+        };
+        /**
+         * Flag
+         * @description A flag on a change; the same fields as plan_edit's `Flag` (that module imports this one,
+         *     so this one cannot import it).
+         */
+        app__core__services__edit__Flag: {
+            /** Code */
+            code: string;
             /** Text */
             text: string;
         };

@@ -19,6 +19,10 @@ from tests.services_fixtures import SUPPLY, two_rooms
 LIMIT = 4000
 
 
+def _never() -> Any:
+    raise AssertionError("a services proposal carries its change")
+
+
 def _store(model: ServicesModel | None = None, **selections: Selection) -> ServicesToolStore:
     return ServicesToolStore(models={"d1": model or two_rooms()}, selections=selections)
 
@@ -110,7 +114,8 @@ def test_sv25_propose_move_terminal_ok_with_the_change() -> None:
     assert proposal["page"] == 1 and proposal["op"] == "move_terminal"
     assert all(c["ok"] for c in proposal["checks"])
     assert any(f["code"] == "not_sized" for f in proposal["flags"])
-    assert len(store.proposals) == 1 and store.proposals[0].change.patch.moved
+    assert len(store.proposals) == 1
+    assert (store.proposals[0].services_change or _never()).patch.moved
 
 
 def test_sv25_one_proposal_per_turn() -> None:
@@ -182,7 +187,7 @@ def test_sv22_a_move_to_a_selection() -> None:
         store, "propose_move_terminal", drawing_id="d1", element_id="E2", selection_id="sel_1"
     )
     assert found["status"] == "ok"
-    moved = store.proposals[0].change.moved[0]
+    moved = (store.proposals[0].services_change or _never()).moved[0]
     assert moved.to_m is not None and moved.to_m[0] == pytest.approx(2.5, abs=0.3)
     found = _run(
         _store(), "propose_move_terminal", drawing_id="d1", element_id="E2", selection_id="sel_7"
