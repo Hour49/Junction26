@@ -138,7 +138,7 @@ reads the scans); the e2e always runs on no keys (`start-backend.sh` forces ever
 | --- | --- | --- | --- |
 | 1 | Open the app at `/#/` | Home: drop zone, "Choose a file", "Try the sample project", the list of earlier projects; the strip "Running offline: no API keys, no models" | yes |
 | 2 | Click "Try the sample project" | `#/p/<id>`: "sample-project.zip", the files turn finished one by one, then "Done", "11 of 11 files finished", cost $0.00; every file row has its state in words (no keys: 3 ready, 4 flagged, 2 set aside, 2 text only; with keys the raster reader reads the two scans: 5 ready, 2 flagged, 2 set aside, 2 text only); 5 drawings listed | yes |
-| 3 | Click the file `plans/flat-b.pdf` | `#/p/<id>/f/<file_id>` (`f3` today): state "flagged", reason "1 conflict(s) between the two methods (room_area) …"; ten stages unpack → write, `second_count` reading "5 quantities measured twice, 1 conflict(s)" | yes |
+| 3 | Click the file `plans/flat-b.pdf` | `#/p/<id>/f/<file_id>` (`f3` today): state "flagged", reason "1 conflict between the two methods (room_area) …"; ten stages unpack → write, `second_count` reading "5 quantities measured twice, 1 conflict" | yes |
 | 4 | Click "Open the drawing" | `#/p/<id>/d/<drawing_id>/engineer`: "plans/flat-b.pdf", "vector route, read from plans/flat-b.pdf by pdf …", page 1 of the plan, six suggested questions | yes |
 | 5 | Click "How many doors are there?" | Answer `2`, "door count", two numbered marks 1 and 2 on the doors, "Counting rule: every element, room and plan the drawing lists counts once", "One method", Cost $0 | yes |
 | 6 | Type "What is the net floor area of room 1.01?", Ask | Answer `30.00 m²`, the kitchen shaded, status "Methods disagree": "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas", "Kept 30.00 m²: the printed label over the outline at the sheet's scale" | yes |
@@ -319,7 +319,7 @@ The path
   the rows of `plans/flat-b.pdf`, `photos/site.jpg` and `docs/notes.txt` show "flagged", "set aside" and
   "text only" as words. [e2e]
 - GP-4 Step 3: clicking the `plans/flat-b.pdf` row reaches `#/p/<id>/f/f<digits>`, which shows "flagged", the text
-  "1 conflict(s) between the two methods", the stage `write`, and "5 quantities measured twice, 1 conflict(s)". [e2e]
+  "1 conflict between the two methods", the stage `write`, and "5 quantities measured twice, 1 conflict". [e2e]
 - GP-5 Step 4: "Open the drawing" reaches `#/p/<id>/d/<16 hex>/engineer`, shows "plans/flat-b.pdf", a page image
   that loaded (`naturalWidth > 0`), the line "Credit: none recorded for this file" and the suggestion button
   "How many doors are there?". [e2e]
