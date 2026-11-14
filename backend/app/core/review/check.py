@@ -18,8 +18,10 @@ to the user", review of #129 B1, 2026-11-14): two methods disagree (also when a 
 value), the value is an estimate, a person changed its marks (the score rated the pipeline's
 value, not theirs), or a bedroom count includes a room typed a bedroom from what is drawn in it,
 with no printed label (orchestrator, golden-22: the demo's ROOM_POLICY=furniture counts those; the
-reference answers type a room by its label alone). A refusal has no value to check; a quantity a
-person settled or signed off is theirs, not ours, so neither gets one.
+reference answers type a room by its label alone). A plan count is certified only when the answer
+confidence's own most likely count is the answered one (`AGREEING_FAMILIES`, #174: hand-drawn
+sketches got wrong plan counts with a high score where Gemini counted otherwise). A refusal has no
+value to check; a quantity a person settled or signed off is theirs, not ours, so neither gets one.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -27,6 +29,7 @@ from types import MappingProxyType
 
 from pydantic import Field
 
+from app.core.answering.answer import AGREEING_FAMILIES
 from app.core.answering.local_gate import READER_FAMILIES, LocalGateModel, reading_of, score
 from app.core.drawing.model import Box, Drawing, Room
 from app.core.model import Frozen
@@ -153,11 +156,16 @@ def certified(
     family: str | None,
     score: float | None,
     flags: Sequence[str],
+    agrees: bool | None = None,
 ) -> bool:
+    """`agrees`: whether the answer confidence's own most likely count is the answered one (None:
+    it gives none); a family in `AGREEING_FAMILIES` needs True on the raster route."""
     if flags:
         return False  # the policy was chosen on scans of plans, not on photos
     if route != "raster":
         return route in policy.routes
+    if family in AGREEING_FAMILIES and agrees is not True:
+        return False  # a second reader counts otherwise, or there is none to agree
     threshold = None if family is None else policy.thresholds.get(family)
     return threshold is not None and score is not None and score >= threshold
 
@@ -205,6 +213,13 @@ def held(row: Row, drawing: Drawing) -> str | None:
             "please confirm."
         )
     return None
+
+
+def disagree(row: Row) -> str:
+    """The request's sentence when the answer confidence counts otherwise (`AGREEING_FAMILIES`)."""
+    return (
+        f"Please double-check the {row.noun or row.label}: two readers count the plans differently."
+    )
 
 
 def double_check(
