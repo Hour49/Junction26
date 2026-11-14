@@ -864,3 +864,9 @@ button.en-cref {
     padding-top: 24px;
   }
 }
+/* K7: the drawings left out of the answer */
+.en-refused {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--v-muted);
+}
