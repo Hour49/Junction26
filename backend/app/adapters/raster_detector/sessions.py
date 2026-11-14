@@ -22,7 +22,10 @@ from typing import Any
 
 import numpy as np
 
-MEMO = 32  # inputs remembered per model: one page's eight views plus its one-view reads
+# inputs remembered per model: a page's eight views plus its one-view reads, and with
+# RASTER_TILES=auto every tile's (48 tiles of an A1 sheet: 48 x 9 inputs), so the second reader of
+# a tiled page reuses the first one's runs. Only outputs are kept (a detector's: about 8 KB a run)
+MEMO = 1024
 
 
 class SharedSession:
