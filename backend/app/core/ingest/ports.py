@@ -119,6 +119,12 @@ class Readers(Protocol):
         """Whether a PDF is a scan (stage 5 routes it to the raster reader)."""
         ...
 
+    @property
+    def carbon_read(self) -> Callable[[str], bool] | None:
+        """Whether the raster route's drawing of a file (by path) is read by Gemini Carbon
+        alone (CARBON_READER); such a drawing is flagged. None: no file is."""
+        ...
+
 
 class ProjectStore(Protocol):
     """Projects, their files, and the drawings and outcomes kept by content."""
