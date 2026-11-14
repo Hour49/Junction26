@@ -311,3 +311,30 @@ def test_the_committed_levels_policy_of_c1_t1_loads_with_its_levels() -> None:
     assert policy.route_levels == {"bim": "high", "vector": "high", "schedule": "medium"}
     assert set(policy.route_counts) == {"bim", "vector", "schedule"}
     assert policy.counts is not None and all(c.units >= 30 for c in policy.counts.values())
+
+
+def test_which_room_is_the_largest_is_as_trusted_as_the_weakest_area_it_compares() -> None:
+    """A comparison is never trusted more than any area under it: the bathroom's area is held by
+    a disagreement (Low), so the kitchen being largest is Low too, and asks."""
+    kitchen = Room(id="r1", type="kitchen", label="Küche", page=1, box=(0.1, 0.1, 0.4, 0.4),
+                   area_m2=20.0)  # fmt: skip
+    bath = Room(id="r2", type="bathroom", label="Bad", page=1, box=(0.5, 0.5, 0.6, 0.6),
+                area_m2=5.0)  # fmt: skip
+    conflict = Conflict(
+        id="c1", quantity="room_area", subject=Subject(kind="room", ref="r2"), status="conflict",
+        tolerance=0.05, values=(MeasuredValue(value=5, unit="m2", method="polygon_x_scale"),
+                                MeasuredValue(value=7, unit="m2", method="printed_label")),
+    )  # fmt: skip
+    plain = Drawing(
+        file="x.pdf", pages=(PAGE,), scale=Scale(status="scaled"), rooms=(kitchen, bath)
+    )
+    held = plain.model_copy(update={"conflicts": (conflict,)})
+    question = "Which room is the largest?"
+    assert made(asked("What is the area of the Küche?", drawing=held, route="bim")) == (
+        "high", "route",
+    )  # fmt: skip
+    assert made(asked(question, drawing=plain, route="bim")) == ("high", "route")
+    found = asked(question, drawing=held, route="bim")
+    assert found.answer.answer == "Küche"
+    assert made(found) == ("low", "held")
+    assert found.answer.sure is False and found.check is not None
