@@ -433,22 +433,31 @@ count that includes a bedroom with no printed label always asks. The test certif
 
 The committed policy is the val fit, byte for byte; the test read changes nothing in it. The certificate is the
 backend's own `ask()` with that policy on the drawings the test read stored, so it runs the same code as the API,
-then each verdict is joined with the truth. It runs once, on integ's read of the 376 CubiCasa test pages, with the
-shipping config (C1-T1 with the arbiter-t1 count arbiter run live, DOUBLE_CHECK_READERS `l1,m1`, LOCAL_GATES,
-DECISIONS_CONFIDENCE, #174's plan agreement) and ROOM_POLICY=gold-labels, as on val. The read covers the raster
-route only; the vector and BIM routes are certified on golden v2's holdout (above).
+then each verdict is joined with the truth. integ read the 376 CubiCasa test pages once (2026-11-14 15:37-16:48,
+commit 671d67f), with the shipping config (C1-T1 with the arbiter-t1 count arbiter run live, DOUBLE_CHECK_READERS
+`l1,m1`, LOCAL_GATES, DECISIONS_CONFIDENCE, #174's plan agreement) and ROOM_POLICY=gold-labels, as on val. The
+read covers the raster route only; the vector and BIM routes are certified on golden v2's holdout (above). The
+two scripts are in `eval/certificate/`, byte for byte as they ran. From a backend checkout of the read's commit:
+
+```bash
+PYTHONPATH=. uv run --locked python ../eval/certificate/certify.py --drawings <run>/extraction/cubicasa5k --questions <run>/questions.jsonl --answers <run>/answers.jsonl --policy <check policy> --local-gates <lgate2-rt.json,lgate-rt-noL1.json> --flags <run>/flags --g1main <run>/g1main.json --out certified.jsonl --api-answers answers-api.jsonl
+cd ../eval && PYTHONPATH=. uv run --locked python certificate/certify_join.py <test questions with truth> answers-api.jsonl certified.jsonl
+```
 
 An answer is flagged when the policy does not certify it, so it asks for a double-check. The numbers count
 questions, as the join does. On val each page and family has one English and one Finnish question with the same
 answer, so every count there is twice the number of answers; the 95% bound (one-sided Clopper-Pearson) is computed
-on answers, not questions. The result is one sentence: "on the test pages, the double-check flagged X% of the wrong
-answers (one-sided 95% bound B%) and asked on F% of all answers; Y% of the answers it did not flag are exact".
+on answers, not questions (on test too, every page and family has two questions with one answer and one verdict).
+
+**On the test pages, the double-check flagged 97.0% of the wrong answers (one-sided 95% bound 95.3%) and asked on
+62.1% of all answers; 99.0% of the answers it did not flag are exact.**
 
 | read | rated | wrong | flagged | wrong flagged (recall) | 95% bound on recall | unflagged exact |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | val, shipped thresholds (as the backend runs) | 6764 | 800 | 3962 (58.6%) | 782/800 (97.8%) | 96.1% | 2784/2802 (99.36%) |
 | val, cross-fit (each half under the other half's fit) | 6764 | 800 | 3730 (55.1%) | 768/800 (96.0%) | 94.0% | 3002/3034 (98.95%) |
-| **test, once** | TBD | TBD | TBD | TBD | TBD | TBD |
+| **test, once** | 6718 | 872 | 4174 (62.1%) | 846/872 (97.0%) | 95.3% | 2518/2544 (98.98%) |
+| test, first run of the certificate (kitchen scored on the prior, see below) | 6718 | 858 | 3908 (58.2%) | 808/858 (94.2%) | 92.0% | 2760/2810 (98.22%) |
 
 The val rows are chosen on val, not a guarantee: the shipped row is in-sample, and the cross-fit row is the honest
 val estimate. The 96% target is one point above Bogdan's 95% (D476, D490), a margin for choosing the cut on val.
@@ -457,20 +466,32 @@ Per family (questions; val with the shipped thresholds):
 
 | family | val flagged | val recall | val unflagged exact | test flagged | test recall | test unflagged exact |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| door | 100.0% | 152/152 | - | TBD | TBD | TBD |
-| plan | 7.4% | 6/8 | 694/696 | TBD | TBD | TBD |
-| room:balcony | 96.0% | 20/20 | 10/10 | TBD | TBD | TBD |
-| room:bathroom | 48.9% | 24/24 | 186/186 | TBD | TBD | TBD |
-| room:bedroom | 67.5% | 40/42 | 156/158 | TBD | TBD | TBD |
-| room:kitchen | 44.9% | 38/42 | 288/292 | TBD | TBD | TBD |
-| room:wc | 62.9% | 20/20 | 132/132 | TBD | TBD | TBD |
-| sauna | 4.1% | 4/6 | 518/520 | TBD | TBD | TBD |
-| shower+bathtub | 80.4% | 60/62 | 132/134 | TBD | TBD | TBD |
-| sink | 90.0% | 68/68 | 74/74 | TBD | TBD | TBD |
-| toilet | 20.0% | 14/20 | 594/600 | TBD | TBD | TBD |
-| window | 100.0% | 336/336 | - | TBD | TBD | TBD |
+| door | 100.0% | 152/152 | - | 100.0% | 142/142 | - |
+| plan | 7.4% | 6/8 | 694/696 | 9.3% | 8/8 | 682/682 |
+| room:balcony | 96.0% | 20/20 | 10/10 | 94.3% | 18/18 | 12/12 |
+| room:bathroom | 48.9% | 24/24 | 186/186 | 52.4% | 40/40 | 178/178 |
+| room:bedroom | 67.5% | 40/42 | 156/158 | 69.4% | 48/54 | 136/142 |
+| room:kitchen | 44.9% | 38/42 | 288/292 | 51.6% | 38/40 | 248/250 |
+| room:wc | 62.9% | 20/20 | 132/132 | 57.4% | 6/14 | 148/156 |
+| sauna | 4.1% | 4/6 | 518/520 | 5.3% | 4/8 | 500/504 |
+| shower+bathtub | 80.4% | 60/62 | 132/134 | 100.0% | 94/94 | - |
+| sink | 90.0% | 68/68 | 74/74 | 90.8% | 86/86 | 68/68 |
+| toilet | 20.0% | 14/20 | 594/600 | 26.6% | 30/36 | 546/552 |
+| window | 100.0% | 336/336 | - | 100.0% | 332/332 | - |
 
-Two notes from integ on what this read does and does not cover:
+Three notes on what this read does and does not cover:
+
+- Kitchen (the certificate's first run, corrected). The test read answered through the CLI, where ANSWER_POLICY
+  sends CubiCasa kitchen counts to the dev prior, because a page's path there is `data/cubicasa5k/...`. The API
+  never does: an uploaded file keeps its bare name, so `source_of()` (`backend/app/core/answering/model.py:75`)
+  finds no dataset, and the kitchen count comes from the drawing, scored by G1main (checked live on a val page
+  at 671d67f: method takeoff, sure). The first run of the certificate took each answer's score from the run's
+  line, and on kitchen that was the prior's hit rate (0.9579): all 516 kitchen answers were certified, 26 of
+  them wrong, and the prior's value was judged. The corrected run (the test row) scores G1main's P of the
+  drawing's count, as the API does, and judges the answer the API gives; only the 516 kitchen lines change (266
+  of them now ask), and on every line answered from the drawing in both runs the two scores are equal (6,202 of
+  6,202). The corrected run is the product's. The API's kitchen answers are 476/516 exact on test (92.2%; the
+  prior's were 490/516), so the API's test accuracy is 5,846/6,718 (87.0%), not the CLI read's 5,860 (87.2%).
 
 - Sauna. The count arbiter stores, in `count_arbiter["sauna"]`, T1's P for its own sauna-stove pick. C1-T1 does
   not answer sauna with that pick: the rule counts sauna rooms first (one per sauna room, else C1's stoves from
