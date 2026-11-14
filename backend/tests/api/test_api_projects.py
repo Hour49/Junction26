@@ -450,7 +450,7 @@ def test_a_missing_sample_archive_is_built_on_the_first_click(
     response = client.post("/api/projects/sample")
     assert response.status_code == 202
     assert settings.sample_archive.read_bytes() == build_archive()
-    assert len(client.get(response.json()["url"]).json()["files"]) == 11
+    assert len(client.get(response.json()["url"]).json()["files"]) == 12
 
 
 def test_a_sample_that_cannot_be_built_is_refused_in_plain_words(

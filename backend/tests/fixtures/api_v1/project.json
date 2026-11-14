@@ -500,7 +500,7 @@
     }
   ],
   "counts": {
-    "ready": 3,
+    "ready": 4,
     "flagged": 4,
     "set_aside": 2,
     "text_only": 2
@@ -552,6 +552,20 @@
       "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
       "drawable": false,
       "not_drawable_reason": "no walls are drawn as geometry on this page"
+    },
+    {
+      "drawing_id": "1461af7f40ba2791",
+      "group": "plans/flat-c",
+      "file": "plans/flat-c.pdf",
+      "kind": "pdf_vector",
+      "route": "vector",
+      "source": "plans/flat-c.pdf",
+      "state": "ready",
+      "other_renderings": [],
+      "name": "Drawn plan 3",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": true,
+      "not_drawable_reason": null
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -611,7 +625,7 @@
       "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
     }
   ],
-  "expected_drawings": 5,
+  "expected_drawings": 6,
   "conflicts_open": 0,
   "issues_open": 4,
   "issues_to_answer": 0

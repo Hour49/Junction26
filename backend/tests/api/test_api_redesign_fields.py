@@ -82,7 +82,7 @@ def test_expected_drawings_counts_a_group_and_a_copy_once() -> None:
 
 def test_the_sample_expects_the_drawings_it_ends_with(client: TestClient) -> None:
     _, project = sample(client)
-    assert project["expected_drawings"] == len(project["drawings"]) == 5
+    assert project["expected_drawings"] == len(project["drawings"]) == 6
 
 
 def test_every_trace_of_a_project_in_one_request(client: TestClient) -> None:

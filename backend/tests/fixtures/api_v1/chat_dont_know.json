@@ -254,6 +254,113 @@
           "file_id": "f3"
         },
         {
+          "drawing_id": "1461af7f40ba2791",
+          "name": "plans/flat-c.pdf",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "1461af7f40ba2791",
+            "file": "plans/flat-c.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/1461af7f40ba2791/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": [
+                {
+                  "quantity": "area:room|indoor",
+                  "label": "area of room (indoor)",
+                  "question": "What is the net floor area of all indoor rooms in m²?"
+                },
+                {
+                  "quantity": "door",
+                  "label": "door count",
+                  "question": "How many doors are there?"
+                },
+                {
+                  "quantity": "room:bedroom",
+                  "label": "room bedroom count",
+                  "question": "How many bedrooms are there?"
+                },
+                {
+                  "quantity": "room:bathroom",
+                  "label": "room bathroom count",
+                  "question": "How many bathrooms are there?"
+                },
+                {
+                  "quantity": "room:balcony",
+                  "label": "room balcony count",
+                  "question": "How many balconies are there?"
+                },
+                {
+                  "quantity": "room",
+                  "label": "room count",
+                  "question": "How many rooms are there?"
+                }
+              ]
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-c.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          },
+          "file_id": "f4"
+        },
+        {
           "drawing_id": "3b3ce7db34257f63",
           "name": "scans/ground-floor.png",
           "answer": {
@@ -336,7 +443,7 @@
             "check": null,
             "level": null
           },
-          "file_id": "f4"
+          "file_id": "f5"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -421,7 +528,7 @@
             "check": null,
             "level": null
           },
-          "file_id": "f6"
+          "file_id": "f7"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -511,16 +618,16 @@
             "check": null,
             "level": null
           },
-          "file_id": "f8"
+          "file_id": "f9"
         }
       ],
       "total": null,
       "total_unit": null,
       "total_sure": false,
       "total_level": null,
-      "total_note": "No drawing answered it: 5 drawings can't answer this question.",
+      "total_note": "No drawing answered it: 6 drawings can't answer this question.",
       "why_no_total": "No drawing answered it.",
-      "refused_note": "5 drawings can't answer this question."
+      "refused_note": "6 drawings can't answer this question."
     }
   ],
   "view": null,

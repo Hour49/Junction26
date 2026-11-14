@@ -2,7 +2,7 @@
   "chat_id": "c4a7c0000001",
   "turn": 1,
   "kind": "answer",
-  "text": "The drawings answer this below [1][2].",
+  "text": "The drawings answer this below [1][2][3].",
   "evidence": [
     {
       "n": 1,
@@ -31,6 +31,22 @@
         0.225,
         0.50667,
         0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 3,
+      "id": "ev_14",
+      "drawing_id": "1461af7f40ba2791",
+      "name": "Drawn plan 3",
+      "page": 1,
+      "box": [
+        0.30507,
+        0.32087,
+        0.3174,
+        0.39173
       ],
       "label": "door",
       "sure": null,
@@ -470,6 +486,167 @@
           "file_id": "f3"
         },
         {
+          "drawing_id": "1461af7f40ba2791",
+          "name": "plans/flat-c.pdf",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "1461af7f40ba2791",
+            "file": "plans/flat-c.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/1461af7f40ba2791/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": 1,
+            "unit": "count",
+            "confidence": null,
+            "quantity": {
+              "key": "door",
+              "label": "door count",
+              "measure": "count",
+              "subject": "door",
+              "scope": {
+                "storey": null,
+                "label": null,
+                "name": null,
+                "apartment": null,
+                "indoor": false,
+                "model": false,
+                "largest": false
+              },
+              "value": 1,
+              "unit": "count",
+              "original_value": 1,
+              "status": "single",
+              "needs_person": false,
+              "rule": {
+                "id": "each-once",
+                "text": "every element, room and plan the drawing lists counts once"
+              },
+              "estimate": null,
+              "first": null,
+              "second": null,
+              "conflict": null,
+              "settled": null,
+              "marks": [
+                {
+                  "id": "m1",
+                  "n": 1,
+                  "page": 1,
+                  "box": [
+                    0.30507,
+                    0.32087,
+                    0.3174,
+                    0.39173
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e1",
+                  "reason": null,
+                  "room_type": null
+                }
+              ],
+              "signed": null,
+              "unlocated": {},
+              "noun": "door"
+            },
+            "marks": [
+              {
+                "id": "m1",
+                "n": 1,
+                "page": 1,
+                "box": [
+                  0.30507,
+                  0.32087,
+                  0.3174,
+                  0.39173
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e1",
+                "reason": null,
+                "room_type": null
+              }
+            ],
+            "refusal": null,
+            "method": "takeoff",
+            "explanation": null,
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-c.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": 1,
+              "unit": "count",
+              "evidence": [
+                {
+                  "file": "plans/flat-c.pdf",
+                  "page": 1,
+                  "box": [
+                    0.30507,
+                    0.32087,
+                    0.3174,
+                    0.39173
+                  ]
+                }
+              ],
+              "method": "takeoff",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": null,
+              "explanation": null,
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "count",
+              "legend": [
+                {
+                  "label": "door",
+                  "colour": "#d62728",
+                  "count": 1,
+                  "unlocated": 0,
+                  "note": null
+                }
+              ],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          },
+          "file_id": "f4"
+        },
+        {
           "drawing_id": "1db9bcf1e67e27a3",
           "name": "model/house.ifc",
           "answer": {
@@ -580,7 +757,7 @@
             "check": null,
             "level": null
           },
-          "file_id": "f8"
+          "file_id": "f9"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -665,7 +842,7 @@
             "check": null,
             "level": null
           },
-          "file_id": "f4"
+          "file_id": "f5"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -750,15 +927,15 @@
             "check": null,
             "level": null
           },
-          "file_id": "f6"
+          "file_id": "f7"
         }
       ],
       "total": null,
       "total_unit": null,
       "total_sure": false,
       "total_level": null,
-      "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
-      "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+      "total_note": "4 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
+      "why_no_total": "4 drawings answered; they may show the same rooms, so the numbers are not added up.",
       "refused_note": "2 drawings give no reliable number for it."
     }
   ],

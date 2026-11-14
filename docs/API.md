@@ -369,8 +369,8 @@ does not change an issue's `state`); null until `done`.
       "name": "sample-project.zip",
       "state": "done",
       "created_at": "2026-11-14T08:00:00+00:00",
-      "files": 11,
-      "drawings": 5,
+      "files": 12,
+      "drawings": 6,
       "to_review": 1,
       "conflicts_open": 0,
       "issues_open": 4,
@@ -888,7 +888,7 @@ Ingest's project status, plus `drawings`:
     }
   ],
   "counts": {
-    "ready": 3,
+    "ready": 4,
     "flagged": 4,
     "set_aside": 2,
     "text_only": 2
@@ -940,6 +940,20 @@ Ingest's project status, plus `drawings`:
       "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
       "drawable": false,
       "not_drawable_reason": "no walls are drawn as geometry on this page"
+    },
+    {
+      "drawing_id": "1461af7f40ba2791",
+      "group": "plans/flat-c",
+      "file": "plans/flat-c.pdf",
+      "kind": "pdf_vector",
+      "route": "vector",
+      "source": "plans/flat-c.pdf",
+      "state": "ready",
+      "other_renderings": [],
+      "name": "Drawn plan 3",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
+      "drawable": true,
+      "not_drawable_reason": null
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -999,7 +1013,7 @@ Ingest's project status, plus `drawings`:
       "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
     }
   ],
-  "expected_drawings": 5,
+  "expected_drawings": 6,
   "conflicts_open": 0,
   "issues_open": 4,
   "issues_to_answer": 0
@@ -3140,6 +3154,208 @@ upload lists the files, instead of one request per file.
       "project_id": "5e0c1a2b3d4f",
       "file": {
         "id": "f4",
+        "path": "plans/flat-c.pdf",
+        "size": 1292,
+        "sha256": "2a6e43cca7db2ddcb232ae4684c7c37d1f494b1d6a0d4d77894e7209c083c284",
+        "kind": "pdf_vector",
+        "state": "ready",
+        "reason": "read on the drawn PDF route: 1 element, 3 rooms, scale read from the sheet",
+        "group": "plans/flat-c",
+        "route": "vector",
+        "source": "plans/flat-c.pdf",
+        "drawing_id": "1461af7f40ba2791",
+        "reused": false,
+        "takeoff": {
+          "area:apartment": 20.664,
+          "area:room": 33.278,
+          "area:room:balcony|largest": 12.614,
+          "area:room:bathroom|largest": 9.0,
+          "area:room:bedroom|largest": 11.664,
+          "area:room|indoor": 20.664,
+          "area:room|label=bagno": 9.0,
+          "area:room|label=bagno|largest": 9.0,
+          "area:room|label=balcone": 12.614,
+          "area:room|label=balcone|largest": 12.614,
+          "area:room|label=stanza": 11.664,
+          "area:room|label=stanza|largest": 11.664,
+          "area:room|name=1.01": 9.0,
+          "area:room|name=1.02": 11.664,
+          "area:room|name=1.03": 12.614,
+          "area:room|name=bagno": 9.0,
+          "area:room|name=balcone": 12.614,
+          "area:room|name=stanza": 11.664,
+          "bathtub": 0,
+          "bathtub|name=1.01": 0,
+          "bathtub|name=1.02": 0,
+          "bathtub|name=1.03": 0,
+          "bathtub|name=bagno": 0,
+          "bathtub|name=balcone": 0,
+          "bathtub|name=stanza": 0,
+          "door": 1,
+          "door|name=1.01": 1,
+          "door|name=1.02": 1,
+          "door|name=1.03": 0,
+          "door|name=bagno": 1,
+          "door|name=balcone": 0,
+          "door|name=stanza": 1,
+          "length:room:balcony": 7.008,
+          "length:room:bathroom": 3.0,
+          "length:room:bedroom": 3.888,
+          "length:room|name=1.01": 3.0,
+          "length:room|name=1.02": 3.888,
+          "length:room|name=1.03": 7.008,
+          "length:room|name=bagno": 3.0,
+          "length:room|name=balcone": 7.008,
+          "length:room|name=stanza": 3.888,
+          "plan": 1,
+          "room": 3,
+          "room:balcony": 1,
+          "room:bathroom": 1,
+          "room:bedroom": 1,
+          "room:hall": 0,
+          "room:kitchen": 0,
+          "room:living": 0,
+          "room:other": 0,
+          "room:outdoor": 0,
+          "room:sauna": 0,
+          "room:shaft": 0,
+          "room:storage": 0,
+          "room:wc": 0,
+          "room|label=bagno": 1,
+          "room|label=balcone": 1,
+          "room|label=stanza": 1,
+          "shower": 0,
+          "shower+bathtub": 0,
+          "shower+bathtub|name=1.01": 0,
+          "shower+bathtub|name=1.02": 0,
+          "shower+bathtub|name=1.03": 0,
+          "shower+bathtub|name=bagno": 0,
+          "shower+bathtub|name=balcone": 0,
+          "shower+bathtub|name=stanza": 0,
+          "shower|name=1.01": 0,
+          "shower|name=1.02": 0,
+          "shower|name=1.03": 0,
+          "shower|name=bagno": 0,
+          "shower|name=balcone": 0,
+          "shower|name=stanza": 0,
+          "sink": 0,
+          "sink|name=1.01": 0,
+          "sink|name=1.02": 0,
+          "sink|name=1.03": 0,
+          "sink|name=bagno": 0,
+          "sink|name=balcone": 0,
+          "sink|name=stanza": 0,
+          "toilet": 0,
+          "toilet|name=1.01": 0,
+          "toilet|name=1.02": 0,
+          "toilet|name=1.03": 0,
+          "toilet|name=bagno": 0,
+          "toilet|name=balcone": 0,
+          "toilet|name=stanza": 0,
+          "window": 0,
+          "window|name=1.01": 0,
+          "window|name=1.02": 0,
+          "window|name=1.03": 0,
+          "window|name=bagno": 0,
+          "window|name=balcone": 0,
+          "window|name=stanza": 0
+        },
+        "ms": 12.5,
+        "stage": "write",
+        "cost_usd": 0.0,
+        "normalised": null
+      },
+      "stages": [
+        {
+          "stage": "unpack",
+          "did": "path checked, 1292 bytes",
+          "ms": 12.5,
+          "output": "plans/flat-c.pdf",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "hash",
+          "did": "sha256 2a6e43cca7db",
+          "ms": 12.5,
+          "output": "2a6e43cca7db2ddcb232ae4684c7c37d1f494b1d6a0d4d77894e7209c083c284",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "identify",
+          "did": "a drawn PDF (page 1 of 1: 10 paths, 0 images, 80 characters)",
+          "ms": 12.5,
+          "output": "drawn PDF",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "group",
+          "did": "plans/flat-c: flat-c.pdf",
+          "ms": 12.5,
+          "output": "1 file",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "route",
+          "did": "drawn PDF route, read from plans/flat-c.pdf",
+          "ms": 12.5,
+          "output": "vector",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "normalise",
+          "did": "1 page, page 1 is 600 x 400 pt",
+          "ms": 12.5,
+          "output": "1 page, page 1 is 600 x 400 pt",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "extract",
+          "did": "1 element, 3 rooms, 1 plan, scale read from the sheet",
+          "ms": 12.5,
+          "output": "1 element, 3 rooms, 1 plan, scale read from the sheet",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "second_count",
+          "did": "2 quantities measured twice, 0 conflicts",
+          "ms": 12.5,
+          "output": "2 quantities measured twice, 0 conflicts",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "takeoff",
+          "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 93 quantities, 40 above zero",
+          "ms": 12.5,
+          "output": "takeoff: 93 quantities, 40 above zero",
+          "failure": null,
+          "cost_usd": 0.0
+        },
+        {
+          "stage": "write",
+          "did": "drawing model 1461af7f40ba2791 stored",
+          "ms": 12.5,
+          "output": "93 quantities",
+          "failure": null,
+          "cost_usd": 0.0
+        }
+      ],
+      "second_count": {
+        "measured": 2,
+        "conflicts": 0
+      }
+    },
+    {
+      "project_id": "5e0c1a2b3d4f",
+      "file": {
+        "id": "f5",
         "path": "scans/ground-floor.png",
         "size": 7237,
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
@@ -3253,7 +3469,7 @@ upload lists the files, instead of one request per file.
     {
       "project_id": "5e0c1a2b3d4f",
       "file": {
-        "id": "f5",
+        "id": "f6",
         "path": "scans/ground-floor-copy.png",
         "size": 7237,
         "sha256": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
@@ -3375,7 +3591,7 @@ upload lists the files, instead of one request per file.
     {
       "project_id": "5e0c1a2b3d4f",
       "file": {
-        "id": "f6",
+        "id": "f7",
         "path": "photos/plan-photo.jpg",
         "size": 59453,
         "sha256": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
@@ -3489,7 +3705,7 @@ upload lists the files, instead of one request per file.
     {
       "project_id": "5e0c1a2b3d4f",
       "file": {
-        "id": "f7",
+        "id": "f8",
         "path": "photos/site.jpg",
         "size": 524600,
         "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
@@ -3538,7 +3754,7 @@ upload lists the files, instead of one request per file.
     {
       "project_id": "5e0c1a2b3d4f",
       "file": {
-        "id": "f8",
+        "id": "f9",
         "path": "model/house.ifc",
         "size": 4886,
         "sha256": "951a9027130b1b3a7a86e1c1b1292a582fb01c988a189f406078ed8b7cac0047",
@@ -3687,7 +3903,7 @@ upload lists the files, instead of one request per file.
     {
       "project_id": "5e0c1a2b3d4f",
       "file": {
-        "id": "f9",
+        "id": "f10",
         "path": "cad/detail.dxf",
         "size": 79,
         "sha256": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
@@ -3752,7 +3968,7 @@ upload lists the files, instead of one request per file.
     {
       "project_id": "5e0c1a2b3d4f",
       "file": {
-        "id": "f10",
+        "id": "f11",
         "path": "docs/specification.pdf",
         "size": 1291,
         "sha256": "91af270215243f7925863c27187149ec275efe789e6ed277a3a9da77ad86d692",
@@ -3801,7 +4017,7 @@ upload lists the files, instead of one request per file.
     {
       "project_id": "5e0c1a2b3d4f",
       "file": {
-        "id": "f11",
+        "id": "f12",
         "path": "docs/notes.txt",
         "size": 80,
         "sha256": "ca6138f02cfafd870094f2e8ef9a15f39c6c8925025613a0c6465ae21f2e7a20",
@@ -3908,6 +4124,13 @@ many quantities are left to review and how many are signed off, and every confli
       "to_review": 1,
       "signed": 0,
       "quantities": 81
+    },
+    {
+      "drawing_id": "1461af7f40ba2791",
+      "file": "plans/flat-c.pdf",
+      "to_review": 0,
+      "signed": 0,
+      "quantities": 40
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -5048,7 +5271,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "drawing_id": "3b3ce7db34257f63",
       "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
-      "file_id": "f4",
+      "file_id": "f5",
       "floor": null,
       "page": 1,
       "box": null,
@@ -5062,7 +5285,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "links": {
         "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f5/trace",
         "checks": null
       },
       "label": "How it was read",
@@ -5080,7 +5303,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "drawing_id": "3b3ce7db34257f63",
       "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
-      "file_id": "f4",
+      "file_id": "f5",
       "floor": null,
       "page": null,
       "box": null,
@@ -5094,7 +5317,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "links": {
         "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f5/trace",
         "checks": null
       },
       "label": "No answer",
@@ -5112,7 +5335,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "drawing_id": "37f6819bd17d65d9",
       "drawing_name": "Plan photo 1",
       "file": "photos/plan-photo.jpg",
-      "file_id": "f6",
+      "file_id": "f7",
       "floor": null,
       "page": 1,
       "box": null,
@@ -5126,7 +5349,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "links": {
         "drawing": "/api/drawings/37f6819bd17d65d9?project=5e0c1a2b3d4f",
         "takeoff": "/api/drawings/37f6819bd17d65d9/takeoff?project=5e0c1a2b3d4f",
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f6/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
         "checks": null
       },
       "label": "How it was read",
@@ -5137,14 +5360,14 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "answer": null
     },
     {
-      "id": "set_aside-02a5f0314890",
+      "id": "set_aside-a24c489a64d0",
       "kind": "set_aside",
       "severity": "note",
       "state": "open",
       "drawing_id": null,
       "drawing_name": null,
       "file": "photos/site.jpg",
-      "file_id": "f7",
+      "file_id": "f8",
       "floor": null,
       "page": null,
       "box": null,
@@ -5158,7 +5381,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "links": {
         "drawing": null,
         "takeoff": null,
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f8/trace",
         "checks": null
       },
       "label": "Set aside",
@@ -5169,14 +5392,14 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "answer": null
     },
     {
-      "id": "set_aside-ac138023ff60",
+      "id": "set_aside-0d075884ecc7",
       "kind": "set_aside",
       "severity": "note",
       "state": "open",
       "drawing_id": null,
       "drawing_name": null,
       "file": "cad/detail.dxf",
-      "file_id": "f9",
+      "file_id": "f10",
       "floor": null,
       "page": null,
       "box": null,
@@ -5190,7 +5413,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "links": {
         "drawing": null,
         "takeoff": null,
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f9/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f10/trace",
         "checks": null
       },
       "label": "Set aside",
@@ -7286,15 +7509,15 @@ is no total):
         "check": null,
         "level": null
       },
-      "file_id": "f4"
+      "file_id": "f5"
     }
   ],
   "total": null,
   "total_unit": null,
   "total_sure": false,
   "total_level": null,
-  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
-  "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+  "total_note": "4 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
+  "why_no_total": "4 drawings answered; they may show the same rooms, so the numbers are not added up.",
   "refused_note": "2 drawings give no reliable number for it."
 }
 ```
@@ -8619,7 +8842,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
   "chat_id": "c4a7c0000001",
   "turn": 1,
   "kind": "answer",
-  "text": "The drawings answer this below [1][2].",
+  "text": "The drawings answer this below [1][2][3].",
   "evidence": [
     {
       "n": 1,
@@ -8648,6 +8871,22 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
         0.225,
         0.50667,
         0.275
+      ],
+      "label": "door",
+      "sure": null,
+      "level": null
+    },
+    {
+      "n": 3,
+      "id": "ev_14",
+      "drawing_id": "1461af7f40ba2791",
+      "name": "Drawn plan 3",
+      "page": 1,
+      "box": [
+        0.30507,
+        0.32087,
+        0.3174,
+        0.39173
       ],
       "label": "door",
       "sure": null,
@@ -9087,6 +9326,167 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
           "file_id": "f3"
         },
         {
+          "drawing_id": "1461af7f40ba2791",
+          "name": "plans/flat-c.pdf",
+          "answer": {
+            "question": "How many doors are there?",
+            "drawing_id": "1461af7f40ba2791",
+            "file": "plans/flat-c.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/1461af7f40ba2791/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": 1,
+            "unit": "count",
+            "confidence": null,
+            "quantity": {
+              "key": "door",
+              "label": "door count",
+              "measure": "count",
+              "subject": "door",
+              "scope": {
+                "storey": null,
+                "label": null,
+                "name": null,
+                "apartment": null,
+                "indoor": false,
+                "model": false,
+                "largest": false
+              },
+              "value": 1,
+              "unit": "count",
+              "original_value": 1,
+              "status": "single",
+              "needs_person": false,
+              "rule": {
+                "id": "each-once",
+                "text": "every element, room and plan the drawing lists counts once"
+              },
+              "estimate": null,
+              "first": null,
+              "second": null,
+              "conflict": null,
+              "settled": null,
+              "marks": [
+                {
+                  "id": "m1",
+                  "n": 1,
+                  "page": 1,
+                  "box": [
+                    0.30507,
+                    0.32087,
+                    0.3174,
+                    0.39173
+                  ],
+                  "polygon": null,
+                  "state": "counted",
+                  "value": 1.0,
+                  "label": "door",
+                  "ref": "e1",
+                  "reason": null,
+                  "room_type": null
+                }
+              ],
+              "signed": null,
+              "unlocated": {},
+              "noun": "door"
+            },
+            "marks": [
+              {
+                "id": "m1",
+                "n": 1,
+                "page": 1,
+                "box": [
+                  0.30507,
+                  0.32087,
+                  0.3174,
+                  0.39173
+                ],
+                "polygon": null,
+                "state": "counted",
+                "value": 1.0,
+                "label": "door",
+                "ref": "e1",
+                "reason": null,
+                "room_type": null
+              }
+            ],
+            "refusal": null,
+            "method": "takeoff",
+            "explanation": null,
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-c.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": 1,
+              "unit": "count",
+              "evidence": [
+                {
+                  "file": "plans/flat-c.pdf",
+                  "page": 1,
+                  "box": [
+                    0.30507,
+                    0.32087,
+                    0.3174,
+                    0.39173
+                  ]
+                }
+              ],
+              "method": "takeoff",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": null,
+              "explanation": null,
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "count",
+              "legend": [
+                {
+                  "label": "door",
+                  "colour": "#d62728",
+                  "count": 1,
+                  "unlocated": 0,
+                  "note": null
+                }
+              ],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          },
+          "file_id": "f4"
+        },
+        {
           "drawing_id": "1db9bcf1e67e27a3",
           "name": "model/house.ifc",
           "answer": {
@@ -9197,7 +9597,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
             "check": null,
             "level": null
           },
-          "file_id": "f8"
+          "file_id": "f9"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -9282,7 +9682,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
             "check": null,
             "level": null
           },
-          "file_id": "f4"
+          "file_id": "f5"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -9367,15 +9767,15 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
             "check": null,
             "level": null
           },
-          "file_id": "f6"
+          "file_id": "f7"
         }
       ],
       "total": null,
       "total_unit": null,
       "total_sure": false,
       "total_level": null,
-      "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
-      "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+      "total_note": "4 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
+      "why_no_total": "4 drawings answered; they may show the same rooms, so the numbers are not added up.",
       "refused_note": "2 drawings give no reliable number for it."
     }
   ],
@@ -9675,6 +10075,113 @@ budget, the same call a third time) ends a turn the same way.
           "file_id": "f3"
         },
         {
+          "drawing_id": "1461af7f40ba2791",
+          "name": "plans/flat-c.pdf",
+          "answer": {
+            "question": "What is the fire rating of the doors?",
+            "drawing_id": "1461af7f40ba2791",
+            "file": "plans/flat-c.pdf",
+            "pages": [
+              {
+                "page": 1,
+                "width": 600.0,
+                "height": 400.0,
+                "unit": "pt",
+                "url": "/api/drawings/1461af7f40ba2791/pages/1.png",
+                "normalised": null,
+                "scale": {
+                  "status": "scaled",
+                  "text": "1:100",
+                  "ratio": 100.0,
+                  "source": "sheet text 1:100; no scale bar found"
+                },
+                "scale_text": "1:100",
+                "storey": null
+              }
+            ],
+            "answer": null,
+            "unit": null,
+            "confidence": null,
+            "quantity": null,
+            "marks": [],
+            "refusal": {
+              "code": "unsupported-question",
+              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "can_answer": [
+                {
+                  "quantity": "area:room|indoor",
+                  "label": "area of room (indoor)",
+                  "question": "What is the net floor area of all indoor rooms in m²?"
+                },
+                {
+                  "quantity": "door",
+                  "label": "door count",
+                  "question": "How many doors are there?"
+                },
+                {
+                  "quantity": "room:bedroom",
+                  "label": "room bedroom count",
+                  "question": "How many bedrooms are there?"
+                },
+                {
+                  "quantity": "room:bathroom",
+                  "label": "room bathroom count",
+                  "question": "How many bathrooms are there?"
+                },
+                {
+                  "quantity": "room:balcony",
+                  "label": "room balcony count",
+                  "question": "How many balconies are there?"
+                },
+                {
+                  "quantity": "room",
+                  "label": "room count",
+                  "question": "How many rooms are there?"
+                }
+              ]
+            },
+            "method": "refused:unsupported-question",
+            "explanation": "no count, area, length or volume asked for",
+            "reader": {
+              "route": "vector",
+              "source": "plans/flat-c.pdf",
+              "extractor": "pdf",
+              "second_counter": "none",
+              "question_parser": "templates"
+            },
+            "cost_usd": 0.0,
+            "latency_s": 0.002,
+            "line": {
+              "id": 1,
+              "answer": null,
+              "unit": null,
+              "evidence": [],
+              "method": "refused:unsupported-question",
+              "cost_usd": 0.0,
+              "latency_s": 0.002,
+              "confidence": null,
+              "sure": null,
+              "abstain": true,
+              "explanation": "no count, area, length or volume asked for",
+              "estimate": null,
+              "conflicts": null,
+              "resolution": null
+            },
+            "proof": {
+              "kind": "none",
+              "legend": [],
+              "arithmetic": null,
+              "objects": null,
+              "storeys": null,
+              "schedule": null,
+              "check": null
+            },
+            "check": null,
+            "level": null
+          },
+          "file_id": "f4"
+        },
+        {
           "drawing_id": "3b3ce7db34257f63",
           "name": "scans/ground-floor.png",
           "answer": {
@@ -9757,7 +10264,7 @@ budget, the same call a third time) ends a turn the same way.
             "check": null,
             "level": null
           },
-          "file_id": "f4"
+          "file_id": "f5"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -9842,7 +10349,7 @@ budget, the same call a third time) ends a turn the same way.
             "check": null,
             "level": null
           },
-          "file_id": "f6"
+          "file_id": "f7"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -9932,16 +10439,16 @@ budget, the same call a third time) ends a turn the same way.
             "check": null,
             "level": null
           },
-          "file_id": "f8"
+          "file_id": "f9"
         }
       ],
       "total": null,
       "total_unit": null,
       "total_sure": false,
       "total_level": null,
-      "total_note": "No drawing answered it: 5 drawings can't answer this question.",
+      "total_note": "No drawing answered it: 6 drawings can't answer this question.",
       "why_no_total": "No drawing answered it.",
-      "refused_note": "5 drawings can't answer this question."
+      "refused_note": "6 drawings can't answer this question."
     }
   ],
   "view": null,

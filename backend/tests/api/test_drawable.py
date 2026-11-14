@@ -217,3 +217,11 @@ def test_review_407b_a_memo_emptied_meanwhile_does_not_fail_the_list(client: Tes
     store = PipelineStore.of_app(client.app, pid)
     entry = entry_of(store, drawing["drawing_id"])
     assert not_drawable(store, entry, _ClearedByAnotherRequest()) is None
+
+
+def test_the_sample_has_a_drawable_plan(client: TestClient) -> None:
+    """#416 check: every drawing of /sample was drawable false, so the pen did nothing on the
+    no-keys demo. plans/flat-c.pdf draws its walls as grey fills (as tests/swiss_walls.py)."""
+    project = client.get(client.post("/api/projects/sample").json()["url"]).json()
+    drawable = {d["file"]: d["name"] for d in project["drawings"] if d["drawable"]}
+    assert list(drawable) == ["plans/flat-c.pdf"]

@@ -75,6 +75,7 @@ def test_the_sample_project_names_and_credits_every_drawing(client: TestClient) 
     assert [(entry["file"], entry["name"], entry["credit"]) for entry in project["drawings"]] == [
         ("plans/flat-a.pdf", "Drawn plan 1", SAMPLE),
         ("plans/flat-b.pdf", "Drawn plan 2", SAMPLE),
+        ("plans/flat-c.pdf", "Drawn plan 3", SAMPLE),
         ("scans/ground-floor.png", "Plan image 1", SAMPLE),
         ("photos/plan-photo.jpg", "Plan photo 1", SAMPLE),
         ("model/house.ifc", "Building model 1", SAMPLE),
