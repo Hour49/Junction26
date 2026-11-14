@@ -17,6 +17,8 @@ export function usePoll<T>(
   error: unknown;
   failedAt: string | null;
   retry: () => void;
+  /** Show this data in place (a POST's answer), with no reload. */
+  set: (data: T) => void;
 } {
   const [data, setData] = useState<T | null>(null);
   const [at, setAt] = useState(0);
@@ -54,5 +56,5 @@ export function usePoll<T>(
   const retry = useCallback(() => {
     setAttempt((a) => a + 1);
   }, []);
-  return { data, at, error, failedAt, retry };
+  return { data, at, error, failedAt, retry, set: setData };
 }

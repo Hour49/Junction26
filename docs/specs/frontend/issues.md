@@ -35,6 +35,8 @@ shared.md), `src/shell` (`Loading`, `ErrorView`, the country picker and `?pack=`
 (fe-viewer: its `focus?: {page, box}` prop, viewer.md), `src/ingest/ingest.ts` (`plural`, `kindLabel`).
 [e2e] criteria are built by fe-golden.
 
+The `unrelated_file` kind (file triage, decision 0010): `file-triage.md` (FT-15, FT-16).
+
 ## User flow
 
 1. The user opens Issues from the header tab (any project route) or from the project screen's link when the project

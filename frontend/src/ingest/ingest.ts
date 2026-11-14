@@ -139,6 +139,10 @@ export function percentDone(files: readonly Pick<FileStatus, 'state'>[]): number
 export const isLive = (p: Pick<ProjectView, 'state'>) =>
   p.state === 'queued' || p.state === 'running';
 
+/** Poll while the project runs, or a done project's file is read again (file-triage.md FT-20). */
+export const keepPolling = (p: ProjectView) =>
+  isLive(p) || (p.state === 'done' && !p.files.every(isFinished)); // a failed one's queued files never move
+
 /** Elapsed ms: the project's `ms` once ingest ends; while live, `now − started_at` (never below 0); null before it starts. */
 export function elapsedMs(p: ProjectView, now: number): number | null {
   if (!isLive(p)) return p.ms;
