@@ -105,6 +105,19 @@ def _answer(
         print(f"  {count:6d}  {method}")
 
 
+def run_disc_render(args: argparse.Namespace, settings: Settings) -> None:
+    from app.adapters.ifc_model import plan_picture  # ifcopenshell only when asked
+
+    sheets = plan_picture.read_plans(args.model, args.background)
+    for dpi in args.dpi:
+        for variant in args.variant:
+            out = args.out / f"{variant}-{dpi}"
+            pictures = plan_picture.draw_plans(
+                sheets, out, dpi=dpi, variant=variant, seed=args.seed
+            )
+            print(f"{len(pictures)} pictures in {out}")
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="python -m app.cli")
     commands = root.add_subparsers(dest="command", required=True)
@@ -139,6 +152,24 @@ def parser() -> argparse.ArgumentParser:
         "--split-dir", type=Path, default=SPLIT_DIR, help="the sealed split (its manifest.json)"
     )
     answer.set_defaults(run=run_answer)
+    bench = commands.add_parser("disc-bench", help="discipline picture bench").add_subparsers(
+        dest="step", required=True
+    )
+    render = bench.add_parser("render", help="plan pictures and their truth from an IFC model")
+    render.add_argument("--model", type=Path, required=True, help="a services model (.ifc)")
+    render.add_argument("--background", type=Path, help="the same building's architecture")
+    render.add_argument(
+        "--out", type=Path, required=True, help="pictures and truth go to <out>/<variant>-<dpi>/"
+    )
+    render.add_argument("--dpi", type=int, nargs="+", default=[150])
+    render.add_argument(
+        "--variant",
+        nargs="+",
+        default=["clean"],
+        choices=["clean", "scan", "photo", "no-legend", "no-scale"],
+    )
+    render.add_argument("--seed", type=int, default=0)
+    render.set_defaults(run=run_disc_render)
     return root
 
 

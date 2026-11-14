@@ -59,6 +59,7 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.ifc_model.facts_source import IfcFactSource
 from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
 from app.adapters.openvlm.client import OpenVlmClient
@@ -106,6 +107,7 @@ from app.adapters.vector_pdf.unruled import Unruled
 from app.core.agent.model import Caps
 from app.core.agent.ports import ChatModel
 from app.core.answering.answer import answer_questions
+from app.core.answering.facts import FactSource, FirstSheet
 from app.core.answering.model import Question
 from app.core.answering.ports import (
     AnswerConfidence,
@@ -202,6 +204,7 @@ class Pipeline:
     # How ingest read a file's page, by path (judge.reading_flags: a scan, a photo, Carbon): no
     # answer on a flagged page is sure, on this path as in the product's ask. None: none is
     flags: Callable[[str], tuple[str, ...]] | None = None
+    facts: FactSource | None = None  # IFC_FACTS: an IFC model's fact sheet; None: off
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
         return ingest(
@@ -230,6 +233,7 @@ class Pipeline:
             confidence=self.confidence,
             sure_at=self.sure_at,
             flags=self.flags,
+            facts=self.facts,
         )
 
 
@@ -296,7 +300,17 @@ def build_pipeline(
         flags=partial(
             _page_flags, kind_of=kind_of, carbon_read=carbon_read, unruled=unruled, files=files
         ),
+        facts=_facts(settings, files),
     )
+
+
+def _facts(settings: Settings, files: DrawingFiles) -> FactSource | None:
+    """The fact sources in order, first sheet wins; a new one (a picture read) is one more entry."""
+    sources: list[FactSource] = []
+    if settings.ifc_facts:
+        cache = Path(settings.ifc_facts_cache) if settings.ifc_facts_cache else None
+        sources.append(IfcFactSource(files, cache))
+    return FirstSheet(sources) if sources else None
 
 
 def _unruled(settings: Settings) -> Callable[[bytes], bool] | None:
