@@ -158,7 +158,13 @@ def test_storey_filters_use_each_item_s_own_storey_else_its_plan_s() -> None:
     )
     assert value(found, Query(subject="door", storey="EG")) == 1
     assert value(found, Query(subject="door", storey="og")) == 1
-    assert value(found, Query(subject="door")) == 2
+    # The sheet counts what it draws of its own storey, as stage 8 does (R2-qa-1-1); the OG door
+    # is left out of it, with the reason, and counted on OG.
+    door = found[Query(subject="door").key()]
+    assert (door.value, [why for _, why in door.excluded]) == (
+        1,
+        ["on storey OG in the building model, seen through the cut"],
+    )
     length = found[Query(measure="length", subject="wall", storey="EG").key()]
     assert (length.value, length.unit, length.rule) == (6.5, "m", ELEMENT_QUANTITY.id)
     assert value(found, Query(measure="volume", subject="wall", storey="EG")) == 2.0
@@ -610,3 +616,55 @@ def test_the_items_a_rule_leaves_out_are_listed_with_the_reason() -> None:
     dwelling = found[Query(measure="area", subject="apartment").key()]
     assert dwelling.value == 20.0
     assert [why for _, why in dwelling.excluded] == ["outdoor room", "shaft"]
+
+
+def test_a_sheet_s_count_leaves_out_what_another_storey_shows_through_the_cut() -> None:
+    """R2-qa-1-1: the P2 sheet of an IFC draws 70 walls of P2 and 1 of P1 (a wall seen through
+    the cut). Stage 8 counts the sheet's 70 against the model's 72 for P2 (here 2 against 4); the
+    sheet's count is the same 70, so "How many walls are there?" carries that disagreement like
+    the storey's row instead of answering 71 by one method. The P1 wall is listed as left out,
+    with why."""
+    below = (0.5, 0.5, 0.6, 0.6)
+    walls = (
+        element(1, "wall", storey="P2"),
+        element(2, "wall", storey="P2"),
+        Element.model_validate(
+            {
+                "id": "e3",
+                "class": "wall",
+                "page": 1,
+                "box": below,
+                "plan": "p1",
+                "attrs": {"storey": "P1"},
+            }
+        ),
+    )
+    entry = Conflict.model_validate(
+        {
+            "id": "c1",
+            "quantity": "element_count",
+            "subject": Subject(kind="class", ref="wall"),
+            "status": "conflict",
+            "tolerance": 0,
+            "values": (
+                MeasuredValue(value=2, method="plan_drawing"),
+                MeasuredValue(value=4, method="ifc_model"),
+            ),
+            "resolution": Resolution(rule="count what the sheet draws", value=2),
+        }
+    )
+    found = known_quantities(
+        drawing(
+            plans=(Plan(id="p1", page=1, box=BOX, storey="P2"),),
+            elements=walls,
+            conflicts=(entry,),
+        )
+    )
+    sheet = found[Query(subject="wall").key()]
+    storey = found[Query(subject="wall", storey="P2").key()]
+    assert (sheet.value, storey.value) == (2, 2)
+    assert sheet.conflict is not None and sheet.conflict == storey.conflict
+    assert sheet.excluded == (
+        (Mark(page=1, box=below), "on storey P1 in the building model, seen through the cut"),
+    )
+    assert value(found, Query(subject="wall", storey="P1")) == 1
