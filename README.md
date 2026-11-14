@@ -121,6 +121,11 @@ proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a 
 - Confidence levels on the same test read (3,359 answers, one per page and family): High is 37.9% of answers and
   99.0% exact (95% interval [98.3, 99.4]), Medium 41.1% and 92.8% [91.3, 94.0], Low 21.0% and 54.2% [50.6, 57.9].
   The rule and its thresholds were written down before the test numbers were computed.
+- With `CARBON_LEVELS=ladder`, a Medium answer that Gemini Carbon, read as a second reader, counts the same becomes
+  High, and one it counts differently becomes Low. On 256 validation pages kept out of every earlier Carbon test
+  (2,271 answers, one per page and family), High goes from 44.9% of answers at 99.0% exact [98.2, 99.5] to 69.7%
+  at 97.7% [96.8, 98.3]; the promoted answers alone are 95.2% exact [93.1, 96.7]. Medium keeps 5.9% at 96.3%,
+  Low 24.4% at 61.4%. Not measured on the test pages.
 
 ### Limits
 

@@ -163,6 +163,7 @@ def asked_on(
         disputes=answering.disputes,
         no_reader=no_reader,
         scorers=answering.scorers,
+        carbon_ladder=answering.carbon_ladder,
     )
 
 

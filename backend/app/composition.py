@@ -489,6 +489,7 @@ class Answering:
     disputes: Disputes = no_disputes  # where a double-check request points
     scorers: Mapping[str, Scorer] = NO_SCORERS  # LOCAL_GATES, by signal name (lower case)
     resolver: Resolver | None = None  # RESOLVER; None: off
+    carbon_ladder: bool = False  # CARBON_LEVELS=ladder: a Medium answer Carbon reads alike is High
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -516,6 +517,7 @@ def build_answering(settings: Settings) -> Answering:
         disputes=find_disputes,
         scorers=scorers,
         resolver=_resolver(settings),
+        carbon_ladder=settings.carbon_levels == "ladder",
     )
 
 
@@ -753,7 +755,7 @@ def _raster(
                 read = CarbonThings(shipped, _carbon(settings, files), use_carbon)
             elif use_carbon is not None:
                 read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
-            if settings.carbon_levels == "demote":  # Carbon reading on its own, as integ's test
+            if settings.carbon_levels != "off":  # Carbon reading on its own, as integ's test
                 return CarbonChecked(read, _carbon(settings, files, policy))
             return read
 
