@@ -2,7 +2,7 @@
 
 from app.core.drawing.model import Drawing, ModelObject, Page, Scale, Table, TableRow
 from app.core.pipeline.model import QuantityConflict
-from app.core.review.model import MarkView, MethodValue, Row, RuleText, Scope
+from app.core.review.model import MarkView, MethodValue, Row, RuleText, Scope, Settled
 from app.core.review.proof import colour, schedule_proof, storey_table, takeoff_proof
 
 PAGE = Page(page=1, width=100, height=100, unit="pt")
@@ -29,6 +29,17 @@ def a_row(key: str, measure: str, subject: str, value: float, unit: str, *marks:
          "estimate": None, "first": None, "second": None, "conflict": None, "settled": None,
          "marks": marks, "signed": None}
     )  # fmt: skip
+
+
+def test_a_settled_sum_names_the_person_and_the_original_not_kept() -> None:
+    """K1: a settled total read "...; kept: <the settled value>" as if a rule had kept it."""
+    marks = (mark(1, "Küche", 12.5), mark(2, "Bad", 4.25))
+    found = a_row("area:room|indoor", "area", "room", 16.75, "m2", *marks).model_copy(
+        update={"value": 20.0, "settled": Settled(value=20.0, at="2026-11-14T04:00:00Z")}
+    )
+    assert takeoff_proof(found, SHEET).arithmetic == (
+        "12.5 + 4.25 = 16.75 m²; settled by a person: 20 m², was 16.75 m²"
+    )
 
 
 def test_a_count_has_one_fixed_colour_per_class_and_adds_up_its_classes() -> None:

@@ -192,9 +192,16 @@ def _sum(found: Row) -> str | None:
         return None
     total = sum(mark.value or 0.0 for mark in parts)
     text = " + ".join(number(mark.value or 0.0) for mark in parts)
-    text += f" = {number(total)} {_unit(found.unit)}"
-    if abs(total - found.value) > 0.01:
-        text += f"; kept: {number(found.value)} {_unit(found.unit)}"
+    unit = _unit(found.unit)
+    text += f" = {number(total)} {unit}"
+    if found.settled is not None:  # the person's value; what was measured is the original
+        if abs(total - found.value) > 0.01:
+            text += f"; settled by a person: {number(found.value)} {unit}"
+        else:
+            text += "; settled by a person"
+        text += f", was {number(found.original_value)} {unit}"
+    elif abs(total - found.value) > 0.01:
+        text += f"; kept: {number(found.value)} {unit}"
     out = [mark for mark in found.marks if mark.state == "excluded"]
     if out:
         text += "; left out: " + ", ".join(

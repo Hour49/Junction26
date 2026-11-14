@@ -17,6 +17,7 @@ from app.composition import DECISIONS_SIGNAL, build_ingest
 from app.core.pipeline.ports import DrawingFiles
 from app.main import create_app
 from app.settings import Settings
+from scripts.make_sample_archive import sample_files
 
 DOORS = "How many doors are there?"
 
@@ -373,3 +374,25 @@ def test_a_count_of_rooms_has_one_key_whatever_each_room_is_called(
     proof = ask(client, drawing_id, "How many bedrooms are there?")["proof"]
     assert [(key["label"], key["count"]) for key in proof["legend"]] == [("bedroom", 2)]
     assert proof["arithmetic"] is None  # not "1 Makuuhuone 1 + 1 Makuuhuone 2 = 2"
+
+
+def test_a_settled_room_area_shows_the_settled_value_on_its_mark_and_in_its_sum(
+    client: TestClient,
+) -> None:
+    """K1: after flat-b's room 1.01 was settled at the outline's 22.40 m², the answer's mark kept
+    the printed label's 30 m² and the sum read "30 = 30 m²; kept: 22.4 m²"."""
+    project = client.get(f"/api/projects/{upload(client, sample_files()['plans/flat-b.pdf'])}")
+    drawing_id = project.json()["drawings"][0]["drawing_id"]
+    key = "area:room|name=1.01"
+    before = ask(client, drawing_id, "What is the net floor area of room 1.01?")
+    assert before["quantity"]["key"] == key
+    assert [mark["value"] for mark in before["marks"]] == [30.0]
+    assert before["proof"]["arithmetic"] == "30 = 30 m²"
+    outline = before["quantity"]["first"]
+    assert outline["method"] == "polygon_x_scale"
+
+    review(client, drawing_id, quantity=key, action="settle", value=outline["value"])
+    after = ask(client, drawing_id, "What is the net floor area of room 1.01?")
+    assert after["answer"] == pytest.approx(22.40, abs=0.01)
+    assert [mark["value"] for mark in after["marks"]] == [outline["value"]]
+    assert after["proof"]["arithmetic"] == "22.4 = 22.4 m²; settled by a person, was 30 m²"
