@@ -17,7 +17,6 @@ from typing import Any
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
     EACH_ONCE,
-    INDOOR_TOTAL,
     ROOM_AREA,
     ROOMS_TOTAL,
     SAUNA_ROOM_ELSE_STOVE,
@@ -32,20 +31,25 @@ def _said(*parts: str) -> str:
     return "; ".join(parts) + "."
 
 
-# quantity -> (the words that name it, the convention). First match wins, so the narrower
-# quantities come first: "water closet" is a toilet before "closet" is a door, "floor area" a
-# floor area before "area" is a room's.
+# quantity -> (the words that name it, the convention). A cue matches as a whole word (with a
+# plural ending), the longest matching cue wins ("water closet" is a toilet, "closet" a door), and
+# when the question names an area (AREA_WORDS) the area conventions come first ("the bathroom's
+# area" is a room's area, "does the area include the balcony" the floor area's). English, with
+# the common German and Finnish words.
 CONVENTIONS: dict[str, tuple[tuple[str, ...], str]] = {
     "toilets": (
-        ("toilet", "wc seat", "water closet", "urinal"),
+        ("toilet", "toilette", "wc", "wc seat", "wc room", "toilet room", "water closet", "urinal",
+         "wc istuin"),
         _said(
             EACH_ONCE.text,
             "a toilet is a toilet bowl (WC seat), wherever it is; a urinal is not a toilet",
-            "a separate toilet room is counted as a room of type wc, not as a toilet",
+            "a separate toilet room counts as a room of type wc, and the toilet in it counts as "
+            "a toilet",
         ),
     ),
     "doors": (
-        ("door", "closet", "doorway"),
+        ("door", "closet", "closet door", "double door", "sliding door", "doorway", "tür",
+         "türen", "ovi", "ovet"),
         _said(
             EACH_ONCE.text,
             "each door opening counts once: a double door, a sliding or folding door is one door",
@@ -56,7 +60,7 @@ CONVENTIONS: dict[str, tuple[tuple[str, ...], str]] = {
         ),
     ),
     "windows": (
-        ("window", "sash", "pane", "glazing"),
+        ("window", "sash", "pane", "glazing", "fenster", "ikkuna", "ikkunat"),
         _said(
             EACH_ONCE.text,
             "a window is a whole window unit in a wall: a unit with several panes or sashes in "
@@ -64,7 +68,8 @@ CONVENTIONS: dict[str, tuple[tuple[str, ...], str]] = {
         ),
     ),
     "sinks": (
-        ("sink", "basin", "washbasin", "lavatory"),
+        ("sink", "basin", "washbasin", "wash basin", "lavatory", "double bowl",
+         "double bowl sink", "spüle", "waschbecken", "pesuallas", "allas"),
         _said(
             EACH_ONCE.text,
             "a sink is a sink or wash basin in a kitchen, a bathroom or anywhere else; a "
@@ -72,44 +77,45 @@ CONVENTIONS: dict[str, tuple[tuple[str, ...], str]] = {
         ),
     ),
     "showers and bathtubs": (
-        ("shower", "bathtub", "bath tub", "tub"),
+        ("shower", "bathtub", "bath tub", "tub", "dusche", "badewanne", "suihku", "kylpyamme"),
         _said(
             "showers and bathtubs are counted apart when asked apart: a shower is a tray, a "
             "cubicle or a shower drawn in a wet room",
             f"asked together: {SHOWERS_AND_BATHTUBS.text}",
         ),
     ),
-    "saunas": (("sauna", "kiuas"), _said(SAUNA_ROOM_ELSE_STOVE.text)),
+    "saunas": (("sauna", "sauna stove", "kiuas"), _said(SAUNA_ROOM_ELSE_STOVE.text)),
     "floor area": (
-        (
-            "floor area",
-            "total area",
-            "net area",
-            "indoor",
-            "outdoor",
-            "shaft",
-            "gross",
-            "footprint",
-        ),
+        ("floor area", "total area", "net area", "gross area", "indoor", "outdoor", "gross",
+         "footprint", "balcony", "balconies", "terrace", "patio", "shaft", "lift", "elevator",
+         "stairwell", "stair", "stairs", "staircase", "balkon", "terrasse", "aufzug",
+         "treppenhaus", "schacht", "parveke", "terassi", "hissi", "porraskäytävä", "kuilu"),
         _said(
-            "the floor area of a sheet is the net area of its indoor rooms",
-            INDOOR_TOTAL.text,
+            "the floor area of a sheet is the net area of its indoor rooms: every room that is "
+            "not outdoor counts, shafts, lifts and stairwells included",
             "outdoor rooms (balconies, terraces) are left out",
             "a gross area or a footprint is not taken off",
             ROOMS_TOTAL.text,
         ),
     ),
-    "apartment area": (("apartment", "dwelling", "flat"), _said(APARTMENT_AREA.text)),
-    "room area": (("area", "room size", "how big"), _said(ROOM_AREA.text)),
+    "apartment area": (
+        ("apartment", "dwelling", "flat", "wohnung", "asunto"),
+        _said(APARTMENT_AREA.text),
+    ),
+    # any other area question: a room's own area (`counting_rule` falls back to it)
+    "room area": (("room area", "room size"), _said(ROOM_AREA.text)),
     "rooms": (
-        ("room", "bedroom", "kitchen", "bathroom"),
+        ("room", "bedroom", "kitchen", "bathroom", "living room", "küche", "schlafzimmer",
+         "zimmer", "keittiö", "makuuhuone", "huone"),
         _said(
             EACH_ONCE.text,
             "a room's type comes from its printed label, else from what is drawn in it",
-            "a bathroom has a shower or bath; a separate toilet room is a wc",
+            "a bathroom has a shower or bath; a separate toilet room is a wc room",
         ),
     ),
-}
+}  # fmt: skip
+AREAS = ("floor area", "apartment area", "room area")  # the conventions about an area
+AREA_WORDS = re.compile(r"\b(?:areas?|m2|m²|sq|square|size|how big|fläche|wohnfläche|pinta ala)\b")
 
 TOOLS: list[dict[str, Any]] = [
     {
@@ -141,18 +147,33 @@ TOOLS: list[dict[str, Any]] = [
 def counting_rule(quantity: str) -> dict[str, Any]:
     """The convention for `quantity` (any wording), every convention for an empty one, or that
     there is none, with the quantities that have one."""
-    asked = " ".join(re.findall(r"[a-zäöå]+", quantity.lower()))
+    asked = " ".join(re.findall(r"[^\W_]+", quantity.lower()))  # "double-bowl": "double bowl"
     if not asked:
         return {"conventions": {name: text for name, (_, text) in CONVENTIONS.items()}}
-    for name, (cues, text) in CONVENTIONS.items():
-        if any(re.search(rf"\b{re.escape(cue)}", asked) for cue in cues):
-            return {"quantity": name, "convention": text}
-    return {
-        "quantity": quantity,
-        "convention": None,
-        "unknown": f"no counting convention is recorded for {quantity!r}",
-        "known": list(CONVENTIONS),
-    }
+    area = AREA_WORDS.search(asked) is not None
+    scores = {name: _score(asked, cues) for name, (cues, _) in CONVENTIONS.items()}
+    if area:  # an area question: the area conventions first, a room's area when none is named
+        scores["room area"] = max(scores["room area"], 1)
+        scores |= {name: scores[name] + 1000 for name in AREAS if scores[name]}
+    found = {name: score for name, score in scores.items() if score % 1000}  # a cue matched
+    if not found:
+        return {
+            "quantity": quantity,
+            "convention": None,
+            "unknown": f"no counting convention is recorded for {quantity!r}",
+            "known": list(CONVENTIONS),
+        }
+    name = max(found, key=lambda each: found[each])  # the first of equals: table order
+    return {"quantity": name, "convention": CONVENTIONS[name][1]}
+
+
+def _score(asked: str, cues: tuple[str, ...]) -> int:
+    """The length of the longest cue in `asked` as whole words (a plural ending allowed); 0:
+    none."""
+    return max(
+        (len(cue) for cue in cues if re.search(rf"\b{re.escape(cue)}(?:s|es|n|en)?\b", asked)),
+        default=0,
+    )
 
 
 def run_counting_tool(name: str, arguments: str) -> str:
