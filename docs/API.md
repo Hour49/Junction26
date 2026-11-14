@@ -961,7 +961,8 @@ the `identify` stage's line.
   characters) and `detail` (a paragraph or more, at most 4,000 characters: a model's description no person
   checked). Printed text is kept (project, company, place and room names, the title block); the describer leaves
   out number plates, home addresses, personal contact data of private persons (phone numbers, e-mails) and the
-  names of people seen in photos.
+  names of people seen in photos. A home address keeps its street and town, without the house number and
+  postal code; that is the model's judgement, which can also drop a public building's house number.
 - `relevance` (set once the project's ingest is done): `verdict` `related`, `unrelated` or `unsure`, `why` (one
   sentence naming what matched or what is missing), `matched_on`, `plans` (drawing ids, always among this
   project's `drawings`), `judge`. With no plan read in the project the verdict is `unsure`, "no floor plan in the
@@ -8125,6 +8126,10 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, behaviour: the Gemini describer's prompt is `describe-6` (`Description.model` ends
+  `describe-6`): a home address is written without its house number and postal code in every field
+  (decision 0010); `describe-5` kept a house's street address on all 8 of its sheets that print one. No
+  shape change. Replies cached under `describe-5` are not reused: each described file is asked again once.
 - 2026-11-14, additive (QA R9 area 4, `tools/smoke.py`): `GET /api/info` gains `commit`, the git commit the backend
   was started from (setting `APP_COMMIT`, which `tools/qa-env.sh` sets to the exported commit), or null when
   unset. Fixture `info.json` gains it (last).
