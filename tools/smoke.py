@@ -232,8 +232,9 @@ def cost_check(step: str, spent: list[tuple[str, float]], paid: bool) -> Check:
 
 
 def answer_check(step: str, file: str, question: str, status: int, answer: object) -> Check:
-    """A count question through POST /api/ask: a value, the confidence and check fields, and marks
-    for a count above 0."""
+    """A count question through POST /api/ask: a value, the confidence and check fields, and for a
+    count above 0 its proof: marks on the page, or the model objects it counted (an IFC model has
+    no page to mark)."""
     name = f"ask {question!r} on {file}"
     if status != 200 or not isinstance(answer, dict):
         return Check(step, name, False, f"{status} {answer}")
@@ -245,9 +246,10 @@ def answer_check(step: str, file: str, question: str, status: int, answer: objec
     if missing:
         return Check(step, name, False, f"fields missing: {missing}")
     value, refusal, marks = answer["answer"], answer["refusal"], answer["marks"]
+    objects = (answer.get("proof") or {}).get("objects") or []
     sure = (answer.get("line") or {}).get("sure")
     detail = (
-        f"value {value} {answer.get('unit') or ''}, marks {len(marks)}, "
+        f"value {value} {answer.get('unit') or ''}, marks {len(marks)}, objects {len(objects)}, "
         f"confidence {'set' if answer['confidence'] else 'none'}, "
         f"check {'set' if answer['check'] else 'none'}, "
         f"sure {sure}"
@@ -259,7 +261,7 @@ def answer_check(step: str, file: str, question: str, status: int, answer: objec
     ok = (
         value is not None
         and isinstance(marks, list)
-        and (not isinstance(value, int | float) or value == 0 or bool(marks))
+        and (not isinstance(value, int | float) or value == 0 or bool(marks) or bool(objects))
     )
     return Check(step, name, ok, detail)
 

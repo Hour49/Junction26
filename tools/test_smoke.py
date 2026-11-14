@@ -129,6 +129,12 @@ def test_an_answer_needs_a_value_its_fields_and_marks_for_a_count() -> None:
     assert smoke.answer_check("x", "a.pdf", "q", 200, ANSWER).ok
     assert smoke.answer_check("x", "a.pdf", "q", 200, {**ANSWER, "answer": 0, "marks": []}).ok
     assert not smoke.answer_check("x", "a.pdf", "q", 200, {**ANSWER, "marks": []}).ok
+    model = {
+        **ANSWER,
+        "marks": [],
+        "proof": {"kind": "model", "objects": [{"id": "m1"}, {"id": "m2"}]},
+    }
+    assert smoke.answer_check("x", "house.ifc", "q", 200, model).ok
     assert not smoke.answer_check("x", "a.pdf", "q", 200, REFUSAL).ok
     fields = {k: v for k, v in ANSWER.items() if k != "check"}
     assert smoke.answer_check("x", "a.pdf", "q", 200, fields).detail == "fields missing: ['check']"
