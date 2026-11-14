@@ -329,6 +329,8 @@ over its drawings (the review queue). `conflicts_open`: the conflicts a person s
 with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
 decided ("settled by a rule") or a person settled is not open. A room's several names count once.
 `issues_open`: the issues in state `open` in `GET /api/projects/{id}/issues` without a pack; null until `done`.
+`issues_to_answer`: of those, the ones that wait for a person's answer: not a `note` and no `answer` yet (an answer
+does not change an issue's `state`); null until `done`.
 `not_plans`: as in `GET /api/projects/{id}` (file triage); left out when the project was ingested with triage off.
 
 <!-- fixture: project_list.json -->
@@ -344,7 +346,8 @@ decided ("settled by a rule") or a person settled is not open. A room's several 
       "drawings": 5,
       "to_review": 1,
       "conflicts_open": 0,
-      "issues_open": 4
+      "issues_open": 4,
+      "issues_to_answer": 0
     }
   ]
 }
@@ -681,7 +684,9 @@ Ingest's project status, plus `drawings`:
           "drawing_id": "c9b719f715357201",
           "file": "plans/flat-a.png"
         }
-      ]
+      ],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -691,7 +696,9 @@ Ingest's project status, plus `drawings`:
       "route": "vector",
       "source": "plans/flat-b.pdf",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Drawn plan 2",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -706,7 +713,9 @@ Ingest's project status, plus `drawings`:
           "drawing_id": "3b3ce7db34257f63",
           "file": "scans/ground-floor-copy.png"
         }
-      ]
+      ],
+      "name": "Plan image 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "37f6819bd17d65d9",
@@ -716,7 +725,9 @@ Ingest's project status, plus `drawings`:
       "route": "raster",
       "source": "photos/plan-photo.jpg",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Plan photo 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     },
     {
       "drawing_id": "1db9bcf1e67e27a3",
@@ -726,7 +737,9 @@ Ingest's project status, plus `drawings`:
       "route": "bim",
       "source": "model/house.ifc",
       "state": "ready",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Building model 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     }
   ],
   "skipped": [
@@ -739,10 +752,15 @@ Ingest's project status, plus `drawings`:
       "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
     }
   ],
-  "expected_drawings": 5
+  "expected_drawings": 5,
+  "conflicts_open": 0,
+  "issues_open": 4,
+  "issues_to_answer": 0
 }
 ```
 
+- `conflicts_open`, `issues_open`, `issues_to_answer`: the same numbers as the project's entry in
+  `GET /api/projects`; null until `done`.
 - Project `state`: `queued`, `running`, `done`, `failed`. `failed` only when ingest itself broke (e.g. not a
   readable zip), with `error` set; one bad file never fails the project, it becomes a `set_aside` file.
 - File `kind`, by content: `pdf_vector`, `pdf_scan`, `pdf_text`, `png_plan`, `jpeg_plan`, `photo_plan`, `ifc`,
@@ -767,6 +785,13 @@ Ingest's project status, plus `drawings`:
   PNG before JPEG; the group's other drawings are `other_renderings`. A copy of the same content under another
   name is listed once. An IFC model asked about on its own is an entry with no pages. An upload with no drawing
   gives `"drawings": []`.
+- `name` on each drawing: a plain name to show instead of the file name, from the kind of `file` and a number
+  counted per name in the list's order: "Drawn plan" (vector PDF, DXF, SVG), "Scanned plan", "Plan image" (PNG,
+  JPEG), "Plan photo", "Building model" (IFC), else "Drawing"; a page read as a file of its own adds its page
+  ("Drawn plan 3, page 2"). Once the project is done, the same upload always gives the same names; while it
+  runs, a number can still move (a drawing read before an earlier file is counted first). `credit` on each
+  drawing: the licence credit of `file`, the same as `GET /api/drawings/{id}` gives (a page has the credit of the
+  PDF it was split from), or null for a file that is not from the dataset, the Commons photos or the sample.
 - `stage`: the stage a running file is in, or the last one it finished, so the ingest screen needs no trace
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
@@ -826,7 +851,10 @@ after a restart cut that run off:
   "cost_usd": 0.0,
   "drawings": [],
   "skipped": [],
-  "expected_drawings": null
+  "expected_drawings": null,
+  "conflicts_open": null,
+  "issues_open": null,
+  "issues_to_answer": null
 }
 ```
 
@@ -884,7 +912,10 @@ after a restart cut that run off:
       "reason": "not ingested: the server restarted during ingest"
     }
   ],
-  "expected_drawings": 0
+  "expected_drawings": 0,
+  "conflicts_open": null,
+  "issues_open": null,
+  "issues_to_answer": null
 }
 ```
 
@@ -1286,7 +1317,9 @@ photo of an elevation sheet with its register, showing a building that matches n
       "route": "vector",
       "source": "plans/flat-a.pdf",
       "state": "ready",
-      "other_renderings": []
+      "other_renderings": [],
+      "name": "Drawn plan 1",
+      "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data"
     }
   ],
   "skipped": [
@@ -1308,7 +1341,10 @@ photo of an elevation sheet with its register, showing a building that matches n
     }
   ],
   "expected_drawings": 1,
-  "not_plans": 4
+  "not_plans": 4,
+  "conflicts_open": 0,
+  "issues_open": 2,
+  "issues_to_answer": 1
 }
 ```
 
@@ -3226,6 +3262,18 @@ Each issue:
   the source refs, null where they don't apply.
 - `links`: API paths (not screen routes) to the drawing and its takeoff in this project, the file's trace, and for a
   code check the drawing's checks.
+- `label`: short legend text for the issue's mark: a conflict's quantity label ("Area of room (name Küche ·
+  1.01)"), else by kind: "No answer", "Set aside", "How it was read", "Fails a rule", "Double-check", "Not a floor
+  plan".
+- `suggestions`: short answers a person can pick (chips), by kind, with no model call; none only restates a
+  value (Tudor, board #14). A conflict: "Check it on site". A refused answer: "Not needed", "I'll send
+  a drawing that shows it". A set-aside file: "Not needed", "I'll send a readable copy". A reading flag: "The
+  reading is fine", "I'll send a better copy". A failed check: "Accepted as drawn", "To be fixed in the design".
+  `unrelated_file`: "It belongs to the project", "It does not belong here". Any text can be answered, not only
+  these.
+- `answer`: a person's answer, `{text, by, at}` (`POST …/issues/{id}/answer` below), or null. It is a note on the
+  issue: it settles nothing and does not change `state` (settle a conflict with `POST …/review`, make a call on a
+  file with `POST …/relevance`).
 
 A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
 
@@ -3280,7 +3328,13 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
         "takeoff": "/api/drawings/5c4ed01e00000002/takeoff?project=5e0c1a2b3d53",
         "trace": "/api/projects/5e0c1a2b3d53/files/f1/trace",
         "checks": "/api/drawings/5c4ed01e00000002/checks?pack=fi&project=5e0c1a2b3d53"
-      }
+      },
+      "label": "Fails a rule",
+      "suggestions": [
+        "Accepted as drawn",
+        "To be fixed in the design"
+      ],
+      "answer": null
     }
   ]
 }
@@ -3339,7 +3393,12 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
         "checks": null
-      }
+      },
+      "label": "Area of room (name Küche · 1.01)",
+      "suggestions": [
+        "Check it on site"
+      ],
+      "answer": null
     },
     {
       "id": "reading_flag-b8584dc30c73",
@@ -3364,7 +3423,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
         "checks": null
-      }
+      },
+      "label": "How it was read",
+      "suggestions": [
+        "The reading is fine",
+        "I'll send a better copy"
+      ],
+      "answer": null
     },
     {
       "id": "refused_answer-3b5adbf71a63",
@@ -3389,7 +3454,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
         "checks": null
-      }
+      },
+      "label": "No answer",
+      "suggestions": [
+        "Not needed",
+        "I'll send a drawing that shows it"
+      ],
+      "answer": null
     },
     {
       "id": "reading_flag-2b11c57c0ff6",
@@ -3414,7 +3485,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": "/api/drawings/37f6819bd17d65d9/takeoff?project=5e0c1a2b3d4f",
         "trace": "/api/projects/5e0c1a2b3d4f/files/f6/trace",
         "checks": null
-      }
+      },
+      "label": "How it was read",
+      "suggestions": [
+        "The reading is fine",
+        "I'll send a better copy"
+      ],
+      "answer": null
     },
     {
       "id": "set_aside-02a5f0314890",
@@ -3439,7 +3516,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": null,
         "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
         "checks": null
-      }
+      },
+      "label": "Set aside",
+      "suggestions": [
+        "Not needed",
+        "I'll send a readable copy"
+      ],
+      "answer": null
     },
     {
       "id": "set_aside-ac138023ff60",
@@ -3464,7 +3547,13 @@ The sample after a door question on its scan (no reader in no-keys mode):
         "takeoff": null,
         "trace": "/api/projects/5e0c1a2b3d4f/files/f9/trace",
         "checks": null
-      }
+      },
+      "label": "Set aside",
+      "suggestions": [
+        "Not needed",
+        "I'll send a readable copy"
+      ],
+      "answer": null
     }
   ]
 }
@@ -3487,6 +3576,87 @@ The issues with the floor plans, saved as `<project name>-issues[-<pack>].zip`:
   severity and labelled with its `n`. Under the page are the issues' sentences, a colour key and the drawing's
   licence credit.
 - An issue with no page or no box is only in the CSV, and a page with no such issue has no PNG.
+
+#### `POST /api/projects/{project_id}/issues/{issue_id}/answer?pack=`
+
+A person's answer to an issue: `{text, by}` (`text` 1-500 characters, `by` as a sign-off's), or `{undo: true}` to
+take it back (nothing else; with no answer kept, nothing changes). A new answer replaces the one before. Returns
+the issue as the list gives it, with its `answer`. The answer is kept with the project (`<projects dir>/api/
+issue_answers/<project id>.json`), so it survives a reload and a restart, and keeps to the issue's `id`: an issue
+that leaves the list (a refused question answered later) takes its answer with it, and gets it back if it returns.
+
+- A failed code check's issue needs its `pack`, as the list does.
+- Errors: an unknown project, pack or issue is 404; a project that is not `done` is 409 `not-allowed`; a body with
+  no `text` or `by`, an empty one, or `undo` with either is 422 `validation`.
+- The project's `issues_to_answer` drops by one when an open issue that is not a note gets its first answer.
+
+<!-- fixture: issue_answer_request.json -->
+```json
+{
+  "text": "Check it on site",
+  "by": "Ana"
+}
+```
+
+<!-- fixture: issue_answered.json -->
+```json
+{
+  "id": "conflict-efcb1b52a852",
+  "kind": "conflict",
+  "severity": "note",
+  "state": "settled",
+  "drawing_id": "44cc9f0d991eafe3",
+  "file": "plans/flat-b.pdf",
+  "file_id": "f3",
+  "floor": null,
+  "page": 1,
+  "box": [
+    0.16667,
+    0.125,
+    0.5,
+    0.375
+  ],
+  "polygon": [
+    [
+      0.16667,
+      0.125
+    ],
+    [
+      0.16667,
+      0.375
+    ],
+    [
+      0.5,
+      0.375
+    ],
+    [
+      0.5,
+      0.125
+    ]
+  ],
+  "mark_id": "m1",
+  "why": "Area of room (name Küche · 1.01): checked twice, they disagree: the room outlines at the sheet's scale 22.4 m², the printed room areas 30 m²; kept 30 m²: the printed label over the outline at the sheet's scale.",
+  "quantity": "area:room|name=1.01",
+  "question": null,
+  "reason": null,
+  "check": null,
+  "links": {
+    "drawing": "/api/drawings/44cc9f0d991eafe3?project=5e0c1a2b3d4f",
+    "takeoff": "/api/drawings/44cc9f0d991eafe3/takeoff?project=5e0c1a2b3d4f",
+    "trace": "/api/projects/5e0c1a2b3d4f/files/f3/trace",
+    "checks": null
+  },
+  "label": "Area of room (name Küche · 1.01)",
+  "suggestions": [
+    "Check it on site"
+  ],
+  "answer": {
+    "text": "Check it on site",
+    "by": "Ana",
+    "at": "2026-11-14T08:05:00Z"
+  }
+}
+```
 
 ## Drawings
 
@@ -7912,6 +8082,15 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (board #14, Tudor's asks 1, 3, 4): new `POST /api/projects/{id}/issues/{issue_id}/answer`
+  (`{text, by}` or `{undo: true}`), kept with the project. `Issue` gains `answer` (`{text, by, at}` or null),
+  `suggestions` (answer chips by kind) and `label` (short legend text). `GET /api/projects/{id}` gains
+  `conflicts_open`, `issues_open` and `issues_to_answer`, the same numbers as `GET /api/projects`, which gains
+  `issues_to_answer` (open issues that are not notes and have no answer). An answer does not change an issue's
+  `state`. New fixtures `issue_answer_request`, `issue_answered`.
+- 2026-11-14, additive (board #14 item 6): each entry of `GET /api/projects/{id}`'s `drawings` gains `name` (a
+  plain name from its kind, number and page, never the file name) and `credit` (its licence credit, as on
+  `GET /api/drawings/{id}`, or null). Fixtures `project.json` and `project_triaged.json` show both.
 - 2026-11-14, additive (board #14, Tudor's asks 2, 5 and 11): `value_marks` on every conflict and agreement of a
   quantity (`QuantityConflict`, in the takeoff, the review's conflicts and an answer): `value_marks[i]` lists
   `{page, box, label}` for each item of `values[i]`, so a legend can outline them. A count of an element class or

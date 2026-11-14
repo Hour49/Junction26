@@ -14,12 +14,23 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
 from fastapi.responses import Response
+from pydantic import Field, model_validator
 
 from app.adapters.evidence_render import render as render_evidence
 from app.adapters.page_render import render_png
 from app.api.checks import RulePacksDep, find_pack
-from app.api.deps import Credits, CreditsDep, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep
+from app.api.deps import (
+    Credits,
+    CreditsDep,
+    Ingest,
+    IngestDep,
+    ProjectId,
+    ReviewsDep,
+    SettingsDep,
+    now,
+)
 from app.api.drawings import credit_of
+from app.api.issue_answers import IssueAnswer, answers, save
 from app.api.project_ask import LACKS
 from app.api.questions import AskedQuestion, asked
 from app.api.takeoff import Takeoff, takeoff_rows
@@ -29,6 +40,7 @@ from app.composition import readers
 from app.core.checks.check import check_drawing
 from app.core.checks.model import CheckResult, RuleCheck, RulePack
 from app.core.drawing.model import Box, Drawing, Polygon
+from app.core.errors import NotFoundError
 from app.core.ingest.judge import read_nothing
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.ingest.triage import CLASS_WORDS, called_not_plan, is_not_plan
@@ -69,6 +81,26 @@ SEVERITY_COLOURS: dict[Severity, str] = {  # from the marks' palette: red, orang
     "fails_rule": PALETTE[0], "needs_person": PALETTE[4], "note": PALETTE[1],
 }  # fmt: skip
 PAGE_WIDTH = 1600  # px: a marked page in the zip, as the viewer shows a page
+# Short legend text per kind: names what an issue's mark shows (a conflict: its quantity)
+LABELS: dict[IssueKind, str] = {
+    "conflict": "Two counts disagree",
+    "refused_answer": "No answer",
+    "set_aside": "Set aside",
+    "reading_flag": "How it was read",
+    "code_check_failed": "Fails a rule",
+    "double_check": "Double-check",
+    "unrelated_file": "Not a floor plan",
+}
+# Answer chips per kind, rule-based (no model call); none restates a value (Tudor, board #14)
+SUGGESTIONS: dict[IssueKind, tuple[str, ...]] = {
+    "conflict": ("Check it on site",),
+    "refused_answer": ("Not needed", "I'll send a drawing that shows it"),
+    "set_aside": ("Not needed", "I'll send a readable copy"),
+    "reading_flag": ("The reading is fine", "I'll send a better copy"),
+    "code_check_failed": ("Accepted as drawn", "To be fixed in the design"),
+    "double_check": ("Looks right", "Needs a fix"),
+    "unrelated_file": ("It belongs to the project", "It does not belong here"),
+}
 PACK = Query(
     description="a building-code rule pack (decision 0009): its failed checks join the list"
 )
@@ -102,6 +134,10 @@ class Issue(View):
     reason: str | None  # ingest's reason
     check: str | None  # `<pack>:<CheckResult.id>` (code_check_failed)
     links: IssueLinks
+    # Added 2026-11-14 (board #14); defaults keep them optional for older clients' mocks
+    label: str | None = None  # short legend text for the issue's mark; always set
+    suggestions: list[str] = Field(default_factory=list[str])  # answer chips, rule-based
+    answer: IssueAnswer | None = None  # a person's answer; it does not change `state`
 
 
 class ProjectIssues(View):
@@ -123,6 +159,48 @@ def project_issues(
 ) -> ProjectIssues:
     """Every finding of the project as a located issue (decision 0008)."""
     return issues_of(project_id, pack, ingest, reviews, settings, packs)
+
+
+class AnswerRequest(View):
+    """A person's answer to an issue; `undo` takes it back and needs nothing else."""
+
+    text: str | None = Field(default=None, min_length=1, max_length=500)
+    by: str | None = Field(default=None, min_length=1, max_length=100)
+    undo: bool = False
+
+    @model_validator(mode="after")
+    def _complete(self) -> "AnswerRequest":
+        if not self.undo and (self.text is None or self.by is None):
+            raise ValueError("a text and by are needed, unless undo")
+        if self.undo and (self.text is not None or self.by is not None):
+            raise ValueError("undo takes no text or by")
+        return self
+
+
+@router.post("/{project_id}/issues/{issue_id}/answer")
+def answer_issue(
+    project_id: ProjectId,
+    issue_id: str,
+    body: AnswerRequest,
+    ingest: IngestDep,
+    reviews: ReviewsDep,
+    settings: SettingsDep,
+    packs: RulePacksDep,
+    pack: Annotated[str | None, PACK] = None,
+) -> Issue:
+    """Save a person's answer to an issue, replacing an earlier one, or take it back (`undo`).
+    Returns the issue with its answer. A code check's issue needs its `pack`. 404 for an unknown
+    project, pack or issue; 409 until the project is done."""
+    listed = issues_of(project_id, pack, ingest, reviews, settings, packs).issues
+    issue = next((found for found in listed if found.id == issue_id), None)
+    if issue is None:
+        raise NotFoundError(f"project {project_id} has no issue {issue_id}")
+    said = None
+    if not body.undo:
+        assert body.text is not None and body.by is not None  # checked by the model
+        said = IssueAnswer(text=body.text, by=body.by, at=now())
+    save(settings.projects_dir, project_id, issue_id, said)
+    return issue.model_copy(update={"answer": said})
 
 
 @router.get(
@@ -285,6 +363,7 @@ def listed_issues(
     in this project, when the caller has them already (the project list's summary). `pack`:
     its failed checks join the list."""
     where = _Files(status)
+    said = answers(settings.projects_dir, status.id)
     found = [
         *([] if pack is None else _code_checks(status, where, ingest, pack)),
         *_conflicts(status, where, ingest, reviews, takeoffs or {}),
@@ -306,7 +385,8 @@ def listed_issues(
         ref = issue.check or issue.quantity or issue.question or issue.reason or ""
         return (SEVERITIES.index(issue.severity), at, issue.page or 1_000_000, top, ref, issue.id)
 
-    return sorted(found, key=order)
+    found.sort(key=order)
+    return [issue.model_copy(update={"answer": said.get(issue.id)}) for issue in found]
 
 
 def open_count(
@@ -315,13 +395,17 @@ def open_count(
     reviews: ReviewStore,
     settings: Settings,
     takeoffs: Mapping[str, Takeoff],
-) -> int:
-    """How many issues of the done project are open (no pack: code checks are a screen's
-    choice), for ProjectSummary.issues_open."""
-    return sum(
-        issue.state == "open"
+) -> tuple[int, int]:
+    """How many issues of the done project are open, and how many of those still wait for a
+    person's answer (not a note, not answered); no pack: code checks are a screen's choice. For
+    `issues_open` and `issues_to_answer`."""
+    found = [
+        issue
         for issue in listed_issues(status, ingest, reviews, settings, takeoffs)
-    )
+        if issue.state == "open"
+    ]
+    to_answer = sum(issue.severity != "note" and issue.answer is None for issue in found)
+    return len(found), to_answer
 
 
 class _Files:
@@ -365,6 +449,7 @@ def _issue(
     defaults: dict[str, object] = {
         "state": "open", "floor": None, "page": None, "box": None, "polygon": None, "mark_id": None,
         "quantity": None, "question": None, "reason": None, "check": None,
+        "label": LABELS[kind], "suggestions": list(SUGGESTIONS[kind]), "answer": None,
     }  # fmt: skip
     return Issue.model_validate(
         {
@@ -456,6 +541,7 @@ def _conflicts(
                 mark_id=mark_id,
                 why=_conflict_why(row),
                 quantity=row.key,
+                label=f"{row.label[:1].upper()}{row.label[1:]}",
             )
 
 
