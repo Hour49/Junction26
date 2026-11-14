@@ -345,3 +345,15 @@ def test_review_361_s2_a_question_about_a_drawn_area_places_no_room() -> None:
     for message in ("Is this toilet new?", "Is this a good place for a kitchen?"):
         assert plan(message + area)[0] == "ask_drawings", message
     assert plan("Please place a kitchen here" + area)[0] == "propose_room"
+
+
+def test_review_361_must_a_tie_offers_each_file_and_picking_one_edits_it() -> None:
+    other = "fedcba9876543210"
+    twins = [{"drawing_id": DRAWING, "name": "a.pdf", "title": "Ground floor"},
+             {"drawing_id": other, "name": "b.pdf", "title": "Ground floor"}]  # fmt: skip
+    _, args = plan("Remove wall W1 on the ground floor", ("list_drawings", {}, twins))
+    labels = [o["label"] for o in args["options"]]
+    assert labels == ["Ground floor (a.pdf)", "Ground floor (b.pdf)"]
+    picked = args["options"][1]["message"]
+    assert plan(picked, ("list_drawings", {}, twins)) == (
+        "list_walls", {"drawing_id": other, "page": 1})  # fmt: skip

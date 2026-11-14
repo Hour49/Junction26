@@ -1195,6 +1195,21 @@ describe('judge path', () => {
     );
   });
 
+  it('CH-48 the answer card says an estimated area as the chat does: 5 m² in the sentence, the value and the caveat', async () => {
+    // the Finnish flat's kitchen as the API sends it (#294): measured 4.88 m², shown in whole m²
+    const q = answerArea.quantity as Row;
+    const why = 'the scale estimated from the doors';
+    const t = await shownTurn({
+      ...answerArea,
+      answer: 5,
+      quantity: { ...q, value: 4.88, original_value: 4.88, estimate: why },
+    });
+    expect(within(t).getByTestId('answer-value').textContent).toBe('5 m²');
+    expect(t.querySelector('.en-sentence strong')?.textContent).toBe('5 m²');
+    expect(t.querySelector('.en-head .en-estimate')?.textContent).toBe(`about 5 m², ${why}`);
+    expect(t.textContent).not.toMatch(/4\.88|5\.00/);
+  });
+
   it('EN-89 a double-check reason that already gives the estimate is the one line: no estimate line', async () => {
     const why = 'counted by Gemini Carbon, an AI reader: check its marks on the plan';
     const reason = `Please double-check the doors: it is an estimate (${why}).`;

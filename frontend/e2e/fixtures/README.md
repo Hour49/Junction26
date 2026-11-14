@@ -1,0 +1,1 @@
+`model-3d-house.ifc`: synthetic, licence-safe IFC (4 walls, a slab, a door; fixed GlobalIds) for the 3D view e2e (MODEL_3D=1); regenerate with `cd backend && uv run python scripts/make_model_3d_fixture.py`.

@@ -28,7 +28,15 @@ from app.composition import DECISIONS_SIGNAL
 from app.core.drawing.model import Table, TableRow
 from app.core.review.ask import Asked
 from app.core.review.model import MarkView
-from app.core.review.proof import NO_PROOF, ClassKey, colour, number, schedule_proof
+from app.core.review.proof import (
+    NO_PROOF,
+    ClassKey,
+    ModelItem,
+    StoreyRow,
+    colour,
+    number,
+    schedule_proof,
+)
 from app.settings import Settings
 from scripts.make_sample_archive import build_archive
 
@@ -291,3 +299,48 @@ def ask_core(client: TestClient, drawing_id: str, question: str) -> Asked:
     drawing = ingest.drawing(drawing_id)
     reviews, answering = app.state.reviews, app.state.answering
     return asked_on(question, drawing, drawing_id, reviews, answering, ingest, None)
+
+
+def test_a_label_or_reason_with_a_line_break_is_drawn_on_one_line() -> None:
+    """judge-fresh jf05 (2026-11-14): a room name read as "VARDAGSRUM\\n24 M2" made evidence.png a
+    500 (raqm cannot measure a line break). The picture keeps every word, on one line."""
+    keys = (
+        ClassKey(label="VARDAGSRUM\n24 M2", colour=colour("VARDAGSRUM"), count=1),
+        ClassKey(label="KÖK\r\n9\tM2\x07", colour=colour("KÖK"), count=1),
+    )
+    proof = NO_PROOF.model_copy(update={"kind": "sum", "legend": keys})
+    lines = _legend_lines(proof, _font(14), 14, 1600)
+    assert [text for line in lines for _, _, text in line] == ["VARDAGSRUM 24 M2", "KÖK 9 M2"]
+    page = Image.new("RGB", (800, 600), "white")
+    buffer = io.BytesIO()
+    page.save(buffer, format="PNG")
+    left_out = MarkView(
+        id="r2",
+        n=None,
+        page=1,
+        box=(0.1, 0.1, 0.5, 0.5),
+        polygon=None,
+        state="excluded",
+        value=None,
+        label="BALKONG\n6 M2",
+        ref=None,
+        reason="a balcony\nis not indoors",
+    )
+    png = render(buffer.getvalue(), 1, [left_out], proof, "What is the area?  ->  24 m2", None, 800)
+    assert Image.open(io.BytesIO(png)).width == 800
+
+
+def test_a_model_fact_with_line_breaks_in_its_names_is_drawn_without_a_page() -> None:
+    """review-365 S1: an IFC name can carry a decoded carriage return (\\X2\\000D\\X0\\); the
+    no-page tables drew it raw and raqm failed (500)."""
+    item = ModelItem(
+        id="o1",
+        class_="IfcDoor\r",
+        name="Door\r\nD01\x85left",
+        storey="Ground\u2029Floor",
+        global_id="2O2Fr$t4X7Zf8NOew3FLOH",
+    )
+    storeys = (StoreyRow(storey="Ground\u2029Floor", counts={"IfcDoor\r": 1}),)
+    proof = NO_PROOF.model_copy(update={"kind": "model", "objects": (item,), "storeys": storeys})
+    png = render(None, 1, [], proof, "How many doors?  ->  1", None, 1600)
+    assert Image.open(io.BytesIO(png)).width == 1600

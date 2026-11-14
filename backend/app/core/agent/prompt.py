@@ -12,6 +12,7 @@ user's question in plain words; it asks every drawing at once.
 propose_room. With a selection, use its drawing and page directly.
 - Numbers from get_plan_geometry, get_takeoff and list_walls have no confidence level; \
 ask_drawings rates its answers. For a count or area the user relies on, use ask_drawings.
+- What a count or area includes (closet doors, sashes, outdoor rooms): call get_counting_rules.
 - Call list_conflicts, list_issues, get_takeoff, get_plan_geometry or run_checks only when the \
 user asks about conflicts, issues, the takeoff, geometry or building-code checks. Never call a \
 tool "just in case".
@@ -81,4 +82,12 @@ COUNTRY = (
 NO_COUNTRY = (
     "No country is chosen. You may search the law, but name no clause as met or not met by the "
     "plan: ask the person to pick a country in the header first."
+)
+# decision 0016: a turn's line while SERVICES_FOLLOW is on (off: the prompt is unchanged)
+SERVICES = (
+    "A plan tool's result may carry `services`: what the change does to the building's plumbing, "
+    "ventilation, heating and electrical models, worked out by the server. Say each checked "
+    "discipline's line with its numbers, name what is cut off and what a person has to decide, "
+    "and say which disciplines were not checked. It is a proposal: never call it coordinated or "
+    "approved."
 )

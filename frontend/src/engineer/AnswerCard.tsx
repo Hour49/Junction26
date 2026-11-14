@@ -25,6 +25,7 @@ import {
   formatLatency,
   formatScore,
   gradeOf,
+  shownValue,
   statusTip,
   statusWord,
   type Grade,
@@ -334,7 +335,10 @@ function Answer(props: {
   const row = a.quantity;
   // A raw model choice score (board #14), never shown as a probability.
   const score = a.confidence;
-  const value = typeof a.answer === 'number' ? formatValue(a.answer, a.unit) : (a.answer ?? '');
+  const value =
+    typeof a.answer === 'number'
+      ? shownValue(a.answer, a.unit, Boolean(row?.estimate))
+      : (a.answer ?? '');
   const surveyor =
     row &&
     routeHref({

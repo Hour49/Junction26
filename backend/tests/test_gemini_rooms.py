@@ -18,11 +18,13 @@ from app.adapters.raster_ocr.gemini import (
     GeminiRoomExtractor,
     GeminiRoomReader,
     parse_rooms,
+    printed_area,
     reply_text,
 )
-from app.core.drawing.model import Page
+from app.core.drawing.model import Page, Scale
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Sheet
+from app.core.pipeline.raster_scale import rooms_with_areas
 from app.settings import Settings
 
 KEY = "test-key-0123456789"
@@ -172,6 +174,42 @@ def test_the_extractor_reads_rooms_only() -> None:
         ("r2", "hall", None, False),
     ]
     assert "2 rooms" in found.notes[0]
+
+
+def test_an_area_printed_in_the_label_is_the_rooms_area_and_a_number_without_m2_is_not() -> None:
+    # label-area (fable-rooms item 2): the printed area wins over the box estimate
+    labels = ["MH 9,7 m²", "K 12.5 m2", "WC 1.3M2", "OH9.7m²", "KPH 1.01", "MH 2,6", "ET 0 m²"]
+    found = extract(FakeModel(reply(*(room("other", t, [0, 0, 10 + i, 10]) for i, t in
+                                      enumerate(labels)))))  # fmt: skip
+    assert [r.area_m2 for r in found.rooms] == [9.7, 12.5, 1.3, None, None, None, None]
+    assert (found.rooms[0].area_status, found.rooms[0].area_source) == ("exact", "printed")
+    assert found.rooms[4].area_status is None
+    scale = Scale(status="estimated", m_per_unit=0.01, uncertainty=0.1)
+    kept = rooms_with_areas(found.rooms, scale, [Page(page=1, width=300, height=200, unit="px")])
+    assert kept[0] == found.rooms[0]
+    assert kept[4].area_source == "geometry_x_estimate"
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "1 234,5 m²",  # a spaced thousands group: not 234.5
+        "9,7\u201310,2 m²",  # a range (an en dash): not 10.2
+        "9,7 - 10,2 m2",
+        "12m2+3m2",  # a sum: not 12
+        "12 m² + 3 m²",
+        "R1 m2",  # room R1: not 1
+        "OH9.7m²",  # glued to its letters: refused like R1, which it cannot be told from
+        "MH 9,7 m² / 10,1 m²",  # two areas: neither
+    ],
+)
+def test_label_area_fixes_s2_s3_an_ambiguous_label_gives_no_area(label: str) -> None:
+    assert printed_area(label) == {}
+
+
+def test_label_area_fixes_a_plain_area_in_a_longer_label_is_still_read() -> None:
+    assert printed_area("OH 25,0 m2 (h=2,6)")["area_m2"] == 25.0
+    assert printed_area("MH 9,7m2.")["area_m2"] == 9.7
 
 
 def test_a_failed_call_leaves_the_rooms_unread_and_says_why() -> None:

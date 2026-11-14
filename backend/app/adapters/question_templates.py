@@ -209,7 +209,9 @@ MODEL = re.compile(
     r"\bmodel\b|\bmodell\w*|\bmodelo\b|\bmodelu\b|\bmudelis\b|\bmodèle\b|\bmodello\b"
     r"|\bmodellen\b"
 )
-ROOM_NUMBER = re.compile(r"(?<![\w.])(U?\d+\.\d+)(?![\w.])")
+# A room number, with its sign ("room -1.2" is a basement room, not 1.2; review-354 re-check): a
+# minus at the start or after a space is a sign, one after a letter joins ("Zimmer-1.05" is 1.05)
+ROOM_NUMBER = re.compile(r"(?:(?<![\w.\-])|(?<=[^\W\d_]-))(-?U?\d+\.\d+)(?![\w.])")
 # A number with a unit or in a product is a measure, not a room number: "2.5 m high", "3.5 m2",
 # "1.5 x 2.0" (review-313 S2)
 MEASURE_AFTER = re.compile(r"\s*(?:[x\u00d7*]|m|cm|mm|ft|sq|acres?|ha|m2|m²|%)(?![^\W\d_])")
