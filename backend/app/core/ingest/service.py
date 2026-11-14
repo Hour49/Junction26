@@ -353,6 +353,7 @@ class IngestService:
                 drawings[path] = found
             if probed.exception() is None:  # a failed probe was set aside by `_identify`
                 for page in probed.result()[0].pages:
+                    run.split.add(path)
                     self._page_file(run, path, page, first_of, frames, drawings)
 
         with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="probe") as pool:
@@ -566,7 +567,7 @@ class IngestService:
             assert file.triage is not None and file.triage.description is not None
             spent = cost.spent()
             try:
-                found = relevance_of(judge, file.triage.description, context)
+                found = relevance_of(judge, file.triage.class_, file.triage.description, context)
             except Exception:  # one file's judging must not stop the project
                 logger.warning("judging the relevance of %s failed", file.path, exc_info=True)
                 run.set(file.path, triage=judged(file.triage, None, NOTE_JUDGE_FAILED))
