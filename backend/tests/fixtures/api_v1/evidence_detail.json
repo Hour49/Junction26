@@ -1,0 +1,39 @@
+{
+  "id": "f5-visible_text-1",
+  "file_id": "f5",
+  "file": "photos/sheet.jpg",
+  "page": 1,
+  "part": "visible_text",
+  "text": "Kirche St. Anna",
+  "kind": "elevation",
+  "verdict": "unsure",
+  "credit": null,
+  "description": {
+    "subject": "a photographed elevation of a church",
+    "text": "A picture of a photographed elevation of a church.",
+    "detail": "A longer account of a photographed elevation of a church, for later use.",
+    "visible_text": "Kirche St. Anna",
+    "text_seen": [
+      "Kirche St. Anna"
+    ],
+    "language": "en",
+    "what_it_is": "drawing",
+    "shows_building": true,
+    "model": "fake describer"
+  },
+  "register": {
+    "kind": "elevation",
+    "has_floor_plan": false,
+    "photo_of_sheet": true,
+    "scale_shown": "bar",
+    "quality": "fair",
+    "method": "fake classifier"
+  },
+  "relevance": {
+    "verdict": "unsure",
+    "why": "Unsure: it shows a building, but none of its printed words is in the project's name, file and folder names or plan text.",
+    "matched_on": [],
+    "plans": [],
+    "judge": "rule on the words printed on it and whether it shows a building, no model"
+  }
+}

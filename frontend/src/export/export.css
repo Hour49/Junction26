@@ -1,0 +1,72 @@
+/* The header's Export (export.md "Look"): a sibling pill of Workspaces, feedback in place, no toast. */
+.export {
+  position: relative;
+  flex: 0 0 auto;
+}
+.export-button {
+  cursor: pointer;
+  white-space: nowrap;
+}
+.export-button[aria-disabled='true'] {
+  cursor: progress;
+  color: var(--v-muted);
+}
+.export-button[aria-disabled='true']:active {
+  transform: none;
+}
+.export-button[data-state='done'] {
+  color: var(--v-ok);
+  background: var(--v-ok-soft);
+}
+.export-button[data-state='failed'] {
+  color: var(--v-danger);
+  background: var(--v-danger-soft);
+}
+.export-glyph {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Live-region text for screen readers only. */
+.export-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Anchored under its button, right-aligned like the country popover. */
+.export-error {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 11;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--v-danger);
+  background: var(--v-surface);
+  border-radius: 14px;
+  box-shadow: var(--v-shadow);
+}
+@media (max-width: 1100px) {
+  .export {
+    order: 4;
+  }
+}
+@media (max-width: 720px) {
+  .export-label {
+    display: none;
+  }
+  .export-button {
+    justify-content: center;
+    min-width: 48px;
+    padding: 4px 12px;
+  }
+}

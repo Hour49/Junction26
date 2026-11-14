@@ -198,6 +198,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/laws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Packs */
+        get: operations["law_packs_api_laws_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/laws/clauses/{clause_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Clause */
+        get: operations["law_clause_api_laws_clauses__clause_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/laws/{pack}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Search */
+        get: operations["law_search_api_laws__pack__search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects": {
         parameters: {
             query?: never;
@@ -289,6 +340,48 @@ export interface paths {
          *     409 `not-allowed` until the project's ingest is done, as for the project's questions.
          */
         get: operations["project_checks_api_projects__project_id__checks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/evidence/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Evidence
+         * @description Up to `k` files, best first, one hit each with its best-matching passage. Files judged
+         *     unrelated are searched only with `include_unrelated`.
+         */
+        get: operations["search_evidence_api_projects__project_id__evidence_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/evidence/{evidence_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evidence
+         * @description One passage (`f7-detail-2`) or a file as a whole (`f7`, its summary), with the file's
+         *     description, register and relevance.
+         */
+        get: operations["get_evidence_api_projects__project_id__evidence__evidence_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -811,6 +904,56 @@ export interface components {
             /** Url */
             url: string;
         };
+        /**
+         * ClauseView
+         * @description A clause with what citing it needs from its law.
+         */
+        ClauseView: {
+            /** Checked */
+            checked: string;
+            /** Drawing Checkable */
+            drawing_checkable: boolean;
+            /** Heading */
+            heading?: string | null;
+            /** Heading En */
+            heading_en?: string | null;
+            /** Id */
+            id: string;
+            /** Keywords */
+            keywords: string[];
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "fi" | "sv" | "de" | "fr" | "it" | "en";
+            /** Law Id */
+            law_id: string;
+            /** Law Number */
+            law_number: string;
+            /** Law Title */
+            law_title: string;
+            /** Law Title En */
+            law_title_en: string;
+            /**
+             * Limits
+             * @default []
+             */
+            limits: components["schemas"]["Limit"][];
+            /** Ref */
+            ref: string;
+            /** Status Note */
+            status_note: string | null;
+            /** Summary En */
+            summary_en: string;
+            /** Text */
+            text: string;
+            /** Text En */
+            text_en?: string | null;
+            /** Topics */
+            topics: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general")[];
+            /** Url */
+            url: string;
+        };
         /** ConflictEntry */
         ConflictEntry: {
             conflict: components["schemas"]["QuantityConflict"];
@@ -886,6 +1029,33 @@ export interface components {
              * Text Seen
              * @default []
              */
+            text_seen: string[];
+            /** Visible Text */
+            visible_text: string;
+            /**
+             * What It Is
+             * @enum {string}
+             */
+            what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
+        };
+        /**
+         * DescriptionView
+         * @description The file's description as the tools show it (its cost left out).
+         */
+        DescriptionView: {
+            /** Detail */
+            detail: string;
+            /** Language */
+            language: string | null;
+            /** Model */
+            model: string;
+            /** Shows Building */
+            shows_building: boolean;
+            /** Subject */
+            subject: string;
+            /** Text */
+            text: string;
+            /** Text Seen */
             text_seen: string[];
             /** Visible Text */
             visible_text: string;
@@ -1036,6 +1206,82 @@ export interface components {
             /** Page */
             page: number;
         };
+        /**
+         * EvidenceDetail
+         * @description `register` is a pydantic model attribute, so the field is `register_` under `register`.
+         */
+        EvidenceDetail: {
+            /** Credit */
+            credit: string | null;
+            description: components["schemas"]["DescriptionView"];
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Page */
+            page: number;
+            /**
+             * Part
+             * @enum {string}
+             */
+            part: "summary" | "detail" | "visible_text";
+            register: components["schemas"]["Register"] | null;
+            relevance: components["schemas"]["Relevance"] | null;
+            /** Text */
+            text: string;
+            /** Verdict */
+            verdict: ("related" | "unrelated" | "unsure") | null;
+        };
+        /** EvidenceHit */
+        EvidenceHit: {
+            /** Credit */
+            credit: string | null;
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Language */
+            language: string | null;
+            /** Page */
+            page: number;
+            /**
+             * Part
+             * @enum {string}
+             */
+            part: "summary" | "detail" | "visible_text";
+            /** Score */
+            score: number;
+            /** Snippet */
+            snippet: string;
+            /** Subject */
+            subject: string;
+            /** Verdict */
+            verdict: ("related" | "unrelated" | "unsure") | null;
+            why: components["schemas"]["HitWhy"];
+        };
+        /** EvidenceSearch */
+        EvidenceSearch: {
+            /** Hits */
+            hits: components["schemas"]["EvidenceHit"][];
+            /** Indexed Files */
+            indexed_files: number;
+            /** Method */
+            method: string;
+            /** Note */
+            note: string | null;
+            /** Query */
+            query: string;
+            /** Unrelated Left Out */
+            unrelated_left_out: number;
+        };
         /** FileStatus */
         FileStatus: {
             /**
@@ -1112,6 +1358,15 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** HitWhy */
+        HitWhy: {
+            /** Bm25 Rank */
+            bm25_rank: number | null;
+            /** Dense Rank */
+            dense_rank: number | null;
+            /** Terms */
+            terms: string[];
         };
         /** Info */
         Info: {
@@ -1214,6 +1469,27 @@ export interface components {
             /** Trace */
             trace: string | null;
         };
+        /** LawPack */
+        LawPack: {
+            /** Id */
+            id: string;
+            /** Laws */
+            laws: components["schemas"]["TocEntry"][];
+        };
+        /** LawPacks */
+        LawPacks: {
+            /** Packs */
+            packs: components["schemas"]["LawPack"][];
+        };
+        /** LawSearch */
+        LawSearch: {
+            /** Hits */
+            hits: components["schemas"]["SearchHit"][];
+            /** Pack */
+            pack: string;
+            /** Query */
+            query: string;
+        };
         /**
          * Level
          * @description How far to trust an answer: one of three levels, what it rests on, and one plain sentence
@@ -1232,6 +1508,23 @@ export interface components {
             level: "high" | "medium" | "low";
             /** Text */
             text: string;
+        };
+        /**
+         * Limit
+         * @description A number a drawing could be checked against: "habitable room area >= 7 m2".
+         */
+        Limit: {
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<" | "=";
+            /** Unit */
+            unit: string;
+            /** Value */
+            value: number;
+            /** What */
+            what: string;
         };
         /** Limits */
         Limits: {
@@ -1979,6 +2272,23 @@ export interface components {
             /** Storey */
             storey?: string | null;
         };
+        /** SearchHit */
+        SearchHit: {
+            /** Id */
+            id: string;
+            /** Law Id */
+            law_id: string;
+            /** Ref */
+            ref: string;
+            /** Score */
+            score: number;
+            /** Summary En */
+            summary_en: string;
+            /** Title En */
+            title_en: string;
+            /** Url */
+            url: string;
+        };
         /**
          * SecondCount
          * @description What the second method did on a drawing: quantities it measured and where it disagreed.
@@ -2155,6 +2465,22 @@ export interface components {
             quantities: components["schemas"]["Row"][];
             /** Review Queue */
             review_queue: string[];
+        };
+        /**
+         * TocEntry
+         * @description One line of a pack's table of contents: what exists, for the prompt and the screen.
+         */
+        TocEntry: {
+            /** Clauses */
+            clauses: number;
+            /** Law Id */
+            law_id: string;
+            /** Number */
+            number: string;
+            /** Title En */
+            title_en: string;
+            /** Topics */
+            topics: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general")[];
         };
         /**
          * Triage
@@ -2615,6 +2941,94 @@ export interface operations {
             };
         };
     };
+    law_packs_api_laws_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LawPacks"];
+                };
+            };
+        };
+    };
+    law_clause_api_laws_clauses__clause_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clause_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClauseView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    law_search_api_laws__pack__search_get: {
+        parameters: {
+            query: {
+                /** @description words to search for */
+                q: string;
+                /** @description only clauses of this topic */
+                topic?: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general") | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                pack: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LawSearch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     project_list_api_projects_get: {
         parameters: {
             query?: never;
@@ -2784,6 +3198,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectChecks"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_evidence_api_projects__project_id__evidence_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                k?: number;
+                include_unrelated?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceSearch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_api_projects__project_id__evidence__evidence_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evidence_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceDetail"];
                 };
             };
             /** @description Validation Error */

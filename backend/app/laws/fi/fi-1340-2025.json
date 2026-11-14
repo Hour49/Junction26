@@ -1,0 +1,645 @@
+{
+  "id": "fi-1340-2025",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "1340/2025",
+  "title": "Ympäristöministeriön asetus rakentamisen suunnitelmamallien ja viranomaiskatselmusten sisällöstä",
+  "title_en": "Ministry of the Environment Decree on the content of construction plan models and authority inspections",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2025/1340",
+  "language": "fi",
+  "in_force": "2026-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force since 2026-01-01, issued under the Building Act 751/2023. Sections only: the annexes (lists of core data attributes of plan and as-built models) are not included.",
+  "clauses": [
+    {
+      "id": "fi-1340-2025-1-1",
+      "ref": "1 § 1 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Tätä asetusta sovelletaan rakentamisen suunnitelmamallien, toteumamallien ja erityissuunnitelmien sisältöön, esitystapaan ja koneluettaviin tietoihin ja niiden muotoon.",
+      "text_en": "This decree applies to the content, presentation and machine-readable data and its format of the construction design models, as-built models and special plans.",
+      "summary_en": "This decree applies to the content, presentation and machine-readable format of building design models, as-built models and special plans.",
+      "keywords": [
+        "scope",
+        "design model",
+        "as-built model",
+        "special plan",
+        "machine-readable data",
+        "suunnitelmamalli",
+        "toteumamalli",
+        "erityissuunnitelma",
+        "koneluettava tieto"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-1-2",
+      "ref": "1 § 2 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Lisäksi tätä asetusta sovelletaan rakennuksen viranomaiskatselmuksista ja aloituskokouksesta rakennetun ympäristön tietojärjestelmään toimitettavien tietojen koneluettavaan muotoon ja tietojen sisältöön.",
+      "text_en": "In addition, this decree applies to the machine-readable format and the content of the data on authority inspections and the commencement meeting that is submitted to the built environment information system.",
+      "summary_en": "This decree also applies to the machine-readable format and content of the data on authority inspections and the commencement meeting submitted to the built environment information system.",
+      "keywords": [
+        "scope",
+        "authority inspection",
+        "commencement meeting",
+        "built environment information system",
+        "viranomaiskatselmus",
+        "aloituskokous",
+        "rakennetun ympäristön tietojärjestelmä",
+        "koneluettava tieto"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-2-1",
+      "ref": "2 § 1 mom.",
+      "heading": "Koneluettava muoto",
+      "heading_en": "Machine-readable format",
+      "text": "Tässä asetuksessa koneluettavalla muodolla tarkoitetaan tiedon tai tiedoston muotoa, jonka rakenne ja muoto mahdollistaa sen, että ohjelmat tai ohjelmistot pystyvät helposti yksilöimään, tunnistamaan ja poimimaan niistä tietoaineistoja, yksittäisiä tietoja sekä tietoaineistojen ja tiedostojen rakenteita.",
+      "text_en": "In this decree, machine-readable format means the format of information or of a file whose structure and form enable programs or software to easily identify, recognise and extract from it data sets, individual data items, and the structures of data sets and files.",
+      "summary_en": "Machine-readable format means an information or file format whose structure lets software easily identify, recognise and extract data sets, individual data items and their structures.",
+      "keywords": [
+        "machine-readable format",
+        "data set",
+        "file structure",
+        "software extraction",
+        "koneluettava muoto",
+        "tietoaineisto",
+        "tiedosto"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-2-2",
+      "ref": "2 § 2 mom.",
+      "heading": "Koneluettava muoto",
+      "heading_en": "Machine-readable format",
+      "text": "Koneluettavalla muodolla ei tarkoiteta sellaisia tiedostomuotoja tai tietoja, jotka on luotu valokuvaamalla, muuntamalla sähköiseen muotoon tai muulla näihin verrattavissa olevalla tavalla, jonka tuloksena olevat tiedot edellyttävät optista merkintunnistusta, tietokonenäköä tai muuta vastaavaa työkalua tai teknologiaa tiedon yksilöintiin, tunnistamiseen ja poimintaan.",
+      "text_en": "Machine-readable format does not mean file formats or data that have been created by photographing, converting into electronic form, or in another comparable way, where the resulting data require optical character recognition, computer vision or another similar tool or technology to identify, recognise and extract the information.",
+      "summary_en": "Data created by photographing, scanning-like conversion or a comparable method, which needs optical character recognition or computer vision to extract, is not machine-readable.",
+      "keywords": [
+        "optical character recognition",
+        "computer vision",
+        "photographed data",
+        "not machine-readable",
+        "koneluettava muoto",
+        "optinen merkintunnistus",
+        "valokuva"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Tietomallin tiedostomuoto",
+      "heading_en": "Building information model file format",
+      "text": "Tässä asetuksessa tarkoitettujen tietomallien tiedostomuotona on käytettävä Industry Foundation Classes -tiedoston, jäljempänä IFC, versiota 4.3.2.0 tai uudempaa versiota. Tiedoston tulee noudattaa Reference View -tiedonvaihtonäkymää.",
+      "text_en": "The file format of the information models referred to in this decree must be the Industry Foundation Classes file, hereinafter IFC, version 4.3.2.0 or a later version. The file must follow the Reference View information exchange view.",
+      "summary_en": "Building information models must be delivered as IFC files, version 4.3.2.0 or later, following the Reference View exchange view.",
+      "keywords": [
+        "IFC",
+        "Industry Foundation Classes",
+        "IFC 4.3.2.0",
+        "Reference View",
+        "tietomalli",
+        "tiedostomuoto"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Tietomallin tiedostomuoto",
+      "heading_en": "Building information model file format",
+      "text": "IFC-tiedosto on tallennettava IFC-SPF-muodossa.",
+      "text_en": "The IFC file must be saved in the IFC-SPF format.",
+      "summary_en": "IFC files must be saved in the IFC-SPF format.",
+      "keywords": [
+        "IFC",
+        "IFC-SPF",
+        "file format",
+        "tietomalli",
+        "tiedostomuoto"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-4-1",
+      "ref": "4 § 1 mom.",
+      "heading": "Suunnitelmamalli",
+      "heading_en": "Design model",
+      "text": "Rakennuksen suunnitelmamalli koostuu yhdestä tai useammasta rakennuksen tietomallista ja rakennuspaikan tietomallista.",
+      "text_en": "A building design model consists of one or more building information models and a site information model.",
+      "summary_en": "A building design model consists of one or more building information models and a site information model.",
+      "keywords": [
+        "design model",
+        "building information model",
+        "site information model",
+        "suunnitelmamalli",
+        "rakennuksen tietomalli",
+        "rakennuspaikan tietomalli"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Suunnitelmamalli",
+      "heading_en": "Design model",
+      "text": "Suunnitelmamallin on sisällettävä tämän asetuksen 7 ja 8 §:n mukaiset tiedot ja liitteiden 1 ja 2 mukaiset tiedot.",
+      "text_en": "The design model must contain the information under sections 7 and 8 of this decree and the information under annexes 1 and 2.",
+      "summary_en": "The design model must include the information required by sections 7 and 8 and by annexes 1 and 2.",
+      "keywords": [
+        "design model",
+        "annex 1",
+        "annex 2",
+        "suunnitelmamalli",
+        "liite"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-4-3",
+      "ref": "4 § 3 mom.",
+      "heading": "Suunnitelmamalli",
+      "heading_en": "Design model",
+      "text": "Mitä edellä 1 ja 2 momentissa säädetään rakennuksen suunnitelmamalleista, sovelletaan myös rakennuskohteisiin.",
+      "text_en": "What is provided in subsections 1 and 2 above on building design models also applies to building projects.",
+      "summary_en": "The rules on building design models in subsections 1 and 2 also apply to building projects.",
+      "keywords": [
+        "design model",
+        "building project",
+        "rakennuskohde",
+        "suunnitelmamalli",
+        "rakennuksen suunnitelmamalli"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-5-1",
+      "ref": "5 §",
+      "heading": "Rakennuksen suunnitelman koneluettavat tiedot",
+      "heading_en": "Machine-readable data of the building design",
+      "text": "Mikäli rakentamishankkeeseen ryhtyvä ei toimita rakennuksen tietoja 4 §:ssä tarkoitetussa tietomallimuodossa, on tietomallin sijaan toimitettavien koneluettavien tietojen sisällettävä liitteiden 1 ja 3 mukaiset tiedot.",
+      "text_en": "If the party undertaking the construction project does not submit the building's data in the information model format referred to in section 4, the machine-readable data to be submitted in place of the information model must contain the information under annexes 1 and 3.",
+      "summary_en": "If building data is not submitted as an information model, the machine-readable data submitted instead must include the information in annexes 1 and 3.",
+      "keywords": [
+        "machine-readable data",
+        "information model",
+        "annex 1",
+        "annex 3",
+        "koneluettava tieto",
+        "tietomalli",
+        "rakentamishanke"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-6-1",
+      "ref": "6 § 1 mom.",
+      "heading": "Käytettävät koordinaatistot",
+      "heading_en": "Coordinate systems to be used",
+      "text": "Rakennuskohteen sijainti määritellään valtakunnallisesti tunnustetussa koordinaattijärjestelmässä ja korkeusjärjestelmässä, siten että kohde voidaan kohdentaa automaattisesti vastaanottavassa järjestelmässä.",
+      "text_en": "The location of the building project is defined in a nationally recognised coordinate system and height system, so that the project can be automatically positioned in the receiving system.",
+      "summary_en": "The building project's location must be defined in a nationally recognised coordinate and height system so it can be positioned automatically.",
+      "keywords": [
+        "coordinate system",
+        "height system",
+        "location",
+        "building project",
+        "koordinaatisto",
+        "korkeusjärjestelmä",
+        "sijainti",
+        "rakennuskohde"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-6-2",
+      "ref": "6 § 2 mom.",
+      "heading": "Käytettävät koordinaatistot",
+      "heading_en": "Coordinate systems to be used",
+      "text": "Lupahakemuksessa on käytettävä kaikkien hakemuksen tietojen osalta yhtenäistä koordinaatistoa.",
+      "text_en": "The permit application must use one uniform coordinate system for all of the application's data.",
+      "summary_en": "The permit application must use one uniform coordinate system for all of its data.",
+      "keywords": [
+        "coordinate system",
+        "permit application",
+        "uniform coordinate system",
+        "koordinaatisto",
+        "lupahakemus"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-7-1",
+      "ref": "7 § 1 mom.",
+      "heading": "Rakennuspaikan tietomalli.",
+      "heading_en": "Site information model.",
+      "text": "Rakennuspaikan tietomallin on sisällettävä alueen geometria kolmiulotteisessa mallissa. Kolmiulotteisen mallin on rajauduttava rakennuspaikan rajojen mukaan. Mallissa oleva maanpinta on mallinnettava siten, että siinä näkyvät maanpinnan korkeusvaihtelut.",
+      "text_en": "The site information model must contain the geometry of the area in a three-dimensional model. The three-dimensional model must be bounded by the boundaries of the building site. The ground surface in the model must be modelled so that the height variations of the ground surface are visible in it.",
+      "summary_en": "The site information model must be a three-dimensional model of the area, bounded by the site boundaries, with the ground surface modelled so its height variations are visible.",
+      "keywords": [
+        "site information model",
+        "three-dimensional model",
+        "site boundary",
+        "ground surface",
+        "height variation",
+        "rakennuspaikan tietomalli",
+        "maanpinta",
+        "rakennuspaikan raja",
+        "korkeusvaihtelu"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-7-2",
+      "ref": "7 § 2 mom.",
+      "heading": "Rakennuspaikan tietomalli.",
+      "heading_en": "Site information model.",
+      "text": "Rakennuspaikan tietomalli on toimitettava vain, jos rakentamisen, korjauksen tai muun muutoksen yhteydessä tehtävät muutokset kohdistuvat rakennuspaikkaan.",
+      "text_en": "The site information model must be submitted only if the changes made in connection with construction, repair or other alteration are directed at the building site.",
+      "summary_en": "The site information model must be submitted only when construction, repair or other changes affect the building site.",
+      "keywords": [
+        "site information model",
+        "building site",
+        "construction",
+        "repair",
+        "rakennuspaikan tietomalli",
+        "rakennuspaikka",
+        "korjaus"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-7-3",
+      "ref": "7 § 3 mom.",
+      "heading": "Rakennuspaikan tietomalli.",
+      "heading_en": "Site information model.",
+      "text": "Rakennuspaikan tietomallin on sisällettävä liitteessä 1 tarkoitetut rakennuspaikasta merkittävät tiedot.",
+      "text_en": "The site information model must contain the site information specified in annex 1.",
+      "summary_en": "The site information model must contain the site information specified in annex 1.",
+      "keywords": [
+        "site information model",
+        "annex 1",
+        "site information",
+        "rakennuspaikan tietomalli",
+        "liite 1"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Rakennuksen tietomalli",
+      "heading_en": "Building information model",
+      "text": "Rakennuksen tietomalli on mallinnettava kerroksittain. Tietomallin on sisällettävä rakennusosat, rakennuksessa sijaitsevat tilat ja huoneistot.",
+      "text_en": "The building information model must be modelled storey by storey. The information model must contain the building parts, the spaces located in the building and the dwelling units.",
+      "summary_en": "The building information model must be modelled storey by storey and contain the building parts, spaces and dwelling units.",
+      "keywords": [
+        "building information model",
+        "storey",
+        "building parts",
+        "spaces",
+        "dwelling units",
+        "rakennuksen tietomalli",
+        "kerros",
+        "rakennusosa",
+        "tila",
+        "huoneisto"
+      ],
+      "topics": [
+        "rooms"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-1340-2025-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Rakennuksen tietomalli",
+      "heading_en": "Building information model",
+      "text": "Ulkovaipan rakennusosat on eriteltävä sisäpuolisista rakennusosista. Rakennusosan tyyppi on määriteltävä. Rakennusosien on sisällettävä tieto siitä, ovatko ne uusia, säilytettäviä vai purettavia.",
+      "text_en": "Building parts of the outer envelope must be distinguished from interior building parts. The type of building part must be defined. The building parts must contain information on whether they are new, to be retained or to be demolished.",
+      "summary_en": "Outer envelope building parts must be distinguished from interior ones, given a type, and marked as new, to be retained or to be demolished.",
+      "keywords": [
+        "outer envelope",
+        "building part",
+        "building part type",
+        "new",
+        "retained",
+        "demolished",
+        "ulkovaippa",
+        "rakennusosa",
+        "purettava",
+        "säilytettävä"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-9-1",
+      "ref": "9 § 1 mom.",
+      "heading": "Erityissuunnitelman tietomalli",
+      "heading_en": "Special plan information model",
+      "text": "Tietomallin on sisällettävä liitteen 4 ja 5 mukaiset ydintiedot, rakennusosien tiedot, järjestelmien tiedot ja tuoteosien tiedot.",
+      "text_en": "The information model must contain the core data under annexes 4 and 5, the building part data, the system data and the product part data.",
+      "summary_en": "The special plan information model must contain the core data in annexes 4 and 5, plus building part, system and product part data.",
+      "keywords": [
+        "special plan",
+        "information model",
+        "core data",
+        "annex 4",
+        "annex 5",
+        "building part",
+        "system data",
+        "product part",
+        "erityissuunnitelma",
+        "tietomalli",
+        "ydintieto",
+        "järjestelmä"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-9-2",
+      "ref": "9 § 2 mom.",
+      "heading": "Erityissuunnitelman tietomalli",
+      "heading_en": "Special plan information model",
+      "text": "Erityissuunnitelman tietomalli on mallinnettava kerroksittain.",
+      "text_en": "The special plan information model must be modelled storey by storey.",
+      "summary_en": "The special plan information model must be modelled storey by storey.",
+      "keywords": [
+        "special plan",
+        "information model",
+        "storey",
+        "erityissuunnitelma",
+        "tietomalli",
+        "kerros"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-10-1",
+      "ref": "10 §",
+      "heading": "Erityissuunnitelman koneluettavat tiedot",
+      "heading_en": "Machine-readable data of the special plan",
+      "text": "Erityissuunnitelman tietomallin sijaan toimitettavien koneluettavien tietojen sisällettävä liitteen 4 mukaiset tiedot.",
+      "text_en": "In place of the special plan information model, the machine-readable data to be submitted must contain the information under annex 4.",
+      "summary_en": "Machine-readable data submitted in place of a special plan information model must contain the information in annex 4.",
+      "keywords": [
+        "special plan",
+        "machine-readable data",
+        "annex 4",
+        "erityissuunnitelma",
+        "koneluettava tieto",
+        "liite 4"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-11-1",
+      "ref": "11 §",
+      "heading": "Toteumamalli",
+      "heading_en": "As-built model",
+      "text": "Toteumamallin on sisällettävä 4 §:n sekä liitteiden 1 ja 2 mukaiset toteutuneet tiedot. Erityissuunnitelman toteumamallin on sisällettävä 9 §:n sekä liitteiden 4 ja 5 mukaiset toteutuneet tiedot",
+      "text_en": "The as-built model must contain the as-built information under section 4 and under annexes 1 and 2. The special plan as-built model must contain the as-built information under section 9 and under annexes 4 and 5.",
+      "summary_en": "The as-built model must contain the as-built information required by section 4 and annexes 1 and 2, and the special plan as-built model must contain that required by section 9 and annexes 4 and 5.",
+      "keywords": [
+        "as-built model",
+        "special plan",
+        "as-built information",
+        "annex 1",
+        "annex 2",
+        "annex 4",
+        "annex 5",
+        "toteumamalli",
+        "erityissuunnitelma",
+        "toteutunut tieto"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-12-1",
+      "ref": "12 §",
+      "heading": "Toteutuneiden päivitettyjen suunnitelmien tiedot",
+      "heading_en": "Information on updated as-built plans",
+      "text": "Toteutuneiden päivitettyjen suunnitelmien on sisällettävä 5 §:n sekä liitteiden 1 ja 3 mukaiset toteutuneet tiedot. Erityissuunnitelman toteutuneiden päivitettyjen suunnitelmien on sisällettävä 10 §:n sekä liitteen 4 mukaiset toteutuneet tiedot.",
+      "text_en": "The updated as-built plans must contain the as-built information under section 5 and under annexes 1 and 3. The updated as-built special plans must contain the as-built information under section 10 and under annex 4.",
+      "summary_en": "Updated as-built plans must contain the as-built information required by section 5 and annexes 1 and 3, and updated special plans must contain that required by section 10 and annex 4.",
+      "keywords": [
+        "as-built plan",
+        "updated plan",
+        "special plan",
+        "annex 1",
+        "annex 3",
+        "annex 4",
+        "toteutuneet tiedot",
+        "päivitetty suunnitelma",
+        "erityissuunnitelma"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-13-1",
+      "ref": "13 §",
+      "heading": "Viranomaiskatselmusten ja aloituskokouksen tietojen koneluettava tietomuoto",
+      "heading_en": "Machine-readable data format for authority inspection and commencement meeting information",
+      "text": "Kunnan on toimitettava tämän asetuksen 14 §:n mukaiset tiedot rakennetun ympäristön tietojärjestelmään rakennetun ympäristön tietojärjestelmän teknisen rajapinnan tukemassa muodossa ja rakenteessa.",
+      "text_en": "The municipality must submit the information under section 14 of this decree to the built environment information system, in a format and structure supported by the technical interface of the built environment information system.",
+      "summary_en": "The municipality must submit the section 14 information to the built environment information system in a format and structure its technical interface supports.",
+      "keywords": [
+        "municipality",
+        "built environment information system",
+        "technical interface",
+        "authority inspection",
+        "commencement meeting",
+        "kunta",
+        "rakennetun ympäristön tietojärjestelmä",
+        "teknillinen rajapinta",
+        "viranomaiskatselmus",
+        "aloituskokous"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-14-1",
+      "ref": "14 § 1 mom.",
+      "heading": "Viranomaiskatselmuksista toimitettavat tiedot",
+      "heading_en": "Information to be submitted on authority inspections",
+      "text": "Viranomaiskatselmuksista on toimitettava rakennetun ympäristön tietojärjestelmään seuraavat tiedot:\n1) Pysyvä rakennustunnus tai muu rakennustunniste;\n2) katselmuksen laji;\n3) katselmuksen laatijan etu- ja sukunimi;\n4) katselmuksen tilanne;\n5) tieto siitä, onko katselmusta vaadittu lupamääräyksissä; sekä\n6) katselmuksen päivämäärä.",
+      "text_en": "The following information on authority inspections must be submitted to the built environment information system:\n1) permanent building identifier or other building identifier;\n2) type of inspection;\n3) first and last name of the person who prepared the inspection;\n4) status of the inspection;\n5) information on whether the inspection is required in the permit conditions; and\n6) date of the inspection.",
+      "summary_en": "Six items must be submitted for each authority inspection: the building identifier, inspection type, preparer's name, status, whether the permit conditions require it, and its date.",
+      "keywords": [
+        "authority inspection",
+        "building identifier",
+        "permanent building identifier",
+        "inspection type",
+        "permit conditions",
+        "inspection date",
+        "viranomaiskatselmus",
+        "pysyvä rakennustunnus",
+        "katselmuksen laji",
+        "lupamääräys",
+        "katselmuksen päivämäärä",
+        "rakennetun ympäristön tietojärjestelmä"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-14-2",
+      "ref": "14 § 2 mom.",
+      "heading": "Viranomaiskatselmuksista toimitettavat tiedot",
+      "heading_en": "Information to be submitted on authority inspections",
+      "text": "Viranomaiskatselmuksista on toimitettava tiedot katselmuksessa ilmenneistä huomioista ja katselmuksen kohteesta, jos tällaista tietoa on kerätty.",
+      "text_en": "Information on the observations made during the authority inspection and on the object of the inspection must be submitted, if such information has been collected.",
+      "summary_en": "Observations made during an authority inspection, and the inspection object, must be submitted if such information has been collected.",
+      "keywords": [
+        "authority inspection",
+        "observations",
+        "inspection object",
+        "viranomaiskatselmus",
+        "katselmuksen huomiot",
+        "katselmuksen kohde"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-14-3",
+      "ref": "14 § 3 mom.",
+      "heading": "Viranomaiskatselmuksista toimitettavat tiedot",
+      "heading_en": "Information to be submitted on authority inspections",
+      "text": "Mitä 1 ja 2 momentissa säädetään, sovelletaan myös aloituskokoukseen.",
+      "text_en": "What is provided in subsections 1 and 2 also applies to the commencement meeting.",
+      "summary_en": "The rules in subsections 1 and 2 on authority inspection data also apply to the commencement meeting.",
+      "keywords": [
+        "commencement meeting",
+        "authority inspection",
+        "aloituskokous",
+        "viranomaiskatselmus"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-1340-2025-15-1",
+      "ref": "15 §",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2026.",
+      "text_en": "This decree enters into force on 1 January 2026.",
+      "summary_en": "This decree enters into force on 1 January 2026.",
+      "keywords": [
+        "entry into force",
+        "1 January 2026",
+        "voimaantulo",
+        "asetus"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

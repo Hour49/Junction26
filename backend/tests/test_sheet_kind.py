@@ -2,9 +2,12 @@
 and rule, the classifier around an inner one, the cache and the spend guard. A fake model; no
 network."""
 
+import hashlib
 import io
 import json
+import struct
 import urllib.request
+import zlib
 from pathlib import Path
 from typing import Any, get_args
 
@@ -17,12 +20,14 @@ from app.adapters.triage.sheet_kind import (
     KINDS,
     MODEL,
     PLAN_KINDS,
+    PNG_SIGNATURE,
     PROMPT_SHA,
     GeminiSheetKindClient,
     SheetKindClassifier,
     SheetKindReader,
     advanced,
     decide,
+    long_side,
     price,
 )
 from app.core.ingest.model import (
@@ -36,8 +41,9 @@ from app.core.ingest.model import (
 )
 from app.core.ingest.triage import set_aside_reason, sheet_doubt
 from app.core.spend import SpendGuard
+from app.settings import Settings
 
-CUT = 0.8
+CUT = 0.9  # the default (settings.sheet_kind_cut)
 PNG_PROBED = Probed(kind="png_plan", did="a drawing image")
 
 
@@ -295,3 +301,61 @@ def test_a_spent_budget_sends_nothing_and_a_paid_call_charges_the_ledger(
     )
     assert isinstance(found, Classified) and sent == [1]
     assert guard.spent_by() == pytest.approx({"gemini sheet kind": 0.0128})
+
+
+def png_header(width: int, height: int) -> bytes:
+    """A PNG's signature, IHDR chunk and an empty IDAT: the size, no pixels."""
+
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        crc = struct.pack(">I", zlib.crc32(kind + body))
+        return struct.pack(">I", len(body)) + kind + body + crc
+
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return PNG_SIGNATURE + chunk(b"IHDR", ihdr) + chunk(b"IDAT", b"") + chunk(b"IEND", b"")
+
+
+def jpeg_sized(width: int, height: int, progressive: bool = False) -> bytes:
+    """A real small JPEG whose frame header says `width` x `height`."""
+    out = io.BytesIO()
+    Image.new("RGB", (40, 30), "white").save(out, format="JPEG", progressive=progressive)
+    data = bytearray(out.getvalue())
+    sof = data.index(b"\xff\xc2" if progressive else b"\xff\xc0")
+    data[sof + 5 : sof + 9] = struct.pack(">HH", height, width)
+    return bytes(data)
+
+
+def test_the_size_is_read_from_the_header_even_past_pils_decompression_bomb_limit() -> None:
+    huge = png_header(20_000, 10_000)  # 200 Mpx: PIL refuses to open it (limit about 179 Mpx)
+    with pytest.raises(Image.DecompressionBombError):
+        Image.open(io.BytesIO(huge))
+    assert long_side(huge) == 20_000
+    assert long_side(jpeg_sized(15_000, 14_000)) == 15_000  # 210 Mpx
+    assert long_side(jpeg_sized(3_000, 4_500, progressive=True)) == 4_500
+    assert long_side(png(640, 480)) == 640
+    assert long_side(b"%PDF-1.7 ...") is None
+    assert long_side(b"\xff\xd8\xff") is None  # a truncated JPEG
+
+
+def test_a_huge_sheet_keeps_the_size_rule(tmp_path: Path) -> None:
+    huge = png_header(20_000, 10_000)
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    name = f"sheetkind-{hashlib.sha256(huge).hexdigest()}-{PROMPT_SHA[:12]}-{MODEL}.json"
+    (cache / name).write_text(json.dumps(reply(PLAN)))  # replayed: nothing is encoded or sent
+    model = FakeModel(reply(PLAN))
+    found = SheetKindClassifier(None, SheetKindReader(model, cache), CUT).classify(huge, PNG_PROBED)
+    assert isinstance(found, Classified) and found.sheet is not None
+    assert (found.sheet.advanced, found.sheet.advanced_why, model.calls) == (
+        True,
+        "large sheet (20000 px on its long side)",
+        0,
+    )
+
+
+def test_the_default_cut_is_the_one_the_gate_run_picked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)  # so a developer's backend/.env can't change it
+    assert Settings().sheet_kind_cut == CUT == 0.9
+    # 0.85: set aside at the old 0.8, a doubt (read) at 0.9
+    assert decide(form("mep_plan", False, True, 0.85), CUT) == "doubt"

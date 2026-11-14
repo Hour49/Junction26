@@ -325,8 +325,14 @@ def test_the_source_detector_v8_reads_eight_views(
 ) -> None:
     seen = []
 
-    def from_folder(files: object, folder: Path, thresholds: Path | None = None, views: int = 1):
-        seen.append((folder.name, thresholds, views))
+    def from_folder(
+        files: object,
+        folder: Path,
+        thresholds: Path | None = None,
+        views: int = 1,
+        tiles: bool = False,
+    ):
+        seen.append((folder.name, thresholds, views, tiles))
         raise NotFoundError("stop here")
 
     monkeypatch.setattr(composition.OnnxDetector, "from_folder", from_folder)
@@ -336,7 +342,12 @@ def test_the_source_detector_v8_reads_eight_views(
         monkeypatch.setenv("RASTER_COMPONENTS", f"elements={source},plans=one-plan")
         with pytest.raises(DomainError, match="stop here"):
             build_pipeline(Settings(), tmp_path)
-        assert seen.pop() == ("C", None, views)
+        assert seen.pop() == ("C", None, views, False)
+        monkeypatch.setenv("RASTER_TILES", "auto")  # every detector source takes it
+        with pytest.raises(DomainError, match="stop here"):
+            build_pipeline(Settings(), tmp_path)
+        assert seen.pop() == ("C", None, views, True)
+        monkeypatch.delenv("RASTER_TILES")
     monkeypatch.setenv("RASTER_COMPONENTS", "elements=detector-v3:C,plans=one-plan")
     with pytest.raises(InvalidInputError, match="unknown source"):
         build_pipeline(Settings(), tmp_path)

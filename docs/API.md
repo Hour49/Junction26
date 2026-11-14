@@ -115,6 +115,8 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
 | `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
+| `GET /api/projects/{project_id}/evidence/search?q=&k=&include_unrelated=` | Search the project's non-plan files by what they show and say (one hit per file) | 0012 |
+| `GET /api/projects/{project_id}/evidence/{evidence_id}` | One hit's passage with its file's description | 0012 |
 | `GET /api/projects/{project_id}/files/{file_id}/preview.png?width=` | The file as uploaded, EXIF turn applied | #27 |
 | `GET /api/projects/{project_id}/review` | Per drawing what is left to review, and every conflict of the project | #32 |
 | `GET /api/projects/{project_id}/issues?pack=` | Every finding as a located issue; also `.csv`, and `.zip` with the marked pages | #140 |
@@ -130,6 +132,9 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
 | `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
 | `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
+| `GET /api/laws` | The building-law knowledge base: each pack's laws (table of contents) | 0014 |
+| `GET /api/laws/{pack}/search?q=&topic=&limit=` | Search one pack's law clauses, best first | 0014 |
+| `GET /api/laws/clauses/{clause_id}` | One clause, verbatim and in our English, with its law | 0014 |
 
 ## `GET /api/info`
 
@@ -986,7 +991,7 @@ the `identify` stage's line.
   the sheet. `kind` (`architectural_floor_plan`, `multi_view_sheet`, `mep_plan`, `structural_plan`,
   `roof_or_ceiling_plan`, `site_plan_or_map`, `elevation`, `section`, `detail`, `perspective_or_axonometric`,
   `schedule_or_text`, `not_a_drawing`, `other`) with `kind_words` to show, `decision` (`set_aside`: no floor plan
-  on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT`, the file is set aside with the reason "not a
+  on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT` (default 0.9), the file is set aside with the reason "not a
   floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it; `doubt`: it is read, and every
   answer with a value from it ends its `explanation` with "This sheet may not be a floor plan[: it looks like
   <kind_words>]."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the sheet), `title`,
@@ -1552,6 +1557,111 @@ The same file once read:
     },
     "verdict": "related",
     "note": null
+  }
+}
+```
+
+### `GET /api/projects/{project_id}/evidence/search?q=<text>&k=5&include_unrelated=false` (decision 0012)
+
+A search over what the project's files that are not floor plans show and say: every file triage described and
+nobody read as a plan (photos, elevations, sections, site plans, maps, text pages). Floor-plan facts are not in it.
+The same JSON as the chat agent's `search_evidence` tool (`backend/app/adapters/evidence_tools.py`). Local only:
+SQLite FTS5 BM25 and a multilingual embedder on CPU, fused by reciprocal rank fusion; with no embedder model on the
+machine it searches with BM25 alone and `method` says so. Works in any project state: it answers from what is
+described so far; a project with triage off has `indexed_files: 0` and a `note`.
+
+- `q` 1-500 characters, not blank; `k` 1-20 (default 5) counts files: a file appears once, with its best-matching
+  passage. 422 `validation` otherwise; 404 `not-found` for an unknown project.
+- Files whose verdict (a person's call over the judge's) is `unrelated` are searched only with
+  `include_unrelated=true`; `unrelated_left_out` counts the ones skipped.
+- A hit: `id` (`f7-summary`, `f7-detail-2`, `f7-visible_text-1`), `file_id`, `file` (as uploaded; the picture is
+  `…/files/{file_id}/preview.png`), `page` (the PDF page of a page entry `<name>#p<n>.pdf`, else 1), `part`, `kind` (the register's kind, else the description's
+  `what_it_is`), `subject`, `snippet` (at most 300 characters around the matched words), `language`, `verdict`,
+  `credit`, `score` (orders one result's hits only) and `why` (`terms`: query words in the passage; `bm25_rank`,
+  `dense_rank`: the file's rank by each retriever, null when it did not rank it or did not run).
+- A hit is the closest file, not proof: read the snippet, then get the passage.
+
+<!-- fixture: evidence_search.json -->
+```json
+{
+  "query": "St. Anna",
+  "method": "BM25 (no embedder model on this machine)",
+  "indexed_files": 3,
+  "unrelated_left_out": 0,
+  "note": null,
+  "hits": [
+    {
+      "id": "f5-visible_text-1",
+      "file_id": "f5",
+      "file": "photos/sheet.jpg",
+      "page": 1,
+      "part": "visible_text",
+      "kind": "elevation",
+      "subject": "a photographed elevation of a church",
+      "snippet": "Kirche St. Anna",
+      "language": "en",
+      "verdict": "unsure",
+      "credit": null,
+      "score": 0.166667,
+      "why": {
+        "terms": [
+          "st",
+          "anna"
+        ],
+        "bm25_rank": 1,
+        "dense_rank": null
+      }
+    }
+  ]
+}
+```
+
+### `GET /api/projects/{project_id}/evidence/{evidence_id}`
+
+One hit's whole passage and its file's description, register and relevance as `GET /api/projects/{project_id}`
+gives them (without the description's `cost_usd`). A file id alone (`f7`) answers as its summary (`f7-summary`).
+A file judged unrelated is returned too. 404 `not-found` for an unknown project, an id not in the index or one
+that is not an evidence id. `description.detail` is a model's description no person checked.
+
+<!-- fixture: evidence_detail.json -->
+```json
+{
+  "id": "f5-visible_text-1",
+  "file_id": "f5",
+  "file": "photos/sheet.jpg",
+  "page": 1,
+  "part": "visible_text",
+  "text": "Kirche St. Anna",
+  "kind": "elevation",
+  "verdict": "unsure",
+  "credit": null,
+  "description": {
+    "subject": "a photographed elevation of a church",
+    "text": "A picture of a photographed elevation of a church.",
+    "detail": "A longer account of a photographed elevation of a church, for later use.",
+    "visible_text": "Kirche St. Anna",
+    "text_seen": [
+      "Kirche St. Anna"
+    ],
+    "language": "en",
+    "what_it_is": "drawing",
+    "shows_building": true,
+    "model": "fake describer"
+  },
+  "register": {
+    "kind": "elevation",
+    "has_floor_plan": false,
+    "photo_of_sheet": true,
+    "scale_shown": "bar",
+    "quality": "fair",
+    "method": "fake classifier"
+  },
+  "relevance": {
+    "verdict": "unsure",
+    "why": "Unsure: it shows a building, but none of its printed words is in the project's name, file and folder names or plan text.",
+    "matched_on": [],
+    "plans": [],
+    "judge": "rule on the words printed on it and whether it shows a building, no model"
   }
 }
 ```
@@ -8195,6 +8305,79 @@ Every drawing of the project (in `GET /api/projects/{id}` `drawings` order), eac
 project is `done` (a drawing's own checks answer as soon as that drawing exists); 404 `unknown-pack` for an
 unknown pack, `not-found` for an unknown project.
 
+## Building law
+
+The law knowledge base the AI searches instead of carrying the laws in its prompt (decision
+[0014](decisions/0014-law-knowledge-base.md)): one file per law in `backend/app/laws/<pack>/`, one clause per
+subsection, `text` verbatim from the official source and `text_en` our unofficial translation. Packs are `fi` and
+`ch-zh` (Swiss federal law and the Canton of Zürich), the rule packs' ids. The examples are the test laws of
+`backend/tests/fixtures/laws/` (made up).
+
+### `GET /api/laws`
+
+Both packs, always; `laws: []` while a pack has none. `topics`: the topics its clauses use, in the closed list's
+order.
+
+```json
+{
+  "packs": [
+    {
+      "id": "fi",
+      "laws": [
+        {"law_id": "fi-test-1", "number": "1/2026", "title_en": "Test decree on residential spaces",
+         "clauses": 2, "topics": ["rooms", "fire", "escape-routes"]}
+      ]
+    },
+    {"id": "ch-zh", "laws": [...]}
+  ]
+}
+```
+
+### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
+
+`q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. Clauses with every word come first, then
+clauses with any word fill `limit`, each group by score. `topic` one of `rooms accessibility fire
+escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
+distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
+-BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.
+
+```json
+{
+  "pack": "fi",
+  "query": "minimum bedroom area",
+  "hits": [
+    {"id": "fi-test-1-4-2", "law_id": "fi-test-1", "ref": "4 § 2 mom.",
+     "title_en": "Test decree on residential spaces",
+     "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+     "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "score": 2.745}
+  ]
+}
+```
+
+### `GET /api/laws/clauses/{clause_id}`
+
+The clause as its file has it, plus its law's `law_id`, `law_number`, `law_title`, `law_title_en`, `url`,
+`language` (of `text`), `checked` and `status_note`. `text_en` is null only for a law in English; show it as an
+unofficial translation. An unknown id is 404 `not-found`.
+
+```json
+{
+  "id": "fi-test-1-4-2", "ref": "4 § 2 mom.", "heading": "Huoneala", "heading_en": "Room area",
+  "text": "Asuintilan huonealan on oltava vähintään 7 neliömetriä.",
+  "text_en": "The room area of a residential space must be at least 7 square metres.",
+  "summary_en": "Every habitable room has a floor area of at least 7 m2.",
+  "keywords": ["room area", "minimum area", "bedroom", "huoneala", "makuuhuone"],
+  "topics": ["rooms"],
+  "limits": [{"what": "habitable room area", "comparison": ">=", "value": 7.0, "unit": "m2"}],
+  "drawing_checkable": true,
+  "law_id": "fi-test-1", "law_number": "1/2026", "law_title": "Testiasetus asuintiloista",
+  "law_title_en": "Test decree on residential spaces",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2026/1", "language": "fi", "checked": "2026-11-14",
+  "status_note": "A made-up test law: its clauses point nowhere real."
+}
+```
+
 ## What is not in v1
 
 - Contested marks: a conflict is shown per quantity, with both values and, where the method has one, the `box` it
@@ -8205,6 +8388,11 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (decision 0014): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
+  `GET /api/laws/clauses/{clause_id}`, the building-law knowledge base. An unknown pack is 404 `unknown-pack`.
+- 2026-11-14, additive (decision 0012): `GET /api/projects/{id}/evidence/search?q=&k=&include_unrelated=` and
+  `GET /api/projects/{id}/evidence/{evidence_id}`, the project's evidence index (described non-plan files; BM25 +
+  a local multilingual embedder). New fixtures `evidence_search`, `evidence_detail`.
 - 2026-11-14, content (board #220): the `fi` pack cites YMa 631/2024 (in force 2025-01-01, under the Building
   Act 751/2023), which replaced 1008/2017: the 7 m2 rule is 4 § 2 mom. and the window rule 5 § 1 mom., each with
   the decree's own sentence and its Finlex link; the limits are unchanged. Fixtures `info`, `checks`,

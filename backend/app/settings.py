@@ -42,6 +42,7 @@ TablesName = Literal["off", "pdf"]
 ProviderName = Literal["gemini", "eu"]
 # off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
 RasterScaleName = Literal["off", "priors"]
+RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
@@ -75,6 +76,12 @@ class Settings(BaseSettings):
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
     raster_scale: RasterScaleName = "off"
+    # auto: a raster page whose long side is over 4000 px is read by every detector source of
+    # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
+    # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.
+    # Photo arms are not tiled. off: every page is letterboxed whole (a door on a 14k px sheet
+    # is then a few px)
+    raster_tiles: RasterTilesName = "off"
     # How the raster route types the rooms its rooms source read, whichever source that is.
     # gold-labels is for a source that reads printed labels: it turns every unlabelled bedroom
     # into `other`
@@ -158,6 +165,9 @@ class Settings(BaseSettings):
     # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
     # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
     rule_packs_dir: Path = Path(__file__).parent / "rules"
+    # The building-law knowledge base, <pack>/<law id>.json (decision 0014); the AI searches it.
+    # A law file that does not validate stops start, naming the file
+    laws_dir: Path = Path(__file__).parent / "laws"
     # File triage (decision 0010): is each uploaded image a floor plan; a non-plan is kept, set
     # aside, described and judged against the project. The describer and judge run only with a
     # classifier on (TRIAGE_CLASSIFIER, or SHEET_KIND below).
@@ -172,4 +182,9 @@ class Settings(BaseSettings):
     # content. Off until its gate passes
     sheet_kind: SheetKindName = "off"
     sheet_kind_cache_dir: Path = Path("../data/cache/sheet-kind")
-    sheet_kind_cut: float = Field(default=0.8, ge=0, le=1)
+    # 0.9: the lowest cut that set aside none of checked-200's 75 plans (0.8 set aside 1; gate
+    # run, .agents/exp/vlm-kind.md section 3)
+    sheet_kind_cut: float = Field(default=0.9, ge=0, le=1)
+    # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
+    # folder's manifest. No file there (or ""): the index searches with BM25 alone
+    evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

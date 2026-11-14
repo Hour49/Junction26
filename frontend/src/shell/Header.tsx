@@ -1,3 +1,4 @@
+import { ExportButton } from '../export/ExportButton';
 import { CountryPicker } from './CountryPicker';
 import { useIssuesToAnswer } from './issueCount';
 import { ProjectPicker } from './ProjectPicker';
@@ -92,6 +93,9 @@ export function Header({ route }: { route: Route }) {
         >
           Workspaces
         </a>
+        {'projectId' in route && (
+          <ExportButton key={route.projectId} projectId={route.projectId} pack={packOf(route)} />
+        )}
       </div>
     </header>
   );
