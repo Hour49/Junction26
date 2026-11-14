@@ -498,5 +498,7 @@
   "total": null,
   "total_unit": null,
   "total_sure": false,
-  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+  "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+  "refused_note": "2 drawings have no reader for it."
 }
