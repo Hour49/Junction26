@@ -11,8 +11,10 @@ from PIL import Image
 
 from app.adapters.printed_scale import PrintedScale, stated_dpi
 from app.adapters.raster_scale import PriorScale
+from app.composition import build_ingest
 from app.core.drawing.model import Drawing, Element, Page, Room, Scale
-from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.ingest import ingest
+from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
 from app.core.pipeline.printed import (
     PrintedFact,
     PrintedSheet,
@@ -49,6 +51,15 @@ BAR = ScaleBar(page=1, start=(0.1, 0.9), end=(0.225, 0.9), length_m=5.0, text="0
         ("NTS", None),
         (None, None),
         ("Rev 1:0", None),  # 1:0 is no scale
+        ("1:1 000", 1000.0),  # Finnish: a space between the thousands
+        ("1:2 000", 2000.0),
+        ("1:1\u00a0000", 1000.0),  # a no-break space
+        ("1:1,000", 1000.0),
+        ("1:1.000", 1000.0),  # German
+        ("1:2,5", 2.5),  # a decimal comma, not a thousands group
+        ('1 1/2" = 1\'-0"', 8.0),  # a mixed number of inches
+        ('1-1/2" = 1\'-0"', 8.0),
+        ('1/8" = 1\'-6"', 144.0),  # feet and inches
     ],
 )
 def test_a_printed_ratio_is_read_in_metric_and_imperial(
@@ -152,21 +163,46 @@ def read(inner: Fixed, printed: PrintedSheet, dpi: float | None = None) -> Extra
 
 
 def test_the_printed_bar_replaces_the_door_estimate_and_measures_the_rooms_again() -> None:
-    # the UK school sheet's case: one door read 20x too large, so the estimate is 20x off
+    # the doors read 1.5x too large, so the estimate is 1.5x off
     found = read(
-        Fixed(side_px=DOOR_M / 0.02 * 20), PrintedSheet(printed_scale="1:200", bars=(BAR,))
+        Fixed(side_px=DOOR_M / 0.02 * 1.5), PrintedSheet(printed_scale="1:200", bars=(BAR,))
     )
     assert found.scale.status == "scaled" and found.scale.m_per_unit == pytest.approx(0.02)
     assert found.scale.source == "printed scale bar (one bar)"
     (room,) = found.rooms
-    assert room.area_m2 == pytest.approx(200 * 200 * 0.02**2)  # 16 m², not 0.04
+    assert room.area_m2 == pytest.approx(200 * 200 * 0.02**2)  # 16 m², measured again
     assert (room.area_status, room.area_source) == ("estimated", "geometry_x_scale")
     (entry,) = [c for c in second_count(measured(found), found.printed) if c.quantity == "scale"]
     assert entry.status == "conflict"
     assert [v.method for v in entry.values] == ["detector", "scale_bar"]
-    assert entry.values[0].value == pytest.approx(0.02 / 20)  # the estimate is kept, shown
+    assert entry.values[0].value == pytest.approx(0.02 / 1.5)  # the estimate is kept, shown
     assert entry.resolution is not None and entry.resolution.value == pytest.approx(0.02)
     assert "printed scale bar over the scale estimated from the doors" in entry.resolution.rule
+
+
+def test_a_printed_ratio_wins_over_the_door_estimate_too(tmp_path: Path) -> None:
+    # 1:100 at 150 dpi is 0.0169 m/px; the doors say 1.5x that
+    found = read(Fixed(side_px=DOOR_M / 0.0254), PrintedSheet(printed_scale="1:100"), dpi=150.0)
+    assert found.scale.status == "scaled" and "scale_text" in found.scale.evidence
+    (entry,) = [c for c in second_count(measured(found), found.printed) if c.quantity == "scale"]
+    assert [v.method for v in entry.values] == ["detector", "scale_text"]
+    assert entry.resolution is not None
+    assert entry.resolution.value == pytest.approx(100 * 0.0254 / 150, rel=1e-3)
+    assert "printed scale over the scale estimated from the doors" in entry.resolution.rule
+
+
+def test_a_printed_scale_more_than_twice_the_estimate_is_left_to_a_person() -> None:
+    # the UK school sheet's case: one door read 20x too large; or a printed ratio misread 20x
+    inner = Fixed(side_px=DOOR_M / 0.02 * 20)
+    estimate = PriorScale(inner).extract(FILE, SHEET)
+    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+    assert found.scale == estimate.scale  # the estimate stays the sheet's scale
+    assert found.rooms == estimate.rooms  # and its areas
+    assert any("more than 2x the scale estimated from the doors" in n for n in found.notes)
+    (entry,) = [c for c in second_count(measured(found), found.printed) if c.quantity == "scale"]
+    assert entry.status == "conflict"
+    assert [v.method for v in entry.values] == ["detector", "scale_bar"]
+    assert entry.resolution is None  # no rule decides: a person does
 
 
 def test_a_printed_scale_within_ten_percent_of_the_estimate_agrees() -> None:
@@ -204,6 +240,13 @@ def test_a_scale_the_reader_measured_itself_is_kept() -> None:
     )
     found = read(inner, PrintedSheet(bars=(BAR,)))
     assert found.scale.m_per_unit == 0.05
+
+
+def test_a_sheet_the_reader_found_not_to_scale_stays_so() -> None:
+    inner = Fixed(side_px=40.0)
+    inner.found = inner.found.model_copy(update={"scale": Scale(status="not_to_scale")})
+    found = read(inner, PrintedSheet(bars=(BAR,)))
+    assert found.scale.status == "not_to_scale" and found.scale.m_per_unit is None
 
 
 DORMS = PrintedFact(text="SECOND FLOOR = 48 DORMS", subject="room:bedroom", value=48, unit="count",
@@ -249,6 +292,59 @@ def test_a_printed_count_of_doors_and_of_all_rooms_is_checked_areas_are_not() ->
     assert entries[("element_count", "door")].status == "conflict"  # 3 read, 12 printed
     assert entries[("room_count", None)].status == "agree"  # 3 and 3
     assert len(entries) == 2
+
+
+class Around:
+    """What `ingest` needs around the extractor: the PNG's bytes, its page, no sources, no second
+    counter of its own, and the drawings it writes."""
+
+    def __init__(self) -> None:
+        self.drawings: list[Drawing] = []
+
+    def read(self, path: str) -> bytes:
+        return png(None)
+
+    def sources(self, path: str) -> list[str]:
+        return []
+
+    def pages(self, file: DrawingFile) -> tuple[Page, ...]:
+        return SHEET.pages
+
+    def measure(self, source: DrawingFile, sheet: Sheet) -> list[Measurement]:
+        return []
+
+    def write(self, drawing: Drawing) -> None:
+        self.drawings.append(drawing)
+
+
+def test_ingest_checks_the_reading_against_what_the_sheet_prints() -> None:
+    around = Around()
+    printed = PrintedSheet(bars=(BAR,), printed_facts=(DORMS,))
+    reader = PrintedScale(PriorScale(Fixed(side_px=DOOR_M / 0.02 * 1.5, bedrooms=80)),
+                          Reader(printed), Files(png(None)))  # fmt: skip
+    ingest([FILE.path], files=around, finder=around, pages=around,
+           extractors={"raster": reader}, second_counter=around, sink=around)  # fmt: skip
+    (drawing,) = around.drawings
+    entries = {(c.quantity, c.subject.ref): c for c in drawing.conflicts or ()}
+    scale = entries[("scale", None)]
+    assert [v.method for v in scale.values] == ["detector", "scale_bar"]
+    bedrooms = entries[("room_count", "room:bedroom")]
+    assert [(v.value, v.method) for v in bedrooms.values] == [
+        (80, "detector"),
+        (48, "printed_total"),
+    ]
+
+
+def test_the_setting_is_part_of_the_ingest_reuse_key_only_when_on(tmp_path: Path) -> None:
+    def readers(**on: str) -> dict[str, str]:
+        key = {"gemini_api_key": "unused"}  # the Carbon client needs one; nothing is called
+        settings = Settings(_env_file=None, **key, **on)  # pyright: ignore[reportCallIssue]
+        service = build_ingest(settings, tmp_path / "projects", background=False)
+        service.close()  # no upload: with the setting on, one would call the model
+        return service._names  # pyright: ignore[reportPrivateUsage]
+
+    assert "raster_printed_scale" not in readers()  # the default keeps the keys it had before
+    assert readers(raster_printed_scale="carbon")["raster_printed_scale"] == "carbon"
 
 
 def test_the_setting_is_off_by_default() -> None:

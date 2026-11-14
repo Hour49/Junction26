@@ -12,7 +12,8 @@ scale and the stage-8 measurements to check the reading with.
   only when the file states one that can be trusted (`trusted_dpi`): an image has no paper size.
   The printed scale replaces the estimate, and the estimate is kept as a second value of a `scale`
   conflict entry, so a difference of more than second_count.ESTIMATE_TOLERANCE (10%) shows; the
-  printed one is kept either way.
+  printed one is kept. Unless the two are more than second_count.ESTIMATE_RANGE (2x) apart: then
+  one of them is a misread, the estimate stays the sheet's scale and no rule decides the conflict.
 - Printed facts. A printed count of an element class, of a room type or of all rooms becomes a
   second value of that count (method `printed_total`). It never replaces the count read off the
   drawing: no rule decides between the two, so a difference stays open for a person.
@@ -39,6 +40,7 @@ from app.core.drawing.model import (
 from app.core.model import Frozen
 from app.core.pipeline.model import Extracted, Measurement
 from app.core.pipeline.raster_scale import rooms_with_areas
+from app.core.pipeline.second_count import ESTIMATE_RANGE, far_apart
 
 INCH_M = 0.0254
 MIN_BAR_PX = 20.0  # a bar shorter than this on the image is not measured: a few px off is 10%
@@ -64,7 +66,7 @@ class PrintedFact(Frozen):
 
     text: str
     subject: str
-    value: float
+    value: float = Field(allow_inf_nan=False)
     unit: str
     page: int = Field(default=1, ge=1)
     box: Box | None = None
@@ -77,8 +79,13 @@ class PrintedSheet(Frozen):
     notes: tuple[str, ...] = ()  # what the reader could not read, and why
 
 
-_RATIO = re.compile(r"(?<![\d.])1\s*:\s*(\d+(?:[.,]\d+)?)(?![\d.])")
-_FRACTION = r"(\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?"
+_GROUPED = "[ \u00a0\u202f,.]"  # a thousands separator: space, no-break spaces, comma, point
+# "1:1 000" (Finnish), "1:1,000", "1:1.000": three-digit groups are thousands; "1:2,5" is 2.5
+_RATIO = re.compile(
+    rf"(?<![\d.])1\s*:\s*(?:(\d{{1,3}}(?:{_GROUPED}\d{{3}})+)|(\d+(?:[.,]\d+)?))(?![\d.])"
+)
+# an optional whole inch before a fraction: 1 1/2" or 1-1/2"
+_FRACTION = r"(?:(\d+)[\s-]+(?=\d+\s*/))?(\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?"
 _INCHES = r"(?:\"|''|\u201d|in(?:ch(?:es)?)?\b)"  # ", '', a right double quote, in, inch
 _FEET = r"(?:'|\u2019|ft\b|feet\b|foot\b)"  # ', a right single quote, ft, feet
 _IMPERIAL = re.compile(
@@ -93,11 +100,12 @@ def ratio_of(text: str | None) -> float | None:
     if not text:
         return None
     if (found := _RATIO.search(text)) is not None:
-        ratio = float(found.group(1).replace(",", "."))
+        grouped, plain = found.groups()
+        ratio = float(re.sub(_GROUPED, "", grouped) if grouped else plain.replace(",", "."))
         return ratio if ratio > 0 else None
     if (found := _IMPERIAL.search(text)) is not None:
-        numerator, denominator, feet, inches = found.groups()
-        paper = float(numerator) / (float(denominator) if denominator else 1.0)
+        whole, numerator, denominator, feet, inches = found.groups()
+        paper = float(whole or 0) + float(numerator) / (float(denominator) if denominator else 1.0)
         real = float(feet) * 12 + (float(inches) if inches else 0.0)
         return real / paper if paper > 0 and real > 0 else None
     return None
@@ -225,6 +233,19 @@ def with_printed(
     notes += [f"printed on the sheet: {fact.text}" for fact in printed.printed_facts]
     scale = printed_scale(printed, pages, dpi)
     if found.scale.status in ("scaled", "not_to_scale"):
+        scale = None
+    elif (
+        scale is not None
+        and scale.m_per_unit is not None
+        and found.scale.status == "estimated"
+        and found.scale.m_per_unit is not None
+        and far_apart(scale.m_per_unit, found.scale.m_per_unit)
+    ):  # one of the two is a misread: the estimate stays, the conflict is left to a person
+        measurements = [*scale_measurements(scale, found.scale), *measurements]
+        notes.append(
+            f"printed scale ({scale.source}) is more than {ESTIMATE_RANGE:g}x the scale "
+            "estimated from the doors: not used, left for a person to check"
+        )
         scale = None
     elif scale is None and printed.printed_scale:
         notes.append(

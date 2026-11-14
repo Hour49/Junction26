@@ -40,6 +40,8 @@ PAGE_FORM = {
         {"text": "TOTAL 1,000 SF", "subject": "floor_area", "value": 1000, "unit": "ft2",
          "box_2d": [950, 600, 980, 800]},
         {"text": "?", "subject": "nonsense", "value": 3, "unit": "count", "box_2d": None},
+        {"text": "?", "subject": "door", "value": float("inf"), "unit": "count", "box_2d": None},
+        {"text": "?", "subject": "door", "value": float("nan"), "unit": "count", "box_2d": None},
     ],
     "tables": [],
 }  # fmt: skip
@@ -102,7 +104,7 @@ def test_the_page_bars_and_ticks_calls_give_the_printed_sheet(tmp_path: Path) ->
     assert bar.end == pytest.approx((0.3, 0.91), abs=1e-3)
     scale = printed_scale(printed, [PAGE], dpi=None)
     assert scale is not None and scale.m_per_unit == pytest.approx(5 / 400, rel=1e-3)
-    dorms, area = printed.printed_facts  # the unknown subject is left out
+    dorms, area = printed.printed_facts  # the unknown subject, Infinity and NaN are left out
     assert (dorms.subject, dorms.value, dorms.unit) == ("room:bedroom", 48, "count")
     assert dorms.box == pytest.approx((0.6, 0.9, 0.8, 0.95))
     assert (area.value, area.unit) == (92.9, "m2")  # ft² as m², as the contract converts it

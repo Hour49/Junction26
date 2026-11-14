@@ -51,6 +51,9 @@ TOLERANCE = 0.02  # relative, for everything that is not a count (the dataset's 
 # relative, for a printed scale against the one estimated from the doors (`detector`), which is
 # about 16% off with few doors: within it the two agree (app/core/pipeline/printed.py)
 ESTIMATE_TOLERANCE = 0.10
+# a printed scale more than this many times the estimate (or less than its inverse) is a misread
+# on one side, not the estimate's error: no rule decides it, a person does
+ESTIMATE_RANGE = 2.0
 AGREE = "both methods agree"
 
 
@@ -82,6 +85,12 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
         "ifc_model", "keep the spaces of the sheet's storey"
     ),
 }
+
+
+def far_apart(a: float, b: float) -> bool:
+    """Whether two scales are more than ESTIMATE_RANGE times apart (either way)."""
+    low, high = sorted((a, b))
+    return low <= 0 or high / low > ESTIMATE_RANGE
 
 
 def differ(a: float, b: float, tolerance: float) -> bool:
@@ -199,6 +208,10 @@ def _resolution(
     """The value to report: the preferred method's when a rule names one, else the first value
     when they agree, else nothing."""
     rule = RULES.get((quantity, frozenset(value.method for value in values)))
+    if quantity == "scale" and any(value.method == "detector" for value in values):
+        numbers = [value.value for value in values]
+        if far_apart(min(numbers), max(numbers)):
+            rule = None
     if rule is None:
         return None if apart else Resolution(rule=AGREE, value=values[0].value)
     preferred = next(value.value for value in values if value.method == rule.prefer)

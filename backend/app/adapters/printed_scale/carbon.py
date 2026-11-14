@@ -22,6 +22,7 @@ prototypes/printed-scale/measure.py (22/22 Swiss Dwellings dev PNGs within 0.33%
 import hashlib
 import io
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -206,8 +207,12 @@ def _facts(entries: list[Any]) -> list[PrintedFact]:
     facts: list[PrintedFact] = []
     for entry in entries:
         value = entry.get("value") if isinstance(entry, dict) else None
-        if not isinstance(value, int | float) or isinstance(value, bool):
-            continue
+        if (
+            not isinstance(value, int | float)
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+        ):
+            continue  # JSON's Infinity and NaN are no printed quantity
         if entry.get("subject") not in contract.FACT_SUBJECTS:
             continue
         unit = entry.get("unit") if entry.get("unit") in contract.FACT_UNITS else "other"
