@@ -32,6 +32,7 @@ from app.core.answering.model import (
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
 from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table, words
+from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
@@ -275,10 +276,14 @@ def _flagged(
     is returned as `unread`, so any question on it is refused, its key in the takeoff or not
     (F4-4b). Every other quantity carries the flag as its estimate, so the answer says what it
     rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
-    page can have 0 saunas, but not 0 rooms (F4-4)."""
+    page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
+    the classes it could not count (left out of `read`), so on a drawing whose elements are
+    Carbon's a class it read with no element is a read 0, still flagged (brief r8 BD)."""
     empty: set[str] = set()
     if flags and not drawing.elements:
         empty.update(ELEMENT_CLASSES)
+        if CARBON_FLAG in flags and drawing.read is not None:
+            empty.difference_update(drawing.read)
     if (flags or raster) and not drawing.rooms:
         empty.add("room")
     if not flags and not empty:
