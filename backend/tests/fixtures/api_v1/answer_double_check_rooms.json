@@ -1,6 +1,6 @@
 {
   "question": "How many bedrooms are there?",
-  "drawing_id": "ca2d833018a525e4",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -8,7 +8,7 @@
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/ca2d833018a525e4/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,

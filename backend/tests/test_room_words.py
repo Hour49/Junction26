@@ -109,7 +109,7 @@ def test_the_swiss_names_are_part_of_the_ingest_reuse_key_of_the_composite(tmp_p
 
     composite = readers(extractor_raster="composite", raster_components="plans=one-plan")
     assert composite["room_words"] == "swiss+generic:v1"
-    assert composite["floor_plans"] == "rooms:v1"
+    assert composite["floor_plans"] == "rooms:v2"
     assert "room_words" not in readers(extractor_raster="hello")
 
 

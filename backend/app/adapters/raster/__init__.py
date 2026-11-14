@@ -275,7 +275,7 @@ class CompositeRasterExtractor:
         if len(kept) < len(boxed):
             notes.append(
                 f"raster composite: {len(boxed) - len(kept)} of {len(boxed)} plan boxes hold no "
-                "labelled room beside ones that do: not floor plans"
+                "room beside ones with labelled rooms: not floor plans"
             )
         return Extracted(
             method="detector",

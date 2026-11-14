@@ -30,6 +30,13 @@ def test_a_box_without_a_labelled_room_beside_plans_that_have_them_is_not_a_floo
     assert floor_plans(plans, [IN_UPPER, IN_GROUND]) == (plans[1], plans[2])
 
 
+def test_a_plan_whose_room_labels_were_not_read_stays_beside_a_labelled_one() -> None:
+    """review-377: two real plans side by side, labels read only in the first."""
+    plans = [plan(UPPER), plan(GROUND), plan(FACADE)]
+    unread = room((0.27, 0.72, 0.37, 0.82), None)
+    assert floor_plans(plans, [IN_UPPER, unread]) == (plans[0], plans[1])
+
+
 def test_a_sheet_whose_rooms_carry_no_label_keeps_every_plan_box() -> None:
     plans = [plan(UPPER), plan(GROUND)]
     unlabelled = [room((0.27, 0.52, 0.37, 0.66), None), room((0.27, 0.72, 0.37, 0.82), "  ")]
@@ -58,7 +65,7 @@ def test_the_composite_numbers_only_the_floor_plans_and_keeps_what_an_elevation_
     assert [r.plan for r in found.rooms] == ["p1", "p2"]
     assert [(e.class_, e.plan) for e in found.elements] == [("door", None)]  # on the facade
     assert (
-        "raster composite: 2 of 4 plan boxes hold no labelled room beside ones that do: not "
+        "raster composite: 2 of 4 plan boxes hold no room beside ones with labelled rooms: not "
         "floor plans"
     ) in found.notes
 

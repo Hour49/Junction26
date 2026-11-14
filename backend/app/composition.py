@@ -747,7 +747,7 @@ def build_ingest(
     if settings.extractor_raster == "composite":  # its rooms take their Swiss printed names
         # (room_words.py): readings stored before that are read again
         names["room_words"] = "swiss+generic:v1"  # +generic: "Rum", "H" are no bedrooms
-        names["floor_plans"] = "rooms:v1"  # a plan box with no labelled room (plan_rooms.py)
+        names["floor_plans"] = "rooms:v2"  # v2: drop only a box with no room (plan_rooms.py)
     if settings.double_check_readers:  # the same
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
