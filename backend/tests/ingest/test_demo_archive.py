@@ -23,7 +23,8 @@ TABLE = """# models
 | house.ifc | A house | CC-BY-4.0 | Someone (2022), CC BY 4.0 | https://example.org/house |
 | bridge.ifc | A bridge | CC-BY-ND-3.0 | Someone else | https://example.org/bridge |
 """
-ALL_FILES = "# plans\n\nAll files: CC-BY-NC-SA-4.0. Credit: Plan Co., CC BY-NC-SA 4.0.\n"
+ALL_FILES = "# plans\n\nAll files: CC-BY-4.0. Credit: Plan Co., CC BY 4.0.\n"
+NON_COMMERCIAL = "# scans\n\nAll files: CC-BY-NC-SA-4.0. Credit: Scan Co., CC BY-NC-SA 4.0.\n"
 PHOTO = {
     "file": "001.jpg",
     "title": "File:Escape plan.jpg",
@@ -39,6 +40,7 @@ def root(tmp_path: Path) -> Path:
         ("data/models", TABLE, "house.ifc"),
         ("data/models", TABLE, "bridge.ifc"),
         ("data/plans", ALL_FILES, "sub/plan.png"),
+        ("data/scans", NON_COMMERCIAL, "scan.png"),
     ]:
         (tmp_path / folder / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / folder / "LICENSE.md").write_text(record)
@@ -64,8 +66,8 @@ def test_credit_comes_from_the_table_row_the_all_files_line_or_the_manifest(root
     plan = credit_of(root / "data/plans/sub/plan.png")
     assert (plan.title, plan.licence, plan.credit) == (
         "plan.png",
-        "CC-BY-NC-SA-4.0",
-        "Plan Co., CC BY-NC-SA 4.0.",
+        "CC-BY-4.0",
+        "Plan Co., CC BY 4.0.",
     )
     photo = credit_of(root / "photos/001.jpg")
     assert (photo.licence, photo.credit) == ("CC-BY-SA-3.0", "A & B, CC BY-SA 3.0")
@@ -78,6 +80,8 @@ def test_a_licence_the_source_does_not_record_or_that_is_not_allowed_is_refused(
         build_archive([entry("data/models/house.ifc", "CC0-1.0")], root)
     with pytest.raises(DemoArchiveError, match=r"CC-BY-ND-3\.0 is not allowed"):
         build_archive([entry("data/models/bridge.ifc", "CC-BY-ND-3.0")], root)
+    with pytest.raises(DemoArchiveError, match=r"CC-BY-NC-SA-4\.0 is not allowed"):
+        build_archive([entry("data/scans/scan.png", "CC-BY-NC-SA-4.0")], root)
     with pytest.raises(DemoArchiveError, match="missing"):
         build_archive([entry("data/models/gone.ifc", "CC-BY-4.0")], root)
 
@@ -85,7 +89,7 @@ def test_a_licence_the_source_does_not_record_or_that_is_not_allowed_is_refused(
 def test_the_zip_holds_each_file_and_its_credits_and_is_the_same_every_time(root: Path) -> None:
     entries = [
         entry("data/models/house.ifc", "CC-BY-4.0"),
-        entry("data/plans/sub/plan.png", "CC-BY-NC-SA-4.0"),
+        entry("data/plans/sub/plan.png", "CC-BY-4.0"),
         entry("photos/001.jpg", "CC-BY-SA-3.0"),
     ]
     data = build_archive(entries, root)
@@ -109,3 +113,15 @@ def test_the_committed_list_names_each_file_once_with_an_allowed_licence() -> No
     assert len({file["name"] for file in files}) == len(files)
     assert all(allowed(file["licence"]) for file in files)
     assert all(file["path"].startswith("data/stoa/") for file in files)
+
+
+def test_public_domain_is_allowed_and_nothing_non_commercial_is() -> None:
+    assert allowed("PDM") and allowed("CC0-1.0") and allowed("CC-BY-SA-3.0")
+    assert not allowed("CC-BY-NC-SA-4.0") and not allowed("CC-BY-NC-4.0")
+
+
+def test_the_committed_list_has_no_cubicasa_scan() -> None:
+    """The public demo serves the zip: CubiCasa5K is CC BY-NC-SA 4.0 (RUNBOOK section 3)."""
+    files = json.loads(LIST.read_text())["files"]
+    assert not [file["path"] for file in files if "cubicasa" in file["path"].lower()]
+    assert not [file["name"] for file in files if file["licence"].startswith("CC-BY-NC")]

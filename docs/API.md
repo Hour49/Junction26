@@ -81,8 +81,8 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Unknown or malformed project, file or drawing id, unknown page, quantity key or mark id | 404 `not-found` |
 | Unknown rule pack (`?pack=`) | 404 `unknown-pack` |
 | A relevance call on, or reading as a floor plan, a file triage did not set aside as not a floor plan | 422 `not-triaged` |
-| `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
-| A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action) | 422 `validation` |
+| `reject`/`restore` without `mark`, `add` without `page` and `box` or on a page the drawing does not have, `add` to an area or length, `settle` without `value` or `note`, a width that is not 400, 1600 or 3200 | 422 `invalid` |
+| A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action, a `note` on an edit other than `settle`, an empty `note` or one over 280 characters) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
@@ -261,6 +261,13 @@ An edit of a signed-off quantity (409):
 in `RASTER_COMPONENTS`, and `DECISIONS_CONFIDENCE` and `DECISIONS_KIND` off. The screen then shows "running
 offline". A reader named `hello` reads nothing: drawings on that route have no counts, and their
 questions are refused with the code `no-reader`. `limits` lets the screen refuse a file before uploading it.
+
+`gemini` is there only when a Gemini spend limit is set (`GEMINI_BUDGET_USD`, `GEMINI_BUDGET_USD_PER_HOUR`):
+`ok`, or `budget_exhausted` while the limit is used up. Then every Gemini step (room reader, Decisions count swap
+and answer confidence, sheet-kind signal, describer) answers as when Gemini fails: nothing new is read, the
+answer stays unknown or unchanged, and the file's trace or the answer's note says "Gemini budget used up".
+Replies cached earlier still serve. With the hourly limit it clears as the last hour's spend ages out; with the
+total limit only a restart clears it. The screen can say so instead of showing empty readings.
 
 `rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
 below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
@@ -3190,7 +3197,13 @@ many quantities are left to review and how many are signed off, and every confli
       "settled": null,
       "needs_person": false,
       "signed": null,
-      "value": 30.0
+      "value": 30.0,
+      "title": "Area of room (name Küche · 1.01): 22.40 m² or 30.00 m²?",
+      "why": "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. Settled by a rule (the printed label over the outline at the sheet's scale): 30.00 m² is used.",
+      "suggestions": [
+        "22.40 m²",
+        "30.00 m²"
+      ]
     }
   ]
 }
@@ -3198,6 +3211,16 @@ many quantities are left to review and how many are signed off, and every confli
 
 `needs_person: true` marks a conflict no rule decides and nobody settled ("needs you"); the others were decided by
 a rule ("AI decision") or settled by a surveyor.
+
+The conflict card's words, rule-based from the conflict's values (no model, no paid call):
+
+- `title`: the conflict as a question, each value once: "Door count: 13 or 11?", "Area of room (name Küche ·
+  1.01): 22.40 m² or 30.00 m²?".
+- `why`: what each method read and how it is decided: "The methods disagree: 22.40 m² by the room outlines at the
+  sheet's scale, 30.00 m² by the printed room areas." then "Settled by a rule (<the rule>): 30.00 m² is used." or
+  "No rule decides between them, so a person has to choose." A stage-8 `conflict.note` sits between the two.
+- `suggestions`: short answers to tap, one per value read, as a person would type them: "13 doors", "1 door",
+  "22.40 m²". A tapped one goes back as a `settle` with its number in `value` (and the words in `note` if wanted).
 
 ### `GET /api/projects/{project_id}/issues?pack=<pack id>`
 
@@ -3247,6 +3270,9 @@ Each issue:
   `unrelated_file` can be other than `open`.
 - `file` is the file as **this project** uploaded it. `file_id` is its `FileStatus.id` (`f3`). `drawing_id` is null
   for a file with no drawing.
+- `drawing_name`: the drawing's plain name as `GET /api/projects/{id}` `drawings[].name` gives it ("Drawn plan 2",
+  the same numbering; another rendering of a drawing has that drawing's name), null for a file with no drawing.
+  Show it to a person instead of `file`, which can be a dataset's file name.
 - `floor`: the storey, only where the source states it (an IFC storey: the plan's on the page, or the quantity
   key's); null otherwise, never guessed.
 - `page`, `box`, `polygon`, `mark_id`: where to open the drawing, in page fractions as on `MarkView`.
@@ -3289,6 +3315,7 @@ A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
       "severity": "fails_rule",
       "state": "open",
       "drawing_id": "5c4ed01e00000002",
+      "drawing_name": "Drawn plan 1",
       "file": "flat-fi.pdf",
       "file_id": "f1",
       "floor": null,
@@ -3354,6 +3381,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "settled",
       "drawing_id": "44cc9f0d991eafe3",
+      "drawing_name": "Drawn plan 2",
       "file": "plans/flat-b.pdf",
       "file_id": "f3",
       "floor": null,
@@ -3406,6 +3434,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "3b3ce7db34257f63",
+      "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
       "file_id": "f4",
       "floor": null,
@@ -3437,6 +3466,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "3b3ce7db34257f63",
+      "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
       "file_id": "f4",
       "floor": null,
@@ -3468,6 +3498,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": "37f6819bd17d65d9",
+      "drawing_name": "Plan photo 1",
       "file": "photos/plan-photo.jpg",
       "file_id": "f6",
       "floor": null,
@@ -3499,6 +3530,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": null,
+      "drawing_name": null,
       "file": "photos/site.jpg",
       "file_id": "f7",
       "floor": null,
@@ -3530,6 +3562,7 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "severity": "note",
       "state": "open",
       "drawing_id": null,
+      "drawing_name": null,
       "file": "cad/detail.dxf",
       "file_id": "f9",
       "floor": null,
@@ -3573,7 +3606,8 @@ The issues with the floor plans, saved as `<project name>-issues[-<pack>].zip`:
 - `issues.csv`: the CSV above with a first column `n`, the issue's number in the list.
 - One PNG per drawing page that has issues with a box, named `<file stem>-p<page>.png` (`-2`, `-3`… when two files
   share a stem). It is the page at 1600 px with each such issue drawn (its polygon, else its box), coloured by
-  severity and labelled with its `n`. Under the page are the issues' sentences, a colour key and the drawing's
+  severity and labelled with its `n`, under the line "`<drawing_name>`, page `<n>`: `<k>` issues". Under the page
+  are the issues' sentences, a colour key and the drawing's
   licence credit.
 - An issue with no page or no box is only in the CSV, and a page with no such issue has no PNG.
 
@@ -3606,6 +3640,7 @@ that leaves the list (a refused question answered later) takes its answer with i
   "severity": "note",
   "state": "settled",
   "drawing_id": "44cc9f0d991eafe3",
+  "drawing_name": "Drawn plan 2",
   "file": "plans/flat-b.pdf",
   "file_id": "f3",
   "floor": null,
@@ -7158,7 +7193,8 @@ any project, which no project shows. A project that does not hold the drawing is
   or a scan, with the flag in `estimate`), `edited` (a review changed it), `agree` (two methods agree), `single`
   (one method).
 - `needs_person`: the methods disagree, no rule decides and nobody settled it. Such a row can't be signed off.
-- `settled`: the value a surveyor chose with `settle`, and when.
+- `settled`: the value a surveyor chose with `settle`, and when; `note`: their answer in words when they typed one
+  (else null).
 - `marks`: one per counted item (count) or per room in the sum (area), in the order the screen numbers them.
   - `n`: the number to draw, null for a mark that is not counted.
   - `state`: `counted`, `rejected` (by a surveyor), `added` (by a surveyor), `excluded` (left out by the counting
@@ -7234,7 +7270,10 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
   it. `restore` on an `excluded` mark (`x1`…) counts it in; `reject` on it leaves it out again.
 - `add`: a missed item, on a count only. The new mark gets an id `a1`, `a2`…
 - `settle`: the value to keep (one of the conflict's values, or any value the surveyor counted). It holds until
-  the next mark edit of that quantity.
+  the next mark edit of that quantity. Optional `note` (1-280 characters): the person's answer in words, kept in
+  `settled.note` (the conflict card's typed answer). With `note` and no `value`, the value in use is kept with the
+  note and the quantity counts as settled; the screen sends `value` too when the typed answer has a number.
+  `unsettle` drops the note with the value.
 - `unsettle`: drop the settled value of the quantity and nothing else: mark edits and the rest of the drawing stay
   (`reset` also drops them and the sign-off). Needs `quantity`; nothing settled is not an error; a signed-off
   quantity is 409 as for any edit.
@@ -7400,7 +7439,8 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
       "conflict": null,
       "settled": {
         "value": 3,
-        "at": "2026-11-14T08:05:00Z"
+        "at": "2026-11-14T08:05:00Z",
+        "note": null
       },
       "marks": [
         {
@@ -8082,6 +8122,14 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (board #14, plain drawing names): `Issue.drawing_name`, the drawing's `name` from
+  `GET /api/projects/{id}` (null with no drawing). The pages of `issues.zip` name the drawing by it instead of its
+  file. `file` is unchanged.
+- 2026-11-14, additive (board #14, Tudor's conflict card asks 8-10): `Edit.note` on `settle` (1-280 characters, a
+  typed answer in words; without `value` the value in use is kept) and `Settled.note` (null when none); a `note`
+  on another action, empty or too long is 422 `validation`. `settle` with neither `value` nor `note` stays 422
+  `invalid`. `ConflictEntry` (`GET /api/projects/{id}/review`) gains `title`, `why` and `suggestions`. Fixtures
+  `project_review.json` and `takeoff_edited.json` gain the new fields (last in each object).
 - 2026-11-14, additive (board #14, Tudor's asks 1, 3, 4): new `POST /api/projects/{id}/issues/{issue_id}/answer`
   (`{text, by}` or `{undo: true}`), kept with the project. `Issue` gains `answer` (`{text, by, at}` or null),
   `suggestions` (answer chips by kind) and `label` (short legend text). `GET /api/projects/{id}` gains
