@@ -35,3 +35,27 @@ export function readerName(id: string | null | undefined): string {
   if (id === null || id === undefined) return 'no reader';
   return READERS[id] ?? id;
 }
+
+// Measuring methods (backend MeasureMethod), in the backend's own words (app/core/review/proof.py METHODS).
+const METHODS: Record<string, string> = {
+  printed_label: 'printed room areas',
+  polygon_x_scale: 'room outlines × sheet scale',
+  plan_drawing: 'sheet',
+  parser: 'sheet text',
+  detector: 'detector',
+  ifc_model: 'IFC model',
+  schedule: 'schedule',
+  printed_total: 'printed total',
+  summed_rooms: 'sum of rooms',
+  scale_text: 'printed scale',
+  scale_bar: 'scale bar',
+  dimension_lines: 'dimension lines',
+  annotation: 'annotation',
+  other: 'other method',
+};
+
+/** A measuring-method id as a plain label; no id is "no method"; an id with no label shows as is. */
+export function methodName(id: string | null | undefined): string {
+  if (id === null || id === undefined) return 'no method';
+  return METHODS[id] ?? id;
+}

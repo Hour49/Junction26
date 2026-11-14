@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MarkView, Row, Takeoff } from '../api';
+import { methodName, type MarkView, type Row, type Takeoff } from '../api';
 import {
   drawing,
   error as errorBody,
@@ -231,9 +231,9 @@ describe('table and detail', () => {
   it('SV-11 both methods show in the table and the detail when set', async () => {
     show();
     await ready();
-    const both = 'polygon_x_scale 22.40 m² · printed_label 30.00 m²';
+    const both = `${methodName('polygon_x_scale')} 22.40 m² · ${methodName('printed_label')} 30.00 m²`;
     expect(screen.getByRole('row', { name: /1\.01/ }).textContent).toContain(both);
-    expect(detail().textContent).toContain('polygon_x_scale');
+    expect(detail().textContent).toContain(methodName('polygon_x_scale'));
     expect(screen.getByRole('row', { name: /door count/ }).textContent).not.toContain('·');
   });
 
@@ -241,8 +241,8 @@ describe('table and detail', () => {
     show();
     await ready();
     const text = detail().textContent;
-    expect(text).toContain('A: 22.40 m² polygon_x_scale');
-    expect(text).toContain('B: 30.00 m² printed_label');
+    expect(text).toContain(`A: 22.40 m² ${methodName('polygon_x_scale')}`);
+    expect(text).toContain(`B: 30.00 m² ${methodName('printed_label')}`);
     expect(text).toContain(
       "Kept by rule: the printed label over the outline at the sheet's scale → 30.00 m²",
     );
@@ -532,7 +532,9 @@ describe('edits', () => {
   it('SV-30 Keep sends settle with that conflict value', async () => {
     const api = show('', { [PATH.edit]: takeoff });
     await ready();
-    fireEvent.click(screen.getByRole('button', { name: 'Keep B: 30.00 m² (printed_label)' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: `Keep B: 30.00 m² (${methodName('printed_label')})` }),
+    );
     await waitFor(() => {
       expect(posted(api, PATH.edit)).toHaveLength(1);
     });
@@ -541,7 +543,9 @@ describe('edits', () => {
       action: 'settle',
       value: 30,
     });
-    expect(screen.getByRole('button', { name: 'Keep A: 22.40 m² (polygon_x_scale)' })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: `Keep A: 22.40 m² (${methodName('polygon_x_scale')})` }),
+    ).toBeTruthy();
   });
 
   it('SV-31 the Settle field sends the typed number and refuses bad input', async () => {
@@ -827,5 +831,26 @@ describe('QA round 1, project scope', () => {
     expect(csv.split('?')[0]).toBe(`/api/drawings/${did}/takeoff.csv`);
     expect(new URLSearchParams(csv.split('?')[1]).get('project')).toBe(pid);
     expect(new URLSearchParams(csv.split('?')[1]).get('zeros')).toBe('true');
+  });
+});
+
+describe('QA round 3', () => {
+  it('R3-methods measuring methods show as methodName(), never as raw ids', async () => {
+    show();
+    await ready();
+    const row = screen.getByRole('row', { name: /1\.01/ }).textContent;
+    const text = detail().textContent;
+    for (const id of ['polygon_x_scale', 'printed_label']) {
+      expect(methodName(id)).not.toBe(id);
+      expect(row).toContain(methodName(id));
+      expect(text).toContain(methodName(id));
+      expect(row).not.toContain(id);
+      expect(text).not.toContain(id);
+    }
+    expect(
+      within(detail()).getByRole('button', {
+        name: `Keep A: 22.40 m² (${methodName('polygon_x_scale')})`,
+      }),
+    ).toBeTruthy();
   });
 });

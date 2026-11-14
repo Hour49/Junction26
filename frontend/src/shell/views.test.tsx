@@ -81,4 +81,15 @@ describe('common views', () => {
     expect(screen.getByRole('alert').textContent).toContain(errorBody.detail);
     expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
   });
+
+  it('R3-credit (SH-50) the line says Credit: once, prefixed or not', () => {
+    const text = 'Plan © Example, CC BY 4.0';
+    for (const credit of [`Credit: ${text}`, text, `credit:${text}`, `CREDIT:  ${text}`]) {
+      const { container, unmount } = render(<Credit credit={credit} />);
+      expect(container.textContent).toBe(`Credit: ${text}`);
+      unmount();
+    }
+    const { container } = render(<Credit credit={null} />);
+    expect(container.textContent).toBe('Credit: none recorded for this file');
+  });
 });

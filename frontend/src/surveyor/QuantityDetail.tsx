@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { errorText, formatTime, formatValue, type Edit, type Row } from '../api';
+import { errorText, formatTime, formatValue, methodName, type Edit, type Row } from '../api';
 import { MarkList } from './MarkList';
 import { statusText } from './words';
 
@@ -55,8 +55,8 @@ export function QuantityDetail(props: Props) {
       </p>
       {row.first && row.second && (
         <p>
-          First method: {row.first.method} {fmt(row.first.value)}. Second method:{' '}
-          {row.second.method} {fmt(row.second.value)}.
+          First method: {methodName(row.first.method)} {fmt(row.first.value)}. Second method:{' '}
+          {methodName(row.second.method)} {fmt(row.second.value)}.
         </p>
       )}
       {conflict && (
@@ -64,7 +64,7 @@ export function QuantityDetail(props: Props) {
           <ul>
             {conflict.values.map((v, i) => (
               <li key={`${v.method} ${String(i)}`}>
-                {LETTERS[i]}: {formatValue(v.value, v.unit ?? row.unit)} {v.method}
+                {LETTERS[i]}: {formatValue(v.value, v.unit ?? row.unit)} {methodName(v.method)}
               </li>
             ))}
           </ul>
@@ -85,7 +85,7 @@ export function QuantityDetail(props: Props) {
                   onEdit({ quantity, action: 'settle', value: v.value });
                 }}
               >
-                Keep {LETTERS[i]}: {fmt(v.value)} ({v.method})
+                Keep {LETTERS[i]}: {fmt(v.value)} ({methodName(v.method)})
               </button>
             ))}
           </div>
